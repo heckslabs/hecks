@@ -18,7 +18,7 @@ Hecks.bluebook "MiningOperation" do
       description "Drill and blast to extend shaft deeper into ore body"
       attribute :advance_meters, Float
       attribute :drill_pattern, String
-      reference_to "MineShaft"
+      reference_to(MineShaft)
       emits "ShaftAdvanced"
     end
 
@@ -26,7 +26,7 @@ Hecks.bluebook "MiningOperation" do
       description "Install ground support bolts and mesh in newly excavated area"
       attribute :support_type, String
       attribute :coverage_sqm, Float
-      reference_to "MineShaft"
+      reference_to(MineShaft)
       emits "ShaftSupported"
     end
 
@@ -35,14 +35,7 @@ Hecks.bluebook "MiningOperation" do
       transition "SupportShaft" => "supported", from: "advanced"
     end
 
-    policy "Ground support must be installed before next advance"
-    policy "Ventilation must be verified before personnel entry"
 
-    given "Main shaft reaches 400 meter level" do
-      attribute :shaft_name, String, "Main Decline"
-      attribute :depth_meters, Float, 400.0
-      attribute :ore_body, String, "Copper Porphyry"
-    end
   end
 
   aggregate "OreBatch" do
@@ -57,7 +50,7 @@ Hecks.bluebook "MiningOperation" do
       description "Load blasted ore from stope into haul trucks"
       attribute :source_stope, String
       attribute :tonnage, Float
-      reference_to "MineShaft"
+      reference_to(MineShaft)
       emits "OreMucked"
     end
 
@@ -65,7 +58,7 @@ Hecks.bluebook "MiningOperation" do
       description "Reduce ore size through primary and secondary crushers"
       attribute :crusher_id, String
       attribute :target_size_mm, Float
-      reference_to "OreBatch"
+      reference_to(OreBatch)
       emits "OreCrushed"
     end
 
@@ -73,14 +66,14 @@ Hecks.bluebook "MiningOperation" do
       description "Grind crushed ore in ball mill for mineral liberation"
       attribute :mill_id, String
       attribute :target_size_microns, Float
-      reference_to "OreBatch"
+      reference_to(OreBatch)
       emits "OreMilled"
     end
 
     command "FloatConcentrate" do
       description "Separate valuable minerals from gangue via froth flotation"
       attribute :recovery_percent, Float
-      reference_to "OreBatch"
+      reference_to(OreBatch)
       emits "ConcentrateFloated"
     end
 
@@ -91,7 +84,6 @@ Hecks.bluebook "MiningOperation" do
       transition "FloatConcentrate" => "concentrated", from: "milled"
     end
 
-    policy "Ore grade must be sampled before processing"
   end
 
   aggregate "MiningEquipment" do
@@ -101,13 +93,13 @@ Hecks.bluebook "MiningOperation" do
     attribute :operating_hours, Float
     attribute :location, String
     attribute :status, String
-    list_of "ServiceRecord"
+    list_of(ServiceRecord)
 
     command "DeployEquipment" do
       description "Assign heavy equipment to underground working area"
       attribute :location, String
       attribute :operator_id, String
-      reference_to "MiningEquipment"
+      reference_to(MiningEquipment)
       emits "EquipmentDeployed"
     end
 
@@ -115,7 +107,7 @@ Hecks.bluebook "MiningOperation" do
       description "Execute scheduled maintenance on mining equipment underground"
       attribute :service_type, String
       attribute :mechanic, String
-      reference_to "MiningEquipment"
+      reference_to(MiningEquipment)
       emits "ServicePerformed"
     end
 
@@ -124,7 +116,6 @@ Hecks.bluebook "MiningOperation" do
       transition "PerformService" => "serviced", from: "deployed"
     end
 
-    policy "Equipment must be serviced at manufacturer intervals"
   end
 
   aggregate "SafetyIncident" do
@@ -147,7 +138,7 @@ Hecks.bluebook "MiningOperation" do
       attribute :incident_type, String
       attribute :severity, String
       attribute :reported_by, String
-      reference_to "SafetyIncident"
+      reference_to(SafetyIncident)
       emits "IncidentReported"
     end
 
@@ -155,7 +146,7 @@ Hecks.bluebook "MiningOperation" do
       description "Conduct root cause analysis and define corrective actions"
       attribute :investigator, String
       attribute :root_cause, String
-      reference_to "SafetyIncident"
+      reference_to(SafetyIncident)
       emits "IncidentInvestigated"
     end
 
@@ -164,7 +155,6 @@ Hecks.bluebook "MiningOperation" do
       transition "InvestigateIncident" => "investigated", from: "reported"
     end
 
-    policy "Lost-time incidents require immediate area shutdown"
   end
 
   aggregate "Assay" do
@@ -179,7 +169,7 @@ Hecks.bluebook "MiningOperation" do
       description "Send ore sample to assay laboratory for grade determination"
       attribute :sample_source, String
       attribute :mineral, String
-      reference_to "OreBatch"
+      reference_to(OreBatch)
       emits "SampleSubmitted"
     end
 
@@ -187,7 +177,7 @@ Hecks.bluebook "MiningOperation" do
       description "Record laboratory assay results for mine planning"
       attribute :grade_percent, Float
       attribute :analysis_method, String
-      reference_to "Assay"
+      reference_to(Assay)
       emits "ResultRecorded"
     end
 
@@ -196,7 +186,6 @@ Hecks.bluebook "MiningOperation" do
       transition "RecordResult" => "completed", from: "submitted"
     end
 
-    policy "Assay results must be returned within 48 hours"
   end
 
   policy "CrushOreOnOreMucked" do

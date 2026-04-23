@@ -12,7 +12,7 @@ Hecks.bluebook "CementPlant" do
       attribute :limestone_percent, Float
       attribute :clay_percent, Float
       attribute :iron_ore_percent, Float
-      reference_to "RawMealBatch"
+      reference_to(RawMealBatch)
       emits "RawMealBlended"
     end
 
@@ -20,7 +20,7 @@ Hecks.bluebook "CementPlant" do
       description "Grind blended raw meal to target fineness in ball mill"
       attribute :target_fineness_microns, Float
       attribute :mill_id, String
-      reference_to "RawMealBatch"
+      reference_to(RawMealBatch)
       emits "RawMealGround"
     end
 
@@ -29,7 +29,6 @@ Hecks.bluebook "CementPlant" do
       transition "GrindRawMeal" => "ground", from: "blended"
     end
 
-    policy "Raw meal chemistry must be within LSF target range"
   end
 
   aggregate "KilnRun" do
@@ -51,28 +50,28 @@ Hecks.bluebook "CementPlant" do
       description "Ignite kiln burner and ramp up to operating temperature"
       attribute :kiln_id, String
       attribute :target_flame_temp_c, Float
-      reference_to "KilnRun"
+      reference_to(KilnRun)
       emits "KilnStarted"
     end
 
     command "FeedRawMeal" do
       description "Begin feeding ground raw meal into preheater tower"
       attribute :feed_rate_tph, Float
-      reference_to "RawMealBatch"
+      reference_to(RawMealBatch)
       emits "RawMealFed"
     end
 
     command "AdjustFeedRate" do
       description "Modify raw meal feed rate to optimize clinker quality"
       attribute :new_feed_rate_tph, Float
-      reference_to "KilnRun"
+      reference_to(KilnRun)
       emits "FeedRateAdjusted"
     end
 
     command "DischargeClinker" do
       description "Collect hot clinker from kiln outlet into cooler"
       attribute :clinker_temperature_c, Float
-      reference_to "KilnRun"
+      reference_to(KilnRun)
       emits "ClinkerDischarged"
     end
 
@@ -83,14 +82,7 @@ Hecks.bluebook "CementPlant" do
       transition "DischargeClinker" => "producing", from: "running"
     end
 
-    policy "Kiln must reach stable temperature before raw meal feed begins"
-    policy "Feed rate changes must not exceed 5 tph per adjustment"
 
-    given "Kiln 2 is running at steady state" do
-      attribute :kiln_id, String, "KLN-02"
-      attribute :feed_rate_tph, Float, 120.0
-      attribute :flame_temperature_c, Float, 1450.0
-    end
   end
 
   aggregate "ClinkerSample" do
@@ -111,7 +103,7 @@ Hecks.bluebook "CementPlant" do
     command "TakeSample" do
       description "Collect clinker sample from kiln discharge for testing"
       attribute :kiln_id, String
-      reference_to "KilnRun"
+      reference_to(KilnRun)
       emits "SampleTaken"
     end
 
@@ -119,7 +111,7 @@ Hecks.bluebook "CementPlant" do
       description "Run XRF analysis on clinker sample for mineral composition"
       attribute :free_lime_percent, Float
       attribute :c3s_percent, Float
-      reference_to "ClinkerSample"
+      reference_to(ClinkerSample)
       emits "SampleAnalyzed"
     end
 
@@ -128,7 +120,6 @@ Hecks.bluebook "CementPlant" do
       transition "AnalyzeSample" => "analyzed", from: "collected"
     end
 
-    policy "Free lime above 2 percent triggers kiln adjustment"
   end
 
   aggregate "CementSilo" do
@@ -137,13 +128,13 @@ Hecks.bluebook "CementPlant" do
     attribute :capacity_tons, Float
     attribute :current_level_tons, Float
     attribute :status, String
-    list_of "RawMealBatch"
+    list_of(RawMealBatch)
 
     command "GrindClinker" do
       description "Grind clinker with gypsum in finish mill to produce cement"
       attribute :mill_id, String
       attribute :gypsum_percent, Float
-      reference_to "CementSilo"
+      reference_to(CementSilo)
       emits "ClinkerGround"
     end
 
@@ -151,7 +142,7 @@ Hecks.bluebook "CementPlant" do
       description "Transfer finished cement from mill to storage silo"
       attribute :quantity_tons, Float
       attribute :cement_type, String
-      reference_to "CementSilo"
+      reference_to(CementSilo)
       emits "SiloFilled"
     end
 
@@ -159,7 +150,7 @@ Hecks.bluebook "CementPlant" do
       description "Withdraw cement from silo for dispatch loading"
       attribute :quantity_tons, Float
       attribute :dispatch_id, String
-      reference_to "CementSilo"
+      reference_to(CementSilo)
       emits "SiloDrawn"
     end
 
@@ -169,7 +160,6 @@ Hecks.bluebook "CementPlant" do
       transition "DrawFromSilo" => "dispensing", from: "stocked"
     end
 
-    policy "Silo level must not exceed rated capacity"
   end
 
   aggregate "DispatchOrder" do
@@ -185,7 +175,7 @@ Hecks.bluebook "CementPlant" do
       attribute :customer_name, String
       attribute :delivery_mode, String
       attribute :quantity_tons, Float
-      reference_to "DispatchOrder"
+      reference_to(DispatchOrder)
       emits "DispatchScheduled"
     end
 
@@ -193,7 +183,7 @@ Hecks.bluebook "CementPlant" do
       description "Load cement into bulk truck or rail hopper from silo"
       attribute :vehicle_id, String
       attribute :loaded_tons, Float
-      reference_to "CementSilo"
+      reference_to(CementSilo)
       emits "VehicleLoaded"
     end
 
@@ -202,7 +192,6 @@ Hecks.bluebook "CementPlant" do
       transition "LoadVehicle" => "loaded", from: "scheduled"
     end
 
-    policy "Dispatch weight must match order within 2 percent tolerance"
   end
 
   policy "FeedRawMealOnKilnStarted" do

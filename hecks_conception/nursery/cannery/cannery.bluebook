@@ -5,13 +5,13 @@ Hecks.bluebook "Cannery" do
     attribute :recipe_code, String
     attribute :batch_size_kg, Float
     attribute :status, String
-    list_of "CanRun"
+    list_of(CanRun)
 
     command "StartBatch" do
       description "Initiate a production batch with recipe and raw ingredients"
       attribute :recipe_code, String
       attribute :batch_size_kg, Float
-      reference_to "ProductionBatch"
+      reference_to(ProductionBatch)
       emits "BatchStarted"
     end
 
@@ -19,7 +19,7 @@ Hecks.bluebook "Cannery" do
       description "Heat batch contents to required temperature for sterilization"
       attribute :cook_temperature_c, Float
       attribute :cook_duration_minutes, Float
-      reference_to "ProductionBatch"
+      reference_to(ProductionBatch)
       emits "BatchCooked"
     end
 
@@ -28,14 +28,7 @@ Hecks.bluebook "Cannery" do
       transition "CookBatch" => "cooked", from: "mixing"
     end
 
-    policy "Batch must reach sterilization temperature before filling"
-    policy "All ingredients must be within use-by date"
 
-    given "A tomato soup batch is started" do
-      attribute :batch_id, String, "BTH-2024-0501"
-      attribute :product_name, String, "Tomato Soup"
-      attribute :batch_size_kg, Float, 2000.0
-    end
   end
 
   aggregate "CanRun" do
@@ -57,14 +50,14 @@ Hecks.bluebook "Cannery" do
       description "Fill cans from batch contents on the filling line"
       attribute :can_size, String
       attribute :target_count, Integer
-      reference_to "ProductionBatch"
+      reference_to(ProductionBatch)
       emits "CansFilled"
     end
 
     command "SeamCans" do
       description "Double-seam lids onto filled cans for hermetic seal"
       attribute :seamer_id, String
-      reference_to "CanRun"
+      reference_to(CanRun)
       emits "CansSeamed"
     end
 
@@ -72,7 +65,7 @@ Hecks.bluebook "Cannery" do
       description "Sterilize sealed cans in retort at required time and temperature"
       attribute :retort_temp_c, Float
       attribute :retort_duration_min, Float
-      reference_to "CanRun"
+      reference_to(CanRun)
       emits "CansRetorted"
     end
 
@@ -82,7 +75,6 @@ Hecks.bluebook "Cannery" do
       transition "RetortCans" => "sterilized", from: "seamed"
     end
 
-    policy "Seam integrity must be checked every 30 minutes"
   end
 
   aggregate "LabelDesign" do
@@ -96,7 +88,7 @@ Hecks.bluebook "Cannery" do
       description "Approve label artwork and regulatory text for production"
       attribute :approver_name, String
       attribute :approval_notes, String
-      reference_to "LabelDesign"
+      reference_to(LabelDesign)
       emits "LabelDesignApproved"
     end
 
@@ -104,7 +96,7 @@ Hecks.bluebook "Cannery" do
       description "Apply labels to sealed cans on the labeling line"
       attribute :line_id, String
       attribute :can_count, Integer
-      reference_to "CanRun"
+      reference_to(CanRun)
       emits "LabelsApplied"
     end
 
@@ -113,7 +105,6 @@ Hecks.bluebook "Cannery" do
       transition "ApplyLabels" => "applied", from: "approved"
     end
 
-    policy "Labels must include allergen and nutrition information"
   end
 
   aggregate "QualityHold" do
@@ -134,7 +125,7 @@ Hecks.bluebook "Cannery" do
       description "Place production lot on quality hold pending investigation"
       attribute :reason, String
       attribute :inspector, String
-      reference_to "ProductionBatch"
+      reference_to(ProductionBatch)
       emits "HoldPlaced"
     end
 
@@ -142,14 +133,14 @@ Hecks.bluebook "Cannery" do
       description "Run incubation test on held samples to detect spoilage"
       attribute :incubation_temp_c, Float
       attribute :duration_days, Integer
-      reference_to "QualityHold"
+      reference_to(QualityHold)
       emits "IncubationComplete"
     end
 
     command "ReleaseHold" do
       description "Release held product after quality investigation passes"
       attribute :resolution_notes, String
-      reference_to "QualityHold"
+      reference_to(QualityHold)
       emits "HoldReleased"
     end
 
@@ -159,7 +150,6 @@ Hecks.bluebook "Cannery" do
       transition "ReleaseHold" => "released", from: "tested"
     end
 
-    policy "Product under hold cannot be shipped"
   end
 
   aggregate "ShippingLot" do
@@ -168,13 +158,13 @@ Hecks.bluebook "Cannery" do
     attribute :pallet_count, Integer
     attribute :carrier, String
     attribute :status, String
-    list_of "CanRun"
+    list_of(CanRun)
 
     command "AssembleLot" do
       description "Assemble pallets of canned goods into a shipping lot"
       attribute :destination, String
       attribute :pallet_count, Integer
-      reference_to "ShippingLot"
+      reference_to(ShippingLot)
       emits "LotAssembled"
     end
 
@@ -182,7 +172,7 @@ Hecks.bluebook "Cannery" do
       description "Load shipping lot onto carrier vehicle for delivery"
       attribute :carrier, String
       attribute :trailer_number, String
-      reference_to "ShippingLot"
+      reference_to(ShippingLot)
       emits "LotDispatched"
     end
 
@@ -191,7 +181,6 @@ Hecks.bluebook "Cannery" do
       transition "DispatchLot" => "dispatched", from: "assembled"
     end
 
-    policy "Only released lots may be dispatched"
   end
 
   policy "FillCansOnBatchCooked" do

@@ -17,14 +17,14 @@ Hecks.bluebook "PaperMill" do
       attribute :process_type, String
       attribute :cook_temperature, Float
       attribute :cook_duration_hours, Float
-      reference_to "PulpBatch"
+      reference_to(PulpBatch)
       emits "PulpCooked"
     end
 
     command "WashPulp" do
       description "Wash cooked pulp to remove residual lignin and chemicals"
       attribute :wash_water_volume, Float
-      reference_to "PulpBatch"
+      reference_to(PulpBatch)
       emits "PulpWashed"
     end
 
@@ -32,14 +32,14 @@ Hecks.bluebook "PaperMill" do
       description "Bleach pulp to target brightness level"
       attribute :target_brightness, Float
       attribute :bleaching_agent, String
-      reference_to "PulpBatch"
+      reference_to(PulpBatch)
       emits "PulpBleached"
     end
 
     command "RefinePulp" do
       description "Refine bleached pulp to target freeness for paper machine"
       attribute :target_freeness_csf, Float
-      reference_to "PulpBatch"
+      reference_to(PulpBatch)
       emits "PulpRefined"
     end
 
@@ -50,8 +50,6 @@ Hecks.bluebook "PaperMill" do
       transition "RefinePulp" => "refined", from: "bleached"
     end
 
-    policy "Pulp must be cooked before bleaching"
-    policy "Consistency must be within 3-6 percent for processing"
   end
 
   aggregate "PaperRoll" do
@@ -61,27 +59,27 @@ Hecks.bluebook "PaperMill" do
     attribute :width_mm, Float
     attribute :diameter_mm, Float
     attribute :status, String
-    list_of "QualityTest"
+    list_of(QualityTest)
 
     command "FormSheet" do
       description "Form wet paper sheet on the wire section of paper machine"
       attribute :machine_id, String
       attribute :target_basis_weight, Float
-      reference_to "PulpBatch"
+      reference_to(PulpBatch)
       emits "SheetFormed"
     end
 
     command "PressSheet" do
       description "Press wet sheet between felts to remove water mechanically"
       attribute :moisture_after_press, Float
-      reference_to "PaperRoll"
+      reference_to(PaperRoll)
       emits "SheetPressed"
     end
 
     command "DrySheet" do
       description "Pass sheet over heated drying cylinders to final moisture"
       attribute :final_moisture_percent, Float
-      reference_to "PaperRoll"
+      reference_to(PaperRoll)
       emits "SheetDried"
     end
 
@@ -89,7 +87,7 @@ Hecks.bluebook "PaperMill" do
       description "Wind finished paper onto a reel at the dry end"
       attribute :tension_newtons, Float
       attribute :moisture_percent, Float
-      reference_to "PaperRoll"
+      reference_to(PaperRoll)
       emits "RollWound"
     end
 
@@ -100,7 +98,6 @@ Hecks.bluebook "PaperMill" do
       transition "WindRoll" => "wound", from: "dried"
     end
 
-    policy "Moisture content must be below 8 percent before winding"
   end
 
   aggregate "PaperGrade" do
@@ -116,17 +113,11 @@ Hecks.bluebook "PaperMill" do
       attribute :grade_name, String
       attribute :target_basis_weight, Float
       attribute :min_brightness, Float
-      reference_to "PaperGrade"
+      reference_to(PaperGrade)
       emits "GradeDefined"
     end
 
-    policy "Grade specifications must have non-overlapping brightness ranges"
 
-    given "A standard copy paper grade is defined" do
-      attribute :grade_code, String, "CP-80"
-      attribute :grade_name, String, "Copy Paper 80gsm"
-      attribute :target_basis_weight, Float, 80.0
-    end
   end
 
   aggregate "PaperMachine" do
@@ -146,7 +137,7 @@ Hecks.bluebook "PaperMill" do
       description "Start paper machine and ramp up to operating speed"
       attribute :target_grade, String
       attribute :target_speed, Float
-      reference_to "PaperMachine"
+      reference_to(PaperMachine)
       emits "MachineStarted"
     end
 
@@ -154,7 +145,7 @@ Hecks.bluebook "PaperMill" do
       description "Switch machine to produce a different paper grade"
       attribute :new_grade, String
       attribute :transition_speed, Float
-      reference_to "PaperGrade"
+      reference_to(PaperGrade)
       emits "GradeChanged"
     end
 
@@ -163,7 +154,6 @@ Hecks.bluebook "PaperMill" do
       transition "ChangeGrade" => "transitioning", from: "running"
     end
 
-    policy "Machine must be stopped for felt changes"
   end
 
   aggregate "ShippingOrder" do
@@ -173,20 +163,20 @@ Hecks.bluebook "PaperMill" do
     attribute :roll_count, Integer
     attribute :delivery_date, String
     attribute :status, String
-    list_of "PaperRoll"
+    list_of(PaperRoll)
 
     command "BookShipment" do
       description "Book rolls for shipment to customer warehouse"
       attribute :customer_name, String
       attribute :carrier, String
-      reference_to "ShippingOrder"
+      reference_to(ShippingOrder)
       emits "ShipmentBooked"
     end
 
     command "DispatchShipment" do
       description "Release loaded truck or rail car for delivery"
       attribute :bill_of_lading, String
-      reference_to "ShippingOrder"
+      reference_to(ShippingOrder)
       emits "ShipmentDispatched"
     end
 
@@ -195,7 +185,6 @@ Hecks.bluebook "PaperMill" do
       transition "DispatchShipment" => "dispatched", from: "booked"
     end
 
-    policy "All rolls must pass quality tests before shipping"
   end
 
   policy "WashPulpOnPulpCooked" do

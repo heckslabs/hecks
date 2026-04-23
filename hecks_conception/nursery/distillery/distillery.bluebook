@@ -18,7 +18,7 @@ Hecks.bluebook "Distillery" do
       attribute :grain_recipe, String
       attribute :water_temperature_f, Float
       attribute :volume_gallons, Float
-      reference_to "MashBill"
+      reference_to(MashBill)
       emits "MashMixed"
     end
 
@@ -26,7 +26,7 @@ Hecks.bluebook "Distillery" do
       description "Pitch yeast and ferment mash to produce wash"
       attribute :yeast_strain, String
       attribute :fermentation_temp_f, Float
-      reference_to "MashBill"
+      reference_to(MashBill)
       emits "MashFermented"
     end
 
@@ -34,7 +34,7 @@ Hecks.bluebook "Distillery" do
       description "Run fermented wash through copper pot still or column still"
       attribute :still_type, String
       attribute :cut_point_proof, Float
-      reference_to "MashBill"
+      reference_to(MashBill)
       emits "WashDistilled"
     end
 
@@ -44,14 +44,7 @@ Hecks.bluebook "Distillery" do
       transition "DistillWash" => "distilled", from: "fermented"
     end
 
-    policy "Mash must reach target gravity before fermentation"
-    policy "Fermentation must complete before distillation"
 
-    given "A bourbon mash bill is prepared" do
-      attribute :spirit_type, String, "Bourbon"
-      attribute :grain_recipe, String, "75% Corn, 15% Rye, 10% Malted Barley"
-      attribute :volume_gallons, Float, 500.0
-    end
   end
 
   aggregate "Barrel" do
@@ -68,14 +61,14 @@ Hecks.bluebook "Distillery" do
       attribute :barrel_type, String
       attribute :char_level, String
       attribute :fill_proof, Float
-      reference_to "MashBill"
+      reference_to(MashBill)
       emits "BarrelFilled"
     end
 
     command "RotateBarrel" do
       description "Move barrel to different warehouse position for even aging"
       attribute :new_location, String
-      reference_to "Barrel"
+      reference_to(Barrel)
       emits "BarrelRotated"
     end
 
@@ -85,7 +78,6 @@ Hecks.bluebook "Distillery" do
       transition "SampleBarrel" => "sampled", from: "aging"
     end
 
-    policy "Barrel proof must be recorded at fill time"
   end
 
   aggregate "AgingProgram" do
@@ -94,7 +86,7 @@ Hecks.bluebook "Distillery" do
     attribute :minimum_age_months, Integer
     attribute :warehouse_id, String
     attribute :status, String
-    list_of "Barrel"
+    list_of(Barrel)
 
     value_object "WarehouseClimate" do
       attribute :temperature_f, Float
@@ -106,7 +98,7 @@ Hecks.bluebook "Distillery" do
       description "Assign filled barrels to an aging program in specific warehouse"
       attribute :warehouse_id, String
       attribute :minimum_age_months, Integer
-      reference_to "Barrel"
+      reference_to(Barrel)
       emits "BarrelAssigned"
     end
 
@@ -114,7 +106,7 @@ Hecks.bluebook "Distillery" do
       description "Pull sample from aging barrel to assess maturity"
       attribute :sample_proof, Float
       attribute :tasting_notes, String
-      reference_to "Barrel"
+      reference_to(Barrel)
       emits "BarrelSampled"
     end
 
@@ -122,7 +114,7 @@ Hecks.bluebook "Distillery" do
       description "Master distiller approves barrel for blending based on sample"
       attribute :approver, String
       attribute :approval_notes, String
-      reference_to "Barrel"
+      reference_to(Barrel)
       emits "BarrelApproved"
     end
 
@@ -132,7 +124,6 @@ Hecks.bluebook "Distillery" do
       transition "ApproveForBlending" => "approved", from: "sampled"
     end
 
-    policy "Barrels cannot be released before minimum age"
   end
 
   aggregate "BlendBatch" do
@@ -141,21 +132,21 @@ Hecks.bluebook "Distillery" do
     attribute :barrel_count, Integer
     attribute :target_proof, Float
     attribute :status, String
-    list_of "Barrel"
+    list_of(Barrel)
 
     command "BlendBarrels" do
       description "Combine selected barrels into a blending tank"
       attribute :product_name, String
       attribute :barrel_count, Integer
       attribute :target_proof, Float
-      reference_to "BlendBatch"
+      reference_to(BlendBatch)
       emits "BarrelsBlended"
     end
 
     command "ProofDown" do
       description "Add water to bring blend to bottling proof"
       attribute :bottling_proof, Float
-      reference_to "BlendBatch"
+      reference_to(BlendBatch)
       emits "ProofAdjusted"
     end
 
@@ -164,7 +155,6 @@ Hecks.bluebook "Distillery" do
       transition "ProofDown" => "proofed", from: "blended"
     end
 
-    policy "Blend recipe must be approved by master distiller"
   end
 
   aggregate "BottlingRun" do
@@ -178,21 +168,21 @@ Hecks.bluebook "Distillery" do
       description "Fill and cap bottles from the blending tank"
       attribute :bottle_size, String
       attribute :target_count, Integer
-      reference_to "BlendBatch"
+      reference_to(BlendBatch)
       emits "SpiritBottled"
     end
 
     command "LabelBottles" do
       description "Apply product labels and tax stamps to filled bottles"
       attribute :label_version, String
-      reference_to "BottlingRun"
+      reference_to(BottlingRun)
       emits "BottlesLabeled"
     end
 
     command "PackCases" do
       description "Pack labeled bottles into cases for warehouse or shipping"
       attribute :cases_packed, Integer
-      reference_to "BottlingRun"
+      reference_to(BottlingRun)
       emits "CasesPacked"
     end
 
@@ -202,7 +192,6 @@ Hecks.bluebook "Distillery" do
       transition "PackCases" => "packed", from: "labeled"
     end
 
-    policy "Tax stamps must be applied before case packing"
   end
 
   policy "FillBarrelOnWashDistilled" do

@@ -7,14 +7,14 @@ Hecks.bluebook "ContainerPort" do
     attribute :discharge_count, Integer
     attribute :load_count, Integer
     attribute :status, String
-    list_of "Container"
+    list_of(Container)
 
     command "RegisterCall" do
       description "Register expected vessel call with cargo manifest details"
       attribute :vessel_name, String
       attribute :voyage_number, String
       attribute :discharge_count, Integer
-      reference_to "VesselCall"
+      reference_to(VesselCall)
       emits "CallRegistered"
     end
 
@@ -22,13 +22,13 @@ Hecks.bluebook "ContainerPort" do
       description "Record vessel arrival at port anchorage or pilot station"
       attribute :arrival_time, String
       attribute :pilot_name, String
-      reference_to "VesselCall"
+      reference_to(VesselCall)
       emits "VesselArrived"
     end
 
     command "CompleteCall" do
       description "Finalize vessel operations and issue departure clearance"
-      reference_to "VesselCall"
+      reference_to(VesselCall)
       emits "CallCompleted"
     end
 
@@ -38,7 +38,6 @@ Hecks.bluebook "ContainerPort" do
       transition "CompleteCall" => "departed", from: "arrived"
     end
 
-    policy "Manifest must be received 24 hours before vessel arrival"
   end
 
   aggregate "Berth" do
@@ -52,13 +51,13 @@ Hecks.bluebook "ContainerPort" do
       description "Assign incoming vessel to available berth based on size and draft"
       attribute :vessel_id, String
       attribute :estimated_arrival, String
-      reference_to "Berth"
+      reference_to(Berth)
       emits "BerthAssigned"
     end
 
     command "ReleaseBerth" do
       description "Free berth after vessel departure and post-departure inspection"
-      reference_to "Berth"
+      reference_to(Berth)
       emits "BerthReleased"
     end
 
@@ -67,8 +66,6 @@ Hecks.bluebook "ContainerPort" do
       transition "ReleaseBerth" => "available", from: "occupied"
     end
 
-    policy "Vessel draft must not exceed berth depth"
-    policy "Berth must be released within 2 hours of vessel departure"
   end
 
   aggregate "GantryCrane" do
@@ -89,14 +86,14 @@ Hecks.bluebook "ContainerPort" do
       description "Position gantry crane at berth for vessel loading or discharge"
       attribute :berth_id, String
       attribute :operation_type, String
-      reference_to "Berth"
+      reference_to(Berth)
       emits "CraneDeployed"
     end
 
     command "CompleteCraneWork" do
       description "All crane moves for vessel completed and crane returned to park"
       attribute :total_moves, Integer
-      reference_to "GantryCrane"
+      reference_to(GantryCrane)
       emits "CraneWorkCompleted"
     end
 
@@ -104,7 +101,7 @@ Hecks.bluebook "ContainerPort" do
       description "Log crane downtime event with cause and duration"
       attribute :cause, String
       attribute :duration_minutes, Float
-      reference_to "GantryCrane"
+      reference_to(GantryCrane)
       emits "DowntimeRecorded"
     end
 
@@ -114,7 +111,6 @@ Hecks.bluebook "ContainerPort" do
       transition "RecordDowntime" => "down", from: "working"
     end
 
-    policy "Crane operations halt when wind exceeds 55 knots"
   end
 
   aggregate "Container" do
@@ -129,7 +125,7 @@ Hecks.bluebook "ContainerPort" do
       description "Lift container from vessel hold or deck to quay"
       attribute :vessel_id, String
       attribute :bay_position, String
-      reference_to "Berth"
+      reference_to(Berth)
       emits "ContainerDischarged"
     end
 
@@ -137,7 +133,7 @@ Hecks.bluebook "ContainerPort" do
       description "Transport and stack container in yard block position"
       attribute :block_id, String
       attribute :row_bay_tier, String
-      reference_to "Container"
+      reference_to(Container)
       emits "ContainerStacked"
     end
 
@@ -145,7 +141,7 @@ Hecks.bluebook "ContainerPort" do
       description "Release container through gate to trucker after clearance"
       attribute :trucker_id, String
       attribute :gate_pass, String
-      reference_to "Container"
+      reference_to(Container)
       emits "ContainerGatedOut"
     end
 
@@ -155,13 +151,7 @@ Hecks.bluebook "ContainerPort" do
       transition "GateOutContainer" => "delivered", from: "in_yard"
     end
 
-    policy "Reefer containers must be plugged in within 30 minutes of discharge"
 
-    given "A 40ft reefer container is discharged" do
-      attribute :iso_size_type, String, "45R1"
-      attribute :shipping_line, String, "Maersk"
-      attribute :gross_weight_kg, Float, 28000.0
-    end
   end
 
   aggregate "CustomsClearance" do
@@ -182,14 +172,14 @@ Hecks.bluebook "ContainerPort" do
       description "Submit customs import or export declaration for container"
       attribute :declaration_type, String
       attribute :broker_name, String
-      reference_to "Container"
+      reference_to(Container)
       emits "DeclarationSubmitted"
     end
 
     command "GrantRelease" do
       description "Issue customs release allowing container to leave port"
       attribute :release_number, String
-      reference_to "CustomsClearance"
+      reference_to(CustomsClearance)
       emits "ReleaseGranted"
     end
 
@@ -198,7 +188,6 @@ Hecks.bluebook "ContainerPort" do
       transition "GrantRelease" => "cleared", from: "filed"
     end
 
-    policy "Container cannot gate out without customs release"
   end
 
   policy "AssignBerthOnVesselArrived" do

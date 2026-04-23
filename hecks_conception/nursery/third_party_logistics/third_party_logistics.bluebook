@@ -19,14 +19,14 @@ Hecks.bluebook "ThirdPartyLogistics" do
       attribute :company_name, String
       attribute :contract_type, String
       attribute :account_manager, String
-      reference_to "LogisticsClient"
+      reference_to(LogisticsClient)
       emits "ClientOnboarded"
     end
 
     command "SuspendClient" do
       description "Temporarily suspend client account due to payment or compliance issue"
       attribute :suspension_reason, String
-      reference_to "LogisticsClient"
+      reference_to(LogisticsClient)
       emits "ClientSuspended"
     end
 
@@ -35,14 +35,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       transition "SuspendClient" => "suspended", from: "active"
     end
 
-    policy "Service levels must be defined before first order intake"
-    policy "Suspended clients cannot submit new orders"
 
-    given "A consumer electronics client is onboarded" do
-      attribute :company_name, String, "BrightScreen Electronics"
-      attribute :contract_type, String, "Full Service 3PL"
-      attribute :industry, String, "Consumer Electronics"
-    end
   end
 
   aggregate "Warehouse" do
@@ -52,7 +45,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
     attribute :total_sqft, Float
     attribute :available_sqft, Float
     attribute :status, String
-    list_of "StorageZone"
+    list_of(StorageZone)
 
     value_object "StorageZone" do
       attribute :zone_name, String
@@ -66,7 +59,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       attribute :client_id, String
       attribute :sqft_requested, Float
       attribute :zone_name, String
-      reference_to "LogisticsClient"
+      reference_to(LogisticsClient)
       emits "SpaceAllocated"
     end
 
@@ -74,7 +67,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       description "Accept inbound inventory from client supplier into warehouse"
       attribute :pallet_count, Integer
       attribute :purchase_order, String
-      reference_to "Warehouse"
+      reference_to(Warehouse)
       emits "InventoryReceived"
     end
 
@@ -82,7 +75,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       description "Free allocated warehouse space after client inventory removal"
       attribute :client_id, String
       attribute :sqft_released, Float
-      reference_to "Warehouse"
+      reference_to(Warehouse)
       emits "SpaceReleased"
     end
 
@@ -92,7 +85,6 @@ Hecks.bluebook "ThirdPartyLogistics" do
       transition "ReleaseSpace" => "available", from: "stocked"
     end
 
-    policy "Warehouse utilization must not exceed 95 percent capacity"
   end
 
   aggregate "FulfillmentOrder" do
@@ -109,7 +101,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       attribute :client_id, String
       attribute :order_type, String
       attribute :ship_to_address, String
-      reference_to "FulfillmentOrder"
+      reference_to(FulfillmentOrder)
       emits "OrderReceived"
     end
 
@@ -117,14 +109,14 @@ Hecks.bluebook "ThirdPartyLogistics" do
       description "Pick ordered items from warehouse and pack for shipment"
       attribute :picker_id, String
       attribute :items_picked, Integer
-      reference_to "FulfillmentOrder"
+      reference_to(FulfillmentOrder)
       emits "OrderPacked"
     end
 
     command "ShipOrder" do
       description "Hand off packed order to carrier for last mile delivery"
       attribute :tracking_number, String
-      reference_to "FulfillmentOrder"
+      reference_to(FulfillmentOrder)
       emits "OrderShipped"
     end
 
@@ -134,7 +126,6 @@ Hecks.bluebook "ThirdPartyLogistics" do
       transition "ShipOrder" => "shipped", from: "packed"
     end
 
-    policy "Priority orders must be picked within 2 hours of receipt"
   end
 
   aggregate "CarrierAssignment" do
@@ -149,7 +140,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       description "Select and assign shipping carrier based on rate and service level"
       attribute :carrier_name, String
       attribute :service_level, String
-      reference_to "FulfillmentOrder"
+      reference_to(FulfillmentOrder)
       emits "CarrierAssigned"
     end
 
@@ -158,14 +149,14 @@ Hecks.bluebook "ThirdPartyLogistics" do
       attribute :milestone, String
       attribute :location, String
       attribute :timestamp, String
-      reference_to "CarrierAssignment"
+      reference_to(CarrierAssignment)
       emits "ShipmentTracked"
     end
 
     command "ConfirmDelivery" do
       description "Record final delivery confirmation from carrier"
       attribute :delivery_proof, String
-      reference_to "CarrierAssignment"
+      reference_to(CarrierAssignment)
       emits "DeliveryConfirmed"
     end
 
@@ -175,7 +166,6 @@ Hecks.bluebook "ThirdPartyLogistics" do
       transition "ConfirmDelivery" => "delivered", from: "in_transit"
     end
 
-    policy "Carrier must provide tracking number within 1 hour of pickup"
   end
 
   aggregate "ClientInvoice" do
@@ -187,13 +177,13 @@ Hecks.bluebook "ThirdPartyLogistics" do
     attribute :freight_charges, Float
     attribute :total_amount, Float
     attribute :status, String
-    list_of "FulfillmentOrder"
+    list_of(FulfillmentOrder)
 
     command "GenerateInvoice" do
       description "Calculate and generate monthly client invoice from activity data"
       attribute :client_id, String
       attribute :billing_period, String
-      reference_to "ClientInvoice"
+      reference_to(ClientInvoice)
       emits "InvoiceGenerated"
     end
 
@@ -201,7 +191,7 @@ Hecks.bluebook "ThirdPartyLogistics" do
       description "Apply credit memo to invoice for service failures or disputes"
       attribute :credit_amount, Float
       attribute :credit_reason, String
-      reference_to "ClientInvoice"
+      reference_to(ClientInvoice)
       emits "CreditApplied"
     end
 
@@ -210,7 +200,6 @@ Hecks.bluebook "ThirdPartyLogistics" do
       transition "ApplyCredit" => "adjusted", from: "generated"
     end
 
-    policy "Invoices must be issued within 5 business days of period close"
   end
 
   policy "AllocateSpaceOnClientOnboarded" do

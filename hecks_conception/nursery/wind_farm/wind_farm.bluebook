@@ -18,14 +18,14 @@ Hecks.bluebook "WindFarm" do
       description "Complete mechanical and electrical installation of wind turbine"
       attribute :model, String
       attribute :rated_capacity_mw, Float
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "TurbineInstalled"
     end
 
     command "RunCommissioning" do
       description "Run commissioning tests to verify turbine meets design parameters"
       attribute :commissioning_engineer, String
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "CommissioningCompleted"
     end
 
@@ -33,7 +33,7 @@ Hecks.bluebook "WindFarm" do
       description "Complete commissioning tests and connect turbine to grid"
       attribute :model, String
       attribute :rated_capacity_mw, Float
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "TurbineActivated"
     end
 
@@ -41,7 +41,7 @@ Hecks.bluebook "WindFarm" do
       description "Reduce or stop turbine output for grid or noise constraints"
       attribute :curtailment_reason, String
       attribute :curtailed_to_mw, Float
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "TurbineCurtailed"
     end
 
@@ -52,8 +52,6 @@ Hecks.bluebook "WindFarm" do
       transition "CurtailTurbine" => "curtailed", from: "generating"
     end
 
-    policy "Turbines must be shut down when wind exceeds cut-out speed"
-    policy "Annual inspection required for continued grid connection"
   end
 
   aggregate "PowerOutput" do
@@ -70,7 +68,7 @@ Hecks.bluebook "WindFarm" do
       attribute :turbine_id, String
       attribute :output_mw, Float
       attribute :wind_speed_mps, Float
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "OutputRecorded"
     end
 
@@ -78,7 +76,7 @@ Hecks.bluebook "WindFarm" do
       description "Flag turbine producing below expected power curve"
       attribute :expected_mw, Float
       attribute :actual_mw, Float
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "UnderperformanceFlagged"
     end
 
@@ -87,13 +85,7 @@ Hecks.bluebook "WindFarm" do
       transition "FlagUnderperformance" => "flagged", from: "recorded"
     end
 
-    policy "Underperformance beyond 10 percent triggers maintenance review"
 
-    given "Turbine T-07 produces 2.1 MW at 12 m/s wind" do
-      attribute :turbine_id, String, "T-07"
-      attribute :output_mw, Float, 2.1
-      attribute :wind_speed_mps, Float, 12.0
-    end
   end
 
   aggregate "MaintenanceCampaign" do
@@ -103,14 +95,14 @@ Hecks.bluebook "WindFarm" do
     attribute :end_date, String
     attribute :turbine_count, Integer
     attribute :status, String
-    list_of "Turbine"
+    list_of(Turbine)
 
     command "PlanCampaign" do
       description "Schedule multi-turbine maintenance campaign with crew and parts"
       attribute :campaign_type, String
       attribute :start_date, String
       attribute :turbine_count, Integer
-      reference_to "MaintenanceCampaign"
+      reference_to(MaintenanceCampaign)
       emits "CampaignPlanned"
     end
 
@@ -118,14 +110,14 @@ Hecks.bluebook "WindFarm" do
       description "Sign off individual turbine maintenance within campaign"
       attribute :turbine_id, String
       attribute :technician, String
-      reference_to "Turbine"
+      reference_to(Turbine)
       emits "TurbineServiced"
     end
 
     command "CloseCampaign" do
       description "Close campaign after all turbines serviced and reports filed"
       attribute :close_notes, String
-      reference_to "MaintenanceCampaign"
+      reference_to(MaintenanceCampaign)
       emits "CampaignClosed"
     end
 
@@ -135,7 +127,6 @@ Hecks.bluebook "WindFarm" do
       transition "CloseCampaign" => "closed", from: "in_progress"
     end
 
-    policy "All safety lockout procedures required before nacelle entry"
   end
 
   aggregate "WeatherStation" do
@@ -158,7 +149,7 @@ Hecks.bluebook "WindFarm" do
       attribute :wind_speed_mps, Float
       attribute :wind_direction_deg, Float
       attribute :temperature_c, Float
-      reference_to "WeatherStation"
+      reference_to(WeatherStation)
       emits "WeatherRecorded"
     end
 
@@ -166,11 +157,10 @@ Hecks.bluebook "WindFarm" do
       description "Issue icing alert when temperature and humidity indicate blade ice risk"
       attribute :temperature_c, Float
       attribute :humidity_percent, Float
-      reference_to "WeatherStation"
+      reference_to(WeatherStation)
       emits "IcingAlerted"
     end
 
-    policy "Icing conditions require turbine shutdown and blade inspection"
   end
 
   aggregate "GridConnection" do
@@ -184,7 +174,7 @@ Hecks.bluebook "WindFarm" do
       description "Deliver generated power to grid substation per schedule"
       attribute :dispatched_mw, Float
       attribute :schedule_period, String
-      reference_to "GridConnection"
+      reference_to(GridConnection)
       emits "PowerDispatched"
     end
 
@@ -192,7 +182,7 @@ Hecks.bluebook "WindFarm" do
       description "Submit turbine availability data to grid operator"
       attribute :available_capacity_mw, Float
       attribute :turbines_online, Integer
-      reference_to "GridConnection"
+      reference_to(GridConnection)
       emits "AvailabilityReported"
     end
 
@@ -201,7 +191,6 @@ Hecks.bluebook "WindFarm" do
       transition "ReportAvailability" => "reported", from: "dispatching"
     end
 
-    policy "Output must not exceed contracted grid capacity"
   end
 
   policy "RunCommissioningOnTurbineInstalled" do

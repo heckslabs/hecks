@@ -11,7 +11,7 @@ Hecks.bluebook "Hydroelectric" do
       description "Measure and record reservoir water level and inflow data"
       attribute :current_level_m, Float
       attribute :inflow_cms, Float
-      reference_to "Reservoir"
+      reference_to(Reservoir)
       emits "LevelRecorded"
     end
 
@@ -19,7 +19,7 @@ Hecks.bluebook "Hydroelectric" do
       description "Project reservoir inflow based on weather and snowpack data"
       attribute :forecast_inflow_cms, Float
       attribute :forecast_days, Integer
-      reference_to "Reservoir"
+      reference_to(Reservoir)
       emits "InflowForecasted"
     end
 
@@ -28,7 +28,6 @@ Hecks.bluebook "Hydroelectric" do
       transition "ForecastInflow" => "forecasted", from: "measured"
     end
 
-    policy "Reservoir must maintain minimum environmental flow release"
   end
 
   aggregate "HydroTurbine" do
@@ -49,28 +48,28 @@ Hecks.bluebook "Hydroelectric" do
     command "StartTurbine" do
       description "Open wicket gates and bring turbine generator up to synchronous speed"
       attribute :target_output_mw, Float
-      reference_to "HydroTurbine"
+      reference_to(HydroTurbine)
       emits "TurbineStarted"
     end
 
     command "SynchronizeGenerator" do
       description "Connect generator to grid at synchronous frequency and voltage"
       attribute :output_mw, Float
-      reference_to "HydroTurbine"
+      reference_to(HydroTurbine)
       emits "GeneratorSynchronized"
     end
 
     command "AdjustOutput" do
       description "Modulate wicket gate opening to change power output"
       attribute :new_output_mw, Float
-      reference_to "HydroTurbine"
+      reference_to(HydroTurbine)
       emits "OutputAdjusted"
     end
 
     command "StopTurbine" do
       description "Close wicket gates and shut down turbine generator unit"
       attribute :stop_reason, String
-      reference_to "HydroTurbine"
+      reference_to(HydroTurbine)
       emits "TurbineStopped"
     end
 
@@ -81,14 +80,7 @@ Hecks.bluebook "Hydroelectric" do
       transition "StopTurbine" => "offline", from: "generating"
     end
 
-    policy "Turbine must reach synchronous speed before connecting to grid"
-    policy "Cavitation detection triggers immediate load reduction"
 
-    given "Unit 3 Francis turbine runs at 85 MW" do
-      attribute :turbine_type, String, "Francis"
-      attribute :rated_capacity_mw, Float, 100.0
-      attribute :current_output_mw, Float, 85.0
-    end
   end
 
   aggregate "SpillwayGate" do
@@ -109,13 +101,13 @@ Hecks.bluebook "Hydroelectric" do
       description "Raise spillway gate to release excess water downstream"
       attribute :target_opening_m, Float
       attribute :authorization, String
-      reference_to "SpillwayGate"
+      reference_to(SpillwayGate)
       emits "GateOpened"
     end
 
     command "CloseGate" do
       description "Lower spillway gate to reduce or stop controlled discharge"
-      reference_to "SpillwayGate"
+      reference_to(SpillwayGate)
       emits "GateClosed"
     end
 
@@ -124,7 +116,6 @@ Hecks.bluebook "Hydroelectric" do
       transition "CloseGate" => "closed", from: "open"
     end
 
-    policy "Gate operations require dam safety officer authorization"
   end
 
   aggregate "GenerationSchedule" do
@@ -133,13 +124,13 @@ Hecks.bluebook "Hydroelectric" do
     attribute :peak_dispatch_mw, Float
     attribute :off_peak_dispatch_mw, Float
     attribute :status, String
-    list_of "HydroTurbine"
+    list_of(HydroTurbine)
 
     command "CommitSchedule" do
       description "Submit hourly generation schedule to grid operator"
       attribute :schedule_date, String
       attribute :peak_dispatch_mw, Float
-      reference_to "GenerationSchedule"
+      reference_to(GenerationSchedule)
       emits "ScheduleCommitted"
     end
 
@@ -147,14 +138,14 @@ Hecks.bluebook "Hydroelectric" do
       description "Update generation schedule due to water or grid conditions"
       attribute :revised_peak_mw, Float
       attribute :revision_reason, String
-      reference_to "GenerationSchedule"
+      reference_to(GenerationSchedule)
       emits "ScheduleRevised"
     end
 
     command "SettleGeneration" do
       description "Reconcile actual generation against committed schedule for billing"
       attribute :actual_mwh, Float
-      reference_to "GenerationSchedule"
+      reference_to(GenerationSchedule)
       emits "GenerationSettled"
     end
 
@@ -164,7 +155,6 @@ Hecks.bluebook "Hydroelectric" do
       transition "SettleGeneration" => "settled", from: "committed"
     end
 
-    policy "Scheduled generation must not exceed available water budget"
   end
 
   aggregate "EnvironmentalRelease" do
@@ -179,7 +169,7 @@ Hecks.bluebook "Hydroelectric" do
       description "Log environmental minimum flow release downstream of dam"
       attribute :actual_flow_cms, Float
       attribute :monitoring_period, String
-      reference_to "EnvironmentalRelease"
+      reference_to(EnvironmentalRelease)
       emits "ReleaseRecorded"
     end
 
@@ -187,7 +177,7 @@ Hecks.bluebook "Hydroelectric" do
       description "Modify environmental release rate per regulatory or seasonal order"
       attribute :new_minimum_cms, Float
       attribute :regulatory_order, String
-      reference_to "EnvironmentalRelease"
+      reference_to(EnvironmentalRelease)
       emits "ReleaseAdjusted"
     end
 
@@ -196,7 +186,6 @@ Hecks.bluebook "Hydroelectric" do
       transition "AdjustRelease" => "adjusted", from: "recorded"
     end
 
-    policy "Environmental flow must never drop below regulatory minimum"
   end
 
   policy "CommitScheduleOnInflowForecasted" do

@@ -18,7 +18,7 @@ Hecks.bluebook "RailYard" do
       description "Receive inbound rail car into yard receiving track"
       attribute :train_symbol, String
       attribute :origin_yard, String
-      reference_to "RailCar"
+      reference_to(RailCar)
       emits "CarReceived"
     end
 
@@ -26,7 +26,7 @@ Hecks.bluebook "RailYard" do
       description "Perform mechanical safety inspection on received rail car"
       attribute :inspection_type, String
       attribute :inspector, String
-      reference_to "RailCar"
+      reference_to(RailCar)
       emits "CarInspected"
     end
 
@@ -34,7 +34,7 @@ Hecks.bluebook "RailYard" do
       description "Sort car to correct classification track based on destination"
       attribute :destination_track, String
       attribute :outbound_train, String
-      reference_to "RailCar"
+      reference_to(RailCar)
       emits "CarClassified"
     end
 
@@ -44,14 +44,7 @@ Hecks.bluebook "RailYard" do
       transition "ClassifyCar" => "classified", from: "inspected"
     end
 
-    policy "Defective cars must be set out for repair before classification"
-    policy "Hazmat cars require special placement rules in consist"
 
-    given "A tank car arrives with crude oil" do
-      attribute :car_type, String, "Tank Car"
-      attribute :reporting_mark, String, "TILX 198234"
-      attribute :lading, String, "Crude Petroleum"
-    end
   end
 
   aggregate "TrainConsist" do
@@ -61,13 +54,13 @@ Hecks.bluebook "RailYard" do
     attribute :destination, String
     attribute :car_count, Integer
     attribute :status, String
-    list_of "RailCar"
+    list_of(RailCar)
 
     command "BuildConsist" do
       description "Assemble classified cars into departure train consist"
       attribute :train_symbol, String
       attribute :destination, String
-      reference_to "TrainConsist"
+      reference_to(TrainConsist)
       emits "ConsistBuilt"
     end
 
@@ -75,7 +68,7 @@ Hecks.bluebook "RailYard" do
       description "Perform Class I air brake test on assembled consist"
       attribute :inspector, String
       attribute :test_result, String
-      reference_to "TrainConsist"
+      reference_to(TrainConsist)
       emits "BrakesTested"
     end
 
@@ -83,7 +76,7 @@ Hecks.bluebook "RailYard" do
       description "Release assembled train for mainline departure"
       attribute :crew_id, String
       attribute :locomotive_ids, String
-      reference_to "TrainConsist"
+      reference_to(TrainConsist)
       emits "TrainDeparted"
     end
 
@@ -93,7 +86,6 @@ Hecks.bluebook "RailYard" do
       transition "DepartTrain" => "departed", from: "tested"
     end
 
-    policy "Air brake test required before departure"
   end
 
   aggregate "SwitchMove" do
@@ -109,13 +101,13 @@ Hecks.bluebook "RailYard" do
       attribute :switch_engine_id, String
       attribute :origin_track, String
       attribute :destination_track, String
-      reference_to "RailCar"
+      reference_to(RailCar)
       emits "SwitchExecuted"
     end
 
     command "CoupleAir" do
       description "Connect air hoses and charge brake line after coupling cars"
-      reference_to "SwitchMove"
+      reference_to(SwitchMove)
       emits "AirCoupled"
     end
 
@@ -124,7 +116,6 @@ Hecks.bluebook "RailYard" do
       transition "CoupleAir" => "coupled", from: "executed"
     end
 
-    policy "Blue flag protection required when workers are between cars"
   end
 
   aggregate "YardSchedule" do
@@ -145,14 +136,14 @@ Hecks.bluebook "RailYard" do
       description "Create yard work plan for inbound and outbound trains"
       attribute :shift_date, String
       attribute :shift, String
-      reference_to "YardSchedule"
+      reference_to(YardSchedule)
       emits "ShiftPlanned"
     end
 
     command "AdjustSchedule" do
       description "Update schedule for late arrivals or equipment changes"
       attribute :reason, String
-      reference_to "YardSchedule"
+      reference_to(YardSchedule)
       emits "ScheduleAdjusted"
     end
 
@@ -161,7 +152,6 @@ Hecks.bluebook "RailYard" do
       transition "AdjustSchedule" => "adjusted", from: "planned"
     end
 
-    policy "Outbound trains must depart within scheduled window"
   end
 
   aggregate "CarInspection" do
@@ -176,7 +166,7 @@ Hecks.bluebook "RailYard" do
       description "Apply bad order tag to car with identified safety defect"
       attribute :defect_code, String
       attribute :defect_description, String
-      reference_to "RailCar"
+      reference_to(RailCar)
       emits "DefectTagged"
     end
 
@@ -184,7 +174,7 @@ Hecks.bluebook "RailYard" do
       description "Complete repair on defective car and return to service"
       attribute :mechanic, String
       attribute :repair_description, String
-      reference_to "CarInspection"
+      reference_to(CarInspection)
       emits "DefectRepaired"
     end
 
@@ -193,7 +183,6 @@ Hecks.bluebook "RailYard" do
       transition "RepairDefect" => "repaired", from: "tagged"
     end
 
-    policy "FRA defects require immediate set-out from active service"
   end
 
   policy "InspectCarOnCarReceived" do
