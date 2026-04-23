@@ -1,4 +1,8 @@
 #!/bin/bash
+# [antibody-exempt: i37 Phase C — porting legacy python to shell +
+#  hecks-life subcommands; retires when shell ports to bluebook shebang
+#  form.]
+#
 # pulse_fanout_smoke.sh — Stage-A shadow for the across "Pulse" fanout.
 #
 # Recovers the end-to-end coverage that the mindstream.behaviors test
@@ -65,14 +69,10 @@ fail() { echo "FAIL — $1"; exit 1; }
   || fail "Tick.MindstreamTick dispatch failed"
 
 # Helpers — read one field from a singleton heki store, empty on miss.
+# `heki latest-field` exits 3 on missing field or missing file; swallow
+# that to preserve the old Python helper's "empty on any error" contract.
 field() {
-  "$HECKS" heki latest "$1" 2>/dev/null | python3 -c "
-import json, sys
-try:
-    d = json.load(sys.stdin) or {}
-    print(d.get('$2', ''))
-except Exception:
-    print('')" 2>/dev/null
+  "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || true
 }
 
 pulse_count=$(field "$TMP/information/pulse.heki" count)

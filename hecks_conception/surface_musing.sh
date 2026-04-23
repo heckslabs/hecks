@@ -13,10 +13,9 @@
 #
 # Split out of mindstream.sh so tests can simulate cycling deterministically.
 #
-# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
-#  native hecks-life heki subcommands + jq per PR #272; retires when
-#  shell wrapper ports to .bluebook shebang form (tracked in
-#  terminal_capability_wiring plan).]
+# [antibody-exempt: i37 Phase C — porting legacy python to shell +
+#  hecks-life subcommands; retires when shell ports to bluebook shebang
+#  form.]
 
 DIR="$(dirname "$0")"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
@@ -49,8 +48,17 @@ if [ -n "$thought" ]; then
   # Mark conceived only every DWELL-th call. Default 30 (= ~5 min on
   # screen) so each musing gets full attention and the pool advances
   # at roughly the same rate Claude mints new ones (~5 min cadence).
+  #
+  # Prefix match (`idea~=$thought`) covers both cases the old Python
+  # handled: `idea == thought` when idea ≤ 80 chars (thought == idea),
+  # and `idea.startswith(thought)` when idea > 80 chars (thought is
+  # idea truncated to 80). The redundant `target.startswith(idea[:80])`
+  # clause in the old Python is a tautology when thought = idea[:80].
   if [ "$((loop_count % DWELL))" = "0" ]; then
-    "$DIR/mark_musing_shown.py" "$thought" 2>/dev/null
+    "$HECKS" heki mark "$INFO/musing.heki" \
+      --where "conceived!=true" \
+      --where "idea~=$thought" \
+      --set conceived=true >/dev/null 2>&1
   fi
 else
   $HECKS heki upsert "$INFO/consciousness.heki" sleep_summary="" 2>/dev/null

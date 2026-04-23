@@ -173,9 +173,13 @@ done
 if $all_ok; then filter_result=True; else filter_result=False; fi
 check "Real-musing filter: tags rejected, sentences kept" "$filter_result" "True"
 
-# mark_musing_shown.py flips conceived=True on matching idea
+# `heki mark` flips conceived=true on matching idea — surface_musing.sh
+# now uses this directly (old mark_musing_shown.py retired in i37 Phase C).
 $HECKS heki append $INFO/musing.heki idea="test musing for mark script" conceived=false status=imagined 2>/dev/null
-./mark_musing_shown.py "test musing for mark script" 2>/dev/null
+$HECKS heki mark $INFO/musing.heki \
+  --where "conceived!=true" \
+  --where "idea~=test musing for mark script" \
+  --set conceived=true >/dev/null 2>&1
 marked_id=$($HECKS heki list $INFO/musing.heki --where "idea*=test musing for mark script" --fields id --format tsv 2>/dev/null | head -n1)
 if [ -n "$marked_id" ]; then
   marked_val=$($HECKS heki get $INFO/musing.heki "$marked_id" conceived 2>/dev/null)
@@ -190,7 +194,7 @@ if [ -n "$marked_id" ]; then
 else
   marked=""
 fi
-check "mark_musing_shown marks conceived" "$marked" "True"
+check "heki mark flips conceived=true on idea prefix" "$marked" "True"
 # Cleanup test entry — list matching ids, delete each.
 $HECKS heki list $INFO/musing.heki --where "idea*=test musing for mark script" \
   --fields id --format tsv 2>/dev/null | while read -r uuid; do
