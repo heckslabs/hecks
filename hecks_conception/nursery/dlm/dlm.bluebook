@@ -67,7 +67,7 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   aggregate "Corpus", "The knowledge base — every domain ever conceived, indexed by vector and category" do
     attribute :domain_count, Integer
     attribute :aggregate_count, Integer
-    list_of(String) :categories
+    attribute :categories, list_of(String)
     attribute :last_indexed_at, String
 
     command "IndexCorpus" do
@@ -80,7 +80,7 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
       role "System"
       description "Find nearest archetype by category and structural similarity"
       attribute :category, String
-      list_of(Float) :seed_vector
+      attribute :seed_vector, list_of(Float)
       emits "CorpusQueried"
     end
 
@@ -95,7 +95,7 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
   # === Transparency ===
 
   aggregate "GlassBox", "Every internal state change is visible — no black box" do
-    list_of(StateEntry) :visible_state
+    attribute :visible_state, list_of(StateEntry)
     attribute :last_announced, String
 
     value_object "StateEntry" do
@@ -186,7 +186,7 @@ Hecks.bluebook "DLM", version: "2026.04.11.1" do
       role "System"
       description "Cross-pollinate corpus domains during REM — the DLM's imagination"
       reference_to(Physiology)
-      list_of(String) :dream_images
+      attribute :dream_images, list_of(String)
       emits "Dreamed"
       then_set :dreams_total, increment: 1
     end

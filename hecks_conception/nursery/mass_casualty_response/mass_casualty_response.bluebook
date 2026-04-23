@@ -10,7 +10,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     attribute :severity, String
     attribute :estimated_casualties, Integer
     attribute :status, String
-    list_of(HazardTag) :hazards
+    attribute :hazards, list_of(HazardTag)
     value_object "HazardTag" do
       attribute :hazard_type, String
       attribute :containment_status, String
@@ -58,7 +58,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     attribute :capacity, Integer
     attribute :current_count, Integer
     attribute :status, String
-    list_of(TriageEntry) :entries
+    attribute :entries, list_of(TriageEntry)
     value_object "TriageEntry" do
       attribute :casualty_name, String
       attribute :triage_color, String
@@ -101,7 +101,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     attribute :destination, String
     attribute :patient_capacity, Integer
     attribute :status, String
-    list_of(PatientManifest) :manifest
+    attribute :manifest, list_of(PatientManifest)
     value_object "PatientManifest" do
       attribute :casualty_name, String
       attribute :triage_color, String
@@ -147,7 +147,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     attribute :blood_type, String
     attribute :units_allocated, Integer
     attribute :status, String
-    list_of(BloodUnit) :units
+    attribute :units, list_of(BloodUnit)
     value_object "BloodUnit" do
       attribute :unit_id, String
       attribute :blood_type, String
@@ -186,7 +186,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     attribute :available_surgeons, Integer
     attribute :status, String
     reference_to(MassIncident, as: :active_incident)
-    list_of(IncomingCasualty) :incoming
+    attribute :incoming, list_of(IncomingCasualty)
     value_object "IncomingCasualty" do
       attribute :casualty_name, String
       attribute :triage_color, String
@@ -232,7 +232,7 @@ Hecks.bluebook "MassCasualtyResponse", version: "2026.04.13.1" do
     reference_to(TriageStation, as: :triage_station)
     reference_to(AirEvac, as: :aircraft)
     reference_to(ReceivingHospital, as: :hospital)
-    list_of(PhaseLog) :phase_history
+    attribute :phase_history, list_of(PhaseLog)
     value_object "PhaseLog" do
       attribute :phase, String
       attribute :timestamp, String

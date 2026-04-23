@@ -11,7 +11,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     attribute :severity, String
     attribute :estimated_affected, Integer
     attribute :status, String
-    list_of(ImpactZone) :zones
+    attribute :zones, list_of(ImpactZone)
     value_object "ImpactZone" do
       attribute :zone_name, String
       attribute :latitude, Float
@@ -53,7 +53,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     attribute :drone_count, Integer
     attribute :deployment_zone, String
     attribute :status, String
-    list_of(DroneUnit) :drones
+    attribute :drones, list_of(DroneUnit)
     value_object "DroneUnit" do
       attribute :drone_id, String
       attribute :sensor_type, String
@@ -99,7 +99,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     attribute :target_location, String
     attribute :delivery_method, String
     attribute :status, String
-    list_of(SupplyItem) :items
+    attribute :items, list_of(SupplyItem)
     value_object "SupplyItem" do
       attribute :item_name, String
       attribute :quantity, Integer
@@ -138,7 +138,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     attribute :grid_sector, String
     attribute :affected_substations, Integer
     attribute :status, String
-    list_of(RerouteAction) :reroutes
+    attribute :reroutes, list_of(RerouteAction)
     value_object "RerouteAction" do
       attribute :from_sector, String
       attribute :to_sector, String
@@ -182,7 +182,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     reference_to(DisasterEvent, as: :event)
     attribute :restricted_zone, String
     attribute :status, String
-    list_of(Authorization) :authorizations
+    attribute :authorizations, list_of(Authorization)
     value_object "Authorization" do
       attribute :fleet_id, String
       attribute :altitude_band, String
@@ -224,7 +224,7 @@ Hecks.bluebook "DisasterAutonomy", version: "2026.04.13.1" do
     reference_to(DisasterEvent, as: :event)
     attribute :total_found, Integer
     attribute :status, String
-    list_of(SurvivorRecord) :survivors
+    attribute :survivors, list_of(SurvivorRecord)
     value_object "SurvivorRecord" do
       attribute :name, String
       attribute :location, String

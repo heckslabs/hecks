@@ -10,7 +10,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     attribute :severity, String
     attribute :status, String
     attribute :declared_at, String
-    list_of(ImpactAssessment) :impacts
+    attribute :impacts, list_of(ImpactAssessment)
 
     value_object "ImpactAssessment" do
       attribute :infrastructure_type, String
@@ -76,7 +76,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     attribute :capacity_mw, Float
     attribute :current_load_mw, Float
     attribute :status, String
-    list_of(Generator) :generators
+    attribute :generators, list_of(Generator)
 
     value_object "Generator" do
       attribute :generator_id, String
@@ -140,7 +140,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     attribute :status, String
     attribute :closure_reason, String
     attribute :affected_flights, Integer
-    list_of(AshReading) :ash_readings
+    attribute :ash_readings, list_of(AshReading)
 
     value_object "AshReading" do
       attribute :concentration_mg_m3, Float
@@ -206,7 +206,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     attribute :trigger_condition, String
     attribute :status, String
     reference_to(DisasterEvent, as: :disaster)
-    list_of(ProtocolStep) :steps
+    attribute :steps, list_of(ProtocolStep)
 
     value_object "ProtocolStep" do
       attribute :step_number, Integer
@@ -261,7 +261,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     attribute :chain_name, String
     attribute :cascade_depth, Integer
     attribute :status, String
-    list_of(CascadeLink) :links
+    attribute :links, list_of(CascadeLink)
 
     value_object "CascadeLink" do
       attribute :source_system, String
@@ -314,7 +314,7 @@ Hecks.bluebook "NaturalDisasterGrid", version: "2026.04.13.1" do
     attribute :plan_name, String
     attribute :status, String
     attribute :priority_level, Integer
-    list_of(RecoveryTask) :tasks
+    attribute :tasks, list_of(RecoveryTask)
 
     value_object "RecoveryTask" do
       attribute :task_name, String

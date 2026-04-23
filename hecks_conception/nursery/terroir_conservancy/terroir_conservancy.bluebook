@@ -11,7 +11,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     attribute :designation_type, String
     attribute :total_hectares, Integer
     attribute :status, String
-    list_of(ProtectionRule) :rules
+    attribute :rules, list_of(ProtectionRule)
     value_object "ProtectionRule" do
       attribute :rule_type, String
       attribute :description, String
@@ -51,7 +51,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     attribute :ph_level, Float
     attribute :mineral_composition, String
     attribute :microbiome_diversity, String
-    list_of(SoilSample) :samples
+    attribute :samples, list_of(SoilSample)
     value_object "SoilSample" do
       attribute :sample_date, String
       attribute :depth_cm, String
@@ -93,7 +93,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     reference_to(ProtectedTerroir, as: :terroir)
     attribute :certification_status, String
     attribute :status, String
-    list_of(ProductOffering) :products
+    attribute :products, list_of(ProductOffering)
     value_object "ProductOffering" do
       attribute :product_name, String
       attribute :style, String
@@ -141,7 +141,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     attribute :survey_date, String
     attribute :season, String
     attribute :overall_diversity, String
-    list_of(SpeciesRecord) :records
+    attribute :records, list_of(SpeciesRecord)
     value_object "SpeciesRecord" do
       attribute :species_name, String
       attribute :kingdom, String
@@ -181,7 +181,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     attribute :experience_type, String
     attribute :capacity, Integer
     attribute :status, String
-    list_of(ItineraryStop) :itinerary
+    attribute :itinerary, list_of(ItineraryStop)
     value_object "ItineraryStop" do
       attribute :stop_name, String
       attribute :activity, String
@@ -230,7 +230,7 @@ Hecks.bluebook "TerroirConservancy", version: "2026.04.13.1" do
     reference_to(CraftProducer, as: :producer)
     attribute :vintage_season, String
     attribute :overall_character, String
-    list_of(FlavorNote) :notes
+    attribute :notes, list_of(FlavorNote)
     value_object "FlavorNote" do
       attribute :note_name, String
       attribute :intensity, String

@@ -9,7 +9,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     attribute :protection_level, String
     attribute :area_sq_km, Float
     attribute :status, String
-    list_of(ZoneBoundary) :boundaries
+    attribute :boundaries, list_of(ZoneBoundary)
 
     value_object "ZoneBoundary" do
       attribute :latitude, Float
@@ -63,7 +63,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     attribute :nationality, String
     reference_to(Permit, as: :permit)
     attribute :status, String
-    list_of(LocationPing) :location_history
+    attribute :location_history, list_of(LocationPing)
 
     value_object "LocationPing" do
       attribute :latitude, Float
@@ -124,7 +124,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     attribute :conservation_status, String
     attribute :estimated_population, Integer
     attribute :primary_habitat, String
-    list_of(SightingRecord) :sightings
+    attribute :sightings, list_of(SightingRecord)
 
     value_object "SightingRecord" do
       attribute :date, String
@@ -236,7 +236,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     attribute :alert_level, String
     reference_to(ProtectedArea, as: :area)
     attribute :status, String
-    list_of(SeismicReading) :readings
+    attribute :readings, list_of(SeismicReading)
 
     value_object "SeismicReading" do
       attribute :magnitude, Float
@@ -303,7 +303,7 @@ Hecks.bluebook "EcoProtectedZone", version: "2026.04.13.1" do
     attribute :valid_from, String
     attribute :valid_until, String
     attribute :status, String
-    list_of(ZoneAccess) :allowed_zones
+    attribute :allowed_zones, list_of(ZoneAccess)
 
     value_object "ZoneAccess" do
       attribute :zone_name, String

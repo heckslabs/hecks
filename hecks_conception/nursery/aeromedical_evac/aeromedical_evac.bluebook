@@ -10,7 +10,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     attribute :injury_classification, String
     attribute :triage_level, String
     attribute :status, String
-    list_of(Allergy) :allergies
+    attribute :allergies, list_of(Allergy)
     reference_to(Flight, as: :assigned_flight)
 
     value_object "Allergy" do
@@ -79,7 +79,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     attribute :altitude, Integer
     attribute :status, String
     attribute :crew_manifest, String
-    list_of(Waypoint) :route
+    attribute :route, list_of(Waypoint)
 
     value_object "Waypoint" do
       attribute :latitude, Float
@@ -136,7 +136,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     attribute :spo2, Integer
     attribute :temperature, Float
     attribute :alarm_status, String
-    list_of(VitalReading) :readings
+    attribute :readings, list_of(VitalReading)
 
     value_object "VitalReading" do
       attribute :metric, String
@@ -225,7 +225,7 @@ Hecks.bluebook "AeromedicalEvac", version: "2026.04.13.1" do
     reference_to(GroundReceiver, as: :receiver)
     attribute :status, String
     attribute :handoff_notes, String
-    list_of(TransferItem) :transfer_checklist
+    attribute :transfer_checklist, list_of(TransferItem)
 
     value_object "TransferItem" do
       attribute :item, String

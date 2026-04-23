@@ -79,7 +79,7 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
     attribute :description, String
     attribute :diagnosing_physician, String
     attribute :diagnosed_at, String
-    list_of(LabResult) :supporting_labs
+    attribute :supporting_labs, list_of(LabResult)
 
     value_object "LabResult" do
       attribute :test_name, String
@@ -110,8 +110,8 @@ Hecks.bluebook "HospitalAdmissions", version: "2026.04.13.1" do
   aggregate "DischargeePlan", "Steps required before a patient can leave safely" do
     attribute :patient_name, String
     attribute :discharge_date, String
-    list_of(String) :medications
-    list_of(String) :follow_up_appointments
+    attribute :medications, list_of(String)
+    attribute :follow_up_appointments, list_of(String)
     attribute :status, String
     # Gate flag — flips true once every follow-up has been booked.
     # ApproveDischargePlan is gated on it so a plan cannot be signed

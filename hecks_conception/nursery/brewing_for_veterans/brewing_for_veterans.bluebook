@@ -11,7 +11,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     attribute :discharge_type, String
     attribute :housing_status, String
     attribute :status, String
-    list_of(ServiceRecord) :service_history
+    attribute :service_history, list_of(ServiceRecord)
     value_object "ServiceRecord" do
       attribute :unit, String
       attribute :deployment, String
@@ -59,7 +59,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     attribute :start_date, String
     attribute :brew_master, String
     attribute :status, String
-    list_of(CohortMember) :members
+    attribute :members, list_of(CohortMember)
     value_object "CohortMember" do
       attribute :apprentice_name, String
       attribute :skill_level, String
@@ -105,7 +105,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     reference_to(BrewingCohort, as: :producing_cohort)
     attribute :batch_number, String
     attribute :status, String
-    list_of(TastingNote) :tasting_notes
+    attribute :tasting_notes, list_of(TastingNote)
     value_object "TastingNote" do
       attribute :flavor, String
       attribute :intensity, String
@@ -152,7 +152,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     attribute :education_allocation, Float
     attribute :operations_allocation, Float
     attribute :status, String
-    list_of(RevenueEntry) :entries
+    attribute :entries, list_of(RevenueEntry)
     value_object "RevenueEntry" do
       attribute :product_name, String
       attribute :units_sold, Integer
@@ -205,7 +205,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     attribute :funding_source, String
     attribute :status, String
     reference_to(VeteranApprentice, as: :resident)
-    list_of(MaintenanceRecord) :maintenance
+    attribute :maintenance, list_of(MaintenanceRecord)
     value_object "MaintenanceRecord" do
       attribute :date, String
       attribute :issue, String
@@ -253,7 +253,7 @@ Hecks.bluebook "BrewingForVeterans", version: "2026.04.13.1" do
     attribute :housing_transition, String
     attribute :mentor_name, String
     attribute :status, String
-    list_of(PathMilestone) :milestones
+    attribute :milestones, list_of(PathMilestone)
     value_object "PathMilestone" do
       attribute :milestone_type, String
       attribute :target_date, String

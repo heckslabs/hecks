@@ -28,15 +28,15 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
     attribute :formula, String
     attribute :name, String
     attribute :state, String
-    list_of(String) :elements
-    list_of(String) :bonds
+    attribute :elements, list_of(String)
+    attribute :bonds, list_of(String)
 
     command "Synthesize" do
       role "Chemist"
       description "Combine elements into a compound through bonding"
       attribute :formula, String
       attribute :name, String
-      list_of(String) :elements
+      attribute :elements, list_of(String)
       emits "CompoundSynthesized"
       then_set :formula, to: :formula
       then_set :name, to: :name
@@ -54,8 +54,8 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
   aggregate "Reaction", "A command that transforms matter — reactants become products" do
     attribute :equation, String
     attribute :reaction_type, String
-    list_of(String) :reactants
-    list_of(String) :products
+    attribute :reactants, list_of(String)
+    attribute :products, list_of(String)
     attribute :catalyst, String
     attribute :energy_delta, Float
     attribute :status, String
@@ -64,8 +64,8 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
       role "Chemist"
       description "Execute a chemical reaction — transform reactants into products"
       attribute :equation, String
-      list_of(String) :reactants
-      list_of(String) :products
+      attribute :reactants, list_of(String)
+      attribute :products, list_of(String)
       emits "ReactionOccurred"
       then_set :equation, to: :equation
       then_set :reactants, to: :reactants
@@ -131,7 +131,7 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
 
   aggregate "Solution", "A mixture — compounds dissolved in a solvent" do
     attribute :solvent, String
-    list_of(String) :solutes
+    attribute :solutes, list_of(String)
     attribute :concentration, Float
     attribute :ph, Float
 
@@ -139,7 +139,7 @@ Hecks.bluebook "Chemistry", version: "2026.04.16.1" do
       role "Chemist"
       description "Dissolve a compound into a solvent"
       attribute :solvent, String
-      list_of(String) :solutes
+      attribute :solutes, list_of(String)
       emits "SolutionCreated"
       then_set :solvent, to: :solvent
       then_set :solutes, to: :solutes

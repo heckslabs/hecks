@@ -100,7 +100,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
     attribute :density, Float
     attribute :hardness, Float
     attribute :microstructure, String
-    list_of(Composition) :compositions
+    attribute :compositions, list_of(Composition)
 
     value_object "Composition" do
       attribute :element, String
@@ -239,7 +239,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
     attribute :tensile_strength, Float
     attribute :yield_strength, Float
     attribute :heat_treatment, String
-    list_of(Component) :components
+    attribute :components, list_of(Component)
 
     value_object "Component" do
       attribute :element, String
@@ -403,7 +403,7 @@ Hecks.bluebook "MaterialsScience", version: "2026.04.11.1" do
     attribute :fiber_volume_fraction, Float
     attribute :strength, Float
     attribute :delamination_risk, String
-    list_of(Layer) :layers
+    attribute :layers, list_of(Layer)
     attribute :status, String
 
     value_object "Layer" do

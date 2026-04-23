@@ -6,7 +6,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     attribute :name, String
     attribute :authority, String
     attribute :region, String
-    list_of(Regulation) :regulations
+    attribute :regulations, list_of(Regulation)
     attribute :status, String
 
     value_object "Regulation" do
@@ -144,8 +144,8 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
     attribute :formula_name, String
     attribute :sds_version, Integer
     attribute :ghs_classification, String
-    list_of(String) :hazard_statements
-    list_of(String) :precautionary_statements
+    attribute :hazard_statements, list_of(String)
+    attribute :precautionary_statements, list_of(String)
     attribute :sections_complete, Integer
     attribute :reviewer, String
     attribute :approved_date, String
@@ -227,7 +227,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
   aggregate "LabelCompliance", "Product labeling requirements per jurisdiction and channel — every element audited" do
     attribute :product_sku, String
     attribute :jurisdiction, String
-    list_of(LabelElement) :required_elements
+    attribute :required_elements, list_of(LabelElement)
     attribute :status, String
 
     value_object "LabelElement" do
@@ -241,7 +241,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       description "Audit a product label against jurisdiction requirements — product name, net contents, directions, warnings, first aid, manufacturer info, UPC, lot code, DOT markings"
       attribute :product_sku, String
       attribute :jurisdiction, String
-      list_of(LabelElement) :required_elements
+      attribute :required_elements, list_of(LabelElement)
       emits "LabelAudited"
       then_set :product_sku, to: :product_sku
       then_set :jurisdiction, to: :jurisdiction
@@ -261,7 +261,7 @@ Hecks.bluebook "RegulatoryCompliance", version: "2026.04.11.1" do
       role "RegulatorySpecialist"
       description "Correct a label element to meet jurisdiction requirements"
       reference_to(LabelCompliance)
-      list_of(LabelElement) :required_elements
+      attribute :required_elements, list_of(LabelElement)
       emits "LabelCorrected"
       then_set :required_elements, to: :required_elements
       then_set :status, to: "corrected"

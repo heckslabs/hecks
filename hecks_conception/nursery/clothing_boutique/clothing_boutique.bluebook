@@ -10,7 +10,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
     attribute :retail_price, Float
     attribute :season, String
     attribute :status, String
-    list_of(SizeRun) :size_runs
+    attribute :size_runs, list_of(SizeRun)
 
     value_object "SizeRun" do
       attribute :size, String
@@ -59,7 +59,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
     attribute :display_name, String
     attribute :theme, String
     attribute :location, String
-    list_of(DisplayItem) :items
+    attribute :items, list_of(DisplayItem)
     attribute :status, String
 
     value_object "DisplayItem" do
@@ -139,7 +139,7 @@ Hecks.bluebook "ClothingBoutique", version: "2026.04.13.1" do
     attribute :season_name, String
     attribute :year, String
     attribute :theme, String
-    list_of(CollectionPiece) :pieces
+    attribute :pieces, list_of(CollectionPiece)
     attribute :status, String
 
     value_object "CollectionPiece" do

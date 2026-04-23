@@ -7,7 +7,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
   aggregate "Patient", "A patient at the intersection of pharmacy and nutrition — medical and dietary needs unified" do
     attribute :name, String
     attribute :date_of_birth, String
-    list_of(Condition) :conditions
+    attribute :conditions, list_of(Condition)
     attribute :dietary_restriction, String
     attribute :status, String
 
@@ -58,7 +58,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     attribute :dosage, String
     attribute :frequency, String
     attribute :status, String
-    list_of(FoodInteraction) :food_interactions
+    attribute :food_interactions, list_of(FoodInteraction)
 
     value_object "FoodInteraction" do
       attribute :food_item, String
@@ -113,7 +113,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     attribute :goal, String
     attribute :daily_calories, Integer
     attribute :status, String
-    list_of(Meal) :meals
+    attribute :meals, list_of(Meal)
 
     value_object "Meal" do
       attribute :meal_type, String
@@ -166,7 +166,7 @@ Hecks.bluebook "NutritionRx", version: "2026.04.13.1" do
     reference_to(MealPlan, as: :meal_plan)
     attribute :status, String
     attribute :estimated_cost, Float
-    list_of(GroceryItem) :items
+    attribute :items, list_of(GroceryItem)
 
     value_object "GroceryItem" do
       attribute :name, String

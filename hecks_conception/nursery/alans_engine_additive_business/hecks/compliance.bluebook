@@ -9,7 +9,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     attribute :ghs_classification, String
     attribute :hmis_rating, String
     attribute :nfpa_rating, String
-    list_of(String) :cas_numbers
+    attribute :cas_numbers, list_of(String)
     attribute :revision_date, String
     attribute :status, String
 
@@ -21,7 +21,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       attribute :ghs_classification, String
       attribute :hmis_rating, String
       attribute :nfpa_rating, String
-      list_of(String) :cas_numbers
+      attribute :cas_numbers, list_of(String)
       emits "SafetyDataSheetCreated"
       then_set :formula_name, to: :formula_name
       then_set :sds_number, to: :sds_number
@@ -111,7 +111,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
     attribute :audit_type, String
     attribute :auditor, String
     attribute :scheduled_date, String
-    list_of(String) :findings
+    attribute :findings, list_of(String)
     attribute :documentation_complete, String
     attribute :status, String
 
@@ -141,7 +141,7 @@ Hecks.bluebook "Compliance", version: "2026.04.11.1" do
       role "RegulatorySpecialist"
       description "Capture audit findings — observations, non-conformances, corrective actions"
       reference_to(RegulatoryAudit)
-      list_of(String) :findings
+      attribute :findings, list_of(String)
       emits "FindingsRecorded"
       then_set :findings, to: :findings
       then_set :status, to: "completed"
