@@ -51,4 +51,15 @@ Hecks.behaviors "FabricToRunway" do
     expect ok: "true"
   end
 
+  test "ExecuteShow runs" do
+    tests "ExecuteShow", on: "RunwayShow"
+    setup  "PlanShow", venue: "sample", show_date: "sample"
+    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
+    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
+    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
+    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
+    setup  "AddLook", look_number: 1, garment_name: "sample", model_name: "sample"
+    expect ok: "true"
+  end
+
 end

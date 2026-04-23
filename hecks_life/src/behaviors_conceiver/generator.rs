@@ -35,7 +35,7 @@
 use crate::behaviors_ir::TestSuite;
 use crate::cascade;
 use crate::ir::{Aggregate, Attribute, Command, Domain, MutationOp, Query, Transition};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Outcome of planning a setup chain. The planner can either:
 ///   * `Chain(...)` — here's an ordered chain of commands that will leave
@@ -70,6 +70,13 @@ enum Precondition {
     /// `field.size > 0` / `field.any?` — satisfied by running an Append
     /// producer once.
     NonEmptyList(String),
+    /// `field.size >= N` (N ≥ 2) or `field.size > N` (N ≥ 1) — satisfied by
+    /// running an Append producer N times. The i64 is the MINIMUM size
+    /// that satisfies: `size >= 3` carries 3; `size > 2` also carries 3.
+    /// In the chain planner the Append producer appears N times in the
+    /// chain, and the existing-instance count is subtracted so an already-
+    /// seeded chain doesn't double-seed. (i4 gap 7.)
+    MinSizeList(String, i64),
     /// `field.empty?` — satisfied by default (lists start empty); no
     /// chain step needed, but we still record it so collect_preconditions
     /// can mark the precondition met without a producer search.
@@ -595,7 +602,10 @@ fn plan_setup_chain<'a>(
         // test already exercises the cascade through `target_cmd`).
         match find_producer(domain, agg, &pre) {
             Some(producer) => {
-                // Recurse: producer may itself have preconditions.
+                // Recurse: producer may itself have preconditions. We run
+                // this ONCE even for MinSizeList (repeated Append calls
+                // share the same prerequisite state — a second dispatch of
+                // AddItem doesn't need another CreateCart).
                 let sub_chain = match plan_setup_chain(domain, agg, producer, depth - 1, visited) {
                     SetupPlan::Chain(sub) => sub,
                     SetupPlan::Unsatisfiable => {
@@ -609,10 +619,7 @@ fn plan_setup_chain<'a>(
                         produced.absorb(agg, sub);
                     }
                 }
-                if !chain.iter().any(|c| c.name == producer.name) {
-                    chain.push(producer);
-                    produced.absorb(agg, producer);
-                }
+                append_producer_for(&pre, producer, agg, &mut chain, &mut produced);
             }
             None => {
                 // Distinguish two cases:
@@ -632,6 +639,36 @@ fn plan_setup_chain<'a>(
 
     visited.pop();
     if unsatisfiable { SetupPlan::Unsatisfiable } else { SetupPlan::Chain(chain) }
+}
+
+/// Append `producer` to `chain` the right number of times for `pre`:
+///   * MinSizeList(_, n) — repeat the producer until the post-absorb
+///     append count on its field reaches n. Existing entries in `chain`
+///     (and their already-absorbed effects in `produced`) count toward n,
+///     so an already-seeded chain doesn't double-seed.
+///   * Everything else — add the producer once, deduped against an
+///     already-present producer by name.
+/// Updates `produced` for each added step so later preconditions see
+/// the new state.
+fn append_producer_for<'a>(
+    pre: &Precondition,
+    producer: &'a Command,
+    agg: &'a Aggregate,
+    chain: &mut Vec<&'a Command>,
+    produced: &mut ProducedState,
+) {
+    if let Precondition::MinSizeList(field, n) = pre {
+        let target = (*n).max(0) as usize;
+        while produced.append_count(field) < target {
+            chain.push(producer);
+            produced.absorb(agg, producer);
+        }
+        return;
+    }
+    if !chain.iter().any(|c| c.name == producer.name) {
+        chain.push(producer);
+        produced.absorb(agg, producer);
+    }
 }
 
 /// Same as `plan_setup_chain` but skips producer candidates that would
@@ -692,10 +729,7 @@ fn plan_setup_chain_filtered<'a>(
                         produced.absorb(agg, sub);
                     }
                 }
-                if !chain.iter().any(|c| c.name == producer.name) {
-                    chain.push(producer);
-                    produced.absorb(agg, producer);
-                }
+                append_producer_for(&pre, producer, agg, &mut chain, &mut produced);
             }
             None => {
                 // No non-excluded producer — the cascade itself will
@@ -716,8 +750,12 @@ fn plan_setup_chain_filtered<'a>(
 struct ProducedState {
     /// (field, value) pairs from then_set or lifecycle transitions.
     set_facts: BTreeSet<(String, String)>,
-    /// Field names that received Append in some chain step.
-    appended_fields: BTreeSet<String>,
+    /// Per-field count of Append mutations across chain steps. A count
+    /// of 0 means no Append on that field; count ≥ 1 satisfies
+    /// NonEmptyList, count ≥ N satisfies MinSizeList(_, N). Counts
+    /// come from `absorb` — each chain step contributes one per Append
+    /// mutation per field. (i4 gap 7.)
+    append_counts: BTreeMap<String, usize>,
     /// Field names that received Increment in some chain step.
     incremented_fields: BTreeSet<String>,
 }
@@ -731,7 +769,7 @@ impl ProducedState {
                     self.set_facts.insert((m.field.clone(), val));
                 }
                 MutationOp::Append => {
-                    self.appended_fields.insert(m.field.clone());
+                    *self.append_counts.entry(m.field.clone()).or_insert(0) += 1;
                 }
                 MutationOp::Increment => {
                     self.incremented_fields.insert(m.field.clone());
@@ -746,6 +784,10 @@ impl ProducedState {
                 }
             }
         }
+    }
+
+    fn append_count(&self, field: &str) -> usize {
+        self.append_counts.get(field).copied().unwrap_or(0)
     }
 
     fn satisfies(&self, pre: &Precondition) -> bool {
@@ -771,7 +813,8 @@ impl ProducedState {
                     }))
             }
             Precondition::LessThan(_, _) => false, // Defaults handle this; chain steps don't.
-            Precondition::NonEmptyList(f) => self.appended_fields.contains(f),
+            Precondition::NonEmptyList(f) => self.append_count(f) >= 1,
+            Precondition::MinSizeList(f, n) => self.append_count(f) >= (*n).max(0) as usize,
             Precondition::EmptyList(_) => true, // Always true by default; chains never violate.
         }
     }
@@ -821,7 +864,8 @@ fn precondition_default_holds(agg: &Aggregate, pre: &Precondition) -> bool {
             if *n <= 0 { return false; }
             agg.attributes.iter().any(|a| &a.name == field && a.attr_type == "Integer")
         }
-        // > / >= / NonEmptyList never hold by default — need a producer.
+        // > / >= / NonEmptyList / MinSizeList never hold by default —
+        // need a producer.
         _ => false,
     }
 }
@@ -864,7 +908,7 @@ fn any_producer_exists(agg: &Aggregate, pre: &Precondition) -> bool {
                 })
             })
         }
-        Precondition::NonEmptyList(field) => {
+        Precondition::NonEmptyList(field) | Precondition::MinSizeList(field, _) => {
             agg.commands.iter().any(|c| {
                 c.mutations.iter().any(|m| {
                     &m.field == field && matches!(m.operation, MutationOp::Append)
@@ -1023,13 +1067,16 @@ fn parse_precondition(expr: &str) -> Option<Precondition> {
     if let Some((field, op, n)) = parse_size_check(expr) {
         return match op {
             // `size > 0` and `size >= 1` are both "non-empty" — one
-            // Append step satisfies them. Larger thresholds (`>= 2`,
-            // `> 5`) would need the planner to repeat the Append step
-            // N times, which it doesn't do; bail so the test is skipped
-            // rather than emitted with an unsatisfied chain.
+            // Append step satisfies them.
             "gt"  if n == 0 => Some(Precondition::NonEmptyList(field)),
             "gte" if n == 1 => Some(Precondition::NonEmptyList(field)),
             "any" => Some(Precondition::NonEmptyList(field)),
+            // `size >= N` for N ≥ 2: carry N as the minimum size that
+            // satisfies. `size > N` for N ≥ 1: carry N+1 (same min).
+            // The chain planner runs the Append producer that many times.
+            // (i4 gap 7.)
+            "gte" if n >= 2 => Some(Precondition::MinSizeList(field, n)),
+            "gt"  if n >= 1 => Some(Precondition::MinSizeList(field, n + 1)),
             "empty" | "eq" if n == 0 => Some(Precondition::EmptyList(field)),
             _ => None, // Other size shapes — not satisfiable in a single step.
         };
@@ -1066,6 +1113,7 @@ fn is_simple_field(s: &str) -> bool {
 ///     at an integer ≥ n+1 (or n for >=), OR an Increment mutation on f.
 ///   * LessThan(f,n) — Set mutation landing f at an integer < n.
 ///   * NonEmptyList(f) — Append mutation on f.
+///   * MinSizeList(f, _) — Append mutation on f (caller repeats it N times).
 ///   * EmptyList — never reached (default-satisfied earlier).
 fn find_producer<'a>(
     _domain: &'a Domain,
@@ -1078,6 +1126,7 @@ fn find_producer<'a>(
         Precondition::GreaterOrEqual(field, n) => find_int_producer(agg, field, *n, true),
         Precondition::LessThan(field, n) => find_int_producer(agg, field, *n - 1, false),
         Precondition::NonEmptyList(field) => find_append_producer(agg, field),
+        Precondition::MinSizeList(field, _) => find_append_producer(agg, field),
         Precondition::EmptyList(_) => None,
     }
 }
