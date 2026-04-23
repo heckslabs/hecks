@@ -76,6 +76,15 @@ module Hecks
         @target_domain = domain_name
       end
 
+      # Accept-and-ignore: some legacy nursery bluebooks mark cross-domain
+      # policies via `cross_domain true` inside the `policy` block. Rust's
+      # line-scanner silently skips the line; we do the same so parity
+      # passes. The canonical way to declare cross-domain targets is
+      # `across "TargetDomain"`.
+      def cross_domain(*_args, **_kwargs, &_block)
+        # no-op — canonical form is `across "Domain"`
+      end
+
       # Set whether this policy runs asynchronously.
       #
       # Async policies are enqueued for background processing rather than
