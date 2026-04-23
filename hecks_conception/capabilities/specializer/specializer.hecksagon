@@ -118,6 +118,18 @@ Hecks.hecksagon "Specializer" do
     args:    ["meta_meta_validator_warnings", "--output", "{{output}}"],
     ok_exit: 0
 
+  # Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
+  # itself. First RubyModule shape retirement: bare module + outer
+  # requires + module-level constants + class << self block + inner
+  # mixin module + trailing Dir[].each auto-load loop. Closes the loop
+  # PC-3 deferred (class << self + inner module + auto-load didn't fit
+  # RubyScript shape).
+  adapter :shell,
+    name:    :specialize_meta_ruby_module,
+    command: "bin/specialize",
+    args:    ["meta_ruby_module", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run

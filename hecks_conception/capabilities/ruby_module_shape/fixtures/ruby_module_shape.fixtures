@@ -1,0 +1,26 @@
+Hecks.fixtures "RubyModuleShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  aggregate "RubyModule" do
+    fixture "HecksSpecializer", name: "Hecks::Specializer", doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_doc.rb.frag", outer_requires: "json,open3,pathname", output_rb: "lib/hecks_specializer.rb", autoload_glob: "hecks_specializer/*.rb", autoload_base: "__dir__", autoload_doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_autoload_doc.rb.frag"
+  end
+
+  aggregate "ModuleConstant" do
+    fixture "HsRepoRoot", module_name: "Hecks::Specializer", name: "REPO_ROOT", value_expr: "Pathname.new(File.expand_path(\"..\", __dir__))", order: 1
+    fixture "HsHecksLife", module_name: "Hecks::Specializer", name: "HECKS_LIFE", value_expr: "REPO_ROOT.join(\"hecks_life/target/release/hecks-life\")", order: 2
+    fixture "HsTargets", module_name: "Hecks::Specializer", name: "@targets", value_expr: "{}", order: 3, doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_targets_ivar_doc.rb.frag"
+  end
+
+  aggregate "ModuleClassMethod" do
+    fixture "HsRegister", module_name: "Hecks::Specializer", name: "register", signature: "name, mod", body_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_register_body.rb.frag", doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_register_doc.rb.frag", order: 1
+    fixture "HsTargetsMethod", module_name: "Hecks::Specializer", name: "targets", signature: "", body_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_targets_body.rb.frag", order: 2
+    fixture "HsTargetModule", module_name: "Hecks::Specializer", name: "target_module", signature: "name", body_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_target_module_method_body.rb.frag", order: 3
+    fixture "HsEmit", module_name: "Hecks::Specializer", name: "emit", signature: "name", body_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_emit_body.rb.frag", doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_emit_doc.rb.frag", order: 4
+    fixture "HsLoadFixtures", module_name: "Hecks::Specializer", name: "load_fixtures", signature: "shape_path", body_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_load_fixtures_body.rb.frag", doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_load_fixtures_doc.rb.frag", order: 5
+    fixture "HsReadSnippetBody", module_name: "Hecks::Specializer", name: "read_snippet_body", signature: "path", body_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_read_snippet_body_body.rb.frag", doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_read_snippet_body_doc.rb.frag", order: 6
+  end
+
+  aggregate "InnerModule" do
+    fixture "HsTarget", parent_module: "Hecks::Specializer", name: "Target", doc_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_target_inner_module_doc.rb.frag", methods_block_snippet: "hecks_conception/capabilities/ruby_module_shape/snippets/hs_target_methods.rb.frag", order: 1
+  end
+end

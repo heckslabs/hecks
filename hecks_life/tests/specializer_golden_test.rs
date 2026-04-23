@@ -92,6 +92,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_meta_validator_warnings",
         "specialize_meta_meta_diagnostic_validator",
         "specialize_meta_meta_validator_warnings",
+        "specialize_meta_ruby_module",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -219,5 +220,22 @@ fn meta_specializer_produces_byte_identical_meta_validator_warnings_rb() {
     assert_byte_identical(
         "meta_meta_validator_warnings",
         "lib/hecks_specializer/meta_validator_warnings.rb",
+    );
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {
+    // Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
+    // (108 LoC) via the new RubyModule shape. This is the first shape
+    // that covers a *bare module* body (not a class): module-level
+    // constants, a `class << self` block, an inner `module Target`
+    // mixin, and the trailing `Dir[...].each { require }` auto-load
+    // loop at file scope. Closes the loop PC-3 deferred — the three
+    // shape concerns (class << self, inner module, Dir[] loop) that
+    // didn't fit RubyScript now have a home.
+    assert_byte_identical(
+        "meta_ruby_module",
+        "lib/hecks_specializer.rb",
     );
 }

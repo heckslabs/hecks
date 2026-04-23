@@ -1,0 +1,124 @@
+Hecks.bluebook "RubyModuleShape", version: "2026.04.23.1" do
+  vision "Phase C PC-5 — shape of Ruby loader modules (lib/hecks_specializer.rb and kin). Describes bare module bodies: outer requires + constants + class << self methods + inner module mixins + trailing Dir[].each require loop."
+  category "autophagy"
+
+  # ============================================================
+  # RUBY_MODULE META SHAPE — Phase C PC-5
+  # ============================================================
+  #
+  # PC-2 covered Ruby *classes*. PC-3 covered Ruby *scripts*. PC-5
+  # covers Ruby *modules* — specifically the loader-module pattern
+  # where a top-level file opens `module Hecks; module X; ... end; end`
+  # and exposes module-level machinery (constants, ivars, class methods
+  # via `class << self`, a nested mixin module) plus a trailing
+  # `Dir[].each { require }` auto-load loop at file level.
+  #
+  # lib/hecks_specializer.rb (108 LoC) is the pilot — it's the loader
+  # every specializer target registers against.
+  #
+  # Shape — four aggregates:
+  #
+  #   RubyModule (1 row per emitted file):
+  #     name (dotted, e.g. "Hecks::Specializer")
+  #     doc_snippet (file-top comment block)
+  #     outer_requires (comma-separated top-level requires)
+  #     output_rb (relative output path)
+  #     autoload_glob (glob for Dir[] — empty = no auto-load loop)
+  #     autoload_base (__dir__ or similar anchor expression)
+  #     autoload_doc_snippet (optional pre-loop comment)
+  #
+  #   ModuleConstant (N rows):
+  #     module_name (FK), name, value_expr, order
+  #     doc_snippet (optional pre-constant comment, empty allowed)
+  #
+  #   ModuleClassMethod (N rows):
+  #     module_name (FK), name, signature (no parens), body_snippet,
+  #     order, doc_snippet (optional inline pre-method comment)
+  #
+  #   InnerModule (N rows):
+  #     parent_module (FK), name, doc_snippet,
+  #     methods_block_snippet (the whole body between `module Foo` and
+  #     its closing `end`, verbatim — kept simple for PC-5; a later
+  #     pass can split into structured methods if needed), order
+  #
+  # Design notes:
+  #   - The @targets ivar at module-level is modeled as a ModuleConstant
+  #     with name "@targets" and value_expr "{}". Its pre-assignment
+  #     comment rides on doc_snippet.
+  #   - All class methods live inside a single `class << self` block
+  #     emitted by the meta-specializer; each ModuleClassMethod row is
+  #     a method inside that block.
+  #   - The inner-module body is one verbatim snippet — acceptable for
+  #     the pilot since Target is 11 lines of 3 tiny methods. Structured
+  #     decomposition (RubyMethod rows scoped to an InnerModule) is
+  #     deferred until a second inner module with more complexity
+  #     justifies it.
+
+  aggregate "RubyModule", "A top-level Ruby loader module — module Hecks; module X; ... end; end" do
+    attribute :name,                String
+    # doc_snippet: path to the file-top comment block (each line "# ...").
+    # Emitted verbatim, ends with "\n"; meta-specializer adds a trailing
+    # blank line before the requires block.
+    attribute :doc_snippet,         String
+    # outer_requires: comma-separated list of library names for `require`
+    # lines between the doc and the module open. E.g. "json,open3,pathname".
+    # Empty = no requires (rare).
+    attribute :outer_requires,      String
+    # output_rb: relative path of the generated module file.
+    attribute :output_rb,           String
+    # autoload_glob: glob passed to Dir[File.expand_path(<glob>, <base>)]
+    # at the bottom of the file. Empty = no auto-load loop emitted.
+    attribute :autoload_glob,       String, default: ""
+    # autoload_base: the second argument to File.expand_path, written
+    # verbatim. Typically "__dir__". Ignored if autoload_glob is empty.
+    attribute :autoload_base,       String, default: "__dir__"
+    # autoload_doc_snippet: optional path to pre-loop comment. Empty
+    # skips. Emitted immediately before the Dir[].each block.
+    attribute :autoload_doc_snippet, String, default: ""
+  end
+
+  aggregate "ModuleConstant", "A module-level constant or ivar assignment (REPO_ROOT, @targets, ...)" do
+    # module_name: foreign-key-like link to RubyModule.name
+    attribute :module_name, String
+    # name: constant name (e.g. "REPO_ROOT") or ivar (e.g. "@targets").
+    attribute :name,        String
+    # value_expr: RHS of the assignment, verbatim.
+    attribute :value_expr,  String
+    # order: emission order among constants inside the module body.
+    attribute :order,       Integer
+    # doc_snippet: optional pre-constant comment, emitted immediately
+    # before the assignment (same indent). Empty = no doc.
+    attribute :doc_snippet, String, default: ""
+  end
+
+  aggregate "ModuleClassMethod", "One method inside the class << self block of a RubyModule" do
+    # module_name: foreign-key-like link to RubyModule.name
+    attribute :module_name,  String
+    attribute :name,         String
+    # signature: parameter list without parens. Empty = no-arg method.
+    attribute :signature,    String
+    # body_snippet: relative path to .rb.frag with the method body
+    # (indented 8 spaces — matches 4-space module + 2-space class<<self
+    # + 2-space def body depth).
+    attribute :body_snippet, String
+    # order: emission order within the class << self block.
+    attribute :order,        Integer
+    # doc_snippet: optional inline pre-method comment. Empty = no doc.
+    attribute :doc_snippet,  String, default: ""
+  end
+
+  aggregate "InnerModule", "A nested mixin module inside the RubyModule (e.g. Target)" do
+    # parent_module: foreign-key-like link to RubyModule.name
+    attribute :parent_module,          String
+    attribute :name,                   String
+    # doc_snippet: pre-module comment block, emitted immediately before
+    # `module <Name>`. Empty allowed.
+    attribute :doc_snippet,            String, default: ""
+    # methods_block_snippet: path to .rb.frag with the module body
+    # verbatim (all instance methods, blank-line separated, indented
+    # 6 spaces). Excludes the surrounding `module <Name>` and its `end`.
+    attribute :methods_block_snippet,  String
+    # order: emission order when multiple inner modules share a parent.
+    attribute :order,                  Integer
+  end
+end
