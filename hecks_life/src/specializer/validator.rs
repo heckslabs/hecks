@@ -118,8 +118,8 @@ const HEADER: &str = "\
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/validator_shape/
-//! Regenerate: bin/specialize validator --output hecks_life/src/validator.rs
-//! Contract:  specializer.hecksagon :specialize_validator shell adapter
+//! Regenerate: hecks-life specialize validator --output hecks_life/src/validator.rs
+//! Contract:  hecks_life/src/specializer/validator.rs (Rust-native)
 //! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
 //!
 //! Ports the Ruby Hecks::Validator rules to Rust. Each rule inspects
