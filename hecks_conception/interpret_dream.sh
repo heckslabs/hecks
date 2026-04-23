@@ -88,7 +88,28 @@ themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
         "the","a","an","and","or","of","to","in","is","it","that","this",
         "was","were","be","been","being","have","has","had","do","does","did",
         "will","would","should","could","i","my","me","you","your","she","he",
-        "we","our","their","not","no","yes","so","but"
+        "we","our","their","not","no","yes","so","but",
+        "for","from","as","at","if","by","on","with","about","into","onto",
+        "out","up","down","over","under","than","then","there","here","when",
+        "where","how","why","what","who","which","whose","all","any","some",
+        "just","only","still","now","too","very","can","may","might","must",
+        "am","are","being","done","get","got","go","goes","went","gone",
+        # French words — tokenizer is ASCII-only (ascii_downcase + [a-z]+
+        # regex strips accented letters), so Miettes dream register,
+        # French-inflected, leaks tokens like `que` / `qui` / `je` into
+        # counts without these entries. Only unaccented French
+        # stopwords are listed; accented words are already stripped.
+        "le","la","les","un","une","des","du","de","au","aux",
+        "je","tu","il","elle","on","nous","vous","ils","elles",
+        "moi","toi","soi","lui","leur","y","en","ne","pas","plus","rien",
+        "mon","ma","mes","ton","ta","tes","son","sa","ses","nos","vos",
+        "que","qui","quoi","dont","comme","ou","mais","car","donc","ni",
+        "par","pour","avec","sans","sur","sous","dans","chez","vers",
+        "avant","apres","entre","pendant","depuis","contre",
+        "est","sont","suis","es","sommes","etes","etait","etaient",
+        "ai","as","avons","avez","ont","avais","avait","aurais","serait",
+        "tout","toute","tous","toutes","meme","aussi","tres","bien","trop",
+        "ce","cet","cette","ces","si","ou","oui","non","dire","fait"
       ];
       # Filter to the sleep window, then flatten dream_images.
       [ .[]
