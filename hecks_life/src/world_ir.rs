@@ -8,18 +8,22 @@
 //!
 //!   Family A — runtime/extension config (miette.world, hecks_appeal.world):
 //!
-//!     Hecks.world "Miette" do
-//!       heki   do; dir "information" end
-//!       ollama do; model "bluebook-architect"; url "http://..." end
-//!     end
+//! ```text
+//! Hecks.world "Miette" do
+//!   heki   do; dir "information" end
+//!   ollama do; model "bluebook-architect"; url "http://..." end
+//! end
+//! ```
 //!
 //!   Family B — strategic descriptors (nursery/*.world):
 //!
-//!     Hecks.world "DomainConception" do
-//!       purpose "..."
-//!       vision  "..."
-//!       concern "CompletenessAtBirth" do; description "..." end
-//!     end
+//! ```text
+//! Hecks.world "DomainConception" do
+//!   purpose "..."
+//!   vision  "..."
+//!   concern "CompletenessAtBirth" do; description "..." end
+//! end
+//! ```
 //!
 //! The IR carries both shapes so a single parser covers the lot.
 
