@@ -7,17 +7,35 @@
 $LOAD_PATH.unshift File.expand_path("../../../lib", __dir__)
 require "hecks/heki/reader"
 require "tempfile"
+require "zlib"
+require "json"
+
+# Construct a valid .heki byte envelope (4-byte "HEKI" magic +
+# 4-byte big-endian u32 record count + zlib-deflated JSON hash).
+# Parity with hecks_life's writer; used by the Reader's happy-path
+# test without reaching into Miette's live runtime files.
+def synth_heki(records)
+  payload = Zlib::Deflate.deflate(JSON.generate(records))
+  "HEKI".b + [records.size].pack("N") + payload
+end
 
 RSpec.describe Hecks::Heki::Reader do
   describe ".read" do
-    it "reads an existing .heki file and returns a hash of records with ids" do
-      path = File.expand_path("../../../hecks_conception/information/identity.heki", __dir__)
-      data = described_class.read(path)
-      expect(data).to be_a(Hash)
-      expect(data.size).to be >= 1
-      data.each_value do |record|
-        expect(record).to be_a(Hash)
-        expect(record).to have_key("id")
+    it "reads a valid .heki file and returns a hash of records with ids" do
+      Tempfile.create(["happy", ".heki"]) do |f|
+        f.binmode
+        f.write(synth_heki(
+          "r1" => { "id" => "r1", "name" => "Alpha" },
+          "r2" => { "id" => "r2", "name" => "Beta" },
+        ))
+        f.flush
+        data = described_class.read(f.path)
+        expect(data).to be_a(Hash)
+        expect(data.size).to eq(2)
+        data.each_value do |record|
+          expect(record).to be_a(Hash)
+          expect(record).to have_key("id")
+        end
       end
     end
 

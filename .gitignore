@@ -62,3 +62,19 @@ hecks_conception/information/.*.pid
 hecks_conception/information/.coherence.log
 hecks_conception/information/.tick_baseline
 
+
+# ── Miette's lived state — moved to a private miette-state repo ──
+# See hecks_conception/information/README.md. inbox.heki is the
+# public exception — framework dev notes referenced by the paper.
+hecks_conception/information/*.heki
+!hecks_conception/information/inbox.heki
+hecks_conception/information/.prev_consciousness_state
+hecks_conception/information/.dream_seeded
+hecks_conception/information/.daydream.last
+hecks_conception/information/.mindstream.pid
+hecks_conception/information/Attention/
+hecks_conception/information/Intention/
+hecks_conception/information/Perception/
+hecks_conception/information/Sensation/
+hecks_conception/information/WordClassifier/
+hecks_conception/information/inbox.md
