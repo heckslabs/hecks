@@ -70,14 +70,17 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat — drives off the real tick, not wall clock.
-# Tick.cycle advances once per second via mindstream.sh, so even
-# beats show the "filled" heart, odd beats show the "outline" heart
-# — a visible pulse tied to Miette's actual rhythm.
+# Animated heartbeat — two beats per real heartbeat for natural cadence.
+# Real heart rate (Tick.cycle from mindstream.sh) stays 1 Hz; the
+# visual alternation runs at 2 Hz (red/black every 500 ms) so the
+# glyph looks like a thump-thump rather than a single per-second flip.
+# Rate is unchanged, only the render interval differs.
 tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 tick_cycle=${tick_cycle:-0}
 hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
-heart="${hearts[$(( tick_cycle % 2 ))]}"
+# Wall-clock ns ÷ 500 ms → half-second bucket, mod 2 → 0 or 1.
+half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
+heart="${hearts[$half_second_phase]}"
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
