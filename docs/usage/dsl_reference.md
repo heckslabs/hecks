@@ -357,9 +357,12 @@ end
 | Operation | Syntax | Effect |
 |-----------|--------|--------|
 | Set | `then_set :field, to: value` | Assign value (literal or `:attribute_ref`) |
+| Set (positional) | `then_set :field, value` | Shorthand for Set; bare literal (bool/number/symbol) |
 | Append | `then_set :field, append: value` | Add to list |
 | Increment | `then_set :field, increment: n` | Add n to numeric field |
 | Decrement | `then_set :field, decrement: n` | Subtract n from numeric field |
+
+The positional form is accepted for parity with the Rust line-scanner (`then_set :online, true` → `{op: set, value: "true"}`). Use the keyword form for string values — strings MUST use `to: "..."` so both runtimes agree on the canonical IR.
 
 **`then_toggle`** — Toggle a boolean string field between `"true"` and `"false"`.
 
