@@ -513,6 +513,44 @@ fn rust_specializer_produces_byte_identical_bin_specialize() {
     );
 }
 
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_diagnostic_validator_rb() {
+    // Phase D D3 — first Ruby-emitting Rust-native specializer. Ports
+    // `meta_diagnostic_validator` (the PC-2 base class, 202 LoC Ruby)
+    // to emit `lib/hecks_specializer/diagnostic_validator.rb` from
+    // RubyClass + RubyMethod (+ optional RubyConstant) rows. Exercises
+    // `.rb.frag` raw snippet reads (no leading `//`-comment strip —
+    // Ruby bodies don't carry those headers), `def self.foo` via
+    // RubyMethod.receiver, inline pre-method doc snippets, module
+    // nesting + include mixins, and public/private section split.
+    // Establishes the Ruby-emitting vocabulary for subsequent D3
+    // siblings (meta_subclass, meta_ruby_script, meta_ruby_module).
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "meta_diagnostic_validator"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize meta_diagnostic_validator failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("lib/hecks_specializer/diagnostic_validator.rb"))
+        .expect("diagnostic_validator.rb missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
 #[test]
 fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {
     // Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
