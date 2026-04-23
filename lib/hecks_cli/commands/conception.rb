@@ -13,7 +13,9 @@
 #   hecks miette silence NAME — pause an organ's nerves (Being.SilenceDomain)
 #   hecks miette express NAME — resume an organ's nerves (Being.ExpressDomain)
 #   hecks miette conceive     — launch Claude for domain conception
-#   hecks miette continue     — resume the previous Miette console session
+#
+# The only way to interact with Miette is `hecks miette` — no special
+# UIs. The blessed terminal console was retired; Claude is the UI.
 #
 Hecks::CLI.handle(:miette) do |inv|
   action = inv.args[0]
@@ -83,13 +85,8 @@ Hecks::CLI.handle(:miette) do |inv|
       exec "claude", "--dangerously-skip-permissions", "--system-prompt", prompt, "Wake up"
     end
 
-  when "continue", "-c"
-    Dir.chdir(conception_dir) do
-      Bundler.with_unbundled_env { exec "node", "miette_console.js", "--continue" }
-    end
-
   else
     say "Unknown action: #{action}", :red
-    say "Actions: boot, pulse, graft, shed, silence, express, conceive, continue"
+    say "Actions: boot, pulse, graft, shed, silence, express, conceive"
   end
 end
