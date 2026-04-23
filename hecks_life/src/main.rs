@@ -1310,6 +1310,15 @@ fn run_terminal(project_dir: &str, being: &str) {
 /// the given path. Routes through world_parser so the .world grammar has
 /// exactly one definition.
 fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
+    // HECKS_INFO env var wins unconditionally — lets Miette's state
+    // live in a private repo (~/Projects/miette-state/information)
+    // while the framework stays public. Same override pattern used
+    // by run_status/mod.rs. See hecks_conception/information/README.md.
+    if let Ok(override_dir) = std::env::var("HECKS_INFO") {
+        if !override_dir.is_empty() {
+            return Some(override_dir);
+        }
+    }
     let parent = std::path::Path::new(aggregates_path).parent()?;
     let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
