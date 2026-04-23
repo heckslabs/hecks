@@ -2,7 +2,7 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/validator_shape/
-//! Regenerate: bin/specialize-validator --output hecks_life/src/validator.rs
+//! Regenerate: bin/specialize validator --output hecks_life/src/validator.rs
 //! Contract:  specializer.hecksagon :specialize_validator shell adapter
 //! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
 //!

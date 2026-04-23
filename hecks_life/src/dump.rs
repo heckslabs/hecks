@@ -2,7 +2,7 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/dump_shape/
-//! Regenerate: bin/specialize-dump --output hecks_life/src/dump.rs
+//! Regenerate: bin/specialize dump --output hecks_life/src/dump.rs
 //! Contract:  specializer.hecksagon :specialize_dump shell adapter
 //!
 //! This is the parity contract. Hand-written so the JSON shape is chosen
