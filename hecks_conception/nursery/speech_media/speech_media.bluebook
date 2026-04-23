@@ -103,7 +103,7 @@ Hecks.bluebook "SpeechMedia", version: "2026.04.13.1" do
     attribute :topic, String
     attribute :duration_minutes, Float
     attribute :status, String
-    list_of(Segment) :segments
+    attribute :segments, list_of(Segment)
     value_object "Segment" do
       attribute :segment_type, String
       attribute :start_time, Float

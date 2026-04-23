@@ -90,7 +90,7 @@ Hecks.bluebook "RefugeeResettlement" do
     attribute :case_number, String
     attribute :scheduled_date, String
     attribute :status, String
-    list_of(ServiceNote) :notes
+    attribute :notes, list_of(ServiceNote)
     reference_to ResettlementCase
 
     value_object "ServiceNote" do

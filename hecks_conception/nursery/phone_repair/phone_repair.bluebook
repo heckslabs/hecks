@@ -9,7 +9,7 @@ Hecks.bluebook "PhoneRepair", version: "2026.04.13.1" do
     attribute :serial_number, String
     attribute :owner_name, String
     attribute :condition, String
-    list_of(KnownIssue) :known_issues
+    attribute :known_issues, list_of(KnownIssue)
 
     value_object "KnownIssue" do
       attribute :description, String

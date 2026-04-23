@@ -81,7 +81,7 @@ Hecks.bluebook "PetAdoption", version: "2026.04.13.1" do
     attribute :preferred_size, String
     attribute :housing_type, String
     attribute :status, String
-    list_of(Preference) :preferences
+    attribute :preferences, list_of(Preference)
     value_object "Preference" do
       attribute :attribute, String
       attribute :value, String
