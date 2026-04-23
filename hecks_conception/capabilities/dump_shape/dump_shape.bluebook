@@ -1,0 +1,102 @@
+Hecks.bluebook "DumpShape", version: "2026.04.23.1" do
+  vision "The shape of hecks_life/src/dump.rs as a bluebook — third Futamura target (Phase B commit 3). The canonical-IR serializer that both Ruby and Rust must agree on."
+  category "autophagy"
+
+  # ============================================================
+  # DUMP SHAPE — Phase B commit 3 target (easy, declarative)
+  # ============================================================
+  #
+  # dump.rs is the canonical contract between Ruby and Rust parsers.
+  # 180 LoC, 15 functions, almost all pure struct → JSON mappings.
+  # The plan (§7) calls this out as "almost declarative" — perfect
+  # fit for the specializer.
+  #
+  # Of 15 functions:
+  #   13 are json_object (map struct fields → JSON keys)
+  #    1 is embedded_helper (normalize_value — 20-LoC string utility)
+  #    1 is enum_match (dump_mutation_op — 5-case enum → string)
+  #
+  # Layer mapping (per docs/plans/i51_futamura_projections.md §3):
+  #   L0 = this file + fixtures/dump_shape.fixtures
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/dump.rs (generated target)
+  #
+  # Shape-only aggregates per the same transitional pattern used in
+  # validator_shape.bluebook + validator_warnings_shape.bluebook.
+
+  # ---- Serializer --------------------------------------------------
+  #
+  # One row per top-level fn in dump.rs. body_kind selects the
+  # specializer's emission strategy:
+  #   json_object       — emit `fn (binding: &Type) -> Value { json!({ ... }) }`;
+  #                       fields come from JsonField rows linked by serializer name
+  #   embedded_helper   — emit header + read snippet from snippet_path as body
+  #   enum_match        — emit header + match on enum variants; cases come
+  #                       from EnumCase rows linked by serializer name
+  #
+  # is_entry marks the single `pub fn dump` entry point; everything
+  # else is private.
+
+  aggregate "Serializer", "One top-level fn in dump.rs — json_object / embedded_helper / enum_match" do
+    attribute :name,            String
+    # target_type: Rust type of the parameter (Domain, Aggregate, etc.)
+    attribute :target_type,     String
+    # input_binding: parameter name in the Rust (domain, agg, attr, ...)
+    attribute :input_binding,   String
+    # return_type: usually Value, but enum_match returns &'static str,
+    # embedded_helper may vary (normalize_value returns String)
+    attribute :return_type,     String
+    # is_entry: the one `pub fn dump(domain: &Domain)` entry
+    attribute :is_entry,        TrueClass, default: false
+    # body_kind: json_object | embedded_helper | enum_match
+    attribute :body_kind,       String
+    # snippet_path: for embedded_helper only — relative path to .rs.frag
+    attribute :snippet_path,    String, default: ""
+    # order: emission order in the .rs file (matches hand-written)
+    attribute :order,           Integer
+  end
+
+  # ---- JsonField ---------------------------------------------------
+  #
+  # One row per key inside a json_object serializer's json!({ ... }).
+  # mapping_kind picks the Rust expansion:
+  #   direct            — "key": <binding>.<source>
+  #   recurse_list      — "key": <binding>.<source>.iter().map(<helper_fn>).collect::<Vec<_>>()
+  #   recurse_optional  — "key": <binding>.<source>.as_ref().map(<helper_fn>)
+  #   helper_call       — "key": <helper_fn>(&<binding>.<source>)
+  #   normalize         — "key": normalize_value(&<binding>.<source>)
+  #   fixture_pairs     — special: dump_fixture's attributes shape
+  #                       (Vec of [k, normalize_value(v)] pairs)
+  # source names the struct field; helper_fn names the helper to call.
+
+  aggregate "JsonField", "One JSON key in a json_object serializer" do
+    # serializer: foreign-key-like link to Serializer.name
+    attribute :serializer,   String
+    # order: position within the json!({ ... }) block
+    attribute :order,        Integer
+    # key: JSON key emitted (usually matches the Rust field name)
+    attribute :key,          String
+    # source: Rust expression on the binding (often just the struct field name)
+    attribute :source,       String
+    # mapping_kind: direct | recurse_list | recurse_optional | helper_call | normalize | fixture_pairs
+    attribute :mapping_kind, String
+    # helper_fn: the helper name for recurse_* / helper_call; "" otherwise
+    attribute :helper_fn,    String, default: ""
+  end
+
+  # ---- EnumCase ----------------------------------------------------
+  #
+  # One row per variant of an enum handled by an enum_match serializer.
+  # For dump_mutation_op, 5 variants map to 5 string labels.
+
+  aggregate "EnumCase", "One variant in an enum_match serializer" do
+    # serializer: link to Serializer.name (e.g. "dump_mutation_op")
+    attribute :serializer, String
+    # variant: Rust enum path (e.g. "MutationOp::Set")
+    attribute :variant,    String
+    # emits: the string literal returned for this variant
+    attribute :emits,      String
+    # order: display order (matches hand-written match arm order)
+    attribute :order,      Integer
+  end
+end

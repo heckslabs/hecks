@@ -1,0 +1,113 @@
+Hecks.fixtures "DumpShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  # ── Serializer — 15 top-level fns in dump.rs ─────────────────────
+  aggregate "Serializer" do
+    fixture "Dump", name: "dump", target_type: "Domain", input_binding: "domain", return_type: "Value", is_entry: true, body_kind: "json_object", snippet_path: "", order: 1
+    fixture "DumpAggregate", name: "dump_aggregate", target_type: "Aggregate", input_binding: "agg", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 2
+    fixture "DumpAttribute", name: "dump_attribute", target_type: "Attribute", input_binding: "attr", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 3
+    fixture "DumpValueObject", name: "dump_value_object", target_type: "ValueObject", input_binding: "vo", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 4
+    fixture "DumpReference", name: "dump_reference", target_type: "Reference", input_binding: "r", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 5
+    fixture "DumpCommand", name: "dump_command", target_type: "Command", input_binding: "cmd", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 6
+    fixture "DumpQuery", name: "dump_query", target_type: "Query", input_binding: "q", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 7
+    fixture "DumpGiven", name: "dump_given", target_type: "Given", input_binding: "g", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 8
+    fixture "DumpMutation", name: "dump_mutation", target_type: "Mutation", input_binding: "m", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 9
+    fixture "NormalizeValue", name: "normalize_value", target_type: "str", input_binding: "s", return_type: "String", is_entry: false, body_kind: "embedded_helper", snippet_path: "hecks_conception/capabilities/dump_shape/snippets/normalize_value.rs.frag", order: 10
+    fixture "DumpMutationOp", name: "dump_mutation_op", target_type: "MutationOp", input_binding: "op", return_type: "&'static str", is_entry: false, body_kind: "enum_match", snippet_path: "", order: 11
+    fixture "DumpLifecycle", name: "dump_lifecycle", target_type: "Lifecycle", input_binding: "lc", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 12
+    fixture "DumpTransition", name: "dump_transition", target_type: "Transition", input_binding: "t", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 13
+    fixture "DumpPolicy", name: "dump_policy", target_type: "Policy", input_binding: "p", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 14
+    fixture "DumpFixture", name: "dump_fixture", target_type: "Fixture", input_binding: "f", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 15
+  end
+
+  # ── JsonField — one row per JSON key in each json_object serializer ──
+  # Total: 55 rows across 13 serializers.
+  aggregate "JsonField" do
+    # dump (entry) — 6 fields
+    fixture "Dump_name",       serializer: "dump", order: 1, key: "name",       source: "name",       mapping_kind: "direct",       helper_fn: ""
+    fixture "Dump_category",   serializer: "dump", order: 2, key: "category",   source: "category",   mapping_kind: "direct",       helper_fn: ""
+    fixture "Dump_vision",     serializer: "dump", order: 3, key: "vision",     source: "vision",     mapping_kind: "direct",       helper_fn: ""
+    fixture "Dump_aggregates", serializer: "dump", order: 4, key: "aggregates", source: "aggregates", mapping_kind: "recurse_list", helper_fn: "dump_aggregate"
+    fixture "Dump_policies",   serializer: "dump", order: 5, key: "policies",   source: "policies",   mapping_kind: "recurse_list", helper_fn: "dump_policy"
+    fixture "Dump_fixtures",   serializer: "dump", order: 6, key: "fixtures",   source: "fixtures",   mapping_kind: "recurse_list", helper_fn: "dump_fixture"
+
+    # dump_aggregate — 7 fields
+    fixture "Agg_name",          serializer: "dump_aggregate", order: 1, key: "name",          source: "name",          mapping_kind: "direct",           helper_fn: ""
+    fixture "Agg_description",   serializer: "dump_aggregate", order: 2, key: "description",   source: "description",   mapping_kind: "direct",           helper_fn: ""
+    fixture "Agg_attributes",    serializer: "dump_aggregate", order: 3, key: "attributes",    source: "attributes",    mapping_kind: "recurse_list",     helper_fn: "dump_attribute"
+    fixture "Agg_value_objects", serializer: "dump_aggregate", order: 4, key: "value_objects", source: "value_objects", mapping_kind: "recurse_list",     helper_fn: "dump_value_object"
+    fixture "Agg_references",    serializer: "dump_aggregate", order: 5, key: "references",    source: "references",    mapping_kind: "recurse_list",     helper_fn: "dump_reference"
+    fixture "Agg_commands",      serializer: "dump_aggregate", order: 6, key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
+    fixture "Agg_queries",       serializer: "dump_aggregate", order: 7, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
+    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 8, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
+
+    # dump_attribute — 4 fields (one rename: attr_type → "type")
+    fixture "Attr_name",    serializer: "dump_attribute", order: 1, key: "name",    source: "name",      mapping_kind: "direct", helper_fn: ""
+    fixture "Attr_type",    serializer: "dump_attribute", order: 2, key: "type",    source: "attr_type", mapping_kind: "direct", helper_fn: ""
+    fixture "Attr_list",    serializer: "dump_attribute", order: 3, key: "list",    source: "list",      mapping_kind: "direct", helper_fn: ""
+    fixture "Attr_default", serializer: "dump_attribute", order: 4, key: "default", source: "default",   mapping_kind: "direct", helper_fn: ""
+
+    # dump_value_object — 3 fields
+    fixture "VO_name",        serializer: "dump_value_object", order: 1, key: "name",        source: "name",        mapping_kind: "direct",       helper_fn: ""
+    fixture "VO_description", serializer: "dump_value_object", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
+    fixture "VO_attributes",  serializer: "dump_value_object", order: 3, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+
+    # dump_reference — 3 fields
+    fixture "Ref_name",   serializer: "dump_reference", order: 1, key: "name",   source: "name",   mapping_kind: "direct", helper_fn: ""
+    fixture "Ref_target", serializer: "dump_reference", order: 2, key: "target", source: "target", mapping_kind: "direct", helper_fn: ""
+    fixture "Ref_domain", serializer: "dump_reference", order: 3, key: "domain", source: "domain", mapping_kind: "direct", helper_fn: ""
+
+    # dump_command — 8 fields
+    fixture "Cmd_name",        serializer: "dump_command", order: 1, key: "name",        source: "name",        mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_description", serializer: "dump_command", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_role",        serializer: "dump_command", order: 3, key: "role",        source: "role",        mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_emits",       serializer: "dump_command", order: 4, key: "emits",       source: "emits",       mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_attributes",  serializer: "dump_command", order: 5, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+    fixture "Cmd_references",  serializer: "dump_command", order: 6, key: "references",  source: "references",  mapping_kind: "recurse_list", helper_fn: "dump_reference"
+    fixture "Cmd_givens",      serializer: "dump_command", order: 7, key: "givens",      source: "givens",      mapping_kind: "recurse_list", helper_fn: "dump_given"
+    fixture "Cmd_mutations",   serializer: "dump_command", order: 8, key: "mutations",   source: "mutations",   mapping_kind: "recurse_list", helper_fn: "dump_mutation"
+
+    # dump_query — 2 fields
+    fixture "Qry_name",        serializer: "dump_query", order: 1, key: "name",        source: "name",        mapping_kind: "direct", helper_fn: ""
+    fixture "Qry_description", serializer: "dump_query", order: 2, key: "description", source: "description", mapping_kind: "direct", helper_fn: ""
+
+    # dump_given — 2 fields
+    fixture "Gvn_expression", serializer: "dump_given", order: 1, key: "expression", source: "expression", mapping_kind: "direct", helper_fn: ""
+    fixture "Gvn_message",    serializer: "dump_given", order: 2, key: "message",    source: "message",    mapping_kind: "direct", helper_fn: ""
+
+    # dump_mutation — 3 fields (two use helpers)
+    fixture "Mut_field", serializer: "dump_mutation", order: 1, key: "field", source: "field",     mapping_kind: "direct",      helper_fn: ""
+    fixture "Mut_op",    serializer: "dump_mutation", order: 2, key: "op",    source: "operation", mapping_kind: "helper_call", helper_fn: "dump_mutation_op"
+    fixture "Mut_value", serializer: "dump_mutation", order: 3, key: "value", source: "value",     mapping_kind: "normalize",   helper_fn: ""
+
+    # dump_lifecycle — 3 fields
+    fixture "LC_field",       serializer: "dump_lifecycle", order: 1, key: "field",       source: "field",       mapping_kind: "direct",       helper_fn: ""
+    fixture "LC_default",     serializer: "dump_lifecycle", order: 2, key: "default",     source: "default",     mapping_kind: "direct",       helper_fn: ""
+    fixture "LC_transitions", serializer: "dump_lifecycle", order: 3, key: "transitions", source: "transitions", mapping_kind: "recurse_list", helper_fn: "dump_transition"
+
+    # dump_transition — 3 fields
+    fixture "Trn_command",    serializer: "dump_transition", order: 1, key: "command",    source: "command",    mapping_kind: "direct", helper_fn: ""
+    fixture "Trn_to_state",   serializer: "dump_transition", order: 2, key: "to_state",   source: "to_state",   mapping_kind: "direct", helper_fn: ""
+    fixture "Trn_from_state", serializer: "dump_transition", order: 3, key: "from_state", source: "from_state", mapping_kind: "direct", helper_fn: ""
+
+    # dump_policy — 4 fields
+    fixture "Pol_name",            serializer: "dump_policy", order: 1, key: "name",            source: "name",            mapping_kind: "direct", helper_fn: ""
+    fixture "Pol_on_event",        serializer: "dump_policy", order: 2, key: "on_event",        source: "on_event",        mapping_kind: "direct", helper_fn: ""
+    fixture "Pol_trigger_command", serializer: "dump_policy", order: 3, key: "trigger_command", source: "trigger_command", mapping_kind: "direct", helper_fn: ""
+    fixture "Pol_target_domain",   serializer: "dump_policy", order: 4, key: "target_domain",   source: "target_domain",   mapping_kind: "direct", helper_fn: ""
+
+    # dump_fixture — 3 fields (one is the special fixture_pairs shape)
+    fixture "Fxt_name",           serializer: "dump_fixture", order: 1, key: "name",           source: "name",           mapping_kind: "direct",         helper_fn: ""
+    fixture "Fxt_aggregate_name", serializer: "dump_fixture", order: 2, key: "aggregate_name", source: "aggregate_name", mapping_kind: "direct",         helper_fn: ""
+    fixture "Fxt_attributes",     serializer: "dump_fixture", order: 3, key: "attributes",     source: "attributes",     mapping_kind: "fixture_pairs", helper_fn: ""
+  end
+
+  # ── EnumCase — variants of dump_mutation_op ───────────────────────
+  aggregate "EnumCase" do
+    fixture "MutOp_Set",       serializer: "dump_mutation_op", variant: "MutationOp::Set",       emits: "set",       order: 1
+    fixture "MutOp_Append",    serializer: "dump_mutation_op", variant: "MutationOp::Append",    emits: "append",    order: 2
+    fixture "MutOp_Increment", serializer: "dump_mutation_op", variant: "MutationOp::Increment", emits: "increment", order: 3
+    fixture "MutOp_Decrement", serializer: "dump_mutation_op", variant: "MutationOp::Decrement", emits: "decrement", order: 4
+    fixture "MutOp_Toggle",    serializer: "dump_mutation_op", variant: "MutationOp::Toggle",    emits: "toggle",    order: 5
+  end
+end
