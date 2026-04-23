@@ -29,17 +29,27 @@ module Hecks
     module Structure
       class Test
         attr_reader :description, :tests_command, :on_aggregate, :kind,
-                    :setups, :input, :expect
+                    :setups, :input, :expect, :events_include
 
+        # @return [Array<String>] set-membership assertion over events fired
+        #
+        # Populated by `then_events_include "BodyPulse", "FatigueAccumulated"`
+        # in a `.behaviors` test block. Complements strict-order `expect emits:`
+        # with a superset check suited to cross-bluebook cascades whose event
+        # ordering is a runtime-drain-order detail, not a semantic contract.
+        # Empty by default — pre-i43 tests behave identically.
+        #
+        # IR slot only in this commit: no consumer reads this field yet.
         def initialize(description:, tests_command:, on_aggregate:, kind: :command,
-                       setups: [], input: {}, expect: {})
-          @description   = description
-          @tests_command = tests_command
-          @on_aggregate  = on_aggregate
-          @kind          = kind.to_sym
-          @setups        = setups
-          @input         = input
-          @expect        = expect
+                       setups: [], input: {}, expect: {}, events_include: [])
+          @description    = description
+          @tests_command  = tests_command
+          @on_aggregate   = on_aggregate
+          @kind           = kind.to_sym
+          @setups         = setups
+          @input          = input
+          @expect         = expect
+          @events_include = events_include
         end
 
         def ==(other)
@@ -50,12 +60,14 @@ module Hecks
             kind == other.kind &&
             setups == other.setups &&
             input == other.input &&
-            expect == other.expect
+            expect == other.expect &&
+            events_include == other.events_include
         end
         alias eql? ==
 
         def hash
-          [description, tests_command, on_aggregate, kind, setups, input, expect].hash
+          [description, tests_command, on_aggregate, kind, setups,
+           input, expect, events_include].hash
         end
       end
 

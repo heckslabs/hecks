@@ -1,0 +1,23 @@
+# spec/parity/behaviors/loads_parse_smoke.behaviors
+#
+# Toy i43 parse-parity fixture. Exercises the two new DSL forms
+# (`loads` and `then_events_include`) on both the Ruby builder and
+# the Rust parser, proving they produce equivalent IR.
+#
+# No runner consumer exists in this PR (commits 3-5 are parser-only,
+# commit 6 lands the merge-domain runtime in a follow-up), so this
+# file is exercised purely at parse time. Once the runtime merge
+# lands, this fixture gains a matching `loads_parse_smoke.bluebook`
+# sibling and joins spec/parity/behaviors_parity_test.rb.
+#
+Hecks.behaviors "LoadsParseSmoke" do
+  vision "Proves i43 loads + then_events_include parse identically in Ruby and Rust"
+
+  loads "foo"
+
+  test "records the suite-level loads and per-test events_include" do
+    tests "Tick", on: "Clock"
+    input at: "T0"
+    then_events_include "Bar"
+  end
+end
