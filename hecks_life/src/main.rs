@@ -163,6 +163,14 @@ fn main() {
         return;
     }
 
+    if command == "dump-hecksagon" {
+        let path = args.get(2).expect("usage: hecks-life dump-hecksagon <file.hecksagon>");
+        let source = std::fs::read_to_string(path).expect("cannot read");
+        let hex = hecks_life::hecksagon_parser::parse(&source);
+        println!("{}", serde_json::to_string_pretty(&dump_hecksagon_json(&hex)).unwrap());
+        return;
+    }
+
     if command == "cascade" {
         let path = args.get(2).expect("usage: hecks-life cascade <bluebook>");
         let source = std::fs::read_to_string(path).expect("cannot read");
@@ -1149,6 +1157,57 @@ fn print_kv(recs: &[&heki::Record], fields: &[String]) {
     }
 }
 
+/// Canonical JSON for a `.hecksagon` file — matches the shape the Ruby
+/// parity harness emits for `Hecksagon::Structure::Hecksagon#to_canonical_h`.
+///
+/// Only the subset the Rust IR models is included: name, persistence,
+/// subscriptions, shell_adapters, io_adapters, gates. Ruby-side fields
+/// outside that set (capabilities, concerns, annotations, context_map,
+/// etc.) are intentionally NOT in the canonical shape — files that
+/// depend on them go in hecksagon_known_drift.txt.
+fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json::Value {
+    let gates: Vec<serde_json::Value> = hex.gates.iter().map(|g| {
+        serde_json::json!({
+            "aggregate": g.aggregate,
+            "role":      g.role,
+            "allowed":   g.allowed_commands,
+        })
+    }).collect();
+    let io_adapters: Vec<serde_json::Value> = hex.io_adapters.iter().map(|io| {
+        let opts: Vec<serde_json::Value> = io.options.iter().map(|(k, v)| {
+            serde_json::json!([k, v])
+        }).collect();
+        serde_json::json!({
+            "kind":      io.kind,
+            "options":   opts,
+            "on_events": io.on_events,
+        })
+    }).collect();
+    let shell_adapters: Vec<serde_json::Value> = hex.shell_adapters.iter().map(|sa| {
+        let env: Vec<serde_json::Value> = sa.env.iter().map(|(k, v)| {
+            serde_json::json!([k, v])
+        }).collect();
+        serde_json::json!({
+            "name":          sa.name,
+            "command":       sa.command,
+            "args":          sa.args,
+            "output_format": sa.output_format,
+            "timeout":       sa.timeout,
+            "working_dir":   sa.working_dir,
+            "env":           env,
+            "ok_exit":       sa.ok_exit,
+        })
+    }).collect();
+    serde_json::json!({
+        "name":           hex.name,
+        "persistence":    hex.persistence,
+        "subscriptions":  hex.subscriptions,
+        "io_adapters":    io_adapters,
+        "shell_adapters": shell_adapters,
+        "gates":          gates,
+    })
+}
+
 /// Canonical JSON for a `.world` file — matches the shape the Ruby
 /// parity harness emits for `Hecksagon::Structure::World#to_canonical_h`.
 fn dump_world_json(world: &hecks_life::world_ir::World) -> serde_json::Value {
@@ -1409,7 +1468,8 @@ fn print_usage() {
     eprintln!("  daemon     Run background daemons (pulse, daydream, sleep)");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
     eprintln!("  heki       Read/write .heki binary stores");
-    eprintln!("  dump-world Parse a .world file and emit canonical JSON\n");
+    eprintln!("  dump-world Parse a .world file and emit canonical JSON");
+    eprintln!("  dump-hecksagon  Parse a .hecksagon file and emit canonical JSON\n");
     eprintln!("Heki subcommands:");
     eprintln!("  heki read   <file>           Dump store as JSON");
     eprintln!("  heki latest <file>           Show latest record");
