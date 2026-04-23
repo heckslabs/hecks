@@ -49,6 +49,12 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_validator_warnings shell adapter not declared",
     );
     assert!(
+        hex.shell_adapters
+            .iter()
+            .any(|a| a.name == "specialize_dump"),
+        "specialize_dump shell adapter not declared",
+    );
+    assert!(
         hex.gates.iter().any(|g| g.aggregate == "SpecializeRun"),
         "SpecializeRun gate not declared",
     );
@@ -127,5 +133,42 @@ fn specializer_produces_byte_identical_validator_rs() {
     assert_eq!(
         generated, hand_written,
         "content mismatch — run `bin/specialize-validator --diff` to inspect",
+    );
+}
+
+#[test]
+fn specializer_produces_byte_identical_dump_rs() {
+    // Phase B commit 4 target — dump.rs as the third Futamura proof.
+    let root = repo_root();
+    let bin = root.join("bin/specialize-dump");
+    assert!(
+        bin.exists(),
+        "bin/specialize-dump missing — Phase B dump adapter unimplemented",
+    );
+
+    let output = Command::new(&bin)
+        .current_dir(&root)
+        .output()
+        .expect("failed to invoke bin/specialize-dump");
+    assert!(
+        output.status.success(),
+        "specializer exited non-zero:\nstderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+
+    let generated = String::from_utf8(output.stdout).expect("specializer output not UTF-8");
+    let hand_written = fs::read_to_string(root.join("hecks_life/src/dump.rs"))
+        .expect("hecks_life/src/dump.rs missing");
+
+    assert_eq!(
+        generated.len(),
+        hand_written.len(),
+        "size mismatch: generated={} hand-written={}",
+        generated.len(),
+        hand_written.len(),
+    );
+    assert_eq!(
+        generated, hand_written,
+        "content mismatch — run `bin/specialize-dump --diff` to inspect",
     );
 }
