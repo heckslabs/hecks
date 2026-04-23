@@ -87,6 +87,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_duplicate_policy",
         "specialize_lifecycle",
         "specialize_meta_subclass",
+        "specialize_meta_subclass_lifecycle",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -137,5 +138,16 @@ fn meta_specializer_produces_byte_identical_duplicate_policy_rb() {
     assert_byte_identical(
         "meta_subclass",
         "lib/hecks_specializer/duplicate_policy.rb",
+    );
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_lifecycle_rb() {
+    // Phase C PC-1b — extends PC-1 to the second thin-subclass shell.
+    // Same shape, same template, different row. Proves the pattern
+    // scales past one row.
+    assert_byte_identical(
+        "meta_subclass_lifecycle",
+        "lib/hecks_specializer/lifecycle.rb",
     );
 }
