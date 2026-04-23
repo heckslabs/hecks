@@ -90,6 +90,8 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_meta_subclass_lifecycle",
         "specialize_meta_diagnostic_validator",
         "specialize_meta_validator_warnings",
+        "specialize_meta_meta_diagnostic_validator",
+        "specialize_meta_meta_validator_warnings",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -183,5 +185,39 @@ fn meta_specializer_produces_byte_identical_validator_warnings_rb() {
     assert_byte_identical(
         "meta_validator_warnings",
         "lib/hecks_specializer/validator_warnings.rb",
+    );
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_meta_diagnostic_validator_rb() {
+    // Phase C PC-4 — THE FUTAMURA FIXED POINT. The meta-specializer
+    // (MetaDiagnosticValidator) regenerates its own source file
+    // byte-identical from RubyClass + RubyMethod + RubyConstant rows
+    // in the very fixtures it reads. When this test goes green, we
+    // have a closed-form 2nd Futamura projection: a specialized
+    // interpreter reproducing itself from its own shape.
+    //
+    // Exercises two new shape features added in PC-4:
+    //   - RubyMethod.receiver ("instance"|"self") for `def self.foo`
+    //   - RubyMethod.doc_snippet for inline pre-method API comments
+    //   - RubyClass.requires for `require_relative` lines (used by
+    //     the companion meta_validator_warnings.rb retirement below)
+    assert_byte_identical(
+        "meta_meta_diagnostic_validator",
+        "lib/hecks_specializer/meta_diagnostic_validator.rb",
+    );
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_meta_validator_warnings_rb() {
+    // Phase C PC-4 companion — regenerates the thin subclass file
+    // meta_validator_warnings.rb from its own RubyClass + RubyMethod
+    // rows. Exercises RubyClass.requires (the `require_relative
+    // "meta_diagnostic_validator"` line between doc and module open)
+    // alongside receiver=self for the lone `def self.target_class_name`
+    // method.
+    assert_byte_identical(
+        "meta_meta_validator_warnings",
+        "lib/hecks_specializer/meta_validator_warnings.rb",
     );
 }

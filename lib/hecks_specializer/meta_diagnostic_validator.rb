@@ -58,6 +58,7 @@ module Hecks
 
         [
           emit_doc(klass),
+          emit_requires(klass),
           emit_module_open(klass),
           emit_class_header(klass),
           emit_constants(klass),
@@ -81,6 +82,17 @@ module Hecks
         # Doc snippet ends with `\n`; add one more for blank-line separator
         # before the module nesting begins.
         File.read(REPO_ROOT.join(klass["attrs"]["doc_snippet"])) + "\n"
+      end
+
+      # Emit `require_relative "<path>"` lines from the comma-separated
+      # RubyClass.requires attr. Empty → collapses (no blank line added).
+      # Non-empty → each require on its own line + trailing blank line.
+      def emit_requires(klass)
+        raw = klass["attrs"]["requires"].to_s
+        return "" if raw.empty?
+        paths = raw.split(",").map(&:strip).reject(&:empty?)
+        return "" if paths.empty?
+        paths.map { |p| "require_relative \"#{p}\"\n" }.join + "\n"
       end
 
       # Emit "module A\n  module B\n  ..." for each segment of module_path.
@@ -129,7 +141,9 @@ module Hecks
 
       # Emit RubyConstant rows matching this class, sorted by order.
       # Each constant line is indented one step deeper than the class,
-      # preceded by a blank line (separating from include block).
+      # preceded by a blank line ONLY when a preceding include block
+      # exists (to separate the two). Classes with no includes get the
+      # first constant butted directly against the class line.
       # Empty if no constants — whole block collapses.
       def emit_constants(klass)
         constants = by_aggregate("RubyConstant")
@@ -143,7 +157,7 @@ module Hecks
           a = c["attrs"]
           "#{indent}#{a["name"]} = #{a["value_expr"]}\n"
         end.join
-        "\n#{lines}"
+        klass["attrs"]["includes"].to_s.strip.empty? ? lines : "\n#{lines}"
       end
 
       # Emit a run of methods with correct spacing. Each method preceded
@@ -166,27 +180,23 @@ module Hecks
       def emit_method(method)
         a = method["attrs"]
         indent = "      " # 6 spaces: module → module → class
-        sig = a["signature"].empty? ? "def #{a["name"]}" : "def #{a["name"]}(#{a["signature"]})"
+        prefix = a["receiver"] == "self" ? "def self." : "def "
+        sig = a["signature"].empty? ? "#{prefix}#{a["name"]}" : "#{prefix}#{a["name"]}(#{a["signature"]})"
         body = File.read(REPO_ROOT.join(a["body_snippet"]))
-        "#{indent}#{sig}\n#{body}#{indent}end\n"
+        doc = emit_method_doc(a)
+        "#{doc}#{indent}#{sig}\n#{body}#{indent}end\n"
+      end
+
+      # Optional inline pre-method doc comment. File is emitted verbatim
+      # (already 6-space-indented in the snippet) between the preceding
+      # blank line and the def line. Empty attr → collapses.
+      def emit_method_doc(attrs)
+        path = attrs["doc_snippet"].to_s
+        return "" if path.empty?
+        File.read(REPO_ROOT.join(path))
       end
     end
 
     register :meta_diagnostic_validator, MetaDiagnosticValidator
-
-    # Phase C PC-2 extension — second full Ruby class retirement.
-    # Emits lib/hecks_specializer/validator_warnings.rb from the
-    # ValidatorWarnings RubyClass row in the same shape. Adds two
-    # features the base exercised for the first time:
-    #   - RubyConstant rows (SHAPE, TARGET_RS at class-body top)
-    #   - register_target_name ("validator_warnings")
-    class MetaValidatorWarnings < MetaDiagnosticValidator
-      TARGET_RS = REPO_ROOT.join("lib/hecks_specializer/validator_warnings.rb")
-      def self.target_class_name
-        "ValidatorWarnings"
-      end
-    end
-
-    register :meta_validator_warnings, MetaValidatorWarnings
   end
 end
