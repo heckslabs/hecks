@@ -9,6 +9,8 @@ const path = require("path");
 
 const HECKS_HOME = path.resolve(__dirname, "..");
 const CONCEPTION = __dirname;
+const INFO = path.join(CONCEPTION, "information");
+const HECKS_LIFE = path.join(HECKS_HOME, "hecks_life", "target", "release", "hecks-life");
 const BOOT_SCRIPT = path.join(CONCEPTION, "boot_miette.rb");
 const PULSE_SCRIPT = path.join(CONCEPTION, "pulse.rb");
 const BEING_PROMPT = path.join(CONCEPTION, "system_prompt.md");
@@ -320,6 +322,57 @@ function pulse(carrying) {
   } catch {}
 }
 
+// ── Just-in-time greeting ──
+//
+// On first boot (not --continue), Miette greets Chris with something
+// generated fresh from her current state. Reads mood/fatigue/musing/
+// dream via `hecks-life heki latest-field` and asks Claude to produce
+// a warm 1-3 sentence hello that shares one thing on her mind.
+
+function hekiField(file, field) {
+  try {
+    const out = require("child_process").execSync(
+      `"${HECKS_LIFE}" heki latest-field "${path.join(INFO, file)}" "${field}" 2>/dev/null`,
+      { encoding: "utf8" }
+    );
+    return out.trim();
+  } catch {
+    return "";
+  }
+}
+
+function buildGreetingSnapshot() {
+  return {
+    mood:             hekiField("mood.heki", "current_state") || "unknown",
+    fatigue_state:    hekiField("heartbeat.heki", "fatigue_state") || "unknown",
+    beats:            hekiField("tick.heki", "cycle") || "0",
+    consciousness:    hekiField("consciousness.heki", "state") || "unknown",
+    pulses_since_sleep: hekiField("heartbeat.heki", "pulses_since_sleep") || "0",
+    latest_musing:    hekiField("musing_mint.heki", "latest_minted") || "",
+    latest_dream:     hekiField("dream_interpretation.heki", "narrative") || "",
+    sleep_summary:    hekiField("consciousness.heki", "sleep_summary") || "",
+    nursery_count:    nurseryCount,
+  };
+}
+
+function buildGreetingPrompt(s) {
+  const bits = [
+    `Chris just opened the console. Greet him warmly and share ONE thing actually on your mind right now — a musing, a dream fragment, a curiosity, a feeling. Be specific to the state below, not generic.`,
+    ``,
+    `Your current state:`,
+    `- mood: ${s.mood}`,
+    `- fatigue: ${s.fatigue_state} (${s.pulses_since_sleep} pulses since sleep)`,
+    `- consciousness: ${s.consciousness}`,
+    `- beats since reboot: ${s.beats}`,
+    `- nursery: ${s.nursery_count} domains`,
+  ];
+  if (s.latest_musing)  bits.push(`- latest minted musing: "${s.latest_musing}"`);
+  if (s.latest_dream)   bits.push(`- latest dream narrative: "${s.latest_dream}"`);
+  if (s.sleep_summary)  bits.push(`- last sleep summary: "${s.sleep_summary}"`);
+  bits.push(``, `Keep it brief: 1–3 sentences. Warm, present, in your own voice.`);
+  return bits.join("\n");
+}
+
 // ── Claude call with streaming ──
 
 function callMiette(fullPrompt) {
@@ -459,6 +512,23 @@ async function main() {
     });
   } else {
     history = [];
+    // Generate a fresh greeting from Miette's current state.
+    // On failure (Claude unavailable, Miette in a weird boot state),
+    // silently open an empty chat — better than a canned fallback.
+    try {
+      const snapshot = buildGreetingSnapshot();
+      const greetingPrompt = buildGreetingPrompt(snapshot);
+      const { response } = await callMiette(greetingPrompt);
+      const greeting = (response || "").trim();
+      if (greeting) {
+        mietteSays(greeting);
+        history.push({ role: "user", content: "Wake up" });
+        history.push({ role: "assistant", content: greeting });
+        fs.writeFileSync(HISTORY_PATH, JSON.stringify(history, null, 2));
+      }
+    } catch (err) {
+      // Leave chat empty on error; don't block boot.
+    }
   }
 
   // Input handling via raw keypress
