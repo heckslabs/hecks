@@ -1,54 +1,20 @@
-#!/usr/bin/env ruby
-# bin/specialize-validator
+# lib/hecks_specializer/validator.rb
 #
-# Hecks::Specializer::Validator — i51 Phase A commit 3
+# Hecks::Specializer::Validator — emits hecks_life/src/validator.rs
+# byte-identical to the hand-written source, from validator_shape.fixtures.
 #
-# First real Futamura specializer. Reads the validator_shape.fixtures
-# JSON produced by `hecks-life dump-fixtures`, emits the Rust source
-# for hecks_life/src/validator.rs.
-#
-# Contract: output MUST be byte-identical to the hand-written file.
-# Wired as a shell adapter via specializer.hecksagon — this file is
-# the Phase A implementation behind the :specialize_validator shell
-# adapter declared there. Phase B replaces this Ruby with a Rust
-# hecks-life subcommand without changing the hecksagon wiring.
-#
-# Usage:
-#   bin/specialize-validator                # prints Rust to stdout
-#   bin/specialize-validator --output PATH  # writes to PATH
-#   bin/specialize-validator --diff         # diff against hand-written
-#
-# The specializer is hand-written Ruby for Phase A. Phase C lifts it
-# into its own bluebook and generates it via the 2nd Futamura —
-# docs/plans/i51_futamura_projections.md §4 Phase C.
-
-require "json"
-require "open3"
-require "pathname"
+# Moved from bin/specialize-validator as part of the Phase A/B
+# consolidation. Behaviour is unchanged; loader + CLI now live in
+# the driver (lib/hecks_specializer.rb + bin/specialize).
 
 module Hecks
   module Specializer
-    # Specializes validator_shape → Rust source for validator.rs.
-    #
-    # Pipeline:
-    #   1. dump-fixtures reads validator_shape.fixtures → JSON IR (L1)
-    #   2. #group_by_aggregate splits into entry / rules / suffixes / exceptions (L2)
-    #   3. #emit_rust walks each section → Rust text (L6 → L7)
-    #
-    # The sections are concatenated in a fixed order that mirrors the
-    # hand-written validator.rs top-to-bottom. Rule bodies are keyed by
-    # `check_kind`; each primitive has a Rust template.
     class Validator
-      REPO_ROOT = Pathname.new(File.expand_path("..", __dir__))
+      include Target
+
       SHAPE = REPO_ROOT.join("hecks_conception/capabilities/validator_shape/fixtures/validator_shape.fixtures")
-      HECKS_LIFE = REPO_ROOT.join("hecks_life/target/release/hecks-life")
       TARGET_RS = REPO_ROOT.join("hecks_life/src/validator.rs")
 
-      def initialize
-        @fixtures = load_fixtures
-      end
-
-      # Public: return the full Rust source as a string.
       def emit
         [
           emit_header,
@@ -66,32 +32,18 @@ module Hecks
 
       private
 
-      # Reads the shape fixtures via the Rust runtime so we exercise
-      # the real parser (parity-locked with Ruby's DSL loader).
-      def load_fixtures
-        raise "hecks-life not built: #{HECKS_LIFE}" unless HECKS_LIFE.exist?
-        out, err, status = Open3.capture3(HECKS_LIFE.to_s, "dump-fixtures", SHAPE.to_s)
-        raise "dump-fixtures failed: #{err}" unless status.success?
-        JSON.parse(out)["fixtures"]
-      end
-
-      def by_aggregate(name)
-        @fixtures.select { |f| f["aggregate"] == name }
-      end
-
       def find_rule(rust_fn_name)
         by_aggregate("ValidationRule").find { |r| r["attrs"]["rust_fn_name"] == rust_fn_name } or
           raise "no ValidationRule fixture with rust_fn_name=#{rust_fn_name}"
       end
 
-      # ── Header ──────────────────────────────────────────────────
       def emit_header
         <<~RS
           //! Domain validator — checks a parsed domain for DDD consistency
           //!
           //! GENERATED FILE — do not edit.
           //! Source:    hecks_conception/capabilities/validator_shape/
-          //! Regenerate: bin/specialize-validator --output hecks_life/src/validator.rs
+          //! Regenerate: bin/specialize validator --output hecks_life/src/validator.rs
           //! Contract:  specializer.hecksagon :specialize_validator shell adapter
           //! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
           //!
@@ -105,7 +57,6 @@ module Hecks
         RS
       end
 
-      # ── Imports ─────────────────────────────────────────────────
       def emit_imports
         <<~RS
           use crate::ir::Domain;
@@ -114,7 +65,6 @@ module Hecks
         RS
       end
 
-      # ── pub fn validate entry point ─────────────────────────────
       def emit_entry_point
         entry = by_aggregate("ValidatorEntryPoint").first
         attrs = entry["attrs"]
@@ -131,7 +81,6 @@ module Hecks
         RS
       end
 
-      # ── Rule emission — dispatched by check_kind ────────────────
       def emit_rule(rule)
         case rule["attrs"]["check_kind"]
         when "unique"          then emit_unique(rule)
@@ -178,9 +127,6 @@ module Hecks
         RS
       end
 
-      # The word-classifier helpers consumed by first_word_verb.
-      # Pull NOUN_SUFFIXES / ADJ_SUFFIXES / FALSE_POSITIVES from SuffixTable
-      # + ExceptionWord fixtures.
       def emit_command_naming_support
         suffixes = by_aggregate("SuffixTable").map { |f| f["attrs"] }
         nouns = suffixes.select { |s| s["table"] == "noun" }.map { |s| s["suffix"] }
@@ -263,7 +209,6 @@ module Hecks
         RS
       end
 
-      # Format a list of quoted strings, breaking at `per_line` items.
       def format_suffix_list(items, per_line)
         items.each_slice(per_line).map do |chunk|
           "    " + chunk.map { |s| "\"#{s}\"" }.join(", ") + ","
@@ -274,7 +219,6 @@ module Hecks
         words = by_aggregate("ExceptionWord").map { |f| f["attrs"] }
                   .select { |e| e["category"] == "verb_exception" }
                   .map { |e| e["word"] }
-        # validator.rs formats this across multiple lines; reproduce the shape.
         lines = []
         lines << "[\"#{words[0..2].join('", "')}\", \"#{words[3]}\","
         lines << "        \"#{words[4..9].join('", "')}\","
@@ -288,14 +232,12 @@ module Hecks
         suffixes = by_aggregate("SuffixTable").map { |f| f["attrs"] }
                      .select { |s| s["table"] == "verb" }
                      .map { |s| s["suffix"] }
-        # Shape: 7 per line for first, 9 for second (matches hand-written).
         head = suffixes[0..6].map { |s| "\"#{s}\"" }.join(", ")
         tail = suffixes[7..].map { |s| "\"#{s}\"" }.join(", ")
         "[#{head},\n        #{tail}]"
       end
 
       def emit_first_word_verb(rule)
-        # Rule body for command_naming.
         <<~RS
           fn #{rule["attrs"]["rust_fn_name"]}(domain: &Domain) -> Vec<String> {
               let mut errors = vec![];
@@ -410,41 +352,8 @@ module Hecks
           }
         RS
       end
-
-      # Tests moved to hecks_life/tests/validator_rules_test.rs in commit 4
-      # (i51 Phase A) to break the circular dependency — previously emit_tests
-      # read the tests section out of the target .rs file the specializer
-      # was generating. When Phase B models test cases as a TestCase
-      # aggregate in the shape fixtures, tests come back under the
-      # shape-driven pipeline.
     end
-  end
-end
 
-# CLI
-if __FILE__ == $PROGRAM_NAME
-  require "optparse"
-
-  options = { output: nil, diff: false }
-  OptionParser.new do |opts|
-    opts.banner = "Usage: bin/specialize-validator [options]"
-    opts.on("-o", "--output PATH", "Write to PATH instead of stdout") { |v| options[:output] = v }
-    opts.on("-d", "--diff", "Diff against hand-written validator.rs")  { options[:diff] = true }
-  end.parse!
-
-  rust = Hecks::Specializer::Validator.new.emit
-
-  if options[:diff]
-    require "tempfile"
-    Tempfile.create(["validator_gen", ".rs"]) do |f|
-      f.write(rust)
-      f.flush
-      system "diff", "-u", Hecks::Specializer::Validator::TARGET_RS.to_s, f.path
-    end
-  elsif options[:output]
-    File.write(options[:output], rust)
-    warn "wrote #{rust.bytesize} bytes to #{options[:output]}"
-  else
-    print rust
+    register :validator, Validator
   end
 end

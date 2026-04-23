@@ -1,52 +1,15 @@
-#!/usr/bin/env ruby
-# bin/specialize-dump
+# lib/hecks_specializer/dump.rb
 #
-# Hecks::Specializer::Dump — i51 Phase B commit 4
-#
-# Third Futamura specializer. Reads dump_shape.fixtures via
-# `hecks-life dump-fixtures` and emits Rust source for
-# hecks_life/src/dump.rs byte-identical to the hand-written file.
-#
-# Wired as the :specialize_dump shell adapter in specializer.hecksagon.
-#
-# Dispatch:
-#   body_kind=json_object     → emit `fn ... -> Value { json!({ ... }) }`,
-#                                fields from JsonField rows linked by
-#                                serializer name
-#   body_kind=embedded_helper → emit fn signature + read snippet body
-#   body_kind=enum_match      → emit `match op { Variant => "label", ... }`,
-#                                cases from EnumCase rows
-#
-# JsonField mapping_kind primitives:
-#   direct            → "key": <binding>.<source>
-#   recurse_list      → "key": <binding>.<source>.iter().map(<helper>).collect::<Vec<_>>()
-#   recurse_optional  → "key": <binding>.<source>.as_ref().map(<helper>)
-#   helper_call       → "key": <helper>(&<binding>.<source>)
-#   normalize         → "key": normalize_value(&<binding>.<source>)
-#   fixture_pairs     → special Vec<[k, normalize_value(v)]> shape
-#
-# Usage:
-#   bin/specialize-dump                # stdout
-#   bin/specialize-dump --output PATH
-#   bin/specialize-dump --diff
-
-require "json"
-require "open3"
-require "pathname"
+# Hecks::Specializer::Dump — emits hecks_life/src/dump.rs.
+# Moved from bin/specialize-dump.
 
 module Hecks
   module Specializer
-    # Specializes dump_shape → Rust for dump.rs. Byte-identity gated
-    # by hecks_life/tests/specializer_golden_test.rs.
     class Dump
-      REPO_ROOT = Pathname.new(File.expand_path("..", __dir__))
-      SHAPE = REPO_ROOT.join("hecks_conception/capabilities/dump_shape/fixtures/dump_shape.fixtures")
-      HECKS_LIFE = REPO_ROOT.join("hecks_life/target/release/hecks-life")
-      TARGET_RS = REPO_ROOT.join("hecks_life/src/dump.rs")
+      include Target
 
-      def initialize
-        @fixtures = load_fixtures
-      end
+      SHAPE = REPO_ROOT.join("hecks_conception/capabilities/dump_shape/fixtures/dump_shape.fixtures")
+      TARGET_RS = REPO_ROOT.join("hecks_life/src/dump.rs")
 
       def emit
         serializers = by_aggregate("Serializer").sort_by { |s| s["attrs"]["order"].to_i }
@@ -59,25 +22,13 @@ module Hecks
 
       private
 
-      def load_fixtures
-        raise "hecks-life not built: #{HECKS_LIFE}" unless HECKS_LIFE.exist?
-        out, err, status = Open3.capture3(HECKS_LIFE.to_s, "dump-fixtures", SHAPE.to_s)
-        raise "dump-fixtures failed: #{err}" unless status.success?
-        JSON.parse(out)["fixtures"]
-      end
-
-      def by_aggregate(name)
-        @fixtures.select { |f| f["aggregate"] == name }
-      end
-
-      # ── Header + imports ──────────────────────────────────────────
       def emit_header
         <<~RS
           //! Canonical IR dump — JSON shape that both Ruby and Rust must agree on.
           //!
           //! GENERATED FILE — do not edit.
           //! Source:    hecks_conception/capabilities/dump_shape/
-          //! Regenerate: bin/specialize-dump --output hecks_life/src/dump.rs
+          //! Regenerate: bin/specialize dump --output hecks_life/src/dump.rs
           //! Contract:  specializer.hecksagon :specialize_dump shell adapter
           //!
           //! This is the parity contract. Hand-written so the JSON shape is chosen
@@ -111,7 +62,6 @@ module Hecks
         RS
       end
 
-      # ── Per-serializer dispatch ───────────────────────────────────
       def emit_serializer(ser)
         case ser["attrs"]["body_kind"]
         when "json_object"     then emit_json_object(ser)
@@ -119,23 +69,6 @@ module Hecks
         when "enum_match"      then emit_enum_match(ser)
         else raise "unknown body_kind: #{ser["attrs"]["body_kind"]}"
         end
-      end
-
-      # pub fn (entry) or fn (private). Returns Value. Body is json!({ ... }).
-      def emit_json_object(ser)
-        a = ser["attrs"]
-        pub = a["is_entry"] == "true" ? "pub " : ""
-        fields = json_fields_for(a["name"])
-        lines = fields.map { |f| emit_field(f["attrs"], a["input_binding"]) }
-        body = lines.join("\n")
-        <<~RS
-          #{pub}fn #{a["name"]}(#{a["input_binding"]}: &#{a["target_type"]}) -> #{a["return_type"]} {
-              json!({
-          #{body}
-              })
-          }
-
-        RS
       end
 
       def emit_field(fattrs, binding)
@@ -154,19 +87,12 @@ module Hecks
         when "normalize"
           %(        "#{key}": normalize_value(&#{binding}.#{source}),)
         when "fixture_pairs"
-          # Special case — dump_fixture's attributes field. The hand-
-          # written code materializes the Vec<Value> of [k, normalize(v)]
-          # pairs on a line preceding the json!() block. We emit that
-          # here by returning a marker the json_object emitter replaces.
           :fixture_pairs
         else
           raise "unknown mapping_kind: #{fattrs["mapping_kind"]}"
         end
       end
 
-      # Override emit_json_object when any field is fixture_pairs —
-      # dump_fixture needs the Vec<Value> materialized before the json!().
-      # Only dump_fixture uses it today; we detect and branch.
       def emit_json_object(ser)
         a = ser["attrs"]
         pub = a["is_entry"] == "true" ? "pub " : ""
@@ -189,20 +115,6 @@ module Hecks
         end
       end
 
-      # dump_fixture's shape — a helper Vec<Value> is computed before json!().
-      # Matches the hand-written dump.rs byte-for-byte:
-      #
-      #     fn dump_fixture(f: &Fixture) -> Value {
-      #         // comment about preserving order
-      #         let pairs: Vec<Value> = f.attributes.iter()
-      #             .map(|(k, v)| json!([k, normalize_value(v)]))
-      #             .collect();
-      #         json!({
-      #             "name": f.name,
-      #             "aggregate_name": f.aggregate_name,
-      #             "attributes": pairs,
-      #         })
-      #     }
       def emit_json_object_with_pairs(a, fields, pair_field, pub)
         binding = a["input_binding"]
         pair_source = pair_field["attrs"]["source"]
@@ -233,16 +145,9 @@ module Hecks
         RS
       end
 
-      # ── embedded_helper (normalize_value) ─────────────────────────
-      # fn signature + preceding doc comment + snippet body as the fn
-      # body. The hand-written dump.rs has a doc comment above
-      # normalize_value; we hardcode it here since it's stable text and
-      # not fixture-driven. If it needs to live in fixtures, promote to
-      # Serializer.doc_comment field.
       def emit_embedded_helper(ser)
         a = ser["attrs"]
         path = REPO_ROOT.join(a["snippet_path"])
-        raise "embedded snippet missing: #{path}" unless path.exist?
         body = read_snippet_body(path)
 
         doc = case a["name"]
@@ -264,13 +169,6 @@ module Hecks
         RS
       end
 
-      def read_snippet_body(path)
-        lines = File.read(path).lines
-        start = lines.find_index { |l| !l.strip.empty? && !l.strip.start_with?("//") }
-        lines[start..].join
-      end
-
-      # ── enum_match (dump_mutation_op) ─────────────────────────────
       def emit_enum_match(ser)
         a = ser["attrs"]
         cases = by_aggregate("EnumCase")
@@ -299,32 +197,7 @@ module Hecks
           .sort_by { |f| f["attrs"]["order"].to_i }
       end
     end
-  end
-end
 
-if __FILE__ == $PROGRAM_NAME
-  require "optparse"
-
-  options = { output: nil, diff: false }
-  OptionParser.new do |opts|
-    opts.banner = "Usage: bin/specialize-dump [options]"
-    opts.on("-o", "--output PATH", "Write to PATH instead of stdout") { |v| options[:output] = v }
-    opts.on("-d", "--diff", "Diff against hand-written dump.rs") { options[:diff] = true }
-  end.parse!
-
-  rust = Hecks::Specializer::Dump.new.emit
-
-  if options[:diff]
-    require "tempfile"
-    Tempfile.create(["dump_gen", ".rs"]) do |f|
-      f.write(rust)
-      f.flush
-      system "diff", "-u", Hecks::Specializer::Dump::TARGET_RS.to_s, f.path
-    end
-  elsif options[:output]
-    File.write(options[:output], rust)
-    warn "wrote #{rust.bytesize} bytes to #{options[:output]}"
-  else
-    print rust
+    register :dump, Dump
   end
 end

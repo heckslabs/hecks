@@ -32,22 +32,26 @@ Hecks.hecksagon "Specializer" do
   # adapter line here. Until a target has a working adapter, its
   # specializer.fixtures ship_status stays "not_started".
 
+  # Single driver with target-name argument. Consolidated from per-
+  # target scripts (bin/specialize-validator, etc.) in Phase B cleanup.
+  # Adding a new target is a new lib/hecks_specializer/<target>.rb
+  # module + one adapter line here.
   adapter :shell,
     name:    :specialize_validator,
-    command: "bin/specialize-validator",
-    args:    ["--output", "{{output}}"],
+    command: "bin/specialize",
+    args:    ["validator", "--output", "{{output}}"],
     ok_exit: 0
 
   adapter :shell,
     name:    :specialize_validator_warnings,
-    command: "bin/specialize-validator-warnings",
-    args:    ["--output", "{{output}}"],
+    command: "bin/specialize",
+    args:    ["validator_warnings", "--output", "{{output}}"],
     ok_exit: 0
 
   adapter :shell,
     name:    :specialize_dump,
-    command: "bin/specialize-dump",
-    args:    ["--output", "{{output}}"],
+    command: "bin/specialize",
+    args:    ["dump", "--output", "{{output}}"],
     ok_exit: 0
 
   # ---- Gate ----------------------------------------------------

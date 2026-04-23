@@ -3,7 +3,7 @@
 // Integration tests for the validator rules — moved out of
 // hecks_life/src/validator.rs as part of i51 Phase A commit 4
 // (retirement). validator.rs is now purely generated from the
-// validator_shape.fixtures via bin/specialize-validator; tests
+// validator_shape.fixtures via `bin/specialize validator`; tests
 // live here so the circular dependency (specializer reading tests
 // out of the file it's generating) is broken.
 //
