@@ -66,6 +66,16 @@ Hecks.hecksagon "Specializer" do
     args:    ["lifecycle", "--output", "{{output}}"],
     ok_exit: 0
 
+  # Phase C PC-1 — meta-specializer. Emits a Ruby subclass shell
+  # under lib/hecks_specializer/ from a SpecializerSubclass fixture
+  # row. Self-referential (output lives in the same dir as the code
+  # doing the emission); first 2nd-Futamura pilot.
+  adapter :shell,
+    name:    :specialize_meta_subclass,
+    command: "bin/specialize",
+    args:    ["meta_subclass", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run
