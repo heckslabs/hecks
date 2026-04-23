@@ -1,5 +1,17 @@
 //! Behaviors parser — reads `_behavioral_tests.bluebook` files into a TestSuite.
 //!
+//! GENERATED FILE — do not edit.
+//! Source:    hecks_conception/capabilities/behaviors_parser_shape/
+//! Regenerate: bin/specialize behaviors_parser --output hecks_life/src/behaviors_parser.rs
+//! Contract:  specializer.hecksagon :specialize_behaviors_parser shell adapter
+//! Tests:     in-file #[cfg(test)] mod tests
+//!
+//! Fourth parser retirement after validator.rs, dump.rs, and
+//! hecksagon_parser.rs. Reuses the hecksagon parser-shape template
+//! (LineParser + LineDispatch + ParserHelper) with two extensions:
+//! an `else_if` loop style and a `tests_snippet` attribute carrying
+//! the inline `#[cfg(test)]` block verbatim.
+//!
 //! Surface (kept small on purpose):
 //!
 //!   Hecks.behaviors "Pizzas" do
