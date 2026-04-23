@@ -1,5 +1,11 @@
 //! Lifecycle validator
 //!
+//! GENERATED FILE — do not edit.
+//! Source:    hecks_conception/capabilities/lifecycle_validator_shape/
+//! Regenerate: bin/specialize lifecycle --output hecks_life/src/lifecycle_validator.rs
+//! Contract:  specializer.hecksagon :specialize_lifecycle shell adapter
+//! Tests:     hecks_life/tests/lifecycle_validator_test.rs
+//!
 //! Catches contradictions in lifecycle declarations — patterns where
 //! a transition is structurally unreachable from any state the
 //! aggregate can actually be in.
