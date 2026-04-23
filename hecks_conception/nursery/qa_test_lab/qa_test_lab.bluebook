@@ -8,7 +8,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
     attribute :team_lead, String
     attribute :priority, String
     attribute :status, String
-    list_of(Milestone) :milestones
+    attribute :milestones, list_of(Milestone)
 
     value_object "Milestone" do
       attribute :name, String
@@ -49,7 +49,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
     attribute :last_run_result, String
     attribute :status, String
     reference_to TestProject
-    list_of(TestCase) :cases
+    attribute :cases, list_of(TestCase)
 
     value_object "TestCase" do
       attribute :case_name, String
@@ -90,7 +90,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
     attribute :assigned_to, String
     attribute :status, String
     reference_to TestSuite
-    list_of(Reproduction) :reproductions
+    attribute :reproductions, list_of(Reproduction)
 
     value_object "Reproduction" do
       attribute :step, String
@@ -131,7 +131,7 @@ Hecks.bluebook "QATestLab", version: "2026.04.13.1" do
     attribute :browser_version, String
     attribute :os_version, String
     attribute :status, String
-    list_of(ConfigParam) :config
+    attribute :config, list_of(ConfigParam)
 
     value_object "ConfigParam" do
       attribute :key, String

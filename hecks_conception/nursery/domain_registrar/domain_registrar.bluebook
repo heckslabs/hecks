@@ -9,7 +9,7 @@ Hecks.bluebook "DomainRegistrar", version: "2026.04.13.1" do
     attribute :registered_at, String
     attribute :expires_at, String
     attribute :status, String
-    list_of(NameServer) :name_servers
+    attribute :name_servers, list_of(NameServer)
 
     value_object "NameServer" do
       attribute :hostname, String

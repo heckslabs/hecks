@@ -179,7 +179,7 @@ Hecks.bluebook "YouthMentoring" do
     attribute :description, String
     attribute :target_date, String
     attribute :status, String
-    list_of(Milestone) :milestones
+    attribute :milestones, list_of(Milestone)
     reference_to Mentee
 
     value_object "Milestone" do

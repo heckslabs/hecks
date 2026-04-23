@@ -107,7 +107,7 @@ Hecks.bluebook "VisionAPI", version: "2026.04.13.1" do
     attribute :api_key, String
     attribute :rate_limit, Integer
     attribute :status, String
-    list_of(Endpoint) :endpoints
+    attribute :endpoints, list_of(Endpoint)
     value_object "Endpoint" do
       attribute :path, String
       attribute :method, String

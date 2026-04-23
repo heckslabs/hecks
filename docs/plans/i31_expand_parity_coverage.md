@@ -181,10 +181,13 @@ behaviors/fixtures side if they haven't caught up organically.
 Rough shape — two to three feature PRs, plus the flip:
 
 1. **`tools: nursery dialect sweep (ImplicitSyntax → explicit)`** — adds
-   `tools/nursery_sweep.rb`, runs it over 173 syntax-error files,
-   commits the rewritten bluebooks. Parity suite reports 173 fewer
-   blocking failures. *~2000 LoC of mechanical rewrites across the
-   nursery; tool itself ~150 LoC Ruby.*
+   `bin/nursery-parity-sweep` (the "sweep tool"; see
+   [`docs/usage/nursery_parity_sweep.md`](../usage/nursery_parity_sweep.md)),
+   runs it over the nursery, commits the rewritten bluebooks. Parity
+   suite reports significantly fewer blocking failures. The tool covers
+   Gate A *and* Gate B in one pass (reference_to / list_of string→const,
+   list_of swap, list_of inline block → sibling value_object). *~250 LoC
+   Ruby; idempotent; safe to rerun after any nursery addition.*
 
 2. **`tools: nursery strict-mode normalization (list_of / reference_to)`**
    — same pattern for the 66 string-not-const files. Can ride in PR 1
@@ -253,7 +256,9 @@ Steps 1 + 2 can be one commit if the sweep tool handles both. Steps 3 +
 - `lib/hecks/dsl/aggregate_builder.rb` — gets `fixture`, `lifecycle`,
   `event` DSL methods (step 3).
 - `lib/hecks/dsl/bluebook_builder.rb` — gets top-level `lifecycle` (step 3).
-- `tools/nursery_sweep.rb` — new, step 1+2.
+- `bin/nursery-parity-sweep` — the sweep tool; step 1+2 in one pass.
+- `docs/usage/nursery_parity_sweep.md` — runbook for the sweep tool.
+- `spec/tools/nursery_parity_sweep_spec.rb` — smoke test for the tool.
 - `hecks_conception/nursery/**/*.bluebook` — 173 + 66 ≈ 239 files
   rewritten mechanically.
 

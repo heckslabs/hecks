@@ -9,7 +9,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
     attribute :orientation, String
     attribute :status, String
     reference_to Location
-    list_of(DiagnosticLog) :diagnostics
+    attribute :diagnostics, list_of(DiagnosticLog)
 
     value_object "DiagnosticLog" do
       attribute :metric, String
@@ -49,7 +49,7 @@ Hecks.bluebook "DigitalSignage", version: "2026.04.13.1" do
     attribute :total_duration_seconds, Integer
     attribute :loop_mode, String
     attribute :status, String
-    list_of(PlaylistEntry) :entries
+    attribute :entries, list_of(PlaylistEntry)
 
     value_object "PlaylistEntry" do
       attribute :content_id, String

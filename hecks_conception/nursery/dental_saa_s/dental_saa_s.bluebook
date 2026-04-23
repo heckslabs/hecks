@@ -73,7 +73,7 @@ Hecks.bluebook "DentalSaaS", version: "2026.04.13.1" do
     attribute :monthly_rate, Float
     attribute :billing_cycle, String
     attribute :status, String
-    list_of(Invoice) :invoices
+    attribute :invoices, list_of(Invoice)
     value_object "Invoice" do
       attribute :invoice_id, String
       attribute :amount, Float

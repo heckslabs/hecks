@@ -10,7 +10,7 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
     attribute :capacity, Integer
     attribute :status, String
     reference_to Venue
-    list_of(TicketTier) :ticket_tiers
+    attribute :ticket_tiers, list_of(TicketTier)
 
     value_object "TicketTier" do
       attribute :tier_name, String
@@ -54,7 +54,7 @@ Hecks.bluebook "TicketingPlatform", version: "2026.04.13.1" do
     attribute :total_capacity, Integer
     attribute :venue_type, String
     attribute :status, String
-    list_of(Section) :sections
+    attribute :sections, list_of(Section)
 
     value_object "Section" do
       attribute :section_name, String

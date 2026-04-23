@@ -10,7 +10,7 @@ Hecks.bluebook "AdTechPlatform", version: "2026.04.13.1" do
     attribute :daily_budget, Float
     attribute :total_budget, Float
     attribute :status, String
-    list_of(TargetingRule) :targeting_rules
+    attribute :targeting_rules, list_of(TargetingRule)
 
     value_object "TargetingRule" do
       attribute :dimension, String

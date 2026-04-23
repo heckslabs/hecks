@@ -8,7 +8,7 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
     attribute :admin_email, String
     attribute :plan, String
     attribute :status, String
-    list_of(TeamMember) :team_members
+    attribute :team_members, list_of(TeamMember)
 
     value_object "TeamMember" do
       attribute :email, String
@@ -89,7 +89,7 @@ Hecks.bluebook "SaaSPlatform", version: "2026.04.13.1" do
     attribute :rollout_strategy, String
     attribute :rollout_percentage, Integer
     attribute :status, String
-    list_of(TenantOverride) :overrides
+    attribute :overrides, list_of(TenantOverride)
 
     value_object "TenantOverride" do
       attribute :tenant_slug, String

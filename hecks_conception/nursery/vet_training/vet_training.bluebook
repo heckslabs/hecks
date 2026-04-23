@@ -8,7 +8,7 @@ Hecks.bluebook "VetTraining", version: "2026.04.13.1" do
     attribute :branch, String
     attribute :discharge_status, String
     attribute :status, String
-    list_of(Benefit) :benefits
+    attribute :benefits, list_of(Benefit)
     value_object "Benefit" do
       attribute :benefit_type, String
       attribute :eligibility, String

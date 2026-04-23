@@ -75,7 +75,7 @@ Hecks.bluebook "MedicalMedia", version: "2026.04.13.1" do
     attribute :target_audience, String
     attribute :duration_minutes, Float
     attribute :status, String
-    list_of(VideoScene) :scenes
+    attribute :scenes, list_of(VideoScene)
     value_object "VideoScene" do
       attribute :scene_number, Integer
       attribute :description_text, String

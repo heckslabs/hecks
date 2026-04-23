@@ -9,7 +9,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
     attribute :budget, Float
     attribute :deadline, String
     attribute :status, String
-    list_of(Requirement) :requirements
+    attribute :requirements, list_of(Requirement)
 
     value_object "Requirement" do
       attribute :skill, String
@@ -50,7 +50,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
     attribute :headline, String
     attribute :hourly_rate, Float
     attribute :status, String
-    list_of(PortfolioItem) :portfolio
+    attribute :portfolio, list_of(PortfolioItem)
 
     value_object "PortfolioItem" do
       attribute :title, String
@@ -137,7 +137,7 @@ Hecks.bluebook "FreelanceMarketplace", version: "2026.04.13.1" do
     attribute :status, String
     reference_to Gig
     reference_to Freelancer
-    list_of(MilestoneItem) :milestones
+    attribute :milestones, list_of(MilestoneItem)
 
     value_object "MilestoneItem" do
       attribute :title, String

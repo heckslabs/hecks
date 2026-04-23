@@ -9,7 +9,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
     attribute :contact_email, String
     attribute :plan_tier, String
     attribute :status, String
-    list_of(Goal) :goals
+    attribute :goals, list_of(Goal)
 
     value_object "Goal" do
       attribute :metric, String
@@ -50,7 +50,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
     attribute :intent_type, String
     attribute :status, String
     reference_to Client
-    list_of(RankSnapshot) :rank_history
+    attribute :rank_history, list_of(RankSnapshot)
 
     value_object "RankSnapshot" do
       attribute :position, Integer
@@ -91,7 +91,7 @@ Hecks.bluebook "SEOAgency", version: "2026.04.13.1" do
     attribute :issues_found, Integer
     attribute :status, String
     reference_to Client
-    list_of(AuditIssue) :issues
+    attribute :issues, list_of(AuditIssue)
 
     value_object "AuditIssue" do
       attribute :page_url, String

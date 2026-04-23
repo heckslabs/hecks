@@ -11,7 +11,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     attribute :image_id, String
     attribute :status, String
     reference_to Tenant
-    list_of(AttachedVolume) :volumes
+    attribute :volumes, list_of(AttachedVolume)
 
     value_object "AttachedVolume" do
       attribute :volume_id, String
@@ -57,7 +57,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     attribute :strategy, String
     attribute :status, String
     reference_to Instance
-    list_of(DeployStep) :steps
+    attribute :steps, list_of(DeployStep)
 
     value_object "DeployStep" do
       attribute :step_name, String
@@ -140,7 +140,7 @@ Hecks.bluebook "CloudHosting", version: "2026.04.13.1" do
     attribute :plan_tier, String
     attribute :balance, Float
     attribute :status, String
-    list_of(Invoice) :invoices
+    attribute :invoices, list_of(Invoice)
 
     value_object "Invoice" do
       attribute :invoice_number, String

@@ -89,7 +89,7 @@ Hecks.bluebook "UrbanForestry", version: "2026.04.13.1" do
     attribute :season, String
     attribute :status, String
 
-    list_of "PlantingSlot" do
+    value_object "PlantingSlot" do
       attribute :latitude, Float
       attribute :longitude, Float
       attribute :species, String

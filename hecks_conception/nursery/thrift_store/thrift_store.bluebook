@@ -8,7 +8,7 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
     attribute :received_date, String
     attribute :item_count, Integer
     attribute :status, String
-    list_of(DonatedItem) :items
+    attribute :items, list_of(DonatedItem)
 
     value_object "DonatedItem" do
       attribute :description, String
@@ -137,7 +137,7 @@ Hecks.bluebook "ThriftStore", version: "2026.04.13.1" do
     attribute :name, String
     attribute :phone, String
     attribute :availability, String
-    list_of(ShiftRecord) :shifts
+    attribute :shifts, list_of(ShiftRecord)
 
     value_object "ShiftRecord" do
       attribute :date, String

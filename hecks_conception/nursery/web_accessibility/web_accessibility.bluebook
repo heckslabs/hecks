@@ -9,7 +9,7 @@ Hecks.bluebook "WebAccessibility", version: "2026.04.13.1" do
     attribute :auditor, String
     attribute :pages_scanned, Integer
     attribute :status, String
-    list_of(ScanResult) :scan_results
+    attribute :scan_results, list_of(ScanResult)
 
     value_object "ScanResult" do
       attribute :page_url, String

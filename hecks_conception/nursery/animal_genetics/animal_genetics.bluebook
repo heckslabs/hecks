@@ -78,7 +78,7 @@ Hecks.bluebook "AnimalGenetics", version: "2026.04.13.1" do
       attribute :associated_trait, String
     end
 
-    list_of "BreedComponent" do
+    value_object "BreedComponent" do
       attribute :breed_name, String
       attribute :percentage, Float
       attribute :confidence, Float

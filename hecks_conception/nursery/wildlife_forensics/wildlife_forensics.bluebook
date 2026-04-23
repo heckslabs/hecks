@@ -76,7 +76,7 @@ Hecks.bluebook "WildlifeForensics", version: "2026.04.13.1" do
       attribute :diagnostic_value, Float
     end
 
-    list_of "ReferenceMatch" do
+    value_object "ReferenceMatch" do
       attribute :database, String
       attribute :accession_number, String
       attribute :similarity_pct, Float

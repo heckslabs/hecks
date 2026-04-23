@@ -10,7 +10,7 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
     attribute :amount_raised, Float
     attribute :deadline, String
     attribute :status, String
-    list_of(RewardTier) :reward_tiers
+    attribute :reward_tiers, list_of(RewardTier)
 
     specification "FullyFunded" do
       satisfied_by { amount_raised >= funding_goal }
@@ -54,7 +54,7 @@ Hecks.bluebook "CrowdfundingPlatform", version: "2026.04.13.1" do
     attribute :payment_method, String
     attribute :total_pledged, Float
     attribute :status, String
-    list_of(PledgeRecord) :pledge_history
+    attribute :pledge_history, list_of(PledgeRecord)
 
     value_object "PledgeRecord" do
       attribute :campaign_title, String

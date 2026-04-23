@@ -9,7 +9,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     attribute :severity, String
     attribute :source_feed, String
     attribute :status, String
-    list_of(Indicator) :indicators
+    attribute :indicators, list_of(Indicator)
 
     specification "CriticalSeverity" do
       satisfied_by { severity == "critical" }
@@ -56,7 +56,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     attribute :assigned_team, String
     attribute :status, String
     reference_to Threat
-    list_of(ResponseAction) :actions
+    attribute :actions, list_of(ResponseAction)
 
     value_object "ResponseAction" do
       attribute :action_type, String
@@ -99,7 +99,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     attribute :target_system, String
     attribute :urgency, String
     attribute :status, String
-    list_of(DeploymentRecord) :deployments
+    attribute :deployments, list_of(DeploymentRecord)
 
     value_object "DeploymentRecord" do
       attribute :host, String
@@ -139,7 +139,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     attribute :framework, String
     attribute :auditor, String
     attribute :status, String
-    list_of(Finding) :findings
+    attribute :findings, list_of(Finding)
 
     value_object "Finding" do
       attribute :control_id, String
@@ -181,7 +181,7 @@ Hecks.bluebook "CyberSecurity", version: "2026.04.13.1" do
     attribute :resource_scope, String
     attribute :permission_level, String
     attribute :status, String
-    list_of(RoleBinding) :role_bindings
+    attribute :role_bindings, list_of(RoleBinding)
 
     value_object "RoleBinding" do
       attribute :principal, String

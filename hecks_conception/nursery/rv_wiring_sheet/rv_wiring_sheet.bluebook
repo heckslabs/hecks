@@ -9,7 +9,7 @@ Hecks.bluebook "RVWiringSheet" do
     attribute :total_dc_amps, Float
     attribute :total_watts, Float
     attribute :circuit_count, Integer
-    list_of(SheetEntry) :entries
+    attribute :entries, list_of(SheetEntry)
 
     value_object "SheetEntry" do
       description "One row on the wiring sheet — a single circuit's complete specification"

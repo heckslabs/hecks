@@ -9,7 +9,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
     attribute :location, String
     attribute :last_heartbeat, String
     attribute :status, String
-    list_of(Tag) :tags
+    attribute :tags, list_of(Tag)
 
     value_object "Tag" do
       attribute :key, String
@@ -172,7 +172,7 @@ Hecks.bluebook "IoTPlatform", version: "2026.04.13.1" do
     attribute :package_size_kb, Integer
     attribute :release_notes, String
     attribute :status, String
-    list_of(RolloutRecord) :rollouts
+    attribute :rollouts, list_of(RolloutRecord)
 
     value_object "RolloutRecord" do
       attribute :device_id, String

@@ -10,7 +10,7 @@ Hecks.bluebook "MobileAppStore", version: "2026.04.13.1" do
     attribute :price, Float
     attribute :current_version, String
     attribute :status, String
-    list_of(Screenshot) :screenshots
+    attribute :screenshots, list_of(Screenshot)
 
     value_object "Screenshot" do
       attribute :url, String

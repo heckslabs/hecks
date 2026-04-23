@@ -9,7 +9,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     attribute :service_branch, String
     attribute :discharge_type, String
     attribute :status, String
-    list_of(ServiceRecord) :service_history
+    attribute :service_history, list_of(ServiceRecord)
 
     value_object "ServiceRecord" do
       attribute :unit, String
@@ -67,7 +67,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     attribute :location_preference, String
     attribute :budget, Float
     attribute :status, String
-    list_of(PropertyOption) :options
+    attribute :options, list_of(PropertyOption)
 
     value_object "PropertyOption" do
       attribute :address, String
@@ -200,7 +200,7 @@ Hecks.bluebook "VeteranRestart", version: "2026.04.13.1" do
     attribute :monthly_expenses, Float
     attribute :savings_target, Float
     attribute :status, String
-    list_of(BudgetCategory) :budget
+    attribute :budget, list_of(BudgetCategory)
 
     value_object "BudgetCategory" do
       attribute :category, String

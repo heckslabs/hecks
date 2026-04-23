@@ -10,7 +10,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :organism_type, String
     attribute :phase, String
     attribute :energy_level, Float
-    list_of(Organelle) :organelles
+    attribute :organelles, list_of(Organelle)
     attribute :membrane_integrity, Float
     attribute :differentiation_state, String
 
@@ -122,8 +122,8 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :strand_type, String
     attribute :length, Integer
     attribute :organism, String
-    list_of(Gene) :genes
-    list_of(Codon) :codons
+    attribute :genes, list_of(Gene)
+    attribute :codons, list_of(Codon)
     attribute :gc_content, Float
     attribute :integrity, Float
 
@@ -233,7 +233,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :function, String
     attribute :folding_state, String
     attribute :active, String
-    list_of(AminoAcid) :amino_acids
+    attribute :amino_acids, list_of(AminoAcid)
 
     value_object "AminoAcid" do
       attribute :name, String
@@ -337,7 +337,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :order, String
     attribute :family, String
     attribute :genus, String
-    list_of(Trait) :traits
+    attribute :traits, list_of(Trait)
     attribute :fitness, Float
     attribute :generation, Integer
     attribute :alive, String
@@ -423,8 +423,8 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :name, String
     attribute :biome, String
     attribute :area, Float
-    list_of(Population) :populations
-    list_of(TrophicLevel) :trophic_levels
+    attribute :populations, list_of(Population)
+    attribute :trophic_levels, list_of(TrophicLevel)
     attribute :energy_input, Float
     attribute :biodiversity_index, Float
     attribute :status, String
@@ -525,7 +525,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :genotype, String
     attribute :phenotype, String
     attribute :chromosome_count, Integer
-    list_of(Allele) :alleles
+    attribute :alleles, list_of(Allele)
     attribute :ploidy, String
     attribute :genome_mapped, String
 
@@ -614,7 +614,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :selection_pressure, String
     attribute :fitness_landscape, String
     attribute :speciation_events, Integer
-    list_of(Adaptation) :adaptation_history
+    attribute :adaptation_history, list_of(Adaptation)
     attribute :divergence_time, Float
 
     value_object "Adaptation" do
@@ -704,7 +704,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :current_potential, Float
     attribute :state, String
     attribute :neurotransmitter, String
-    list_of(Synapse) :synapses
+    attribute :synapses, list_of(Synapse)
     attribute :dendrite_count, Integer
 
     value_object "Synapse" do
@@ -823,7 +823,7 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :antibody_generated, String
     attribute :severity, String
     attribute :status, String
-    list_of(ImmuneCell) :immune_cells
+    attribute :immune_cells, list_of(ImmuneCell)
     attribute :memory_formed, String
 
     value_object "ImmuneCell" do
@@ -927,8 +927,8 @@ Hecks.bluebook "Biology", version: "2026.04.11.1" do
     attribute :atp_produced, Float
     attribute :atp_consumed, Float
     attribute :net_atp, Float
-    list_of(Enzyme) :enzymes
-    list_of(Substrate) :substrates
+    attribute :enzymes, list_of(Enzyme)
+    attribute :substrates, list_of(Substrate)
     attribute :regulated, String
     attribute :status, String
 

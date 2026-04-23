@@ -9,7 +9,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
     attribute :units_used, Integer
     attribute :power_zone, String
     attribute :status, String
-    list_of(MountedDevice) :mounted_devices
+    attribute :mounted_devices, list_of(MountedDevice)
 
     specification "Full" do
       satisfied_by { units_used >= unit_capacity }
@@ -137,7 +137,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
     attribute :current_load_kw, Float
     attribute :redundancy_level, String
     attribute :status, String
-    list_of(LoadReading) :load_history
+    attribute :load_history, list_of(LoadReading)
 
     value_object "LoadReading" do
       attribute :load_kw, Float
@@ -176,7 +176,7 @@ Hecks.bluebook "DataCenter", version: "2026.04.13.1" do
     attribute :assigned_to, String
     attribute :status, String
     reference_to Server
-    list_of(TimelineEntry) :timeline
+    attribute :timeline, list_of(TimelineEntry)
 
     value_object "TimelineEntry" do
       attribute :note, String

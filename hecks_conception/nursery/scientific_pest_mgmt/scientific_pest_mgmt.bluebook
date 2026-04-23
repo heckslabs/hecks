@@ -64,7 +64,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       attribute :traps_set, Integer
     end
 
-    list_of "InfestationSign" do
+    value_object "InfestationSign" do
       attribute :sign_type, String
       attribute :location, String
       attribute :description, String
@@ -227,7 +227,7 @@ Hecks.bluebook "ScientificPestMgmt", version: "2026.04.13.1" do
       attribute :current_level, Float
     end
 
-    list_of "PreventionAction" do
+    value_object "PreventionAction" do
       attribute :action, String
       attribute :frequency, String
       attribute :responsible_party, String

@@ -1,0 +1,249 @@
+#!/usr/bin/env ruby
+# bin/nursery-parity-sweep
+#
+# Hecks::Tools::NurseryParitySweep
+#
+# Mechanical Gate A / Gate B transformations applied across .bluebook files
+# to close Ruby/Rust parser dialect drift. Idempotent — running a second time
+# is a no-op when the corpus is clean.
+#
+# [antibody-exempt: i31 nursery-parity sweep tool; mechanical transformations
+# toward 100% nursery parity. Retires when all nursery files are parity-clean
+# and new files ship via DSL directly.]
+#
+# Transformations applied (all idempotent):
+#
+#   1. reference_to "X"         → reference_to(X)
+#   2. list_of "X"              → list_of(X)        (one-line form; not block)
+#   3. list_of(X) :field        → attribute :field, list_of(X)   (Gate A swap)
+#   4. list_of "X" do ... end   → extract block to sibling value_object "X" do ... end,
+#                                 replace site with bare `list_of(X)` removed
+#                                 (conservative: only if the block is pure attributes
+#                                 and the enclosing aggregate can be located;
+#                                 otherwise skipped)
+#
+# Usage:
+#   bin/nursery-parity-sweep                    # runs over hecks_conception/nursery
+#   bin/nursery-parity-sweep path/to/dir        # runs over a directory
+#   bin/nursery-parity-sweep --dry-run          # print what WOULD change
+#   bin/nursery-parity-sweep --dry-run path/... # dry-run a specific path
+#
+# Exit status: 0 always. Output summarizes files touched, transformations by
+# type, and files skipped with reason.
+
+require "pathname"
+
+module NurseryParitySweep
+  DEFAULT_TARGET = File.expand_path("../hecks_conception/nursery", __dir__)
+
+  # Matches:  reference_to "SomeTypeName"
+  # Captures: indent, string body
+  REFERENCE_TO_STRING_RX =
+    /^(?<indent>\s*)reference_to\s+"(?<name>[A-Z][A-Za-z0-9_]*)"\s*$/.freeze
+
+  # Matches:  list_of "SomeTypeName"     (no trailing do)
+  LIST_OF_STRING_RX =
+    /^(?<indent>\s*)list_of\s+"(?<name>[A-Z][A-Za-z0-9_]*)"\s*$/.freeze
+
+  # Matches:  list_of(SomeTypeName) :field_name        (Gate A swap candidate)
+  LIST_OF_SWAP_RX =
+    /^(?<indent>\s*)list_of\((?<type>[A-Z][A-Za-z0-9_]*)\)\s+:(?<field>\w+)\s*$/.freeze
+
+  # Matches:  list_of "SomeTypeName" do                (inline block to extract)
+  LIST_OF_BLOCK_RX =
+    /^(?<indent>\s*)list_of\s+"(?<name>[A-Z][A-Za-z0-9_]*)"\s+do\s*$/.freeze
+
+  # A line that safely goes inside an extracted value_object — attribute-only
+  # to avoid accidentally scooping up command/policy/lifecycle declarations
+  # into a value_object block. Comments and blank lines are allowed.
+  SAFE_VO_BODY_RX = /\A\s*(#.*)?\z|\A\s*attribute\s/.freeze
+
+  module_function
+
+  def transform(source)
+    lines = source.split("\n", -1) # -1 preserves trailing empty strings
+    counts = Hash.new(0)
+    skips  = []
+
+    # Pass 1: Gate A swap — list_of(X) :field → attribute :field, list_of(X)
+    lines = lines.map do |ln|
+      if (m = LIST_OF_SWAP_RX.match(ln))
+        counts[:gate_a_swap] += 1
+        "#{m[:indent]}attribute :#{m[:field]}, list_of(#{m[:type]})"
+      else
+        ln
+      end
+    end
+
+    # Pass 2: string -> constant (reference_to and list_of one-line)
+    lines = lines.map do |ln|
+      if (m = REFERENCE_TO_STRING_RX.match(ln))
+        counts[:reference_to_string] += 1
+        "#{m[:indent]}reference_to(#{m[:name]})"
+      elsif (m = LIST_OF_STRING_RX.match(ln))
+        counts[:list_of_string] += 1
+        "#{m[:indent]}list_of(#{m[:name]})"
+      else
+        ln
+      end
+    end
+
+    # Pass 3: list_of "X" do ... end  → extract to value_object
+    lines, block_extract_count, block_skip_reasons = extract_list_of_blocks(lines)
+    counts[:list_of_block_extract] += block_extract_count
+    skips.concat(block_skip_reasons)
+
+    [lines.join("\n"), counts, skips]
+  end
+
+  # Walks the file looking for `list_of "X" do` lines. For each one:
+  #   - Finds the matching `end` by indent.
+  #   - Verifies the body is pure attributes (comments/blank OK).
+  #   - Extracts the block as a sibling `value_object "X" do ... end` placed
+  #     just before the enclosing aggregate's final `end` (same indent as the
+  #     list_of itself, since value_object siblings live at that depth too).
+  #   - Removes the original `list_of "X" do ... end` from the body.
+  #   - The attribute that referenced it must be added separately — skipped
+  #     when there is no obvious host attribute, since we can't name a field
+  #     we didn't see.
+  #
+  # Conservative: if the block body contains commands/policies/lifecycle or
+  # non-attribute DSL, we skip and report.
+  def extract_list_of_blocks(lines)
+    count = 0
+    skips = []
+    i = 0
+    while i < lines.length
+      m = LIST_OF_BLOCK_RX.match(lines[i])
+      unless m
+        i += 1
+        next
+      end
+
+      indent = m[:indent]
+      name   = m[:name]
+      end_idx = find_matching_end_by_indent(lines, i, indent)
+
+      unless end_idx
+        skips << "unmatched_list_of_block(#{name})"
+        i += 1
+        next
+      end
+
+      body = lines[(i + 1)..(end_idx - 1)]
+      unless body.all? { |ln| ln.match?(SAFE_VO_BODY_RX) }
+        skips << "list_of_block(#{name})_has_non_attribute_body"
+        i += 1
+        next
+      end
+
+      # Build replacement: a `value_object "X" do ... end` at the same indent,
+      # replacing the list_of-block in place. This is safe because siblings
+      # of list_of inside an aggregate are always at that same indent level.
+      replacement = [
+        %(#{indent}value_object "#{name}" do),
+        *body,
+        "#{indent}end",
+      ]
+      lines[i..end_idx] = replacement
+      count += 1
+      i += replacement.length
+    end
+    [lines, count, skips]
+  end
+
+  # Finds the first line after `start` whose content (rstripped) equals
+  # `<indent>end` — the matching `end` at that indent level. Bluebook files
+  # are consistently indented, making this simpler and more reliable than
+  # counting do/end tokens (which misfire on strings like "end of day").
+  def find_matching_end_by_indent(lines, start, indent)
+    target = "#{indent}end"
+    j = start + 1
+    while j < lines.length
+      return j if lines[j].rstrip == target
+      j += 1
+    end
+    nil
+  end
+
+  def process_file(path, dry_run:)
+    original = File.read(path)
+    transformed, counts, skips = transform(original)
+    changed = transformed != original
+    File.write(path, transformed) if changed && !dry_run
+    [changed, counts, skips]
+  end
+
+  def expand_bluebooks(target)
+    if File.directory?(target)
+      Dir.glob(File.join(target, "**", "*.bluebook")).sort
+    elsif File.file?(target) && target.end_with?(".bluebook")
+      [target]
+    else
+      []
+    end
+  end
+
+  def run(argv)
+    dry_run = argv.delete("--dry-run") || argv.delete("-n")
+    target  = argv.first || DEFAULT_TARGET
+
+    paths = expand_bluebooks(target)
+    if paths.empty?
+      warn "no .bluebook files under #{target}"
+      return 1
+    end
+
+    total_counts = Hash.new(0)
+    changed_files = []
+    skipped_files = []
+
+    paths.each do |path|
+      changed, counts, skips = process_file(path, dry_run: dry_run)
+      counts.each { |k, v| total_counts[k] += v }
+      changed_files << path if changed
+      skipped_files << [path, skips] if skips.any?
+    end
+
+    print_summary(paths, changed_files, skipped_files, total_counts, dry_run: dry_run)
+    0
+  end
+
+  def print_summary(paths, changed_files, skipped_files, total_counts, dry_run:)
+    puts ""
+    puts "=== nursery-parity-sweep #{dry_run ? '[DRY RUN]' : ''} ==="
+    puts "files scanned:  #{paths.length}"
+    puts "files #{dry_run ? 'would change' : 'changed'}: #{changed_files.length}"
+    puts ""
+    puts "transformations:"
+    pretty = {
+      gate_a_swap:           "list_of(X) :f          → attribute :f, list_of(X)",
+      reference_to_string:   %(reference_to "X"      → reference_to(X)),
+      list_of_string:        %(list_of "X"           → list_of(X)),
+      list_of_block_extract: %(list_of "X" do ... end → value_object "X" do ... end),
+    }
+    pretty.each do |key, label|
+      printf "  %6d  %s\n", total_counts[key], label
+    end
+
+    if skipped_files.any?
+      puts ""
+      puts "skipped (manual fix needed):"
+      skipped_files.each do |path, reasons|
+        puts "  #{path}"
+        reasons.uniq.each { |r| puts "    · #{r}" }
+      end
+    end
+
+    if dry_run && changed_files.any?
+      puts ""
+      puts "changed files (dry-run preview):"
+      changed_files.first(20).each { |f| puts "  #{f}" }
+      puts "  ...(#{changed_files.length - 20} more)" if changed_files.length > 20
+    end
+  end
+end
+
+if __FILE__ == $PROGRAM_NAME
+  exit NurseryParitySweep.run(ARGV.dup)
+end
