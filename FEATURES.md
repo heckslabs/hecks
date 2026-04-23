@@ -1,22 +1,24 @@
 # Hecks Framework — Feature List
 
-> **Reader's guide.** This file is the claim-list — a curated record of
-> features as they were introduced. It is not the source of truth for what
-> is currently verified by tests. Some entries describe shipped + tested
-> behavior; others describe work whose tests have since moved, been
-> rewritten, or lag behind the prose.
+> **Reader's guide.** This file is split into two parts:
 >
-> For **what is actually exercised right now**, run:
+> 1. The main body below lists features that have an identifier (class name,
+>    method, CLI flag, keyword) appearing in at least one test artifact —
+>    `spec/`, `hecks_life/tests/`, `hecks_conception/tests/`, `.behaviors`,
+>    or `.fixtures`. Presence of an identifier in a test is a weak signal of
+>    coverage, not proof — it means the name is exercised, not necessarily
+>    that every nuance of the bullet is asserted.
+> 2. The final section, **Aspirational (not yet tested)**, collects claims
+>    whose identifiers could not be found in any test artifact. They may
+>    still work today — they just aren't locked down by a test.
 >
-> ```
-> hecks verify
-> ```
+> For what is actually exercised right now, run `hecks verify` — it walks
+> the contract suite, parity suite, and behavioral tests and reports
+> pass/fail per area.
 >
-> That walks the contract suite, parity suite, and behavioral tests and
-> reports pass/fail per area. Anything not covered by `hecks verify` should
-> be read as "claimed" until the audit backfills a test link per line.
->
-> The audit is tracked in the living inbox as a follow-up to this banner.
+> Audit script: `tools/features_audit.py`. Split was produced mechanically
+> against the test corpus on 2026-04-22; re-run when tests land to move
+> lines back up.
 
 ## Domain Modeling DSL
 
@@ -37,7 +39,6 @@
 - **Paragraphs** — `paragraph "Ports" { aggregate "EventBus" do ... end }` groups aggregates into named sections within a chapter. Paragraphs are first-class IR nodes (`Structure::Paragraph`) tracked on the domain, enabling organizational splitting without creating separate domains.
 - **Bluebook glossary** — `bluebook.glossary` prints the Ubiquitous Language for the entire composed system, walking binding + all chapters and listing every aggregate and command with descriptions.
 - Workshop chapter mode — define and play multiple chapters interactively with `workshop.chapter("Name") { ... }`
-- `Hecks.configure { chapter "x" }` — chapter alias for domain in configuration DSL
 - Domain version pinning and local path loading in configuration
 - **Domain-named source files** — every Hecks source file is named after its declared domain: `<domain>.bluebook` (DSL), `<domain>.hecksagon` (runtime/adapter IR), `<domain>.world` (world concerns + ethics). Discovery is glob-based — `find_hecksagon_files` / `find_world_files` in `lib/hecks/runtime/boot.rb` and `find_world_file` in `hecks_life/src/main.rs` scan for `*.hecksagon` / `*.world` rather than hardcoded filenames. Generators emit `<name>.bluebook` / `<name>.hecksagon`, and `WATCH_EXTENSIONS` in `lib/hecks/capabilities/live_reload/watcher.rb` tracks `.bluebook .hecksagon .world` for hot reload.
 
@@ -95,30 +96,20 @@
 - Long-running stateful business processes with compensation: `saga "OrderFulfillment" { ... }`
 - Block-based step DSL with `on_success`, `on_failure`, and `compensate` per step
 - Keyword step syntax for simple cases: `step "DoThing", on_success: "ThingDone"`
-- Automatic compensation on failure: reverses completed steps in reverse order (best-effort)
 - Timeout and on_timeout metadata for time-bounded sagas
 - In-memory `SagaStore` for saga instance persistence (swappable for Redis/SQL)
 - `SagaRunner` state machine: pending -> running -> compensating -> completed/failed
 - Wired as `start_<saga_name>` methods on the domain module: `OrdersDomain.start_order_fulfillment(...)`
 - Steps declare success and failure transitions to other named commands
-- Compensations are rollback commands run in reverse order if the saga must unwind
 - Saga definitions stored in domain IR and available via `domain.sagas`
 
 ### Ubiquitous Language
-- `glossary { prefer "customer", not: ["user", "client"] }` — warn when banned terms appear in names across aggregates, commands, and events
-- `glossary { define "aggregate", as: "A cluster of objects" }` — define domain terms for the glossary
 - `prefer` accepts optional `definition:` kwarg to document preferred terms inline
 - Glossary `generate` produces a "Ubiquitous Language" section with definitions and avoid lists
 
 ### World Concerns
-- `world_concerns :transparency, :consent, :privacy, :security` — opt-in ethical validation rules
-- `:transparency` — commands must emit events (no silent mutations)
-- `:consent` — user-like aggregate commands must declare actors
-- `:privacy` — PII attributes must be `visible: false`; PII aggregate commands need actors
-- `:security` — command actors must be declared at domain level
 - **World Concerns Report** — `hecks validate` shows a per-concern PASS/FAIL summary with violations listed
 - **GovernanceGuard** — general-purpose governance checker (`Hecks::GovernanceGuard.new(domain).check`) returns `Result` with `passed?`, `violations`, `suggestions`; works from CLI (`--governance`), MCP (`governance_check` tool), REPL, or any entry point
-- GovernanceGuard falls back to rule-based checks when no LLM API key is present; enriches suggestions via AI when available
 
 ### Access Control & Ports
 - Define access-control ports that whitelist allowed methods per consumer
@@ -128,7 +119,6 @@
 
 ### Extension Registry
 - Extension registry: `Hecks.register_extension(:sqlite) { |mod, domain, runtime| ... }`
-- Add to Gemfile to wire, remove to unwire — no code changes needed
 - Adapter type classification: `adapter_type: :driven` or `:driving` on `describe_extension`
 - Two-phase boot: driven extensions (repos, middleware) fire before driving extensions (HTTP, queues)
 - Query helpers: `Hecks.driven_extensions` and `Hecks.driving_extensions`
@@ -137,14 +127,6 @@
 - Every extension declares its config keys in `describe_extension` for introspection
 - Every extension has a "Future gem" comment documenting its intended gem name
 
-### Persistence Extensions
-- `hecks_sqlite` — SQLite persistence, auto-wires when in Gemfile
-- `hecks_postgres` — PostgreSQL persistence
-- `hecks_mysql` — MySQL persistence
-- `hecks_mongodb` — MongoDB persistence; value objects embedded as nested documents (no join tables)
-- `hecks_cqrs` — named persistence connections for read/write separation
-- `hecks_mongodb` — MongoDB document persistence via the mongo Ruby driver
-
 ### Hecksagon Adapters
 - `adapter :kind, ...` — unified DSL for declaring infrastructure adapters; persistence kinds (`:memory`, `:sqlite`, `:postgres`, `:mysql2`, `:mongodb`, etc.) stay unnamed and at most one per hecksagon; `adapter :shell, name: :x` is named and may appear multiple times
 - `adapter :shell` — named argv-only subprocess adapter; `command` is a fixed binary, `args` is a list-of-strings with `{{placeholder}}` tokens substituted per-element at dispatch time; supports `output_format` (`:text`, `:lines`, `:json`, `:json_lines`, `:exit_code`), `timeout`, `working_dir`, `env`
@@ -152,45 +134,22 @@
 - Shell dispatch security: `Open3.capture3`/`popen3` (no shell), `unsetenv_others: true` (empty env baseline, only declared env entries cross), explicit `working_dir`, sealed empty stdin, active-kill on timeout via pgroup SIGKILL
 - `persistence :type, ...` remains as a deprecated alias for `adapter :type, ...` (emits a one-shot warning per builder) — closes the long-standing gap where the public `adapter` DSL was vestigial
 
-### Server Extensions
-- `hecks_serve` registers `:http` — adds `CatsDomain.serve(port: 9292)`
-- `hecks_ai` registers `:mcp` — adds `CatsDomain.mcp`
-
 ### Application Service Extensions
-- `hecks_auth` — actor-based authentication & authorization
 - Default-secure auth: raises `ConfigurationError` at boot when actor-protected commands exist but no `:auth` extension is registered
 - Explicit opt-out: `extend :auth, enforce: false` registers a no-op sentinel that satisfies the check
 - Auth screens: auto-generated login/signup/logout HTML pages wired into the serve extension (GET/POST `/login`, GET/POST `/signup`, GET `/logout`)
-- Session management via HttpOnly cookies with Base64-encoded JSON payloads
 - In-memory credential store for development; default role inferred from domain DSL actor declarations
-- `hecks_tenancy` — multi-tenant isolation (`Hecks.tenant = "acme"`)
 - Row-level authorization — `owned_by :field` on gates restricts `find`/`all`/`delete` to the current user; `tenancy: :row` isolates by `Hecks.tenant`
-- `Hecks.current_user` / `Hecks.with_user(user) { }` — thread-local current user context for ownership enforcement
-- `hecks_audit` — audit trail of every command execution
 - `hecks_metrics` — change tracking for metric-tagged aggregate attributes; `Hecks.metric_log` in-memory log; `Hecks.metric_sink=` pluggable sink for StatsD/Prometheus; `capability.login_count.metric` DSL tag in Hecksagon
-- `hecks_logging` — structured stdout logging with duration
-- `hecks_rate_limit` — sliding window rate limiting per actor
-- `hecks_idempotency` — command deduplication by fingerprint
-- `hecks_transactions` — DB transaction wrapping when SQL adapter present
-- `hecks_retry` — exponential backoff for transient errors
 - `hecks_bubble` — anti-corruption layer (ACL) for legacy data translation; context DSL with `map_aggregate`, `from_legacy` (field renaming + transforms), `map_out` (reverse mapping); API: `context.translate(:Pizza, :create, legacy_data)` and `context.reverse(:Pizza, :create, domain_data)`
 
 ### Domain Connections DSL
 - `extend :sqlite` — declare persistence adapter
-- `extend :slack, webhook: url` — forward all domain events to an outbound handler
-- `extend(:audit) { |event| ... }` — forward events to a block handler
-- `extend CommentsDomain` — subscribe to another domain's event bus (cross-domain events)
-- `extend :tenancy` — add middleware extension
 - `extend :sqlite, as: :write` — named CQRS connections
-- `SomeDomain.connections` — inspect current connection configuration
-- `SomeDomain.event_bus` — access the domain's event bus for cross-domain wiring
-- `Runtime#swap_adapter(name, repo)` — extension gems swap memory adapters for SQL
 
 ## Capabilities
-- `app.capability(:crud)` — generate Create, Update, Delete command stubs for all aggregates; skips user-defined commands
 - Capability registry: `Hecks.register_capability(:name) { |runtime| ... }` — plug in custom capabilities
 - CRUD capability auto-enabled in Workshop play mode and Rails (`Hecks.configure`)
-- `hecks new` app.rb scaffold includes `app.capability(:crud)` by default
 
 ### Bluebook Capabilities (Miette)
 - **ProjectManagement** — replaces Linear for tracking features, sprints, priorities, dependencies, milestones, and work logs. Features are domain-aware via DomainLink — every feature links to a bluebook domain. Stored in heki, queryable by Miette. 7 aggregates, 3 policies, seeded with current Linear issues.
@@ -202,7 +161,6 @@
 - **`hecks-life dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
 - **Known-drift list** — `spec/parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
 - **Pre-commit gate** — `bin/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `bin/install-hooks`.
-- **CI gate** — `.github/workflows/parity.yml` runs the suite on every PR.
 - **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
 - **Nursery soft coverage** — `spec/parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
 
@@ -215,10 +173,7 @@
 - Exit codes: 0 clean, 1 parse failure, 2 guard failure (no entrypoint), 3 adapter failure, 4 command not found
 
 ### Companion hecksagon
-- `<stem>.hecksagon` sibling is auto-loaded for adapter wiring
 - Rust runtime parses `adapter :memory / :heki / :stdout / :stderr / :stdin / :env / :fs / :shell`
-- `gate "Aggregate", :role do allow :Cmd end` — role-based gates
-- `subscribe "OtherDomain"` — cross-domain event wiring
 - Shell adapters execute via std::process::Command with parity to `lib/hecks/runtime/shell_dispatcher.rb` (env_clear, timeout with SIGKILL, `{{placeholder}}` substitution, `:text / :lines / :json / :json_lines / :exit_code` output formats)
 
 ### Interactive capability
@@ -231,16 +186,9 @@
 - `Hecks.boot(__dir__, adapter: :sqlite)` — automatic SQL setup
 - `Hecks.boot(__dir__) { extend :sqlite }` — boot block with connections
 - `Hecks.load(domain)` — load domain and wire runtime in one step
-- `app["Pizza"]` — access aggregate repository
 - `app.on("EventName") { }` — subscribe to events at runtime
 - `app.run("CommandName", attrs)` — dispatch commands
-- `app.events` — event history
-- `app.async { }` — register async handler for policies and subscribers
-- `app.use { }` — register command bus middleware
-- `enable "Aggregate", :versioned` — enable version tracking (infrastructure config, not domain IR)
-- `enable "Aggregate", :attachable` — enable file attachment support (infrastructure config, not domain IR)
 - `Hecks.boot(__dir__)` auto-detects multi-domain when `bluebook/` has multiple Bluebook files
-- `Hecks.shared_event_bus` — access the shared cross-domain event bus after multi-domain boot
 - `app.dry_run("CommandName", attrs)` — preview command result without side effects (no persist, no events)
 - Dry-run validates guards, preconditions, postconditions and traces the reactive policy chain
 
@@ -281,85 +229,56 @@
 - Port specs: allowed methods pass, denied methods raise PortAccessDenied
 
 ### Generation Features
-- Stacked codegen: constructors stack one-per-line when >2 args
 - Port enforcement stubs, autoload registries, gem scaffolds
 - Preview generated source for any aggregate without writing files
 - Auto-include mixins by convention — `include Hecks::Command` in generated files
 - Auto-generate OpenAPI, JSON-RPC discovery, JSON Schema, TypeScript types (.d.ts), and glossary docs on build
 - TypeScript type generation — interfaces for aggregates/value objects/entities, types for commands/events, enums for lifecycles, union types for enums; `hecks dump --types` for standalone export
 - Preserve custom `call` methods on regenerate
-- CalVer versioning (YYYY.MM.DD.N) auto-assigned at build time
 - Resolve domains from installed gems, not just local files
 
 ### Self-Hosting Analysis
-- `hecks self_diff <chapter>` — compares what generators would produce from a chapter's Domain IR against the actual gem code
-- `hecks self_diff <chapter> --framework` — framework skeleton mode, generates method stubs + doc comments from IR, matches against actual files by name
 - `FrameworkGemGenerator` — locates actual files by aggregate name, generates skeletons with correct module nesting and method stubs from commands
-- Classifies every file as match, partial, uncovered, or extra with line overlap percentages
 - Programmatic API via `SelfHostDiff.new(domain, gem_root:, mode: :framework).summary`
 - Hecksagon baseline: 93.3% coverage (28/30 files have partial matches from IR-derived skeletons)
 
 ### CLI (hecks_cli)
 - `lib/hecks_cli/cli.rb` — Thor-based command-line entry point
-- Aggregate commands become CLI verbs via the runtime command bus (e.g. `hecks pizzas create-pizza --name X`)
 - IR attribute types map to Thor option types (String→:string, Integer→:numeric, etc.)
 
 ### Self-Hosting DSL Extensions
 - `namespace "Hecksagon::DSL"` — declares the module nesting for an aggregate, used by skeleton generator
-- `inherits "Hecks::Generator"` — declares superclass for class-kind aggregates
 - `includes "SqlBuilder"` — declares module mixins included in the aggregate
-- `method_name "sql_type_for"` — overrides auto-generated method name on commands (default: snake_case of command name)
-- `entry_point "hecks_persist"` — declares autoload entry point files for the domain
 
 ## HecksUL Language Specification
 - `HecksUL` (Ubiquitous Language) — every Hecks domain is its own executable business language
-- `HecksUL.syntax` — 58 keywords across 5 contexts (domain, aggregate, command, value_object, entity)
 - `HecksUL.compiler` — Bluebook DSL frontend, DomainModel IR, multiple backends
 - `HecksUL.self_hosting` — live chapter/aggregate/command counts from Hecks's own Bluebook definitions
-- `HecksUL.describe` — prints a human-readable summary of the entire language
 - `ChapterSpecGenerator` — generates exhaustive RSpec specs from chapter IR (chapter + paragraph level)
 - Generated specs cover every aggregate and command across all 15 chapters — the language spec IS the test suite
 
 ## Persistence
 - Memory adapter for fast, zero-setup in-process storage
-- PStore adapter — file-based object store using Ruby stdlib, zero dependencies, supports query with conditions/ordering/pagination
-- SQL adapter via Sequel ORM supporting MySQL, PostgreSQL, and SQLite
 - Repository pattern: `find`, `all`, `count`, `save`, `delete` on aggregates
 - Instance-level `save`, `destroy`, `update` methods
 - Collection proxies for `list_of` attributes with `create`, `delete`, `each`, `count`
-- Automatic reference resolution with lazy loading from repository
 - Optional event sourcing with `EventRecorder` and `Aggregate.history(id)` replay
 
 ## Querying
-- `where(field: value)` filtering on aggregates
-- `find_by(field: value)` for single-record lookup
 - `order(:field)` and `order(field: :desc)` sorting
 - OR conditions: `Pizza.where(style: "Classic").or(Pizza.where(style: "Tropical"))`
-- `exists?` check without loading all records
-- `pluck(:name)` for attribute-only results
-- Aggregations: `sum(:price)`, `min(:price)`, `max(:price)`, `average(:price)`
 - Batch operations: `delete_all`, `update_all(status: "archived")`
 - Query operators: `gt`, `gte`, `lt`, `lte`, `not_eq`, `one_of`
-- Named scopes callable as class methods
-- Ad-hoc query support via `include_ad_hoc_queries` config
 
 ## Command & Event System
 - Command bus with middleware pipeline
-- Class-level command methods: `Pizza.create(name: "M")`
 - Instance-level command methods: `cat.meow` auto-fills from instance attributes
-- `Hecks::Command` mixin orchestrates full lifecycle (guard → handler → call → persist → emit → record)
-- `Hecks::Query` mixin — queries are self-contained like commands
 - Re-entrant policy protection (skips policies already in-flight)
-- In-process event bus with subscriptions and wildcard `on_any`
 - Cross-aggregate event subscribers
-- Async subscriber and policy dispatch via configurable `async { }` block
 
 ## Smalltalk-Inspired REPL
 
 ### Sketch & Play
-- Interactive session for incremental domain building (`Hecks.session`)
-- `sketch!` / `play!` toggling — switch between modeling and execution modes
-- `reload!` — re-read the domain DSL and reboot the playground without leaving play mode; clears events and data
 - Dynamic REPL prompt: `hecks(scratch sketch)`, `hecks(banking play)`
 - Last event in prompt: `hecks(pizzas play) [CreatedPizza]` — shows most recent domain event
 - `last_event` — returns the most recent event object for inspection
@@ -375,13 +294,11 @@
 ### One-Line Dot Syntax
 - Implicit attributes: `Post.title String` adds attribute via method_missing
 - Implicit commands: `Post.create` creates CreatePost command, returns CommandHandle
-- Command attribute chaining: `Post.create.title String` adds attribute to command
 - Lifecycle from handle: `Post.lifecycle :status, default: "draft"`
 - Transitions from handle: `Post.transition "PublishPost" => "published"`
 - Value objects via PascalCase + block: `Post.Address { attribute :street, String }`
 - Commands via snake_case + block: `Post.bake { attribute :temp, Integer }`
 - Reference attributes: `Post.order_id reference_to("Order")`
-- Terse single-line feedback after every operation (e.g. "title attribute added to Post")
 
 ### Console Tour
 - Guided walkthrough via `hecks tour` — 15-step tour of sketch, play, and build
@@ -389,7 +306,6 @@
 - CI-friendly: skips Enter pauses when stdin is not a TTY
 
 ### Architecture Tour
-- Contributor walkthrough via `hecks tour --architecture` — 10-step tour of framework internals
 - Covers monorepo layout, Bluebook DSL, Hecksagon IR, compiler pipeline, generators, workshop, AI tools, CLI registration, and spec conventions
 - Each step displays relevant file paths for exploration
 
@@ -399,7 +315,6 @@
 - Console endpoint disabled by default — requires `--enable-console` flag to activate
 - Multi-domain support: load multiple domain files into a single web console with domain grouping
 - Three-panel layout: domain tree sidebar, terminal center, event log sidebar
-- Interactive domain diagram with aggregate nodes, reference arrows, and policy flow visualization
 - Same implicit syntax as IRB — commands parsed as a safe command language
 - Paren-style command syntax: `create_pizza(name: "Margherita")` alongside space-delimited
 - Side panels auto-refresh after each command
@@ -410,21 +325,14 @@
 - All session methods hoisted to top level in console
 - AggregateHandle short method names: `attr`, `command`, `validation`, etc.
 - Duplicate attribute detection
-- `handle.build(**attrs)` — compile domain and return a live domain object
 - Auto-normalize names to PascalCase
 - `serve!` — start web explorer from REPL in background thread
-- `promote("Comments")` — extract aggregate into its own standalone domain file
-- `extend :logging` — apply extensions to live runtime without rebooting
 - Play mode compiles domain on the fly with full Runtime
 - Real-time event display and policy triggering feedback
 - Event history with timestamps, reset/replay capability
 - Suppressed backtraces by default — `backtrace!` / `quiet!` to toggle
 - Persistent command history across sessions (`~/.hecks_history`)
-- Session image save/restore: `save_image` / `restore_image` to snapshot and restore workshop state
-- Named image labels: `save_image("checkpoint")` for multiple save points
 - Image files stored in `.hecks/images/` with human-readable `.heckimage` format
-- `list_images` to see all saved session snapshots
-- `Hecks::TestHelper` for spec setup and constant cleanup
 
 ## Vertical Slice Architecture (hecks_features)
 - Extract vertical slices from domain reactive chains: command → event → policy → downstream command
@@ -440,8 +348,6 @@
 - No bidirectional or self-references on aggregates
 - Value objects must not contain references
 - Aggregates must have at least one command
-- Command names must be verb phrases (WordNet + custom verbs)
-- Reactive policy events and triggers must reference existing elements
 - Name collision detection across aggregates/VOs/entities
 - Ruby keyword and reserved attribute name detection
 - Every validation error includes a structured `hint` field with a fix suggestion -- rendered as colored "Fix:" lines in the CLI, included in `ValidationError` exception messages, and accessible via `error.hint` / `error.to_h`
@@ -456,13 +362,11 @@
 - **Unreachable given** — flags `given { field == "X" }` predicates where no command sets `field` to `X` (the gate can never open)
 - **Mutation reference check** — flags `then_set :event, to: :event` where `:event` matches no command attribute or reference (field stays null at runtime)
 - **Clock anti-pattern check** — flags `then_set :ts, to: :now` and `seconds_since(:field)` patterns where the domain reaches into the system clock. Hint: inject time as a command attribute (DDD Clock port) so the caller (test, hecksagon adapter, app) supplies the timestamp.
-- `--strict` promotes warnings to errors; pre-commit hook blocks on errors
 
 ### IO Validator (`hecks-life check-io`)
 - Asserts the bluebook is pure-memory by default — no IO leaks above the hecksagon adapter layer
 - **Static IR scan**: flags IO-suggestive command names (`Deploy`, `Send`, `Push`, `Publish`, `Fetch`, `Sync`), past-tense external event names (`Deployed`, `Sent`), and pure-side-effect commands (emits but no state change, not Create or lifecycle)
 - **Runtime smoke**: boots `Runtime::boot(domain)` (pure-memory, no `data_dir`, no hecksagon) and dispatches every dispatchable command — anything that panics or attempts IO is a hard error
-- `hecks-life check-all` runs lifecycle + IO together
 
 ### Behavioral Tests (`hecks-life conceive-behaviors` + `behaviors`)
 - New first-class DSL: `Hecks.behaviors "Pizzas" do ... end` — sibling to `Hecks.bluebook`, separate IR, separate parser, separate parity contract
@@ -470,7 +374,6 @@
 - `conceive-behaviors` auto-generates `_behavioral_tests.bluebook` from any source bluebook by walking IR (every command, query, lifecycle transition, given clause)
 - `behaviors` runner uses `Runtime::boot(domain)` — pure-memory, no hecksagon, no adapters
 - Cascade-aware test generation: detects policy chains (emit→trigger), asserts on cascaded final state, skips redundant mid-chain tests
-- Skips tests for non-equality givens that the chain planner can't auto-satisfy
 - Conceiver parity test (`tests/conceiver_parity_test.rs`) keeps the bluebook conceiver and behaviors conceiver from drifting (shared `Conceiver` trait + shared `conceiver_common.rs` infrastructure)
 - **VCR-style cascade lockdown** — for every command whose emit fires a policy chain, the conceiver emits a `kind: :cascade` test asserting the exact ordered list of events the runtime will publish (`expect emits: [E1, E2, ...]`). Drift in the policy graph (added or removed policy, retargeted trigger) breaks the test immediately.
 - **Static cascade walker** (`hecks_life/src/cascade.rs`) — extracts the predicted event list from emit→policy→trigger graph; mirrors runtime `PolicyEngine` cycle detection (a policy is blocked while on the recursion stack, allowing diamond fan-in)
@@ -493,11 +396,6 @@
 - **CI workflow** (`.github/workflows/antibody.yml`) — blocking second layer; runs `bin/antibody-check --each-commit` which walks every commit in `base..HEAD` and validates each one in isolation; emits GitHub `::warning::` annotations on flagged files so they appear inline on the PR diff
 
 ## Domain Interface Versioning
-- `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header
-- `hecks version_log` — list all tagged versions newest-first with date and one-line change summary
-- `hecks diff --v1 <v1> --v2 <v2>` — diff two tagged version snapshots with breaking change classification
-- `hecks diff --v1 <v1>` — diff a tagged version against the working domain file
-- `hecks diff` — diff working domain against latest tagged version (falls back to build snapshot)
 - Breaking change classification: removed commands, removed attributes, removed aggregates marked as BREAKING
 - Non-breaking changes: added commands, added attributes, added queries, added scopes
 - Auto-bump domain version on breaking changes: `hecks build` compares against the latest tagged snapshot and auto-bumps CalVer when breaking changes are detected
@@ -532,14 +430,10 @@
 - Domain glossary with English descriptions
 - Mermaid class diagrams and flowcharts
 - DSL serializer: round-trip compiled domain back to DSL source code
-- README generator with `{{tags}}` for auto-generated sections
-- `{{connections}}` tag generates extension gem listing
-- `{{smalltalk}}` tag generates Smalltalk features section from `SmalltalkFeatures` metadata
 
 ## AST-Based Domain Extraction (HEC-476)
 - `Hecks::AstExtractor.extract(source)` — parse Bluebook DSL source into a plain hash IR using `RubyVM::AbstractSyntaxTree`, no eval
 - `Hecks::AstExtractor.extract_file(path)` — read and parse a Bluebook file from disk
-- Extracts: domain name, aggregates, attributes (with types, list, defaults), commands, references, value objects, entities, validations, specifications, queries, invariants, scopes, domain-level policies (with attribute maps), services, world goals, actors, sagas, modules, workflows, views
 - Supports implicit PascalCase aggregate syntax (e.g. `Pizza do ... end` instead of `aggregate "Pizza" do ... end`)
 - Safe for static analysis, linting, and tooling — never executes domain code
 
@@ -548,40 +442,22 @@
 - Each extension is a top-level gem candidate at `lib/`
 - `require "hecks"` gives you the core; each extension is a separate require
 - Flattened namespace: `Hecks::Runtime`, not `Hecks::Services::Runtime`
-- Hexagonal / ports-and-adapters: domain layer has zero persistence knowledge
 - Domain gems are the bounded context boundaries
 
 ### Module Infrastructure (hecks_modules)
-- `Hecks::ModuleDSL` — declarative `lazy_registry` for defining lazily-initialized registries
-- All registries (targets, adapters, extensions, domains, dump formats, validations) use `lazy_registry`
 - Zero module-level instance variable assignments — all state lazy-initialized on first access
-- `Hecks::CoreExtensions` — namespace for Ruby core class extensions
 
 ### Deprecation System (hecks_deprecations)
-- `HecksDeprecations.register(target_class, method_name) { ... }` — register deprecated shims
 - Modules prepend warning wrappers onto target classes with `[DEPRECATION]` messages
 - Covers hash-style `[]`, `to_h`, `== Hash` on refactored value objects
 - Generated examples exclude this module — always use current API
-- `HecksDeprecations.registered` — introspect all registered deprecations
 
 ### Rails Import (Reverse Engineering)
-- `hecks import rails /path/to/app` — extract domain from existing Rails app
-- `hecks import schema /path/to/schema.rb` — schema-only import
-- `hecks extract /path/to/project` — auto-detect project type and extract domain
 - Model-only extraction: works without schema.rb using belongs_to/has_many/validations/enums/AASM
-- `Hecks::Import.from_directory(path)` — programmatic auto-detecting extraction
-- `Hecks::Import.from_models(models_dir)` — programmatic model-only extraction
-- Parses db/schema.rb: tables → aggregates, columns → typed attributes, foreign keys → references
-- Parses app/models: validates → validations, enum → enum constraints, AASM → lifecycles
 - Auto-generates Create commands for each aggregate
-- Skips Rails internal tables (schema_migrations, active_storage_*, etc.)
 - Preview mode with `--preview` flag
 
 ## Autophagy: Self-Hosting Compiler (Hecks v0)
-- `hecks compile` — compile the entire Hecks framework into a single self-contained Ruby script
-- `hecks compile --plan` — show compilation plan (file count and list) without writing
-- `hecks compile --output NAME` — specify output file name (default: `hecks_v0`)
-- `hecks compile --trace` — emit auditable trace of every compiler decision to stderr
 - **Prism AST analysis** — uses Ruby's built-in Prism parser for dependency resolution
 - **Bluebook IR consultation** — resolves method-call dependencies via chapter definitions
 - **Two-layer dependency graph**: Layer 1 = Prism (constant refs, inheritance, mixins), Layer 2 = Bluebook (method-call edges)
@@ -590,8 +466,6 @@
 - **ConstantResolver** — namespace-aware constant resolution across all source files
 - **CycleSorter** — greedy topo sort within dependency cycles, respecting wiring file order
 - The compiled binary bundles all source files in load order with zero internal requires
-- Injects forward declarations for load-order dependencies
-- Pre-registers all bundled files in `$LOADED_FEATURES` to prevent double-loading
 - The binary supports `boot`, `version`, and `self-test` commands
 - Binary target also available via `hecks build --target binary`
 - Self-hosting: compiled Hecks can boot domains identically to interpreted Hecks
@@ -607,36 +481,22 @@
   - **WorkflowWiring** — workflow executor method definitions
   - **SagaWiring** — saga runner method definitions
 - Framework code (CommandBus, EventBus, port adapters, mixins) stays hand-written
-- Generators replace only the orchestration loops — same behavior, no runtime IR traversal
 - Called explicitly via `RuntimeGenerator.new(domain, domain_module:).generate`
 
 ## CLI Commands
 - `hecks new NAME` — scaffold a complete project with interactive world goals onboarding: 3-step prompt (yes/skip/doesn't apply), maps each goal to a real extension (`privacy→:pii`, `transparency→:audit`, `consent/security→:auth`, `equity→:tenancy`, `sustainability→:rate_limit`), deduplicates extensions, generates both `world_concerns` and `extend` calls in the Bluebook; `--no-world-goals` skips prompt for CI
-- `hecks build` — validate and generate versioned gem
 - `hecks build --gem` — produce a publishable `.gem` artifact after building (runs `gem build` on generated output); supported for `ruby` and `static` targets
-- `hecks serve [--rpc]` — start REST or JSON-RPC server
-- `hecks serve --watch` — hot reload: polls domain source for changes and rebuilds routes without restart
 - `hecks console [NAME]` — interactive REPL with domain loaded
-- `hecks validate` — check domain against DDD rules
-- `hecks mcp` — start MCP server
-- `hecks inspect` — show full domain definition including business logic (attributes, lifecycle, commands, policies, invariants, etc.)
 - `hecks tree` — print all CLI commands as a grouped tree; `--format json` for tooling
-- `hecks glossary` — print domain glossary to stdout; `--export` writes `glossary.md`
-- `hecks dump` — show glossary, visualizer, and DSL output
-- `hecks migrations` — schema migration management
 - `hecks interview` — conversational onboarding that walks through domain definition interactively (name, aggregates, attributes, commands) and writes a Bluebook file
-- `hecks docs update` — sync doc headers and READMEs
-- All commands accept `--domain` flag consistently
 - `--format json` on `validate`, `inspect`, and `tree` commands for Studio/tooling consumption
 
 ## Rails Integration (ActiveHecks)
-- `Hecks.configure` block for Rails initializers
 - Auto-detects `*_domain` gems in the Gemfile — zero config needed
 - Auto-registers domain gem constants in Rails app
 - SQL adapter config with database/host/name options
 - Multi-domain support within a single Rails app
 - Rails generators registered dynamically via Railtie
-- `to_param` patched on command results — URL helpers work naturally
 - `rails generate active_hecks:init` — one command sets up everything:
   - Adds `hecks_on_rails` to Gemfile
   - Detects domain gems (local directories or installed gems)
@@ -644,26 +504,16 @@
   - Enables ActionCable, creates cable.yml, mounts at /cable
   - Pins Turbo via importmap, adds turbo_stream_from to layout
   - Wires test helpers into spec/test files
-- `rails generate active_hecks:live` — standalone live event setup
-- `rails generate active_hecks:migration` — SQL migrations from domain changes
 
 ## HecksLive — Real-Time Domain Events
 - Zero-config real-time event streaming via ActionCable + Turbo Streams
 - Every domain event auto-broadcasts to connected browsers
 - Railtie wires `event_bus.on_any` → `Turbo::StreamsChannel.broadcast_prepend_to`
-- Views just need `<%= turbo_stream_from "hecks_live_events" %>` and `<div id="event-feed">`
-- No custom JavaScript — standard Rails Turbo Streams
 - Works across page navigations with `data-turbo-permanent`
-- Stdout fallback when ActionCable is not available (plain Ruby apps)
 - Custom channels via `HecksLive::Channel` subclass with `subscribe_to`
 
 ## Module Structure (HEC-370)
 - `bluebook/` — grammar, IR nodes (`Structure::Domain`, `Structure::Aggregate`, …), DSL builders, validators, compiler, generators, visualizer, event storm parser
-- `hecksties/` — core kernel: registries, errors, autoloads, utilities, version
-- `hecks_templating/` — naming helpers + data contracts (type, view, event, migration, UI label)
-- `hecks_runtime/` — command bus, ports, middleware, extensions, boot
-- `hecks_features/` — vertical slice extraction, leaky slice detection, slice diagrams
-- Standalone: heksagons, hecks_workshop, hecks_cli, hecks_static, hecks_on_the_go, hecks_persist, hecks_watchers
 - Meta-gem loader (`lib/hecks.rb`) adds all sub-gem `lib/` directories to `$LOAD_PATH`
 - No Ruby namespace changes — only gem directory ownership changed during consolidation
 
@@ -680,27 +530,14 @@
 
 ## AI-Native
 
-### llms.txt Generation
-- `hecks llms` generates AI-readable domain summary with aggregates, commands, types, policies, flows
-- `hecks build` includes `llms.txt` in every generated domain gem for automatic agent discovery
-- Covers attributes with types, commands with parameters, validation rules, invariants, reactive chains
-
 ### MCP Server
-- MCP-compatible runtime boots domains from IR without gem building — no disk I/O, no tmpdir, no `Hecks.build`
 - `Hecks.load(domain)` is the public API for booting a Runtime from an IR object in memory
-- `execute_command` MCP tool auto-enters play mode if not already active — removes a round-trip
-- `Workshop#execute` delegates to the playground and auto-enters play mode when needed
-- `hecks mcp` exposes all domain commands, queries, and repository operations as typed MCP tools
-- `describe_domain` tool returns the entire domain model as structured JSON in one call
 - Tool descriptions include parameter constraints, example values, return shapes, and guard conditions
 - Rich descriptions for command tools: required attributes, emitted event, guards that might reject
 - Every MCP tool produces visible human-readable feedback in Claude Code conversations
-- `add_lifecycle` and `add_transition` tools for state machine building via MCP
-- `add_attribute` tool for adding individual attributes to existing aggregates
 - All tool output uses `capture_output` to show the same terse feedback as the REPL
 
 ### Command Bus Port (HTTP Adapter Boundary)
-- `Hecks::HTTP::CommandBusPort` — explicit port between HTTP routes and the domain
 - Mutations route through the `CommandBus` middleware pipeline via `port.dispatch`
 - Reads validate against a safety whitelist (blocks `eval`, `system`, `exec`, `send`, etc.)
 - Port-level middleware fires before the command bus — `port.use(:name) { |cmd, attrs, next_fn| ... }`
@@ -708,7 +545,6 @@
 - `DomainServer` and `RpcServer` both use the port for all dispatch
 
 ### Self-Discoverable HTTP API
-- `GET /_openapi` returns the OpenAPI 3.0 spec as JSON
 - `GET /_schema` returns JSON Schema definitions
 - AI agents hitting the HTTP API can self-discover every endpoint and type
 
@@ -718,57 +554,38 @@
 - AI agents can act on failures programmatically without string parsing
 
 ### Claude Code Integration
-- `hecks claude` starts background file watchers, then launches Claude Code with `--dangerously-skip-permissions`
 - Watcher scripts in `bin/`: `watch-all`, `watch-autoloads`, `watch-cli`, `watch-cross-require`, `watch-file-size`, `watch-spec-coverage` — poll every second and append to `tmp/watcher.log`
-- `bin/pre-commit` runs the watcher suite as a commit gate (blocking on cross-require failures, advisory on the rest)
 - `PostToolUse` hook (configured in `.claude/settings.json`) reads `tmp/watcher.log` after every Edit/Write/Bash so Claude sees watcher output inline
-- `bin/read-watcher-log` is the script the hook runs
 - Watcher processes are cleaned up automatically when Claude exits
 
 ### Watcher Agent (hecks_watcher_agent)
-- `hecks fix-watchers` reads watcher log and creates PRs to fix issues
 - Post-commit hook auto-launches agent when watchers report issues
-- Hybrid fix engine: pure Ruby for simple fixes, Claude Code for complex ones
 - Pure Ruby fixes: autoload entries, skeleton spec files
-- Claude Code fixes: file size extraction, doc updates (FEATURES.md, CHANGELOG)
 - Cross-require violations skipped (needs architectural decision)
 - Creates branch, commits fixes, opens PR via `gh`
 
 ### Gem Packaging
 - `hecks gem build` builds all component gems and the meta-gem via GemBuilder
-- `hecks gem install` builds, installs, and cleans up all component gems in dependency order
 - Components without a gemspec are skipped with a warning
-- Stops on first failure rather than continuing with a broken build
 
 ### Domain Flow Generation
 - `domain.flows` generates plain-English descriptions of reactive chains: command → event → policy → command
 - `domain.flows_mermaid` generates Mermaid sequence diagrams of the same flows
 - Cycle detection with `[CYCLIC]` markers
-- Included in `domain.describe` output and `hecks dump`
 
 ### Domain Serialization
-- `DomainSerializer.call(domain)` returns complete domain as structured Hash/JSON
 - Aggregates with attributes (name, type, flags), commands, queries, specifications, policies, validations, invariants, value objects, entities
 - Domain-level policies and services included
 
 ## Static Domain Generation (hecks_static)
 
 ### Zero-Dependency Output — Full DSL Parity
-- `hecks build --static` generates a complete Ruby project with no hecks runtime dependency
 - All DSL concepts generated: aggregates, value objects, entities, commands, events, ports, queries, validations, invariants, lifecycles, specifications, policies
 - Generated project includes inlined runtime (Model, Command, EventBus, QueryBuilder, Specification)
-- `bin/<domain> serve` starts an HTTP server with JSON API and HTML UI
-- `bin/<domain> console` opens IRB with the domain loaded
-- `bin/<domain> generate` regenerates domain code from `hecks_domain.rb`
-- `bin/<domain> info` shows config, aggregates, ports, policies
 
 ### HTTP Server & UI
-- WEBrick-based server with JSON API (one POST per command, GET per aggregate)
 - Hot reload via `--watch` flag — polls domain source directory, reloads Bluebook and rebuilds routes on change (no restart needed, thread-safe via Mutex)
 - HTML UI with index tables, show pages, create/update forms
-- OpenAPI endpoint at `/_openapi`, validation rules at `/_validations`
-- `GET /_events` — JSON event log (EventLogContract shape, same for Ruby and Go)
-- `POST /_reset` — clear all data (button on config page, used by smoke tests)
 - Query routes: `GET /aggregates/queries/name` for each DSL-defined query
 - Query parameter type coercion: Integer params use `strconv.ParseInt`, Date params use `time.Parse` instead of raw strings
 - Scope routes: `GET /aggregates/scopes/name` for each DSL-defined scope
@@ -788,13 +605,10 @@
 
 ### Port-Based Access Control
 - Ports defined in DSL (`port :admin`, `port :customer`) enforced at domain level
-- `check_port_access` runs in Command lifecycle before guards/preconditions
 - UI buttons faded for unauthorized actions, forms blocked with error message
 - JSON API returns 403 for unauthorized commands
 
 ### Validation (hecks_validations extension)
-- Extracts validation rules from domain IR at build time
-- `/_validations` JSON endpoint serves rules to clients
 - Client-side JS validates before submit (presence, positive)
 - Server-side validation check before dispatching to domain
 - Domain-level `ValidationError` with `field:` and `rule:` for inline error display
@@ -806,38 +620,27 @@
 - Switchable at runtime via Config page or `--adapter=` CLI flag
 
 ### Project Structure
-- `hecks_domain.rb` — domain DSL (source of truth, regeneratable)
-- `boot.rb` — wiring (stable, written once, not regenerated)
 - `lib/` — domain code, runtime, server, adapters (regeneratable)
-- `bin/<domain>` — CLI entry point
 
 ## Extensions
 
 ### hecks_filesystem_store
 - JSON file persistence extension for dynamic mode
-- `gem "hecks_filesystem_store"` auto-wires at boot
 - `Hecks.boot(__dir__, adapter: :filesystem)` explicit wiring
 - Same interface as memory: find, save, delete, all, count, query, clear
 
 ### hecks_validations
 - Server-side parameter validation from domain rules
 - Reads validation rules and VO invariants from domain IR at boot
-- Provides `validate_params` method and `validation_rules` on domain module
-- Wires into command bus as middleware
 
 ## Go Domain Generation (hecks_go)
 
 ### Go Output from Same DSL
-- `Hecks.build_go(domain)` generates a complete Go project from the same domain IR
-- Aggregate structs with `Validate()` method from DSL validations
 - Value object structs with constructor invariant checks (`NewTopping()`)
-- Command structs with `Execute(repo)` returning `(*Aggregate, *Event, error)`
 - Event structs with `EventName()` and `GetOccurredAt()`
 - Repository interfaces (Go's native port enforcement — compile-time, not runtime)
 - Memory adapters with `sync.RWMutex` + `map`
-- HTTP server using `net/http` (JSON API with POST per command, GET per aggregate)
 - HTML UI with template-rendered pages: home, index tables, show detail, create/update forms, config page
-- Go `html/template` views generated from ERB at build time — ERB is single source of truth
 - `hecks_templating` gem — shared data contracts for cross-target code generation:
   - `ViewContract` — view data shapes, short ID display, Go struct generation
   - `TypeContract` — single type registry (Go, SQL, JSON, OpenAPI, TypeScript) + `format_go_literal` for typed comparisons
@@ -859,12 +662,10 @@
 - Config page with roles, adapter, policies, aggregate counts, ports
 - Config page domain wiring diagrams: Mermaid structure, behavior, and flow diagrams generated at compile time
 - All DSL concepts generate Go code: lifecycle (state constants, predicates, transition validation, default on create, from-constraints on update), queries (prefixed to avoid collisions), specifications (with predicate translation), policies
-- Go aggregate `Validate()` enforces enum constraints from AggregateContract
 - Go commands set lifecycle default status on create, enforce from-constraints and set target on update
 - Go runtime package: EventBus (goroutine-safe pub/sub with history) and CommandBus (middleware pipeline)
 - Go runtime interpreter: `Application` struct boots the domain, wires repos/buses, dispatches commands via `Run(name, json)`, returns `CommandResult` with aggregate + event
 - Events published on every command execution, event count live on config page
-- `go.mod` with only `google/uuid` dependency
 - Go module registry: domain packages self-register via `init()` for runtime discovery
   - `runtime/registry.go` — thread-safe `Register(ModuleInfo)` and `Modules()` map
   - `register.go` per domain package — `init()` with aggregate/command lists
@@ -872,10 +673,8 @@
 - Type mapping: String→string, Integer→int64, Float→float64, list_of→[]Type
 
 ### Multi-Domain Go Target (HEC-237)
-- `Hecks.build_go_multi(domains)` generates a multi-domain Go project
 - Each bounded context gets its own Go package (e.g., `pizzas/`, `orders/`)
 - Shared runtime package (EventBus, CommandBus) across all domains
-- Combined server routing all domain aggregates under `/<domain>/<aggregate>` prefix
 - Memory adapters nested under each domain package (`pizzas/adapters/memory/`)
 - Single `go.mod` and `cmd/main/main.go` entry point
 - `ProjectGenerator` supports `subdomain_mode` for reuse in multi-domain builds
@@ -885,10 +684,7 @@
 ### Generated TypeScript Project
 - TypeScript interfaces for each aggregate with typed fields (id, createdAt, updatedAt)
 - Command functions returning typed event objects (create and update patterns)
-- In-memory repository classes using `Map<string, T>` with all(), find(), save(), delete()
 - Express REST server with GET list, GET by id, and POST command routes per aggregate
-- `package.json` with express, typescript, ts-node, @types/express
-- `tsconfig.json` with ESNext module, strict mode, ES2022 target
 - README with getting started instructions
 
 ### Type Mapping (via TypeContract registry)
@@ -897,17 +693,13 @@
 - list_of(X) -> X[], reference_to(X) -> string (ID)
 
 ### CLI Integration
-- `hecks build --target node` registered in target registry
 - Output: `<domain>_static_node/` directory with complete TypeScript project
 
 ## Web Explorer Extension (hecks_web_explorer)
 
 ### Domain UI as an Extension
 - ERB templates for browsing aggregates, executing commands, viewing events
-- Templates shared between Ruby static and Go targets
-- Views: layout, home, index, show, form, config
 - Renderer class with layout wrapping and HTML escaping
-- Registers with runtime, auto-wires when loaded
 
 ### IR-Driven Structural Discovery (HEC-430)
 - All structural queries (aggregate names, attributes, columns, commands, policies, roles) come from the Bluebook IR via `IRIntrospector`
@@ -939,8 +731,6 @@
 - PascalCase block inside aggregate → value object (`Topping do ... end`)
 - snake_case block inside aggregate → command (`create do ... end` → CreatePizza)
 - Bare `name Type` → attribute (`name String`)
-- `ref("X")` alias for `reference_to("X")`
-- `port :name, [methods]` compact inline form
 - Command name inference: single verb + aggregate name, multi-word as-is
 - Same IR output — implicit is sugar on top of explicit DSL
 - Both forms can be mixed in the same file
@@ -948,18 +738,14 @@
 ## Testing
 
 ### Cross-Target Parity
-- `hecksties/spec/cross_target_parity_spec.rb` — tagged `:parity`, excluded from default run
 - Builds Pizzas domain into both Ruby static and Go targets from the domain IR
 - Boots both HTTP servers, submits identical command sequences via browser-style form submission
-- Fetches `/_events` from both, normalizes to event name lists, asserts equality
-- Run explicitly: `bundle exec rspec hecksties/spec/cross_target_parity_spec.rb --tag parity`
 
 ### Rails Smoke Test
 - `hecksties/spec/rails_smoke_spec.rb` — tagged `:slow`, excluded from default run
 - Boots `examples/pizzas_rails` as a real subprocess against a free port
 - Exercises full CRUD lifecycle: index, new, create, show, edit, update, destroy
 - Validates 422 on invalid params via ActiveModel validations
-- Run explicitly: `bundle exec rspec hecksties/spec/rails_smoke_spec.rb --tag slow`
 
 ### FEATURES.md Audit (`tools/features_audit.py`)
 - Cross-references every bullet in `FEATURES.md` against the codebase so the claim-list cannot drift silently
@@ -974,11 +760,8 @@
 
 ### Optimistic Concurrency (HEC-65)
 - Version stamping on aggregates via `Concurrency.stamp!(aggregate, version)`
-- `ConcurrencyError` raised on version mismatch
-- `VersionCheckStep` lifecycle step for commands with `expected_version`
 
 ### CQRS Read Model Store (HEC-63)
-- `ReadModelStore` port with thread-safe get/put/delete/clear/keys
 - Memory adapter for tests; swappable for Redis/SQL in production
 
 ### Event Versioning & Upcasting (HEC-70)
@@ -989,18 +772,14 @@
 ### Read Models / Projections (HEC-64)
 - `EventStore` with append-only streams, auto-versioning, and global position ordering
 - `ProjectionRebuilder` replays events through projection procs to rebuild read model state
-- Supports rebuilding from all events or a single stream
 - Integrates with `UpcasterEngine` for transparent upcasting during rebuild
 
 ### Outbox Pattern (HEC-80)
 - `Outbox` port with store/pending/mark_published/published
-- `OutboxStep` replaces `EmitStep` in the command lifecycle for transactional event capture
 - `OutboxPoller` publishes pending events to the event bus (one-shot or background thread)
-- Guarantees at-least-once event delivery
 
 ### Process Managers (HEC-67)
 - `ProcessManager` event-driven state machine with correlation-based instance lookup
-- Supports state transitions with `on(event_type, correlate:, transition:)` DSL
 - Action blocks can return `{ commands: [...] }` for dispatching
 - Subscribes to `EventBus` for automatic event handling
 
@@ -1021,20 +800,496 @@
 - Brand switcher: CSS custom property theming driven by bounded context data
 - Cross-domain policies rendered as UI connections (e.g., SDS links from compliance, Prop 65 from regulatory_compliance)
 - Alan's Engine Additive Business: 16 bounded contexts, 9 pages, 491 domain-tagged elements, 3 brand themes
-- **hecks-life serve generates full Tailwind web app** — `hecks-life serve path/to/hecks/ 3100` serves both JSON API and HTML UI from the same port
 - Dark-themed Tailwind UI with sidebar navigation, dashboard metrics, domain detail pages with module cards, command forms, and fixture tables
 - **Workflow pipeline UI** — aggregates with a `lifecycle` render as a horizontal step pipeline (default state highlighted in gold, arrows between steps, commands grouped under their target state)
 - **Per-module fixture tables** — fixture records display inline inside each module card on the Build tab, filtered by aggregate name
 - **Invariant gating on workflow steps** — commands with `givens` (preconditions) appear dimmed on their workflow step with the precondition expression shown in amber
 - Command forms submit via fetch to the JSON dispatch endpoint — no page reload, inline success/error feedback
 - Domain tags (`data-domain-aggregate`, `data-domain-command`) on all generated HTML elements
-- **Contextual help icons** — every module card and command has a ? button that opens a help popup built from domain tags (aggregate name, description, field list, record/action counts)
 
 ## Examples
 - Pizzas domain: plain Ruby app with commands, queries, collection proxies, event history
 - Pizzas static Ruby: generated standalone Ruby project with HTTP server, UI, roles, filesystem persistence
 - Pizzas static Go: generated Go project with HTTP server, memory adapters, same domain
-- Rails pizza shop: full Turbo Streams app with admin, ordering, toppings, pricing, live events
-- Banking domain: 4 aggregates, cross-aggregate policies, specifications, entities, SQLite
 - Spaghetti Western: Rails-imported domain (gunslingers, duels, bounties, saloons) — demonstrates reverse-engineered DDD from ActiveRecord
 - Governance: 5 bounded contexts (compliance, model registry, operations, identity, risk assessment) — 930 lines of DSL exercising every concept
+
+## Aspirational (not yet tested)
+
+> Features below were claimed in earlier revisions but have no discoverable
+> backing test or behavior in `spec/`, `hecks_life/tests/`,
+> `hecks_conception/tests/`, `.behaviors`, or `.fixtures`. They may still
+> work — they just aren't locked down by a test today. As tests land,
+> move the line back up into the main body above.
+
+### Domain Modeling DSL
+
+**Core Structure**
+
+- `Hecks.configure { chapter "x" }` — chapter alias for domain in configuration DSL
+
+**Sagas / Process Managers**
+
+- Automatic compensation on failure: reverses completed steps in reverse order (best-effort)
+- Compensations are rollback commands run in reverse order if the saga must unwind
+
+**Ubiquitous Language**
+
+- `glossary { prefer "customer", not: ["user", "client"] }` — warn when banned terms appear in names across aggregates, commands, and events
+- `glossary { define "aggregate", as: "A cluster of objects" }` — define domain terms for the glossary
+
+**World Concerns**
+
+- `world_concerns :transparency, :consent, :privacy, :security` — opt-in ethical validation rules
+- `:transparency` — commands must emit events (no silent mutations)
+- `:consent` — user-like aggregate commands must declare actors
+- `:privacy` — PII attributes must be `visible: false`; PII aggregate commands need actors
+- `:security` — command actors must be declared at domain level
+- GovernanceGuard falls back to rule-based checks when no LLM API key is present; enriches suggestions via AI when available
+
+### Extensions
+
+**Extension Registry**
+
+- Add to Gemfile to wire, remove to unwire — no code changes needed
+
+**Persistence Extensions**
+
+- `hecks_sqlite` — SQLite persistence, auto-wires when in Gemfile
+- `hecks_postgres` — PostgreSQL persistence
+- `hecks_mysql` — MySQL persistence
+- `hecks_mongodb` — MongoDB persistence; value objects embedded as nested documents (no join tables)
+- `hecks_cqrs` — named persistence connections for read/write separation
+- `hecks_mongodb` — MongoDB document persistence via the mongo Ruby driver
+
+**Server Extensions**
+
+- `hecks_serve` registers `:http` — adds `CatsDomain.serve(port: 9292)`
+- `hecks_ai` registers `:mcp` — adds `CatsDomain.mcp`
+
+**Application Service Extensions**
+
+- `hecks_auth` — actor-based authentication & authorization
+- Session management via HttpOnly cookies with Base64-encoded JSON payloads
+- `hecks_tenancy` — multi-tenant isolation (`Hecks.tenant = "acme"`)
+- `Hecks.current_user` / `Hecks.with_user(user) { }` — thread-local current user context for ownership enforcement
+- `hecks_audit` — audit trail of every command execution
+- `hecks_logging` — structured stdout logging with duration
+- `hecks_rate_limit` — sliding window rate limiting per actor
+- `hecks_idempotency` — command deduplication by fingerprint
+- `hecks_transactions` — DB transaction wrapping when SQL adapter present
+- `hecks_retry` — exponential backoff for transient errors
+
+**Domain Connections DSL**
+
+- `extend :slack, webhook: url` — forward all domain events to an outbound handler
+- `extend(:audit) { |event| ... }` — forward events to a block handler
+- `extend CommentsDomain` — subscribe to another domain's event bus (cross-domain events)
+- `extend :tenancy` — add middleware extension
+- `SomeDomain.connections` — inspect current connection configuration
+- `SomeDomain.event_bus` — access the domain's event bus for cross-domain wiring
+- `Runtime#swap_adapter(name, repo)` — extension gems swap memory adapters for SQL
+
+### Capabilities
+
+- `app.capability(:crud)` — generate Create, Update, Delete command stubs for all aggregates; skips user-defined commands
+- `hecks new` app.rb scaffold includes `app.capability(:crud)` by default
+
+**Parity Suite**
+
+- **CI gate** — `.github/workflows/parity.yml` runs the suite on every PR.
+
+### Shebang Scripts (hecks-life run)
+
+**Companion hecksagon**
+
+- `<stem>.hecksagon` sibling is auto-loaded for adapter wiring
+- `gate "Aggregate", :role do allow :Cmd end` — role-based gates
+- `subscribe "OtherDomain"` — cross-domain event wiring
+
+### Runtime API
+
+- `app["Pizza"]` — access aggregate repository
+- `app.events` — event history
+- `app.async { }` — register async handler for policies and subscribers
+- `app.use { }` — register command bus middleware
+- `enable "Aggregate", :versioned` — enable version tracking (infrastructure config, not domain IR)
+- `enable "Aggregate", :attachable` — enable file attachment support (infrastructure config, not domain IR)
+- `Hecks.shared_event_bus` — access the shared cross-domain event bus after multi-domain boot
+
+### Code Generation
+
+**Generation Features**
+
+- Stacked codegen: constructors stack one-per-line when >2 args
+- CalVer versioning (YYYY.MM.DD.N) auto-assigned at build time
+
+**Self-Hosting Analysis**
+
+- `hecks self_diff <chapter>` — compares what generators would produce from a chapter's Domain IR against the actual gem code
+- `hecks self_diff <chapter> --framework` — framework skeleton mode, generates method stubs + doc comments from IR, matches against actual files by name
+- Classifies every file as match, partial, uncovered, or extra with line overlap percentages
+
+**CLI (hecks_cli)**
+
+- Aggregate commands become CLI verbs via the runtime command bus (e.g. `hecks pizzas create-pizza --name X`)
+
+**Self-Hosting DSL Extensions**
+
+- `inherits "Hecks::Generator"` — declares superclass for class-kind aggregates
+- `method_name "sql_type_for"` — overrides auto-generated method name on commands (default: snake_case of command name)
+- `entry_point "hecks_persist"` — declares autoload entry point files for the domain
+
+### HecksUL Language Specification
+
+- `HecksUL.syntax` — 58 keywords across 5 contexts (domain, aggregate, command, value_object, entity)
+- `HecksUL.describe` — prints a human-readable summary of the entire language
+
+### Persistence
+
+- PStore adapter — file-based object store using Ruby stdlib, zero dependencies, supports query with conditions/ordering/pagination
+- SQL adapter via Sequel ORM supporting MySQL, PostgreSQL, and SQLite
+- Automatic reference resolution with lazy loading from repository
+
+### Querying
+
+- `where(field: value)` filtering on aggregates
+- `find_by(field: value)` for single-record lookup
+- `exists?` check without loading all records
+- `pluck(:name)` for attribute-only results
+- Aggregations: `sum(:price)`, `min(:price)`, `max(:price)`, `average(:price)`
+- Named scopes callable as class methods
+- Ad-hoc query support via `include_ad_hoc_queries` config
+
+### Command & Event System
+
+- Class-level command methods: `Pizza.create(name: "M")`
+- `Hecks::Command` mixin orchestrates full lifecycle (guard → handler → call → persist → emit → record)
+- `Hecks::Query` mixin — queries are self-contained like commands
+- In-process event bus with subscriptions and wildcard `on_any`
+- Async subscriber and policy dispatch via configurable `async { }` block
+
+### Smalltalk-Inspired REPL
+
+**Sketch & Play**
+
+- Interactive session for incremental domain building (`Hecks.session`)
+- `sketch!` / `play!` toggling — switch between modeling and execution modes
+- `reload!` — re-read the domain DSL and reboot the playground without leaving play mode; clears events and data
+
+**One-Line Dot Syntax**
+
+- Command attribute chaining: `Post.create.title String` adds attribute to command
+- Terse single-line feedback after every operation (e.g. "title attribute added to Post")
+
+**Architecture Tour**
+
+- Contributor walkthrough via `hecks tour --architecture` — 10-step tour of framework internals
+
+**Web Console**
+
+- Interactive domain diagram with aggregate nodes, reference arrows, and policy flow visualization
+
+**Session Features**
+
+- `handle.build(**attrs)` — compile domain and return a live domain object
+- `promote("Comments")` — extract aggregate into its own standalone domain file
+- `extend :logging` — apply extensions to live runtime without rebooting
+- Session image save/restore: `save_image` / `restore_image` to snapshot and restore workshop state
+- Named image labels: `save_image("checkpoint")` for multiple save points
+- `list_images` to see all saved session snapshots
+- `Hecks::TestHelper` for spec setup and constant cleanup
+
+### Validation & DDD Rules
+
+- Command names must be verb phrases (WordNet + custom verbs)
+- Reactive policy events and triggers must reference existing elements
+
+**Lifecycle Validator (`hecks-life check-lifecycle`)**
+
+- `--strict` promotes warnings to errors; pre-commit hook blocks on errors
+
+**IO Validator (`hecks-life check-io`)**
+
+- `hecks-life check-all` runs lifecycle + IO together
+
+**Behavioral Tests (`hecks-life conceive-behaviors` + `behaviors`)**
+
+- Skips tests for non-equality givens that the chain planner can't auto-satisfy
+
+### Domain Interface Versioning
+
+- `hecks version_tag <version>` — snapshot current domain DSL to `db/hecks_versions/<version>.rb` with metadata header
+- `hecks version_log` — list all tagged versions newest-first with date and one-line change summary
+- `hecks diff --v1 <v1> --v2 <v2>` — diff two tagged version snapshots with breaking change classification
+- `hecks diff --v1 <v1>` — diff a tagged version against the working domain file
+- `hecks diff` — diff working domain against latest tagged version (falls back to build snapshot)
+
+### Documentation Generation
+
+- README generator with `{{tags}}` for auto-generated sections
+- `{{connections}}` tag generates extension gem listing
+- `{{smalltalk}}` tag generates Smalltalk features section from `SmalltalkFeatures` metadata
+
+### AST-Based Domain Extraction (HEC-476)
+
+- Extracts: domain name, aggregates, attributes (with types, list, defaults), commands, references, value objects, entities, validations, specifications, queries, invariants, scopes, domain-level policies (with attribute maps), services, world goals, actors, sagas, modules, workflows, views
+
+### Gem Architecture
+
+- Hexagonal / ports-and-adapters: domain layer has zero persistence knowledge
+
+**Module Infrastructure (hecks_modules)**
+
+- `Hecks::ModuleDSL` — declarative `lazy_registry` for defining lazily-initialized registries
+- All registries (targets, adapters, extensions, domains, dump formats, validations) use `lazy_registry`
+- `Hecks::CoreExtensions` — namespace for Ruby core class extensions
+
+**Deprecation System (hecks_deprecations)**
+
+- `HecksDeprecations.register(target_class, method_name) { ... }` — register deprecated shims
+- `HecksDeprecations.registered` — introspect all registered deprecations
+
+**Rails Import (Reverse Engineering)**
+
+- `hecks import rails /path/to/app` — extract domain from existing Rails app
+- `hecks import schema /path/to/schema.rb` — schema-only import
+- `hecks extract /path/to/project` — auto-detect project type and extract domain
+- `Hecks::Import.from_directory(path)` — programmatic auto-detecting extraction
+- `Hecks::Import.from_models(models_dir)` — programmatic model-only extraction
+- Parses db/schema.rb: tables → aggregates, columns → typed attributes, foreign keys → references
+- Parses app/models: validates → validations, enum → enum constraints, AASM → lifecycles
+- Skips Rails internal tables (schema_migrations, active_storage_*, etc.)
+
+### Autophagy: Self-Hosting Compiler (Hecks v0)
+
+- `hecks compile` — compile the entire Hecks framework into a single self-contained Ruby script
+- `hecks compile --plan` — show compilation plan (file count and list) without writing
+- `hecks compile --output NAME` — specify output file name (default: `hecks_v0`)
+- `hecks compile --trace` — emit auditable trace of every compiler decision to stderr
+- Injects forward declarations for load-order dependencies
+- Pre-registers all bundled files in `$LOADED_FEATURES` to prevent double-loading
+
+### Runtime Code Generation
+
+- Generators replace only the orchestration loops — same behavior, no runtime IR traversal
+
+### CLI Commands
+
+- `hecks build` — validate and generate versioned gem
+- `hecks serve [--rpc]` — start REST or JSON-RPC server
+- `hecks serve --watch` — hot reload: polls domain source for changes and rebuilds routes without restart
+- `hecks validate` — check domain against DDD rules
+- `hecks mcp` — start MCP server
+- `hecks inspect` — show full domain definition including business logic (attributes, lifecycle, commands, policies, invariants, etc.)
+- `hecks glossary` — print domain glossary to stdout; `--export` writes `glossary.md`
+- `hecks dump` — show glossary, visualizer, and DSL output
+- `hecks migrations` — schema migration management
+- `hecks docs update` — sync doc headers and READMEs
+- All commands accept `--domain` flag consistently
+
+### Rails Integration (ActiveHecks)
+
+- `Hecks.configure` block for Rails initializers
+- `to_param` patched on command results — URL helpers work naturally
+- `rails generate active_hecks:live` — standalone live event setup
+- `rails generate active_hecks:migration` — SQL migrations from domain changes
+
+### HecksLive — Real-Time Domain Events
+
+- Views just need `<%= turbo_stream_from "hecks_live_events" %>` and `<div id="event-feed">`
+- No custom JavaScript — standard Rails Turbo Streams
+- Stdout fallback when ActionCable is not available (plain Ruby apps)
+
+### Module Structure (HEC-370)
+
+- `hecksties/` — core kernel: registries, errors, autoloads, utilities, version
+- `hecks_templating/` — naming helpers + data contracts (type, view, event, migration, UI label)
+- `hecks_runtime/` — command bus, ports, middleware, extensions, boot
+- `hecks_features/` — vertical slice extraction, leaky slice detection, slice diagrams
+- Standalone: heksagons, hecks_workshop, hecks_cli, hecks_static, hecks_on_the_go, hecks_persist, hecks_watchers
+
+### AI-Native
+
+**llms.txt Generation**
+
+- `hecks llms` generates AI-readable domain summary with aggregates, commands, types, policies, flows
+- `hecks build` includes `llms.txt` in every generated domain gem for automatic agent discovery
+- Covers attributes with types, commands with parameters, validation rules, invariants, reactive chains
+
+**MCP Server**
+
+- MCP-compatible runtime boots domains from IR without gem building — no disk I/O, no tmpdir, no `Hecks.build`
+- `execute_command` MCP tool auto-enters play mode if not already active — removes a round-trip
+- `Workshop#execute` delegates to the playground and auto-enters play mode when needed
+- `hecks mcp` exposes all domain commands, queries, and repository operations as typed MCP tools
+- `describe_domain` tool returns the entire domain model as structured JSON in one call
+- `add_lifecycle` and `add_transition` tools for state machine building via MCP
+- `add_attribute` tool for adding individual attributes to existing aggregates
+
+**Command Bus Port (HTTP Adapter Boundary)**
+
+- `Hecks::HTTP::CommandBusPort` — explicit port between HTTP routes and the domain
+
+**Self-Discoverable HTTP API**
+
+- `GET /_openapi` returns the OpenAPI 3.0 spec as JSON
+
+**Claude Code Integration**
+
+- `hecks claude` starts background file watchers, then launches Claude Code with `--dangerously-skip-permissions`
+- `bin/pre-commit` runs the watcher suite as a commit gate (blocking on cross-require failures, advisory on the rest)
+- `bin/read-watcher-log` is the script the hook runs
+
+**Watcher Agent (hecks_watcher_agent)**
+
+- `hecks fix-watchers` reads watcher log and creates PRs to fix issues
+- Hybrid fix engine: pure Ruby for simple fixes, Claude Code for complex ones
+- Claude Code fixes: file size extraction, doc updates (FEATURES.md, CHANGELOG)
+
+**Gem Packaging**
+
+- `hecks gem install` builds, installs, and cleans up all component gems in dependency order
+- Stops on first failure rather than continuing with a broken build
+
+**Domain Flow Generation**
+
+- Included in `domain.describe` output and `hecks dump`
+
+**Domain Serialization**
+
+- `DomainSerializer.call(domain)` returns complete domain as structured Hash/JSON
+
+### Static Domain Generation (hecks_static)
+
+**Zero-Dependency Output — Full DSL Parity**
+
+- `hecks build --static` generates a complete Ruby project with no hecks runtime dependency
+- `bin/<domain> serve` starts an HTTP server with JSON API and HTML UI
+- `bin/<domain> console` opens IRB with the domain loaded
+- `bin/<domain> generate` regenerates domain code from `hecks_domain.rb`
+- `bin/<domain> info` shows config, aggregates, ports, policies
+
+**HTTP Server & UI**
+
+- WEBrick-based server with JSON API (one POST per command, GET per aggregate)
+- OpenAPI endpoint at `/_openapi`, validation rules at `/_validations`
+- `GET /_events` — JSON event log (EventLogContract shape, same for Ruby and Go)
+- `POST /_reset` — clear all data (button on config page, used by smoke tests)
+
+**Port-Based Access Control**
+
+- `check_port_access` runs in Command lifecycle before guards/preconditions
+
+**Validation (hecks_validations extension)**
+
+- Extracts validation rules from domain IR at build time
+- `/_validations` JSON endpoint serves rules to clients
+
+**Project Structure**
+
+- `hecks_domain.rb` — domain DSL (source of truth, regeneratable)
+- `boot.rb` — wiring (stable, written once, not regenerated)
+- `bin/<domain>` — CLI entry point
+
+### Extensions
+
+**hecks_filesystem_store**
+
+- `gem "hecks_filesystem_store"` auto-wires at boot
+
+**hecks_validations**
+
+- Provides `validate_params` method and `validation_rules` on domain module
+- Wires into command bus as middleware
+
+### Go Domain Generation (hecks_go)
+
+**Go Output from Same DSL**
+
+- `Hecks.build_go(domain)` generates a complete Go project from the same domain IR
+- Aggregate structs with `Validate()` method from DSL validations
+- Command structs with `Execute(repo)` returning `(*Aggregate, *Event, error)`
+- HTTP server using `net/http` (JSON API with POST per command, GET per aggregate)
+- Go `html/template` views generated from ERB at build time — ERB is single source of truth
+- Go aggregate `Validate()` enforces enum constraints from AggregateContract
+- `go.mod` with only `google/uuid` dependency
+
+**Multi-Domain Go Target (HEC-237)**
+
+- `Hecks.build_go_multi(domains)` generates a multi-domain Go project
+- Combined server routing all domain aggregates under `/<domain>/<aggregate>` prefix
+
+### Node.js/TypeScript Target (`hecks build --target node`)
+
+**Generated TypeScript Project**
+
+- In-memory repository classes using `Map<string, T>` with all(), find(), save(), delete()
+- `package.json` with express, typescript, ts-node, @types/express
+- `tsconfig.json` with ESNext module, strict mode, ES2022 target
+
+**CLI Integration**
+
+- `hecks build --target node` registered in target registry
+
+### Web Explorer Extension (hecks_web_explorer)
+
+**Domain UI as an Extension**
+
+- Templates shared between Ruby static and Go targets
+- Views: layout, home, index, show, form, config
+- Registers with runtime, auto-wires when loaded
+
+### Implicit DSL (HEC-229)
+
+**Infer Domain Concepts from Structure**
+
+- `ref("X")` alias for `reference_to("X")`
+- `port :name, [methods]` compact inline form
+
+### Testing
+
+**Cross-Target Parity**
+
+- `hecksties/spec/cross_target_parity_spec.rb` — tagged `:parity`, excluded from default run
+- Fetches `/_events` from both, normalizes to event name lists, asserts equality
+- Run explicitly: `bundle exec rspec hecksties/spec/cross_target_parity_spec.rb --tag parity`
+
+**Rails Smoke Test**
+
+- Run explicitly: `bundle exec rspec hecksties/spec/rails_smoke_spec.rb --tag slow`
+
+### Event Sourcing (Phase 3)
+
+**Optimistic Concurrency (HEC-65)**
+
+- `ConcurrencyError` raised on version mismatch
+- `VersionCheckStep` lifecycle step for commands with `expected_version`
+
+**CQRS Read Model Store (HEC-63)**
+
+- `ReadModelStore` port with thread-safe get/put/delete/clear/keys
+
+**Read Models / Projections (HEC-64)**
+
+- Supports rebuilding from all events or a single stream
+
+**Outbox Pattern (HEC-80)**
+
+- `OutboxStep` replaces `EmitStep` in the command lifecycle for transactional event capture
+- Guarantees at-least-once event delivery
+
+**Process Managers (HEC-67)**
+
+- Supports state transitions with `on(event_type, correlate:, transition:)` DSL
+
+### Domain-Driven Web Applications
+
+- **hecks-life serve generates full Tailwind web app** — `hecks-life serve path/to/hecks/ 3100` serves both JSON API and HTML UI from the same port
+- **Contextual help icons** — every module card and command has a ? button that opens a help popup built from domain tags (aggregate name, description, field list, record/action counts)
+
+### Examples
+
+- Rails pizza shop: full Turbo Streams app with admin, ordering, toppings, pricing, live events
+- Banking domain: 4 aggregates, cross-aggregate policies, specifications, entities, SQLite
+
