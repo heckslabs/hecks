@@ -1,5 +1,5 @@
-Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.1" do
-  vision "Phase C PC-2 — shape of lib/hecks_specializer/diagnostic_validator.rb as a bluebook. First full Ruby-class retirement (not a thin subclass)."
+Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.3" do
+  vision "Phase C PC-4 — shape of Ruby specializer classes. Extended with RubyMethod.receiver (instance|self) to support the meta-specializer's own `def self.target_class_name` and achieve the Futamura fixed point (meta_diagnostic_validator regenerates itself byte-identical)."
   category "autophagy"
 
   # ============================================================
@@ -47,6 +47,33 @@ Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.1" do
     attribute :doc_snippet,  String
     # output_rb: relative path to the generated .rb file
     attribute :output_rb,    String
+    # register_target_name: if non-empty, emit
+    #   register :<register_target_name>, <ClassName>
+    # inside the inner module scope (after the class close) — the
+    # specializer-target self-registration pattern used by every
+    # lib/hecks_specializer/*.rb module. Empty for classes that are
+    # not registered (base classes like DiagnosticValidator itself).
+    attribute :register_target_name, String, default: ""
+    # requires: comma-separated list of relative paths for
+    # `require_relative "<path>"` lines emitted between the doc
+    # block and the module nesting. Empty for files with no requires
+    # (the typical meta-specializer base class case). Used by thin
+    # subclass shells that need to reopen a parent class.
+    attribute :requires, String, default: ""
+  end
+
+  aggregate "RubyConstant", "A class-level constant assignment in a RubyClass" do
+    # class_name: foreign-key-like link to RubyClass.name
+    attribute :class_name,  String
+    # name: the constant name (e.g. "SHAPE" or "TARGET_RS")
+    attribute :name,        String
+    # value_expr: the RHS of the assignment, written verbatim.
+    # E.g. `REPO_ROOT.join("hecks_conception/...")`
+    attribute :value_expr,  String
+    # order: emission order among constants inside the class body.
+    # Constants are emitted after the `include` lines and before
+    # any method definition.
+    attribute :order,       Integer
   end
 
   aggregate "RubyMethod", "One method in a RubyClass" do
@@ -63,5 +90,14 @@ Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.1" do
     attribute :body_snippet,  String
     # order: emission order within the class
     attribute :order,         Integer
+    # receiver: "instance" (default, emits `def name`) or "self"
+    # (emits `def self.name`). Added for PC-4 to support the meta-
+    # specializer's own `def self.target_class_name` hook.
+    attribute :receiver,      String, default: "instance"
+    # doc_snippet: optional path to a .rb.frag holding the Ruby
+    # comment lines emitted immediately before the def line (at the
+    # same 6-space indent). Empty → no pre-method doc. Used by PC-4
+    # to retain the meta-specializer's own inline API-doc comments.
+    attribute :doc_snippet,   String, default: ""
   end
 end

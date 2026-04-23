@@ -92,6 +92,32 @@ Hecks.hecksagon "Specializer" do
     args:    ["meta_diagnostic_validator", "--output", "{{output}}"],
     ok_exit: 0
 
+  # Phase C PC-2 extension — second full Ruby class retirement.
+  # Emits lib/hecks_specializer/validator_warnings.rb using the same
+  # meta-shape. Adds RubyConstant + register_target_name features.
+  adapter :shell,
+    name:    :specialize_meta_validator_warnings,
+    command: "bin/specialize",
+    args:    ["meta_validator_warnings", "--output", "{{output}}"],
+    ok_exit: 0
+
+  # Phase C PC-4 — THE FUTAMURA FIXED POINT. The meta-specializer
+  # regenerates its own source (meta_diagnostic_validator.rb + the
+  # thin subclass meta_validator_warnings.rb) from the same
+  # diagnostic_validator_meta_shape fixtures it already reads.
+  # Byte-identity of these outputs is the 2nd-Futamura proof.
+  adapter :shell,
+    name:    :specialize_meta_meta_diagnostic_validator,
+    command: "bin/specialize",
+    args:    ["meta_meta_diagnostic_validator", "--output", "{{output}}"],
+    ok_exit: 0
+
+  adapter :shell,
+    name:    :specialize_meta_meta_validator_warnings,
+    command: "bin/specialize",
+    args:    ["meta_meta_validator_warnings", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run
