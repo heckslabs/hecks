@@ -15,6 +15,7 @@ agents — trust the decisions, don't re-derive them.
 | [i3_moment_consciousness.md](i3_moment_consciousness.md) | i3 | PR-0 + PR-a shipped; PR-b..PR-f remain |
 | [i7_parsed_hecksagon_world_dsl.md](i7_parsed_hecksagon_world_dsl.md) | i7 | Rust hecksagon parser shipped; Ruby allow-list loader + world DSL remain |
 | [i11_pr1_tongue_speak.md](i11_pr1_tongue_speak.md) | i11 | PR 0 shipped; PR 1 unblocked |
+| [i20_web_ontologies_preseed.md](i20_web_ontologies_preseed.md) | i20 | Not started; schema.org primary, nursery-stub handoff to i27 curation |
 | [i23_llm_adapter.md](i23_llm_adapter.md) | i23 | Refined 2026-04-22 (Stage A Ruby, ~2600 LoC, 9 commits); prereq for i11 PR 3+ |
 | [i25_loss_function.md](i25_loss_function.md) | i25 | Not started |
 | [i27_nursery_viability.md](i27_nursery_viability.md) | i27 | Refined 2026-04-22 as NurseryHealth capability (7 commits, ~900 LoC) |
