@@ -13,7 +13,7 @@ Hecks.bluebook "AirCargo" do
       attribute :flight_number, String
       attribute :origin_airport, String
       attribute :destination_airport, String
-      reference_to "CargoFlight"
+      reference_to(CargoFlight)
       emits "FlightScheduled"
     end
 
@@ -21,14 +21,14 @@ Hecks.bluebook "AirCargo" do
       description "Record actual departure with final load and fuel figures"
       attribute :actual_payload_kg, Float
       attribute :departure_time, String
-      reference_to "CargoFlight"
+      reference_to(CargoFlight)
       emits "FlightDeparted"
     end
 
     command "ArriveFlight" do
       description "Record flight arrival and begin cargo offload operations"
       attribute :arrival_time, String
-      reference_to "CargoFlight"
+      reference_to(CargoFlight)
       emits "FlightArrived"
     end
 
@@ -55,7 +55,7 @@ Hecks.bluebook "AirCargo" do
     attribute :gross_weight_kg, Float
     attribute :max_weight_kg, Float
     attribute :status, String
-    list_of "CargoShipment"
+    list_of(CargoShipment)
 
     value_object "ULDPosition" do
       attribute :deck, String
@@ -66,21 +66,21 @@ Hecks.bluebook "AirCargo" do
     command "BuildPallet" do
       description "Stack and net cargo shipments onto ULD pallet for loading"
       attribute :uld_type, String
-      reference_to "ULDPallet"
+      reference_to(ULDPallet)
       emits "PalletBuilt"
     end
 
     command "WeighPallet" do
       description "Weigh completed pallet and verify within contour limits"
       attribute :gross_weight_kg, Float
-      reference_to "ULDPallet"
+      reference_to(ULDPallet)
       emits "PalletWeighed"
     end
 
     command "LoadOntoAircraft" do
       description "Load weighed pallet into aircraft cargo hold position"
       attribute :hold_position, String
-      reference_to "CargoFlight"
+      reference_to(CargoFlight)
       emits "PalletLoaded"
     end
 
@@ -107,7 +107,7 @@ Hecks.bluebook "AirCargo" do
       attribute :shipper_name, String
       attribute :consignee_name, String
       attribute :commodity, String
-      reference_to "CargoShipment"
+      reference_to(CargoShipment)
       emits "ShipmentBooked"
     end
 
@@ -115,14 +115,14 @@ Hecks.bluebook "AirCargo" do
       description "Accept physical cargo at warehouse and verify against booking"
       attribute :piece_count, Integer
       attribute :actual_weight_kg, Float
-      reference_to "CargoShipment"
+      reference_to(CargoShipment)
       emits "CargoReceived"
     end
 
     command "DeliverCargo" do
       description "Release cargo to consignee after customs clearance"
       attribute :consignee_signature, String
-      reference_to "CargoShipment"
+      reference_to(CargoShipment)
       emits "CargoDelivered"
     end
 
@@ -154,14 +154,14 @@ Hecks.bluebook "AirCargo" do
       description "Submit customs entry for import clearance with broker"
       attribute :entry_type, String
       attribute :broker_name, String
-      reference_to "CargoShipment"
+      reference_to(CargoShipment)
       emits "EntryFiled"
     end
 
     command "ClearEntry" do
       description "Record customs clearance allowing cargo release to consignee"
       attribute :clearance_number, String
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "EntryCleared"
     end
 
@@ -185,7 +185,7 @@ Hecks.bluebook "AirCargo" do
       description "Place received cargo into assigned warehouse storage location"
       attribute :awb_number, String
       attribute :zone, String
-      reference_to "CargoShipment"
+      reference_to(CargoShipment)
       emits "CargoStowed"
     end
 
@@ -193,7 +193,7 @@ Hecks.bluebook "AirCargo" do
       description "Pull cargo from storage for pallet buildup or customer pickup"
       attribute :awb_number, String
       attribute :purpose, String
-      reference_to "WarehouseLocation"
+      reference_to(WarehouseLocation)
       emits "CargoRetrieved"
     end
 

@@ -9,7 +9,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
     attribute :lead_researcher, String
     attribute :target_participants, Integer
     attribute :status, String
-    list_of(Objective) :objectives
+    attribute :objectives, list_of(Objective)
 
     value_object "Objective" do
       attribute :description, String
@@ -98,7 +98,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
     attribute :facilitator, String
     attribute :status, String
     reference_to Participant
-    list_of(Note) :notes
+    attribute :notes, list_of(Note)
 
     value_object "Note" do
       attribute :timestamp, String
@@ -145,7 +145,7 @@ Hecks.bluebook "UXResearch", version: "2026.04.13.1" do
     attribute :evidence_type, String
     attribute :status, String
     reference_to Study
-    list_of(SupportingQuote) :quotes
+    attribute :quotes, list_of(SupportingQuote)
 
     value_object "SupportingQuote" do
       attribute :participant_id, String

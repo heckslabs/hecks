@@ -9,7 +9,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
     attribute :body, String
     attribute :language, String
     attribute :status, String
-    list_of(ContentTag) :tags
+    attribute :tags, list_of(ContentTag)
 
     value_object "ContentTag" do
       attribute :label, String
@@ -92,7 +92,7 @@ Hecks.bluebook "ContentModeration", version: "2026.04.13.1" do
     attribute :verdict, String
     attribute :status, String
     reference_to Post
-    list_of(ReviewNote) :notes
+    attribute :notes, list_of(ReviewNote)
 
     value_object "ReviewNote" do
       attribute :note, String

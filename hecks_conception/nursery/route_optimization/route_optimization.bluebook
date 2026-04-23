@@ -164,7 +164,7 @@ Hecks.bluebook "RouteOptimization", version: "2026.04.13.1" do
     attribute :estimated_hours, Float
     attribute :status, String
 
-    list_of "RouteStop" do
+    value_object "RouteStop" do
       attribute :sequence, Integer
       attribute :address, String
       attribute :parcel_tracking_id, String

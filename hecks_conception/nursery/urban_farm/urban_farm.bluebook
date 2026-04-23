@@ -120,7 +120,7 @@ Hecks.bluebook "UrbanFarm", version: "2026.04.13.1" do
     attribute :distributed_lbs, Float
     attribute :recipient, String
     attribute :date, String
-    list_of(ProduceItem) :items
+    attribute :items, list_of(ProduceItem)
     value_object "ProduceItem" do
       attribute :crop_name, String
       attribute :weight_lbs, Float

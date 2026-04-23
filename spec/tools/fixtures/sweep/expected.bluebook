@@ -1,0 +1,22 @@
+Hecks.bluebook "SweepFixture" do
+  aggregate "Thing" do
+    attribute :name, String
+    attribute :parts, list_of(Part)
+    reference_to(OtherThing)
+
+    value_object "Part" do
+      attribute :label, String
+    end
+
+    command "DoThing" do
+      reference_to(Thing)
+      list_of(Widget)
+      emits "ThingDid"
+    end
+
+    value_object "InlineVO" do
+      attribute :foo, String
+      attribute :bar, Integer
+    end
+  end
+end

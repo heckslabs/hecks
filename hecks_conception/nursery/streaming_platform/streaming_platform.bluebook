@@ -9,7 +9,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
     attribute :duration_seconds, Integer
     attribute :content_rating, String
     attribute :status, String
-    list_of(MediaFile) :media_files
+    attribute :media_files, list_of(MediaFile)
 
     value_object "MediaFile" do
       attribute :quality, String
@@ -50,7 +50,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
     attribute :curator, String
     attribute :category, String
     attribute :status, String
-    list_of(ChannelSlot) :slots
+    attribute :slots, list_of(ChannelSlot)
     reference_to Content
 
     value_object "ChannelSlot" do
@@ -92,7 +92,7 @@ Hecks.bluebook "StreamingPlatform", version: "2026.04.13.1" do
     attribute :plan, String
     attribute :payment_method, String
     attribute :status, String
-    list_of(WatchHistory) :watch_history
+    attribute :watch_history, list_of(WatchHistory)
 
     value_object "WatchHistory" do
       attribute :content_id, String

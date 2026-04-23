@@ -9,7 +9,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
     attribute :base_url, String
     attribute :auth_method, String
     attribute :status, String
-    list_of(Endpoint) :endpoints
+    attribute :endpoints, list_of(Endpoint)
 
     value_object "Endpoint" do
       attribute :method, String
@@ -50,7 +50,7 @@ Hecks.bluebook "APIMarketplace", version: "2026.04.13.1" do
     attribute :organization, String
     attribute :plan, String
     attribute :status, String
-    list_of(Subscription) :subscriptions
+    attribute :subscriptions, list_of(Subscription)
 
     value_object "Subscription" do
       attribute :api_name, String

@@ -10,7 +10,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     attribute :auth_code, String
     attribute :status, String
     reference_to Merchant
-    list_of(StatusChange) :status_history
+    attribute :status_history, list_of(StatusChange)
 
     specification "HighRisk" do
       satisfied_by { amount > 10000 }
@@ -57,7 +57,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     attribute :contact_email, String
     attribute :processing_rate, Float
     attribute :status, String
-    list_of(BankAccount) :bank_accounts
+    attribute :bank_accounts, list_of(BankAccount)
 
     value_object "BankAccount" do
       attribute :account_number, String
@@ -99,7 +99,7 @@ Hecks.bluebook "PaymentGateway", version: "2026.04.13.1" do
     attribute :period, String
     attribute :status, String
     reference_to Merchant
-    list_of(SettlementLine) :lines
+    attribute :lines, list_of(SettlementLine)
 
     value_object "SettlementLine" do
       attribute :transaction_id, String

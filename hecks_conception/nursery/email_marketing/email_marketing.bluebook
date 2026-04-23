@@ -8,7 +8,7 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
     attribute :subscriber_count, Integer
     attribute :opt_in_method, String
     attribute :status, String
-    list_of(Subscriber) :subscribers
+    attribute :subscribers, list_of(Subscriber)
 
     value_object "Subscriber" do
       attribute :email, String
@@ -50,7 +50,7 @@ Hecks.bluebook "EmailMarketing", version: "2026.04.13.1" do
     attribute :template_id, String
     attribute :status, String
     reference_to SubscriberList
-    list_of(ABVariant) :variants
+    attribute :variants, list_of(ABVariant)
 
     value_object "ABVariant" do
       attribute :variant_label, String

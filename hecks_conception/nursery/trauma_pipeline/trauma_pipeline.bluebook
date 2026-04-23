@@ -146,7 +146,7 @@ Hecks.bluebook "TraumaPipeline", version: "2026.04.13.1" do
     attribute :origin, String
     attribute :destination, String
     attribute :status, String
-    list_of(TempReading) :temperature_log
+    attribute :temperature_log, list_of(TempReading)
 
     value_object "TempReading" do
       attribute :temperature, Float

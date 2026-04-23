@@ -8,7 +8,7 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
     attribute :default_branch, String
     attribute :language, String
     attribute :status, String
-    list_of(Webhook) :webhooks
+    attribute :webhooks, list_of(Webhook)
 
     value_object "Webhook" do
       attribute :event_type, String
@@ -49,7 +49,7 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
     attribute :duration_seconds, Integer
     attribute :status, String
     reference_to Repository
-    list_of(BuildStep) :steps
+    attribute :steps, list_of(BuildStep)
 
     value_object "BuildStep" do
       attribute :step_name, String
@@ -89,7 +89,7 @@ Hecks.bluebook "DevOpsPipeline", version: "2026.04.13.1" do
     attribute :deployed_by, String
     attribute :status, String
     reference_to Build
-    list_of(HealthCheck) :health_checks
+    attribute :health_checks, list_of(HealthCheck)
 
     value_object "HealthCheck" do
       attribute :endpoint, String

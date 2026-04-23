@@ -9,7 +9,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     attribute :difficulty_level, String
     attribute :estimated_hours, Integer
     attribute :status, String
-    list_of(Module) :modules
+    attribute :modules, list_of(Module)
 
     value_object "Module" do
       attribute :module_title, String
@@ -132,7 +132,7 @@ Hecks.bluebook "ELearning", version: "2026.04.13.1" do
     attribute :max_attempts, Integer
     attribute :status, String
     reference_to Lesson
-    list_of(Question) :questions
+    attribute :questions, list_of(Question)
 
     value_object "Question" do
       attribute :prompt, String

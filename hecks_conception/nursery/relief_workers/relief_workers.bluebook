@@ -41,7 +41,7 @@ Hecks.bluebook "ReliefWorkers", version: "2026.04.13.1" do
   aggregate "Volunteer", "A registered relief volunteer with skills and availability" do
     attribute :volunteer_id, String
     attribute :name, String
-    list_of(VolunteerSkill) :skills
+    attribute :skills, list_of(VolunteerSkill)
     attribute :availability, String
     attribute :status, String
     value_object "VolunteerSkill" do

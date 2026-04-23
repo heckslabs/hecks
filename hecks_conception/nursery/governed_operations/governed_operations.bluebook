@@ -7,7 +7,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   aggregate "JurisdictionalContract", "External regulatory rules — state and federal compliance requirements" do
     attribute :jurisdiction, String
     attribute :regulation_code, String
-    list_of(Rule) :rules
+    attribute :rules, list_of(Rule)
     attribute :effective_date, String
     attribute :status, String
 
@@ -99,7 +99,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   aggregate "OperationalContract", "Internal company standards — SOPs, ISO requirements, quality policies" do
     attribute :name, String
     attribute :department, String
-    list_of(Standard) :rules
+    attribute :rules, list_of(Standard)
     attribute :version, Integer
     attribute :status, String
 
@@ -183,7 +183,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     attribute :quantity, Integer
     attribute :produced_at, String
     attribute :status, String
-    list_of(Violation) :violations
+    attribute :violations, list_of(Violation)
 
     value_object "Violation" do
       attribute :rule_code, String
@@ -294,7 +294,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     attribute :impact_area, String
     attribute :risk_level, String
     attribute :status, String
-    list_of(Approval) :approvals
+    attribute :approvals, list_of(Approval)
 
     value_object "Approval" do
       attribute :approver, String
@@ -397,7 +397,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     attribute :corrective_action, String
     attribute :preventive_action, String
     attribute :status, String
-    list_of(Evidence) :evidence
+    attribute :evidence, list_of(Evidence)
 
     value_object "Evidence" do
       attribute :description, String
@@ -510,10 +510,10 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     attribute :recall_number, String
     attribute :product, String
     attribute :reason, String
-    list_of(String) :affected_batches
+    attribute :affected_batches, list_of(String)
     attribute :scope, String
     attribute :status, String
-    list_of(Notification) :notifications
+    attribute :notifications, list_of(Notification)
 
     value_object "Notification" do
       attribute :recipient, String
@@ -541,7 +541,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "QualityManager"
       description "Determine which batches are affected by the recall"
       reference_to(Recall)
-      list_of(String) :batch_numbers
+      attribute :batch_numbers, list_of(String)
       given { status == "initiated" }
       emits "AffectedBatchesIdentified"
       then_set :affected_batches, to: :batch_numbers
@@ -603,7 +603,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
     attribute :scope, String
     attribute :scheduled_at, String
     attribute :status, String
-    list_of(Finding) :findings
+    attribute :findings, list_of(Finding)
 
     value_object "Finding" do
       attribute :area, String
@@ -697,7 +697,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   aggregate "GovernanceGate", "The decision engine — every governed action flows through this gate for compliance checks" do
     attribute :action_type, String
     attribute :action_id, String
-    list_of(ContractCheck) :contracts_checked
+    attribute :contracts_checked, list_of(ContractCheck)
     attribute :verdict, String
     attribute :decided_at, String
     attribute :status, String
@@ -788,8 +788,8 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
   aggregate "ApprovalWorkflow", "Routing and tracking approvals — quorum-based decision making" do
     attribute :action_type, String
     attribute :action_id, String
-    list_of(String) :required_approvers
-    list_of(ApprovalRecord) :approvals
+    attribute :required_approvers, list_of(String)
+    attribute :approvals, list_of(ApprovalRecord)
     attribute :status, String
 
     value_object "ApprovalRecord" do
@@ -805,7 +805,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       description "Start an approval workflow for a governed action"
       attribute :action_type, String
       attribute :action_id, String
-      list_of(String) :required_approvers
+      attribute :required_approvers, list_of(String)
       emits "ApprovalInitiated"
       then_set :action_type, to: :action_type
       then_set :action_id, to: :action_id

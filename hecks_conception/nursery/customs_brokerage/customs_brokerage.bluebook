@@ -7,14 +7,14 @@ Hecks.bluebook "CustomsBrokerage" do
     attribute :declared_value, Float
     attribute :currency, String
     attribute :status, String
-    list_of "TariffLine"
+    list_of(TariffLine)
 
     command "FileEntry" do
       description "Prepare and file customs entry with declaration details"
       attribute :entry_type, String
       attribute :importer_name, String
       attribute :country_of_origin, String
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "EntryFiled"
     end
 
@@ -22,14 +22,14 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Submit post-entry amendment to correct classification or value"
       attribute :amendment_reason, String
       attribute :amended_field, String
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "EntryAmended"
     end
 
     command "LiquidateEntry" do
       description "Finalize duty calculation and close entry after CBP review"
       attribute :final_duty_amount, Float
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "EntryLiquidated"
     end
 
@@ -71,14 +71,14 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Determine harmonized tariff classification for imported good"
       attribute :hs_code, String
       attribute :description_text, String
-      reference_to "TariffLine"
+      reference_to(TariffLine)
       emits "GoodClassified"
     end
 
     command "CalculateDuty" do
       description "Compute duty amount based on classification and declared value"
       attribute :dutiable_value, Float
-      reference_to "TariffLine"
+      reference_to(TariffLine)
       emits "DutyCalculated"
     end
 
@@ -86,7 +86,7 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Apply reduced duty rate under free trade agreement"
       attribute :trade_agreement, String
       attribute :preferential_rate, Float
-      reference_to "TariffLine"
+      reference_to(TariffLine)
       emits "PreferentialRateApplied"
     end
 
@@ -111,7 +111,7 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Receive and log trade document from importer or carrier"
       attribute :document_type, String
       attribute :source, String
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "DocumentReceived"
     end
 
@@ -119,7 +119,7 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Verify document completeness and accuracy against entry data"
       attribute :validator, String
       attribute :validation_result, String
-      reference_to "BrokerDocument"
+      reference_to(BrokerDocument)
       emits "DocumentValidated"
     end
 
@@ -149,7 +149,7 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Record CBP hold notification for physical or document examination"
       attribute :inspection_type, String
       attribute :exam_site, String
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "ExamNotified"
     end
 
@@ -157,7 +157,7 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Submit exam findings and request cargo release"
       attribute :finding, String
       attribute :action_taken, String
-      reference_to "CBPInspection"
+      reference_to(CBPInspection)
       emits "ExamResultReported"
     end
 
@@ -181,14 +181,14 @@ Hecks.bluebook "CustomsBrokerage" do
       description "Process customs release after duty payment and compliance check"
       attribute :release_type, String
       attribute :total_duty_paid, Float
-      reference_to "CustomsEntry"
+      reference_to(CustomsEntry)
       emits "ReleaseProcessed"
     end
 
     command "NotifyImporter" do
       description "Notify importer that cargo is cleared and available for pickup"
       attribute :notification_method, String
-      reference_to "EntryRelease"
+      reference_to(EntryRelease)
       emits "ImporterNotified"
     end
 

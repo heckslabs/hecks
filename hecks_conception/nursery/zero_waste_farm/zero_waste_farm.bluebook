@@ -10,7 +10,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     attribute :acreage, Float
     attribute :soil_type, String
     attribute :status, String
-    list_of(WeatherReading) :weather_history
+    attribute :weather_history, list_of(WeatherReading)
 
     value_object "WeatherReading" do
       attribute :temperature, Float
@@ -179,7 +179,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     reference_to(Harvest, as: :harvest)
     attribute :allocated_kg, Float
     attribute :status, String
-    list_of(NeedCategory) :needs
+    attribute :needs, list_of(NeedCategory)
 
     value_object "NeedCategory" do
       attribute :category, String
@@ -239,7 +239,7 @@ Hecks.bluebook "ZeroWasteFarm", version: "2026.04.13.1" do
     attribute :driver_id, String
     attribute :temperature, Float
     attribute :status, String
-    list_of(RouteStop) :stops
+    attribute :stops, list_of(RouteStop)
 
     value_object "RouteStop" do
       attribute :location, String

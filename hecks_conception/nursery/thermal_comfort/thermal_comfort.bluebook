@@ -194,7 +194,7 @@ Hecks.bluebook "ThermalComfort", version: "2026.04.13.1" do
       attribute :recommendation, String
     end
 
-    list_of "Recommendation" do
+    value_object "Recommendation" do
       attribute :action, String
       attribute :savings_kwh, Float
       attribute :cost, Float

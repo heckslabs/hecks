@@ -12,7 +12,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
     attribute :current_bid, Float
     attribute :auction_end, String
     attribute :status, String
-    list_of(LotImage) :images
+    attribute :images, list_of(LotImage)
 
     specification "ReserveMet" do
       satisfied_by { current_bid >= reserve_price }
@@ -101,7 +101,7 @@ Hecks.bluebook "OnlineAuction", version: "2026.04.13.1" do
     attribute :seller_rating, Float
     attribute :total_sales, Integer
     attribute :status, String
-    list_of(SellerReview) :reviews
+    attribute :reviews, list_of(SellerReview)
 
     value_object "SellerReview" do
       attribute :reviewer, String

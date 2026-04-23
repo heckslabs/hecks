@@ -44,7 +44,7 @@ Hecks.bluebook "SeniorEntertainment", version: "2026.04.13.1" do
     attribute :venue, String
     attribute :seats_available, Integer
     attribute :status, String
-    list_of(AccessFeature) :access_features
+    attribute :access_features, list_of(AccessFeature)
     value_object "AccessFeature" do
       attribute :feature_type, String
       attribute :description_text, String

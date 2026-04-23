@@ -7,13 +7,13 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   aggregate "DomainShape", "The universal structure every domain follows — the shape beneath all domains" do
     attribute :name, String
     attribute :description, String
-    list_of(StructuralElement) :structural_elements
+    attribute :structural_elements, list_of(StructuralElement)
 
     value_object "StructuralElement" do
       attribute :name, String
       attribute :purpose, String
       attribute :always_present, String
-      list_of(String) :examples
+      attribute :examples, list_of(String)
     end
 
     command "DefineShape" do
@@ -47,8 +47,8 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   aggregate "Archetype", "A recurring structural pattern across domains — the shapes that keep appearing" do
     attribute :name, String
     attribute :description, String
-    list_of(Float) :structural_signature
-    list_of(String) :example_domains
+    attribute :structural_signature, list_of(Float)
+    attribute :example_domains, list_of(String)
     attribute :frequency, Integer
 
     command "IdentifyArchetype" do
@@ -95,7 +95,7 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
     attribute :rule, String
     attribute :applies_to, String
     attribute :severity, String
-    list_of(String) :examples
+    attribute :examples, list_of(String)
 
     command "DefineRule" do
       role "MetaArchitect"
@@ -133,7 +133,7 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
 
   aggregate "DomainDNA", "The structural vector that fingerprints a domain — its genetic code" do
     attribute :domain_name, String
-    list_of(Float) :vector
+    attribute :vector, list_of(Float)
     attribute :archetype_match, String
     attribute :category, String
     attribute :born_at, String
@@ -180,7 +180,7 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
     attribute :domain_a, String
     attribute :domain_b, String
     attribute :structural_similarity, Float
-    list_of(String) :shared_archetypes
+    attribute :shared_archetypes, list_of(String)
     attribute :vocabulary_overlap, Float
 
     command "DetectIsomorphism" do
@@ -217,8 +217,8 @@ Hecks.bluebook "UniversalDomainPattern", version: "2026.04.11.1" do
   aggregate "MetaEvolution", "How the universal pattern itself evolves as the corpus grows" do
     attribute :corpus_snapshot_date, String
     attribute :dominant_archetype, String
-    list_of(String) :emerging_patterns
-    list_of(String) :deprecated_patterns
+    attribute :emerging_patterns, list_of(String)
+    attribute :deprecated_patterns, list_of(String)
 
     command "SnapshotMetaState" do
       role "System"

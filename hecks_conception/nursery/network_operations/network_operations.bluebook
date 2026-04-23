@@ -10,7 +10,7 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
     attribute :location, String
     attribute :firmware_version, String
     attribute :status, String
-    list_of(Interface) :interfaces
+    attribute :interfaces, list_of(Interface)
 
     value_object "Interface" do
       attribute :port_name, String
@@ -134,7 +134,7 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
     attribute :assigned_to, String
     attribute :status, String
     reference_to NetworkDevice
-    list_of(OutageUpdate) :updates
+    attribute :updates, list_of(OutageUpdate)
 
     value_object "OutageUpdate" do
       attribute :note, String
@@ -176,7 +176,7 @@ Hecks.bluebook "NetworkOperations", version: "2026.04.13.1" do
     attribute :device_type, String
     attribute :changelog, String
     attribute :status, String
-    list_of(UpgradeRecord) :upgrades
+    attribute :upgrades, list_of(UpgradeRecord)
 
     value_object "UpgradeRecord" do
       attribute :device_id, String

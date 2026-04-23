@@ -3,7 +3,7 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   category "infrastructure"
 
   aggregate "Lexicon", "The known verb corpus — grows automatically as morphology accepts new verbs" do
-    list_of(String) :known_verbs
+    attribute :known_verbs, list_of(String)
     attribute :total, Integer
 
     command "RegisterVerb" do
@@ -19,7 +19,7 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
     command "ImportFromFile" do
       role "System"
       description "Bulk import verbs from a verbs.txt file"
-      list_of(String) :verbs
+      attribute :verbs, list_of(String)
       emits "FileImported"
       then_set :known_verbs, to: :verbs
     end
@@ -37,20 +37,20 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
   end
 
   aggregate "Morphology", "Understands how English makes verbs — prefixes, suffixes, derivation rules" do
-    list_of(Prefix) :productive_prefixes
-    list_of(Suffix) :productive_suffixes
-    list_of(Rule) :derivation_rules
+    attribute :productive_prefixes, list_of(Prefix)
+    attribute :productive_suffixes, list_of(Suffix)
+    attribute :derivation_rules, list_of(Rule)
 
     value_object "Prefix" do
       attribute :name, String
       attribute :meaning, String
-      list_of(String) :examples
+      attribute :examples, list_of(String)
     end
 
     value_object "Suffix" do
       attribute :name, String
       attribute :derives_from, String
-      list_of(String) :examples
+      attribute :examples, list_of(String)
     end
 
     value_object "Rule" do
@@ -64,7 +64,7 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
       description "Add a productive prefix that derives new verbs"
       attribute :name, String
       attribute :meaning, String
-      list_of(String) :examples
+      attribute :examples, list_of(String)
       emits "PrefixRegistered"
       then_set :productive_prefixes, append: Prefix
     end
@@ -74,7 +74,7 @@ Hecks.bluebook "Verbs", version: "2026.04.11.1" do
       description "Add a productive suffix that derives verbs from nouns or adjectives"
       attribute :name, String
       attribute :derives_from, String
-      list_of(String) :examples
+      attribute :examples, list_of(String)
       emits "SuffixRegistered"
       then_set :productive_suffixes, append: Suffix
     end
