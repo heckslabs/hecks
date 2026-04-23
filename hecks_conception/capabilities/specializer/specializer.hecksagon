@@ -76,6 +76,12 @@ Hecks.hecksagon "Specializer" do
     args:    ["meta_subclass", "--output", "{{output}}"],
     ok_exit: 0
 
+  adapter :shell,
+    name:    :specialize_meta_subclass_lifecycle,
+    command: "bin/specialize",
+    args:    ["meta_subclass_lifecycle", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run

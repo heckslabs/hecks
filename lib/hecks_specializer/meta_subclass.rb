@@ -34,24 +34,19 @@ module Hecks
       include Target
 
       SHAPE = REPO_ROOT.join("hecks_conception/capabilities/specializer/fixtures/specializer.fixtures")
-      # TARGET_RS is the first-row target by default — the golden test
-      # asserts byte-identity against this specific file. Other rows
-      # emit via --name / --all flags.
       TARGET_RS = REPO_ROOT.join("lib/hecks_specializer/duplicate_policy.rb")
 
-      def emit(target_name: nil)
-        rows = by_aggregate("SpecializerSubclass")
-        row = if target_name
-                rows.find { |r| r["attrs"]["target_name"] == target_name }
-              else
-                rows.first
-              end
-        raise "no SpecializerSubclass row#{target_name ? " for #{target_name}" : ""}" unless row
-        emit_row(row)
+      # Which SpecializerSubclass fixture row to emit for. Subclasses
+      # override to pick different rows.
+      def self.row_target_name
+        "duplicate_policy"
       end
 
-      def rows
-        by_aggregate("SpecializerSubclass")
+      def emit
+        rows = by_aggregate("SpecializerSubclass")
+        row = rows.find { |r| r["attrs"]["target_name"] == self.class.row_target_name }
+        raise "no SpecializerSubclass row for #{self.class.row_target_name.inspect}" unless row
+        emit_row(row)
       end
 
       private
@@ -86,5 +81,17 @@ module Hecks
     end
 
     register :meta_subclass, MetaSubclass
+
+    # Second meta target — emits lib/hecks_specializer/lifecycle.rb
+    # from the Lifecycle SpecializerSubclass row. Same pattern, different
+    # row + output. Added in Phase C PC-1b.
+    class MetaSubclassLifecycle < MetaSubclass
+      TARGET_RS = REPO_ROOT.join("lib/hecks_specializer/lifecycle.rb")
+      def self.row_target_name
+        "lifecycle"
+      end
+    end
+
+    register :meta_subclass_lifecycle, MetaSubclassLifecycle
   end
 end
