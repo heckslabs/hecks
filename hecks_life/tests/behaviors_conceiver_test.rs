@@ -627,6 +627,18 @@ fn satisfies_size_gte_2_via_two_appends() {
       reference_to(Cart)
       given("cart must have at least 2 items") { items.size >= 2 }
       emits "Finalized"
+fn warns_about_dangling_gate_flag() {
+    // i4 gap 4: a Boolean attribute with `default: false` that no
+    // command ever flips via `then_set :foo, to: <anything>` is an
+    // inert gate — no one can open it. The generator surfaces this as
+    // a `# ⚠ gate-flag` comment right after the suite header so the
+    // modeler sees it when regenerating.
+    let source = r#"Hecks.bluebook "Terminal" do
+  aggregate "Terminal" do
+    attribute :accepting_input, Boolean, default: false
+    command "StartSession" do
+      reference_to(Terminal)
+      emits "SessionStarted"
     end
   end
 end
@@ -659,6 +671,22 @@ fn satisfies_size_gte_3_via_three_appends() {
       reference_to(Cart)
       given("cart must have at least 3 items") { items.size >= 3 }
       emits "BulkApplied"
+    assert!(out.contains("gate-flag :accepting_input on Terminal has no flipper"),
+        "expected dangling-gate-flag warning for Terminal#accepting_input, got:\n{}", out);
+}
+
+#[test]
+fn no_warning_when_gate_flag_has_writer() {
+    // Same shape as above but WITH a command that flips the flag via
+    // `then_set :accepting_input, to: true`. No warning should fire —
+    // the gate has a reachable open transition.
+    let source = r#"Hecks.bluebook "Terminal" do
+  aggregate "Terminal" do
+    attribute :accepting_input, Boolean, default: false
+    command "StartSession" do
+      reference_to(Terminal)
+      emits "SessionStarted"
+      then_set :accepting_input, to: true
     end
   end
 end
@@ -692,6 +720,22 @@ fn size_gt_1_equals_size_gte_2() {
       reference_to(Cart)
       given("cart must have more than one item") { items.size > 1 }
       emits "Paired"
+    assert!(!out.contains("gate-flag"),
+        "gate flag with a writer should NOT warn, got:\n{}", out);
+}
+
+#[test]
+fn no_warning_for_default_true_boolean() {
+    // `default: true` means the gate starts open — absence of a
+    // writer means "never closes", which is a different (much rarer)
+    // shape and out of scope for this warning. The warning must only
+    // fire for `default: false`.
+    let source = r#"Hecks.bluebook "Terminal" do
+  aggregate "Terminal" do
+    attribute :accepting_input, Boolean, default: true
+    command "StartSession" do
+      reference_to(Terminal)
+      emits "SessionStarted"
     end
   end
 end
@@ -798,6 +842,8 @@ end
     assert_eq!(finalize_count, 1,
         "Audit chain must include exactly one Finalize setup, got {}:\n{}",
         finalize_count, block);
+    assert!(!out.contains("gate-flag"),
+        "default:true boolean must NOT trigger gate-flag warning, got:\n{}", out);
 }
 
 // ─── helpers ────────────────────────────────────────────────────────

@@ -93,6 +93,24 @@ pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> St
         source.name,
     ));
 
+    // Emit validator warnings for dangling gate flags (i4 gap 4): a
+    // `Boolean` attribute with `default: false` that no command ever
+    // flips is an inert gate — no reachable state ever turns it true,
+    // so every given predicated on it is permanently refused. Surface
+    // this as a suite-level comment so `hecks-life conceive-behaviors`
+    // (which prints the file) makes the problem visible on regeneration.
+    // [antibody-exempt: conceiver fix per i4 gap 4; retires when conceivers port to a bluebook-dispatched form]
+    let gate_flag_warnings = detect_dangling_gate_flags(source);
+    for (agg_name, attr_name) in &gate_flag_warnings {
+        out.push_str(&format!(
+            "  # ⚠ gate-flag :{} on {} has no flipper — add a command that `then_set :{}, to: true`, or mark it read-only\n",
+            attr_name, agg_name, attr_name,
+        ));
+    }
+    if !gate_flag_warnings.is_empty() {
+        out.push('\n');
+    }
+
     // Pre-compute lifecycle transitions per command-name so each test
     // can include its expected to_state without searching every aggregate.
     let lifecycles_by_command = collect_lifecycle_index(source);
@@ -412,6 +430,46 @@ fn query_test(agg: &Aggregate, q: &Query) -> String {
 }
 
 // ─── plan helpers ────────────────────────────────────────────────────
+
+/// Detect Boolean gate flags that no command can flip. A gate flag is a
+/// Boolean attribute whose default is literal `false` — the modeler's
+/// intent is clearly "starts closed, open later". If no command on the
+/// aggregate declares a Set/Toggle mutation on that attribute, the flag
+/// is inert: every given predicated on it is permanently refused.
+/// Returns (aggregate_name, attribute_name) pairs in source order.
+///
+/// `default: true` flags are NOT flagged — they start open, so the
+/// absence of a writer means "no one ever closes it", which is a
+/// different (and less common) shape. Non-Boolean attributes are not
+/// flagged because they have many legitimate shapes (ids, notes, etc.)
+/// that don't need flippers. (i4 gap 4.)
+pub fn detect_dangling_gate_flags(domain: &Domain) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    for agg in &domain.aggregates {
+        for attr in &agg.attributes {
+            if !is_gate_flag(attr) { continue; }
+            let has_writer = agg.commands.iter().any(|c| {
+                c.mutations.iter().any(|m| {
+                    matches!(m.operation, MutationOp::Set | MutationOp::Toggle)
+                        && m.field == attr.name
+                })
+            });
+            if !has_writer {
+                out.push((agg.name.clone(), attr.name.clone()));
+            }
+        }
+    }
+    out
+}
+
+/// True when `attr` declares `Boolean` with an explicit `default: false`.
+/// The type check keeps the warning narrow — an untyped attribute with
+/// `default: false` is rarer and might mean something else in future
+/// grammar extensions.
+fn is_gate_flag(attr: &Attribute) -> bool {
+    attr.attr_type == "Boolean"
+        && attr.default.as_deref().map(str::trim) == Some("false")
+}
 
 /// Build (cmd_name, lifecycle_field, to_state) tuples for every
 /// transition in the source. Looked up by command-name when composing

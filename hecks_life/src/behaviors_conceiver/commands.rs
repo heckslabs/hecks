@@ -54,6 +54,16 @@ pub fn run_conceive_behaviors(args: &[String]) {
 
     let text = behaviors_conceiver::generator::generate_behaviors(&domain, archetype.as_ref());
 
+    // i4 gap 4: surface dangling gate-flag warnings on stderr too. The
+    // generated file carries them as `# ⚠` header comments for durability,
+    // but most invocations only scan stderr/stdout — print there so the
+    // problem is visible the moment the modeler regenerates.
+    // [antibody-exempt: conceiver fix per i4 gap 4; retires when conceivers port to a bluebook-dispatched form]
+    let gate_warnings = behaviors_conceiver::generator::detect_dangling_gate_flags(&domain);
+    for (agg, attr) in &gate_warnings {
+        eprintln!("⚠ gate-flag :{} on {} has no flipper — add a command that `then_set :{}, to: true`, or mark it read-only", attr, agg, attr);
+    }
+
     let target = target_path(source_path);
     if std::path::Path::new(&target).exists() && !force {
         eprintln!("\n{} already exists.", target);
