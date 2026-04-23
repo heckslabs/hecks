@@ -22,6 +22,7 @@ use std::path::Path;
 pub mod behaviors_parser;
 pub mod behaviors_parser_dispatch;
 pub mod dump;
+pub mod hecksagon_parser;
 pub mod util;
 pub mod validator_warnings;
 
@@ -31,10 +32,11 @@ pub mod validator_warnings;
 pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
     match target {
         "behaviors_parser" => behaviors_parser::emit(repo_root),
+        "hecksagon_parser" => hecksagon_parser::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         "dump" => dump::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dump, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_parser, dump, hecksagon_parser, validator_warnings",
             other
         )
         .into()),

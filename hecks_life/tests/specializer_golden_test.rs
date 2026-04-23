@@ -345,6 +345,39 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
 
 // [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
+    // Phase D — Rust-native specializer for hecksagon_parser. Third
+    // parser port in the Phase D LineParser/LineDispatch/ParserHelper
+    // arc (validator, behaviors_parser, fixtures_parser). The 4-row
+    // dispatch exercises capture_quoted_into, push_quoted_onto,
+    // multiline_block, and multiline_adapter handler kinds against the
+    // simplest single-parse-loop shape.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "hecksagon_parser"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize hecksagon_parser failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/hecksagon_parser.rs"))
+        .expect("hecksagon_parser.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
+#[test]
 fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     // Phase D — Rust-native specializer for behaviors_parser. Ports
     // the LineParser + LineDispatch + ParserHelper 3-aggregate shape
