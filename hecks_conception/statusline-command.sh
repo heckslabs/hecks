@@ -70,17 +70,18 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat — two beats per real heartbeat for natural cadence.
-# Real heart rate (Tick.cycle from mindstream.sh) stays 1 Hz; the
-# visual alternation runs at 2 Hz (red/black every 500 ms) so the
-# glyph looks like a thump-thump rather than a single per-second flip.
-# Rate is unchanged, only the render interval differs.
+# Animated heartbeat — flips on EITHER a new tick OR a new half-second.
+# At 1 Hz statusline refresh (Claude Code default), tick_cycle
+# advances between polls → one flip per second, visible pulse.
+# At ≥ 2 Hz refresh (refreshInterval: 0.5), the half-second phase
+# also alternates → two flips per real heartbeat, natural thump-thump.
+# Combining the two dodges aliasing — pure wall-clock phase at 1 Hz
+# sampling always hits the same color.
 tick_cycle=$($hecks heki read $info/tick.heki 2>/dev/null | grep '"cycle"' | head -1 | sed 's/.*: //' | sed 's/[^0-9].*//')
 tick_cycle=${tick_cycle:-0}
 hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
-# Wall-clock ns ÷ 500 ms → half-second bucket, mod 2 → 0 or 1.
 half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
-heart="${hearts[$half_second_phase]}"
+heart="${hearts[$(( (tick_cycle + half_second_phase) % 2 ))]}"
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
