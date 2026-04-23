@@ -744,6 +744,18 @@ The exemption mechanism documented in §2.1 is the pressure valve: an `[antibody
 
 The antibody is therefore a social mechanism enforced mechanically. It succeeds not by being always correct but by making each concession visible and accountable: every new extension in the tree has a commit message that a human signed.
 
+### §13.7 On the role of the Futamura framing
+
+The autophagy arc developed in §8 and §9 is framed in this paper as an instance of Futamura-style partial evaluation: §9 adopts the three-projection notation, names the phases after it, and treats the L0–L8 factoring as projections as declared data. This framing is useful and we believe it is accurate. It is not, however, how the arc was derived.
+
+The design decisions that enabled autophagy — the five-DSL vocabulary (§2), the antibody (§2.1), chapter self-hosting (§7), contract-driven generation (§4), the binary-compilation step (§8) — were each reached from the internal logic of treating domains as first-class data. If a domain can declare itself, then the framework that models domains should also be expressible in the same terms; if a compiler can emit binaries for target languages, then at some point the compiler should emit its own binary; if two runtimes must agree on an IR, then the IR must be language-neutral enough to specialise in either direction. None of these steps required a partial-evaluation textbook. They followed from DDD and self-description pressure applied recursively.
+
+Futamura's three projections were recognised afterward, as a naming for the fixed points the work was already heading toward. The theory retroactively legitimised the arc — it gave us crisp phase names, an established vocabulary for the distinctions between a compiler, a specialiser, and a specialised specialiser, and a formal account of why what we were building was coherent. But the theory did not make the work tractable; the shapes, the parity, and the disciplined progression through L0–L8 did.
+
+This distinction matters for two reasons. First, it means the approach is reproducible without requiring PL-theory expertise: a project that drives toward domain-as-data through DDD and self-description intuitions can arrive at the same structure. Second, it clarifies what Futamura buys here. It does not buy execution; the specialiser (§8, §9) would work without the name. It buys recognition — that the fixed points we were heading toward are a known termination point of a known construction, and that the phase structure we used is the one partial-evaluation theory predicts.
+
+The paper's §9 framing is therefore a post-hoc mapping between an independently-derived engineering arc and an existing formal vocabulary. We report it as such because readers familiar with Futamura's work will find the mapping useful, and readers unfamiliar with it should not be led to believe the mapping was necessary to build the system.
+
 ---
 
 ## §14 Limitations and Future Work
