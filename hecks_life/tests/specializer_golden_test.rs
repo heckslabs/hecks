@@ -410,6 +410,41 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
 }
 
 #[test]
+fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
+    // Phase D — Rust-native specializer for fixtures_parser. Ports the
+    // smallest Rust-emitter Ruby specializer (~112 LoC) reusing the
+    // LineParser + ParserHelper 2-aggregate shape (LineDispatch rows
+    // are documentation-only; parse_body_snippet is authoritative).
+    // Notable override: several helper bodies legitimately start with
+    // `//` comments (e.g., extract_schema_kwarg's `// Find the first
+    // top-level comma …`), so the port uses a bare file read instead
+    // of util::read_snippet_body's leading-comment strip.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "fixtures_parser"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize fixtures_parser failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/fixtures_parser.rs"))
+        .expect("fixtures_parser.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
+#[test]
 fn meta_specializer_produces_byte_identical_hecks_specializer_rb() {
     // Phase C PC-5 — retires the loader module lib/hecks_specializer.rb
     // (108 LoC) via the new RubyModule shape. This is the first shape
