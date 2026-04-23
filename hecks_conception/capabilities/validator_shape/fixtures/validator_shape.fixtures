@@ -1,0 +1,145 @@
+Hecks.fixtures "ValidatorShape" do
+  # ── Entry point ──────────────────────────────────────────────
+  aggregate "ValidatorEntryPoint" do
+    fixture "Validate",
+      fn_name: "validate",
+      returns: "Vec<String>",
+      rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_references,valid_policy_triggers,no_duplicate_commands",
+      collects_into: "errors"
+  end
+
+  # ── The 6 rules — one fixture each, mirrors validator.rs 1:1 ────
+  aggregate "ValidationRule" do
+    fixture "UniqueAggregateNames",
+      name: "unique_aggregate_names",
+      rust_fn_name: "unique_aggregate_names",
+      description: "No two aggregates may share the same name",
+      inspects: "domain.aggregates",
+      check_kind: "unique",
+      error_template: "Duplicate aggregate name: {name}",
+      applied_to: "aggregate"
+
+    fixture "AggregatesHaveCommands",
+      name: "aggregates_have_commands",
+      rust_fn_name: "aggregates_have_commands",
+      description: "Every aggregate must have at least one command",
+      inspects: "domain.aggregates",
+      check_kind: "non_empty",
+      error_template: "{name} has no commands",
+      applied_to: "aggregate"
+
+    fixture "CommandNaming",
+      name: "command_naming",
+      rust_fn_name: "command_naming",
+      description: "Command names must start with a verb",
+      inspects: "domain.aggregates[].commands",
+      check_kind: "first_word_verb",
+      error_template: "Command {name} in {parent} starts with '{word}' which looks like a {pos} — commands should start with a verb",
+      applied_to: "command"
+
+    fixture "ValidReferences",
+      name: "valid_references",
+      rust_fn_name: "valid_references",
+      description: "reference_to(X) must target a declared aggregate in the same domain",
+      inspects: "domain.aggregates[].references+domain.aggregates[].commands[].references",
+      check_kind: "reference_valid",
+      error_template: "{parent} references unknown aggregate: {target}",
+      applied_to: "aggregate_or_command"
+
+    fixture "ValidPolicyTriggers",
+      name: "valid_policy_triggers",
+      rust_fn_name: "valid_policy_triggers",
+      description: "Policy triggers must name a command declared in the same domain",
+      inspects: "domain.policies",
+      check_kind: "trigger_valid",
+      error_template: "Policy {name} triggers unknown command: {trigger}",
+      applied_to: "policy"
+
+    fixture "NoDuplicateCommands",
+      name: "no_duplicate_commands",
+      rust_fn_name: "no_duplicate_commands",
+      description: "No two commands across all aggregates may share the same name",
+      inspects: "domain.aggregates[].commands",
+      check_kind: "unique_across",
+      error_template: "Duplicate command name: {name} (in {parent})",
+      applied_to: "command"
+  end
+
+  # ── Suffix tables (NOUN_SUFFIXES, ADJ_SUFFIXES, verb_suffixes) ───
+  aggregate "SuffixTable" do
+    fixture "Noun_tion",   table: "noun", suffix: "tion"
+    fixture "Noun_sion",   table: "noun", suffix: "sion"
+    fixture "Noun_ment",   table: "noun", suffix: "ment"
+    fixture "Noun_ness",   table: "noun", suffix: "ness"
+    fixture "Noun_ity",    table: "noun", suffix: "ity"
+    fixture "Noun_ence",   table: "noun", suffix: "ence"
+    fixture "Noun_ance",   table: "noun", suffix: "ance"
+    fixture "Noun_ology",  table: "noun", suffix: "ology"
+    fixture "Noun_ism",    table: "noun", suffix: "ism"
+    fixture "Noun_ist",    table: "noun", suffix: "ist"
+    fixture "Noun_dom",    table: "noun", suffix: "dom"
+    fixture "Noun_ship",   table: "noun", suffix: "ship"
+
+    fixture "Adj_able",    table: "adj",  suffix: "able"
+    fixture "Adj_ible",    table: "adj",  suffix: "ible"
+    fixture "Adj_ous",     table: "adj",  suffix: "ous"
+    fixture "Adj_ful",     table: "adj",  suffix: "ful"
+    fixture "Adj_less",    table: "adj",  suffix: "less"
+    fixture "Adj_ive",     table: "adj",  suffix: "ive"
+    fixture "Adj_ical",    table: "adj",  suffix: "ical"
+    fixture "Adj_ular",    table: "adj",  suffix: "ular"
+
+    fixture "Verb_ive",    table: "verb", suffix: "ive"
+    fixture "Verb_ence",   table: "verb", suffix: "ence"
+    fixture "Verb_ance",   table: "verb", suffix: "ance"
+    fixture "Verb_ise",    table: "verb", suffix: "ise"
+    fixture "Verb_ize",    table: "verb", suffix: "ize"
+    fixture "Verb_ate",    table: "verb", suffix: "ate"
+    fixture "Verb_ify",    table: "verb", suffix: "ify"
+    fixture "Verb_uce",    table: "verb", suffix: "uce"
+    fixture "Verb_ude",    table: "verb", suffix: "ude"
+    fixture "Verb_ose",    table: "verb", suffix: "ose"
+    fixture "Verb_ure",    table: "verb", suffix: "ure"
+    fixture "Verb_ect",    table: "verb", suffix: "ect"
+    fixture "Verb_mit",    table: "verb", suffix: "mit"
+    fixture "Verb_ish",    table: "verb", suffix: "ish"
+    fixture "Verb_rge",    table: "verb", suffix: "rge"
+    fixture "Verb_ve",     table: "verb", suffix: "ve"
+  end
+
+  # ── Exception words (verb_exceptions, FALSE_POSITIVES) ──────────
+  aggregate "ExceptionWord" do
+    fixture "VE_ferment",     category: "verb_exception", word: "ferment"
+    fixture "VE_transition",  category: "verb_exception", word: "transition"
+    fixture "VE_position",    category: "verb_exception", word: "position"
+    fixture "VE_condition",   category: "verb_exception", word: "condition"
+    fixture "VE_function",    category: "verb_exception", word: "function"
+    fixture "VE_mention",     category: "verb_exception", word: "mention"
+    fixture "VE_question",    category: "verb_exception", word: "question"
+    fixture "VE_section",     category: "verb_exception", word: "section"
+    fixture "VE_fashion",     category: "verb_exception", word: "fashion"
+    fixture "VE_auction",     category: "verb_exception", word: "auction"
+    fixture "VE_complement",  category: "verb_exception", word: "complement"
+    fixture "VE_supplement",  category: "verb_exception", word: "supplement"
+    fixture "VE_implement",   category: "verb_exception", word: "implement"
+    fixture "VE_segment",     category: "verb_exception", word: "segment"
+    fixture "VE_cement",      category: "verb_exception", word: "cement"
+    fixture "VE_comment",     category: "verb_exception", word: "comment"
+    fixture "VE_document",    category: "verb_exception", word: "document"
+    fixture "VE_experiment",  category: "verb_exception", word: "experiment"
+    fixture "VE_fragment",    category: "verb_exception", word: "fragment"
+    fixture "VE_moment",      category: "verb_exception", word: "moment"
+    fixture "VE_augment",     category: "verb_exception", word: "augment"
+    fixture "VE_torment",     category: "verb_exception", word: "torment"
+    fixture "VE_lament",      category: "verb_exception", word: "lament"
+    fixture "VE_regiment",    category: "verb_exception", word: "regiment"
+
+    fixture "FP_The",  category: "false_positive", word: "The"
+    fixture "FP_A",    category: "false_positive", word: "A"
+    fixture "FP_An",   category: "false_positive", word: "An"
+    fixture "FP_My",   category: "false_positive", word: "My"
+    fixture "FP_Our",  category: "false_positive", word: "Our"
+    fixture "FP_New",  category: "false_positive", word: "New"
+    fixture "FP_Old",  category: "false_positive", word: "Old"
+  end
+end

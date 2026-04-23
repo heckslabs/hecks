@@ -1,0 +1,85 @@
+Hecks.bluebook "ValidatorShape", version: "2026.04.23.1" do
+  vision "The shape of hecks_life/src/validator.rs as a bluebook — first-Futamura source. The specializer reads this and produces the Rust."
+  category "autophagy"
+
+  # ============================================================
+  # VALIDATOR SHAPE — first Futamura target (i51 Phase A)
+  # ============================================================
+  #
+  # validator.rs is 400 LoC of Rust that walks a Domain IR and returns
+  # error strings. Six rules, each a pure function of the IR. This
+  # bluebook describes those rules declaratively so the Phase A
+  # specializer can lower them back to the same Rust — proving the
+  # first Futamura projection for a single module.
+  #
+  # Layer mapping (per docs/plans/i51_futamura_projections.md §3):
+  #   L0 = this file + fixtures/validator_shape.fixtures
+  #   L1 = canonical_ir representation of this file
+  #   L2-L6 = the specializer's internal IR (not shipped yet — Phase A
+  #           commit 2 onward)
+  #   L7 = hecks_life/src/validator.rs (generated; byte-identical to
+  #        the hand-written source at Phase A commit 5)
+  #
+  # The SHAPE aggregates here are not behaviour-carrying aggregates.
+  # They are the schema for the validator's declarative description,
+  # per the transitional shape-only-aggregate pattern from PR #267.
+  # When i42 (catalog-dialect) lands, these become catalog tables
+  # in the sibling fixtures file instead — see inbox i42.
+
+  # ---- ValidationRule ------------------------------------------------
+  #
+  # One row per rule in validator.rs. rust_fn_name links back to the
+  # hand-written function the specializer must reproduce. check_kind
+  # is the rule's algorithmic shape (unique / non_empty / etc) which
+  # the specializer will template on to produce the Rust body.
+
+  aggregate "ValidationRule", "One validation rule — name, inspects-IR-path, check kind, error template" do
+    attribute :name,           String
+    attribute :rust_fn_name,   String
+    attribute :description,    String
+    # inspects: IR path walked (domain.aggregates, domain.policies, etc)
+    attribute :inspects,       String
+    # check_kind: unique | non_empty | first_word_verb | reference_valid | trigger_valid | unique_across
+    attribute :check_kind,     String
+    # error_template: format! string with {name}/{parent} placeholders
+    attribute :error_template, String
+    # applied_to: aggregate | command | policy — what the error attaches to
+    attribute :applied_to,     String
+  end
+
+  # ---- WordClassifier ------------------------------------------------
+  #
+  # The command_naming rule leans on first_word() + is_not_verb() +
+  # three constant tables (NOUN_SUFFIXES, ADJ_SUFFIXES, FALSE_POSITIVES)
+  # plus two exception lists (verb_exceptions, verb_suffixes). These
+  # are support data, not rules. The specializer reads them from the
+  # fixtures file and emits the Rust `const` arrays.
+
+  aggregate "SuffixTable", "One row per suffix in NOUN_SUFFIXES / ADJ_SUFFIXES / verb_suffixes — consumed by is_not_verb" do
+    # table: noun | adj | verb
+    attribute :table,   String
+    attribute :suffix,  String
+  end
+
+  aggregate "ExceptionWord", "One row per entry in verb_exceptions / FALSE_POSITIVES — edge cases for word classification" do
+    # category: verb_exception | false_positive
+    attribute :category, String
+    attribute :word,     String
+  end
+
+  # ---- ValidatorEntryPoint ------------------------------------------
+  #
+  # The public `pub fn validate(domain: &Domain) -> Vec<String>` at the
+  # top of validator.rs. Collects results from each rule in order.
+  # run_order matters: tests assert specific error text comes back in a
+  # stable sequence.
+
+  aggregate "ValidatorEntryPoint", "The pub fn validate entry point — calls each rule in run_order" do
+    attribute :fn_name,         String
+    attribute :returns,         String
+    # rule_order: comma-separated rule names in dispatch order
+    attribute :rule_order,      String
+    # collects_into: the Vec<String> accumulator identifier
+    attribute :collects_into,   String
+  end
+end
