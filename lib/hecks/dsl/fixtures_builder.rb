@@ -30,13 +30,24 @@ module Hecks
       def initialize(name)
         @name = name
         @fixtures = []
+        @catalogs = {}
       end
 
       # Scope the inner `fixture` calls to one aggregate type. `name`
       # is the aggregate's PascalCase name, matching the source
       # bluebook's `aggregate "X" do`.
-      def aggregate(name, &block)
+      #
+      # `schema:` is the i42 catalog-dialect extension. When present,
+      # the aggregate is a "catalog" — a fixture-only reference table
+      # that self-declares its row schema, so no bluebook declaration
+      # is required. Absence preserves today's behavior exactly.
+      #
+      #   aggregate "FlaggedExtension", schema: { ext: String } do
+      #     fixture "Ruby", ext: "rb"
+      #   end
+      def aggregate(name, schema: nil, &block)
         @current_aggregate = name.to_s
+        @catalogs[@current_aggregate] = normalize_schema(schema) if schema
         instance_eval(&block) if block
         @current_aggregate = nil
       end
@@ -54,21 +65,43 @@ module Hecks
       end
 
       def build
-        FixturesFile.new(name: @name, fixtures: @fixtures)
+        FixturesFile.new(name: @name, fixtures: @fixtures, catalogs: @catalogs)
+      end
+
+      private
+
+      # Normalize `{ ext: String, match: String }` into the same shape
+      # the Rust parser emits: an ordered list of `{name:, type:}`
+      # hashes. Values are stringified via the constant's name so
+      # `String` → "String", `list_of(String)` → the literal return
+      # value (typically "list_of(String)" from whatever shorthand
+      # helper the caller has in scope — here we defensively `to_s`).
+      def normalize_schema(schema)
+        schema.map { |k, v| { name: k.to_s, type: v.to_s } }
       end
 
       # IR shape returned by the builder. Same shape the Rust
       # `fixtures_ir::FixturesFile` produces, so parity tooling can
       # diff both directly.
+      #
+      # `catalogs` maps an aggregate name to its declared row schema
+      # (a list of `{name:, type:}` hashes). Present only for
+      # aggregates declared with the `schema:` kwarg — the i42
+      # catalog-dialect form for fixture-only reference tables.
+      # Absent-or-empty preserves today's behavior.
       class FixturesFile
-        attr_reader :name, :fixtures
-        def initialize(name:, fixtures: [])
+        attr_reader :name, :fixtures, :catalogs
+        def initialize(name:, fixtures: [], catalogs: {})
           @name = name
           @fixtures = fixtures
+          @catalogs = catalogs
         end
 
         def ==(other)
-          other.is_a?(FixturesFile) && name == other.name && fixtures == other.fixtures
+          other.is_a?(FixturesFile) &&
+            name == other.name &&
+            fixtures == other.fixtures &&
+            catalogs == other.catalogs
         end
       end
     end

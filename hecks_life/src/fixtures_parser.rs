@@ -18,13 +18,33 @@
 //! The first positional arg of `fixture` is the label (Fixture::name);
 //! everything after is k:v attributes. The enclosing `aggregate "X"`
 //! block sets aggregate_name on each fixture inside.
+//!
+//! i42 catalog-dialect extension: an `aggregate` line may carry a
+//! `schema:` kwarg whose value is an inline `{ k: Type, ... }` hash
+//! literal. When present, the aggregate is a "catalog" — a
+//! fixture-only reference table declaring its own row schema. The
+//! schema is parsed into a `Vec<CatalogAttr>` and stored under the
+//! aggregate's name in `FixturesFile::catalogs`. Aggregates without
+//! `schema:` parse exactly as before.
+//!
+//!   aggregate "FlaggedExtension", schema: { ext: String } do
+//!     fixture "Ruby", ext: "rb"
+//!   end
+//!
+//! v1 constraint: single-line schema only. Multi-line schemas
+//! (opening `{` on the aggregate line, closing `}` on a later line)
+//! are not supported yet — see the plan's risk 9.1.
 
-use crate::fixtures_ir::FixturesFile;
+use crate::fixtures_ir::{CatalogAttr, FixturesFile};
 use crate::ir::Fixture;
 use crate::parser_helpers::{extract_string, ends_with_do_block};
 
 pub fn parse(source: &str) -> FixturesFile {
-    let mut file = FixturesFile { domain_name: String::new(), fixtures: vec![] };
+    let mut file = FixturesFile {
+        domain_name: String::new(),
+        fixtures: vec![],
+        catalogs: std::collections::BTreeMap::new(),
+    };
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
     let mut current_agg: Option<String> = None;
@@ -39,6 +59,11 @@ pub fn parse(source: &str) -> FixturesFile {
             depth += 1;
         } else if line.starts_with("aggregate ") && ends_with_do_block(line) {
             current_agg = extract_string(line);
+            if let Some(agg) = current_agg.clone() {
+                if let Some(schema) = extract_schema_kwarg(line) {
+                    file.catalogs.insert(agg, schema);
+                }
+            }
             depth += 1;
         } else if line.starts_with("fixture ") {
             if let Some(agg) = &current_agg {
@@ -124,4 +149,214 @@ fn escaped_at(s: &str, i: usize) -> bool {
         j -= 1;
     }
     count % 2 == 1
+}
+
+/// Extract the `schema: { k: Type, ... }` kwarg from an `aggregate`
+/// line. Returns None when the kwarg is absent. Single-line only
+/// (v1 constraint); a multi-line `{ ... }` spanning several source
+/// lines parses as absent.
+///
+/// Parse shape:
+///   aggregate "X", schema: { ext: String } do
+///                  ^^^^^^^^ ^^^^^^^^^^^^^
+///                  |        |
+///                  |        +-- inside {...}: top-level-comma-split
+///                  |            pairs of `k: Type`, where Type is a
+///                  |            verbatim token (may contain parens
+///                  |            and commas — `list_of(String)` — so
+///                  |            we reuse split_top_level_commas to
+///                  |            respect nested brackets/parens).
+///                  +-- we scan from after the first top-level comma
+///                      on the aggregate line (the one separating the
+///                      positional name from kwargs).
+fn extract_schema_kwarg(line: &str) -> Option<Vec<CatalogAttr>> {
+    // Find the first top-level comma after the aggregate's name —
+    // that separates `aggregate "X"` from its kwargs. Top-level
+    // matters because a future bluebook form could theoretically
+    // embed commas in `"strings"` inside the name slot; current
+    // names are PascalCase but we keep the code honest.
+    let comma_pos = first_top_level_comma(line)?;
+    let after_comma = &line[comma_pos + 1..];
+    let schema_pos = after_comma.find("schema:")?;
+    let after_schema = &after_comma[schema_pos + "schema:".len()..];
+
+    // Find the opening `{` after `schema:` and its balanced `}`.
+    let open = after_schema.find('{')?;
+    let close = matching_close_brace(after_schema, open)?;
+    let body = &after_schema[open + 1..close];
+
+    let mut attrs = Vec::new();
+    for part in split_top_level_commas(body) {
+        let part = part.trim();
+        if part.is_empty() { continue; }
+        // Each pair is `name: Type`. We split on the first top-level
+        // colon so the type token (which never legitimately contains
+        // a `:`) is preserved intact even if future types do.
+        let colon = part.find(':')?;
+        let name = part[..colon].trim().to_string();
+        let type_name = part[colon + 1..].trim().to_string();
+        if name.is_empty() || type_name.is_empty() { return None; }
+        attrs.push(CatalogAttr { name, type_name });
+    }
+    Some(attrs)
+}
+
+/// Locate the first `,` at bracket/paren depth 0 and outside any
+/// string literal. Used to find where positional args end and kwargs
+/// begin on the aggregate line.
+fn first_top_level_comma(s: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    for (i, c) in s.char_indices() {
+        match c {
+            '"' if !escaped_at(s, i) => in_str = !in_str,
+            '[' | '{' | '(' if !in_str => depth += 1,
+            ']' | '}' | ')' if !in_str => depth -= 1,
+            ',' if !in_str && depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Given `s` and the byte index of an opening `{`, return the byte
+/// index of the matching closing `}` — respecting nested braces and
+/// skipping string literals. Returns None if unbalanced (which in v1
+/// means the schema spans multiple lines; we decline to parse it).
+fn matching_close_brace(s: &str, open: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    if bytes.get(open) != Some(&b'{') { return None; }
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut i = open;
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+        match c {
+            '"' if !escaped_at(s, i) => in_str = !in_str,
+            '{' if !in_str => depth += 1,
+            '}' if !in_str => {
+                depth -= 1;
+                if depth == 0 { return Some(i); }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Tiny helper: parse a source snippet and return the catalogs
+    // map. Keeps the assertion surface focused on the i42 add.
+    fn catalogs_of(source: &str) -> std::collections::BTreeMap<String, Vec<(String, String)>> {
+        parse(source).catalogs
+            .into_iter()
+            .map(|(k, v)| (k, v.into_iter().map(|a| (a.name, a.type_name)).collect()))
+            .collect()
+    }
+
+    #[test]
+    fn schema_kwarg_records_one_catalog_attr() {
+        let src = r#"
+            Hecks.fixtures "Antibody" do
+              aggregate "FlaggedExtension", schema: { ext: String } do
+                fixture "Ruby", ext: "rb"
+              end
+            end
+        "#;
+        let cats = catalogs_of(src);
+        assert_eq!(cats.len(), 1);
+        assert_eq!(cats.get("FlaggedExtension").unwrap(),
+                   &vec![("ext".into(), "String".into())]);
+    }
+
+    #[test]
+    fn no_schema_kwarg_means_no_catalog_entry() {
+        // Pre-i42 shape — unchanged behavior.
+        let src = r#"
+            Hecks.fixtures "Pizzas" do
+              aggregate "Pizza" do
+                fixture "Margherita", name: "Margherita"
+              end
+            end
+        "#;
+        assert!(catalogs_of(src).is_empty());
+    }
+
+    #[test]
+    fn schema_kwarg_records_multiple_attrs_in_order() {
+        let src = r#"
+            Hecks.fixtures "Antibody" do
+              aggregate "ShebangMapping", schema: { match: String, ext: String } do
+                fixture "Ruby", match: "ruby", ext: "rb"
+              end
+            end
+        "#;
+        let cats = catalogs_of(src);
+        assert_eq!(cats.get("ShebangMapping").unwrap(), &vec![
+            ("match".into(), "String".into()),
+            ("ext".into(),   "String".into()),
+        ]);
+    }
+
+    #[test]
+    fn schema_kwarg_handles_list_of_parens() {
+        // `list_of(String)` has a comma-free inner but the parens
+        // must nest correctly so a schema like
+        // `{ items: list_of(String), name: String }` splits on the
+        // top-level comma only — not on a comma inside the parens.
+        let src = r#"
+            Hecks.fixtures "Antibody" do
+              aggregate "TestCase", schema: { items: list_of(String), name: String } do
+                fixture "Sample", items: ["a"], name: "sample"
+              end
+            end
+        "#;
+        let cats = catalogs_of(src);
+        assert_eq!(cats.get("TestCase").unwrap(), &vec![
+            ("items".into(), "list_of(String)".into()),
+            ("name".into(),  "String".into()),
+        ]);
+    }
+
+    #[test]
+    fn nested_fixture_block_does_not_confuse_aggregate_scan() {
+        // A fixture line that happens to contain `schema:` or nested
+        // blocks shouldn't bleed into catalogs; only `aggregate` lines
+        // feed the catalog extractor.
+        let src = r#"
+            Hecks.fixtures "Mixed" do
+              aggregate "Pizza" do
+                fixture "Margherita", name: "Margherita"
+              end
+            end
+        "#;
+        let ff = parse(src);
+        assert!(ff.catalogs.is_empty());
+        assert_eq!(ff.fixtures.len(), 1);
+        assert_eq!(ff.fixtures[0].aggregate_name, "Pizza");
+    }
+
+    #[test]
+    fn plain_and_catalog_aggregates_coexist() {
+        let src = r##"
+            Hecks.fixtures "Mixed" do
+              aggregate "Pizza" do
+                fixture "Margherita", name: "Margherita"
+              end
+              aggregate "Color", schema: { hex: String } do
+                fixture "Red", hex: "#FF0000"
+              end
+            end
+        "##;
+        let ff = parse(src);
+        assert_eq!(ff.catalogs.len(), 1);
+        assert!(ff.catalogs.contains_key("Color"));
+        assert!(!ff.catalogs.contains_key("Pizza"));
+        // Fixtures from both aggregates still land in the flat list.
+        assert_eq!(ff.fixtures.len(), 2);
+    }
 }
