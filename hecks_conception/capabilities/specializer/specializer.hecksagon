@@ -92,6 +92,15 @@ Hecks.hecksagon "Specializer" do
     args:    ["meta_diagnostic_validator", "--output", "{{output}}"],
     ok_exit: 0
 
+  # Phase C PC-2 extension — second full Ruby class retirement.
+  # Emits lib/hecks_specializer/validator_warnings.rb using the same
+  # meta-shape. Adds RubyConstant + register_target_name features.
+  adapter :shell,
+    name:    :specialize_meta_validator_warnings,
+    command: "bin/specialize",
+    args:    ["meta_validator_warnings", "--output", "{{output}}"],
+    ok_exit: 0
+
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. Specialize commands run

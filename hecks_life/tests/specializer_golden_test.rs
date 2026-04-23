@@ -89,6 +89,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_meta_subclass",
         "specialize_meta_subclass_lifecycle",
         "specialize_meta_diagnostic_validator",
+        "specialize_meta_validator_warnings",
     ] {
         assert!(
             hex.shell_adapters.iter().any(|a| a.name == expected),
@@ -167,5 +168,20 @@ fn meta_specializer_produces_byte_identical_diagnostic_validator_rb() {
     assert_byte_identical(
         "meta_diagnostic_validator",
         "lib/hecks_specializer/diagnostic_validator.rb",
+    );
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_validator_warnings_rb() {
+    // Phase C PC-2 extension — second full Ruby class retirement
+    // using the same meta-shape. Adds RubyConstant rows (SHAPE +
+    // TARGET_RS emit at class-body top) and register_target_name
+    // (the `register :validator_warnings, ValidatorWarnings` line
+    // inside module Specializer after the class close). Proves the
+    // shape generalizes — one shape now covers both the base class
+    // AND a self-registering specializer target.
+    assert_byte_identical(
+        "meta_validator_warnings",
+        "lib/hecks_specializer/validator_warnings.rb",
     );
 }

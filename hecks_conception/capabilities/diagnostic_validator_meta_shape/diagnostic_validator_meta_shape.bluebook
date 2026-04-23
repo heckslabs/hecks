@@ -1,5 +1,5 @@
-Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.1" do
-  vision "Phase C PC-2 — shape of lib/hecks_specializer/diagnostic_validator.rb as a bluebook. First full Ruby-class retirement (not a thin subclass)."
+Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.2" do
+  vision "Phase C PC-2 — shape of Ruby specializer classes (diagnostic_validator.rb, validator_warnings.rb) as a bluebook. First full Ruby-class retirements."
   category "autophagy"
 
   # ============================================================
@@ -47,6 +47,27 @@ Hecks.bluebook "DiagnosticValidatorMetaShape", version: "2026.04.23.1" do
     attribute :doc_snippet,  String
     # output_rb: relative path to the generated .rb file
     attribute :output_rb,    String
+    # register_target_name: if non-empty, emit
+    #   register :<register_target_name>, <ClassName>
+    # inside the inner module scope (after the class close) — the
+    # specializer-target self-registration pattern used by every
+    # lib/hecks_specializer/*.rb module. Empty for classes that are
+    # not registered (base classes like DiagnosticValidator itself).
+    attribute :register_target_name, String, default: ""
+  end
+
+  aggregate "RubyConstant", "A class-level constant assignment in a RubyClass" do
+    # class_name: foreign-key-like link to RubyClass.name
+    attribute :class_name,  String
+    # name: the constant name (e.g. "SHAPE" or "TARGET_RS")
+    attribute :name,        String
+    # value_expr: the RHS of the assignment, written verbatim.
+    # E.g. `REPO_ROOT.join("hecks_conception/...")`
+    attribute :value_expr,  String
+    # order: emission order among constants inside the class body.
+    # Constants are emitted after the `include` lines and before
+    # any method definition.
+    attribute :order,       Integer
   end
 
   aggregate "RubyMethod", "One method in a RubyClass" do
