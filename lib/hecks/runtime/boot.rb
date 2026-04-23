@@ -39,8 +39,8 @@ module Hecks
         bluebooks = find_domain_files(hecks_dir)
         raise Hecks::BluebookLoadError, "No .bluebook files in #{hecks_dir}" if bluebooks.empty?
 
-        find_hecksagon_files(hecks_dir).each { |f| Kernel.load(f) }
-        find_world_files(hecks_dir).each { |f| Kernel.load(f) }
+        find_hecksagon_files(hecks_dir).each { |f| Hecksagon::Loader.load(f) }
+        find_world_files(hecks_dir).each { |f| Hecksagon::Loader.load_world(f) }
 
         domains = bluebooks.map do |path|
           Hecks.instance_variable_set(:@_inferred_bluebook_name,

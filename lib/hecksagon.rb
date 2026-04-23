@@ -34,6 +34,10 @@ module Hecksagon
     autoload :ShellAdapter,   "hecksagon/structure/shell_adapter"
   end
 
+  # Guarded loader for .hecksagon / .world files (retires Kernel.load
+  # for DSL files — see lib/hecks/runtime/boot.rb).
+  autoload :Loader,           "hecksagon/loader"
+
   # Legacy heksagons functionality (merged from heksagons/ gem)
   autoload :StrategicDSL,     "hecksagon/strategic_dsl"
   autoload :DomainMixin,      "hecksagon/domain_mixin"
