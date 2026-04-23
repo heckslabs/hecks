@@ -6,8 +6,15 @@
 # it flips from "sleeping" to anything else (typically "attentive" after
 # WakeUp → BecomeAttentive), this script runs once.
 #
+# Scope: records from this sleep cycle only. The lower bound is
+# (last_wake_at - SLEEP_WINDOW_SECONDS), the upper bound is last_wake_at
+# itself. Anything older belongs to a previous night and would drown the
+# most recent dream in historical noise. Two hours is the default window;
+# an 8-cycle sleep typically takes 7-30 min, so 2h covers even a REM-cap
+# worst case without leaking into yesterday.
+#
 # Steps:
-#   1. Read dream_state.heki, collect all image strings.
+#   1. Read dream_state.heki, filter to tonight's window, collect images.
 #   2. Tokenize (lowercase, alpha-only), filter stopwords, count top-5.
 #   3. Dispatch DreamInterpretation.InterpretDream to create the record.
 #   4. Per theme, dispatch DreamInterpretation.ExtractTheme.
@@ -16,12 +23,15 @@
 #      with source="dream".
 #
 # Environment overrides (smoke tests):
-#   HECKS_INFO  — alternate information directory (default: ./information)
-#   HECKS_AGG   — alternate aggregates directory (default: ./aggregates)
-#   HECKS_BIN   — alternate hecks-life binary
-#   HECKS_WORLD — directory holding the *.world file (default: $DIR parent of AGG).
-#                 Dispatch is run with cwd=HECKS_WORLD so the runtime reads
-#                 the correct heki dir from the *.world file.
+#   HECKS_INFO              — alternate information directory (default: ./information)
+#   HECKS_AGG               — alternate aggregates directory (default: ./aggregates)
+#   HECKS_BIN               — alternate hecks-life binary
+#   HECKS_WORLD             — directory holding the *.world file (default: $DIR parent of AGG).
+#                             Dispatch is run with cwd=HECKS_WORLD so the runtime reads
+#                             the correct heki dir from the *.world file.
+#   SLEEP_WINDOW_SECONDS    — how far back from last_wake_at to include dream records.
+#                             Default 7200 (2h). Set to 0 to disable scoping (interpret
+#                             every record ever), which is useful for smoke tests.
 #
 # [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c + heredoc
 #  with native hecks-life heki subcommands + jq tokenization per PR #272;
@@ -49,21 +59,46 @@ fi
 
 [ -f "$INFO/dream_state.heki" ] || exit 0
 
-# Tokenize + rank. jq scans every dream_images string from every record
-# (scalar or array), matches [a-zA-Z]+ tokens via regex, lowercases,
+# Compute the interpretation window: [last_wake_at - SLEEP_WINDOW, last_wake_at].
+# Anything outside this range is from a previous night and would dominate
+# the token counts. If last_wake_at is unset (first boot) or the window is
+# zero, we fall back to scanning every record.
+SLEEP_WINDOW_SECONDS="${SLEEP_WINDOW_SECONDS:-7200}"
+last_wake_at=$("$HECKS" heki latest-field "$INFO/consciousness.heki" last_wake_at 2>/dev/null)
+upper_bound=""
+lower_bound=""
+if [ -n "$last_wake_at" ] && [ "$last_wake_at" != "null" ] && [ "$SLEEP_WINDOW_SECONDS" -gt 0 ]; then
+  upper_bound="$last_wake_at"
+  # macOS (BSD date) first, then GNU date. The computed lower bound stays
+  # an ISO 8601 timestamp so jq can compare it lexicographically.
+  lower_bound=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" -v "-${SLEEP_WINDOW_SECONDS}S" "$last_wake_at" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
+                || date -u -d "$last_wake_at - $SLEEP_WINDOW_SECONDS seconds" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
+                || echo "")
+fi
+
+# Tokenize + rank. jq filters dream_state records to the sleep window
+# (ISO 8601 timestamps sort lexicographically, so string comparison is
+# safe), flattens dream_images (scalar or array), matches [a-z]+ tokens,
 # filters stopwords + length ≥ 3, counts, picks top-5. Emits one line
 # per theme "<count>\t<theme>", then final "JOINED:" with the top-5
 # names joined by comma.
 themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
-  | jq -r '
+  | jq -r --arg lower "$lower_bound" --arg upper "$upper_bound" '
       def stopwords: [
         "the","a","an","and","or","of","to","in","is","it","that","this",
         "was","were","be","been","being","have","has","had","do","does","did",
         "will","would","should","could","i","my","me","you","your","she","he",
         "we","our","their","not","no","yes","so","but"
       ];
-      # Flatten dream_images across all records, coerce scalar to array.
+      # Filter to the sleep window, then flatten dream_images.
       [ .[]
+        | select(
+            ($lower == "" and $upper == "")
+            or (
+              ($lower == "" or .updated_at >= $lower)
+              and ($upper == "" or .updated_at <= $upper)
+            )
+          )
         | (.dream_images // [])
         | if type == "array" then . else [.] end
         | .[]
