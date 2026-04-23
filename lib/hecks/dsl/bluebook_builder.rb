@@ -351,6 +351,34 @@ module Hecks
         # no-op
       end
 
+      # Accept-and-ignore: legacy nursery bluebooks declare `lifecycle` at
+      # the top level (outside any `aggregate` block). The canonical DSL
+      # attaches `lifecycle` to a specific aggregate. Rust's line-scanner
+      # ignores top-level lifecycle — this mirrors that behavior so parity
+      # passes while migration continues.
+      #
+      #   Hecks.bluebook "Acoustics" do
+      #     aggregate "Room" do ... end
+      #     lifecycle "AcousticDesign" do ... end  # no-op here
+      #   end
+      def lifecycle(*_args, **_kwargs, &_block)
+        # no-op — canonical location is inside `aggregate`
+      end
+
+      # Accept-and-ignore: legacy nursery bluebooks declare `event` at the
+      # top level (outside any `aggregate` block). The canonical DSL
+      # attaches explicit events to a specific aggregate. Rust's
+      # line-scanner silently skips top-level `event` lines — mirroring
+      # that behavior keeps parity green while migration continues.
+      #
+      #   Hecks.bluebook "Quality" do
+      #     aggregate "Test" do ... end
+      #     event "TestRun"     # no-op here
+      #   end
+      def event(*_args, **_kwargs, &_block)
+        # no-op — canonical location is inside `aggregate`
+      end
+
       # Define a read model (view) projected from domain events.
       #
       # Read models are denormalized projections built by applying event
