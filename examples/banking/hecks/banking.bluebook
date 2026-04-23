@@ -60,8 +60,8 @@ Hecks.bluebook "Banking" do
   end
 
   aggregate "Transfer" do
-    reference_to Account
-    reference_to Account
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
     attribute :amount, Float
     attribute :status, String, default: "pending"
     attribute :memo, String

@@ -160,6 +160,54 @@ end"#);
 }
 
 #[test]
+fn duplicate_reference_aliases_errors() {
+    // Two reference_to pointing at the same target with the same alias
+    // should fail the distinct_reference_aliases rule. With `as:` aliases
+    // giving each a distinct name, the check passes.
+    let duped = parser::parse(r#"Hecks.bluebook "T" do
+  aggregate "Account" do
+    command "Create" do
+      role "Owner"
+    end
+  end
+  aggregate "Transfer" do
+    reference_to Account
+    reference_to Account
+    command "Initiate" do
+      role "Customer"
+    end
+  end
+end"#);
+    let errors = validate(&duped);
+    assert!(
+        errors.iter().any(|e| e.contains("duplicate alias")),
+        "expected duplicate-alias error, got: {:?}",
+        errors
+    );
+
+    let aliased = parser::parse(r#"Hecks.bluebook "T" do
+  aggregate "Account" do
+    command "Create" do
+      role "Owner"
+    end
+  end
+  aggregate "Transfer" do
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+    command "Initiate" do
+      role "Customer"
+    end
+  end
+end"#);
+    let errors = validate(&aliased);
+    assert!(
+        !errors.iter().any(|e| e.contains("duplicate alias")),
+        "with distinct aliases should pass; got: {:?}",
+        errors
+    );
+}
+
+#[test]
 fn unknown_policy_trigger() {
     let domain = Domain {
         name: "T".into(),

@@ -3,7 +3,7 @@ Hecks.fixtures "ValidatorShape" do
   # Note: single-line fixtures — the Rust fixtures_parser only reads one
   # line per `fixture` directive today (i57 tracks multi-line support).
   aggregate "ValidatorEntryPoint" do
-    fixture "Validate", fn_name: "validate", returns: "Vec<String>", rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_references,valid_policy_triggers,no_duplicate_commands", collects_into: "errors"
+    fixture "Validate", fn_name: "validate", returns: "Vec<String>", rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_references,valid_policy_triggers,no_duplicate_commands,distinct_reference_aliases", collects_into: "errors"
   end
 
   # ── The 6 rules — one fixture each, mirrors validator.rs 1:1 ────
@@ -14,6 +14,7 @@ Hecks.fixtures "ValidatorShape" do
     fixture "ValidReferences", name: "valid_references", rust_fn_name: "valid_references", description: "reference_to(X) must target a declared aggregate in the same domain", inspects: "domain.aggregates[].references+domain.aggregates[].commands[].references", check_kind: "reference_valid", error_template: "{parent} references unknown aggregate: {target}", applied_to: "aggregate_or_command"
     fixture "ValidPolicyTriggers", name: "valid_policy_triggers", rust_fn_name: "valid_policy_triggers", description: "Policy triggers must name a command declared in the same domain", inspects: "domain.policies", check_kind: "trigger_valid", error_template: "Policy {name} triggers unknown command: {trigger}", applied_to: "policy"
     fixture "NoDuplicateCommands", name: "no_duplicate_commands", rust_fn_name: "no_duplicate_commands", description: "No two commands across all aggregates may share the same name", inspects: "domain.aggregates[].commands", check_kind: "unique_across", error_template: "Duplicate command name: {name} (in {parent})", applied_to: "command"
+    fixture "DistinctReferenceAliases", name: "distinct_reference_aliases", rust_fn_name: "distinct_reference_aliases", description: "When an aggregate has multiple reference_to the same target, each must carry a distinct as: alias — otherwise downstream consumers (event payloads, generated form fields, Ruby/Rust routing) can't tell the references apart", inspects: "domain.aggregates[].references", check_kind: "distinct_aliases", error_template: "{parent} has {count} references to {target} with duplicate alias {name:?} — add `as: :<alias>` to each so they have distinct names", applied_to: "aggregate"
   end
 
   # ── Suffix tables (NOUN_SUFFIXES, ADJ_SUFFIXES, verb_suffixes) ───

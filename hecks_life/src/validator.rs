@@ -25,6 +25,7 @@ pub fn validate(domain: &Domain) -> Vec<String> {
     errors.extend(valid_references(domain));
     errors.extend(valid_policy_triggers(domain));
     errors.extend(no_duplicate_commands(domain));
+    errors.extend(distinct_reference_aliases(domain));
     errors
 }
 
@@ -213,6 +214,32 @@ fn no_duplicate_commands(domain: &Domain) -> Vec<String> {
                 errors.push(format!(
                     "Duplicate command name: {} (in {})",
                     cmd.name, agg.name
+                ));
+            }
+        }
+    }
+    errors
+}
+
+/// When an aggregate has multiple reference_to the same target,
+/// each must carry a distinct `as:` alias — otherwise the references
+/// share the same `name` and downstream consumers (event payloads,
+/// generated form fields, dispatch routing) can't tell them apart.
+fn distinct_reference_aliases(domain: &Domain) -> Vec<String> {
+    let mut errors = vec![];
+    for agg in &domain.aggregates {
+        // Group references by (target, name). Any group with size > 1
+        // is a collision: multiple references share the same alias.
+        let mut groups: std::collections::BTreeMap<(&str, &str), usize> =
+            std::collections::BTreeMap::new();
+        for r in &agg.references {
+            *groups.entry((r.target.as_str(), r.name.as_str())).or_insert(0) += 1;
+        }
+        for ((target, name), count) in &groups {
+            if *count > 1 {
+                errors.push(format!(
+                    "{} has {} references to {} with duplicate alias {:?} — add `as: :<alias>` to each so they have distinct names",
+                    agg.name, count, target, name
                 ));
             }
         }

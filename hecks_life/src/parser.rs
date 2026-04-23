@@ -177,15 +177,27 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
                 // Two forms: `reference_to Pizza` (spaced) and `reference_to(Pizza)` /
-                // `reference_to(Pizza, role: :foo)` (paren). Delegate the paren form
-                // to parse_shorthand_reference so we honor `role:` and `.as()`.
+                // `reference_to(Pizza, as: :foo)` (paren). Both honor `as:` / `role:`
+                // kwargs; the spaced form picks them up from the trailing tail
+                // after the target identifier.
                 if line.starts_with("reference_to(") {
                     if let Some(r) = parse_shorthand_reference(line) {
                         agg.references.push(r);
                     }
                 } else if let Some(target) = extract_word_after(line, "reference_to") {
-                    let snake = to_snake_case(&target);
-                    agg.references.push(Reference { name: snake, target, domain: None });
+                    // `reference_to X, as: :foo` and `, role: :foo` — spaced-form
+                    // trailing kwarg. Mirrors parse_shorthand_reference's kwarg
+                    // resolution so Ruby/Rust parity holds for both syntaxes.
+                    let name = if let Some(pos) = line.find(", as:") {
+                        let after = &line[pos + ", as:".len()..];
+                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                    } else if let Some(pos) = line.find(", role:") {
+                        let after = &line[pos + ", role:".len()..];
+                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                    } else {
+                        to_snake_case(&target)
+                    };
+                    agg.references.push(Reference { name, target, domain: None });
                 }
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);

@@ -27,6 +27,7 @@ module Hecks
           emit_rule(find_rule("valid_references")),
           emit_rule(find_rule("valid_policy_triggers")),
           emit_rule(find_rule("no_duplicate_commands")),
+          emit_rule(find_rule("distinct_reference_aliases")),
         ].join
       end
 
@@ -83,12 +84,13 @@ module Hecks
 
       def emit_rule(rule)
         case rule["attrs"]["check_kind"]
-        when "unique"          then emit_unique(rule)
-        when "non_empty"       then emit_non_empty(rule)
-        when "first_word_verb" then emit_first_word_verb(rule)
-        when "reference_valid" then emit_reference_valid(rule)
-        when "trigger_valid"   then emit_trigger_valid(rule)
-        when "unique_across"   then emit_unique_across(rule)
+        when "unique"           then emit_unique(rule)
+        when "non_empty"        then emit_non_empty(rule)
+        when "first_word_verb"  then emit_first_word_verb(rule)
+        when "reference_valid"  then emit_reference_valid(rule)
+        when "trigger_valid"    then emit_trigger_valid(rule)
+        when "unique_across"    then emit_unique_across(rule)
+        when "distinct_aliases" then emit_distinct_aliases(rule)
         else raise "unknown check_kind: #{rule["attrs"]["check_kind"]}"
         end
       end
@@ -344,6 +346,38 @@ module Hecks
                           errors.push(format!(
                               "Duplicate command name: {} (in {})",
                               cmd.name, agg.name
+                          ));
+                      }
+                  }
+              }
+              errors
+          }
+
+        RS
+      end
+
+      def emit_distinct_aliases(rule)
+        a = rule["attrs"]
+        <<~RS
+          /// When an aggregate has multiple reference_to the same target,
+          /// each must carry a distinct `as:` alias — otherwise the references
+          /// share the same `name` and downstream consumers (event payloads,
+          /// generated form fields, dispatch routing) can't tell them apart.
+          fn #{a["rust_fn_name"]}(domain: &Domain) -> Vec<String> {
+              let mut errors = vec![];
+              for agg in &domain.aggregates {
+                  // Group references by (target, name). Any group with size > 1
+                  // is a collision: multiple references share the same alias.
+                  let mut groups: std::collections::BTreeMap<(&str, &str), usize> =
+                      std::collections::BTreeMap::new();
+                  for r in &agg.references {
+                      *groups.entry((r.target.as_str(), r.name.as_str())).or_insert(0) += 1;
+                  }
+                  for ((target, name), count) in &groups {
+                      if *count > 1 {
+                          errors.push(format!(
+                              "{} has {} references to {} with duplicate alias {:?} — add `as: :<alias>` to each so they have distinct names",
+                              agg.name, count, target, name
                           ));
                       }
                   }
