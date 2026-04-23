@@ -34,29 +34,9 @@
 //!   0 — no errors (and no warnings if --strict isn't set)
 //!   1 — at least one error, or --strict and at least one warning
 
+pub use crate::diagnostic::{Finding, Severity};
 use crate::ir::{Aggregate, Command, Domain, Lifecycle, MutationOp};
 use std::collections::BTreeSet;
-
-#[derive(Debug, PartialEq)]
-pub enum Severity { Error, Warning }
-
-pub struct Finding {
-    pub severity: Severity,
-    pub location: String,
-    pub message: String,
-}
-
-impl Finding {
-    fn err(location: impl Into<String>, message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Error, location: location.into(), message: message.into() }
-    }
-    fn warn(location: impl Into<String>, message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Warning, location: location.into(), message: message.into() }
-    }
-    pub fn icon(&self) -> &'static str {
-        match self.severity { Severity::Error => "✗", Severity::Warning => "⚠" }
-    }
-}
 
 pub struct Report {
     pub findings: Vec<Finding>,
