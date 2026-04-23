@@ -134,11 +134,13 @@ Hecks.bluebook "CinemaAudio", version: "2026.04.13.1" do
       attribute :level_db, Float
     end
 
-    list_of "CorrectionFilter" do
+    value_object "CorrectionFilter" do
       attribute :frequency_hz, Float
       attribute :gain_db, Float
       attribute :q_factor, Float
     end
+
+    list_of(CorrectionFilter)
 
     command "RunCalibration" do
       role "Technician"

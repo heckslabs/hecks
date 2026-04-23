@@ -63,12 +63,14 @@ Hecks.bluebook "GeriatricPharmacy", version: "2026.04.13.1" do
       attribute :stage, String
     end
 
-    list_of "ActiveMedication" do
+    value_object "ActiveMedication" do
       attribute :medication_name, String
       attribute :dose_mg, Float
       attribute :frequency, String
       attribute :route, String
     end
+
+    list_of(ActiveMedication)
 
     command "AdmitResident" do
       role "Nurse"

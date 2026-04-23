@@ -71,12 +71,14 @@ Hecks.bluebook "StormwaterManagement", version: "2026.04.13.1" do
       attribute :capacity_cms, Float
     end
 
-    list_of "Inlet" do
+    value_object "Inlet" do
       attribute :inlet_id, String
       attribute :latitude, Float
       attribute :longitude, Float
       attribute :inlet_type, String
     end
+
+    list_of(Inlet)
 
     command "MapDrainNetwork" do
       role "Engineer"

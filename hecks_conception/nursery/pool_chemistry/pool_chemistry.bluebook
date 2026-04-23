@@ -111,12 +111,14 @@ Hecks.bluebook "PoolChemistry", version: "2026.04.13.1" do
       attribute :contact_time_min, Float
     end
 
-    list_of "DosingStep" do
+    value_object "DosingStep" do
       attribute :step_number, Integer
       attribute :chemical, String
       attribute :amount_ml, Float
       attribute :timing, String
     end
+
+    list_of(DosingStep)
 
     command "PrescribeDose" do
       role "Technician"

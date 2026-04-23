@@ -256,12 +256,14 @@ Hecks.bluebook "ElevatorPhysics", version: "2026.04.13.1" do
       attribute :pass_fail, String
     end
 
-    list_of "DeficiencyReport" do
+    value_object "DeficiencyReport" do
       attribute :component, String
       attribute :deficiency, String
       attribute :severity, String
       attribute :corrective_action, String
     end
+
+    list_of(DeficiencyReport)
 
     command "ConductInspection" do
       role "Inspector"

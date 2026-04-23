@@ -126,11 +126,13 @@ Hecks.bluebook "CulturalResourceMgmt", version: "2026.04.13.1" do
     attribute :end_date, String
     attribute :status, String
 
-    list_of "WorkZone" do
+    value_object "WorkZone" do
       attribute :zone_id, String
       attribute :activity, String
       attribute :archaeological_clearance, String
     end
+
+    list_of(WorkZone)
 
     command "PlanPhase" do
       role "ProjectManager"

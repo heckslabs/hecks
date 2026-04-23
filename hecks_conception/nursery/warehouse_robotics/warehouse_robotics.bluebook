@@ -89,12 +89,14 @@ Hecks.bluebook "WarehouseRobotics", version: "2026.04.13.1" do
     attribute :assigned_robot, String
     attribute :status, String
 
-    list_of "PickItem" do
+    value_object "PickItem" do
       attribute :sku, String
       attribute :location, String
       attribute :quantity, Integer
       attribute :picked_status, String
     end
+
+    list_of(PickItem)
 
     command "GeneratePickList" do
       role "System"

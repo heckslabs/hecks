@@ -120,11 +120,13 @@ Hecks.bluebook "AuctionStrategy", version: "2026.04.13.1" do
       attribute :payoff_b, Float
     end
 
-    list_of "PayoffEntry" do
+    value_object "PayoffEntry" do
       attribute :opponent_strategy, String
       attribute :my_payoff, Float
       attribute :opponent_payoff, Float
     end
+
+    list_of(PayoffEntry)
 
     command "DefineStrategy" do
       role "Analyst"

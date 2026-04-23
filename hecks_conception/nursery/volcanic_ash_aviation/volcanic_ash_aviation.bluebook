@@ -73,11 +73,13 @@ Hecks.bluebook "VolcanicAshAviation", version: "2026.04.13.1" do
       attribute :spread_rate_km2_hr, Float
     end
 
-    list_of "AffectedAirspace" do
+    value_object "AffectedAirspace" do
       attribute :fir_name, String
       attribute :overlap_pct, Float
       attribute :severity, String
     end
+
+    list_of(AffectedAirspace)
 
     command "TrackAshCloud" do
       role "System"

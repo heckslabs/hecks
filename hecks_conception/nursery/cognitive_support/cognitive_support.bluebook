@@ -148,11 +148,13 @@ Hecks.bluebook "CognitiveSupport", version: "2026.04.13.1" do
       attribute :function, String
     end
 
-    list_of "FatigueIndicator" do
+    value_object "FatigueIndicator" do
       attribute :indicator_name, String
       attribute :value, Float
       attribute :threshold, Float
     end
+
+    list_of(FatigueIndicator)
 
     command "AssessFatigue" do
       role "System"

@@ -66,11 +66,13 @@ Hecks.bluebook "GeologicalMining", version: "2026.04.13.1" do
       attribute :depth_extent_m, Float
     end
 
-    list_of "MineralAssociation" do
+    value_object "MineralAssociation" do
       attribute :mineral_name, String
       attribute :grade_pct, Float
       attribute :relationship, String
     end
+
+    list_of(MineralAssociation)
 
     command "DelineateOreBody" do
       role "Geologist"

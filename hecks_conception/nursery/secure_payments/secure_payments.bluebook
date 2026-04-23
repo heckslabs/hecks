@@ -139,11 +139,13 @@ Hecks.bluebook "SecurePayments", version: "2026.04.13.1" do
       attribute :score, Float
     end
 
-    list_of "SuspiciousPattern" do
+    value_object "SuspiciousPattern" do
       attribute :pattern_name, String
       attribute :confidence, Float
       attribute :description, String
     end
+
+    list_of(SuspiciousPattern)
 
     command "RaiseFraudAlert" do
       role "System"

@@ -76,12 +76,14 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       attribute :gust_factor, Float
     end
 
-    list_of "StormAlert" do
+    value_object "StormAlert" do
       attribute :alert_type, String
       attribute :severity, String
       attribute :region, String
       attribute :issued_at, String
     end
+
+    list_of(StormAlert)
 
     command "IssueForecast" do
       role "Meteorologist"
@@ -211,12 +213,14 @@ Hecks.bluebook "MarineNavigation", version: "2026.04.13.1" do
       attribute :eta_hours, Float
     end
 
-    list_of "RouteSegment" do
+    value_object "RouteSegment" do
       attribute :from_waypoint, String
       attribute :to_waypoint, String
       attribute :distance_nm, Float
       attribute :current_assist_knots, Float
     end
+
+    list_of(RouteSegment)
 
     command "PlanRoute" do
       role "Navigator"

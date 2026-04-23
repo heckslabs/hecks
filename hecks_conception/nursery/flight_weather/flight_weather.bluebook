@@ -63,11 +63,13 @@ Hecks.bluebook "FlightWeather", version: "2026.04.13.1" do
       attribute :distance_nm, Float
     end
 
-    list_of "AlternateAirport" do
+    value_object "AlternateAirport" do
       attribute :airport_code, String
       attribute :distance_nm, Float
       attribute :weather_status, String
     end
+
+    list_of(AlternateAirport)
 
     command "FileFlightPlan" do
       role "Dispatcher"
