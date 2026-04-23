@@ -756,6 +756,8 @@ This distinction matters for two reasons. First, it means the approach is reprod
 
 The paper's §9 framing is therefore a post-hoc mapping between an independently-derived engineering arc and an existing formal vocabulary. We report it as such because readers familiar with Futamura's work will find the mapping useful, and readers unfamiliar with it should not be led to believe the mapping was necessary to build the system.
 
+One attribution is owed. The generative intuition the autophagy arc depends on — that patterns in a well-modelled domain recur at multiple scales, and that the model itself is a domain artifact — is drawn from Evans, *Domain-Driven Design* (2003). Evans presents the self-similarity of domain models as a boon: entities contain value objects, aggregates contain entities, bounded contexts contain aggregates, and the shared model a team builds is itself an object that can be reasoned about. The text of DDD does not settle whether Evans anticipated that this observation, followed far enough, would land on self-hosting and autophagy — but the hint is there to be read. We followed it, and the formal theory that subsequently named our fixed points (Futamura) is a downstream observation relative to the DDD one. Whatever is new in this paper is new in the engineering; the direction of travel is Evans's.
+
 ---
 
 ## §14 Limitations and Future Work
