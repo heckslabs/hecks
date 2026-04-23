@@ -26,24 +26,9 @@
 //! This validator is a flat walk over `domain.policies` — no runtime
 //! boot, no cascade traversal. Group by key, report groups of size >1.
 
+pub use crate::diagnostic::{Finding, Severity};
 use crate::ir::{Domain, Policy};
 use std::collections::BTreeMap;
-
-#[derive(Debug, PartialEq)]
-pub enum Severity { Error }
-
-pub struct Finding {
-    pub severity: Severity,
-    pub location: String,
-    pub message: String,
-}
-
-impl Finding {
-    fn err(location: impl Into<String>, message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Error, location: location.into(), message: message.into() }
-    }
-    pub fn icon(&self) -> &'static str { "✗" }
-}
 
 pub struct Report {
     pub findings: Vec<Finding>,

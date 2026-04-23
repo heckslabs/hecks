@@ -28,30 +28,10 @@
 //!       every command without panicking)
 //!   1 — runtime smoke failed, OR --strict and any static warnings
 
+pub use crate::diagnostic::{Finding, Severity};
 use crate::ir::{Aggregate, Command, Domain};
 use crate::runtime::{Runtime, Value};
 use std::collections::HashMap;
-
-#[derive(Debug, PartialEq)]
-pub enum Severity { Error, Warning }
-
-pub struct Finding {
-    pub severity: Severity,
-    pub location: String,
-    pub message: String,
-}
-
-impl Finding {
-    fn warn(location: impl Into<String>, message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Warning, location: location.into(), message: message.into() }
-    }
-    fn err(location: impl Into<String>, message: impl Into<String>) -> Self {
-        Finding { severity: Severity::Error, location: location.into(), message: message.into() }
-    }
-    pub fn icon(&self) -> &'static str {
-        match self.severity { Severity::Error => "✗", Severity::Warning => "⚠" }
-    }
-}
 
 pub struct Report {
     pub static_findings: Vec<Finding>,
