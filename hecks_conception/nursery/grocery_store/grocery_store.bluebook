@@ -10,7 +10,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
     attribute :quantity, Integer
     attribute :expiration_date, String
     attribute :status, String
-    list_of(NutritionFact) :nutrition_facts
+    attribute :nutrition_facts, list_of(NutritionFact)
 
     value_object "NutritionFact" do
       attribute :nutrient, String
@@ -61,7 +61,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
     attribute :aisle_number, String
     attribute :category, String
     attribute :shelf_count, Integer
-    list_of(Planogram) :planograms
+    attribute :planograms, list_of(Planogram)
 
     value_object "Planogram" do
       attribute :sku, String
@@ -94,7 +94,7 @@ Hecks.bluebook "GroceryStore", version: "2026.04.13.1" do
     attribute :name, String
     attribute :contact_email, String
     attribute :delivery_schedule, String
-    list_of(SuppliedItem) :supplied_items
+    attribute :supplied_items, list_of(SuppliedItem)
 
     value_object "SuppliedItem" do
       attribute :sku, String

@@ -7,7 +7,7 @@ Hecks.bluebook "Discovery", version: "2026.04.14.1" do
     attribute :pattern_signature, String
     attribute :cohesion_score, Float
     attribute :member_count, Integer
-    list_of(String) :member_domains
+    attribute :member_domains, list_of(String)
 
     command "DiscoverClusters" do
       role "Analyst"
@@ -49,7 +49,7 @@ Hecks.bluebook "Discovery", version: "2026.04.14.1" do
     attribute :aggregate_template_count, Integer
     attribute :command_template_count, Integer
     attribute :occurrence_count, Integer
-    list_of(String) :example_domains
+    attribute :example_domains, list_of(String)
 
     command "ExtractPrimitive" do
       role "Analyst"

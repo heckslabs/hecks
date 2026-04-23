@@ -10,7 +10,7 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
     attribute :price, Float
     attribute :quantity_on_hand, Integer
     attribute :status, String
-    list_of(Edition) :editions
+    attribute :editions, list_of(Edition)
 
     specification "LowStock" do
       satisfied_by { quantity_on_hand < 5 }
@@ -62,7 +62,7 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
   aggregate "Author", "A writer whose works the store carries" do
     attribute :name, String
     attribute :biography, String
-    list_of(PublishedWork) :published_works
+    attribute :published_works, list_of(PublishedWork)
 
     value_object "PublishedWork" do
       attribute :title, String
@@ -94,7 +94,7 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
     attribute :label, String
     attribute :capacity, Integer
     attribute :current_count, Integer
-    list_of(ShelfSlot) :slots
+    attribute :slots, list_of(ShelfSlot)
 
     specification "Full" do
       satisfied_by { current_count >= capacity }
@@ -141,7 +141,7 @@ Hecks.bluebook "BookstoreInventory", version: "2026.04.13.1" do
   aggregate "Order", "A customer purchase — one or more titles being bought" do
     attribute :order_number, String
     attribute :customer_name, String
-    list_of(LineItem) :line_items
+    attribute :line_items, list_of(LineItem)
     attribute :total, Float
     attribute :status, String
 

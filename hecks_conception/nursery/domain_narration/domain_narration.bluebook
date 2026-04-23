@@ -6,7 +6,7 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
 
   aggregate "Workflow", "An inferred step-by-step usage guide built from commands and policies" do
     attribute :domain_name, String
-    list_of(WorkflowStep) :steps
+    attribute :steps, list_of(WorkflowStep)
 
     value_object "WorkflowStep" do
       attribute :position, Integer
@@ -16,7 +16,7 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
       attribute :role, String
       attribute :emitted_event, String
       attribute :triggered_command, String
-      list_of(ExamplePair) :example_pairs
+      attribute :example_pairs, list_of(ExamplePair)
     end
 
     value_object "ExamplePair" do
@@ -55,7 +55,7 @@ Hecks.bluebook "DomainNarration", version: "2026.04.13.1" do
 
   aggregate "PolicyChain", "A traced cascade of policy reactions — command emits event, policy listens, triggers next command" do
     attribute :origin_command, String
-    list_of(ChainLink) :links
+    attribute :links, list_of(ChainLink)
     attribute :depth, Integer
 
     value_object "ChainLink" do

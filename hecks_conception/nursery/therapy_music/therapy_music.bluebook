@@ -40,7 +40,7 @@ Hecks.bluebook "TherapyMusic", version: "2026.04.13.1" do
     attribute :name, String
     attribute :target_bpm, Integer
     attribute :genre, String
-    list_of(Track) :tracks
+    attribute :tracks, list_of(Track)
     attribute :status, String
     value_object "Track" do
       attribute :title, String

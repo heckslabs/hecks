@@ -9,7 +9,7 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
     attribute :max_guests, Integer
     attribute :nightly_rate, Float
     attribute :status, String
-    list_of(Amenity) :amenities
+    attribute :amenities, list_of(Amenity)
 
     value_object "Amenity" do
       attribute :name, String
@@ -99,7 +99,7 @@ Hecks.bluebook "BedAndBreakfast", version: "2026.04.13.1" do
   aggregate "BreakfastMenu", "The morning meal offering for guests" do
     attribute :menu_id, String
     attribute :date, String
-    list_of(Course) :courses
+    attribute :courses, list_of(Course)
     attribute :status, String
 
     value_object "Course" do

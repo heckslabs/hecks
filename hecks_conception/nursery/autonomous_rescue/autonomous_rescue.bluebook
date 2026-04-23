@@ -10,7 +10,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     attribute :location, String
     attribute :status, String
     attribute :survivors_found, Integer
-    list_of(MissionPhase) :phases
+    attribute :phases, list_of(MissionPhase)
 
     value_object "MissionPhase" do
       attribute :phase_name, String
@@ -63,7 +63,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     attribute :status, String
     attribute :battery_percent, Float
     reference_to(RescueMission, as: :mission)
-    list_of(ScanResult) :scans
+    attribute :scans, list_of(ScanResult)
 
     value_object "ScanResult" do
       attribute :scan_type, String
@@ -128,7 +128,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     attribute :battery_percent, Float
     attribute :status, String
     reference_to(SurvivorBeacon, as: :target_beacon)
-    list_of(NavigationLog) :nav_log
+    attribute :nav_log, list_of(NavigationLog)
 
     value_object "NavigationLog" do
       attribute :timestamp, String
@@ -285,7 +285,7 @@ Hecks.bluebook "AutonomousRescue", version: "2026.04.13.1" do
     attribute :map_version, String
     attribute :status, String
     attribute :sectors_mapped, Integer
-    list_of(DebrisSector) :sectors
+    attribute :sectors, list_of(DebrisSector)
 
     value_object "DebrisSector" do
       attribute :sector_id, String

@@ -146,7 +146,7 @@ Hecks.bluebook "HotelManagement" do
   aggregate "Folio", "A guest's billing folio accumulating charges during their stay" do
     attribute :running_total, Float
     attribute :status, String
-    list_of(FolioCharge) :charges
+    attribute :charges, list_of(FolioCharge)
     reference_to(GuestStay)
 
     specification "HighSpend" do

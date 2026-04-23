@@ -82,7 +82,7 @@ Hecks.bluebook "SmartOT", version: "2026.04.13.1" do
     attribute :device_id, String
     attribute :duration_minutes, Float
     attribute :independence_level, String
-    list_of(Assist) :assists
+    attribute :assists, list_of(Assist)
     value_object "Assist" do
       attribute :assist_type, String
       attribute :device_used, String

@@ -8,7 +8,7 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
     attribute :room_number, String
     attribute :care_level, String
     attribute :status, String
-    list_of(DailyNeed) :daily_needs
+    attribute :daily_needs, list_of(DailyNeed)
     value_object "DailyNeed" do
       attribute :need_type, String
       attribute :time_of_day, String
@@ -71,7 +71,7 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
   aggregate "ReminderSchedule", "A personalized reminder schedule for a resident" do
     attribute :schedule_id, String
     attribute :resident_id, String
-    list_of(ReminderItem) :items
+    attribute :items, list_of(ReminderItem)
     attribute :status, String
     value_object "ReminderItem" do
       attribute :reminder_type, String
@@ -100,7 +100,7 @@ Hecks.bluebook "SmartFacility", version: "2026.04.13.1" do
   aggregate "ActivityBoard", "A communal activity board showing daily events" do
     attribute :board_id, String
     attribute :date, String
-    list_of(Activity) :activities
+    attribute :activities, list_of(Activity)
     attribute :status, String
     value_object "Activity" do
       attribute :name, String

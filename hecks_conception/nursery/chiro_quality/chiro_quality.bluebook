@@ -9,7 +9,7 @@ Hecks.bluebook "ChiroQuality", version: "2026.04.13.1" do
     attribute :chief_complaint, String
     attribute :visit_date, String
     attribute :status, String
-    list_of(Adjustment) :adjustments
+    attribute :adjustments, list_of(Adjustment)
     value_object "Adjustment" do
       attribute :technique, String
       attribute :region, String

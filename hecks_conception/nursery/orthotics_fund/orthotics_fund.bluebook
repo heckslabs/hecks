@@ -73,7 +73,7 @@ Hecks.bluebook "OrthoticsFund", version: "2026.04.13.1" do
     attribute :goal_amount, Float
     attribute :raised_amount, Float
     attribute :status, String
-    list_of(Pledge) :pledges
+    attribute :pledges, list_of(Pledge)
     value_object "Pledge" do
       attribute :donor_name, String
       attribute :amount, Float

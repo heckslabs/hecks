@@ -79,7 +79,7 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
     attribute :audience, String
     attribute :budget, Float
     attribute :duration, String
-    list_of(AdAssignment) :templates
+    attribute :templates, list_of(AdAssignment)
     attribute :status, String
 
     value_object "AdAssignment" do
@@ -211,7 +211,7 @@ Hecks.bluebook "AdvertisingGeneration", version: "2026.04.11.1" do
     attribute :visual_style, String
     attribute :color_emphasis, String
     attribute :photography_style, String
-    list_of(String) :forbidden_terms
+    attribute :forbidden_terms, list_of(String)
 
     command "SetDirection" do
       role "Owner"

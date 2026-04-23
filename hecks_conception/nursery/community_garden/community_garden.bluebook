@@ -95,7 +95,7 @@ Hecks.bluebook "CommunityGarden" do
     attribute :quantity, Integer
     attribute :storage_location, String
     attribute :status, String
-    list_of(LendingRecord) :lending_history
+    attribute :lending_history, list_of(LendingRecord)
 
     value_object "LendingRecord" do
       attribute :borrower_name, String
@@ -191,7 +191,7 @@ Hecks.bluebook "CommunityGarden" do
     attribute :organizer, String
     attribute :expected_attendees, Integer
     attribute :status, String
-    list_of(EventTask) :tasks
+    attribute :tasks, list_of(EventTask)
 
     value_object "EventTask" do
       attribute :task_name, String

@@ -38,7 +38,7 @@ Hecks.bluebook "DonorRecruitment", version: "2026.04.13.1" do
     attribute :budget, Float
     attribute :target_donors, Integer
     attribute :status, String
-    list_of(Keyword) :keywords
+    attribute :keywords, list_of(Keyword)
     value_object "Keyword" do
       attribute :term, String
       attribute :search_volume, Integer

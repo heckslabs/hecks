@@ -92,8 +92,8 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
 
   aggregate "Schema", "Embedded field definitions — the store describes itself" do
     attribute :store_name, String
-    list_of(FieldDef) :fields
-    list_of(String) :required_fields
+    attribute :fields, list_of(FieldDef)
+    attribute :required_fields, list_of(String)
 
     value_object "FieldDef" do
       attribute :name, String
@@ -104,8 +104,8 @@ Hecks.bluebook "Heki", version: "2026.04.11.2" do
       role "System"
       description "Declare the expected fields and types for a store — derived from the bluebook aggregate"
       attribute :store_name, String
-      list_of(FieldDef) :fields
-      list_of(String) :required_fields
+      attribute :fields, list_of(FieldDef)
+      attribute :required_fields, list_of(String)
       emits "SchemaDefined"
       then_set :store_name, to: :store_name
       then_set :fields, to: :fields
