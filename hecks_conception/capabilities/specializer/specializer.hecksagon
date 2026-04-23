@@ -75,6 +75,16 @@ Hecks.hecksagon "Specializer" do
     args:    ["hecksagon_parser", "--output", "{{output}}"],
     ok_exit: 0
 
+  # i51 Phase B closer — fixtures_parser retirement. Most hostile
+  # Phase B target; extends the parser shape with parse_body_snippet
+  # + test_block_snippet + helper position for byte-identity. Closes
+  # the Phase B Rust retirement arc.
+  adapter :shell,
+    name:    :specialize_fixtures_parser,
+    command: "bin/specialize",
+    args:    ["fixtures_parser", "--output", "{{output}}"],
+    ok_exit: 0
+
   # Phase C PC-1 — meta-specializer. Emits a Ruby subclass shell
   # under lib/hecks_specializer/ from a SpecializerSubclass fixture
   # row. Self-referential (output lives in the same dir as the code
