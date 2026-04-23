@@ -20,7 +20,7 @@
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
-INFO="$DIR/information"
+INFO="${HECKS_INFO:-$DIR/information}"
 AGG="$DIR/aggregates"
 CAPS="$DIR/capabilities"
 BEING="${1:-Miette}"

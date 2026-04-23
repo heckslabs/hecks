@@ -13,7 +13,7 @@
 
 HECKS="../hecks_life/target/release/hecks-life"
 DIR="$(dirname "$0")"
-INFO="$DIR/information"
+INFO="${HECKS_INFO:-$DIR/information}"
 AGG="$DIR/aggregates"
 PIDFILE="$INFO/.heart.pid"
 
