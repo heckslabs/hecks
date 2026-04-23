@@ -155,6 +155,14 @@ fn main() {
         return;
     }
 
+    if command == "dump-world" {
+        let path = args.get(2).expect("usage: hecks-life dump-world <file.world>");
+        let source = std::fs::read_to_string(path).expect("cannot read");
+        let world = hecks_life::world_parser::parse(&source);
+        println!("{}", serde_json::to_string_pretty(&dump_world_json(&world)).unwrap());
+        return;
+    }
+
     if command == "cascade" {
         let path = args.get(2).expect("usage: hecks-life cascade <bluebook>");
         let source = std::fs::read_to_string(path).expect("cannot read");
@@ -1141,6 +1149,33 @@ fn print_kv(recs: &[&heki::Record], fields: &[String]) {
     }
 }
 
+/// Canonical JSON for a `.world` file — matches the shape the Ruby
+/// parity harness emits for `Hecksagon::Structure::World#to_canonical_h`.
+fn dump_world_json(world: &hecks_life::world_ir::World) -> serde_json::Value {
+    let concerns: Vec<serde_json::Value> = world.concerns.iter().map(|c| {
+        serde_json::json!({
+            "name": c.name,
+            "description": c.description,
+        })
+    }).collect();
+    let mut configs = serde_json::Map::new();
+    for cfg in &world.configs {
+        let mut obj = serde_json::Map::new();
+        for (k, v) in &cfg.values {
+            obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+        }
+        configs.insert(cfg.name.clone(), serde_json::Value::Object(obj));
+    }
+    serde_json::json!({
+        "name":     world.name,
+        "purpose":  world.purpose,
+        "vision":   world.vision,
+        "audience": world.audience,
+        "concerns": concerns,
+        "configs":  configs,
+    })
+}
+
 /// Derive the being name from argv[0].
 /// "miette" or "/path/to/miette" -> "Miette"
 /// "summer" or "/path/to/summer" -> "Summer"
@@ -1169,36 +1204,18 @@ fn find_world_file(dir: &std::path::Path) -> Option<std::path::PathBuf> {
     matches.into_iter().next()
 }
 
-/// Read ollama config from the project's *.world file — returns (model, url) if configured.
+/// Read ollama config from the project's *.world file — returns
+/// (model, url) if configured. Routes through world_parser so there is
+/// one canonical shape for all .world consumers.
 fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
     let parent = std::path::Path::new(agg_path).parent()?;
     let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
-    let mut in_ollama = false;
-    let mut model = None;
-    let mut url = None;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("ollama") && trimmed.contains("do") { in_ollama = true; }
-        if in_ollama {
-            if trimmed.starts_with("model") {
-                if let Some(s) = trimmed.find('"') {
-                    if let Some(e) = trimmed[s+1..].find('"') {
-                        model = Some(trimmed[s+1..s+1+e].to_string());
-                    }
-                }
-            }
-            if trimmed.starts_with("url") {
-                if let Some(s) = trimmed.find('"') {
-                    if let Some(e) = trimmed[s+1..].find('"') {
-                        url = Some(trimmed[s+1..s+1+e].to_string());
-                    }
-                }
-            }
-            if trimmed == "end" { in_ollama = false; }
-        }
-    }
-    Some((model?, url?))
+    let world = hecks_life::world_parser::parse(&content);
+    let cfg = world.config_for("ollama")?;
+    let model = cfg.get("model")?.to_string();
+    let url   = cfg.get("url")?.to_string();
+    Some((model, url))
 }
 
 /// Boot the hecksagon and run the terminal adapter.
@@ -1230,29 +1247,17 @@ fn run_terminal(project_dir: &str, being: &str) {
     hecks_life::runtime::adapter_terminal::run(&mut rt, being);
 }
 
-/// Find the heki dir from the project's *.world file — look in parent of the given path.
-/// Parses: `heki do\n  dir "information"\nend`
+/// Find the heki dir from the project's *.world file — look in parent of
+/// the given path. Routes through world_parser so the .world grammar has
+/// exactly one definition.
 fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
     let parent = std::path::Path::new(aggregates_path).parent()?;
     let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
-    // Simple parse: find `dir "..."` inside `heki do...end`
-    let mut in_heki = false;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("heki") && trimmed.contains("do") { in_heki = true; }
-        if in_heki && trimmed.starts_with("dir") {
-            // Extract quoted string
-            if let Some(start) = trimmed.find('"') {
-                if let Some(end) = trimmed[start+1..].find('"') {
-                    let dir = &trimmed[start+1..start+1+end];
-                    return Some(parent.join(dir).to_string_lossy().into());
-                }
-            }
-        }
-        if in_heki && trimmed == "end" { in_heki = false; }
-    }
-    None
+    let world = hecks_life::world_parser::parse(&content);
+    let heki = world.config_for("heki")?;
+    let dir = heki.get("dir")?;
+    Some(parent.join(dir).to_string_lossy().into_owned())
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
@@ -1403,7 +1408,8 @@ fn print_usage() {
     eprintln!("  boot       Full boot: hydrate + nerves + prompt gen");
     eprintln!("  daemon     Run background daemons (pulse, daydream, sleep)");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
-    eprintln!("  heki       Read/write .heki binary stores\n");
+    eprintln!("  heki       Read/write .heki binary stores");
+    eprintln!("  dump-world Parse a .world file and emit canonical JSON\n");
     eprintln!("Heki subcommands:");
     eprintln!("  heki read   <file>           Dump store as JSON");
     eprintln!("  heki latest <file>           Show latest record");
