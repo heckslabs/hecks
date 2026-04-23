@@ -235,6 +235,19 @@ module Hecks
         @crud = true
       end
 
+      # Accept-and-ignore: legacy nursery bluebooks inline `fixture` calls
+      # inside `aggregate` blocks. The canonical location is a sibling
+      # `.fixtures` file (see `Hecks.fixtures` DSL). Rust's line-scanner
+      # silently skips these — this matches that behavior so parity passes
+      # while migration continues. The `io_validator` surfaces stragglers.
+      #
+      #   aggregate "Pizza" do
+      #     fixture "Margherita", name: "Margherita"   # no-op here
+      #   end
+      def fixture(*_args, **_kwargs, &_block)
+        # no-op — canonical home is a `.fixtures` file
+      end
+
       # Build the Aggregate IR object, inferring events from commands.
       #
       # @return [BluebookModel::Structure::Aggregate]
