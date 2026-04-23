@@ -49,6 +49,15 @@ INFO="${HECKS_INFO:-$DIR/information}"
 AGG="$DIR/aggregates"
 PIDFILE="$INFO/.mindstream.pid"
 
+# Export so child scripts (rem_branch.sh, nrem_branch.sh, consolidate.sh,
+# etc.) inherit the same info-dir routing. Without this, children fall
+# back to their own default — hecks_conception/information, the public
+# dir — and their DreamPulse / CreateSynapse dispatches land in the
+# wrong store. Symptom: dream_pulses stays 0 during REM, cycle caps.
+# Exports both vars because some children read HECKS_INFO, others INFO.
+export HECKS_INFO="$INFO"
+export INFO
+
 echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
