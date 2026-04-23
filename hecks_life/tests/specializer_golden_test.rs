@@ -90,6 +90,7 @@ fn specializer_hecksagon_wiring_is_present() {
         "specialize_meta_subclass_lifecycle",
         "specialize_meta_diagnostic_validator",
         "specialize_meta_validator_warnings",
+        "specialize_meta_ruby_script",
         "specialize_meta_meta_diagnostic_validator",
         "specialize_meta_meta_validator_warnings",
     ] {
@@ -186,6 +187,18 @@ fn meta_specializer_produces_byte_identical_validator_warnings_rb() {
         "meta_validator_warnings",
         "lib/hecks_specializer/validator_warnings.rb",
     );
+}
+
+#[test]
+fn meta_specializer_produces_byte_identical_bin_specialize() {
+    // Phase C PC-3 — first retirement of a top-level Ruby script
+    // under bin/. Emits bin/specialize itself from a RubyScript row:
+    // shebang + doc_snippet + requires_block_snippet + body_snippet.
+    //
+    // This is the driver that runs every other specializer target —
+    // including the one being exercised here. Byte-identity means
+    // the driver can regenerate itself and the build stays idempotent.
+    assert_byte_identical("meta_ruby_script", "bin/specialize");
 }
 
 #[test]

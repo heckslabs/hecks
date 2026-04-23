@@ -1,0 +1,7 @@
+Hecks.fixtures "RubyScriptShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  aggregate "RubyScript" do
+    fixture "Specialize", name: "Specialize", shebang: "#!/usr/bin/env ruby", doc_snippet: "hecks_conception/capabilities/ruby_script_shape/snippets/specialize_doc.rb.frag", requires_block_snippet: "hecks_conception/capabilities/ruby_script_shape/snippets/specialize_requires.rb.frag", body_snippet: "hecks_conception/capabilities/ruby_script_shape/snippets/specialize_body.rb.frag", output_rb: "bin/specialize", executable: "true"
+  end
+end

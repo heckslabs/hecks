@@ -1,0 +1,68 @@
+Hecks.bluebook "RubyScriptShape", version: "2026.04.23.1" do
+  vision "Phase C PC-3 — shape of top-level Ruby scripts (bin/specialize, future bin/* drivers) as a bluebook. Retires the driver."
+  category "autophagy"
+
+  # ============================================================
+  # RUBY_SCRIPT META SHAPE — Phase C PC-3
+  # ============================================================
+  #
+  # PC-2 bluebook-ified Ruby *classes* inside module nesting. PC-3
+  # takes aim at Ruby *scripts* — top-level files with a shebang, a
+  # comment doc block, a require run, and an imperative body.
+  #
+  # bin/specialize (57 lines) is the pilot. The shape is designed
+  # to cover any similar driver script under bin/ (future Phase C/D
+  # work may retire more).
+  #
+  # Shape — one aggregate:
+  #
+  #   RubyScript (1+ row, one per script):
+  #     name, shebang, doc_snippet, requires_block_snippet,
+  #     body_snippet, output_rb, executable
+  #
+  # The requires block is kept as a snippet (not a structured
+  # attribute) so the shape stays honest about the verbatim nature
+  # of mixed `require` / `require_relative` / conditional requires.
+  # A richer structured form can land later if multiple scripts
+  # share machinery worth extracting.
+  #
+  # The body is likewise a verbatim snippet — the whole point of
+  # PC-3 is proving we can regenerate a script byte-identically,
+  # not structurally decomposing OptionParser dispatch. Future
+  # phases may lift parts of the body into their own sub-shapes.
+  #
+  # The meta-specializer only arranges:
+  #   1. shebang (if non-empty) + newline
+  #   2. doc_snippet verbatim (ends with `\n`)
+  #   3. blank line
+  #   4. requires_block_snippet verbatim (ends with `\n`)
+  #   5. blank line
+  #   6. body_snippet verbatim (ends with `\n`)
+  #
+  # `executable` is metadata only — the specializer prints to
+  # stdout; `--output` writes text. A future driver pass may read
+  # this to chmod +x the emitted file.
+
+  aggregate "RubyScript", "A top-level Ruby script — shebang + doc + requires + imperative body" do
+    attribute :name,                   String
+    # shebang: full shebang line WITHOUT trailing newline, e.g.
+    # "#!/usr/bin/env ruby". Empty string = emit no shebang (plain .rb).
+    attribute :shebang,                String, default: ""
+    # doc_snippet: path to a .rb.frag containing the top-of-file
+    # comment block (each line starting with `# `). Emitted verbatim.
+    attribute :doc_snippet,            String
+    # requires_block_snippet: path to a .rb.frag containing the raw
+    # require / require_relative lines, one per line. Emitted verbatim
+    # (preserves mixed require styles and any comments interleaved).
+    attribute :requires_block_snippet, String
+    # body_snippet: path to a .rb.frag containing everything after
+    # the requires block — the imperative body. Emitted verbatim.
+    attribute :body_snippet,           String
+    # output_rb: relative path to the generated script, e.g. bin/specialize.
+    attribute :output_rb,              String
+    # executable: "true" if the emitted file should be chmod +x'd.
+    # Currently metadata only — specializer emits to stdout; a future
+    # driver step may honor this when materializing to disk.
+    attribute :executable,             String, default: "false"
+  end
+end
