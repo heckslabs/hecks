@@ -114,7 +114,7 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
 
     command "RouteSubcommand" do
       role "System"
-      description "Look up subcommand in the Subcommand catalog and resolve the handler name. Matches are exact (no fuzzy matching). When the subcommand is not in the catalog, move to failed with exit_kind=unknown_subcommand ; when it is, record the handler and move to routed."
+      description "Resolve the handler for the parsed subcommand. The concrete registry is main.rs's if / else-if chain ; matches are exact, no fuzzy matching. When the subcommand is not recognized, move to failed with exit_kind=unknown_subcommand ; when it is, record the handler name and move to routed."
       attribute :handler, String
       then_set :handler, to: :handler
       then_set :phase, to: "routed"
@@ -161,27 +161,31 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
   end
 
   # ============================================================
-  # SUBCOMMAND — catalog of every registered subcommand
+  # SUBCOMMAND REGISTRY — kernel-floor, lives in main.rs
   # ============================================================
   #
-  # Shape-only aggregate. The concrete registry lives in
-  # cli.fixtures with catalog-dialect rows (schema: declared there).
-  # RouteSubcommand consults this catalog to resolve a handler.
-
-  aggregate "Subcommand", "One registered subcommand — its name, the handler it routes to, a short description for print_usage, and the arity hint so ParseArgv knows how many positional args to consume" do
-    attribute :name, String
-    # handler : symbolic name of the handler. For subcommands whose
-    # implementation is a shipped capability, this matches the sibling
-    # domain name (heki → QueryCapability, conceive → Conception,
-    # etc.). For kernel-floor handlers (dump-fixtures, dump-world),
-    # the handler is a Rust function name in main.rs.
-    attribute :handler, String
-    attribute :description, String
-    # arity_hint : "path" | "none" | "varargs". Drives ParseArgv's
-    # decision about how many argv slots the subcommand consumes
-    # before the handler takes over.
-    attribute :arity_hint, String
-  end
+  # The concrete subcommand → handler mapping is an if / else-if
+  # chain in hecks_life/src/main.rs. Earlier drafts of this bluebook
+  # modelled it as a catalog aggregate with 32 fixture rows, but that
+  # choice was wrong on two counts :
+  #
+  #   1. Duplication risk — every new subcommand added to main.rs
+  #      would also need a fixture row, or the bluebook would lie.
+  #      The Rust is the authoritative registry ; a second copy in
+  #      fixtures creates drift without adding capability.
+  #
+  #   2. No operation — RouteSubcommand doesn't query a catalog from
+  #      inside the bluebook. It resolves a handler via the Rust if-
+  #      chain, which is static code not data. Catalogs earn their
+  #      place when bluebook commands actually walk them (antibody's
+  #      FlaggedExtension catalog is the canonical example — commands
+  #      there iterate the table). A subcommand list the bluebook
+  #      never queries is just inert declaration.
+  #
+  # So the registry stays in main.rs as kernel-floor, same category
+  # as argv parsing and help text rendering. The Invocation aggregate
+  # above declares WHAT happens at each phase ; main.rs carries HOW
+  # and against which table.
 
   # ============================================================
   # POLICIES — the invocation chain
