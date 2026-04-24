@@ -17,5 +17,5 @@ Hecks.hecksagon "Miette" do
   capabilities :language
   capabilities :actions
 
-  persistence :information, dir: "information"
+  adapter :information, dir: "information"
 end

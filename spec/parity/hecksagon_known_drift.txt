@@ -8,23 +8,15 @@
 # When a listed fixture starts passing, the parity suite flags it as
 # ⚑ and asks you to remove the line.
 
-# ── Ruby HecksagonBuilder doesn't split io adapters from persistence ──
-# `adapter :stdout|:stdin|:stderr|:fs|:env` today flows into
-# `@persistence = { type: :stdout, … }` because the builder treats any
-# non-:shell kind as persistence. The Rust parser splits io adapters
-# out. Fix belongs on the Ruby side; until then:
-hecks_conception/capabilities/terminal/terminal.hecksagon     # Ruby lacks io_adapter/persistence split
-hecks_conception/capabilities/status/status.hecksagon         # same — :fs + :stdout io adapters
-hecks_conception/capabilities/specializer/specializer.hecksagon  # same — :fs io adapter
-
-# ── Rust parser treats only :memory and :heki as persistence ──
-# Ruby treats any kind as persistence. The three files below declare
-# `:sqlite` or `:information` persistence; Rust pushes them into
-# io_adapters, Ruby puts them on `persistence`. Fix belongs on the
-# Rust side — grow the IR — or on the canonical contract.
-hecks_conception/miette.hecksagon                          # persistence :information — Rust maps to io
-lib/hecks/appeal/hecks/hecks_appeal.hecksagon              # persistence :sqlite — Rust maps to io
-lib/hecks/chapters/appeal/hecks_appeal.hecksagon           # persistence :sqlite — Rust maps to io
+# ── (Retired 2026-04-24 — i67) ──
+# Ruby HecksagonBuilder now splits io_adapters from persistence — only
+# `:memory` and `:heki` are persistence ; everything else non-`:shell`
+# is an io_adapter, matching Rust's absorb_adapter dispatch. Six entries
+# removed :
+#   terminal, status, specializer — Ruby now produces io_adapters
+#   miette, hecks_appeal (x2)      — migrated from deprecated
+#                                    `persistence :X` to `adapter :X`
+#                                    so Rust parses them too
 
 # ── Ruby shell-adapter validation rejects shapes Rust auto-splits ──
 # The antibody's `command: "git rev-parse --verify {{ref}}"` form is

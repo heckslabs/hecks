@@ -24,6 +24,7 @@ module Hecksagon
         @annotations = []
         @context_map = []
         @shell_adapters = []
+        @io_adapters = []
       end
 
       # Declare context map relationships between bounded contexts.
@@ -53,46 +54,80 @@ module Hecksagon
         @gates << builder.build
       end
 
-      # Declare an adapter. Dispatches on kind:
+      # Declare an adapter. Three-way dispatch on kind — mirrors the Rust
+      # hecksagon_parser (hecks_life/src/hecksagon_parser.rs :: absorb_adapter) :
       #
-      #   adapter :memory                    # persistence — unnamed, at most one
-      #   adapter :sqlite, database: "x.db"  # persistence
+      #   adapter :memory                    # persistence — unnamed, default
+      #   adapter :heki                      # persistence — binary event log
       #   adapter :shell, name: :git_log do  # shell — named, many allowed
       #     command "git"
       #     args ["log", "{{range}}"]
       #   end
+      #   adapter :fs, root: "."             # io adapter
+      #   adapter :stdout                    # io adapter
+      #   adapter :env, keys: ["PATH"]       # io adapter
+      #   adapter :sqlite, database: "x.db"  # io adapter — NOT persistence anymore
       #
-      # For kind `:shell`, a unique `name:` is required and the adapter is
-      # appended to `@shell_adapters`. For any other kind, the call is
-      # treated as a persistence declaration (at most one per hecksagon;
-      # last wins).
+      # Only `:memory` and `:heki` are persistence (matches Rust). `:shell`
+      # is the shell adapter bucket ; everything else is an io adapter.
+      # This split landed 2026-04-24 as part of i67 (Ruby/Rust hecksagon
+      # parity) — see docs/milestones/2026-04-24-direction-b-committed.md
+      # for the Direction-B context.
       #
       # @param kind [Symbol] adapter kind
       # @param name [Symbol, nil] required when kind == :shell
       # @param opts [Hash] kind-specific options
-      # @yield optional block (used by :shell) evaluated in ShellAdapterBuilder
+      # @yield optional block — ShellAdapterBuilder for :shell ;
+      #        IoAdapterBuilder for io kinds (collects `on :Event`)
       def adapter(kind, name: nil, **opts, &block)
-        if kind == :shell
-          raise ArgumentError, "adapter :shell requires name: keyword" if name.nil?
-          sym = name.to_sym
-          existing_idx = @shell_adapters.index { |a| a.name == sym }
-          if existing_idx && !@_shell_adapter_seeded_names&.include?(sym)
-            raise ArgumentError, "shell adapter :#{name} already declared in this hecksagon"
-          end
-          builder = ShellAdapterBuilder.new(name)
-          builder.instance_eval(&block) if block
-          builder.apply_options(opts)
-          built = builder.build
-          if existing_idx
-            @shell_adapters[existing_idx] = built
-            @_shell_adapter_seeded_names.delete(sym)
-          else
-            @shell_adapters << built
-          end
+        k = kind.to_sym
+        case k
+        when :shell
+          _build_shell_adapter(name, opts, &block)
+        when :memory, :heki
+          @persistence = { type: k }.merge(opts)
         else
-          @persistence = { type: kind }.merge(opts)
+          _build_io_adapter(k, opts, &block)
         end
       end
+
+      # Internal — shell adapter branch of the three-way dispatch.
+      def _build_shell_adapter(name, opts, &block)
+        raise ArgumentError, "adapter :shell requires name: keyword" if name.nil?
+        sym = name.to_sym
+        existing_idx = @shell_adapters.index { |a| a.name == sym }
+        if existing_idx && !@_shell_adapter_seeded_names&.include?(sym)
+          raise ArgumentError, "shell adapter :#{name} already declared in this hecksagon"
+        end
+        builder = ShellAdapterBuilder.new(name)
+        builder.instance_eval(&block) if block
+        builder.apply_options(opts)
+        built = builder.build
+        if existing_idx
+          @shell_adapters[existing_idx] = built
+          @_shell_adapter_seeded_names.delete(sym)
+        else
+          @shell_adapters << built
+        end
+      end
+      private :_build_shell_adapter
+
+      # Internal — io adapter branch of the three-way dispatch. Optional
+      # block runs in an IoAdapterBuilder to collect `on :Event` hooks.
+      def _build_io_adapter(kind, opts, &block)
+        on_events = []
+        if block
+          io_builder = IoAdapterBuilder.new
+          io_builder.instance_eval(&block)
+          on_events = io_builder.on_events
+        end
+        @io_adapters << Structure::IoAdapter.new(
+          kind: kind,
+          options: opts,
+          on_events: on_events,
+        )
+      end
+      private :_build_io_adapter
 
       # Internal: mark adapters seeded from an earlier hecksagon block as
       # overridable by the current block. Used by Hecks.hecksagon's merge
@@ -288,7 +323,8 @@ module Hecksagon
           driving_ports: @driving_ports || [],
           driven_ports: @driven_ports || [],
           port_contracts: @port_contracts || [],
-          shell_adapters: @shell_adapters
+          shell_adapters: @shell_adapters,
+          io_adapters: @io_adapters
         )
       end
 

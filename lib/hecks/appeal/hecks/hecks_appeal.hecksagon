@@ -1,5 +1,5 @@
 Hecks.hecksagon "HecksAppeal" do
-  persistence :sqlite
+  adapter :sqlite
   concerns :webapp
   concerns :dev_tools, env: :development
   capabilities :chat_agent, :workbench, :app_builder, :ubiquitous_language, :server_lifecycle
