@@ -62,39 +62,109 @@ RSpec.describe Hecksagon::DSL::HecksagonBuilder do
     end
   end
 
-  describe "#adapter (persistence kind)" do
-    it "records persistence for non-shell kinds" do
-      builder = described_class.new("App")
-      builder.adapter :sqlite, database: "pizzas.db"
-      hecksagon = builder.build
-      expect(hecksagon.persistence).to eq(type: :sqlite, database: "pizzas.db")
-      expect(hecksagon.shell_adapters).to be_empty
-    end
+  describe "#adapter (persistence + io split — i67, 2026-04-24)" do
+    # Mirrors Rust's hecksagon_parser absorb_adapter three-way dispatch :
+    #   :shell              → shell_adapter
+    #   :memory | :heki     → persistence
+    #   anything else       → io_adapter
+    # See docs/milestones/2026-04-24-direction-b-committed.md.
 
-    it "accepts :memory with no options" do
+    it "records :memory as persistence (no options)" do
       builder = described_class.new("App")
       builder.adapter :memory
       hecksagon = builder.build
       expect(hecksagon.persistence).to eq(type: :memory)
+      expect(hecksagon.io_adapters).to be_empty
+    end
+
+    it "records :heki as persistence" do
+      builder = described_class.new("App")
+      builder.adapter :heki, dir: "information"
+      hecksagon = builder.build
+      expect(hecksagon.persistence).to eq(type: :heki, dir: "information")
+      expect(hecksagon.io_adapters).to be_empty
+    end
+
+    it "routes :sqlite to io_adapters, not persistence" do
+      builder = described_class.new("App")
+      builder.adapter :sqlite, database: "pizzas.db"
+      hecksagon = builder.build
+      expect(hecksagon.persistence).to be_nil
+      expect(hecksagon.io_adapters.size).to eq(1)
+      io = hecksagon.io_adapters.first
+      expect(io.kind).to eq(:sqlite)
+      expect(io.options).to eq(database: "pizzas.db")
+    end
+
+    it "routes :fs to io_adapters with options" do
+      builder = described_class.new("App")
+      builder.adapter :fs, root: "."
+      hecksagon = builder.build
+      expect(hecksagon.persistence).to be_nil
+      expect(hecksagon.io_adapters.size).to eq(1)
+      expect(hecksagon.io_adapters.first.kind).to eq(:fs)
+      expect(hecksagon.io_adapters.first.options).to eq(root: ".")
+    end
+
+    it "routes :stdout / :stderr / :stdin to io_adapters with no options" do
+      builder = described_class.new("App")
+      builder.adapter :stdout
+      builder.adapter :stderr
+      hecksagon = builder.build
+      expect(hecksagon.io_adapters.map(&:kind)).to eq([:stdout, :stderr])
+    end
+
+    it "collects on :Event declarations from block form" do
+      builder = described_class.new("App")
+      builder.adapter :fs, root: "." do
+        on :Replicated
+        on :Snapshotted
+      end
+      hecksagon = builder.build
+      expect(hecksagon.io_adapters.first.on_events).to eq(%w[Replicated Snapshotted])
     end
   end
 
-  describe "#persistence (deprecated alias)" do
-    it "still sets persistence and emits a deprecation warning on first call" do
+  describe "#persistence (deprecated alias — behaves like #adapter)" do
+    it "emits a deprecation warning on first call" do
       builder = described_class.new("App")
       expect {
         builder.persistence :sqlite, database: "x.db"
       }.to output(/deprecated/).to_stderr
+    end
+
+    it "routes non-persistence kinds through to io_adapter (same as #adapter)" do
+      # Post-i67 the deprecated alias still delegates to #adapter, which
+      # now does the three-way split. :sqlite is an io kind, so it goes
+      # to io_adapters rather than setting @persistence.
+      builder = described_class.new("App")
+      silence_stderr { builder.persistence :sqlite, database: "x.db" }
       hecksagon = builder.build
-      expect(hecksagon.persistence).to eq(type: :sqlite, database: "x.db")
+      expect(hecksagon.persistence).to be_nil
+      expect(hecksagon.io_adapters.first.kind).to eq(:sqlite)
+    end
+
+    it "routes :memory through to persistence" do
+      builder = described_class.new("App")
+      silence_stderr { builder.persistence :memory }
+      hecksagon = builder.build
+      expect(hecksagon.persistence).to eq(type: :memory)
     end
 
     it "warns only once per builder" do
       builder = described_class.new("App")
-      builder.persistence :memory
+      silence_stderr { builder.persistence :memory }
       expect {
         builder.persistence :sqlite, database: "x.db"
       }.not_to output.to_stderr
+    end
+
+    def silence_stderr
+      original = $stderr
+      $stderr = StringIO.new
+      yield
+    ensure
+      $stderr = original
     end
   end
 end
