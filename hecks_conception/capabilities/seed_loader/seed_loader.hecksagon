@@ -24,7 +24,6 @@ Hecks.hecksagon "SeedLoader" do
   #                        dispatched command is chosen per-line, not
   #                        statically.
 
-  adapter :memory
   adapter :fs, root: "."
   adapter :runtime_dispatch
 end

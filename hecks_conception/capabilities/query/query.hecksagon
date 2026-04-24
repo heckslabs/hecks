@@ -30,5 +30,4 @@ Hecks.hecksagon "Query" do
   # a `function` or `transform` DSL keyword the Phase F discipline
   # refuses to add.
 
-  adapter :memory
 end

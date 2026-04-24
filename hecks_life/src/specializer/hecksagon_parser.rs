@@ -126,6 +126,18 @@ fn emit_parse(parser: &Fixture, dispatches: &[&Fixture]) -> String {
         i += 1;
     }}
 
+    // Default persistence to \"memory\" when no persistence adapter was
+    // declared. The IR consumers have always treated None as \"memory\"
+    // by convention ; normalising here removes the None possibility
+    // from downstream code paths so the field is always a concrete
+    // value. Keeps hecksagons that don't declare `adapter :memory`
+    // (the default) equivalent to ones that do — eliminates the
+    // redundant-declaration noise without introducing a None
+    // representation.
+    if hex.persistence.is_none() {{
+        hex.persistence = Some(\"memory\".to_string());
+    }}
+
     hex
 }}
 

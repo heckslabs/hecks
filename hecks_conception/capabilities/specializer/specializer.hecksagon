@@ -15,7 +15,6 @@ Hecks.hecksagon "Specializer" do
   #   :fs       — reads shape bluebooks + fixtures under hecks_conception/
   #               and writes emitted .rs under hecks_life/src/
 
-  adapter :memory
 
   # Read the shape (L0 bluebook + L0 fixtures) and write the
   # generated Rust (L7) into hecks_life/src/. `root:` anchors the

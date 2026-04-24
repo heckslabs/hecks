@@ -20,7 +20,6 @@ Hecks.hecksagon "Status" do
 
   # Ephemeral report — no persistence. Values are read from the heki
   # stores owned by other capabilities; this one only prints a snapshot.
-  adapter :memory
 
   # ---- I/O wiring --------------------------------------------------
   #

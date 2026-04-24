@@ -48,7 +48,6 @@ Hecks.hecksagon "RemDream" do
   # Rust remains while the bluebook is the source-of-truth
   # declaration).
 
-  adapter :memory
 
   adapter :llm,
     backend: :claude

@@ -41,7 +41,6 @@ Hecks.hecksagon "Server" do
   #   — templates would want a `template` DSL keyword this arc
   #   refuses to add.
 
-  adapter :memory
   adapter :fs, root: "."
   adapter :runtime_dispatch
 end

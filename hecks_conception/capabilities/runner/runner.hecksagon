@@ -28,7 +28,6 @@ Hecks.hecksagon "Runner" do
   # status_report, one_shot). That inspection is in-memory against
   # the IR — pure computation, no adapter.
 
-  adapter :memory
   adapter :fs, root: "."
   adapter :runtime_dispatch
   adapter :stdin
