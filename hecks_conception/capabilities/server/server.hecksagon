@@ -1,0 +1,47 @@
+Hecks.hecksagon "Server" do
+  # ============================================================
+  # SERVER — hexagonal wiring for Phase F-5
+  # ============================================================
+  #
+  # The sibling bluebook declares the HTTP server's three-aggregate
+  # shape (Server, Route, MultiDomainServer). The outbound ports those
+  # aggregates consume :
+  #
+  #   :fs                — MultiDomainServer.ScanDomainsDir reads the
+  #                        target directory for *.bluebook files ;
+  #                        MultiDomainServer.BootDomainRuntime reads
+  #                        each bluebook's source. Single-domain
+  #                        Server does not touch :fs.
+  #
+  #   :runtime_dispatch  — Route.DispatchHandler forwards POST
+  #                        /dispatch into the runtime's command bus.
+  #                        MultiDomainServer.NamespaceRoute delegates
+  #                        to the single-domain Route which uses the
+  #                        same port.
+  #
+  #   :memory            — persistence. The Server and Route
+  #                        aggregates hold request-lifecycle state in
+  #                        RAM ; the underlying domain runtimes own
+  #                        their own persistence through their own
+  #                        hecksagons.
+  #
+  # Kernel-floor (not declared as an adapter) :
+  #
+  #   The TCP listener itself. bind/accept/read/write on a
+  #   std::net::TcpStream is irreducible byte-level I/O — it sits
+  #   behind the conceptual :http_listener port but is not
+  #   aggregate-shaped and is not a candidate for Phase F expression
+  #   without extending the DSL (a `:tcp` or `:http` adapter kind).
+  #
+  # Residue (not part of this PR) :
+  #
+  #   The fifteen html_* modules under hecks_life/src/server/ are
+  #   pure IR→text transforms that render dashboard HTML. They remain
+  #   hand-written ; see docs/phase-f-0-survey.md "expected residue"
+  #   — templates would want a `template` DSL keyword this arc
+  #   refuses to add.
+
+  adapter :memory
+  adapter :fs, root: "."
+  adapter :runtime_dispatch
+end
