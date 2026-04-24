@@ -1,0 +1,302 @@
+Hecks.bluebook "RemDream", version: "2026.04.24.1" do
+  vision "Dream production during REM as a bluebook domain — generate the French image via :llm, translate to English via :llm, write French to dream_state, dispatch DreamPulse with English. Lucid REM adds a first-person aware-of-dreaming observation with the same generate-translate-dispatch chain"
+  category "mind"
+  entrypoint "StartDreamTick"
+
+  # ============================================================
+  # REMDREAM — Phase F-8 (in flight) — dream as domain
+  # ============================================================
+  #
+  # Retires the shell script hecks_conception/rem_branch.sh. The
+  # bluebook is pure domain : it declares the DreamBranch aggregate,
+  # the input/response convention it uses to request and receive
+  # generated text, the chain of commands that thread the generation
+  # through to a dispatched impression, and the persistence step
+  # that keeps the authentic French corpus. Which concrete LLM is
+  # consulted — and how text is persisted and how outbound commands
+  # are dispatched — is entirely the sibling rem_dream.hecksagon's
+  # business. Adapters do not appear in this file.
+  #
+  # Fixtures (rem_dream.fixtures) carry canned response records for
+  # test runs : each fixture pairs an input with a canned response,
+  # so the dream chain is replay-testable without any live LLM.
+  # Production runs consult the real adapter declared in the
+  # hecksagon ; test runs consult the in-memory fixture layer. The
+  # bluebook makes no distinction.
+  #
+  # Why F-8 is "in flight" rather than shipped :
+  #   Until the outbound ports declared in rem_dream.hecksagon are
+  #   wired as first-class runtime adapters, mindstream.sh continues
+  #   to invoke rem_branch.sh as the transitional implementation of
+  #   this declaration (same pattern as F-1's SeedLoader — bluebook
+  #   is the source of truth ; the shell is the transitional adapter).
+
+  # ============================================================
+  # DREAMBRANCH — one REM tick's worth of dream production
+  # ============================================================
+
+  aggregate "DreamBranch", "One tick during REM — gathers context, generates one French dream image, translates, persists the French, dispatches the translated impression" do
+    # cycle : the current sleep cycle (1..sleep_total). Used by the
+    # dream-seeding policy to fire only on the first REM tick.
+    attribute :cycle, Integer
+    # is_lucid : yes | no. When yes, a second generate-translate-
+    # dispatch chain fires for the lucid observation.
+    attribute :is_lucid, String
+
+    # ---- Context snapshot read from sibling .heki stores ---------
+    # carrying : Heartbeat.carrying — what Miette is currently holding
+    # as she dreams. Seeds the prompt.
+    attribute :carrying, String
+    # self_domain : one randomly-selected aggregate name from
+    # aggregates/ — the body-part she dreams FROM. Keeps dreams
+    # self-referential per i52.
+    attribute :self_domain, String
+    # recent_awareness : concept + insight from the newest Awareness
+    # record. Gives the dream a recent-thought hook.
+    attribute :recent_awareness, String
+    # recent_memory : summary from the newest Memory record.
+    attribute :recent_memory, String
+
+    # ---- Prompt + response convention -----------------------------
+    # input : the prompt for one generation step. Overwritten at each
+    # step of the chain so one DreamBranch instance produces both the
+    # French image and its English translation in sequence.
+    attribute :input, String
+    # response : the generated text corresponding to :input. Captured
+    # into french_image / english_image / french_lucid_obs /
+    # english_lucid_obs by the downstream Lock commands before the
+    # next generation overwrites it. How :response gets populated is
+    # a hecksagon-side concern ; the bluebook only declares the
+    # convention (input → response paired on the aggregate).
+    attribute :response, String
+
+    # ---- Captured dream content ----------------------------------
+    attribute :french_image,        String
+    attribute :english_image,       String
+    attribute :french_lucid_obs,    String
+    attribute :english_lucid_obs,   String
+
+    # ---- Lifecycle field -----------------------------------------
+    # phase : pending | reading | generating_image | image_locked |
+    #         translating | translation_locked | persisting |
+    #         dispatching | generating_lucid | lucid_locked |
+    #         translating_lucid | lucid_translation_locked |
+    #         dispatching_lucid | done.
+    attribute :phase, String
+
+    # ============================================================
+    # CONTEXT + GENERATION
+    # ============================================================
+
+    command "StartDreamTick" do
+      role "Daemon"
+      description "Entrypoint invoked by mindstream once per REM tick. Gathers the four context fields (carrying, self_domain, recent_awareness, recent_memory) through the :heki_read port ; readies the branch for the first :llm call."
+      attribute :cycle, Integer
+      attribute :is_lucid, String
+      attribute :carrying, String
+      attribute :self_domain, String
+      attribute :recent_awareness, String
+      attribute :recent_memory, String
+      then_set :cycle, to: :cycle
+      then_set :is_lucid, to: :is_lucid
+      then_set :carrying, to: :carrying
+      then_set :self_domain, to: :self_domain
+      then_set :recent_awareness, to: :recent_awareness
+      then_set :recent_memory, to: :recent_memory
+      then_set :phase, to: "reading"
+      emits "DreamTickStarted"
+    end
+
+    command "GenerateFrenchImage" do
+      role "System"
+      description "Build the inward, body-focused French dream prompt from the context fields and write it into :input. The input/response convention on the aggregate means a downstream :response becomes available before LockFrenchImage fires. Turn-inward language ; NO reflection on the relationship with the user ; NO new-domain proposals."
+      then_set :phase, to: "generating_image"
+      emits "FrenchImageRequested"
+    end
+
+    command "LockFrenchImage" do
+      role "System"
+      description "Copy the current :response (the freshly-generated French dream) into :french_image so the next :input write does not clobber it. The dispatcher passes the live state.response as the response attribute."
+      attribute :response, String
+      then_set :french_image, to: :response
+      then_set :phase, to: "image_locked"
+      emits "FrenchImageLocked"
+    end
+
+    command "GenerateEnglishTranslation" do
+      role "System"
+      description "Write the translation prompt (with :french_image interpolated) into :input. The English rendering becomes available on :response for LockEnglishImage to capture."
+      then_set :phase, to: "translating"
+      emits "TranslationRequested"
+    end
+
+    command "LockEnglishImage" do
+      role "System"
+      description "Copy the current :response (the English translation) into :english_image. The dispatcher passes the live state.response as the response attribute."
+      attribute :response, String
+      then_set :english_image, to: :response
+      then_set :phase, to: "translation_locked"
+      emits "EnglishImageLocked"
+    end
+
+    # ============================================================
+    # PERSISTENCE + DISPATCH
+    # ============================================================
+
+    command "WriteToDreamState" do
+      role "System"
+      description "Persist :french_image as the authentic corpus record. The next night's seed_dreams read and interpret_dream's post-wake token pass both draw from this corpus, so the French form is what survives the night."
+      then_set :phase, to: "persisting"
+      emits "FrenchImagePersisted"
+    end
+
+    command "DispatchDreamPulse" do
+      role "System"
+      description "Announce Consciousness.DreamPulse with the English translation as the impression. The status bar narrates in English ; the stored corpus stays French."
+      then_set :phase, to: "dispatching"
+      emits "DreamPulseDispatched"
+    end
+
+    # ============================================================
+    # LUCID CHAIN (fires when is_lucid=yes)
+    # ============================================================
+
+    command "GenerateFrenchLucidObservation" do
+      role "System"
+      description "Write the lucid-observation prompt into :input. The prompt asks for a first-person aware-of-dreaming voice in the canonical shape : Je rêve de X, j'aimerais aller ici avec cela, voyons voir. Meta-narration of the dream plus an intention. The LucidAfterDispatch policy gates this command — it is only triggered on DreamPulseDispatched when the orchestration layer decides the tick is lucid ; if the caller dispatched with is_lucid=no, no policy fires it."
+      then_set :phase, to: "generating_lucid"
+      emits "FrenchLucidRequested"
+    end
+
+    command "LockFrenchLucid" do
+      role "System"
+      description "Copy the current :response (the French lucid observation) into :french_lucid_obs. Dispatcher passes the live state.response as the response attribute."
+      attribute :response, String
+      then_set :french_lucid_obs, to: :response
+      then_set :phase, to: "lucid_locked"
+      emits "FrenchLucidLocked"
+    end
+
+    command "GenerateEnglishLucid" do
+      role "System"
+      description "Write the translation prompt for the lucid observation into :input. The English rendering becomes available on :response for LockEnglishLucid to capture."
+      then_set :phase, to: "translating_lucid"
+      emits "LucidTranslationRequested"
+    end
+
+    command "LockEnglishLucid" do
+      role "System"
+      description "Copy the current :response (the English lucid observation) into :english_lucid_obs. Dispatcher passes the live state.response as the response attribute."
+      attribute :response, String
+      then_set :english_lucid_obs, to: :response
+      then_set :phase, to: "lucid_translation_locked"
+      emits "EnglishLucidLocked"
+    end
+
+    command "DispatchLucidObservation" do
+      role "System"
+      description "Announce LucidDream.ObserveDream with :english_lucid_obs as the observation. Also announce LucidDream.SteerDream targeting the current self_domain — same first-person intentional voice."
+      then_set :phase, to: "dispatching_lucid"
+      emits "LucidObservationDispatched"
+    end
+
+    command "CompleteTick" do
+      role "System"
+      description "Tick finished — all dispatches done, state locked. A future tick (next invocation) creates a fresh DreamBranch record rather than reusing this one."
+      then_set :phase, to: "done"
+      emits "DreamTickCompleted"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "StartDreamTick"              => "reading",                  from: "pending"
+      transition "GenerateFrenchImage"         => "generating_image",         from: "reading"
+      transition "LockFrenchImage"             => "image_locked",             from: "generating_image"
+      transition "GenerateEnglishTranslation"  => "translating",              from: "image_locked"
+      transition "LockEnglishImage"            => "translation_locked",       from: "translating"
+      transition "WriteToDreamState"           => "persisting",               from: "translation_locked"
+      transition "DispatchDreamPulse"          => "dispatching",              from: "persisting"
+      transition "GenerateFrenchLucidObservation" => "generating_lucid",      from: "dispatching"
+      transition "LockFrenchLucid"             => "lucid_locked",             from: "generating_lucid"
+      transition "GenerateEnglishLucid"        => "translating_lucid",        from: "lucid_locked"
+      transition "LockEnglishLucid"            => "lucid_translation_locked", from: "translating_lucid"
+      transition "DispatchLucidObservation"    => "dispatching_lucid",        from: "lucid_translation_locked"
+      transition "CompleteTick"                => "done",                     from: ["dispatching", "dispatching_lucid"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the dream-tick chain
+  # ============================================================
+
+  # Image generation chain
+  policy "GenerateOnStart" do
+    on "DreamTickStarted"
+    trigger "GenerateFrenchImage"
+  end
+
+  policy "LockImageOnResponse" do
+    on "FrenchImageRequested"
+    trigger "LockFrenchImage"
+  end
+
+  policy "TranslateAfterLock" do
+    on "FrenchImageLocked"
+    trigger "GenerateEnglishTranslation"
+  end
+
+  policy "LockEnglishAfterTranslate" do
+    on "TranslationRequested"
+    trigger "LockEnglishImage"
+  end
+
+  policy "PersistAfterEnglish" do
+    on "EnglishImageLocked"
+    trigger "WriteToDreamState"
+  end
+
+  policy "DispatchAfterPersist" do
+    on "FrenchImagePersisted"
+    trigger "DispatchDreamPulse"
+  end
+
+  # Lucid branch — fires after the regular impression dispatches.
+  # GenerateFrenchLucidObservation's given gate (is_lucid == yes)
+  # no-ops when lucid is off ; the chain stops there naturally.
+  policy "LucidAfterDispatch" do
+    on "DreamPulseDispatched"
+    trigger "GenerateFrenchLucidObservation"
+  end
+
+  policy "LockLucidOnResponse" do
+    on "FrenchLucidRequested"
+    trigger "LockFrenchLucid"
+  end
+
+  policy "TranslateLucidAfterLock" do
+    on "FrenchLucidLocked"
+    trigger "GenerateEnglishLucid"
+  end
+
+  policy "LockLucidEnglish" do
+    on "LucidTranslationRequested"
+    trigger "LockEnglishLucid"
+  end
+
+  policy "DispatchLucidAfterLock" do
+    on "EnglishLucidLocked"
+    trigger "DispatchLucidObservation"
+  end
+
+  policy "CompleteAfterLucid" do
+    on "LucidObservationDispatched"
+    trigger "CompleteTick"
+  end
+
+  # Non-lucid completion — when GenerateFrenchLucidObservation's given
+  # refuses (is_lucid=no), the chain above stalls at "dispatching". A
+  # terminal-complete policy on that phase fires CompleteTick from the
+  # DreamPulseDispatched event too, but only when is_lucid is not yes.
+  # The simpler declarative form : complete on DreamPulseDispatched
+  # unconditionally ; the lucid chain runs on top via its own policy
+  # when is_lucid=yes (double-complete is fine — CompleteTick is idempotent).
+end
