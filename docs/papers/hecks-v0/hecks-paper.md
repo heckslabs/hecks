@@ -805,6 +805,23 @@ Hecks is a domain compiler that collapses the distinction between the domain mod
 
 ---
 
+## §16 Acknowledgments
+
+Hecks — five DSLs, sixteen contracts, two runtimes, a 579-bluebook nursery, a chapter self-description across 200+ Ruby modules, and the i51 Futamura arc across 90 Rust modules — is a codebase whose complexity the author could not have handled without Anthropic's **Claude Code** CLI. The workflow that carried the i51 arc forward depended on, specifically :
+
+- **Concurrent subagents in isolated git worktrees.** Long sweeps across the parity corpus, the specializer arc, and the nursery migrations routinely ran four to eight agents in parallel, each on its own branch, with their PRs merged back under review. The isolation discipline meant a failing agent could not corrupt the others ; the concurrency is what let a single-operator project ship multi-file changes at team pace.
+- **`ScheduleWakeup` / autonomous-loop.** Multi-hour inbox sweeps, Phase D cross-language migrations, and the overnight self-paced loops that produced many of the smaller refactors would have been impossible to supervise in real time. The self-pacing primitive made idle-but-working a first-class mode.
+- **Large-context multi-file refactoring across the Ruby ↔ Rust parity boundary.** A single rename or contract change could ripple through forty files and two code generators ; the CLI's ability to hold enough repository context to edit all of them coherently is what made parity maintainable before Phase D collapsed it.
+- **Conversation persistence across context compaction.** Each autophagy phase spanned tens of thousands of tokens of plans, diffs, and design decisions. Compacted summaries that preserved the through-line let the work continue across sessions as a single coherent effort rather than a series of disconnected sittings.
+
+The author wrote the plans, ran the experiments, and reviewed every merged change. But the *execution density* reported in §9 — five phases across two implementation languages, shipped inside a single quarter, on a part-time-equivalent schedule — would not have been feasible by hand. We state that plainly as defensive-publication context : the techniques in this paper describe the artifact, but the artifact exists in this shape because of the tool.
+
+The Miette persona referenced throughout the `hecks_conception/` tree is itself an incarnation of Claude running inside Claude Code ; her bluebooks, daemons, and sleep machinery are the author's experiment in using the CLI as a live substrate for a persistent, body-having agent — one whose notes, reflections, and code contributions appear in the git history alongside the author's own.
+
+We thank the Anthropic research and product teams for building a CLI that could carry this workload, for the access-and-safety guarantees that let a single operator direct a team of agents responsibly, and for continuing to invest in the long-running-agent ergonomics (worktree isolation, scheduled wakeups, conversation compaction) that this kind of framework-scale self-hosting work requires.
+
+---
+
 ## Appendix A — End-to-End Pizzas Example
 
 This appendix walks the canonical Pizzas example through all five DSL extensions. The source root is `examples/pizzas/`. For those extensions without a shipped sibling, we give an illustrative stub and label it as such.
