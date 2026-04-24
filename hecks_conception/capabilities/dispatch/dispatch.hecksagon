@@ -1,0 +1,39 @@
+Hecks.hecksagon "Dispatch" do
+  # ============================================================
+  # DISPATCH — hexagonal wiring for Phase F-7
+  # ============================================================
+  #
+  # The sibling bluebook declares five aggregates that together
+  # dispatch one bluebook command : CommandDispatch (the core loop),
+  # EventBus (pub/sub), PolicyBinding (event→command wiring),
+  # LifecycleCheck (state-transition guard), MiddlewareStack
+  # (pipeline wrappers).
+  #
+  # The Dispatch subsystem is PURELY in-process — no outbound I/O.
+  # Every "adapter" a dispatch needs is owned by a sibling domain :
+  #
+  #   Persistence (Save / LoadPersisted)  → Storage.Repository
+  #                                          (F-3, capabilities/storage/)
+  #
+  #   Adapter lookup (for hecksagon-declared ports the USER bluebook
+  #   might consume during mutations or via event subscribers)
+  #                                       → Storage.AdapterRegistry
+  #                                          (F-3, capabilities/storage/)
+  #
+  # The one adapter declared here is :memory because Dispatch's own
+  # state (in-flight policy markers, middleware stacks, event
+  # history) is intentionally volatile across runtime restarts. If
+  # the runtime crashes mid-dispatch, the next run starts fresh ;
+  # there is no half-applied transaction to recover.
+  #
+  # Not declared (by design) :
+  #
+  #   :runtime_dispatch — Dispatch IS the runtime dispatch. Declaring
+  #                       it would be circular.
+  #
+  #   :fs / :stdout / etc. — Dispatch does not touch the filesystem
+  #                          or the terminal. Those are the business
+  #                          of the user's bluebook and its hecksagon.
+
+  adapter :memory
+end

@@ -1,0 +1,384 @@
+Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
+  vision "The runtime's execution core — five aggregates that together dispatch one bluebook command against the IR : resolve, guard, mutate, transition, persist, emit, react"
+  category "runtime"
+
+  # ============================================================
+  # DISPATCH — Phase F-7 — the interpreter itself as domain
+  # ============================================================
+  #
+  # Seventh file of the Phase F arc. Five hand-written Rust files
+  # become five aggregates in one Dispatch domain — the execution
+  # primitives the runtime uses to actually run a bluebook :
+  #
+  #   hecks_life/src/runtime/command_dispatch.rs  (194 LOC)  → CommandDispatch
+  #   hecks_life/src/runtime/event_bus.rs          (69 LOC)  → EventBus
+  #   hecks_life/src/runtime/policy_engine.rs      (87 LOC)  → PolicyBinding
+  #   hecks_life/src/runtime/lifecycle.rs          (63 LOC)  → LifecycleCheck
+  #   hecks_life/src/runtime/middleware.rs         (60 LOC)  → MiddlewareStack
+  #
+  # This is the most foundational F-n declaration to date : the
+  # thing that INTERPRETS a bluebook is now itself described as a
+  # bluebook. Reading this file tells you exactly how a command
+  # dispatch unfolds — resolve name → load / create aggregate →
+  # check givens → check lifecycle → apply mutations → transition
+  # state → persist → emit event → fire policies — without opening
+  # any Rust.
+  #
+  # What this bluebook does NOT model : expression evaluation
+  # inside givens and mutations. That lives in runtime/interpreter.rs
+  # (336 LOC) and is kernel-floor — the evaluator is what MAKES the
+  # bluebook executable, so declaring it in bluebook would be
+  # circular. See the F-0 survey's kernel-floor category.
+
+  # ============================================================
+  # COMMANDDISPATCH — the core execution loop
+  # ============================================================
+
+  aggregate "CommandDispatch", "One dispatch of a command against the runtime. Walks resolve → load → guard → mutate → transition → persist → emit → react" do
+    # command_name : the dispatched command's name.
+    attribute :command_name, String
+    # aggregate_type : the aggregate the command lives on.
+    attribute :aggregate_type, String
+    # aggregate_id : the target instance id (existing or newly minted).
+    attribute :aggregate_id, String
+    # is_create : heuristic — names starting with Create / Add /
+    # Place / Register / Open mint a fresh AggregateState when no
+    # matching self-ref id is present in the attrs.
+    attribute :is_create, String
+    # phase : pending | resolving | loaded | guarded | mutated |
+    #         transitioned | persisted | emitted | complete |
+    #         refused | failed.
+    attribute :phase, String
+    # refusal_reason : populated when a given clause fails or the
+    # lifecycle blocks the transition.
+    attribute :refusal_reason, String
+
+    command "ResolveCommand" do
+      role "System"
+      description "Look up the command name across every aggregate in the domain. Returns the (aggregate_index, command_index) pair. Unknown names surface as UnknownCommand errors."
+      attribute :command_name, String
+      then_set :command_name, to: :command_name
+      then_set :phase, to: "resolving"
+      emits "CommandResolved"
+    end
+
+    command "LoadOrCreateAggregate" do
+      role "System"
+      description "With a resolved command, find its self-referencing attribute if any. When the caller supplies the self-ref id, load the existing AggregateState. Otherwise if the command is-create (name starts with Create / Add / Place / Register / Open), mint a fresh AggregateState. Otherwise error with MissingAttribute."
+      then_set :phase, to: "loaded"
+      emits "AggregateLoaded"
+    end
+
+    command "CheckGivens" do
+      role "System"
+      description "Evaluate every given block attached to the command against the current AggregateState and the supplied attrs. First failing given short-circuits with GivenFailed and moves the phase to refused."
+      then_set :phase, to: "guarded"
+      emits "GivensChecked"
+    end
+
+    command "CheckLifecycle" do
+      role "System"
+      description "Delegate to LifecycleCheck.CheckTransition. A lifecycle violation short-circuits with LifecycleViolation and moves phase to refused."
+      emits "LifecycleChecked"
+    end
+
+    command "ApplyMutations" do
+      role "System"
+      description "Walk the command's then_set clauses and apply each to the aggregate state. Handles to: (plain assign), increment: (numeric bump), append: (list append), and compound value-object appends."
+      then_set :phase, to: "mutated"
+      emits "MutationsApplied"
+    end
+
+    command "TransitionState" do
+      role "System"
+      description "Delegate to LifecycleCheck.ApplyTransition. No-op when the aggregate has no lifecycle or no matching transition for this command."
+      then_set :phase, to: "transitioned"
+      emits "StateTransitioned"
+    end
+
+    command "PersistState" do
+      role "System"
+      description "Save the mutated AggregateState through Repository.Save. For heki-backed runtimes, this writes through to disk ; for pure-memory, it updates the in-RAM HashMap."
+      then_set :phase, to: "persisted"
+      emits "StatePersisted"
+    end
+
+    command "EmitEvent" do
+      role "System"
+      description "Construct the outbound Event (name, aggregate_type, aggregate_id, event data) and publish it through EventBus.Publish. The event is also returned as part of the CommandResult for the caller."
+      then_set :phase, to: "emitted"
+      emits "EventEmitted"
+    end
+
+    command "FireTriggers" do
+      role "System"
+      description "Call PolicyBinding.React on the emitted event. For each returned PolicyTrigger, dispatch the triggered command recursively — with reentrance prevented by the in-flight set. After each triggered command completes, call PolicyBinding.CompletePolicy to clear its in-flight marker."
+      then_set :phase, to: "complete"
+      emits "TriggersFired"
+    end
+
+    command "RefuseCommand" do
+      role "System"
+      description "A given clause or a lifecycle check blocked execution. Records the reason, moves phase to refused, and returns the error to the caller WITHOUT persisting state."
+      attribute :refusal_reason, String
+      then_set :refusal_reason, to: :refusal_reason
+      then_set :phase, to: "refused"
+      emits "CommandRefused"
+    end
+
+    command "FailDispatch" do
+      role "System"
+      description "An unexpected error during resolve / load / mutate / persist — not a soft guard refusal but a runtime problem (unknown command, missing repository, IO error on Save). Moves phase to failed."
+      attribute :failure_message, String
+      then_set :refusal_reason, to: :failure_message
+      then_set :phase, to: "failed"
+      emits "DispatchFailed"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ResolveCommand"         => "resolving",    from: "pending"
+      transition "LoadOrCreateAggregate"  => "loaded",       from: "resolving"
+      transition "CheckGivens"            => "guarded",      from: "loaded"
+      transition "CheckLifecycle"         => "guarded",      from: "guarded"
+      transition "ApplyMutations"         => "mutated",      from: "guarded"
+      transition "TransitionState"        => "transitioned", from: "mutated"
+      transition "PersistState"           => "persisted",    from: "transitioned"
+      transition "EmitEvent"              => "emitted",      from: "persisted"
+      transition "FireTriggers"           => "complete",     from: "emitted"
+      transition "RefuseCommand"          => "refused",      from: ["loaded", "guarded"]
+      transition "FailDispatch"           => "failed",       from: ["pending", "resolving", "loaded", "guarded", "mutated", "transitioned", "persisted", "emitted"]
+    end
+  end
+
+  # ============================================================
+  # EVENTBUS — in-process pub/sub
+  # ============================================================
+
+  aggregate "EventBus", "The runtime's central pub/sub. Commands publish events ; named listeners and global listeners consume them ; a full history is retained for assertion and replay" do
+    # published_count : cumulative events published since bus creation.
+    attribute :published_count, Integer
+    # named_listener_count : number of event-specific subscribers.
+    attribute :named_listener_count, Integer
+    # global_listener_count : number of on_any subscribers.
+    attribute :global_listener_count, Integer
+    # history_size : events retained in history (bounded only by clear()).
+    attribute :history_size, Integer
+
+    # ---- Event -----------------------------------------------------
+    #
+    # The published value. Event data is the emitting command's attrs
+    # plus the aggregate state at emission time ; the bus does not
+    # interpret it, it just fans out.
+
+    value_object "Event" do
+      attribute :name, String
+      attribute :aggregate_type, String
+      attribute :aggregate_id, String
+    end
+
+    command "Publish" do
+      role "System"
+      description "Deliver an event to every matching named listener, then every global listener. The event is also appended to history so behaviors_runner's emits: assertions can inspect it post-dispatch."
+      attribute :event_name, String
+      then_set :published_count, increment: 1
+      then_set :history_size, increment: 1
+      emits "EventPublished"
+    end
+
+    command "Subscribe" do
+      role "System"
+      description "Register a handler for a specific event name. Multiple subscribers for the same name are kept in registration order."
+      attribute :event_name, String
+      then_set :named_listener_count, increment: 1
+      emits "SubscriberRegistered"
+    end
+
+    command "SubscribeGlobal" do
+      role "System"
+      description "Register a handler that fires for every event regardless of name. Used by auto-projections to mirror aggregate state."
+      then_set :global_listener_count, increment: 1
+      emits "GlobalSubscriberRegistered"
+    end
+
+    command "ClearHistory" do
+      role "System"
+      description "Wipe the retained history. Subscribers are preserved. behaviors_runner uses this between test setups so emits: assertions only see events from the under-test dispatch."
+      then_set :history_size, to: 0
+      emits "HistoryCleared"
+    end
+  end
+
+  # ============================================================
+  # POLICYBINDING — one event→command wire
+  # ============================================================
+
+  aggregate "PolicyBinding", "One reactive wire : when event X is published, trigger command Y. Reentrance is prevented by an in-flight set, so a policy whose triggered command re-emits its own event cannot infinite-loop" do
+    # name : the policy's name from the bluebook.
+    attribute :name, String
+    # on_event : the event name that fires this policy.
+    attribute :on_event, String
+    # trigger_command : the command to dispatch in response.
+    attribute :trigger_command, String
+    # in_flight : yes | no — true between React and CompletePolicy.
+    attribute :in_flight, String
+
+    command "RegisterPolicy" do
+      role "System"
+      description "Add a policy binding. Indexed by on_event for fast lookup when events are published ; the by_event map is updated alongside."
+      attribute :name, String
+      attribute :on_event, String
+      attribute :trigger_command, String
+      then_set :name, to: :name
+      then_set :on_event, to: :on_event
+      then_set :trigger_command, to: :trigger_command
+      then_set :in_flight, to: "no"
+      emits "PolicyRegistered"
+    end
+
+    command "React" do
+      role "System"
+      description "For one published event, find every policy whose on_event matches and is not already in_flight. Mark each matched policy in_flight and return the list of PolicyTriggers (policy name + command name + event data) to the caller, which dispatches them."
+      given("must not be in flight") { in_flight == "no" }
+      then_set :in_flight, to: "yes"
+      emits "PolicyReacted"
+    end
+
+    command "CompletePolicy" do
+      role "System"
+      description "The triggered command finished dispatching. Clear the in-flight marker so this policy can fire again on a future event of the same name."
+      given("must be in flight") { in_flight == "yes" }
+      then_set :in_flight, to: "no"
+      emits "PolicyCompleted"
+    end
+  end
+
+  # ============================================================
+  # LIFECYCLECHECK — the state-transition guard
+  # ============================================================
+
+  aggregate "LifecycleCheck", "The gate that enforces an aggregate's declared lifecycle. One check per dispatch, one apply-transition per successful check" do
+    # aggregate_type : the aggregate being guarded.
+    attribute :aggregate_type, String
+    # field : the lifecycle attribute name (e.g. :status, :phase).
+    attribute :field, String
+    # current_state : the aggregate's current value for that field.
+    attribute :current_state, String
+    # target_state : the transition's destination, when one matches.
+    attribute :target_state, String
+    # allowed : yes | no — result of the latest CheckTransition.
+    attribute :allowed, String
+
+    command "CheckTransition" do
+      role "System"
+      description "Look up the lifecycle block on the aggregate. Find every transition whose command matches the dispatched command. If any transition's from_state matches the current field value (or the transition has no from_state), the check passes ; otherwise LifecycleViolation is returned with the list of allowed from_states."
+      attribute :aggregate_type, String
+      attribute :field, String
+      attribute :current_state, String
+      then_set :aggregate_type, to: :aggregate_type
+      then_set :field, to: :field
+      then_set :current_state, to: :current_state
+      emits "TransitionChecked"
+    end
+
+    command "ApplyTransition" do
+      role "System"
+      description "Walk the lifecycle's transition list again. For the first transition whose command matches and whose from_state matches (or is unconstrained), set the aggregate state's lifecycle field to the to_state."
+      attribute :target_state, String
+      then_set :target_state, to: :target_state
+      emits "TransitionApplied"
+    end
+  end
+
+  # ============================================================
+  # MIDDLEWARESTACK — pipeline wrapper
+  # ============================================================
+
+  aggregate "MiddlewareStack", "Optional wrappers around the dispatch pipeline. Each middleware sees every command before and after execution. Used for logging, auth, transactions, metrics. The stack is walked forward for Before and in reverse for After so transactional pairs nest correctly" do
+    # layer_count : number of registered middlewares.
+    attribute :layer_count, Integer
+
+    command "AddMiddleware" do
+      role "System"
+      description "Append a named middleware handler to the end of the stack. Registration order determines Before order ; reverse registration order determines After order."
+      attribute :name, String
+      then_set :layer_count, increment: 1
+      emits "MiddlewareAdded"
+    end
+
+    command "RunBefore" do
+      role "System"
+      description "Walk the stack forward, firing each middleware's handler with the CommandContext and Phase::Before. Typically used for logging command start, setting auth context, opening transactions."
+      emits "BeforeRun"
+    end
+
+    command "RunAfter" do
+      role "System"
+      description "Walk the stack in reverse, firing each middleware's handler with the CommandContext and Phase::After. Typically used for logging results, metrics, closing transactions."
+      emits "AfterRun"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the dispatch chain
+  # ============================================================
+  #
+  # The per-dispatch pipeline. In Rust the steps are sequenced
+  # imperatively by command_dispatch::dispatch ; declaring them as
+  # policies means a self-interpreting runtime can drive the pipeline
+  # from this bluebook alone.
+
+  policy "LoadAfterResolve" do
+    on "CommandResolved"
+    trigger "LoadOrCreateAggregate"
+  end
+
+  policy "CheckGivensAfterLoad" do
+    on "AggregateLoaded"
+    trigger "CheckGivens"
+  end
+
+  policy "CheckLifecycleAfterGivens" do
+    on "GivensChecked"
+    trigger "CheckLifecycle"
+  end
+
+  policy "MutateAfterLifecycle" do
+    on "LifecycleChecked"
+    trigger "ApplyMutations"
+  end
+
+  policy "TransitionAfterMutate" do
+    on "MutationsApplied"
+    trigger "TransitionState"
+  end
+
+  policy "PersistAfterTransition" do
+    on "StateTransitioned"
+    trigger "PersistState"
+  end
+
+  policy "EmitAfterPersist" do
+    on "StatePersisted"
+    trigger "EmitEvent"
+  end
+
+  policy "FireTriggersAfterEmit" do
+    on "EventEmitted"
+    trigger "FireTriggers"
+  end
+
+  # Cross-aggregate : an emitted Event feeds the EventBus's Publish,
+  # which in turn produces the EventPublished that PolicyBinding.React
+  # consumes. The Rust currently sequences these imperatively ; the
+  # policies make the data flow declarative.
+
+  policy "PublishOnEventEmitted" do
+    on "EventEmitted"
+    trigger "Publish"
+  end
+
+  policy "ReactOnEventPublished" do
+    on "EventPublished"
+    trigger "React"
+  end
+end
