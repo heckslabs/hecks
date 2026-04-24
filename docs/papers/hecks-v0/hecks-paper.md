@@ -530,6 +530,39 @@ We distinguish carefully between two properties that are often conflated in the 
 
 `rustc` and GHC (Jones *et al.*) are bootstrapped in the first sense. The Phase A work already demonstrates byte-identical regeneration at the file level (for `validator.rs`); extending that property to the full binary is the definition of Phase C success.
 
+### §9.11 Phase F — Runtime as domain (in flight)
+
+Phases A–E digested the *specializer orbit* — the subsystem of Hecks whose job is emitting code. Phase F turns the same lens on the other half of the codebase : the runtime itself. The conjecture is that every subsystem under `hecks_life/src/` that can be naturally expressed as aggregate / command / event / lifecycle should live as a bluebook domain rather than as imperative Rust. Under full Phase F the runtime becomes another Hecks domain, readable in the same DSL that pizza-shop users read — no bimodality between "framework code" and "application code."
+
+**Discipline : no DSL extension.** The explicit test is whether each subsystem expresses naturally using only the existing bluebook vocabulary (`aggregate`, `attribute`, `command`, `event`, `policy`, `lifecycle`, `value_object`, `reference_to`, `given`, `then_set`, `emits`). Subsystems that require new DSL keywords — templates, pure transforms, kernel primitives — are *not* force-fitted. They are catalogued as residue, which is itself a publishable finding : an evidence-based inventory of where the DDD ontology actually reaches and where it stops.
+
+**F-0 survey.** The inventory lives at `docs/phase-f-0-survey.md`. Of the ~90 `.rs` files in `hecks_life/src/`, the ~30 shape-backed by i51 Phases A–E are excluded. Of the remaining ~60, the classification is :
+
+| class | files | LOC |
+|---|---|---|
+| natural-fit | 14 | ~2,520 |
+| partial | 8 | ~2,458 |
+| doesn't-fit | 17 | ~3,505 |
+| kernel-floor | 7 | ~1,252 |
+
+Natural-fit files become Phase F targets, one per PR. Partial files have aggregate-shaped cores with residue ; they may land with their residue declared as hecksagon outbound ports. Doesn't-fit and kernel-floor files stay hand-written by design.
+
+**Shipped targets (at time of writing).**
+
+- **F-1 `runtime/seed_loader.rs` (57 LOC).** The boot-time helper that dispatches each `dispatch <Cmd> k=v …` line from a seed file against the runtime now has a `SeedLoader` aggregate with five commands (`LoadFromFile`, `LoadFromString`, `DispatchSeed`, `CompleteLoad`, `FailLoad`), a lifecycle on `:status` (pending → reading → dispatching → complete | failed), and two chained policies. The sibling hecksagon declares `:fs` + `:runtime_dispatch` as outbound ports. See `hecks_conception/capabilities/seed_loader/`.
+- **F-2 `run_status/` (510 LOC).** The status-report runner's existing `StatusReport` bluebook was enriched from a single `GenerateReport` command into a six-phase pipeline : `ResolveFsRoot → AssembleReport → StampAggregate → RenderReport → WriteReport → CompleteReport` (with `FailReport` as the drop-out transition). Five chaining policies make the pipeline follow the declared order. The Rust adapter still executes each phase imperatively today ; a future self-interpreting runtime can drive the flow from the bluebook alone. See `hecks_conception/capabilities/status/`.
+
+**Expected residue after the natural-fit arc lands.** Roughly 4,500–5,500 LOC will remain hand-written, concentrated in four places :
+
+- HTML templates (`server/html_*.rs`, ~2,000 LOC) — pure string-rendering, template-shaped, would need a `template` DSL keyword.
+- Pure transforms (`conceiver/generator.rs`, `behaviors_conceiver/generator.rs`, vector math, cascade walks) — ~2,100 LOC. Functional shape, not aggregate shape.
+- Kernel primitives (`heki.rs` binary I/O, `json_helpers.rs`, `runtime/interpreter.rs`, `runtime/adapter_io.rs`) — ~1,200 LOC. Irreducible byte-level operations.
+- CLI glue (`main.rs` argv parsing + help text) — ~500–800 LOC of the ~1,566 total.
+
+The residue list is itself a contribution : it tells other DDD frameworks exactly where their natural domain ends.
+
+**Long-arc conjecture.** If Phase F–G together digest the runtime substantially, Rust becomes the *current codegen target* rather than *the runtime*. The natural next step is retargeting the emitter below Rust — directly to LLVM IR or WebAssembly — at which point the Rust source files are an intermediate artifact, not a persistent one. That last step is not in scope of this paper but is a plausible extension of the line of work reported here.
+
 ---
 
 ## §10 Evaluation
