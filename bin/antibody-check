@@ -65,6 +65,23 @@ def run(cmd)
   [out.strip, status.success?]
 end
 
+# Allowed-signers file for SSH signature verification. Without this
+# pointed at a valid file, `git log --format=%G?` returns N for every
+# SSH-signed commit — git cannot verify without the key list, so the
+# whole gate would silently reject correctly-signed commits.
+#
+# We pass it inline via `git -c gpg.ssh.allowedSignersFile=…` so the
+# check works in CI without depending on a per-developer or workflow-
+# level git config. The path is repo-relative to keep the file
+# version-controlled and auditable alongside the gate it feeds.
+ALLOWED_SIGNERS = File.expand_path("../.github/allowed_signers", __dir__).freeze
+
+def git_log_with_signers(args)
+  cmd = ["git", "-c", "gpg.ssh.allowedSignersFile=#{ALLOWED_SIGNERS}", "log"] + args
+  out, _, status = Open3.capture3(*cmd)
+  [out.strip, status.success?]
+end
+
 def touched_files(base_ref, include_staged)
   touched = []
   if base_ref
@@ -193,7 +210,7 @@ if options[:each_commit]
       # authorise an exemption, enforced mechanically via `git verify-
       # commit`. Both SSH and GPG signatures validate here — git
       # handles both transparently.
-      sig_status, = run(["git", "log", "-1", "--format=%G?", sha])
+      sig_status, = git_log_with_signers(["-1", "--format=%G?", sha])
       signed_ok = %w[G U E].include?(sig_status.to_s.strip)
       # G : good signature
       # U : good signature, untrusted key (still a real signature — CI

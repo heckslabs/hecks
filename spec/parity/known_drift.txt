@@ -14,3 +14,5 @@
 # (empty — full parity 113/113 as of 2026-04-18)
 
 hecks_conception/nursery/verbs/verbs.bluebook  # Ruby DSL rejects `aggregate "Lexicon", "description" do` with arity error — pre-existing regression unrelated to Phase F-2. Inbox: nursery-verbs-parity-regression.
+
+hecks_conception/capabilities/antibody/fixtures/antibody.fixtures  # Ruby fixtures parser cannot read the catalog-dialect `schema:` kwarg form introduced in PR #401 (i42). Ruby returns nil ; Rust parses cleanly. Accepted drift — Rust is the authoritative parser, Ruby is winding down. This entry retires with the whole spec/parity/ machinery when Ruby parity is formally cut from CI.

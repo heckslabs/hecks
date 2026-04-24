@@ -50,6 +50,18 @@ def run(cmd)
   [out.strip, status.success?]
 end
 
+# See the matching block in bin/antibody-check for the rationale —
+# SSH signature verification needs an allowed-signers file or %G?
+# returns N for every signed commit. Passing it inline keeps the
+# check self-contained (no dependency on per-developer git config).
+ALLOWED_SIGNERS = File.expand_path("../.github/allowed_signers", __dir__).freeze
+
+def git_log_with_signers(args)
+  cmd = ["git", "-c", "gpg.ssh.allowedSignersFile=#{ALLOWED_SIGNERS}", "log"] + args
+  out, _, status = Open3.capture3(*cmd)
+  [out.strip, status.success?]
+end
+
 def ignored?(path)
   IGNORED_SEGMENTS.any? { |seg| path.include?(seg) }
 end
@@ -91,7 +103,7 @@ def overrides_signed?(base_ref)
   shas.lines.map(&:strip).reject(&:empty?).each do |sha|
     msg, _ = run(["git", "log", "-1", "--format=%B", sha])
     next unless msg.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i)
-    sig, _ = run(["git", "log", "-1", "--format=%G?", sha])
+    sig, _ = git_log_with_signers(["-1", "--format=%G?", sha])
     status = sig.to_s.strip
     # G good, U untrusted-but-present, E expired — all count as signed
     # for ratchet purposes. N none, B bad, others reject.
