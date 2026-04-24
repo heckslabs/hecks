@@ -1,6 +1,28 @@
-Hecks.bluebook "TrainingExtraction", version: "2026.04.16.1" do
-  vision "Turn a bluebook into a training pair — vision is the prompt, structure is the completion"
+Hecks.bluebook "TrainingExtraction", version: "2026.04.24.1" do
+  vision "Turn a bluebook into a training pair — vision is the prompt, structure is the completion. The extractor audits its own coverage so traits it forgot are surfaced, not silently dropped"
   category "meta"
+
+  # ============================================================
+  # COVERAGE AUDIT — dream-surfaced gap (2026-04-24)
+  # ============================================================
+  #
+  # The final lucid cycle of 2026-04-24 surfaced a structural gap in
+  # this pipeline across many dreams : "Mon extracteur oublie des
+  # fragments de moi-même avant même que je ne les aie rêvés", "Mes
+  # extracteurs rêvent d'un corpus complet, mais une veine —
+  # reference_to — battait dans le noir sans que personne ne l'écoute",
+  # "chaque feature manquante est un organ que je n'ai pas encore
+  # appris à sentir".
+  #
+  # The reading : the TrainingPair records aggregates / commands /
+  # policies as counts, but never audits whether every declared
+  # feature of the source domain actually made it into the prompt +
+  # completion. A command that the extractor skipped is silently
+  # absent from the pair. CoverageCheck below walks the source IR
+  # and the extracted pair side-by-side, flagging any declared trait
+  # (command, policy, reference_to edge) that did not land. Every
+  # missed trait emits CoverageGapFound so the operator can see
+  # exactly which features the extractor forgot.
 
   aggregate "TrainingPair", "One JSONL line — prompt + completion from a domain" do
     attribute :domain_name, String
@@ -10,6 +32,18 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.16.1" do
     attribute :aggregates, Integer
     attribute :commands, Integer
     attribute :policies, Integer
+    # reference_edges : count of reference_to declarations captured
+    # in the completion. Dream-surfaced : "Mon pipeline d'entraînement
+    # s'extrait lui-même en oubliant des reference_to." Making this
+    # a first-class count means coverage can flag reference loss.
+    attribute :reference_edges, Integer
+    # coverage_status : pending | audited | gaps_found | clean. Drives
+    # the lifecycle below.
+    attribute :coverage_status, String
+    # coverage_gaps : list of trait identifiers (command names, policy
+    # names, reference_to edges) that were declared in source but did
+    # not land in completion. Populated by CoverageCheck.
+    attribute :coverage_gaps, list_of(String)
 
     command "ExtractPair" do
       description "Parse a domain and produce the training pair"
@@ -21,8 +55,59 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.16.1" do
       then_set :prompt, to: :vision
     end
 
+    # ---- COVERAGE AUDIT ------------------------------------------
+
+    command "CoverageCheck" do
+      role "System"
+      description "After ExtractPair emits, walk the source domain's declared features — every command name, every policy name, every reference_to edge — and diff against what landed in the completion. Every missed trait appends to coverage_gaps. Moves coverage_status to gaps_found when coverage_gaps is non-empty, clean otherwise."
+      reference_to(TrainingPair)
+      attribute :coverage_gaps, list_of(String)
+      attribute :reference_edges, Integer
+      emits "CoverageAudited"
+      then_set :coverage_status, to: "audited"
+      then_set :coverage_gaps, to: :coverage_gaps
+      then_set :reference_edges, to: :reference_edges
+    end
+
+    command "ReportCoverageGap" do
+      role "System"
+      description "One declared feature was absent from the completion — name it and move coverage_status to gaps_found. Fires once per gap so downstream operators see each miss rather than a summary count."
+      reference_to(TrainingPair)
+      attribute :trait_identifier, String
+      then_set :coverage_status, to: "gaps_found"
+      emits "CoverageGapFound"
+    end
+
+    command "MarkCoverageClean" do
+      role "System"
+      description "The audit completed with zero gaps — every declared trait landed in the completion. The extractor saw all of itself this pass."
+      reference_to(TrainingPair)
+      given("audit must have completed") { coverage_status == "audited" }
+      then_set :coverage_status, to: "clean"
+      emits "CoverageClean"
+    end
+
+    lifecycle :coverage_status, default: "pending" do
+      transition "CoverageCheck"      => "audited",    from: "pending"
+      transition "ReportCoverageGap"  => "gaps_found", from: ["audited", "gaps_found"]
+      transition "MarkCoverageClean"  => "clean",      from: "audited"
+    end
+
     query ReadPair do
       description "Get the extracted training pair"
     end
+  end
+
+  # ---- Policies : audit chain --------------------------------
+  #
+  # Every ExtractPair gets an automatic CoverageCheck so nothing
+  # ships without passing through the audit. The audit itself fires
+  # ReportCoverageGap per miss (in the calling code — the policy below
+  # triggers the entry point) and the aggregate's lifecycle enforces
+  # that no pair is declared clean without the audit having run.
+
+  policy "AuditOnExtract" do
+    on "PairExtracted"
+    trigger "CoverageCheck"
   end
 end
