@@ -46,16 +46,14 @@ woke_at=$("$HECKS" heki latest-field "$INFO/consciousness.heki" last_wake_at 2>/
 sleep_entered_at=$(date -u -v-30M -j -f "%Y-%m-%dT%H:%M:%SZ" "$woke_at" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
   || date -u -d "$woke_at - 30 minutes" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)
 
-# ── Reset the singleton WakeReport to pending ------------------
-# The lifecycle guards the ordered walk ; we need phase=pending at
-# StartReport time. Each wake overwrites the previous run's record.
-# The runtime boots WakeReport's state from wake_report.heki ; we
-# reset that store to phase=pending before the dispatch chain so
-# the lifecycle walks cleanly.
-"$HECKS" heki upsert "$INFO/wake_report.heki" \
-  id="1" phase="pending" >/dev/null 2>&1
-
-# ── Dispatch StartReport ----------------------------------------
+# ── Dispatch the chain ------------------------------------------
+# The WakeReport bluebook carries no lifecycle guard — each command
+# stands alone and can fire regardless of the previous run's phase.
+# This was changed after the 2026-04-24 post-merge run surfaced that
+# `heki upsert id=1 phase=pending` does not actually replace the
+# runtime's singleton record (it appends with a generated Store key),
+# so the "reset" trick was a silent-no-op. The simpler shape : no
+# lifecycle, no reset, every dispatch runs.
 
 "$HECKS" "$AGG" WakeReport.StartReport \
   sleep_entered_at="$sleep_entered_at" \
