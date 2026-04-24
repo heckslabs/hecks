@@ -1,0 +1,59 @@
+Hecks.hecksagon "Cli" do
+  # ============================================================
+  # CLI — hexagonal wiring for Phase F-11
+  # ============================================================
+  #
+  # The sibling bluebook declares Invocation + Subcommand. Adapter
+  # surface :
+  #
+  #   :stdout            — print_usage, dump-* handlers, the check-*
+  #                        reports. Every subcommand that prints to
+  #                        the operator consumes this port.
+  #
+  #   :stderr            — unknown-subcommand messages, parse errors,
+  #                        handler failures. The shell redirects this
+  #                        from stdout.
+  #
+  #   :runtime_dispatch  — how RouteSubcommand → DispatchHandler
+  #                        hands off to the resolved handler. Each
+  #                        shipped-capability handler (heki, conceive,
+  #                        develop, conceive-behaviors, behaviors,
+  #                        run, specialize) is itself a bluebook
+  #                        domain this port dispatches into.
+  #
+  # Persistence is default (in-memory) — no adapter line needed. The
+  # Invocation aggregate lives for the lifetime of one binary run ;
+  # nothing persists across invocations.
+  #
+  # Kernel-floor NOT declared (residue) :
+  #
+  #   argv parsing           — env::args() string matching is
+  #                            irreducible byte-level input handling.
+  #
+  #   help text printing     — print_usage writes a multi-line block
+  #                            of operator-facing prose. Same residue
+  #                            category as the html_* family from
+  #                            F-5 Server. A `template` or `text_block`
+  #                            DSL keyword would let it fit ; the
+  #                            Phase F discipline refuses to add one.
+  #
+  #   Dump tooling bodies    — dump-fixtures, dump-world,
+  #                            dump-hecksagon inline the json
+  #                            serialization in main.rs. They are
+  #                            kernel-floor tools that operate on
+  #                            parsed IR without any aggregate state
+  #                            of their own. Declared in the
+  #                            Subcommand catalog (so RouteSubcommand
+  #                            finds them) but not modelled as
+  #                            domains.
+  #
+  #   Backwards-compat shim  — the `hecks-life pizzas.bluebook`
+  #                            (no subcommand, file-as-argv[1]) →
+  #                            parse routing is explicit handling in
+  #                            ParseArgv. Declared in the command
+  #                            description, not a separate aggregate.
+
+  adapter :stdout
+  adapter :stderr
+  adapter :runtime_dispatch
+end

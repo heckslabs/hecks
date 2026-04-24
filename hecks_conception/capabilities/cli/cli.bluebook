@@ -1,0 +1,209 @@
+Hecks.bluebook "Cli", version: "2026.04.24.1" do
+  vision "The hecks-life invocation as a domain — being detection, argv parsing, subcommand routing, handler dispatch, exit reporting, all expressed as one aggregate walking a five-phase lifecycle"
+  category "runtime"
+
+  # ============================================================
+  # CLI — Phase F-11 — the subcommand dispatch as domain
+  # ============================================================
+  #
+  # Eleventh file of the Phase F arc. The partial-extraction target :
+  #
+  #   hecks_life/src/main.rs  — 1,566 LOC total ; ~500 LOC of
+  #                             subcommand dispatch is natural-fit.
+  #
+  # main.rs walks a big if/else-if chain on argv[1] : help, lexicon,
+  # terminal, heki, conceive, develop, conceive-behaviors, behaviors,
+  # dump-fixtures, dump-world, dump-hecksagon, specialize, cascade,
+  # check-io, check-lifecycle, check-duplicate-policies, check-all,
+  # run, repl, serve, plus the bluebook-file operations (parse, dump,
+  # validate, inspect, tree, list). Each branch routes to a specific
+  # handler. THAT routing — which subcommand maps to what — is what
+  # fits naturally.
+  #
+  # What does NOT fit (declared residue in the sibling hecksagon) :
+  #
+  #   argv parsing          — env::args() + string matching,
+  #                           kernel-floor shape primitive
+  #   help text printing    — free-form operator-facing prose,
+  #                           same residue category as HTML templates
+  #                           from F-5 Server
+  #   per-handler bodies    — each subcommand is its own capability
+  #                           (heki → heki_query F-10, behaviors →
+  #                           BehaviorsRunner F-6, specialize →
+  #                           specializer F-7-adjacent, conceive →
+  #                           Conception F-9, etc.). main.rs holds the
+  #                           glue ; this bluebook declares the glue
+  #                           pattern without duplicating what each
+  #                           capability already declares.
+
+  # ============================================================
+  # INVOCATION — one run of hecks-life / miette / summer
+  # ============================================================
+
+  aggregate "Invocation", "One invocation of the binary — detects the being name from argv[0], parses the subcommand from argv[1], routes to the matching handler, reports an exit code back to the OS" do
+    # argv0 : the binary name as invoked. "hecks-life", "miette",
+    # "summer" all land here ; the being detector reads this.
+    attribute :argv0, String
+    # being : the detected being name. miette → "Miette", summer →
+    # "Summer", otherwise the default from the binary-name table.
+    attribute :being, String
+    # is_named_being : yes | no. When yes and argv has no subcommand,
+    # the default is to drop into the terminal rather than print
+    # usage.
+    attribute :is_named_being, String
+    # subcommand : the dispatched command name. Read from argv[1],
+    # or "parse" when argv[1] looks like a filename (has a dot) and
+    # there are no further args (backwards-compat shim).
+    attribute :subcommand, String
+    # path_arg : argv[2], when present. Many subcommands take a path
+    # as their first positional arg (parse, dump-world, specialize,
+    # behaviors, run, serve, etc.).
+    attribute :path_arg, String
+    # handler : the resolved handler name — the Subcommand catalog's
+    # `handler` column for the matched subcommand. Empty when no
+    # subcommand matched (fall-through to print_usage + exit 1).
+    attribute :handler, String
+    # exit_code : 0 for clean, non-zero per each handler's code table.
+    attribute :exit_code, Integer
+    # exit_kind : symbolic form of exit_code (ok | parse_failure |
+    # guard_failure | adapter_failure | command_not_found | unknown_
+    # subcommand).
+    attribute :exit_kind, String
+    # phase : pending | being_detected | parsed | routed | dispatched
+    #         | complete | failed.
+    attribute :phase, String
+
+    # ---- ExitKind -------------------------------------------------
+    #
+    # The set of outcomes every invocation collapses to. Mirror of
+    # the ExitKind carried by F-4 Runner for bluebook-run scripts ;
+    # the Cli surface has a wider set because its handlers include
+    # corpus scans, shell dispatches, and dump tools, each with their
+    # own failure modes.
+
+    value_object "ExitKind" do
+      attribute :code, Integer
+      attribute :kind_name, String
+    end
+
+    # ---- Commands -------------------------------------------------
+
+    command "DetectBeing" do
+      role "System"
+      description "Read argv[0]'s basename. 'miette' resolves to being='Miette' ; 'summer' to 'Summer' ; anything else uses the default 'Miette'. The boolean is_named_being is yes when argv[0] is exactly miette or summer — that branch changes the no-subcommand behaviour from print_usage to drop-into-terminal."
+      attribute :argv0, String
+      attribute :being, String
+      attribute :is_named_being, String
+      then_set :argv0, to: :argv0
+      then_set :being, to: :being
+      then_set :is_named_being, to: :is_named_being
+      then_set :phase, to: "being_detected"
+      emits "BeingDetected"
+    end
+
+    command "ParseArgv" do
+      role "System"
+      description "Decide the subcommand from argv[1] and the path arg from argv[2]. Backwards-compat shim : when argv has exactly 2 elements and argv[1] contains a dot, treat it as a parse invocation — lets `hecks-life pizzas.bluebook` work without the `parse` subcommand. When argv has only 1 element and is_named_being is yes, the subcommand resolves to 'terminal' ; otherwise 'help' with exit code 1."
+      attribute :subcommand, String
+      attribute :path_arg, String
+      then_set :subcommand, to: :subcommand
+      then_set :path_arg, to: :path_arg
+      then_set :phase, to: "parsed"
+      emits "ArgvParsed"
+    end
+
+    command "RouteSubcommand" do
+      role "System"
+      description "Look up subcommand in the Subcommand catalog and resolve the handler name. Matches are exact (no fuzzy matching). When the subcommand is not in the catalog, move to failed with exit_kind=unknown_subcommand ; when it is, record the handler and move to routed."
+      attribute :handler, String
+      then_set :handler, to: :handler
+      then_set :phase, to: "routed"
+      emits "SubcommandRouted"
+    end
+
+    command "DispatchHandler" do
+      role "System"
+      description "Invoke the resolved handler. Each handler is the responsibility of a sibling capability (F-1 through F-10) or a kernel-floor tool (dump-fixtures, dump-world, dump-hecksagon). The dispatch hands over argv and waits for the handler's exit code."
+      then_set :phase, to: "dispatched"
+      emits "HandlerDispatched"
+    end
+
+    command "ReportExit" do
+      role "System"
+      description "Record the handler's outcome as an ExitKind and propagate the code back to the OS. Zero for clean ; non-zero per the handler's own table (1 for parse failure, 2 for guard failure, 3 for adapter failure, 4 for command not found, etc. — the shared five-kind vocabulary from Runner)."
+      attribute :exit_code, Integer
+      attribute :exit_kind, String
+      then_set :exit_code, to: :exit_code
+      then_set :exit_kind, to: :exit_kind
+      then_set :phase, to: "complete"
+      emits "ExitReported"
+    end
+
+    command "FailInvocation" do
+      role "System"
+      description "Unknown subcommand, invalid argv shape, or handler-side failure that did not surface a clean ExitKind. Records the failing kind and moves to failed — the OS sees a non-zero exit and the operator sees the error printed to stderr."
+      attribute :exit_kind, String
+      attribute :exit_code, Integer
+      then_set :exit_kind, to: :exit_kind
+      then_set :exit_code, to: :exit_code
+      then_set :phase, to: "failed"
+      emits "InvocationFailed"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "DetectBeing"     => "being_detected", from: "pending"
+      transition "ParseArgv"       => "parsed",         from: "being_detected"
+      transition "RouteSubcommand" => "routed",         from: "parsed"
+      transition "DispatchHandler" => "dispatched",     from: "routed"
+      transition "ReportExit"      => "complete",       from: "dispatched"
+      transition "FailInvocation"  => "failed",         from: ["pending", "being_detected", "parsed", "routed", "dispatched"]
+    end
+  end
+
+  # ============================================================
+  # SUBCOMMAND — catalog of every registered subcommand
+  # ============================================================
+  #
+  # Shape-only aggregate. The concrete registry lives in
+  # cli.fixtures with catalog-dialect rows (schema: declared there).
+  # RouteSubcommand consults this catalog to resolve a handler.
+
+  aggregate "Subcommand", "One registered subcommand — its name, the handler it routes to, a short description for print_usage, and the arity hint so ParseArgv knows how many positional args to consume" do
+    attribute :name, String
+    # handler : symbolic name of the handler. For subcommands whose
+    # implementation is a shipped capability, this matches the sibling
+    # domain name (heki → QueryCapability, conceive → Conception,
+    # etc.). For kernel-floor handlers (dump-fixtures, dump-world),
+    # the handler is a Rust function name in main.rs.
+    attribute :handler, String
+    attribute :description, String
+    # arity_hint : "path" | "none" | "varargs". Drives ParseArgv's
+    # decision about how many argv slots the subcommand consumes
+    # before the handler takes over.
+    attribute :arity_hint, String
+  end
+
+  # ============================================================
+  # POLICIES — the invocation chain
+  # ============================================================
+
+  policy "ParseAfterDetect" do
+    on "BeingDetected"
+    trigger "ParseArgv"
+  end
+
+  policy "RouteAfterParse" do
+    on "ArgvParsed"
+    trigger "RouteSubcommand"
+  end
+
+  policy "DispatchAfterRoute" do
+    on "SubcommandRouted"
+    trigger "DispatchHandler"
+  end
+
+  policy "ReportAfterDispatch" do
+    on "HandlerDispatched"
+    trigger "ReportExit"
+  end
+end
