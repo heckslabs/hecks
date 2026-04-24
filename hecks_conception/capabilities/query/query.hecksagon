@@ -1,0 +1,34 @@
+Hecks.hecksagon "Query" do
+  # ============================================================
+  # QUERY — hexagonal wiring for Phase F-10
+  # ============================================================
+  #
+  # The sibling bluebook declares Query — one configured read over
+  # a heki store. The adapter surface is deliberately minimal :
+  #
+  #   :memory — the Query aggregate holds its configured filters,
+  #             orders, and result ids in RAM for the lifetime of
+  #             one invocation. Nothing persists across queries.
+  #
+  # That is the only declared port. heki_query.rs is pure-function
+  # logic over an already-opened heki::Store ; it does not read or
+  # write the filesystem itself. Callers (the heki list / count /
+  # mark / next-ref subcommands) open the store via the :fs port
+  # owned by the Storage domain (F-3 Repository / AdapterRegistry)
+  # and hand the in-memory Store to the Query engine.
+  #
+  # Kernel-floor (not declared, same residue category as vector math
+  # in F-9 Conception and template rendering in F-5 Server) :
+  #
+  #   field_to_string coercion — serde_json::Value → String ladder
+  #   OrderKey ordering — mixed-type Int / Float / Str compare
+  #   numeric_ref tail parsing — strip leading alphabetic chars
+  #
+  # Those are numeric + type-coercion helpers in the Rust module.
+  # The bluebook declares WHEN they run (Execute, Project) but not
+  # HOW the coercion ladder is written. Lifting them would require
+  # a `function` or `transform` DSL keyword the Phase F discipline
+  # refuses to add.
+
+  adapter :memory
+end

@@ -1,0 +1,164 @@
+Hecks.bluebook "Query", version: "2026.04.24.1" do
+  vision "Filter / order / project over a heki store as a domain — pure-function logic the heki list / count / mark / next-ref subcommands share, expressed as one aggregate"
+  category "runtime"
+
+  # ============================================================
+  # QUERY — Phase F-10 — heki query engine as domain
+  # ============================================================
+  #
+  # Tenth file of the Phase F arc. One hand-written Rust file folds
+  # into one Query aggregate :
+  #
+  #   hecks_life/src/heki_query.rs   (321 LOC)   → Query
+  #
+  # heki_query holds the engine room the heki-family subcommands
+  # share : parse a filter spec (k=v, k!=v, k~=v, k*=v), parse an
+  # order spec (asc, desc, enum=a,b,c, numeric_ref), apply every
+  # filter with AND semantics, order records with multi-key tie
+  # breaks on created_at, render scalar JSON values as shell-
+  # friendly strings.
+  #
+  # Sibling of the Storage domain (F-3 Repository / Projection /
+  # AdapterRegistry) : Storage holds state ; Query reads it. Keeping
+  # them separate mirrors the Rust split — storage.rs deals in
+  # persistence and adapter wiring, heki_query.rs deals in reading.
+  #
+  # Implementation details NOT modelled here : the concrete value
+  # coercion in field_to_string (serde_json::Value → String), the
+  # OrderKey enum's mixed-type comparison ladder, the specific
+  # alphabetic-prefix-strip used by numeric_ref ordering. Those are
+  # kernel-floor numeric / coercion work in the Rust module. The
+  # bluebook declares command / event / phase — not the coercion
+  # ladder.
+
+  # ============================================================
+  # QUERY — one configured read over a heki store
+  # ============================================================
+
+  aggregate "Query", "One read over a heki store — parse zero or more filter specs (AND semantics), parse zero or more order specs (multi-key with created_at tie-break), execute against the store, surface the resulting record ids and a count" do
+    # store_ref : path to the heki store being queried (e.g.
+    # information/inbox.heki). Identifies which store the engine
+    # reads ; opening the store is the caller's concern.
+    attribute :store_ref, String
+    # filter_count : number of filters configured for this query.
+    # Zero is legal (no-filter query returns every record).
+    attribute :filter_count, Integer
+    # order_count : number of order specs configured. Zero is legal ;
+    # records come back in the store's natural iteration order.
+    attribute :order_count, Integer
+    # record_count : number of records that matched all filters. Set
+    # by Execute.
+    attribute :record_count, Integer
+    # result_ids : the matched records' ids, in the final ordered
+    # sequence. Populated by Execute after the filter + order passes.
+    attribute :result_ids, list_of(String)
+    # phase : pending | parsed | executed | projected.
+    attribute :phase, String
+
+    # ---- Filter -------------------------------------------------
+    #
+    # One filter spec : field name, one of four operators, the value
+    # the field is compared against. Parsed from source strings like
+    # status=queued / status!=done / ref~=i / ref*=42. The op field
+    # carries one of eq / not_eq / prefix / substring.
+
+    value_object "Filter" do
+      attribute :field, String
+      attribute :op, String
+      attribute :value, String
+    end
+
+    # ---- OrderSpec ----------------------------------------------
+    #
+    # One ordering key. dir is asc or desc ; enum_order, when set,
+    # is the explicit list of values whose index becomes the sort
+    # key (values not in the list sort after all listed values).
+    # numeric_ref is a specialised mode that strips a leading
+    # alphabetic prefix (so ref=i2 sorts before ref=i10 by the
+    # numeric tail). Ties break on created_at ascending for stable
+    # byte-for-byte output.
+
+    value_object "OrderSpec" do
+      attribute :field, String
+      attribute :dir, String
+      attribute :enum_order, list_of(String)
+      attribute :numeric_ref, String
+    end
+
+    # ---- Commands -----------------------------------------------
+
+    command "ParseFilter" do
+      role "System"
+      description "Take a source spec string and produce one Filter. Two-character operators (!=, ~=, *=) are checked before the single = so the parser does not mis-split. An unrecognized spec is a parse failure — surfaces as an error value to the caller, which treats it as exit code 2."
+      attribute :field, String
+      attribute :op, String
+      attribute :value, String
+      then_set :filter_count, increment: 1
+      emits "FilterParsed"
+    end
+
+    command "ParseOrder" do
+      role "System"
+      description "Take a source spec string and produce one OrderSpec. Recognized modifiers after a colon : asc, desc, numeric_ref, enum=a,b,c. Missing modifier defaults to ascending. Unrecognized modifier is a parse failure."
+      attribute :field, String
+      attribute :dir, String
+      attribute :enum_order, list_of(String)
+      attribute :numeric_ref, String
+      then_set :order_count, increment: 1
+      emits "OrderParsed"
+    end
+
+    command "ConfigureQuery" do
+      role "System"
+      description "Gather the parsed filters + orders against a target store_ref and move to the parsed phase. This is the explicit transition from open-ended configuration into a query ready for Execute."
+      attribute :store_ref, String
+      then_set :store_ref, to: :store_ref
+      then_set :phase, to: "parsed"
+      emits "QueryConfigured"
+    end
+
+    command "Execute" do
+      role "System"
+      description "Run every filter with AND semantics, then apply the order specs left-to-right (first tie breaks on the second, and so on), then fall through to created_at ascending as the final tie-break. Surfaces the resulting record ids and their count ; the caller reads the store to resolve ids back to records."
+      attribute :record_count, Integer
+      attribute :result_ids, list_of(String)
+      then_set :record_count, to: :record_count
+      then_set :result_ids, to: :result_ids
+      then_set :phase, to: "executed"
+      emits "QueryExecuted"
+    end
+
+    command "Project" do
+      role "System"
+      description "Render selected fields of each result record as a shell-friendly string — scalars stringify themselves, strings lose their JSON quotes, nulls become empty strings, nested objects and arrays compact-JSON. Used by list / mark / next-ref subcommands to produce tabular output the shell can consume."
+      attribute :field_names, list_of(String)
+      then_set :phase, to: "projected"
+      emits "QueryProjected"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ConfigureQuery" => "parsed",    from: "pending"
+      transition "Execute"        => "executed",  from: "parsed"
+      transition "Project"        => "projected", from: "executed"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the query chain
+  # ============================================================
+  #
+  # Parse (zero-or-more) → configure → execute → project. Parsing is
+  # caller-driven (one ParseFilter / ParseOrder per spec in argv),
+  # so the chain starts with ConfigureQuery. Projection is optional ;
+  # consumers that only need ids can stop after Execute.
+
+  policy "ExecuteAfterConfigure" do
+    on "QueryConfigured"
+    trigger "Execute"
+  end
+
+  policy "ProjectAfterExecute" do
+    on "QueryExecuted"
+    trigger "Project"
+  end
+end
