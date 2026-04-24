@@ -291,10 +291,30 @@ module Hecks
           "name"           => hex.name.to_s,
           "persistence"    => hecksagon_persistence(hex),
           "subscriptions"  => Array(hex.subscriptions).map(&:to_s),
-          "io_adapters"    => [], # Ruby builder doesn't model io_adapters yet
+          "io_adapters"    => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
+                                .map { |io| dump_io_adapter(io) },
           "shell_adapters" => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
           "gates"          => Array(hex.gates).map { |g| dump_gate(g) },
         }
+      end
+
+      # Rust stores IO adapter option values as the raw source slice
+      # (e.g. `"."` for `root: "."` ; `["PATH"]` for `keys: ["PATH"]`).
+      # Ruby gets the parsed Ruby value at DSL time ; `Object#inspect`
+      # round-trips most literal forms — strings, arrays, symbols,
+      # numbers — back to the source repr that Rust captured. Value-
+      # types we don't expect (Procs, custom objects) fall back to
+      # `inspect` too, which will drift loudly if they ever appear.
+      def dump_io_adapter(io)
+        {
+          "kind"      => io.kind.to_s,
+          "options"   => Array(io.options).map { |k, v| [k.to_s, io_option_value_repr(v)] },
+          "on_events" => Array(io.on_events).map(&:to_s),
+        }
+      end
+
+      def io_option_value_repr(value)
+        value.inspect
       end
 
       def hecksagon_persistence(hex)

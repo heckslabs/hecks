@@ -1,5 +1,5 @@
 Hecks.hecksagon "HecksAppeal" do
-  persistence :sqlite
+  adapter :sqlite
   capabilities :chat_agent, :workbench, :app_builder, :product_executor, :ubiquitous_language, :server_lifecycle
 
   annotate "Collaboration::Agent", "content", :ai_responder, emits: "AgentMessageReceived"
