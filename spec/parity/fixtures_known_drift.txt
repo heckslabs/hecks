@@ -13,3 +13,12 @@ hecks_conception/nursery/specimen_transport/fixtures/specimen_transport.fixtures
 hecks_conception/nursery/speech_media/fixtures/speech_media.fixtures
 hecks_conception/nursery/speech_therapy/fixtures/speech_therapy.fixtures
 hecks_conception/nursery/verbs/fixtures/verbs.fixtures
+
+# antibody.fixtures was originally added to this file in 6746c98d
+# (moving it from the bluebook known_drift.txt to the fixtures one).
+# Commit c0d1a06a (i38/i39 escape-handling fix) closed three drifts,
+# but inadvertently removed THIS one too — it still drifts for a
+# separate reason : the catalog-dialect `schema:` kwarg from i42 that
+# the Ruby parser hasn't learned to read yet. Restoring here closes
+# the CI regression that's been red on main since 2026-04-22.
+hecks_conception/capabilities/antibody/fixtures/antibody.fixtures
