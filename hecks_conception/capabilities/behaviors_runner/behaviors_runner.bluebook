@@ -1,0 +1,297 @@
+Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
+  vision "The test runner as a domain — one BehaviorsRun per invocation, one TestExecution per test, pure-memory by design"
+  category "runtime"
+
+  # ============================================================
+  # BEHAVIORSRUNNER — Phase F-6 — test runner as domain
+  # ============================================================
+  #
+  # Sixth file of the Phase F arc (docs/phase-f-0-survey.md),
+  # completing the survey's top six targets. The test runner lives in
+  # one Rust file :
+  #
+  #   hecks_life/src/behaviors_runner.rs  (401 LOC)
+  #
+  # Two aggregates :
+  #   BehaviorsRun    — one invocation of the runner on a whole suite
+  #   TestExecution   — one test inside a suite
+  #
+  # The runner is pure-memory by design : each test gets a fresh
+  # Runtime::boot with no data_dir, no hecksagon, no adapters. If a
+  # test triggers IO, the source bluebook is doing something it
+  # should not — the fix is the bluebook, not the runner. This
+  # invariant is declared in the behavior of the commands below, and
+  # the hecksagon declares only :memory + :fs (reading source) with
+  # no outbound IO port.
+  #
+  # Implementation details the bluebook does NOT try to model :
+  # reference injection from in_scope → command kwargs, snake_case
+  # self-ref detection for bootstrap-less aggregates, the parse_value
+  # coercion of source-token strings into typed Values. Those are
+  # kernel-level helpers in the Rust file — Phase F discipline is to
+  # declare what the subsystem does at the command / event / phase
+  # level, not every internal helper.
+
+  # ============================================================
+  # BEHAVIORSRUN — one invocation of the runner
+  # ============================================================
+
+  aggregate "BehaviorsRun", "One `hecks-life behaviors <suite.bluebook>` invocation. Loads the source bluebook and the companion behaviors file, optionally loads sibling fixtures, runs every test, collects pass/fail/error totals" do
+    # source_path : the .bluebook the tests target (derived by
+    # stripping the _behavioral_tests suffix from suite_path).
+    attribute :source_path, String
+    # suite_path : the *_behavioral_tests.bluebook argv passed in.
+    attribute :suite_path, String
+    # tests_total : number of Test records in the parsed TestSuite.
+    attribute :tests_total, Integer
+    # passed / failed / errored : tallies updated as TestExecution
+    # records finish.
+    attribute :passed, Integer
+    attribute :failed, Integer
+    attribute :errored, Integer
+    # all_passed : true when failed + errored both zero. Redundant
+    # with the tallies but kept as an attribute so the lifecycle
+    # guard can read it directly.
+    attribute :all_passed, String
+    # phase : pending | loading | executing | done | failed.
+    attribute :phase, String
+
+    command "LoadSource" do
+      role "System"
+      description "Read the source bluebook text from source_path. The runner re-parses this text per test so no state leaks across tests (fresh Runtime::boot per TestExecution)."
+      attribute :source_path, String
+      then_set :source_path, to: :source_path
+      then_set :phase, to: "loading"
+      emits "SourceLoaded"
+    end
+
+    command "LoadSuite" do
+      role "System"
+      description "Parse the *_behavioral_tests.bluebook at suite_path into a TestSuite IR and count the tests."
+      attribute :suite_path, String
+      attribute :tests_total, Integer
+      then_set :suite_path, to: :suite_path
+      then_set :tests_total, to: :tests_total
+      emits "SuiteLoaded"
+    end
+
+    command "LoadFixtures" do
+      role "System"
+      description "Look for a sibling .fixtures file (i4 gap 8). Each fresh runtime is seeded with those records BEFORE setup commands replay, so tests that assume pre-existing state can lean on fixtures rather than redundant setups."
+      emits "FixturesLoaded"
+    end
+
+    command "ExecuteSuite" do
+      role "System"
+      description "Walk the TestSuite in source order. For each Test, create a TestExecution record and let it walk its phase lifecycle. Tally each outcome into passed / failed / errored."
+      then_set :phase, to: "executing"
+      then_set :passed, to: 0
+      then_set :failed, to: 0
+      then_set :errored, to: 0
+      emits "SuiteStarted"
+    end
+
+    command "RecordPass" do
+      role "System"
+      description "One TestExecution finished in the pass state. Increment passed."
+      then_set :passed, increment: 1
+      emits "PassRecorded"
+    end
+
+    command "RecordFail" do
+      role "System"
+      description "One TestExecution finished in the fail state (assertion mismatch). Increment failed."
+      then_set :failed, increment: 1
+      emits "FailRecorded"
+    end
+
+    command "RecordError" do
+      role "System"
+      description "One TestExecution errored out (setup failed or dispatch threw). Increment errored."
+      then_set :errored, increment: 1
+      emits "ErrorRecorded"
+    end
+
+    command "CompleteRun" do
+      role "System"
+      description "Every test finished. Compute all_passed (true only when failed + errored are both zero) and move to the done phase."
+      given("must be executing") { phase == "executing" }
+      then_set :phase, to: "done"
+      emits "RunCompleted"
+    end
+
+    command "FailRun" do
+      role "System"
+      description "Source bluebook could not be parsed, suite file missing, or other pre-execution error. Phase goes to failed ; no individual TestExecution records exist."
+      attribute :reason, String
+      then_set :phase, to: "failed"
+      emits "RunFailed"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "LoadSource"    => "loading",   from: "pending"
+      transition "ExecuteSuite"  => "executing", from: "loading"
+      transition "CompleteRun"   => "done",      from: "executing"
+      transition "FailRun"       => "failed",    from: ["pending", "loading", "executing"]
+    end
+  end
+
+  # ============================================================
+  # TESTEXECUTION — one test inside a suite
+  # ============================================================
+
+  aggregate "TestExecution", "One Test record from a TestSuite, executed against a fresh Runtime::boot. Walks boot → fixtures → pre-seed singletons → setups → dispatch → assert, landing in pass / fail / error" do
+    # description : the behavioral test's description string, used
+    # for reporting.
+    attribute :description, String
+    # kind : command | cascade | query. Drives dispatch mode — cascade
+    # tests dispatch through the policy chain (so `expect emits: [...]`
+    # asserts the cascade) ; command + query tests dispatch isolated.
+    attribute :kind, String
+    # on_aggregate : the aggregate the expect map asserts against.
+    # Resolves to the dispatch result's aggregate_type when the test's
+    # named aggregate has no post-dispatch record.
+    attribute :on_aggregate, String
+    # tests_command : the command or query name under test.
+    attribute :tests_command, String
+    # status : pass | fail | error. Final outcome.
+    attribute :status, String
+    # message : populated on fail / error with the diagnostic string.
+    attribute :message, String
+    # phase : pending | booted | seeded | setup_done | dispatched |
+    #         asserted | completed.
+    attribute :phase, String
+
+    # ---- TestOutcome -----------------------------------------------
+    #
+    # The reporting value the runner returns per test. Mirrors the
+    # Rust TestRun struct.
+
+    value_object "TestOutcome" do
+      attribute :description, String
+      attribute :status, String
+      attribute :message, String
+    end
+
+    command "BootRuntime" do
+      role "System"
+      description "Parse the source bluebook fresh and boot an in-memory Runtime. No data_dir, no hecksagon, no adapters. If a test cascades into IO, that is a bluebook bug, not a runner bug."
+      then_set :phase, to: "booted"
+      emits "RuntimeBooted"
+    end
+
+    command "SeedFixtures" do
+      role "System"
+      description "Apply the loaded .fixtures records into the fresh runtime, if any, populating the in_scope map so reference-injection has something to point at."
+      then_set :phase, to: "seeded"
+      emits "FixturesSeeded"
+    end
+
+    command "PreSeedSingletons" do
+      role "System"
+      description "Find aggregates whose every command self-refs (no bootstrap command) and save an empty AggregateState at id 1 for each. Lifecycle defaults are deliberately NOT applied so gaps surface as clear failures on the next dispatch."
+      emits "SingletonsPreSeeded"
+    end
+
+    command "ReplaySetup" do
+      role "System"
+      description "Dispatch the test's setup commands in order with cascade OFF. Each successful setup updates in_scope with the resulting aggregate_type → aggregate_id mapping. A setup failure moves the test to error with a `setup failed: <msg>` message."
+      then_set :phase, to: "setup_done"
+      emits "SetupReplayed"
+    end
+
+    command "DispatchInput" do
+      role "System"
+      description "Dispatch the test's input command. kind=cascade uses the cascading dispatch so the policy chain fires (and `expect emits` can assert on it) ; kind=command uses dispatch_isolated so asserted state reflects the command's direct mutations. kind=query uses resolve_query and goes straight to AssertCount."
+      then_set :phase, to: "dispatched"
+      emits "InputDispatched"
+    end
+
+    command "AssertFinalState" do
+      role "System"
+      description "Walk every key in the test's expect map. Special keys : refused (match a GivenFailed error message), emits (list of event names published by this dispatch), <field>_size (list length, only when <field> is a Value::List), ok (sentinel meaning dispatch succeeded and no field assertion is needed). Otherwise compare stringified field values."
+      then_set :phase, to: "asserted"
+      emits "FinalStateAsserted"
+    end
+
+    command "Pass" do
+      role "System"
+      description "Every assertion matched. status → pass, message empty."
+      then_set :status, to: "pass"
+      then_set :phase, to: "completed"
+      emits "TestPassed"
+    end
+
+    command "MarkFail" do
+      role "System"
+      description "An assertion in the expect map did not match. status → fail, message records the mismatch (expected vs got)."
+      attribute :failure_message, String
+      then_set :status, to: "fail"
+      then_set :message, to: :failure_message
+      then_set :phase, to: "completed"
+      emits "TestFailed"
+    end
+
+    command "MarkError" do
+      role "System"
+      description "A setup command failed or the dispatch itself threw a runtime error. status → error, message records the underlying exception."
+      attribute :error_message, String
+      then_set :status, to: "error"
+      then_set :message, to: :error_message
+      then_set :phase, to: "completed"
+      emits "TestErrored"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "BootRuntime"        => "booted",      from: "pending"
+      transition "SeedFixtures"       => "seeded",      from: "booted"
+      transition "ReplaySetup"        => "setup_done",  from: ["seeded", "booted"]
+      transition "DispatchInput"      => "dispatched",  from: "setup_done"
+      transition "AssertFinalState"   => "asserted",    from: "dispatched"
+      transition "Pass"               => "completed",   from: "asserted"
+      transition "MarkFail"           => "completed",   from: ["asserted", "dispatched"]
+      transition "MarkError"          => "completed",   from: ["pending", "booted", "seeded", "setup_done", "dispatched"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — runner orchestration
+  # ============================================================
+  #
+  # Source load → suite load → fixture discovery → execution. The
+  # per-test pipeline (Boot → Seed → Setup → Dispatch → Assert) is
+  # tracked inside TestExecution's lifecycle ; the runner-level
+  # policies just chain the suite-scoped phases.
+
+  policy "LoadSuiteAfterSource" do
+    on "SourceLoaded"
+    trigger "LoadSuite"
+  end
+
+  policy "LoadFixturesAfterSuite" do
+    on "SuiteLoaded"
+    trigger "LoadFixtures"
+  end
+
+  policy "ExecuteAfterFixtures" do
+    on "FixturesLoaded"
+    trigger "ExecuteSuite"
+  end
+
+  # Per-test outcomes roll up into the BehaviorsRun tallies.
+
+  policy "RecordPassOnTestPassed" do
+    on "TestPassed"
+    trigger "RecordPass"
+  end
+
+  policy "RecordFailOnTestFailed" do
+    on "TestFailed"
+    trigger "RecordFail"
+  end
+
+  policy "RecordErrorOnTestErrored" do
+    on "TestErrored"
+    trigger "RecordError"
+  end
+end
