@@ -41,7 +41,6 @@ Hecks.hecksagon "Conception" do
   #   templates don't fit aggregate/command shape without extending
   #   the DSL, and the Phase F discipline refuses to do so.
 
-  adapter :memory
   adapter :fs, root: "."
   adapter :stdout
 end

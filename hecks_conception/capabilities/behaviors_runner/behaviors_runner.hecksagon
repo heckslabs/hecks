@@ -36,6 +36,5 @@ Hecks.hecksagon "BehaviorsRunner" do
   #   those dispatches are in-process against a Runtime instance the
   #   runner owns. Not an outbound port to an external runtime.
 
-  adapter :memory
   adapter :fs, root: "."
 end

@@ -2,7 +2,6 @@ Hecks.hecksagon "Terminal" do
   # Memory-only — the terminal session is ephemeral. Persistence of
   # conversations lives elsewhere (Conversation aggregate in the
   # consciousness capability, written by a separate policy).
-  adapter :memory
 
   # ---- I/O wiring --------------------------------------------------
   #

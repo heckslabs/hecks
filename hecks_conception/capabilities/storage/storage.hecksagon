@@ -27,6 +27,5 @@ Hecks.hecksagon "Storage" do
   # hecksagon ; it is an accurate description of the subsystem, which
   # is by design volatile across runtime restarts.
 
-  adapter :memory
   adapter :fs, root: "information"
 end

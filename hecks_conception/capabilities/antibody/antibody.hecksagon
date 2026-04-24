@@ -3,7 +3,6 @@ Hecks.hecksagon "Antibody" do
   # evaluation. The memory adapter holds the CommitCheck / BranchScan /
   # StagedCheck aggregates for the lifetime of a single CLI invocation
   # or git-hook dispatch and then goes away.
-  adapter :memory
 
   # ---- Git shell adapters ----------------------------------------
   #

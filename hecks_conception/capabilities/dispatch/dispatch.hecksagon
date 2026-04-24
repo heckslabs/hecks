@@ -35,5 +35,4 @@ Hecks.hecksagon "Dispatch" do
   #                          or the terminal. Those are the business
   #                          of the user's bluebook and its hecksagon.
 
-  adapter :memory
 end
