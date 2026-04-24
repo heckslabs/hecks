@@ -1,0 +1,143 @@
+Hecks.bluebook "SeedLoader", version: "2026.04.24.1" do
+  vision "Preloads aggregates from a dispatch script at boot — turns a plain-text seed file into a stream of commands dispatched against the runtime"
+  category "runtime"
+
+  # ============================================================
+  # SEEDLOADER — Phase F-1 — runtime as domain
+  # ============================================================
+  #
+  # First file in the Phase F arc (docs/phase-f-0-survey.md). The
+  # existing implementation (hecks_life/src/runtime/seed_loader.rs, 57
+  # LOC) is a simple boot-time helper : read a text file, walk each
+  # line, and for every `dispatch CommandName k=v ...` line fire a
+  # runtime command. This bluebook declares that behavior as a domain
+  # so the file reads as aggregate + commands + state machine rather
+  # than as imperative Rust.
+  #
+  # The bluebook is the authoritative description of the subsystem.
+  # The Rust file (now annotated as implementing this bluebook) is the
+  # adapter layer against the two outbound ports declared in
+  # seed_loader.hecksagon : :fs (read the seed file) and
+  # :runtime_dispatch (fire a command against the runtime).
+  #
+  # Why this is F-1's target : smallest natural-fit in the survey
+  # (57 LOC), clean state-machine shape, two primitive outbound ports.
+  # If the pattern reads cleanly here, the approach scales to the
+  # larger Phase F targets (run_status, runtime/repository, server).
+
+  aggregate "SeedLoader", "Reads a seed file and dispatches each non-comment non-blank `dispatch <Cmd> k=v ...` line as a command against the runtime" do
+    # path : the source seed file passed in by the caller (usually the
+    # CLI's `--seed <file>` argument wired up in main.rs).
+    attribute :path, String
+    # source_content : the raw text loaded from the seed file, kept so
+    # LoadFromString can be fired either from a file path or directly
+    # from a string (tests use the latter).
+    attribute :source_content, String
+    # lines_total : total non-blank non-comment lines observed.
+    attribute :lines_total, Integer
+    # lines_dispatched : successful dispatches so far — increments by 1
+    # on every SeedLineDispatched event.
+    attribute :lines_dispatched, Integer
+    # status : pending | reading | dispatching | complete | failed.
+    # Drives the lifecycle below.
+    attribute :status, String
+    # last_error : populated on FailLoad, empty otherwise.
+    attribute :last_error, String
+
+    # ---- AttrPair --------------------------------------------------
+    #
+    # One parsed `key=value` token from a seed line. The `kind` discriminator
+    # carries the value's inferred type (Int, Bool, Str) without requiring
+    # bluebook to model a sum type. The runtime's command_dispatch reads
+    # `kind` to wrap the raw string into the right Value variant.
+
+    value_object "AttrPair" do
+      attribute :key, String
+      attribute :value, String
+      attribute :kind, String
+    end
+
+    # ---- Commands --------------------------------------------------
+
+    command "LoadFromFile" do
+      role "System"
+      description "Read the seed file at `path` through the :fs adapter and route the contents into LoadFromString"
+      attribute :path, String
+      then_set :path, to: :path
+      then_set :status, to: "reading"
+      emits "SeedFileLoaded"
+    end
+
+    command "LoadFromString" do
+      role "System"
+      description "Take the seed file contents, note the total lines eligible for dispatch, and move to the dispatching state. The actual per-line dispatch happens through a policy chain on SeedContentLoaded → DispatchSeed."
+      attribute :source_content, String
+      attribute :lines_total, Integer
+      then_set :source_content, to: :source_content
+      then_set :lines_total, to: :lines_total
+      then_set :status, to: "dispatching"
+      emits "SeedContentLoaded"
+    end
+
+    command "DispatchSeed" do
+      role "System"
+      description "Dispatch one parsed seed line as a command against the runtime through the :runtime_dispatch adapter. Increments lines_dispatched ; the outbound port carries the command_name and attrs."
+      attribute :command_name, String
+      attribute :attrs, list_of(AttrPair)
+      then_set :lines_dispatched, increment: 1
+      emits "SeedLineDispatched"
+    end
+
+    command "CompleteLoad" do
+      role "System"
+      description "Every eligible seed line has dispatched successfully — move to the complete state"
+      given("must be dispatching") { status == "dispatching" }
+      then_set :status, to: "complete"
+      emits "SeedLoadComplete"
+    end
+
+    command "FailLoad" do
+      role "System"
+      description "A seed line could not be dispatched (the runtime rejected it) — record the error and halt"
+      attribute :error, String
+      then_set :status, to: "failed"
+      then_set :last_error, to: :error
+      emits "SeedLoadFailed"
+    end
+
+    # ---- Lifecycle -------------------------------------------------
+
+    lifecycle :status, default: "pending" do
+      transition "LoadFromFile"   => "reading",     from: "pending"
+      transition "LoadFromString" => "dispatching", from: ["pending", "reading"]
+      transition "CompleteLoad"   => "complete",    from: "dispatching"
+      transition "FailLoad"       => "failed",      from: ["pending", "reading", "dispatching"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the chain from path to dispatched lines
+  # ============================================================
+  #
+  # The chain :
+  #   caller dispatches LoadFromFile(path)
+  #   SeedFileLoaded → LoadFromString (fs adapter supplies content)
+  #   SeedContentLoaded → per-line DispatchSeed (interpreter walks lines)
+  #   all lines done → CompleteLoad
+  #   any line fails → FailLoad
+  #
+  # The per-line walk happens in the adapter layer against the
+  # :runtime_dispatch outbound port — the bluebook declares WHAT
+  # happens, the hecksagon declares WHERE the I/O sits, and the Rust
+  # adapter provides the primitive.
+
+  policy "ReadFileIntoString" do
+    on "SeedFileLoaded"
+    trigger "LoadFromString"
+  end
+
+  policy "FinishAfterAllDispatched" do
+    on "SeedContentLoaded"
+    trigger "CompleteLoad"
+  end
+end
