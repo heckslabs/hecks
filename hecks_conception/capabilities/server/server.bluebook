@@ -1,0 +1,266 @@
+Hecks.bluebook "Server", version: "2026.04.24.1" do
+  vision "The HTTP server skeleton — zero-dependency std::net listener, request routing, and multi-domain namespacing — expressed as a domain"
+  category "runtime"
+
+  # ============================================================
+  # SERVER — Phase F-5 — HTTP skeleton as domain
+  # ============================================================
+  #
+  # Fifth file of the Phase F arc (docs/phase-f-0-survey.md). Three
+  # hand-written Rust files become three aggregates in one domain :
+  #
+  #   hecks_life/src/server/mod.rs      (109 LOC)  → Server
+  #   hecks_life/src/server/routes.rs   (132 LOC)  → Route
+  #   hecks_life/src/server/multi.rs    (141 LOC)  → MultiDomainServer
+  #
+  # The `html_*` family (fifteen files, ~2,000 LOC) stays hand-written
+  # by design — those are pure IR→text transforms and are the largest
+  # residue category identified in F-0. See docs/phase-f-0-survey.md
+  # for the "expected residue" note ; this PR is what makes that
+  # residue concrete rather than predicted.
+  #
+  # The TCP socket layer (bind, accept loop, read_request,
+  # write_response) is kernel-floor by design — sits behind the
+  # hecksagon's :http_listener port note but is not aggregate-shaped.
+
+  # ============================================================
+  # SERVER — single-domain HTTP listener
+  # ============================================================
+
+  aggregate "Server", "One std::net TcpListener bound to a port, accepting connections for a single domain runtime and routing each request through the Route aggregate" do
+    # port : the TCP port to bind.
+    attribute :port, Integer
+    # bind_addr : full address the listener opened on (e.g. 0.0.0.0:3100).
+    attribute :bind_addr, String
+    # domain_name : the single domain this server exposes.
+    attribute :domain_name, String
+    # request_count : cumulative connections handled since BindPort.
+    attribute :request_count, Integer
+    # status : idle | bound | listening | shutdown.
+    attribute :status, String
+
+    # ---- HttpRequest ---------------------------------------------
+    #
+    # Parsed out of the raw TCP stream by read_request — method, path
+    # segments, and body. The body is empty for GET/OPTIONS.
+
+    value_object "HttpRequest" do
+      attribute :method, String
+      attribute :path, String
+      attribute :body, String
+    end
+
+    # ---- HttpResponse --------------------------------------------
+    #
+    # The response shape write_response produces. content_type is
+    # text/html when body starts with < ; application/json otherwise.
+    # CORS headers are always included.
+
+    value_object "HttpResponse" do
+      attribute :status, String
+      attribute :content_type, String
+      attribute :body, String
+    end
+
+    command "BindPort" do
+      role "System"
+      description "Open a TcpListener on 0.0.0.0:port through the :http_listener kernel primitive. Fails with AdapterFailure if the port is already in use."
+      attribute :port, Integer
+      attribute :domain_name, String
+      then_set :port, to: :port
+      then_set :domain_name, to: :domain_name
+      then_set :bind_addr, to: "0.0.0.0"
+      then_set :request_count, to: 0
+      then_set :status, to: "bound"
+      emits "PortBound"
+    end
+
+    command "AcceptConnection" do
+      role "System"
+      description "Accept one incoming TCP stream from the listener. Each accepted stream becomes a Route record that walks Read → Route → Write. Status transitions to listening on the first accept and stays there for the lifetime of the server."
+      given("must be bound or listening") { status == "bound" || status == "listening" }
+      then_set :status, to: "listening"
+      then_set :request_count, increment: 1
+      emits "ConnectionAccepted"
+    end
+
+    command "ShutdownServer" do
+      role "System"
+      description "Close the listener and move to the terminal shutdown state. Not reachable from the current Rust implementation (the accept loop runs forever) but declared here for completeness."
+      then_set :status, to: "shutdown"
+      emits "ServerShutdown"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "BindPort"          => "bound",      from: "idle"
+      transition "AcceptConnection"  => "listening",  from: ["bound", "listening"]
+      transition "ShutdownServer"    => "shutdown",   from: ["bound", "listening"]
+    end
+  end
+
+  # ============================================================
+  # ROUTE — one request's journey through the server
+  # ============================================================
+
+  aggregate "Route", "The read-route-write lifecycle for a single HTTP request. One Route record per accepted connection : parse the request off the TCP stream, pattern-match method + path to pick a handler, return status + body" do
+    # method : GET | POST | OPTIONS | ...
+    attribute :method, String
+    # path : the request path, leading slash trimmed by the router.
+    attribute :path, String
+    # handler : resolved handler name (e.g. dispatch, health,
+    # aggregates, events, policies). Empty when no route matched.
+    attribute :handler, String
+    # status_code : 200 / 204 / 404 / 422 — the HTTP status returned.
+    attribute :status_code, String
+    # response_body : the JSON or HTML string written back.
+    attribute :response_body, String
+    # phase : pending | reading | matching | dispatching | written.
+    attribute :phase, String
+
+    command "ReadRequest" do
+      role "System"
+      description "Parse the method, path, headers (just Content-Length), and body out of the raw TCP stream. Rejected (None) requests end the connection without a response."
+      attribute :method, String
+      attribute :path, String
+      attribute :body, String
+      then_set :method, to: :method
+      then_set :path, to: :path
+      then_set :phase, to: "matching"
+      emits "RequestRead"
+    end
+
+    command "MatchRoute" do
+      role "System"
+      description "Pattern-match method + path segments to pick a handler. The single-domain router has routes for /health, /domain, /dispatch, /aggregates, /aggregates/:name, /aggregates/:name/:id, /events, /policies. OPTIONS on any path is the CORS preflight and returns 204."
+      attribute :handler, String
+      then_set :handler, to: :handler
+      then_set :phase, to: "dispatching"
+      emits "RouteMatched"
+    end
+
+    command "DispatchHandler" do
+      role "System"
+      description "Invoke the matched handler and record its status + body. POST /dispatch routes through the runtime's command dispatch and returns event info on success or the error message on failure (422). Read-only GET handlers serialize runtime state."
+      attribute :status_code, String
+      attribute :response_body, String
+      then_set :status_code, to: :status_code
+      then_set :response_body, to: :response_body
+      emits "HandlerDispatched"
+    end
+
+    command "WriteResponse" do
+      role "System"
+      description "Assemble the HTTP response with Content-Type, CORS headers, and Content-Length, then write it through the TCP stream. text/html when the body starts with < ; application/json otherwise."
+      then_set :phase, to: "written"
+      emits "ResponseWritten"
+    end
+
+    command "NoRoute" do
+      role "System"
+      description "No route matched the method + path combination — return 404 with a not-found JSON body (error field set to the literal 'not found'). Ends the Route record without invoking any handler."
+      then_set :status_code, to: "404 Not Found"
+      then_set :phase, to: "written"
+      emits "RouteMissed"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ReadRequest"      => "matching",    from: "pending"
+      transition "MatchRoute"       => "dispatching", from: "matching"
+      transition "DispatchHandler"  => "dispatching", from: "dispatching"
+      transition "WriteResponse"    => "written",     from: "dispatching"
+      transition "NoRoute"          => "written",     from: ["matching", "dispatching"]
+    end
+  end
+
+  # ============================================================
+  # MULTIDOMAINSERVER — one server, many bluebooks
+  # ============================================================
+
+  aggregate "MultiDomainServer", "Serves N bluebook domains under one API with domain-namespaced routes. Scans a directory for *.bluebook files at boot, hydrates one Runtime per domain, and routes /domains/:name/... through the single-domain Route aggregate" do
+    # dir : the directory scanned for *.bluebook files.
+    attribute :dir, String
+    # port : the TCP port the multi-domain listener binds.
+    attribute :port, Integer
+    # data_dir : shared data directory across all domains (by
+    # convention <dir>/data).
+    attribute :data_dir, String
+    # domain_count : number of successfully-loaded domains.
+    attribute :domain_count, Integer
+    # phase : scanning | loaded | listening | shutdown.
+    attribute :phase, String
+
+    command "ScanDomainsDir" do
+      role "System"
+      description "Read every *.bluebook file under dir. Files that fail to read are silently skipped ; files that parse are kept for BootDomainRuntime."
+      attribute :dir, String
+      then_set :dir, to: :dir
+      then_set :phase, to: "scanning"
+      emits "DirectoryScanned"
+    end
+
+    command "BootDomainRuntime" do
+      role "System"
+      description "For one bluebook file found by ScanDomainsDir, parse the domain and boot a Runtime with data_dir set to <dir>/data. Fires once per domain ; domain_count increments each time."
+      then_set :domain_count, increment: 1
+      emits "DomainRuntimeBooted"
+    end
+
+    command "ServeAll" do
+      role "System"
+      description "Bind the listener after all domains are loaded and enter the accept loop. Each accepted connection routes by first path segment : /, /domains, /domains/:name, /domains/:name/<sub> ; the last form delegates to the single-domain Route aggregate."
+      attribute :port, Integer
+      then_set :port, to: :port
+      then_set :phase, to: "listening"
+      emits "MultiServing"
+    end
+
+    command "NamespaceRoute" do
+      role "System"
+      description "Look up the named domain in the loaded runtimes, trim the /domains/:name prefix, and delegate the remaining path to the single-domain Route aggregate. Unknown domain names return 404."
+      attribute :domain_name, String
+      attribute :sub_path, String
+      emits "RouteNamespaced"
+    end
+
+    command "ListDomains" do
+      role "System"
+      description "Return the sorted list of loaded domain names as JSON. Serves GET /domains."
+      emits "DomainsListed"
+    end
+
+    lifecycle :phase, default: "idle" do
+      transition "ScanDomainsDir"    => "scanning",  from: "idle"
+      transition "BootDomainRuntime" => "scanning",  from: "scanning"
+      transition "ServeAll"          => "listening", from: "scanning"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the request lifecycle chain
+  # ============================================================
+  #
+  # The Route aggregate's Read → Match → Dispatch → Write flow is
+  # synchronous imperative code in Rust today. The policies declare
+  # what a future self-interpreting runtime would chain.
+
+  policy "MatchAfterRead" do
+    on "RequestRead"
+    trigger "MatchRoute"
+  end
+
+  policy "DispatchAfterMatch" do
+    on "RouteMatched"
+    trigger "DispatchHandler"
+  end
+
+  policy "WriteAfterDispatch" do
+    on "HandlerDispatched"
+    trigger "WriteResponse"
+  end
+
+  # Multi-domain boot chain : scan then boot each domain.
+  policy "BootAfterScan" do
+    on "DirectoryScanned"
+    trigger "BootDomainRuntime"
+  end
+end
