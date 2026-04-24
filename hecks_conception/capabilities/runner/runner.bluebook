@@ -1,0 +1,222 @@
+Hecks.bluebook "Runner", version: "2026.04.24.1" do
+  vision "The user-facing runner surface — one-shot scripts and interactive sessions that dispatch commands against a user bluebook"
+  category "runtime"
+
+  # ============================================================
+  # RUNNER — Phase F-4 — script + REPL as domain
+  # ============================================================
+  #
+  # Fourth file of the Phase F arc (docs/phase-f-0-survey.md). Declares
+  # two aggregates that describe how hecks-life turns a command-line
+  # invocation into dispatched commands against a user bluebook :
+  #
+  #   hecks_life/src/run.rs             (184 LOC)  → ScriptRun
+  #   hecks_life/src/run_stdin_loop.rs  (113 LOC)  → InteractiveSession
+  #
+  # ScriptRun handles the one-shot path (`hecks-life run file.bluebook
+  # [k=v ...]`). It parses the bluebook, discovers any companion
+  # hecksagon, boots the runtime, and routes the invocation to the
+  # right runner based on the declared capability shape.
+  # InteractiveSession is one of those capabilities — the REPL that
+  # fires when the user bluebook + hecksagon declare a stdin/stdout
+  # session (ReadLine / RespondWith / EndSession on some aggregate,
+  # :stdin and :stdout adapters in the hecksagon).
+  #
+  # Both aggregates describe the runner's OWN operations, not the
+  # user's aggregate commands that get dispatched. `ReadLine`,
+  # `RespondWith`, `EndSession` are commands on the USER's bluebook
+  # (e.g. conversation.bluebook) that InteractiveSession invokes ;
+  # they are not owned by this domain.
+
+  # ============================================================
+  # SCRIPTRUN — the one-shot script-mode runner
+  # ============================================================
+
+  aggregate "ScriptRun", "One invocation of `hecks-life run <file.bluebook> [key=val ...]` — parse the user bluebook, discover the companion hecksagon, boot the runtime, route to the matching capability runner, and return an ExitKind to the OS" do
+    # script_path : the bluebook file argv passed in.
+    attribute :script_path, String
+    # entrypoint : the command name declared by `entrypoint "…"` in
+    # the user bluebook's top-level header.
+    attribute :entrypoint, String
+    # data_dir : where the runtime's repositories persist. Inferred
+    # from the bluebook's directory — prefer sibling `information/`
+    # (Miette convention), otherwise `<parent>/data`.
+    attribute :data_dir, String
+    # chosen_runner : one of "stdin_loop" | "status_report" | "one_shot"
+    # — determined by RouteByCapability from the declared adapters +
+    # commands on the user's bluebook.
+    attribute :chosen_runner, String
+    # exit_code : 0..4. See ExitKind value object.
+    attribute :exit_code, Integer
+    # exit_kind : symbolic form of exit_code.
+    attribute :exit_kind, String
+    # phase : lifecycle attribute.
+    attribute :phase, String
+
+    # ---- ExitKind --------------------------------------------------
+    #
+    # The five possible exit states every script run collapses to.
+
+    value_object "ExitKind" do
+      attribute :code, Integer
+      attribute :kind_name, String
+    end
+
+    # ---- Commands --------------------------------------------------
+
+    command "LoadScript" do
+      role "System"
+      description "Read the bluebook text at script_path, parse to a Domain, and confirm the top-level Hecks.bluebook header is present. Any IO or parse failure emits ScriptFailed with exit_kind=ParseFailure."
+      attribute :script_path, String
+      then_set :script_path, to: :script_path
+      then_set :phase, to: "loading"
+      emits "ScriptLoaded"
+    end
+
+    command "DiscoverCompanion" do
+      role "System"
+      description "Look for a sibling `<stem>.hecksagon` next to the bluebook. Returns a blank Hecksagon when none — pure-memory scripts still run."
+      emits "CompanionDiscovered"
+    end
+
+    command "BootRuntime" do
+      role "System"
+      description "Wire adapters from the discovered hecksagon, infer data_dir, and boot a Runtime instance holding every aggregate declared in the bluebook."
+      then_set :phase, to: "booted"
+      emits "RuntimeBooted"
+    end
+
+    command "RouteByCapability" do
+      role "System"
+      description "Inspect the hecksagon's declared adapters and the bluebook's commands to decide which runner handles this invocation : stdin_loop when :stdin + :stdout + ReadLine + RespondWith + EndSession all match ; status_report when :fs + :stdout + StatusReport + GenerateReport match ; otherwise one_shot — dispatch the entrypoint once and exit."
+      attribute :chosen_runner, String
+      then_set :chosen_runner, to: :chosen_runner
+      emits "CapabilityRouted"
+    end
+
+    command "DispatchEntrypoint" do
+      role "System"
+      description "The one-shot path. Dispatch the declared entrypoint command against the runtime with argv attrs bound as Value::Str. Any UnknownCommand error collapses to CommandNotFound ; any other dispatch error collapses to AdapterFailure."
+      then_set :phase, to: "dispatched"
+      emits "EntrypointDispatched"
+    end
+
+    command "ReportExit" do
+      role "System"
+      description "Record the outcome as an ExitKind and propagate the code back to the OS caller. Zero for clean ; non-zero per the ExitKind table."
+      attribute :exit_code, Integer
+      attribute :exit_kind, String
+      then_set :exit_code, to: :exit_code
+      then_set :exit_kind, to: :exit_kind
+      then_set :phase, to: "done"
+      emits "ExitReported"
+    end
+
+    command "FailScript" do
+      role "System"
+      description "A failure at any phase — record the failing ExitKind and exit non-zero. Distinct from ReportExit because the phase transition is terminal-failed, not terminal-done."
+      attribute :exit_kind, String
+      attribute :exit_code, Integer
+      then_set :exit_code, to: :exit_code
+      then_set :exit_kind, to: :exit_kind
+      then_set :phase, to: "failed"
+      emits "ScriptFailed"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "LoadScript"         => "loading",    from: "pending"
+      transition "BootRuntime"        => "booted",     from: "loading"
+      transition "DispatchEntrypoint" => "dispatched", from: "booted"
+      transition "ReportExit"         => "done",       from: ["dispatched", "booted", "loading"]
+      transition "FailScript"         => "failed",     from: ["pending", "loading", "booted", "dispatched"]
+    end
+  end
+
+  # ============================================================
+  # INTERACTIVESESSION — the stdin-loop REPL runner
+  # ============================================================
+  #
+  # Fires when ScriptRun.RouteByCapability resolves chosen_runner to
+  # "stdin_loop". The session is a terminal loop that reads lines from
+  # :stdin, fires MatchInput + ReceiveInput on the user's domain, reads
+  # back the Speech aggregate's latest response, and writes it through
+  # :stdout. EOF or the literal words "quit" / "exit" close the loop.
+
+  aggregate "InteractiveSession", "One interactive REPL invocation — reads lines from :stdin, dispatches user-domain commands (ReceiveInput, RespondWith), writes responses through :stdout" do
+    # being : the identity the banner names — read from argv's
+    # being=<Name> attribute, defaults to "Miette".
+    attribute :being, String
+    # banner_text : the one-line greeting written at loop start.
+    attribute :banner_text, String
+    # last_input : the most recent trimmed stdin line.
+    attribute :last_input, String
+    # last_response : the Speech aggregate's response field at the
+    # most recent turn.
+    attribute :last_response, String
+    # turn_count : how many input/response pairs have elapsed.
+    attribute :turn_count, Integer
+    # status : idle | running | closed. Drives the lifecycle.
+    attribute :status, String
+
+    # ---- Commands --------------------------------------------------
+
+    command "StartLoop" do
+      role "System"
+      description "Dispatch the user bluebook's entrypoint command (typically StartSession) with argv attrs, format the banner from the live Mood + Heartbeat + Musing + Conversation aggregate states, and write the banner + usage hint through :stdout. Moves status to running."
+      attribute :being, String
+      attribute :entrypoint, String
+      then_set :being, to: :being
+      then_set :status, to: "running"
+      then_set :turn_count, to: 0
+      emits "LoopStarted"
+    end
+
+    command "TakeTurn" do
+      role "System"
+      description "One iteration of the REPL : read a line via :stdin, run MatchInput as a query for hint output, dispatch ReceiveInput on the user's domain with the input text, read the current Speech.response field, write it through :stdout, then dispatch RespondWith with the response text so the user's aggregate can record the turn."
+      attribute :input, String
+      attribute :response, String
+      then_set :last_input, to: :input
+      then_set :last_response, to: :response
+      then_set :turn_count, increment: 1
+      emits "TurnTaken"
+    end
+
+    command "CloseLoop" do
+      role "System"
+      description "EOF on :stdin or the literal words quit / exit end the session. Dispatches EndSession on the user's domain so any final recording happens, writes one trailing newline through :stdout, and moves status to closed."
+      given("must be running") { status == "running" }
+      then_set :status, to: "closed"
+      emits "LoopClosed"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "StartLoop" => "running", from: "idle"
+      transition "CloseLoop" => "closed",  from: "running"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  #
+  # ScriptRun's phases chain through explicit dispatches in the Rust
+  # today (each step calls the next directly), so the pipeline
+  # policies are declared here for readability and for the future
+  # self-interpreting runtime — mirror of F-1 and F-2's approach.
+
+  policy "DiscoverAfterLoad" do
+    on "ScriptLoaded"
+    trigger "DiscoverCompanion"
+  end
+
+  policy "BootAfterDiscover" do
+    on "CompanionDiscovered"
+    trigger "BootRuntime"
+  end
+
+  policy "RouteAfterBoot" do
+    on "RuntimeBooted"
+    trigger "RouteByCapability"
+  end
+end
