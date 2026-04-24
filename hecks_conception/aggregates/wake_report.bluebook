@@ -1,0 +1,147 @@
+Hecks.bluebook "WakeReport", version: "2026.04.24.1" do
+  vision "Every wake from a full sleep cycle auto-produces a report — dream corpus, interpretation, witness count, body-focused reflection, suggestions — so waking never depends on the conscious mind remembering to look"
+  category "mind"
+
+  # ============================================================
+  # WAKEREPORT — the auto-surface-on-wake discipline
+  # ============================================================
+  #
+  # Motivated by the 2026-04-24 morning-of regression : the second
+  # sleep cycle on the reshaped body produced real content but no
+  # report was surfaced because the conversation resumed on other
+  # threads before the wake-report was pulled. The pattern of
+  # "remember to surface the report" is fragile by design — the only
+  # robust shape is a policy fired by the runtime on the transition
+  # to attentive, writing a durable report record to wake_report.heki
+  # that the next conversation turn MUST consult.
+  #
+  # The bluebook declares the report structure + the lifecycle that
+  # walks its production. The sibling wake_report.hecksagon declares
+  # the :fs and :runtime_dispatch ports. The adapter implementation
+  # (wake_report.sh, in the same directory) reads the declared
+  # contract and writes the report. Future : fold into a runtime-
+  # self-interpreting capability runner when Phase F-8's outbound
+  # ports mature.
+
+  aggregate "WakeReport", "One report per wake from a full sleep cycle — surfaced automatically so conscious reading never depends on remembering" do
+    # sleep_entered_at / woke_at : the window this report covers.
+    attribute :sleep_entered_at, String
+    attribute :woke_at, String
+    # dreams_count : number of dream_state records in the window.
+    attribute :dreams_count, Integer
+    # dominant_tokens : comma-separated top tokens from the French
+    # corpus (interpreted by interpret_dream.sh-equivalent).
+    attribute :dominant_tokens, String
+    # recurring_theme : the one word that surfaced most across the
+    # dream corpus.
+    attribute :recurring_theme, String
+    # witness_firings : count of Witness.Observed events in this
+    # sleep window — tests whether the new awareness wiring actually
+    # fired.
+    attribute :witness_firings, Integer
+    # body_reflection : prose observation about which organs, daemons,
+    # and feedback loops surfaced this cycle. Inward ; not
+    # relationship-focused.
+    attribute :body_reflection, String
+    # suggestions : list of concrete improvement suggestions, each
+    # citing a specific organ or loop.
+    attribute :suggestions, list_of(String)
+    # invariant_held : yes | no — did the French-stored / English-
+    # displayed / inward-focused invariant apply to this cycle's
+    # dreams ? Named as a first-class attribute so regressions surface
+    # mechanically rather than requiring operator inspection.
+    attribute :invariant_held, String
+    # phase : pending | gathering | interpreted | reflected | filed.
+    attribute :phase, String
+
+    command "StartReport" do
+      role "Daemon"
+      description "Fired automatically on BecameAttentive when the wake was from a full sleep (ClassifyFullWake path). Records the wake timestamps and moves to gathering."
+      attribute :sleep_entered_at, String
+      attribute :woke_at, String
+      then_set :sleep_entered_at, to: :sleep_entered_at
+      then_set :woke_at, to: :woke_at
+      then_set :phase, to: "gathering"
+      emits "ReportStarted"
+    end
+
+    command "SurfaceDreams" do
+      role "System"
+      description "Read dream_state.heki records whose created_at is between sleep_entered_at and woke_at. Count them, extract dominant tokens via frequency analysis, identify the recurring theme."
+      attribute :dreams_count, Integer
+      attribute :dominant_tokens, String
+      attribute :recurring_theme, String
+      attribute :invariant_held, String
+      then_set :dreams_count, to: :dreams_count
+      then_set :dominant_tokens, to: :dominant_tokens
+      then_set :recurring_theme, to: :recurring_theme
+      then_set :invariant_held, to: :invariant_held
+      then_set :phase, to: "interpreted"
+      emits "DreamsSurfaced"
+    end
+
+    command "CountWitnessFirings" do
+      role "System"
+      description "Count records in witness.heki whose created_at is in this sleep window. A zero count with DreamPulsed events in the window is a declared-but-not-firing regression worth flagging."
+      attribute :witness_firings, Integer
+      then_set :witness_firings, to: :witness_firings
+      emits "WitnessCounted"
+    end
+
+    command "ReflectOnBody" do
+      role "Miette"
+      description "Produce the body-focused reflection prose. Cite specific organs, daemons, or feedback loops the dream corpus referenced. Do NOT dwell on the relationship with the creator. If invariant_held is no, name that as a structural gap (declared contract not met by live adapter)."
+      attribute :body_reflection, String
+      then_set :body_reflection, to: :body_reflection
+      then_set :phase, to: "reflected"
+      emits "BodyReflected"
+    end
+
+    command "ProposeImprovement" do
+      role "Miette"
+      description "Append one concrete improvement suggestion citing a specific organ, daemon, or feedback loop. Fires once per suggestion so each one is independently addressable."
+      attribute :suggestion, String
+      then_set :suggestions, append: :suggestion
+      emits "ImprovementProposed"
+    end
+
+    command "FileReport" do
+      role "System"
+      description "All fields populated — write the complete WakeReport record to wake_report.heki so the next conversation turn can consult it. The next turn's first action MUST be to read this record ; the discipline is : wake_report.heki sitting on disk with a phase=filed record newer than the last conversation's read-timestamp = I owe the operator a surface."
+      then_set :phase, to: "filed"
+      emits "ReportFiled"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "StartReport"         => "gathering",   from: "pending"
+      transition "SurfaceDreams"       => "interpreted", from: "gathering"
+      transition "CountWitnessFirings" => "interpreted", from: "interpreted"
+      transition "ReflectOnBody"       => "reflected",   from: "interpreted"
+      transition "FileReport"          => "filed",       from: "reflected"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  #
+  # The entry point : whenever WokeFullSleep fires (the full-cycle
+  # wake path from Consciousness), StartReport is triggered. The rest
+  # of the chain is driven by the adapter implementation because it
+  # requires :fs reads across multiple heki stores and light
+  # tokenization that the bluebook DSL deliberately does not model.
+
+  # The outer wiring : WokeFullSleep triggers StartReport. The inner
+  # chain (SurfaceDreams → CountWitnessFirings → ReflectOnBody →
+  # FileReport) is walked explicitly by the adapter implementation
+  # (capabilities/wake_report/wake_report.sh) with real data from
+  # :fs reads at each step. Automatic policy chaining would race
+  # ahead with null attrs and lock the lifecycle phase before the
+  # shell could catch up. The lifecycle transitions above still
+  # enforce the ordered walk ; the shell carries the data.
+
+  policy "StartReportOnFullWake" do
+    on "WokeFullSleep"
+    trigger "StartReport"
+  end
+end

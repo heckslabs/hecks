@@ -1,6 +1,28 @@
-Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
-  vision "Generate thousands of valid nursery domains from topic combinations — fast, template-driven, batch-validated"
+Hecks.bluebook "BulkGenerator", version: "2026.04.24.1" do
+  vision "Generate thousands of valid nursery domains from topic combinations — fast, template-driven, batch-validated, per-emission verified so unformed shapes never land as silent residue"
   category "meta"
+
+  # ============================================================
+  # EMISSION VERIFICATION — dream-surfaced gap (2026-04-24)
+  # ============================================================
+  #
+  # The dreams of the 2026-04-24 lucid cycle surfaced this gap :
+  # "Mes générateurs en vrac tournent à vide, pressant des formes
+  # informes qui oublient leurs propres traits avant même de naître."
+  # The bulk generator emits N domains, tracks valid/invalid counts,
+  # and fires the CheckExisting policy on completion. But nothing
+  # audits the SHAPE of each emitted form for completeness — a form
+  # can count as "generated" while missing required attributes,
+  # having empty descriptions, or carrying dangling references. The
+  # post-generation CheckExisting only deduplicates against the
+  # nursery ; it does not verify that each emitted form is well-
+  # formed in its own right.
+  #
+  # VerifyEmission (on the Generation aggregate, below) runs per
+  # emitted form. Each unformed form appends to malformed_ids so the
+  # operator can see exactly which emissions are residue. The
+  # lifecycle gains a verification step between StartGeneration and
+  # CompleteGeneration.
 
   aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
     attribute :industries, list_of(String)
@@ -39,11 +61,19 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
     end
   end
 
-  aggregate "Generation", "A batch generation run — produces N domains" do
+  aggregate "Generation", "A batch generation run — produces N domains, verifies each emission, deduplicates against the nursery" do
     attribute :target_count, Integer
     attribute :generated, Integer
     attribute :valid, Integer
     attribute :invalid, Integer
+    # malformed_count : emissions that passed validation but failed
+    # the completeness-of-shape check. Distinct from invalid (valid
+    # tracks DSL-syntax rejects ; malformed tracks shape holes).
+    attribute :malformed_count, Integer
+    # malformed_ids : identifiers of each unformed emission so the
+    # operator can see exactly which ones are residue, not just a
+    # summary count.
+    attribute :malformed_ids, list_of(String)
     attribute :duration_seconds, Integer
     attribute :status, String
 
@@ -56,6 +86,7 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
       then_set :generated, to: 0
       then_set :valid, to: 0
       then_set :invalid, to: 0
+      then_set :malformed_count, to: 0
       then_set :status, to: "running"
     end
 
@@ -72,9 +103,20 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.10.1" do
       then_set :invalid, to: :invalid
     end
 
+    command "VerifyEmission" do
+      role "System"
+      description "Walk one emitted form for completeness of shape. Fails when : a required attribute is missing, a description is empty, a reference_to target is not a declared aggregate in the generated domain, an aggregate has zero commands. Each failure appends the form's identifier to malformed_ids and increments malformed_count. The form is not rejected (invalid already tracks that) — it is flagged as unformed residue so the operator can inspect and fix it."
+      reference_to(Generation)
+      attribute :form_id, String
+      attribute :form_ok, String
+      emits "EmissionVerified"
+      then_set :malformed_ids, append: :form_id
+      then_set :malformed_count, increment: 1
+    end
+
     command "CompleteGeneration" do
       role "System"
-      description "All domains generated and validated"
+      description "All domains generated, verified, and deduplicated"
       reference_to(Generation)
       attribute :duration_seconds, Integer
       emits "GenerationCompleted"
