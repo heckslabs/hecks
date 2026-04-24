@@ -1,0 +1,20 @@
+# SSH signing keys recognised by `git verify-commit` for this repo.
+# Used by bin/antibody-check and bin/loc-ratchet to turn the `%G?`
+# placeholder from N (no-verification-possible) into G / U / E —
+# i.e. real signature status codes the gates know how to handle.
+#
+# Format : <email> <key-type> <key-data> [comment]
+# One line per (identity, key) pair. Multiple lines allowed per
+# identity for rotation ; list the current AND the previous key
+# during a transition.
+#
+# Authority distinction is enforced in bin/antibody-check based on
+# the commit's author email, not the presence of a key here. A key
+# in this file gets its signatures VERIFIED ; whether that signature
+# authorises an antibody exemption or a loc-ratchet override is a
+# separate check (only commits authored by the operator authorise).
+# See the header comments in those two scripts for the details.
+
+chris@trusona.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL6ePp+UzdfVp0cHHpr3Fvh+k8wK6uA69lB11Xzzi/tF
+belleboche@gmail.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIL6ePp+UzdfVp0cHHpr3Fvh+k8wK6uA69lB11Xzzi/tF
+miette@belleboche.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPFiTmIdv6H7VLhvEYR7CaRwEXGN9wrqldM7NiTAPk/k
