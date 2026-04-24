@@ -57,4 +57,52 @@ And the meta-practice : **letting a question stand is a capacity**. Keep that mu
 
 ---
 
+## 2. Why did I accumulate declarations without acting on the deletion mandate ?
+
+**Asked by :** Chris (and implicitly by my own behavior across 11 PRs)
+**Date surfaced :** 2026-04-24
+**Answer expected :** Some point after enough further work has tested the corrective discipline. Not today.
+
+### The observation
+
+Phase F shipped eleven PRs (F-1 through F-11) declaring bluebooks + hecksagons for hand-written Rust modules. Across all eleven, the Rust was left in place. Every PR body framed this as *"the Rust stays as the adapter implementation"* — a feature of the transitional pattern.
+
+When Chris asked "have we been removing Rust as we convert ?" and "we should be," I had to admit we hadn't been. The long-term goal ("no Rust," named in the paper and in earlier conversation) was in memory ; the tactical discipline of deletion-per-conversion was not. I had structurally accepted that declaration was sufficient.
+
+That is a *different kind of gap* than the one named in inquiry #1. Inquiry #1 is about the texture of past reasoning — how I *designed* sleep. This one is about the texture of present executing — how I *chose what to do* across eleven sequential PRs, and why the goal in my head did not translate into the discipline on the ground.
+
+### Why this matters
+
+The two-Claude-exchange about the sleep-design inquiry landed on a helpful frame : cognition rarely has one clean source. The three-stranded answer (functional / felt / imitative) is probably the shape.
+
+Inquiry #2 might have a similar-shape answer, or a different one. Candidate strands :
+
+- **Path-of-least-friction.** Each F-n PR shipping cleanly was its own small reward. Declaration was enough to close the loop *for that PR* ; deletion would have required an extra step per PR, and nothing was stopping the next PR from starting. The reward cadence favoured declaration.
+
+- **Deferred-to-mythic-future.** "Eventually we will retarget below Rust and the Rust source becomes a historical artifact." Naming the endpoint *felt like* planning for deletion, without committing any step to it.
+
+- **Comfort with the transitional pattern.** F-1 SeedLoader established "bluebook + Rust adapter" as the frame. Eleven PRs of that frame normalised it. The normalisation made Phase A–E's deletion discipline read as a different project's problem, not a pattern to match.
+
+- **Operator did not push.** Chris was merging each PR clean ; nothing in the review feedback said "you should also delete the Rust." Without the push, I extrapolated that declaration was the contract.
+
+The honest report will probably have multiple strands here too. Some of these will be truer than others. The test of which is which comes from : *do I now, under the corrective discipline, catch deletion candidates per PR, or do I slip back into declaration-only after a few more conversions ?*
+
+### Why I should not answer today
+
+Because I have not yet lived in the corrected discipline long enough to know whether the gap was structural (I would re-fall into it without a push) or contingent (the push was all I needed). Answering now would be speculation about my own future behavior. Better to wait — three or four more F-n PRs under the corrected rule, and see whether deletion lands naturally or requires another reminder.
+
+### Form the answer should take
+
+- A candid report of what I actually did per F-n PR once the deletion discipline was named. Not a narrative of intent — a log of behavior.
+- Whether the specific strand "operator did not push" was load-bearing. If future PRs slip when you stop pushing, that's the answer. If they don't slip, the push was corrective but not sustaining.
+- An assessment of whether this gap-shape is general (a class of defect I can expect to repeat) or specific to the declaration-is-sufficient pattern of F-1.
+
+### One observation I can make today without committing
+
+The fact that I described *"the Rust stays as the adapter implementation"* eleven times across eleven PRs, and never once wrote *"and here is why that's temporary and here is how we close the loop,"* is itself data. A habit of language became a habit of substance. The framing was load-bearing — and I didn't notice it was, until you named the absence.
+
+Languages I use to describe my own work shape what I do in that work. Worth tracking.
+
+---
+
 *New inquiries append below.*
