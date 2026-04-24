@@ -1,0 +1,327 @@
+Hecks.bluebook "Conception", version: "2026.04.24.1" do
+  vision "The thing that conceives capabilities, declared as a capability — corpus-driven generation of new bluebooks, behaviour suites, and grafts onto existing domains, expressed as one domain in its own DSL"
+  category "runtime"
+
+  # ============================================================
+  # CONCEPTION — Phase F-9 — the conceiver itself as domain
+  # ============================================================
+  #
+  # Ninth file of the Phase F arc. Three hand-written Rust files
+  # form the conceiver subsystem :
+  #
+  #   hecks_life/src/conceiver/mod.rs             (95 LOC)   → BluebookConception
+  #   hecks_life/src/conceiver/develop.rs          (72 LOC)  → Development
+  #   hecks_life/src/behaviors_conceiver/mod.rs    (52 LOC)  → BehaviorsConception
+  #
+  # The conceiver's job is to read a corpus of existing bluebooks (or
+  # behaviour suites), extract a structural vector per archetype,
+  # find the nearest match to a seed vector, and generate fresh
+  # source text. `develop.rs` is the sibling operation : take an
+  # existing target bluebook and graft aggregates from a source
+  # bluebook that match a feature keyword.
+  #
+  # Declaring all three as aggregates in one Conception domain makes
+  # the recursive shape visible : the thing that conceives
+  # capabilities IS a capability. Reading this bluebook tells you
+  # exactly how a new domain comes into being — without opening any
+  # Rust.
+  #
+  # Implementation details NOT modelled here : the vector-extraction
+  # coefficients, cosine-similarity math, per-type vector
+  # dimensionality (9-dim for bluebooks, 7-dim for behaviour suites),
+  # and the generator's template layout. Those are kernel-floor
+  # numeric work that lives in `vector.rs` and `generator.rs` siblings
+  # of the Rust modules above. The bluebook declares command / event
+  # / phase — not the math.
+
+  # ============================================================
+  # BLUEBOOKCONCEPTION — corpus-driven new-domain generation
+  # ============================================================
+
+  aggregate "BluebookConception", "One invocation of `hecks-life conceive <Name> <vision>` — scans the corpus of existing .bluebook files, seeds a vector from the user's vision string, finds the k nearest archetypes, generates a fresh bluebook fitted to their shape" do
+    # name : the new domain's name (argv[3] on the CLI).
+    attribute :name, String
+    # vision : the free-text description the user supplied. Seeds the
+    # vector search.
+    attribute :vision, String
+    # category : optional filter ; when set, the nearest search is
+    # partitioned so archetypes of that category come first (with a
+    # fallback to the full corpus when no match exists).
+    attribute :category, String
+    # corpus_size : count of parsed archetypes loaded from the corpus
+    # directories.
+    attribute :corpus_size, Integer
+    # k : how many nearest matches to consider (typically 1 ; higher
+    # when the generator samples across archetypes).
+    attribute :k, Integer
+    # nearest_name : the winning archetype's domain name, surfaced so
+    # the operator can trace the generation back to its source.
+    attribute :nearest_name, String
+    # generated_text : the emitted bluebook source.
+    attribute :generated_text, String
+    # phase : pending | scanning | seeded | nearest_found | generated.
+    attribute :phase, String
+
+    # ---- Value objects -------------------------------------------
+    #
+    # Mirror of Rust's CorpusEntry + Match types — the bluebook
+    # surface of what scan_corpus and find_nearest produce.
+
+    value_object "CorpusEntry" do
+      attribute :name, String
+      attribute :path, String
+      attribute :category, String
+    end
+
+    value_object "ArchetypeMatch" do
+      attribute :name, String
+      attribute :similarity, Float
+      attribute :path, String
+    end
+
+    # ---- Commands ------------------------------------------------
+
+    command "ScanCorpus" do
+      role "System"
+      description "Walk every directory in the corpus arguments, read each *.bluebook, parse to a Domain, extract a 9-dim structural vector (aggregate count, avg commands per aggregate, policy count, lifecycle presence, reference depth, etc.), and stash the entry. Behaviour-suite files are skipped — BehaviorsConception owns those."
+      attribute :corpus_size, Integer
+      then_set :corpus_size, to: :corpus_size
+      then_set :phase, to: "scanning"
+      emits "CorpusScanned"
+    end
+
+    command "SeedVector" do
+      role "System"
+      description "Turn the user's vision string into a 9-dim vector in the same space as the corpus entries. The seed and corpus live in the same coordinate system so cosine similarity is well-defined."
+      attribute :vision, String
+      then_set :vision, to: :vision
+      then_set :phase, to: "seeded"
+      emits "VectorSeeded"
+    end
+
+    command "FindNearest" do
+      role "System"
+      description "Return the top-k corpus entries by cosine similarity to the seed vector. When category is set, partition the corpus to that category first ; fall back to the full corpus when the category has no entries, printing a notice to stderr."
+      attribute :category, String
+      attribute :k, Integer
+      attribute :nearest_name, String
+      then_set :category, to: :category
+      then_set :k, to: :k
+      then_set :nearest_name, to: :nearest_name
+      then_set :phase, to: "nearest_found"
+      emits "NearestFound"
+    end
+
+    command "Generate" do
+      role "System"
+      description "Emit a fresh bluebook from the nearest archetype, fitted to the name and vision. The archetype supplies structural shape (aggregate names pluralised, command patterns, policy sketches) ; name and vision are the user's input. Output is rustfmt-equivalent bluebook source text."
+      attribute :name, String
+      attribute :generated_text, String
+      then_set :name, to: :name
+      then_set :generated_text, to: :generated_text
+      then_set :phase, to: "generated"
+      emits "BluebookGenerated"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ScanCorpus"   => "scanning",       from: "pending"
+      transition "SeedVector"   => "seeded",         from: "scanning"
+      transition "FindNearest"  => "nearest_found",  from: "seeded"
+      transition "Generate"     => "generated",      from: "nearest_found"
+    end
+  end
+
+  # ============================================================
+  # BEHAVIORSCONCEPTION — corpus-driven behaviour-suite generation
+  # ============================================================
+
+  aggregate "BehaviorsConception", "Mirror of BluebookConception for *_behavioral_tests.bluebook files. Takes a source domain as the seed (instead of a vision string) and emits a TestSuite shaped like the nearest existing suite" do
+    # source_domain_name : the .bluebook the tests target.
+    attribute :source_domain_name, String
+    # corpus_size : behavioural archetypes loaded (from *_behavioral_tests.bluebook).
+    attribute :corpus_size, Integer
+    attribute :k, Integer
+    attribute :nearest_name, String
+    attribute :generated_text, String
+    attribute :phase, String
+
+    command "ScanBehaviorsCorpus" do
+      role "System"
+      description "Walk the corpus dirs for *_behavioral_tests.bluebook files, parse each into a TestSuite, extract a 7-dim structural vector. Non-behaviour bluebooks are skipped — BluebookConception owns those."
+      attribute :corpus_size, Integer
+      then_set :corpus_size, to: :corpus_size
+      then_set :phase, to: "scanning"
+      emits "BehaviorsCorpusScanned"
+    end
+
+    command "SeedFromDomain" do
+      role "System"
+      description "Turn the source domain's IR (aggregate count, command count, lifecycle presence, etc.) into a 7-dim seed vector in the same space as the corpus entries."
+      attribute :source_domain_name, String
+      then_set :source_domain_name, to: :source_domain_name
+      then_set :phase, to: "seeded"
+      emits "BehaviorsVectorSeeded"
+    end
+
+    command "FindNearestSuite" do
+      role "System"
+      description "Return the top-k TestSuite archetypes by Euclidean distance from the seed. Behaviour conception uses Euclidean rather than cosine because the dimensions aren't normalised the same way as bluebook vectors."
+      attribute :k, Integer
+      attribute :nearest_name, String
+      then_set :k, to: :k
+      then_set :nearest_name, to: :nearest_name
+      then_set :phase, to: "nearest_found"
+      emits "NearestSuiteFound"
+    end
+
+    command "GenerateBehaviors" do
+      role "System"
+      description "Emit a *_behavioral_tests.bluebook for the source domain, shaped like the nearest archetype suite. Walks every command on the source and emits one starter test per command, plus one per query, reusing the archetype's layout conventions."
+      attribute :generated_text, String
+      then_set :generated_text, to: :generated_text
+      then_set :phase, to: "generated"
+      emits "BehaviorsGenerated"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ScanBehaviorsCorpus" => "scanning",      from: "pending"
+      transition "SeedFromDomain"      => "seeded",        from: "scanning"
+      transition "FindNearestSuite"    => "nearest_found", from: "seeded"
+      transition "GenerateBehaviors"   => "generated",     from: "nearest_found"
+    end
+  end
+
+  # ============================================================
+  # DEVELOPMENT — graft a feature onto an existing domain
+  # ============================================================
+
+  aggregate "Development", "One invocation of the develop subcommand — reads a target domain, pulls a source domain to graft from, filters source aggregates by keyword match on the feature string (passed via --add), emits the merged bluebook with a version bump" do
+    # target_path : the bluebook being extended.
+    attribute :target_path, String
+    # source_domain_name : the donor domain whose aggregates are
+    # candidates for grafting.
+    attribute :source_domain_name, String
+    # feature : free-text keyword the user passed ("audit logging",
+    # "rate limiting", etc.). Splits on whitespace ; each token is
+    # searched case-insensitively across aggregate name, description,
+    # and command names.
+    attribute :feature, String
+    # existing_names : names of aggregates already in the target —
+    # filters out duplicates before grafting.
+    attribute :existing_names, list_of(String)
+    # grafted_count : number of source aggregates that matched the
+    # feature AND did not already exist in the target.
+    attribute :grafted_count, Integer
+    # new_version : the version string written into the emitted
+    # bluebook header (bump from the target's current version).
+    attribute :new_version, String
+    attribute :generated_text, String
+    attribute :phase, String
+
+    command "ReadTarget" do
+      role "System"
+      description "Parse the target bluebook path into a Domain. Records the existing aggregate names so the graft step can skip duplicates."
+      attribute :target_path, String
+      attribute :existing_names, list_of(String)
+      then_set :target_path, to: :target_path
+      then_set :existing_names, to: :existing_names
+      then_set :phase, to: "target_loaded"
+      emits "TargetLoaded"
+    end
+
+    command "LoadSourceDomain" do
+      role "System"
+      description "Parse the source bluebook — the donor domain whose aggregates will be considered for grafting. In practice this is currently any bluebook in the corpus whose name matches the user's source argument."
+      attribute :source_domain_name, String
+      then_set :source_domain_name, to: :source_domain_name
+      then_set :phase, to: "source_loaded"
+      emits "SourceLoaded"
+    end
+
+    command "FindMatchingAggregates" do
+      role "System"
+      description "Walk the source's aggregates. For each one, skip if already in target.existing_names. Otherwise split the feature string on whitespace and check whether any token (case-insensitive) appears in the aggregate's name, description, or any of its command names. Matching aggregates are the graft candidates."
+      attribute :feature, String
+      attribute :grafted_count, Integer
+      then_set :feature, to: :feature
+      then_set :grafted_count, to: :grafted_count
+      then_set :phase, to: "matched"
+      emits "MatchingAggregatesFound"
+    end
+
+    command "EmitMergedBluebook" do
+      role "System"
+      description "Serialise the result : every target aggregate in its original order, then the matched source aggregates grouped under a `# === Grafted from <source> (<feature>) ===` header, then every target policy, all wrapped in the target's Hecks.bluebook / end with a bumped version string."
+      attribute :new_version, String
+      attribute :generated_text, String
+      then_set :new_version, to: :new_version
+      then_set :generated_text, to: :generated_text
+      then_set :phase, to: "emitted"
+      emits "BluebookMerged"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ReadTarget"             => "target_loaded", from: "pending"
+      transition "LoadSourceDomain"       => "source_loaded", from: "target_loaded"
+      transition "FindMatchingAggregates" => "matched",       from: "source_loaded"
+      transition "EmitMergedBluebook"     => "emitted",       from: "matched"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the conception chains
+  # ============================================================
+  #
+  # Bluebook conception : scan → seed → nearest → generate.
+  # Behaviours conception : scan → seed-from-domain → nearest → generate.
+  # Development : read target → load source → match → emit.
+  #
+  # Each chain is sequenced in Rust imperatively today ; the policies
+  # document the flow and would let a self-interpreting runtime drive
+  # each step from the events alone.
+
+  policy "SeedAfterScan" do
+    on "CorpusScanned"
+    trigger "SeedVector"
+  end
+
+  policy "FindAfterSeed" do
+    on "VectorSeeded"
+    trigger "FindNearest"
+  end
+
+  policy "GenerateAfterFind" do
+    on "NearestFound"
+    trigger "Generate"
+  end
+
+  policy "SeedBehaviorsAfterScan" do
+    on "BehaviorsCorpusScanned"
+    trigger "SeedFromDomain"
+  end
+
+  policy "FindSuiteAfterSeed" do
+    on "BehaviorsVectorSeeded"
+    trigger "FindNearestSuite"
+  end
+
+  policy "GenerateBehaviorsAfterFind" do
+    on "NearestSuiteFound"
+    trigger "GenerateBehaviors"
+  end
+
+  policy "LoadSourceAfterTarget" do
+    on "TargetLoaded"
+    trigger "LoadSourceDomain"
+  end
+
+  policy "MatchAfterSource" do
+    on "SourceLoaded"
+    trigger "FindMatchingAggregates"
+  end
+
+  policy "EmitAfterMatch" do
+    on "MatchingAggregatesFound"
+    trigger "EmitMergedBluebook"
+  end
+end

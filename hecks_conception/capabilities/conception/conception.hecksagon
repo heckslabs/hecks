@@ -1,0 +1,47 @@
+Hecks.hecksagon "Conception" do
+  # ============================================================
+  # CONCEPTION — hexagonal wiring for Phase F-9
+  # ============================================================
+  #
+  # The sibling bluebook declares three aggregates that together
+  # cover the conceiver subsystem : BluebookConception for new-
+  # domain generation, BehaviorsConception for behaviour-suite
+  # generation, Development for grafting features onto an existing
+  # domain.
+  #
+  # Adapters :
+  #
+  #   :fs          — reads every corpus directory for *.bluebook or
+  #                  *_behavioral_tests.bluebook files. Scans are
+  #                  parallel across the dirs ; parse failures are
+  #                  silently skipped (a malformed bluebook should
+  #                  not stop the scan). Development's ReadTarget
+  #                  and LoadSourceDomain use the same port.
+  #
+  #   :stdout      — Generate / GenerateBehaviors / EmitMergedBluebook
+  #                  write the generated source text to stdout so the
+  #                  operator can redirect it to a file :
+  #                    hecks-life conceive "Geology" "…" > geology.bluebook
+  #
+  #   :memory      — persistence for the Conception aggregates
+  #                  themselves. Each invocation is a one-shot ; no
+  #                  durable record is kept of which archetypes were
+  #                  consulted.
+  #
+  # Kernel-floor (not declared as adapters) :
+  #
+  #   Vector arithmetic — cosine similarity for BluebookConception,
+  #   Euclidean for BehaviorsConception. Pure number-crunching in
+  #   vector.rs and conceiver_common.rs. Not aggregate-shaped ; the
+  #   bluebook declares WHEN the math runs, not HOW.
+  #
+  #   Template emission — the generator modules hold the
+  #   string-template logic for rendering a new bluebook / behaviour
+  #   suite. Same expected residue as the html_* family from F-5 :
+  #   templates don't fit aggregate/command shape without extending
+  #   the DSL, and the Phase F discipline refuses to do so.
+
+  adapter :memory
+  adapter :fs, root: "."
+  adapter :stdout
+end
