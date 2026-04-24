@@ -187,7 +187,33 @@ if options[:each_commit]
                      .map { |m| m[0].strip }
     subject, = run(["git", "log", "-1", "--format=%s", sha])
     if reasons.any?
-      puts "✓ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s)"
+      # Exemption markers require a valid signature (SSH or GPG) on the
+      # commit. Prevents the "Miette self-exempts" drift from earlier
+      # in the Phase F arc : the rule is that only the operator can
+      # authorise an exemption, enforced mechanically via `git verify-
+      # commit`. Both SSH and GPG signatures validate here — git
+      # handles both transparently.
+      sig_status, = run(["git", "log", "-1", "--format=%G?", sha])
+      signed_ok = %w[G U E].include?(sig_status.to_s.strip)
+      # G : good signature
+      # U : good signature, untrusted key (still a real signature — CI
+      #     may not have the operator's trust DB ; presence is the
+      #     gate, trust is out of band)
+      # E : expired signature — accept rather than silently fail CI
+      #     on the day the key rolls over ; the audit trail still
+      #     names the operator
+      # N : no signature — reject
+      # B : bad signature — reject
+      # X / Y / R : edge cases — reject
+      if signed_ok
+        puts "✓ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s) [signed: #{sig_status.strip}]"
+      else
+        puts "✗ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s) but UNSIGNED"
+        code.each { |p| puts "    #{p}" }
+        puts "    exemption markers require a signed commit (git commit -S)"
+        puts "    signature status: #{sig_status.strip.empty? ? 'N (none)' : sig_status.strip}"
+        any_fail = true
+      end
     else
       puts "✗ #{sha[0, 7]} #{subject.to_s.slice(0, 60)}"
       code.each { |p| puts "    #{p}" }

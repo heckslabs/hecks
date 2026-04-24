@@ -1,0 +1,28 @@
+name: LoC Ratchet
+
+# Fails when a PR increases the count of non-bluebook LoC (*.rs under
+# hecks_life/src/, *.sh under hecks_conception/) without a signed
+# [loc-ratchet-override: ...] commit marker. The discipline matches
+# the antibody-exemption signing rule — only the operator authorises
+# increases. See bin/loc-ratchet and inbox i62 / i65 / i66.
+
+on:
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  ratchet:
+    name: Non-bluebook LoC may not increase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run loc-ratchet
+        run: bin/loc-ratchet --base "origin/${{ github.base_ref }}" --verbose
