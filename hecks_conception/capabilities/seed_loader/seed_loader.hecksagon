@@ -1,0 +1,30 @@
+Hecks.hecksagon "SeedLoader" do
+  # ============================================================
+  # SEEDLOADER — hexagonal wiring for Phase F-1
+  # ============================================================
+  #
+  # The seed_loader bluebook declares the commands and state machine
+  # for preloading aggregates from a text seed file. The I/O primitives
+  # — reading the file and dispatching each parsed line against the
+  # runtime — live here as outbound adapters. The Rust implementation
+  # (hecks_life/src/runtime/seed_loader.rs) satisfies these ports.
+  #
+  # Adapters :
+  #
+  #   :fs                — reads the seed file content from disk. Fires
+  #                        on SeedFileLoaded ; the adapter populates
+  #                        `source_content` for LoadFromString.
+  #
+  #   :runtime_dispatch  — the outbound port for DispatchSeed. Each
+  #                        SeedLineDispatched event carries a
+  #                        command_name + attrs ; the adapter invokes
+  #                        the runtime's internal dispatch primitive
+  #                        (i.e. Runtime::dispatch). Distinct from a
+  #                        regular inbound command because the
+  #                        dispatched command is chosen per-line, not
+  #                        statically.
+
+  adapter :memory
+  adapter :fs, root: "."
+  adapter :runtime_dispatch
+end
