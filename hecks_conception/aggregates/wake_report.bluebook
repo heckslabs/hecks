@@ -112,13 +112,23 @@ Hecks.bluebook "WakeReport", version: "2026.04.24.1" do
       emits "ReportFiled"
     end
 
-    lifecycle :phase, default: "pending" do
-      transition "StartReport"         => "gathering",   from: "pending"
-      transition "SurfaceDreams"       => "interpreted", from: "gathering"
-      transition "CountWitnessFirings" => "interpreted", from: "interpreted"
-      transition "ReflectOnBody"       => "reflected",   from: "interpreted"
-      transition "FileReport"          => "filed",       from: "reflected"
-    end
+    # ---- No lifecycle guard -------------------------------------
+    #
+    # Earlier versions of this bluebook carried a lifecycle on :phase
+    # with ordered transitions. That turned out to be the wrong shape
+    # for the adapter pattern : the shell re-runs wake_report.sh on
+    # every wake, which means the aggregate needs to accept StartReport
+    # from ANY phase (filed, consumed, etc.) — not just pending. A
+    # lifecycle guard that requires phase=pending makes the second
+    # run fail, and the heki upsert "reset" trick doesn't actually
+    # replace the runtime's singleton record (it appends a record
+    # with a generated Store key, which the load_persisted iteration
+    # collapses to the old value on deterministic order). Stripping
+    # the lifecycle removes the guard ; the shell orchestrates the
+    # sequence explicitly, and the :phase attribute is now pure
+    # observable state (reading "filed" means the last run completed,
+    # "pending" means the current run is between StartReport and
+    # SurfaceDreams, etc.).
   end
 
   # ============================================================
