@@ -298,11 +298,14 @@ module Hecks
       end
 
       def hecksagon_persistence(hex)
-        return nil unless hex.persistence
-        # Rust stores persistence as a plain string ("memory" | "heki" |
-        # "sqlite" | ...). Ruby stores `{ type: :memory, ... }`. Canonical
-        # shape is the type as a string.
-        hex.persistence[:type]&.to_s
+        # Rust defaults unspecified persistence to "memory" in a post-parse
+        # normalization step (hecks_life/src/hecksagon_parser.rs). The canonical
+        # IR matches that default: absent `persistence` means memory. Ruby's
+        # DomainContext stores the persistence hash on the block form and
+        # leaves it nil on the shorthand / absent form — both canonicalize to
+        # "memory".
+        return "memory" unless hex.persistence
+        hex.persistence[:type]&.to_s || "memory"
       end
 
       def dump_shell_adapter(sa)
