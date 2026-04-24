@@ -144,10 +144,15 @@ while true; do
   "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
 
   # Wake hook — sleeping → attentive transition fires interpret_dream.sh
-  # once per wake. Previous state lives in $INFO/.prev_consciousness_state.
+  # AND wake_report.sh once per wake. Previous state lives in
+  # $INFO/.prev_consciousness_state. The 2026-04-24 lock-down : the
+  # wake report writes to wake_report.heki with phase=filed ; the next
+  # boot_miette.sh surfaces it ; the next session turn reads it. The
+  # conscious mind is not trusted to remember.
   prev_state=$(cat "$INFO/.prev_consciousness_state" 2>/dev/null)
   if [ "$prev_state" = "sleeping" ] && [ "$state" != "sleeping" ] && [ -n "$state" ]; then
     "$DIR/interpret_dream.sh" >> /tmp/interpret_dream.log 2>&1 &
+    "$DIR/capabilities/wake_report/wake_report.sh" >> /tmp/wake_report.log 2>&1 &
   fi
   [ -n "$state" ] && echo "$state" > "$INFO/.prev_consciousness_state"
 
