@@ -1,0 +1,32 @@
+Hecks.hecksagon "Storage" do
+  # ============================================================
+  # STORAGE — hexagonal wiring for Phase F-3
+  # ============================================================
+  #
+  # The sibling bluebook declares three aggregates (Repository,
+  # Projection, AdapterRegistry) that together form the runtime's
+  # state-holding core. This file declares the outbound ports those
+  # aggregates consume. The Rust implementation files —
+  # hecks_life/src/runtime/repository.rs, projection.rs,
+  # adapter_registry.rs — are the adapters.
+  #
+  # Adapters :
+  #
+  #   :fs     — reads and writes .heki files under data_dir. Anchors
+  #             Repository.LoadPersisted and Repository.Save. The
+  #             actual binary format is owned by the kernel-floor
+  #             module heki.rs ; :fs is the port it sits behind.
+  #
+  #   :memory — pure in-memory state. Projection does not persist.
+  #             A Repository constructed without a data_dir uses
+  #             :memory only. Also used by AdapterRegistry, which
+  #             holds only the parsed Hecksagon IR in RAM.
+  #
+  # The Projection aggregate has no outbound I/O port — it is a pure
+  # in-memory fold of events into rows. That is not a failure of the
+  # hecksagon ; it is an accurate description of the subsystem, which
+  # is by design volatile across runtime restarts.
+
+  adapter :memory
+  adapter :fs, root: "information"
+end
