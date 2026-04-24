@@ -51,6 +51,30 @@ case "$cmd" in
     "$HECKS" heki append "$HEKI" \
       ref="$ref" priority="$priority" status=queued posted_at="$now" body="$body" \
       >/dev/null
+
+    # Auto-commit the heki change on the current branch so the filing
+    # is durable. Before this was added, running inbox.sh on a feature
+    # branch left the inbox.heki modification uncommitted ; checking
+    # out another branch silently reverted it and the filed item was
+    # lost. The gap was surfaced on 2026-04-24 when six session-local
+    # filings evaporated ; auto-commit closes the discipline hole.
+    #
+    # Commits are scoped strictly to inbox.heki — other uncommitted
+    # work in the tree is left alone. Respects the repo's commit
+    # signing config (commit.gpgsign) so if the operator has it on,
+    # the auto-commit is signed. Silent-no-op when the working tree
+    # isn't a git checkout ; loud warning when the commit itself fails
+    # (never silent, because silent failure was the original defect).
+    if [ -d "$DIR/../.git" ] || git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
+      subject=$(printf '%s' "$body" | head -c 60 | tr '\n' ' ')
+      if git -C "$DIR" add "$HEKI" >/dev/null 2>&1; then
+        if ! git -C "$DIR" commit -q -m "inbox($ref): $subject" >/dev/null 2>&1; then
+          echo "warning: heki updated but git commit failed for inbox($ref)" >&2
+          echo "         stage the file manually to preserve the filing" >&2
+        fi
+      fi
+    fi
+
     echo "$ref"
     ;;
   list)
