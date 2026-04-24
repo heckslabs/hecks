@@ -1,0 +1,160 @@
+#!/usr/bin/env ruby
+# loc-ratchet — the non-bluebook LoC may not increase in a PR.
+#
+# Counts `*.rs` under hecks_life/src/ and `*.sh` under hecks_conception/
+# on HEAD vs the base branch. If HEAD's total exceeds base's total, the
+# PR fails — unless the increase is authorised by a signed commit
+# carrying a [loc-ratchet-override: <reason>] marker.
+#
+# Why this exists : Phase F shipped eleven PRs that declared bluebooks
+# + hecksagons WITHOUT deleting the corresponding Rust (see i62 in the
+# inbox). The resulting drift left the stated direction "no Rust"
+# unenforced. This check creates the monotonic pressure : new non-
+# bluebook code must either replace more non-bluebook code than it
+# adds, or carry a signed override from the operator. Declaration
+# without deletion stops being a silent habit.
+#
+# Usage:
+#   bin/loc-ratchet --base origin/main
+#   bin/loc-ratchet --base origin/main --verbose
+#
+# Exit codes:
+#   0  HEAD's non-bluebook LoC is <= base's
+#   1  HEAD's total exceeded base's without a signed override
+#   2  Git / filesystem error during counting
+
+require "optparse"
+require "open3"
+
+# Paths the ratchet scans. Each is a (directory, extensions) tuple —
+# the directory anchors the walk, the extension list filters files.
+# Intentionally narrow : the point is to ratchet THE CATEGORIES Phase
+# F aims to shrink, not every line of code in the repo.
+COUNTED_TREES = [
+  ["hecks_life/src",     %w[rs]],
+  ["hecks_conception",   %w[sh]],
+].freeze
+
+# Paths the ratchet IGNORES even under the counted trees above. Tests
+# don't count toward the deletion pressure (they're discipline, not
+# runtime) ; vendor / target / node_modules are build artefacts.
+IGNORED_SEGMENTS = %w[
+  tests/
+  /target/
+  /node_modules/
+  /vendor/
+].freeze
+
+def run(cmd)
+  out, _, status = Open3.capture3(*cmd)
+  [out.strip, status.success?]
+end
+
+def ignored?(path)
+  IGNORED_SEGMENTS.any? { |seg| path.include?(seg) }
+end
+
+def count_at(tree, exts, treeish)
+  # `git ls-tree --name-only -r <treeish> -- <tree>` lists every file
+  # under the given tree at the given commit. We pipe each line
+  # through an extension filter and a path-ignore filter ; the
+  # survivors get `git show` to count non-blank lines.
+  out, ok = run(["git", "ls-tree", "--name-only", "-r", treeish, "--", tree])
+  return 0 unless ok
+  total = 0
+  files = out.lines.map(&:strip).reject(&:empty?)
+  files.each do |path|
+    next if ignored?(path)
+    ext = File.extname(path).delete_prefix(".").downcase
+    next unless exts.include?(ext)
+    content, cok = run(["git", "show", "#{treeish}:#{path}"])
+    next unless cok
+    # Non-blank lines only — whitespace additions shouldn't fail the
+    # ratchet. Using wc -l would count blanks ; we want code-like LoC.
+    total += content.lines.count { |l| !l.strip.empty? }
+  end
+  total
+end
+
+def overrides_present?(base_ref)
+  out, ok = run(["git", "log", "--format=%B", "#{base_ref}..HEAD"])
+  return false unless ok
+  !out.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i).nil?
+end
+
+def overrides_signed?(base_ref)
+  # Every commit carrying [loc-ratchet-override: ...] must be signed.
+  # Mirrors the antibody-exemption signing rule : only the operator
+  # authorises increases.
+  shas, ok = run(["git", "log", "--format=%H", "#{base_ref}..HEAD"])
+  return false unless ok
+  shas.lines.map(&:strip).reject(&:empty?).each do |sha|
+    msg, _ = run(["git", "log", "-1", "--format=%B", sha])
+    next unless msg.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i)
+    sig, _ = run(["git", "log", "-1", "--format=%G?", sha])
+    status = sig.to_s.strip
+    # G good, U untrusted-but-present, E expired — all count as signed
+    # for ratchet purposes. N none, B bad, others reject.
+    unless %w[G U E].include?(status)
+      return false
+    end
+  end
+  true
+end
+
+options = { base: nil, verbose: false }
+OptionParser.new do |opts|
+  opts.on("--base REF",   "Base ref to compare HEAD against")    { |v| options[:base] = v }
+  opts.on("--verbose",    "Print per-tree counts for both sides") { options[:verbose] = true }
+end.parse!
+
+base_ref = options[:base] || "origin/main"
+
+base_total = 0
+head_total = 0
+per_tree = []
+COUNTED_TREES.each do |tree, exts|
+  b = count_at(tree, exts, base_ref)
+  h = count_at(tree, exts, "HEAD")
+  base_total += b
+  head_total += h
+  per_tree << [tree, exts, b, h]
+end
+
+if options[:verbose]
+  puts "ratchet report (base #{base_ref} vs HEAD)"
+  per_tree.each do |tree, exts, b, h|
+    puts "  #{tree.ljust(25)} #{exts.join(",").ljust(10)} base=#{b.to_s.rjust(6)} head=#{h.to_s.rjust(6)} delta=#{(h - b).to_s.rjust(5)}"
+  end
+  puts "  #{"TOTAL".ljust(36)} base=#{base_total.to_s.rjust(6)} head=#{head_total.to_s.rjust(6)} delta=#{(head_total - base_total).to_s.rjust(5)}"
+end
+
+delta = head_total - base_total
+if delta <= 0
+  puts "✓ loc-ratchet: #{delta <= 0 ? delta : "+#{delta}"} (base=#{base_total}, head=#{head_total})"
+  exit 0
+end
+
+# Delta is positive — must be authorised by a signed override.
+if overrides_present?(base_ref)
+  if overrides_signed?(base_ref)
+    puts "✓ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total}) — authorised by signed [loc-ratchet-override]"
+    exit 0
+  else
+    puts "✗ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total})"
+    puts "    [loc-ratchet-override] marker present but commit is UNSIGNED"
+    puts "    signed commits only — run: git commit -S -m '[loc-ratchet-override: <reason>]'"
+    exit 1
+  end
+end
+
+puts "✗ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total})"
+puts "    non-bluebook LoC increased ; no authorisation marker present"
+puts ""
+puts "  The direction is 'no Rust / no shell' — increases need a signed override."
+puts "  If this PR legitimately adds non-bluebook code (e.g. kernel primitive,"
+puts "  transitional adapter), add a commit on the branch with a signed"
+puts "  message containing [loc-ratchet-override: <concrete reason>]."
+puts ""
+puts "  Run bin/loc-ratchet --base #{base_ref} --verbose for per-tree counts."
+exit 1
