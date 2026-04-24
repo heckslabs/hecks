@@ -1,0 +1,267 @@
+Hecks.bluebook "Storage", version: "2026.04.24.1" do
+  vision "The storage core — aggregate persistence, CQRS read-models, and hexagonal adapter lookup, all expressed as one domain"
+  category "runtime"
+
+  # ============================================================
+  # STORAGE — Phase F-3 — runtime as domain
+  # ============================================================
+  #
+  # Third file of the Phase F arc (docs/phase-f-0-survey.md). Groups
+  # three hand-written Rust modules under one bluebook domain :
+  #
+  #   hecks_life/src/runtime/repository.rs       (150 LOC)
+  #   hecks_life/src/runtime/projection.rs       (124 LOC)
+  #   hecks_life/src/runtime/adapter_registry.rs  (69 LOC)
+  #
+  # They live together because they share a concern : where the
+  # runtime holds state. `Repository` is how aggregates persist,
+  # `Projection` is how events replay into read-models, and
+  # `AdapterRegistry` is how the hecksagon's declared adapter table
+  # gets consulted at dispatch time. Each is its own aggregate ; the
+  # bluebook groups them the way a user domain groups related
+  # aggregates for a business concept.
+  #
+  # These subsystems are long-lived services ; they do not have
+  # strong lifecycle phases the way SeedLoader or StatusReport do.
+  # Lifecycle is tracked only where it reflects something real (e.g.
+  # Repository's load-from-disk transition). Otherwise the commands
+  # describe the operations the Rust modules already support.
+
+  # ============================================================
+  # REPOSITORY
+  # ============================================================
+
+  aggregate "Repository", "In-memory aggregate storage with .heki persistence — one Repository instance per aggregate type under the runtime's data_dir" do
+    # aggregate_type : the name of the aggregate this Repository holds
+    # (e.g. \"Heartbeat\"). Used to derive the heki file path
+    # (data_dir/heartbeat.heki — snake_case).
+    attribute :aggregate_type, String
+    # data_dir : absolute or relative path to the directory of .heki
+    # files. None means pure-memory (tests, scratch runtimes).
+    attribute :data_dir, String
+    # next_id : monotonic id counter for new aggregates. Loaded from
+    # disk : the max id + 1 from the existing records.
+    attribute :next_id, Integer
+    # singleton_id : some aggregate types are singletons (one record
+    # per store) ; the first loaded id is remembered here so new
+    # saves reuse it.
+    attribute :singleton_id, String
+    # record_count : cached count of stored AggregateState instances.
+    attribute :record_count, Integer
+    # state : uninitialized | loaded. Flips once LoadPersisted fires.
+    attribute :state, String
+
+    command "InitializeRepository" do
+      role "System"
+      description "Create a Repository for the named aggregate type anchored at data_dir. If data_dir is supplied, LoadPersisted fires automatically so the in-memory store mirrors disk."
+      attribute :aggregate_type, String
+      attribute :data_dir, String
+      then_set :aggregate_type, to: :aggregate_type
+      then_set :data_dir, to: :data_dir
+      then_set :next_id, to: 1
+      emits "RepositoryInitialized"
+    end
+
+    command "LoadPersisted" do
+      role "System"
+      description "Read every record from the matching .heki store at data_dir, reconstruct each AggregateState, remember the singleton id if any, and advance next_id past the highest seen."
+      given("data_dir must be set") { data_dir != "" }
+      then_set :state, to: "loaded"
+      emits "RecordsLoaded"
+    end
+
+    command "Save" do
+      role "System"
+      description "Upsert an AggregateState by id. If data_dir is set, the full store is written back to the .heki file — preserving every record, not just the new one."
+      attribute :state_id, String
+      then_set :record_count, increment: 1
+      emits "RecordSaved"
+    end
+
+    command "AssignNextId" do
+      role "System"
+      description "Return the next id for a new aggregate. For singleton heki stores with an existing record, reuse the existing id. Otherwise advance and return the monotonic counter."
+      then_set :next_id, increment: 1
+      emits "IdAssigned"
+    end
+
+    command "Find" do
+      role "System"
+      description "Look up an AggregateState by id. Returns null when absent — callers handle the None case."
+      attribute :state_id, String
+      emits "RecordFound"
+    end
+
+    command "FindAll" do
+      role "System"
+      description "Return every AggregateState currently stored for this aggregate type."
+      emits "AllRecordsReturned"
+    end
+
+    command "Count" do
+      role "System"
+      description "Report the number of stored AggregateState instances."
+      emits "RecordCountReported"
+    end
+
+    lifecycle :state, default: "uninitialized" do
+      transition "InitializeRepository" => "uninitialized", from: "uninitialized"
+      transition "LoadPersisted"        => "loaded",        from: "uninitialized"
+    end
+  end
+
+  # ============================================================
+  # PROJECTION
+  # ============================================================
+
+  aggregate "Projection", "CQRS read-model — watches events and maintains a derived view ; every aggregate gets one auto-projection for free, plus any user-declared named projections" do
+    # name : the projection's identifier. Auto-projections are named
+    # \"<AggregateType>List\" (e.g. PizzaList) ; user projections use
+    # whatever the bluebook declares.
+    attribute :name, String
+    # row_count : number of rows currently in the projection's state.
+    attribute :row_count, Integer
+    # handler_count : number of event handlers registered.
+    attribute :handler_count, Integer
+    # query_count : number of named queries registered.
+    attribute :query_count, Integer
+
+    # ---- Row --------------------------------------------------------
+    #
+    # The unit of projected state. Upsert writes fields into an
+    # existing row (or creates one) ; delete removes the row.
+
+    value_object "Row" do
+      attribute :row_id, String
+    end
+
+    command "CreateProjection" do
+      role "System"
+      description "Bring a new Projection into existence with an empty ProjectionState (no rows, no handlers, no queries)."
+      attribute :name, String
+      then_set :name, to: :name
+      then_set :row_count, to: 0
+      then_set :handler_count, to: 0
+      then_set :query_count, to: 0
+      emits "ProjectionCreated"
+    end
+
+    command "RegisterEventHandler" do
+      role "System"
+      description "Register a handler for a named event. The special event name * subscribes to every event — the auto-projection uses * to mirror its parent aggregate's state."
+      attribute :event_name, String
+      then_set :handler_count, increment: 1
+      emits "HandlerRegistered"
+    end
+
+    command "RegisterQuery" do
+      role "System"
+      description "Register a named read-only query against the projection's rows. Queries are pure functions over ProjectionState and return a list of row maps."
+      attribute :query_name, String
+      then_set :query_count, increment: 1
+      emits "QueryRegistered"
+    end
+
+    command "ApplyEvent" do
+      role "System"
+      description "Receive an event, fire the matching named handler (if any), then every * global handler. Handlers write through to the projection's state via UpsertRow or DeleteRow."
+      attribute :event_name, String
+      emits "EventApplied"
+    end
+
+    command "UpsertRow" do
+      role "System"
+      description "Create or update a row by id, merging the supplied fields over any existing values."
+      attribute :row_id, String
+      then_set :row_count, increment: 1
+      emits "RowUpserted"
+    end
+
+    command "DeleteRow" do
+      role "System"
+      description "Remove a row from the projection by id. Missing ids are a no-op."
+      attribute :row_id, String
+      emits "RowDeleted"
+    end
+
+    command "ExecuteQuery" do
+      role "System"
+      description "Run a registered named query against current state. Returns the row list produced by the query's function."
+      attribute :query_name, String
+      emits "QueryExecuted"
+    end
+  end
+
+  # ============================================================
+  # ADAPTERREGISTRY
+  # ============================================================
+
+  aggregate "AdapterRegistry", "Runtime table of adapters declared in the sibling hecksagon — the glue between the bluebook's events and the I/O surface that handles them" do
+    # domain_name : the domain whose hecksagon this registry was built
+    # from (empty when constructed via AdapterRegistry::empty).
+    attribute :domain_name, String
+    # io_adapter_count : number of :io adapters parsed from the hecksagon
+    # (:fs, :stdout, :stdin, :env, :runtime_dispatch, etc.).
+    attribute :io_adapter_count, Integer
+    # shell_adapter_count : number of named :shell adapters parsed.
+    attribute :shell_adapter_count, Integer
+    # gate_count : number of declared gates (aggregate+role policies).
+    attribute :gate_count, Integer
+    # persistence_kind : :memory | :csv | :sqlite | … per the
+    # hecksagon's persistence declaration.
+    attribute :persistence_kind, String
+
+    command "LoadFromHecksagon" do
+      role "System"
+      description "Build an AdapterRegistry from a parsed Hecksagon IR. Counts the io, shell, and gate tables and caches the persistence kind so later lookups do not re-traverse the IR."
+      attribute :domain_name, String
+      then_set :domain_name, to: :domain_name
+      emits "RegistryLoaded"
+    end
+
+    command "LookupIoAdapter" do
+      role "System"
+      description "Find an IoAdapter by its kind (:fs, :stdout, …). Returns None when no adapter of that kind is declared."
+      attribute :kind, String
+      emits "IoAdapterLookedUp"
+    end
+
+    command "LookupShellAdapter" do
+      role "System"
+      description "Find a named ShellAdapter (e.g. is_pid_alive, git_resolve_ref). Returns None when the name is undeclared."
+      attribute :adapter_name, String
+      emits "ShellAdapterLookedUp"
+    end
+
+    command "LookupGate" do
+      role "System"
+      description "Find the Gate that protects a given aggregate+role combination. Gates enforce the hecksagon's access-control layer."
+      attribute :aggregate_name, String
+      attribute :role, String
+      emits "GateLookedUp"
+    end
+
+    command "ListSubscribersForEvent" do
+      role "System"
+      description "Return every IoAdapter whose on_events list contains the given event name. The runtime's policy engine uses this to fan an event out to adapters declared with `on :EventName do … end` blocks."
+      attribute :event_name, String
+      emits "SubscribersListed"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  #
+  # A minimal set reflecting the relationships the Rust already
+  # maintains implicitly.
+  #
+  # LoadAfterInitialize — when a Repository is initialized with a
+  # data_dir, the Rust constructor fires load_persisted() itself. The
+  # policy makes that behaviour declarative.
+
+  policy "LoadAfterInitialize" do
+    on "RepositoryInitialized"
+    trigger "LoadPersisted"
+  end
+end
