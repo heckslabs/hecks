@@ -6,7 +6,7 @@ Hecks.fixtures "Antibody" do
   # .heki stores, the four DSL extensions, etc. Adding or removing
   # a row here is the only way to change what antibody flags.
 
-  aggregate "FlaggedExtension" do
+  aggregate "FlaggedExtension", schema: { ext: String } do
     fixture "Ruby",       ext: "rb"
     fixture "Rust",       ext: "rs"
     fixture "Python",     ext: "py"
@@ -28,7 +28,7 @@ Hecks.fixtures "Antibody" do
   # Only the shebangs listed here recover; anything else (awk, perl,
   # raku) is ignored and the file is treated as non-code.
 
-  aggregate "ShebangMapping" do
+  aggregate "ShebangMapping", schema: { match: String, ext: String } do
     fixture "Ruby",   match: "ruby",   ext: "rb"
     fixture "Python", match: "python", ext: "py"
     fixture "Bash",   match: "bash",   ext: "sh"
@@ -44,7 +44,7 @@ Hecks.fixtures "Antibody" do
   # does NOT exempt. Leading whitespace before the marker is allowed
   # (\s* in the pattern). Case-insensitive (flags: "i").
 
-  aggregate "ExemptionPattern" do
+  aggregate "ExemptionPattern", schema: { pattern: String, flags: String, anchor: String } do
     fixture "Canonical", pattern: "^\s*\[antibody-exempt:\s*([^\]]+)\]", flags: "i", anchor: "line_start"
   end
 
@@ -55,7 +55,7 @@ Hecks.fixtures "Antibody" do
   # the seeds that anchor `antibody.behaviors` — the runtime replays
   # each one and asserts the verdict matches.
 
-  aggregate "TestCase" do
+  aggregate "TestCase", schema: { touched_files: list_of(String), message: String, expected: String } do
     fixture "OnlyBluebook", touched: ["information/arc.heki", "hecks_conception/capabilities/antibody/antibody.bluebook"], message: "antibody: draft bluebook", expected: "pass"
     fixture "UntriagedRuby", touched: ["lib/hecks/shell_adapter.rb"], message: "wire the shell adapter", expected: "rejected"
     fixture "LineAnchoredExemption", touched: ["lib/hecks/shell_adapter.rb"], message: "wire the shell adapter\n\n[antibody-exempt: bootstrap rust shim not ready]", expected: "exempted"

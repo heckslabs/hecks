@@ -204,42 +204,13 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
   # CONFIG CATALOGS
   # ============================================================
   #
-  # The four aggregates below are pure config tables — no commands,
-  # no lifecycle, no behavior. They declare the shape of the rows
-  # seeded by fixtures/antibody.fixtures so the fixture references
-  # resolve against a declared aggregate (PR #258 orphan inventory).
+  # The four shape-only aggregates (FlaggedExtension, ShebangMapping,
+  # ExemptionPattern, TestCase) that used to live here were moved to
+  # self-declaring form in `fixtures/antibody.fixtures` via the
+  # `aggregate "Name", schema: { k: T, ... } do` DSL extension — they
+  # no longer need a bluebook-side declaration. Closes inbox i42.
   #
-  #   FlaggedExtension  — the CODE_EXTS list antibody inspects
-  #   ShebangMapping    — shebang→extension recovery for extensionless files
-  #   ExemptionPattern  — the canonical exemption-marker regex
-  #   TestCase          — self-contained scenarios replayed by antibody.behaviors
-
-  # ---- FlaggedExtension ------------------------------------------
-
-  aggregate "FlaggedExtension", "One code extension antibody inspects — adding or removing a row here is the only way to change what antibody flags" do
-    attribute :ext, String
-  end
-
-  # ---- ShebangMapping --------------------------------------------
-
-  aggregate "ShebangMapping", "Maps a shebang interpreter name to the synthetic extension antibody should treat an extensionless file as" do
-    attribute :match, String
-    attribute :ext, String
-  end
-
-  # ---- ExemptionPattern ------------------------------------------
-
-  aggregate "ExemptionPattern", "The regex antibody uses to detect an exemption marker in a commit message — anchored at line start to prevent false matches in commit body prose" do
-    attribute :pattern, String
-    attribute :flags, String
-    attribute :anchor, String
-  end
-
-  # ---- TestCase --------------------------------------------------
-
-  aggregate "TestCase", "A self-contained antibody scenario — touched files, commit message, expected verdict; antibody.behaviors replays each one" do
-    attribute :touched_files, list_of(String)
-    attribute :message, String
-    attribute :expected, String
-  end
+  # To see their current schemas and row sets, read
+  # `fixtures/antibody.fixtures` — the `schema:` kwarg on each
+  # `aggregate` line carries what used to be `attribute :...` in here.
 end
