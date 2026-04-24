@@ -1453,7 +1453,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
                     let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
                     if let Some(repo) = rt.repositories.get_mut(&result.aggregate_type) {
-                        hecks_life::runtime::adapter_llm::resolve(repo, &state, config);
+                        hecks_life::runtime::adapter_llm::resolve_ollama(repo, &state, config);
                     }
                 }
                 let state = rt.find(&result.aggregate_type, &result.aggregate_id);

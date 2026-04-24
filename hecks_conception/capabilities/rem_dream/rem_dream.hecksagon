@@ -1,0 +1,59 @@
+Hecks.hecksagon "RemDream" do
+  # ============================================================
+  # REMDREAM — hexagonal wiring for Phase F-8 (in flight)
+  # ============================================================
+  #
+  # The sibling bluebook declares DreamBranch — one record per REM
+  # tick, walking generate → translate → persist → dispatch for the
+  # regular image and (when is_lucid=yes) the same chain again for
+  # the lucid observation.
+  #
+  # Outbound ports :
+  #
+  #   :llm              — backend:claude, free-form prompts. Used for
+  #                       both image generation (full French dream
+  #                       prompt) and translation (French → English).
+  #                       The bluebook's :input field is consulted
+  #                       verbatim as the prompt, and the generated
+  #                       text is written to :response — the
+  #                       input/response convention the bluebook
+  #                       declares. In test mode, the in-memory
+  #                       adapter reads rem_dream.fixtures for canned
+  #                       response pairs ; no live LLM is needed.
+  #
+  #   :heki_read        — reads four sibling .heki stores during
+  #                       StartDreamTick to populate the context
+  #                       snapshot : heartbeat.heki (carrying),
+  #                       aggregates/ directory listing (self_domain
+  #                       random pick), awareness.heki (recent
+  #                       awareness), memory.heki (recent memory).
+  #                       NOTE : :heki_read is not yet a first-class
+  #                       runtime adapter ; declared here so the port
+  #                       is named ahead of the runtime wiring.
+  #
+  #   :heki_append      — appends :french_image to dream_state.heki
+  #                       as the authentic corpus record. NOTE : not
+  #                       yet first-class ; declared to name the port.
+  #
+  #   :runtime_dispatch — fires Consciousness.DreamPulse with
+  #                       :english_image, and (when lucid)
+  #                       LucidDream.ObserveDream +
+  #                       LucidDream.SteerDream with
+  #                       :english_lucid_obs. NOTE : declared but
+  #                       requires runtime self-dispatch wiring.
+  #
+  # Until the three "not yet first-class" ports land, rem_branch.sh
+  # stays as the adapter implementation of the DreamBranch contract
+  # (same transitional pattern as F-1's SeedLoader, where the shell /
+  # Rust remains while the bluebook is the source-of-truth
+  # declaration).
+
+  adapter :memory
+
+  adapter :llm,
+    backend: :claude
+
+  adapter :heki_read,  root: "information"
+  adapter :heki_append, root: "information"
+  adapter :runtime_dispatch
+end

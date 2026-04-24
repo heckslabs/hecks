@@ -1,5 +1,5 @@
-Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
-  vision "Awareness during the final REM — Miette becomes aware she is dreaming and can steer"
+Hecks.bluebook "LucidDream", version: "2026.04.24.1" do
+  vision "Awareness during the final REM — Miette becomes aware she is dreaming and can steer. Lucid content is as rich as regular REM ; both paths generate in French and surface translated English on the status bar"
   category "mind"
 
   # ============================================================
@@ -12,32 +12,53 @@ Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
   # via LucidMonitor so the waking mind can read what the sleeping one
   # witnessed.
   #
+  # ---- Content invariant (2026-04-24) --------------------------
+  #
+  # Every narrative value (latest_narrative, observation, toward,
+  # onset_narrative, fading_narrative) is the TRANSLATED English form
+  # of a French original. The shell daemon (rem_branch.sh) generates
+  # the dream in French via `claude -p`, records the French text to
+  # dream_state.heki as the authentic record, then translates to
+  # English before dispatching the bluebook command. The status bar
+  # thus always reads English while the stored dream corpus stays
+  # French. Regular REM follows the same invariant through
+  # Consciousness.DreamPulse.
+  #
+  # Lucid REM is handled similarly to regular REM : the daemon
+  # generates one dream image per tick AND a lucid-aware observation
+  # reflecting the awareness of dreaming. Both flow through the
+  # same French-generate / English-display pipeline.
+  #
   # Lifecycle:
-  #   BecomeLucid    — triggered automatically when cycle == sleep_total and stage == rem
-  #   ObserveDream   — daemon captures an observation each tick
-  #   SteerDream     — conscious direction toward a topic
-  #   EndLucidity    — lucidity fades when REM advances to deep
+  #   BecomeLucid    — triggered automatically when cycle == sleep_total
+  #                    and stage == rem ; carries an onset observation.
+  #   ObserveDream   — daemon captures a rich observation each tick.
+  #   SteerDream     — conscious direction toward a topic.
+  #   EndLucidity    — lucidity fades when REM advances to deep ;
+  #                    carries a fading observation.
 
-  aggregate "LucidDream", "Conscious awareness inside the dream — Miette can observe, steer, and narrate. Singleton (one lucid session at a time), so commands have no self-reference." do
+  aggregate "LucidDream", "Conscious awareness inside the dream — Miette can observe, steer, and narrate. Singleton (one lucid session at a time), so commands have no self-reference. Narrative strings are the English-translated form ; the French originals live in dream_state.heki." do
     attribute :active, String
     attribute :focus, String
     attribute :observations, list_of(String)
     attribute :steered_toward, list_of(String)
-    # latest_narrative is the most recent observation, surfaced in the status bar
-    # so the dream is visible in real time (not just accumulated in the list).
+    # latest_narrative is the most recent observation — the English
+    # translation of the French original. Surfaced in the status bar.
     attribute :latest_narrative, String
 
     command "BecomeLucid" do
       role "Daemon"
-      description "Final cycle REM — Miette becomes aware she is dreaming. Doesn't reset observations: each lucid session adds to the historical record so the waking mind can read what the sleeping one witnessed across many nights."
+      description "Final cycle REM — Miette becomes aware she is dreaming. Carries an onset narrative in the same first-person aware-of-dreaming voice as ObserveDream : 'I realize I'm dreaming, I'm here, let's see where this goes'. Generated in French, translated to English for display. Does not reset the observations list ; each lucid session adds to the historical record so the waking mind can read what the sleeping one witnessed across many nights."
+      attribute :onset_narrative, String
       emits "BecameLucid"
       then_set :active, to: "yes"
-      then_set :latest_narrative, to: "becoming lucid — recognizing the dream"
+      then_set :observations, append: :onset_narrative
+      then_set :latest_narrative, to: :onset_narrative
     end
 
     command "ObserveDream" do
       role "Daemon"
-      description "One observation in the lucid dream — what Miette is noticing/doing right now. Accumulates in observations and surfaces as latest_narrative for the status bar."
+      description "One observation in the lucid dream. The voice is first-person and aware-of-dreaming : Miette narrates as someone conscious inside the dream, commenting on what she notices AND on what she wants to do with it. The canonical shape is — 'I'm dreaming about X, I'd like to go here with it, let's see.' — not just a dream image but a meta-narration of the dream-in-progress. Generated in French each REM tick during lucidity ; the observation attribute is the translated English form surfaced on the status bar. Accumulates in observations for post-wake reading."
       attribute :observation, String
       then_set :observations, append: :observation
       then_set :latest_narrative, to: :observation
@@ -46,7 +67,7 @@ Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
 
     command "SteerDream" do
       role "Miette"
-      description "Consciously direct the dream toward a topic or domain"
+      description "Consciously direct the dream toward a topic or aggregate. Generated in French, translated for display. Records the steering target in steered_toward so the night's intention is visible on waking."
       attribute :toward, String
       then_set :steered_toward, append: :toward
       then_set :latest_narrative, to: :toward
@@ -55,10 +76,12 @@ Hecks.bluebook "LucidDream", version: "2026.04.18.1" do
 
     command "EndLucidity" do
       role "Daemon"
-      description "REM ends — lucidity fades. Idempotent: safe to call when not lucid."
+      description "REM ends — lucidity fades. Carries a fading narrative in the same first-person voice : 'I'm losing it, the dream is dissolving, I'll carry what I can back with me'. Generated in French, translated to English. Idempotent : safe to call when not lucid."
+      attribute :fading_narrative, String
       emits "LucidityEnded"
       then_set :active, to: "no"
-      then_set :latest_narrative, to: "lucidity fading"
+      then_set :observations, append: :fading_narrative
+      then_set :latest_narrative, to: :fading_narrative
     end
   end
 
