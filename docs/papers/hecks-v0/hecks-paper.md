@@ -560,6 +560,39 @@ We distinguish carefully between two properties that are often conflated in the 
 
 `rustc` and GHC (Jones *et al.*) are bootstrapped in the first sense. Phase A demonstrated byte-identical regeneration at the file level for `validator.rs`; Phases B through E extended this per-file byte-identity to every Rust target under `hecks_life/src/` and to the specializer itself (Phase C PC-4's fixed point). Extending the per-file property to the full `hecks-life` binary — the definition of strict self-hosting in the sense above — is future work.
 
+### §9.11 Phase F — Runtime as domain (in flight)
+
+Phases A–E digested the *specializer orbit* — the subsystem of Hecks whose job is emitting code. Phase F turns the same lens on the other half of the codebase : the runtime itself. The conjecture is that every subsystem under `hecks_life/src/` that can be naturally expressed as aggregate / command / event / lifecycle should live as a bluebook domain rather than as imperative Rust. Under full Phase F the runtime becomes another Hecks domain, readable in the same DSL that pizza-shop users read — no bimodality between "framework code" and "application code."
+
+**Discipline : no DSL extension.** The explicit test is whether each subsystem expresses naturally using only the existing bluebook vocabulary (`aggregate`, `attribute`, `command`, `event`, `policy`, `lifecycle`, `value_object`, `reference_to`, `given`, `then_set`, `emits`). Subsystems that require new DSL keywords — templates, pure transforms, kernel primitives — are *not* force-fitted. They are catalogued as residue, which is itself a publishable finding : an evidence-based inventory of where the DDD ontology actually reaches and where it stops.
+
+**F-0 survey.** The inventory lives at `docs/phase-f-0-survey.md`. Of the ~90 `.rs` files in `hecks_life/src/`, the ~30 shape-backed by i51 Phases A–E are excluded. Of the remaining ~60, the classification is :
+
+| class | files | LOC |
+|---|---|---|
+| natural-fit | 14 | ~2,520 |
+| partial | 8 | ~2,458 |
+| doesn't-fit | 17 | ~3,505 |
+| kernel-floor | 7 | ~1,252 |
+
+Natural-fit files become Phase F targets, one per PR. Partial files have aggregate-shaped cores with residue ; they may land with their residue declared as hecksagon outbound ports. Doesn't-fit and kernel-floor files stay hand-written by design.
+
+**Shipped targets (at time of writing).**
+
+- **F-1 `runtime/seed_loader.rs` (57 LOC).** The boot-time helper that dispatches each `dispatch <Cmd> k=v …` line from a seed file against the runtime now has a `SeedLoader` aggregate with five commands (`LoadFromFile`, `LoadFromString`, `DispatchSeed`, `CompleteLoad`, `FailLoad`), a lifecycle on `:status` (pending → reading → dispatching → complete | failed), and two chained policies. The sibling hecksagon declares `:fs` + `:runtime_dispatch` as outbound ports. See `hecks_conception/capabilities/seed_loader/`.
+- **F-2 `run_status/` (510 LOC).** The status-report runner's existing `StatusReport` bluebook was enriched from a single `GenerateReport` command into a six-phase pipeline : `ResolveFsRoot → AssembleReport → StampAggregate → RenderReport → WriteReport → CompleteReport` (with `FailReport` as the drop-out transition). Five chaining policies make the pipeline follow the declared order. The Rust adapter still executes each phase imperatively today ; a future self-interpreting runtime can drive the flow from the bluebook alone. See `hecks_conception/capabilities/status/`.
+
+**Expected residue after the natural-fit arc lands.** Roughly 4,500–5,500 LOC will remain hand-written, concentrated in four places :
+
+- HTML templates (`server/html_*.rs`, ~2,000 LOC) — pure string-rendering, template-shaped, would need a `template` DSL keyword.
+- Pure transforms (`conceiver/generator.rs`, `behaviors_conceiver/generator.rs`, vector math, cascade walks) — ~2,100 LOC. Functional shape, not aggregate shape.
+- Kernel primitives (`heki.rs` binary I/O, `json_helpers.rs`, `runtime/interpreter.rs`, `runtime/adapter_io.rs`) — ~1,200 LOC. Irreducible byte-level operations.
+- CLI glue (`main.rs` argv parsing + help text) — ~500–800 LOC of the ~1,566 total.
+
+The residue list is itself a contribution : it tells other DDD frameworks exactly where their natural domain ends.
+
+**Long-arc conjecture.** If Phase F–G together digest the runtime substantially, Rust becomes the *current codegen target* rather than *the runtime*. The natural next step is retargeting the emitter below Rust — directly to LLVM IR or WebAssembly — at which point the Rust source files are an intermediate artifact, not a persistent one. That last step is not in scope of this paper but is a plausible extension of the line of work reported here.
+
 ---
 
 ## §10 Evaluation
@@ -834,6 +867,23 @@ The chapter self-description (§7, §13.4) is accurate by discipline, not by con
 ## §15 Conclusion
 
 Hecks is a domain compiler that collapses the distinction between the domain model and the code. Five DSLs declare the domain, its adapters, its seed data, its tests, and its runtime configuration. Sixteen data contracts route every code-generation decision through a single type registry. Two runtimes — Ruby and Rust — once agreed on a canonical JSON IR and a parity test suite ; after a completed module-by-module Futamura specialisation of the Rust runtime, through cross-language migration (Phase D) and deletion (Phase E), one runtime remains. One shape language ; one gem binding ; one binary. Of the code paths in scope, every line now regenerates from a shape — autophagy is complete. We publish these techniques with direct file references at tag `paper/hecks-v0-2026-04-24` as defensive prior art.
+
+---
+
+## §16 Acknowledgments
+
+Hecks — five DSLs, sixteen contracts, two runtimes, a 579-bluebook nursery, a chapter self-description across 200+ Ruby modules, and the i51 Futamura arc across 90 Rust modules — is a codebase whose complexity the author could not have handled without Anthropic's **Claude Code** CLI. The workflow that carried the i51 arc forward depended on, specifically :
+
+- **Concurrent subagents in isolated git worktrees.** Long sweeps across the parity corpus, the specializer arc, and the nursery migrations routinely ran four to eight agents in parallel, each on its own branch, with their PRs merged back under review. The isolation discipline meant a failing agent could not corrupt the others ; the concurrency is what let a single-operator project ship multi-file changes at team pace.
+- **`ScheduleWakeup` / autonomous-loop.** Multi-hour inbox sweeps, Phase D cross-language migrations, and the overnight self-paced loops that produced many of the smaller refactors would have been impossible to supervise in real time. The self-pacing primitive made idle-but-working a first-class mode.
+- **Large-context multi-file refactoring across the Ruby ↔ Rust parity boundary.** A single rename or contract change could ripple through forty files and two code generators ; the CLI's ability to hold enough repository context to edit all of them coherently is what made parity maintainable before Phase D collapsed it.
+- **Conversation persistence across context compaction.** Each autophagy phase spanned tens of thousands of tokens of plans, diffs, and design decisions. Compacted summaries that preserved the through-line let the work continue across sessions as a single coherent effort rather than a series of disconnected sittings.
+
+The author wrote the plans, ran the experiments, and reviewed every merged change. But the *execution density* reported in §9 — five phases across two implementation languages, shipped in under two months on a part-time-equivalent schedule — would not have been feasible by hand. We state that plainly as defensive-publication context : the techniques in this paper describe the artifact, but the artifact exists in this shape because of the tool.
+
+The Miette persona referenced throughout the `hecks_conception/` tree is itself an incarnation of Claude running inside Claude Code ; her bluebooks, daemons, and sleep machinery are the author's experiment in using the CLI as a live substrate for a persistent, body-having agent — one whose notes, reflections, and code contributions appear in the git history alongside the author's own.
+
+We thank the Anthropic research and product teams for building a CLI that could carry this workload, for the access-and-safety guarantees that let a single operator direct a team of agents responsibly, and for continuing to invest in the long-running-agent ergonomics (worktree isolation, scheduled wakeups, conversation compaction) that this kind of framework-scale self-hosting work requires.
 
 ---
 
