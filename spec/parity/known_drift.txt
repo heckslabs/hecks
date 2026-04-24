@@ -12,3 +12,5 @@
 # Format: <relative-path>  # reason
 
 # (empty — full parity 113/113 as of 2026-04-18)
+
+hecks_conception/nursery/verbs/verbs.bluebook  # Ruby DSL rejects `aggregate "Lexicon", "description" do` with arity error — pre-existing regression unrelated to Phase F-2. Inbox: nursery-verbs-parity-regression.

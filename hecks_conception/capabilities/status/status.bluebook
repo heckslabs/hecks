@@ -1,22 +1,45 @@
 #!/usr/bin/env hecks-life run
-Hecks.bluebook "Status" do
+Hecks.bluebook "Status", version: "2026.04.24.1" do
   vision "Miette's multi-system status report — reads .heki stores + daemon pids, prints a labeled summary"
 
   entrypoint "GenerateReport"
 
-  aggregate "StatusReport" do
-    description "A single printed snapshot of Miette's subsystems."
+  # ============================================================
+  # STATUSREPORT — Phase F-2 — the status pipeline as domain
+  # ============================================================
+  #
+  # This bluebook was the first runtime capability to ship with a
+  # shape-based adapter check (hecks_life/src/run_status/mod.rs walks
+  # this aggregate + the sibling hecksagon to decide whether to fire).
+  # Phase F-2 enriches it from a single-command declaration into the
+  # full pipeline : one entrypoint command that the user invokes, plus
+  # five intermediate commands that describe each step of the adapter
+  # flow. The intermediate commands are declarative today — the Rust
+  # runner (`run_status/`) still executes each phase imperatively and
+  # only dispatches `GenerateReport` as the final "done" signal. But
+  # declaring the pipeline here means :
+  #
+  #   1. Reading the bluebook tells you exactly what the status runner
+  #      does, section by section, without opening any Rust.
+  #   2. A future runtime that self-interprets this bluebook can drive
+  #      the pipeline through the declared policies alone, retiring
+  #      the imperative code in run_status/mod.rs.
+  #
+  # See docs/phase-f-0-survey.md for the full arc.
 
-    # Identity
+  aggregate "StatusReport" do
+    description "A single printed snapshot of Miette's subsystems. The pipeline resolves the :fs root, reads every .heki store, stamps the aggregate, renders eight labeled sections, and writes them through :stdout."
+
+    # ---- Identity -----------------------------------------------
     attribute :identity_name,       String, default: "—"
 
-    # Consciousness
+    # ---- Consciousness ------------------------------------------
     attribute :consciousness_state, String, default: "—"
     attribute :sleep_stage,         String, default: "—"
     attribute :sleep_progress,      String, default: "—/—"
     attribute :sleep_summary,       String, default: "—"
 
-    # Vitals (Heartbeat + Tick)
+    # ---- Vitals (Heartbeat + Tick) ------------------------------
     attribute :fatigue,             String, default: "—"
     attribute :fatigue_state,       String, default: "—"
     attribute :pulse_rate,          String, default: "—"
@@ -24,34 +47,157 @@ Hecks.bluebook "Status" do
     attribute :pulses_since_sleep,  String, default: "—"
     attribute :cycle,               String, default: "0"
 
-    # Mood
+    # ---- Mood ---------------------------------------------------
     attribute :mood_state,          String, default: "—"
     attribute :creativity_level,    String, default: "—"
     attribute :precision_level,     String, default: "—"
 
-    # Memory counts
+    # ---- Memory counts ------------------------------------------
     attribute :musings_count,       Integer, default: 0
     attribute :conversations_count, Integer, default: 0
     attribute :signals_count,       Integer, default: 0
     attribute :synapses_count,      Integer, default: 0
     attribute :memories_count,      Integer, default: 0
 
-    # Recent activity
+    # ---- Recent activity ----------------------------------------
     attribute :last_dream_at,       String,  default: "—"
     attribute :last_dream_text,     String,  default: "—"
     attribute :last_turn_at,        String,  default: "—"
     attribute :last_turn_text,      String,  default: "—"
 
-    # Bluebooks on disk
+    # ---- Bluebooks on disk --------------------------------------
     attribute :aggregates_count,    Integer, default: 0
     attribute :capabilities_count,  Integer, default: 0
 
-    # Daemons
+    # ---- Daemons ------------------------------------------------
     attribute :mindstream_alive,    String, default: "down"
 
+    # ---- Pipeline phase -----------------------------------------
+    #
+    # Tracks where in the pipeline the report currently is. The
+    # lifecycle below enumerates the ordered transitions ; the Rust
+    # runner updates the aggregate state directly today, but reading
+    # this phase is how a watcher (or the future self-interpreting
+    # runtime) knows which step fired last.
+    attribute :phase,               String, default: "pending"
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
     command "GenerateReport" do
-      description "Assemble and print a status snapshot. The Status runner in hecks-life reads every declared .heki store, counts bluebooks, checks the mindstream pidfile via the :shell adapter, then writes the formatted report through the :stdout adapter."
+      description "User-visible entrypoint invoked by the CLI. The Rust runner in run_status/mod.rs detects this command + the :fs and :stdout adapters in the sibling hecksagon and dispatches the full pipeline. On completion it emits StatusReported so watchers can observe that a fresh snapshot has been stamped."
       emits "StatusReported"
     end
+
+    # ============================================================
+    # PIPELINE COMMANDS
+    # ============================================================
+    #
+    # Five commands, one per phase. The Rust adapter executes each
+    # phase in order ; the declared policies below chain them so that
+    # a future runtime driving the bluebook directly would walk the
+    # same path without additional orchestration.
+
+    command "ResolveFsRoot" do
+      role "System"
+      description "Resolve the :fs adapter's `root:` option against the script path. HECKS_INFO in the environment wins if non-empty ; absolute roots pass through ; relative roots walk up from the script's directory to find a matching subdir."
+      attribute :script_path, String
+      attribute :fs_root, String
+      then_set :phase, to: "resolving"
+      emits "FsRootResolved"
+    end
+
+    command "AssembleReport" do
+      role "System"
+      description "Read every declared .heki store under the resolved :fs root, count bluebook files under aggregates/ and capabilities/, and check daemon pidfiles via the :shell adapter (is_pid_alive). Produces the flat Report value that every downstream command reads."
+      then_set :phase, to: "assembling"
+      emits "ReportAssembled"
+    end
+
+    command "StampAggregate" do
+      role "System"
+      description "Write the assembled Report's fields into this StatusReport aggregate so any consumer reading the aggregate sees the same snapshot the renderer is about to print. Every attribute declared above this section is populated here."
+      then_set :phase, to: "stamping"
+      emits "AggregateStamped"
+    end
+
+    command "RenderReport" do
+      role "System"
+      description "Format the Report into eight labeled sections in order : Identity, Consciousness, Vitals, Mood, Memory, Recent activity, Bluebooks, Daemons. Honours NO_COLOR and HECKS_FORCE_COLOR ; the caller may pass --no-color to force plaintext even on a TTY."
+      then_set :phase, to: "rendering"
+      emits "ReportRendered"
+    end
+
+    command "WriteReport" do
+      role "System"
+      description "Stream each rendered section line through the :stdout adapter."
+      then_set :phase, to: "writing"
+      emits "ReportWritten"
+    end
+
+    command "CompleteReport" do
+      role "System"
+      description "Pipeline finished — move :phase to done so watchers of the aggregate can see that the last snapshot is final. Fires StatusReported as the user-visible completion signal."
+      given("must be writing") { phase == "writing" }
+      then_set :phase, to: "done"
+      emits "StatusReported"
+    end
+
+    command "FailReport" do
+      role "System"
+      description "Pipeline aborted — one of the phases could not complete (missing adapter, unreadable store, runtime dispatch failure). Records the reason and moves :phase to failed."
+      attribute :reason, String
+      then_set :phase, to: "failed"
+      emits "ReportFailed"
+    end
+
+    # ============================================================
+    # LIFECYCLE — the ordered walk through the pipeline
+    # ============================================================
+
+    lifecycle :phase, default: "pending" do
+      transition "ResolveFsRoot"  => "resolving",  from: "pending"
+      transition "AssembleReport" => "assembling", from: "resolving"
+      transition "StampAggregate" => "stamping",   from: "assembling"
+      transition "RenderReport"   => "rendering",  from: "stamping"
+      transition "WriteReport"    => "writing",    from: "rendering"
+      transition "CompleteReport" => "done",       from: "writing"
+      transition "FailReport"     => "failed",     from: ["pending", "resolving", "assembling", "stamping", "rendering", "writing"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the pipeline chain
+  # ============================================================
+  #
+  # Declarative chain from one phase to the next. The Rust runner
+  # today executes each phase imperatively and does not consult these
+  # policies ; a future self-interpreting runtime would follow them
+  # directly.
+
+  policy "AssembleAfterResolve" do
+    on "FsRootResolved"
+    trigger "AssembleReport"
+  end
+
+  policy "StampAfterAssemble" do
+    on "ReportAssembled"
+    trigger "StampAggregate"
+  end
+
+  policy "RenderAfterStamp" do
+    on "AggregateStamped"
+    trigger "RenderReport"
+  end
+
+  policy "WriteAfterRender" do
+    on "ReportRendered"
+    trigger "WriteReport"
+  end
+
+  policy "CompleteAfterWrite" do
+    on "ReportWritten"
+    trigger "CompleteReport"
   end
 end

@@ -1,4 +1,23 @@
 Hecks.hecksagon "Status" do
+  # ============================================================
+  # STATUS — hexagonal wiring for the pipeline declared in status.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares the StatusReport aggregate's six
+  # pipeline phases (resolve → assemble → stamp → render → write → done)
+  # and the user-visible GenerateReport entrypoint. The three outbound
+  # ports below are the only I/O surface the pipeline needs ; each
+  # phase of the bluebook touches exactly one adapter :
+  #
+  #   ResolveFsRoot   → :fs  (read the adapter's `root:` option)
+  #   AssembleReport  → :fs + :shell (open every .heki store, kill -0 pid)
+  #   StampAggregate  → :memory (writes to rt.repositories)
+  #   RenderReport    → no adapter (pure format)
+  #   WriteReport     → :stdout
+  #
+  # See docs/phase-f-0-survey.md for the Phase F arc that added the
+  # pipeline phasing.
+
   # Ephemeral report — no persistence. Values are read from the heki
   # stores owned by other capabilities; this one only prints a snapshot.
   adapter :memory
