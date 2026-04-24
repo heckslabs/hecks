@@ -1,0 +1,36 @@
+Hecks.hecksagon "Runner" do
+  # ============================================================
+  # RUNNER — hexagonal wiring for Phase F-4
+  # ============================================================
+  #
+  # The sibling bluebook declares ScriptRun and InteractiveSession.
+  # The outbound ports the two aggregates consume :
+  #
+  #   :fs                — ScriptRun.LoadScript reads the user
+  #                        bluebook text ; DiscoverCompanion checks
+  #                        for a sibling <stem>.hecksagon.
+  #
+  #   :runtime_dispatch  — the one ubiquitous outbound : every
+  #                        ScriptRun.DispatchEntrypoint and every
+  #                        InteractiveSession.TakeTurn / CloseLoop
+  #                        fires commands at the user's domain
+  #                        through the runtime's internal dispatch.
+  #
+  #   :stdin             — InteractiveSession reads one line per
+  #                        turn.
+  #
+  #   :stdout            — InteractiveSession writes the banner and
+  #                        every response.
+  #
+  # The Rust side of ScriptRun also performs one task that doesn't
+  # have a clean outbound port : capability routing by inspecting the
+  # parsed Hecksagon + Domain for shape matches (stdin_loop,
+  # status_report, one_shot). That inspection is in-memory against
+  # the IR — pure computation, no adapter.
+
+  adapter :memory
+  adapter :fs, root: "."
+  adapter :runtime_dispatch
+  adapter :stdin
+  adapter :stdout
+end
