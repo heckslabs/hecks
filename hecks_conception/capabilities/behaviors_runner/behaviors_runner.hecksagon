@@ -1,0 +1,41 @@
+Hecks.hecksagon "BehaviorsRunner" do
+  # ============================================================
+  # BEHAVIORSRUNNER — hexagonal wiring for Phase F-6
+  # ============================================================
+  #
+  # The sibling bluebook declares BehaviorsRun + TestExecution. The
+  # runner is pure-memory by design : every test gets a fresh
+  # Runtime::boot with NO data_dir, NO hecksagon, NO adapters. If a
+  # test triggers IO, that is a bluebook bug — not a runner bug.
+  # The hecksagon's adapter list enforces that invariant at the
+  # declaration layer.
+  #
+  # Adapters :
+  #
+  #   :fs     — ONLY for reading source input. BehaviorsRun.LoadSource,
+  #             LoadSuite, LoadFixtures use this port to open the
+  #             three input files. No .heki writes, no stdout, no
+  #             network — just three reads at run start.
+  #
+  #   :memory — the only persistence for BehaviorsRun and every
+  #             TestExecution. Fresh Runtime per test means no
+  #             cross-test state, ever.
+  #
+  # Not declared (by design) :
+  #
+  #   :stdout / :stderr — the Rust does eprintln! for pass/fail
+  #   summary, but that's a reporting concern the user CLI owns
+  #   rather than something the runner dispatches through a declared
+  #   port. Keeping it out of the hecksagon is honest : a future
+  #   self-interpreting runtime that reads this declaration would
+  #   NOT automatically gain terminal output, which is the correct
+  #   behaviour for a library-ish test runner.
+  #
+  #   :runtime_dispatch — the runner DOES dispatch commands against
+  #   the per-test runtime (setup commands, the input command), but
+  #   those dispatches are in-process against a Runtime instance the
+  #   runner owns. Not an outbound port to an external runtime.
+
+  adapter :memory
+  adapter :fs, root: "."
+end
