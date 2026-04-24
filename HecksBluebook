@@ -13,7 +13,18 @@
 #   book = Hecks::Chapters.bluebook
 #   book.chapters.each { |ch| puts "#{ch.name}: #{ch.aggregates.size}" }
 
-# Auto-discover and require all chapter definitions
+# Load Hecks framework first — this sequences the require graph so
+# Hecks::ChapterLoader is defined before chapters/registry.rb needs it.
+# Without this, auto-requiring chapter files directly blows up on
+# `Hecks::ChapterLoader.register` references.
+$LOAD_PATH.unshift(File.expand_path("lib", __dir__))
+require "hecks"
+
+# Auto-discover and require every chapter file under lib/hecks/chapters/.
+# The Hecks core loader only wires the chapters declared in
+# chapters/registry.rb ; this glob picks up the full set so
+# `Hecks::Chapters.bluebook` sees every definition (self-hosting
+# coverage — the 15/15 number from PR #079ec609).
 root = File.dirname(__FILE__)
 chapter_files = Dir.glob(File.join(root, "lib/hecks/chapters/*.rb"))
   .concat(Dir.glob(File.join(root, "**/lib/hecks/chapters/*.rb")))
@@ -21,6 +32,13 @@ chapter_files = Dir.glob(File.join(root, "lib/hecks/chapters/*.rb"))
   .uniq
 
 chapter_files.each { |f| require f }
+
+# The original PR #079ec609 wrapped the chapters in a
+# `DomainModel::Structure::BluebookStructure` — that class was removed
+# during the mono-gem consolidation (commit 52ba8515). A plain Struct
+# with name + chapters is sufficient for the self-hosting boot query,
+# and keeps the script free of runtime dependencies beyond `hecks`.
+Bluebook = Struct.new(:name, :chapters, keyword_init: true) unless defined?(Bluebook)
 
 module Hecks
   module Chapters
@@ -30,7 +48,7 @@ module Hecks
           .map { |c| const_get(c) }
           .select { |m| m.respond_to?(:definition) }
 
-        DomainModel::Structure::BluebookStructure.new(
+        ::Bluebook.new(
           name: "Hecks",
           chapters: chapter_modules.map(&:definition)
         )
