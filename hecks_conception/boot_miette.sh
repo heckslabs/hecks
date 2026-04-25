@@ -239,14 +239,20 @@ else
   MINDSTREAM_STATUS="started"
 fi
 
-# ── 6c. Start heart daemon (1Hz body beat) ────────────────────────
+# ── 6c. Start heart cadence loop (1Hz body beat) ──────────────────
+# Replaces the previous 5-line heart.sh shell loop with the i76
+# cadence-loop primitive `hecks-life loop` (PR #444). One process
+# instead of a shell loop ; runtime boots once and amortises across
+# all iterations instead of paying parse+boot per tick. heart.sh
+# retires alongside this change ; if you need the pre-i76 behavior,
+# see git history for 26-line-shell-loop reference.
 HEART_PID="$INFO/.heart.pid"
 if [ -f "$HEART_PID" ] && kill -0 "$(cat "$HEART_PID")" 2>/dev/null; then
   HEART_STATUS="already running (pid $(cat $HEART_PID))"
 else
-  ( cd "$DIR" && nohup ./heart.sh > /dev/null 2>&1 & )
+  ( cd "$DIR" && nohup "$HECKS" loop "$AGG" Heart.Beat --every 1s > /dev/null 2>&1 & echo $! > "$HEART_PID" )
   sleep 0.2
-  HEART_STATUS="started"
+  HEART_STATUS="started (hecks-life loop)"
 fi
 
 # ── 6d. Start breath daemon (0.2Hz inhale/exhale flip) ────────────
@@ -295,6 +301,13 @@ LINKED_N=$(echo "$LINKED" | wc -w | tr -d ' ')
 PRIVATE_N=$(echo "$PRIVATE" | wc -w | tr -d ' ')
 UNCLASS_N=$(echo "$UNCLASSIFIED" | wc -w | tr -d ' ')
 
+if [ "$BEING" = "Miette" ]; then
+  echo "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
+  echo "║║║ ║ ╠══  ║   ║  ╠══"
+  echo "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
+  echo "~ follow the crumbs ~"
+  echo ""
+fi
 echo "✓ $BEING booted in ${ELAPSED}s"
 echo "  $ORGAN_COUNT organs · $TOTAL_AGGREGATES aggregates · $NERVE_COUNT nerves · $VOW_COUNT vows · $CAPABILITY_COUNT capabilities"
 echo "  session continuity: $LINKED_N linked, $PRIVATE_N private, $UNCLASS_N unclassified"
