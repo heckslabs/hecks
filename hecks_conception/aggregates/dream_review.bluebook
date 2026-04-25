@@ -1,0 +1,298 @@
+Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
+  vision "The i71 dream-driven self-improvement pipeline as shape : a wake-time review reads the cycle's dream corpus + wake_report, names structural gaps, synthesises bluebook edits per gap, validates them, and offers a plan ready for human acceptance"
+  category "mind"
+
+  # ============================================================
+  # DREAMREVIEW — i71 pipeline as a bluebook (was Ruby tools/)
+  # ============================================================
+  #
+  # The Ruby implementations (tools/dream_extract_gaps.rb,
+  # tools/dream_synthesize_edit.rb, tools/dream_review.rb) shipped
+  # 2026-04-25 as PRs #435 / #436 / #437 / #438. This bluebook is
+  # the SHAPE those scripts implement. Under Direction B the Ruby
+  # files become transitional adapters until the runtime can
+  # interpret this bluebook end-to-end. The same pattern Phase F
+  # has been using for Rust : declare the shape, retire the
+  # imperative implementation as the runtime catches up.
+  #
+  # The pipeline runs once per wake. A single Cycle aggregate
+  # progresses through the lifecycle as each step completes. Each
+  # extracted Gap and synthesised Edit gets its own row, so the
+  # apply step can dispatch a draft PR per edit and the review
+  # markdown can list each one with its own provenance.
+  #
+  # Adapter dispatch (LLM calls, heki I/O, git/gh actions) is
+  # declared in dream_review.hecksagon as :llm / :fs / :shell.
+  # The runtime is responsible for binding those adapters to
+  # actual external processes ; this file says nothing about how.
+
+  # ── Cycle ─────────────────────────────────────────────────────
+  #
+  # One row per dream-review run. Status walks through the
+  # pipeline ; counters track what was found / synthesised /
+  # validated. plan_path points at the markdown summary file the
+  # operator reads on wake. apply_started marks whether the
+  # operator authorised draft-PR creation (always manual today).
+
+  aggregate "Cycle", "One run of the dream-review pipeline — extracted from the most recent wake_report + dream_state window" do
+    attribute :wake_at,                String
+    # status: fresh | extracted | synthesized | validated | planned | applied | failed
+    attribute :status,                 String, default: "fresh"
+    attribute :gaps_count,             Integer, default: 0
+    attribute :real_gaps_count,        Integer, default: 0
+    attribute :phantom_gaps_count,     Integer, default: 0
+    attribute :synthesised_count,      Integer, default: 0
+    attribute :validation_failed_count, Integer, default: 0
+    attribute :applied_count,          Integer, default: 0
+    attribute :plan_path,              String
+    attribute :failure_reason,         String
+
+    lifecycle :status, default: "fresh" do
+      transition "ExtractGaps"      => "extracted",   from: "fresh"
+      transition "SynthesizeAll"    => "synthesized", from: "extracted"
+      transition "ValidateAll"      => "validated",   from: "synthesized"
+      transition "WritePlan"        => "planned",     from: "validated"
+      transition "ApplyEdits"       => "applied",     from: "planned"
+      transition "FailCycle"        => "failed",      from: "fresh"
+      transition "FailCycle"        => "failed",      from: "extracted"
+      transition "FailCycle"        => "failed",      from: "synthesized"
+      transition "FailCycle"        => "failed",      from: "validated"
+    end
+
+    command "Begin" do
+      role "System"
+      description "A wake transition fired the pipeline. Stamps the wake_at and sets status to fresh."
+      attribute :wake_at, String
+      emits "CycleBegan"
+      then_set :wake_at, to: :wake_at
+    end
+
+    command "ExtractGaps" do
+      role "System"
+      description "Read the cycle's dream corpus + wake_report, call the :llm adapter to identify structural gaps. Bumps gaps_count / real_gaps_count / phantom_gaps_count from the response."
+      attribute :gaps_count,         Integer
+      attribute :real_gaps_count,    Integer
+      attribute :phantom_gaps_count, Integer
+      emits "GapsExtracted"
+      then_set :gaps_count,         to: :gaps_count
+      then_set :real_gaps_count,    to: :real_gaps_count
+      then_set :phantom_gaps_count, to: :phantom_gaps_count
+    end
+
+    command "SynthesizeAll" do
+      role "System"
+      description "Iterate real gaps, dispatch SynthesizeEdit per gap. Counter advances as edits land."
+      attribute :synthesised_count, Integer
+      given("must have extracted gaps") { real_gaps_count > 0 }
+      emits "EditsSynthesized"
+      then_set :synthesised_count, to: :synthesised_count
+    end
+
+    command "ValidateAll" do
+      role "System"
+      description "Pipe each synthesised edit through the kernel's validate command. Counts failures so the markdown summary can list them as 'will not be applied'."
+      attribute :validation_failed_count, Integer
+      emits "EditsValidated"
+      then_set :validation_failed_count, to: :validation_failed_count
+    end
+
+    command "WritePlan" do
+      role "System"
+      description "Persist the full review plan as a markdown file at /tmp/wake_review_<ts>.md plus a /tmp/wake_review_latest.md alias. Sets plan_path."
+      attribute :plan_path, String
+      emits "PlanWritten"
+      then_set :plan_path, to: :plan_path
+    end
+
+    command "ApplyEdits" do
+      role "Creator"
+      description "Authorised by the operator only. Dispatches one Edit.Apply per validated, non-skip edit ; each Apply opens a draft PR via the :shell adapter (gh)."
+      attribute :applied_count, Integer
+      given("must be planned") { status == "planned" }
+      emits "EditsApplied"
+      then_set :applied_count, to: :applied_count
+    end
+
+    command "FailCycle" do
+      role "System"
+      description "Any irrecoverable error moves the cycle to failed with a one-line reason. Future runs are gated on a fresh wake event so a failed cycle doesn't block tomorrow."
+      attribute :failure_reason, String
+      emits "CycleFailed"
+      then_set :failure_reason, to: :failure_reason
+    end
+  end
+
+  # ── Gap ──────────────────────────────────────────────────────
+  #
+  # One row per gap the :llm adapter named during extraction.
+  # `kind` follows the extractor's vocabulary (missing_aggregate,
+  # missing_attribute, missing_command, missing_policy,
+  # phantom_symptom). `target` names where the gap lives — bluebook
+  # name and aggregate, or a path. `quote` is the French dream
+  # sentence that pointed at the gap, kept as provenance for
+  # commit messages and PR bodies.
+
+  aggregate "Gap", "One named structural gap from the cycle's dream corpus" do
+    attribute :cycle_id,        String
+    attribute :kind,            String
+    attribute :target,          String
+    attribute :description,     String
+    attribute :quote,           String
+    attribute :existing_check,  String
+    # synthesis: pending | done | failed | skipped
+    attribute :synthesis,       String, default: "pending"
+
+    lifecycle :synthesis, default: "pending" do
+      transition "MarkSynthesised" => "done",    from: "pending"
+      transition "MarkSkipped"     => "skipped", from: "pending"
+      transition "FailSynthesis"   => "failed",  from: "pending"
+    end
+
+    command "RecordGap" do
+      role "System"
+      description "Add a gap row from the extractor's JSON output."
+      attribute :cycle_id,       String
+      attribute :kind,           String
+      attribute :target,         String
+      attribute :description,    String
+      attribute :quote,          String
+      attribute :existing_check, String
+      emits "GapRecorded"
+      then_set :cycle_id,       to: :cycle_id
+      then_set :kind,           to: :kind
+      then_set :target,         to: :target
+      then_set :description,    to: :description
+      then_set :quote,          to: :quote
+      then_set :existing_check, to: :existing_check
+    end
+
+    command "MarkSynthesised" do
+      role "System"
+      description "The synthesise step produced an edit for this gap."
+      emits "GapSynthesised"
+    end
+
+    command "MarkSkipped" do
+      role "System"
+      description "Phantom symptoms and synthesis-failed gaps both land here. The reason is preserved on the Edit row."
+      emits "GapSkipped"
+    end
+
+    command "FailSynthesis" do
+      role "System"
+      description "The :llm adapter call failed for this gap."
+      emits "GapSynthesisFailed"
+    end
+  end
+
+  # ── Edit ─────────────────────────────────────────────────────
+  #
+  # One row per synthesised edit. The `content` field is the full
+  # bluebook source (post-edit) — the same shape the synthesise
+  # step produces. `validation` records whether the kernel accepted
+  # it as a non-empty parsing domain. `pr_url` populates after
+  # the operator authorises Apply.
+
+  aggregate "Edit", "One synthesised bluebook edit derived from a gap" do
+    attribute :gap_id,    String
+    # action: create | modify | skip
+    attribute :action,    String
+    attribute :path,      String
+    attribute :content,   String
+    attribute :rationale, String
+    # validation: pending | passed | failed
+    attribute :validation,       String, default: "pending"
+    attribute :validation_error, String
+    attribute :pr_url,    String
+    # apply_status: pending | applied | apply_failed
+    attribute :apply_status,     String, default: "pending"
+
+    lifecycle :apply_status, default: "pending" do
+      transition "Apply"     => "applied",      from: "pending"
+      transition "FailApply" => "apply_failed", from: "pending"
+    end
+
+    command "RecordEdit" do
+      role "System"
+      description "Synthesise produced this edit. Content is the full file body."
+      attribute :gap_id,    String
+      attribute :action,    String
+      attribute :path,      String
+      attribute :content,   String
+      attribute :rationale, String
+      emits "EditRecorded"
+      then_set :gap_id,    to: :gap_id
+      then_set :action,    to: :action
+      then_set :path,      to: :path
+      then_set :content,   to: :content
+      then_set :rationale, to: :rationale
+    end
+
+    command "MarkValidated" do
+      role "System"
+      description "The kernel's validate command accepted this edit's content as a parsing, non-empty domain."
+      emits "EditValidated"
+      then_set :validation, to: "passed"
+    end
+
+    command "FailValidation" do
+      role "System"
+      description "Validation failed — record the first-line error and demote action to skip so Apply ignores it."
+      attribute :validation_error, String
+      emits "EditValidationFailed"
+      then_set :validation,       to: "failed"
+      then_set :validation_error, to: :validation_error
+      then_set :action,           to: "skip"
+    end
+
+    command "Apply" do
+      role "Creator"
+      description "Operator-authorised. Writes content to path, branches, signed-commits, pushes, opens a draft PR. Stamps pr_url on success."
+      attribute :pr_url, String
+      given("must be validated") { validation == "passed" }
+      given("must not already be skipped") { action != "skip" }
+      emits "EditApplied"
+      then_set :pr_url, to: :pr_url
+    end
+
+    command "FailApply" do
+      role "System"
+      description "Branch creation, push, or PR-open failed. The Edit row stays for re-tries on a future cycle."
+      attribute :validation_error, String
+      emits "EditApplyFailed"
+      then_set :validation_error, to: :validation_error
+    end
+  end
+
+  # ── Policies — within-domain orchestration ───────────────────
+  #
+  # The pipeline's step-to-step transitions fire as policies on
+  # the Cycle aggregate so the orchestrator doesn't need imperative
+  # control flow. Each step's emitted event triggers the next
+  # step's command.
+  #
+  # Cross-aggregate dispatch (e.g. Edit.MarkValidated firing on
+  # the kernel's validation result) lives at the consumer-contract
+  # boundary today — the same shape morphology.bluebook uses for
+  # MintMusing — until cross-domain policy dispatch lands as a
+  # first-class DSL feature.
+
+  policy "SynthesizeAfterExtract" do
+    on "GapsExtracted"
+    trigger "SynthesizeAll"
+  end
+
+  policy "ValidateAfterSynthesize" do
+    on "EditsSynthesized"
+    trigger "ValidateAll"
+  end
+
+  policy "WritePlanAfterValidate" do
+    on "EditsValidated"
+    trigger "WritePlan"
+  end
+
+  # No automatic ApplyEdits policy — Apply is operator-gated.
+  # The operator dispatches Cycle.ApplyEdits manually after
+  # reading the plan markdown.
+end
