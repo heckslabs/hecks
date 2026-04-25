@@ -143,3 +143,27 @@ pub fn mixed_concerns_warning(domain: &Domain) -> Option<String> {
         rendered.join(" and ")
     ))
 }
+/// Returns Some(msg) if the domain has 50+ aggregates split across
+/// disconnected reference/policy clusters.
+pub fn bluebook_size_warning(domain: &Domain) -> Option<String> {
+    let mut units = domain.aggregates.len();
+    for agg in &domain.aggregates {
+        units += agg.attributes.len();
+        units += agg.commands.len();
+        for cmd in &agg.commands {
+            units += cmd.attributes.len();
+        }
+        if let Some(lc) = &agg.lifecycle {
+            units += lc.transitions.len();
+        }
+    }
+    units += domain.policies.len();
+    if units > 50 {
+        Some(format!(
+            "⚠ bluebook '{}' has {} structural units (aggregates + attributes + commands + policies + transitions) — is this really one concern, or is it two ?",
+            domain.name, units
+        ))
+    } else {
+        None
+    }
+}
