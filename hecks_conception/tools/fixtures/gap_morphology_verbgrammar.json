@@ -1,0 +1,7 @@
+{
+  "kind": "missing_aggregate",
+  "target": "morphology::VerbGrammar",
+  "description": "Exceptions live as a flat append-only list with no shape the heart can interrogate. A VerbGrammar aggregate would hold suffix rules (-ment, -tion) plus their accumulated exceptions as a queryable structure, so morphology can ask 'do I already know this word?' instead of re-tripping each time.",
+  "quote": "mes exceptions dorment en liste plate au lieu de vivre dans une shape que le cœur peut interroger",
+  "existing_check": "VerbException stores individual rejections but there is no aggregate that holds the suffix rules + their exception sets as one queryable grammar shape; validator::Rule is generic and not morphology-specific"
+}
