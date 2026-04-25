@@ -81,7 +81,16 @@ class DreamReview
                 "#{@gaps.count { |g| g['kind'] == 'phantom_symptom' }} phantom)"
   end
 
-  # ── Step 2 : synthesize edits per real gap ──────────────────────
+  # ── Step 2 : synthesize edits per real gap, then validate ──────
+  #
+  # Each non-phantom edit is piped through `hecks-life validate`
+  # before being added to the apply queue. Bluebooks that fail
+  # validation surface as `failed_validation` skip-edits with the
+  # validator's error in the rationale ; they appear in the
+  # markdown summary so the reviewer sees why they didn't ship.
+  # Catches the LLM's occasional malformed output (forgotten end,
+  # unparseable lifecycle clause, fictional DSL keyword) before
+  # it reaches a draft PR.
 
   def synthesize_edits
     @gaps.each_with_index do |gap, i|
@@ -91,16 +100,75 @@ class DreamReview
       end
       STDERR.puts "[dream_review] synthesising gap #{i + 1}/#{@gaps.size} (#{gap['kind']} → #{gap['target']})…"
       out, err, status = Open3.capture3("ruby", SYNTH_RB, stdin_data: JSON.generate(gap))
-      if status.success?
-        edit = JSON.parse(out)
-        edit["gap"] = gap
-        @edits << edit
-      else
+      unless status.success?
         STDERR.puts "[dream_review]   synthesis failed : #{err.lines.first}"
         @edits << skip_edit(gap, "synthesis call failed: #{err.lines.first&.chomp}")
+        next
       end
+      edit = JSON.parse(out)
+      edit["gap"] = gap
+
+      # Validation gate — only for create/modify edits with content.
+      if %w[create modify].include?(edit["action"]) && edit["content"]
+        validation = validate_proposed_content(edit)
+        if validation[:ok]
+          edit["validation"] = "passed"
+          STDERR.puts "[dream_review]   ✓ validates"
+        else
+          edit["validation"] = "failed"
+          edit["validation_error"] = validation[:error]
+          edit["original_action"] = edit["action"]
+          edit["action"] = "skip"
+          edit["rationale"] = "VALIDATION FAILED — #{validation[:error]}\n\n" \
+                              "Original rationale : #{edit['rationale']}"
+          STDERR.puts "[dream_review]   ✗ validation failed : #{validation[:error]}"
+        end
+      end
+      @edits << edit
     end
   end
+
+  # Write the proposed `content` to a temp file and check it both
+  # parses (`hecks-life validate`) AND carries real structure
+  # (`hecks-life dump` returns ≥1 aggregate, name set). Garbage
+  # parses to "VALID — (0 aggregates)" because the bluebook DSL
+  # tolerates empty source — we need the structural-presence check
+  # to catch the LLM's worst-case "couldn't synthesise anything
+  # useful, returned a noun phrase" failure mode.
+  #
+  # Returns {ok: bool, error: string?}.
+  def validate_proposed_content(edit)
+    require "tempfile"
+    suffix = File.extname(edit["path"].to_s)
+    suffix = ".bluebook" if suffix.empty?
+    tmp = Tempfile.new(["dream_review_validate_", suffix])
+    tmp.write(edit["content"])
+    tmp.close
+
+    # Step 1 : parse + validate
+    out, err, status = Open3.capture3(HECKS, "validate", tmp.path)
+    unless status.success? && out.start_with?("VALID")
+      first_line = (out + err).lines.find { |l| l.strip != "" }&.chomp || "validation failed"
+      return { ok: false, error: first_line }
+    end
+
+    # Step 2 : structural presence — empty domains pass step 1 too,
+    # but they're never what we want from synthesis.
+    dump_out, dump_err, dump_status = Open3.capture3(HECKS, "dump", tmp.path)
+    return { ok: false, error: "dump failed: #{dump_err.lines.first&.chomp}" } unless dump_status.success?
+    parsed = JSON.parse(dump_out)
+    name = parsed["name"].to_s
+    agg_count = (parsed["aggregates"] || []).size
+    if name.empty? || agg_count.zero?
+      return { ok: false, error: "validates to empty domain (name='#{name}', aggregates=#{agg_count}) — synthesis produced no usable structure" }
+    end
+
+    { ok: true, error: nil }
+  ensure
+    tmp&.unlink
+  end
+
+  HECKS = ENV["HECKS_BIN"] || File.join(REPO_ROOT, "hecks_life/target/release/hecks-life")
 
   def skip_edit(gap, reason)
     {
@@ -128,10 +196,11 @@ class DreamReview
 
   def print_summary
     real = @edits.reject { |e| e["action"] == "skip" }
-    skipped = @edits.select { |e| e["action"] == "skip" }
+    failed = @edits.select { |e| e["validation"] == "failed" }
+    skipped = @edits.select { |e| e["action"] == "skip" && e["validation"] != "failed" }
     puts "# Dream Review — #{Time.now.strftime('%Y-%m-%d %H:%M')}"
     puts ""
-    puts "**#{@gaps.size} gaps** (#{real.size} actionable, #{skipped.size} skipped)"
+    puts "**#{@gaps.size} gaps** — #{real.size} actionable, #{failed.size} validation-failed, #{skipped.size} other-skipped"
     puts ""
     unless real.empty?
       puts "## Proposed edits"
@@ -148,11 +217,20 @@ class DreamReview
         puts ""
       end
     end
+    unless failed.empty?
+      puts "## Validation-failed (will NOT be applied)"
+      puts ""
+      failed.each do |edit|
+        puts "- `#{edit['gap']['target']}` (#{edit['gap']['kind']}) → `#{edit['original_action']} #{edit['path']}`"
+        puts "  - error : #{edit['validation_error']}"
+      end
+      puts ""
+    end
     unless skipped.empty?
-      puts "## Skipped"
+      puts "## Skipped (phantom or synthesis-failed)"
       puts ""
       skipped.each do |edit|
-        puts "- `#{edit['gap']['target']}` (#{edit['gap']['kind']}) — #{edit['rationale']}"
+        puts "- `#{edit['gap']['target']}` (#{edit['gap']['kind']}) — #{edit['rationale'].lines.first&.chomp}"
       end
       puts ""
     end
