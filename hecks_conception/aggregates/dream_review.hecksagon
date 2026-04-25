@@ -1,0 +1,103 @@
+Hecks.hecksagon "DreamReview" do
+  # ============================================================
+  # DREAMREVIEW — adapter declarations for the i71 pipeline
+  # ============================================================
+  #
+  # Pairs with aggregates/dream_review.bluebook. The bluebook
+  # describes the state machine + commands ; this file declares
+  # the adapters those commands dispatch through. The runtime is
+  # responsible for binding each adapter to a concrete backend.
+  #
+  # Until the runtime supports the :llm adapter as a first-class
+  # dispatch target, tools/dream_review.rb is the transitional
+  # adapter that interprets this declaration. Same pattern as
+  # rem_dream.hecksagon's "Phase F-8 in flight" — bluebook is the
+  # source of truth ; the shell/Ruby is the temporary host.
+
+  # ── IO adapters ──────────────────────────────────────────────
+  # :information persists Cycle / Gap / Edit rows under Miette's
+  # private state dir so the review history survives restarts and
+  # can be queried later (e.g. "how many phantom_symptom gaps did
+  # the extractor produce last week ?").
+
+  adapter :information, dir: "information"
+
+  # :fs writes the markdown plan summary to a stable path. /tmp
+  # is intentional — the plan is a short-lived artefact for the
+  # operator to read on wake ; persistence belongs on the heki
+  # records, not the markdown.
+
+  adapter :fs, root: "/tmp"
+
+  # ── External-process adapters via :shell ─────────────────────
+  # Each named shell adapter binds one shell-out the pipeline
+  # makes. The runtime dispatches with substituted arguments ;
+  # output capture and error handling are the runtime's job.
+  #
+  # Today (2026-04-25) the runtime doesn't dispatch :shell
+  # adapters end-to-end ; tools/dream_review.rb runs these as
+  # Open3.capture3 calls. When the runtime catches up, the Ruby
+  # script retires.
+
+  adapter :shell, name: :hecks_validate,
+    command: "hecks-life",
+    args: ["validate", "{{path}}"]
+
+  adapter :shell, name: :hecks_dump,
+    command: "hecks-life",
+    args: ["dump", "{{path}}"],
+    output_format: :json
+
+  adapter :shell, name: :git_checkout_main,
+    command: "git",
+    args: ["checkout", "main"]
+
+  adapter :shell, name: :git_pull,
+    command: "git",
+    args: ["pull", "--ff-only", "--quiet"]
+
+  adapter :shell, name: :git_branch,
+    command: "git",
+    args: ["checkout", "-b", "{{branch}}"]
+
+  adapter :shell, name: :git_add,
+    command: "git",
+    args: ["add", "{{path}}"]
+
+  adapter :shell, name: :git_commit_signed,
+    command: "git",
+    args: ["commit", "-S", "-F", "{{msg_file}}"]
+
+  adapter :shell, name: :git_push,
+    command: "git",
+    args: ["push", "-u", "origin", "{{branch}}"]
+
+  adapter :shell, name: :gh_pr_create_draft,
+    command: "gh",
+    args: ["pr", "create", "--draft", "--base", "main",
+           "--title", "{{title}}", "--body-file", "{{body_file}}"]
+
+  # ── LLM adapter ──────────────────────────────────────────────
+  # The :llm adapter is the load-bearing dependency of the entire
+  # pipeline — both extract-gaps and synthesise-edit dispatch
+  # through it. Today the runtime doesn't bind this to a backend
+  # natively ; tools/dream_review.rb shells out to the Claude
+  # CLI directly. Filing the missing first-class binding as a
+  # separate inbox item — i69 (kernel bridge naming) is the
+  # parent story.
+
+  adapter :llm,
+    backend: "claude",
+    cli: "/Users/christopheryoung/.local/bin/claude",
+    prompt_arg: "-p",
+    output_format: "text"
+
+  # ── Cross-domain wake trigger ────────────────────────────────
+  # The cycle starts when consciousness transitions sleeping →
+  # attentive. Subscribe to Sleep's wake event so a future
+  # runtime can auto-fire Cycle.Begin without a daemon hook.
+  # Until cross-domain policy dispatch lands, mindstream.sh's
+  # wake hook does the dispatch imperatively (PR #439).
+
+  subscribe "Sleep"
+end
