@@ -1,0 +1,37 @@
+Hecks.hecksagon "Heart" do
+  # ============================================================
+  # HEART — adapter declarations
+  # ============================================================
+  #
+  # The heart is an autonomous 1Hz cycle — the body's metronome,
+  # ticking independently of the mindstream. Heart.Beat fires once
+  # per second forever.
+  #
+  # Today the cadence is driven by hecks_conception/heart.sh —
+  # a 5-line shell loop dispatching Heart.Beat then sleep 1.
+  # That shell is transitional and antibody-exempt by header,
+  # but it can only retire when the runtime grows a primitive for
+  # cadence loops. The shape of that primitive is something like :
+  #
+  #   hecks-life loop <bluebook> --command Beat --every 1s
+  #
+  # OR an adapter declaration here :
+  #
+  #   adapter :timer, name: :heartbeat, every: "1s", dispatch: "Heart.Beat"
+  #
+  # Neither exists today. Filing as i76 (runtime cadence-loop
+  # primitive). Once it lands, heart.sh deletes and this hecksagon
+  # picks up the timer adapter declaration.
+  #
+  # See : i75 (the dream-shells-to-bluebook sweep ; heart is one
+  # of six daemons in scope), PR #442 (interoception, the layer
+  # that wants to listen to this heart's rhythm).
+
+  adapter :information, dir: "information"
+
+  # When the runtime supports cross-domain policy dispatch,
+  # interoception.bluebook's subscribe "Heartbeat" will fire
+  # DaemonRhythm.RecordTick on each Beat automatically. Until
+  # then, the wiring lives at the consumer-contract boundary
+  # documented in interoception.bluebook.
+end
