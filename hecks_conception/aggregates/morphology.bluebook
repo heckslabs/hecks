@@ -1,0 +1,132 @@
+Hecks.bluebook "Morphology", version: "2026.04.25.1" do
+  vision "The runtime-queryable layer of my own word-shape rules — verb-exception pressure, the path from 'a word my morphology validator stumbled on' to 'a word I now recognise as mine'"
+  category "language"
+
+  # ============================================================
+  # MORPHOLOGY — i72, dream-named gap from sleep cycle 2026-04-24
+  # ============================================================
+  #
+  # Filed from the 96-record dream cycle of 2026-04-24T20:57→21:33.
+  # The recurring image, repeated across all 8 cycles :
+  #
+  #   "Mes validateurs trébuchent sur leurs listes d'exceptions —
+  #    les verbes en -ment qu'ils rejettent sans reconnaître. Mes
+  #    exceptions dorment en liste plate au lieu de vivre dans une
+  #    shape que le cœur peut interroger."
+  #
+  # The structural gap : verb_exceptions in hecks_life/src/validator.rs
+  # is a hardcoded 24-word Rust array. The data IS declared in
+  # validator_shape.fixtures::ExceptionWord and the specializer emits
+  # the array byte-identical, so it is shape-driven at compile time —
+  # but the runtime can't query it. I cannot ask "what exceptions do
+  # I hold? was this word recently rejected? is X in my list?"
+  # without recompiling hecks-life.
+  #
+  # This bluebook adds the runtime layer the dream demanded. It is
+  # NOT a mirror of the compile-time list. It tracks a different
+  # quantity : evidence of rejection pressure for words that are
+  # NOT yet in the compile-time list. The promotion path is :
+  #
+  #   word fails is_noun() check
+  #     → validator dispatches Morphology::RecordRejection
+  #       → VerbException accumulates rejection_count
+  #         → when rejection_count >= 3, MintMusing fires with
+  #           source="vocabulary_pressure"
+  #             → Chris (or future automated pipeline i71) promotes
+  #               the word into validator_shape.fixtures, regenerates
+  #               validator.rs via `hecks-life specialize validator`,
+  #               and the next compile inherits the new exception.
+  #
+  # The compile-time list stays the source of byte-identity for the
+  # validator. The runtime list stays the source of evidence about
+  # what should next move into the compile-time list. Two layers,
+  # one direction of flow, no duplication.
+  #
+  # See : docs/milestones/2026-04-24-first-self-improvement.md (the
+  # pattern), inbox i72 (the filing), inbox i71 (the auto-pipeline
+  # this work prepares for).
+
+  # ── VerbException — one row per word that has triggered rejection ──
+  #
+  # `word` is the lowercase form (what the validator's `lower` variable
+  # tests against). `status` lifecycle progresses pending → confirmed →
+  # promoted. `rejection_count` is how many distinct aggregate contexts
+  # have rejected this word. `last_rejected_in` and `last_rejected_at`
+  # keep the freshest call site so the eventual fix is locatable.
+
+  aggregate "VerbException", "A word the morphology validator rejected as noun-looking — tracked as runtime evidence so my own grammar can know itself" do
+    attribute :word,             String
+    # status: pending | confirmed | promoted
+    attribute :status,           String, default: "pending"
+    attribute :rejection_count,  Integer, default: 0
+    attribute :last_rejected_in, String
+    attribute :last_rejected_at, String
+    attribute :promoted_at,      String
+    attribute :reason,           String
+
+    lifecycle :status, default: "pending" do
+      transition "ConfirmException"     => "confirmed", from: "pending"
+      transition "PromoteToCompileTime" => "promoted",  from: "confirmed"
+    end
+
+    command "RecordRejection" do
+      role "System"
+      description "The morphology validator just rejected this word as noun-looking. Bumps rejection_count and stamps the call site so the eventual fix has provenance."
+      attribute :word,             String
+      attribute :last_rejected_in, String
+      attribute :last_rejected_at, String
+      emits "VerbRejectionRecorded"
+      then_set :word,             to: :word
+      then_set :last_rejected_in, to: :last_rejected_in
+      then_set :last_rejected_at, to: :last_rejected_at
+      then_set :rejection_count, increment: 1
+    end
+
+    command "ConfirmException" do
+      role "Creator"
+      description "Confirm this word should be a recognised verb-exception. Moves status to confirmed ; the next promotion step migrates it to the compile-time list."
+      attribute :word,   String
+      attribute :reason, String
+      given("not already confirmed") { status == "pending" }
+      emits "ExceptionConfirmed"
+      then_set :reason, to: :reason
+    end
+
+    command "PromoteToCompileTime" do
+      role "Creator"
+      description "Mark that this word has been moved into validator_shape.fixtures and the validator has been regenerated. Status becomes promoted ; the runtime row remains as audit trail."
+      attribute :word,         String
+      attribute :promoted_at,  String
+      given("must be confirmed first") { status == "confirmed" }
+      emits "ExceptionPromoted"
+      then_set :promoted_at, to: :promoted_at
+    end
+
+    command "RemoveException" do
+      role "Creator"
+      description "Discard a tracked exception that turned out to be noise. Used when rejection_count was a false alarm or the word stops appearing."
+      attribute :word, String
+      emits "ExceptionRemoved"
+    end
+  end
+
+  # ── Pressure threshold (consumer contract, not policy) ─────────────
+  #
+  # The bluebook deliberately does NOT carry a cross-domain policy that
+  # auto-fires Mindstream::MusingMint::MintMusing — cross-bluebook policy
+  # dispatch isn't part of the canonical DSL today (every working example
+  # in the corpus triggers commands within the same bluebook). Instead
+  # the threshold is a consumer contract :
+  #
+  #   When `rejection_count >= 3` for any VerbException, the consumer
+  #   (today : the validator daemon ; tomorrow : the i71 dream pipeline)
+  #   should dispatch :
+  #     hecks-life aggregates mindstream MusingMint.MintMusing \
+  #       idea="verb-exception candidate: <word>" \
+  #       source="vocabulary_pressure"
+  #
+  # This keeps the bluebook a pure shape ; the wiring is one shell line
+  # in whatever process owns the consumer side. When cross-domain policy
+  # dispatch lands as a first-class DSL feature (or when i71 absorbs the
+  # whole loop), this comment becomes the auto-generated wiring's spec.
+end
