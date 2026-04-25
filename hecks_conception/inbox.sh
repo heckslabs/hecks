@@ -52,23 +52,60 @@ case "$cmd" in
       ref="$ref" priority="$priority" status=queued posted_at="$now" body="$body" \
       >/dev/null
 
-    # Auto-commit the heki change on the current branch so the filing
-    # is durable. Before this was added, running inbox.sh on a feature
-    # branch left the inbox.heki modification uncommitted ; checking
-    # out another branch silently reverted it and the filed item was
-    # lost. The gap was surfaced on 2026-04-24 when six session-local
-    # filings evaporated ; auto-commit closes the discipline hole.
+    # Auto-commit + push to main. Two-step durability :
     #
-    # Commits are scoped strictly to inbox.heki — other uncommitted
-    # work in the tree is left alone. Respects the repo's commit
-    # signing config (commit.gpgsign) so if the operator has it on,
-    # the auto-commit is signed. Silent-no-op when the working tree
-    # isn't a git checkout ; loud warning when the commit itself fails
-    # (never silent, because silent failure was the original defect).
+    # 1. Local commit on whatever branch the operator is on. Keeps the
+    #    working tree consistent so subsequent commands see the new ref.
+    # 2. Push the same heki content to origin/main directly, via a
+    #    temporary worktree, so the filing survives even if the local
+    #    branch is later abandoned (deleted post-merge with
+    #    --delete-branch, force-discarded, etc).
+    #
+    # Why both : step 1 alone is fragile — the 2026-04-24 morphology
+    # filing was made on miette/fix-ci-i67-spec-update AFTER the PR was
+    # opened ; the merge with --delete-branch dropped the unmerged
+    # filing because it was never pushed. Step 2 closes that hole.
+    #
+    # Step 2 uses a temp worktree of origin/main so the operator's
+    # current branch and uncommitted work are completely undisturbed.
+    # The worktree's inbox.heki gets the SAME content the local commit
+    # captured (we just `cp` the file across), then commit + push +
+    # remove the worktree. ~1 second total ; signed-commit config is
+    # inherited from the operator's git config.
+    #
+    # Failure modes (each prints a loud warning, never silent) :
+    #   - not a git checkout : skip both steps
+    #   - local commit fails : warn and stop ; don't attempt push
+    #   - origin/main fetch fails (offline) : warn ; local commit stands
+    #   - worktree dance fails : warn ; the filing rides the local
+    #     branch as a fallback (the pre-2026-04-25 behaviour)
+    #   - push to main fails (concurrent push, perm error) : warn ;
+    #     the filing rides the local branch as a fallback
     if [ -d "$DIR/../.git" ] || git -C "$DIR" rev-parse --git-dir >/dev/null 2>&1; then
       subject=$(printf '%s' "$body" | head -c 60 | tr '\n' ' ')
       if git -C "$DIR" add "$HEKI" >/dev/null 2>&1; then
-        if ! git -C "$DIR" commit -q -m "inbox($ref): $subject" >/dev/null 2>&1; then
+        if git -C "$DIR" commit -q -m "inbox($ref): $subject" >/dev/null 2>&1; then
+          # Step 2 — push to main via a temp worktree. Bail loudly on
+          # any failure ; the local commit from step 1 is still durable
+          # on the current branch.
+          repo_root=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null)
+          heki_relpath="hecks_conception/information/inbox.heki"
+          tmp_wt=$(mktemp -d -t hecks-inbox-push-XXXXXXXX)
+          if [ -n "$repo_root" ] && [ -n "$tmp_wt" ] \
+             && git -C "$repo_root" fetch origin main --quiet 2>/dev/null \
+             && git -C "$repo_root" worktree add --detach --quiet "$tmp_wt" origin/main 2>/dev/null; then
+            cp "$HEKI" "$tmp_wt/$heki_relpath"
+            ( cd "$tmp_wt" \
+              && git add "$heki_relpath" >/dev/null 2>&1 \
+              && git commit -q -m "inbox($ref): $subject" >/dev/null 2>&1 \
+              && git push --quiet origin HEAD:main 2>/dev/null ) \
+              || echo "warning: inbox($ref) push to main failed ; filing is durable on current branch only" >&2
+            git -C "$repo_root" worktree remove --force "$tmp_wt" >/dev/null 2>&1
+          else
+            rm -rf "$tmp_wt" 2>/dev/null
+            echo "warning: inbox($ref) push to main skipped (fetch or worktree setup failed) ; filing is durable on current branch only" >&2
+          fi
+        else
           echo "warning: heki updated but git commit failed for inbox($ref)" >&2
           echo "         stage the file manually to preserve the filing" >&2
         fi
