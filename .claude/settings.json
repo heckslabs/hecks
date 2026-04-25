@@ -33,6 +33,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "F=/tmp/wake_review_latest.md; M=/tmp/.miette_last_wake_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then CONTENT=$(cat \"$F\" | jq -Rs .); printf '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":%s}}' \"$CONTENT\"; touch \"$M\"; fi; true",
+            "timeout": 5
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
