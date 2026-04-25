@@ -222,6 +222,30 @@ fn main() {
         std::process::exit(hecks_life::run::run_script(&args));
     }
 
+    // `hecks-life loop <agg-dir-or-bluebook> <Aggregate.Command> --every <duration> [key=val ...]`
+    //
+    // Cadence-loop primitive (i76). Boots the runtime once and dispatches
+    // the named command at the given cadence in a tight loop, no shell
+    // wrapper required. Replaces the `while true; do ...; sleep N; done`
+    // pattern that body daemons (heart, breath, circadian, ultradian,
+    // mindstream, sleep_cycle) currently use, where each iteration paid
+    // a full runtime-boot cost.
+    //
+    // Duration accepts "1s", "500ms", "2m" — anything parsed by
+    // parse_loop_duration. SIGINT / SIGTERM exits cleanly.
+    //
+    // [TRANSITIONAL] Like the speak/status/musings/boot/daemon wrappers
+    // above, this hardcoded route is itself a bluebook smell — adding it
+    // to main.rs is exactly what i80 (CLI routing as bluebook) names as
+    // the wrong layer. Kept here only until i80's cli.bluebook lands and
+    // every CLI subcommand becomes a declared route, at which point this
+    // function retires alongside the others. See i80 for the retirement
+    // contract.
+    if command == "loop" {
+        run_loop(&args);
+        return;
+    }
+
     // `hecks-life repl <file.bluebook>` — interactive REPL. Same shape
     // as the pre-PR `run` command so any script that relied on that
     // behavior moves to `repl`.
@@ -1481,6 +1505,124 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 std::process::exit(1);
             }
         }
+    }
+}
+
+/// Parse a loop-cadence duration string.
+///
+/// Accepts "1s", "500ms", "2m", "5h", or a bare integer (treated as
+/// seconds for backwards compat). Returns None if unparseable.
+///
+/// The unit suffix order matters — "ms" must be checked before "s"
+/// so "500ms" doesn't match "500m"+"s". Same for "h" before "ms"
+/// (no overlap, but explicit ordering is safer).
+fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
+    use std::time::Duration;
+    let s = s.trim();
+    if let Some(ms) = s.strip_suffix("ms") {
+        ms.trim().parse::<u64>().ok().map(Duration::from_millis)
+    } else if let Some(h) = s.strip_suffix("h") {
+        h.trim().parse::<u64>().ok().map(|n| Duration::from_secs(n * 3600))
+    } else if let Some(m) = s.strip_suffix("m") {
+        m.trim().parse::<u64>().ok().map(|n| Duration::from_secs(n * 60))
+    } else if let Some(sec) = s.strip_suffix("s") {
+        sec.trim().parse::<f64>().ok().map(Duration::from_secs_f64)
+    } else {
+        s.parse::<u64>().ok().map(Duration::from_secs)
+    }
+}
+
+/// Run the loop subcommand. Boots the runtime once, dispatches the named
+/// command at the given cadence, exits cleanly on SIGINT / SIGTERM.
+///
+/// Args layout : hecks-life loop <target> <Aggregate.Command> --every <dur> [k=v ...]
+///   args[0] = binary
+///   args[1] = "loop"
+///   args[2] = target (agg dir or .bluebook)
+///   args[3] = "Aggregate.Command"
+///   args[4..] = "--every", "<dur>", and key=val attrs
+fn run_loop(args: &[String]) {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life loop <bluebook-or-dir> <Aggregate.Command> --every <duration> [key=val ...]");
+        std::process::exit(1);
+    });
+    let cmd_full = args.get(3).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("loop : missing <Aggregate.Command>");
+        std::process::exit(1);
+    });
+    let every_str = args.iter().position(|a| a == "--every")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str())
+        .unwrap_or_else(|| {
+            eprintln!("loop : missing --every <duration> (e.g. 1s, 500ms, 2m)");
+            std::process::exit(1);
+        });
+    let every = parse_loop_duration(every_str).unwrap_or_else(|| {
+        eprintln!("loop : cannot parse --every '{}' (try 1s, 500ms, 2m)", every_str);
+        std::process::exit(1);
+    });
+
+    // Strip "Aggregate." prefix from cmd_full so the runtime gets just the command name.
+    let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
+
+    // Parse trailing key=val attrs, skipping the --every flag and its value.
+    let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut i = 4;
+    while i < args.len() {
+        if args[i] == "--every" { i += 2; continue; }
+        if args[i].starts_with("--") { i += 1; continue; }
+        let mut parts = args[i].splitn(2, '=');
+        if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
+            attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+        }
+        i += 1;
+    }
+
+    eprintln!(
+        "[hecks-life loop] {} every {:?} (Ctrl-C to stop)",
+        cmd_full, every
+    );
+
+    // Build the combined domain ONCE (parse all bluebooks in the target),
+    // boot the runtime ONCE, then loop dispatching. This is the speedup
+    // over the shell `while true ; do hecks-life agg/ Cmd ; sleep N ; done`
+    // pattern, which paid full parse + boot per iteration.
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    let domain = if std::path::Path::new(target).is_dir() {
+        let mut combined = hecks_life::ir::Domain {
+            name: "Loop".into(),
+            category: None, vision: None,
+            aggregates: vec![], policies: vec![],
+            fixtures: vec![], entrypoint: None,
+        };
+        for entry in fs::read_dir(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        }).flatten() {
+            let p = entry.path();
+            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                if let Ok(source) = fs::read_to_string(&p) {
+                    let d = parser::parse(&source);
+                    combined.aggregates.extend(d.aggregates);
+                    combined.policies.extend(d.policies);
+                    combined.fixtures.extend(d.fixtures);
+                }
+            }
+        }
+        combined
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        parser::parse(&source)
+    };
+
+    let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    loop {
+        if let Err(e) = rt.dispatch(&cmd_name, attrs.clone()) {
+            eprintln!("[hecks-life loop] dispatch error: {:?}", e);
+        }
+        std::thread::sleep(every);
     }
 }
 
