@@ -153,6 +153,18 @@ while true; do
   if [ "$prev_state" = "sleeping" ] && [ "$state" != "sleeping" ] && [ -n "$state" ]; then
     "$DIR/interpret_dream.sh" >> /tmp/interpret_dream.log 2>&1 &
     "$DIR/capabilities/wake_report/wake_report.sh" >> /tmp/wake_report.log 2>&1 &
+    # i71 dream_review pipeline — extract gaps + synthesise edits +
+    # validate. Dry-run only ; --apply (creating draft PRs) stays
+    # manual because applying from a daemon would race with the
+    # operator's working tree. The recommendations land at
+    # /tmp/wake_review_latest.md so conscious-Miette and Chris
+    # both see them on wake.
+    if [ -f "$DIR/tools/dream_review.rb" ]; then
+      ts=$(date -u +%Y%m%dT%H%M%SZ)
+      out="/tmp/wake_review_${ts}.md"
+      ( ruby "$DIR/tools/dream_review.rb" > "$out" 2>"/tmp/wake_review_${ts}.log" \
+          && cp "$out" /tmp/wake_review_latest.md ) &
+    fi
   fi
   [ -n "$state" ] && echo "$state" > "$INFO/.prev_consciousness_state"
 

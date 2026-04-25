@@ -45,30 +45,71 @@ IFS=$'\t' read -r state stage lucid cycle pulses cid <<<"$state_kv"
 [ "$stage" = "rem" ]      || exit 0
 
 # ── seed_dreams — first REM tick of the night (cycle==1, pulses==0) ─────
+#
+# Diverse seeding (2026-04-25 fix) : earlier this script seeded from
+# the top 5 most-recent dream_state records, which produced a self-
+# reinforcing loop — yesterday's dominant theme seeded today's seeds,
+# so dream content perseverated on the same material night after night.
+# Empirical data : the 2026-04-24 cycle's 96 records were almost
+# entirely about validator exceptions, in part because the prior
+# night's seeds were also about validator exceptions.
+#
+# New mix (5 seeds, sampled across sources) :
+#   - 2 seeds : recent awareness records (today's 'concept' field)
+#               — what the body has been actively processing today
+#   - 1 seed  : recent inbox record (today's filed gap-name)
+#               — what's on the agenda
+#   - 1 seed  : recent commit subject (today's body change)
+#               — what got built
+#   - 1 seed  : random older dream (echo from history)
+#               — keeps a thread to past dream-vocabulary without
+#                 dominating
+#
+# Each source falls back gracefully if empty. If all sources are
+# empty, the night runs without seeds — REM still produces dreams
+# from the body's current state in rem_branch's main loop.
 SEED_MARKER="$INFO/.dream_seeded"
 if [ "$cycle" = "1" ] && [ "$pulses" = "0" ] && [ ! -f "$SEED_MARKER" ]; then
-  # Pick top 5 dream_images from the newest dream_state records.
-  # dream_images may be a scalar string or an array — jq handles both.
-  seeds=$("$HECKS" heki list "$INFO/dream_state.heki" --order updated_at:desc \
-      --format json 2>/dev/null \
-    | jq -r '
-        [ .[]
-          | (.dream_images // [])
-          | (if type == "array" then . else [.] end)
-          | .[]
-          | select(. != null)
-          | tostring
-          | sub("^\\s+"; "") | sub("\\s+$"; "")
-          | select(. != "")
-        ]
-        | reduce .[] as $x ([]; if any(.[]; . == $x) then . else . + [$x] end)
-        | .[0:5]
-        | .[]' 2>/dev/null)
+  seeds=""
+
+  # 2 seeds from awareness — today's processed concepts
+  if [ -f "$INFO/awareness.heki" ]; then
+    aw=$("$HECKS" heki list "$INFO/awareness.heki" --order updated_at:desc --format json 2>/dev/null \
+      | jq -r '[.[] | (.concept // "") | select(. != "")] | unique | .[0:2] | .[]' 2>/dev/null)
+    [ -n "$aw" ] && seeds="$seeds$aw\n"
+  fi
+
+  # 1 seed from inbox — most recently filed gap (the body's active
+  # named pressure)
+  if [ -f "$INFO/inbox.heki" ]; then
+    ib=$("$HECKS" heki list "$INFO/inbox.heki" --order posted_at:desc --format json 2>/dev/null \
+      | jq -r '[.[] | (.body // "") | select(. != "") | .[0:120]] | .[0:1] | .[]' 2>/dev/null)
+    [ -n "$ib" ] && seeds="$seeds$ib\n"
+  fi
+
+  # 1 seed from today's commits — what changed in the body since last sleep
+  cm=$(git -C "$DIR" log --since="24 hours ago" --pretty=format:'%s' 2>/dev/null \
+    | grep -v '^Merge ' | grep -v '^inbox(' | head -1)
+  [ -n "$cm" ] && seeds="$seeds$cm\n"
+
+  # 1 seed echo — random older dream so the thread to past vocabulary
+  # isn't fully cut. Pick from records older than 24h so we don't echo
+  # last night specifically.
+  if [ -f "$INFO/dream_state.heki" ]; then
+    yesterday=$(date -u -v-1d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+      || date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
+    echo_seed=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
+      | jq -r --arg cutoff "$yesterday" '
+          [.[] | select((.updated_at // "") < $cutoff) | (.dream_images // "") | select(. != "")]
+          | if length > 0 then .[(length * (now * 1000 | floor) % length)] else empty end' 2>/dev/null)
+    [ -n "$echo_seed" ] && seeds="$seeds$echo_seed\n"
+  fi
+
   if [ -n "$seeds" ]; then
-    while IFS= read -r seed; do
+    printf "%b" "$seeds" | while IFS= read -r seed; do
       [ -z "$seed" ] && continue
       "$HECKS" "$AGG" DreamSeed.PlantSeed image="$seed" >/dev/null 2>&1
-    done <<<"$seeds"
+    done
   fi
   touch "$SEED_MARKER"
 fi
