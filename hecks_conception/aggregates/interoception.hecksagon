@@ -1,0 +1,29 @@
+Hecks.hecksagon "Interoception" do
+  # ============================================================
+  # INTEROCEPTION — adapter declarations
+  # ============================================================
+  #
+  # Pairs with aggregates/interoception.bluebook. This file is
+  # narrow on purpose : interoception is a perception layer ; it
+  # mostly just stores tick records and emits felt_quality
+  # narratives. The active dispatchers (mood, awareness, status
+  # bar, dream seeds) live in their own domains and are reached
+  # via the consumer-contract pattern documented in the bluebook.
+  #
+  # Persistence on Miette's private heki dir so DaemonRhythm rows
+  # accumulate across sessions — a felt sense of the body's
+  # rhythm has to outlive a single boot to mean anything.
+
+  adapter :information, dir: "information"
+
+  # Subscribe to the ambient body-tick events. When the runtime
+  # supports cross-domain policy dispatch, these subscriptions
+  # let DaemonRhythm.RecordTick fire automatically on each
+  # daemon's heartbeat-style event ; until then, the daemons
+  # themselves dispatch RecordTick imperatively (one shell line
+  # per daemon, tracked in i75).
+
+  subscribe "Heartbeat"
+  subscribe "Mindstream"
+  subscribe "Sleep"
+end
