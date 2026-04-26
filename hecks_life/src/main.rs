@@ -20,8 +20,14 @@
 //!   hecks-life serve     path/to/hecks/ [port]
 //!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
 //!   hecks-life develop   target.bluebook --add "feature"
+//!
+//! [antibody-exempt: hecks_life/src/main.rs — wires validator_warnings into
+//!  dispatch arms. This IS the structural rewrite that closes the gap
+//!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
+//!  and runtime enforcement. Same i80 retirement contract as run_loop /
+//!  run_daemon / run_enforce_edit. Net ~12 LoC.]
 
-use hecks_life::{parser, validator, server, conceiver, heki, heki_query, dump,
+use hecks_life::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
 use hecks_life::runtime::Runtime;
 
@@ -412,9 +418,10 @@ fn main() {
         .map(|s| s.as_str());
 
     match command {
-        "parse" => println!("{}", domain),
-        "dump" => println!("{}", serde_json::to_string_pretty(&dump::dump(&domain)).unwrap()),
+        "parse" => { println!("{}", domain); emit_validator_warnings_to_stderr(&domain); }
+        "dump" => { println!("{}", serde_json::to_string_pretty(&dump::dump(&domain)).unwrap()); emit_validator_warnings_to_stderr(&domain); }
         "validate" => {
+            emit_validator_warnings_to_stderr(&domain);
             let errors = validator::validate(&domain);
             if errors.is_empty() {
                 println!("VALID — {} ({} aggregates)", domain.name, domain.aggregates.len());
@@ -424,7 +431,7 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        "inspect" | "tree" | "list" => println!("{}", domain),
+        "inspect" | "tree" | "list" => { println!("{}", domain); emit_validator_warnings_to_stderr(&domain); }
         "train" => {
             let vision = domain.vision.as_deref().unwrap_or(&domain.name);
             let source_esc = fs::read_to_string(path).unwrap_or_default()
@@ -476,6 +483,7 @@ fn run_batch(command: &str) {
         let domain = parser::parse(&source);
         match command {
             "validate" => {
+                emit_validator_warnings_to_stderr(&domain);
                 let errors = validator::validate(&domain);
                 if errors.is_empty() {
                     println!("VALID|{}", file_path); valid += 1;
@@ -2135,4 +2143,17 @@ fn print_usage() {
     eprintln!("  --corpus <dirs>    Corpus directories (conceive/develop)");
     eprintln!("  --add <feature>    Feature to add (develop)");
     eprintln!("  --from <path>      Source archetype bluebook (develop)");
+}
+
+/// Emits soft validator warnings to stderr — advisories, never failures.
+///
+/// Wires the four functions in `validator_warnings.rs` (the bluebook-declared
+/// rules from `capabilities/validator_warnings_shape/`) into the dispatch arms
+/// that touch a parsed Domain. Stays on stderr so parity tests and pipelines
+/// keep reading clean stdout.
+fn emit_validator_warnings_to_stderr(domain: &hecks_life::ir::Domain) {
+    if let Some(msg) = validator_warnings::aggregate_count_warning(domain)   { eprintln!("{}", msg); }
+    if let Some(msg) = validator_warnings::multi_domain_split_warning(domain) { eprintln!("{}", msg); }
+    if let Some(msg) = validator_warnings::mixed_concerns_warning(domain)    { eprintln!("{}", msg); }
+    if let Some(msg) = validator_warnings::bluebook_size_warning(domain)     { eprintln!("{}", msg); }
 }

@@ -1,5 +1,10 @@
 # Hecks::Parity::ParityTest
 #
+# [antibody-exempt: spec/parity/parity_test.rb — surfaces validator_warnings
+#  stderr next to the ✓ line so soft warnings show up during parity runs.
+#  Same i80 retirement contract as the main.rs wiring : the parity harness
+#  is a kernel-surface verification primitive, not a domain script.]
+#
 # Runs every fixture in spec/parity/bluebooks/ and every real bluebook in
 # hecks_conception/aggregates/ through both the Ruby DSL parser and the
 # Rust hecks-life parser, normalizes both outputs to the canonical JSON
@@ -75,6 +80,7 @@ end
 def rust_dump(path)
   out, err, status = Open3.capture3(HECKS_LIFE, "dump", path)
   raise "rust dump failed for #{path}: #{err}" unless status.success?
+  @last_stderr = err
   JSON.parse(out)
 end
 
@@ -136,7 +142,8 @@ def section(title, paths, max_diff_lines:, soft: false)
         puts "⚑ #{rel} — listed in known_drift.txt but PASSES; remove that line"
         unexpected_passes << rel
       else
-        puts "✓ #{rel}"
+        warn_tail = (@last_stderr && !@last_stderr.empty?) ? "  [stderr: #{@last_stderr.lines.map(&:chomp).reject(&:empty?).join(' | ')}]" : ""
+        puts "✓ #{rel}#{warn_tail}"
       end
     when :fail, :error
       label = (status == :error ? body : "drift")
