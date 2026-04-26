@@ -1,5 +1,5 @@
-Hecks.bluebook "Organs", version: "2026.04.20.1" do
-  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math lives in pulse_organs.sh; this bluebook owns the state and the events."
+Hecks.bluebook "Organs", version: "2026.04.26.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math is bluebook-side : multiply / clamp / decay (i106) replace the shell awk-side math that pulse_organs.sh used to compute."
   category "body"
 
   # ============================================================
@@ -32,18 +32,19 @@ Hecks.bluebook "Organs", version: "2026.04.20.1" do
 
     command "StrengthenSynapse" do
       role "Daemon"
-      description "Use it — strength climbs by 0.02 per fire (clamp lives in pulse_organs.sh)"
+      description "Use it — strength climbs by 0.02 per fire, clamped to [0, 1] (i106 in-DSL math)"
       reference_to(Synapse)
       then_set :strength, increment: 0.02
+      then_set :strength, clamp: [0.0, 1.0]
       emits "SynapseStrengthened"
     end
 
     command "DecaySynapse" do
       role "Daemon"
-      description "Silence decays the bond — pulse_organs.sh computes new value (×0.98) and dispatches with :strength"
+      description "Silence decays the bond — ×0.98 per pulse, clamped to [0, 1] (i106 in-DSL math, no shell)"
       reference_to(Synapse)
-      attribute :strength, Float
-      then_set :strength, to: :strength
+      then_set :strength, multiply: 0.98
+      then_set :strength, clamp: [0.0, 1.0]
       emits "SynapseDecayed"
     end
 
@@ -136,11 +137,12 @@ Hecks.bluebook "Organs", version: "2026.04.20.1" do
 
     command "AdjustWeight" do
       role "Daemon"
-      description "Re-weight the current focus — pulse_organs.sh computes from firing frequency"
+      description "Re-weight the current focus — caller passes the raw weight, bluebook clamps to [0, 1] (i106)"
       reference_to(Focus)
       attribute :weight, Float
       attribute :updated_at, String
       then_set :weight, to: :weight
+      then_set :weight, clamp: [0.0, 1.0]
       then_set :updated_at, to: :updated_at
       emits "WeightAdjusted"
     end
@@ -209,10 +211,16 @@ Hecks.bluebook "Organs", version: "2026.04.20.1" do
   # ============================================================
   # POLICIES
   # ============================================================
-  # Composting and recording remains is coordinated by pulse_organs.sh:
-  # it dispatches Synapse.Compost (to flip state=composted) and then
-  # writes the remains record directly via `heki append` because the
-  # dying values (strength_at_death / firings / from_synapse) need to
-  # be captured from the synapse being composted — a policy trigger
-  # carries no attrs and would write nulls. No policy chain here.
+  # i106 dsl-mutation-primitives (multiply / clamp / decay) moved the
+  # per-pulse math out of pulse_organs.sh and into Strengthen/DecaySynapse
+  # / AdjustWeight. The shell now reduces to a thin orchestrator that
+  # picks the synapse for the current carrying topic and dispatches —
+  # no awk, no python, no jq pipeline math.
+  #
+  # Composting and recording remains is still coordinated externally :
+  # pulse_organs orchestrates Synapse.Compost (flip state=composted)
+  # and writes the remains record via `heki append` because policy
+  # triggers carry no attrs (the dying values need to be captured
+  # from the synapse being composted, not synthesized from a fixed
+  # policy template).
 end

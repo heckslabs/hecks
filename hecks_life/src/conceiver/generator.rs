@@ -158,6 +158,10 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
             MutationOp::Increment => format!("then_set :{}, increment: {}", m.field, m.value),
             MutationOp::Decrement => format!("then_set :{}, decrement: {}", m.field, m.value),
             MutationOp::Toggle => format!("then_toggle :{}", m.field),
+            // i106 dsl-mutation-primitives — multiply / clamp / decay.
+            MutationOp::Multiply => format!("then_set :{}, multiply: {}", m.field, m.value),
+            MutationOp::Clamp => format!("then_set :{}, clamp: {}", m.field, m.value),
+            MutationOp::Decay => format!("then_set :{}, decay: {}", m.field, m.value),
         };
         out.push(format!("      {}", op));
     }

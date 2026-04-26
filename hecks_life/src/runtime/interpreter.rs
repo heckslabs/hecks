@@ -6,6 +6,10 @@
 //! Usage:
 //!   check_givens(cmd, state, attrs)?;
 //!   apply_mutations(cmd, state, attrs);
+//!
+//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface
+//!  runtime extension that applies Multiply / Clamp / Decay. Same
+//!  retirement contract as ir.rs.]
 
 use super::{AggregateState, RuntimeError, Value};
 use crate::ir::{Command, MutationOp};
@@ -72,8 +76,61 @@ pub fn apply_mutations(
             MutationOp::Toggle => {
                 state.toggle(&mutation.field);
             }
+            MutationOp::Multiply => {
+                // i106 — current * factor. Factor source-text is
+                // resolved against attrs/state first so dispatchers can
+                // pass it as a command attribute (`then_set :s, multiply: :rate`)
+                // when the factor isn't a literal.
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(factor) = numeric_value(&val) {
+                    let cur = field_numeric(&mutation.field, state);
+                    state.set_float(&mutation.field, cur * factor);
+                }
+            }
+            MutationOp::Decay => {
+                // i106 — current * (1 - rate). Rate is the source-text
+                // f64 (e.g. 0.05 → ×0.95). Decay composes with Clamp on
+                // the same field — body math typically decays then clamps.
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(rate) = numeric_value(&val) {
+                    let cur = field_numeric(&mutation.field, state);
+                    state.set_float(&mutation.field, cur * (1.0 - rate));
+                }
+            }
+            MutationOp::Clamp => {
+                // i106 — bound the field to [min, max]. Value carries a
+                // 2-element list literal; resolve_mutation_value returns
+                // a Value::List which we read pairwise. Out-of-range
+                // clamps to the boundary; in-range is a no-op.
+                let bounds = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some((min, max)) = clamp_bounds(&bounds) {
+                    let cur = field_numeric(&mutation.field, state);
+                    let bounded = cur.max(min).min(max);
+                    state.set_float(&mutation.field, bounded);
+                }
+            }
         }
     }
+}
+
+/// Numeric read of a state field, used by Multiply/Decay/Clamp. Falls
+/// back to 0.0 when the field is unset or non-numeric — matches the
+/// existing increment_float behaviour.
+fn field_numeric(field: &str, state: &AggregateState) -> f64 {
+    numeric_value(state.get(field)).unwrap_or(0.0)
+}
+
+/// Read [min, max] from a Value::List of two numeric elements. Returns
+/// None when the shape doesn't fit — caller treats that as a no-op.
+fn clamp_bounds(v: &Value) -> Option<(f64, f64)> {
+    if let Value::List(items) = v {
+        if items.len() == 2 {
+            let lo = numeric_value(&items[0])?;
+            let hi = numeric_value(&items[1])?;
+            return Some((lo.min(hi), lo.max(hi)));
+        }
+    }
+    None
 }
 
 fn evaluate_given(
