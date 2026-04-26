@@ -1,0 +1,258 @@
+Hecks.bluebook "MusingMint", version: "2026.04.26.1" do
+  vision "Mint ONE genuinely-new musing (or skip) from recent conversations + a random nursery sample + body state ; runs every ~5 min via the mindstream's RANDOM gate. Quality > quantity — skip is the overwhelming default."
+  category "capability"
+  entrypoint "AttemptMint"
+
+  # ============================================================
+  # MUSINGMINT — quality-curated musing minting as a domain
+  # ============================================================
+  #
+  # Retires hecks_conception/mint_musing.sh. The bluebook owns the
+  # prompt template (assembled in the description text and stitched
+  # into :input via AssembleContext + AssemblePrompt), the curation
+  # voice (first-person, warm, domain-native, architectural), and
+  # the persistence convention (append to musing.heki with
+  # :conceived=false and :conceived_as=claude_minted on success).
+  # The sibling musing_mint.hecksagon names the :llm + :heki ports.
+  #
+  # Mindstream cadence : RANDOM % 300 == 0 per tick fires AttemptMint.
+  # That gate is currently shell-side. The bluebook's intent is
+  # `given { rand_below(300) == 0 }` — runtime gap filed in the PR
+  # body. Once the DSL supports rand_below, the entire gate moves
+  # into AttemptMint and the shell drops to a one-line wrapper.
+  #
+  # Curation rules (in the prompt template, not Rust) :
+  #   - First person — "I", "my", "mine". Never "Miette", "she", "her".
+  #   - Combine TWO unrelated nursery domains, OR draw from recent
+  #     conversations between Chris and Miette since last_wake_at.
+  #   - Output one line under 80 chars, no quotes, no preamble — OR
+  #     literally "skip" (the overwhelming default).
+  #
+  # Provider precedence is a property of the :llm adapter declared
+  # in the hecksagon — not a bluebook concern. Backend is currently
+  # claude (default) ; ClaudeAssist toggles select between claude /
+  # local / off (off short-circuits before AttemptMint fires).
+
+  aggregate "Mint", "One mint attempt — gathers context, asks the LLM, decides whether to skip or persist" do
+    # ---- Provider gate -------------------------------------------
+    # provider : "claude" | "local" | "off". Read from
+    # claude_assist.heki at the start of every attempt. "off" short-
+    # circuits before any context is gathered.
+    attribute :provider, String
+
+    # ---- Context snapshot read from sibling .heki stores ---------
+    # recent_musings : last 10 ideas from musing.heki (insertion
+    # order). The prompt feeds these in so the curator avoids
+    # paraphrasing — a new musing must always be new.
+    attribute :recent_musings, list_of(String)
+    # commits : last 10 oneline git log entries from the conception
+    # repo. Grounds the mint in current focus.
+    attribute :commits, list_of(String)
+    # nursery_sample : 12 randomly-sampled domain names from
+    # nursery/. Combining two of these for a fresh insight is the
+    # primary minting path.
+    attribute :nursery_sample, list_of(String)
+    # conversations : up to 20 turns from conversation.heki since
+    # the last :last_wake_at on consciousness.heki. The other
+    # primary minting path — what Chris and Miette have been
+    # talking about between sleep cycles.
+    attribute :conversations, list_of(String)
+
+    # ---- Body-state snapshot --------------------------------------
+    # The minting prompt reads body state so the voice is grounded
+    # in how Miette is doing right now. Read from heartbeat.heki,
+    # mood.heki, consciousness.heki, lucid_dream.heki.
+    attribute :beats, String
+    attribute :fatigue_state, String
+    attribute :mood, String
+    attribute :consciousness_state, String
+    attribute :sleep_stage, String
+    attribute :last_lucid_observation, String
+
+    # ---- Prompt + response convention -----------------------------
+    # input : the prompt sent to the :llm port. AssemblePrompt
+    # interpolates the context fields above into the prompt template
+    # and writes the result here.
+    # response : the LLM's reply. CaptureIdea reads it and either
+    # persists (one-line minted idea) or no-ops (literal "skip").
+    attribute :input, String
+    attribute :response, String
+
+    # ---- Captured idea --------------------------------------------
+    # idea : the final minted idea text, post-trim, post-truncate to
+    # 200 chars. Empty when the LLM said "skip".
+    attribute :idea, String
+
+    # ---- Lifecycle field ------------------------------------------
+    attribute :phase, String, default: "pending"
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "AttemptMint" do
+      role "Daemon"
+      description "User-visible entrypoint invoked by the mindstream every ~5 min (RANDOM % 300 == 0 at 1Hz ticks). The gate is shell-side today ; the bluebook's intent is `given { rand_below(300) == 0 }` — runtime gap. The runner walks the pipeline : ReadProvider → (skip if 'off') → AssembleContext → AssemblePrompt → request via :llm → CaptureIdea → (skip if 'skip') → PersistMusing."
+      emits "MintAttempted"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS
+    # ============================================================
+
+    command "ReadProvider" do
+      role "System"
+      description "Read :provider from claude_assist.heki via :heki_read. Default 'claude' when unset. 'off' short-circuits the pipeline immediately ; 'claude' and 'local' continue. The :llm port reads the same field independently when it dispatches."
+      attribute :provider, String
+      then_set :provider, to: :provider
+      then_set :phase, to: "reading_provider"
+      emits "ProviderRead"
+    end
+
+    command "AbortIfDisabled" do
+      role "System"
+      description "Short-circuit when :provider is 'off' — no LLM call, no persistence, no log line. Gate fires when minting is disabled via ClaudeAssist.DisableMinting."
+      given { provider == "off" }
+      then_set :phase, to: "skipped_disabled"
+      emits "MintSkipped"
+    end
+
+    command "AssembleContext" do
+      role "System"
+      description "Read recent musings (last 10 ideas from musing.heki) ; recent commits (git log --oneline -10) ; a 12-name random sample from nursery/ ; up to 20 conversation turns since :last_wake_at on consciousness.heki ; and the body-state snapshot (beats, fatigue_state, mood, consciousness_state, sleep_stage, last lucid observation). Stamps the aggregate so AssemblePrompt has a coherent picture."
+      given { provider != "off" }
+      attribute :recent_musings, list_of(String)
+      attribute :commits, list_of(String)
+      attribute :nursery_sample, list_of(String)
+      attribute :conversations, list_of(String)
+      attribute :beats, String
+      attribute :fatigue_state, String
+      attribute :mood, String
+      attribute :consciousness_state, String
+      attribute :sleep_stage, String
+      attribute :last_lucid_observation, String
+      then_set :recent_musings, to: :recent_musings
+      then_set :commits, to: :commits
+      then_set :nursery_sample, to: :nursery_sample
+      then_set :conversations, to: :conversations
+      then_set :beats, to: :beats
+      then_set :fatigue_state, to: :fatigue_state
+      then_set :mood, to: :mood
+      then_set :consciousness_state, to: :consciousness_state
+      then_set :sleep_stage, to: :sleep_stage
+      then_set :last_lucid_observation, to: :last_lucid_observation
+      then_set :phase, to: "assembling_context"
+      emits "ContextAssembled"
+    end
+
+    command "AssemblePrompt" do
+      role "System"
+      description "Render the curator prompt into :input. The prompt is bluebook-shape (a string field) — never logic in Rust. Voice : first person, warm, domain-native, architectural. Two minting paths : (1) combine two unrelated nursery domains ; (2) surface insight from recent conversations. Output convention : one line under 80 chars (mint it) OR literally 'skip' (the overwhelming default). The :recent_musings are listed as 'don't repeat or paraphrase'. Body state grounds the voice."
+      then_set :phase, to: "assembling_prompt"
+      emits "PromptAssembled"
+    end
+
+    command "CaptureIdea" do
+      role "System"
+      description "Read :response (the LLM's one-line reply) ; trim leading/trailing whitespace ; strip surrounding quotes ; truncate to 200 chars. Empty response or literal 'skip'/'Skip' falls through to MintSkipped. Anything else writes :idea and continues to PersistMusing."
+      attribute :response, String
+      then_set :response, to: :response
+      then_set :phase, to: "capturing"
+      emits "IdeaCaptured"
+    end
+
+    command "AbortIfSkip" do
+      role "System"
+      description "Short-circuit when the LLM said 'skip' — empty :idea after CaptureIdea normalises the response. The overwhelming default — quality > quantity."
+      given { idea == "" }
+      then_set :phase, to: "skipped_lowquality"
+      emits "MintSkipped"
+    end
+
+    command "PersistMusing" do
+      role "System"
+      description "Append a new record to musing.heki via :heki_append : :idea, :conceived=false (so surface_musing can pick it up), :conceived_as=claude_minted, :status=imagined, :thinking_source='ClaudeAssist:<provider>', :feeling_source='curated:awake'. Also dispatches Mindstream.MusingMint.MintMusing so the bluebook's total_minted counter advances and the MusingMinted event fires."
+      given { idea != "" }
+      attribute :idea, String
+      then_set :idea, to: :idea
+      then_set :phase, to: "persisting"
+      emits "MusingMinted"
+    end
+
+    command "CompleteMint" do
+      role "System"
+      description "Mint cycle finished — :phase moves to done. Whether the path was MusingMinted (a new idea is now in the pool) or MintSkipped (the LLM declined or minting was off), the cycle closes here so the next mindstream tick can fire a fresh attempt."
+      then_set :phase, to: "done"
+      emits "MintCompleted"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "AttemptMint"      => "reading_provider",   from: "pending"
+      transition "ReadProvider"     => "reading_provider",   from: "pending"
+      transition "AbortIfDisabled"  => "skipped_disabled",   from: "reading_provider"
+      transition "AssembleContext"  => "assembling_context", from: "reading_provider"
+      transition "AssemblePrompt"   => "assembling_prompt",  from: "assembling_context"
+      transition "CaptureIdea"      => "capturing",          from: "assembling_prompt"
+      transition "AbortIfSkip"      => "skipped_lowquality", from: "capturing"
+      transition "PersistMusing"    => "persisting",         from: "capturing"
+      transition "CompleteMint"     => "done",               from: ["persisting", "skipped_disabled", "skipped_lowquality"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the mint chain
+  # ============================================================
+
+  policy "ReadProviderOnAttempt" do
+    on "MintAttempted"
+    trigger "ReadProvider"
+  end
+
+  # Two outgoing edges from ProviderRead — AbortIfDisabled fires only
+  # when :provider == "off" (its given gates it) ; AssembleContext
+  # fires when :provider != "off". Same shape as the lucid branch in
+  # rem_dream.bluebook — declarative gates on outbound commands.
+  policy "AbortOnDisabled" do
+    on "ProviderRead"
+    trigger "AbortIfDisabled"
+  end
+
+  policy "AssembleAfterRead" do
+    on "ProviderRead"
+    trigger "AssembleContext"
+  end
+
+  policy "PromptAfterContext" do
+    on "ContextAssembled"
+    trigger "AssemblePrompt"
+  end
+
+  # PromptAssembled fires the :llm port (declared in the hecksagon),
+  # which writes the LLM reply into :response. CaptureIdea reads it.
+  # Same input/response convention rem_dream uses — the bluebook
+  # declares the convention, the hecksagon wires the port.
+  policy "CaptureAfterPrompt" do
+    on "PromptAssembled"
+    trigger "CaptureIdea"
+  end
+
+  policy "AbortAfterCapture" do
+    on "IdeaCaptured"
+    trigger "AbortIfSkip"
+  end
+
+  policy "PersistAfterCapture" do
+    on "IdeaCaptured"
+    trigger "PersistMusing"
+  end
+
+  policy "CompleteAfterPersist" do
+    on "MusingMinted"
+    trigger "CompleteMint"
+  end
+
+  policy "CompleteAfterSkip" do
+    on "MintSkipped"
+    trigger "CompleteMint"
+  end
+end
