@@ -16,10 +16,12 @@ Hecks.bluebook "MusingMint", version: "2026.04.26.1" do
   # The sibling musing_mint.hecksagon names the :llm + :heki ports.
   #
   # Mindstream cadence : RANDOM % 300 == 0 per tick fires AttemptMint.
-  # That gate is currently shell-side. The bluebook's intent is
-  # `given { rand_below(300) == 0 }` — runtime gap filed in the PR
-  # body. Once the DSL supports rand_below, the entire gate moves
-  # into AttemptMint and the shell drops to a one-line wrapper.
+  # The gate is now declarative — `given { rand_below(300) == 0 }`
+  # on the entrypoint command. The DSL ships rand_below as of i80's
+  # rewrite (musing-cluster-retire PR), so the gate lives inside the
+  # bluebook and the mindstream invokes the entrypoint unconditionally
+  # per tick. The runtime's stochastic primitive lives in
+  # hecks_life/src/runtime/interpreter.rs (antibody-exempt rewrite).
   #
   # Curation rules (in the prompt template, not Rust) :
   #   - First person — "I", "my", "mine". Never "Miette", "she", "her".
@@ -92,7 +94,8 @@ Hecks.bluebook "MusingMint", version: "2026.04.26.1" do
 
     command "AttemptMint" do
       role "Daemon"
-      description "User-visible entrypoint invoked by the mindstream every ~5 min (RANDOM % 300 == 0 at 1Hz ticks). The gate is shell-side today ; the bluebook's intent is `given { rand_below(300) == 0 }` — runtime gap. The runner walks the pipeline : ReadProvider → (skip if 'off') → AssembleContext → AssemblePrompt → request via :llm → CaptureIdea → (skip if 'skip') → PersistMusing."
+      description "User-visible entrypoint invoked by the mindstream every tick. The 1/300 stochastic gate (RANDOM % 300 == 0 at 1Hz ticks ≈ 5-min mint cadence) is the `given { rand_below(300) == 0 }` predicate — when it passes, the runner walks the pipeline : ReadProvider → (skip if 'off') → AssembleContext → AssemblePrompt → request via :llm → CaptureIdea → (skip if 'skip') → PersistMusing. When it fails, the entrypoint short-circuits and the tick yields immediately. HECKS_RAND_SEED env var pins the RNG for tests : seed=0 fires every call, seed=k always returns k mod 300."
+      given { rand_below(300) == 0 }
       emits "MintAttempted"
     end
 

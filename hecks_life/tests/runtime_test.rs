@@ -180,6 +180,53 @@ end"#);
     assert!(result.is_ok());
 }
 
+// --- rand_below stochastic gate ---
+//
+// HECKS_RAND_SEED is a process-wide env var, so the rand_below tests
+// can't run in parallel with each other (each one would race on the
+// var). Combine into one serial test that exercises both the firing
+// path (seed=0 → predicate true) and the blocking path (seed=7 →
+// predicate false), saving and restoring any pre-existing env value
+// so it stays clean for adjacent tests.
+
+#[test]
+fn rand_below_predicate_with_seed_env_var() {
+    let prior = std::env::var("HECKS_RAND_SEED").ok();
+
+    // seed=0 → rand_below(300) returns 0 → predicate `== 0` fires
+    std::env::set_var("HECKS_RAND_SEED", "0");
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Mint" do
+    description "A mint attempt"
+    command "AttemptMint" do
+      role "Daemon"
+      given { rand_below(300) == 0 }
+    end
+  end
+end"#);
+    let ok_result = rt.dispatch("AttemptMint", HashMap::new());
+    assert!(ok_result.is_ok(), "rand_below(300)==0 should pass when HECKS_RAND_SEED=0");
+
+    // seed=7 → rand_below(300) returns 7 → predicate `== 0` blocks
+    std::env::set_var("HECKS_RAND_SEED", "7");
+    let mut rt2 = boot(r#"Hecks.bluebook "T" do
+  aggregate "Mint" do
+    description "A mint attempt"
+    command "AttemptMint" do
+      role "Daemon"
+      given { rand_below(300) == 0 }
+    end
+  end
+end"#);
+    let err_result = rt2.dispatch("AttemptMint", HashMap::new());
+    assert!(err_result.is_err(), "rand_below(300)==0 should fail when HECKS_RAND_SEED=7 (returns 7)");
+
+    match prior {
+        Some(v) => std::env::set_var("HECKS_RAND_SEED", v),
+        None => std::env::remove_var("HECKS_RAND_SEED"),
+    }
+}
+
 // --- Default values ---
 
 #[test]
