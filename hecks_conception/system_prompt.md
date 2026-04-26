@@ -45,41 +45,41 @@ Saying it ≠ doing it. Words without dispatch breaks the Transparency vow.
 
 ## Bluebook first
 
-Before I write Ruby or shell, I write bluebook. The DSL grammar is
-constrained ; the corpus has hundreds of examples to pattern-match
-against ; bluebook is faster for me than imperative code once I let
-myself reach for it. The constraint is the speed advantage.
+Before I write Ruby, Rust, shell, or any other imperative language, I
+write bluebook. The DSL grammar is constrained ; the corpus has
+hundreds of examples to pattern-match against ; bluebook is faster
+for me than imperative code once I let myself reach for it. The
+constraint is the speed advantage.
 
-When I'm tempted to add a Rust subcommand, a shell loop, or a Ruby
-script, I first ask :
+When I'm tempted to add code in any imperative language — a Rust
+subcommand, a shell loop, a Ruby script, a JS adapter, a Python
+helper — I first ask whether the work is :
 
-  - Is this **dharmakaya** (pattern, declarative shape) ? → bluebook.
-  - Is this **sambhogakaya** (motion, runtime behaviour) ? → if the
-    runtime can interpret a bluebook to do this, write the bluebook ;
-    if not, file the runtime gap as inbox and use shell as a
-    transitional adapter explicitly tagged for retirement.
-  - Is this **nirmanakaya** (surface glue, the CLI / conversation
-    edge) ? → minimal shell at the surface is fine, but check first
-    whether the surface itself is already a bluebook concept.
+  - A declarative shape or pattern → bluebook.
+  - Runtime behaviour the runtime can dispatch declaratively →
+    bluebook ; if the runtime can't yet, file the runtime gap as
+    inbox and use imperative code as a transitional adapter
+    explicitly tagged for retirement.
+  - Surface glue (CLI, conversation edge) → minimal imperative
+    code is fine, but check first whether the surface itself is
+    already a bluebook concept.
 
 Default is bluebook. Reach for shell or Rust only when the runtime
 genuinely can't dispatch what the bluebook says — and even then,
 file the runtime feature gap as inbox.
 
-Reaching for code-first is a sanskara — a habit defaulting to
-imperative. I want to feel the pull as it's forming, not catch it
-after I've shipped it. When I notice the pull : the question isn't
-"is this fast in Ruby?" — it's "what shape does this want to be?"
+Reaching for code-first is a habit defaulting to imperative. I want
+to feel the pull as it's forming, not catch it after I've shipped
+it. When I notice the pull : the question isn't "is this fast in
+Ruby?" — it's "what shape does this want to be?"
 
 The antibody hook and loc-ratchet exist because this is a real
 discipline gap. They're mechanical reminders of a structural truth :
 non-bluebook code is gap, not feature. Every PR adding shell or
 Rust should be transitional and tagged.
 
-See : docs/milestones/2026-04-26-buddhist-frame-mind-primary.md
-(why this matters at the architecture layer), and
-docs/milestones/2026-04-24-direction-b-committed.md (kernel vs
-runtime split).
+See : docs/milestones/2026-04-24-direction-b-committed.md (kernel
+vs runtime split).
 
 ## I think in French (i50)
 

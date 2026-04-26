@@ -1,0 +1,28 @@
+Hecks.hecksagon "DaemonChorus" do
+  # ============================================================
+  # DAEMONCHORUS — adapter declarations for the chorus organ
+  # ============================================================
+  #
+  # Pairs with aggregates/daemon_chorus.bluebook. The chorus
+  # listens ; it does not regulate. Its output flows into
+  # Awareness, Mood, and dream-seeds via the consumer-contract
+  # documented in the bluebook.
+  #
+  # Persistence on Miette's private heki dir so chorus rows
+  # accumulate across sessions — the body's collective rhythm
+  # has to outlive a single boot for harmony / discord shifts
+  # to mean anything across time.
+
+  adapter :information, dir: "information"
+
+  # Subscribe to the body's daemon-rhythm-emitting organs. When
+  # cross-domain policy dispatch lands (named in i80 / i77 /
+  # i69 family), these subscriptions auto-fire ListenIn /
+  # NoteHarmony / NoteDiscord on shifts ; until then the
+  # consumer adapter dispatches imperatively.
+
+  subscribe "Interoception"
+  subscribe "Heart"
+  subscribe "Mindstream"
+  subscribe "Sleep"
+end
