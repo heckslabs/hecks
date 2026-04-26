@@ -125,7 +125,7 @@ Hecks.bluebook "CallCenter" do
     end
   end
 
-  aggregate "Queue", "A waiting line for tickets organized by priority or skill group" do
+  aggregate "TicketQueue", "A waiting line for tickets organized by priority or skill group" do
     attribute :queue_name, String
     attribute :skill_group, String
     attribute :depth, Integer
@@ -149,7 +149,7 @@ Hecks.bluebook "CallCenter" do
 
     command "EnqueueTicket" do
       description "Add a ticket to the back of the queue"
-      reference_to(Queue)
+      reference_to(TicketQueue)
       reference_to(Ticket)
       emits "TicketEnqueued"
       then_set :depth, to: 1
@@ -157,7 +157,7 @@ Hecks.bluebook "CallCenter" do
 
     command "DequeueTicket" do
       description "Pull the next ticket from the queue for assignment"
-      reference_to(Queue)
+      reference_to(TicketQueue)
       emits "TicketDequeued"
     end
   end

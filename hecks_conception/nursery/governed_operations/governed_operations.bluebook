@@ -36,7 +36,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "ComplianceOfficer"
       description "Add a regulatory rule to the contract"
       reference_to(JurisdictionalContract)
-      Rule :rule
+      attribute :rule, Rule
       emits "RuleAdded"
     end
 
@@ -45,7 +45,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       description "Amend an existing rule within the contract"
       reference_to(JurisdictionalContract)
       attribute :rule_code, String
-      Rule :rule
+      attribute :rule, Rule
       emits "RuleAmended"
     end
 
@@ -127,7 +127,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "QualityManager"
       description "Add an internal standard to the contract"
       reference_to(OperationalContract)
-      Standard :standard
+      attribute :standard, Standard
       emits "StandardAdded"
     end
 
@@ -136,7 +136,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       description "Revise an existing standard within the contract"
       reference_to(OperationalContract)
       attribute :standard_name, String
-      Standard :standard
+      attribute :standard, Standard
       emits "StandardRevised"
     end
 
@@ -266,7 +266,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "System"
       description "Record a compliance violation against the batch"
       reference_to(Batch)
-      Violation :violation
+      attribute :violation, Violation
       emits "ViolationRecorded"
     end
 
@@ -343,7 +343,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "Approver"
       description "Approve the change request"
       reference_to(ChangeRequest)
-      Approval :approval
+      attribute :approval, Approval
       given { status == "pending_approval" }
       emits "ChangeApproved"
       then_set :status, to: "approved"
@@ -353,7 +353,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "Approver"
       description "Reject the change request"
       reference_to(ChangeRequest)
-      Approval :approval
+      attribute :approval, Approval
       given { status == "pending_approval" }
       emits "ChangeRejected"
       then_set :status, to: "rejected"
@@ -480,7 +480,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "QualityInvestigator"
       description "Attach supporting evidence to the CAPA"
       reference_to(CAPA)
-      Evidence :evidence
+      attribute :evidence, Evidence
       emits "EvidenceCollected"
     end
 
@@ -552,7 +552,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "ComplianceOfficer"
       description "Send recall notifications to all required parties"
       reference_to(Recall)
-      Notification :notification
+      attribute :notification, Notification
       given { status == "identifying" }
       emits "StakeholdersNotified"
       then_set :status, to: "notifying"
@@ -650,7 +650,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "Auditor"
       description "Record an observation or non-conformance"
       reference_to(Audit)
-      Finding :finding
+      attribute :finding, Finding
       given { status == "in_progress" }
       emits "FindingRecorded"
       then_set :status, to: "findings_recorded"
@@ -826,7 +826,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "Approver"
       description "Record an approver's approval decision"
       reference_to(ApprovalWorkflow)
-      ApprovalRecord :record
+      attribute :record, ApprovalRecord
       given { status == "pending" }
       emits "ApprovalRecorded"
     end
@@ -835,7 +835,7 @@ Hecks.bluebook "GovernedOperations", version: "2026.04.11.1" do
       role "Approver"
       description "Record an approver's rejection decision"
       reference_to(ApprovalWorkflow)
-      ApprovalRecord :record
+      attribute :record, ApprovalRecord
       given { status == "pending" }
       emits "RejectionRecorded"
     end
