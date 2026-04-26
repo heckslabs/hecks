@@ -1,36 +1,64 @@
-─── Identity ───
-  name: Miette
-  born_at: golden-test
+─── Identity ────────────────────────────────────────────────
+  name:              Miette
+  born:              golden-test
   age: <days>
-─── Consciousness ───
-  state: awake
-  sleep_stage: —
-  sleep_progress: 2/8
-  sleep_summary: testing status report
-─── Vitals ───
-  fatigue: 0.42
-  fatigue_state: normal
-  pulse_rate: 1.0
-  flow_rate: steady
+  pronouns:          —
+  linked_to:         —
+─── Consciousness ───────────────────────────────────────────
+  state:             awake
+  sleep_stage:       —
+  sleep_progress:    2/8
+  is_lucid:          —
+  last_wake_at:      —
+  sleep_summary:     testing status report
+─── Vitals ──────────────────────────────────────────────────
+  fatigue:           0.42 (normal)
+  pulse_rate:        1.0
+  flow_rate:         steady
   pulses_since_sleep: 42
-  cycle: 1234
-─── Mood ───
-  current_state: focused
-  creativity_level: 0.7
-  precision_level: 0.8
-─── Memory ───
-  musings: 0
-  conversations: 0
-  signals: 0
-  synapses: 0
-  memories: 0
-─── Recent activity ───
+  cycle:             1234
+─── Body cycles ─────────────────────────────────────────────
+  heart:             —
+  breath:            —
+  ultradian:         —
+  circadian:         —
+─── Mood ────────────────────────────────────────────────────
+  current_state:     focused
+  creativity_level:  0.7
+  precision_level:   0.8
+─── Awareness ───────────────────────────────────────────────
+  carrying:          —
+  concept:           —
+  age_days:          —
+  inbox_count:       —
+  unfiled_wishes:    0
+─── Memory ──────────────────────────────────────────────────
+  musings:           0
+  conversations:     0
+  signals:           0
+  synapses:          0
+  memories:          0
+─── Dream wishes ────────────────────────────────────────────
+  unfiled:           0
+  filed:             0
+─── Daemons ────────────────────────────────────────────────
+  mindstream         down   —
+  heart              down   —
+  breath             down   —
+  circadian          down   —
+  ultradian          down   —
+  sleep_cycle        down   —
+─── Recent activity ─────────────────────────────────────────
   last_dream_at: <ts>
-  last_dream: —
+  last_dream:        —
   last_turn_at: <ts>
-  last_turn: —
-─── Bluebooks ───
+  last_turn:         —
+─── Recent commits ─────────────────────────────────────────
+  <sha> <subject>
+  <sha> <subject>
+  <sha> <subject>
+  <sha> <subject>
+  <sha> <subject>
+─── Bluebooks ───────────────────────────────────────────────
   aggregates: <n>
   capabilities: <n>
-─── Daemons ───
-  mindstream: down
