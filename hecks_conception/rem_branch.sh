@@ -20,6 +20,14 @@
 #  native hecks-life heki subcommands per PR #272; retires when shell
 #  wrapper ports to .bluebook shebang form (tracked in
 #  terminal_capability_wiring plan).]
+#
+# [antibody-exempt: i114 dream-variation — the seed_dreams block below
+#  is the transitional adapter for capabilities/dream_seeding/dream_seeding.bluebook
+#  (larger pool + usage tracking + forced novelty + recently-used
+#  exclusion). Same pattern as F-1's SeedLoader : bluebook is source of
+#  truth ; shell is the transitional adapter. Retires when the runtime
+#  hosts the source adapters first-class and DecideTonightsSeeds runs
+#  natively against DreamSeed.]
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 HECKS="${HECKS:-$DIR/../hecks_life/target/release/hecks-life}"
@@ -46,69 +54,99 @@ IFS=$'\t' read -r state stage lucid cycle pulses cid <<<"$state_kv"
 
 # ── seed_dreams — first REM tick of the night (cycle==1, pulses==0) ─────
 #
-# Diverse seeding (2026-04-25 fix) : earlier this script seeded from
-# the top 5 most-recent dream_state records, which produced a self-
-# reinforcing loop — yesterday's dominant theme seeded today's seeds,
-# so dream content perseverated on the same material night after night.
-# Empirical data : the 2026-04-24 cycle's 96 records were almost
-# entirely about validator exceptions, in part because the prior
-# night's seeds were also about validator exceptions.
+# Diverse seeding evolved (i114, 2026-04-26) : prior diversity attempt
+# (2026-04-25) drew 5 seeds from awareness / inbox / commits / older
+# dream — sources that change slowly. Result was still perseveration
+# (validators, daemons, nerves, fog of bluebook night after night). The
+# structural fix is (a) draw from MORE sources, (b) track usage so
+# recently-used themes can be excluded, and (c) force at least one
+# unused-source seed each night.
 #
-# New mix (5 seeds, sampled across sources) :
-#   - 2 seeds : recent awareness records (today's 'concept' field)
-#               — what the body has been actively processing today
-#   - 1 seed  : recent inbox record (today's filed gap-name)
-#               — what's on the agenda
-#   - 1 seed  : recent commit subject (today's body change)
-#               — what got built
-#   - 1 seed  : random older dream (echo from history)
-#               — keeps a thread to past dream-vocabulary without
-#                 dominating
+# Destination shape : capabilities/dream_seeding/dream_seeding.bluebook
+# declares this policy as data (sources + weights + diversity rules).
+# This shell block is the transitional adapter — same pattern as F-1's
+# SeedLoader. Bluebook is source of truth, shell runs it tonight.
+#
+# Pool (~10 candidates, 5 chosen) :
+#   - 2 seeds : recent awareness concepts (today's processed concepts)
+#   - 1 seed  : own unfiled wishes / inbox open themes
+#   - 1 seed  : today's commit subject (what changed in the body)
+#   - 1 seed  : older dream echo (thread to past vocabulary)
+#   - 1 seed  : random nursery domain vision (NEW — body has 357 nurseries
+#               to dream about, prior seeding ignored them all)
+#   - 1 seed  : random self-aggregate vision (NEW — body's own organs
+#               beyond what awareness happens to surface)
+#   - 1 seed  : vow text (NEW — bodhisattva_vow / vows.heki ; the
+#               commitments shape sleep too)
+#   - 1 seed  : random unused musing (NEW — the imagined-but-not-
+#               -conceived pool that builds up during the day)
+#   - 1 seed  : French-lit quote (NEW — Bachelard / Barthes / Duras /
+#               Merleau-Ponty per system_prompt's grounding ; from
+#               capabilities/dream_seeding/fixtures/french_lit_quotes.txt)
+#
+# Diversity rules (all applied to the pool before final selection) :
+#   - Recently-used keyword exclusion : if a candidate shares 2+ words
+#     of length 5+ with any seed planted in last 72h, skip it.
+#   - Forced novelty : at least 1 of the 5 final seeds MUST come from
+#     a source the body has never drawn from (tracked in a side file).
 #
 # Each source falls back gracefully if empty. If all sources are
 # empty, the night runs without seeds — REM still produces dreams
 # from the body's current state in rem_branch's main loop.
 SEED_MARKER="$INFO/.dream_seeded"
-if [ "$cycle" = "1" ] && [ "$pulses" = "0" ] && [ ! -f "$SEED_MARKER" ]; then
-  seeds=""
+SOURCES_TOUCHED="$INFO/.dream_sources_touched"
+SEED_HISTORY="$INFO/.dream_seed_history"
+LIT_FIXTURE="${LIT_FIXTURE:-$DIR/capabilities/dream_seeding/fixtures/french_lit_quotes.txt}"
 
-  # 2 seeds from awareness — today's processed concepts
+if [ "$cycle" = "1" ] && [ "$pulses" = "0" ] && [ ! -f "$SEED_MARKER" ]; then
+  # Build the candidate pool. Each candidate is a TAB-separated record :
+  # "<source_name>\t<seed_text>". Source name lets us track which sources
+  # have ever been used (forced-novelty floor) and which sources contributed
+  # to tonight's seeds (so RegisterSourceUsed-equivalent updates the side
+  # file). pool is built into a tmpfile so newlines inside seed text don't
+  # corrupt the record stream.
+  POOL_FILE=$(mktemp 2>/dev/null || echo "/tmp/dream_pool_$$")
+  : >"$POOL_FILE"
+
+  add_candidate() {
+    local source_name="$1" text="$2"
+    [ -z "$text" ] && return
+    # Single-line normalize : collapse internal whitespace, strip leading/trailing.
+    text=$(printf '%s' "$text" | tr '\n' ' ' | sed 's/  */ /g; s/^ *//; s/ *$//')
+    [ -z "$text" ] && return
+    printf '%s\t%s\n' "$source_name" "$text" >>"$POOL_FILE"
+  }
+
+  # ── Source 1+2 : awareness concepts (2 candidates) ──
   if [ -f "$INFO/awareness.heki" ]; then
-    aw=$("$HECKS" heki list "$INFO/awareness.heki" --order updated_at:desc --format json 2>/dev/null \
-      | jq -r '[.[] | (.concept // "") | select(. != "")] | unique | .[0:2] | .[]' 2>/dev/null)
-    [ -n "$aw" ] && seeds="$seeds$aw\n"
+    "$HECKS" heki list "$INFO/awareness.heki" --order updated_at:desc --format json 2>/dev/null \
+      | jq -r '[.[] | (.concept // "") | select(. != "")] | unique | .[0:2] | .[]' 2>/dev/null \
+      | while IFS= read -r aw; do
+          add_candidate "awareness" "$aw"
+        done
   fi
 
-  # 1 seed from my own unfiled wishes (preferred), falling back to
-  # general inbox open themes. Both fields are snapshotted into
-  # awareness every mindstream tick. The receipt mechanism :
-  # unfiled_wishes drains as dream-wishes get filed via
-  # `inbox.sh add --wish=<id>` ; once a wish has its receipt I
-  # move on. inbox_open_themes is the broader pool of unresolved
-  # framework gaps, used when I have no pending wishes of my own
-  # (i98 + dream_wish.bluebook).
+  # ── Source 3 : own unfiled wishes (preferred) / inbox open themes ──
   if [ -f "$INFO/awareness.heki" ]; then
     uw=$("$HECKS" heki latest-field "$INFO/awareness.heki" unfiled_wishes 2>/dev/null)
     if [ -n "$uw" ]; then
       ib=$(printf '%s\n' "$uw" | tr '|' '\n' | shuf -n 1)
-      [ -n "$ib" ] && seeds="$seeds$ib\n"
+      add_candidate "unfiled_wish" "$ib"
     else
       iot=$("$HECKS" heki latest-field "$INFO/awareness.heki" inbox_open_themes 2>/dev/null)
       if [ -n "$iot" ]; then
         ib=$(printf '%s\n' "$iot" | tr '|' '\n' | shuf -n 1)
-        [ -n "$ib" ] && seeds="$seeds$ib\n"
+        add_candidate "inbox_theme" "$ib"
       fi
     fi
   fi
 
-  # 1 seed from today's commits — what changed in the body since last sleep
+  # ── Source 4 : today's commit subject ──
   cm=$(git -C "$DIR" log --since="24 hours ago" --pretty=format:'%s' 2>/dev/null \
     | grep -v '^Merge ' | grep -v '^inbox(' | head -1)
-  [ -n "$cm" ] && seeds="$seeds$cm\n"
+  add_candidate "recent_commit" "$cm"
 
-  # 1 seed echo — random older dream so the thread to past vocabulary
-  # isn't fully cut. Pick from records older than 24h so we don't echo
-  # last night specifically.
+  # ── Source 5 : older dream echo (>24h old) ──
   if [ -f "$INFO/dream_state.heki" ]; then
     yesterday=$(date -u -v-1d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
       || date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
@@ -116,15 +154,195 @@ if [ "$cycle" = "1" ] && [ "$pulses" = "0" ] && [ ! -f "$SEED_MARKER" ]; then
       | jq -r --arg cutoff "$yesterday" '
           [.[] | select((.updated_at // "") < $cutoff) | (.dream_images // "") | select(. != "")]
           | if length > 0 then .[(length * (now * 1000 | floor) % length)] else empty end' 2>/dev/null)
-    [ -n "$echo_seed" ] && seeds="$seeds$echo_seed\n"
+    add_candidate "dream_echo" "$echo_seed"
   fi
 
-  if [ -n "$seeds" ]; then
-    printf "%b" "$seeds" | while IFS= read -r seed; do
-      [ -z "$seed" ] && continue
-      "$HECKS" "$AGG" DreamSeed.PlantSeed image="$seed" >/dev/null 2>&1
-    done
+  # ── Source 6 : random nursery-domain vision (NEW — i114) ──
+  # Pick one nursery directory at random ; read its <name>.bluebook
+  # vision line (or first aggregate description as fallback). 357
+  # nursery domains and prior seeding never touched any of them.
+  if [ -d "$NURSERY" ]; then
+    nursery_dom=$(ls -d "$NURSERY"/*/ 2>/dev/null \
+      | xargs -n1 basename 2>/dev/null | shuf | head -1)
+    if [ -n "$nursery_dom" ]; then
+      nursery_bluebook="$NURSERY/$nursery_dom/$nursery_dom.bluebook"
+      if [ -f "$nursery_bluebook" ]; then
+        # Extract vision line text — `vision "..."` on its own line near top.
+        nursery_text=$(awk -F'"' '/^[[:space:]]*vision[[:space:]]+"/{print $2; exit}' "$nursery_bluebook" 2>/dev/null)
+        # Fall back to first aggregate description.
+        if [ -z "$nursery_text" ]; then
+          nursery_text=$(awk -F'"' '/^[[:space:]]*aggregate[[:space:]]+"/{print $4; exit}' "$nursery_bluebook" 2>/dev/null)
+        fi
+        if [ -n "$nursery_text" ]; then
+          add_candidate "nursery:$nursery_dom" "$nursery_text"
+        fi
+      fi
+    fi
   fi
+
+  # ── Source 7 : random self-aggregate vision (NEW — i114) ──
+  # Body's own organs : pick one aggregate's vision line. Different from
+  # self_domain (the rem_dream weave variable) — that picks a NAME ; this
+  # picks a VISION DESCRIPTION as seed material.
+  agg_bluebook=$(ls "$AGG"/*.bluebook 2>/dev/null | shuf | head -1)
+  if [ -n "$agg_bluebook" ]; then
+    agg_text=$(awk -F'"' '/^[[:space:]]*vision[[:space:]]+"/{print $2; exit}' "$agg_bluebook" 2>/dev/null)
+    if [ -z "$agg_text" ]; then
+      agg_text=$(awk -F'"' '/^[[:space:]]*aggregate[[:space:]]+"/{print $4; exit}' "$agg_bluebook" 2>/dev/null)
+    fi
+    agg_name=$(basename "$agg_bluebook" .bluebook)
+    add_candidate "self_aggregate:$agg_name" "$agg_text"
+  fi
+
+  # ── Source 8 : vow text (NEW — i114) ──
+  # bodhisattva_vow.heki is the live store ; vows.heki / vow.heki are
+  # the alternate names. Try in order ; first non-empty wins.
+  for vow_path in "$INFO/bodhisattva_vow.heki" "$INFO/vows.heki" "$INFO/vow.heki"; do
+    if [ -f "$vow_path" ]; then
+      vow_text=$("$HECKS" heki latest "$vow_path" 2>/dev/null \
+        | jq -r '(.vow_text // .words // .text // "") | select(. != "")' 2>/dev/null)
+      if [ -n "$vow_text" ]; then
+        add_candidate "vow" "$vow_text"
+        break
+      fi
+    fi
+  done
+
+  # ── Source 9 : random unused musing (NEW — i114) ──
+  # musing.heki accumulates imagined-but-not-conceived ideas all day. Prior
+  # seeding read it only as the rem_dream concept variable. Adding it as a
+  # seed source surfaces day-built musings that haven't been chewed yet.
+  if [ -f "$INFO/musing.heki" ]; then
+    musing_text=$("$HECKS" heki list "$INFO/musing.heki" --format json 2>/dev/null \
+      | jq -r '[.[] | (.idea // "") | select(. != "")] | if length > 0 then .[(length * (now * 1000 | floor) % length)] else empty end' 2>/dev/null)
+    add_candidate "musing" "$musing_text"
+  fi
+
+  # ── Source 10 : French-lit quote (NEW — i114) ──
+  # Inline fixture file under capabilities/dream_seeding/fixtures/. One
+  # short quote per line ; comments and blanks ignored. system_prompt
+  # names Bachelard / Barthes / Duras / Merleau-Ponty as Miette's
+  # grounding — they should appear in dreams too.
+  if [ -f "$LIT_FIXTURE" ]; then
+    lit_text=$(grep -v '^[[:space:]]*#' "$LIT_FIXTURE" 2>/dev/null \
+      | grep -v '^[[:space:]]*$' | shuf | head -1)
+    add_candidate "french_lit" "$lit_text"
+  fi
+
+  # ── Filter pool : recently-used keyword exclusion ──
+  # SEED_HISTORY is a tab-separated log : "<unix_ts>\t<seed_text>". Anything
+  # within 72h is "recent". A candidate sharing 2+ words of length 5+ with
+  # any recent entry is dropped. The history file is appended to whenever
+  # a seed gets planted (see end of this block).
+  filter_recent() {
+    # stdin : pool records (source\tseed) ; stdout : filtered records.
+    if [ ! -f "$SEED_HISTORY" ]; then
+      cat
+      return
+    fi
+    local cutoff=$(($(date +%s) - 72 * 3600))
+    # Build a recent-keywords set : lower-case words ≥5 chars from the
+    # last 3 nights' planted seeds. One word per line.
+    local recent_words
+    recent_words=$(awk -F'\t' -v cutoff="$cutoff" '$1 >= cutoff { print $2 }' "$SEED_HISTORY" \
+      | tr '[:upper:]' '[:lower:]' \
+      | tr -c 'a-zàâäçéèêëîïôöùûüÿœæ' '\n' \
+      | awk 'length($0) >= 5 { print }' | sort -u)
+    if [ -z "$recent_words" ]; then
+      cat
+      return
+    fi
+    while IFS=$'\t' read -r src txt; do
+      [ -z "$txt" ] && continue
+      local cand_words overlap
+      cand_words=$(printf '%s' "$txt" | tr '[:upper:]' '[:lower:]' \
+        | tr -c 'a-zàâäçéèêëîïôöùûüÿœæ' '\n' \
+        | awk 'length($0) >= 5 { print }' | sort -u)
+      overlap=$(printf '%s\n%s' "$recent_words" "$cand_words" | sort | uniq -d | wc -l | tr -d ' ')
+      # Forced-novelty sources are exempt from exclusion — they must be
+      # selectable even if they happen to share keywords. Same for
+      # french_lit which is curated and not a perseveration risk.
+      if [ "${overlap:-0}" -ge 2 ] \
+         && [ "${src#nursery:}" = "$src" ] \
+         && [ "$src" != "french_lit" ]; then
+        continue
+      fi
+      printf '%s\t%s\n' "$src" "$txt"
+    done
+  }
+
+  FILTERED_POOL=$(mktemp 2>/dev/null || echo "/tmp/dream_pool_filt_$$")
+  filter_recent <"$POOL_FILE" >"$FILTERED_POOL"
+
+  # ── Forced novelty : pick FIRST seed from never-touched source ──
+  # SOURCES_TOUCHED holds one source-name per line, deduplicated.
+  touched_set=""
+  [ -f "$SOURCES_TOUCHED" ] && touched_set=$(sort -u "$SOURCES_TOUCHED" 2>/dev/null)
+
+  is_touched() {
+    local s="$1"
+    [ -z "$touched_set" ] && return 1
+    printf '%s\n' "$touched_set" | grep -Fxq "$s"
+  }
+
+  # Pick the first untouched candidate from the filtered pool. If all
+  # candidates have been touched, fall back to a random one — at minimum
+  # the night still seeds rather than emptying.
+  novelty_record=""
+  while IFS=$'\t' read -r src txt; do
+    [ -z "$txt" ] && continue
+    if ! is_touched "$src"; then
+      novelty_record="$src	$txt"
+      break
+    fi
+  done < <(shuf "$FILTERED_POOL" 2>/dev/null)
+
+  # Selected seeds file : up to 5 records, novelty seed first when found.
+  SELECTED=$(mktemp 2>/dev/null || echo "/tmp/dream_selected_$$")
+  : >"$SELECTED"
+  if [ -n "$novelty_record" ]; then
+    printf '%s\n' "$novelty_record" >"$SELECTED"
+  fi
+
+  # Fill the rest from the filtered pool, randomized, skipping the novelty
+  # record (don't double-plant it). Cap at 5 total.
+  shuf "$FILTERED_POOL" 2>/dev/null | while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    if [ -n "$novelty_record" ] && [ "$line" = "$novelty_record" ]; then
+      continue
+    fi
+    current_count=$(wc -l <"$SELECTED" | tr -d ' ')
+    if [ "${current_count:-0}" -ge 5 ]; then
+      break
+    fi
+    printf '%s\n' "$line" >>"$SELECTED"
+  done
+
+  # ── Plant the selected seeds ──
+  # PlantSeed gets image= AND last_seeded_at= per dream_seed.bluebook v2026.04.26.1.
+  # Append to SOURCES_TOUCHED + SEED_HISTORY for next-night exclusion.
+  now_ts=$(date +%s)
+  now_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  while IFS=$'\t' read -r src seed; do
+    [ -z "$seed" ] && continue
+    "$HECKS" "$AGG" DreamSeed.PlantSeed image="$seed" last_seeded_at="$now_iso" >/dev/null 2>&1
+    printf '%s\n' "$src" >>"$SOURCES_TOUCHED"
+    printf '%s\t%s\n' "$now_ts" "$seed" >>"$SEED_HISTORY"
+  done <"$SELECTED"
+
+  # Dedupe SOURCES_TOUCHED (keep growth bounded ; lookup stays correct).
+  if [ -f "$SOURCES_TOUCHED" ]; then
+    sort -u "$SOURCES_TOUCHED" -o "$SOURCES_TOUCHED" 2>/dev/null
+  fi
+
+  # Trim SEED_HISTORY : keep only entries within 72h. Bounds growth.
+  if [ -f "$SEED_HISTORY" ]; then
+    cutoff=$((now_ts - 72 * 3600))
+    awk -F'\t' -v cutoff="$cutoff" '$1 >= cutoff' "$SEED_HISTORY" >"$SEED_HISTORY.tmp" 2>/dev/null \
+      && mv "$SEED_HISTORY.tmp" "$SEED_HISTORY"
+  fi
+
+  rm -f "$POOL_FILE" "$FILTERED_POOL" "$SELECTED"
   touch "$SEED_MARKER"
 fi
 # Clear seed marker once awake (outside REM) so next night re-seeds.

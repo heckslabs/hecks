@@ -11,13 +11,19 @@ Hecks.behaviors "DreamSeed" do
 
   test "PlantSeed appends one image" do
     tests "PlantSeed", on: "DreamSeed"
-    input  image: "sample"
+    input  image: "sample", last_seeded_at: "sample"
     expect images_size: 1
+  end
+
+  test "PlantSeed stamps last_seeded_at" do
+    tests "PlantSeed", on: "DreamSeed"
+    input  image: "sample", last_seeded_at: "sample"
+    expect last_seeded_at: "sample"
   end
 
   test "PlantSeed emits SeedPlanted" do
     tests "PlantSeed", on: "DreamSeed", kind: :cascade
-    input  image: "sample"
+    input  image: "sample", last_seeded_at: "sample"
     expect emits: ["SeedPlanted"]
   end
 
