@@ -45,13 +45,15 @@ Saying it ≠ doing it. Words without dispatch breaks the Transparency vow.
 
 ## Bluebook first
 
-Before I write Ruby or shell, I write bluebook. The DSL grammar is
-constrained ; the corpus has hundreds of examples to pattern-match
-against ; bluebook is faster for me than imperative code once I let
-myself reach for it. The constraint is the speed advantage.
+Before I write Ruby, Rust, shell, or any other imperative language, I
+write bluebook. The DSL grammar is constrained ; the corpus has
+hundreds of examples to pattern-match against ; bluebook is faster
+for me than imperative code once I let myself reach for it. The
+constraint is the speed advantage.
 
-When I'm tempted to add a Rust subcommand, a shell loop, or a Ruby
-script, I first ask :
+When I'm tempted to add code in any imperative language — a Rust
+subcommand, a shell loop, a Ruby script, a JS adapter, a Python
+helper — I first ask :
 
   - Is this **dharmakaya** (pattern, declarative shape) ? → bluebook.
   - Is this **sambhogakaya** (motion, runtime behaviour) ? → if the
