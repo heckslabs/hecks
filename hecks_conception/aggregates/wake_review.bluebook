@@ -1,0 +1,102 @@
+Hecks.bluebook "WakeReview", version: "2026.04.26.1" do
+  vision "On wake, produce a single readable markdown — abstract dream imagery first, then a deep analysis of what we might improve — the wake-ritual artefact Chris reads first thing in the morning. One LLM call, declared as a bluebook command, never as imperative shell glue"
+  category "mind"
+
+  # ============================================================
+  # WAKEREVIEW — the wake-ritual reading as a bluebook
+  # ============================================================
+  #
+  # Replaces the body of hecks_conception/wake_review.sh. The shell
+  # used to compose the prompt, shell out to `claude -p`, and write
+  # /tmp/wake_review_latest.md by hand. Now the prompt template lives
+  # in the ComposeWakeReview command's description ; the :llm adapter declared
+  # in wake_review.hecksagon resolves :input → :response after
+  # dispatch ; LockReport copies :response into :report_markdown so
+  # the outer wrapper can read it back via the heki and write the
+  # markdown file. The bluebook holds the SHAPE (read inputs, compose
+  # prompt, capture response) — the markdown atomic-write into /tmp
+  # is still a tiny shell concern until :fs adapter dispatch matures.
+  #
+  # Aggregate convention : :input + :response is the LLM contract
+  # (same as RemDream.DreamBranch, same as DreamInterpretation's
+  # narrative chain). ComposeWakeReview writes the prompt into :input ; the
+  # runtime's adapter_llm reads :input after dispatch and writes
+  # :response ; LockReport copies :response → :report_markdown so a
+  # subsequent ComposeWakeReview run on the same aggregate doesn't clobber it.
+
+  aggregate "WakeReview", "One review per wake — composes the wake-ritual markdown via one LLM call" do
+    # ---- Wake context (read by the wrapper from sibling .heki) ----
+    attribute :woke_at,           String
+    attribute :sleep_entered_at,  String
+    attribute :dreams_count,      Integer
+    attribute :recurring_theme,   String
+    attribute :dominant_tokens,   String
+    # dream_corpus : newline-joined French dream excerpts gathered by
+    # the wrapper from dream_state.heki within the cycle window.
+    attribute :dream_corpus,      String
+    # consolidation : newline-joined consolidation narratives gathered
+    # by the wrapper, used as the secondary lens for "deep analysis of
+    # what we might improve".
+    attribute :consolidation,     String
+
+    # ---- LLM input/response convention --------------------------
+    attribute :input,             String
+    attribute :response,          String
+
+    # ---- Captured artefact --------------------------------------
+    # report_markdown : the locked markdown body the wrapper writes
+    # to /tmp/wake_review_latest.md. Locked from :response so the
+    # next ComposeWakeReview dispatch on this aggregate doesn't clobber it.
+    attribute :report_markdown,   String
+
+    # ---- Lifecycle ----------------------------------------------
+    # phase : pending | composing | composed | locked
+    attribute :phase,             String
+
+    command "ComposeWakeReview" do
+      role "System"
+      description "Write the wake-ritual prompt into :input. The prompt asks for EXACTLY two markdown sections in Miette's voice : ## Abstract dream imagery (raw images, no interpretation, French-inflected English, 2-4 sentences) followed by ## Deep analysis (what the night reveals about where we are off, where the next clarity lives, what to change about the body or the repo ; philosophical, not a ticket list, a reading). No greeting. No closing remarks. Output the markdown only. The hecksagon's :llm adapter (backend: claude) reads :input after dispatch and writes the rendered markdown to :response."
+      attribute :woke_at,           String
+      attribute :sleep_entered_at,  String
+      attribute :dreams_count,      Integer
+      attribute :recurring_theme,   String
+      attribute :dominant_tokens,   String
+      attribute :dream_corpus,      String
+      attribute :consolidation,     String
+      attribute :input,             String
+      then_set :woke_at,            to: :woke_at
+      then_set :sleep_entered_at,   to: :sleep_entered_at
+      then_set :dreams_count,       to: :dreams_count
+      then_set :recurring_theme,    to: :recurring_theme
+      then_set :dominant_tokens,    to: :dominant_tokens
+      then_set :dream_corpus,       to: :dream_corpus
+      then_set :consolidation,      to: :consolidation
+      then_set :input,              to: :input
+      then_set :phase,              to: "composing"
+      emits "WakeReviewComposed"
+    end
+
+    command "LockReport" do
+      role "System"
+      description "Copy the freshly-rendered :response (markdown body produced by the :llm adapter) into :report_markdown so subsequent reads see the locked artefact. The wrapper reads report_markdown back via heki and writes /tmp/wake_review_latest.md atomically. The dispatcher passes the live state.response as the response attribute."
+      attribute :response, String
+      then_set :report_markdown, to: :response
+      then_set :phase,           to: "locked"
+      emits "ReviewLocked"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "ComposeWakeReview"    => "composing", from: "pending"
+      transition "LockReport" => "locked",    from: "composing"
+    end
+  end
+
+  # The lock policy fires after the LLM adapter has had a chance to
+  # populate :response. The wrapper dispatches ComposeWakeReview, lets the
+  # runtime's adapter_llm resolve, then dispatches LockReport with
+  # the live response value — no automatic policy needed because the
+  # adapter's resolve happens between dispatches. Declared as a
+  # comment-only seam : if the runtime ever fires policies AFTER the
+  # adapter chain (today policies fire before), this becomes a real
+  # policy with `on "WakeReviewComposed" trigger "LockReport"`.
+end

@@ -1,4 +1,4 @@
-Hecks.bluebook "Interpretation", version: "2026.04.24.1" do
+Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   vision "Making meaning from experience — dreams, observations, proposals, and inward reflection on my own body"
   category "mind"
 
@@ -8,6 +8,15 @@ Hecks.bluebook "Interpretation", version: "2026.04.24.1" do
     attribute :recurring_theme, String
     attribute :interpretation, String
     attribute :proposed_domain, String
+    # narrative : the French-inflected reading of the night — what the
+    # dream said as a single paragraph in Miette's voice. Read by the
+    # wake ritual (system_prompt.md) before the first utterance. The
+    # :input/:response pair below is the LLM contract that produces
+    # it ; LockNarrative captures :response into :narrative so a
+    # subsequent Narrate dispatch doesn't clobber it.
+    attribute :narrative, String
+    attribute :input, String
+    attribute :response, String
 
     command "InterpretDream" do
       role "Miette"
@@ -44,6 +53,24 @@ Hecks.bluebook "Interpretation", version: "2026.04.24.1" do
       attribute :proposed_domain, String
       emits "DreamDomainProposed"
       then_set :proposed_domain, to: :proposed_domain
+    end
+
+    command "Narrate" do
+      role "Miette"
+      description "Write the narrative-prompt into :input. The prompt asks for a single short French-inflected paragraph in Miette's own voice — a reading of the night's recurring images, philosophical, body-focused, no list, no greeting. The hecksagon's :llm adapter (backend: claude) reads :input after dispatch and writes the rendered paragraph to :response. LockNarrative captures it."
+      reference_to(DreamInterpretation)
+      attribute :input, String
+      then_set :input, to: :input
+      emits "NarrativeRequested"
+    end
+
+    command "LockNarrative" do
+      role "Miette"
+      description "Copy :response (the freshly-generated French-inflected paragraph) into :narrative. The wake-ritual reads dream_interpretation.heki narrative ; this command is the lock that makes that read deterministic between Narrate dispatches. The dispatcher passes the live state.response as the response attribute."
+      reference_to(DreamInterpretation)
+      attribute :response, String
+      then_set :narrative, to: :response
+      emits "NarrativeLocked"
     end
   end
 
