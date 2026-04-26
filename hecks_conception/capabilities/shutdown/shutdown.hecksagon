@@ -1,0 +1,86 @@
+Hecks.hecksagon "Shutdown" do
+  # ============================================================
+  # SHUTDOWN — hexagonal wiring for capabilities/shutdown/shutdown.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares ShutdownRun's four pipeline phases
+  # (StopDaemons → FinalConsolidation → PersistFinalState →
+  # PrintFarewell) and the user-visible BeginShutdown entrypoint.
+  # The four outbound ports below are the I/O surface :
+  #
+  #   StopDaemons         → :daemon (the same primitive boot uses
+  #                                  in reverse — stop instead of
+  #                                  ensure)
+  #   FinalConsolidation  → :shell  (transitional : shells out to
+  #                                  consolidate.sh ; retires when
+  #                                  aggregates/consolidation
+  #                                  bluebook lands)
+  #   PersistFinalState   → :memory (heki append to shutdown_log)
+  #   PrintFarewell       → :stdout
+  #
+  # Until a Rust runner mirroring run_status / run_boot drives this
+  # bluebook end-to-end, shutdown_miette.sh stays as the
+  # transitional adapter that walks the same phases imperatively
+  # — same pattern as boot's "boot.bluebook is source of truth ;
+  # the shell is the temporary host."
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :stdout streams the closing farewell line.
+  adapter :stdout
+
+  # :memory dispatches commands into the in-process runtime — used
+  # for the heki write (PersistFinalState).
+  adapter :memory
+
+  # :daemon is the same process-lifecycle primitive boot uses
+  # (added 2026-04-26 in hecks_life/src/main.rs run_daemon). Boot
+  # uses it for `daemon ensure` ; shutdown uses it for `daemon stop`.
+  # Both share pidfile semantics — missing pidfile is fine, dead
+  # pid is fine, live pid receives SIGTERM and the pidfile is
+  # removed.
+  adapter :daemon
+
+  # ---- Daemons handled by this capability ------------------------
+  #
+  # Each daemon entry pairs with the boot.hecksagon declaration so
+  # symmetry is preserved — boot ensures, shutdown stops. The
+  # runner enumerates these in reverse order during StopDaemons so
+  # leaf daemons (sleep_cycle, ultradian) shut down before their
+  # parents (mindstream).
+
+  adapter :daemon, name: :sleep_cycle,
+    pidfile: "{info}/.sleep_cycle.pid",
+    action:  :stop
+
+  adapter :daemon, name: :ultradian,
+    pidfile: "{info}/.ultradian.pid",
+    action:  :stop
+
+  adapter :daemon, name: :circadian,
+    pidfile: "{info}/.circadian.pid",
+    action:  :stop
+
+  adapter :daemon, name: :breath,
+    pidfile: "{info}/.breath.pid",
+    action:  :stop
+
+  adapter :daemon, name: :heart,
+    pidfile: "{info}/.heart.pid",
+    action:  :stop
+
+  adapter :daemon, name: :mindstream,
+    pidfile: "{info}/.mindstream.pid",
+    action:  :stop
+
+  # ---- Transitional shell adapter --------------------------------
+  #
+  # FinalConsolidation shells out to consolidate.sh while
+  # aggregates/consolidation.bluebook is still in flight (see
+  # parallel-agent work). When the consolidation bluebook lands
+  # this adapter is replaced by direct dispatch into
+  # ConsolidationSweep.StartSweep etc.
+
+  adapter :shell, name: :final_consolidation,
+    command: "{dir}/consolidate.sh"
+end

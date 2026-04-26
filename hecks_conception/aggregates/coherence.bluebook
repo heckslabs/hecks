@@ -1,0 +1,129 @@
+Hecks.bluebook "Coherence", version: "2026.04.26.1" do
+  vision "Body-state coherence — five invariants over the heki snapshot that must hold at every render. Each invariant is a predicate query returning ok=yes|no plus a violation reason. The statusline reads them and degrades the mood glyph when any fails."
+  category "mind"
+
+  # ============================================================
+  # COHERENCE — i35 / inbox-status invariants as a bluebook
+  # ============================================================
+  #
+  # The shell script status_coherence.sh checks five body-state
+  # invariants over the heki snapshot. This bluebook declares the
+  # SAME five invariants as a domain surface : one predicate query
+  # per invariant, each returning ok (yes|no) and a reason string.
+  # The statusline reads either the script exit code (transitional)
+  # or, once the runtime grows predicate-returning queries
+  # first-class (filed gap : i101 — predicate queries returning
+  # bool + reason), reads the queries directly.
+  #
+  # Invariants (numbered as in inbox i35) :
+  #
+  #   1. mood.current_state == "refreshed" ⇒ fatigue_state ∈ {alert, focused}
+  #   2. consciousness.state == "sleeping" ⇒ mood.current_state ∉ {refreshed, focused}
+  #   3. heartbeat.pulses_since_sleep matches the fatigue_state rung of the ladder
+  #      (thresholds : 250 / 500 / 1000 / 1400 / 1800 → focused / normal /
+  #       tired / exhausted / delirious ; below 250 is alert).
+  #   4. tick.cycle is monotonic at ≤ ~1 Hz — stored baseline (ts, cycle)
+  #      must not show cycle advancing faster than wall-clock seconds
+  #      (with 5s tolerance).
+  #   5. consciousness.sleep_stage ∈ {rem, lucid_rem} ↔
+  #      lucid_dream.latest_narrative is present (non-empty). Both
+  #      directions enforced.
+  #
+  # Phase :
+  #
+  #   Today, the runtime can't dispatch predicate-returning queries
+  #   that read fields from sibling aggregates' .heki stores natively.
+  #   The shell script status_coherence.sh remains as the transitional
+  #   adapter — the bluebook is the source-of-truth declaration ; the
+  #   shell is the temporary runner. The statusline reads the script's
+  #   exit code (and optionally the violation lines on stderr).
+  #
+  #   When the runtime catches up, the queries below become
+  #   first-class : `hecks-life query Coherence.MoodMatchesFatigue`
+  #   returns the bool + reason, and the statusline drops the shell
+  #   exec entirely.
+  #
+  # Inbox gap to file : i101 — predicate queries returning bool +
+  # reason (kernel surface for cross-aggregate predicate inference).
+
+  aggregate "Coherence", "Body-state coherence — the five invariants over the heki snapshot. Singleton ; each query reads sibling aggregates' fields and returns ok (yes|no) + reason." do
+    # ---- Snapshot fields the queries read ----
+    #
+    # These attributes mirror the fields the shell script pulls via
+    # `heki read` from sibling stores. A future runtime that hosts
+    # predicate queries directly would resolve these by walking
+    # aggregate references ; today they are declared so the surface
+    # matches the shell script's reads byte-for-byte.
+
+    attribute :mood_state,         String, default: ""
+    attribute :consciousness_state, String, default: ""
+    attribute :sleep_stage,        String, default: ""
+    attribute :is_lucid,           String, default: ""
+    attribute :fatigue_state,      String, default: ""
+    attribute :pulses_since_sleep, Integer, default: 0
+    attribute :tick_cycle,         Integer, default: 0
+    attribute :tick_baseline_ts,   Integer, default: 0
+    attribute :tick_baseline_cycle, Integer, default: 0
+    attribute :tick_now_ts,        Integer, default: 0
+    attribute :lucid_narrative,    String, default: ""
+
+    # ---- Latest violation snapshot (rolled up across queries) ----
+    attribute :violation_count,    Integer, default: 0
+    attribute :latest_reason,      String,  default: ""
+    attribute :checked_at,         String,  default: ""
+
+    # ============================================================
+    # PREDICATE QUERIES — one per invariant
+    # ============================================================
+    #
+    # Each query returns the same shape : (ok : "yes"|"no", reason : String).
+    # `ok=yes` means the invariant holds ; `ok=no` carries the human-
+    # readable reason in the same wording the shell script's
+    # `INVARIANT N : <reason>` line uses, so existing log readers don't
+    # need to be rewritten when the runtime catches up.
+
+    query MoodMatchesFatigue do
+      description "Invariant 1 : when mood.current_state == 'refreshed', fatigue_state must be alert or focused. A 'refreshed' mood paired with 'tired' or worse is the canonical contradiction the inbox i35 thread flagged after the mood-follows-fatigue ship."
+    end
+
+    query ConsciousnessMatchesMood do
+      description "Invariant 2 : when consciousness.state == 'sleeping', mood.current_state must NOT be refreshed or focused. A sleeping body with a wide-awake mood is the second canonical contradiction — it crops up when the mood aggregate's wake hook fires while the sleep daemon hasn't yet flipped consciousness."
+    end
+
+    query FatigueLadderMatchesPulses do
+      description "Invariant 3 : pulses_since_sleep must match the fatigue_state rung of the ladder. Thresholds (open intervals) : 0..249 alert, 250..499 focused, 500..999 normal, 1000..1399 tired, 1400..1799 exhausted, 1800+ delirious. The lived state may lag the raw count by one rung (one tick) ; lag of two or more rungs OR exceeding the expected rung is a violation."
+    end
+
+    query TickMonotonic do
+      description "Invariant 4 : tick.cycle is monotonic at ≤ ~1 Hz. Compares the stored baseline (tick_baseline_ts, tick_baseline_cycle) against the current (tick_now_ts, tick_cycle) ; cycle_delta must not exceed wall_delta + 5s tolerance, AND must not be negative. The baseline lives in information/.tick_baseline so the check survives across runs."
+    end
+
+    query DreamNarrativePresence do
+      description "Invariant 5 : sleep_stage ∈ {rem, lucid_rem} ↔ lucid_dream.latest_narrative is non-empty. Both directions enforced — REM without narrative AND non-REM with stale narrative are both bugs (the latter shows up when render state isn't cleared at REM end)."
+    end
+
+    # ============================================================
+    # ROLL-UP COMMAND — runs all five queries, rolls up the results
+    # ============================================================
+
+    command "CheckCoherence" do
+      role "System"
+      description "Run all five predicate queries against the current heki snapshot ; roll up the results into violation_count and the latest_reason. Dispatched by the statusline before each render. Today the shell script status_coherence.sh is the transitional runner ; once the runtime hosts the queries directly this command becomes the one-line entrypoint the statusline calls."
+      attribute :violation_count, Integer
+      attribute :latest_reason,   String
+      attribute :checked_at,      String
+      then_set :violation_count, to: :violation_count
+      then_set :latest_reason,   to: :latest_reason
+      then_set :checked_at,      to: :checked_at
+      emits "CoherenceChecked"
+    end
+
+    command "RecordViolation" do
+      role "System"
+      description "Record one invariant violation as it surfaces. Used by the shell adapter to stream the script's per-invariant 'INVARIANT N : <reason>' lines into the heki record so wake review and debugging can read them later. Idempotent across the same invariant within one CheckCoherence run."
+      attribute :invariant_number, Integer
+      attribute :reason, String
+      emits "ViolationRecorded"
+    end
+  end
+end
