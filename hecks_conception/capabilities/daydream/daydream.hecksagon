@@ -25,10 +25,14 @@ Hecks.hecksagon "Daydream" do
   #                       .attributes[].name). Drives DumpDomains.
   #                       Failure to parse either bluebook aborts
   #                       silently — malformed nursery domains
-  #                       should not block daydreaming. NOTE :
-  #                       :hecks_dump is not yet a first-class
-  #                       runtime adapter ; declared so the port is
-  #                       named ahead of the runtime wiring.
+  #                       should not block daydreaming. Wired as a
+  #                       named `:shell` adapter so the runtime's
+  #                       ShellDispatcher executes it (same shape as
+  #                       aggregates/dream_review.hecksagon's
+  #                       :hecks_dump declaration). The shell-form is
+  #                       the canonical wiring for "run hecks-life
+  #                       and parse JSON" ports until a dedicated
+  #                       in-process IR adapter is justified.
   #
   #   :heki_append      — appends to daydream.heki (impressions,
   #                       duration_seconds, connections_found=1,
@@ -63,7 +67,10 @@ Hecks.hecksagon "Daydream" do
   #   Runtime gap filed in the PR body.
 
   adapter :fs,               root: "."
-  adapter :hecks_dump
+  adapter :shell, name: :hecks_dump,
+    command: "hecks-life",
+    args: ["dump", "{{path}}"],
+    output_format: :json
   adapter :heki_append,      root: "information"
   adapter :runtime_dispatch
 end

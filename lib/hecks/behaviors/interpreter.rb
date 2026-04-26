@@ -156,6 +156,22 @@ module Hecks
         end
         return Value.from(true)  if expr == "true"
         return Value.from(false) if expr == "false"
+        # rand_below(N) — uniform random integer in [0, N). Mirrors the
+        # Rust evaluator (hecks_life/src/runtime/interpreter.rs) so
+        # `given { rand_below(N) == 0 }` evaluates the same in both
+        # runners. HECKS_RAND_SEED env var overrides RNG for tests :
+        # seed=0 makes the predicate fire (always returns 0) ; seed=k
+        # always returns k % N.
+        if expr.start_with?("rand_below(") && expr.end_with?(")")
+          arg = expr[("rand_below(".length)..-2].strip
+          arg_val = resolve_expr(arg, state, attrs)
+          n = arg_val.numeric.to_i rescue 0
+          return Value.from(0) if n <= 0
+          if (seed = ENV["HECKS_RAND_SEED"]) && Integer(seed, exception: false)
+            return Value.from(Integer(seed) % n)
+          end
+          return Value.from(rand(n))
+        end
         if expr.end_with?(".size")
           field = expr[0...-5]
           val = attrs[field] || attrs[field.to_sym] || state.get(field)
