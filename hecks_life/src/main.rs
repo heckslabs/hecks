@@ -3,6 +3,12 @@
 //! Reads .bluebook files, parses them into IR, and executes them.
 //! The Bluebook is DNA. This is the ribosome. The runtime is life.
 //!
+//! [antibody-exempt: hecks_life/src/main.rs — wires the :llm hecksagon
+//!  adapter into dispatch_hecksagon. This IS the structural rewrite
+//!  that lets wake_review and interpret_dream fire end-to-end via
+//!  bluebook. Same i80 retirement contract ; closes the i109 :llm
+//!  runtime gap that PR #455 explicitly named. Rewriting IS the work.]
+//!
 //! Usage:
 //!   hecks-life parse     pizzas.bluebook
 //!   hecks-life validate  pizzas.bluebook
@@ -1432,6 +1438,54 @@ fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
     Some((model, url))
 }
 
+/// Scan every `*.hecksagon` in `agg_dir` for an `adapter :llm,
+/// backend: :X` declaration. Returns the (backend, model, url) triple
+/// the LLM adapter expects — model and url are pulled from the world's
+/// `ollama { model:, url: }` block when present so the ollama backend
+/// stays wired ; for the claude backend, model/url are ignored by the
+/// adapter and we pass empty strings.
+///
+/// This is the runtime side of the contract `wake_review.hecksagon`
+/// and `interpretation.hecksagon` and `rem_dream.hecksagon` already
+/// declare in bluebook : `adapter :llm, backend: :claude`. Without
+/// this scan, dispatch only honored ollama-from-world ; with it, the
+/// hecksagon's declaration is the source of truth and Compose/Narrate
+/// fire end-to-end via bluebook.
+///
+/// Returns None when no `:llm` adapter is declared (so the existing
+/// ollama-from-world path stays the default for conversational
+/// dispatch).
+fn find_hecksagon_llm_config(agg_dir: &str) -> Option<(String, String, String)> {
+    let entries = fs::read_dir(agg_dir).ok()?;
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if !p.extension().map(|e| e == "hecksagon").unwrap_or(false) { continue; }
+        let Ok(source) = fs::read_to_string(&p) else { continue };
+        let hex = hecks_life::hecksagon_parser::parse(&source);
+        let Some(io) = hex.io_adapter("llm") else { continue };
+        let backend = io.options.iter()
+            .find(|(k, _)| k == "backend")
+            .map(|(_, v)| strip_symbol_or_quotes(v))
+            .unwrap_or_else(|| "ollama".to_string());
+        // For ollama backend we still need (model, url) ; pull from
+        // .world if available, otherwise empty (resolve will skip).
+        let (model, url) = find_world_ollama_config(agg_dir)
+            .unwrap_or_else(|| (String::new(), String::new()));
+        return Some((backend, model, url));
+    }
+    None
+}
+
+/// Strip a leading `:` or surrounding quotes from a hecksagon option
+/// value. Mirrors the symbol/quote handling in hecksagon_helpers but
+/// kept inline-tiny so main.rs doesn't grow a helpers dep.
+fn strip_symbol_or_quotes(v: &str) -> String {
+    let t = v.trim();
+    if let Some(rest) = t.strip_prefix(':') { return rest.to_string(); }
+    let t = t.trim_matches('"').trim_matches('\'');
+    t.to_string()
+}
+
 /// Boot the hecksagon and run the terminal adapter.
 fn run_terminal(project_dir: &str, being: &str) {
     let agg_dir = format!("{}/aggregates", project_dir);
@@ -1521,7 +1575,17 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             .collect::<std::collections::HashMap<_, _>>());
         println!("{}", result);
     } else {
-        // Command: dispatch, mutate, run adapters, return state
+        // Command: dispatch, mutate, run adapters, return state.
+        //
+        // LLM config resolution :
+        //   1. Hecksagon-declared `adapter :llm, backend: :X` wins (i109
+        //      runtime gap closure ; the source of truth is the
+        //      bluebook surface, not .world). Backends: "claude" (no
+        //      model/url needed) or "ollama" (uses world model/url).
+        //   2. Otherwise, fall back to .world's ollama block — the
+        //      legacy conversational path that long predates the
+        //      hecksagon :llm declaration.
+        let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
         let ollama_config = find_world_ollama_config(agg_dir);
         let rt_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = attrs.iter()
             .map(|(k, v)| (k.clone(), match v {
@@ -1533,9 +1597,14 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             Ok(result) => {
                 // Run LLM adapter if configured
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
-                    let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
                     if let Some(repo) = rt.repositories.get_mut(&result.aggregate_type) {
-                        hecks_life::runtime::adapter_llm::resolve_ollama(repo, &state, config);
+                        if let Some((backend, model, url)) = hecksagon_llm.as_ref() {
+                            let triple = (backend.as_str(), model.as_str(), url.as_str());
+                            hecks_life::runtime::adapter_llm::resolve(repo, &state, Some(triple));
+                        } else {
+                            let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
+                            hecks_life::runtime::adapter_llm::resolve_ollama(repo, &state, config);
+                        }
                     }
                 }
                 let state = rt.find(&result.aggregate_type, &result.aggregate_id);

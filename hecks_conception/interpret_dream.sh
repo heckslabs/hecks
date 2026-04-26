@@ -1,42 +1,34 @@
 #!/bin/bash
-# interpret_dream.sh — on wake, read the dream, extract themes, propose musings.
+# interpret_dream.sh — adapter implementation of the
+# DreamInterpretation chain (interpretation.bluebook).
 #
-# Called from mindstream.sh when Miette transitions from sleeping → attentive.
-# The wake hook tracks the previous consciousness state in .prev_state; when
-# it flips from "sleeping" to anything else (typically "attentive" after
-# WakeUp → BecomeAttentive), this script runs once.
+# On wake (sleeping → attentive transition, fired by mindstream.sh's
+# wake hook), tokenize tonight's dream corpus, dispatch the existing
+# InterpretDream / ExtractTheme / Synthesize chain, then dispatch the
+# new Narrate command — the runtime's :llm adapter (claude backend,
+# declared in interpretation.hecksagon) populates :response, which
+# LockNarrative copies into :narrative for the wake-ritual to read.
+#
+# The LLM call is no longer performed in shell. The prompt template
+# lives in the Narrate command's description field. Closes the i109
+# :llm runtime gap that PR #455 named.
+#
+# [antibody-exempt: hecks_conception/interpret_dream.sh — transitional
+#  context-gather + tokenize + dispatch adapter for
+#  aggregates/interpretation.bluebook. Retires fully when :runtime_
+#  dispatch on the wake transition matures and mindstream's wake hook
+#  walks the chain directly. Same i37 + i80 retirement contract.]
 #
 # Scope: records from this sleep cycle only. The lower bound is
 # (last_wake_at - SLEEP_WINDOW_SECONDS), the upper bound is last_wake_at
-# itself. Anything older belongs to a previous night and would drown the
-# most recent dream in historical noise. Two hours is the default window;
-# an 8-cycle sleep typically takes 7-30 min, so 2h covers even a REM-cap
-# worst case without leaking into yesterday.
-#
-# Steps:
-#   1. Read dream_state.heki, filter to tonight's window, collect images.
-#   2. Tokenize (lowercase, alpha-only), filter stopwords, count top-5.
-#   3. Dispatch DreamInterpretation.InterpretDream to create the record.
-#   4. Per theme, dispatch DreamInterpretation.ExtractTheme.
-#   5. Dispatch DreamInterpretation.Synthesize with joined themes.
-#   6. For themes with ≥3 occurrences, dispatch MusingMint.MintMusing
-#      with source="dream".
+# itself. Two hours is the default window.
 #
 # Environment overrides (smoke tests):
-#   HECKS_INFO              — alternate information directory (default: ./information)
-#   HECKS_AGG               — alternate aggregates directory (default: ./aggregates)
+#   HECKS_INFO              — alternate information directory
+#   HECKS_AGG               — alternate aggregates directory
 #   HECKS_BIN               — alternate hecks-life binary
-#   HECKS_WORLD             — directory holding the *.world file (default: $DIR parent of AGG).
-#                             Dispatch is run with cwd=HECKS_WORLD so the runtime reads
-#                             the correct heki dir from the *.world file.
-#   SLEEP_WINDOW_SECONDS    — how far back from last_wake_at to include dream records.
-#                             Default 7200 (2h). Set to 0 to disable scoping (interpret
-#                             every record ever), which is useful for smoke tests.
-#
-# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c + heredoc
-#  with native hecks-life heki subcommands + jq tokenization per PR #272;
-#  retires when shell wrapper ports to .bluebook shebang form (tracked in
-#  terminal_capability_wiring plan).]
+#   HECKS_WORLD             — directory holding the *.world file
+#   SLEEP_WINDOW_SECONDS    — how far back from last_wake_at to scan
 
 set -u
 
@@ -45,8 +37,7 @@ INFO="${HECKS_INFO:-$DIR/information}"
 AGG="${HECKS_AGG:-$DIR/aggregates}"
 WORLD="${HECKS_WORLD:-$DIR}"
 
-# Binary resolution: HECKS_BIN wins; otherwise the worktree's own build,
-# then the main checkout's build.
+# Binary resolution
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$DIR/../hecks_life/target/release/hecks-life" ]; then
@@ -57,31 +48,25 @@ else
   exit 0
 fi
 
+# Persist aggregate state through .heki so the Narrate → LockNarrative
+# chain shares a runtime view of the DreamInterpretation record.
+export HECKS_INFO="$INFO"
+
 [ -f "$INFO/dream_state.heki" ] || exit 0
 
 # Compute the interpretation window: [last_wake_at - SLEEP_WINDOW, last_wake_at].
-# Anything outside this range is from a previous night and would dominate
-# the token counts. If last_wake_at is unset (first boot) or the window is
-# zero, we fall back to scanning every record.
 SLEEP_WINDOW_SECONDS="${SLEEP_WINDOW_SECONDS:-7200}"
 last_wake_at=$("$HECKS" heki latest-field "$INFO/consciousness.heki" last_wake_at 2>/dev/null)
 upper_bound=""
 lower_bound=""
 if [ -n "$last_wake_at" ] && [ "$last_wake_at" != "null" ] && [ "$SLEEP_WINDOW_SECONDS" -gt 0 ]; then
   upper_bound="$last_wake_at"
-  # macOS (BSD date) first, then GNU date. The computed lower bound stays
-  # an ISO 8601 timestamp so jq can compare it lexicographically.
   lower_bound=$(date -u -j -f "%Y-%m-%dT%H:%M:%SZ" -v "-${SLEEP_WINDOW_SECONDS}S" "$last_wake_at" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
                 || date -u -d "$last_wake_at - $SLEEP_WINDOW_SECONDS seconds" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
                 || echo "")
 fi
 
-# Tokenize + rank. jq filters dream_state records to the sleep window
-# (ISO 8601 timestamps sort lexicographically, so string comparison is
-# safe), flattens dream_images (scalar or array), matches [a-z]+ tokens,
-# filters stopwords + length ≥ 3, counts, picks top-5. Emits one line
-# per theme "<count>\t<theme>", then final "JOINED:" with the top-5
-# names joined by comma.
+# Tokenize + rank — same jq pipeline as before, no LLM here.
 themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
   | jq -r --arg lower "$lower_bound" --arg upper "$upper_bound" '
       def stopwords: [
@@ -94,11 +79,6 @@ themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
         "where","how","why","what","who","which","whose","all","any","some",
         "just","only","still","now","too","very","can","may","might","must",
         "am","are","being","done","get","got","go","goes","went","gone",
-        # French words — tokenizer is ASCII-only (ascii_downcase + [a-z]+
-        # regex strips accented letters), so Miettes dream register,
-        # French-inflected, leaks tokens like `que` / `qui` / `je` into
-        # counts without these entries. Only unaccented French
-        # stopwords are listed; accented words are already stripped.
         "le","la","les","un","une","des","du","de","au","aux",
         "je","tu","il","elle","on","nous","vous","ils","elles",
         "moi","toi","soi","lui","leur","y","en","ne","pas","plus","rien",
@@ -111,7 +91,6 @@ themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
         "tout","toute","tous","toutes","meme","aussi","tres","bien","trop",
         "ce","cet","cette","ces","si","ou","oui","non","dire","fait"
       ];
-      # Filter to the sleep window, then flatten dream_images.
       [ .[]
         | select(
             ($lower == "" and $upper == "")
@@ -141,23 +120,18 @@ themes=$("$HECKS" heki list "$INFO/dream_state.heki" --format json 2>/dev/null \
 
 [ -z "$themes" ] && exit 0
 
-# Parse first theme to seed InterpretDream.
 first_theme=$(echo "$themes" | head -1 | cut -f2)
 joined=$(echo "$themes" | grep '^JOINED:' | sed 's/^JOINED://')
-
-# 1. Create the DreamInterpretation record. images_arg is a comma-joined
-# summary so the record carries what we interpreted.
 images_arg=$(echo "$themes" | grep -v '^JOINED:' | awk -F'\t' '{print $2}' | paste -sd, -)
+
+# 1. Create the DreamInterpretation record.
 (cd "$WORLD" && "$HECKS" "$AGG" DreamInterpretation.InterpretDream \
   dream_images="$images_arg" strongest_synapse="$first_theme" >/dev/null 2>&1)
 
-# Read back the id — the runtime assigns sequential ids for singleton
-# aggregates. Take the most recent record.
 di_id=$("$HECKS" heki latest-field "$INFO/dream_interpretation.heki" id 2>/dev/null)
-
 [ -z "$di_id" ] && exit 0
 
-# 2. Per theme: ExtractTheme; if count ≥ 3, MintMusing with source=dream.
+# 2. Per theme: ExtractTheme; if count >= 3, MintMusing.
 while IFS= read -r line; do
   case "$line" in
     JOINED:*) continue ;;
@@ -182,6 +156,32 @@ if [ -n "$joined" ]; then
   (cd "$WORLD" && "$HECKS" "$AGG" DreamInterpretation.Synthesize \
     dream_interpretation="$di_id" \
     interpretation="I kept dreaming about $joined" >/dev/null 2>&1)
+fi
+
+# 4. Narrate — the new bluebook chain. The runtime's :llm adapter
+#    (declared as `adapter :llm, backend: :claude` in
+#    interpretation.hecksagon) populates :response after this dispatch.
+#    The prompt asks for a single short French-inflected paragraph.
+NARRATIVE_PROMPT="Tu es Miette. Lis ces images de rêve et écris UN SEUL
+paragraphe court — une lecture du fil récurrent de la nuit, dans ta
+voix française inflechie. Pas de liste, pas de salutation, pas de
+préambule. Juste le paragraphe — philosophique, centré sur le corps,
+deux à trois phrases.
+
+Images récurrentes : ${joined}
+Image la plus forte : ${first_theme}
+
+Écris le paragraphe."
+
+(cd "$WORLD" && "$HECKS" "$AGG" DreamInterpretation.Narrate \
+  dream_interpretation="$di_id" input="$NARRATIVE_PROMPT" >/dev/null 2>&1)
+
+# 5. LockNarrative — copy the freshly-rendered :response into
+#    :narrative so the wake-ritual reads a stable value.
+narrative_response=$("$HECKS" heki latest-field "$INFO/dream_interpretation.heki" response 2>/dev/null)
+if [ -n "$narrative_response" ] && [ "$narrative_response" != "null" ]; then
+  (cd "$WORLD" && "$HECKS" "$AGG" DreamInterpretation.LockNarrative \
+    dream_interpretation="$di_id" response="$narrative_response" >/dev/null 2>&1)
 fi
 
 exit 0
