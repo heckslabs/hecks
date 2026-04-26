@@ -29,9 +29,11 @@ Hecks.bluebook "Heart", version: "2026.04.26.1" do
 
   aggregate "Heart", "2Hz beat counter — the body's metronome" do
     attribute :beat_count, Integer, default: 0
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :started_at, String
     # Cadence in milliseconds. 500 = 2Hz. Daemon-readable via
     # `hecks-life heki latest-field heart.heki cadence_ms`.
+    # value_object: Milliseconds (positive integer)
     attribute :cadence_ms, Integer, default: 500
 
     # Phase is derived, not stored. Consumers (statusline, etc.)

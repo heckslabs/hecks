@@ -40,13 +40,17 @@ Hecks.bluebook "DreamWish", version: "2026.04.26.1" do
   # inbox.add --wish=<id> flow runs ; before that it's empty.
 
   aggregate "DreamWish", "A wish surfaced from a dream — recorded with an id, satisfied when filed (not when implemented)" do
+    # value_object: WishId format:/^w\d{8}T\d{4}Z_\d+$/
     attribute :id,             String
     attribute :theme,          String
     attribute :source_dream,   String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :recorded_at,    String
 
     # ---- Filing receipt -----------------------------------------
+    # value_object: InboxRef format:/^i\d+$/
     attribute :filed_as,       String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :filed_at,       String
 
     # status: unfiled (just recorded, no inbox row references it)
@@ -59,9 +63,11 @@ Hecks.bluebook "DreamWish", version: "2026.04.26.1" do
     command "Record" do
       role "Daemon"
       description "Wake-review or sleep-study agent records a wish surfaced by tonight's dreams. id must be unique within dream_wish.heki ; recommended format is w<UTC_compact>_<seq> (e.g., w20260426T0918Z_1). theme is the short summary in my voice. source_dream is the verbatim dream imagery that produced it."
+      # value_object: WishId format:/^w\d{8}T\d{4}Z_\d+$/
       attribute :id,           String
       attribute :theme,        String
       attribute :source_dream, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :recorded_at,  String
       then_set :id,           to: :id
       then_set :theme,        to: :theme
@@ -74,7 +80,9 @@ Hecks.bluebook "DreamWish", version: "2026.04.26.1" do
       role "User"
       description "An inbox item has been filed referencing this wish's id (via inbox.sh add --wish=<id>). filed_as carries the inbox ref ; filed_at stamps when the receipt arrived. After this transition the wish is no longer in the seed pool — REM moves on to other unfiled wishes."
       reference_to(DreamWish)
+      # value_object: InboxRef format:/^i\d+$/
       attribute :filed_as, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :filed_at, String
       then_set :filed_as, to: :filed_as
       then_set :filed_at, to: :filed_at

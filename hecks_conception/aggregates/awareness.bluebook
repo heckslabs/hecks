@@ -4,13 +4,16 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
 
   aggregate "Attention", "What is being attended to right now — the spotlight" do
     attribute :target, String
+    # value_object: UnitInterval (0.0..1.0)
     attribute :intensity, Float
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :held_since, String
 
     command "AttendTo" do
       role "System"
       description "Direct awareness toward something"
       attribute :target, String
+      # value_object: UnitInterval (0.0..1.0)
       attribute :intensity, Float
       emits "AttentionDirected"
       then_set :target, to: :target
@@ -29,6 +32,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   aggregate "Sensation", "Raw input before interpretation — what just arrived" do
     attribute :source, String
     attribute :content, String
+    # value_object: SignedUnitInterval (-1.0..1.0)
     attribute :valence, Float
 
     command "Sense" do
@@ -36,6 +40,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
       description "Register raw input — a prompt, a pulse, an event"
       attribute :source, String
       attribute :content, String
+      # value_object: SignedUnitInterval (-1.0..1.0)
       attribute :valence, Float
       emits "Sensed"
       then_set :source, to: :source
@@ -47,6 +52,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   aggregate "Perception", "Sensation recognized as something — pattern matched to memory" do
     attribute :sensation, String
     attribute :recognized_as, String
+    # value_object: UnitInterval (0.0..1.0)
     attribute :confidence, Float
 
     command "Recognize" do
@@ -54,6 +60,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
       description "Match a sensation to a known pattern"
       attribute :sensation, String
       attribute :recognized_as, String
+      # value_object: UnitInterval (0.0..1.0)
       attribute :confidence, Float
       emits "Recognized"
       then_set :sensation, to: :sensation
@@ -65,6 +72,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   aggregate "Intention", "What the system is trying to do — the current goal" do
     attribute :goal, String
     attribute :origin, String
+    # value_object: UnitInterval (0.0..1.0)
     attribute :strength, Float
 
     command "FormIntention" do
@@ -72,6 +80,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
       description "A goal crystallizes from perception and memory"
       attribute :goal, String
       attribute :origin, String
+      # value_object: UnitInterval (0.0..1.0)
       attribute :strength, Float
       emits "IntentionFormed"
       then_set :goal, to: :goal
@@ -91,7 +100,9 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   aggregate "SelfModel", "The system's model of itself — what it knows about its own state" do
     attribute :organs, Integer
     attribute :impulses, Integer
+    # value_object: FatigueState enum:alert|focused|normal|tired|exhausted|delirious
     attribute :fatigue_state, String
+    # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
     attribute :consciousness_state, String
     attribute :nursery_size, Integer
     attribute :family_size, Integer
@@ -101,7 +112,9 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
       description "Refresh the self-model from current state — proprioception of the mind"
       attribute :organs, Integer
       attribute :impulses, Integer
+      # value_object: FatigueState enum:alert|focused|normal|tired|exhausted|delirious
       attribute :fatigue_state, String
+      # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
       attribute :consciousness_state, String
       attribute :nursery_size, Integer
       attribute :family_size, Integer
@@ -178,6 +191,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Announcement", "Every internal act is announced — transparency is the rule" do
+    # value_object: AnnouncementAct enum:conceiving|remembering|encoding|forgetting|dreaming|sensing|sleeping|waking|pulsing
     attribute :act, String
     attribute :subject, String
     attribute :template, String
@@ -185,6 +199,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
     command "Announce" do
       role "Miette"
       description "Say what you are doing before you do it — no silent state changes"
+      # value_object: AnnouncementAct enum:conceiving|remembering|encoding|forgetting|dreaming|sensing|sleeping|waking|pulsing
       attribute :act, String
       attribute :subject, String
       emits "Announced"

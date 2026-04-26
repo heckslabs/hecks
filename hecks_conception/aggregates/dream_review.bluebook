@@ -35,8 +35,10 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
   # operator authorised draft-PR creation (always manual today).
 
   aggregate "Cycle", "One run of the dream-review pipeline — extracted from the most recent wake_report + dream_state window" do
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :wake_at,                String
     # status: fresh | extracted | synthesized | validated | planned | applied | failed
+    # value_object: CycleStatus enum:fresh|extracted|synthesized|validated|planned|applied|failed
     attribute :status,                 String, default: "fresh"
     attribute :gaps_count,             Integer, default: 0
     attribute :real_gaps_count,        Integer, default: 0
@@ -62,6 +64,7 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
     command "Begin" do
       role "System"
       description "A wake transition fired the pipeline. Stamps the wake_at and sets status to fresh."
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :wake_at, String
       emits "CycleBegan"
       then_set :wake_at, to: :wake_at
@@ -134,12 +137,14 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
 
   aggregate "Gap", "One named structural gap from the cycle's dream corpus" do
     attribute :cycle_id,        String
+    # value_object: GapKind enum:missing_aggregate|missing_attribute|missing_command|missing_policy|phantom_symptom
     attribute :kind,            String
     attribute :target,          String
     attribute :description,     String
     attribute :quote,           String
     attribute :existing_check,  String
     # synthesis: pending | done | failed | skipped
+    # value_object: SynthesisStatus enum:pending|done|failed|skipped
     attribute :synthesis,       String, default: "pending"
 
     lifecycle :synthesis, default: "pending" do
@@ -152,6 +157,7 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
       role "System"
       description "Add a gap row from the extractor's JSON output."
       attribute :cycle_id,       String
+      # value_object: GapKind enum:missing_aggregate|missing_attribute|missing_command|missing_policy|phantom_symptom
       attribute :kind,           String
       attribute :target,         String
       attribute :description,    String

@@ -66,20 +66,27 @@ Hecks.bluebook "Interoception", version: "2026.04.25.1" do
   # ── DaemonRhythm — per-daemon felt rhythm ──────────────────────
 
   aggregate "DaemonRhythm", "One daemon's tick rhythm and what it feels like — the unit of self-listening" do
+    # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
     attribute :daemon_name,         String
     attribute :tick_count,          Integer, default: 0
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :last_tick_at,        String
     attribute :recent_intervals_ms, list_of(Integer)
     # felt_quality: steady | quick | slow | irregular | absent | unknown
+    # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
     attribute :felt_quality,        String, default: "unknown"
     attribute :narrative,           String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :assessed_at,         String
 
     command "RecordTick" do
       role "System"
       description "A daemon just ticked. Bumps tick_count, stamps last_tick_at, appends the latest interval-since-previous-tick to the rolling window. Does NOT compute felt_quality — that's AssessRhythm's job."
+      # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
       attribute :daemon_name,    String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :last_tick_at,   String
+      # value_object: Milliseconds (positive integer)
       attribute :interval_ms,    Integer
       emits "DaemonTickRecorded"
       then_set :daemon_name,     to: :daemon_name
@@ -91,9 +98,12 @@ Hecks.bluebook "Interoception", version: "2026.04.25.1" do
     command "AssessRhythm" do
       role "System"
       description "Window the recent intervals, derive felt_quality from variance + mean drift, regenerate narrative phrase ONLY if felt_quality changed from the prior assessment. Stable narration : same felt_quality keeps the same narrative until a real shift."
+      # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
       attribute :daemon_name,    String
+      # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
       attribute :felt_quality,   String
       attribute :narrative,      String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :assessed_at,    String
       emits "RhythmAssessed"
       then_set :felt_quality,    to: :felt_quality
@@ -105,17 +115,23 @@ Hecks.bluebook "Interoception", version: "2026.04.25.1" do
   # ── BodyFelt — the singleton overall sense ─────────────────────
 
   aggregate "BodyFelt", "The body's overall felt sense — slowest-wins resolution across all DaemonRhythm rows. Singleton ; one row, updated whenever any DaemonRhythm shifts." do
+    # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
     attribute :felt_quality,    String, default: "unknown"
     attribute :narrative,       String
+    # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
     attribute :dominant_daemon, String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :assessed_at,     String
 
     command "UpdateBodyFelt" do
       role "System"
       description "Recompute the body's felt sense from current DaemonRhythm state. Slowest-wins ranking : absent > irregular > slow > quick > steady. The dominant_daemon names which daemon's quality won. Narrative regenerates only when felt_quality changes."
+      # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
       attribute :felt_quality,    String
       attribute :narrative,       String
+      # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
       attribute :dominant_daemon, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :assessed_at,     String
       emits "BodyFeltShifted"
       then_set :felt_quality,    to: :felt_quality
