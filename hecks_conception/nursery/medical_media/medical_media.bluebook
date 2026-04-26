@@ -145,4 +145,3 @@ Hecks.bluebook "MedicalMedia", version: "2026.04.13.1" do
   # === Fixtures ===
 
 end
-end
