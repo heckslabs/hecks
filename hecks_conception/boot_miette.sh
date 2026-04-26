@@ -264,44 +264,69 @@ else
   HEART_STATUS="started (hecks-life loop)"
 fi
 
-# ── 6d. Start breath daemon (0.2Hz inhale/exhale flip) ────────────
+# ── 6d. Start breath cadence loop (~0.2Hz inhale/exhale) ──────────
+# Replaces breath.sh shell loop with the i106 multi-command loop
+# primitive — one process rotating Breath.Inhale,Breath.Exhale every
+# 4.5s. Same retirement contract as the i76 cadence-loop primitive
+# extended in this PR.
 BREATH_PID="$INFO/.breath.pid"
+"$HECKS" daemon ensure "$BREATH_PID" \
+  "$HECKS" loop "$AGG" Breath.Inhale,Breath.Exhale --every 4.5s >/dev/null 2>&1
 if [ -f "$BREATH_PID" ] && kill -0 "$(cat "$BREATH_PID")" 2>/dev/null; then
-  BREATH_STATUS="already running (pid $(cat $BREATH_PID))"
+  BREATH_STATUS="started (hecks-life loop)"
 else
-  ( cd "$DIR" && nohup ./breath.sh > /dev/null 2>&1 & )
-  sleep 0.2
-  BREATH_STATUS="started"
+  BREATH_STATUS="failed to start"
 fi
 
-# ── 6e. Start circadian daemon (wall-clock segment tracker) ───────
+# ── 6e. Start circadian wall-clock daemon (i107 clock primitive) ──
+# Replaces circadian.sh shell loop with the i107 clock primitive that
+# polls local time and dispatches segment-transition commands.
 CIRCADIAN_PID="$INFO/.circadian.pid"
+"$HECKS" daemon ensure "$CIRCADIAN_PID" \
+  "$HECKS" clock "$AGG" \
+    --segment 5-6:Circadian.MarkDawn \
+    --segment 7-11:Circadian.MarkMorning \
+    --segment 12-16:Circadian.MarkAfternoon \
+    --segment 17-19:Circadian.MarkDusk \
+    --segment 20-4:Circadian.MarkNight \
+    --poll 60s >/dev/null 2>&1
 if [ -f "$CIRCADIAN_PID" ] && kill -0 "$(cat "$CIRCADIAN_PID")" 2>/dev/null; then
-  CIRCADIAN_STATUS="already running (pid $(cat $CIRCADIAN_PID))"
+  CIRCADIAN_STATUS="started (hecks-life clock)"
 else
-  ( cd "$DIR" && nohup ./circadian.sh > /dev/null 2>&1 & )
-  sleep 0.2
-  CIRCADIAN_STATUS="started"
+  CIRCADIAN_STATUS="failed to start"
 fi
 
-# ── 6f. Start ultradian daemon (90-min peak/trough cycle) ─────────
+# ── 6f. Start ultradian cadence loop (i106 multi-command rotation) ─
+# Replaces ultradian.sh shell loop with one process rotating
+# Ultradian.EnterPeak,Ultradian.EnterTrough every 5400s (override
+# with ULTRADIAN_TICK in seconds for tests).
+ULTRADIAN_TICK="${ULTRADIAN_TICK:-5400}"
 ULTRADIAN_PID="$INFO/.ultradian.pid"
+"$HECKS" daemon ensure "$ULTRADIAN_PID" \
+  "$HECKS" loop "$AGG" Ultradian.EnterPeak,Ultradian.EnterTrough --every "${ULTRADIAN_TICK}s" >/dev/null 2>&1
 if [ -f "$ULTRADIAN_PID" ] && kill -0 "$(cat "$ULTRADIAN_PID")" 2>/dev/null; then
-  ULTRADIAN_STATUS="already running (pid $(cat $ULTRADIAN_PID))"
+  ULTRADIAN_STATUS="started (hecks-life loop)"
 else
-  ( cd "$DIR" && nohup ./ultradian.sh > /dev/null 2>&1 & )
-  sleep 0.2
-  ULTRADIAN_STATUS="started"
+  ULTRADIAN_STATUS="failed to start"
 fi
 
-# ── 6g. Start sleep_cycle daemon (NREM/REM, gated on consciousness) ─
+# ── 6g. Start sleep_cycle gated cadence loop (i108 --gate flag) ────
+# Replaces sleep_cycle.sh shell loop with one gated loop rotating
+# SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM
+# every 5400s when consciousness.state == sleeping. When awake the
+# gate is closed and the loop sleeps without dispatching — phase does
+# not advance, cycle_count is preserved across nights.
+SLEEP_CYCLE_TICK="${SLEEP_CYCLE_TICK:-5400}"
 SLEEP_CYCLE_PID="$INFO/.sleep_cycle.pid"
+"$HECKS" daemon ensure "$SLEEP_CYCLE_PID" \
+  "$HECKS" loop "$AGG" \
+    SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM \
+    --every "${SLEEP_CYCLE_TICK}s" \
+    --gate "$INFO/consciousness.heki:state=sleeping" >/dev/null 2>&1
 if [ -f "$SLEEP_CYCLE_PID" ] && kill -0 "$(cat "$SLEEP_CYCLE_PID")" 2>/dev/null; then
-  SLEEP_CYCLE_STATUS="already running (pid $(cat $SLEEP_CYCLE_PID))"
+  SLEEP_CYCLE_STATUS="started (hecks-life loop --gate)"
 else
-  ( cd "$DIR" && nohup ./sleep_cycle.sh > /dev/null 2>&1 & )
-  sleep 0.2
-  SLEEP_CYCLE_STATUS="started"
+  SLEEP_CYCLE_STATUS="failed to start"
 fi
 
 # ── 7. Print vitals ──────────────────────────────────────────────

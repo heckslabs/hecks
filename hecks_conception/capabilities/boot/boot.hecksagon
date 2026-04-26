@@ -64,19 +64,24 @@ Hecks.hecksagon "Boot" do
     pidfile: "{info}/.heart.pid",
     command: "{hecks} loop {agg} Heart.Beat --every 1s"
 
+  # breath / ultradian / sleep_cycle / circadian — body cycles, all
+  # native primitives now (i106 multi-command rotation, i107 wall-clock
+  # segment trigger, i108 gated cadence). Their .sh wrappers retired
+  # 2026-04-26 in body-cycles-retire.
+
   adapter :daemon, name: :breath,
     pidfile: "{info}/.breath.pid",
-    command: "{dir}/breath.sh"
+    command: "{hecks} loop {agg} Breath.Inhale,Breath.Exhale --every 4.5s"
 
   adapter :daemon, name: :circadian,
     pidfile: "{info}/.circadian.pid",
-    command: "{dir}/circadian.sh"
+    command: "{hecks} clock {agg} --segment 5-6:Circadian.MarkDawn --segment 7-11:Circadian.MarkMorning --segment 12-16:Circadian.MarkAfternoon --segment 17-19:Circadian.MarkDusk --segment 20-4:Circadian.MarkNight --poll 60s"
 
   adapter :daemon, name: :ultradian,
     pidfile: "{info}/.ultradian.pid",
-    command: "{dir}/ultradian.sh"
+    command: "{hecks} loop {agg} Ultradian.EnterPeak,Ultradian.EnterTrough --every 5400s"
 
   adapter :daemon, name: :sleep_cycle,
     pidfile: "{info}/.sleep_cycle.pid",
-    command: "{dir}/sleep_cycle.sh"
+    command: "{hecks} loop {agg} SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM --every 5400s --gate {info}/consciousness.heki:state=sleeping"
 end
