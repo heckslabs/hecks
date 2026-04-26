@@ -70,28 +70,21 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Heart — beat_count proves liveness ; wall clock drives the visible
-# flip. heart.bluebook declares 2Hz (500ms cadence) but real-body
-# dispatch caps at ~1Hz under load, so reading beat_count alone gives
-# at most 1 flip per second AND the polling clock can land on the
-# same parity twice in a row. Combining beat_count parity with
-# wall-second parity guarantees visible movement at every poll while
-# still tying the glyph to the body : if beat_count hasn't advanced
-# in the last 5 seconds the heart is considered stopped (showing 🫥
-# instead of ❤️/🖤). Sweet spot of "visibly alive" + "structurally
-# tied to the body's actual cycle."
+# Heart — 500ms-bucket phase from wall-clock nanoseconds (the
+# pattern from commit e0abc604, restored after a brief experiment
+# with beat-count-derived phase aliased badly against 1Hz polling).
+# Wall-clock ns ÷ 500ms → bucket index, mod 2 → 0 or 1. Two visual
+# beats per second regardless of poll cadence ; consecutive polls
+# more than 500ms apart are guaranteed to flip. heart.heki gates
+# the liveness check : if the body's heart has been silent > 5s
+# the glyph degrades to 🫥.
 hearts=("🖤" "❤️")
-heart_beats=$($hecks heki latest-field $info/heart.heki beat_count 2>/dev/null)
 heart_age=$($hecks heki seconds-since $info/heart.heki updated_at 2>/dev/null)
 if [ -n "$heart_age" ] && [ "$heart_age" -gt 5 ] 2>/dev/null; then
-  # Heart silent for >5s — degrade glyph (still rendering, but visibly different)
   heart="🫥"
 else
-  # XOR beat_count parity with wall-clock-second parity → guaranteed
-  # change between any two polls more than 0.5s apart, while still
-  # advancing with the body's beat.
-  heart_phase=$(( (${heart_beats:-0} + $(date +%s)) % 2 ))
-  heart="${hearts[$heart_phase]}"
+  half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
+  heart="${hearts[$half_second_phase]}"
 fi
 
 # Mood icon. The case list MUST cover every mood string that
