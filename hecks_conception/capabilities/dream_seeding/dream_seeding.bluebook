@@ -1,0 +1,152 @@
+Hecks.bluebook "DreamSeeding", version: "2026.04.26.1" do
+  vision "Declare the night's dream-seed selection policy as data — sources, weights, diversity rules, forced novelty, recently-used exclusion. Closes i114 (dream-variation-each-dream-is-always-new)"
+  category "mind"
+
+  # ============================================================
+  # DREAMSEEDING — Phase F-N — seed selection as domain
+  # ============================================================
+  #
+  # Tonight's seeds open the night's dream stream (one PlantSeed
+  # per carried-forward image, dispatched from the first REM tick).
+  # Without diversity rules, the same handful of keywords surfaces
+  # night after night — validators, daemons, nerves, the fog of the
+  # bluebook — because the upstream sources (awareness's current
+  # concept, top-5 inbox themes, recent commits, an older dream
+  # echo) all change slowly.
+  #
+  # This bluebook declares the selection policy as data so the
+  # rules are visible and tunable in one place :
+  #
+  #   - Sources ......... 8+ feeds the candidate pool draws from.
+  #   - Pool size ....... ~10 candidates per night ; 5 chosen.
+  #   - Forced novelty .. ≥1 seed per night MUST come from a
+  #                       source the body has never drawn from.
+  #   - Recently-used ... candidates whose theme keywords overlap
+  #                       2+ words with seeds used in the last 72h
+  #                       are excluded.
+  #
+  # Why this lives outside aggregates/dream_seed.bluebook : the
+  # DreamSeed aggregate is the per-image record (images list +
+  # last_seeded_at stamp). DreamSeeding is the policy that decides
+  # which images become seeds tonight. Aggregate = state ; capability
+  # = orchestration. Same split as seed_loader / dream_interpretation.
+  #
+  # Implementation status : in flight. The transitional adapter is
+  # rem_branch.sh's seed_dreams block (i114 partial close) — same
+  # pattern as F-1's SeedLoader (bluebook is source of truth ; shell
+  # is the transitional adapter). Once :runtime_dispatch and the
+  # source-selection adapters land first-class, the shell retires.
+
+  # ============================================================
+  # SEEDSOURCE — one feed in the candidate pool
+  # ============================================================
+  #
+  # Each source has a `name` (logical identifier — used for
+  # tracking which sources have ever been drawn from), a `weight`
+  # (how many candidates to pull from it per night ; 0 means
+  # "never use", >1 means "draw multiple from this source"), and
+  # a `kind` (the adapter mode — see hecksagon for the outbound
+  # port wiring).
+
+  value_object "SeedSource" do
+    attribute :name, String
+    attribute :weight, Integer
+    attribute :kind, String
+  end
+
+  # ============================================================
+  # SEEDPOLICY — the night's selection rules
+  # ============================================================
+
+  aggregate "SeedPolicy", "Per-night seed selection policy. Declares the candidate pool's sources, pool size, forced-novelty rule, and the recently-used exclusion window. One row tracks the rules in effect ; rem_branch.sh (current transitional runner) reads them and applies them. Future runtime wires the rules through first-class adapters." do
+    # ---- Pool sizing -----------------------------------------
+    # candidates_target : how many candidates to gather before
+    # narrowing to seeds_target. ~10 means roughly twice as many
+    # candidates as final seeds, so the keyword-overlap filter
+    # has room to drop perseverating themes without starving the
+    # night.
+    attribute :candidates_target, Integer, default: 10
+    # seeds_target : how many seeds to plant tonight ; the final
+    # selection from the candidate pool. 5 matches the historical
+    # PlantSeed loop count.
+    attribute :seeds_target, Integer, default: 5
+
+    # ---- Diversity rules -------------------------------------
+    # exclusion_window_hours : a candidate whose theme keywords
+    # overlap (2+ shared 5+-character words) with any seed
+    # used in the last N hours is excluded. 72 hours = 3 nights
+    # at the ~24h sleep cadence.
+    attribute :exclusion_window_hours, Integer, default: 72
+    # min_overlap_keywords : how many 5+-char words two seed
+    # texts must share before they're considered "the same theme"
+    # for the exclusion test. 2 is the discovered floor — 1
+    # over-excludes (every two sentences share at least one
+    # common 5+-char word), 3 under-excludes.
+    attribute :min_overlap_keywords, Integer, default: 2
+    # forced_novelty_count : at least N seeds tonight MUST come
+    # from a source the body has never drawn a seed from before.
+    # 1 is the floor — the night cannot grind on a fully-known
+    # corpus.
+    attribute :forced_novelty_count, Integer, default: 1
+
+    # ---- Sources ---------------------------------------------
+    # The full pool of candidate feeds. Tonight's pool is built
+    # by drawing `weight` candidates from each source. Sources
+    # whose adapter returns nothing are skipped gracefully — the
+    # other sources cover the gap, the night still seeds.
+    attribute :sources, list_of(SeedSource)
+
+    # ---- Tracking --------------------------------------------
+    # touched_sources : names of every source that has ever
+    # produced a seed. Forced novelty draws its first seed from
+    # `sources \ touched_sources`. When the unused-source pool
+    # empties, forced novelty falls back to drawing from the
+    # least-recently-used source.
+    attribute :touched_sources, list_of(String)
+    # last_decided_at : timestamp of the most recent night's
+    # selection. Wake review reads this to confirm the policy
+    # ran on the night just past.
+    attribute :last_decided_at, String
+
+    # ---- Commands --------------------------------------------
+
+    command "DecideTonightsSeeds" do
+      role "Daemon"
+      description "Build the candidate pool by drawing `weight` items from each source ; filter out candidates whose theme keywords overlap with seeds last_seeded_at within exclusion_window_hours ; ensure forced_novelty_count seeds come from sources outside touched_sources ; truncate to seeds_target. The selected seeds are then dispatched into DreamSeed.PlantSeed (per-image) by the runner. Idempotent within a night — the seed marker on rem_branch.sh's path keeps re-runs no-ops."
+      attribute :selected_seeds, list_of(String)
+      attribute :selected_sources, list_of(String)
+      attribute :decided_at, String
+      then_set :touched_sources, append: :selected_sources
+      then_set :last_decided_at, to: :decided_at
+      emits "SeedsDecided"
+    end
+
+    command "RegisterSourceUsed" do
+      role "Daemon"
+      description "Mark a source as touched once it has produced a seed. Idempotent — repeated registrations are no-ops (the runner deduplicates before appending). Forced novelty consults touched_sources to find the unused-source pool."
+      attribute :source_name, String
+      then_set :touched_sources, append: :source_name
+      emits "SourceRegistered"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — wire the seeding chain
+  # ============================================================
+  #
+  # Once the runtime hosts the source adapters first-class, this
+  # chain runs without the shell : NightStarted → DecideTonightsSeeds
+  # → per-seed PlantSeed dispatched against DreamSeed →
+  # RegisterSourceUsed for each source that contributed.
+  #
+  # Today (transitional) : rem_branch.sh's seed_dreams block runs
+  # the same logic imperatively, dispatching DreamSeed.PlantSeed
+  # directly. This bluebook IS the destination shape — the shell
+  # implementation reads as the imperative shadow of these
+  # declarations.
+
+  policy "DecideOnNightStart" do
+    on "NightStarted"
+    trigger "DecideTonightsSeeds"
+  end
+end

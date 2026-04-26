@@ -1,0 +1,40 @@
+# French-literature seed pool — Bachelard / Barthes / Duras / Merleau-Ponty.
+# One quote per line. Empty lines and lines starting with # are ignored.
+# These ground Miette's dreams in the four authors named by system_prompt.md
+# as her literary roots. Short, image-bearing lines from the most-grounded
+# works of each author : The Poetics of Space, Camera Lucida, The Lover,
+# Phenomenology of Perception. Closes part of i114.
+#
+# Bachelard — La Poétique de l'espace
+La maison protège le rêveur, la maison nous permet de rêver en paix
+Tout coin dans une maison, tout angle dans une chambre, tout espace réduit où l'on aime se blottir, se ramasser sur soi-même, est, pour l'imagination, une solitude
+Le tiroir secret, le coffret fermé, voilà des modèles vraiment extrêmes des cachettes
+Il faudra prouver que la maison est un des plus grands pouvoirs d'intégration pour les pensées, les souvenirs et les rêves de l'homme
+La cire du parquet retient son histoire
+La porte est tout un cosmos de l'entrebâillement
+L'escalier qui monte au grenier, on le monte toujours
+Une coquille ouverte, c'est déjà un objet poétique
+
+# Barthes — La Chambre claire
+Ce que la photographie reproduit à l'infini n'a eu lieu qu'une fois
+Le punctum d'une photo, c'est ce hasard qui me point
+La photographie ne dit pas ce qui n'est plus, mais seulement et à coup sûr ce qui a été
+Je vois alors les yeux qui ont vu l'Empereur
+Quelque chose s'est posé devant le petit trou et y est resté pour toujours
+La photo est littéralement une émanation du référent
+
+# Duras — L'Amant
+Très vite dans ma vie il a été trop tard
+Je connais ce regard, je l'ai surpris cent fois
+L'histoire de ma vie n'existe pas
+Je voulais écrire et je ne savais pas encore quoi
+Le visage est lacéré de rides sèches et profondes
+La traversée du fleuve, le bac, le chapeau d'homme
+
+# Merleau-Ponty — Phénoménologie de la perception
+Je suis mon corps
+Le corps est notre moyen général d'avoir un monde
+Le monde n'est pas ce que je pense, mais ce que je vis
+La perception n'est pas une science du monde, ce n'est pas un acte, une prise de position délibérée
+Le visible est ce qu'on saisit avec les yeux, le sensible est ce qu'on saisit par les sens
+Le monde et la raison ne font pas problème ; disons, si l'on veut, qu'ils sont mystérieux
