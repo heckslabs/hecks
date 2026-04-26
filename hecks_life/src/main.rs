@@ -305,19 +305,32 @@ fn main() {
         return;
     }
 
-    // `hecks-life sleep` — blocking streaming-sleep CLI.
+    // `hecks-life clock <agg-dir> --segment <hour-range>:<Cmd> [...] [--poll <dur>]`
+    //
+    // Wall-clock segment trigger primitive (i107). Boots the runtime
+    // once, then on each poll tick (default 60s) computes the current
+    // local-hour segment and dispatches the matching command IFF the
+    // segment changed since the last tick. Replaces circadian.sh.
+    //
+    // Same family as `hecks-life loop` and `hecks-life daemon` —
+    // kernel-surface primitive a bluebook circadian capability
+    // dispatches into. Same i80 retirement contract.
+    if command == "clock" {
+        run_clock(&args);
+        return;
+    }
+
+    // `hecks-life sleep` — blocking streaming-sleep CLI (i113).
     //
     // Dispatches Consciousness.EnterSleep (skipping if state is already
-    // "sleeping" — body may already be asleep when invoked, e.g. via
-    // mid-flight join), then polls consciousness.heki / dream_state.heki
-    // / lucid_dream.heki at 1Hz, emitting one streaming line per state
-    // change. Breaks when state != "sleeping", waits briefly for
-    // /tmp/wake_review_latest.md (the wake hook fires wake_review.sh +
-    // interpret_dream.sh automatically), prints it to stdout, exits 0.
+    // "sleeping" — mid-flight join), then polls consciousness.heki /
+    // dream_state.heki / lucid_dream.heki at 1Hz, emitting one streaming
+    // line per state change. Breaks when state != "sleeping", waits
+    // briefly for /tmp/wake_review_latest.md (the wake hook fires
+    // wake_review.sh + interpret_dream.sh automatically), prints it to
+    // stdout, exits 0.
     //
-    // Closes the i113 runtime gap : sleep was previously a fire-and-forget
-    // dispatch ; the script that invoked it had no way to know when the
-    // body woke. Same family as run_loop / run_daemon / run_enforce_edit
+    // Same family as run_loop / run_daemon / run_enforce_edit / run_clock
     // — kernel-surface CLI primitive. Bluebook brain (sleep.bluebook,
     // lucid_dream.bluebook) stays unchanged ; this just wires the
     // dispatch + heki polling + dream stream + wake-report read into a
@@ -2008,8 +2021,25 @@ fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
 }
 
 fn run_loop(args: &[String]) {
+    // [antibody-exempt: hecks_life/src/main.rs run_loop — extends the cadence
+    //  primitive with multi-command rotation (i106) and gated cadence (i108).
+    //  This IS the structural rewrite that lets breath / ultradian / sleep_cycle
+    //  retire. Same i80 retirement contract as the rest of the loop / daemon /
+    //  enforce-edit family. Net ~30 LoC.]
+    //
+    // Args layout : hecks-life loop <target> <Cmd1[,Cmd2,...]> --every <dur>
+    //               [--gate <heki-file>:<field>=<value>] [k=v ...]
+    //
+    // Multi-command rotation (i106) : if <Aggregate.Command> contains commas,
+    // the loop rotates through the list one-per-tick. `Breath.Inhale,Breath.Exhale`
+    // alternates inhale → exhale → inhale → exhale every tick.
+    //
+    // Gated cadence (i108) : `--gate <file.heki>:<field>=<value>` skips the
+    // dispatch (but still sleeps) when the gate predicate is false. Used
+    // by sleep_cycle to advance NREM/REM only while consciousness.state ==
+    // sleeping.
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life loop <bluebook-or-dir> <Aggregate.Command> --every <duration> [key=val ...]");
+        eprintln!("Usage: hecks-life loop <bluebook-or-dir> <Aggregate.Command[,Aggregate.Command2,...]> --every <duration> [--gate <file.heki>:<field>=<value>] [key=val ...]");
         std::process::exit(1);
     });
     let cmd_full = args.get(3).map(|s| s.as_str()).unwrap_or_else(|| {
@@ -2028,14 +2058,38 @@ fn run_loop(args: &[String]) {
         std::process::exit(1);
     });
 
-    // Strip "Aggregate." prefix from cmd_full so the runtime gets just the command name.
-    let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
+    // Multi-command rotation (i106). Split on commas and strip per-entry
+    // "Aggregate." prefix so the runtime gets the bare command name.
+    let cmd_names: Vec<String> = cmd_full.split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.split('.').last().unwrap_or(s).to_string())
+        .collect();
+    if cmd_names.is_empty() {
+        eprintln!("loop : empty command list '{}'", cmd_full);
+        std::process::exit(1);
+    }
 
-    // Parse trailing key=val attrs, skipping the --every flag and its value.
+    // Gate parsing (i108). --gate <file.heki>:<field>=<value> — when the
+    // predicate is false, we sleep without dispatching. Format chosen to
+    // avoid ambiguity with shell-quoting and the existing key=val attr
+    // parser : `:` separates path from predicate, `=` separates field from
+    // value. e.g. : --gate information/consciousness.heki:state=sleeping
+    let gate: Option<(String, String, String)> = args.iter().position(|a| a == "--gate")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|spec| {
+            let (path, pred) = spec.split_once(':')?;
+            let (field, value) = pred.split_once('=')?;
+            Some((path.to_string(), field.to_string(), value.to_string()))
+        });
+
+    // Parse trailing key=val attrs, skipping the --every / --gate flags
+    // and their values.
     let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
     let mut i = 4;
     while i < args.len() {
         if args[i] == "--every" { i += 2; continue; }
+        if args[i] == "--gate"  { i += 2; continue; }
         if args[i].starts_with("--") { i += 1; continue; }
         let mut parts = args[i].splitn(2, '=');
         if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
@@ -2044,10 +2098,17 @@ fn run_loop(args: &[String]) {
         i += 1;
     }
 
-    eprintln!(
-        "[hecks-life loop] {} every {:?} (Ctrl-C to stop)",
-        cmd_full, every
-    );
+    if let Some((p, f, v)) = &gate {
+        eprintln!(
+            "[hecks-life loop] {} every {:?} gated on {}:{}={} (Ctrl-C to stop)",
+            cmd_full, every, p, f, v
+        );
+    } else {
+        eprintln!(
+            "[hecks-life loop] {} every {:?} (Ctrl-C to stop)",
+            cmd_full, every
+        );
+    }
 
     // Build the combined domain ONCE (parse all bluebooks in the target),
     // boot the runtime ONCE, then loop dispatching. This is the speedup
@@ -2085,12 +2146,201 @@ fn run_loop(args: &[String]) {
     };
 
     let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    let mut idx: usize = 0;
     loop {
-        if let Err(e) = rt.dispatch(&cmd_name, attrs.clone()) {
-            eprintln!("[hecks-life loop] dispatch error: {:?}", e);
+        let gate_open = match &gate {
+            None => true,
+            Some((path, field, expected)) => gate_predicate_holds(path, field, expected),
+        };
+        if gate_open {
+            let cmd_name = &cmd_names[idx % cmd_names.len()];
+            if let Err(e) = rt.dispatch(cmd_name, attrs.clone()) {
+                eprintln!("[hecks-life loop] dispatch error: {:?}", e);
+            }
+            idx = idx.wrapping_add(1);
         }
         std::thread::sleep(every);
     }
+}
+
+/// Predicate for the --gate flag on `hecks-life loop` (i108). Reads the
+/// latest record from the named .heki store, looks up `field`, and
+/// returns true iff its string form equals `expected`. Missing file,
+/// missing field, or read errors all evaluate to false (gate closed) so
+/// the gated loop is conservative — it only fires when the gate is
+/// definitively open.
+fn gate_predicate_holds(file: &str, field: &str, expected: &str) -> bool {
+    let store = match heki::read(file) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let rec = match heki::latest(&store) {
+        Some(r) => r,
+        None => return false,
+    };
+    let actual = heki_query::field_to_string(rec.get(field));
+    actual == expected
+}
+
+/// Wall-clock segment trigger primitive (i107). Boots the runtime once,
+/// polls every `--poll <dur>` (default 60s), and dispatches the
+/// configured command for the current local-hour segment whenever the
+/// segment changes. The first tick after boot always dispatches —
+/// .heki state catches up if the daemon was down across a transition.
+///
+/// Args layout :
+///   hecks-life clock <target>
+///     --segment <lo>-<hi>:<Aggregate.Command>   (one or more)
+///     [--poll <duration>]                       (default 60s)
+///
+/// `lo`-`hi` are local-hour boundaries in [0,23]. Wrap-around supported
+/// (`20-4` covers 20:00 through 04:59). First matching segment wins.
+fn run_clock(args: &[String]) {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life clock <bluebook-or-dir> --segment <lo>-<hi>:<Aggregate.Command> [--segment ...] [--poll <dur>]");
+        std::process::exit(1);
+    });
+
+    // Collect every --segment <lo>-<hi>:<Aggregate.Command>. Order matters :
+    // first match wins on overlap.
+    let mut segments: Vec<(u32, u32, String)> = Vec::new();
+    let mut i = 3;
+    let mut poll = std::time::Duration::from_secs(60);
+    while i < args.len() {
+        match args[i].as_str() {
+            "--segment" => {
+                let spec = args.get(i + 1).map(|s| s.as_str()).unwrap_or_else(|| {
+                    eprintln!("clock : --segment needs <lo>-<hi>:<Aggregate.Command>");
+                    std::process::exit(1);
+                });
+                let (range, cmd_full) = spec.split_once(':').unwrap_or_else(|| {
+                    eprintln!("clock : bad --segment '{}' (expected <lo>-<hi>:<Cmd>)", spec);
+                    std::process::exit(1);
+                });
+                let (lo_s, hi_s) = range.split_once('-').unwrap_or_else(|| {
+                    eprintln!("clock : bad hour-range '{}' (expected <lo>-<hi>)", range);
+                    std::process::exit(1);
+                });
+                let lo: u32 = lo_s.parse().unwrap_or_else(|_| {
+                    eprintln!("clock : bad lo hour '{}'", lo_s); std::process::exit(1);
+                });
+                let hi: u32 = hi_s.parse().unwrap_or_else(|_| {
+                    eprintln!("clock : bad hi hour '{}'", hi_s); std::process::exit(1);
+                });
+                if lo > 23 || hi > 23 {
+                    eprintln!("clock : hours must be 0..=23 (got {}-{})", lo, hi);
+                    std::process::exit(1);
+                }
+                let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
+                segments.push((lo, hi, cmd_name));
+                i += 2;
+            }
+            "--poll" => {
+                let dur_s = args.get(i + 1).map(|s| s.as_str()).unwrap_or("60s");
+                poll = parse_loop_duration(dur_s).unwrap_or_else(|| {
+                    eprintln!("clock : cannot parse --poll '{}'", dur_s);
+                    std::process::exit(1);
+                });
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+    if segments.is_empty() {
+        eprintln!("clock : need at least one --segment <lo>-<hi>:<Cmd>");
+        std::process::exit(1);
+    }
+
+    eprintln!(
+        "[hecks-life clock] {} segments, polling every {:?} (Ctrl-C to stop)",
+        segments.len(), poll
+    );
+
+    // Build domain + boot runtime ONCE — same shape as run_loop.
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    let domain = if std::path::Path::new(target).is_dir() {
+        let mut combined = hecks_life::ir::Domain {
+            name: "Clock".into(),
+            category: None, vision: None,
+            aggregates: vec![], policies: vec![],
+            fixtures: vec![], entrypoint: None,
+            sections: vec![],
+        };
+        for entry in fs::read_dir(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        }).flatten() {
+            let p = entry.path();
+            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                if let Ok(source) = fs::read_to_string(&p) {
+                    let d = parser::parse(&source);
+                    combined.aggregates.extend(d.aggregates);
+                    combined.policies.extend(d.policies);
+                    combined.fixtures.extend(d.fixtures);
+                }
+            }
+        }
+        combined
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        parser::parse(&source)
+    };
+    let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+
+    let mut last_cmd: Option<String> = None;
+    loop {
+        let hour = current_local_hour();
+        if let Some(cmd_name) = match_segment(&segments, hour) {
+            if last_cmd.as_deref() != Some(cmd_name) {
+                if let Err(e) = rt.dispatch(cmd_name, Default::default()) {
+                    eprintln!("[hecks-life clock] dispatch error: {:?}", e);
+                }
+                last_cmd = Some(cmd_name.to_string());
+            }
+        }
+        std::thread::sleep(poll);
+    }
+}
+
+/// Returns local-time hour [0,23] without pulling chrono. Uses libc
+/// localtime_r so DST behaves correctly.
+fn current_local_hour() -> u32 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    #[repr(C)]
+    struct Tm {
+        sec: i32, min: i32, hour: i32, mday: i32, mon: i32, year: i32,
+        wday: i32, yday: i32, isdst: i32,
+        gmtoff: i64, zone: *const i8,
+    }
+    extern "C" {
+        fn localtime_r(time: *const i64, tm: *mut Tm) -> *mut Tm;
+    }
+    let mut tm = Tm {
+        sec: 0, min: 0, hour: 0, mday: 0, mon: 0, year: 0,
+        wday: 0, yday: 0, isdst: 0, gmtoff: 0, zone: std::ptr::null(),
+    };
+    unsafe { localtime_r(&secs, &mut tm); }
+    tm.hour as u32
+}
+
+/// First-match-wins on the segments list. Wrap-around handled : if
+/// `lo > hi`, the segment spans midnight (e.g. 20-4 = 20:00 through
+/// 04:59).
+fn match_segment<'a>(segs: &'a [(u32, u32, String)], hour: u32) -> Option<&'a str> {
+    for (lo, hi, cmd) in segs {
+        let in_range = if lo <= hi {
+            hour >= *lo && hour <= *hi
+        } else {
+            hour >= *lo || hour <= *hi
+        };
+        if in_range {
+            return Some(cmd.as_str());
+        }
+    }
+    None
 }
 
 // ============================================================
@@ -2427,6 +2677,8 @@ fn print_usage() {
     eprintln!("  develop    Develop features in an existing domain");
     eprintln!("  boot       Full boot: hydrate + nerves + prompt gen");
     eprintln!("  daemon     Run background daemons (pulse, daydream, sleep)");
+    eprintln!("  loop       Cadence loop : dispatch one or more commands every <dur>");
+    eprintln!("  clock      Wall-clock segment trigger : dispatch on local-hour transitions");
     eprintln!("  sleep      Dispatch EnterSleep, stream stage/dream changes, print wake report");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
     eprintln!("  heki       Read/write .heki binary stores");
