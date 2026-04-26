@@ -266,6 +266,26 @@ fn main() {
         return;
     }
 
+    // `hecks-life enforce-edit` — PostToolUse listener primitive.
+    //
+    // Reads tool-input JSON from stdin, classifies the touched file
+    // by extension, dispatches Enforcer.RecordXxxEdit (and, for
+    // imperative-language files, Enforcer.Complain), prints the
+    // complaint to stderr, exits 2 so Claude Code routes the
+    // complaint to the agent as a system reminder.
+    //
+    // Closes the runtime gap (i104) that previously forced
+    // enforce_bluebook.sh to exist — Claude Code's PostToolUse hook
+    // contract takes a command, and the command can now be hecks-life
+    // directly. No shell glue. Same family as `hecks-life loop` and
+    // `hecks-life daemon` — kernel-surface primitives a bluebook
+    // capability dispatches into. The Enforcer brain stays in
+    // aggregates/enforcer.bluebook.
+    if command == "enforce-edit" {
+        run_enforce_edit(&args);
+        return;
+    }
+
     // `hecks-life repl <file.bluebook>` — interactive REPL. Same shape
     // as the pre-PR `run` command so any script that relied on that
     // behavior moves to `repl`.
@@ -1607,6 +1627,159 @@ fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
 //   stop <pidfile>
 //     If the PID is alive, sends SIGTERM and prints `stopped: <pid>`.
 //     Removes the pidfile.
+
+// ============================================================
+// ENFORCE-EDIT SUBCOMMAND — PostToolUse listener primitive
+// ============================================================
+//
+// Reads JSON from stdin (Claude Code's PostToolUse contract),
+// extracts tool_name and tool_input.file_path, classifies the
+// extension, dispatches into the Enforcer aggregate, and routes
+// imperative-edit complaints back to the agent via stderr + exit 2.
+//
+// Replaces ~/.claude/hooks/enforce_bluebook.sh (i104). Same family
+// as run_loop / run_daemon : kernel-surface CLI primitive that a
+// bluebook capability dispatches into. Bluebook brain
+// (aggregates/enforcer.bluebook) stays unchanged ; the shell glue
+// retires.
+
+fn run_enforce_edit(_args: &[String]) {
+    use std::io::Read;
+    let mut input = String::new();
+    if std::io::stdin().read_to_string(&mut input).is_err() {
+        std::process::exit(0);
+    }
+    let json: serde_json::Value = match serde_json::from_str(&input) {
+        Ok(v) => v,
+        Err(_) => std::process::exit(0),
+    };
+    let tool_name = json.get("tool_name")
+        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let file_path = json.pointer("/tool_input/file_path")
+        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if file_path.is_empty() {
+        std::process::exit(0);
+    }
+
+    let kind = classify_file(&file_path);
+    let cmd_name = match kind {
+        FileKind::Bluebook   => "RecordBluebookEdit",
+        FileKind::Imperative => "RecordImperativeEdit",
+        FileKind::Support    => "RecordSupportEdit",
+        FileKind::Other      => "RecordOtherEdit",
+    };
+
+    // Resolve aggregates dir relative to the binary's project layout.
+    // Same path the rest of the body uses.
+    let agg_dir = match resolve_aggregates_dir() {
+        Some(p) => p,
+        None    => std::process::exit(0),
+    };
+
+    let mut attrs = std::collections::HashMap::new();
+    attrs.insert("file_path".to_string(), serde_json::Value::String(file_path.clone()));
+    let _ = std::panic::catch_unwind(|| {
+        // dispatch_hecksagon expects the bare command name (no
+        // "Aggregate." prefix) ; the runtime resolves by command-
+        // name within the loaded domain. Same shape run_loop uses.
+        dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
+    });
+
+    if matches!(kind, FileKind::Imperative) {
+        let ext = file_path.rsplit('.').next().unwrap_or("");
+        let complaint = format!(
+            "bluebook-first violation : {} wrote .{} ({}). The enforcer expected a \
+             bluebook (.bluebook / .hecksagon / .fixtures / .behaviors / .world). If \
+             this is genuinely kernel-surface or transitional, name the exemption in \
+             the file's antibody marker AND in the next commit's message ; otherwise, \
+             revert and reach for bluebook.",
+            tool_name, ext, file_path
+        );
+        let ts = chrono_utc_now();
+        let mut complain_attrs = std::collections::HashMap::new();
+        complain_attrs.insert("file_path".into(), serde_json::Value::String(file_path));
+        complain_attrs.insert("complaint".into(), serde_json::Value::String(complaint.clone()));
+        complain_attrs.insert("last_complaint_at".into(), serde_json::Value::String(ts));
+        let _ = std::panic::catch_unwind(|| {
+            dispatch_hecksagon(&agg_dir, "Complain", complain_attrs);
+        });
+        eprintln!("[enforcer] {}", complaint);
+        std::process::exit(2);
+    }
+    std::process::exit(0);
+}
+
+enum FileKind { Bluebook, Imperative, Support, Other }
+
+fn classify_file(path: &str) -> FileKind {
+    let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "bluebook" | "hecksagon" | "fixtures" | "behaviors" | "world" => FileKind::Bluebook,
+        "rs" | "sh" | "rb" | "js" | "jsx" | "ts" | "tsx"
+            | "py" | "go" | "c" | "cpp" | "h" | "hpp" | "java" | "swift" => FileKind::Imperative,
+        "md" | "heki" | "json" | "toml" | "yaml" | "yml" | "txt" => FileKind::Support,
+        _ => FileKind::Other,
+    }
+}
+
+fn resolve_aggregates_dir() -> Option<String> {
+    // HECKS_HOME points at the repo root (sibling of hecks_conception
+    // and hecks_life), not at hecks_conception itself.
+    if let Ok(home) = env::var("HECKS_HOME") {
+        let p = format!("{}/hecks_conception/aggregates", home);
+        if std::path::Path::new(&p).is_dir() { return Some(p); }
+    }
+    // Walk up from the binary :
+    //   /…/hecks/hecks_life/target/release/hecks-life
+    //   .parent() = release
+    //   .parent() = target
+    //   .parent() = hecks_life
+    //   .parent() = hecks (repo root)
+    if let Ok(exe) = env::current_exe() {
+        if let Ok(real) = exe.canonicalize() {
+            if let Some(repo) = real.parent()
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+            {
+                let agg = repo.join("hecks_conception").join("aggregates");
+                if agg.is_dir() {
+                    return Some(agg.to_string_lossy().into_owned());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn chrono_utc_now() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    // Inline ISO-8601 — avoids pulling chrono crate just for this.
+    let (year, month, day, hour, min, sec) = ymdhms_from_unix(now);
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
+}
+
+/// Convert unix seconds to UTC y/m/d/h/m/s. Howard Hinnant's algorithm.
+fn ymdhms_from_unix(secs: i64) -> (i64, i64, i64, i64, i64, i64) {
+    let z = secs / 86400;
+    let s = secs.rem_euclid(86400);
+    let hour = s / 3600;
+    let min = (s % 3600) / 60;
+    let sec = s % 60;
+    let z_shift = z + 719468;
+    let era = if z_shift >= 0 { z_shift } else { z_shift - 146096 } / 146097;
+    let doe = (z_shift - era * 146097) as i64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if month <= 2 { y + 1 } else { y };
+    (year, month, day, hour, min, sec)
+}
 
 fn run_daemon(args: &[String]) {
     let action = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
