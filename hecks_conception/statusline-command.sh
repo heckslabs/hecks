@@ -70,20 +70,29 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat — flips every statusline invocation.
-# Tick.cycle (mindstream's 1 Hz counter) and wall-clock phase both
-# alias badly when Claude polls at 1 Hz — sample-time drift against
-# the daemon tick freezes the glyph for seconds at a time. Instead,
-# keep a persistent invocation counter in $info/.statusline_heart_phase
-# and flip on every call. At 1 Hz polling that's ~1 flip/sec; at
-# higher poll rates it's faster. Always visibly alive.
-hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
-phase_file="$info/.statusline_heart_phase"
-heart_phase=$(cat "$phase_file" 2>/dev/null | tr -cd '0-9')
-heart_phase=${heart_phase:-0}
-heart_phase=$(( (heart_phase + 1) % 2 ))
-echo "$heart_phase" > "$phase_file" 2>/dev/null
-heart="${hearts[$heart_phase]}"
+# Heart — beat_count proves liveness ; wall clock drives the visible
+# flip. heart.bluebook declares 2Hz (500ms cadence) but real-body
+# dispatch caps at ~1Hz under load, so reading beat_count alone gives
+# at most 1 flip per second AND the polling clock can land on the
+# same parity twice in a row. Combining beat_count parity with
+# wall-second parity guarantees visible movement at every poll while
+# still tying the glyph to the body : if beat_count hasn't advanced
+# in the last 5 seconds the heart is considered stopped (showing 🫥
+# instead of ❤️/🖤). Sweet spot of "visibly alive" + "structurally
+# tied to the body's actual cycle."
+hearts=("🖤" "❤️")
+heart_beats=$($hecks heki latest-field $info/heart.heki beat_count 2>/dev/null)
+heart_age=$($hecks heki seconds-since $info/heart.heki updated_at 2>/dev/null)
+if [ -n "$heart_age" ] && [ "$heart_age" -gt 5 ] 2>/dev/null; then
+  # Heart silent for >5s — degrade glyph (still rendering, but visibly different)
+  heart="🫥"
+else
+  # XOR beat_count parity with wall-clock-second parity → guaranteed
+  # change between any two polls more than 0.5s apart, while still
+  # advancing with the body's beat.
+  heart_phase=$(( (${heart_beats:-0} + $(date +%s)) % 2 ))
+  heart="${hearts[$heart_phase]}"
+fi
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
