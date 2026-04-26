@@ -76,6 +76,7 @@ fn duplicate_aggregate_names() {
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
+        sections: vec![],
     };
     let errors = validate(&domain);
     assert!(errors.iter().any(|e| e.contains("Duplicate aggregate")));
@@ -100,6 +101,7 @@ fn aggregate_without_commands() {
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
+        sections: vec![],
     };
     let errors = validate(&domain);
     assert!(errors.iter().any(|e| e.contains("has no commands")));
@@ -135,6 +137,7 @@ fn bad_command_naming() {
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
+        sections: vec![],
     };
     let errors = validate(&domain);
     assert!(errors
@@ -240,6 +243,7 @@ fn unknown_policy_trigger() {
         }],
         fixtures: vec![],
         entrypoint: None,
+        sections: vec![],
     };
     let errors = validate(&domain);
     assert!(errors

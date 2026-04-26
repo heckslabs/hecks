@@ -1,0 +1,61 @@
+Hecks.behaviors "Daydream" do
+  vision "Behavioral tests for the Daydream capability — exercises the wander pipeline in memory, including the abort-on-no-overlap branch"
+
+  # ── Wandering aggregate ──────────────────────────────────────────
+
+  test "Wander stamps idle_seconds + wandered_at" do
+    tests "Wander", on: "Wandering"
+    input  idle_seconds: 30, wandered_at: "2026-04-26T12:00:00Z"
+    expect idle_seconds: 30, wandered_at: "2026-04-26T12:00:00Z"
+  end
+
+  test "PickDomains sets a_path + b_path" do
+    tests "PickDomains", on: "Wandering"
+    input  a_path: "nursery/foo/foo.bluebook", b_path: "nursery/bar/bar.bluebook"
+    expect a_path: "nursery/foo/foo.bluebook", b_path: "nursery/bar/bar.bluebook"
+  end
+
+  test "DumpDomains sets a_name + b_name" do
+    tests "DumpDomains", on: "Wandering"
+    setup  "PickDomains", a_path: "nursery/foo/foo.bluebook", b_path: "nursery/bar/bar.bluebook"
+    input  a_name: "Foo", b_name: "Bar"
+    expect a_name: "Foo", b_name: "Bar"
+  end
+
+  test "FindOverlap sets shared + kind" do
+    tests "FindOverlap", on: "Wandering"
+    setup  "DumpDomains", a_name: "Foo", b_name: "Bar"
+    input  shared: "trigger", kind: "attribute"
+    expect shared: "trigger", kind: "attribute"
+  end
+
+  test "AbortIfNoOverlap fires when shared empty" do
+    tests "AbortIfNoOverlap", on: "Wandering"
+    setup  "FindOverlap", shared: "", kind: ""
+    expect ok: "true"
+  end
+
+  test "BuildImpression sets impression + duration_seconds" do
+    tests "BuildImpression", on: "Wandering"
+    setup  "FindOverlap", shared: "trigger", kind: "attribute"
+    input  impression: "Foo and Bar both have a trigger", duration_seconds: 1
+    expect impression: "Foo and Bar both have a trigger", duration_seconds: 1
+  end
+
+  test "RecordImpression runs after build" do
+    tests "RecordImpression", on: "Wandering"
+    setup  "BuildImpression", impression: "Foo and Bar both have a trigger", duration_seconds: 1
+    expect ok: "true"
+  end
+
+  test "ForgeSynapse runs after record" do
+    tests "ForgeSynapse", on: "Wandering"
+    setup  "RecordImpression"
+    expect ok: "true"
+  end
+
+  test "CompleteWander runs" do
+    tests "CompleteWander", on: "Wandering"
+    expect ok: "true"
+  end
+end

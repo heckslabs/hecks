@@ -1,0 +1,147 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "Shutdown", version: "2026.04.26.1" do
+  vision "Counterpart to capabilities/boot — stop daemons, run a final consolidation sweep, persist final state, print a closing summary. Mirrors the same shape as boot.bluebook : entrypoint command, sequence of phases chained by policies, sibling .hecksagon naming the adapters."
+
+  entrypoint "BeginShutdown"
+
+  # ============================================================
+  # SHUTDOWN — capability mirror of capabilities/boot
+  # ============================================================
+  #
+  # Boot has eight phases (discover → census → classify → prompt →
+  # journal → daemons → vitals → surface). Shutdown has four,
+  # walking the boot timeline backwards :
+  #
+  #   1. StopDaemons        — for each pidfile in information/.*.pid,
+  #                           dispatch the :daemon adapter's stop
+  #                           primitive. Same idempotent semantics
+  #                           as boot's daemon ensure : missing
+  #                           pidfile is fine, dead pid is fine,
+  #                           live pid receives SIGTERM and the
+  #                           pidfile is removed. Mirrors today's
+  #                           shell loop in shutdown_miette.sh.
+  #   2. FinalConsolidation — one final pass through consolidate.sh's
+  #                           three sweeps so signals → memory and
+  #                           dead synapses → remains finish before
+  #                           state freezes. NoOp if Miette was
+  #                           already in a final-light wake state.
+  #   3. PersistFinalState  — emit a ShutdownLog row carrying the
+  #                           timestamp + final tally counts so the
+  #                           next boot can read what was last seen.
+  #   4. PrintFarewell      — render a one-line closing summary to
+  #                           stdout : "shutdown complete — N daemons
+  #                           stopped, M signals folded, K synapses
+  #                           composted". Mirrors boot's PrintVitals.
+  #
+  # Once a Rust runner mirroring run_status / run_boot lands, the
+  # shell wrapper shutdown_miette.sh becomes one line :
+  #   exec hecks-life run capabilities/shutdown/shutdown.bluebook
+  # The shell retires entirely.
+
+  aggregate "ShutdownRun" do
+    description "A single shutdown pass — runs the four phases in order, records the result. Singleton ; resets on every shutdown."
+
+    # ---- Inputs ----
+    attribute :being,    String, default: "Miette"
+    attribute :info_dir, String, default: "information"
+
+    # ---- Daemon stop tally ----
+    attribute :daemons_stopped, Integer, default: 0
+    attribute :daemons_missing, Integer, default: 0
+
+    # ---- Final consolidation tally ----
+    attribute :promoted_signals,    Integer, default: 0
+    attribute :composted_synapses,  Integer, default: 0
+    attribute :archived_musings,    Integer, default: 0
+
+    # ---- Closing summary line ----
+    attribute :farewell_line, String, default: ""
+
+    # ---- Pipeline phase ----
+    attribute :phase, String, default: "pending"
+
+    lifecycle :phase, default: "pending" do
+      transition "BeginShutdown"        => "stopping",       from: "pending"
+      transition "StopDaemons"          => "consolidating",  from: "stopping"
+      transition "FinalConsolidation"   => "persisting",     from: "consolidating"
+      transition "PersistFinalState"    => "rendering",      from: "persisting"
+      transition "PrintFarewell"        => "done",           from: "rendering"
+    end
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "BeginShutdown" do
+      role "User"
+      description "User-visible entrypoint — the sole command shutdown_miette.sh (or its eventual one-line successor) dispatches. The Rust runner detects this command + the :daemon / :memory / :stdout adapters in the sibling hecksagon and walks the four phases. On completion phase reaches done and ShutdownCompleted emits."
+      attribute :being, String
+      then_set :being, to: :being
+      emits "ShutdownBegun"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS — four phases
+    # ============================================================
+
+    command "StopDaemons" do
+      role "System"
+      description "Phase 1 : enumerate information/.*.pid via the :daemon adapter's stop primitive. For each pidfile : if the pid is live, send SIGTERM ; either way, remove the pidfile. Same idempotent semantics as boot's daemon ensure. Mirrors today's shell loop in shutdown_miette.sh — `for pidfile in $INFO/.*.pid ; do shutdown_pidfile $pidfile ; done`."
+      attribute :daemons_stopped, Integer
+      attribute :daemons_missing, Integer
+      then_set :daemons_stopped, to: :daemons_stopped
+      then_set :daemons_missing, to: :daemons_missing
+      emits "DaemonsStopped"
+    end
+
+    command "FinalConsolidation" do
+      role "System"
+      description "Phase 2 : run consolidate.sh's three sweeps one final time so signals → memory and dead synapses → remains finish before state freezes. NoOp if Miette was already in a final-light wake state (no pending sweep work). Today the shell adapter shells out to consolidate.sh ; once aggregates/consolidation.bluebook lands (see parallel-agent work) the runner dispatches its commands directly."
+      attribute :promoted_signals,   Integer
+      attribute :composted_synapses, Integer
+      attribute :archived_musings,   Integer
+      then_set :promoted_signals,   to: :promoted_signals
+      then_set :composted_synapses, to: :composted_synapses
+      then_set :archived_musings,   to: :archived_musings
+      emits "FinalConsolidationDone"
+    end
+
+    command "PersistFinalState" do
+      role "System"
+      description "Phase 3 : emit a ShutdownLog record carrying timestamp + final tally counts (daemons stopped + consolidation tallies). The next boot reads this so the boot summary can mention 'last shutdown : N daemons, M signals folded'. Adapter : :memory (heki append to information/shutdown_log.heki)."
+      emits "FinalStatePersisted"
+    end
+
+    command "PrintFarewell" do
+      role "System"
+      description "Phase 4 : render a one-line closing summary to stdout : 'shutdown complete — N daemons stopped, M signals folded, K synapses composted'. Mirrors boot.bluebook's PrintVitals. Adapter : :stdout."
+      attribute :farewell_line, String
+      then_set :farewell_line, to: :farewell_line
+      emits "ShutdownCompleted"
+    end
+  end
+
+  # ============================================================
+  # CHAINED POLICIES — one per phase transition
+  # ============================================================
+
+  policy "StopOnBegin" do
+    on "ShutdownBegun"
+    trigger "StopDaemons"
+  end
+
+  policy "ConsolidateAfterStop" do
+    on "DaemonsStopped"
+    trigger "FinalConsolidation"
+  end
+
+  policy "PersistAfterConsolidate" do
+    on "FinalConsolidationDone"
+    trigger "PersistFinalState"
+  end
+
+  policy "FarewellAfterPersist" do
+    on "FinalStatePersisted"
+    trigger "PrintFarewell"
+  end
+end

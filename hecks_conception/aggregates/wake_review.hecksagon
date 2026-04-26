@@ -1,0 +1,44 @@
+Hecks.hecksagon "WakeReview" do
+  # ============================================================
+  # WAKEREVIEW — adapter wiring for the wake-ritual reading
+  # ============================================================
+  #
+  # The bluebook describes one aggregate, two commands (Compose,
+  # LockReport), and the :input/:response convention. This file
+  # declares the adapters those commands talk to.
+  #
+  #   :information  — persists WakeReview rows to wake_review.heki
+  #                   so the wrapper can read :report_markdown back
+  #                   after the LLM resolve. The .world file's heki
+  #                   dir wins ; HECKS_INFO override applies.
+  #
+  #   :llm          — backend:claude. The runtime reads this from
+  #                   the merged hecksagon at dispatch time : when
+  #                   Compose runs, :input is set ; the runtime
+  #                   resolves the :llm adapter and writes :response.
+  #                   LockReport then captures it. Mirrors the
+  #                   declaration shape RemDream uses for its dream
+  #                   chain so one runtime path serves both.
+  #
+  #   :fs           — declared as the future home of the markdown
+  #                   atomic-write (today a thin shell wrapper does
+  #                   the /tmp write). When :fs adapter dispatch
+  #                   lands first-class, LockReport gains a side
+  #                   effect that writes report_markdown to
+  #                   /tmp/wake_review_latest.md and the wrapper
+  #                   retires entirely.
+  #
+  # Cross-domain wake trigger : same shape as DreamReview — the
+  # cycle starts on a sleeping → attentive transition. Until cross-
+  # domain policy dispatch lands, mindstream.sh's wake hook fires
+  # the wrapper.
+
+  adapter :information, dir: "information"
+
+  adapter :llm,
+    backend: :claude
+
+  adapter :fs, root: "/tmp"
+
+  subscribe "Sleep"
+end

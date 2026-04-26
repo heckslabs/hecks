@@ -22,6 +22,8 @@
 //! when the terminal is a TTY and NO_COLOR is unset.
 
 mod assemble;
+mod default_layout;
+mod field_lookup;
 mod render;
 
 use crate::hecksagon_ir::IoAdapter;
@@ -69,9 +71,18 @@ pub fn run(
     let report = assemble::build(&info_dir, &conception_dir, registry);
     stamp_aggregate(rt, &report);
 
+    // Section composition lives in the bluebook (capabilities/status/
+    // status.bluebook). When the parsed Domain declares any sections,
+    // walk those ; otherwise fall back to the renderer's built-in
+    // layout. This is the i105 hand-off : Rust runner walks declared
+    // sections, products choose section ordering + labels in the
+    // bluebook. Snapshot the section list before dispatch so the call
+    // doesn't have to borrow rt twice.
+    let sections = rt.domain.sections.clone();
+
     let _ = rt.dispatch(entrypoint, HashMap::new());
 
-    for line in render::render(&report, on) {
+    for line in render::render_with_sections(&report, on, &sections) {
         let empty = HashMap::new();
         write_stdout(stdout, &line, &empty);
     }

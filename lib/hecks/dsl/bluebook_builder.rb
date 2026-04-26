@@ -319,6 +319,27 @@ module Hecks
         @entrypoint = command_name.to_s
       end
 
+      # Capability dashboards (status, statusline) declare their layout
+      # as ordered `section "Title" do row "label", :field … end` blocks.
+      # The Rust runner walks these to render — see
+      # capabilities/status/status.bluebook + hecks_life/src/run_status/.
+      # Ruby parity dump intentionally ignores the rows ; sections are
+      # not yet first-class in BluebookModel. The block is evaluated
+      # against a tiny no-op SectionBuilder so the DSL parses cleanly
+      # under instance_eval.
+      def section(_title, &block)
+        builder = SectionBuilder.new
+        builder.instance_eval(&block) if block
+        nil
+      end
+
+      # Tiny no-op collector — accepts `row "label", :field` lines so
+      # status.bluebook parses on the Ruby side. The Rust parser is the
+      # canonical reader of section composition.
+      class SectionBuilder
+        def row(_label, _field = nil); end
+      end
+
       # Define a cross-aggregate reactive policy.
       #
       # Domain-level policies react to events from one aggregate and trigger

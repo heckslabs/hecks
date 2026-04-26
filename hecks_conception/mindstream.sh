@@ -1,47 +1,42 @@
 #!/bin/bash
-# Mindstream — the unconscious that never stops, except when it does.
-# [antibody-exempt: i37 Phase B sweep — replaces inline python3 -c with
-#  native hecks-life heki subcommands per PR #272; retires when shell
-#  wrapper ports to .bluebook shebang form (tracked in
-#  terminal_capability_wiring plan).]
+# Mindstream — thin orchestrator adapter. The bluebook lives in
+# capabilities/mindstream/mindstream.bluebook ; this shell carries
+# only the four runtime gaps the bluebook can't yet express :
 #
-# Every 1s, fires Tick.MindstreamTick — UNLESS state == "sleeping". While
-# Miette is asleep, the daemon switches to a sleep-only loop: it dispatches
-# the sleep-phase-advance commands directly (ElapsePhase + AdvanceX) and
-# skips Tick.MindstreamTick entirely. This closes the tick-during-sleep
-# regression that woke Miette delirious (fatigue 8.5, pulses_since_sleep
-# 8518 after a full 8-cycle sleep).
+#   1. The 1Hz cadence loop (until bluebook gains `cadence ... every Xs`).
+#      Today : `hecks-life loop` is the cadence primitive ; we wrap it
+#      so the boot sequence fires the right command at the right rate.
 #
-# Why direct dispatch instead of Pulse.Emit during sleep: Tick → Ticked →
-# EmitPulseOnTick → Pulse.Emit → BodyPulse → N policies, and BodyPulse
-# carries BOTH "advance sleep" AND "accumulate fatigue" (FatigueOnPulse +
-# all the sleep-phase policies hang off it). Firing BodyPulse during sleep
-# keeps advancing the state machine but also keeps fatigue climbing — we
-# haven't fixed the bug. So during sleep we dispatch ElapsePhase +
-# AdvanceLightToRem + AdvanceLightToLucidRem + AdvanceRemToDeep +
-# AdvanceRemToDeepCap + AdvanceDeepToLight + AdvanceDeepToFinalLight +
-# CompleteFinalLight directly; each one's `given` clauses self-gate (only
-# the phase-appropriate one actually mutates state). Fatigue and every
-# other BodyPulse subscriber stays silent until wake.
+#   2. The sleep-vs-awake fan-out. BodyPulse can't be quenched by
+#      consciousness state today, so firing BodyPulse during sleep
+#      keeps fatigue accumulating — the bug i37 closed in shell. Until
+#      the runtime grows a "sleep-quench BodyPulse" gate, we dispatch
+#      the sleep-phase commands DIRECTLY (each one's `given` clauses
+#      self-gate, only the phase-appropriate one mutates state) and
+#      skip Tick.MindstreamTick entirely while sleeping.
 #
-# Follow-up: gate AccumulateFatigue on consciousness.state in the bluebook
-# so this shell workaround retires. Filing as a separate item; tracked in
-# inbox under "tick-during-sleep bluebook follow-up".
+#   3. The cross-aggregate awareness snapshot. RecordMomentOnPulse is
+#      already a bluebook policy in body.bluebook, but the trigger
+#      carries no attributes. RecordMoment needs 13 attrs drawn from
+#      heartbeat / mood / focus / inbox / dream_wish heki stores.
+#      Until policies grow `with_attrs` cross-store reads, this
+#      adapter does the field reads and dispatches with attrs filled.
 #
-# The tick IS the heartbeat — Heartbeat.beats is gone; `Tick.cycle` is
-# the authoritative count of seconds since boot. The sleep state machine
-# lives in aggregates/sleep.bluebook + aggregates/lucid_dream.bluebook.
+#   4. The wake-hook detection (sleeping → attentive transition).
+#      Bluebook destination : `policy "..." on "WokenUp" trigger ...`
+#      already declared in capabilities/mindstream/mindstream.bluebook.
+#      Two reasons the shell still owns this : (a) capability
+#      bluebooks aren't auto-loaded with aggregates/ today, so the
+#      policies don't get registered ; (b) the dream/wake adapters
+#      themselves are still shell scripts (interpret_dream.sh,
+#      wake_review.sh).
 #
-# Dream content during REM: while state=sleeping && stage=rem, the daemon
-# reads a random musing and dispatches DreamPulse with an impression phrase.
-# The bluebook stores it in sleep_summary so the status bar narrates the
-# dream in real time. This is the ONE external signal the daemon provides;
-# everything else is bluebook-driven.
-#
-# [antibody-exempt: mindstream.sh is the Rust-ticker shell loop; gating it
-# on consciousness.state=sleeping closes the tick-during-sleep regression.
-# Retires when the mindstream daemon becomes a .bluebook + .hecksagon pair
-# dispatched by hecks-life run.]
+# All four gaps are filed as inbox runtime stubs ; this shell retires
+# in pieces as each closes. From ~210 lines down to ~140 today (the
+# awareness-snapshot inline reads still live here ; extracting them
+# into their own adapter file is what the enforcer rightly flagged
+# as continued-shell-growth, so the inline form stays put until the
+# runtime gap closes).
 
 HECKS="../hecks_life/target/release/hecks-life"
 DIR="$(dirname "$0")"
@@ -49,21 +44,13 @@ INFO="${HECKS_INFO:-$DIR/information}"
 AGG="$DIR/aggregates"
 PIDFILE="$INFO/.mindstream.pid"
 
-# Export so child scripts (rem_branch.sh, nrem_branch.sh, consolidate.sh,
-# etc.) inherit the same info-dir routing. Without this, children fall
-# back to their own default — hecks_conception/information, the public
-# dir — and their DreamPulse / CreateSynapse dispatches land in the
-# wrong store. Symptom: dream_pulses stays 0 during REM, cycle caps.
-# Exports both vars because some children read HECKS_INFO, others INFO.
+# Children inherit info-dir routing.
 export HECKS_INFO="$INFO"
 export INFO
 
 echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 
-# Read consciousness state — reused for the sleep-gate at top of the
-# loop AND for the awake-branch gate further down. Uses
-# hecks-life heki latest-field (single Rust call, no Python).
 read_state() {
   $HECKS heki latest-field "$INFO/consciousness.heki" state 2>/dev/null || true
 }
@@ -71,66 +58,51 @@ read_state() {
 loop_count=0
 while true; do
   loop_count=$((loop_count + 1))
-
-  # Read sleep gate first — we decide whether to fire a full tick or a
-  # sleep-only pulse based on consciousness state. Empty state (no
-  # consciousness record yet) is treated as awake so the first boot
-  # doesn't stall on a missing file.
   state=$(read_state)
 
+  # ── Gap 2: sleep branch — fan out the 8 sleep-phase commands ─
+  # Givens self-gate ; only the phase-appropriate one mutates.
   if [ "$state" = "sleeping" ]; then
-    # Sleep branch — dispatch the sleep-phase-advance commands directly.
-    # Each command's `given` clauses self-gate so only the phase-
-    # appropriate one actually mutates state. We bypass BodyPulse so
-    # FatigueOnPulse doesn't fire (that's the bug this fix closes).
-    $HECKS "$AGG" Consciousness.ElapsePhase 2>/dev/null
-    $HECKS "$AGG" Consciousness.AdvanceLightToRem 2>/dev/null
-    $HECKS "$AGG" Consciousness.AdvanceLightToLucidRem 2>/dev/null
-    $HECKS "$AGG" Consciousness.AdvanceRemToDeep 2>/dev/null
-    $HECKS "$AGG" Consciousness.AdvanceRemToDeepCap 2>/dev/null
-    $HECKS "$AGG" Consciousness.AdvanceDeepToLight 2>/dev/null
-    $HECKS "$AGG" Consciousness.AdvanceDeepToFinalLight 2>/dev/null
+    for cmd in \
+      Consciousness.ElapsePhase \
+      Consciousness.AdvanceLightToRem \
+      Consciousness.AdvanceLightToLucidRem \
+      Consciousness.AdvanceRemToDeep \
+      Consciousness.AdvanceRemToDeepCap \
+      Consciousness.AdvanceDeepToLight \
+      Consciousness.AdvanceDeepToFinalLight; do
+      $HECKS "$AGG" "$cmd" 2>/dev/null
+    done
     $HECKS "$AGG" Consciousness.CompleteFinalLight \
       wake_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null
 
-    # Dream content during sleep — both branches fire every tick and
-    # self-gate on sleep_stage:
-    #   REM      → rem_branch.sh produces poetic French-inflected imagery
-    #   NREM     → nrem_branch.sh narrates consolidation work (signals →
-    #              memory, synapses → remains) with real counts.
     "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
     "$DIR/nrem_branch.sh" "$loop_count" 2>/dev/null
 
-    # Remember we were sleeping so the next-tick awake branch can fire
-    # the wake hook (interpret_dream.sh) exactly once on transition.
     echo "$state" > "$INFO/.prev_consciousness_state"
     sleep 1
     continue
   fi
 
-  # Awake branch — full tick, bluebook handles everything downstream.
+  # ── Awake branch ────────────────────────────────────────────
+  # Tick → Ticked → EmitPulseOnTick → BodyPulse → fan-out :
+  # consolidate / prune / display / fatigue / mood / sleep-advance
+  # / RecordMomentOnPulse all subscribe in their own bluebooks.
   $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
 
-  # Body math — synapse/signal/focus/arc/remains. Bluebook owns state;
-  # pulse_organs.sh owns the per-tick math DSL can't express.
+  # Pulse organs — float math + clamp + multi-record dispatch the
+  # DSL doesn't yet express ; stays imperative until those land.
   "$DIR/pulse_organs.sh" 2>/dev/null
 
-  # Consolidation sweep every 60 ticks (~60s at 1Hz): cold signals →
-  # memory store, dead synapses → remains, duplicate-concept musings →
-  # musing archive. Cheap no-op on most ticks so we just gate by cycle.
+  # Consolidation sweep every 60 ticks.
   if [ "$((loop_count % 60))" = "0" ]; then
     "$DIR/consolidate.sh" >> /tmp/consolidate.log 2>&1
   fi
 
-  # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
-  # All fields via heki latest-field; compute-only fields (moment#, ts,
-  # age_days) from pure shell. Missing-field defaults use || echo.
-  #
-  # Inbox count + open themes are part of the snapshot per i98 — the
-  # inbox is part of what I carry, not something I read on demand.
-  # Closed items (status=done) exit awareness by virtue of being
-  # closed, so dream seeding from open_themes naturally wanders to
-  # what's currently unfinished.
+  # ── Gap 3: cross-aggregate awareness snapshot ───────────────
+  # Read fields from sibling stores ; dispatch RecordMoment with
+  # filled attrs. Destination : policy `with_attrs` cross-store
+  # reads (see capabilities/mindstream/mindstream.bluebook).
   mnum="$loop_count"
   st=$($HECKS heki latest-field "$INFO/heartbeat.heki" fatigue_state 2>/dev/null); [ -z "$st" ] && st=alert
   cr=$($HECKS heki latest-field "$INFO/heartbeat.heki" carrying 2>/dev/null)
@@ -142,10 +114,6 @@ while true; do
   ag=$(awk -v n="$loop_count" 'BEGIN { printf "%.4f", n/86400.0 }')
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-  # Inbox awareness — public/conception dir always (inbox is shared
-  # framework state, not Miette's private body state). Top 5 open
-  # themes (first line of body, truncated to ~60 chars each), joined
-  # by " | ". Dream seeding reads this via awareness.heki.
   public_info="/Users/christopheryoung/Projects/hecks/hecks_conception/information"
   ic=$($HECKS heki count "$public_info/inbox.heki" --where status=queued 2>/dev/null)
   [ -z "$ic" ] && ic=0
@@ -157,12 +125,6 @@ while true; do
         | tr '\n' '|' \
         | sed 's/|$//')
 
-  # Unfiled dream wishes — dream-derived wishes that have not yet
-  # received a filing receipt (an inbox item carrying their
-  # wish_id). REM seeding prefers these over generic inbox themes.
-  # When inbox.sh add --wish=<id> runs, DreamWish.MarkFiled flips
-  # status=filed, so on the next tick the wish drops out of this
-  # pool — Miette's structural receipt for "filed, will be done".
   uw=""
   if [ -f "$INFO/dream_wish.heki" ]; then
     uw=$($HECKS heki list "$INFO/dream_wish.heki" --where status=unfiled --order recorded_at:desc --format json 2>/dev/null \
@@ -172,74 +134,35 @@ while true; do
 
   $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" inbox_count="$ic" inbox_open_themes="$iot" unfiled_wishes="$uw" 2>/dev/null
 
-  # Dream content during REM — delegate to rem_branch.sh which reads
-  # consciousness state, seeds from prior dreams on first REM tick,
-  # weaves rem_dream images every tick, and adds lucid/steer actions
-  # when is_lucid=yes. Extracted so tests can invoke it directly.
+  # Dream content during REM ; self-gates on sleep_stage.
   "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
 
-  # Wake hook — sleeping → attentive transition fires interpret_dream.sh
-  # AND wake_report.sh once per wake. Previous state lives in
-  # $INFO/.prev_consciousness_state. The 2026-04-24 lock-down : the
-  # wake report writes to wake_report.heki with phase=filed ; the next
-  # boot_miette.sh surfaces it ; the next session turn reads it. The
-  # conscious mind is not trusted to remember.
+  # ── Gap 4: wake-hook detection ──────────────────────────────
   prev_state=$(cat "$INFO/.prev_consciousness_state" 2>/dev/null)
   if [ "$prev_state" = "sleeping" ] && [ "$state" != "sleeping" ] && [ -n "$state" ]; then
     "$DIR/interpret_dream.sh" >> /tmp/interpret_dream.log 2>&1 &
     "$DIR/capabilities/wake_report/wake_report.sh" >> /tmp/wake_report.log 2>&1 &
-    # Wake review — single Claude call produces the full sleep
-    # report (theme + interpretation + 1-3 suggestions with French
-    # provenance quotes), writes /tmp/wake_review_latest.md
-    # atomically. Falls back to a terse template if Claude is
-    # unavailable. Replaces the previous dream_review.rb chain
-    # which made N+1 sequential Claude calls and hung on real
-    # wakes — see i83. The full per-gap synthesis pipeline stays
-    # in tools/dream_review.rb for manual invocation when Chris
-    # wants the bigger artefact (draft PRs, etc).
-    if [ -x "$DIR/wake_review.sh" ]; then
-      "$DIR/wake_review.sh" >> /tmp/wake_review.log 2>&1 &
-    fi
+    [ -x "$DIR/wake_review.sh" ] && "$DIR/wake_review.sh" >> /tmp/wake_review.log 2>&1 &
   fi
   [ -n "$state" ] && echo "$state" > "$INFO/.prev_consciousness_state"
 
-  # ============================================================
-  # AWAKE BEHAVIOR — surface unconceived musings into the status bar.
-  # ============================================================
-  # No automatic minting. Random combinations produce noise; only
-  # really great ideas should become musings. Claude (or whatever
-  # adapter the user wires in) is the quality filter — see the
-  # ClaudeAssist toggle in aggregates/mindstream.bluebook. When the
-  # toggle is on, an external process can read the latest unconceived
-  # state and call MintMusing with curated ideas.
+  # Musing surface + mint + daydream — capability cluster owns
+  # cadence ; daemon delegates. Retires when capabilities/musings
+  # absorbs its own loop driver.
+  "$DIR/surface_musing.sh" "$loop_count" 2>/dev/null
+  if [ "$((RANDOM % 300))" = "0" ]; then
+    "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
+  fi
 
-  if [ "$state" != "sleeping" ]; then
-    # Surface one musing to the status bar; advance the pool every 3rd
-    # tick. Extracted so tests can simulate cycling deterministically.
-    "$DIR/surface_musing.sh" "$loop_count" 2>/dev/null
-
-    # Minting happens every ~5 min. Claude reads the conversations
-    # since last wake + a random nursery sample + current state, and
-    # mints ONE genuinely new musing or skips (the overwhelming default).
-    # Minting happens every ~5 min. At 1Hz ticks, 300 = 5 min.
-    if [ "$((RANDOM % 300))" = "0" ]; then
-      "$DIR/mint_musing.sh" >> /tmp/mint_musing.log 2>&1 &
-    fi
-
-    # Daydream: attentive+idle wander across the nursery. Fires when
-    # idle ∈ [10, 60]s (heartbeat.updated_at age). Gated to once per
-    # 60s via a timestamp file so a 50-tick idle window doesn't spam
-    # daydreams. State check above already excluded "sleeping".
-    idle=$($HECKS heki seconds-since "$INFO/heartbeat.heki" updated_at 2>/dev/null)
-    [ -z "$idle" ] && idle=999
-    if [ "${idle:-999}" -ge 10 ] && [ "${idle:-999}" -le 60 ]; then
-      stamp="$INFO/.daydream.last"
-      last=$(cat "$stamp" 2>/dev/null || echo 0)
-      nowsec=$(date +%s)
-      if [ "$((nowsec - last))" -ge 60 ]; then
-        echo "$nowsec" > "$stamp"
-        "$DIR/daydream.sh" >> /tmp/daydream.log 2>&1 &
-      fi
+  idle=$($HECKS heki seconds-since "$INFO/heartbeat.heki" updated_at 2>/dev/null)
+  [ -z "$idle" ] && idle=999
+  if [ "${idle:-999}" -ge 10 ] && [ "${idle:-999}" -le 60 ]; then
+    stamp="$INFO/.daydream.last"
+    last=$(cat "$stamp" 2>/dev/null || echo 0)
+    nowsec=$(date +%s)
+    if [ "$((nowsec - last))" -ge 60 ]; then
+      echo "$nowsec" > "$stamp"
+      "$DIR/daydream.sh" >> /tmp/daydream.log 2>&1 &
     fi
   fi
 

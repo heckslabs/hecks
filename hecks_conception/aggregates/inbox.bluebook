@@ -1,0 +1,160 @@
+Hecks.bluebook "Inbox", version: "2026.04.26.1" do
+  vision "The TODO log Chris writes against the codebase — short refs (iN) humans type, monotonic and stable for the lifetime of a record, status walking queued → done with optional reopen/drop"
+  category "memory"
+
+  # ============================================================
+  # INBOX — the inbox.sh shell-to-bluebook conversion
+  # ============================================================
+  #
+  # The conception's TODO surface — every "file an inbox item"
+  # ritual writes here. Each row is one Item with:
+  #
+  #   * heki uuid (primary key, opaque, set by the storage adapter)
+  #   * ref       (sequential, "i42" — the short id humans type)
+  #
+  # Refs are assigned monotonically at Add time and never change.
+  # Closing or dropping a row leaves the ref pointing at the same
+  # record so historical mentions ("see i42") stay valid forever.
+  #
+  # This file declares the JOURNAL — the Item shape, the lifecycle,
+  # the four state-transition commands, and the queries the CLI
+  # surface drives over the .heki store.
+  #
+  # The companion capability (capabilities/inbox/inbox.bluebook)
+  # declares the user-facing CLI shape — the `add` / `list` / `get`
+  # / `close` / `reopen` / `drop` subcommands and the auto-commit-
+  # to-main durability dance.
+
+  # ── Item ──────────────────────────────────────────────────────
+  #
+  # One row per filed TODO. priority is the operator-supplied
+  # bucket (high/medium/normal/low) used by the queued list to
+  # bubble urgency to the top. status walks queued → done via
+  # Close, queued ← done via Reopen, and any state → dropped via
+  # Drop. wish_id is empty for plain filings ; populated for
+  # filings that satisfy a DreamWish (i98 / 2026-04-26).
+
+  aggregate "Item", "One filed TODO — short ref, body, priority, lifecycle, optional dream-wish receipt" do
+    # ---- Identity ----
+    # ref : the short id humans type ("i42"). Monotonic, stable.
+    # Assigned by NextRef at Add time and never reassigned, even
+    # after Close or Drop, so historical mentions stay valid.
+    attribute :ref,          String
+
+    # ---- Content ----
+    attribute :body,         String
+    attribute :priority,     String
+    attribute :posted_at,    String
+
+    # ---- Lifecycle ----
+    # status: queued | done | dropped
+    # queued  — newly filed, waiting for processing
+    # done    — closed with optional resolution note
+    # dropped — abandoned (was `archive` in the shell ; renamed
+    #           because it's a hard delete in the implementation
+    #           and the bluebook should match what actually happens)
+    attribute :status,       String, default: "queued"
+    attribute :completed_at, String
+    attribute :resolution,   String
+
+    # ---- Dream-wish receipt (i98 / 2026-04-26) -----------------
+    # wish_id is the DreamWish id this filing satisfies. Empty for
+    # plain filings. When set, Add also dispatches DreamWish.MarkFiled
+    # so the wish exits the seed pool (the receipt mechanism
+    # documented in aggregates/dream_wish.bluebook).
+    attribute :wish_id,      String
+
+    # ============================================================
+    # COMMANDS
+    # ============================================================
+
+    command "Add" do
+      role "Chris"
+      description "File a new TODO. The runtime allocates the next monotonic ref (NextRef query), stamps posted_at, and writes the row with status=queued. When wish_id is supplied, also fires DreamWish.MarkFiled so the wish exits the unfiled seed pool — the filing alone is the receipt, no implementation required."
+      attribute :ref,       String
+      attribute :priority,  String
+      attribute :body,      String
+      attribute :posted_at, String
+      attribute :wish_id,   String
+      then_set :ref,        to: :ref
+      then_set :priority,   to: :priority
+      then_set :body,       to: :body
+      then_set :posted_at,  to: :posted_at
+      then_set :wish_id,    to: :wish_id
+      then_set :status,     to: "queued"
+      emits "ItemAdded"
+    end
+
+    command "Close" do
+      role "Chris"
+      description "Mark a queued item as done. Stamps completed_at and records a one-line resolution (commit sha, PR url, or free-text note). Reversible via Reopen."
+      reference_to(Item)
+      attribute :completed_at, String
+      attribute :resolution,   String
+      given("must be queued") { status == "queued" }
+      then_set :status,       to: "done"
+      then_set :completed_at, to: :completed_at
+      then_set :resolution,   to: :resolution
+      emits "ItemClosed"
+    end
+
+    command "Reopen" do
+      role "Chris"
+      description "Move a done item back to queued — a closing was premature. Clears completed_at and resolution so the row reads cleanly as freshly queued. The ref is preserved."
+      reference_to(Item)
+      given("must be done") { status == "done" }
+      then_set :status,       to: "queued"
+      then_set :completed_at, to: ""
+      then_set :resolution,   to: ""
+      emits "ItemReopened"
+    end
+
+    command "Drop" do
+      role "Chris"
+      description "Abandon a row (was `archive` in the shell). The implementation deletes the heki record outright ; this command marks the row as dropped first so any subscribers see the transition before the row disappears. The ref is not reassigned — historical mentions become dangling."
+      reference_to(Item)
+      then_set :status, to: "dropped"
+      emits "ItemDropped"
+    end
+
+    lifecycle :status, default: "queued" do
+      transition "Add"    => "queued",  from: "pending"
+      transition "Close"  => "done",    from: "queued"
+      transition "Reopen" => "queued",  from: "done"
+      transition "Drop"   => "dropped", from: "queued"
+      transition "Drop"   => "dropped", from: "done"
+    end
+
+    # ============================================================
+    # QUERIES
+    # ============================================================
+    #
+    # Today's DSL stores `query` as name + description (see i101) —
+    # the where/order/limit clauses are imperative Ruby blocks the
+    # Rust runtime cannot execute. The descriptions below carry the
+    # full intent so the future first-class query IR (i101) can
+    # parse them mechanically. Until then, the inbox.sh wrapper
+    # dispatches `hecks-life heki list` directly with the matching
+    # filter / order specs.
+
+    query "ListAll" do
+      description "Every Item, ordered by priority descending (high → low) then by ref numerically ascending. Mirrors `hecks-life heki list inbox.heki --order priority:enum=high,medium,normal,low --order ref:numeric_ref`."
+    end
+
+    query "ListQueued" do
+      description "Every Item where status = queued, ordered by priority then ref. The default `inbox list` view — what's still on Chris's plate."
+    end
+
+    query "ListDone" do
+      description "Every Item where status = done, ordered by priority then ref. Audit trail of what's been processed."
+    end
+
+    query "GetByRef" do
+      description "Look up one Item by its short ref (e.g., 'i42'). Returns the heki uuid and the full row. The shell wrapper uses this for `inbox show <ref>` — every other transition command (Close, Reopen, Drop) goes through ref → uuid resolution first."
+    end
+
+    query "NextRef" do
+      description "Compute the next monotonic ref by scanning every existing ref, stripping the alphabetic prefix ('i'), taking the numeric tail's max, and returning '<prefix><max+1>'. Handles gaps (deleted items) by skipping them — the next ref after a deletion is still max+1, not the gap. Mirrors `hecks-life heki next-ref inbox.heki --prefix i --field ref`."
+    end
+  end
+end

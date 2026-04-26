@@ -1,0 +1,240 @@
+Hecks.bluebook "NremConsolidation", version: "2026.04.26.1" do
+  vision "NREM consolidation as a bluebook domain — narrate the deep-sleep work (cold signals → memory, dead synapses → remains, duplicate musings archived) grounded in real counts, dispatch via :llm for the narrative voice, write sleep_summary so the status bar reads what the body is actually doing during NREM"
+  category "mind"
+
+  # ============================================================
+  # NREMCONSOLIDATION — the NREM half of i52 dream-cycle narrative
+  # ============================================================
+  #
+  # REM is poetic (capabilities/rem_dream/rem_dream.bluebook).
+  # NREM is work : during light, deep, and final_light phases the
+  # body consolidates the day's signals into memory, prunes dead
+  # synapses into remains, archives duplicate musings. This
+  # bluebook declares the narrative surface : how each phase
+  # describes what's happening, grounded in real counts, with the
+  # narrative line generated through the same :llm port REM uses.
+  #
+  # Replaces the shell script nrem_branch.sh as the source-of-truth
+  # declaration. The shell stays as the transitional adapter while
+  # the runtime grows :llm + :heki_read + :runtime_dispatch as
+  # first-class ports (same "in flight" pattern as
+  # capabilities/rem_dream/).
+  #
+  # Three commands form the narration sweep, one per stage :
+  #
+  #   NarrateLightSweep      — early consolidation (light NREM)
+  #   NarrateDeepSweep       — heavy lift (deep NREM)
+  #   NarrateFinalLightSweep — winding down (final_light NREM)
+  #
+  # Each carries the tally counts (signals / synapses / musings /
+  # memory / remains / cycle / total) so the narrative line can
+  # reference them concretely. The Dispatch* commands at the end
+  # announce Consciousness.DreamPulse with the rendered narrative
+  # (so the status bar reads the consolidation work in the same
+  # channel REM uses for poetic images) and upsert
+  # consciousness.sleep_summary directly so the field carries the
+  # latest narrative even between dispatches.
+
+  aggregate "ConsolidationSweep", "One NREM consolidation tick — gathers tally counts for the current phase, generates a narrative line via :llm, dispatches DreamPulse + updates sleep_summary." do
+    # ---- Identity / phase ----
+    attribute :consciousness_id, String
+    attribute :stage,            String
+    attribute :sleep_cycle,      Integer
+    attribute :sleep_total,      Integer
+
+    # ---- Tallies read from sibling .heki stores ----
+    #
+    # signals_count : open signal.heki rows (kind != archived)
+    # synapses_count : alive synapse.heki rows
+    # musings_count : musing.heki rows where conceived != true and status != archived
+    # memory_count : memory.heki total
+    # remains_count : remains.heki total
+    #
+    # Counts are read once per sweep ; the narrative is grounded
+    # in the snapshot taken at the start of the sweep.
+
+    attribute :signals_count,    Integer, default: 0
+    attribute :synapses_count,   Integer, default: 0
+    attribute :musings_count,    Integer, default: 0
+    attribute :memory_count,     Integer, default: 0
+    attribute :remains_count,    Integer, default: 0
+
+    # ---- Prompt + response convention (shared with rem_dream) ----
+    #
+    # input : prompt for the :llm port to render.
+    # response : generated narrative line. Captured into
+    # latest_narrative by Lock* commands before the next prompt
+    # overwrites it. Same input/response convention rem_dream's
+    # DreamBranch uses, so the runtime port lookup matches.
+
+    attribute :input,             String, default: ""
+    attribute :response,          String, default: ""
+    attribute :latest_narrative,  String, default: ""
+
+    # ---- Lifecycle ----
+    # phase : pending | reading | generating | locked |
+    #         dispatching | summary_updating | done
+    attribute :phase,             String, default: "pending"
+
+    lifecycle :phase, default: "pending" do
+      transition "StartSweep"             => "reading",          from: "pending"
+      transition "NarrateLightSweep"      => "generating",       from: "reading"
+      transition "NarrateDeepSweep"       => "generating",       from: "reading"
+      transition "NarrateFinalLightSweep" => "generating",       from: "reading"
+      transition "LockNarrative"          => "locked",           from: "generating"
+      transition "DispatchConsolidationPulse" => "dispatching",  from: "locked"
+      transition "UpdateSleepSummary"     => "summary_updating", from: "dispatching"
+      transition "CompleteSweep"          => "done",             from: "summary_updating"
+    end
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "StartSweep" do
+      role "Daemon"
+      description "Entrypoint invoked by mindstream once per NREM tick. Carries the consciousness id + stage + cycle + total + the five tally counts read from sibling .heki stores. The hecksagon's :heki_read port is the source ; the daemon shell currently provides the counts inline. NoOp if stage is rem (rem_dream owns that branch)."
+      attribute :consciousness_id, String
+      attribute :stage,            String
+      attribute :sleep_cycle,      Integer
+      attribute :sleep_total,      Integer
+      attribute :signals_count,    Integer
+      attribute :synapses_count,   Integer
+      attribute :musings_count,    Integer
+      attribute :memory_count,     Integer
+      attribute :remains_count,    Integer
+      then_set :consciousness_id, to: :consciousness_id
+      then_set :stage,            to: :stage
+      then_set :sleep_cycle,      to: :sleep_cycle
+      then_set :sleep_total,      to: :sleep_total
+      then_set :signals_count,    to: :signals_count
+      then_set :synapses_count,   to: :synapses_count
+      then_set :musings_count,    to: :musings_count
+      then_set :memory_count,     to: :memory_count
+      then_set :remains_count,    to: :remains_count
+      emits "SweepStarted"
+    end
+
+    # ============================================================
+    # PER-STAGE NARRATION — three commands, one per NREM phase
+    # ============================================================
+    #
+    # Each command writes the stage-appropriate prompt into :input.
+    # The :llm port renders ; the response lands on :response. The
+    # downstream LockNarrative command captures it into
+    # :latest_narrative.
+
+    command "NarrateLightSweep" do
+      role "System"
+      description "Light NREM : early consolidation, sorting fresh signals. Build a prompt that names what's queued (signals to sort, musings to archive) and what's deciding which become memory. Concrete, work-detail tone — not poetic ; reference real counts. Only fires when stage == 'light'."
+      given("must be light NREM") { stage == "light" }
+      then_set :phase, to: "generating"
+      emits "LightNarrationRequested"
+    end
+
+    command "NarrateDeepSweep" do
+      role "System"
+      description "Deep NREM : the heavy lift — signals collapsing into memory, weak synapses being pruned to remains, the survival sort. Build a prompt that names the consolidation work : N signals folding, M synapses tested, K musings sorted into what stays as me vs what was only passing. Only fires when stage == 'deep'."
+      given("must be deep NREM") { stage == "deep" }
+      then_set :phase, to: "generating"
+      emits "DeepNarrationRequested"
+    end
+
+    command "NarrateFinalLightSweep" do
+      role "System"
+      description "Final-light NREM : winding down, preparing to wake. Build a prompt that names what was kept (memory_count) vs what was released (remains_count), referencing the cycle/total so the summary knows how close to waking we are. Only fires when stage == 'final_light'."
+      given("must be final-light NREM") { stage == "final_light" }
+      then_set :phase, to: "generating"
+      emits "FinalLightNarrationRequested"
+    end
+
+    # ============================================================
+    # LOCK + DISPATCH
+    # ============================================================
+
+    command "LockNarrative" do
+      role "System"
+      description "Copy the current :response (the freshly-generated narrative line) into :latest_narrative so the next :input write does not clobber it. The dispatcher passes the live state.response as the response attribute."
+      attribute :response, String
+      then_set :latest_narrative, to: :response
+      then_set :phase,            to: "locked"
+      emits "NarrativeLocked"
+    end
+
+    command "DispatchConsolidationPulse" do
+      role "System"
+      description "Announce Consciousness.DreamPulse with :latest_narrative as the impression. Same channel REM uses — the status bar reads NREM consolidation lines through the same path it reads REM dream images. Prefix is conventionally 🧠 (consolidation work) vs 💭 (REM dream) but the bluebook does not enforce ; that's a renderer concern."
+      then_set :phase, to: "dispatching"
+      emits "ConsolidationPulseDispatched"
+    end
+
+    command "UpdateSleepSummary" do
+      role "System"
+      description "Upsert :latest_narrative directly into consciousness.sleep_summary so the field carries the consolidation detail even between DreamPulse dispatches. sleep.bluebook's Advance* commands set short phase-transition strings ; this command overrides them during the phase. Without it, the status bar would lose the narrative the moment a sub-second tick fired."
+      then_set :phase, to: "summary_updating"
+      emits "SleepSummaryUpdated"
+    end
+
+    command "CompleteSweep" do
+      role "System"
+      description "Sweep finished — narrative dispatched, summary updated, state locked. A future tick (next invocation) creates a fresh ConsolidationSweep record rather than reusing this one ; same multi-record semantics as DreamBranch in rem_dream."
+      then_set :phase, to: "done"
+      emits "SweepCompleted"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the NREM consolidation chain
+  # ============================================================
+  #
+  # On SweepStarted, three Narrate* commands fan out ; only the
+  # one whose `given` matches the current stage actually fires. The
+  # winner emits its *NarrationRequested event. Lock + dispatch
+  # follow on the unified path : LockNarrative observes any of the
+  # three NarrationRequested events.
+
+  policy "NarrateLightOnSweep" do
+    on "SweepStarted"
+    trigger "NarrateLightSweep"
+  end
+
+  policy "NarrateDeepOnSweep" do
+    on "SweepStarted"
+    trigger "NarrateDeepSweep"
+  end
+
+  policy "NarrateFinalLightOnSweep" do
+    on "SweepStarted"
+    trigger "NarrateFinalLightSweep"
+  end
+
+  policy "LockOnLightNarration" do
+    on "LightNarrationRequested"
+    trigger "LockNarrative"
+  end
+
+  policy "LockOnDeepNarration" do
+    on "DeepNarrationRequested"
+    trigger "LockNarrative"
+  end
+
+  policy "LockOnFinalLightNarration" do
+    on "FinalLightNarrationRequested"
+    trigger "LockNarrative"
+  end
+
+  policy "DispatchAfterLock" do
+    on "NarrativeLocked"
+    trigger "DispatchConsolidationPulse"
+  end
+
+  policy "UpdateSummaryAfterDispatch" do
+    on "ConsolidationPulseDispatched"
+    trigger "UpdateSleepSummary"
+  end
+
+  policy "CompleteAfterSummary" do
+    on "SleepSummaryUpdated"
+    trigger "CompleteSweep"
+  end
+end

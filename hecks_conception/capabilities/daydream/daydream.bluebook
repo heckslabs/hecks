@@ -1,0 +1,234 @@
+Hecks.bluebook "Daydream", version: "2026.04.26.1" do
+  vision "Free-association wander across the nursery when attentive + idle ∈ [10, 60]s — pick two random domains, hunt structural overlap (shared aggregate or attribute), fire a daydream impression and forge a new synapse at strength 0.5"
+  category "capability"
+  entrypoint "Wander"
+
+  # ============================================================
+  # DAYDREAM — attentive-idle wander as a domain
+  # ============================================================
+  #
+  # Retires hecks_conception/daydream.sh. The bluebook owns the
+  # selection rule (two random nursery .bluebook files), the overlap
+  # detection (shared aggregate name OR shared non-trivial attribute,
+  # excluding id/created_at/updated_at/name), the impression shape
+  # ("<A> and <B> both have a <SHARED>"), and the dual dispatch
+  # (Daydream.RecordDaydream + Synapse.CreateSynapse via heki append
+  # because CreateSynapse is multi-record without reference_to).
+  #
+  # The sibling daydream.hecksagon names the :fs (read nursery) +
+  # :hecks_dump (parse two random bluebooks for IR) + :heki_append
+  # (record daydream + synapse) + :runtime_dispatch (fire the
+  # dispatched commands) ports.
+  #
+  # Mindstream cadence : fires once per 60s during attentive+idle
+  # windows where idle ∈ [10, 60]s. The window check is shell-side
+  # today ; the bluebook's intent is `given { idle_seconds >= 10 &&
+  # idle_seconds <= 60 }`. The 60s rate-limit is a stamp file, also
+  # shell-side ; runtime gap is a per-aggregate "rate-limit" hint
+  # the runner consults before firing the entrypoint.
+
+  aggregate "Wandering", "One daydream wander — picks two domains, hunts overlap, dispatches impression + synapse" do
+    # ---- Inputs --------------------------------------------------
+    # idle_seconds : how long since the heartbeat last updated.
+    # Must be ∈ [10, 60] for the wander to fire — inside that
+    # window, attention is unfocused enough to drift but not so
+    # idle that the system is sliding toward sleep.
+    attribute :idle_seconds, Integer
+    # wandered_at : ISO-8601 timestamp the wander started. Stamps
+    # the synapse and daydream records.
+    attribute :wandered_at, String
+
+    # ---- Domain picks --------------------------------------------
+    # a_path / b_path : filesystem paths to the two randomly-picked
+    # nursery .bluebook files. Sampled with shuf (or sort -R fallback).
+    attribute :a_path, String
+    attribute :b_path, String
+    # a_name / b_name : the two domain names (Hecks.bluebook "Name"
+    # from each file). Used to build the impression and seed the
+    # synapse :from / :to.
+    attribute :a_name, String
+    attribute :b_name, String
+
+    # ---- Overlap -------------------------------------------------
+    # shared : the name of the overlapping element — an aggregate
+    # name or a non-trivial attribute name. Empty if no overlap is
+    # found (the wander aborts silently in that case).
+    attribute :shared, String
+    # kind : "aggregate" | "attribute" — describes what kind of
+    # overlap was found. Aggregate-level overlap is preferred ;
+    # attribute-level falls through when the two domains share no
+    # aggregate names but share a meaningful attribute.
+    attribute :kind, String
+
+    # ---- Impression ----------------------------------------------
+    # impression : the assembled phrase, "<A> and <B> both have a
+    # <SHARED>". Persisted as Daydream.impressions and announced
+    # via the dispatcher.
+    attribute :impression, String
+    # duration_seconds : wall-clock seconds the wander took.
+    # Bounded below at 1 to avoid 0-second records.
+    attribute :duration_seconds, Integer
+
+    # ---- Lifecycle field -----------------------------------------
+    attribute :phase, String, default: "pending"
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "Wander" do
+      role "Daemon"
+      description "User-visible entrypoint invoked by the mindstream during attentive+idle windows. The window check (idle ∈ [10, 60]s) and the 60s rate-limit (timestamp file) are shell-side gates today ; the bluebook's intent is `given { idle_seconds >= 10 && idle_seconds <= 60 }` plus a per-aggregate rate-limit hint. Inside the window, the runner walks the pipeline : PickDomains → DumpDomains → FindOverlap → (skip if no overlap) → BuildImpression → RecordImpression → ForgeSynapse."
+      attribute :idle_seconds, Integer
+      attribute :wandered_at, String
+      given { idle_seconds >= 10 }
+      given { idle_seconds <= 60 }
+      then_set :idle_seconds, to: :idle_seconds
+      then_set :wandered_at, to: :wandered_at
+      emits "WanderStarted"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS
+    # ============================================================
+
+    command "PickDomains" do
+      role "System"
+      description "Sample two random .bluebook paths from nursery/ via :fs. shuf is the default ; sort -R | head -2 falls back on systems without shuf. Empty pick (one or both paths blank) aborts the wander silently — no synapse, no impression."
+      attribute :a_path, String
+      attribute :b_path, String
+      then_set :a_path, to: :a_path
+      then_set :b_path, to: :b_path
+      then_set :phase, to: "picking"
+      emits "DomainsPicked"
+    end
+
+    command "DumpDomains" do
+      role "System"
+      description "Run hecks-life dump on both picks via the :hecks_dump port — emits domain JSON with .name, .aggregates[].name, .aggregates[].attributes[].name. Stamp :a_name and :b_name from the two .name fields. Failure to parse either bluebook aborts silently — malformed bluebooks should not block daydreaming."
+      attribute :a_name, String
+      attribute :b_name, String
+      then_set :a_name, to: :a_name
+      then_set :b_name, to: :b_name
+      then_set :phase, to: "dumping"
+      emits "DomainsDumped"
+    end
+
+    command "FindOverlap" do
+      role "System"
+      description "Hunt for a structural overlap between A and B. First check aggregate-name overlap : the set of aggregate names A defines intersected with B's. If the intersection is non-empty, pick one at random as :shared with :kind='aggregate'. Otherwise check attribute-name overlap, excluding the trivial set { id, created_at, updated_at, name, created, updated }. If non-empty, pick one at random with :kind='attribute'. Empty intersection in both cases means no overlap — the wander aborts silently."
+      attribute :shared, String
+      attribute :kind, String
+      then_set :shared, to: :shared
+      then_set :kind, to: :kind
+      then_set :phase, to: "finding"
+      emits "OverlapFound"
+    end
+
+    command "AbortIfNoOverlap" do
+      role "System"
+      description "Short-circuit when FindOverlap returned empty :shared — the two domains were structurally unrelated. Silent abort ; the wander completes without dispatching anything. Common case ; many random pairs share nothing meaningful."
+      given { shared == "" }
+      then_set :phase, to: "aborted_no_overlap"
+      emits "WanderAborted"
+    end
+
+    command "BuildImpression" do
+      role "System"
+      description "Compose the impression phrase : '<a_name> and <b_name> both have a <shared>'. Compute :duration_seconds as the wall-clock delta from :wandered_at to now, bounded below at 1 (zero-second records are ugly). Stamps the aggregate so the next two commands have everything they need."
+      given { shared != "" }
+      attribute :impression, String
+      attribute :duration_seconds, Integer
+      then_set :impression, to: :impression
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :phase, to: "building"
+      emits "ImpressionBuilt"
+    end
+
+    command "RecordImpression" do
+      role "System"
+      description "Persist the impression two ways. (1) Append to daydream.heki via :heki_append : :impressions, :duration_seconds, :connections_found=1, :wandered_at. (2) Dispatch Daydream.RecordDaydream via :runtime_dispatch so the bluebook's RecordDaydream event chain fires for any subscribers. Both paths exist because RecordDaydream is singleton-style (no reference_to) — dispatch upserts ; append keeps history."
+      then_set :phase, to: "recording"
+      emits "ImpressionRecorded"
+    end
+
+    command "ForgeSynapse" do
+      role "System"
+      description "Forge a new cross-domain synapse at birth strength 0.5. Append to synapse.heki via :heki_append : :from=a_name, :to=b_name, :strength=0.5, :state='forming', :firings=0, :last_fired_at=wandered_at. CreateSynapse on the Synapse aggregate has no reference_to — dispatch alone would singleton-upsert, so the append is the multi-record pattern (matches pulse_organs.sh:138). The 0.5 birth strength mirrors the original task spec."
+      then_set :phase, to: "forging"
+      emits "SynapseForged"
+    end
+
+    command "CompleteWander" do
+      role "System"
+      description "Wander finished — :phase moves to done. Whether the path was full (impression + synapse) or aborted (no overlap), the cycle closes here so the mindstream's next attentive-idle window can fire a fresh wander."
+      then_set :phase, to: "done"
+      emits "WanderCompleted"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "Wander"            => "picking",            from: "pending"
+      transition "PickDomains"       => "picking",            from: "pending"
+      transition "DumpDomains"       => "dumping",            from: "picking"
+      transition "FindOverlap"       => "finding",            from: "dumping"
+      transition "AbortIfNoOverlap"  => "aborted_no_overlap", from: "finding"
+      transition "BuildImpression"   => "building",           from: "finding"
+      transition "RecordImpression"  => "recording",          from: "building"
+      transition "ForgeSynapse"      => "forging",            from: "recording"
+      transition "CompleteWander"    => "done",               from: ["forging", "aborted_no_overlap"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the wander chain
+  # ============================================================
+
+  policy "PickOnStart" do
+    on "WanderStarted"
+    trigger "PickDomains"
+  end
+
+  policy "DumpAfterPick" do
+    on "DomainsPicked"
+    trigger "DumpDomains"
+  end
+
+  policy "FindAfterDump" do
+    on "DomainsDumped"
+    trigger "FindOverlap"
+  end
+
+  # Two outgoing edges from OverlapFound — AbortIfNoOverlap fires
+  # only when :shared == "" (its given gates it) ; BuildImpression
+  # fires when :shared != "". Same shape as MusingMint's skip vs
+  # persist branch.
+  policy "AbortOnNoOverlap" do
+    on "OverlapFound"
+    trigger "AbortIfNoOverlap"
+  end
+
+  policy "BuildAfterFind" do
+    on "OverlapFound"
+    trigger "BuildImpression"
+  end
+
+  policy "RecordAfterBuild" do
+    on "ImpressionBuilt"
+    trigger "RecordImpression"
+  end
+
+  policy "ForgeAfterRecord" do
+    on "ImpressionRecorded"
+    trigger "ForgeSynapse"
+  end
+
+  policy "CompleteAfterForge" do
+    on "SynapseForged"
+    trigger "CompleteWander"
+  end
+
+  policy "CompleteAfterAbort" do
+    on "WanderAborted"
+    trigger "CompleteWander"
+  end
+end

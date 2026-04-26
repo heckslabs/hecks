@@ -17,6 +17,7 @@ pub fn parse(source: &str) -> Domain {
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
+        sections: vec![],
     };
 
     // Tolerate a leading `#!...\n` shebang so .bluebook files can be marked
@@ -60,6 +61,18 @@ pub fn parse(source: &str) -> Domain {
         if line.starts_with("aggregate") {
             let (agg, consumed) = parse_aggregate(&lines[i..]);
             domain.aggregates.push(agg);
+            i += consumed;
+            continue;
+        }
+
+        // Top-level section block — capability dashboards (status,
+        // statusline) declare their layout as `section "Title" do row
+        // "label", :field … end`. The renderer walks domain.sections
+        // instead of hard-coding section composition. See
+        // capabilities/status/status.bluebook for the canonical use.
+        if line.starts_with("section ") || line.starts_with("section\t") {
+            let (sec, consumed) = parse_section(&lines[i..]);
+            domain.sections.push(sec);
             i += consumed;
             continue;
         }

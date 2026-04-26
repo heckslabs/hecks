@@ -1,0 +1,28 @@
+Hecks.behaviors "MindstreamCapability" do
+  vision "Behavioral tests for the MindstreamCapability orchestrator — cadence config + wake-hook policy registration"
+
+  # ── Cadence aggregate ───────────────────────────────────────
+
+  test "Configure records cadence parameters" do
+    tests "Configure", on: "Cadence"
+    input  interval_ms: 1000, command: "Tick.MindstreamTick", driver: "hecks-life loop", pid: 12345, started_at: "2026-04-26T00:00:00Z"
+    expect interval_ms: 1000, command: "Tick.MindstreamTick", driver: "hecks-life loop"
+  end
+
+  # ── Wake-hook policies ──────────────────────────────────────
+  #
+  # The wake-hook policies (InterpretDreamOnWake, ProduceWakeReportOnWake)
+  # are cross-domain — their trigger commands (ReadDreamImages, StartReport)
+  # live in capabilities/dream_interpretation/ and capabilities/wake_report/
+  # respectively. The single-bluebook behaviors runner can't cross those
+  # boundaries, so cascade tests would terminate at WokenUp without
+  # asserting the trigger lands.
+  #
+  # Once the runtime supports loading capabilities/* alongside aggregates/
+  # (see inbox runtime gap "capability bluebooks not loadable"), these
+  # become real cascade tests :
+  #   test "InterpretDreamOnWake fires ReadDreamImages on WokenUp" do
+  #     tests "WakeUp", on: "Consciousness", kind: :cascade
+  #     expect emits: ["WokenUp", "DreamImagesRead"]
+  #   end
+end

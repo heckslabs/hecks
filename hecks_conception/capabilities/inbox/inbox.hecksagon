@@ -1,0 +1,75 @@
+Hecks.hecksagon "Inbox" do
+  # ============================================================
+  # INBOX — hexagonal wiring for the inbox CLI capability
+  # ============================================================
+  #
+  # The sibling bluebook declares the Invocation aggregate's pipeline
+  # (route → resolve → dispatch → commit → push → render → exit). The
+  # outbound ports below are the I/O surface :
+  #
+  #   ResolveNextRef       → :fs   (heki next-ref over inbox.heki)
+  #   ResolveRef           → :fs   (heki list ... --where ref=iN)
+  #   DispatchAdd          → :fs   (heki append) + :memory (Item.Add
+  #                                  emits ItemAdded ; when wish_id
+  #                                  is set, the consumer-contract
+  #                                  cross-domain trigger dispatches
+  #                                  DreamWish.MarkFiled, which writes
+  #                                  through :fs)
+  #   RunListQuery         → :fs   (heki list with the matching
+  #                                  filter + order spec)
+  #   RunGetByRef          → :fs   (heki get by uuid)
+  #   DispatchTransition   → :fs   (heki upsert for Close/Reopen ;
+  #                                  heki delete for Drop)
+  #   CommitLocal          → :shell (git add + git commit)
+  #   PushToMain           → :shell (git fetch + worktree add + cp +
+  #                                  git add + git commit + git push +
+  #                                  worktree remove)
+  #   Render               → :stdout
+  #
+  # The :shell adapter is the carrier for the durability dance
+  # (CommitLocal + PushToMain). It wraps a sequence of git invocations
+  # — there is no first-class :git adapter today (filed as a runtime
+  # gap ; see the inbox item created alongside this conversion). Once
+  # :git lands, this hecksagon retires the :shell entry in favour of
+  # six declared git operations, the same way :daemon retired
+  # boot.sh's launcher subshells.
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :fs — reads + writes inbox.heki (and dream_wish.heki for the
+  # wish-receipt cross-domain dispatch). Anchored to the conception's
+  # information/ directory.
+  adapter :fs, root: "hecks_conception/information"
+
+  # :memory — for the cross-aggregate dispatch from Item.Add to
+  # DreamWish.MarkFiled when a filing carries a wish_id. The runtime
+  # holds both aggregates in the same in-process registry.
+  adapter :memory
+
+  # :stdout — render the formatted output. add prints the new ref ;
+  # list prints the table ; get prints the record block ; transitions
+  # print the one-line confirmation.
+  adapter :stdout
+
+  # :stderr — friendly errors only (unknown subcommand, ref not
+  # found, durability failure warnings).
+  adapter :stderr
+
+  # :shell — the durability adapter. Invokes git as a black box
+  # because the runtime has no first-class :git adapter yet. The
+  # CommitLocal + PushToMain commands declare WHAT runs and WHEN ;
+  # the shell adapter declares HOW the sequence is invoked. A filed
+  # runtime gap names this as the next structural cleanup.
+  adapter :shell
+
+  # ---- Subcommand registry ---------------------------------------
+  #
+  # The argv split (subcommand + positional args + --wish=… flag)
+  # happens in the runner before BeginInvocation fires. Today the
+  # shell wrapper does this parse ; once a first-class :argv
+  # adapter or `cli` keyword lands, the registry below becomes the
+  # data the runner consults.
+
+  adapter :cli, name: :inbox,
+    subcommands: [:add, :list, :get, :close, :reopen, :drop, :next_ref]
+end
