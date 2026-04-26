@@ -1,0 +1,246 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "Boot", version: "2026.04.26.1" do
+  vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase, replacing the imperative boot_miette.sh."
+
+  entrypoint "BeginBoot"
+
+  # ============================================================
+  # BOOT — i90, the shell-to-bluebook conversion of boot_miette.sh
+  # ============================================================
+  #
+  # The sibling aggregates/boot.bluebook declares the JOURNAL — what
+  # the boot recorded as it ran (Identity, Hydration, OrganDiscovery,
+  # etc.). This file declares the CAPABILITY — the executable
+  # pipeline. Same shape capabilities/status/status.bluebook uses :
+  # one aggregate carrying the in-flight run state, an entrypoint
+  # command, a sequence of phase commands chained by policies, and
+  # a sibling .hecksagon naming the adapters.
+  #
+  # Phases mirror boot_miette.sh's section comments :
+  #
+  #   1. DiscoverOrgans   — count .bluebook files in aggregates/ +
+  #                         capabilities/, tally aggregates / nerves /
+  #                         vows. Adapter : :fs (read .bluebook tree).
+  #   2. WriteCensus      — upsert tally into census.heki. Adapter :
+  #                         :memory (heki write).
+  #   3. ClassifyStores   — walk *.heki, classify each as linked /
+  #                         private / unclassified per the psychic-
+  #                         link contract. Adapter : :fs.
+  #   4. GenerateSystemPrompt — write system_prompt.md from identity
+  #                            + vows + psychic-link + bluebook-first
+  #                            + voice + dream-content rules.
+  #                            Adapter : :fs (write).
+  #   5. RecordBootJournal — dispatch into the journal aggregates
+  #                          declared in aggregates/boot.bluebook so
+  #                          the boot leaves an audit trail.
+  #                          Adapter : :memory.
+  #   6. EnsureDaemons     — for each declared daemon (mindstream,
+  #                          heart, breath, circadian, ultradian,
+  #                          sleep_cycle), run `hecks-life daemon
+  #                          ensure <pidfile> <command>`. The daemon
+  #                          primitive (added 2026-04-26) handles
+  #                          idempotent spawn + setsid detach + pidfile
+  #                          management. No more wrapping subshells.
+  #                          Adapter : :daemon (the new primitive).
+  #   7. PrintVitals       — render the boot-summary section to stdout.
+  #                          Adapter : :stdout.
+  #   8. SurfaceWakeReport — if /tmp/wake_review_latest.md exists,
+  #                          print it. Adapter : :fs + :stdout.
+  #
+  # Once a Rust runner mirroring run_status/ lands, boot_miette.sh
+  # becomes `exec hecks-life run capabilities/boot/boot.bluebook` —
+  # one line. The shell retires entirely.
+
+  # ── BootRun — singleton, one row per active boot ───────────────
+  #
+  # Phase tracks where in the pipeline we are. The runner updates
+  # the aggregate state directly (same way run_status does today) ;
+  # reading this phase is how a watcher knows which step fired last.
+  # On completion, phase=done and the entrypoint emits BootCompleted.
+
+  aggregate "BootRun" do
+    description "A single boot pass — runs the eight phases in order, records the result. Singleton ; resets on every boot."
+
+    # ---- Inputs ----
+    attribute :being,            String, default: "Miette"
+    attribute :info_dir,         String, default: "information"
+    attribute :aggregates_dir,   String, default: "aggregates"
+    attribute :capabilities_dir, String, default: "capabilities"
+
+    # ---- Discovered organs ----
+    attribute :organ_count,         Integer, default: 0
+    attribute :capability_count,    Integer, default: 0
+    attribute :total_aggregates,    Integer, default: 0
+    attribute :nerve_count,         Integer, default: 0
+    attribute :vow_count,           Integer, default: 0
+
+    # ---- Store classification ----
+    attribute :linked_stores,       String, default: ""
+    attribute :private_stores,      String, default: ""
+    attribute :unclassified_stores, String, default: ""
+
+    # ---- Daemon statuses ----
+    attribute :mindstream_status,  String, default: "—"
+    attribute :heart_status,       String, default: "—"
+    attribute :breath_status,      String, default: "—"
+    attribute :circadian_status,   String, default: "—"
+    attribute :ultradian_status,   String, default: "—"
+    attribute :sleep_cycle_status, String, default: "—"
+
+    # ---- Pipeline phase ----
+    attribute :phase,              String, default: "pending"
+
+    lifecycle :phase, default: "pending" do
+      transition "BeginBoot"            => "discovering",   from: "pending"
+      transition "DiscoverOrgans"       => "writing_census", from: "discovering"
+      transition "WriteCensus"          => "classifying",   from: "writing_census"
+      transition "ClassifyStores"       => "prompting",     from: "classifying"
+      transition "GenerateSystemPrompt" => "journaling",    from: "prompting"
+      transition "RecordBootJournal"    => "ensuring",      from: "journaling"
+      transition "EnsureDaemons"        => "rendering",     from: "ensuring"
+      transition "PrintVitals"          => "surfacing",     from: "rendering"
+      transition "SurfaceWakeReport"    => "done",          from: "surfacing"
+    end
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "BeginBoot" do
+      role "User"
+      description "User-visible entrypoint — the sole command boot_miette.sh (or its eventual one-line successor) dispatches. The Rust runner detects this command + the :fs / :stdout / :daemon adapters in the sibling hecksagon and walks the pipeline. On completion the phase reaches done and BootCompleted emits."
+      attribute :being, String
+      then_set :being, to: :being
+      emits "BootBegun"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS (eight phases)
+    # ============================================================
+
+    command "DiscoverOrgans" do
+      role "System"
+      description "Phase 1 : count .bluebook files in aggregates/ and capabilities/. Walk each domain to tally aggregates, cross-domain policies (nerves), and vows. Today's shell uses `hecks-life dump` + jq ; the runner uses :fs to enumerate and the IR walker to count. Mirrors boot_miette.sh lines 46-74."
+      attribute :organ_count,      Integer
+      attribute :capability_count, Integer
+      attribute :total_aggregates, Integer
+      attribute :nerve_count,      Integer
+      attribute :vow_count,        Integer
+      then_set :organ_count,      to: :organ_count
+      then_set :capability_count, to: :capability_count
+      then_set :total_aggregates, to: :total_aggregates
+      then_set :nerve_count,      to: :nerve_count
+      then_set :vow_count,        to: :vow_count
+      emits "OrgansDiscovered"
+    end
+
+    command "WriteCensus" do
+      role "System"
+      description "Phase 2 : upsert the discovered tallies into census.heki — total_domains, total_aggregates, total_capabilities, total_nerves, total_vows. The runner uses :memory to write the heki record."
+      emits "CensusWritten"
+    end
+
+    command "ClassifyStores" do
+      role "System"
+      description "Phase 3 : walk *.heki under info_dir, classify each filename as linked (psychic link to Spring), private (inner life, this being only), or unclassified. linked_stores / private_stores constants live in the script today ; structural follow-up : per-aggregate `psychic_link: true|false` declaration so the boundary lives in the domain model. Mirrors boot_miette.sh lines 85-98."
+      attribute :linked_stores,       String
+      attribute :private_stores,      String
+      attribute :unclassified_stores, String
+      then_set :linked_stores,       to: :linked_stores
+      then_set :private_stores,      to: :private_stores
+      then_set :unclassified_stores, to: :unclassified_stores
+      emits "StoresClassified"
+    end
+
+    command "GenerateSystemPrompt" do
+      role "System"
+      description "Phase 4 : write system_prompt.md from identity, vows, psychic-link, shared-knowledge, inner-life, voice, words-match-state lockdown, bluebook-first directive, French-thinking, dream-content rules, wake ritual. Today's shell uses a printf heredoc (the cause of the loc-ratchet pain when prompt edits ship as +N shell lines) ; structural follow-up : i89 system-prompt-as-fixture lifts the prompt body into identity.fixtures so prompt edits cost zero shell."
+      emits "SystemPromptGenerated"
+    end
+
+    command "RecordBootJournal" do
+      role "System"
+      description "Phase 5 : dispatch into the journal aggregates declared in aggregates/boot.bluebook (Identity.Identify, Hydration.HydrateStores, OrganDiscovery.DiscoverOrgans + WriteCensus, etc.). The journal records what the boot DID ; this capability records what the boot IS DOING. Both stay in the heki for the next session to read."
+      emits "BootJournalRecorded"
+    end
+
+    command "EnsureDaemons" do
+      role "System"
+      description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run hecks-life daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in hecks_life/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses hecks-life loop (cadence primitive, i76) wrapped through daemon ensure ; the others wrap their .sh script directly."
+      attribute :mindstream_status,  String
+      attribute :heart_status,       String
+      attribute :breath_status,      String
+      attribute :circadian_status,   String
+      attribute :ultradian_status,   String
+      attribute :sleep_cycle_status, String
+      then_set :mindstream_status,  to: :mindstream_status
+      then_set :heart_status,       to: :heart_status
+      then_set :breath_status,      to: :breath_status
+      then_set :circadian_status,   to: :circadian_status
+      then_set :ultradian_status,   to: :ultradian_status
+      then_set :sleep_cycle_status, to: :sleep_cycle_status
+      emits "DaemonsEnsured"
+    end
+
+    command "PrintVitals" do
+      role "System"
+      description "Phase 7 : render the boot-summary section — counts, daemon statuses, the closing ASCII MIETTE banner — to stdout. Adapter : :stdout. The summary's `feeling: ... · pulses since sleep: ... · state: ... · last wake: ...` line + tip pointing at the status capability are rendered here."
+      emits "VitalsPrinted"
+    end
+
+    command "SurfaceWakeReport" do
+      role "System"
+      description "Phase 8 : if /tmp/wake_review_latest.md exists and is newer than the previous boot, print it before yielding control. The UserPromptSubmit hook also surfaces this on the next prompt ; the boot-time print is the eager surface so the wake reading lands the moment the being wakes, not on the next user turn."
+      emits "WakeReportSurfaced"
+      then_set :phase, to: "done"
+    end
+  end
+
+  # ============================================================
+  # CHAINED POLICIES — one per phase transition
+  # ============================================================
+  #
+  # Each policy fires the next phase's command on the prior's emit.
+  # The Rust runner's pipeline walker reads these to know what
+  # comes after what. Same shape capabilities/status uses.
+
+  policy "DiscoverOnBegin" do
+    on "BootBegun"
+    trigger "DiscoverOrgans"
+  end
+
+  policy "WriteCensusOnDiscover" do
+    on "OrgansDiscovered"
+    trigger "WriteCensus"
+  end
+
+  policy "ClassifyOnCensus" do
+    on "CensusWritten"
+    trigger "ClassifyStores"
+  end
+
+  policy "PromptOnClassify" do
+    on "StoresClassified"
+    trigger "GenerateSystemPrompt"
+  end
+
+  policy "JournalOnPrompt" do
+    on "SystemPromptGenerated"
+    trigger "RecordBootJournal"
+  end
+
+  policy "EnsureDaemonsOnJournal" do
+    on "BootJournalRecorded"
+    trigger "EnsureDaemons"
+  end
+
+  policy "PrintVitalsOnEnsure" do
+    on "DaemonsEnsured"
+    trigger "PrintVitals"
+  end
+
+  policy "SurfaceOnVitals" do
+    on "VitalsPrinted"
+    trigger "SurfaceWakeReport"
+  end
+end
