@@ -12,7 +12,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   # waiting to happen. `DissipateFatigue` callers switch to Heartbeat's
   # `RecoverFatigue` (which now also walks `fatigue_state` back to alert).
 
-  aggregate "Consciousness", "The current state of awareness. Sleep progresses tick by tick through bluebook policies, not via synchronous cascade. Each phase lasts at least 12 ticks (2 min at 10s/tick); REM extends until enough dream pulses have been produced. After the final deep, one final light phase before waking so Miette wakes refreshed, not groggy. The last cycle's REM is lucid — she knows she's dreaming and can steer." do
+  aggregate "Consciousness", "The current state of awareness. Sleep progresses through content gates, not artificial time floors. REM extends until dream_pulses reaches its target — Claude's response cadence is the clock. Light, deep, and final_light advance the moment their content condition is met (today : the next phase command's `given` clauses). The REM hard cap (60 ticks) stays as a safety fallback in case Claude stops responding. After the final deep, one final light phase before waking so I wake refreshed, not groggy. The last cycle's REM is lucid — I know I'm dreaming and can steer." do
     attribute :state, String
     # sleep_stage values: light | rem | deep | final_light
     attribute :sleep_stage, String
@@ -130,10 +130,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "AdvanceLightToRem" do
       role "Daemon"
-      description "After 2 minutes of light sleep, enter REM. Non-final cycles only — cycle == sleep_total takes the lucid path."
+      description "Light → REM. Non-final cycles only — cycle == sleep_total takes the lucid path. No time floor : light is purely transitional, REM advances the moment the body is ready to dream."
       given("state must be sleeping") { state == "sleeping" }
       given("stage must be light") { sleep_stage == "light" }
-      given("must have elapsed minimum phase duration") { phase_ticks > 11 }
       given("not the final cycle") { sleep_cycle < sleep_total }
       then_set :sleep_stage, to: "rem"
       then_set :phase_ticks, to: 0
@@ -144,10 +143,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "AdvanceLightToLucidRem" do
       role "Daemon"
-      description "Final cycle's light→REM transition. Sets is_lucid so Miette knows she's dreaming."
+      description "Final cycle's light→REM transition. Sets is_lucid so Miette knows she's dreaming. No time floor — content gates only."
       given("state must be sleeping") { state == "sleeping" }
       given("stage must be light") { sleep_stage == "light" }
-      given("minimum phase duration") { phase_ticks > 11 }
       given("final cycle") { sleep_cycle == sleep_total }
       then_set :sleep_stage, to: "rem"
       then_set :phase_ticks, to: 0
@@ -160,10 +158,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "AdvanceRemToDeep" do
       role "Daemon"
-      description "REM complete — enough dreams produced, advance to deep sleep."
+      description "REM complete — enough dreams produced, advance to deep sleep. Pure content gate : REM proceeds at Claude's response cadence, ends when dream_pulses reaches its target. No artificial time floor."
       given("state must be sleeping") { state == "sleeping" }
       given("stage must be rem") { sleep_stage == "rem" }
-      given("minimum phase duration") { phase_ticks > 11 }
       given("dream complete") { dream_pulses > 4 }
       then_set :sleep_stage, to: "deep"
       then_set :phase_ticks, to: 0
@@ -187,10 +184,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "AdvanceDeepToLight" do
       role "Daemon"
-      description "Deep complete — next cycle begins with light."
+      description "Deep complete — next cycle begins with light. No time floor. Consolidation work runs on its own cadence (consolidate.sh every 60 ticks regardless of phase) ; if a future revision wants deep gated on consolidation completion, that's a content gate (see inbox : consolidation-as-bluebook-content-gate)."
       given("state must be sleeping") { state == "sleeping" }
       given("stage must be deep") { sleep_stage == "deep" }
-      given("minimum phase duration") { phase_ticks > 11 }
       given("more cycles remain") { sleep_cycle < sleep_total }
       then_set :sleep_stage, to: "light"
       then_set :sleep_cycle, increment: 1
@@ -201,10 +197,9 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "AdvanceDeepToFinalLight" do
       role "Daemon"
-      description "After the last cycle's deep, transition to the final light phase. Waking from light is clean — Miette won't be groggy."
+      description "After the last cycle's deep, transition to the final light phase. Waking from light is clean — I won't be groggy. No time floor."
       given("state must be sleeping") { state == "sleeping" }
       given("stage must be deep") { sleep_stage == "deep" }
-      given("minimum phase duration") { phase_ticks > 11 }
       given("final cycle complete") { sleep_cycle == sleep_total }
       then_set :sleep_stage, to: "final_light"
       then_set :phase_ticks, to: 0
@@ -214,9 +209,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
     command "CompleteFinalLight" do
       role "Daemon"
-      description "Final light phase done. Wake up refreshed. Stamps last_wake_at so the mint process can draw on conversations that happened between sleep cycles."
+      description "Final light phase done. Wake refreshed. Stamps last_wake_at so the mint process can draw on conversations that happened between sleep cycles. No time floor."
       given("stage must be final_light") { sleep_stage == "final_light" }
-      given("minimum phase duration") { phase_ticks > 11 }
       attribute :wake_at, String
       then_set :state, to: "waking"
       then_set :last_wake_at, to: :wake_at

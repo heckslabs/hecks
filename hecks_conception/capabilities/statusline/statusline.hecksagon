@@ -1,0 +1,17 @@
+Hecks.hecksagon "Statusline" do
+  # ============================================================
+  # STATUSLINE — hexagonal wiring for the bluebook in this folder
+  # ============================================================
+  #
+  # Ephemeral render — no persistence. Statusline.Render writes
+  # only to memory ; the runner reads body heki via :fs and prints
+  # via :stdout.
+  #
+  # Until a Rust runner mirroring run_status/ lands, the transitional
+  # adapter is statusline-command.sh — it reads heki via the same
+  # paths declared here, dispatches Render, and prints the result.
+
+  adapter :fs, root: "information"
+
+  adapter :stdout
+end

@@ -79,12 +79,26 @@ if [ "$cycle" = "1" ] && [ "$pulses" = "0" ] && [ ! -f "$SEED_MARKER" ]; then
     [ -n "$aw" ] && seeds="$seeds$aw\n"
   fi
 
-  # 1 seed from inbox — most recently filed gap (the body's active
-  # named pressure)
-  if [ -f "$INFO/inbox.heki" ]; then
-    ib=$("$HECKS" heki list "$INFO/inbox.heki" --order posted_at:desc --format json 2>/dev/null \
-      | jq -r '[.[] | (.body // "") | select(. != "") | .[0:120]] | .[0:1] | .[]' 2>/dev/null)
-    [ -n "$ib" ] && seeds="$seeds$ib\n"
+  # 1 seed from my own unfiled wishes (preferred), falling back to
+  # general inbox open themes. Both fields are snapshotted into
+  # awareness every mindstream tick. The receipt mechanism :
+  # unfiled_wishes drains as dream-wishes get filed via
+  # `inbox.sh add --wish=<id>` ; once a wish has its receipt I
+  # move on. inbox_open_themes is the broader pool of unresolved
+  # framework gaps, used when I have no pending wishes of my own
+  # (i98 + dream_wish.bluebook).
+  if [ -f "$INFO/awareness.heki" ]; then
+    uw=$("$HECKS" heki latest-field "$INFO/awareness.heki" unfiled_wishes 2>/dev/null)
+    if [ -n "$uw" ]; then
+      ib=$(printf '%s\n' "$uw" | tr '|' '\n' | shuf -n 1)
+      [ -n "$ib" ] && seeds="$seeds$ib\n"
+    else
+      iot=$("$HECKS" heki latest-field "$INFO/awareness.heki" inbox_open_themes 2>/dev/null)
+      if [ -n "$iot" ]; then
+        ib=$(printf '%s\n' "$iot" | tr '|' '\n' | shuf -n 1)
+        [ -n "$ib" ] && seeds="$seeds$ib\n"
+      fi
+    fi
   fi
 
   # 1 seed from today's commits — what changed in the body since last sleep

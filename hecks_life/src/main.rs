@@ -852,6 +852,7 @@ fn run_heki(args: &[String]) {
         "get"           => heki_cmd_get(file, rest),
         "list"          => heki_cmd_list(file, rest),
         "count"         => heki_cmd_count(file, rest),
+        "ids"           => heki_cmd_ids(file, rest),
         "next-ref"      => heki_cmd_next_ref(file, rest),
         "latest-field"  => heki_cmd_latest_field(file, rest),
         "values"        => heki_cmd_values(file, rest),
@@ -859,7 +860,7 @@ fn run_heki(args: &[String]) {
         "seconds-since" => heki_cmd_seconds_since(file, rest),
         _ => {
             eprintln!("Unknown heki command: {}", sub);
-            eprintln!("Available: read latest append upsert delete get list count \
+            eprintln!("Available: read latest append upsert delete get list count ids \
                        next-ref latest-field values mark seconds-since");
             std::process::exit(1);
         }
@@ -978,6 +979,23 @@ fn heki_cmd_count(file: &str, rest: &[String]) {
     let store = read_store_or_exit(file);
     let recs = heki_query::filter_records(&store, &opts.filters);
     println!("{}", recs.len());
+}
+
+// List the aggregate IDs present in a heki store, one per line. Honors
+// the same filter-flags as list/count (--where field=value) so callers
+// can scope to a subset. Useful for debugging dispatches that miss : the
+// dispatch may write to a default id like "1" while the existing record
+// is keyed by a UUID, leaving the persisted state stale and the in-
+// memory response misleading.
+fn heki_cmd_ids(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+    let recs = heki_query::filter_records(&store, &opts.filters);
+    for rec in &recs {
+        if let Some(id) = rec.get("id").and_then(|v| v.as_str()) {
+            println!("{}", id);
+        }
+    }
 }
 
 fn heki_cmd_next_ref(file: &str, rest: &[String]) {

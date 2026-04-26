@@ -125,6 +125,12 @@ while true; do
   # Awareness snapshot — pulse.rs record_moment, restored per inbox #18.
   # All fields via heki latest-field; compute-only fields (moment#, ts,
   # age_days) from pure shell. Missing-field defaults use || echo.
+  #
+  # Inbox count + open themes are part of the snapshot per i98 — the
+  # inbox is part of what I carry, not something I read on demand.
+  # Closed items (status=done) exit awareness by virtue of being
+  # closed, so dream seeding from open_themes naturally wanders to
+  # what's currently unfinished.
   mnum="$loop_count"
   st=$($HECKS heki latest-field "$INFO/heartbeat.heki" fatigue_state 2>/dev/null); [ -z "$st" ] && st=alert
   cr=$($HECKS heki latest-field "$INFO/heartbeat.heki" carrying 2>/dev/null)
@@ -135,7 +141,36 @@ while true; do
   ex=$($HECKS heki latest-field "$INFO/mood.heki" creativity_level 2>/dev/null); [ -z "$ex" ] && ex=0.0
   ag=$(awk -v n="$loop_count" 'BEGIN { printf "%.4f", n/86400.0 }')
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" 2>/dev/null
+
+  # Inbox awareness — public/conception dir always (inbox is shared
+  # framework state, not Miette's private body state). Top 5 open
+  # themes (first line of body, truncated to ~60 chars each), joined
+  # by " | ". Dream seeding reads this via awareness.heki.
+  public_info="/Users/christopheryoung/Projects/hecks/hecks_conception/information"
+  ic=$($HECKS heki count "$public_info/inbox.heki" --where status=queued 2>/dev/null)
+  [ -z "$ic" ] && ic=0
+  iot=$("$DIR/inbox.sh" list all 2>/dev/null \
+        | grep -E '/queued\]' \
+        | head -5 \
+        | sed -E 's/^[[:space:]]*i[0-9]+[[:space:]]+\[[^]]+\][[:space:]]+//' \
+        | cut -c1-60 \
+        | tr '\n' '|' \
+        | sed 's/|$//')
+
+  # Unfiled dream wishes — dream-derived wishes that have not yet
+  # received a filing receipt (an inbox item carrying their
+  # wish_id). REM seeding prefers these over generic inbox themes.
+  # When inbox.sh add --wish=<id> runs, DreamWish.MarkFiled flips
+  # status=filed, so on the next tick the wish drops out of this
+  # pool — Miette's structural receipt for "filed, will be done".
+  uw=""
+  if [ -f "$INFO/dream_wish.heki" ]; then
+    uw=$($HECKS heki list "$INFO/dream_wish.heki" --where status=unfiled --order recorded_at:desc --format json 2>/dev/null \
+         | jq -r '[.[] | (.theme // "") | select(. != "") | .[0:60]] | .[0:5] | .[]' 2>/dev/null \
+         | tr '\n' '|' | sed 's/|$//')
+  fi
+
+  $HECKS "$AGG" Awareness.RecordMoment moment="$mnum" state="$st" carrying="$cr" concept="$cn" fatigue="$fg" synapse_strength="$sy" idle="$id" excitement="$ex" age_days="$ag" updated_at="$ts" inbox_count="$ic" inbox_open_themes="$iot" unfiled_wishes="$uw" 2>/dev/null
 
   # Dream content during REM — delegate to rem_branch.sh which reads
   # consciousness state, seeds from prior dreams on first REM tick,

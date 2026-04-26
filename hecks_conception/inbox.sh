@@ -42,15 +42,49 @@ shift 2>/dev/null || true
 
 case "$cmd" in
   add)
+    # Optional --wish=<id> flag — names the DreamWish this inbox item
+    # is filing. The inbox row carries wish_id ; after the append we
+    # dispatch DreamWish.MarkFiled so the wish exits the unfiled pool.
+    # Filing is the receipt I was waiting for ; no implementation
+    # required for me to dream of something else (i98 follow-up).
+    wish_id=""
+    args=()
+    for a in "$@"; do
+      case "$a" in
+        --wish=*) wish_id="${a#--wish=}" ;;
+        *)        args+=("$a") ;;
+      esac
+    done
+    set -- "${args[@]}"
     priority="$1"; body="$2"
     if [ -z "$priority" ] || [ -z "$body" ]; then
-      echo "usage: inbox.sh add <priority> <body>" >&2; exit 1
+      echo "usage: inbox.sh add [--wish=<id>] <priority> <body>" >&2; exit 1
     fi
     ref=$(next_ref)
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    "$HECKS" heki append "$HEKI" \
-      ref="$ref" priority="$priority" status=queued posted_at="$now" body="$body" \
-      >/dev/null
+    if [ -n "$wish_id" ]; then
+      "$HECKS" heki append "$HEKI" \
+        ref="$ref" priority="$priority" status=queued posted_at="$now" \
+        wish_id="$wish_id" body="$body" \
+        >/dev/null
+      # Mark the receipt directly via heki upsert. Bypasses the
+      # bluebook dispatch path because the runtime's lookup-by-id
+      # for non-singleton aggregates currently misroutes (file
+      # this as i99). The bluebook still declares the shape ;
+      # this is the transitional adapter that actually persists
+      # the receipt. Same pattern as inbox itself uses (heki
+      # append for collections, not Aggregate.Add dispatch).
+      WISH_HEKI="${HECKS_INFO:-$DIR/information}/dream_wish.heki"
+      if [ -f "$WISH_HEKI" ]; then
+        "$HECKS" heki upsert "$WISH_HEKI" \
+          id="$wish_id" status=filed filed_as="$ref" filed_at="$now" \
+          >/dev/null 2>&1 || true
+      fi
+    else
+      "$HECKS" heki append "$HEKI" \
+        ref="$ref" priority="$priority" status=queued posted_at="$now" body="$body" \
+        >/dev/null
+    fi
 
     # Auto-commit + push to main. Two-step durability :
     #
