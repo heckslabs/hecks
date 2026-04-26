@@ -1,0 +1,218 @@
+Hecks.bluebook "MindstreamCapability", version: "2026.04.26.1" do
+  vision "The body's 1Hz tick loop as declared cadence — mindstream as orchestrator capability, not as imperative shell. Wakes the awake-branch chain ; sleep-gates by command givens ; surfaces the wake-hook as policy."
+  category "capability"
+
+  # ============================================================
+  # MINDSTREAM CAPABILITY — the heartbeat of the body, declared
+  # ============================================================
+  #
+  # The mindstream is the body's 1Hz tick — the loop that paces
+  # consolidation, awareness recording, dream pulses, wake hooks,
+  # daydreams and musing surfacing. Historically (PR #272 onward)
+  # this lived as ~210 lines of bash in mindstream.sh ; this
+  # capability declares the same shape as bluebook so the runtime
+  # owns the orchestration and the shell becomes a thin adapter
+  # over the runtime gaps that haven't yet retired.
+  #
+  # The cadence primitive : `hecks-life loop` (i76, PR #444). One
+  # process, runtime booted ONCE, dispatch one command per tick.
+  # Same shape heart/breath/circadian/ultradian/sleep_cycle moved
+  # to in their parallel cycles (sibling agents, this same week).
+  #
+  # Cadence : 1Hz Tick.MindstreamTick fires Ticked, EmitPulseOnTick
+  # converts to BodyPulse, the existing fan-out (consolidate, prune,
+  # display, refresh-mood, fatigue ladder, sleep advancement,
+  # awareness record-moment, witness, mood arc) all subscribe to
+  # BodyPulse already in their respective bluebooks. The cascade
+  # is already wired ; what mindstream owns NOW is :
+  #
+  #   1. The cadence — fire Tick.MindstreamTick every 1s.
+  #   2. The sleep gate — when state == "sleeping", skip the
+  #      awake branch and walk the sleep state machine instead.
+  #      Sleep-phase commands self-gate by their own `given`
+  #      clauses (Consciousness.AdvanceLightToRem etc).
+  #   3. The wake hook — on transition sleeping → attentive,
+  #      fire dream interpretation + wake report.
+  #   4. The cross-aggregate awareness snapshot — RecordMoment
+  #      with attrs drawn from heartbeat / mood / focus / inbox.
+  #
+  # Items 1+2+3 can almost-fully be expressed as bluebook today.
+  # Item 4 is the runtime gap : policy triggers cannot read fields
+  # from sibling heki stores and pass them as command attributes.
+  # Until the gap closes, item 4 stays in a thin shell adapter
+  # explicitly named below.
+
+  # ── Cadence ──────────────────────────────────────────────────
+  #
+  # Declared as a documented contract, executed by `hecks-life loop`
+  # in boot_miette.sh until the runtime grows a first-class cadence
+  # primitive in bluebook (e.g. `cadence "1s" trigger "MindstreamTick"`).
+  # Today the cadence-loop CLI is the surface ; this aggregate
+  # records its parameters for inspection.
+
+  aggregate "Cadence", "The mindstream's 1Hz declared cadence — 1 Tick.MindstreamTick per second" do
+    attribute :interval_ms, Integer, default: 1000
+    attribute :command,     String,  default: "Tick.MindstreamTick"
+    attribute :driver,      String,  default: "hecks-life loop"
+    attribute :pid,         Integer
+    attribute :started_at,  String
+
+    command "Configure" do
+      role "Daemon"
+      description "Record the cadence parameters when the loop starts. Inspection-only ; the loop driver is `hecks-life loop` invoked from boot_miette.sh."
+      attribute :interval_ms, Integer
+      attribute :command,     String
+      attribute :driver,      String
+      attribute :pid,         Integer
+      attribute :started_at,  String
+      emits "CadenceConfigured"
+      then_set :interval_ms, to: :interval_ms
+      then_set :command,     to: :command
+      then_set :driver,      to: :driver
+      then_set :pid,         to: :pid
+      then_set :started_at,  to: :started_at
+    end
+  end
+
+  # ── Sleep gate ──────────────────────────────────────────────
+  #
+  # Each sleep-phase advance command in aggregates/sleep.bluebook
+  # already self-gates with `given { state == "sleeping" }` plus
+  # phase-specific clauses. The mindstream daemon — until the
+  # runtime has a "fan out one trigger to N commands" primitive —
+  # dispatches all 8 commands every tick in shell. Only the one
+  # whose givens match actually mutates state ; the rest no-op.
+  #
+  # The destination shape : a cadence policy that fans out, e.g.
+  #
+  #   policy "AdvanceSleepOnPulse" do
+  #     on "BodyPulse"
+  #     trigger "AdvanceLightToRem"
+  #   end
+  #   policy "AdvanceSleepOnPulseLucid" do
+  #     on "BodyPulse"
+  #     trigger "AdvanceLightToLucidRem"
+  #   end
+  #   ... etc, one per phase command.
+  #
+  # The runtime would dispatch every BodyPulse and let givens gate.
+  # That works TODAY for the awake branch (RecordMomentOnPulse +
+  # FatigueOnPulse + ConsolidateOnPulse already follow this shape)
+  # — but NOT for sleep, because firing BodyPulse during sleep
+  # also wakes FatigueOnPulse, which is exactly the bug the shell
+  # branch closes. So the gate has to live ABOVE BodyPulse, not
+  # below it. Filed as runtime gap : "BodyPulse needs a sleep
+  # quench" — see inbox.
+
+  # ── Wake hook ───────────────────────────────────────────────
+  #
+  # On WokenUp (emitted by Consciousness.WakeUp +
+  # Sleep.CompleteFinalLight), fire dream interpretation and
+  # wake-report production. These policies are first-class
+  # bluebook today — they replace the shell-state-machine that
+  # detected the sleeping → attentive transition by diffing
+  # .prev_consciousness_state.
+
+  policy "InterpretDreamOnWake" do
+    on "WokenUp"
+    trigger "ReadDreamImages"
+    across "DreamReading"
+  end
+
+  policy "ProduceWakeReportOnWake" do
+    on "WokenUp"
+    trigger "StartReport"
+    across "WakeReport"
+  end
+
+  # ── Awareness snapshot — the runtime gap ─────────────────────
+  #
+  # RecordMomentOnPulse already exists in body.bluebook :
+  #
+  #   policy "RecordMomentOnPulse" do
+  #     on "BodyPulse"
+  #     trigger "RecordMoment"
+  #   end
+  #
+  # But the trigger carries no attributes. RecordMoment requires
+  # 13 attrs drawn from FOUR sibling heki stores :
+  #
+  #   - heartbeat.heki     : fatigue_state, carrying, fatigue
+  #   - mood.heki          : current_state, creativity_level
+  #   - focus.heki         : weight
+  #   - inbox.heki         : count(status=queued), top 5 themes
+  #   - dream_wish.heki    : top 5 unfiled wishes
+  #
+  # The runtime gap : a policy form that reads named fields from
+  # named stores and passes them as attrs to the dispatched
+  # command. Sketched API :
+  #
+  #   policy "RecordMomentOnPulse" do
+  #     on "BodyPulse"
+  #     trigger "RecordMoment"
+  #     with_attrs do
+  #       from_heki "heartbeat", field: :fatigue_state, as: :state
+  #       from_heki "heartbeat", field: :carrying,      as: :carrying
+  #       from_heki "mood",      field: :current_state, as: :concept
+  #       from_heki "heartbeat", field: :fatigue,       as: :fatigue
+  #       from_heki "focus",     field: :weight,        as: :synapse_strength
+  #       from_heki "mood",      field: :creativity_level, as: :excitement
+  #       from_heki_count "inbox", where: { status: "queued" }, as: :inbox_count
+  #       # … themes + unfiled_wishes need a list-of-records reader.
+  #     end
+  #   end
+  #
+  # Until that primitive lands, the awareness snapshot stays in
+  # the thin mindstream.sh adapter. Filed as runtime gap : "policy
+  # cross-aggregate read attribute mapping" — see inbox.
+
+  # ── Subordinate capabilities (already declared elsewhere) ────
+  #
+  # Mindstream dispatches into these, doesn't shell out :
+  #
+  #   - aggregates/organs.bluebook — Synapse / Signal / Focus / Arc
+  #     drive per-tick body math (today : pulse_organs.sh adapter,
+  #     to retire when the runtime supports float math + clamp +
+  #     multi-record list dispatch).
+  #
+  #   - aggregates/mindstream.bluebook + aggregates/pulse.bluebook —
+  #     EmitPulseOnTick + the BodyPulse subscribers (consolidate,
+  #     prune, display, refresh-mood) already cascade from Ticked.
+  #
+  #   - capabilities/musings/musings.bluebook — surface_musing,
+  #     mint_musing : the musing cluster owns its own cadence and
+  #     the daemon delegates via `hecks-life run` (today : shell
+  #     wrappers, to retire as the cluster bluebook absorbs them).
+  #
+  #   - capabilities/dream_interpretation/dream_interpretation.bluebook —
+  #     ReadDreamImages → IdentifyThemes → SynthesizeInterpretation
+  #     fires from this capability's InterpretDreamOnWake policy.
+  #
+  #   - capabilities/wake_report/wake_report.bluebook — StartReport
+  #     → GatherDreams → … → FileReport fires from this
+  #     capability's ProduceWakeReportOnWake policy.
+  #
+  #   - aggregates/sleep.bluebook — Consciousness.AdvanceLightToRem
+  #     and the rest of the sleep state machine. The mindstream
+  #     daemon dispatches all phase commands every sleeping-tick ;
+  #     each one's givens self-gate.
+
+  # ── Adapter contract ─────────────────────────────────────────
+  #
+  # The thin mindstream.sh adapter (post-conversion) carries ONLY
+  # the four pieces the runtime can't yet do as bluebook :
+  #
+  #   1. The cadence loop driver (run hecks-life loop ... 1s).
+  #      Will retire when bluebook gains a `cadence` primitive.
+  #   2. The sleep-vs-awake fan-out (since BodyPulse can't be
+  #      quenched by state today). Will retire when sleep gating
+  #      moves above BodyPulse.
+  #   3. The cross-aggregate awareness-snapshot dispatch. Will
+  #      retire when policy with_attrs lands.
+  #   4. Detached-dispatch of capability shells (mint_musing,
+  #      daydream, etc.) until their cluster bluebooks absorb
+  #      their cadences.
+  #
+  # All four are filed as inbox runtime gaps. The shell shrinks
+  # from ~210 lines to under 60.
+end
