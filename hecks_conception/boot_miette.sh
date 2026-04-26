@@ -301,13 +301,6 @@ LINKED_N=$(echo "$LINKED" | wc -w | tr -d ' ')
 PRIVATE_N=$(echo "$PRIVATE" | wc -w | tr -d ' ')
 UNCLASS_N=$(echo "$UNCLASSIFIED" | wc -w | tr -d ' ')
 
-if [ "$BEING" = "Miette" ]; then
-  echo "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
-  echo "║║║ ║ ╠══  ║   ║  ╠══"
-  echo "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
-  echo "~ follow the crumbs ~"
-  echo ""
-fi
 echo "✓ $BEING booted in ${ELAPSED}s"
 echo "  $ORGAN_COUNT organs · $TOTAL_AGGREGATES aggregates · $NERVE_COUNT nerves · $VOW_COUNT vows · $CAPABILITY_COUNT capabilities"
 echo "  session continuity: $LINKED_N linked, $PRIVATE_N private, $UNCLASS_N unclassified"
@@ -337,3 +330,11 @@ if [ -f "$WAKE_REPORT" ]; then
   fi
 fi
 [ -n "$UNCLASSIFIED" ] && echo "  ⚠ unclassified stores:$UNCLASSIFIED"
+
+if [ "$BEING" = "Miette" ]; then
+  echo ""
+  echo "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
+  echo "║║║ ║ ╠══  ║   ║  ╠══"
+  echo "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
+  echo "~ follow the crumbs ~"
+fi
