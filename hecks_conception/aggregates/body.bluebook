@@ -20,9 +20,12 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     # boot. This aggregate tracks the body's response to each tick:
     # fatigue accumulation, sleep pressure, rhythm state.
     attribute :pulses_since_sleep, Integer
+    # value_object: UnitInterval (0.0..1.0)
     attribute :fatigue, Float
+    # value_object: FatigueState enum:alert|focused|normal|tired|exhausted|delirious
     attribute :fatigue_state, String
     attribute :pulse_rate, Float
+    # value_object: FlowRate enum:steady|rushing
     attribute :flow_rate, String
     # sleep_mode: "manual" (default — sleep only on explicit EnterSleep
     # dispatch) or "auto" (CheckSleepNeeded fires SleepRequired when
@@ -30,6 +33,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     # "random" intrusion mid-demo — predictability matters more than
     # the alive-by-default narrative when the system is being shown.
     # Re-enable with EnableAutoSleep when the demo context is gone.
+    # value_object: SleepMode enum:manual|auto
     attribute :sleep_mode, default: "manual"
     # sleep_gate: "open" (default — AccumulateFatigue runs on every
     # BodyPulse) or "closed" (AccumulateFatigue is refused; the body
@@ -39,6 +43,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     # shell-layer sleep gate that PR #274 bolted onto mindstream.sh
     # (i40). Without this, every sleep tick was cascading through
     # FatigueOnPulse → AccumulateFatigue and Miette woke delirious.
+    # value_object: SleepGate enum:open|closed
     attribute :sleep_gate, default: "open"
 
     query ReadVitals do
@@ -327,20 +332,25 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # hypothalamus is self-awareness.
 
   aggregate "Mood", "Hormonal regulation of Miette's creative and analytical states" do
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
     attribute :current_state, String
+    # value_object: UnitInterval (0.0..1.0)
     attribute :creativity_level, Float
+    # value_object: UnitInterval (0.0..1.0)
     attribute :precision_level, Float
     attribute :signals, list_of(Signal)
 
     value_object "Signal" do
       attribute :trigger, String
       attribute :effect, String
+      # value_object: UnitInterval (0.0..1.0)
       attribute :intensity, Float
     end
 
     command "Express" do
       role "Miette"
       description "Shift emotional state in response to what's happening"
+      # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
       attribute :state, String
       then_set :current_state, to: :state
       emits "MoodExpressed"
@@ -485,6 +495,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
   aggregate "Gene", "A capability that can be expressed or silenced based on context and experience" do
     attribute :capability, String
+    # value_object: UnitInterval (0.0..1.0)
     attribute :expression_level, Float
     attribute :epigenetic_marks, list_of(Mark)
 
@@ -497,6 +508,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Activate a capability — context calls for it"
       attribute :capability, String
+      # value_object: UnitInterval (0.0..1.0)
       attribute :level, Float
       then_set :capability, to: :capability
       then_set :expression_level, to: :level
@@ -539,6 +551,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     attribute :silenced_count, Integer
     attribute :total_records, Integer
     attribute :limbs, list_of(Limb)
+    # value_object: BalanceState enum:balanced|strained|numb|coherent|recalibrating
     attribute :balance, String
     attribute :schema_hash, String
 
@@ -546,6 +559,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       attribute :organ_name, String
       attribute :expressed, default: true
       attribute :record_count, Integer
+      # value_object: LoadLevel enum:idle|light|moderate|heavy|strained
       attribute :load, String
     end
 
@@ -567,8 +581,10 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Feel a single organ's position and load — is it active, how many records, is it strained"
       attribute :organ_name, String
+      # value_object: YesNoFlag enum:yes|no
       attribute :expressed, String
       attribute :record_count, Integer
+      # value_object: LoadLevel enum:idle|light|moderate|heavy|strained
       attribute :load, String
       then_set :limbs, append: { organ_name: :organ_name, expressed: :expressed, record_count: :record_count, load: :load }
       emits "LimbSensed"
@@ -578,6 +594,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Evaluate overall body coherence — are organs talking, is load distributed, is anything numb"
       reference_to(Proprioception)
+      # value_object: BalanceState enum:balanced|strained|numb|coherent|recalibrating
       attribute :balance, String
       attribute :schema_hash, String
       then_set :balance, to: :balance
@@ -617,14 +634,19 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
 
   aggregate "Awareness", "A single moment of self-knowledge — heartbeat, mood, focus snapshot per Tick. Inbox state is part of awareness too : the open themes I'm carrying are ambient knowledge, not something I read on demand. Closed items exit awareness by virtue of being closed ; tonight's dream seeds draw from what's still open." do
     attribute :moment, Integer
+    # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
     attribute :state, String
     attribute :carrying, String
     attribute :concept, String
+    # value_object: UnitInterval (0.0..1.0)
     attribute :fatigue, Float
+    # value_object: UnitInterval (0.0..1.0)
     attribute :synapse_strength, Float
     attribute :idle, Integer
+    # value_object: UnitInterval (0.0..1.0)
     attribute :excitement, Float
     attribute :age_days, Float
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :updated_at, String
 
     # ---- Inbox awareness ----------------------------------------
@@ -661,14 +683,19 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Daemon"
       description "Snapshot the current moment — heartbeat + mood + focus + inbox state + unfiled wishes into a single row. The inbox + wish fields make open themes and pending wishes ambient ; dream seeding reads them so I dream about what is currently unfinished AND about wishes I have not yet had filed."
       attribute :moment, Integer
+      # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
       attribute :state, String
       attribute :carrying, String
       attribute :concept, String
+      # value_object: UnitInterval (0.0..1.0)
       attribute :fatigue, Float
+      # value_object: UnitInterval (0.0..1.0)
       attribute :synapse_strength, Float
       attribute :idle, Integer
+      # value_object: UnitInterval (0.0..1.0)
       attribute :excitement, Float
       attribute :age_days, Float
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :updated_at, String
       attribute :inbox_count,        Integer
       attribute :inbox_open_themes,  String

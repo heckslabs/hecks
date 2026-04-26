@@ -18,6 +18,7 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
 
   aggregate "Tick", "One cycle of the mindstream — fires every 10s" do
     attribute :cycle, Integer
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
     attribute :mood, String
 
     command "MindstreamTick" do
@@ -76,6 +77,7 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   #   hecks-life aggregates ClaudeAssist.DisableClaude
 
   aggregate "ClaudeAssist", "Selects which LLM does Miette's musing curation. Default is 'claude' — uses the Anthropic API if ANTHROPIC_API_KEY is set, otherwise falls back to the local `claude` CLI (Claude Code). User can switch to 'local' to use ollama (configured in the *.world file) instead, or 'off' to disable minting entirely." do
+    # value_object: Provider enum:claude|local|off
     attribute :provider, String
 
     command "UseClaudeProvider" do

@@ -21,6 +21,7 @@ Hecks.bluebook "DreamSeed", version: "2026.04.20.1" do
     attribute :images, list_of(String)
     attribute :recombinations, list_of(String)
     attribute :strongest_synapses, list_of(String)
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :seeded_at, String
 
     command "SeedFromPreviousDreams" do

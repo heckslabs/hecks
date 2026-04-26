@@ -25,7 +25,9 @@ Hecks.bluebook "WakeReport", version: "2026.04.24.1" do
 
   aggregate "WakeReport", "One report per wake from a full sleep cycle — surfaced automatically so conscious reading never depends on remembering" do
     # sleep_entered_at / woke_at : the window this report covers.
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :sleep_entered_at, String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :woke_at, String
     # dreams_count : number of dream_state records in the window.
     attribute :dreams_count, Integer
@@ -50,14 +52,18 @@ Hecks.bluebook "WakeReport", version: "2026.04.24.1" do
     # displayed / inward-focused invariant apply to this cycle's
     # dreams ? Named as a first-class attribute so regressions surface
     # mechanically rather than requiring operator inspection.
+    # value_object: YesNoFlag enum:yes|no
     attribute :invariant_held, String
     # phase : pending | gathering | interpreted | reflected | filed.
+    # value_object: WakeReportPhase enum:pending|gathering|interpreted|reflected|filed
     attribute :phase, String
 
     command "StartReport" do
       role "Daemon"
       description "Fired automatically on BecameAttentive when the wake was from a full sleep (ClassifyFullWake path). Records the wake timestamps and moves to gathering."
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :sleep_entered_at, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :woke_at, String
       then_set :sleep_entered_at, to: :sleep_entered_at
       then_set :woke_at, to: :woke_at
@@ -71,6 +77,7 @@ Hecks.bluebook "WakeReport", version: "2026.04.24.1" do
       attribute :dreams_count, Integer
       attribute :dominant_tokens, String
       attribute :recurring_theme, String
+      # value_object: YesNoFlag enum:yes|no
       attribute :invariant_held, String
       then_set :dreams_count, to: :dreams_count
       then_set :dominant_tokens, to: :dominant_tokens

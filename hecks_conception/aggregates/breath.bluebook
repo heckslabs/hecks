@@ -14,6 +14,7 @@ Hecks.bluebook "Breath", version: "2026.04.21.1" do
   # Body cycles are emitters, not reactors — no policies here.
 
   aggregate "Breath", "Phase flip: inhaling ↔ exhaling, with a completed-breath counter" do
+    # value_object: BreathPhase enum:inhaling|exhaling
     attribute :phase, String, default: "inhaling"
     attribute :breath_count, Integer, default: 0
 
