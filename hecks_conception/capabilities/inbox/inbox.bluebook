@@ -1,0 +1,307 @@
+Hecks.bluebook "Inbox", version: "2026.04.26.1" do
+  vision "The inbox CLI as a domain — argv parses into a subcommand (add/list/get/close/reopen/drop), the runtime dispatches the matching Item command or runs the matching query, the result renders to stdout, the .heki write triggers the durability dance to origin/main"
+  category "capability"
+
+  # ============================================================
+  # INBOX CAPABILITY — i90-style shell-to-bluebook conversion
+  # ============================================================
+  #
+  # The sibling aggregates/inbox.bluebook declares the JOURNAL —
+  # the Item shape, lifecycle, commands, queries. This file declares
+  # the CAPABILITY — the user-facing CLI shape inbox.sh implements
+  # imperatively today. Same shape boot.bluebook + status.bluebook
+  # use : one aggregate carrying the in-flight invocation state, an
+  # entrypoint command, a sequence of phase commands chained by
+  # policies, and a sibling .hecksagon naming the adapters.
+  #
+  # The eventual successor (when the runtime can dispatch this end
+  # to end) is :
+  #
+  #   exec hecks-life run capabilities/inbox/inbox.bluebook -- "$@"
+  #
+  # one line in inbox.sh. Until then, the shell still implements the
+  # imperative dispatch — but the BRAIN (which subcommands exist,
+  # what they do, what queries the list view drives, what the
+  # durability protocol is) lives here.
+  #
+  # ── Why not antibody-exempt the shell ────────────────────────
+  #
+  # Each imperative line that survives in inbox.sh has a filed
+  # runtime gap naming the missing primitive. The exemption marker
+  # earlier in the file's life was load-bearing for one Phase B
+  # transition ; this conversion files the gaps explicitly instead
+  # so the antibody can flag the shell on every commit until each
+  # gap closes.
+
+  # ============================================================
+  # INVOCATION — one run of `inbox <subcommand> [args]`
+  # ============================================================
+
+  aggregate "Invocation", "One invocation of the inbox CLI — parses argv, routes to the subcommand handler, dispatches the matching Item command or query, renders the result, fires the durability protocol when the .heki store changed" do
+    # ---- Argv ----
+    # subcommand : add | list | get | close | reopen | drop | next-ref
+    attribute :subcommand,    String
+    # priority/body/wish_id : add inputs
+    attribute :priority,      String
+    attribute :body,          String
+    attribute :wish_id,       String
+    # ref : the iN short ref get/close/reopen/drop operate on
+    attribute :ref,           String
+    # filter : list filter (queued | done | all). Default queued.
+    attribute :list_filter,   String, default: "queued"
+    # resolution : optional one-line note Close stamps on the row
+    attribute :resolution,    String
+
+    # ---- Resolved ids ----
+    # uuid : the heki primary key resolved from `ref` for any
+    # transition subcommand (close/reopen/drop). Empty for add/list.
+    attribute :uuid,          String
+    # next_ref : the freshly allocated ref for an `add` invocation.
+    attribute :next_ref,      String
+    # posted_at : UTC ISO timestamp the runtime stamps on the row.
+    attribute :posted_at,     String
+
+    # ---- Output ----
+    # rendered : the formatted output string (one line per row for
+    # list, multi-line full record for get, the new ref for add,
+    # one-line confirmation for close/reopen/drop).
+    attribute :rendered,      String
+
+    # ---- Durability ----
+    # commit_subject : "inbox(iN): <60-char body summary>" — the
+    # subject the auto-commit + push-to-main steps reuse.
+    attribute :commit_subject,    String
+    # local_commit_status : pending | committed | skipped | failed
+    attribute :local_commit_status, String, default: "pending"
+    # main_push_status : pending | pushed | skipped | failed
+    attribute :main_push_status,    String, default: "pending"
+
+    # ---- Pipeline phase ----
+    attribute :phase,         String, default: "pending"
+
+    # ---- ExitKind ----
+    #
+    # Mirror of the Cli/Runner exit vocabulary — the inbox CLI
+    # collapses to one of these on every invocation.
+    value_object "ExitKind" do
+      attribute :code,      Integer
+      attribute :kind_name, String
+    end
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "BeginInvocation" do
+      role "User"
+      description "User-visible entrypoint — the sole command inbox.sh (or its eventual one-line successor) dispatches. argv has been split into subcommand + per-subcommand attributes by the time this fires. The Rust runner detects this command + the :fs / :stdout / :shell adapters in the sibling hecksagon and walks the pipeline."
+      attribute :subcommand,  String
+      attribute :priority,    String
+      attribute :body,        String
+      attribute :wish_id,     String
+      attribute :ref,         String
+      attribute :list_filter, String
+      attribute :resolution,  String
+      then_set :subcommand,  to: :subcommand
+      then_set :priority,    to: :priority
+      then_set :body,        to: :body
+      then_set :wish_id,     to: :wish_id
+      then_set :ref,         to: :ref
+      then_set :list_filter, to: :list_filter
+      then_set :resolution,  to: :resolution
+      then_set :phase,       to: "routing"
+      emits "InvocationBegun"
+    end
+
+    # ============================================================
+    # PHASE COMMANDS — one per subcommand handler
+    # ============================================================
+
+    command "RouteSubcommand" do
+      role "System"
+      description "Switch on `subcommand` to pick the next phase. add → ResolveNextRef ; list → RunListQuery ; get → ResolveRef → RunGetByRef ; close/reopen/drop → ResolveRef → DispatchTransition. Unknown subcommands FailInvocation with exit_kind=command_not_found."
+      then_set :phase, to: "routed"
+      emits "SubcommandRouted"
+    end
+
+    command "ResolveNextRef" do
+      role "System"
+      description "For an add invocation : run Item.NextRef against the .heki store, set next_ref to the freshly allocated short id ('i<n+1>'), stamp posted_at with the current UTC ISO time, then dispatch Item.Add. The Rust runner reads next_ref via the :fs adapter (heki next-ref helper) ; the timestamp comes from the runtime's clock primitive."
+      attribute :next_ref,  String
+      attribute :posted_at, String
+      then_set :next_ref,   to: :next_ref
+      then_set :posted_at,  to: :posted_at
+      then_set :phase,      to: "adding"
+      emits "NextRefResolved"
+    end
+
+    command "ResolveRef" do
+      role "System"
+      description "For a get/close/reopen/drop invocation : run Item.GetByRef with the supplied short ref, set uuid to the matching heki primary key. When no row matches, FailInvocation with exit_kind=ref_not_found and a friendly message ('no item with ref iN'). The :fs adapter performs the lookup."
+      attribute :uuid, String
+      then_set :uuid,  to: :uuid
+      then_set :phase, to: "ref_resolved"
+      emits "RefResolved"
+    end
+
+    command "DispatchAdd" do
+      role "System"
+      description "Dispatch Item.Add against the conception's inbox.heki with the resolved next_ref + posted_at and the operator's priority/body/wish_id. When wish_id is non-empty, the Item.Add rule fires DreamWish.MarkFiled inside the same transaction so the seed pool stays consistent (i98). Sets rendered to the new ref so the operator sees 'iN' on stdout."
+      attribute :rendered, String
+      then_set :rendered, to: :rendered
+      then_set :phase,    to: "dispatched"
+      emits "AddDispatched"
+    end
+
+    command "RunListQuery" do
+      role "System"
+      description "Run one of Item.ListAll / Item.ListQueued / Item.ListDone based on list_filter. Format each row as `  iN  [pri/status]  body-summary` (90-char body truncate, newlines collapsed to single spaces). Sets rendered to the joined output. The Rust runner uses the :fs adapter (heki list with the matching filter + order spec) ; today the shell still drives this directly because the runtime can't execute the query IR."
+      attribute :rendered, String
+      then_set :rendered, to: :rendered
+      then_set :phase,    to: "rendered"
+      emits "ListRendered"
+    end
+
+    command "RunGetByRef" do
+      role "System"
+      description "Format the resolved Item as a multi-line record : ref, uuid, priority, status, posted_at, optional completed_at, optional resolution, blank line, full body. Sets rendered to the formatted block."
+      attribute :rendered, String
+      then_set :rendered, to: :rendered
+      then_set :phase,    to: "rendered"
+      emits "GetRendered"
+    end
+
+    command "DispatchTransition" do
+      role "System"
+      description "Dispatch the matching Item transition command (Close/Reopen/Drop) against the resolved uuid. For Close, the resolution attribute carries the operator's note (defaults to 'done'). For Drop, the row is hard-deleted by the storage adapter after the ItemDropped event fires. Sets rendered to a one-line confirmation ('closed iN', 'reopened iN', 'dropped iN')."
+      attribute :rendered, String
+      then_set :rendered, to: :rendered
+      then_set :phase,    to: "dispatched"
+      emits "TransitionDispatched"
+    end
+
+    # ============================================================
+    # DURABILITY — local commit + push-to-main
+    # ============================================================
+
+    command "CommitLocal" do
+      role "System"
+      description "Step 1 of the durability dance : auto-commit the .heki write to whatever branch the operator is on. Commit subject is `inbox(iN): <60-char body summary>` for add invocations ; `inbox(iN): <subcommand> <ref>` for transitions. Skipped when the cwd is not a git checkout. Failure modes (each prints a loud warning, never silent) : not a git checkout → skipped ; staging fails → failed ; commit fails → failed. Rides on the :shell adapter."
+      attribute :commit_subject,      String
+      attribute :local_commit_status, String
+      then_set :commit_subject,      to: :commit_subject
+      then_set :local_commit_status, to: :local_commit_status
+      then_set :phase,               to: "committed"
+      emits "LocalCommitted"
+    end
+
+    command "PushToMain" do
+      role "System"
+      description "Step 2 of the durability dance : push the same heki content to origin/main directly via a temporary worktree, so the filing survives even if the local branch is later abandoned (deleted post-merge with --delete-branch, force-discarded, etc). Why both steps : a 2026-04-24 morphology filing was made on a feature branch and lost when the PR merged with --delete-branch ; this step closes that hole. The temp worktree leaves the operator's current branch and uncommitted work undisturbed. Failure modes (loud warnings only — never silent) : fetch fails (offline) → skipped ; worktree dance fails → skipped ; push fails (concurrent push, perm error) → failed. The local commit from step 1 is the fallback in every failure case. Rides on the :shell adapter — see capabilities/inbox/inbox.hecksagon for the declared git command sequence."
+      attribute :main_push_status, String
+      then_set :main_push_status, to: :main_push_status
+      then_set :phase,            to: "pushed"
+      emits "PushedToMain"
+    end
+
+    # ============================================================
+    # EXIT
+    # ============================================================
+
+    command "Render" do
+      role "System"
+      description "Write `rendered` through the :stdout adapter — the operator-facing output. For add the new ref ; for list the formatted table ; for get the record block ; for close/reopen/drop the one-line confirmation."
+      then_set :phase, to: "rendered_out"
+      emits "OutputRendered"
+    end
+
+    command "ReportExit" do
+      role "System"
+      description "Record the invocation's outcome as an ExitKind and propagate the code back to the OS. Zero for clean ; non-zero per the standard table (1=parse failure, 2=guard failure, 3=adapter failure, 4=command not found, 5=ref not found)."
+      attribute :code, Integer
+      attribute :kind_name, String
+      then_set :phase, to: "complete"
+      emits "ExitReported"
+    end
+
+    command "FailInvocation" do
+      role "System"
+      description "Unknown subcommand, missing required arg, ref-not-found lookup, or adapter-side failure. Records the failing kind and moves to failed — the OS sees a non-zero exit and the operator sees the error printed to stderr."
+      attribute :code,      Integer
+      attribute :kind_name, String
+      then_set :phase, to: "failed"
+      emits "InvocationFailed"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "BeginInvocation"    => "routing",       from: "pending"
+      transition "RouteSubcommand"    => "routed",        from: "routing"
+      transition "ResolveNextRef"     => "adding",        from: "routed"
+      transition "DispatchAdd"        => "dispatched",    from: "adding"
+      transition "RunListQuery"       => "rendered",      from: "routed"
+      transition "ResolveRef"         => "ref_resolved",  from: "routed"
+      transition "RunGetByRef"        => "rendered",      from: "ref_resolved"
+      transition "DispatchTransition" => "dispatched",    from: "ref_resolved"
+      transition "CommitLocal"        => "committed",     from: "dispatched"
+      transition "PushToMain"         => "pushed",        from: "committed"
+      transition "Render"             => "rendered_out",  from: "rendered"
+      transition "Render"             => "rendered_out",  from: "pushed"
+      transition "ReportExit"         => "complete",      from: "rendered_out"
+      transition "FailInvocation"     => "failed",        from: ["pending", "routing", "routed", "adding", "ref_resolved", "dispatched", "committed", "pushed", "rendered", "rendered_out"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the invocation chain
+  # ============================================================
+
+  policy "RouteAfterBegin" do
+    on "InvocationBegun"
+    trigger "RouteSubcommand"
+  end
+
+  policy "AddDispatchAfterNextRef" do
+    on "NextRefResolved"
+    trigger "DispatchAdd"
+  end
+
+  policy "GetAfterRefResolved" do
+    on "RefResolved"
+    trigger "RunGetByRef"
+  end
+
+  policy "CommitAfterDispatch" do
+    on "AddDispatched"
+    trigger "CommitLocal"
+  end
+
+  policy "CommitAfterTransition" do
+    on "TransitionDispatched"
+    trigger "CommitLocal"
+  end
+
+  policy "PushAfterCommit" do
+    on "LocalCommitted"
+    trigger "PushToMain"
+  end
+
+  policy "RenderAfterPush" do
+    on "PushedToMain"
+    trigger "Render"
+  end
+
+  policy "RenderAfterList" do
+    on "ListRendered"
+    trigger "Render"
+  end
+
+  policy "RenderAfterGet" do
+    on "GetRendered"
+    trigger "Render"
+  end
+
+  policy "ReportAfterRender" do
+    on "OutputRendered"
+    trigger "ReportExit"
+  end
+end
