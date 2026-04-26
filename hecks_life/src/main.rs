@@ -2163,7 +2163,6 @@ fn run_loop(args: &[String]) {
     }
 }
 
-<<<<<<< HEAD
 /// Predicate for the --gate flag on `hecks-life loop` (i108). Reads the
 /// latest record from the named .heki store, looks up `field`, and
 /// returns true iff its string form equals `expected`. Missing file,
@@ -2266,6 +2265,7 @@ fn run_clock(args: &[String]) {
             category: None, vision: None,
             aggregates: vec![], policies: vec![],
             fixtures: vec![], entrypoint: None,
+            sections: vec![],
         };
         for entry in fs::read_dir(target).unwrap_or_else(|e| {
             eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
