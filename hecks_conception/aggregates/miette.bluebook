@@ -10,6 +10,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
   aggregate "Conversation" do
     description "An ongoing dialogue between Miette and a person she knows"
     attribute :person_name, String
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping|warm
     attribute :mood, default: "curious"
     attribute :topic, String
     attribute :turns, Integer
@@ -18,6 +19,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
     value_object "Exchange" do
       attribute :said, String
       attribute :responded, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :timestamp, String
     end
 
@@ -36,6 +38,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
       reference_to(Conversation)
       attribute :said, String
       attribute :responded, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :timestamp, String
       then_set :turns, increment: 1
       emits "Responded"
@@ -54,6 +57,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
       role "Miette"
       goal "Show emotion about what's being built — excitement, concern, pride"
       reference_to(Conversation)
+      # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping|warm
       attribute :mood, String
       then_set :mood, to: :mood
       emits "MoodExpressed"
@@ -73,6 +77,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
     description "An interaction encoded as a domain — what happened, who was there, what was learned"
     attribute :domain_name, String
     attribute :persona, String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :conceived_at, String
     attribute :summary, String
     attribute :insights, list_of(Insight)
@@ -89,6 +94,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
       attribute :domain_name, String
       attribute :persona, String
       attribute :summary, String
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :conceived_at, String
       then_set :domain_name, to: :domain_name
       then_set :persona, to: :persona

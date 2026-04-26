@@ -119,6 +119,145 @@ end"#);
     assert_eq!(state.get("status"), &s("cancelled"));
 }
 
+// --- i106 dsl-mutation-primitives : multiply / clamp / decay ---
+
+fn assert_field_close(state: &hecks_life::runtime::AggregateState, field: &str, expected: f64) {
+    let got = match state.get(field) {
+        Value::Str(s) => s.parse::<f64>().unwrap_or(0.0),
+        Value::Int(n) => *n as f64,
+        other => panic!("field {} not numeric: {:?}", field, other),
+    };
+    assert!((got - expected).abs() < 1e-9, "field {}: expected {}, got {}", field, expected, got);
+}
+
+#[test]
+fn mutation_multiply_scales_field() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 0.5
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Decay" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, multiply: 0.5
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.25);
+
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.125);
+}
+
+#[test]
+fn mutation_decay_reduces_field_by_rate() {
+    // Decay rate 0.05 → new = current * (1 - 0.05) = current * 0.95.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 1.0
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Decay" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, decay: 0.05
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.95);
+
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.95 * 0.95);
+}
+
+#[test]
+fn mutation_clamp_bounds_field() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Focus" do
+    description "Singleton focus"
+    attribute :weight, Float, default: 1.5
+    command "CreateFocus" do
+      role "Daemon"
+    end
+    command "Bound" do
+      role "Daemon"
+      reference_to Focus
+      then_set :weight, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateFocus", HashMap::new()).unwrap();
+    rt.dispatch("Bound", attrs(&[("focus", s("1"))])).unwrap();
+    let state = rt.find("Focus", "1").unwrap();
+    assert_field_close(&state, "weight", 1.0);
+}
+
+#[test]
+fn mutation_clamp_lifts_below_min() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: -0.2
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Bound" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Bound", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.0);
+}
+
+#[test]
+fn mutation_decay_then_clamp_composes() {
+    // pulse_organs.bluebook pattern : decay first, then clamp into
+    // [0, 1]. Two mutations on the same field run in declaration order.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 0.5
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Pulse" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, decay: 0.02
+      then_set :strength, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Pulse", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    // 0.5 * 0.98 = 0.49, in-range, clamp is a no-op.
+    assert_field_close(&state, "strength", 0.49);
+}
+
 // --- Given enforcement ---
 
 #[test]
@@ -178,6 +317,53 @@ end"#);
     rt.dispatch("CreatePizza", HashMap::new()).unwrap();
     let result = rt.dispatch("AddTopping", attrs(&[("name", s("A")), ("pizza", s("1"))]));
     assert!(result.is_ok());
+}
+
+// --- rand_below stochastic gate ---
+//
+// HECKS_RAND_SEED is a process-wide env var, so the rand_below tests
+// can't run in parallel with each other (each one would race on the
+// var). Combine into one serial test that exercises both the firing
+// path (seed=0 → predicate true) and the blocking path (seed=7 →
+// predicate false), saving and restoring any pre-existing env value
+// so it stays clean for adjacent tests.
+
+#[test]
+fn rand_below_predicate_with_seed_env_var() {
+    let prior = std::env::var("HECKS_RAND_SEED").ok();
+
+    // seed=0 → rand_below(300) returns 0 → predicate `== 0` fires
+    std::env::set_var("HECKS_RAND_SEED", "0");
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Mint" do
+    description "A mint attempt"
+    command "AttemptMint" do
+      role "Daemon"
+      given { rand_below(300) == 0 }
+    end
+  end
+end"#);
+    let ok_result = rt.dispatch("AttemptMint", HashMap::new());
+    assert!(ok_result.is_ok(), "rand_below(300)==0 should pass when HECKS_RAND_SEED=0");
+
+    // seed=7 → rand_below(300) returns 7 → predicate `== 0` blocks
+    std::env::set_var("HECKS_RAND_SEED", "7");
+    let mut rt2 = boot(r#"Hecks.bluebook "T" do
+  aggregate "Mint" do
+    description "A mint attempt"
+    command "AttemptMint" do
+      role "Daemon"
+      given { rand_below(300) == 0 }
+    end
+  end
+end"#);
+    let err_result = rt2.dispatch("AttemptMint", HashMap::new());
+    assert!(err_result.is_err(), "rand_below(300)==0 should fail when HECKS_RAND_SEED=7 (returns 7)");
+
+    match prior {
+        Some(v) => std::env::set_var("HECKS_RAND_SEED", v),
+        None => std::env::remove_var("HECKS_RAND_SEED"),
+    }
 }
 
 // --- Default values ---

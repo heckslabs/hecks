@@ -39,14 +39,6 @@ Hecks.bluebook "CustomsBrokerage" do
       transition "LiquidateEntry" => "liquidated", from: "filed"
     end
 
-    policy "Entries must be filed within 15 days of arrival"
-    policy "Amended entries require supporting documentation"
-
-    given "An entry is filed for electronics from China" do
-      attribute :entry_type, String, "Consumption Entry"
-      attribute :importer_name, String, "TechParts Inc"
-      attribute :country_of_origin, String, "China"
-    end
   end
 
   aggregate "TariffLine" do
@@ -96,7 +88,6 @@ Hecks.bluebook "CustomsBrokerage" do
       transition "ApplyPreferentialRate" => "preferential", from: "assessed"
     end
 
-    policy "Classification must follow General Rules of Interpretation"
   end
 
   aggregate "BrokerDocument" do
@@ -128,7 +119,6 @@ Hecks.bluebook "CustomsBrokerage" do
       transition "ValidateDocument" => "validated", from: "received"
     end
 
-    policy "Commercial invoice and packing list are mandatory for all entries"
   end
 
   aggregate "CBPInspection" do
@@ -166,7 +156,6 @@ Hecks.bluebook "CustomsBrokerage" do
       transition "ReportExamResult" => "examined", from: "held"
     end
 
-    policy "Exam cargo must be available at designated site within 5 days"
   end
 
   aggregate "EntryRelease" do
@@ -197,7 +186,6 @@ Hecks.bluebook "CustomsBrokerage" do
       transition "NotifyImporter" => "notified", from: "released"
     end
 
-    policy "Duties must be paid before cargo release"
   end
 
   policy "ClassifyGoodOnDocumentValidated" do

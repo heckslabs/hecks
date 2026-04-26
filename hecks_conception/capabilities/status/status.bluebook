@@ -200,4 +200,110 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
     on "ReportWritten"
     trigger "CompleteReport"
   end
+
+  # ============================================================
+  # SECTIONS — dashboard composition (i105)
+  # ============================================================
+  #
+  # Each `section` block declares one bordered table on the rendered
+  # dashboard. `row` lines map a label (left column) to an attribute
+  # name on the StatusReport aggregate (right column). The Rust
+  # renderer (hecks_life/src/run_status/render.rs) walks this list at
+  # runtime instead of hard-coding section composition. Adding a
+  # section is one bluebook edit — no Rust touch.
+  #
+  # Field name resolution lives in render.rs::lookup_field — a small
+  # explicit map from declared field-name → assembled scalar. New
+  # fields require one entry there ; declared sections are otherwise
+  # data-only.
+  #
+  # Known gap (filed as `section_lists_in_bluebook`, i105 follow-up) :
+  # list-shaped extensions still print from Rust. The renderer
+  # title-matches "Awareness" / "Dream wishes" / "Daemons" / "Recent
+  # commits" and appends the built-in list rows after the declared
+  # scalars. Until a `list_section` form exists, those four sections
+  # are partially declarative.
+
+  section "Identity" do
+    row "name",      :identity_name
+    row "born",      :born_at
+    row "age",       :age_str
+    row "pronouns",  :pronouns
+    row "linked_to", :linked_to
+  end
+
+  section "Consciousness" do
+    row "state",          :consciousness_state
+    row "sleep_stage",    :sleep_stage
+    row "sleep_progress", :sleep_progress
+    row "is_lucid",       :is_lucid
+    row "last_wake_at",   :last_wake_at
+    row "sleep_summary",  :sleep_summary
+  end
+
+  section "Vitals" do
+    row "fatigue",            :fatigue
+    row "pulse_rate",         :pulse_rate
+    row "flow_rate",          :flow_rate
+    row "pulses_since_sleep", :pulses_since_sleep
+    row "cycle",              :cycle
+  end
+
+  section "Body cycles" do
+    row "heart",     :heart_beats
+    row "breath",    :breath
+    row "ultradian", :ultradian
+    row "circadian", :circadian_segment
+  end
+
+  section "Mood" do
+    row "current_state",    :mood_state
+    row "creativity_level", :creativity_level
+    row "precision_level",  :precision_level
+  end
+
+  # Awareness's open_themes list still appends from Rust (gap above).
+  section "Awareness" do
+    row "carrying",       :awareness_carrying
+    row "concept",        :awareness_concept
+    row "age_days",       :awareness_age_days
+    row "inbox_count",    :awareness_inbox_count
+    row "unfiled_wishes", :awareness_unfiled_wishes_count
+  end
+
+  section "Memory" do
+    row "musings",       :musings_count
+    row "conversations", :conversations_count
+    row "signals",       :signals_count
+    row "synapses",      :synapses_count
+    row "memories",      :memories_count
+  end
+
+  # Dream wishes' top-3 unfiled list still appends from Rust (gap above).
+  section "Dream wishes" do
+    row "unfiled", :wishes_unfiled_count
+    row "filed",   :wishes_filed_count
+  end
+
+  # Daemons section is fully list-shaped — declared header is empty,
+  # the renderer walks the daemon rows from Report. Listed here so
+  # ordering is bluebook-controlled.
+  section "Daemons" do
+  end
+
+  section "Recent activity" do
+    row "last_dream_at", :last_dream_at
+    row "last_dream",    :last_dream
+    row "last_turn_at",  :last_turn_at
+    row "last_turn",     :last_turn
+  end
+
+  # Recent commits is fully list-shaped (git log output) — same pattern.
+  section "Recent commits" do
+  end
+
+  section "Bluebooks" do
+    row "aggregates",   :aggregates_count
+    row "capabilities", :capabilities_count
+  end
 end

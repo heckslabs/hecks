@@ -130,15 +130,25 @@ module Hecks
       #   then_set :status, "placed"           # positional → Set op
       #   then_set :in_standby, true           # positional → Set op
       #   then_set :count, increment: 1        # canonical
+      #   then_set :strength, multiply: 0.95   # i106 — multiplicative
+      #   then_set :strength, decay: 0.05      # i106 — exponential decay
+      #   then_set :weight, clamp: [0.0, 1.0]  # i106 — bound to interval
       #
       # The positional form mirrors Rust's permissive line-scanner (see
       # `hecks_life/src/parse_blocks.rs`). Rust treats `then_set :f, V` as
       # `Set` with the bare value, so we do the same here for parity.
-      def then_set(field, positional = nil, to: nil, append: nil, increment: nil, decrement: nil)
+      #
+      # multiply / clamp / decay are i106 dsl-mutation-primitives — kernel
+      # surface for body math so pulse_organs.bluebook can express ×0.98
+      # decay and clamp(0,1) without shell-side awk.
+      def then_set(field, positional = nil, to: nil, append: nil, increment: nil, decrement: nil, multiply: nil, clamp: nil, decay: nil)
         op, val = if !to.nil? then [:set, to]
                   elsif append then [:append, append]
                   elsif increment then [:increment, increment]
                   elsif decrement then [:decrement, decrement]
+                  elsif multiply then [:multiply, multiply]
+                  elsif clamp then [:clamp, clamp]
+                  elsif decay then [:decay, decay]
                   elsif !positional.nil? then [:set, positional]
                   end
         @mutations << BluebookModel::Behavior::Mutation.new(

@@ -1,0 +1,48 @@
+Hecks.behaviors "MusingMint" do
+  vision "Behavioral tests for the MusingMint capability — exercises the mint pipeline in memory, including the skip and persist branches"
+
+  # ── Mint aggregate ──────────────────────────────────────────
+
+  test "AttemptMint runs" do
+    tests "AttemptMint", on: "Mint"
+    expect ok: "true"
+  end
+
+  test "ReadProvider sets provider" do
+    tests "ReadProvider", on: "Mint"
+    input  provider: "claude"
+    expect provider: "claude"
+  end
+
+  test "AssembleContext stamps body state" do
+    tests "AssembleContext", on: "Mint"
+    setup  "ReadProvider", provider: "claude"
+    input  beats: "72bpm", fatigue_state: "rested", mood: "curious",
+           consciousness_state: "attentive", sleep_stage: "—",
+           last_lucid_observation: ""
+    expect beats: "72bpm", mood: "curious"
+  end
+
+  test "AssemblePrompt runs after context" do
+    tests "AssemblePrompt", on: "Mint"
+    setup  "ReadProvider", provider: "claude"
+    expect ok: "true"
+  end
+
+  test "CaptureIdea sets response" do
+    tests "CaptureIdea", on: "Mint"
+    input  response: "Triage as routing — both fields rank by reversibility, not urgency."
+    expect response: "Triage as routing — both fields rank by reversibility, not urgency."
+  end
+
+  test "PersistMusing sets idea" do
+    tests "PersistMusing", on: "Mint"
+    input  idea: "sample"
+    expect idea: "sample"
+  end
+
+  test "CompleteMint runs" do
+    tests "CompleteMint", on: "Mint"
+    expect ok: "true"
+  end
+end

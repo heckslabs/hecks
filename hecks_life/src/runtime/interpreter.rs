@@ -6,6 +6,16 @@
 //! Usage:
 //!   check_givens(cmd, state, attrs)?;
 //!   apply_mutations(cmd, state, attrs);
+//!
+//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface
+//!  runtime extension that applies Multiply / Clamp / Decay. Same
+//!  retirement contract as ir.rs.]
+//!
+//! [antibody-exempt: rand_below(N) predicate primitive — stochastic
+//!  dispatch gates (RANDOM % N == 0, every-Nth-tick) move from
+//!  shell-side into bluebook givens. Lets surface_musing /
+//!  musing_mint / daydream fire end-to-end via bluebook. Same i80
+//!  retirement contract.]
 
 use super::{AggregateState, RuntimeError, Value};
 use crate::ir::{Command, MutationOp};
@@ -72,8 +82,61 @@ pub fn apply_mutations(
             MutationOp::Toggle => {
                 state.toggle(&mutation.field);
             }
+            MutationOp::Multiply => {
+                // i106 — current * factor. Factor source-text is
+                // resolved against attrs/state first so dispatchers can
+                // pass it as a command attribute (`then_set :s, multiply: :rate`)
+                // when the factor isn't a literal.
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(factor) = numeric_value(&val) {
+                    let cur = field_numeric(&mutation.field, state);
+                    state.set_float(&mutation.field, cur * factor);
+                }
+            }
+            MutationOp::Decay => {
+                // i106 — current * (1 - rate). Rate is the source-text
+                // f64 (e.g. 0.05 → ×0.95). Decay composes with Clamp on
+                // the same field — body math typically decays then clamps.
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some(rate) = numeric_value(&val) {
+                    let cur = field_numeric(&mutation.field, state);
+                    state.set_float(&mutation.field, cur * (1.0 - rate));
+                }
+            }
+            MutationOp::Clamp => {
+                // i106 — bound the field to [min, max]. Value carries a
+                // 2-element list literal; resolve_mutation_value returns
+                // a Value::List which we read pairwise. Out-of-range
+                // clamps to the boundary; in-range is a no-op.
+                let bounds = resolve_mutation_value(&mutation.value, attrs, state);
+                if let Some((min, max)) = clamp_bounds(&bounds) {
+                    let cur = field_numeric(&mutation.field, state);
+                    let bounded = cur.max(min).min(max);
+                    state.set_float(&mutation.field, bounded);
+                }
+            }
         }
     }
+}
+
+/// Numeric read of a state field, used by Multiply/Decay/Clamp. Falls
+/// back to 0.0 when the field is unset or non-numeric — matches the
+/// existing increment_float behaviour.
+fn field_numeric(field: &str, state: &AggregateState) -> f64 {
+    numeric_value(state.get(field)).unwrap_or(0.0)
+}
+
+/// Read [min, max] from a Value::List of two numeric elements. Returns
+/// None when the shape doesn't fit — caller treats that as a no-op.
+fn clamp_bounds(v: &Value) -> Option<(f64, f64)> {
+    if let Value::List(items) = v {
+        if items.len() == 2 {
+            let lo = numeric_value(&items[0])?;
+            let hi = numeric_value(&items[1])?;
+            return Some((lo.min(hi), lo.max(hi)));
+        }
+    }
+    None
 }
 
 fn evaluate_given(
@@ -156,6 +219,23 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
     }
     if expr == "false" {
         return Value::Bool(false);
+    }
+    // rand_below(N) — uniform random integer in [0, N). The bluebook
+    // intent `given { rand_below(N) == 0 }` expresses a 1/N probability
+    // gate (every Nth tick / RANDOM % N stochastic dispatch). Lifts the
+    // gate from shell-side (mindstream's `RANDOM % 300 == 0`) into the
+    // bluebook so capabilities like MusingMint own their cadence as
+    // declarative IR. N must be a positive integer literal or an
+    // attr/state field that resolves to one ; non-positive N short-
+    // circuits to 0 so the predicate fires every call (safer than
+    // panicking in a daemon).
+    if let Some(arg) = expr.strip_prefix("rand_below(").and_then(|s| s.strip_suffix(')')) {
+        let arg_val = resolve_expr(arg.trim(), state, attrs);
+        let n = numeric_value(&arg_val).map(|f| f as i64).unwrap_or(0);
+        if n <= 0 {
+            return Value::Int(0);
+        }
+        return Value::Int(rand_below_impl(n));
     }
     if expr.ends_with(".size") {
         let field = &expr[..expr.len() - 5];
@@ -259,6 +339,43 @@ fn numeric_value(v: &Value) -> Option<f64> {
         Value::Null => Some(0.0),
         _ => None,
     }
+}
+
+/// Uniform random integer in [0, n). Backed by a thread-local LCG
+/// seeded from system nanos + a per-call counter — no rand crate
+/// dependency, deterministic-enough for stochastic dispatch gates
+/// (the bluebook just needs ~uniform distribution over many calls,
+/// not cryptographic strength). For tests, set HECKS_RAND_SEED=0 to
+/// always return 0 (the predicate fires every call) ; HECKS_RAND_SEED
+/// to any other positive integer makes rand_below always return that
+/// value mod n (deterministic for fixture replay).
+fn rand_below_impl(n: i64) -> i64 {
+    if let Ok(seed) = std::env::var("HECKS_RAND_SEED") {
+        if let Ok(s) = seed.parse::<i64>() {
+            return s.rem_euclid(n);
+        }
+    }
+    use std::cell::Cell;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    thread_local! {
+        static STATE: Cell<u64> = Cell::new(0);
+    }
+    STATE.with(|s| {
+        let mut x = s.get();
+        if x == 0 {
+            x = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(0x9e3779b97f4a7c15)
+                | 1; // ensure non-zero
+        }
+        // xorshift64 — fast, decent distribution, no dependency
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        s.set(x);
+        (x % (n as u64)) as i64
+    })
 }
 
 pub fn resolve_mutation_value(

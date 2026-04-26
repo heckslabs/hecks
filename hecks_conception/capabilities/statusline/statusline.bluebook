@@ -105,4 +105,52 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
     #   moon + name only ; mood_icon replaced with ⚠.
 
   end
+
+  # ============================================================
+  # SECTIONS — line composition (i97 mirror of i105 dashboard)
+  # ============================================================
+  #
+  # The same `section "…" do row "label", :field … end` form the
+  # dashboard uses (capabilities/status/) declares the statusline's
+  # rendered fields per mode. The Rust statusline runner (still TODO —
+  # gap : `statusline_runner_in_rust` ; today statusline-command.sh
+  # plays the role transitionally) walks the matching mode's section
+  # and joins the values into a single line.
+  #
+  # Until the Rust runner lands, statusline-command.sh hard-codes the
+  # same shape ; this declaration is the canonical contract the shell
+  # is mirroring. Editing this list is what changes the line.
+
+  section "Awake" do
+    row "name_glyph",     :sun_glyph
+    row "name",           :name
+    row "heart_glyph",    :heart_glyph
+    row "beats",          :beats
+    row "mood_icon",      :mood_icon
+    row "mood",           :mood
+    row "fatigue_icon",   :fatigue_icon
+    row "fatigue",        :fatigue
+    row "musings_glyph",  :musings_glyph
+    row "musings",        :musings_count
+    row "inventions_glyph", :inventions_glyph
+    row "inventions",     :inventions_count
+    row "inbox_glyph",    :inbox_glyph
+    row "inbox",          :inbox_count
+    row "provider_badge", :provider_badge
+    row "bulb",           :bulb
+    row "sleep_summary",  :sleep_summary
+  end
+
+  section "Sleeping" do
+    row "name_glyph",  :moon_glyph
+    row "name",        :name
+    row "cycle_label", :sleep_cycle_label
+    row "stage",       :sleep_stage
+  end
+
+  section "Minimal" do
+    row "name_glyph", :moon_glyph
+    row "name",       :name
+    row "warning",    :warning_glyph
+  end
 end

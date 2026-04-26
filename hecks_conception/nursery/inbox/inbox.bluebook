@@ -3,14 +3,18 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
 
   aggregate "Message", "A queued note from Chris that Miette has not yet processed" do
     attribute :body, String
+    # value_object: Priority enum:high|medium|normal|low
     attribute :priority, String
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :posted_at, String
+    # value_object: InboxStatus enum:queued|acknowledged|done|deferred
     attribute :status, String
 
     command "PostMessage" do
       role "Chris"
       description "Drop a message into Miette's inbox"
       attribute :body, String
+      # value_object: Priority enum:high|medium|normal|low
       attribute :priority, String
       emits "MessagePosted"
       then_set :body, to: :body
@@ -55,12 +59,14 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
 
   aggregate "Inbox", "The queue itself — how many waiting, what's next" do
     attribute :queued_count, Integer
+    # value_object: Priority enum:high|medium|normal|low|none
     attribute :oldest_priority, String
 
     command "OpenInbox" do
       role "System"
       description "Bring the inbox into existence so messages have a home"
       attribute :queued_count, Integer
+      # value_object: Priority enum:high|medium|normal|low|none
       attribute :oldest_priority, String
       emits "InboxOpened"
       then_set :queued_count, to: :queued_count
@@ -79,6 +85,7 @@ Hecks.bluebook "Inbox", version: "2026.04.11.1" do
       description "Recalculate queued count and oldest priority"
       reference_to(Inbox)
       attribute :queued_count, Integer
+      # value_object: Priority enum:high|medium|normal|low|none
       attribute :oldest_priority, String
       emits "Tallied"
       then_set :queued_count, to: :queued_count

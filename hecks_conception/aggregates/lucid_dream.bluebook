@@ -38,6 +38,7 @@ Hecks.bluebook "LucidDream", version: "2026.04.24.1" do
   #                    carries a fading observation.
 
   aggregate "LucidDream", "Conscious awareness inside the dream — Miette can observe, steer, and narrate. Singleton (one lucid session at a time), so commands have no self-reference. Narrative strings are the English-translated form ; the French originals live in dream_state.heki." do
+    # value_object: YesNoFlag enum:yes|no
     attribute :active, String
     attribute :focus, String
     attribute :observations, list_of(String)
@@ -86,6 +87,7 @@ Hecks.bluebook "LucidDream", version: "2026.04.24.1" do
   end
 
   aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
+    # value_object: ReportingState enum:active|stopped
     attribute :reporting, String
     attribute :log_path, String
 

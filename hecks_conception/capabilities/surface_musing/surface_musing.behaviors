@@ -1,0 +1,46 @@
+Hecks.behaviors "SurfaceMusing" do
+  vision "Behavioral tests for the SurfaceMusing capability — exercises the surface pipeline in memory"
+
+  # ── Surfacing aggregate ──────────────────────────────────────────
+
+  test "Surface stamps loop_count" do
+    tests "Surface", on: "Surfacing"
+    input  loop_count: 1
+    expect loop_count: 1
+  end
+
+  test "ReadPool runs" do
+    tests "ReadPool", on: "Surfacing"
+    expect ok: "true"
+  end
+
+  test "FilterPool runs" do
+    tests "FilterPool", on: "Surfacing"
+    setup  "ReadPool"
+    expect ok: "true"
+  end
+
+  test "PickHead sets picked_idea" do
+    tests "PickHead", on: "Surfacing"
+    input  picked_idea: "sample"
+    expect picked_idea: "sample"
+  end
+
+  test "WriteStatusline runs" do
+    tests "WriteStatusline", on: "Surfacing"
+    setup  "PickHead", picked_idea: "sample"
+    expect ok: "true"
+  end
+
+  test "MarkConceived runs when loop_count > 0" do
+    tests "MarkConceived", on: "Surfacing"
+    setup  "Surface", loop_count: 30
+    expect ok: "true"
+  end
+
+  test "CompleteSurface runs" do
+    tests "CompleteSurface", on: "Surfacing"
+    setup  "WriteStatusline"
+    expect ok: "true"
+  end
+end

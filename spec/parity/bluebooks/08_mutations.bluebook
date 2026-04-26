@@ -31,5 +31,27 @@ Hecks.bluebook "WithMutations", version: "2026.04.18.1" do
       then_set :tags, append: :tag
       emits "Tagged"
     end
+
+    # i106 dsl-mutation-primitives — multiply / clamp / decay
+    command "Halve" do
+      role "User"
+      reference_to Counter
+      then_set :value, multiply: 0.5
+      emits "Halved"
+    end
+
+    command "Decay" do
+      role "User"
+      reference_to Counter
+      then_set :value, decay: 0.05
+      emits "Decayed"
+    end
+
+    command "Bound" do
+      role "User"
+      reference_to Counter
+      then_set :value, clamp: [0.0, 1.0]
+      emits "Bounded"
+    end
   end
 end

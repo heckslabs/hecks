@@ -100,7 +100,7 @@ Hecks.bluebook "Dendrology" do
     attribute :pest_signs, String
     # Defect counter — RecordDefect appends to this list; PrescribeTreatment
     # gates on it being non-empty (i.e. at least one defect identified).
-    attribute :defects, String, list: true
+    attribute :defects, list_of(String)
     reference_to TreeSpecimen
 
     command "AssessHealth" do

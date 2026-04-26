@@ -13,8 +13,10 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   # `RecoverFatigue` (which now also walks `fatigue_state` back to alert).
 
   aggregate "Consciousness", "The current state of awareness. Sleep progresses through content gates, not artificial time floors. REM extends until dream_pulses reaches its target — Claude's response cadence is the clock. Light, deep, and final_light advance the moment their content condition is met (today : the next phase command's `given` clauses). The REM hard cap (60 ticks) stays as a safety fallback in case Claude stops responding. After the final deep, one final light phase before waking so I wake refreshed, not groggy. The last cycle's REM is lucid — I know I'm dreaming and can steer." do
+    # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
     attribute :state, String
     # sleep_stage values: light | rem | deep | final_light
+    # value_object: SleepStage enum:light|rem|deep|final_light
     attribute :sleep_stage, String
     # sleep_cycle is 1-based; counts completed cycles
     attribute :sleep_cycle, Integer
@@ -26,11 +28,13 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
     attribute :dream_pulses, Integer
     attribute :dream_pulses_needed, Integer
     # is_lucid = "yes" during the final REM only
+    # value_object: YesNoFlag enum:yes|no
     attribute :is_lucid, String
     # sleep_summary is the verbose narrative shown in the status bar
     attribute :sleep_summary, String
     # last_wake_at is the ISO timestamp of the most recent wake from a full
     # sleep cycle. Mint reads conversations between this timestamp and now.
+    # value_object: Timestamp (ISO 8601 UTC)
     attribute :last_wake_at, String
     attribute :idle_seconds, Integer
 
@@ -211,6 +215,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
       role "Daemon"
       description "Final light phase done. Wake refreshed. Stamps last_wake_at so the mint process can draw on conversations that happened between sleep cycles. No time floor."
       given("stage must be final_light") { sleep_stage == "final_light" }
+      # value_object: Timestamp (ISO 8601 UTC)
       attribute :wake_at, String
       then_set :state, to: "waking"
       then_set :last_wake_at, to: :wake_at
@@ -264,6 +269,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
     attribute :cycle_number, Integer
     attribute :total_cycles, Integer
+    # value_object: SleepStage enum:light|rem|deep|final_light
     attribute :stage, String
     attribute :rem_intensity, Integer
 
@@ -304,6 +310,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
 
   aggregate "Night", "A full sleep session — 8 cycles spelled out" do
     attribute :cycles_completed, Integer
+    # value_object: NightPhase enum:starting|dreaming|consolidating|lucid|ended
     attribute :phase, String
 
     command "StartNight" do
@@ -420,6 +427,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
     attribute :mood, String
     attribute :reason, String
 
@@ -437,6 +445,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
     attribute :interval_seconds, Integer
     attribute :z_depth, Integer
+    # value_object: ReportingState enum:active|stopped
     attribute :reporting, String
 
     command "StartMonitoring" do

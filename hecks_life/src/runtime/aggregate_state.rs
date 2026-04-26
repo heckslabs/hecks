@@ -6,6 +6,9 @@
 //! Usage:
 //!   let mut state = AggregateState::new("pizza_1");
 //!   state.set("name", Value::Str("Margherita".into()));
+//!
+//! [antibody-exempt: i106 dsl-mutation-primitives — adds `set_float`
+//!  for Multiply / Clamp / Decay. Same retirement contract as ir.rs.]
 
 use super::Value;
 use std::collections::HashMap;
@@ -79,6 +82,15 @@ impl AggregateState {
         let new_val = current - amount;
         self.fields
             .insert(field.to_string(), Value::Str(format_numeric(new_val)));
+    }
+
+    /// Float-aware set — i106 Multiply / Decay / Clamp. The new value
+    /// is rendered as the same numeric Str representation
+    /// `increment_float` uses, so downstream comparisons (givens,
+    /// queries) coerce identically across +/- and ×/clamp paths.
+    pub fn set_float(&mut self, field: &str, value: f64) {
+        self.fields
+            .insert(field.to_string(), Value::Str(format_numeric(value)));
     }
 
     pub fn toggle(&mut self, field: &str) {

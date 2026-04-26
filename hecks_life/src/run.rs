@@ -139,6 +139,15 @@ pub fn run_script(args: &[String]) -> i32 {
         return crate::run_status::run(&mut rt, &registry, &entrypoint, path, extra);
     }
 
+    // Boot capability detection: :fs + :stdout + a BootRun aggregate
+    // with BeginBoot. Walks the eight pipeline phases declared in
+    // capabilities/boot/boot.bluebook, dispatching :fs / :memory /
+    // :daemon / :stdout for each. Replaces the imperative
+    // hecks_conception/boot_miette.sh.
+    if crate::run_boot::is_boot_capability(&registry, &rt) {
+        return crate::run_boot::run(&mut rt, &registry, &entrypoint, path, extra);
+    }
+
     match rt.dispatch(&entrypoint, attrs) {
         Ok(_) => ExitKind::Ok.code(),
         Err(crate::runtime::RuntimeError::UnknownCommand(_)) => {

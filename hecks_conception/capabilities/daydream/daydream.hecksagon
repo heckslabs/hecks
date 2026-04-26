@@ -1,0 +1,76 @@
+Hecks.hecksagon "Daydream" do
+  # ============================================================
+  # DAYDREAM — hexagonal wiring (Phase F-9)
+  # ============================================================
+  #
+  # The sibling bluebook declares Wandering — one record per
+  # attentive-idle wander, walking PickDomains → DumpDomains →
+  # FindOverlap → BuildImpression → RecordImpression → ForgeSynapse
+  # (or aborts at OverlapFound when the picks share nothing).
+  #
+  # No LLM. The wander is purely structural — two random domains, IR
+  # parsed, a shared aggregate or attribute name found by set
+  # intersection. The "free association" lives in the random pick,
+  # not in any generative call.
+  #
+  # Outbound ports :
+  #
+  #   :fs               — random sample of two .bluebook paths from
+  #                       nursery/ (recursive). Drives PickDomains.
+  #                       Empty pick aborts the wander silently.
+  #
+  #   :hecks_dump       — runs hecks-life dump on each picked path
+  #                       and returns the parsed domain JSON
+  #                       (.name + .aggregates[].name + .aggregates[]
+  #                       .attributes[].name). Drives DumpDomains.
+  #                       Failure to parse either bluebook aborts
+  #                       silently — malformed nursery domains
+  #                       should not block daydreaming. Wired as a
+  #                       named `:shell` adapter so the runtime's
+  #                       ShellDispatcher executes it (same shape as
+  #                       aggregates/dream_review.hecksagon's
+  #                       :hecks_dump declaration). The shell-form is
+  #                       the canonical wiring for "run hecks-life
+  #                       and parse JSON" ports until a dedicated
+  #                       in-process IR adapter is justified.
+  #
+  #   :heki_append      — appends to daydream.heki (impressions,
+  #                       duration_seconds, connections_found=1,
+  #                       wandered_at) and to synapse.heki (from, to,
+  #                       strength=0.5, state=forming, firings=0,
+  #                       last_fired_at). The dual-append pattern
+  #                       mirrors pulse_organs.sh:138 — multi-record
+  #                       aggregates without reference_to need
+  #                       append, not dispatch.
+  #
+  #   :runtime_dispatch — fires Daydream.RecordDaydream so the
+  #                       bluebook's DaydreamRecorded event reaches
+  #                       any subscribers. The append above keeps
+  #                       history ; the dispatch keeps the event
+  #                       stream coherent. NOTE : declared but
+  #                       requires runtime self-dispatch wiring.
+  #
+  # Kernel-floor (not declared as adapters) :
+  #
+  #   Set intersection — pure data-structure work in FindOverlap.
+  #   The trivial-attribute filter (id/created_at/updated_at/name/
+  #   created/updated) is a constant list ; could be promoted to a
+  #   bluebook constant or a value_object once that DSL ships.
+  #
+  #   The wall-clock delta in BuildImpression — pure arithmetic,
+  #   bounded below at 1 second.
+  #
+  #   The mindstream gate (idle ∈ [10, 60]s + 60s rate-limit) is
+  #   currently shell-side. Bluebook intent : `given { idle_seconds
+  #   >= 10 && idle_seconds <= 60 }` (already declared on Wander)
+  #   plus a per-aggregate rate-limit hint the runner consults.
+  #   Runtime gap filed in the PR body.
+
+  adapter :fs,               root: "."
+  adapter :shell, name: :hecks_dump,
+    command: "hecks-life",
+    args: ["dump", "{{path}}"],
+    output_format: :json
+  adapter :heki_append,      root: "information"
+  adapter :runtime_dispatch
+end

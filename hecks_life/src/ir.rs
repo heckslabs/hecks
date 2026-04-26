@@ -2,6 +2,16 @@
 //!
 //! Same structure as the Ruby BluebookModel, but in Rust.
 //! This is what the parser produces and the generators consume.
+//!
+//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface IR
+//!  extension that adds Multiply / Clamp / Decay to MutationOp. The
+//!  rewrite IS the work : pulse_organs.sh and consolidate.sh cannot
+//!  retire to .bluebook (i80 cli-routing-as-bluebook contract) until
+//!  the DSL can express ×0.98 decay, clamp(0,1), and exponential
+//!  weight loss. This file is the kernel boundary for those mutations
+//!  — every call site (parser, interpreter, dump, generators, lifecycle
+//!  validator) is updated in the same change. The .rs surface exists
+//!  to enable the .bluebook surface.]
 
 use std::fmt;
 
@@ -17,6 +27,31 @@ pub struct Domain {
     /// `hecks-life run <file>` dispatches when invoked as an executable.
     /// None for library-style bluebooks with no default command.
     pub entrypoint: Option<String>,
+    /// Capability bluebooks (e.g. status, statusline) declare an ordered
+    /// list of `section "Title" do row "label", :field … end` blocks at
+    /// the top level. The status runner walks these to render its
+    /// dashboard rather than hard-coding section composition in Rust.
+    /// Empty for bluebooks that don't declare any.
+    pub sections: Vec<Section>,
+}
+
+/// One named section in a capability dashboard. Title becomes the bordered
+/// header; rows are an ordered (label, field) list pointing at attributes
+/// on the capability's stamped aggregate (e.g. `StatusReport`).
+#[derive(Debug, Clone)]
+pub struct Section {
+    pub title: String,
+    pub rows: Vec<SectionRow>,
+}
+
+/// One row inside a section. `label` is what the renderer prints on the
+/// left; `field` is the attribute name on the capability's stamped
+/// aggregate (snake_case). The renderer looks the field up at render
+/// time and prints "—" when the attribute is missing.
+#[derive(Debug, Clone)]
+pub struct SectionRow {
+    pub label: String,
+    pub field: String,
 }
 
 #[derive(Debug)]
@@ -77,6 +112,24 @@ pub enum MutationOp {
     Increment,
     Decrement,
     Toggle,
+    /// Multiplicative scaling — `then_set :strength, multiply: 0.95`.
+    /// The `value` field on `Mutation` carries the source-text factor;
+    /// the runtime parses it as f64. Float-typed result is stored as a
+    /// numeric Str the way `increment_float` does, preserving parity
+    /// with the existing fractional path.
+    Multiply,
+    /// Bound a numeric field to a closed interval — `then_set :strength,
+    /// clamp: [0.0, 1.0]`. The `value` field carries the source-text
+    /// list literal `[min, max]`. Used by per-tick body math (synapse
+    /// strength, focus weight) where overshoot is normal and the shell
+    /// previously did the awk-side clamp.
+    Clamp,
+    /// Exponential decay — `then_set :strength, decay: 0.05`. New value
+    /// is `current * (1.0 - rate)`. Convenience over `multiply: 0.95`
+    /// when expressing the loss rate is more legible than the survival
+    /// rate. Both compose: a typical pulse-organs decay step is decay
+    /// THEN clamp.
+    Decay,
 }
 
 #[derive(Debug)]
