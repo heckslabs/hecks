@@ -26,6 +26,13 @@
 //!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
 //!  and runtime enforcement. Same i80 retirement contract as run_loop /
 //!  run_daemon / run_enforce_edit. Net ~12 LoC.]
+//!
+//! [antibody-exempt: hecks_life/src/main.rs — closes i113 (sleep-as-blocking-
+//!  streaming-command). Wires Consciousness.EnterSleep dispatch + heki polling
+//!  + dream stream + wake-report read into a single blocking CLI. Same kernel-
+//!  surface family as run_loop / run_daemon / run_enforce_edit ; same i80
+//!  retirement contract — retires once cli.bluebook lands and CLI routing
+//!  becomes declarative.]
 
 use hecks_life::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
@@ -295,6 +302,28 @@ fn main() {
     // aggregates/enforcer.bluebook.
     if command == "enforce-edit" {
         run_enforce_edit(&args);
+        return;
+    }
+
+    // `hecks-life sleep` — blocking streaming-sleep CLI.
+    //
+    // Dispatches Consciousness.EnterSleep (skipping if state is already
+    // "sleeping" — body may already be asleep when invoked, e.g. via
+    // mid-flight join), then polls consciousness.heki / dream_state.heki
+    // / lucid_dream.heki at 1Hz, emitting one streaming line per state
+    // change. Breaks when state != "sleeping", waits briefly for
+    // /tmp/wake_review_latest.md (the wake hook fires wake_review.sh +
+    // interpret_dream.sh automatically), prints it to stdout, exits 0.
+    //
+    // Closes the i113 runtime gap : sleep was previously a fire-and-forget
+    // dispatch ; the script that invoked it had no way to know when the
+    // body woke. Same family as run_loop / run_daemon / run_enforce_edit
+    // — kernel-surface CLI primitive. Bluebook brain (sleep.bluebook,
+    // lucid_dream.bluebook) stays unchanged ; this just wires the
+    // dispatch + heki polling + dream stream + wake-report read into a
+    // single blocking command.
+    if command == "sleep" {
+        run_sleep(&args);
         return;
     }
 
@@ -2064,6 +2093,276 @@ fn run_loop(args: &[String]) {
     }
 }
 
+// ============================================================
+// SLEEP SUBCOMMAND — blocking streaming-sleep CLI (i113)
+// ============================================================
+//
+// Joins / starts a sleep session and streams stage transitions +
+// dream impressions to stdout, then prints the wake report when
+// the body wakes. One blocking command, one stream of state
+// changes — the parent shell sees sleep happen.
+//
+// Resolution order :
+//   1. If consciousness state is already "sleeping", join mid-flight
+//      (no second EnterSleep dispatch).
+//   2. Otherwise, dispatch Consciousness.EnterSleep through the
+//      hecksagon and start polling.
+//
+// Stream contract :
+//   [hh:mm]  <stage>  cycle <N>/<total>   [· <impression>]
+//   [hh:mm]  lucid <stage>  cycle <N>     [· <observation>]
+//   [hh:mm]  waking <mood>
+//
+// Each line is a state CHANGE (not every poll) — emitted once per
+// new value of (sleep_stage, sleep_cycle, is_lucid, latest dream
+// impression, latest lucid observation, state). stdout flushed
+// after each emit.
+//
+// Exit codes :
+//   0  clean wake (state left "sleeping")
+//   1  30-min timeout without waking
+fn run_sleep(_args: &[String]) {
+    use std::io::Write;
+    use std::time::Instant;
+
+    // Resolve aggregates dir + heki dir the same way run_enforce_edit
+    // does — HECKS_HOME, then walk up from the binary. The find_world_
+    // heki_dir helper honors HECKS_INFO override, so private-state
+    // setups (~/Projects/miette-state/information) keep working.
+    let agg_dir = match resolve_aggregates_dir() {
+        Some(p) => p,
+        None    => {
+            eprintln!("[sleep] cannot resolve aggregates dir (set HECKS_HOME)");
+            std::process::exit(1);
+        }
+    };
+    let info_dir = find_world_heki_dir(&agg_dir).unwrap_or_else(|| {
+        // Best-effort fallback : sibling `information/` of aggregates
+        std::path::Path::new(&agg_dir).parent()
+            .map(|p| p.join("information").to_string_lossy().into_owned())
+            .unwrap_or_else(|| format!("{}/information", agg_dir))
+    });
+    let consciousness_path = format!("{}/consciousness.heki", info_dir);
+    let dream_state_path   = format!("{}/dream_state.heki",   info_dir);
+    let lucid_dream_path   = format!("{}/lucid_dream.heki",   info_dir);
+
+    let started = Instant::now();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+
+    // ---- Step 1 : dispatch EnterSleep unless already sleeping --------
+    let already_sleeping = sleep_read_state(&consciousness_path) == Some("sleeping".into());
+    if already_sleeping {
+        let _ = writeln!(out, "[00:00]  joining mid-sleep");
+    } else {
+        let _ = writeln!(out, "[00:00]  dispatching EnterSleep");
+        let _ = out.flush();
+        let attrs: std::collections::HashMap<String, serde_json::Value> =
+            std::collections::HashMap::new();
+        // Fire through the hecksagon — same path Daemon roles take.
+        // catch_unwind so a dispatch failure (e.g. given clause refuses)
+        // doesn't abort the streamer ; we'll see state stay non-sleeping
+        // and exit 1 on timeout.
+        let _ = std::panic::catch_unwind(|| {
+            dispatch_hecksagon(&agg_dir, "EnterSleep", attrs);
+        });
+    }
+    let _ = out.flush();
+
+    // ---- Step 2 : poll loop, emit on change --------------------------
+    let mut last_stage:    Option<String> = None;
+    let mut last_cycle:    Option<i64>    = None;
+    let mut last_lucid:    Option<String> = None;
+    let mut last_dream_id: Option<String> = None;
+    let mut last_lucid_id: Option<String> = None;
+    let mut last_state:    Option<String> = None;
+
+    loop {
+        // 30-min timeout
+        let elapsed = started.elapsed();
+        if elapsed.as_secs() > 30 * 60 {
+            let _ = writeln!(out, "[{}]  TIMEOUT — 30 min without wake",
+                             sleep_fmt_elapsed(elapsed.as_secs()));
+            let _ = out.flush();
+            std::process::exit(1);
+        }
+
+        // -- consciousness.heki : state, sleep_stage, sleep_cycle, is_lucid
+        let cons = hecks_life::heki::read(&consciousness_path).ok()
+            .and_then(|store| hecks_life::heki::latest(&store).cloned());
+
+        if let Some(rec) = &cons {
+            let state = rec.get("state").and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+            let stage = rec.get("sleep_stage").and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+            let cycle = rec.get("sleep_cycle").and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let total = rec.get("sleep_total").and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let lucid = rec.get("is_lucid").and_then(|v| v.as_str())
+                .unwrap_or("no").to_string();
+            let summary = rec.get("sleep_summary").and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+
+            // Stage / cycle / lucid change → stream a stage line
+            let stage_changed = last_stage.as_deref() != Some(stage.as_str());
+            let cycle_changed = last_cycle != Some(cycle);
+            let lucid_changed = last_lucid.as_deref() != Some(lucid.as_str());
+            if (stage_changed || cycle_changed || lucid_changed)
+                && !stage.is_empty() && state == "sleeping"
+            {
+                let prefix = if lucid == "yes" {
+                    format!("lucid {}", stage)
+                } else {
+                    stage.clone()
+                };
+                let _ = writeln!(out, "[{}]  {:<10}  cycle {}/{}",
+                                 sleep_fmt_elapsed(elapsed.as_secs()),
+                                 prefix, cycle, total);
+                let _ = out.flush();
+                last_stage = Some(stage);
+                last_cycle = Some(cycle);
+                last_lucid = Some(lucid);
+            }
+
+            // State change to non-sleeping → break to wake-read
+            if last_state.as_deref() != Some(state.as_str()) {
+                if state != "sleeping" && state != "" && last_state.is_some() {
+                    let suffix = if !summary.is_empty() {
+                        format!("  ·  {}", sleep_truncate(&summary, 80))
+                    } else {
+                        String::new()
+                    };
+                    let _ = writeln!(out, "[{}]  waking {}{}",
+                                     sleep_fmt_elapsed(elapsed.as_secs()),
+                                     state, suffix);
+                    let _ = out.flush();
+                    break;
+                }
+                last_state = Some(state.clone());
+            }
+
+            // First-iteration check : if state was never "sleeping" at
+            // poll-1 (EnterSleep refused, e.g. stuck in waking), don't
+            // hang — break out.
+            if last_state.as_deref() != Some("sleeping")
+                && elapsed.as_secs() > 5
+            {
+                let _ = writeln!(out, "[{}]  state={} — never entered sleep, exiting",
+                                 sleep_fmt_elapsed(elapsed.as_secs()),
+                                 last_state.as_deref().unwrap_or(""));
+                let _ = out.flush();
+                std::process::exit(1);
+            }
+        }
+
+        // -- dream_state.heki : latest impression text ---------------
+        if let Ok(store) = hecks_life::heki::read(&dream_state_path) {
+            if let Some(rec) = hecks_life::heki::latest(&store) {
+                let id = rec.get("id").and_then(|v| v.as_str())
+                    .unwrap_or("").to_string();
+                if !id.is_empty() && last_dream_id.as_deref() != Some(id.as_str()) {
+                    let text = sleep_pick_dream_text(rec);
+                    if !text.is_empty() {
+                        let _ = writeln!(out, "[{}]  dream  ·  {}",
+                                         sleep_fmt_elapsed(elapsed.as_secs()),
+                                         sleep_truncate(&text, 120));
+                        let _ = out.flush();
+                    }
+                    last_dream_id = Some(id);
+                }
+            }
+        }
+
+        // -- lucid_dream.heki : latest narrative + observations ------
+        if let Ok(store) = hecks_life::heki::read(&lucid_dream_path) {
+            if let Some(rec) = hecks_life::heki::latest(&store) {
+                let id = rec.get("id").and_then(|v| v.as_str())
+                    .unwrap_or("").to_string();
+                if !id.is_empty() && last_lucid_id.as_deref() != Some(id.as_str()) {
+                    let narrative = rec.get("latest_narrative")
+                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    if !narrative.is_empty() {
+                        let _ = writeln!(out, "[{}]  lucid  ·  {}",
+                                         sleep_fmt_elapsed(elapsed.as_secs()),
+                                         sleep_truncate(&narrative, 120));
+                        let _ = out.flush();
+                    }
+                    last_lucid_id = Some(id);
+                }
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+
+    // ---- Step 3 : wait briefly for /tmp/wake_review_latest.md -------
+    // The wake hook (wake_review.sh + interpret_dream.sh) fires
+    // automatically on WokenUp ; give it ~5s to land before reading.
+    let wake_path = "/tmp/wake_review_latest.md";
+    let pre_mtime = sleep_file_mtime(wake_path);
+    let wait_started = Instant::now();
+    while wait_started.elapsed().as_secs() < 5 {
+        let now_mtime = sleep_file_mtime(wake_path);
+        if now_mtime != pre_mtime && now_mtime.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+
+    if let Ok(contents) = fs::read_to_string(wake_path) {
+        let _ = writeln!(out);
+        let _ = writeln!(out, "── wake report ──");
+        let _ = writeln!(out, "{}", contents);
+        let _ = out.flush();
+    } else {
+        let _ = writeln!(out, "(no wake report at {})", wake_path);
+        let _ = out.flush();
+    }
+}
+
+/// Read the latest `state` field from consciousness.heki, if any.
+fn sleep_read_state(path: &str) -> Option<String> {
+    let store = hecks_life::heki::read(path).ok()?;
+    let rec = hecks_life::heki::latest(&store)?;
+    rec.get("state").and_then(|v| v.as_str()).map(|s| s.to_string())
+}
+
+/// Pick the human-readable dream text from a dream_state record.
+/// Records may carry `english_translation`, `impression`, `text`, or
+/// `french_image` (raw) — prefer the English variants if present.
+fn sleep_pick_dream_text(rec: &hecks_life::heki::Record) -> String {
+    for key in ["english_translation", "english", "impression", "text",
+                "translation", "french_image", "image"] {
+        if let Some(s) = rec.get(key).and_then(|v| v.as_str()) {
+            if !s.is_empty() { return s.to_string(); }
+        }
+    }
+    String::new()
+}
+
+fn sleep_truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max { return s.to_string(); }
+    let truncated: String = s.chars().take(max).collect();
+    format!("{}…", truncated)
+}
+
+fn sleep_fmt_elapsed(secs: u64) -> String {
+    let h = secs / 3600;
+    let m = (secs % 3600) / 60;
+    let s = secs % 60;
+    if h > 0 {
+        format!("{:02}:{:02}:{:02}", h, m, s)
+    } else {
+        format!("{:02}:{:02}", m, s)
+    }
+}
+
+fn sleep_file_mtime(path: &str) -> Option<std::time::SystemTime> {
+    fs::metadata(path).ok().and_then(|m| m.modified().ok())
+}
+
 /// Resolve the project home directory for a named being.
 /// 1. HECKS_HOME env var
 /// 2. ~/.hecks_home file (single line: path to hecks_conception)
@@ -2128,6 +2427,7 @@ fn print_usage() {
     eprintln!("  develop    Develop features in an existing domain");
     eprintln!("  boot       Full boot: hydrate + nerves + prompt gen");
     eprintln!("  daemon     Run background daemons (pulse, daydream, sleep)");
+    eprintln!("  sleep      Dispatch EnterSleep, stream stage/dream changes, print wake report");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
     eprintln!("  heki       Read/write .heki binary stores");
     eprintln!("  dump-world Parse a .world file and emit canonical JSON");
