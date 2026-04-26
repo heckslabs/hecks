@@ -79,13 +79,8 @@ thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 # the liveness check : if the body's heart has been silent > 5s
 # the glyph degrades to 🫥.
 hearts=("🖤" "❤️")
-heart_age=$($hecks heki seconds-since $info/heart.heki updated_at 2>/dev/null)
-if [ -n "$heart_age" ] && [ "$heart_age" -gt 5 ] 2>/dev/null; then
-  heart="🫥"
-else
-  half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
-  heart="${hearts[$half_second_phase]}"
-fi
+half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
+heart="${hearts[$half_second_phase]}"
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
