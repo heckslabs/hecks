@@ -1,0 +1,66 @@
+Hecks.hecksagon "MusingMint" do
+  # ============================================================
+  # MUSINGMINT — hexagonal wiring (Phase F-9)
+  # ============================================================
+  #
+  # The sibling bluebook declares Mint — one record per mint attempt,
+  # walking ReadProvider → AssembleContext → AssemblePrompt → :llm
+  # → CaptureIdea → PersistMusing (or skip at any short-circuit).
+  #
+  # Outbound ports :
+  #
+  #   :llm              — backend:claude (default), free-form prompt.
+  #                       The aggregate's :input field carries the
+  #                       full curator prompt verbatim ; the LLM's
+  #                       reply is written to :response. Same
+  #                       input/response convention as RemDream. In
+  #                       test mode, fixtures provide canned pairs ;
+  #                       no live LLM is needed.
+  #
+  #   :heki_read        — reads claude_assist.heki (provider) ;
+  #                       musing.heki (recent ideas) ;
+  #                       conversation.heki (turns since last_wake_at) ;
+  #                       heartbeat.heki (beats, fatigue_state) ;
+  #                       mood.heki (current_state) ;
+  #                       consciousness.heki (state, sleep_stage,
+  #                       last_wake_at) ; lucid_dream.heki (latest
+  #                       observation). Drives ReadProvider and
+  #                       AssembleContext.
+  #
+  #   :heki_append      — appends to musing.heki :
+  #                       idea, conceived=false, conceived_as=claude_minted,
+  #                       status=imagined, thinking_source=ClaudeAssist:<p>,
+  #                       feeling_source=curated:awake. Drives
+  #                       PersistMusing.
+  #
+  #   :fs               — random sample of 12 entries from nursery/
+  #                       (directory listing). Pure read ; no .heki.
+  #                       Drives the nursery_sample stamping in
+  #                       AssembleContext.
+  #
+  #   :runtime_dispatch — fires Mindstream.MusingMint.MintMusing so
+  #                       the existing MusingMint aggregate's
+  #                       total_minted counter advances and the
+  #                       MusingMinted event reaches subscribers
+  #                       (PruneMusingsOnPulse, etc.). Same pattern
+  #                       as rem_dream's DispatchDreamPulse.
+  #
+  # Kernel-floor (not declared as adapters) :
+  #
+  #   Quote-stripping + truncation — pure string normalisation in
+  #   CaptureIdea. Trim, strip surrounding quotes, cut at 200 chars.
+  #
+  #   The RANDOM % 300 mindstream gate — currently shell-side. Bluebook
+  #   intent : `given { rand_below(300) == 0 }`. Runtime gap (filed
+  #   in PR body). Once the DSL supports rand_below, the entire gate
+  #   moves into AttemptMint and the mindstream invokes the bluebook
+  #   unconditionally per tick.
+
+  adapter :llm,
+    backend: :claude
+
+  adapter :heki_read,        root: "information"
+  adapter :heki_append,      root: "information"
+  adapter :fs,               root: "."
+  adapter :runtime_dispatch
+end

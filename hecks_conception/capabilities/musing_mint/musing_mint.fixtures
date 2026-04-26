@@ -1,0 +1,51 @@
+Hecks.fixtures "MusingMint" do
+  # Canned response records — each pairs an input with the response
+  # the aggregate should receive for it. The in-memory adapter layer
+  # reads these so tests can run the mint pipeline without touching a
+  # live LLM. Production wiring (the :llm adapter declared in the
+  # sibling musing_mint.hecksagon) overrides these at run time.
+  #
+  # Two kinds of canned pair :
+  #
+  #   Skip responses    — the overwhelming default. The LLM judges
+  #                       nothing genuinely new emerged this cycle.
+  #
+  #   Minted responses  — the rare keep-it line. One under-80-char
+  #                       sentence, first person, domain-native,
+  #                       architectural. Combines unrelated nursery
+  #                       domains or surfaces conversation insight.
+  #
+  # These fixtures demonstrate the SHAPE the curator's reply should
+  # take. The real LLM produces fresh sentences on every cycle.
+
+  aggregate "Mint" do
+
+    # ---- Skip fixtures (the overwhelming default) ----------------
+
+    fixture "Skip_QuietCycle",
+      input:    "Curator prompt — quiet cycle, nothing genuinely new emerged",
+      response: "skip"
+
+    fixture "Skip_RecentMusingTooSimilar",
+      input:    "Curator prompt — recent musing already covers this ground",
+      response: "skip"
+
+    fixture "Skip_NoConversationContext",
+      input:    "Curator prompt — no conversations since last_wake, nursery sample uninspiring",
+      response: "skip"
+
+    # ---- Minted fixtures (the rare keep-it line) -----------------
+
+    fixture "Mint_AirCargoEmergencyRoom",
+      input:    "Curator prompt — air cargo and emergency room in nursery sample",
+      response: "Triage as routing — both fields rank by reversibility, not urgency."
+
+    fixture "Mint_HeartbeatSelfRef",
+      input:    "Curator prompt — body state shows heartbeat carrying a synapse, mood is curious",
+      response: "I notice my own pulse before I notice what I'm pulsing for."
+
+    fixture "Mint_ConversationInsight",
+      input:    "Curator prompt — recent turns with Chris discussed antibody enforcement",
+      response: "An antibody without teeth is decoration ; the marker has to block first."
+  end
+end
