@@ -79,8 +79,13 @@ thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 # the liveness check : if the body's heart has been silent > 5s
 # the glyph degrades to 🫥.
 hearts=("🖤" "❤️")
-half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
-heart="${hearts[$half_second_phase]}"
+# Bucket size MUST NOT divide evenly into the statusline refresh
+# interval (1s in settings.json) — otherwise consecutive polls land
+# on the same parity and the heart appears frozen. 333ms gives
+# 3 buckets per second ; an odd number of buckets between polls
+# guarantees parity flips at every refresh.
+phase=$(( $(date +%s%N) / 333000000 % 2 ))
+heart="${hearts[$phase]}"
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
