@@ -1,0 +1,156 @@
+Hecks.bluebook "SurfaceMusing", version: "2026.04.26.1" do
+  vision "Surface one unconceived musing from the pool to the consciousness statusline ; advance the pool every Nth tick so each musing gets attention then yields to the next"
+  category "capability"
+  entrypoint "Surface"
+
+  # ============================================================
+  # SURFACEMUSING — the active reading of the musing pool
+  # ============================================================
+  #
+  # Retires hecks_conception/surface_musing.sh. The bluebook owns the
+  # filter rules (≥20 chars, contains punctuation/whitespace, not a
+  # bare snake_case identifier, truncated to 80 chars) and the dwell
+  # cadence (mark conceived every Nth tick so the pool cycles). The
+  # sibling surface_musing.hecksagon names the :heki_read /
+  # :heki_upsert / :heki_mark ports that walk the pool, write the
+  # statusline, and advance the cursor.
+  #
+  # No LLM. No prompt. Pure transformation : read → filter → pick →
+  # surface. Quality is enforced by the filter, not by curation.
+  #
+  # The mindstream invokes this once per tick when state != "sleeping".
+  # Every tick reads the head of the unconceived pool ; every DWELL-th
+  # tick (default 30 ≈ 5 min at 10s/tick) marks it conceived so the
+  # next-oldest takes over. The 5-min dwell matches the mint cadence
+  # (mint_musing.bluebook fires roughly every 5 min) so the pool
+  # stays balanced — new musings arrive at the rate they're consumed.
+
+  aggregate "Surfacing", "One pass over the unconceived musing pool — picks the head, surfaces it, optionally retires it" do
+    # ---- Inputs ---------------------------------------------------
+    # loop_count : tick number from the mindstream. Mod DWELL == 0
+    # marks the surfaced musing conceived so the pool advances.
+    attribute :loop_count, Integer
+    # dwell_ticks : how many ticks each musing dwells on the
+    # statusline before the cursor advances. Default 30 (≈ 5 min at
+    # 10s/tick), overridable via env DWELL for deterministic tests.
+    attribute :dwell_ticks, Integer, default: 30
+
+    # ---- Selection -----------------------------------------------
+    # picked_idea : the chosen musing's idea text, truncated to 80
+    # chars. Empty when the unconceived pool yielded nothing past
+    # the filter — in that case the statusline clears.
+    attribute :picked_idea, String
+
+    # ---- Pipeline phase ------------------------------------------
+    attribute :phase, String, default: "pending"
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "Surface" do
+      role "Daemon"
+      description "User-visible entrypoint invoked by the mindstream once per tick. Reads loop_count from arg ; the runner walks the pipeline : ReadPool → FilterPool → PickHead → WriteStatusline → (every DWELL-th call) MarkConceived. The pool's :conceived flag survives across ticks so the cursor stays put until the dwell window closes."
+      attribute :loop_count, Integer
+      then_set :loop_count, to: :loop_count
+      emits "MusingSurfaced"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS
+    # ============================================================
+
+    command "ReadPool" do
+      role "System"
+      description "Read every record from musing.heki where conceived != true via the :heki_read port. Records arrive in created_at ASC order — the head of the pool is the oldest still-unconceived musing."
+      then_set :phase, to: "reading"
+      emits "PoolRead"
+    end
+
+    command "FilterPool" do
+      role "System"
+      description "Apply the sentence-shape filter to each record's :idea : ≥20 chars after trim ; contains whitespace or one of — - : . ? ! ; not a bare snake_case identifier matching ^[a-z][a-z0-9_]*$. The first record that passes wins. Records that fail are skipped — they stay in the pool but never surface."
+      then_set :phase, to: "filtering"
+      emits "PoolFiltered"
+    end
+
+    command "PickHead" do
+      role "System"
+      description "Take the first idea past the filter, trim leading/trailing whitespace, truncate to 80 chars, write to :picked_idea. Empty :picked_idea means the pool produced nothing — the statusline clears."
+      attribute :picked_idea, String
+      then_set :picked_idea, to: :picked_idea
+      then_set :phase, to: "picking"
+      emits "HeadPicked"
+    end
+
+    command "WriteStatusline" do
+      role "System"
+      description "Upsert the chosen :picked_idea into consciousness.heki as :sleep_summary via the :heki_upsert port. Empty :picked_idea writes the empty string — the statusline reads that as a clear."
+      then_set :phase, to: "writing"
+      emits "StatuslineWritten"
+    end
+
+    command "MarkConceived" do
+      role "System"
+      description "Every DWELL-th call (when loop_count mod dwell_ticks == 0), mark the surfaced musing conceived so the cursor advances to the next-oldest. Prefix-matches on :idea via :heki_mark — covers both the idea==thought case (idea ≤ 80 chars) and the idea.startswith(thought) case (idea > 80 chars, thought is truncation)."
+      given { loop_count > 0 }
+      then_set :phase, to: "advancing"
+      emits "MusingConceived"
+    end
+
+    command "CompleteSurface" do
+      role "System"
+      description "Pipeline finished — :phase moves to done. Fires MusingSurfaced as the user-visible completion signal that the statusline is now showing the picked idea (or cleared if the pool was empty)."
+      then_set :phase, to: "done"
+      emits "MusingSurfaced"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "Surface"          => "reading",   from: "pending"
+      transition "ReadPool"         => "reading",   from: "pending"
+      transition "FilterPool"       => "filtering", from: "reading"
+      transition "PickHead"         => "picking",   from: "filtering"
+      transition "WriteStatusline"  => "writing",   from: "picking"
+      transition "MarkConceived"    => "advancing", from: "writing"
+      transition "CompleteSurface"  => "done",      from: ["writing", "advancing"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the surface chain
+  # ============================================================
+
+  policy "ReadOnSurface" do
+    on "MusingSurfaced"
+    trigger "ReadPool"
+  end
+
+  policy "FilterAfterRead" do
+    on "PoolRead"
+    trigger "FilterPool"
+  end
+
+  policy "PickAfterFilter" do
+    on "PoolFiltered"
+    trigger "PickHead"
+  end
+
+  policy "WriteAfterPick" do
+    on "HeadPicked"
+    trigger "WriteStatusline"
+  end
+
+  # The dwell gate is per-tick : only every DWELL-th call advances.
+  # MarkConceived's given expresses this declaratively. Until the DSL
+  # supports a modulo-comparison given, the runner side gates the
+  # dispatch ; the bluebook's intent is captured in the description.
+  policy "AdvanceAfterWrite" do
+    on "StatuslineWritten"
+    trigger "MarkConceived"
+  end
+
+  policy "CompleteAfterAdvance" do
+    on "MusingConceived"
+    trigger "CompleteSurface"
+  end
+end

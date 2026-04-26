@@ -1,0 +1,43 @@
+Hecks.hecksagon "SurfaceMusing" do
+  # ============================================================
+  # SURFACEMUSING — hexagonal wiring (Phase F-9)
+  # ============================================================
+  #
+  # The sibling bluebook declares Surfacing — one record per
+  # mindstream tick, walking ReadPool → FilterPool → PickHead →
+  # WriteStatusline → (gated) MarkConceived. Pure heki transformation,
+  # no LLM.
+  #
+  # Outbound ports :
+  #
+  #   :heki_read   — reads musing.heki where :conceived != true,
+  #                  sorted by created_at ASC. Drives ReadPool. The
+  #                  filter (≥20 chars, contains punctuation, not a
+  #                  bare snake_case identifier) is bluebook-side ;
+  #                  the port returns the raw rows.
+  #
+  #   :heki_upsert — writes :picked_idea into consciousness.heki as
+  #                  :sleep_summary. Singleton-style upsert — the
+  #                  statusline reads the latest record. Empty
+  #                  :picked_idea writes the empty string and the
+  #                  statusline reads it as a clear.
+  #
+  #   :heki_mark   — sets :conceived=true on the matched record in
+  #                  musing.heki. Prefix-match on :idea (idea~=thought)
+  #                  covers both the idea==thought case (idea ≤ 80
+  #                  chars) and the idea.startswith(thought) case
+  #                  (idea > 80 chars, thought is truncation). Only
+  #                  fires when loop_count mod dwell_ticks == 0.
+  #
+  # Kernel-floor (not declared as adapters) :
+  #
+  #   Modulo gate — loop_count mod dwell_ticks is pure arithmetic.
+  #   Lives in the runner today ; the bluebook's MarkConceived
+  #   describes the gate but the modulo-comparison given form is a
+  #   runtime gap (filed as DSL support for `given { rand_below(N)
+  #   == 0 }` and modulo-shape preconditions).
+
+  adapter :heki_read,   root: "information"
+  adapter :heki_upsert, root: "information"
+  adapter :heki_mark,   root: "information"
+end
