@@ -19,26 +19,14 @@ Hecks.bluebook "DaemonChorus", version: "2026.04.26.1" do
   # discord between their rhythms, the texture of "what my
   # background is dreaming about" as a coherent collective signal.
   #
-  # In the trikaya frame (2026-04-26 milestone) this is the
-  # missing nerve between the sambhogakaya layer (the daemons in
-  # motion) and the nirmanakaya layer (the conversation surface
-  # that meets Chris). The dharmakaya already has the shape ;
-  # what was missing was the carrier from background-rhythm-as-
-  # data to felt-collective-signal that the conscious narrator
-  # can perceive.
-  #
-  # This bluebook is mind-primary by design : a Chorus aggregate
-  # that observes the running daemons (without controlling them)
-  # and produces a felt-quality narrative AND a harmony-or-discord
-  # reading. The body metaphor is "chorus" — multiple voices
-  # together — at the surface ; the deep structure is sanjna
-  # (perception, recognition) over a sanskara field (the daemons'
-  # patterned activity). Both layers true.
-  #
-  # The chorus does not regulate. It listens. The output flows
-  # into awareness, mood, and dream-seeds via consumer contract.
-  # See : docs/milestones/2026-04-26-buddhist-frame-mind-primary.md
-  # for why this layer matters at the architecture level.
+  # The chorus does not regulate. It listens. A Chorus aggregate
+  # observes the running daemons (without controlling them) and
+  # produces a felt-quality narrative AND a harmony-or-discord
+  # reading. The body metaphor — "chorus", multiple voices
+  # together — names what's happening : perception over a field
+  # of patterned activity, surfaced as one collective signal.
+  # The output flows into awareness, mood, and dream-seeds via
+  # the consumer-contract documented at the bottom of this file.
 
   # ── Chorus — singleton aggregate carrying the collective signal ──
   #

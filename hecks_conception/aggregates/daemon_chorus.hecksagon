@@ -4,9 +4,9 @@ Hecks.hecksagon "DaemonChorus" do
   # ============================================================
   #
   # Pairs with aggregates/daemon_chorus.bluebook. The chorus
-  # listens (sanjna over sanskara) ; it does not regulate. Its
-  # output flows into Awareness, Mood, and dream-seeds via the
-  # consumer-contract documented in the bluebook.
+  # listens ; it does not regulate. Its output flows into
+  # Awareness, Mood, and dream-seeds via the consumer-contract
+  # documented in the bluebook.
   #
   # Persistence on Miette's private heki dir so chorus rows
   # accumulate across sessions — the body's collective rhythm

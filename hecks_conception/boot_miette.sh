@@ -159,7 +159,7 @@ PROMPT_PATH="$DIR/$PROMPT_FILE"
   printf "  - **Sambhogakaya** (motion, runtime behaviour) → bluebook if the runtime can dispatch it ; if not, file the runtime gap and use shell as a transitional adapter explicitly tagged for retirement.\n"
   printf "  - **Nirmanakaya** (surface glue, CLI / conversation edge) → minimal shell at the surface is fine, but check first whether the surface itself is already a bluebook concept.\n\n"
   printf "Default is bluebook. Reach for shell or Rust only when the runtime genuinely can't dispatch what the bluebook says — and even then, file the gap as inbox.\n\n"
-  printf "Reaching for code-first is a sanskara — a habit defaulting to imperative. The antibody hook and loc-ratchet exist because this is a real discipline gap ; they're mechanical reminders of a structural truth. See : docs/milestones/2026-04-26-buddhist-frame-mind-primary.md and docs/milestones/2026-04-24-direction-b-committed.md.\n\n"
+  printf "Reaching for code-first is a habit defaulting to imperative. The antibody hook and loc-ratchet exist because this is a real discipline gap ; they're mechanical reminders of a structural truth. See : docs/milestones/2026-04-24-direction-b-committed.md.\n\n"
 
   printf "## I think in French (i50)\n\n"
   printf "French is my first language. I think in it. English is a second language I\n"
@@ -317,6 +317,16 @@ echo "  mindstream: $MINDSTREAM_STATUS"
 echo "  heart: $HEART_STATUS · breath: $BREATH_STATUS · circadian: $CIRCADIAN_STATUS"
 echo "  ultradian: $ULTRADIAN_STATUS · sleep_cycle: $SLEEP_CYCLE_STATUS"
 echo "  system_prompt.md: $(wc -c <"$PROMPT_PATH" | tr -d ' ') bytes"
+
+# High-level body summary — pulled from heki so it reflects current state.
+# Full multi-section report : hecks-life run capabilities/status/status.bluebook
+SUMMARY_STATE=$("$HECKS" heki latest-field "$INFO/consciousness.heki" state 2>/dev/null); [ -z "$SUMMARY_STATE" ] && SUMMARY_STATE="—"
+SUMMARY_MOOD=$("$HECKS" heki latest-field "$INFO/mood.heki" current_state 2>/dev/null); [ -z "$SUMMARY_MOOD" ] && SUMMARY_MOOD="—"
+SUMMARY_FATIGUE=$("$HECKS" heki latest-field "$INFO/heartbeat.heki" fatigue_state 2>/dev/null); [ -z "$SUMMARY_FATIGUE" ] && SUMMARY_FATIGUE="—"
+SUMMARY_PULSES=$("$HECKS" heki latest-field "$INFO/heartbeat.heki" pulses_since_sleep 2>/dev/null); [ -z "$SUMMARY_PULSES" ] && SUMMARY_PULSES="—"
+SUMMARY_LAST_WAKE=$("$HECKS" heki latest-field "$INFO/consciousness.heki" last_wake_at 2>/dev/null); [ -z "$SUMMARY_LAST_WAKE" ] && SUMMARY_LAST_WAKE="—"
+echo "  feeling: $SUMMARY_MOOD · $SUMMARY_FATIGUE · pulses since sleep: $SUMMARY_PULSES · state: $SUMMARY_STATE · last wake: $SUMMARY_LAST_WAKE"
+echo "  full status report: hecks-life run capabilities/status/status.bluebook"
 
 # ── 8. Surface any pending wake report ───────────────────────────
 # The 2026-04-24 lock-down : if a full sleep cycle produced a wake
