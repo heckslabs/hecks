@@ -33,6 +33,13 @@
 //!  surface family as run_loop / run_daemon / run_enforce_edit ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
+//!
+//! [antibody-exempt: hecks_life/src/main.rs — closes i118 (enforcer-honors-
+//!  in-file-antibody-exempt-markers). run_enforce_edit now reads the touched
+//!  file's first 200 lines and dispatches Enforcer.RecordExemptedEdit (silent
+//!  exit 0) instead of Enforcer.Complain when the file already carries a
+//!  marker. The marker IS the audit trail. Same i80 retirement contract as
+//!  the rest of the run_enforce_edit family.]
 
 use hecks_life::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
@@ -1783,9 +1790,19 @@ fn run_enforce_edit(_args: &[String]) {
     }
 
     let kind = classify_file(&file_path);
+
+    // For imperative files, check whether the file's header carries
+    // an [antibody-exempt: ...] marker. If so, the discipline is already
+    // satisfied — the marker IS the audit trail (i118 + i80 retirement
+    // contract). Read only the first 200 lines : antibody markers always
+    // live near the top of the file (header doc-comment block), and this
+    // keeps the hook fast for large files.
+    let exempted = matches!(kind, FileKind::Imperative)
+        && file_has_antibody_exempt_marker(&file_path);
+
     let cmd_name = match kind {
         FileKind::Bluebook   => "RecordBluebookEdit",
-        FileKind::Imperative => "RecordImperativeEdit",
+        FileKind::Imperative => if exempted { "RecordExemptedEdit" } else { "RecordImperativeEdit" },
         FileKind::Support    => "RecordSupportEdit",
         FileKind::Other      => "RecordOtherEdit",
     };
@@ -1806,7 +1823,7 @@ fn run_enforce_edit(_args: &[String]) {
         dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
     });
 
-    if matches!(kind, FileKind::Imperative) {
+    if matches!(kind, FileKind::Imperative) && !exempted {
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let complaint = format!(
             "bluebook-first violation : {} wrote .{} ({}). The enforcer expected a \
@@ -1828,6 +1845,59 @@ fn run_enforce_edit(_args: &[String]) {
         std::process::exit(2);
     }
     std::process::exit(0);
+}
+
+/// Scan the first 200 lines of `path` for the canonical antibody-exempt
+/// marker — the same line-anchored, case-insensitive pattern documented
+/// in `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`
+/// (`^\s*\[antibody-exempt:\s*([^\]]+)\]`). Hand-rolled so we don't pull
+/// the regex crate just for this.
+///
+/// Returns `false` if the file can't be read — "no marker found" is the
+/// right default for a hook that must never panic the editor.
+fn file_has_antibody_exempt_marker(path: &str) -> bool {
+    let contents = match std::fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    for line in contents.lines().take(200) {
+        if line_starts_with_antibody_exempt(line) {
+            return true;
+        }
+    }
+    false
+}
+
+/// True iff `line`, after trimming leading whitespace AND any ASCII
+/// comment-prefix punctuation (so `//! [antibody-exempt: ...]`, `# [...]`,
+/// `* [...]`, `-- [...]` etc. all count), begins with a case-insensitive
+/// `[antibody-exempt:` token followed by content and a closing `]`.
+fn line_starts_with_antibody_exempt(line: &str) -> bool {
+    // Strip leading whitespace AND common comment-prefix glyphs. The
+    // antibody pattern itself only requires `^\s*` ; markers in source
+    // files almost always sit inside a comment, so we also tolerate
+    // any run of `/`, `#`, `*`, `;`, `-`, `!` before the bracket. This
+    // matches what the antibody pre-commit hook accepts in practice.
+    let trimmed = line.trim_start();
+    let stripped: &str = {
+        let bytes = trimmed.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b == b'/' || b == b'#' || b == b'*' || b == b';' || b == b'-' || b == b'!' || b == b' ' || b == b'\t' {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+        &trimmed[i..]
+    };
+    let prefix = "[antibody-exempt:";
+    if stripped.len() < prefix.len() { return false; }
+    stripped.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
+    // The opener is sufficient — markers can wrap across lines (the
+    // canonical fixture's `[^\]]+\]` body matches on multiline scans),
+    // and we anchor on the opening `[antibody-exempt:` token only.
 }
 
 enum FileKind { Bluebook, Imperative, Support, Other }

@@ -36,6 +36,7 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
     attribute :total_edits,        Integer, default: 0
     attribute :bluebook_edits,     Integer, default: 0
     attribute :imperative_edits,   Integer, default: 0
+    attribute :exempted_edits,     Integer, default: 0
     attribute :support_edits,      Integer, default: 0
     attribute :other_edits,        Integer, default: 0
     attribute :last_complaint_at,  String,  default: ""
@@ -49,6 +50,7 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
       then_set :total_edits,        to: 0
       then_set :bluebook_edits,     to: 0
       then_set :imperative_edits,   to: 0
+      then_set :exempted_edits,     to: 0
       then_set :support_edits,      to: 0
       then_set :other_edits,        to: 0
       then_set :last_complaint_at,  to: ""
@@ -73,6 +75,15 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
       then_set :total_edits,      increment: 1
       then_set :imperative_edits, increment: 1
       emits "ImperativeEdited"
+    end
+
+    command "RecordExemptedEdit" do
+      role "Hook"
+      description "An imperative-language file was written, but the file carries a [antibody-exempt: ...] marker in its header — the discipline is satisfied, no complaint fires. The marker IS the audit trail. Tracked separately from imperative_edits so the dashboard can show 'exempted edits' alongside 'unexempted imperative edits'."
+      attribute :file_path, String
+      then_set :total_edits,    increment: 1
+      then_set :exempted_edits, increment: 1
+      emits "ExemptedEdited"
     end
 
     command "RecordSupportEdit" do
