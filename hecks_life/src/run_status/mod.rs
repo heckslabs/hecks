@@ -107,7 +107,9 @@ fn stamp_aggregate(rt: &mut Runtime, r: &Report) {
     state.set("last_turn_text",      Value::Str(r.last_turn_text.clone()));
     state.set("aggregates_count",    Value::Int(r.aggregates_count as i64));
     state.set("capabilities_count",  Value::Int(r.capabilities_count as i64));
-    state.set("mindstream_alive",    Value::Str(if r.mindstream_alive { "alive" } else { "down" }.into()));
+    let mindstream = r.daemons.iter().find(|d| d.name == "mindstream");
+    let mindstream_alive = mindstream.map(|d| d.alive).unwrap_or(false);
+    state.set("mindstream_alive",    Value::Str(if mindstream_alive { "alive" } else { "down" }.into()));
     repo.save(state);
 }
 
