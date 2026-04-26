@@ -84,9 +84,12 @@ fn main() {
 
     // These commands now dispatch through the hecksagon:
     //   speak → Speech.Speak, status → Heartbeat.ReadVitals,
-    //   boot → Identity.Identify, daemon → mindstream.sh
+    //   boot → Identity.Identify
+    // (`daemon` was on this list when it meant "start mindstream.sh" ;
+    // it now names the process-lifecycle primitive and dispatches via
+    // run_daemon below.)
     if command == "speak" || command == "status" || command == "musings"
-        || command == "boot" || command == "daemon" {
+        || command == "boot" {
         eprintln!("'{}' now dispatches through the hecksagon:", command);
         eprintln!("  hecks-life aggregates/ Aggregate.Command");
         return;
@@ -243,6 +246,23 @@ fn main() {
     // contract.
     if command == "loop" {
         run_loop(&args);
+        return;
+    }
+
+    // `hecks-life daemon <ensure|status|stop> <pidfile> [command...]`
+    //
+    // Process-lifecycle primitive — the runtime gap that kept boot_miette
+    // in shell. `ensure <pidfile> <cmd> [args]` reads the pidfile, returns
+    // alive if the PID is still running (idempotent boot), otherwise spawns
+    // the command detached (setsid + null stdio) and writes the new PID.
+    // No wrapping subshells, no PPID=1 orphan launchers — the leak that
+    // accumulated five ghost shells over today's session is structurally
+    // closed. Sibling of the cadence-loop primitive (`hecks-life loop`) ;
+    // together they let bluebook capabilities declare daemon lifecycles
+    // without reaching for shell. boot_miette.sh's `( cd "$DIR" && nohup
+    // ./script & )` pattern retires once it migrates to this primitive.
+    if command == "daemon" {
+        run_daemon(&args);
         return;
     }
 
@@ -852,6 +872,7 @@ fn run_heki(args: &[String]) {
         "get"           => heki_cmd_get(file, rest),
         "list"          => heki_cmd_list(file, rest),
         "count"         => heki_cmd_count(file, rest),
+        "ids"           => heki_cmd_ids(file, rest),
         "next-ref"      => heki_cmd_next_ref(file, rest),
         "latest-field"  => heki_cmd_latest_field(file, rest),
         "values"        => heki_cmd_values(file, rest),
@@ -859,7 +880,7 @@ fn run_heki(args: &[String]) {
         "seconds-since" => heki_cmd_seconds_since(file, rest),
         _ => {
             eprintln!("Unknown heki command: {}", sub);
-            eprintln!("Available: read latest append upsert delete get list count \
+            eprintln!("Available: read latest append upsert delete get list count ids \
                        next-ref latest-field values mark seconds-since");
             std::process::exit(1);
         }
@@ -978,6 +999,23 @@ fn heki_cmd_count(file: &str, rest: &[String]) {
     let store = read_store_or_exit(file);
     let recs = heki_query::filter_records(&store, &opts.filters);
     println!("{}", recs.len());
+}
+
+// List the aggregate IDs present in a heki store, one per line. Honors
+// the same filter-flags as list/count (--where field=value) so callers
+// can scope to a subset. Useful for debugging dispatches that miss : the
+// dispatch may write to a default id like "1" while the existing record
+// is keyed by a UUID, leaving the persisted state stale and the in-
+// memory response misleading.
+fn heki_cmd_ids(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+    let recs = heki_query::filter_records(&store, &opts.filters);
+    for rec in &recs {
+        if let Some(id) = rec.get("id").and_then(|v| v.as_str()) {
+            println!("{}", id);
+        }
+    }
 }
 
 fn heki_cmd_next_ref(file: &str, rest: &[String]) {
@@ -1541,6 +1579,153 @@ fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
 ///   args[2] = target (agg dir or .bluebook)
 ///   args[3] = "Aggregate.Command"
 ///   args[4..] = "--every", "<dur>", and key=val attrs
+// ============================================================
+// DAEMON SUBCOMMAND — process-lifecycle primitive
+// ============================================================
+//
+// Three actions, each idempotent against a pidfile :
+//
+//   ensure <pidfile> <command> [args...]
+//     If pidfile exists and the PID is alive, prints `alive: <pid>`
+//     and exits 0 (idempotent boot — same shape as the existing
+//     boot_miette.sh `kill -0` checks). Otherwise spawns the command
+//     in a new session (setsid) with stdio routed to /dev/null, writes
+//     the child's PID to the pidfile, prints `spawned: <pid>` and exits 0.
+//
+//     The setsid call is what makes this NOT leak. The wrapping subshell
+//     pattern (`( cd ... && nohup ./script & )`) used in boot_miette.sh
+//     today produces PPID=1 orphans on macOS because the wrapper bash
+//     shell doesn't always exit cleanly after backgrounding. Spawning
+//     directly via Command + pre_exec(setsid) puts the daemon in its
+//     own session/process-group and the parent (this hecks-life process)
+//     exits immediately — no wrapping shell to leak.
+//
+//   status <pidfile>
+//     Prints `alive: <pid>` (exit 0), `dead: <pid>` (exit 1), or
+//     `none` (exit 1). For health-check use (i94).
+//
+//   stop <pidfile>
+//     If the PID is alive, sends SIGTERM and prints `stopped: <pid>`.
+//     Removes the pidfile.
+
+fn run_daemon(args: &[String]) {
+    let action = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon <ensure|status|stop> <pidfile> [command...]");
+        std::process::exit(1);
+    });
+    match action {
+        "ensure" => daemon_ensure(&args[3..]),
+        "status" => daemon_status(&args[3..]),
+        "stop"   => daemon_stop(&args[3..]),
+        _ => {
+            eprintln!("Unknown daemon action: {}", action);
+            eprintln!("Usage: hecks-life daemon <ensure|status|stop> <pidfile> [command...]");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn daemon_ensure(rest: &[String]) {
+    let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon ensure <pidfile> <command> [args...]");
+        std::process::exit(1);
+    });
+    if let Some(pid) = read_pidfile(pidfile) {
+        if pid_alive(pid) {
+            println!("alive: {}", pid);
+            return;
+        }
+    }
+    if rest.len() < 2 {
+        eprintln!("daemon ensure : need <command> after <pidfile>");
+        std::process::exit(1);
+    }
+    let cmd = &rest[1];
+    let cmd_args = &rest[2..];
+    match spawn_detached(cmd, cmd_args) {
+        Ok(pid) => {
+            if let Err(e) = write_pidfile(pidfile, pid) {
+                eprintln!("warning: spawned pid {} but pidfile write failed: {}", pid, e);
+            }
+            println!("spawned: {}", pid);
+        }
+        Err(e) => {
+            eprintln!("spawn failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn daemon_status(rest: &[String]) {
+    let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon status <pidfile>");
+        std::process::exit(1);
+    });
+    match read_pidfile(pidfile) {
+        Some(pid) if pid_alive(pid) => println!("alive: {}", pid),
+        Some(pid) => { println!("dead: {}", pid); std::process::exit(1); }
+        None => { println!("none"); std::process::exit(1); }
+    }
+}
+
+fn daemon_stop(rest: &[String]) {
+    let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon stop <pidfile>");
+        std::process::exit(1);
+    });
+    match read_pidfile(pidfile) {
+        Some(pid) if pid_alive(pid) => {
+            extern "C" { fn kill(pid: i32, sig: i32) -> i32; }
+            unsafe { kill(pid as i32, 15); } // SIGTERM
+            println!("stopped: {}", pid);
+            let _ = std::fs::remove_file(pidfile);
+        }
+        Some(_) => {
+            println!("not running");
+            let _ = std::fs::remove_file(pidfile);
+        }
+        None => {
+            println!("no pidfile");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn read_pidfile(path: &str) -> Option<u32> {
+    std::fs::read_to_string(path).ok()
+        .and_then(|s| s.trim().parse().ok())
+}
+
+fn write_pidfile(path: &str, pid: u32) -> std::io::Result<()> {
+    std::fs::write(path, format!("{}\n", pid))
+}
+
+fn pid_alive(pid: u32) -> bool {
+    extern "C" { fn kill(pid: i32, sig: i32) -> i32; }
+    unsafe { kill(pid as i32, 0) == 0 }
+}
+
+fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
+    use std::os::unix::process::CommandExt;
+    use std::process::{Command, Stdio};
+    extern "C" { fn setsid() -> i32; }
+
+    let mut command = Command::new(cmd);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    unsafe {
+        command.pre_exec(|| {
+            setsid();
+            Ok(())
+        });
+    }
+    let child = command.spawn()?;
+    Ok(child.id())
+}
+
 fn run_loop(args: &[String]) {
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
         eprintln!("Usage: hecks-life loop <bluebook-or-dir> <Aggregate.Command> --every <duration> [key=val ...]");

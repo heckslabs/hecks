@@ -24,7 +24,20 @@ use std::collections::{HashMap, HashSet, VecDeque};
 pub fn aggregate_count_warning(domain: &Domain) -> Option<String> {
     if domain.aggregates.len() > 7 {
         Some(format!(
-            "⚠ domain '{}' has {} aggregates; consider splitting",
+            "⚠ domain '{}' has {} aggregates ; review for cohesion (sweet spot is 3-6 ; past 7 most domains read as two)",
+            domain.name,
+            domain.aggregates.len()
+        ))
+    } else {
+        None
+    }
+}
+
+/// Returns Some(msg) if the domain has more than 11 aggregates.
+pub fn multi_domain_split_warning(domain: &Domain) -> Option<String> {
+    if domain.aggregates.len() > 11 {
+        Some(format!(
+            "⚠ domain '{}' has {} aggregates ; multi-domain split likely improves cohesion (two ubiquitous languages are usually being merged at this size)",
             domain.name,
             domain.aggregates.len()
         ))

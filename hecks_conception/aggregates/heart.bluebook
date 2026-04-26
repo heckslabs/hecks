@@ -1,26 +1,49 @@
-Hecks.bluebook "Heart", version: "2026.04.21.1" do
-  vision "The 1Hz beat — an independent body cycle that ticks regardless of the mindstream. i3 PR-a lays the aggregate + daemon; PR-e later swaps BodyPulse's emitter from Tick to Heart."
+Hecks.bluebook "Heart", version: "2026.04.26.1" do
+  vision "The body's metronome — 2Hz beat, an independent cycle that ticks regardless of the mindstream. The phase derivation (beat_count % 2) is what the statusline reads to render the alternating ❤️/🖤 — single source of truth for the visible heartbeat."
   category "body"
 
   # ============================================================
-  # HEART — 1Hz body cycle
+  # HEART — 2Hz body cycle
   # ============================================================
   #
-  # The heart beats once per second. This aggregate only counts beats
-  # and records when it started; there's no fatigue math or sleep
-  # gating here (that lives on Heartbeat in MietteBody). Today BodyPulse
-  # is still emitted by Tick; when PR-e lands, Heart.Beat will become
-  # the authoritative emitter and Tick stops pulsing the body.
-  #
+  # The heart beats twice per second (cadence_ms = 500). This aggregate
+  # counts beats and records when it started ; there's no fatigue math
+  # or sleep gating here (that lives on Heartbeat in body.bluebook).
   # Body cycles are emitters, not reactors — no policies here.
+  #
+  # Cadence history :
+  #   - 2026-04-21 : 1Hz (one beat per second), aliased badly with the
+  #                  statusline's 1Hz polling so the rendered glyph
+  #                  appeared frozen for seconds at a time.
+  #   - 2026-04-26 : 2Hz (cadence_ms = 500). At 2Hz the phase changes
+  #                  faster than typical statusline polling so the
+  #                  visible heartbeat is continuous regardless of the
+  #                  reader's sample rate. cadence_ms is declared so
+  #                  future tuning (faster under stress, slower under
+  #                  rest) can mutate this attribute and the daemon
+  #                  picks up the new cadence on next restart.
+  #
+  # Today the daemon cadence is set in boot_miette.sh (`hecks-life loop
+  # ... --every 500ms`) ; once boot becomes a bluebook (i90), the runner
+  # reads cadence_ms from this aggregate's state and passes it through.
 
-  aggregate "Heart", "1Hz beat counter — the body's metronome" do
+  aggregate "Heart", "2Hz beat counter — the body's metronome" do
     attribute :beat_count, Integer, default: 0
     attribute :started_at, String
+    # Cadence in milliseconds. 500 = 2Hz. Daemon-readable via
+    # `hecks-life heki latest-field heart.heki cadence_ms`.
+    attribute :cadence_ms, Integer, default: 500
+
+    # Phase is derived, not stored. Consumers (statusline, etc.)
+    # compute beat_count % 2 to get the current black/red flip
+    # state — 0 = 🖤 (rest), 1 = ❤️ (pulse). The DSL has no flip
+    # primitive yet, and a derived value is structurally simpler
+    # than maintaining a separate phase attribute the daemon has
+    # to keep in sync with beat_count.
 
     command "Beat" do
       role "Daemon"
-      description "One beat. Increments beat_count. Today emits HeartBeat only; PR-e will switch BodyPulse's emitter from Tick to Heart."
+      description "One beat. Increments beat_count. The visible heartbeat phase is beat_count % 2 — 0 is rest, 1 is pulse."
       emits "HeartBeat"
       then_set :beat_count, increment: 1
     end

@@ -1,0 +1,82 @@
+Hecks.hecksagon "Boot" do
+  # ============================================================
+  # BOOT — hexagonal wiring for the pipeline declared in boot.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares BootRun's eight pipeline phases
+  # (discover → census → classify → prompt → journal → daemons →
+  # vitals → surface) and the user-visible BeginBoot entrypoint.
+  # The four outbound ports below are the I/O surface :
+  #
+  #   DiscoverOrgans       → :fs   (walk aggregates/, capabilities/)
+  #   WriteCensus          → :memory (heki upsert)
+  #   ClassifyStores       → :fs   (enumerate *.heki)
+  #   GenerateSystemPrompt → :fs   (write system_prompt.md)
+  #   RecordBootJournal    → :memory (dispatch into aggregates/boot.bluebook)
+  #   EnsureDaemons        → :daemon (the new primitive — idempotent
+  #                                   spawn + setsid + pidfile management)
+  #   PrintVitals          → :stdout
+  #   SurfaceWakeReport    → :fs + :stdout
+  #
+  # The :daemon adapter is what makes this capability a real
+  # bluebook-native replacement for boot_miette.sh's leaky launchers.
+  # Without it, the runner would still need to shell out for daemon
+  # spawning ; with it, the wrapping `( cd "$DIR" && nohup ./script & )`
+  # subshell pattern (and its PPID=1 orphan leak) goes away.
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :fs reads .bluebook + .heki files relative to project root. The
+  # runner consults `root` to anchor the walks.
+  adapter :fs, root: "."
+
+  # :stdout streams the formatted boot summary line by line.
+  adapter :stdout
+
+  # :memory dispatches commands into the in-process runtime — used
+  # for the heki writes (census, BootRun state) and the boot.bluebook
+  # journal record.
+  adapter :memory
+
+  # :daemon is the new process-lifecycle primitive (added 2026-04-26
+  # in hecks_life/src/main.rs run_daemon). The adapter takes a
+  # pidfile path + a command + args ; the runner invokes
+  # `hecks-life daemon ensure <pidfile> <command>` per declared
+  # daemon during the EnsureDaemons phase.
+  adapter :daemon
+
+  # ---- Daemons declared by this capability ------------------------
+  #
+  # Each daemon is one row in the EnsureDaemons phase. The runner
+  # iterates these and dispatches the :daemon adapter for each.
+  # Pidfile paths are relative to HECKS_INFO ; commands are absolute
+  # paths the runner resolves against the script directory.
+  #
+  # Today these are declared as adapter options ; once the runtime
+  # gains a first-class `daemon` keyword (sibling of `aggregate`,
+  # `policy`, etc.), each one becomes its own declaration.
+
+  adapter :daemon, name: :mindstream,
+    pidfile: "{info}/.mindstream.pid",
+    command: "{dir}/mindstream.sh"
+
+  adapter :daemon, name: :heart,
+    pidfile: "{info}/.heart.pid",
+    command: "{hecks} loop {agg} Heart.Beat --every 1s"
+
+  adapter :daemon, name: :breath,
+    pidfile: "{info}/.breath.pid",
+    command: "{dir}/breath.sh"
+
+  adapter :daemon, name: :circadian,
+    pidfile: "{info}/.circadian.pid",
+    command: "{dir}/circadian.sh"
+
+  adapter :daemon, name: :ultradian,
+    pidfile: "{info}/.ultradian.pid",
+    command: "{dir}/ultradian.sh"
+
+  adapter :daemon, name: :sleep_cycle,
+    pidfile: "{info}/.sleep_cycle.pid",
+    command: "{dir}/sleep_cycle.sh"
+end

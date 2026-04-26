@@ -1,0 +1,108 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "Statusline", version: "2026.04.26.1" do
+  vision "Miette's one-line body status — read declarative state, render a single string. The dream stream lives in the agent's notification surface ; the statusline stays clean."
+
+  entrypoint "Render"
+
+  # ============================================================
+  # STATUSLINE — i97, the 257-line shell script as a bluebook
+  # ============================================================
+  #
+  # Until 2026-04-26 the statusline was statusline-command.sh — 257
+  # lines of grep/sed reading every body heki file directly,
+  # branching awake/sleeping, animating moons, computing countdown
+  # timers from a stale (12 - ticks) * 10 formula. Two bugs surfaced
+  # the gap : (a) the sleeping branch printed the dream narrative
+  # even though the sleep-study agent was now streaming dreams as
+  # session notifications (i96) ; (b) the countdown timer encoded
+  # the OLD phase_ticks > 11 floor, so even after the bluebook
+  # dropped the floor (sleep.bluebook 2026-04-26) the visible
+  # timer still showed the artificial cadence.
+  #
+  # The fix is structural : declare the line as a bluebook surface.
+  # This file holds the WHAT (which fields, which modes, what's
+  # visible when) ; the shell wrapper at statusline-command.sh
+  # becomes a thin transitional adapter that reads heki + dispatches
+  # Render + prints the result. The shell retires entirely once a
+  # Rust runner mirroring run_status/ lands.
+  #
+  # See : i97 (this conversion), i96 (statusline-defers-to-agent-log
+  # during sleep), i91 (dashboard rename — sibling), i80 (cli-routing-
+  # as-bluebook — same direction).
+
+  aggregate "Statusline" do
+    description "Single-line body status. One row per render, ephemeral. Mode picks the layout ; visibility flags decide what to include."
+
+    # ---- Render mode --------------------------------------------
+    #
+    #   sleeping → moon + name + cycle counter only ; no narrative
+    #              (the agent owns the dream surface during sleep)
+    #   awake    → sun + name + heart + beats + mood + fatigue +
+    #              musings + inventions + inbox + provider + bulb
+    #   minimal  → moon + name (degraded surface — coherence violation)
+    #
+    attribute :mode,                String, default: "awake"
+
+    # ---- Sleep-mode fields --------------------------------------
+    attribute :sleep_stage,         String, default: "—"
+    attribute :sleep_cycle,         String, default: "—"
+    attribute :sleep_total,         String, default: "—"
+    attribute :is_lucid,            String, default: "no"
+
+    # ---- Awake-mode fields --------------------------------------
+    attribute :mood,                String, default: "—"
+    attribute :mood_icon,           String, default: "😐"
+    attribute :fatigue,             String, default: "—"
+    attribute :fatigue_icon,        String, default: ""
+    attribute :heart_glyph,         String, default: "❤️"
+    attribute :beats,               String, default: ""
+    attribute :musings_count,       Integer, default: 0
+    attribute :inventions_count,    Integer, default: 0
+    attribute :inbox_count,         Integer, default: 0
+    attribute :provider_badge,      String, default: "🤖"
+    attribute :bulb,                String, default: "💡"
+
+    # ---- Coherence ----------------------------------------------
+    attribute :coherence_ok,        String, default: "yes"
+
+    # ---- Output -------------------------------------------------
+    attribute :rendered,            String, default: ""
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "Render" do
+      description "User-visible entrypoint. The statusline runner (today : statusline-command.sh, tomorrow : a Rust mirror of run_status/) reads body heki, dispatches Render with the resolved fields, and prints the resulting :rendered string. Mode is chosen by the runner from consciousness.state ; this command stamps the row and emits."
+      attribute :mode,    String
+      attribute :rendered, String
+      then_set :mode,     to: :mode
+      then_set :rendered, to: :rendered
+      emits "StatuslineRendered"
+    end
+
+    # ============================================================
+    # STRUCTURAL DECISIONS — what the line shows in each mode
+    # ============================================================
+    #
+    # Sleeping mode (i96) :
+    #   moon + name + "cycle N/total — stage" — that's all.
+    #   No narrative, no countdown timer. The dream lives in the
+    #   sleep-study agent's notification stream ; the line stays
+    #   minimal so dream content has one home, not two.
+    #
+    # Awake mode :
+    #   sun + name + heart_glyph + beats + mood_icon + mood
+    #     [+ fatigue_icon + fatigue]
+    #     + 💭 musings_count
+    #     [+ 🔬 inventions_count]
+    #     [+ ✉️ inbox_count]
+    #     + provider_badge
+    #     [+ bulb + sleep_summary]   # only the post-wake summary,
+    #                                  # not active-sleep narration
+    #
+    # Minimal mode (coherence-violation degraded) :
+    #   moon + name only ; mood_icon replaced with ⚠.
+
+  end
+end

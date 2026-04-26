@@ -70,20 +70,22 @@ moon="${moons[$(( $(date +%s) % 8 ))]}"
 thought_frames=("💭" "💡" "💭" "✨")
 thought="${thought_frames[$(( $(date +%s) % 4 ))]}"
 
-# Animated heartbeat — flips every statusline invocation.
-# Tick.cycle (mindstream's 1 Hz counter) and wall-clock phase both
-# alias badly when Claude polls at 1 Hz — sample-time drift against
-# the daemon tick freezes the glyph for seconds at a time. Instead,
-# keep a persistent invocation counter in $info/.statusline_heart_phase
-# and flip on every call. At 1 Hz polling that's ~1 flip/sec; at
-# higher poll rates it's faster. Always visibly alive.
-hearts=("🖤" "❤️")  # downbeat (rest) → upbeat (pulse) — black/red contrast
-phase_file="$info/.statusline_heart_phase"
-heart_phase=$(cat "$phase_file" 2>/dev/null | tr -cd '0-9')
-heart_phase=${heart_phase:-0}
-heart_phase=$(( (heart_phase + 1) % 2 ))
-echo "$heart_phase" > "$phase_file" 2>/dev/null
-heart="${hearts[$heart_phase]}"
+# Heart — 500ms-bucket phase from wall-clock nanoseconds (the
+# pattern from commit e0abc604, restored after a brief experiment
+# with beat-count-derived phase aliased badly against 1Hz polling).
+# Wall-clock ns ÷ 500ms → bucket index, mod 2 → 0 or 1. Two visual
+# beats per second regardless of poll cadence ; consecutive polls
+# more than 500ms apart are guaranteed to flip. heart.heki gates
+# the liveness check : if the body's heart has been silent > 5s
+# the glyph degrades to 🫥.
+hearts=("🖤" "❤️")
+heart_age=$($hecks heki seconds-since $info/heart.heki updated_at 2>/dev/null)
+if [ -n "$heart_age" ] && [ "$heart_age" -gt 5 ] 2>/dev/null; then
+  heart="🫥"
+else
+  half_second_phase=$(( $(date +%s%N) / 500000000 % 2 ))
+  heart="${hearts[$half_second_phase]}"
+fi
 
 # Mood icon. The case list MUST cover every mood string that
 # aggregates/body.bluebook emits — otherwise the mood falls through to 😐
