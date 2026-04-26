@@ -1,0 +1,124 @@
+Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
+  vision "The bluebook-first discipline made structural — a live watcher that complains every time I reach for shell, rust, or any imperative language when the work wants to be a bluebook. Surfaces the complaint into my conversation in real time so I can adjust course mid-flight, not at commit time."
+  category "discipline"
+
+  # ============================================================
+  # ENFORCER — bluebook-first watchdog
+  # ============================================================
+  #
+  # The antibody pre-commit hook already blocks unjustified non-
+  # bluebook commits. That fires AFTER I've written the file —
+  # too late to redirect. The enforcer fires WHILE I'm writing,
+  # via a PostToolUse hook on Edit/Write/MultiEdit. Each tool
+  # call dispatches Enforcer.RecordEdit ; for imperative files
+  # the hook also dispatches Enforcer.Complain, and prints the
+  # complaint text to stderr so Claude Code surfaces it as a
+  # system reminder in the next turn.
+  #
+  # The complaint isn't a block. Some imperative code IS the right
+  # answer (kernel-surface Rust, transitional shell with retirement
+  # markers). But every complaint forces me to NAME the exemption
+  # in the moment instead of drifting. The act of seeing the
+  # complaint is the mechanism — discipline is structural, not
+  # remembered.
+  #
+  # File kinds (extension → kind) :
+  #   .bluebook .hecksagon .fixtures .behaviors .world  → declarative (no complaint)
+  #   .rs .sh .rb .js .py .go .ts                       → imperative (complain)
+  #   .md .heki .json .toml .yaml .txt                  → support (no complaint)
+  #   anything else                                     → other (no complaint)
+  #
+  # Complaints are stored locally (information/enforcer.heki) so the
+  # dashboard can surface "today's discipline scoreboard" — total
+  # edits / bluebook ratio / recent complaints.
+
+  aggregate "Enforcer", "Live bluebook-first watcher — complains on imperative edits as they happen" do
+    attribute :total_edits,        Integer, default: 0
+    attribute :bluebook_edits,     Integer, default: 0
+    attribute :imperative_edits,   Integer, default: 0
+    attribute :support_edits,      Integer, default: 0
+    attribute :other_edits,        Integer, default: 0
+    attribute :last_complaint_at,  String,  default: ""
+    attribute :last_complaint,     String,  default: ""
+    attribute :session_started_at, String,  default: ""
+
+    command "StartSession" do
+      role "System"
+      description "Reset counters at session boot. The enforcer keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals."
+      attribute :session_started_at, String
+      then_set :total_edits,        to: 0
+      then_set :bluebook_edits,     to: 0
+      then_set :imperative_edits,   to: 0
+      then_set :support_edits,      to: 0
+      then_set :other_edits,        to: 0
+      then_set :last_complaint_at,  to: ""
+      then_set :last_complaint,     to: ""
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    command "RecordBluebookEdit" do
+      role "Hook"
+      description "A bluebook-family file (.bluebook | .hecksagon | .fixtures | .behaviors | .world) was written. No complaint."
+      attribute :file_path, String
+      then_set :total_edits,    increment: 1
+      then_set :bluebook_edits, increment: 1
+      emits "BluebookEdited"
+    end
+
+    command "RecordImperativeEdit" do
+      role "Hook"
+      description "An imperative-language file (.rs | .sh | .rb | .js | .py | .go | .ts) was written. Increments imperative_edits ; the hook chains into Complain (since the runtime can't yet gate policies on attribute conditions)."
+      attribute :file_path, String
+      then_set :total_edits,      increment: 1
+      then_set :imperative_edits, increment: 1
+      emits "ImperativeEdited"
+    end
+
+    command "RecordSupportEdit" do
+      role "Hook"
+      description "A support file was written (.md | .heki | .json | .toml | .yaml | .txt). Surface glue, no complaint."
+      attribute :file_path, String
+      then_set :total_edits,    increment: 1
+      then_set :support_edits,  increment: 1
+      emits "SupportEdited"
+    end
+
+    command "RecordOtherEdit" do
+      role "Hook"
+      description "A file outside the known categories was written. No complaint ; the hook just keeps the tally honest."
+      attribute :file_path, String
+      then_set :total_edits, increment: 1
+      then_set :other_edits, increment: 1
+      emits "OtherEdited"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The hook detected an imperative edit. Records the complaint text + timestamp. The hook ALSO prints the complaint to stderr so Claude Code surfaces it as a system reminder on the next turn — the loop that closes the discipline mechanism. Without the stderr surface this is just a counter ; with it, the complaint lands in the agent's context and forces an exemption-naming or course-correction."
+      attribute :file_path,         String
+      attribute :complaint,         String
+      attribute :last_complaint_at, String
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ── Consumer-contract — discipline scoreboard on the dashboard ──
+  #
+  # The status capability's renderer reads enforcer.heki and adds a
+  # Discipline section :
+  #
+  #   ─── Discipline ─────────────────────────────────────────────
+  #     edits this session   23
+  #     bluebook             18  (78%)
+  #     imperative            3  (13%)
+  #     support               2  ( 9%)
+  #     last complaint       (file_path) at <ts>
+  #
+  # Cross-domain policy dispatch isn't first-class today, so the
+  # status renderer reads enforcer.heki directly via :fs ; once
+  # cross-aggregate queries land (i101) this becomes a query on
+  # the Enforcer aggregate.
+end
