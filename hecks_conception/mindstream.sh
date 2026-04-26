@@ -153,17 +153,17 @@ while true; do
   if [ "$prev_state" = "sleeping" ] && [ "$state" != "sleeping" ] && [ -n "$state" ]; then
     "$DIR/interpret_dream.sh" >> /tmp/interpret_dream.log 2>&1 &
     "$DIR/capabilities/wake_report/wake_report.sh" >> /tmp/wake_report.log 2>&1 &
-    # i71 dream_review pipeline — extract gaps + synthesise edits +
-    # validate. Dry-run only ; --apply (creating draft PRs) stays
-    # manual because applying from a daemon would race with the
-    # operator's working tree. The recommendations land at
-    # /tmp/wake_review_latest.md so conscious-Miette and Chris
-    # both see them on wake.
-    if [ -f "$DIR/tools/dream_review.rb" ]; then
-      ts=$(date -u +%Y%m%dT%H%M%SZ)
-      out="/tmp/wake_review_${ts}.md"
-      ( ruby "$DIR/tools/dream_review.rb" > "$out" 2>"/tmp/wake_review_${ts}.log" \
-          && cp "$out" /tmp/wake_review_latest.md ) &
+    # Wake review — single Claude call produces the full sleep
+    # report (theme + interpretation + 1-3 suggestions with French
+    # provenance quotes), writes /tmp/wake_review_latest.md
+    # atomically. Falls back to a terse template if Claude is
+    # unavailable. Replaces the previous dream_review.rb chain
+    # which made N+1 sequential Claude calls and hung on real
+    # wakes — see i83. The full per-gap synthesis pipeline stays
+    # in tools/dream_review.rb for manual invocation when Chris
+    # wants the bigger artefact (draft PRs, etc).
+    if [ -x "$DIR/wake_review.sh" ]; then
+      "$DIR/wake_review.sh" >> /tmp/wake_review.log 2>&1 &
     fi
   fi
   [ -n "$state" ] && echo "$state" > "$INFO/.prev_consciousness_state"
