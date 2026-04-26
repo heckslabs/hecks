@@ -51,13 +51,24 @@ export HECKS_INFO="$info"
 raw="$("$conception/status.sh" --no-color)"
 
 # Normalize: strip ANSI (already none via --no-color), replace age and ts.
+# Labels are padded to LABEL_WIDTH columns by the renderer ; the regex
+# accepts trailing whitespace before the value so the golden stays stable
+# across small label-width tweaks. Recent commits + Bluebooks counts are
+# environment-dependent (git history + on-disk bluebook count) — both are
+# blanked to placeholders.
 normalized="$(printf '%s\n' "$raw" \
   | sed -E 's/\x1b\[[0-9;]*m//g' \
-  | sed -E 's/  age: [^ ]+/  age: <days>/' \
-  | sed -E 's/  last_dream_at: .*/  last_dream_at: <ts>/' \
-  | sed -E 's/  last_turn_at: .*/  last_turn_at: <ts>/' \
-  | sed -E 's/  aggregates: [0-9]+/  aggregates: <n>/' \
-  | sed -E 's/  capabilities: [0-9]+/  capabilities: <n>/')"
+  | sed -E 's/  age:[[:space:]]+[^ ]+/  age: <days>/' \
+  | sed -E 's/  last_dream_at:.*/  last_dream_at: <ts>/' \
+  | sed -E 's/  last_turn_at:.*/  last_turn_at: <ts>/' \
+  | sed -E 's/  aggregates:[[:space:]]+[0-9]+/  aggregates: <n>/' \
+  | sed -E 's/  capabilities:[[:space:]]+[0-9]+/  capabilities: <n>/' \
+  | awk '
+      /^─── Recent commits/ { print; in_rc=1; next }
+      /^───/ { in_rc=0; print; next }
+      in_rc==1 { sub(/^  [a-f0-9]+ .*/, "  <sha> <subject>"); }
+      { print }
+    ')"
 
 expected="$here/status_golden.expected"
 

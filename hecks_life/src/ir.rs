@@ -17,6 +17,31 @@ pub struct Domain {
     /// `hecks-life run <file>` dispatches when invoked as an executable.
     /// None for library-style bluebooks with no default command.
     pub entrypoint: Option<String>,
+    /// Capability bluebooks (e.g. status, statusline) declare an ordered
+    /// list of `section "Title" do row "label", :field … end` blocks at
+    /// the top level. The status runner walks these to render its
+    /// dashboard rather than hard-coding section composition in Rust.
+    /// Empty for bluebooks that don't declare any.
+    pub sections: Vec<Section>,
+}
+
+/// One named section in a capability dashboard. Title becomes the bordered
+/// header; rows are an ordered (label, field) list pointing at attributes
+/// on the capability's stamped aggregate (e.g. `StatusReport`).
+#[derive(Debug, Clone)]
+pub struct Section {
+    pub title: String,
+    pub rows: Vec<SectionRow>,
+}
+
+/// One row inside a section. `label` is what the renderer prints on the
+/// left; `field` is the attribute name on the capability's stamped
+/// aggregate (snake_case). The renderer looks the field up at render
+/// time and prints "—" when the attribute is missing.
+#[derive(Debug, Clone)]
+pub struct SectionRow {
+    pub label: String,
+    pub field: String,
 }
 
 #[derive(Debug)]
