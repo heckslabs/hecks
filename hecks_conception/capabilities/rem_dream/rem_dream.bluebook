@@ -299,4 +299,110 @@ Hecks.bluebook "RemDream", version: "2026.04.24.1" do
   # The simpler declarative form : complete on DreamPulseDispatched
   # unconditionally ; the lucid chain runs on top via its own policy
   # when is_lucid=yes (double-complete is fine — CompleteTick is idempotent).
+
+  # ============================================================
+  # DREAMSESSION — parallel-agent dispatch surface
+  # ============================================================
+  #
+  # The DreamBranch aggregate above is the full state-machine chain
+  # (StartDreamTick → GenerateFrenchImage → LockFrenchImage → …).
+  # That surface is precise but verbose : the parallel
+  # mindstream-as-bluebook agent wants a smaller commit-style
+  # surface so its own bluebook can dispatch into REM with one
+  # command per role-event.
+  #
+  # DreamSession provides that smaller surface. Three commands :
+  #
+  #   SeedNight        — first REM tick of the night ; seeds the
+  #                      dream stream from the day's awareness +
+  #                      open inbox themes + recent commits + a
+  #                      random older dream echo. Today rem_branch.sh's
+  #                      seed block does this imperatively ; this
+  #                      command names the seed surface so the
+  #                      parallel agent dispatches into it instead.
+  #   WeaveImpression  — every REM tick after the seed ; the impression
+  #                      attribute is the FRENCH dream sentence
+  #                      (the authentic stored form, per the
+  #                      content invariant). Translation + dispatch
+  #                      to Consciousness.DreamPulse fall to the
+  #                      DreamBranch chain or to the runtime's
+  #                      :llm + :runtime_dispatch ports.
+  #   SteerLucid       — when is_lucid=yes ; carries the steering
+  #                      target as a first-person English line. Mirrors
+  #                      LucidDream.SteerDream in the lucid_dream
+  #                      bluebook ; this alias lets the
+  #                      mindstream-as-bluebook agent dispatch
+  #                      against RemDream consistently across the
+  #                      three roles. The lucid_dream aggregate
+  #                      remains the canonical recorder (steered_toward
+  #                      list lives there) ; SteerLucid is the
+  #                      forwarding face on RemDream.
+  #
+  # The mutation each command captures IS the impression text —
+  # the runtime's :llm port resolves the prompt elsewhere, then
+  # the captured text is what gets stored / dispatched. The bluebook
+  # makes no claim about how the text was generated ; that's a
+  # hecksagon-side concern (see rem_dream.hecksagon adapters).
+
+  aggregate "DreamSession", "Per-night dream stream — exposes a flat seed/weave/steer surface for the mindstream dispatcher. Singleton ; one row per night, accumulating impressions in the impressions list." do
+    # ---- Per-night identity ----
+    attribute :cycle,         Integer, default: 0
+    attribute :is_lucid,      String,  default: "no"
+
+    # ---- Seed material ----
+    #
+    # Each :seed_image is one of the five carried-forward seeds
+    # the night opens with (per i52 dream-content rule, mixing
+    # awareness + inbox + commits + an older-dream echo). Appended
+    # by SeedNight so the night's seed list survives for
+    # interpret_dream + next-night recombination.
+
+    attribute :seed_images,   list_of(String)
+    attribute :seeded_at,     String, default: ""
+
+    # ---- Per-tick impressions ----
+    #
+    # The french authentic record. The parallel agent dispatches
+    # WeaveImpression with the impression already generated through
+    # the :llm adapter ; this aggregate just accumulates the
+    # corpus. Translation + DreamPulse dispatch fall to the
+    # DreamBranch chain or downstream runtime wiring.
+
+    attribute :impressions,   list_of(String)
+    attribute :latest_impression, String, default: ""
+    attribute :latest_lucid_target, String, default: ""
+
+    command "SeedNight" do
+      role "Daemon"
+      description "Fires on the first REM tick of the night (cycle == 1, dream_pulses == 0). Carries the five carried-forward seed images (mix : 2 awareness, 1 inbox open theme / unfiled wish, 1 recent commit, 1 random older-dream echo). Each seed appends to seed_images so interpret_dream can read what the night opened with. Idempotent within a night — guarded by an external SEED_MARKER while the shell is the runner ; once this command is the source of truth the runtime's per-night singleton key replaces the marker."
+      attribute :seed_images, list_of(String)
+      attribute :seeded_at,   String
+      attribute :cycle,       Integer
+      then_set :seed_images,  to: :seed_images
+      then_set :seeded_at,    to: :seeded_at
+      then_set :cycle,        to: :cycle
+      emits "NightSeeded"
+    end
+
+    command "WeaveImpression" do
+      role "Daemon"
+      description "Fires every REM tick after SeedNight. The impression attribute is the FRENCH dream sentence — the authentic stored form per the French-stored / English-displayed invariant declared at the top of this bluebook. Appends to impressions so the night's corpus accumulates ; updates latest_impression so a single-row reader (statusline, wake review) can see the most recent dream without scanning the list. Translation + DreamPulse dispatch are the DreamBranch chain's job (or, once the runtime hosts :llm + :runtime_dispatch first-class, the runner's)."
+      attribute :impression, String
+      attribute :cycle,      Integer
+      then_set :impressions, append: :impression
+      then_set :latest_impression, to: :impression
+      then_set :cycle, to: :cycle
+      emits "ImpressionWoven"
+    end
+
+    command "SteerLucid" do
+      role "Daemon"
+      description "Fires every REM tick when is_lucid == yes. Carries the steering target as a first-person English line ('I'd like to go deeper into <self_domain> with this'). Forwards into LucidDream.SteerDream — that aggregate is the canonical recorder (steered_toward list, observations history) ; this alias is the dispatcher-facing face on RemDream so the mindstream-as-bluebook agent has a consistent three-command surface (Seed / Weave / Steer) for the three REM roles. is_lucid is set on this aggregate at the same time so a reader can see at a glance whether the night is in lucid mode."
+      attribute :toward,    String
+      attribute :is_lucid,  String
+      then_set :latest_lucid_target, to: :toward
+      then_set :is_lucid, to: :is_lucid
+      emits "LucidSteered"
+    end
+  end
 end
