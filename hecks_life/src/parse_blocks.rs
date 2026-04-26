@@ -2,6 +2,12 @@
 //!
 //! Each function takes a slice of lines starting at the block opener
 //! and returns the parsed structure plus lines consumed.
+//!
+//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface
+//!  parser extension that recognizes `multiply:`, `clamp:`, and `decay:`
+//!  on `then_set`. Same retirement contract as ir.rs : the .rs surface
+//!  exists to enable pulse_organs.bluebook + consolidate retirement
+//!  (i80 cli-routing-as-bluebook).]
 
 use crate::ir::*;
 use crate::parser_helpers::*;
@@ -440,6 +446,15 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         (MutationOp::Increment, extract_after(line, "increment:")?)
     } else if line.contains("decrement:") {
         (MutationOp::Decrement, extract_after(line, "decrement:")?)
+    } else if line.contains("multiply:") {
+        // i106 — multiplicative scaling. Value is the f64 factor.
+        (MutationOp::Multiply, extract_after(line, "multiply:")?)
+    } else if line.contains("clamp:") {
+        // i106 — bound a field to [min, max]. Value is the list literal.
+        (MutationOp::Clamp, extract_after(line, "clamp:")?)
+    } else if line.contains("decay:") {
+        // i106 — exponential decay. Value is the rate (0.05 → ×0.95).
+        (MutationOp::Decay, extract_after(line, "decay:")?)
     } else if line.contains("to:") {
         (MutationOp::Set, extract_after(line, "to:")?)
     } else {

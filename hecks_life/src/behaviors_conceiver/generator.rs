@@ -833,6 +833,17 @@ impl ProducedState {
                     self.incremented_fields.insert(m.field.clone());
                 }
                 MutationOp::Decrement | MutationOp::Toggle => {}
+                // i106 — Multiply/Clamp/Decay touch the field but the
+                // resulting numeric value depends on prior state we
+                // don't track here. Treat as "incremented" for the
+                // purposes of producer detection — same conservative
+                // path Increment takes.
+                MutationOp::Multiply | MutationOp::Decay => {
+                    self.incremented_fields.insert(m.field.clone());
+                }
+                MutationOp::Clamp => {
+                    self.incremented_fields.insert(m.field.clone());
+                }
             }
         }
         if let Some(lc) = &agg.lifecycle {

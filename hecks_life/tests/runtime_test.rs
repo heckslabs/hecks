@@ -119,6 +119,145 @@ end"#);
     assert_eq!(state.get("status"), &s("cancelled"));
 }
 
+// --- i106 dsl-mutation-primitives : multiply / clamp / decay ---
+
+fn assert_field_close(state: &hecks_life::runtime::AggregateState, field: &str, expected: f64) {
+    let got = match state.get(field) {
+        Value::Str(s) => s.parse::<f64>().unwrap_or(0.0),
+        Value::Int(n) => *n as f64,
+        other => panic!("field {} not numeric: {:?}", field, other),
+    };
+    assert!((got - expected).abs() < 1e-9, "field {}: expected {}, got {}", field, expected, got);
+}
+
+#[test]
+fn mutation_multiply_scales_field() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 0.5
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Decay" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, multiply: 0.5
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.25);
+
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.125);
+}
+
+#[test]
+fn mutation_decay_reduces_field_by_rate() {
+    // Decay rate 0.05 → new = current * (1 - 0.05) = current * 0.95.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 1.0
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Decay" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, decay: 0.05
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.95);
+
+    rt.dispatch("Decay", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.95 * 0.95);
+}
+
+#[test]
+fn mutation_clamp_bounds_field() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Focus" do
+    description "Singleton focus"
+    attribute :weight, Float, default: 1.5
+    command "CreateFocus" do
+      role "Daemon"
+    end
+    command "Bound" do
+      role "Daemon"
+      reference_to Focus
+      then_set :weight, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateFocus", HashMap::new()).unwrap();
+    rt.dispatch("Bound", attrs(&[("focus", s("1"))])).unwrap();
+    let state = rt.find("Focus", "1").unwrap();
+    assert_field_close(&state, "weight", 1.0);
+}
+
+#[test]
+fn mutation_clamp_lifts_below_min() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: -0.2
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Bound" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Bound", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    assert_field_close(&state, "strength", 0.0);
+}
+
+#[test]
+fn mutation_decay_then_clamp_composes() {
+    // pulse_organs.bluebook pattern : decay first, then clamp into
+    // [0, 1]. Two mutations on the same field run in declaration order.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Synapse" do
+    description "A synapse"
+    attribute :strength, Float, default: 0.5
+    command "CreateSynapse" do
+      role "Daemon"
+    end
+    command "Pulse" do
+      role "Daemon"
+      reference_to Synapse
+      then_set :strength, decay: 0.02
+      then_set :strength, clamp: [0.0, 1.0]
+    end
+  end
+end"#);
+
+    rt.dispatch("CreateSynapse", HashMap::new()).unwrap();
+    rt.dispatch("Pulse", attrs(&[("synapse", s("1"))])).unwrap();
+    let state = rt.find("Synapse", "1").unwrap();
+    // 0.5 * 0.98 = 0.49, in-range, clamp is a no-op.
+    assert_field_close(&state, "strength", 0.49);
+}
+
 // --- Given enforcement ---
 
 #[test]

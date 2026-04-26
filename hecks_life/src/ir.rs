@@ -2,6 +2,16 @@
 //!
 //! Same structure as the Ruby BluebookModel, but in Rust.
 //! This is what the parser produces and the generators consume.
+//!
+//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface IR
+//!  extension that adds Multiply / Clamp / Decay to MutationOp. The
+//!  rewrite IS the work : pulse_organs.sh and consolidate.sh cannot
+//!  retire to .bluebook (i80 cli-routing-as-bluebook contract) until
+//!  the DSL can express ×0.98 decay, clamp(0,1), and exponential
+//!  weight loss. This file is the kernel boundary for those mutations
+//!  — every call site (parser, interpreter, dump, generators, lifecycle
+//!  validator) is updated in the same change. The .rs surface exists
+//!  to enable the .bluebook surface.]
 
 use std::fmt;
 
@@ -102,6 +112,24 @@ pub enum MutationOp {
     Increment,
     Decrement,
     Toggle,
+    /// Multiplicative scaling — `then_set :strength, multiply: 0.95`.
+    /// The `value` field on `Mutation` carries the source-text factor;
+    /// the runtime parses it as f64. Float-typed result is stored as a
+    /// numeric Str the way `increment_float` does, preserving parity
+    /// with the existing fractional path.
+    Multiply,
+    /// Bound a numeric field to a closed interval — `then_set :strength,
+    /// clamp: [0.0, 1.0]`. The `value` field carries the source-text
+    /// list literal `[min, max]`. Used by per-tick body math (synapse
+    /// strength, focus weight) where overshoot is normal and the shell
+    /// previously did the awk-side clamp.
+    Clamp,
+    /// Exponential decay — `then_set :strength, decay: 0.05`. New value
+    /// is `current * (1.0 - rate)`. Convenience over `multiply: 0.95`
+    /// when expressing the loss rate is more legible than the survival
+    /// rate. Both compose: a typical pulse-organs decay step is decay
+    /// THEN clamp.
+    Decay,
 }
 
 #[derive(Debug)]

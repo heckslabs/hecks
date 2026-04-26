@@ -143,6 +143,9 @@ fn dump_mutation_op(op: &MutationOp) -> &'static str {
         MutationOp::Increment => "increment",
         MutationOp::Decrement => "decrement",
         MutationOp::Toggle    => "toggle",
+        MutationOp::Multiply  => "multiply",
+        MutationOp::Clamp     => "clamp",
+        MutationOp::Decay     => "decay",
     }
 }
 
