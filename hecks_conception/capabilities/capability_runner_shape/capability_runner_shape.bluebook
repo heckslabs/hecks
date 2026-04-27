@@ -1,0 +1,156 @@
+Hecks.bluebook "CapabilityRunnerShape", version: "2026.04.26.1" do
+  vision "The shape of an I/O-pipeline capability runner (run_X.rs) as a bluebook — the specializer reads a row of these and emits the runner module. Generalises the hand-written pattern in hecks_life/src/run_status/ and hecks_life/src/run_boot/."
+  category "autophagy"
+
+  # ============================================================
+  # CAPABILITY RUNNER SHAPE — Phase C1
+  # ============================================================
+  #
+  # Today the specializer compiles only pure-function `.rs` modules
+  # (validator, validator_warnings, dump). I/O pipeline capabilities
+  # — the things that read .heki stores, walk filesystems, shell out
+  # to daemons, and stream lines through :stdout — are still hand
+  # written under hecks_life/src/run_status/ and run_boot/.
+  #
+  # This shape generalises that pattern. One row in CapabilityDetector
+  # plus N ordered Phase rows is enough to describe a run_X.rs at the
+  # same level of declarative tightness that dump_shape achieves for
+  # dump.rs : a single sweep over a small declarative table, with one
+  # well-named body_kind per row driving the codegen branch.
+  #
+  # Layer mapping (mirrors validator_shape / dump_shape) :
+  #   L0 = this file
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/run_<name>/mod.rs (and its internal phase
+  #        modules — discover.rs, classify.rs, vitals.rs, etc.)
+  #
+  # The first instance shipping against this shape is
+  # system_prompt_assembly (parallel agent C7 — Phase 4 of the boot
+  # pipeline that's currently DEFERRED to the shell wrapper). Once
+  # this shape stabilises through that target, run_status and run_boot
+  # become its second + third clients : their hand-written runners
+  # retire and they re-emit themselves from rows declared against
+  # CapabilityDetector + Phase here.
+  #
+  # No `.fixtures` file at this layer : fixture-as-runtime is unresolved
+  # AND the open meta-question of where build-manifest data belongs
+  # (this layer ? a sibling catalog ? somewhere else ?) is still open.
+  # Inline data lives as bluebook attribute defaults until that lands.
+
+  # ---- Phase --------------------------------------------------------
+  #
+  # One row per ordered phase in the runner pipeline. `order` is the
+  # numeric index the specializer walks ; `body_kind` selects the
+  # codegen branch — every body_kind maps to a known emission strategy
+  # in the BodyKind table below. `source_command` names the command
+  # in the source bluebook this phase fires (so the specializer can
+  # pull command attributes + emitted events). `adapter_used` names
+  # which adapter from the sibling hecksagon this phase touches —
+  # giving the specializer enough information to emit the right
+  # registry.io("…").expect(…) call without a hand-edited body.
+
+  aggregate "Phase", "One ordered pipeline phase in a capability runner — order, body_kind, source_command, adapter_used" do
+    attribute :name,           String
+    # order: 1..N, ascending — the order phases fire in the runner
+    attribute :order,          Integer
+    # body_kind: read_heki | compose_template | write_fs | pure_format | dispatch_command
+    # — picks one row in BodyKind below ; see notes there for emission
+    attribute :body_kind,      String
+    # source_command: the command on the source bluebook this phase
+    # fires (e.g. "ResolveFsRoot", "AssembleReport"). Empty for phases
+    # that don't dispatch (e.g. pure_format).
+    attribute :source_command, String, default: ""
+    # adapter_used: fs | memory | shell | stdout | none — which adapter
+    # from the sibling hecksagon this phase reaches for. "none" for
+    # pure_format phases.
+    attribute :adapter_used,   String
+    # description: prose for humans reading the bluebook ; the
+    # specializer also lifts this into the emitted `// Phase N — …`
+    # comment above the dispatch site.
+    attribute :description,    String, default: ""
+  end
+
+  # ---- BodyKind -----------------------------------------------------
+  #
+  # One row per body_kind the specializer knows how to emit. Mirrors
+  # how dump_shape.Serializer.body_kind switches between json_object,
+  # embedded_helper, and enum_match : every kind here corresponds to
+  # a distinct Rust template the specializer expands.
+  #
+  # The five kinds below cover every phase observed in run_status/
+  # and run_boot/ today, and are what system_prompt_assembly will
+  # build against. Extending this shape later means adding a row +
+  # the corresponding template branch in the specializer ; no other
+  # changes ripple outward.
+  #
+  # Default rows (what each kind emits) :
+  #   read_heki         — read N .heki stores via :fs adapter, return
+  #                       a struct of typed scalars
+  #   compose_template  — assemble a string from declared template +
+  #                       variables (system-prompt-style composition)
+  #   write_fs          — write a string to a path under the :fs root
+  #   pure_format       — pure function : in-memory struct → Vec<String>
+  #                       of formatted lines (no I/O)
+  #   dispatch_command  — call rt.dispatch(<command>, attrs) ; updates
+  #                       aggregate state + emits events declared in
+  #                       the source bluebook
+
+  aggregate "BodyKind", "One emission strategy the specializer knows — body kind name, template module, signature shape" do
+    attribute :name,             String
+    # description: what this body_kind emits at L7
+    attribute :description,      String
+    # template_module: the Rust module under hecks_life/src/specializer/
+    # that holds the codegen template once PC-1 land. Points to the
+    # planned location now ; nothing exists yet.
+    attribute :template_module,  String, default: ""
+    # signature_shape: the rough Rust signature this kind emits, useful
+    # for documentation + cross-checking. e.g.
+    #   read_heki         — fn(info_dir: &Path) -> ReadResult
+    #   compose_template  — fn(vars: &Vars) -> String
+    #   write_fs          — fn(root: &Path, body: &str) -> io::Result<()>
+    #   pure_format       — fn(report: &Report) -> Vec<String>
+    #   dispatch_command  — fn(rt: &mut Runtime, attrs: HashMap<…>) -> …
+    attribute :signature_shape,  String, default: ""
+    # adapter_required: the adapter kind a phase using this body_kind
+    # needs in the sibling hecksagon. "none" for pure_format /
+    # dispatch_command (the latter only touches rt, not adapters).
+    attribute :adapter_required, String, default: "none"
+  end
+
+  # ---- CapabilityDetector ------------------------------------------
+  #
+  # The `is_<name>_capability(registry, rt) -> bool` shape that lives
+  # at the top of every run_X/mod.rs. The detector is the front gate
+  # the dispatcher checks before handing off to a specialised runner ;
+  # if it returns false, the generic dispatcher in run.rs handles the
+  # capability instead.
+  #
+  # Three lists describe the detector's predicates :
+  #
+  #   required_adapters    — every kind named here must be present in
+  #                          the parsed hecksagon (registry.io(<k>).is_some()).
+  #   required_aggregates  — every name here must appear in
+  #                          rt.domain.aggregates.
+  #   required_commands    — every name here must appear as a command
+  #                          on at least one declared aggregate.
+  #
+  # All three are AND'd together : the detector returns true only when
+  # every list is satisfied. This matches the pattern in run_status
+  # and run_boot exactly ; a future runner only needs to declare its
+  # row here for the specializer to emit a byte-equivalent detector.
+
+  aggregate "CapabilityDetector", "The is_<name>_capability(registry, rt) detector — required adapters, aggregates, commands" do
+    attribute :name,                String
+    # required_adapters: comma-separated adapter kinds. Empty string =
+    # no adapter required (rare ; unlikely outside pure-format runners).
+    attribute :required_adapters,   String, default: ""
+    # required_aggregates: comma-separated aggregate names.
+    attribute :required_aggregates, String, default: ""
+    # required_commands: comma-separated command names. Most runners
+    # require exactly the entrypoint command from the source bluebook.
+    attribute :required_commands,   String, default: ""
+    # description: prose for humans ; the specializer also lifts this
+    # into the doc comment above the emitted detector function.
+    attribute :description,         String, default: ""
+  end
+end

@@ -1,0 +1,23 @@
+Hecks.hecksagon "Banner" do
+  # ============================================================
+  # BANNER — hexagonal wiring for the bluebook's PrintBanner emit
+  # ============================================================
+  #
+  # The sibling bluebook declares one aggregate (Banner) with one
+  # entrypoint command (PrintBanner). The single outbound port :
+  #
+  #   PrintBanner → :stdout
+  #
+  # The runner reads the four declared default lines from the
+  # aggregate (line_one / line_two / line_three / motto) and
+  # streams them through :stdout in order, separated by a leading
+  # blank line so the banner reads as a self-contained block.
+  #
+  # No :fs, no :memory, no :shell — the banner art is pure
+  # in-bluebook content. That's deliberate : the whole point of
+  # extracting the banner from boot's PrintVitals was to make it
+  # a tiny, self-contained capability whose output can never be
+  # tall enough to trigger the harness's output-fold.
+
+  adapter :stdout
+end

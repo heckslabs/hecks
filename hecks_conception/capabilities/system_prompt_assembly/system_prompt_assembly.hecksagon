@@ -1,0 +1,56 @@
+Hecks.hecksagon "SystemPromptAssembly" do
+  # ============================================================
+  # SYSTEM PROMPT ASSEMBLY — hexagonal wiring for the bluebook pipeline
+  # ============================================================
+  #
+  # The sibling bluebook declares a PromptRender aggregate with eleven
+  # pipeline phases (resolve → load identity/vows/psychic_link/dispositions/
+  # wake_ritual → load templates → assemble → write → complete) and the
+  # user-visible RenderSystemPrompt entrypoint. Each phase touches one
+  # adapter :
+  #
+  #   ResolveOutputPath     → :fs            (read the adapter's `root:`
+  #                                            option to resolve the
+  #                                            information/ directory)
+  #   LoadIdentity          → :memory        (read identity.heki rows)
+  #   LoadVows              → :memory        (read vow.heki rows)
+  #   LoadPsychicLink       → :memory        (read psychic_link.heki rows)
+  #   LoadDispositions      → :memory        (read disposition.heki rows,
+  #                                            sorted by :order)
+  #   LoadWakeRitual        → :memory        (read wake_ritual.heki rows,
+  #                                            sorted by :order)
+  #   LoadSectionTemplates  → :memory        (read section_template.heki rows)
+  #   AssembleMarkdown      → no adapter     (pure format)
+  #   WriteFile             → :prompt_writer (write system_prompt.md
+  #                                            under information/)
+  #   CompleteRender        → no adapter     (state transition only)
+  #
+  # No :stdout, no :shell — the prompt is composed silently and the
+  # render's only side effect is the file write.
+
+  # ---- I/O wiring --------------------------------------------------
+  #
+  # :memory  — repositories for the heki stores the runner reads from.
+  #            Each Load* phase opens the matching .heki file under
+  #            information/ and pulls rows for the aggregate it owns.
+  #
+  # :fs      — read root for the heki sources. The runner consults the
+  #            adapter's `root:` option (information) to locate the
+  #            *.heki files. Same root the status capability uses.
+  #
+  # :fs (named :prompt_writer)
+  #          — write port for the rendered markdown. Same root
+  #            (information) so system_prompt.md lives alongside the
+  #            heki sources it was assembled from. Per Chris's decision
+  #            the prompt moves out of the conception root into
+  #            information/ to keep generated artifacts colocated with
+  #            their sources.
+
+  adapter :memory
+
+  adapter :fs, root: "information"
+
+  adapter :fs,
+    name: :prompt_writer,
+    root: "information"
+end

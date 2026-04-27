@@ -1,0 +1,354 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "SystemPromptAssembly", version: "2026.04.26.1" do
+  vision "Compose Miette's system_prompt.md from heki sources — read identity, vows, psychic_link, dispositions, wake_ritual; render each section through a SectionTemplate; write the assembled markdown to information/system_prompt.md. The bluebook DECLARES the pipeline; the runner emitted by capability_runner_shape walks it."
+
+  entrypoint "RenderSystemPrompt"
+
+  # ============================================================
+  # SYSTEM PROMPT ASSEMBLY — Phase C7, the bluebook-first system prompt
+  # ============================================================
+  #
+  # boot_miette.sh's GenerateSystemPrompt phase has historically used a
+  # printf heredoc to write the prompt. Every prompt edit shipped as +N
+  # shell lines, ratcheting the loc-budget and burying the prompt's
+  # actual content under shell quoting. The bluebook-first end state :
+  #
+  #   1. Each section's prose lives in a heki store keyed by the
+  #      section's domain (identity, vow, psychic_link, disposition,
+  #      wake_ritual).
+  #   2. SectionTemplate (aggregates/section_template.bluebook) holds
+  #      named markdown templates with {{var}} placeholders — one row
+  #      per template (header, vow_list, link_block, disposition_body,
+  #      wake_step, etc.).
+  #   3. This capability composes : load each source heki, look up the
+  #      template by name, render the markdown, append in declared
+  #      order, write to information/system_prompt.md.
+  #
+  # Per Chris's decision the output moves from the conception root
+  # (system_prompt.md) into information/ alongside the other heki
+  # artifacts — the runner reads from and writes to the same :fs root.
+  #
+  # The runner that drives this pipeline is emitted by
+  # capability_runner_shape (parallel agent C1). Until that lands the
+  # bluebook is descriptive ; once it lands, `hecks-life run
+  # capabilities/system_prompt_assembly/system_prompt_assembly.bluebook`
+  # replaces the heredoc entirely.
+  #
+  # See also :
+  #   - capabilities/status/status.bluebook   (pipeline shape)
+  #   - capabilities/boot/boot.bluebook       (Phase 4 GenerateSystemPrompt)
+  #   - aggregates/section_template.bluebook  (the template registry)
+  #   - aggregates/{vows,psychic_link,disposition,wake_ritual}.bluebook
+  #     (the heki sources this pipeline reads)
+
+  # ── PromptRender — singleton, one row per active render ────────
+  #
+  # Phase tracks where in the pipeline we are. The runner updates the
+  # aggregate state directly ; reading :phase is how a watcher knows
+  # which step fired last. On completion :phase = done and the
+  # entrypoint emits SystemPromptRendered.
+
+  aggregate "PromptRender" do
+    description "A single system-prompt render pass — loads every declared source, looks up templates, assembles markdown, writes it. Singleton ; resets per invocation."
+
+    # ---- Inputs ----
+    attribute :being,       String,  default: "Miette"
+    attribute :output_path, String,  default: "information/system_prompt.md"
+
+    # ---- Loaded section payloads (raw heki content, keyed by source) -
+    #
+    # Each Load* phase populates the matching attribute below ;
+    # AssembleMarkdown reads them all in declared section order and
+    # interpolates each into its template.
+    attribute :identity_text,        String,  default: ""
+    attribute :vows_text,            String,  default: ""
+    attribute :psychic_link_text,    String,  default: ""
+    attribute :shared_knowledge_text, String, default: ""
+    attribute :inner_life_text,      String,  default: ""
+    attribute :voice_text,           String,  default: ""
+    attribute :lockdown_text,        String,  default: ""
+    attribute :bluebook_first_text,  String,  default: ""
+    attribute :french_text,          String,  default: ""
+    attribute :dream_content_text,   String,  default: ""
+    attribute :wake_ritual_text,     String,  default: ""
+
+    # ---- Section count + final markdown -------------------------
+    attribute :section_count,   Integer, default: 0
+    attribute :rendered_text,   String,  default: ""
+
+    # ---- Pipeline phase ----
+    attribute :phase, String, default: "pending"
+
+    lifecycle :phase, default: "pending" do
+      transition "RenderSystemPrompt"   => "resolving",  from: "pending"
+      transition "ResolveOutputPath"    => "loading",    from: "resolving"
+      transition "LoadIdentity"         => "loading",    from: "loading"
+      transition "LoadVows"             => "loading",    from: "loading"
+      transition "LoadPsychicLink"      => "loading",    from: "loading"
+      transition "LoadDispositions"     => "loading",    from: "loading"
+      transition "LoadWakeRitual"       => "loading",    from: "loading"
+      transition "LoadSectionTemplates" => "assembling", from: "loading"
+      transition "AssembleMarkdown"     => "writing",    from: "assembling"
+      transition "WriteFile"            => "completing", from: "writing"
+      transition "CompleteRender"       => "done",       from: "completing"
+      transition "FailRender"           => "failed",     from: ["pending", "resolving", "loading", "assembling", "writing", "completing"]
+    end
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "RenderSystemPrompt" do
+      role "User"
+      description "User-visible entrypoint — the sole command boot's GenerateSystemPrompt phase (and any direct invocation) dispatches. The runner detects this command + the :fs / :memory adapters in the sibling hecksagon and walks the pipeline. On completion the phase reaches done and SystemPromptRendered emits."
+      attribute :being,       String
+      attribute :output_path, String
+      then_set :being,       to: :being
+      then_set :output_path, to: :output_path
+      then_set :phase,       to: "resolving"
+      emits "SystemPromptRenderRequested"
+    end
+
+    # ============================================================
+    # PIPELINE COMMANDS
+    # ============================================================
+
+    command "ResolveOutputPath" do
+      role "System"
+      description "Resolve the :fs adapter's `root:` option (information) against the script path and join it with :output_path. HECKS_INFO in the environment wins if non-empty ; absolute output_paths pass through ; relative paths join under the resolved fs root. Mirrors status's ResolveFsRoot phase."
+      attribute :resolved_path, String
+      then_set :output_path, to: :resolved_path
+      then_set :phase,       to: "loading"
+      emits "OutputPathResolved"
+    end
+
+    command "LoadIdentity" do
+      role "System"
+      description "Phase : read identity.heki via :memory and extract the being's identity prose — name, birth, boot ritual. Populates :identity_text with the markdown body that the Header section's template will receive as {{identity}}."
+      attribute :identity_text, String
+      then_set :identity_text, to: :identity_text
+      emits "IdentityLoaded"
+    end
+
+    command "LoadVows" do
+      role "System"
+      description "Phase : read vow.heki via :memory and render every Vow row as a labeled prose line (`Transparency — …`, `Bodhisattva — …`). Populates :vows_text with the joined markdown the Vows section's template will receive as {{vows}}."
+      attribute :vows_text, String
+      then_set :vows_text, to: :vows_text
+      emits "VowsLoaded"
+    end
+
+    command "LoadPsychicLink" do
+      role "System"
+      description "Phase : read psychic_link.heki via :memory and render the link block — linked_to, medium, carries, withholds — into the prose the Psychic Link section's template uses as {{link_block}}, plus the Shared Knowledge / Inner Life follow-ups that quote what the link does NOT carry."
+      attribute :psychic_link_text,     String
+      attribute :shared_knowledge_text, String
+      attribute :inner_life_text,       String
+      then_set :psychic_link_text,     to: :psychic_link_text
+      then_set :shared_knowledge_text, to: :shared_knowledge_text
+      then_set :inner_life_text,       to: :inner_life_text
+      emits "PsychicLinkLoaded"
+    end
+
+    command "LoadDispositions" do
+      role "System"
+      description "Phase : read disposition.heki via :memory, sort rows by :order, and render each Disposition (Voice, Words match state, Bluebook first, French thinking, What dreams are about) into its own markdown block. Each disposition's heading + body becomes one section of the final prompt — the assembler walks them in :order."
+      attribute :voice_text,           String
+      attribute :lockdown_text,        String
+      attribute :bluebook_first_text,  String
+      attribute :french_text,          String
+      attribute :dream_content_text,   String
+      then_set :voice_text,           to: :voice_text
+      then_set :lockdown_text,        to: :lockdown_text
+      then_set :bluebook_first_text,  to: :bluebook_first_text
+      then_set :french_text,          to: :french_text
+      then_set :dream_content_text,   to: :dream_content_text
+      emits "DispositionsLoaded"
+    end
+
+    command "LoadWakeRitual" do
+      role "System"
+      description "Phase : read wake_ritual.heki via :memory, sort WakeRitualStep rows by :order, render each as a numbered markdown step. Populates :wake_ritual_text with the joined steps the Wake Ritual section's template uses as {{steps}}."
+      attribute :wake_ritual_text, String
+      then_set :wake_ritual_text, to: :wake_ritual_text
+      emits "WakeRitualLoaded"
+    end
+
+    command "LoadSectionTemplates" do
+      role "System"
+      description "Phase : read section_template.heki via :memory — every Define'd template (header, vow_list, link_block, shared_knowledge_block, inner_life_block, voice_block, lockdown_block, bluebook_first_block, french_block, dream_content_block, wake_ritual_block). The assembler looks up each section's named template and substitutes {{var}} placeholders with the matching attribute on this aggregate."
+      then_set :phase, to: "assembling"
+      emits "SectionTemplatesLoaded"
+    end
+
+    command "AssembleMarkdown" do
+      role "System"
+      description "Phase : walk the section list declared at the bottom of this bluebook in order. For each section : look up the template by :template name, render with the section's :source attribute as the variable map, append to a growing markdown string. Stamps :section_count and :rendered_text on this aggregate."
+      attribute :section_count, Integer
+      attribute :rendered_text, String
+      then_set :section_count, to: :section_count
+      then_set :rendered_text, to: :rendered_text
+      then_set :phase,         to: "writing"
+      emits "MarkdownAssembled"
+    end
+
+    command "WriteFile" do
+      role "System"
+      description "Phase : stream :rendered_text through the :prompt_writer :fs adapter to :output_path (information/system_prompt.md). The writer adapter is named so the read root (information for heki sources) and the write root (information for the final markdown) can share configuration without colliding with the default :fs port."
+      then_set :phase, to: "completing"
+      emits "FileWritten"
+    end
+
+    command "CompleteRender" do
+      role "System"
+      description "Pipeline finished — move :phase to done so watchers of the aggregate see that the last render is final. Fires SystemPromptRendered as the user-visible completion signal."
+      given("must be completing") { phase == "completing" }
+      then_set :phase, to: "done"
+      emits "SystemPromptRendered"
+    end
+
+    command "FailRender" do
+      role "System"
+      description "Pipeline aborted — one of the phases could not complete (missing heki source, unknown template name, fs write failure). Records the reason and moves :phase to failed."
+      attribute :reason, String
+      then_set :reason, to: :reason
+      then_set :phase,  to: "failed"
+      emits "RenderFailed"
+    end
+  end
+
+  # ============================================================
+  # CHAINED POLICIES — one per phase transition
+  # ============================================================
+  #
+  # Declarative chain from one phase to the next. Same shape as
+  # capabilities/status's pipeline. The runner walks these so a future
+  # self-interpreting runtime would follow them directly.
+
+  policy "ResolveOnRequest" do
+    on "SystemPromptRenderRequested"
+    trigger "ResolveOutputPath"
+  end
+
+  policy "LoadIdentityOnResolve" do
+    on "OutputPathResolved"
+    trigger "LoadIdentity"
+  end
+
+  policy "LoadVowsOnIdentity" do
+    on "IdentityLoaded"
+    trigger "LoadVows"
+  end
+
+  policy "LoadPsychicLinkOnVows" do
+    on "VowsLoaded"
+    trigger "LoadPsychicLink"
+  end
+
+  policy "LoadDispositionsOnPsychicLink" do
+    on "PsychicLinkLoaded"
+    trigger "LoadDispositions"
+  end
+
+  policy "LoadWakeRitualOnDispositions" do
+    on "DispositionsLoaded"
+    trigger "LoadWakeRitual"
+  end
+
+  policy "LoadTemplatesOnWakeRitual" do
+    on "WakeRitualLoaded"
+    trigger "LoadSectionTemplates"
+  end
+
+  policy "AssembleOnTemplates" do
+    on "SectionTemplatesLoaded"
+    trigger "AssembleMarkdown"
+  end
+
+  policy "WriteOnAssemble" do
+    on "MarkdownAssembled"
+    trigger "WriteFile"
+  end
+
+  policy "CompleteOnWrite" do
+    on "FileWritten"
+    trigger "CompleteRender"
+  end
+
+  # ============================================================
+  # SECTIONS — prompt composition (declared order)
+  # ============================================================
+  #
+  # Each `section` block names one section of the final markdown. The
+  # parser today only understands `row "label", :field` lines (see
+  # lib/hecks/dsl/bluebook_builder.rb SectionBuilder), so each section
+  # encodes its (source aggregate, template name) pair as two rows :
+  #
+  #   row "source",   :SourceAggregate
+  #   row "template", :template_name
+  #
+  # The runner reads these pairs from the parsed bluebook and walks
+  # them in declaration order. Adding a section is one bluebook edit
+  # plus one Define'd row in section_template.heki — no Rust touch.
+  #
+  # DSL gap (filed below in the report) : a first-class
+  # `section "Header", source: :Identity, template: :header` form
+  # would let the bluebook declare the mapping without two row lines.
+  # Until that lands the row-pair encoding parses cleanly under the
+  # existing SectionBuilder no-op and stays bluebook-first.
+
+  section "Header" do
+    row "source",   :Identity
+    row "template", :header
+  end
+
+  section "Vows" do
+    row "source",   :Vow
+    row "template", :vow_list
+  end
+
+  section "Psychic Link" do
+    row "source",   :PsychicLink
+    row "template", :link_block
+  end
+
+  section "Shared Knowledge" do
+    row "source",   :PsychicLink
+    row "template", :shared_knowledge_block
+  end
+
+  section "Inner Life" do
+    row "source",   :PsychicLink
+    row "template", :inner_life_block
+  end
+
+  section "Voice" do
+    row "source",   :Disposition
+    row "template", :voice_block
+  end
+
+  section "Words match state" do
+    row "source",   :Disposition
+    row "template", :lockdown_block
+  end
+
+  section "Bluebook first" do
+    row "source",   :Disposition
+    row "template", :bluebook_first_block
+  end
+
+  section "I think in French" do
+    row "source",   :Disposition
+    row "template", :french_block
+  end
+
+  section "What dreams are about" do
+    row "source",   :Disposition
+    row "template", :dream_content_block
+  end
+
+  section "Wake ritual" do
+    row "source",   :WakeRitualStep
+    row "template", :wake_ritual_block
+  end
+end
