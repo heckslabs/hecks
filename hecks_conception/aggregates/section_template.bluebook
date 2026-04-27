@@ -1,0 +1,27 @@
+Hecks.bluebook "SectionTemplate", version: "2026.04.26.1" do
+  vision "Markdown templates for system prompt assembly — each row is one named template with {{var}} placeholders"
+  category "meta"
+
+  aggregate "SectionTemplate", "A named markdown template used to render a system prompt section" do
+    identified_by :name
+    attribute :name,        String
+    attribute :markdown,    String
+    attribute :applies_to,  String
+    attribute :description, String
+
+    command "Define" do
+      role "System"
+      description "Register a markdown template for a known section type"
+      attribute :name,        String
+      attribute :markdown,    String
+      attribute :applies_to,  String
+      attribute :description, String
+      then_set :name,        from: :name
+      then_set :markdown,    from: :markdown
+      then_set :applies_to,  from: :applies_to
+      then_set :description, from: :description
+      emits "TemplateDefined"
+    end
+  end
+
+end

@@ -1,0 +1,12 @@
+Hecks.behaviors "PsychicLink" do
+  vision "Behavioral tests for the PsychicLink domain — exercises the Establish command in memory"
+
+  # ── PsychicLink aggregate ──────────────────────────────────────────
+
+  test "Establish sets all attributes" do
+    tests "Establish", on: "PsychicLink"
+    input  linked_to: "Spring", medium: "conversation.heki", carries: "raw stream of mind", withholds: "mood, feelings, dreams", description: "sample"
+    expect ok: "true"
+  end
+
+end

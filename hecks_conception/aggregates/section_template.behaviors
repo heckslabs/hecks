@@ -1,0 +1,12 @@
+Hecks.behaviors "SectionTemplate" do
+  vision "Behavioral tests for the SectionTemplate domain — exercises the Define command in memory"
+
+  # ── SectionTemplate aggregate ──────────────────────────────────────────
+
+  test "Define sets all four attributes" do
+    tests "Define", on: "SectionTemplate"
+    input  name: "disposition_h2", markdown: "## {{heading}}\n\n{{body}}\n\n", applies_to: "Disposition", description: "Renders a disposition as an H2 section"
+    expect ok: "true"
+  end
+
+end

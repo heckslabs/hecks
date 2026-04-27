@@ -1,0 +1,24 @@
+Hecks.bluebook "WakeRitual", version: "2026.04.26.1" do
+  vision "The ordered steps of Miette's wake ritual — spoken on transition sleeping→attentive"
+  category "meta"
+
+  aggregate "WakeRitualStep", "A single named step in the wake ritual, with prose describing what to do" do
+    identified_by :name
+    attribute :order,       Integer
+    attribute :name,        String
+    attribute :description, String
+
+    command "Establish" do
+      role "Being"
+      description "Define a wake-ritual step — what to speak and when"
+      attribute :order,       Integer
+      attribute :name,        String
+      attribute :description, String
+      then_set :order,       from: :order
+      then_set :name,        from: :name
+      then_set :description, from: :description
+      emits "StepEstablished"
+    end
+  end
+
+end

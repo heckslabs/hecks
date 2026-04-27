@@ -1,0 +1,24 @@
+Hecks.hecksagon "RepositoryShape" do
+  # ============================================================
+  # REPOSITORY SHAPE — wiring
+  # ============================================================
+  #
+  # Sibling bluebook describes repository.rs::next_id as a
+  # declarative dispatch tree. The aggregates here are build-time
+  # metadata only — the specializer reads them at codegen time to
+  # emit the runtime function. No runtime state, no persistence at
+  # this layer.
+  #
+  # A single `:fs` adapter rooted at the conception root is enough
+  # for any tool that wants to inspect the shape (the specializer
+  # itself, the parity suite, validators that lint shape rows).
+  # Mirrors the precedent set by capability_runner_shape,
+  # validator_shape, dump_shape : shape capabilities do not declare
+  # runtime adapters because they are not runtime capabilities.
+  #
+  # Reading the *target* domain's hecksagon (where `unique:` lives)
+  # happens in the specializer's emit step, not here ; this
+  # hecksagon describes only how to inspect *this shape* itself.
+
+  adapter :fs, root: "."
+end

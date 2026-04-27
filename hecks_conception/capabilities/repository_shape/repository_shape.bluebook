@@ -1,0 +1,59 @@
+Hecks.bluebook "RepositoryShape", version: "2026.04.26.2" do
+  vision "Shape of hecks_life/src/runtime/repository.rs — in-memory aggregate store with heki persistence. Id dispatch is driven by identified_by from the aggregate's own IR: when set, id_for_command reads attrs[identified_by] as the natural key; when absent, mints a u64 counter. No fixtures file — the aggregate's own bluebook declaration is the adapter."
+  category "autophagy"
+
+  # ============================================================
+  # REPOSITORY SHAPE
+  # ============================================================
+  #
+  # The Repository stores AggregateState instances keyed by id
+  # and persists them to a .heki store on every save.
+  #
+  # Id dispatch — id_for_command(attrs):
+  #
+  #   natural_key   — aggregate declares `identified_by :field`.
+  #                   id_for_command reads attrs[field] and returns
+  #                   it as the id. Enables find-or-create by natural
+  #                   key (e.g. inbox.Item identified_by :ref).
+  #
+  #   singleton     — aggregate has no identified_by AND the store is
+  #                   non-empty. id_for_command returns the first
+  #                   existing key, so all dispatches land on the same
+  #                   record. This is the correct behavior for organ
+  #                   aggregates (Heartbeat, Tick, Pulse) that have
+  #                   exactly one record and no natural key.
+  #
+  #   counter_mint  — aggregate has no identified_by AND the store is
+  #                   empty. id_for_command mints a fresh u64 counter
+  #                   value. The first dispatch creates the singleton
+  #                   record; subsequent dispatches hit singleton mode.
+  #
+  # All three branches live in id_for_command. The Repository struct
+  # carries `identified_by: Option<String>` set at construction time
+  # from agg.identified_by in the aggregate IR. No adapter option
+  # read, no fixture rows — the aggregate's own bluebook is the
+  # adapter. Declaring `identified_by` is the upgrade path from
+  # singleton to natural-key dispatch; absence means singleton.
+  #
+  # Layer mapping:
+  #   L0 = this file
+  #   L1 = canonical_ir of this file
+  #   L7 = hecks_life/src/runtime/repository.rs (specializer target)
+  #
+  # No fixtures file at this layer — the id strategy is read from
+  # the aggregate's own IR (identified_by field), not from shape
+  # fixture rows. Fixtures are test data; adapters are production
+  # configuration. The distinction is the entire point of this shape.
+
+  aggregate "RepositoryConfig", "Fixed surface of the Repository struct — field and method names consumed by the specializer to emit repository.rs" do
+    attribute :struct_name,          String, default: "Repository"
+    # id_fn_name: the public method that resolves an id from command attrs
+    attribute :id_fn_name,           String, default: "id_for_command"
+    # counter_field: the u64 struct field that mints ids when identified_by is absent
+    attribute :counter_field,        String, default: "next_id"
+    # store_field: the HashMap<String, AggregateState> field
+    attribute :store_field,          String, default: "store"
+    # identified_by_field: the Option<String> struct field carrying the natural-key attr name
+    attribute :identified_by_field,  String, default: "identified_by"
+  end
+end

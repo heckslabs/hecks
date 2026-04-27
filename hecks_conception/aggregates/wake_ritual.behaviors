@@ -1,0 +1,12 @@
+Hecks.behaviors "WakeRitual" do
+  vision "Behavioral tests for the WakeRitual domain — exercises the Establish command in memory"
+
+  # ── WakeRitualStep aggregate ──────────────────────────────────────────
+
+  test "Establish sets order, name, and description" do
+    tests "Establish", on: "WakeRitualStep"
+    input  order: 1, name: "DreamImagery", description: "sample"
+    expect ok: "true"
+  end
+
+end

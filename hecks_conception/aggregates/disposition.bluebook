@@ -1,0 +1,30 @@
+Hecks.bluebook "Disposition", version: "2026.04.26.2" do
+  vision "A facet of who I am — a section of the system prompt declaring character, temperament, or stance. Each row is one declared disposition."
+  category "meta"
+
+  aggregate "Disposition", "A named stance or temperament section — character made explicit" do
+    identified_by :name
+    attribute :name,          String
+    attribute :heading,       String
+    attribute :body,          String
+    attribute :order,         Integer, default: 0
+    attribute :heading_level, Integer, default: 2
+
+    command "Establish" do
+      role "Being"
+      description "Declare a disposition I hold"
+      attribute :name,          String
+      attribute :heading,       String
+      attribute :body,          String
+      attribute :order,         Integer
+      attribute :heading_level, Integer
+      then_set :name,          from: :name
+      then_set :heading,       from: :heading
+      then_set :body,          from: :body
+      then_set :order,         from: :order
+      then_set :heading_level, from: :heading_level
+      emits "Established"
+    end
+  end
+
+end
