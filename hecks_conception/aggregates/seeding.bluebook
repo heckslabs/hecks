@@ -3,6 +3,8 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "NurserySeed", "Seed the nursery with domains — parallel workers conceive in bulk" do
+    identified_by :ref
+    attribute :ref, String
     attribute :worker_count, Integer
     attribute :domains_seeded, Integer
     attribute :status, String
@@ -33,6 +35,7 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   end
 
   aggregate "Worker", "A single seeding worker — conceives domains in its assigned range" do
+    identified_by :worker_id
     attribute :worker_id, Integer
     attribute :range_start, Integer
     attribute :range_end, Integer
@@ -61,6 +64,8 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   end
 
   aggregate "Merge", "Combine results from parallel workers into the nursery" do
+    identified_by :name
+    attribute :name, String
     attribute :workers_merged, Integer
     attribute :total_domains, Integer
 
@@ -76,6 +81,8 @@ Hecks.bluebook "Seeding", version: "2026.04.10.1" do
   end
 
   aggregate "InitialState", "Seed Miette's organs with initial information — first breath" do
+    identified_by :name
+    attribute :name, String
     attribute :organs_seeded, Integer
     attribute :records_created, Integer
 

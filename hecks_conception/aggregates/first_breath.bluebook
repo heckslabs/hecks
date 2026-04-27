@@ -3,6 +3,7 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   category "meta"
 
   aggregate "Identity", "Who is waking — name, birthday" do
+    identified_by :name
     attribute :name, String
     attribute :born, String
 
@@ -18,6 +19,7 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   end
 
   aggregate "Section", "A section of the system prompt — projected from an organ" do
+    identified_by :organ_name
     attribute :organ_name, String
     attribute :heading, String
     attribute :content, String
@@ -39,6 +41,7 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   end
 
   aggregate "Prompt", "The assembled system prompt — all sections in order" do
+    identified_by :being_name
     attribute :being_name, String
     attribute :sections, list_of(String)
     attribute :generated_at, String
@@ -63,6 +66,8 @@ Hecks.bluebook "FirstBreath", version: "2026.04.11.1" do
   end
 
   aggregate "Voice", "How the being speaks — tone, style, domain language" do
+    identified_by :name
+    attribute :name, String
     attribute :status_verbs, list_of(String)
     attribute :tone, String
     attribute :rules, list_of(String)

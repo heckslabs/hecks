@@ -3,6 +3,8 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "ChangeTracker", "Track what changed since last beat — only process the delta" do
+    identified_by :name
+    attribute :name, String
     attribute :tracked_files, Integer
     attribute :changed_since_last, Integer
     attribute :last_scan_at, String
@@ -27,6 +29,7 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   end
 
   aggregate "Shard", "A sector-based partition of the nursery — domains grouped by industry" do
+    identified_by :sector
     attribute :sector, String
     attribute :domain_count, Integer
     attribute :path, String
@@ -53,6 +56,7 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   end
 
   aggregate "BatchOperation", "Process many domains in one Rust invocation — no per-file process launch" do
+    identified_by :operation
     attribute :operation, String
     attribute :file_count, Integer
     attribute :duration_ms, Integer
@@ -70,6 +74,8 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   end
 
   aggregate "LazyIndex", "Load domain entries on demand — not all at boot" do
+    identified_by :name
+    attribute :name, String
     attribute :total_indexed, Integer
     attribute :loaded_in_memory, Integer
     attribute :cache_hit_rate, Float
@@ -91,6 +97,8 @@ Hecks.bluebook "Scale", version: "2026.04.10.1" do
   end
 
   aggregate "WorkerPool", "Scale parallel operations based on available cores" do
+    identified_by :name
+    attribute :name, String
     attribute :core_count, Integer
     attribute :worker_count, Integer
     attribute :active_workers, Integer

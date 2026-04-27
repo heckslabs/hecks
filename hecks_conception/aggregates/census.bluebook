@@ -3,6 +3,8 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "NurseryCensus", "The master snapshot of all nursery domains" do
+    identified_by :name
+    attribute :name, String
     attribute :total_domains, Integer
     attribute :total_aggregates, Integer
     attribute :total_commands, Integer
@@ -39,6 +41,7 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   end
 
   aggregate "DomainEntry", "A single domain's metadata in the index" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :version, String
     attribute :sector, String
@@ -66,6 +69,7 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   end
 
   aggregate "Sector", "A grouping of domains by industry" do
+    identified_by :name
     attribute :name, String
     attribute :domain_count, Integer
 
@@ -81,6 +85,8 @@ Hecks.bluebook "Census", version: "2026.04.10.1" do
   end
 
   aggregate "Compilation", "Compile the nursery into a compressed corpus" do
+    identified_by :name
+    attribute :name, String
     attribute :domains_compiled, Integer
     attribute :output_path, String
 

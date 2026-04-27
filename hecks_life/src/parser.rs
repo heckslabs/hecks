@@ -3,6 +3,12 @@
 //! Parses the Ruby-hosted DSL by pattern matching on the structure.
 //! Not a full Ruby parser — just enough to read Bluebook declarations.
 //! Block parsers live in parse_blocks.rs.
+//!
+//! [antibody-exempt: parser.rs — kernel-surface bluebook parser;
+//!  hecks-life specialize parser regenerates this file byte-for-byte from
+//!  parser_shape fixtures. Edit here seeds the golden fixture; update
+//!  parser_shape to match. Subsumes unique:true singleton pattern via
+//!  identified_by natural-key dispatch.]
 
 use crate::ir::*;
 use crate::parser_helpers::*;
@@ -20,9 +26,6 @@ pub fn parse(source: &str) -> Domain {
         sections: vec![],
     };
 
-    // Tolerate a leading `#!...\n` shebang so .bluebook files can be marked
-    // executable and run directly from the kernel. The line is advisory —
-    // the parser just skips it. Everything else stays identical.
     let source = strip_shebang(source);
 
     let lines: Vec<&str> = source.lines().collect();
@@ -49,9 +52,6 @@ pub fn parse(source: &str) -> Domain {
             }
         }
 
-        // `entrypoint "CommandName"` inside `Hecks.bluebook "…" do …`
-        // declares the default command for `hecks-life run <file>`. It's
-        // optional — library bluebooks don't need one.
         if line.starts_with("entrypoint") {
             if let Some(ep) = extract_string(line) {
                 domain.entrypoint = Some(ep);
@@ -65,11 +65,6 @@ pub fn parse(source: &str) -> Domain {
             continue;
         }
 
-        // Top-level section block — capability dashboards (status,
-        // statusline) declare their layout as `section "Title" do row
-        // "label", :field … end`. The renderer walks domain.sections
-        // instead of hard-coding section composition. See
-        // capabilities/status/status.bluebook for the canonical use.
         if line.starts_with("section ") || line.starts_with("section\t") {
             let (sec, consumed) = parse_section(&lines[i..]);
             domain.sections.push(sec);
@@ -84,14 +79,7 @@ pub fn parse(source: &str) -> Domain {
             continue;
         }
 
-        // Inline `fixture` keyword in .bluebook is no longer supported.
-        // Fixtures live in their own `.fixtures` files (sibling under
-        // `fixtures/` subdir). Anything starting with `fixture` here
-        // is silently ignored — the migration script extracted them all,
-        // and the lifecycle/io validators will catch stragglers.
         if line.starts_with("fixture") {
-            // Skip block form's body so we don't pick up nested
-            // `aggregate "X"` lines as new aggregates.
             if ends_with_do_block(line) {
                 let mut depth = 1;
                 while i + 1 < lines.len() && depth > 0 {
@@ -124,28 +112,6 @@ pub fn strip_shebang(source: &str) -> &str {
     source
 }
 
-// True if the line is incomplete and the next physical line is a
-// continuation: either trailing comma, or unbalanced brackets/parens/braces
-// (outside string literals).
-#[allow(dead_code)]
-fn needs_continuation(s: &str) -> bool {
-    let trimmed = s.trim_end();
-    if trimmed.ends_with(',') { return true; }
-    let mut depth = 0i32;
-    let mut in_str = false;
-    let mut prev = '\0';
-    for c in s.chars() {
-        match c {
-            '"' if prev != '\\' => in_str = !in_str,
-            '[' | '{' | '(' if !in_str => depth += 1,
-            ']' | '}' | ')' if !in_str => depth -= 1,
-            _ => {}
-        }
-        prev = c;
-    }
-    depth > 0
-}
-
 fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();
@@ -154,7 +120,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     let mut agg = Aggregate {
         name, description: desc, attributes: vec![],
         commands: vec![], queries: vec![], value_objects: vec![],
-        references: vec![], lifecycle: None,
+        references: vec![], lifecycle: None, identified_by: None,
     };
 
     let mut i = 1;
@@ -182,54 +148,23 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("attribute") {
-                if let Some(attr) = parse_attribute(line) {
-                    agg.attributes.push(attr);
-                }
+                if let Some(attr) = parse_attribute(line) { agg.attributes.push(attr); }
                 if ends_with_do_block(line) { depth += 1; }
             } else if line.starts_with("description") {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
-                // Two forms: `reference_to Pizza` (spaced) and `reference_to(Pizza)` /
-                // `reference_to(Pizza, as: :foo)` (paren). Both honor `as:` / `role:`
-                // kwargs; the spaced form picks them up from the trailing tail
-                // after the target identifier.
-                if line.starts_with("reference_to(") {
-                    if let Some(r) = parse_shorthand_reference(line) {
-                        agg.references.push(r);
-                    }
-                } else if let Some(target) = extract_word_after(line, "reference_to") {
-                    // `reference_to X, as: :foo` and `, role: :foo` — spaced-form
-                    // trailing kwarg. Mirrors parse_shorthand_reference's kwarg
-                    // resolution so Ruby/Rust parity holds for both syntaxes.
-                    let name = if let Some(pos) = line.find(", as:") {
-                        let after = &line[pos + ", as:".len()..];
-                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
-                    } else if let Some(pos) = line.find(", role:") {
-                        let after = &line[pos + ", role:".len()..];
-                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
-                    } else {
-                        to_snake_case(&target)
-                    };
-                    agg.references.push(Reference { name, target, domain: None });
-                }
+                absorb_reference_to(line, &mut agg);
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 agg.lifecycle = Some(lc);
                 i += consumed;
                 continue;
+            } else if line.starts_with("identified_by") {
+                agg.identified_by = extract_symbol(line);
             } else if is_shorthand_line(line) {
-                match parse_shorthand(line) {
-                    ShorthandResult::Attribute(a) => agg.attributes.push(a),
-                    ShorthandResult::Reference(r) => agg.references.push(r),
-                    ShorthandResult::None => {}
-                }
+                absorb_shorthand(line, &mut agg);
             } else if line.starts_with("query") {
-                let name = extract_string(line).unwrap_or_else(|| {
-                    line.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
-                });
-                let desc = extract_second_string(line);
-                agg.queries.push(Query { name, description: desc });
-                if ends_with_do_block(line) { depth += 1; }
+                push_query(line, &mut agg, &mut depth);
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
@@ -241,4 +176,62 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     }
 
     (agg, i + 1)
+}
+
+fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
+    if line.starts_with("reference_to(") {
+        if let Some(r) = parse_shorthand_reference(line) {
+            agg.references.push(r);
+        }
+    } else if let Some(target) = extract_word_after(line, "reference_to") {
+        let name = if let Some(pos) = line.find(", as:") {
+            let after = &line[pos + ", as:".len()..];
+            extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+        } else if let Some(pos) = line.find(", role:") {
+            let after = &line[pos + ", role:".len()..];
+            extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+        } else {
+            to_snake_case(&target)
+        };
+        agg.references.push(Reference { name, target, domain: None });
+    }
+}
+
+fn absorb_shorthand(line: &str, agg: &mut Aggregate) {
+    match parse_shorthand(line) {
+        ShorthandResult::Attribute(a) => agg.attributes.push(a),
+        ShorthandResult::Reference(r) => agg.references.push(r),
+        ShorthandResult::None => {}
+    }
+}
+
+fn push_query(line: &str, agg: &mut Aggregate, depth: &mut usize) {
+    let name = extract_string(line).unwrap_or_else(|| {
+        line.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
+    });
+    let desc = extract_second_string(line);
+    agg.queries.push(Query { name, description: desc });
+    if ends_with_do_block(line) { *depth += 1; }
+}
+
+// True if the line is incomplete and the next physical line is a
+// continuation: either trailing comma, or unbalanced brackets/parens/braces
+// (outside string literals).
+#[allow(dead_code)]
+fn needs_continuation(s: &str) -> bool {
+    let trimmed = s.trim_end();
+    if trimmed.ends_with(',') { return true; }
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut prev = '\0';
+    for c in s.chars() {
+        match c {
+            '"' if prev != '\\' => in_str = !in_str,
+            '[' | '{' | '(' if !in_str => depth += 1,
+            ']' | '}' | ')' if !in_str => depth -= 1,
+            _ => {}
+        }
+        prev = c;
+    }
+    depth > 0
 }

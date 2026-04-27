@@ -42,6 +42,8 @@ Hecks.bluebook "DaemonChorus", version: "2026.04.26.1" do
   # changed, so the conscious narrator doesn't churn on noise.
 
   aggregate "Chorus", "The body's collective sense of its parallel daemons running together — harmony or discord, perceived not regulated" do
+    identified_by :name
+    attribute :name, String
     attribute :participating_daemons, list_of(String)
     # harmony: consonant | dissonant | sparse | silent | unknown
     attribute :harmony,               String, default: "unknown"

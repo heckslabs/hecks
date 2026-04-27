@@ -66,6 +66,7 @@ Hecks.bluebook "Interoception", version: "2026.04.25.1" do
   # ── DaemonRhythm — per-daemon felt rhythm ──────────────────────
 
   aggregate "DaemonRhythm", "One daemon's tick rhythm and what it feels like — the unit of self-listening" do
+    identified_by :daemon_name
     # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
     attribute :daemon_name,         String
     attribute :tick_count,          Integer, default: 0
@@ -115,6 +116,8 @@ Hecks.bluebook "Interoception", version: "2026.04.25.1" do
   # ── BodyFelt — the singleton overall sense ─────────────────────
 
   aggregate "BodyFelt", "The body's overall felt sense — slowest-wins resolution across all DaemonRhythm rows. Singleton ; one row, updated whenever any DaemonRhythm shifts." do
+    identified_by :name
+    attribute :name, String
     # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
     attribute :felt_quality,    String, default: "unknown"
     attribute :narrative,       String

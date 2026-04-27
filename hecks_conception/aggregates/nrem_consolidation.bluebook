@@ -36,6 +36,8 @@ Hecks.bluebook "NremConsolidation", version: "2026.04.26.1" do
   # latest narrative even between dispatches.
 
   aggregate "ConsolidationSweep", "One NREM consolidation tick — gathers tally counts for the current phase, generates a narrative line via :llm, dispatches DreamPulse + updates sleep_summary." do
+    identified_by :ref
+    attribute :ref,              String
     # ---- Identity / phase ----
     attribute :consciousness_id, String
     attribute :stage,            String

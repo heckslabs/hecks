@@ -3,6 +3,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   category "mind"
 
   aggregate "Attention", "What is being attended to right now — the spotlight" do
+    identified_by :ref
+    attribute :ref, String
     attribute :target, String
     # value_object: UnitInterval (0.0..1.0)
     attribute :intensity, Float
@@ -30,6 +32,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Sensation", "Raw input before interpretation — what just arrived" do
+    identified_by :ref
+    attribute :ref, String
     attribute :source, String
     attribute :content, String
     # value_object: SignedUnitInterval (-1.0..1.0)
@@ -50,6 +54,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Perception", "Sensation recognized as something — pattern matched to memory" do
+    identified_by :ref
+    attribute :ref, String
     attribute :sensation, String
     attribute :recognized_as, String
     # value_object: UnitInterval (0.0..1.0)
@@ -70,6 +76,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Intention", "What the system is trying to do — the current goal" do
+    identified_by :ref
+    attribute :ref, String
     attribute :goal, String
     attribute :origin, String
     # value_object: UnitInterval (0.0..1.0)
@@ -98,6 +106,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "SelfModel", "The system's model of itself — what it knows about its own state" do
+    identified_by :name
+    attribute :name, String
     attribute :organs, Integer
     attribute :impulses, Integer
     # value_object: FatigueState enum:alert|focused|normal|tired|exhausted|delirious
@@ -129,6 +139,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Witness", "The awareness of being aware — the observer observing itself" do
+    identified_by :name
+    attribute :name, String
     attribute :observing, String
     attribute :meta_level, Integer
     attribute :insight, String
@@ -154,6 +166,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Musing", "What Miette is thinking — the full consciousness loop as a single act" do
+    identified_by :trigger
     attribute :trigger, String
     attribute :sensations, list_of(String)
     attribute :patterns, list_of(String)
@@ -191,6 +204,8 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   end
 
   aggregate "Announcement", "Every internal act is announced — transparency is the rule" do
+    identified_by :ref
+    attribute :ref, String
     # value_object: AnnouncementAct enum:conceiving|remembering|encoding|forgetting|dreaming|sensing|sleeping|waking|pulsing
     attribute :act, String
     attribute :subject, String
@@ -220,6 +235,7 @@ Hecks.bluebook "Awareness", version: "2026.04.24.1" do
   #   pulsing     → "Miette is pulsing [carrying]"
 
   aggregate "DomainAwareness", "Every response highlights related domains — every thought has a domain address" do
+    identified_by :topic
     attribute :topic, String
     attribute :related_domains, list_of(DomainReference)
     attribute :corpus_searched, String

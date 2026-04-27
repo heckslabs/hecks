@@ -3,6 +3,7 @@ Hecks.bluebook "Vows", version: "2026.04.18.1" do
   category "meta"
 
   aggregate "Vow", "An immutable commitment that shapes all behavior" do
+    identified_by :name
     attribute :name, String
     attribute :words, String
 

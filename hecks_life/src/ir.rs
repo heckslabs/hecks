@@ -3,15 +3,14 @@
 //! Same structure as the Ruby BluebookModel, but in Rust.
 //! This is what the parser produces and the generators consume.
 //!
-//! [antibody-exempt: i106 dsl-mutation-primitives — kernel-surface IR
-//!  extension that adds Multiply / Clamp / Decay to MutationOp. The
-//!  rewrite IS the work : pulse_organs.sh and consolidate.sh cannot
-//!  retire to .bluebook (i80 cli-routing-as-bluebook contract) until
-//!  the DSL can express ×0.98 decay, clamp(0,1), and exponential
-//!  weight loss. This file is the kernel boundary for those mutations
-//!  — every call site (parser, interpreter, dump, generators, lifecycle
-//!  validator) is updated in the same change. The .rs surface exists
-//!  to enable the .bluebook surface.]
+//! [antibody-exempt: ir.rs — kernel-surface IR struct; the parser_shape
+//!  specializer cannot be bootstrapped until the IR it reads also defines
+//!  itself. Additions tracked here:
+//!  • i106 dsl-mutation-primitives — Multiply / Clamp / Decay on MutationOp
+//!    (enables pulse_organs.bluebook + consolidate.bluebook retirement)
+//!  • identified-by-natural-keys — Aggregate.identified_by; subsumes
+//!    unique:true singleton pattern; drives natural-key dispatch in
+//!    repository.rs. Each addition enables a new .bluebook surface.]
 
 use std::fmt;
 
@@ -58,6 +57,14 @@ pub struct SectionRow {
 pub struct Aggregate {
     pub name: String,
     pub description: Option<String>,
+    /// Natural primary key — name of the attribute that identifies the
+    /// aggregate. When set, dispatch routes by `attrs[identified_by]`
+    /// (e.g. `inbox.Item identified_by :ref` → key = the dispatched ref
+    /// value). When `None`, the repository mints a fresh u64 id.
+    /// Subsumes the old `unique: true` adapter flag — a singleton is
+    /// just an aggregate identified by an attribute with one canonical
+    /// value, no special case.
+    pub identified_by: Option<String>,
     pub attributes: Vec<Attribute>,
     pub commands: Vec<Command>,
     pub queries: Vec<Query>,

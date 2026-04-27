@@ -56,7 +56,11 @@ impl Runtime {
         for agg in &domain.aggregates {
             repositories.insert(
                 agg.name.clone(),
-                Repository::new(&agg.name, data_dir.clone()),
+                Repository::new(
+                    &agg.name,
+                    data_dir.clone(),
+                    agg.identified_by.clone(),
+                ),
             );
         }
 
@@ -220,6 +224,33 @@ impl Runtime {
                     if let Some(repo) = self.repositories.get(&r.target) {
                         if let Some(existing) = repo.all().first() {
                             data.insert(r.name.clone(), Value::Str(existing.id.clone()));
+                        }
+                    }
+                }
+                // Inject the identity field when the triggered command needs
+                // a single-instance aggregate. Handles two cases:
+                //   1. Key absent — policy cascade didn't supply an id.
+                //   2. Key present but value doesn't match any record —
+                //      upstream aggregate leaked its own identified_by field
+                //      (e.g. Pulse's `name="302"` in a BodyPulse event) into
+                //      the cascade data, pointing at a non-existent record.
+                // Only fires when count == 1: if the repo has more records
+                // the singleton assumption doesn't hold; we let dispatch
+                // counter-mint rather than guess which record was intended.
+                if let Some(ref key) = agg.identified_by {
+                    if let Some(repo) = self.repositories.get(&agg.name) {
+                        if repo.count() == 1 {
+                            let needs_inject = match data.get(key.as_str()) {
+                                None => true,
+                                Some(v) => v.as_str()
+                                    .map(|s| repo.find(s).is_none())
+                                    .unwrap_or(true),
+                            };
+                            if needs_inject {
+                                if let Some(existing) = repo.all().first() {
+                                    data.insert(key.clone(), Value::Str(existing.id.clone()));
+                                }
+                            }
                         }
                     }
                 }

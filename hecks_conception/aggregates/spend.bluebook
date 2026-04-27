@@ -11,6 +11,8 @@ Hecks.bluebook "Spend", version: "2026.04.21.1" do
   # doing when she shelled out (e.g., "Tongue.Speak:speech_42").
 
   aggregate "Call", "One invocation of an LLM — provider, token counts, cost, and what command triggered it" do
+    identified_by :ref
+    attribute :ref, String
     attribute :provider, String
     attribute :tokens_in, Integer
     attribute :tokens_out, Integer
@@ -47,6 +49,7 @@ Hecks.bluebook "Spend", version: "2026.04.21.1" do
   # write this whole essay right now, let it rip until 10pm").
 
   aggregate "Budget", "Spend cap for a period — hour/day/month — with manual override window" do
+    identified_by :period
     attribute :period, String
     attribute :cap_usd, Float
     attribute :override_active, String

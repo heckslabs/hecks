@@ -35,6 +35,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
   # filings that satisfy a DreamWish (i98 / 2026-04-26).
 
   aggregate "Item", "One filed TODO — short ref, body, priority, lifecycle, optional dream-wish receipt" do
+    identified_by :ref
     # ---- Identity ----
     # ref : the short id humans type ("i42"). Monotonic, stable.
     # Assigned by NextRef at Add time and never reassigned, even

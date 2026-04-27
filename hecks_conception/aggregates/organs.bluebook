@@ -9,6 +9,8 @@ Hecks.bluebook "Organs", version: "2026.04.26.1" do
   # decays without. Below 0.1 the synapse is composted into Remains.
 
   aggregate "Synapse", "A connection between two topics — strengthens with firing, decays in silence" do
+    identified_by :ref
+    attribute :ref, String
     attribute :from, String
     attribute :to, String
     attribute :strength, Float
@@ -74,6 +76,8 @@ Hecks.bluebook "Organs", version: "2026.04.26.1" do
   # If unaccessed (≤3) and old (>20s), pulse_organs.sh archives them.
 
   aggregate "Signal", "A short-lived message — somatic or conceptual" do
+    identified_by :ref
+    attribute :ref, String
     attribute :kind, String
     attribute :payload, String
     attribute :strength, Float
@@ -119,6 +123,8 @@ Hecks.bluebook "Organs", version: "2026.04.26.1" do
   # pulse_organs.sh from firing frequency.
 
   aggregate "Focus", "What the body is currently weighting — one target at a time" do
+    identified_by :name
+    attribute :name, String
     attribute :target, String
     attribute :weight, Float
     attribute :updated_at, String
@@ -155,6 +161,8 @@ Hecks.bluebook "Organs", version: "2026.04.26.1" do
   # transitions; topics is the cumulative bag for the current phase.
 
   aggregate "Arc", "The long swing of the cycle — phase, pulse count, topics gathered, momentum" do
+    identified_by :name
+    attribute :name, String
     attribute :phase, String
     attribute :pulse_count, Integer
     attribute :topics, list_of(String)
@@ -188,6 +196,7 @@ Hecks.bluebook "Organs", version: "2026.04.26.1" do
   # what once mattered. Fed by Synapse.Compost via pulse_organs.sh.
 
   aggregate "Remains", "The trace of a dead synapse — composted memory" do
+    identified_by :from_synapse
     attribute :from_synapse, String
     attribute :strength_at_death, Float
     attribute :firings, Integer

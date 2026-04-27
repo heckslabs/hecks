@@ -3,6 +3,7 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "Section", "A section of the system prompt — projected from an organ" do
+    identified_by :organ_name
     attribute :organ_name, String
     attribute :heading, String
     attribute :content, String
@@ -24,6 +25,8 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
   end
 
   aggregate "Prompt", "The assembled system prompt — all sections in order" do
+    identified_by :name
+    attribute :name, String
     attribute :sections, list_of(String)
     attribute :generated_at, String
     attribute :organ_count, Integer
@@ -45,6 +48,8 @@ Hecks.bluebook "SystemPrompt", version: "2026.04.10.1" do
   end
 
   aggregate "Voice", "How Miette speaks — tone, style, domain language" do
+    identified_by :name
+    attribute :name, String
     attribute :status_verbs, list_of(String)
     attribute :tone, String
     attribute :rules, list_of(String)

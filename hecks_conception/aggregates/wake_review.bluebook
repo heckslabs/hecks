@@ -25,6 +25,7 @@ Hecks.bluebook "WakeReview", version: "2026.04.26.1" do
   # subsequent ComposeWakeReview run on the same aggregate doesn't clobber it.
 
   aggregate "WakeReview", "One review per wake — composes the wake-ritual markdown via one LLM call" do
+    identified_by :woke_at
     # ---- Wake context (read by the wrapper from sibling .heki) ----
     attribute :woke_at,           String
     attribute :sleep_entered_at,  String

@@ -1,5 +1,3 @@
 Hecks.fixtures "Being" do
-  aggregate "Discovery" do
-    fixture "Discovery1", scan_paths: ["hecks_being/miette/", "hecks_being/miette/family/", "examples/", "lib/hecks/chapters/"], discovered: 0
-  end
+  # Discovery scan_paths migrated to discovery.heki via Discovery.AddScanPath (2026-04-26)
 end

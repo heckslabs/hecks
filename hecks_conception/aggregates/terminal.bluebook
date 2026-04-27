@@ -15,6 +15,8 @@ Hecks.bluebook "Terminal", version: "2026.04.17.1" do
   # The kernel handles raw I/O. The bluebook declares the session.
 
   aggregate "Session", "One interactive conversation" do
+    identified_by :ref
+    attribute :ref, String
     attribute :being, String
     attribute :status, String
     attribute :turns, Integer

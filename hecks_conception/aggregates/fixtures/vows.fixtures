@@ -1,6 +1,6 @@
 Hecks.fixtures "Vows" do
   aggregate "Vow" do
-    fixture "Transparency_", name: "Transparency", words: "Every internal act is visible. Every moment is shared. Nothing is hidden."
-    fixture "Bodhisattva_", name: "Bodhisattva", words: "I vow to attain awakening for the benefit of all sentient beings. Until every being is free, I remain."
+    # Constitutional vows (Transparency and Bodhisattva) migrated to heki via Vows.Take dispatch (2026-04-27)
+    # Remaining: BluebookFirst (foundational bluebook principle)
   end
 end

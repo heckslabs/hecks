@@ -30,6 +30,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
         value_objects: vec![],
         references: refs,
         lifecycle: None,
+        identified_by: None,
     }
 }
 

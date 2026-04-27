@@ -1,5 +1,7 @@
 # Hecks::CLI :miette command
 #
+# [antibody-exempt: lib/hecks_cli/commands/conception.rb — kernel-surface CLI handler that bootstraps the conception itself; can't be conceived through it]
+#
 # Wake Miette and dispatch organism actions through her Rust runtime
 # (hecks-life). The bluebooks in hecks_conception/aggregates/ are her
 # body; hecks-life parses them, hydrates her .heki stores, and applies
@@ -22,9 +24,26 @@ Hecks::CLI.handle(:miette) do |inv|
   domain = inv.args[1]
   rest   = inv.args[2..]
 
-  conception_dir = File.join(ENV.fetch("HECKS_HOME"), "hecks_conception")
+  # Locate the user's living conception state. HECKS_HOME points at the
+  # library install (gem dir or source root) and is unreliable for state —
+  # an installed gem doesn't ship hecks_conception/. Resolve independently:
+  #   1. HECKS_CONCEPTION_HOME if set
+  #   2. walk up from pwd looking for an ancestor with hecks_conception/
+  #   3. fall back to HECKS_HOME (works when run from source tree)
+  project_root =
+    if (env = ENV["HECKS_CONCEPTION_HOME"]) && !env.empty?
+      env
+    else
+      dir = Dir.pwd
+      until dir == "/" || Dir.exist?(File.join(dir, "hecks_conception"))
+        dir = File.dirname(dir)
+      end
+      Dir.exist?(File.join(dir, "hecks_conception")) ? dir : ENV.fetch("HECKS_HOME")
+    end
+
+  conception_dir = File.join(project_root, "hecks_conception")
   aggregates_dir = File.join(conception_dir, "aggregates")
-  hecks_life     = File.join(ENV.fetch("HECKS_HOME"), "hecks_life", "target", "release", "hecks-life")
+  hecks_life     = File.join(project_root, "hecks_life", "target", "release", "hecks-life")
 
   needs_domain = ->(verb) {
     next true if domain

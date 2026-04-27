@@ -14,6 +14,8 @@ Hecks.bluebook "Corpus", version: "2026.04.17.1" do
   # PascalCase to phrases and fuzzy matching against input.
 
   aggregate "Search", "Search the loaded vocabulary" do
+    identified_by :name
+    attribute :name, String
     attribute :input, String
     attribute :matched_phrase, String
     attribute :domain, String

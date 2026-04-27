@@ -1,11 +1,21 @@
 //! Repository — in-memory aggregate storage with heki persistence
 //!
-//! Stores AggregateState instances by ID. On every save,
-//! upserts to a .heki store so state is shared with Miette's organs.
+//! Stores AggregateState instances by id. On every save, upserts
+//! to a .heki store so state is shared with Miette's organs.
+//!
+//! Id dispatch (id_for_command): driven entirely by `identified_by`
+//! from the aggregate IR — no defaults, no singleton fallback.
+//!
+//! Callers must always supply the id explicitly:
+//!   identified_by :name  → pass name=heartbeat in command attrs
+//!   identified_by :ref   → pass ref=abc123 in command attrs
+//!
+//! Without identified_by, mints a u64 counter on creation.
 //!
 //! Usage:
-//!   let mut repo = Repository::new("Heartbeat", Some("./information".into()));
-//!   repo.save(state);  // writes to information/heartbeat.heki
+//!   let repo = Repository::new("Heartbeat", data_dir, Some("name".into()));
+//!
+//! [antibody-exempt: runtime aggregate store; identified_by dispatch drives natural-key vs counter-mint (i80)]
 
 use super::AggregateState;
 use super::Value;
@@ -17,17 +27,21 @@ pub struct Repository {
     next_id: u64,
     aggregate_type: String,
     data_dir: Option<String>,
-    singleton_id: Option<String>,
+    identified_by: Option<String>,
 }
 
 impl Repository {
-    pub fn new(aggregate_type: &str, data_dir: Option<String>) -> Self {
+    pub fn new(
+        aggregate_type: &str,
+        data_dir: Option<String>,
+        identified_by: Option<String>,
+    ) -> Self {
         let mut repo = Repository {
             store: HashMap::new(),
             next_id: 1,
             aggregate_type: aggregate_type.to_string(),
             data_dir,
-            singleton_id: None,
+            identified_by,
         };
         repo.load_persisted();
         repo
@@ -51,10 +65,6 @@ impl Repository {
                     state.set(key, from_json(val));
                 }
             }
-            // Heki stores are singletons — remember the existing ID
-            if self.singleton_id.is_none() {
-                self.singleton_id = Some(id.clone());
-            }
             self.store.insert(id, state);
         }
         if !self.store.is_empty() {
@@ -63,10 +73,26 @@ impl Repository {
         }
     }
 
-    pub fn next_id(&mut self) -> String {
-        // Heki adapter: singletons — reuse existing ID if one exists
-        if let Some(existing) = self.store.keys().next() {
-            return existing.clone();
+    /// Resolve the id for a command dispatch.
+    ///
+    ///   identified_by + attr present → use attr value (explicit)
+    ///   identified_by + attr absent + exactly 1 record → use existing id
+    ///     (singleton fallback: loop/policy caller didn't pass the id but
+    ///      the record already exists; use it rather than counter-minting a
+    ///      second record each tick. Mirrors inject_refs logic in mod.rs.)
+    ///   identified_by + attr absent + 0 or >1 records → counter-mint
+    ///   identified_by absent → counter-mint
+    pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
+        if let Some(ref key) = self.identified_by {
+            if let Some(Value::Str(s)) = attrs.get(key) {
+                return s.clone();
+            }
+            // Singleton fallback: no id attr but exactly one existing record.
+            if self.store.len() == 1 {
+                if let Some(existing) = self.store.values().next() {
+                    return existing.id.clone();
+                }
+            }
         }
         let id = self.next_id;
         self.next_id += 1;
@@ -75,7 +101,6 @@ impl Repository {
 
     pub fn save(&mut self, state: AggregateState) {
         self.store.insert(state.id.clone(), state);
-        // Write full store back to heki — preserves all records
         if let Some(ref dir) = self.data_dir {
             let path = heki_path(dir, &self.aggregate_type);
             let mut heki_store = heki::Store::new();

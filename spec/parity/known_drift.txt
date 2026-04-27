@@ -16,3 +16,10 @@
 hecks_conception/nursery/verbs/verbs.bluebook  # Ruby DSL rejects `aggregate "Lexicon", "description" do` with arity error — pre-existing regression unrelated to Phase F-2. Inbox: nursery-verbs-parity-regression.
 
 hecks_conception/capabilities/antibody/fixtures/antibody.fixtures  # Ruby fixtures parser cannot read the catalog-dialect `schema:` kwarg form introduced in PR #401 (i42). Ruby returns nil ; Rust parses cleanly. Accepted drift — Rust is the authoritative parser, Ruby is winding down. This entry retires with the whole spec/parity/ machinery when Ruby parity is formally cut from CI.
+
+hecks_conception/aggregates/disposition.bluebook         # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — Rust parses, Ruby raises "unknown keyword: :from". Retires when Ruby DSL absorbs the i106 from: form.
+hecks_conception/aggregates/psychic_link.bluebook        # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
+hecks_conception/aggregates/section_template.bluebook    # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
+hecks_conception/aggregates/wake_ritual.bluebook         # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
+
+hecks_conception/capabilities/dream_seeding/dream_seeding.bluebook  # Top-level `value_object` in BluebookBuilder context not yet in Ruby DSL — Rust parses, Ruby raises "undefined method `value_object'". Pre-existing as of i114 (dream-variation). Retires when Ruby BluebookBuilder absorbs top-level value_object.

@@ -13,6 +13,7 @@ Hecks.bluebook "Validator", version: "2026.04.17.1" do
   # Adaptive rules: learned from corrections (antibodies)
 
   aggregate "Rule", "One validation rule — innate or adaptive" do
+    identified_by :name
     attribute :name, String
     attribute :category, String
     attribute :description, String
@@ -37,6 +38,8 @@ Hecks.bluebook "Validator", version: "2026.04.17.1" do
   end
 
   aggregate "Violation", "A detected rule violation" do
+    identified_by :ref
+    attribute :ref, String
     attribute :rule_name, String
     attribute :message, String
     attribute :aggregate_name, String

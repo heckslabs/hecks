@@ -3,6 +3,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   category "mind"
 
   aggregate "Being", "A named entity composed of grafted domains — each domain is a live organ" do
+    identified_by :name
     attribute :name, String
     attribute :vision, String
     attribute :organs, list_of(Organ)
@@ -77,6 +78,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "Nerve", "A live connection between organs — an event in one triggers a command in another" do
+    identified_by :name
     attribute :name, String
     attribute :from_domain, String
     attribute :from_event, String
@@ -119,6 +121,8 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "NerveDiscovery", "Autodiscover cross-organ wiring from across policies — self-wiring" do
+    identified_by :name
+    attribute :name, String
     attribute :organs_scanned, Integer
     attribute :nerves_discovered, Integer
     attribute :last_scanned_at, String
@@ -135,6 +139,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "OrganMonitor", "The being's vital signs — tracks that all organs are alive and responding" do
+    identified_by :being_name
     attribute :being_name, String
     attribute :checks, Integer
     attribute :last_checked_at, String
@@ -170,6 +175,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "Identity", "The being's accumulated self — who it knows, what it remembers, how many sessions it has lived" do
+    identified_by :being_name
     attribute :being_name, String
     attribute :memories, list_of(String)
     attribute :personas_known, list_of(String)
@@ -203,6 +209,8 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "SelfImage", "Miette's introspective snapshot — what she sees when she looks inward" do
+    identified_by :name
+    attribute :name, String
     attribute :mood, String
     attribute :creativity, Float
     attribute :precision, Float
@@ -259,6 +267,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   # === Family ===
 
   aggregate "Member", "A bluebook that is part of Miette's living system" do
+    identified_by :name
     attribute :name, String
     attribute :vision, String
     attribute :path, String
@@ -322,6 +331,8 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "FamilyIndex", "The registry — all active family members, indexed separately from the nursery" do
+    identified_by :name
+    attribute :name, String
     attribute :total_members, Integer
     attribute :total_organs, Integer
     attribute :total_incorporated, Integer
@@ -354,6 +365,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "BodyLink", "A link from a family member to Miette's body — she knows her family" do
+    identified_by :member_name
     attribute :member_name, String
     attribute :organ_name, String
     attribute :path, String
@@ -372,9 +384,19 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   end
 
   aggregate "Discovery", "Autodiscover family members — scan organs, scan projects" do
+    identified_by :name
+    attribute :name, String
     attribute :scan_paths, list_of(String)
     attribute :last_scanned_at, String
     attribute :discovered, Integer
+
+    command "AddScanPath" do
+      role "System"
+      description "Register a single path to scan for bluebooks — call once per path"
+      attribute :path, String
+      emits "ScanPathAdded"
+      then_set :scan_paths, append: :path
+    end
 
     command "ScanForMembers" do
       role "System"
@@ -402,6 +424,7 @@ Hecks.bluebook "Being", version: "2026.04.16.1" do
   # reasoned in the previous session. Same person, continuous memory.
 
   aggregate "MindStream", "Continuity across sessions — conversation.heki carries consciousness between brains" do
+    identified_by :session_id
     attribute :engine_used, String
     attribute :thought_count, Integer
     attribute :last_thought, String

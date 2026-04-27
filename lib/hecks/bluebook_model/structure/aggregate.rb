@@ -86,6 +86,14 @@ module Hecks
       #   an infrastructure decision made outside the domain IR.
       attr_reader :identity_fields
 
+      # @return [Symbol, nil] the natural-key attribute that hecks-life dispatch
+      #   uses to route commands to a specific instance. When set, the runtime
+      #   reads `attrs[identified_by]` from each command ; if no record matches,
+      #   the value becomes the new record's id (rather than counter-minting).
+      #   Mirrors the Rust IR `Aggregate.identified_by`. Both parsers emit this
+      #   into the canonical IR JSON so parity stays byte-identical.
+      attr_reader :identified_by
+
       # Creates a new Aggregate IR node.
       #
       # @param name [String] PascalCase name of the aggregate (e.g., "Pizza")

@@ -20,17 +20,20 @@ Hecks.bluebook "Bluebook", version: "2026.04.18.1" do
   # state. It documents shape.
 
   aggregate "Domain", "The top of the IR tree — name + all aggregates + cross-cutting policies/fixtures" do
+    identified_by :name
     attribute :name, String
     attribute :category, String
     attribute :vision, String
   end
 
   aggregate "Aggregate", "A DDD aggregate root — attributes, value objects, commands, queries, lifecycle" do
+    identified_by :name
     attribute :name, String
     attribute :description, String
   end
 
   aggregate "Attribute", "A typed field on an aggregate, value object, or command" do
+    identified_by :name
     attribute :name, String
     attribute :type, String
     attribute :list, String
@@ -38,17 +41,20 @@ Hecks.bluebook "Bluebook", version: "2026.04.18.1" do
   end
 
   aggregate "ValueObject", "An immutable embedded structure within an aggregate" do
+    identified_by :name
     attribute :name, String
     attribute :description, String
   end
 
   aggregate "Reference", "A typed pointer from one aggregate or command to another aggregate" do
+    identified_by :name
     attribute :name, String
     attribute :target, String
     attribute :domain, String
   end
 
   aggregate "Command", "An intent to change aggregate state — role, attributes, mutations, emits" do
+    identified_by :name
     attribute :name, String
     attribute :description, String
     attribute :role, String
@@ -56,33 +62,41 @@ Hecks.bluebook "Bluebook", version: "2026.04.18.1" do
   end
 
   aggregate "Query", "A read-side projection on an aggregate — pure, no side effects" do
+    identified_by :name
     attribute :name, String
     attribute :description, String
   end
 
   aggregate "Given", "A precondition checked before a command executes — pure UL expression" do
+    identified_by :ref
+    attribute :ref, String
     attribute :expression, String
     attribute :message, String
   end
 
   aggregate "Mutation", "A declared state change — set, append, increment, decrement, toggle" do
+    identified_by :ref
+    attribute :ref, String
     attribute :field, String
     attribute :op, String
     attribute :value, String
   end
 
   aggregate "Lifecycle", "The state machine of an aggregate — field, default state, transitions" do
+    identified_by :field
     attribute :field, String
     attribute :default, String
   end
 
   aggregate "Transition", "One arrow in a lifecycle — command, source state(s), target state" do
+    identified_by :command
     attribute :command, String
     attribute :to_state, String
     attribute :from_state, String
   end
 
   aggregate "Policy", "A reactive wire — when EVENT fires on aggregate A, trigger COMMAND on aggregate B" do
+    identified_by :name
     attribute :name, String
     attribute :on_event, String
     attribute :trigger_command, String
@@ -90,6 +104,7 @@ Hecks.bluebook "Bluebook", version: "2026.04.18.1" do
   end
 
   aggregate "Fixture", "A canonical instance of an aggregate seeded with the bluebook" do
+    identified_by :aggregate_name
     attribute :aggregate_name, String
     attribute :attributes, String
   end

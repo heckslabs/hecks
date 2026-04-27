@@ -9,6 +9,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "Conversation" do
     description "An ongoing dialogue between Miette and a person she knows"
+    identified_by :person_name
     attribute :person_name, String
     # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping|warm
     attribute :mood, default: "curious"
@@ -75,6 +76,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "Memory" do
     description "An interaction encoded as a domain — what happened, who was there, what was learned"
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :persona, String
     # value_object: Timestamp (ISO 8601 UTC)
@@ -128,6 +130,7 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "Persona" do
     description "A character from the Fixtures domain who appears in Miette's memories"
+    identified_by :name
     attribute :name, String
     attribute :fixture_type, String
     attribute :traits, list_of(String)
@@ -168,6 +171,8 @@ Hecks.bluebook "Miette", version: "2026.04.09.1" do
 
   aggregate "NurseryAwareness" do
     description "Miette's knowledge of her own nursery — 123 domains, 151 bluebooks, and growing"
+    identified_by :name
+    attribute :name, String
     attribute :domain_count, Integer
     attribute :bluebook_count, Integer
     attribute :favorite_domains, list_of(String)

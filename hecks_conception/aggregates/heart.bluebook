@@ -28,6 +28,8 @@ Hecks.bluebook "Heart", version: "2026.04.26.1" do
   # reads cadence_ms from this aggregate's state and passes it through.
 
   aggregate "Heart", "2Hz beat counter — the body's metronome" do
+    identified_by :name
+    attribute :name, String
     attribute :beat_count, Integer, default: 0
     # value_object: Timestamp (ISO 8601 UTC)
     attribute :started_at, String

@@ -1791,14 +1791,12 @@ fn run_enforce_edit(_args: &[String]) {
 
     let kind = classify_file(&file_path);
 
-    // For imperative files, check whether the file's header carries
-    // an [antibody-exempt: ...] marker. If so, the discipline is already
-    // satisfied — the marker IS the audit trail (i118 + i80 retirement
-    // contract). Read only the first 200 lines : antibody markers always
-    // live near the top of the file (header doc-comment block), and this
-    // keeps the hook fast for large files.
+    // For imperative files, check the central exempt registry in
+    // antibody.fixtures (ExemptRegistry aggregate). A file is exempt
+    // iff its repo-relative path is listed there — no inline marker
+    // needed in the source file itself.
     let exempted = matches!(kind, FileKind::Imperative)
-        && file_has_antibody_exempt_marker(&file_path);
+        && file_is_in_exempt_registry(&file_path);
 
     let cmd_name = match kind {
         FileKind::Bluebook   => "RecordBluebookEdit",
@@ -1847,57 +1845,59 @@ fn run_enforce_edit(_args: &[String]) {
     std::process::exit(0);
 }
 
-/// Scan the first 200 lines of `path` for the canonical antibody-exempt
-/// marker — the same line-anchored, case-insensitive pattern documented
-/// in `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`
-/// (`^\s*\[antibody-exempt:\s*([^\]]+)\]`). Hand-rolled so we don't pull
-/// the regex crate just for this.
+/// Check whether `file_path` appears in the central ExemptRegistry in
+/// `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`.
+/// Matching is suffix-based: a registry entry `path: "hecks_life/src/main.rs"`
+/// matches any edited path that ends with that string. This keeps
+/// repo-relative paths working whether the editor passes absolute or
+/// relative paths.
 ///
-/// Returns `false` if the file can't be read — "no marker found" is the
-/// right default for a hook that must never panic the editor.
-fn file_has_antibody_exempt_marker(path: &str) -> bool {
-    let contents = match std::fs::read_to_string(path) {
+/// Returns `false` on any read/parse error — safe default for a hook
+/// that must never panic the editor.
+fn file_is_in_exempt_registry(file_path: &str) -> bool {
+    let registry_path = match find_antibody_fixtures() {
+        Some(p) => p,
+        None => return false,
+    };
+    let src = match std::fs::read_to_string(&registry_path) {
         Ok(s) => s,
         Err(_) => return false,
     };
-    for line in contents.lines().take(200) {
-        if line_starts_with_antibody_exempt(line) {
-            return true;
+    // Parse ExemptRegistry rows cheaply: look for lines containing
+    // `path:` inside the ExemptRegistry aggregate block. We don't need
+    // a full fixtures parse — just extract the path values and suffix-match.
+    let mut in_exempt = false;
+    for line in src.lines() {
+        let t = line.trim();
+        if t.starts_with("aggregate \"ExemptRegistry\"") { in_exempt = true; }
+        if in_exempt && t == "end" { break; }
+        if !in_exempt { continue; }
+        // Find `path: "some/path"` on fixture lines
+        if let Some(pos) = t.find("path:") {
+            let after = t[pos + 5..].trim();
+            if let Some(start) = after.find('"') {
+                let rest = &after[start + 1..];
+                if let Some(end) = rest.find('"') {
+                    let entry = &rest[..end];
+                    if file_path.ends_with(entry) {
+                        return true;
+                    }
+                }
+            }
         }
     }
     false
 }
 
-/// True iff `line`, after trimming leading whitespace AND any ASCII
-/// comment-prefix punctuation (so `//! [antibody-exempt: ...]`, `# [...]`,
-/// `* [...]`, `-- [...]` etc. all count), begins with a case-insensitive
-/// `[antibody-exempt:` token followed by content and a closing `]`.
-fn line_starts_with_antibody_exempt(line: &str) -> bool {
-    // Strip leading whitespace AND common comment-prefix glyphs. The
-    // antibody pattern itself only requires `^\s*` ; markers in source
-    // files almost always sit inside a comment, so we also tolerate
-    // any run of `/`, `#`, `*`, `;`, `-`, `!` before the bracket. This
-    // matches what the antibody pre-commit hook accepts in practice.
-    let trimmed = line.trim_start();
-    let stripped: &str = {
-        let bytes = trimmed.as_bytes();
-        let mut i = 0;
-        while i < bytes.len() {
-            let b = bytes[i];
-            if b == b'/' || b == b'#' || b == b'*' || b == b';' || b == b'-' || b == b'!' || b == b' ' || b == b'\t' {
-                i += 1;
-            } else {
-                break;
-            }
-        }
-        &trimmed[i..]
-    };
-    let prefix = "[antibody-exempt:";
-    if stripped.len() < prefix.len() { return false; }
-    stripped.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
-    // The opener is sufficient — markers can wrap across lines (the
-    // canonical fixture's `[^\]]+\]` body matches on multiline scans),
-    // and we anchor on the opening `[antibody-exempt:` token only.
+/// Locate `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`
+/// by resolving from `resolve_aggregates_dir()` (which gives
+/// `…/hecks_conception/aggregates`) up one level then into capabilities.
+fn find_antibody_fixtures() -> Option<String> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let p = std::path::Path::new(&agg_dir)
+        .parent()?
+        .join("capabilities/antibody/fixtures/antibody.fixtures");
+    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
 }
 
 enum FileKind { Bluebook, Imperative, Support, Other }
@@ -2359,12 +2359,22 @@ fn run_clock(args: &[String]) {
     };
     let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
 
+    // Parse trailing key=val attrs (same pattern as run_loop)
+    let mut clock_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    for arg in &args[3..] {
+        if arg.starts_with("--") { continue; }
+        let mut parts = arg.splitn(2, '=');
+        if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
+            clock_attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+        }
+    }
+
     let mut last_cmd: Option<String> = None;
     loop {
         let hour = current_local_hour();
         if let Some(cmd_name) = match_segment(&segments, hour) {
             if last_cmd.as_deref() != Some(cmd_name) {
-                if let Err(e) = rt.dispatch(cmd_name, Default::default()) {
+                if let Err(e) = rt.dispatch(cmd_name, clock_attrs.clone()) {
                     eprintln!("[hecks-life clock] dispatch error: {:?}", e);
                 }
                 last_cmd = Some(cmd_name.to_string());
