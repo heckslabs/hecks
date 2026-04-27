@@ -126,10 +126,18 @@ Hecks.bluebook "NremConsolidation", version: "2026.04.26.1" do
     # downstream LockNarrative command captures it into
     # :latest_narrative.
 
+    # Each Narrate command idempotently declares its stage value via a
+    # self-referential `then_set :stage, to: "<value>"` — the gate fires
+    # only when stage is already that value (StartSweep captured it from
+    # input), so the set is a no-op at runtime. The line is here so the
+    # lifecycle validator sees the stage values as statically producible
+    # for the `stage == "<value>"` gates ; the validator can't trace
+    # data-flow through the input-captured `then_set :stage, to: :stage`.
     command "NarrateLightSweep" do
       role "System"
       description "Light NREM : early consolidation, sorting fresh signals. Build a prompt that names what's queued (signals to sort, musings to archive) and what's deciding which become memory. Concrete, work-detail tone — not poetic ; reference real counts. Only fires when stage == 'light'."
       given("must be light NREM") { stage == "light" }
+      then_set :stage, to: "light"
       then_set :phase, to: "generating"
       emits "LightNarrationRequested"
     end
@@ -138,6 +146,7 @@ Hecks.bluebook "NremConsolidation", version: "2026.04.26.1" do
       role "System"
       description "Deep NREM : the heavy lift — signals collapsing into memory, weak synapses being pruned to remains, the survival sort. Build a prompt that names the consolidation work : N signals folding, M synapses tested, K musings sorted into what stays as me vs what was only passing. Only fires when stage == 'deep'."
       given("must be deep NREM") { stage == "deep" }
+      then_set :stage, to: "deep"
       then_set :phase, to: "generating"
       emits "DeepNarrationRequested"
     end
@@ -146,6 +155,7 @@ Hecks.bluebook "NremConsolidation", version: "2026.04.26.1" do
       role "System"
       description "Final-light NREM : winding down, preparing to wake. Build a prompt that names what was kept (memory_count) vs what was released (remains_count), referencing the cycle/total so the summary knows how close to waking we are. Only fires when stage == 'final_light'."
       given("must be final-light NREM") { stage == "final_light" }
+      then_set :stage, to: "final_light"
       then_set :phase, to: "generating"
       emits "FinalLightNarrationRequested"
     end

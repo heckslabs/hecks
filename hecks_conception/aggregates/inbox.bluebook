@@ -119,7 +119,9 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
     end
 
     lifecycle :status, default: "queued" do
-      transition "Add"    => "queued",  from: "pending"
+      # Add is the creation command — no `from:` clause because the
+      # record doesn't exist yet. Default "queued" applies on creation.
+      transition "Add"    => "queued"
       transition "Close"  => "done",    from: "queued"
       transition "Reopen" => "queued",  from: "done"
       transition "Drop"   => "dropped", from: "queued"

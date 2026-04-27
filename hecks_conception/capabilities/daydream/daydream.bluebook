@@ -129,7 +129,12 @@ Hecks.bluebook "Daydream", version: "2026.04.26.1" do
       role "System"
       description "Short-circuit when FindOverlap returned empty :shared — the two domains were structurally unrelated. Silent abort ; the wander completes without dispatching anything. Common case ; many random pairs share nothing meaningful."
       given { shared == "" }
-      then_set :phase, to: "aborted_no_overlap"
+      # Idempotent self-declaration — when the gate fires, :shared IS
+      # already "" (FindOverlap wrote nothing). Setting it again is a
+      # no-op ; the line satisfies the lifecycle validator's static
+      # reachability check for the gate's `shared == ""` form.
+      then_set :shared, to: ""
+      then_set :phase,  to: "aborted_no_overlap"
       emits "WanderAborted"
     end
 
