@@ -1643,47 +1643,73 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         entrypoint: None,
         sections: vec![],
     };
+    // Organ-wins dedupe (i108) — when two bluebooks declare the same
+    // aggregate, the one closest to the dispatch root wins. Recursive
+    // walk (i126) collects bluebooks with their depth ; we sort
+    // shallowest-first and merge in that order so the deeper duplicate
+    // is dropped by the existing any(existing.name == agg.name) check.
     let merge = |dom: hecks_life::ir::Domain, c: &mut hecks_life::ir::Domain| {
         for agg in dom.aggregates {
             if c.aggregates.iter().any(|existing| existing.name == agg.name) {
-                continue; // organ-wins dedupe
+                continue;
             }
             c.aggregates.push(agg);
         }
         c.policies.extend(dom.policies);
         c.fixtures.extend(dom.fixtures);
     };
-    // Organs first : every .bluebook directly under aggregates/. Their
-    // aggregates take precedence over any capability redeclaration.
-    if let Ok(entries) = fs::read_dir(agg_dir) {
+
+    // Recursive bluebook discovery (i126). Walk agg_dir at any depth.
+    // Skip directories that are known not to contain domain content :
+    // .git, target, information (heki stores), .claude (worktree
+    // state), node_modules, generated, fixtures (test data),
+    // snippets, behaviors (test fixtures, distinct from .behaviors
+    // files which are picked up by their extension separately).
+    // Symlinks not followed.
+    fn collect_bluebooks(dir: &std::path::Path, depth: usize,
+                          out: &mut Vec<(usize, std::path::PathBuf)>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
-                if let Ok(source) = fs::read_to_string(&p) {
-                    merge(parser::parse(&source), &mut combined);
-                }
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".git" | "target" | "information" | ".claude"
+                | "node_modules" | "generated" | "fixtures" | "snippets"
+                | "behaviors" | "behaviours") {
+                continue;
+            }
+            if p.is_dir() {
+                collect_bluebooks(&p, depth + 1, out);
+            } else if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                out.push((depth, p));
             }
         }
     }
-    // Capabilities next : every .bluebook under sibling capabilities/*/.
-    let cap_dir = std::path::Path::new(agg_dir).parent()
-        .map(|p| p.join("capabilities"));
-    if let Some(cap_dir) = cap_dir {
-        if let Ok(entries) = fs::read_dir(&cap_dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if !p.is_dir() { continue; }
-                if let Ok(inner) = fs::read_dir(&p) {
-                    for inner_entry in inner.flatten() {
-                        let ip = inner_entry.path();
-                        if ip.extension().map(|e| e == "bluebook").unwrap_or(false) {
-                            if let Ok(source) = fs::read_to_string(&ip) {
-                                merge(parser::parse(&source), &mut combined);
-                            }
-                        }
-                    }
-                }
-            }
+
+    let mut found: Vec<(usize, std::path::PathBuf)> = Vec::new();
+    collect_bluebooks(std::path::Path::new(agg_dir), 0, &mut found);
+
+    // Backward compat : the historic two-root model has organ
+    // bluebooks under aggregates/ and capability shapes under sibling
+    // capabilities/. The recursive walk above already finds children
+    // of agg_dir ; we extend it to the sibling capabilities/ directory
+    // when agg_dir's parent has one, so existing
+    // `hecks-life aggregates/ Cmd ...` invocations keep working.
+    // Capability bluebooks land at depth 1 (a level below organs) so
+    // the organ-wins dedupe rule is preserved.
+    if let Some(parent) = std::path::Path::new(agg_dir).parent() {
+        let cap_dir = parent.join("capabilities");
+        if cap_dir.exists() && cap_dir != std::path::Path::new(agg_dir) {
+            collect_bluebooks(&cap_dir, 1, &mut found);
+        }
+    }
+
+    // Shallowest first — root-level bluebooks beat deeper ones on
+    // name collision.
+    found.sort_by_key(|(depth, _)| *depth);
+
+    for (_, path) in found {
+        if let Ok(source) = fs::read_to_string(&path) {
+            merge(parser::parse(&source), &mut combined);
         }
     }
     combined
