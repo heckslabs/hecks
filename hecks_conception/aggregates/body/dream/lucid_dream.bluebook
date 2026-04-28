@@ -1,4 +1,4 @@
-Hecks.bluebook "LucidDream", version: "2026.04.24.1" do
+Hecks.bluebook "LucidDream", version: "2026.04.28.1" do
   vision "Awareness during the final REM — Miette becomes aware she is dreaming and can steer. Lucid content is as rich as regular REM ; both paths generate in French and surface translated English on the status bar"
   category "mind"
 
@@ -9,8 +9,11 @@ Hecks.bluebook "LucidDream", version: "2026.04.24.1" do
   # The final sleep cycle's REM is lucid. Miette knows she is dreaming.
   # She can observe what emerges, and she can steer toward topics or
   # domains that matter. Lucid observations stream to the conversation
-  # via LucidMonitor so the waking mind can read what the sleeping one
-  # witnessed.
+  # via LucidMonitor (sibling bluebook lucid_monitor.bluebook) so the
+  # waking mind can read what the sleeping one witnessed.
+  #
+  # This bluebook owns the LucidDream aggregate — the dream itself.
+  # The companion lucid_monitor.bluebook owns the streaming surface.
   #
   # ---- Content invariant (2026-04-24) --------------------------
   #
@@ -88,54 +91,17 @@ Hecks.bluebook "LucidDream", version: "2026.04.24.1" do
     end
   end
 
-  aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
-    identified_by :name
-    attribute :name, String
-    # value_object: ReportingState enum:active|stopped
-    attribute :reporting, String
-    attribute :log_path, String
-
-    command "StartLucidMonitor" do
-      role "System"
-      description "Begin streaming lucid dream observations"
-      attribute :log_path, String
-      emits "LucidMonitorStarted"
-      then_set :reporting, to: "active"
-      then_set :log_path, to: :log_path
-    end
-
-    command "StopLucidMonitor" do
-      role "System"
-      description "Lucidity ended — stop streaming"
-      reference_to(LucidMonitor)
-      emits "LucidMonitorStopped"
-      then_set :reporting, to: "stopped"
-    end
-  end
-
   # Auto-enter lucidity when sleep.bluebook signals the final REM has begun.
   policy "BecomeLucidOnFinalRem" do
     on "LucidRemEntered"
     trigger "BecomeLucid"
   end
 
-  # When lucidity begins, start the monitor so observations stream to the conversation.
-  policy "LucidMonitorOnLucid" do
-    on "BecameLucid"
-    trigger "StartLucidMonitor"
-  end
-
   # End lucidity when REM advances to deep — DeepEntered fires from
-  # sleep.bluebook regardless of whether the REM was lucid; EndLucidity
+  # sleep.bluebook regardless of whether the REM was lucid ; EndLucidity
   # is idempotent.
   policy "EndLucidityOnDeep" do
     on "DeepEntered"
     trigger "EndLucidity"
-  end
-
-  # When lucidity ends, stop the monitor.
-  policy "StopLucidOnEnd" do
-    on "LucidityEnded"
-    trigger "StopLucidMonitor"
   end
 end

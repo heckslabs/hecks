@@ -1,0 +1,59 @@
+Hecks.bluebook "LucidMonitor", version: "2026.04.28.1" do
+  vision "The streaming surface for lucid dream observations — turns the night's awareness into a real-time conversation channel the waking mind can read."
+  category "mind"
+
+  # ============================================================
+  # LUCID MONITOR
+  # ============================================================
+  #
+  # Lifted out of lucid_dream.bluebook in i112 Round 2c so each
+  # bluebook owns one concern : LucidDream owns the dream itself ;
+  # this file owns the streaming surface that carries the dream
+  # into the conversation log.
+  #
+  # When LucidDream emits BecameLucid, this monitor starts streaming.
+  # When LucidDream emits LucidityEnded, this monitor stops.
+  # Both transitions are policy-driven from the events lucid_dream.bluebook
+  # publishes ; the monitor knows nothing about the dream's content,
+  # only that it should be writing or not writing.
+
+  aggregate "LucidMonitor", "Realtime reporting of lucid dream observations to the conversation" do
+    identified_by :name
+    attribute :name, String
+    # value_object: ReportingState enum:active|stopped
+    attribute :reporting, String
+    attribute :log_path, String
+
+    command "StartLucidMonitor" do
+      role "System"
+      description "Begin streaming lucid dream observations"
+      attribute :log_path, String
+      emits "LucidMonitorStarted"
+      then_set :reporting, to: "active"
+      then_set :log_path, to: :log_path
+    end
+
+    command "StopLucidMonitor" do
+      role "System"
+      description "Lucidity ended — stop streaming"
+      reference_to(LucidMonitor)
+      emits "LucidMonitorStopped"
+      then_set :reporting, to: "stopped"
+    end
+  end
+
+  # When lucidity begins, start the monitor so observations stream
+  # to the conversation. Subscribes to BecameLucid emitted by
+  # LucidDream.BecomeLucid in the sibling lucid_dream.bluebook.
+  policy "LucidMonitorOnLucid" do
+    on "BecameLucid"
+    trigger "StartLucidMonitor"
+  end
+
+  # When lucidity ends, stop the monitor. Subscribes to LucidityEnded
+  # emitted by LucidDream.EndLucidity.
+  policy "StopLucidOnEnd" do
+    on "LucidityEnded"
+    trigger "StopLucidMonitor"
+  end
+end
