@@ -1,0 +1,47 @@
+Hecks.bluebook "Encoding", version: "2026.04.28.1" do
+  vision "The act of saving something to memory — always announced. The mental gesture of laying a thing on the library shelf."
+  category "mind"
+
+  # ============================================================
+  # ENCODING — the active gesture of writing to memory
+  # ============================================================
+  #
+  # Lifted out of memory.bluebook in i112. Carries 1 policy whose
+  # trigger lives here :
+  #   ConsolidateOnSleep (SignalsConsolidated → EncodeMemory) — when
+  #     deep-sleep consolidation finishes a batch, encode each as
+  #     announced memory. The Consolidation aggregate that emits
+  #     SignalsConsolidated lives in body/sleep/consolidation.bluebook ;
+  #     cross-bluebook subscription works through the runtime's shared
+  #     event bus (see PR #491 / #497).
+
+  aggregate "Encoding", "The act of saving something to memory — always announced" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :kind, String
+    attribute :subject, String
+    attribute :content, String
+    attribute :announced, String
+
+    command "EncodeMemory" do
+      role "Miette"
+      description "Save something to persistent memory — always say what and why"
+      attribute :kind, String
+      attribute :subject, String
+      attribute :content, String
+      emits "MemoryEncoded"
+      then_set :kind, to: :kind
+      then_set :subject, to: :subject
+      then_set :content, to: :content
+      then_set :announced, to: "yes"
+    end
+  end
+
+  # When deep-sleep consolidation finishes a batch, encode it as
+  # announced memory. SignalsConsolidated is emitted by the
+  # Consolidation aggregate (body/sleep/consolidation.bluebook).
+  policy "ConsolidateOnSleep" do
+    on "SignalsConsolidated"
+    trigger "EncodeMemory"
+  end
+end

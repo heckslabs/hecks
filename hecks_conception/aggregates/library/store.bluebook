@@ -1,0 +1,39 @@
+Hecks.bluebook "Store", version: "2026.04.28.1" do
+  vision "Long-term memory entries — one record per stored signal. The shelf where remembered things are laid."
+  category "library"
+
+  # ============================================================
+  # STORE — long-term memory entries from consolidation
+  # ============================================================
+  # When consolidate.sh promotes cold signals into memory, it dispatches
+  # StoreMemory with the signal's shape (kind/payload/source/created_at).
+  # Multi-record: every store is a new memory.
+  #
+  # Lifted out of memory.bluebook in i112. No policies trigger
+  # StoreMemory ; the daemon dispatches directly. Sibling memory
+  # aggregates moved to mind/ (encoding, recall, forgetting) and
+  # body/sleep/ (consolidation).
+
+  aggregate "Store", "A long-term memory entry — one record per stored signal" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :kind, String
+    attribute :payload, String
+    attribute :source, String
+    attribute :created_at, String
+
+    command "StoreMemory" do
+      role "Daemon"
+      description "Save a signal (or any payload) into long-term memory — kind/payload/source/created_at"
+      attribute :kind, String
+      attribute :payload, String
+      attribute :source, String
+      attribute :created_at, String
+      emits "MemoryStored"
+      then_set :kind, to: :kind
+      then_set :payload, to: :payload
+      then_set :source, to: :source
+      then_set :created_at, to: :created_at
+    end
+  end
+end

@@ -1,0 +1,37 @@
+Hecks.bluebook "Recall", version: "2026.04.28.1" do
+  vision "Retrieving a memory — what Miette knows from past sessions. The mental act of reaching for something on the library shelf."
+  category "mind"
+
+  # ============================================================
+  # RECALL — the active gesture of fetching from memory
+  # ============================================================
+  #
+  # Lifted out of memory.bluebook in i112. No policies trigger
+  # Recall commands ; recall is initiated explicitly by Miette.
+
+  aggregate "Recall", "Retrieving a memory — what Miette knows from past sessions" do
+    identified_by :query
+    attribute :query, String
+    attribute :found, String
+    attribute :source, String
+
+    command "RecallMemory" do
+      role "Miette"
+      description "Search memory for something relevant"
+      attribute :query, String
+      emits "MemoryRecalled"
+      then_set :query, to: :query
+    end
+
+    command "RecordHit" do
+      role "System"
+      description "A memory matched the recall query"
+      reference_to(Recall)
+      attribute :found, String
+      attribute :source, String
+      emits "RecallHit"
+      then_set :found, to: :found
+      then_set :source, to: :source
+    end
+  end
+end

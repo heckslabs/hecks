@@ -1,0 +1,33 @@
+Hecks.bluebook "Forgetting", version: "2026.04.28.1" do
+  vision "Letting go of memories that no longer serve — pruning, composting. The deliberate mental act of release."
+  category "mind"
+
+  # ============================================================
+  # FORGETTING — the active gesture of release
+  # ============================================================
+  #
+  # Lifted out of memory.bluebook in i112. No policies trigger
+  # ForgetMemory ; forgetting is initiated explicitly by Miette.
+  # Downstream, MemoryForgotten is consumed by CompostOnForget
+  # (body/sleep/consolidation.bluebook) which composts the residue
+  # across "Dream".
+
+  aggregate "Forgetting", "Letting go of memories that no longer serve — pruning, composting" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :forgotten, String
+    attribute :reason, String
+    attribute :composted, String
+
+    command "ForgetMemory" do
+      role "Miette"
+      description "Intentionally release a memory — it goes to compost"
+      attribute :forgotten, String
+      attribute :reason, String
+      emits "MemoryForgotten"
+      then_set :forgotten, to: :forgotten
+      then_set :reason, to: :reason
+      then_set :composted, to: "yes"
+    end
+  end
+end
