@@ -1,0 +1,43 @@
+Hecks.bluebook "Conception", version: "2026.04.16.1" do
+  vision "The spark — domain conception, always multi-domain"
+  category "world"
+
+  # Lifted out of conception.bluebook in i112 split. The spark itself —
+  # one aggregate per bluebook. Carries no policies; the conception
+  # event (DomainConceived) is observed by Gestation, NurseryCorpus,
+  # and others across bluebook boundaries.
+
+  aggregate "Conception", "The spark — always multi-domain, never a monolith" do
+    identified_by :name
+    attribute :name, String
+    attribute :vision, String
+    attribute :requested_by, String
+    attribute :source, String
+    attribute :bounded_contexts, list_of(String)
+    attribute :category, String
+    attribute :status, String
+
+    command "ConceiveDomain" do
+      role "Miette"
+      description "Conceive a multi-domain project — identify bounded contexts from the start"
+      attribute :name, String
+      attribute :vision, String
+      attribute :requested_by, String
+      attribute :source, String
+      attribute :category, String
+      attribute :bounded_contexts, list_of(String)
+      emits "DomainConceived"
+      then_set :name, to: :name
+      then_set :vision, to: :vision
+      then_set :requested_by, to: :requested_by
+      then_set :source, to: :source
+      then_set :category, to: :category
+      then_set :bounded_contexts, to: :bounded_contexts
+      then_set :status, to: "conceived"
+    end
+
+    lifecycle :status, default: "spark" do
+      transition "ConceiveDomain" => "conceived", from: "spark"
+    end
+  end
+end

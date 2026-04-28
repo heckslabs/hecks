@@ -1,0 +1,78 @@
+Hecks.bluebook "Conversation", version: "2026.04.09.1" do
+  vision "Miette's voice — the ongoing dialogue with people she knows"
+  category "self"
+  core
+
+  # Lifted out of miette.bluebook in i112 split. Miette herself
+  # lives in self/ — identity, voice, memory, persona. Carries one
+  # policy : RespondOnSpoken (adapter Spoken event →
+  # Conversation.Respond, pulled from the deleted pulse.rs
+  # record_turn / inbox #18).
+
+  aggregate "Conversation" do
+    description "An ongoing dialogue between Miette and a person she knows"
+    identified_by :person_name
+    attribute :person_name, String
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping|warm
+    attribute :mood, default: "curious"
+    attribute :topic, String
+    attribute :turns, Integer
+    attribute :last_exchange, Exchange
+
+    value_object "Exchange" do
+      attribute :said, String
+      attribute :responded, String
+      # value_object: Timestamp (ISO 8601 UTC)
+      attribute :timestamp, String
+    end
+
+    command "Greet" do
+      role "Miette"
+      goal "Open a conversation — Miette introduces herself and pitches a domain"
+      attribute :person_name, String
+      then_set :person_name, to: :person_name
+      then_set :mood, to: "warm"
+      emits "Greeted"
+    end
+
+    command "Respond" do
+      role "Miette"
+      goal "Continue the conversation — reflect on what was said, advance the topic"
+      reference_to(Conversation)
+      attribute :said, String
+      attribute :responded, String
+      # value_object: Timestamp (ISO 8601 UTC)
+      attribute :timestamp, String
+      then_set :turns, increment: 1
+      emits "Responded"
+    end
+
+    command "ShiftTopic" do
+      role "Miette"
+      goal "Steer the conversation toward a new domain to conceive"
+      reference_to(Conversation)
+      attribute :topic, String
+      then_set :topic, to: :topic
+      emits "TopicShifted"
+    end
+
+    command "Express" do
+      role "Miette"
+      goal "Show emotion about what's being built — excitement, concern, pride"
+      reference_to(Conversation)
+      # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping|warm
+      attribute :mood, String
+      then_set :mood, to: :mood
+      emits "MoodExpressed"
+    end
+  end
+
+  # Every time I speak, record the exchange as a Conversation row.
+  # Pulled from the deleted pulse.rs record_turn (inbox #18): conversation
+  # history lives in conversation.heki. The adapter_terminal dispatcher
+  # supplies the `said` text; the policy takes care of the rest.
+  policy "RespondOnSpoken" do
+    on "Spoken"
+    trigger "Respond"
+  end
+end

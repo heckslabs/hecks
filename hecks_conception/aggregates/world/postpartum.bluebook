@@ -1,0 +1,45 @@
+Hecks.bluebook "Postpartum", version: "2026.04.16.1" do
+  vision "After birth — the domain's first days in the nursery"
+  category "world"
+
+  # Lifted out of conception.bluebook in i112 split. Carries one
+  # policy : CheckOnBirth (Delivery.RegisterBirth →
+  # Postpartum.CheckHealth).
+
+  aggregate "Postpartum", "After birth — the domain's first days in the nursery" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :healthy, String
+    attribute :first_pulse_at, String
+
+    command "CheckHealth" do
+      role "Midwife"
+      description "Verify the newborn domain — Rust validation, parity, census updated"
+      attribute :domain_name, String
+      emits "HealthChecked"
+      then_set :domain_name, to: :domain_name
+    end
+
+    command "DeclareHealthy" do
+      role "Midwife"
+      description "The domain is healthy — living in the nursery"
+      reference_to(Postpartum)
+      emits "DeclaredHealthy"
+      then_set :healthy, to: "yes"
+    end
+
+    command "FlagConcern" do
+      role "Midwife"
+      description "Something is wrong — needs attention"
+      reference_to(Postpartum)
+      attribute :concern, String
+      emits "ConcernFlagged"
+      then_set :healthy, to: "concern"
+    end
+  end
+
+  policy "CheckOnBirth" do
+    on "BirthRegistered"
+    trigger "CheckHealth"
+  end
+end

@@ -1,0 +1,60 @@
+Hecks.bluebook "Delivery", version: "2026.04.16.1" do
+  vision "The domain leaves the womb and enters the nursery — born, valid, healthy"
+  category "world"
+
+  # Lifted out of conception.bluebook in i112 split. Carries two
+  # policies : DeliverOnPass (Labor.PassLabor → Delivery.DeliverDomain)
+  # and RegisterOnDelivery (Delivery.DeliverDomain →
+  # Delivery.RegisterBirth).
+
+  aggregate "Delivery", "The domain leaves the womb and enters the nursery — born, valid, healthy" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :path, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :fixture_count, Integer
+    attribute :indexed, String
+
+    command "DeliverDomain" do
+      role "Midwife"
+      description "Write the bluebook to the nursery — the domain is born"
+      attribute :domain_name, String
+      attribute :path, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :fixture_count, Integer
+      emits "DomainDelivered"
+      then_set :domain_name, to: :domain_name
+      then_set :path, to: :path
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :fixture_count, to: :fixture_count
+    end
+
+    command "RegisterBirth" do
+      role "Midwife"
+      description "Update the census, validate with Rust, announce to the nursery"
+      reference_to(Delivery)
+      emits "BirthRegistered"
+    end
+
+    command "IndexInNursery" do
+      role "Midwife"
+      description "Add to the census, domain_entry records, and nursery_awareness — the corpus grows"
+      reference_to(Delivery)
+      emits "IndexedInNursery"
+      then_set :indexed, to: "yes"
+    end
+  end
+
+  policy "DeliverOnPass" do
+    on "LaborPassed"
+    trigger "DeliverDomain"
+  end
+
+  policy "RegisterOnDelivery" do
+    on "DomainDelivered"
+    trigger "RegisterBirth"
+  end
+end

@@ -1,0 +1,86 @@
+Hecks.bluebook "MietteMemory", version: "2026.04.09.1" do
+  vision "Miette's memories — interactions encoded as domains"
+  category "self"
+  core
+
+  # Lifted out of miette.bluebook in i112 split. The aggregate name
+  # stays "Memory" (preserves memory.heki path); the bluebook
+  # namespace is "MietteMemory" to avoid collision with the existing
+  # top-level Hecks.bluebook "Memory" (long-term store/encoding/
+  # recall in mind/). Pattern follows AwarenessMoment in PR #499.
+  #
+  # Every significant interaction becomes a domain in the nursery.
+  # A memory is not a log entry — it's a conceived domain that
+  # captures what happened, who was involved, and what was learned.
+  # Personas from the Fixtures domain give memories their characters.
+  #
+  # Carries three policies : EncodeOnConversation (Conversation.Respond →
+  # Memory.EncodeMemory), RecallOnGreet (Conversation.Greet →
+  # Memory.Recall), and TrackOnConceive (NurseryAwareness.ConceiveDomain →
+  # Memory.EncodeMemory).
+
+  aggregate "Memory" do
+    description "An interaction encoded as a domain — what happened, who was there, what was learned"
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :persona, String
+    # value_object: Timestamp (ISO 8601 UTC)
+    attribute :conceived_at, String
+    attribute :summary, String
+    attribute :insights, list_of(Insight)
+    attribute :recalled_count, Integer
+
+    value_object "Insight" do
+      attribute :observation, String
+      attribute :applies_to, String
+    end
+
+    command "EncodeMemory" do
+      role "Miette"
+      goal "Turn an interaction into a domain — the domain IS the memory"
+      attribute :domain_name, String
+      attribute :persona, String
+      attribute :summary, String
+      # value_object: Timestamp (ISO 8601 UTC)
+      attribute :conceived_at, String
+      then_set :domain_name, to: :domain_name
+      then_set :persona, to: :persona
+      then_set :summary, to: :summary
+      then_set :conceived_at, to: :conceived_at
+      emits "MemoryEncoded"
+    end
+
+    command "AddInsight" do
+      role "Miette"
+      goal "Attach a lesson learned to a memory"
+      reference_to(Memory)
+      attribute :observation, String
+      attribute :applies_to, String
+      then_set :insights, append: { observation: :observation, applies_to: :applies_to }
+      emits "InsightAdded"
+    end
+
+    command "Recall" do
+      role "Miette"
+      goal "Retrieve a memory — increases its recall count, strengthening it"
+      reference_to(Memory)
+      then_set :recalled_count, increment: 1
+      emits "MemoryRecalled"
+    end
+  end
+
+  policy "EncodeOnConversation" do
+    on "Responded"
+    trigger "EncodeMemory"
+  end
+
+  policy "RecallOnGreet" do
+    on "Greeted"
+    trigger "Recall"
+  end
+
+  policy "TrackOnConceive" do
+    on "DomainConceived"
+    trigger "EncodeMemory"
+  end
+end

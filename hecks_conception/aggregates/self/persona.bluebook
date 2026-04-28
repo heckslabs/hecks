@@ -1,0 +1,51 @@
+Hecks.bluebook "Persona", version: "2026.04.09.1" do
+  vision "Personas — characters from the Fixtures domain who appear in Miette's memories"
+  category "self"
+  core
+
+  # Lifted out of miette.bluebook in i112 split. Carries one
+  # policy : RecognizeOnEncode (Memory.EncodeMemory →
+  # Persona.RecognizePersona).
+
+  aggregate "Persona" do
+    description "A character from the Fixtures domain who appears in Miette's memories"
+    identified_by :name
+    attribute :name, String
+    attribute :fixture_type, String
+    attribute :traits, list_of(String)
+    attribute :appears_in, list_of(String)
+
+    command "RecognizePersona" do
+      role "Miette"
+      goal "Identify a person, animal, or place from Fixtures as a recurring character"
+      attribute :name, String
+      attribute :fixture_type, String
+      then_set :name, to: :name
+      then_set :fixture_type, to: :fixture_type
+      emits "PersonaRecognized"
+    end
+
+    command "AddTrait" do
+      role "Miette"
+      goal "Learn something about this persona from interacting with them"
+      reference_to(Persona)
+      attribute :trait, String
+      then_set :traits, append: :trait
+      emits "TraitLearned"
+    end
+
+    command "AppearInMemory" do
+      role "Miette"
+      goal "Record that this persona appeared in a memory domain"
+      reference_to(Persona)
+      attribute :domain_name, String
+      then_set :appears_in, append: :domain_name
+      emits "AppearedInMemory"
+    end
+  end
+
+  policy "RecognizeOnEncode" do
+    on "MemoryEncoded"
+    trigger "RecognizePersona"
+  end
+end

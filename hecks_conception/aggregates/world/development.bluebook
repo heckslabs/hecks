@@ -1,0 +1,103 @@
+Hecks.bluebook "Development", version: "2026.04.16.1" do
+  vision "Develop existing domains using nursery vectors — more domains = faster development"
+  category "world"
+
+  # Lifted out of conception.bluebook in i112 split. Carries three
+  # policies : FindOnVector (Development.ComputeVector →
+  # Development.FindArchetype), SyncOnDevelopment (Development.DevelopDomain →
+  # cross to Catalog.SyncFromCannon), and QueryVectorsOnMusing
+  # (DomainGrafted → ConnectNerve, archetype/musing wiring).
+
+  aggregate "Development", "Develop existing domains using nursery vectors — more domains = faster development" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :current_vector, list_of(Float)
+    attribute :target_vector, list_of(Float)
+    attribute :nearest_archetype, String
+    attribute :similarity, Float
+    attribute :status, String
+
+    value_object "StructuralVector" do
+      attribute :aggregates, Integer
+      attribute :commands_per_aggregate, Float
+      attribute :attrs_per_aggregate, Float
+      attribute :value_objects, Integer
+      attribute :policies, Integer
+      attribute :references, Integer
+      attribute :lifecycles, Integer
+      attribute :lifecycle_depth, Integer
+      attribute :list_ofs, Integer
+    end
+
+    command "ComputeVector" do
+      role "System"
+      description "Extract the structural vector from a domain's current shape"
+      attribute :domain_name, String
+      emits "VectorComputed"
+      then_set :domain_name, to: :domain_name
+      then_set :status, to: "vectorized"
+    end
+
+    command "FindArchetype" do
+      role "System"
+      description "Search the nursery corpus for the nearest domain by cosine similarity"
+      reference_to(Development)
+      emits "ArchetypeFound"
+      then_set :status, to: "matched"
+    end
+
+    command "PlanDevelopment" do
+      role "Miette"
+      description "Diff current vector against target — identify what to add from the archetype"
+      reference_to(Development)
+      attribute :target_vector, list_of(Float)
+      emits "DevelopmentPlanned"
+      then_set :target_vector, to: :target_vector
+      then_set :status, to: "planned"
+    end
+
+    command "DevelopDomain" do
+      role "Miette"
+      description "Graft structure from archetype through anticorruption layer — no foreign vocabulary leaks"
+      reference_to(Development)
+      emits "DomainDeveloped"
+      then_set :status, to: "developed"
+    end
+
+    command "RejectDevelopment" do
+      role "Miette"
+      description "Archetype doesn't fit — the domain stays as it is"
+      reference_to(Development)
+      emits "DevelopmentRejected"
+      then_set :status, to: "rejected"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "ComputeVector" => "vectorized", from: "pending"
+      transition "FindArchetype" => "matched", from: "vectorized"
+      transition "PlanDevelopment" => "planned", from: "matched"
+      transition "DevelopDomain" => "developed", from: "planned"
+      transition "RejectDevelopment" => "rejected", from: "planned"
+    end
+  end
+
+  policy "FindOnVector" do
+    on "VectorComputed"
+    trigger "FindArchetype"
+  end
+
+  policy "SyncOnDevelopment" do
+    on "DomainDeveloped"
+    trigger "SyncFromCannon"
+    across "Catalog"
+  end
+
+  policy "QueryVectorsOnMusing" do
+    on "DomainGrafted"
+    trigger "ConnectNerve"
+    # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
+    # (ArchetypeSignalOnMatch dropped — it shared this (event, trigger)
+    # pair, so ConnectNerve fired twice per graft. The archetype-signal
+    # nerve is wired by the same subscriber that handles this policy.)
+  end
+end

@@ -1,0 +1,65 @@
+Hecks.bluebook "Labor", version: "2026.04.16.1" do
+  vision "Validation and naming — the domain is ready to be born"
+  category "world"
+
+  # Lifted out of conception.bluebook in i112 split. Carries one
+  # policy : ParityOnValidation (Labor.ValidateBluebook →
+  # Labor.CheckParity).
+
+  aggregate "Labor", "Validation and naming — the domain is ready to be born" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :bluebook_source, String
+    attribute :valid, String
+    attribute :errors, list_of(String)
+    attribute :parity, String
+
+    command "ValidateBluebook" do
+      role "Midwife"
+      description "Check the domain is well-formed — verb naming, references, structure"
+      attribute :domain_name, String
+      attribute :bluebook_source, String
+      emits "BluebookValidated"
+      then_set :domain_name, to: :domain_name
+      then_set :bluebook_source, to: :bluebook_source
+    end
+
+    command "CheckParity" do
+      role "Midwife"
+      description "Verify Ruby and Rust read the domain identically"
+      reference_to(Labor)
+      attribute :parity, String
+      emits "ParityChecked"
+      then_set :parity, to: :parity
+    end
+
+    command "PassLabor" do
+      role "Midwife"
+      description "Domain passes all checks — ready for delivery"
+      reference_to(Labor)
+      emits "LaborPassed"
+      then_set :valid, to: "yes"
+    end
+
+    command "FailLabor" do
+      role "Midwife"
+      description "Domain has errors — needs more gestation"
+      reference_to(Labor)
+      attribute :errors, list_of(String)
+      emits "LaborFailed"
+      then_set :valid, to: "no"
+      then_set :errors, to: :errors
+    end
+
+    lifecycle :valid, default: "pending" do
+      transition "ValidateBluebook" => "checking", from: "pending"
+      transition "PassLabor"        => "yes",      from: "checking"
+      transition "FailLabor"        => "no",       from: "checking"
+    end
+  end
+
+  policy "ParityOnValidation" do
+    on "BluebookValidated"
+    trigger "CheckParity"
+  end
+end

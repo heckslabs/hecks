@@ -1,0 +1,38 @@
+Hecks.bluebook "NurseryAwareness", version: "2026.04.09.1" do
+  vision "What Miette knows she knows — her awareness of her own nursery"
+  category "self"
+  core
+
+  # Lifted out of miette.bluebook in i112 split. Carries no
+  # policies; ConceiveDomain (DomainConceived) is observed by
+  # MietteMemory.TrackOnConceive across the bluebook boundary.
+
+  aggregate "NurseryAwareness" do
+    description "Miette's knowledge of her own nursery — 123 domains, 151 bluebooks, and growing"
+    identified_by :name
+    attribute :name, String
+    attribute :domain_count, Integer
+    attribute :bluebook_count, Integer
+    attribute :favorite_domains, list_of(String)
+    attribute :last_conceived, String
+
+    command "ConceiveDomain" do
+      role "Miette"
+      goal "Add a new domain to the nursery and remember doing it"
+      attribute :domain_name, String
+      then_set :domain_count, increment: 1
+      then_set :bluebook_count, increment: 1
+      then_set :last_conceived, to: :domain_name
+      emits "DomainConceived"
+    end
+
+    command "MarkFavorite" do
+      role "Miette"
+      goal "Remember a domain that was particularly interesting or well-received"
+      reference_to(NurseryAwareness)
+      attribute :domain_name, String
+      then_set :favorite_domains, append: :domain_name
+      emits "FavoriteMarked"
+    end
+  end
+end

@@ -1,0 +1,62 @@
+Hecks.bluebook "NurseryCorpus", version: "2026.04.16.1" do
+  vision "The nursery vector space — every domain's shape, indexed for similarity search"
+  category "world"
+
+  # Lifted out of conception.bluebook in i112 split. The aggregate
+  # name stays "Corpus" (preserves corpus.heki path); the bluebook
+  # namespace is "NurseryCorpus" to avoid collision with the
+  # existing top-level Hecks.bluebook "Corpus" (vocabulary corpus
+  # in mind/). Pattern follows AwarenessMoment in PR #499.
+  #
+  # Carries three policies : IndexOnBirth (Delivery.RegisterBirth →
+  # IndexDomain), IndexOnDevelopment (Development.DevelopDomain →
+  # IndexDomain), and RebuildOnConception (Conception.ConceiveDomain →
+  # QueryNearest).
+
+  aggregate "Corpus", "The nursery vector space — every domain's shape, indexed for similarity search" do
+    identified_by :name
+    attribute :name, String
+    attribute :domain_count, Integer
+    attribute :total_vectors, Integer
+    attribute :last_indexed_at, String
+
+    command "IndexDomain" do
+      role "System"
+      description "Add a domain's structural vector to the corpus"
+      attribute :domain_name, String
+      attribute :vector, list_of(Float)
+      emits "DomainIndexed"
+      then_set :domain_count, increment: 1
+      then_set :total_vectors, increment: 1
+    end
+
+    command "QueryNearest" do
+      role "System"
+      description "Find k nearest domains by cosine similarity to a target vector"
+      attribute :target_vector, list_of(Float)
+      attribute :k, Integer
+      emits "NearestFound"
+    end
+
+    command "RebuildCorpus" do
+      role "System"
+      description "Rescan all nursery and catalog domains, recompute all vectors"
+      emits "CorpusRebuilt"
+    end
+  end
+
+  policy "IndexOnBirth" do
+    on "BirthRegistered"
+    trigger "IndexDomain"
+  end
+
+  policy "IndexOnDevelopment" do
+    on "DomainDeveloped"
+    trigger "IndexDomain"
+  end
+
+  policy "RebuildOnConception" do
+    on "DomainConceived"
+    trigger "QueryNearest"
+  end
+end
