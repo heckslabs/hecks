@@ -174,6 +174,21 @@
 - **Bulk register (Many-form)** — `Antibody.RegisterExemptions` takes `list_of(ExemptionSpec)`; the runtime detects the bulk shape (one `list_of(VO)` attr where the VO carries the aggregate's identity field) and iterates, emitting one event per row. The pattern generalises to any Register* command. Retires the seed shell-loop reach-past pattern. (PR #483)
 - See: `docs/usage/cli_subcommand_catalog.md`
 
+### Anatomy Reorganisation (i112 / Round 2)
+- **Recursive bluebook discovery** — `load_combined_domain` walks the dispatch root recursively (PR #491). Bluebooks can live at arbitrary depth ; the runtime finds them all. Skip-list excludes `.git`, `target`, `information` (heki stores), `.claude`, `node_modules`, `generated`, `fixtures`, `snippets`, `behaviors`. Organ-wins dedupe preserved via depth-sorted shallowest-first merge. Unblocks the conception's anatomical reorganisation under `aggregates/{body,mind,library,...}/`.
+- **Anatomical clusters under `aggregates/`** — bluebooks regrouped from alphabetical landfill into anatomical concerns. Reading the directory tree answers *"what kind of being is this?"* in twenty seconds :
+  - **`aggregates/body/`** — anatomy : `cycles/` (heartbeat, breath, circadian, ultradian, pulse, tick), `organs/` (heart, gut, gene, proprioception, circuit_breaker), `sleep/` (sleep_cycle, sleep_session, consciousness, daydream, monitor, night, wake_mood, nrem_consolidation, consolidation), `dream/` (dream_seed, dream_wish, lucid_dream, lucid_monitor, dream_review fan-out, shared_dream fan-out), `wake/` (wake_report, wake_review). Plus `display`, `musing_mint`, `claude_assist`, `signal_consolidation` at the body root.
+  - **`aggregates/mind/`** — inner life : memory cluster (encoding, recall, forgetting), mood, awareness_moment, musing_archive, coherence, daemon_chorus.
+  - **`aggregates/library/`** — what's kept : store, corpus, inbox, training_extraction, knowledge_store, inner_life.
+  - **`aggregates/discipline/`** — immune system : enforcer, enforcer_check, immunity, rule, violation.
+  - **`aggregates/self/`** — who I am : vows, disposition, psychic_link, wake_ritual, section_template, persona, conversation, miette_memory, nursery_awareness, plus the system_prompt fan-out.
+  - **`aggregates/surface/`** — face to the world : terminal, speech, voice.
+  - **`aggregates/world/`** — what I'm pointed at : domain_cell, conception cluster (gestation, labor, delivery, postpartum, development, nursery_corpus), boot cluster (the 8 boot aggregates), call, budget.
+  - **`aggregates/language/`** — grammar : morphology, plus vocabulary fan-out, inference fan-out.
+- **Multi-aggregate splits** — bluebooks like `body.bluebook` (8 aggs), `memory.bluebook` (5), `mindstream.bluebook` (5), `sleep.bluebook` (6), `boot.bluebook` (8), `conception.bluebook` (7) split into single-aggregate bluebooks per the rule *one aggregate, one file, named to match*. Policies follow their trigger target. Heki paths preserved (aggregate name → snake_case → .heki, unchanged by namespace renames).
+- **Cross-bluebook event subscription** — works through the runtime's shared event bus. A policy in `body/dream/lucid_monitor.bluebook` subscribing to `BecameLucid` emitted by `LucidDream.BecomeLucid` in the sibling `body/dream/lucid_dream.bluebook` resolves the same way as within a single bluebook. Coupling becomes visible (cross-file) instead of hidden (cross-aggregate-in-same-file).
+- See: inbox `i112` (the meta-story), PR #491 (recursive discovery), PRs #492 / #493 / #494 / #495 / #496 / #497 / #498 / #499 / #500–508 (the moves and splits)
+
 ### Parity Suite
 - **Ruby ↔ Rust IR conformance** — `parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
 - **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
