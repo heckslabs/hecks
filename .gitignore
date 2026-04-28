@@ -68,6 +68,7 @@ hecks_conception/information/.tick_baseline
 # public exception — framework dev notes referenced by the paper.
 hecks_conception/information/*.heki
 !hecks_conception/information/inbox.heki
+!hecks_conception/information/exempt_registry.heki
 hecks_conception/information/.prev_consciousness_state
 hecks_conception/information/.dream_seeded
 hecks_conception/information/.daydream.last

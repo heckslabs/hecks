@@ -48,53 +48,16 @@ Hecks.fixtures "Antibody" do
     fixture "Canonical", pattern: "^\s*\[antibody-exempt:\s*([^\]]+)\]", flags: "i", anchor: "line_start"
   end
 
-  # ---- Exempt registry -------------------------------------------
+  # ---- Exempt registry MOVED -------------------------------------
   #
-  # Central registry of files that are permanently or transitionally
-  # exempt from the bluebook-first rule. Adding a file here is the
-  # ONLY thing needed — no inline marker required in the source file.
-  # The enforce-edit hook reads this table on every PostToolUse fire.
-  #
-  # Fields:
-  #   path   — repo-relative path (matched as suffix of the edited path)
-  #   reason — one-line rationale; cited in the enforcer dashboard
-
-  aggregate "ExemptRegistry", schema: { path: String, reason: String } do
-    fixture "Ir",                       path: "hecks_life/src/ir.rs",                                         reason: "kernel IR struct; parser_shape specializer cannot bootstrap until IR defines itself"
-    fixture "Parser",                   path: "hecks_life/src/parser.rs",                                     reason: "kernel bluebook parser; hecks-life specialize parser regenerates this file from parser_shape"
-    fixture "ParseBlocks",              path: "hecks_life/src/parse_blocks.rs",                               reason: "i106 dsl-mutation-primitives; enables pulse_organs.bluebook retirement"
-    fixture "HekiQuery",                path: "hecks_life/src/heki_query.rs",                                 reason: "hecks-life heki subcommand expansion; prerequisite for query primitive"
-    fixture "Main",                     path: "hecks_life/src/main.rs",                                       reason: "CLI routing kernel surface; retires once cli.bluebook lands (i80)"
-    fixture "BehaviorsFixtures",        path: "hecks_life/src/behaviors_fixtures.rs",                        reason: "test runner auto-loads fixtures for cross-aggregate behaviors"
-    fixture "AggregateState",           path: "hecks_life/src/runtime/aggregate_state.rs",                   reason: "i106 dsl-mutation-primitives; adds set_float for pulse math"
-    fixture "Interpreter",              path: "hecks_life/src/runtime/interpreter.rs",                       reason: "i106 dsl-mutation-primitives + rand_below predicate; kernel runtime"
-    fixture "ValidatorMorphology",      path: "hecks_life/src/specializer/validator_morphology.rs",          reason: "Phase D Rust-native specializer; regenerated from validator_morphology_shape"
-    fixture "HecksagonParser",          path: "hecks_life/src/specializer/hecksagon_parser.rs",              reason: "Phase D Rust-native specializer; regenerated from hecksagon_parser_shape"
-    fixture "FixturesParser",           path: "hecks_life/src/specializer/fixtures_parser.rs",               reason: "Phase D Rust-native specializer; regenerated from fixtures_parser_shape"
-    fixture "BehaviorsParserDispatch",  path: "hecks_life/src/specializer/behaviors_parser_dispatch.rs",     reason: "Phase D Rust-native specializer; regenerated from behaviors_parser_shape"
-    fixture "ValidatorChecks",          path: "hecks_life/src/specializer/validator_checks.rs",              reason: "Phase D Rust-native specializer; regenerated from validator_shape"
-    fixture "ValidatorChecksGraph",     path: "hecks_life/src/specializer/validator_checks_graph.rs",        reason: "Phase D Rust-native specializer; regenerated from validator_shape"
-    fixture "BehaviorsParserSpec",      path: "hecks_life/src/specializer/behaviors_parser.rs",              reason: "Phase D Rust-native specializer; regenerated from behaviors_parser_shape"
-    fixture "ValidatorSpec",            path: "hecks_life/src/specializer/validator.rs",                     reason: "Phase D Rust-native specializer; regenerated from validator_shape"
-    fixture "ConceptionRb",             path: "lib/hecks_cli/commands/conception.rb",                        reason: "kernel CLI handler that bootstraps the conception; can't be conceived through it"
-    fixture "FixturesLoader",           path: "lib/hecks/behaviors/fixtures_loader.rb",                      reason: "test runner auto-loads fixtures; prerequisite for behaviors runtime"
-    fixture "MigrateImplicit",          path: "bin/migrate_implicit_dialect.rb",                             reason: "one-shot migration script for i24; retires immediately after use"
-    fixture "BehaviorsConceiverCmds",   path: "hecks_life/src/behaviors_conceiver/commands.rs",              reason: "i4 gap 4 conceiver fix; retires when conceivers port to bluebook-dispatched form"
-    fixture "BehaviorsConceiverGen",    path: "hecks_life/src/behaviors_conceiver/generator.rs",             reason: "i4 gap 4+6+7 conceiver fix; retires when conceivers port to bluebook-dispatched form"
-    fixture "Repository",               path: "hecks_life/src/runtime/repository.rs",                        reason: "runtime aggregate store; identified_by dispatch drives natural-key vs counter-mint (i80)"
-    fixture "CommandDispatch",          path: "hecks_life/src/runtime/command_dispatch.rs",                   reason: "kernel command dispatch loop; retires once command_dispatch_shape specializer lands (i80)"
-    fixture "RuntimeMod",               path: "hecks_life/src/runtime/mod.rs",                                reason: "kernel runtime bootstrap; wires Repository::new with identified_by from aggregate IR (i80)"
-    fixture "ValidatorWarningsTest",    path: "hecks_life/tests/validator_warnings_test.rs",                  reason: "integration test for validator_warnings; Aggregate struct literal needs identified_by field"
-    fixture "ValidatorRulesTest",       path: "hecks_life/tests/validator_rules_test.rs",                     reason: "integration test for validator_rules; Aggregate struct literal needs identified_by field"
-    fixture "RuntimeTest",              path: "hecks_life/tests/runtime_test.rs",                              reason: "runtime integration tests; singleton behavior replaced by counter-mint without identified_by"
-    fixture "BootMiette",               path: "hecks_conception/boot_miette.sh",                               reason: "organ boot script; passes explicit ids to loop/clock dispatch (i80 identified_by natural keys)"
-    fixture "Mindstream",               path: "hecks_conception/mindstream.sh",                                reason: "mindstream tick loop; singleton fallback in id_for_command means name= attrs not needed; retires when tick.bluebook shebang lands"
-    fixture "AggregateBuilder",         path: "lib/hecks/dsl/aggregate_builder.rb",                            reason: "kernel Ruby DSL parser; identified_by accept needed for parity with Rust hecks-life parser (i80)"
-    fixture "StructureAggregate",       path: "lib/hecks/bluebook_model/structure/aggregate.rb",               reason: "kernel Ruby IR struct; mirrors Rust ir.rs Aggregate; identified_by field added for parity (i80)"
-    fixture "CanonicalIr",              path: "spec/parity/canonical_ir.rb",                                   reason: "Ruby parity dump; mirrors Rust dump.rs canonical JSON shape; identified_by added for parity (i80)"
-    fixture "RustDump",                 path: "hecks_life/src/dump.rs",                                        reason: "Rust parity dump; emits canonical JSON shape Ruby canonical_ir.rb mirrors (i80)"
-    fixture "HecksagonBuilder",         path: "lib/hecksagon/dsl/hecksagon_builder.rb",                       reason: "kernel Ruby Hecksagon DSL parser; preserves name: in non-shell adapter options for Ruby/Rust parity (i80)"
-  end
+  # ExemptRegistry rows live in `information/exempt_registry.heki`
+  # (i80 follow-up : test-purity rule says runtime-read state belongs
+  # in .heki, not .fixtures). The aggregate is declared in
+  # antibody.bluebook ; the enforcer reads the heki via the heki
+  # module on every PostToolUse fire. Add new exemptions via
+  # `hecks-life heki upsert information/exempt_registry.heki id=PATH
+  # path=PATH reason="..."` (or via Antibody.RegisterExemption once
+  # capability dispatch lands).
 
   # ---- Test cases ------------------------------------------------
   #
