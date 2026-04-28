@@ -254,6 +254,20 @@ else
   [ "$inbox_count" -gt 0 ] 2>/dev/null && status_str="$status_str ✉️ ${inbox_count}"
   status_str="$status_str ${provider_badge}"
   [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
+
+  # Last-dispatched-command breadcrumb (i80 follow-up). The runtime
+  # writes <data_dir>/.last_dispatch (two lines: Aggregate.Command,
+  # unix_seconds) after every successful command_dispatch. We show it
+  # while it's fresh — older than 30s and the cascade has settled, so
+  # nothing's actively happening; suppress to avoid stale clutter.
+  if [ -f "$info/.last_dispatch" ]; then
+    last_cmd=$(sed -n '1p' "$info/.last_dispatch")
+    last_at=$(sed -n '2p' "$info/.last_dispatch")
+    now_s=$(date +%s)
+    if [ -n "$last_cmd" ] && [ -n "$last_at" ] && [ "$((now_s - last_at))" -lt 30 ] 2>/dev/null; then
+      status_str="$status_str 🛠️  ${last_cmd}"
+    fi
+  fi
 fi
 
 echo "$status_str"
