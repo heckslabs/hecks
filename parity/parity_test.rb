@@ -25,7 +25,7 @@ require_relative "canonical_ir"
 
 HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
 SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
-REAL       = Dir[File.expand_path("../hecks_conception/aggregates/*.bluebook", __dir__)].sort
+REAL       = Dir[File.expand_path("../hecks_conception/aggregates/**/*.bluebook", __dir__)].sort
 CAPS       = Dir[File.expand_path("../hecks_conception/capabilities/**/*.bluebook", __dir__)].sort
 CATALOG    = Dir[File.expand_path("../hecks_conception/catalog/**/*.bluebook", __dir__)].sort
 MISC       = (Dir[File.expand_path("../hecks_conception/family/**/*.bluebook", __dir__)] +
