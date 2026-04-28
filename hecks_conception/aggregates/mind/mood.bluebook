@@ -158,4 +158,23 @@ Hecks.bluebook "Mood", version: "2026.04.28.1" do
     on "BalanceAssessed"
     trigger "Regulate"
   end
+
+  # Cross-aggregate policies lifted from aggregates/sleep.bluebook in
+  # i112 (sleep-split). They target Mood commands (RefreshMood,
+  # SetGroggy) so they live here per the "policies follow trigger
+  # target" rule. Consciousness emits WokeFullSleep / WokePartialSleep
+  # via its ClassifyFullWake / ClassifyPartialWake fan-out ; this
+  # bluebook routes those events to the matching mood transitions.
+
+  # Full sleep → RefreshMood (alert, refreshed).
+  policy "RefreshOnFullSleep" do
+    on "WokeFullSleep"
+    trigger "RefreshMood"
+  end
+
+  # Partial sleep → SetGroggy (dim, sluggish).
+  policy "GroggyOnPartialSleep" do
+    on "WokePartialSleep"
+    trigger "SetGroggy"
+  end
 end

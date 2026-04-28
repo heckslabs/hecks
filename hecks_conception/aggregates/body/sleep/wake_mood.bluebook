@@ -1,0 +1,33 @@
+Hecks.bluebook "WakeMood", version: "2026.04.28.1" do
+  vision "How Miette feels upon waking — determined by which sleep stage was interrupted."
+  category "mind"
+
+  # ============================================================
+  # WAKEMOOD
+  # ============================================================
+  #
+  # Lifted out of aggregates/sleep.bluebook in i112 (sleep-split).
+  # SetWakeMood records the felt mood at wake-time with a free-text
+  # reason. Distinct from the broader Mood aggregate
+  # (aggregates/mind/mood.bluebook) which models the ongoing
+  # endocrine state ; WakeMood is the snapshot taken at the
+  # moment of waking. No policies target this aggregate today.
+
+  aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
+    identified_by :name
+    attribute :name, String
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
+    attribute :mood, String
+    attribute :reason, String
+
+    command "SetWakeMood" do
+      role "Daemon"
+      description "Determine mood based on what sleep stage was interrupted"
+      attribute :mood, String
+      attribute :reason, String
+      emits "WakeMoodSet"
+      then_set :mood, to: :mood
+      then_set :reason, to: :reason
+    end
+  end
+end

@@ -1,0 +1,68 @@
+Hecks.bluebook "SleepCycle", version: "2026.04.28.1" do
+  vision "One cycle of light-REM-deep within a sleep session — the per-session phase progression."
+  category "mind"
+
+  # ============================================================
+  # SLEEPCYCLE — light/REM/deep phase progression
+  # ============================================================
+  #
+  # Lifted out of aggregates/sleep.bluebook in i112 (sleep-split).
+  # The legacy SleepCycle aggregate that models one cycle's stage
+  # progression as light → REM → deep, with rem_intensity recorded
+  # at AdvanceStage. Distinct from the body/sleep/sleep_cycle.bluebook
+  # SleepCycle, which models the NREM-light/NREM-deep/REM body cycle
+  # (the canonical name-collision is pre-existing ; both files parse
+  # cleanly through parity. The dispatcher's organ-wins dedupe
+  # picks one based on read-dir order — see PR notes).
+  #
+  # File renamed to sleep_session.bluebook to avoid filename
+  # collision with the sibling sleep_cycle.bluebook. Aggregate name
+  # SleepCycle is preserved verbatim per the body-verbatim rule.
+  #
+  # No policies target this aggregate's commands (StartCycle,
+  # AdvanceStage, CompleteCycle), so this file carries the
+  # aggregate alone.
+
+  aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
+    identified_by :cycle_number
+    attribute :cycle_number, Integer
+    attribute :total_cycles, Integer
+    # value_object: SleepStage enum:light|rem|deep|final_light
+    attribute :stage, String
+    attribute :rem_intensity, Integer
+
+    command "StartCycle" do
+      role "Daemon"
+      description "Begin a new sleep cycle"
+      attribute :cycle_number, Integer
+      attribute :total_cycles, Integer
+      emits "CycleStarted"
+      then_set :cycle_number, to: :cycle_number
+      then_set :total_cycles, to: :total_cycles
+      then_set :stage, to: "light"
+    end
+
+    command "AdvanceStage" do
+      role "Daemon"
+      description "Move to the next stage within a cycle"
+      reference_to(SleepCycle)
+      attribute :rem_intensity, Integer
+      emits "StageAdvanced"
+      then_set :rem_intensity, to: :rem_intensity
+    end
+
+    command "CompleteCycle" do
+      role "Daemon"
+      description "Finish one full light-REM-deep cycle"
+      reference_to(SleepCycle)
+      emits "CycleCompleted"
+    end
+
+    lifecycle :stage, default: "light" do
+      transition "StartCycle"    => "light", from: "light"
+      transition "AdvanceStage"  => "rem",   from: "light"
+      transition "AdvanceStage"  => "deep",  from: "rem"
+      transition "CompleteCycle" => "light", from: ["deep", "rem", "light"]
+    end
+  end
+end

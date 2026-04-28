@@ -1,0 +1,35 @@
+Hecks.bluebook "Daydream", version: "2026.04.28.1" do
+  vision "Fleeting impressions from free association between prompts."
+  category "mind"
+
+  # ============================================================
+  # DAYDREAM
+  # ============================================================
+  #
+  # Lifted out of aggregates/sleep.bluebook in i112 (sleep-split).
+  # The free-association layer that runs between prompts when
+  # Miette is idle. The daemon dispatches RecordDaydream with the
+  # collected impressions ; the DaydreamOnIdle policy in
+  # consciousness.bluebook fires EnterDaydream on IdleDetected,
+  # which is what kicks the loop off.
+
+  aggregate "Daydream", "Fleeting impressions from free association between prompts" do
+    identified_by :name
+    attribute :name, String
+    attribute :impressions, list_of(String)
+    attribute :duration_seconds, Integer
+    attribute :connections_found, Integer
+
+    command "RecordDaydream" do
+      role "Daemon"
+      description "Save impressions — structural connections found across nursery domains"
+      attribute :impressions, list_of(String)
+      attribute :duration_seconds, Integer
+      attribute :connections_found, Integer
+      emits "DaydreamRecorded"
+      then_set :impressions, to: :impressions
+      then_set :duration_seconds, to: :duration_seconds
+      then_set :connections_found, to: :connections_found
+    end
+  end
+end

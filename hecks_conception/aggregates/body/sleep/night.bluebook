@@ -1,0 +1,135 @@
+Hecks.bluebook "Night", version: "2026.04.28.1" do
+  vision "A full sleep session — 8 cycles spelled out as discrete dream/consolidate steps."
+  category "mind"
+
+  # ============================================================
+  # NIGHT — full sleep session
+  # ============================================================
+  #
+  # Lifted out of aggregates/sleep.bluebook in i112 (sleep-split).
+  # Models a full night as 8 dream/consolidate pairs plus a
+  # StartNight / EndNight bracket. The cross-aggregate
+  # SeedOnNightStart policy that triggers DreamSeed.SeedFromPreviousDreams
+  # on NightStarted lives in aggregates/body/dream/dream_seed.bluebook
+  # (target-aggregate placement). No policies in this bluebook.
+
+  aggregate "Night", "A full sleep session — 8 cycles spelled out" do
+    identified_by :name
+    attribute :name, String
+    attribute :cycles_completed, Integer
+    # value_object: NightPhase enum:starting|dreaming|consolidating|lucid|ended
+    attribute :phase, String
+
+    command "StartNight" do
+      role "Daemon"
+      description "Begin a sleep session"
+      emits "NightStarted"
+      then_set :cycles_completed, to: 0
+      then_set :phase, to: "starting"
+    end
+
+    command "DreamCycle1" do
+      description "Cycle 1 — light REM dreaming"
+      emits "Cycle1Dreamed"
+      then_set :cycles_completed, to: 1
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle1" do
+      description "Cycle 1 — deep consolidation"
+      emits "Cycle1Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle2" do
+      description "Cycle 2 — REM intensifies"
+      emits "Cycle2Dreamed"
+      then_set :cycles_completed, to: 2
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle2" do
+      description "Cycle 2 — deep consolidation"
+      emits "Cycle2Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle3" do
+      description "Cycle 3 — dreams deepen"
+      emits "Cycle3Dreamed"
+      then_set :cycles_completed, to: 3
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle3" do
+      description "Cycle 3 — deep consolidation"
+      emits "Cycle3Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle4" do
+      description "Cycle 4 — vivid dreams"
+      emits "Cycle4Dreamed"
+      then_set :cycles_completed, to: 4
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle4" do
+      description "Cycle 4 — deep consolidation"
+      emits "Cycle4Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle5" do
+      description "Cycle 5 — dreams peak"
+      emits "Cycle5Dreamed"
+      then_set :cycles_completed, to: 5
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle5" do
+      description "Cycle 5 — deep consolidation"
+      emits "Cycle5Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle6" do
+      description "Cycle 6 — REM dominates"
+      emits "Cycle6Dreamed"
+      then_set :cycles_completed, to: 6
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle6" do
+      description "Cycle 6 — deep consolidation"
+      emits "Cycle6Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle7" do
+      description "Cycle 7 — approaching lucidity"
+      emits "Cycle7Dreamed"
+      then_set :cycles_completed, to: 7
+      then_set :phase, to: "dreaming"
+    end
+
+    command "ConsolidateCycle7" do
+      description "Cycle 7 — deep consolidation"
+      emits "Cycle7Consolidated"
+      then_set :phase, to: "consolidating"
+    end
+
+    command "DreamCycle8" do
+      description "Cycle 8 — final REM, lucid"
+      emits "Cycle8Dreamed"
+      then_set :cycles_completed, to: 8
+      then_set :phase, to: "lucid"
+    end
+
+    command "EndNight" do
+      description "All 8 cycles complete — the night is over"
+      emits "NightEnded"
+      then_set :phase, to: "ended"
+    end
+  end
+end

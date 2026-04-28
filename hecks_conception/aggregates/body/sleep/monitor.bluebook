@@ -1,0 +1,60 @@
+Hecks.bluebook "Monitor", version: "2026.04.28.1" do
+  vision "The daemon that watches sleep and reports observations to the conversation."
+  category "mind"
+
+  # ============================================================
+  # MONITOR — sleep observation streamer
+  # ============================================================
+  #
+  # Lifted out of aggregates/sleep.bluebook in i112 (sleep-split).
+  # The streaming surface that emits depth/state observations
+  # while Miette sleeps. MonitorOnSleep starts the loop on
+  # SleepEntered ; StopMonitorOnWake closes it on WokenUp. Both
+  # policies target Monitor commands so they live here per the
+  # "policies follow trigger target" rule.
+
+  aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
+    identified_by :name
+    attribute :name, String
+    attribute :interval_seconds, Integer
+    attribute :z_depth, Integer
+    # value_object: ReportingState enum:active|stopped
+    attribute :reporting, String
+
+    command "StartMonitoring" do
+      role "System"
+      description "Begin streaming sleep observations"
+      attribute :interval_seconds, Integer
+      emits "MonitoringStarted"
+      then_set :interval_seconds, to: :interval_seconds
+      then_set :reporting, to: "active"
+    end
+
+    command "StopMonitoring" do
+      role "System"
+      description "Stop streaming — Miette woke up"
+      reference_to(Monitor)
+      emits "MonitoringStopped"
+      then_set :reporting, to: "stopped"
+    end
+
+    command "Sink" do
+      role "Daemon"
+      description "Adjust z-depth as cycles progress"
+      reference_to(Monitor)
+      attribute :z_depth, Integer
+      emits "DepthUpdated"
+      then_set :z_depth, to: :z_depth
+    end
+  end
+
+  policy "MonitorOnSleep" do
+    on "SleepEntered"
+    trigger "StartMonitoring"
+  end
+
+  policy "StopMonitorOnWake" do
+    on "WokenUp"
+    trigger "StopMonitoring"
+  end
+end

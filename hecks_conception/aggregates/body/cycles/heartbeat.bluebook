@@ -232,4 +232,42 @@ Hecks.bluebook "Heartbeat", version: "2026.04.28.1" do
     on "FatigueAccumulated"
     trigger "BecomeDelirious"
   end
+
+  # Cross-aggregate policies lifted from aggregates/sleep.bluebook in
+  # i112 (sleep-split). They target Heartbeat commands (RecoverFatigue,
+  # CloseFatigueGate, OpenFatigueGate, CheckSleepNeeded) so they live
+  # here per the "policies follow trigger target" rule. The duplicate
+  # CheckFatigueOnAccumulate / CheckSleepOnFatigue pair is intentional :
+  # body-verbatim split preserves both names ; both fire on
+  # FatigueAccumulated and trigger CheckSleepNeeded.
+
+  # Wake recovers fatigue — Heartbeat.RecoverFatigue both resets the
+  # counters and walks fatigue_state back to "alert" via the lifecycle
+  # below.
+  policy "RecoverHeartbeatOnWake" do
+    on "WokenUp"
+    trigger "RecoverFatigue"
+  end
+
+  policy "CheckFatigueOnAccumulate" do
+    on "FatigueAccumulated"
+    trigger "CheckSleepNeeded"
+  end
+
+  # i40 — fatigue gate wiring. Consciousness owns the sleep lifecycle
+  # (SleepEntered / WokenUp); Heartbeat owns AccumulateFatigue. The two
+  # aggregates live in different bluebooks so we wire them via cross-
+  # aggregate policies. CloseFatigueGate flips the guard on
+  # AccumulateFatigue so fatigue stops accumulating the instant sleep
+  # begins; OpenFatigueGate lets fatigue resume when Miette wakes.
+  # Replaces the shell-layer workaround PR #274 added to mindstream.sh.
+  policy "CloseFatigueGateOnSleep" do
+    on "SleepEntered"
+    trigger "CloseFatigueGate"
+  end
+
+  policy "OpenFatigueGateOnWake" do
+    on "WokenUp"
+    trigger "OpenFatigueGate"
+  end
 end
