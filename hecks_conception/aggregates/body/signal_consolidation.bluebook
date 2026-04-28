@@ -1,0 +1,45 @@
+Hecks.bluebook "SignalConsolidation", version: "2026.04.28.1" do
+  vision "Compress old signals into memories — the body's per-pulse housekeeping"
+  category "body"
+
+  # ============================================================
+  # SIGNAL CONSOLIDATION
+  # ============================================================
+  #
+  # Each body pulse triggers consolidation (compress old signals
+  # into long-term memory) and synapse pruning (compost dead
+  # connections). Both policies live here, with the trigger
+  # targets.
+  #
+  # Lifted out of mindstream.bluebook in i112.
+
+  aggregate "SignalConsolidation", "Compress old signals into memories" do
+    identified_by :name
+    attribute :name, String
+    attribute :signals_consolidated, Integer
+    attribute :synapses_pruned, Integer
+
+    command "ConsolidateSignals" do
+      description "Compress old signals into long-term memory"
+      emits "SignalsConsolidated"
+      then_set :signals_consolidated, increment: 1
+    end
+
+    command "PruneSynapses" do
+      description "Compost dead synapses — connections that faded"
+      emits "SynapsesPruned"
+      then_set :synapses_pruned, increment: 1
+    end
+  end
+
+  # Every body pulse triggers consolidation and synapse pruning.
+  policy "ConsolidateOnPulse" do
+    on "BodyPulse"
+    trigger "ConsolidateSignals"
+  end
+
+  policy "PruneOnPulse" do
+    on "BodyPulse"
+    trigger "PruneSynapses"
+  end
+end

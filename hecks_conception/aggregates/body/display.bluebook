@@ -1,0 +1,35 @@
+Hecks.bluebook "Display", version: "2026.04.28.1" do
+  vision "What the statusline shows — musings and domain pairs surfaced from the mindstream"
+  category "body"
+
+  # ============================================================
+  # DISPLAY
+  # ============================================================
+  #
+  # The statusline thought + ideas counter. Refreshed on each
+  # body pulse via DisplayOnPulse (which lives here, with the
+  # trigger target).
+  #
+  # Lifted out of mindstream.bluebook in i112.
+
+  aggregate "Display", "What the statusline shows — musings and domain pairs" do
+    identified_by :name
+    attribute :name, String
+    attribute :current_thought, String
+    attribute :ideas_available, Integer
+
+    command "RefreshDisplay" do
+      description "Refresh the statusline thought"
+      attribute :current_thought, String
+      attribute :ideas_available, Integer
+      emits "DisplayUpdated"
+      then_set :current_thought, to: :current_thought
+      then_set :ideas_available, to: :ideas_available
+    end
+  end
+
+  policy "DisplayOnPulse" do
+    on "BodyPulse"
+    trigger "RefreshDisplay"
+  end
+end

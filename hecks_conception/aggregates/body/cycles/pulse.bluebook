@@ -27,4 +27,13 @@ Hecks.bluebook "Pulse", version: "2026.04.21.1" do
       emits "BodyPulse"
     end
   end
+
+  # The bridge from Tick → BodyPulse. Lives here because the
+  # trigger target (Pulse.Emit) lives here. When i3 PR-a lands,
+  # Heart.HeartBeat replaces Tick as the driver and this single
+  # policy is rewritten — no subscriber touches.
+  policy "EmitPulseOnTick" do
+    on "Ticked"
+    trigger "Emit"
+  end
 end

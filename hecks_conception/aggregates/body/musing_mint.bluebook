@@ -1,0 +1,43 @@
+Hecks.bluebook "MusingMint", version: "2026.04.28.1" do
+  vision "Minting curated musings — only really great ideas. Quality requires curation; the LLM adapter is the filter."
+  category "body"
+
+  # ============================================================
+  # MUSING MINT
+  # ============================================================
+  #
+  # Random domain collisions produce noise; quality requires
+  # curation. Claude (or any LLM adapter wired in via
+  # ClaudeAssist) is the quality filter. PruneMusings runs on
+  # each body pulse to keep the stream from growing repetitive.
+  #
+  # Lifted out of mindstream.bluebook in i112.
+
+  aggregate "MusingMint", "Minting new musings — only really great ideas. Random domain collisions produce noise; quality requires curation. Claude (or any LLM adapter wired in via ClaudeAssist) is the quality filter." do
+    identified_by :name
+    attribute :name, String
+    attribute :last_minted, String
+    attribute :last_source, String
+    attribute :total_minted, Integer
+
+    command "MintMusing" do
+      description "Record a curated musing — the idea has been judged good enough to keep"
+      attribute :idea, String
+      attribute :source, String
+      emits "MusingMinted"
+      then_set :last_minted, to: :idea
+      then_set :last_source, to: :source
+      then_set :total_minted, increment: 1
+    end
+
+    command "PruneMusings" do
+      description "Remove repetitive mindstream musings"
+      emits "MusingsPruned"
+    end
+  end
+
+  policy "PruneMusingsOnPulse" do
+    on "BodyPulse"
+    trigger "PruneMusings"
+  end
+end

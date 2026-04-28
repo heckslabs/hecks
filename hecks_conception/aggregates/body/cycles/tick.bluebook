@@ -1,0 +1,31 @@
+Hecks.bluebook "Tick", version: "2026.04.28.1" do
+  vision "One cycle of the mindstream — the 1Hz authoritative count"
+  category "body"
+
+  # ============================================================
+  # TICK
+  # ============================================================
+  #
+  # The mindstream daemon dispatches Tick.MindstreamTick once per
+  # second. `cycle` is the authoritative count of seconds since
+  # boot. EmitPulseOnTick (in pulse.bluebook) bridges Ticked →
+  # BodyPulse so subscribers don't depend on the tick driver.
+  #
+  # Lifted out of mindstream.bluebook in i112 — the tick is the
+  # body's 1Hz orchestrator and lives in body/cycles/ alongside
+  # heartbeat, breath, circadian, ultradian.
+
+  aggregate "Tick", "One cycle of the mindstream — fires every 10s" do
+    identified_by :name
+    attribute :name, String
+    attribute :cycle, Integer
+    # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
+    attribute :mood, String
+
+    command "MindstreamTick" do
+      description "One tick of background awareness"
+      emits "Ticked"
+      then_set :cycle, increment: 1
+    end
+  end
+end

@@ -1,0 +1,50 @@
+Hecks.bluebook "ClaudeAssist", version: "2026.04.28.1" do
+  vision "Toggle for LLM-driven musing curation — selects which provider the body uses"
+  category "body"
+
+  # ============================================================
+  # CLAUDE ASSIST — toggle for LLM-driven musing curation
+  # ============================================================
+  #
+  # Selects which LLM does Miette's musing curation. Default is
+  # 'claude' — uses the Anthropic API if ANTHROPIC_API_KEY is
+  # set, otherwise falls back to the local `claude` CLI (Claude
+  # Code). User can switch to 'local' to use ollama (configured
+  # in the *.world file) instead, or 'off' to disable minting
+  # entirely.
+  #
+  # Toggle:
+  #   hecks-life aggregates ClaudeAssist.UseClaudeProvider
+  #   hecks-life aggregates ClaudeAssist.UseLocalProvider
+  #   hecks-life aggregates ClaudeAssist.DisableMinting
+  #
+  # Lifted out of mindstream.bluebook in i112.
+
+  aggregate "ClaudeAssist", "Selects which LLM does Miette's musing curation. Default is 'claude' — uses the Anthropic API if ANTHROPIC_API_KEY is set, otherwise falls back to the local `claude` CLI (Claude Code). User can switch to 'local' to use ollama (configured in the *.world file) instead, or 'off' to disable minting entirely." do
+    identified_by :name
+    attribute :name, String
+    # value_object: Provider enum:claude|local|off
+    attribute :provider, String
+
+    command "UseClaudeProvider" do
+      role "Creator"
+      description "Use Claude (API if ANTHROPIC_API_KEY set; otherwise CLI). The default."
+      then_set :provider, to: "claude"
+      emits "ProviderSwitched"
+    end
+
+    command "UseLocalProvider" do
+      role "Creator"
+      description "Fall back to local ollama for musing curation"
+      then_set :provider, to: "local"
+      emits "ProviderSwitched"
+    end
+
+    command "DisableMinting" do
+      role "Creator"
+      description "Stop generating new musings entirely"
+      then_set :provider, to: "off"
+      emits "MintingDisabled"
+    end
+  end
+end
