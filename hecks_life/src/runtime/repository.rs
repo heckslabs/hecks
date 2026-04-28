@@ -67,7 +67,14 @@ impl Repository {
             }
             self.store.insert(id, state);
         }
-        if !self.store.is_empty() {
+        // Quiet by default — every dispatch boots a fresh runtime and
+        // would otherwise spam dozens of "loaded N records from disk"
+        // lines (visible especially in the narrow PostToolUse hook
+        // output column). Set HECKS_REPO_VERBOSE=1 to see them when
+        // debugging boot-time loading.
+        if !self.store.is_empty()
+            && std::env::var("HECKS_REPO_VERBOSE").ok().as_deref() == Some("1")
+        {
             eprintln!("  loaded {} {} records from disk",
                 self.store.len(), self.aggregate_type);
         }
