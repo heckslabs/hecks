@@ -201,16 +201,45 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
   end
 
   # ============================================================
-  # CONFIG CATALOGS
+  # EXEMPT REGISTRY — runtime-queried allowlist of non-bluebook files
   # ============================================================
   #
-  # The four shape-only aggregates (FlaggedExtension, ShebangMapping,
-  # ExemptionPattern, TestCase) that used to live here were moved to
-  # self-declaring form in `fixtures/antibody.fixtures` via the
-  # `aggregate "Name", schema: { k: T, ... } do` DSL extension — they
-  # no longer need a bluebook-side declaration. Closes inbox i42.
+  # The enforcer hook (run_enforce_edit) consults the registry on every
+  # PostToolUse Edit/Write event. A path that suffix-matches an entry's
+  # `path` field is silently allowed ; any other non-bluebook file edit
+  # raises the bluebook-first violation.
   #
-  # To see their current schemas and row sets, read
-  # `fixtures/antibody.fixtures` — the `schema:` kwarg on each
-  # `aggregate` line carries what used to be `attribute :...` in here.
+  # Why this aggregate lives in the bluebook (not in antibody.fixtures
+  # like its peers) : the registry is RUNTIME state, not test data.
+  # Per the test-purity rule (capabilities/test_purity_shape) ,
+  # .fixtures is build/test-time only ; runtime config goes through
+  # commands → events → .heki via the standard adapter pipeline. The
+  # row set lives in `information/exempt_registry.heki` and is mutated
+  # by RegisterExemption / RetireExemption.
+
+  aggregate "ExemptRegistry", "One non-bluebook file path allowed past the bluebook-first enforcer — kernel-surface or transitional" do
+    identified_by :path
+
+    # Repo-relative path (suffix-matched against the edited file).
+    attribute :path,   String
+    # One-line rationale ; cited in the enforcer dashboard.
+    attribute :reason, String
+
+    command "RegisterExemption" do
+      role "Chris"
+      description "Add a kernel-surface or transitional file to the exemption list. The enforcer hook reads this on every Edit / Write event ; suffix-matching means relative or absolute paths both resolve. Idempotent — registering an existing path overwrites the reason."
+      attribute :path,   String
+      attribute :reason, String
+      then_set :path,    to: :path
+      then_set :reason,  to: :reason
+      emits "ExemptionRegistered"
+    end
+
+    command "RetireExemption" do
+      role "Chris"
+      description "Remove a path from the registry — the file is now bluebook-conceived (or has been deleted). The enforcer will start blocking edits to it again on the next hook fire."
+      reference_to(ExemptRegistry)
+      emits "ExemptionRetired"
+    end
+  end
 end

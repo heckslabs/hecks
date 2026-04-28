@@ -1855,48 +1855,36 @@ fn run_enforce_edit(_args: &[String]) {
 /// Returns `false` on any read/parse error — safe default for a hook
 /// that must never panic the editor.
 fn file_is_in_exempt_registry(file_path: &str) -> bool {
-    let registry_path = match find_antibody_fixtures() {
+    // ExemptRegistry rows live in `information/exempt_registry.heki`
+    // (per test-purity rule : runtime config goes through .heki, not
+    // .fixtures). Each row carries `path` as the natural-key id and
+    // a `reason` field — the enforcer only needs `path` for the
+    // suffix-match.
+    let registry_path = match find_exempt_registry_heki() {
         Some(p) => p,
         None => return false,
     };
-    let src = match std::fs::read_to_string(&registry_path) {
+    let store = match crate::heki::read(&registry_path) {
         Ok(s) => s,
         Err(_) => return false,
     };
-    // Parse ExemptRegistry rows cheaply: look for lines containing
-    // `path:` inside the ExemptRegistry aggregate block. We don't need
-    // a full fixtures parse — just extract the path values and suffix-match.
-    let mut in_exempt = false;
-    for line in src.lines() {
-        let t = line.trim();
-        if t.starts_with("aggregate \"ExemptRegistry\"") { in_exempt = true; }
-        if in_exempt && t == "end" { break; }
-        if !in_exempt { continue; }
-        // Find `path: "some/path"` on fixture lines
-        if let Some(pos) = t.find("path:") {
-            let after = t[pos + 5..].trim();
-            if let Some(start) = after.find('"') {
-                let rest = &after[start + 1..];
-                if let Some(end) = rest.find('"') {
-                    let entry = &rest[..end];
-                    if file_path.ends_with(entry) {
-                        return true;
-                    }
-                }
-            }
+    for (_id, rec) in &store {
+        let Some(path_v) = rec.get("path").and_then(|v| v.as_str()) else { continue };
+        if file_path.ends_with(path_v) {
+            return true;
         }
     }
     false
 }
 
-/// Locate `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`
-/// by resolving from `resolve_aggregates_dir()` (which gives
-/// `…/hecks_conception/aggregates`) up one level then into capabilities.
-fn find_antibody_fixtures() -> Option<String> {
+/// Locate `hecks_conception/information/exempt_registry.heki` by
+/// resolving from `resolve_aggregates_dir()` (which gives
+/// `…/hecks_conception/aggregates`) up one level then into `information`.
+fn find_exempt_registry_heki() -> Option<String> {
     let agg_dir = resolve_aggregates_dir()?;
     let p = std::path::Path::new(&agg_dir)
         .parent()?
-        .join("capabilities/antibody/fixtures/antibody.fixtures");
+        .join("information/exempt_registry.heki");
     if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
 }
 
