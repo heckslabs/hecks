@@ -69,6 +69,7 @@ hecks_conception/information/.tick_baseline
 hecks_conception/information/*.heki
 !hecks_conception/information/inbox.heki
 !hecks_conception/information/exempt_registry.heki
+!hecks_conception/information/subcommand.heki
 hecks_conception/information/.prev_consciousness_state
 hecks_conception/information/.dream_seeded
 hecks_conception/information/.daydream.last

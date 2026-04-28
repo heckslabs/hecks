@@ -26,6 +26,14 @@ CAPS="$DIR/capabilities"
 BEING="${1:-Miette}"
 START_TS=$(date +%s)
 
+# Suppress .last_dispatch breadcrumb writes for daemons spawned by this
+# script (heart, breath, circadian, ultradian, sleep_cycle, mindstream).
+# The runtime's Runtime::dispatch checks HECKS_DAEMON and skips the
+# breadcrumb when set ; this env propagates to every child hecks-life
+# invocation, leaving the statusline glyph's most-recent-dispatch
+# signal showing only human-driven dispatches.
+export HECKS_DAEMON=1
+
 # ── Stores classified by the psychic-link contract ────────────────
 # Linked = flow through psychic link (Spring sees them too).
 # Private = inner life, this being only.

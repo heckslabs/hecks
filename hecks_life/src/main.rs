@@ -77,9 +77,30 @@ fn main() {
         (args[1].as_str(), "")
     };
 
-    if command == "help" || command == "--help" {
-        print_usage();
-        return;
+    // Subcommand catalog gate (i80 follow-up — multi-domain CLI split).
+    // The Subcommand catalog (information/subcommand.heki) is the source
+    // of truth for "what subcommands exist." Today this gate :
+    //   1. honours a `deprecated: yes` flag with a stderr warning
+    //   2. dispatches handlers that have been migrated to catalog-
+    //      driven form (the match arm below) — currently only
+    //      print_usage, with the rest falling through to the legacy
+    //      if-chain unchanged
+    //
+    // Each future migration adds one more arm to the match below and
+    // removes the corresponding branch from the if-chain. Once every
+    // arm is here AND a capability runner implements it, the if-chain
+    // retires entirely.
+    if let Some(record) = lookup_subcommand(command) {
+        if record.get("deprecated").and_then(|v| v.as_str()) == Some("yes") {
+            eprintln!("warning: subcommand '{}' is deprecated", command);
+        }
+        let handler = record.get("handler").and_then(|v| v.as_str()).unwrap_or("");
+        match handler {
+            "print_usage" => { print_usage(); return; }
+            // Future migrations land here ; the legacy if-chain
+            // implements anything that hasn't moved yet.
+            _ => {}
+        }
     }
 
     // Lexicon is now a hecksagon query
@@ -1962,6 +1983,30 @@ fn find_exempt_registry_heki() -> Option<String> {
     let p = std::path::Path::new(&agg_dir)
         .parent()?
         .join("information/exempt_registry.heki");
+    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
+}
+
+/// Look up a subcommand by name in the Subcommand catalog
+/// (`information/subcommand.heki`). Returns the heki record when
+/// present, `None` when the subcommand isn't registered.
+///
+/// Reads heki directly without booting a runtime — the catalog gate
+/// at the top of `main()` runs on every invocation and a full runtime
+/// boot per binary fire would be expensive. Same path-resolution
+/// pattern as `find_exempt_registry_heki` : prefer in-tree catalog
+/// (so the seed ships with the repo), no HECKS_INFO override needed
+/// because the catalog is repo-content not user-state.
+fn lookup_subcommand(name: &str) -> Option<heki::Record> {
+    let path = find_subcommand_heki()?;
+    let store = heki::read(&path).ok()?;
+    store.get(name).cloned()
+}
+
+fn find_subcommand_heki() -> Option<String> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let p = std::path::Path::new(&agg_dir)
+        .parent()?
+        .join("information/subcommand.heki");
     if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
 }
 

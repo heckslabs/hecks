@@ -100,25 +100,6 @@ pub fn dispatch(
         rt.event_bus.publish(evt.clone());
     }
 
-    // Breadcrumb : write the last dispatched command to a tiny
-    // plaintext file under data_dir so the statusline (and any other
-    // introspection surface) can read "what just dispatched". Format
-    // is two lines :
-    //   Aggregate.Command
-    //   <unix_seconds>
-    // Plaintext, not heki — this is runtime introspection metadata,
-    // not domain state ; no audit-log entry, no dispatch context.
-    // Writing it failing is silently ignored ; the breadcrumb is
-    // best-effort and the statusline degrades gracefully if absent.
-    if let Some(ref dir) = rt.data_dir {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs()).unwrap_or(0);
-        let path = format!("{}/.last_dispatch", dir.trim_end_matches('/'));
-        let _ = std::fs::write(&path,
-            format!("{}.{}\n{}\n", aggregate_name, command_name, now));
-    }
-
     Ok(CommandResult {
         aggregate_id,
         aggregate_type: aggregate_name,

@@ -48,6 +48,16 @@ PIDFILE="$INFO/.mindstream.pid"
 export HECKS_INFO="$INFO"
 export INFO
 
+# Suppress the .last_dispatch breadcrumb for body-cycle daemon traffic.
+# Without this, every mindstream tick + every pulse_organs.sh dispatch
+# overwrites the breadcrumb, drowning out the human-driven dispatches
+# (Antibody.RegisterExemption, Mood.Express, etc.) the statusline glyph
+# is meant to surface. The runtime's Runtime::dispatch checks this env
+# var and skips the breadcrumb write when set ; HECKS_DAEMON=1
+# propagates to every child hecks-life invocation through bash's
+# inherited environment.
+export HECKS_DAEMON=1
+
 echo $$ > "$PIDFILE"
 trap "rm -f $PIDFILE" EXIT
 

@@ -155,6 +155,25 @@
 - **ProjectManagement** — replaces Linear for tracking features, sprints, priorities, dependencies, milestones, and work logs. Features are domain-aware via DomainLink — every feature links to a bluebook domain. Stored in heki, queryable by Miette. 7 aggregates, 3 policies, seeded with current Linear issues.
 - **DLMState** — the DLM tracks itself in Heki. SessionState, GrowthTracker, HonestyTracker, DreamLog, PerformanceMetric, SynapseHistory — 6 aggregates, 18 commands, 5 cross-domain policies. Acceleration rate measures domains conceived per session. Persists across sleep cycles.
 
+### Audit Channel & Dispatch Discipline (Option C)
+- **`WriteContext`** — every `.heki` write must declare `Dispatch { aggregate, command }` or `OutOfBand { reason }`. The runtime audits both; out-of-band writes always log to stderr. Direct `heki append/upsert/delete/mark` from the CLI requires `--reason "<why>"` or the call is rejected.
+- **Audit log format** — `[heki:<op>] dispatch:Aggregate.Command → path` or `[heki:<op>] out-of-band:<reason> → path`. Greppable; surfaces reach-past rates as a discipline metric.
+- **Last-dispatch breadcrumb** — every dispatched command writes `<aggregate>.<command>\n<unix_ts>\n` to `<data_dir>/.last_dispatch`. The statusline renders `🛠️ Item.Add` when fresh (<30s). Only top-level dispatches write; cascade leaves don't overwrite.
+- **`HECKS_DAEMON=1` suppression** — body daemons (mindstream, heart, breath, pulse_organs, consolidate) export `HECKS_DAEMON=1`; the runtime skips the breadcrumb write so daemon traffic doesn't drown out human-driven dispatches in the statusline. Audit log + repository writes still fire normally.
+- See: `docs/usage/audit_channel.md`
+
+### Entity Primitive
+- **`entity` keyword** — declares an identity-bearing entity inside an aggregate, alongside `value_object` (no identity, replaced wholesale). Use when you need addressable parts that exist only within a parent. Mirrors `value_object` syntax; adds an `entities: Vec<Entity>` field on the IR `Aggregate`.
+- **Parser + IR + dump** — `parse_entity` mirrors `parse_value_object`, `dump.rs` emits the `entities` array, `canonical_ir.rb` includes it in parity output. Existing aggregates default to `entities: vec![]` without IR drift.
+- See: `docs/usage/entity_primitive.md`
+
+### CLI Subcommand Catalog
+- **Subcommand catalog** — every `hecks-life` subcommand declared as a row in `information/subcommand.heki`, not a hardcoded match arm in `main.rs`. Shape lives in `capabilities/subcommand/subcommand.bluebook` (`Subcommand` aggregate with name, handler, ArgvShape, description, deprecated).
+- **`lookup_subcommand` gate** — `main.rs` consults the catalog before dispatch, without booting the runtime; resolves the handler, honors `deprecated=true`. `help` / `--help` migrated as the first token through the gate (PR #482).
+- **Multi-domain split** — `cli/`, `argv/`, `subcommand/` as sibling capabilities; `cli.bluebook` declares a `Phase` entity for parse / resolve / dispatch / emit phases.
+- **Bulk register (Many-form)** — `Antibody.RegisterExemptions` takes `list_of(ExemptionSpec)`; the runtime detects the bulk shape (one `list_of(VO)` attr where the VO carries the aggregate's identity field) and iterates, emitting one event per row. The pattern generalises to any Register* command. Retires the seed shell-loop reach-past pattern. (PR #483)
+- See: `docs/usage/cli_subcommand_catalog.md`
+
 ### Parity Suite
 - **Ruby ↔ Rust IR conformance** — `spec/parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
 - **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `spec/parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
