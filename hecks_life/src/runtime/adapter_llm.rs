@@ -39,10 +39,19 @@ pub type LlmConfig<'a> = (&'a str, &'a str, &'a str); // (backend, model, url)
 /// If the aggregate has :input/:response and config is provided, call
 /// the configured backend. Three-tuple (backend, model, url) ; for
 /// claude, model and url are ignored.
+///
+/// `aggregate` and `command` carry the originating dispatch context
+/// so the response writeback persists with `WriteContext::Dispatch`
+/// instead of `OutOfBand` — the writeback IS the tail of the original
+/// command's effect (its `:response` mutation), so the audit log
+/// records it under the same dispatch banner the runtime already wrote
+/// the rest of the state under.
 pub fn resolve(
     repo: &mut Repository,
     state: &AggregateState,
     config: Option<LlmConfig<'_>>,
+    aggregate: &str,
+    command: &str,
 ) {
     // Only act on aggregates with input field set
     let input = match state.fields.get("input") {
@@ -64,8 +73,8 @@ pub fn resolve(
     if let Some(r) = resp {
         let mut updated = state.clone();
         updated.set("response", Value::Str(r));
-        repo.save(updated, crate::heki::WriteContext::OutOfBand {
-            reason: "llm adapter response writeback — adapter port writes :response after LLM call; not yet threaded through dispatch context",
+        repo.save(updated, crate::heki::WriteContext::Dispatch {
+            aggregate, command,
         });
     }
 }
@@ -77,9 +86,11 @@ pub fn resolve_ollama(
     repo: &mut Repository,
     state: &AggregateState,
     config: Option<(&str, &str)>,
+    aggregate: &str,
+    command: &str,
 ) {
     let triple = config.map(|(m, u)| ("ollama", m, u));
-    resolve(repo, state, triple);
+    resolve(repo, state, triple, aggregate, command);
 }
 
 fn call_ollama(url: &str, model: &str, input: &str) -> Option<String> {
