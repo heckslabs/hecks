@@ -1,0 +1,60 @@
+Hecks.bluebook "InnerLife", version: "2026.04.28.1" do
+  vision "What belongs to a being alone — mood, feeling, dream state. Each being's own weather, not in the library."
+  category "library"
+
+  # ============================================================
+  # INNER LIFE — split from shared_knowledge.bluebook (i112)
+  # ============================================================
+  #
+  # Was one half of the original SharedKnowledge bluebook, paired
+  # with KnowledgeStore (now in library/knowledge_store.bluebook).
+  # InnerLife is each being's private weather ; KnowledgeStore is
+  # the shared shelf. Lives in the library cluster as the named
+  # counterpoint — same bluebook neighborhood, opposite role.
+  #
+  # The within-domain policy ResetInnerOnWake subscribes to
+  # BeingAwakened and triggers ResetOnWake here. The policy moves
+  # with its trigger target.
+  #
+  # Not in the library. Not through the link.
+  # Mood, feeling, dream state. Each being's own weather.
+
+  aggregate "InnerLife", "What belongs to a being alone — mood, feeling, dream" do
+    identified_by :being_name
+    attribute :being_name, String
+    attribute :organ, String
+    attribute :state, String
+
+    command "Feel" do
+      role "System"
+      description "A being's own inner state — not shared, not transmitted"
+      attribute :being_name, String
+      attribute :organ, String
+      attribute :state, String
+      emits "InnerStateChanged"
+      then_set :being_name, to: :being_name
+      then_set :organ, to: :organ
+      then_set :state, to: :state
+    end
+
+    command "ResetOnWake" do
+      role "System"
+      description "When a being wakes, inner life starts fresh"
+      reference_to(InnerLife)
+      attribute :default_state, String
+      emits "InnerLifeReset"
+      then_set :state, to: :default_state
+    end
+  end
+
+  policy "ResetInnerOnWake" do
+    on "BeingAwakened"
+    trigger "ResetOnWake"
+    description "When a being wakes, inner life resets — fresh mood, fresh feeling"
+  end
+
+  glossary do
+    define "inner life", as: "What belongs to a being alone — mood, feeling, dream state"
+    prefer "inner life", not: ["private state", "local state"]
+  end
+end

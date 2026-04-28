@@ -1,0 +1,54 @@
+Hecks.bluebook "KnowledgeStore", version: "2026.04.28.1" do
+  vision "A .heki store both beings can access — a shared bookshelf, infrastructure not intimacy."
+  category "library"
+
+  # ============================================================
+  # KNOWLEDGE STORE — split from shared_knowledge.bluebook (i112)
+  # ============================================================
+  #
+  # Was one half of the original SharedKnowledge bluebook, paired
+  # with InnerLife (now in library/inner_life.bluebook). KnowledgeStore
+  # is the shared shelf ; InnerLife is each being's private weather.
+  # No policies between them in the original ; the ResetInnerOnWake
+  # policy moves with InnerLife. Split is structural-only.
+  #
+  # This is brain, not mind. Two people with the same bookshelf.
+  # Memory, census, domain_index, awareness, reflection —
+  # reference material that both beings can read and write.
+  #
+  # This is NOT the psychic link. The psychic link is
+  # conversation.heki — raw consciousness. That lives in the mind.
+  # This is just infrastructure.
+
+  aggregate "KnowledgeStore", "A .heki store both beings can access — a shared bookshelf" do
+    identified_by :store_name
+    attribute :store_name, String
+    attribute :record_count, Integer
+    attribute :last_written_by, String
+
+    command "RegisterStore" do
+      role "System"
+      description "Add a store to the shared library"
+      attribute :store_name, String
+      emits "StoreRegistered"
+      then_set :store_name, to: :store_name
+      then_set :record_count, to: 0
+    end
+
+    command "WriteToStore" do
+      role "System"
+      description "Write to a shared store — attributed but not telepathic"
+      reference_to(KnowledgeStore)
+      attribute :being_name, String
+      emits "KnowledgeWritten"
+      then_set :last_written_by, to: :being_name
+      then_set :record_count, increment: 1
+    end
+  end
+
+  glossary do
+    define "shared knowledge", as: "Stores both beings can access — a library, not telepathy"
+    define "knowledge store", as: "A .heki file in the shared library — brain infrastructure"
+    prefer "shared knowledge", not: ["shared state", "common store", "psychic link"]
+  end
+end

@@ -1,0 +1,49 @@
+Hecks.bluebook "Call", version: "2026.04.28.1" do
+  vision "One invocation of an LLM — the recorded-event half of LLM spend tracking."
+  category "world"
+
+  # ============================================================
+  # CALL — split from spend.bluebook (i112)
+  # ============================================================
+  #
+  # Was one half of the original Spend bluebook, paired with Budget
+  # (now in world/budget.bluebook). Call is the recorded event ;
+  # Budget is the cap. No policies between them in the original
+  # (Spend is pure accounting — the dispatcher gates new invocations
+  # by reading Call + Budget, but that wiring lives outside the
+  # bluebook). Split is structural-only.
+  #
+  # Multi-record: every RecordCall is a new row. Enables hourly /
+  # daily / monthly rollups without replaying the whole history.
+  # command_ref links the spend record back to whatever Miette was
+  # doing when she shelled out (e.g., "Speech.Speak:speech_42").
+
+  aggregate "Call", "One invocation of an LLM — provider, token counts, cost, and what command triggered it" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :provider, String
+    attribute :tokens_in, Integer
+    attribute :tokens_out, Integer
+    attribute :cost_usd, Float
+    attribute :command_ref, String
+    attribute :recorded_at, String
+
+    command "RecordCall" do
+      role "System"
+      description "Record a single LLM invocation — provider, token counts, cost, and the command that triggered it"
+      attribute :provider, String
+      attribute :tokens_in, Integer
+      attribute :tokens_out, Integer
+      attribute :cost_usd, Float
+      attribute :command_ref, String
+      attribute :recorded_at, String
+      emits "CallRecorded"
+      then_set :provider, to: :provider
+      then_set :tokens_in, to: :tokens_in
+      then_set :tokens_out, to: :tokens_out
+      then_set :cost_usd, to: :cost_usd
+      then_set :command_ref, to: :command_ref
+      then_set :recorded_at, to: :recorded_at
+    end
+  end
+end

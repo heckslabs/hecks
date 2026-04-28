@@ -1,0 +1,36 @@
+Hecks.bluebook "Voice", version: "2026.04.28.1" do
+  vision "How I sound — personality, tone, constraints. The configuration that shapes Speech."
+  category "surface"
+
+  # ============================================================
+  # VOICE — split from tongue.bluebook (i112)
+  # ============================================================
+  #
+  # Was one half of the original Tongue bluebook, paired with Speech
+  # (now in surface/speech.bluebook). Voice is configuration ; Speech
+  # is the act. No policies between them in the original, so the split
+  # is structural-only.
+
+  aggregate "Voice", "How I sound — personality, tone, constraints" do
+    identified_by :name
+    attribute :name, String
+    attribute :personality, String
+    attribute :max_sentences, Integer
+    attribute :model, String
+
+    command "SetVoice" do
+      description "Configure how I speak"
+      attribute :personality, String
+      attribute :max_sentences, Integer
+      attribute :model, String
+      emits "VoiceSet"
+      then_set :personality, to: :personality
+      then_set :max_sentences, to: :max_sentences
+      then_set :model, to: :model
+    end
+
+    query ReadVoice do
+      description "How am I configured to speak?"
+    end
+  end
+end

@@ -1,0 +1,72 @@
+Hecks.bluebook "DaemonRhythm", version: "2026.04.28.1" do
+  vision "One daemon's tick rhythm and what it feels like — the unit of self-listening for interoception."
+  category "body"
+
+  # ============================================================
+  # DAEMON RHYTHM — split from interoception.bluebook (i112)
+  # ============================================================
+  #
+  # Was the per-daemon half of the original Interoception bluebook,
+  # paired with BodyFelt (now in body/body_felt.bluebook). One row
+  # per interocepted daemon (heart, mindstream, sleep_cycle, circadian,
+  # ultradian, breath). Tracks tick rhythm + a felt_quality drawn
+  # from a 5-word vocabulary :
+  #
+  #   steady   — at expected rate
+  #   quick    — above expected rate
+  #   slow     — below expected rate
+  #   irregular— variable
+  #   absent   — no signal
+  #
+  # The companion aggregate BodyFelt subscribes to RhythmAssessed via
+  # the policy in body/body_felt.bluebook. Stable narration : the
+  # narrative phrase regenerates only when felt_quality shifts.
+
+  aggregate "DaemonRhythm", "One daemon's tick rhythm and what it feels like — the unit of self-listening" do
+    identified_by :daemon_name
+    # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
+    attribute :daemon_name,         String
+    attribute :tick_count,          Integer, default: 0
+    # value_object: Timestamp (ISO 8601 UTC)
+    attribute :last_tick_at,        String
+    attribute :recent_intervals_ms, list_of(Integer)
+    # felt_quality: steady | quick | slow | irregular | absent | unknown
+    # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
+    attribute :felt_quality,        String, default: "unknown"
+    attribute :narrative,           String
+    # value_object: Timestamp (ISO 8601 UTC)
+    attribute :assessed_at,         String
+
+    command "RecordTick" do
+      role "System"
+      description "A daemon just ticked. Bumps tick_count, stamps last_tick_at, appends the latest interval-since-previous-tick to the rolling window. Does NOT compute felt_quality — that's AssessRhythm's job."
+      # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
+      attribute :daemon_name,    String
+      # value_object: Timestamp (ISO 8601 UTC)
+      attribute :last_tick_at,   String
+      # value_object: Milliseconds (positive integer)
+      attribute :interval_ms,    Integer
+      emits "DaemonTickRecorded"
+      then_set :daemon_name,     to: :daemon_name
+      then_set :last_tick_at,    to: :last_tick_at
+      then_set :tick_count,      increment: 1
+      then_set :recent_intervals_ms, append: :interval_ms
+    end
+
+    command "AssessRhythm" do
+      role "System"
+      description "Window the recent intervals, derive felt_quality from variance + mean drift, regenerate narrative phrase ONLY if felt_quality changed from the prior assessment. Stable narration : same felt_quality keeps the same narrative until a real shift."
+      # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
+      attribute :daemon_name,    String
+      # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
+      attribute :felt_quality,   String
+      attribute :narrative,      String
+      # value_object: Timestamp (ISO 8601 UTC)
+      attribute :assessed_at,    String
+      emits "RhythmAssessed"
+      then_set :felt_quality,    to: :felt_quality
+      then_set :narrative,       to: :narrative
+      then_set :assessed_at,     to: :assessed_at
+    end
+  end
+end

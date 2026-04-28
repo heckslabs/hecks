@@ -1,0 +1,60 @@
+Hecks.bluebook "Budget", version: "2026.04.28.1" do
+  vision "Spend cap for a period — the policy half of LLM spend tracking, with manual override window."
+  category "world"
+
+  # ============================================================
+  # BUDGET — split from spend.bluebook (i112)
+  # ============================================================
+  #
+  # Was one half of the original Spend bluebook, paired with Call
+  # (now in world/call.bluebook). Budget is the cap ; Call is the
+  # recorded event. No policies between them in the original — the
+  # dispatcher reads Call + Budget to gate new invocations, but that
+  # wiring lives outside the bluebook. Split is structural-only.
+  #
+  # One record per period (hour / day / month). The cap is advisory
+  # at this layer — it's a declared limit; enforcement lives in the
+  # dispatcher that reads budget+rollup and short-circuits calls.
+  # OverrideBudget lifts the cap until a timestamp (e.g., "I need to
+  # write this whole essay right now, let it rip until 10pm").
+
+  aggregate "Budget", "Spend cap for a period — hour/day/month — with manual override window" do
+    identified_by :period
+    attribute :period, String
+    attribute :cap_usd, Float
+    attribute :override_active, String
+    attribute :override_until, String
+
+    command "SetBudget" do
+      role "Creator"
+      description "Set the spend cap for a period — hour, day, or month"
+      attribute :period, String
+      attribute :cap_usd, Float
+      emits "BudgetSet"
+      then_set :period, to: :period
+      then_set :cap_usd, to: :cap_usd
+      then_set :override_active, to: "no"
+    end
+
+    command "OverrideBudget" do
+      role "Creator"
+      description "Disable the cap for a period until a specific timestamp"
+      attribute :period, String
+      attribute :until_ts, String
+      emits "BudgetOverridden"
+      then_set :period, to: :period
+      then_set :override_active, to: "yes"
+      then_set :override_until, to: :until_ts
+    end
+
+    command "ClearOverride" do
+      role "Creator"
+      description "Re-engage the cap before the override window expires"
+      attribute :period, String
+      emits "OverrideCleared"
+      then_set :period, to: :period
+      then_set :override_active, to: "no"
+      then_set :override_until, to: ""
+    end
+  end
+end

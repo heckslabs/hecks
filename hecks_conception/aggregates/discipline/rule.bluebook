@@ -1,13 +1,18 @@
-Hecks.bluebook "Validator", version: "2026.04.17.1" do
-  vision "Domain validation rules — the immune system as a bluebook"
-  category "body"
+Hecks.bluebook "Rule", version: "2026.04.28.1" do
+  vision "One validation rule — innate or adaptive. The catalog half of the immune system as a bluebook."
+  category "discipline"
 
   # ============================================================
-  # VALIDATOR
+  # RULE — split from validator.bluebook (i112)
   # ============================================================
   #
-  # Each rule is a fixture. The runtime reads these fixtures
-  # and applies them when validating a domain. No Rust hardcoding.
+  # Was one half of the original Validator bluebook, paired with
+  # Violation (now in discipline/violation.bluebook). Rule is the
+  # catalog ; Violation is the detected breach. No policies between
+  # them in the original, so the split is structural-only.
+  #
+  # Each rule is a fixture. The runtime reads these fixtures and
+  # applies them when validating a domain. No Rust hardcoding.
   #
   # Innate rules: structural (always apply)
   # Adaptive rules: learned from corrections (antibodies)
@@ -34,28 +39,6 @@ Hecks.bluebook "Validator", version: "2026.04.17.1" do
 
     query ListRules do
       description "What rules do I enforce?"
-    end
-  end
-
-  aggregate "Violation", "A detected rule violation" do
-    identified_by :ref
-    attribute :ref, String
-    attribute :rule_name, String
-    attribute :message, String
-    attribute :aggregate_name, String
-    attribute :command_name, String
-
-    command "DetectViolation" do
-      description "A rule was broken"
-      attribute :rule_name, String
-      attribute :message, String
-      emits "ViolationDetected"
-      then_set :rule_name, to: :rule_name
-      then_set :message, to: :message
-    end
-
-    query ListViolations do
-      description "What's wrong with this domain?"
     end
   end
 

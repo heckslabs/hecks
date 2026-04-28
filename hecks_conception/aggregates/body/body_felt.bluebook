@@ -1,0 +1,85 @@
+Hecks.bluebook "BodyFelt", version: "2026.04.28.1" do
+  vision "The body's overall felt sense — slowest-wins resolution across all DaemonRhythm rows. Singleton ; one row, updated whenever any DaemonRhythm shifts."
+  category "body"
+
+  # ============================================================
+  # BODY FELT — split from interoception.bluebook (i112)
+  # ============================================================
+  #
+  # Was the singleton half of the original Interoception bluebook,
+  # paired with DaemonRhythm (now in body/daemon_rhythm.bluebook).
+  # The body's overall felt sense across all daemons. Resolved by
+  # 'most-degraded wins' (Chris's 'slowest wins' answer to the
+  # multi-daemon question) : if any daemon feels absent, the body
+  # feels absent. Otherwise irregular > slow > quick > steady.
+  #
+  # The within-domain policy UpdateBodyFeltOnRhythmShift subscribes
+  # to DaemonRhythm.RhythmAssessed and triggers UpdateBodyFelt here.
+  # Cross-bluebook event subscription stays the same shape ; the
+  # policy moves with its trigger target.
+  #
+  # Consumer-contract — strong mood coupling on shift
+  #
+  # When BodyFelt::BodyFeltShifted fires, the body's overall
+  # felt_quality has changed in a way that should bias mood
+  # strongly (Chris's design call — quick → adjust toward alert ;
+  # slow → toward heavy ; irregular → toward unsettled ; absent →
+  # toward numb ; steady → toward calm).
+  #
+  # Cross-domain policy dispatch isn't first-class today, so until
+  # that lands the consumer (mindstream daemon, or future i71
+  # pipeline once it absorbs body events) should dispatch :
+  #
+  #   hecks-life aggregates mood Mood.BiasFromRhythm \\
+  #     felt_quality=<quality> source=interoception
+  #
+  # Same wiring shape morphology.bluebook uses for MintMusing.
+  #
+  # Three additional consumer dispatches when felt_quality shifts :
+  #
+  #   1. Awareness.RecordMoment carrying felt_quality as part of
+  #      the state snapshot, so subsequent narration phrases
+  #      reflect the felt sense.
+  #   2. Status bar update — single-word interoceptive cue
+  #      (steady / quick / slow / irregular / absent), gated on
+  #      shift to avoid churn.
+  #   3. dream_seed source — when PR #439's seed-diversity work is
+  #      live, felt_quality narratives become candidate seeds for
+  #      tomorrow's REM. The body's experience of itself becomes
+  #      its own dream material. That's the recursion the dream
+  #      asked for.
+
+  aggregate "BodyFelt", "The body's overall felt sense — slowest-wins resolution across all DaemonRhythm rows. Singleton ; one row, updated whenever any DaemonRhythm shifts." do
+    identified_by :name
+    attribute :name, String
+    # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
+    attribute :felt_quality,    String, default: "unknown"
+    attribute :narrative,       String
+    # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
+    attribute :dominant_daemon, String
+    # value_object: Timestamp (ISO 8601 UTC)
+    attribute :assessed_at,     String
+
+    command "UpdateBodyFelt" do
+      role "System"
+      description "Recompute the body's felt sense from current DaemonRhythm state. Slowest-wins ranking : absent > irregular > slow > quick > steady. The dominant_daemon names which daemon's quality won. Narrative regenerates only when felt_quality changes."
+      # value_object: FeltQuality enum:steady|quick|slow|irregular|absent|unknown
+      attribute :felt_quality,    String
+      attribute :narrative,       String
+      # value_object: DaemonName enum:heart|mindstream|sleep_cycle|circadian|ultradian|breath
+      attribute :dominant_daemon, String
+      # value_object: Timestamp (ISO 8601 UTC)
+      attribute :assessed_at,     String
+      emits "BodyFeltShifted"
+      then_set :felt_quality,    to: :felt_quality
+      then_set :narrative,       to: :narrative
+      then_set :dominant_daemon, to: :dominant_daemon
+      then_set :assessed_at,     to: :assessed_at
+    end
+  end
+
+  policy "UpdateBodyFeltOnRhythmShift" do
+    on "RhythmAssessed"
+    trigger "UpdateBodyFelt"
+  end
+end

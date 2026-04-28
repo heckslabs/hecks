@@ -1,0 +1,35 @@
+Hecks.bluebook "Speech", version: "2026.04.28.1" do
+  vision "Producing a response to input — the 'speak' end of how I render thought as words."
+  category "surface"
+
+  # ============================================================
+  # SPEECH — split from tongue.bluebook (i112)
+  # ============================================================
+  #
+  # Was one half of the original Tongue bluebook, paired with Voice
+  # (now in surface/voice.bluebook). Speech is the act ; Voice is the
+  # configuration. Two concerns, two files. No policies between them
+  # in the original, so the split is structural-only.
+
+  aggregate "Speech", "Producing a response to input" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :input, String
+    attribute :response, String
+    attribute :model, String
+    attribute :style, String
+
+    command "Speak" do
+      description "Respond to input"
+      attribute :input, String
+      then_set :input, to: :input
+      emits "Spoken"
+    end
+
+    query HearResponse do
+      description "What did I say?"
+    end
+  end
+
+  # In-memory canned responses — used when no LLM adapter is configured
+end
