@@ -211,5 +211,7 @@ fn stamp_aggregate(
         state.set(&key, Value::Str(d.status.clone()));
     }
     state.set("phase", Value::Str("done".into()));
-    repo.save(state);
+    repo.save(state, crate::heki::WriteContext::OutOfBand {
+        reason: "boot capability runner — writes Boot aggregate state directly; retires when boot.bluebook + capability runner dispatch lands",
+    });
 }

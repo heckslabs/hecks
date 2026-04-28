@@ -42,7 +42,7 @@ fn write_store(path: &Path, records: &[(&str, serde_json::Value)]) {
         for (k, v) in obj { r.insert(k.clone(), v.clone()); }
         store.insert(id.to_string(), r);
     }
-    heki::write(path.to_str().unwrap(), &store).unwrap();
+    heki::write(path.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 }
 
 fn run(args: &[&str]) -> (i32, String, String) {
@@ -260,7 +260,7 @@ fn latest_field_picks_latest_updated_at() {
     r2.insert("state".into(), json!("awake"));
     r2.insert("updated_at".into(), json!("2026-04-01T01:00:00Z"));
     store.insert("2".into(), r2);
-    heki::write(f.to_str().unwrap(), &store).unwrap();
+    heki::write(f.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 
     let (rc, out, _) = run(&["heki", "latest-field", f.to_str().unwrap(), "state"]);
     assert_eq!(rc, 0);
@@ -304,6 +304,7 @@ fn mark_updates_matching_records_and_prints_count() {
         ("c", json!({"idea": "one",  "conceived": true,  "created_at": "2026-01-01T00:00:02Z"})),
     ]);
     let (rc, out, _) = run(&["heki", "mark", f.to_str().unwrap(),
+        "--reason", "test mark",
         "--where", "idea=one", "--where", "conceived=false",
         "--set", "conceived=true"]);
     assert_eq!(rc, 0);
@@ -320,7 +321,8 @@ fn mark_without_where_exits_2() {
     let dir = tmpdir();
     let f = dir.join("m.heki");
     sample_inbox(&f);
-    let (rc, _, _) = run(&["heki", "mark", f.to_str().unwrap(), "--set", "x=y"]);
+    let (rc, _, _) = run(&["heki", "mark", f.to_str().unwrap(),
+        "--reason", "test mark", "--set", "x=y"]);
     assert_eq!(rc, 2);
 }
 
@@ -414,7 +416,7 @@ fn parity_latest_field_matches_python_get() {
     r.insert("fatigue_state".into(), json!("alert"));
     r.insert("updated_at".into(), json!("2026-04-21T00:00:00Z"));
     store.insert("1".into(), r);
-    heki::write(f.to_str().unwrap(), &store).unwrap();
+    heki::write(f.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 
     let (rc, rust_out, _) = run(&["heki", "latest-field", f.to_str().unwrap(), "fatigue_state"]);
     assert_eq!(rc, 0);
@@ -449,7 +451,7 @@ fn parity_seconds_since_matches_python_datetime() {
     r.insert("id".into(), json!("1"));
     r.insert("updated_at".into(), json!("2020-01-01T00:00:00Z"));
     store.insert("1".into(), r);
-    heki::write(f.to_str().unwrap(), &store).unwrap();
+    heki::write(f.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 
     let (rc, rust_out, _) = run(&["heki", "seconds-since", f.to_str().unwrap(), "updated_at"]);
     assert_eq!(rc, 0);

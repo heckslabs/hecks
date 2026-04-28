@@ -338,7 +338,10 @@ fn pre_seed_singletons(rt: &mut Runtime, in_scope: &mut HashMap<String, String>)
         if in_scope.contains_key(&agg_name) { continue; }
         if let Some(repo) = rt.repositories.get_mut(&agg_name) {
             let id = "1".to_string();
-            repo.save(crate::runtime::AggregateState::new(&id));
+            repo.save(crate::runtime::AggregateState::new(&id),
+                crate::heki::WriteContext::OutOfBand {
+                    reason: "behaviors test runner — pre-seed empty singleton at id=1 for cross-aggregate setup",
+                });
             in_scope.insert(agg_name, id);
         }
     }

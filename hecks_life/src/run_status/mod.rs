@@ -121,7 +121,9 @@ fn stamp_aggregate(rt: &mut Runtime, r: &Report) {
     let mindstream = r.daemons.iter().find(|d| d.name == "mindstream");
     let mindstream_alive = mindstream.map(|d| d.alive).unwrap_or(false);
     state.set("mindstream_alive",    Value::Str(if mindstream_alive { "alive" } else { "down" }.into()));
-    repo.save(state);
+    repo.save(state, crate::heki::WriteContext::OutOfBand {
+        reason: "status capability runner — writes Status aggregate state directly; retires when status capability gets dispatched runner",
+    });
 }
 
 /// The `:fs` adapter's `root:` option anchors the heki store directory.

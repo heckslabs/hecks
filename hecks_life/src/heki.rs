@@ -5,8 +5,21 @@
 //!
 //! Usage:
 //!   let records = heki::read("information/mood.heki")?;
-//!   heki::append("information/mood.heki", &attrs)?;
-//!   heki::upsert("information/mood.heki", &attrs)?;
+//!   heki::append("information/mood.heki", &attrs, WriteContext::Dispatch { ... })?;
+//!   heki::upsert("information/mood.heki", &attrs, WriteContext::OutOfBand { reason: "..." })?;
+//!
+//! ## WriteContext discipline
+//!
+//! Every write carries a `WriteContext` so the audit trail can tell
+//! the canonical path (a runtime command dispatch mutating its own
+//! aggregate's heki) from out-of-band writes (test setup, manual
+//! migration, bootstrap seed). The runtime's `Repository::save` /
+//! `Repository::delete` always pass `Dispatch` ; CLI subcommands
+//! (`hecks-life heki upsert/delete/append`) require an explicit
+//! `--reason "<why>"` flag and pass `OutOfBand`. Direct callers
+//! without context are a discipline gap — that's the structural
+//! enforcement test_purity_shape's audit channel will eventually
+//! react to.
 
 use std::collections::HashMap;
 use std::fs;
@@ -22,6 +35,48 @@ pub type Record = HashMap<String, serde_json::Value>;
 
 /// A store — all records in one .heki file, keyed by ID.
 pub type Store = HashMap<String, Record>;
+
+/// Origin of a heki write — the discipline boundary. Every write
+/// must declare which lane it's in. The runtime's command dispatcher
+/// passes `Dispatch` ; CLI subcommands and tests pass `OutOfBand`
+/// with a reason captured in the audit log.
+#[derive(Debug, Clone, Copy)]
+pub enum WriteContext<'a> {
+    /// The canonical path : a runtime command applied a mutation,
+    /// the dispatcher saved the resulting state. `aggregate` and
+    /// `command` are recorded for the audit trail.
+    Dispatch { aggregate: &'a str, command: &'a str },
+
+    /// Out-of-band : the write didn't originate from a runtime
+    /// dispatch. Legitimate cases are test setup, one-shot
+    /// migration scripts, and bootstrap seeds. The `reason` is
+    /// recorded so the audit dashboard can surface direct-write
+    /// rate over time and flag patterns worth filing as runtime gaps.
+    OutOfBand { reason: &'a str },
+}
+
+impl<'a> WriteContext<'a> {
+    /// Format a one-line audit token for stderr / heki audit log.
+    fn audit_tag(&self) -> String {
+        match self {
+            WriteContext::Dispatch { aggregate, command } =>
+                format!("dispatch:{}.{}", aggregate, command),
+            WriteContext::OutOfBand { reason } =>
+                format!("out-of-band:{}", reason),
+        }
+    }
+}
+
+/// Audit channel — every write logs to stderr in a parseable form.
+/// Quiet by default unless `HECKS_HEKI_AUDIT=1` is set ; out-of-band
+/// writes always log so the discipline gap stays visible.
+fn audit_write(ctx: &WriteContext, path: &str, op: &str) {
+    let always = matches!(ctx, WriteContext::OutOfBand { .. });
+    let verbose = std::env::var("HECKS_HEKI_AUDIT").ok().as_deref() == Some("1");
+    if always || verbose {
+        eprintln!("[heki:{}] {} → {}", op, ctx.audit_tag(), path);
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Read
@@ -109,7 +164,19 @@ fn sanitize(path: &str, store: &Store) -> Store {
 }
 
 /// Write a store to a .heki file (HEKI + count + zlib-compressed JSON).
-pub fn write(path: &str, store: &Store) -> Result<(), String> {
+/// Public surface — all writes carry a `WriteContext` so the audit
+/// channel can distinguish dispatch-driven persistence from out-of-band
+/// rewrites. Internally calls `write_raw` after auditing.
+pub fn write(path: &str, store: &Store, ctx: WriteContext<'_>) -> Result<(), String> {
+    audit_write(&ctx, path, "persist");
+    write_raw(path, store)
+}
+
+/// Persist a store to disk without auditing. Used by `append`, `upsert`,
+/// `delete`, `archive` — those audit at their user-visible op level so
+/// the log doesn't double-fire ("upsert" → "persist") for one logical
+/// mutation. Not exposed outside this module.
+fn write_raw(path: &str, store: &Store) -> Result<(), String> {
     let store = sanitize(path, store);
     let json = serde_json::to_string(&store)
         .map_err(|e| format!("json serialize: {}", e))?;
@@ -130,7 +197,8 @@ pub fn write(path: &str, store: &Store) -> Result<(), String> {
 }
 
 /// Append a new record with a generated UUID. Returns the new record.
-pub fn append(path: &str, attrs: &Record) -> Result<Record, String> {
+pub fn append(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Record, String> {
+    audit_write(&ctx, path, "append");
     let mut store = read(path)?;
     let id = uuid_v4();
     let now = now_iso8601_internal();
@@ -144,7 +212,7 @@ pub fn append(path: &str, attrs: &Record) -> Result<Record, String> {
     }
 
     store.insert(id, record.clone());
-    write(path, &store)?;
+    write_raw(path, &store)?;
     Ok(record)
 }
 
@@ -162,7 +230,8 @@ pub fn append(path: &str, attrs: &Record) -> Result<Record, String> {
 /// Rule 1 is the fix for multi-record stores like inbox.heki where
 /// `id=<existing-uuid>` used to arbitrarily update the first row instead
 /// of the targeted one.
-pub fn upsert(path: &str, attrs: &Record) -> Result<Record, String> {
+pub fn upsert(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Record, String> {
+    audit_write(&ctx, path, "upsert");
     let mut store = read(path)?;
     let now = now_iso8601_internal();
 
@@ -178,7 +247,7 @@ pub fn upsert(path: &str, attrs: &Record) -> Result<Record, String> {
             }
             existing.insert("updated_at".into(), serde_json::Value::String(now));
             let rec = existing.clone();
-            write(path, &store)?;
+            write_raw(path, &store)?;
             return Ok(rec);
         }
     }
@@ -191,7 +260,7 @@ pub fn upsert(path: &str, attrs: &Record) -> Result<Record, String> {
             }
             existing.insert("updated_at".into(), serde_json::Value::String(now));
             let rec = existing.clone();
-            write(path, &store)?;
+            write_raw(path, &store)?;
             return Ok(rec);
         }
     }
@@ -208,29 +277,37 @@ pub fn upsert(path: &str, attrs: &Record) -> Result<Record, String> {
         rec.insert(k.clone(), v.clone());
     }
     store.insert(id, rec.clone());
-    write(path, &store)?;
+    write_raw(path, &store)?;
     Ok(rec)
 }
 
 /// Delete a record by ID. Returns true if found and removed.
-pub fn delete(path: &str, id: &str) -> Result<bool, String> {
+pub fn delete(path: &str, id: &str, ctx: WriteContext<'_>) -> Result<bool, String> {
+    audit_write(&ctx, path, "delete");
     let mut store = read(path)?;
     let removed = store.remove(id).is_some();
     if removed {
-        write(path, &store)?;
+        write_raw(path, &store)?;
     }
     Ok(removed)
 }
 
 /// Archive a record — move it from source store to archive store.
 /// Adds archived_at and archived_reason fields.
-pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str) -> Result<bool, String> {
+pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str, ctx: WriteContext<'_>) -> Result<bool, String> {
+    audit_write(&ctx, source_path, "archive");
     let mut store = read(source_path)?;
     if let Some(mut rec) = store.remove(id) {
         rec.insert("archived_reason".into(), serde_json::Value::String(reason.into()));
         rec.insert("archived_at".into(), serde_json::Value::String(now_iso8601_internal()));
-        write(source_path, &store)?;
-        append(archive_path, &rec)?;
+        write_raw(source_path, &store)?;
+        // Archive append uses the same context — semantically the
+        // same operation.
+        let mut store = read(archive_path)?;
+        let id_val = rec.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
+            .unwrap_or_else(uuid_v4);
+        store.insert(id_val, rec);
+        write_raw(archive_path, &store)?;
         Ok(true)
     } else {
         Ok(false)

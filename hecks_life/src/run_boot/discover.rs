@@ -70,7 +70,9 @@ pub fn write_census(info_dir: &str, counts: &OrganCounts) -> Result<(), String> 
     rec.insert("total_capabilities".into(),  n(counts.capabilities));
     rec.insert("total_nerves".into(),        n(counts.nerves));
     rec.insert("total_vows".into(),          n(counts.vows));
-    let _ = heki::upsert(&path, &rec)?;
+    let _ = heki::upsert(&path, &rec, heki::WriteContext::OutOfBand {
+        reason: "boot-time census write — counts organs/aggregates/capabilities/nerves/vows from filesystem walk; not yet a dispatched command",
+    })?;
     Ok(())
 }
 
