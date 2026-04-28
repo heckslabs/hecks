@@ -227,29 +227,43 @@ impl Runtime {
                         }
                     }
                 }
-                // Inject the identity field when the triggered command needs
-                // a single-instance aggregate. Handles two cases:
+                // Inject the identity field when the triggered command's
+                // aggregate uses identified_by. Two cases this catches:
                 //   1. Key absent — policy cascade didn't supply an id.
                 //   2. Key present but value doesn't match any record —
                 //      upstream aggregate leaked its own identified_by field
-                //      (e.g. Pulse's `name="302"` in a BodyPulse event) into
+                //      (e.g. Pulse's `name="pulse"` in a BodyPulse event) into
                 //      the cascade data, pointing at a non-existent record.
-                // Only fires when count == 1: if the repo has more records
-                // the singleton assumption doesn't hold; we let dispatch
-                // counter-mint rather than guess which record was intended.
+                // The injection picks the lexicographically lowest existing
+                // record id (deterministic). For natural-key singletons
+                // (Heartbeat → "heartbeat", Tick → "tick"), this finds the
+                // canonical row even when junk counter-minted records sit
+                // alongside it. Without this, every cascade tick creates yet
+                // another counter-minted record because id_for_command
+                // honored the leaked upstream value.
                 if let Some(ref key) = agg.identified_by {
                     if let Some(repo) = self.repositories.get(&agg.name) {
-                        if repo.count() == 1 {
-                            let needs_inject = match data.get(key.as_str()) {
-                                None => true,
-                                Some(v) => v.as_str()
-                                    .map(|s| repo.find(s).is_none())
-                                    .unwrap_or(true),
-                            };
-                            if needs_inject {
-                                if let Some(existing) = repo.all().first() {
-                                    data.insert(key.clone(), Value::Str(existing.id.clone()));
-                                }
+                        let needs_inject = match data.get(key.as_str()) {
+                            None => true,
+                            Some(v) => v.as_str()
+                                .map(|s| repo.find(s).is_none())
+                                .unwrap_or(true),
+                        };
+                        if needs_inject {
+                            // Prefer a record whose id is non-numeric (the
+                            // natural-key form, e.g. "heartbeat") over a
+                            // counter-minted u64 id ("1", "42", "302" — the
+                            // junk left by pre-i80 dispatches). Within each
+                            // group fall back to lex-min for determinism.
+                            let pick = repo.all().iter()
+                                .map(|s| s.id.clone())
+                                .min_by(|a, b| {
+                                    let an = a.chars().all(|c| c.is_ascii_digit());
+                                    let bn = b.chars().all(|c| c.is_ascii_digit());
+                                    an.cmp(&bn).then_with(|| a.cmp(b))
+                                });
+                            if let Some(id) = pick {
+                                data.insert(key.clone(), Value::Str(id));
                             }
                         }
                     }

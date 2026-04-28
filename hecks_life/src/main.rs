@@ -1561,6 +1561,13 @@ fn run_terminal(project_dir: &str, being: &str) {
 /// raised UnknownCommand on dispatch. Now they're auto-loaded alongside
 /// the organ aggregates and dispatch resolves them through the standard
 /// runtime path.
+///
+/// **Organ-wins dedupe.** When a capability bluebook re-declares an
+/// aggregate already defined under aggregates/ (e.g. self_checkin.bluebook
+/// declared a second `Heartbeat` without identified_by, which silently
+/// overwrote body.bluebook's canonical one), the organ definition wins
+/// and the capability copy is dropped. Capabilities can REFERENCE organ
+/// aggregates ; redeclaration is a name conflict, not an extension.
 fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     let mut combined = hecks_life::ir::Domain {
         name: "Hecksagon".into(),
@@ -1571,11 +1578,17 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         sections: vec![],
     };
     let merge = |dom: hecks_life::ir::Domain, c: &mut hecks_life::ir::Domain| {
-        c.aggregates.extend(dom.aggregates);
+        for agg in dom.aggregates {
+            if c.aggregates.iter().any(|existing| existing.name == agg.name) {
+                continue; // organ-wins dedupe
+            }
+            c.aggregates.push(agg);
+        }
         c.policies.extend(dom.policies);
         c.fixtures.extend(dom.fixtures);
     };
-    // Organs : every .bluebook directly under aggregates/.
+    // Organs first : every .bluebook directly under aggregates/. Their
+    // aggregates take precedence over any capability redeclaration.
     if let Ok(entries) = fs::read_dir(agg_dir) {
         for entry in entries.flatten() {
             let p = entry.path();
@@ -1586,7 +1599,7 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
             }
         }
     }
-    // Capabilities : every .bluebook under sibling capabilities/*/.
+    // Capabilities next : every .bluebook under sibling capabilities/*/.
     let cap_dir = std::path::Path::new(agg_dir).parent()
         .map(|p| p.join("capabilities"));
     if let Some(cap_dir) = cap_dir {
