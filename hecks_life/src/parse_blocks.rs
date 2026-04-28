@@ -163,6 +163,14 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 if let Some(field) = extract_symbol(line) {
                     cmd.mutations.push(Mutation { field, operation: MutationOp::Toggle, value: String::new() });
                 }
+            } else if line.starts_with("then_delete") {
+                // Record-level deletion. No field, no value — the op
+                // alone says "remove this aggregate after dispatch".
+                cmd.mutations.push(Mutation {
+                    field: String::new(),
+                    operation: MutationOp::Delete,
+                    value: String::new(),
+                });
             }
         }
         i += 1;

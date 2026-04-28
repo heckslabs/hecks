@@ -116,6 +116,18 @@ impl Repository {
         }
     }
 
+    /// Remove a record from the in-memory store and persist the
+    /// updated set back to heki. The companion to `save` for the
+    /// `then_delete` mutation primitive ; only retire-style commands
+    /// reach this path.
+    pub fn delete(&mut self, id: &str) {
+        self.store.remove(id);
+        if let Some(ref dir) = self.data_dir {
+            let path = heki_path(dir, &self.aggregate_type);
+            let _ = heki::delete(&path, id);
+        }
+    }
+
     pub fn find(&self, id: &str) -> Option<&AggregateState> {
         self.store.get(id)
     }

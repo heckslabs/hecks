@@ -124,6 +124,21 @@ module Hecks
         )
       end
 
+      # Record-level deletion. The Rust runtime applies a `Delete`
+      # mutation that flags the AggregateState ; the dispatcher then
+      # calls `Repository::delete` instead of `save`. Used by retire-
+      # style commands (e.g. Antibody.RetireExemption) that close out
+      # a record after their event fires. No field, no value — the op
+      # alone carries intent.
+      #
+      #   then_delete
+      #
+      def then_delete
+        @mutations << BluebookModel::Behavior::Mutation.new(
+          field: nil, operation: :delete, value: nil
+        )
+      end
+
       # Accepts both the canonical keyword form and a positional shorthand:
       #
       #   then_set :status, to: "placed"       # canonical

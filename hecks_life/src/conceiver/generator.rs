@@ -162,6 +162,7 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
             MutationOp::Multiply => format!("then_set :{}, multiply: {}", m.field, m.value),
             MutationOp::Clamp => format!("then_set :{}, clamp: {}", m.field, m.value),
             MutationOp::Decay => format!("then_set :{}, decay: {}", m.field, m.value),
+            MutationOp::Delete => "then_delete".to_string(),
         };
         out.push(format!("      {}", op));
     }

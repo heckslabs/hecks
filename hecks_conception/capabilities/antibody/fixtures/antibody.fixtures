@@ -54,10 +54,16 @@ Hecks.fixtures "Antibody" do
   # (i80 follow-up : test-purity rule says runtime-read state belongs
   # in .heki, not .fixtures). The aggregate is declared in
   # antibody.bluebook ; the enforcer reads the heki via the heki
-  # module on every PostToolUse fire. Add new exemptions via
-  # `hecks-life heki upsert information/exempt_registry.heki id=PATH
-  # path=PATH reason="..."` (or via Antibody.RegisterExemption once
-  # capability dispatch lands).
+  # module on every PostToolUse fire. Add new exemptions through the
+  # runtime :
+  #
+  #   hecks-life aggregates/ Antibody.RegisterExemption \
+  #     path="lib/foo.rb" reason="kernel-surface — ..."
+  #
+  # The dispatch goes through capability auto-load (i108) — the
+  # runtime walks `capabilities/*/*.bluebook` alongside `aggregates/`,
+  # so RegisterExemption resolves and persists through the standard
+  # commands → events → heki pipeline.
 
   # ---- Test cases ------------------------------------------------
   #

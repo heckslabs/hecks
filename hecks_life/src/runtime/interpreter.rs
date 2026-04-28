@@ -82,6 +82,11 @@ pub fn apply_mutations(
             MutationOp::Toggle => {
                 state.toggle(&mutation.field);
             }
+            MutationOp::Delete => {
+                // Record-level — flag the state so the dispatcher
+                // calls Repository::delete instead of save.
+                state.deleted = true;
+            }
             MutationOp::Multiply => {
                 // i106 — current * factor. Factor source-text is
                 // resolved against attrs/state first so dispatchers can
