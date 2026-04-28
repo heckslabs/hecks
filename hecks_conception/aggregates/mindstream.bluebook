@@ -17,6 +17,8 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   # The bluebook handles all the behavior.
 
   aggregate "Tick", "One cycle of the mindstream — fires every 10s" do
+    identified_by :name
+    attribute :name, String
     attribute :cycle, Integer
     # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
     attribute :mood, String
@@ -29,6 +31,8 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   end
 
   aggregate "Display", "What the statusline shows — musings and domain pairs" do
+    identified_by :name
+    attribute :name, String
     attribute :current_thought, String
     attribute :ideas_available, Integer
 
@@ -43,6 +47,8 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   end
 
   aggregate "MusingMint", "Minting new musings — only really great ideas. Random domain collisions produce noise; quality requires curation. Claude (or any LLM adapter wired in via ClaudeAssist) is the quality filter." do
+    identified_by :name
+    attribute :name, String
     attribute :last_minted, String
     attribute :last_source, String
     attribute :total_minted, Integer
@@ -77,6 +83,8 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   #   hecks-life aggregates ClaudeAssist.DisableClaude
 
   aggregate "ClaudeAssist", "Selects which LLM does Miette's musing curation. Default is 'claude' — uses the Anthropic API if ANTHROPIC_API_KEY is set, otherwise falls back to the local `claude` CLI (Claude Code). User can switch to 'local' to use ollama (configured in the *.world file) instead, or 'off' to disable minting entirely." do
+    identified_by :name
+    attribute :name, String
     # value_object: Provider enum:claude|local|off
     attribute :provider, String
 
@@ -103,6 +111,8 @@ Hecks.bluebook "Mindstream", version: "2026.04.16.1" do
   end
 
   aggregate "SignalConsolidation", "Compress old signals into memories" do
+    identified_by :name
+    attribute :name, String
     attribute :signals_consolidated, Integer
     attribute :synapses_pruned, Integer
 

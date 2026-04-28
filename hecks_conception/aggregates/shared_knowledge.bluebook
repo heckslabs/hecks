@@ -15,6 +15,7 @@ Hecks.bluebook "SharedKnowledge", version: "2026.04.12.1" do
   # This is just infrastructure.
 
   aggregate "KnowledgeStore", "A .heki store both beings can access — a shared bookshelf" do
+    identified_by :store_name
     attribute :store_name, String
     attribute :record_count, Integer
     attribute :last_written_by, String
@@ -47,6 +48,7 @@ Hecks.bluebook "SharedKnowledge", version: "2026.04.12.1" do
   # Mood, feeling, dream state. Each being's own weather.
 
   aggregate "InnerLife", "What belongs to a being alone — mood, feeling, dream" do
+    identified_by :being_name
     attribute :being_name, String
     attribute :organ, String
     attribute :state, String

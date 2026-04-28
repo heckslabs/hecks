@@ -1,0 +1,12 @@
+Hecks.behaviors "Disposition" do
+  vision "Behavioral tests for the Disposition domain — exercises the Establish command in memory"
+
+  # ── Disposition aggregate ──────────────────────────────────────────
+
+  test "Establish sets all five attributes" do
+    tests "Establish", on: "Disposition"
+    input  name: "sample", heading: "sample heading", body: "sample body", order: 0, heading_level: 2
+    expect ok: "true"
+  end
+
+end

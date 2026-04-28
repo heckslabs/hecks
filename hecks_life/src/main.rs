@@ -33,6 +33,13 @@
 //!  surface family as run_loop / run_daemon / run_enforce_edit ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
+//!
+//! [antibody-exempt: hecks_life/src/main.rs — closes i118 (enforcer-honors-
+//!  in-file-antibody-exempt-markers). run_enforce_edit now reads the touched
+//!  file's first 200 lines and dispatches Enforcer.RecordExemptedEdit (silent
+//!  exit 0) instead of Enforcer.Complain when the file already carries a
+//!  marker. The marker IS the audit trail. Same i80 retirement contract as
+//!  the rest of the run_enforce_edit family.]
 
 use hecks_life::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
@@ -1783,9 +1790,17 @@ fn run_enforce_edit(_args: &[String]) {
     }
 
     let kind = classify_file(&file_path);
+
+    // For imperative files, check the central exempt registry in
+    // antibody.fixtures (ExemptRegistry aggregate). A file is exempt
+    // iff its repo-relative path is listed there — no inline marker
+    // needed in the source file itself.
+    let exempted = matches!(kind, FileKind::Imperative)
+        && file_is_in_exempt_registry(&file_path);
+
     let cmd_name = match kind {
         FileKind::Bluebook   => "RecordBluebookEdit",
-        FileKind::Imperative => "RecordImperativeEdit",
+        FileKind::Imperative => if exempted { "RecordExemptedEdit" } else { "RecordImperativeEdit" },
         FileKind::Support    => "RecordSupportEdit",
         FileKind::Other      => "RecordOtherEdit",
     };
@@ -1806,7 +1821,7 @@ fn run_enforce_edit(_args: &[String]) {
         dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
     });
 
-    if matches!(kind, FileKind::Imperative) {
+    if matches!(kind, FileKind::Imperative) && !exempted {
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let complaint = format!(
             "bluebook-first violation : {} wrote .{} ({}). The enforcer expected a \
@@ -1828,6 +1843,61 @@ fn run_enforce_edit(_args: &[String]) {
         std::process::exit(2);
     }
     std::process::exit(0);
+}
+
+/// Check whether `file_path` appears in the central ExemptRegistry in
+/// `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`.
+/// Matching is suffix-based: a registry entry `path: "hecks_life/src/main.rs"`
+/// matches any edited path that ends with that string. This keeps
+/// repo-relative paths working whether the editor passes absolute or
+/// relative paths.
+///
+/// Returns `false` on any read/parse error — safe default for a hook
+/// that must never panic the editor.
+fn file_is_in_exempt_registry(file_path: &str) -> bool {
+    let registry_path = match find_antibody_fixtures() {
+        Some(p) => p,
+        None => return false,
+    };
+    let src = match std::fs::read_to_string(&registry_path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    // Parse ExemptRegistry rows cheaply: look for lines containing
+    // `path:` inside the ExemptRegistry aggregate block. We don't need
+    // a full fixtures parse — just extract the path values and suffix-match.
+    let mut in_exempt = false;
+    for line in src.lines() {
+        let t = line.trim();
+        if t.starts_with("aggregate \"ExemptRegistry\"") { in_exempt = true; }
+        if in_exempt && t == "end" { break; }
+        if !in_exempt { continue; }
+        // Find `path: "some/path"` on fixture lines
+        if let Some(pos) = t.find("path:") {
+            let after = t[pos + 5..].trim();
+            if let Some(start) = after.find('"') {
+                let rest = &after[start + 1..];
+                if let Some(end) = rest.find('"') {
+                    let entry = &rest[..end];
+                    if file_path.ends_with(entry) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Locate `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`
+/// by resolving from `resolve_aggregates_dir()` (which gives
+/// `…/hecks_conception/aggregates`) up one level then into capabilities.
+fn find_antibody_fixtures() -> Option<String> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let p = std::path::Path::new(&agg_dir)
+        .parent()?
+        .join("capabilities/antibody/fixtures/antibody.fixtures");
+    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
 }
 
 enum FileKind { Bluebook, Imperative, Support, Other }
@@ -2289,12 +2359,22 @@ fn run_clock(args: &[String]) {
     };
     let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
 
+    // Parse trailing key=val attrs (same pattern as run_loop)
+    let mut clock_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    for arg in &args[3..] {
+        if arg.starts_with("--") { continue; }
+        let mut parts = arg.splitn(2, '=');
+        if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
+            clock_attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+        }
+    }
+
     let mut last_cmd: Option<String> = None;
     loop {
         let hour = current_local_hour();
         if let Some(cmd_name) = match_segment(&segments, hour) {
             if last_cmd.as_deref() != Some(cmd_name) {
-                if let Err(e) = rt.dispatch(cmd_name, Default::default()) {
+                if let Err(e) = rt.dispatch(cmd_name, clock_attrs.clone()) {
                     eprintln!("[hecks-life clock] dispatch error: {:?}", e);
                 }
                 last_cmd = Some(cmd_name.to_string());

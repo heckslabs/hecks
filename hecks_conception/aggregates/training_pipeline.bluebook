@@ -3,6 +3,7 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
+    identified_by :name
     attribute :name, String
     attribute :parameters, String
     attribute :source, String
@@ -22,6 +23,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "DataPrep", "Transform Bluebooks and transcripts into training format" do
+    identified_by :name
+    attribute :name, String
     attribute :format, String
     attribute :total_pairs, Integer
     attribute :status, String
@@ -44,6 +47,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "InstructionPair", "A single training example — instruction + expected response" do
+    identified_by :ref
+    attribute :ref, String
     attribute :instruction, String
     attribute :response, String
     attribute :category, String
@@ -62,6 +67,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "FineTune", "The actual training run" do
+    identified_by :ref
+    attribute :ref, String
     attribute :base_model, String
     attribute :dataset_size, Integer
     attribute :epochs, Integer
@@ -108,6 +115,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "Evaluation", "Test the trained model against known-good outputs" do
+    identified_by :name
+    attribute :name, String
     attribute :bluebook_accuracy, Float
     attribute :conversation_quality, Float
     attribute :behavior_adherence, Float
@@ -127,6 +136,8 @@ Hecks.bluebook "TrainingPipeline", version: "2026.04.10.1" do
   end
 
   aggregate "Deployment", "Replace Claude with Miette's own model" do
+    identified_by :name
+    attribute :name, String
     attribute :model_path, String
     attribute :serving_method, String
     attribute :status, String

@@ -49,7 +49,7 @@ build = if prev && prev.start_with?(today)
 new_version = "#{today}.#{build}"
 File.write(version_file_path, new_version)
 
-version_rb = File.join(root, "hecksties", "lib", "hecks", "version.rb")
+version_rb = File.join(root, "lib", "hecks", "version.rb")
 content = File.read(version_rb)
 File.write(version_rb, content.gsub(/VERSION = ".*"/, "VERSION = \"#{new_version}\""))
 puts "Version: #{new_version}"

@@ -10,6 +10,8 @@ Hecks.bluebook "MusingArchive", version: "2026.04.20.1" do
   # moved here via Archive. Multi-record: each archived musing is a row.
 
   aggregate "MusingArchive", "An archived musing — moved out of the active pool because its concept had too many duplicates" do
+    identified_by :ref
+    attribute :ref, String
     attribute :idea, String
     attribute :source, String
     attribute :concept, String

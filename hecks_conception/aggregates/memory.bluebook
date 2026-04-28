@@ -10,6 +10,8 @@ Hecks.bluebook "Memory", version: "2026.04.20.1" do
   # Multi-record: every store is a new memory.
 
   aggregate "Store", "A long-term memory entry — one record per stored signal" do
+    identified_by :ref
+    attribute :ref, String
     attribute :kind, String
     attribute :payload, String
     attribute :source, String
@@ -31,6 +33,8 @@ Hecks.bluebook "Memory", version: "2026.04.20.1" do
   end
 
   aggregate "Encoding", "The act of saving something to memory — always announced" do
+    identified_by :ref
+    attribute :ref, String
     attribute :kind, String
     attribute :subject, String
     attribute :content, String
@@ -51,6 +55,7 @@ Hecks.bluebook "Memory", version: "2026.04.20.1" do
   end
 
   aggregate "Recall", "Retrieving a memory — what Miette knows from past sessions" do
+    identified_by :query
     attribute :query, String
     attribute :found, String
     attribute :source, String
@@ -76,6 +81,8 @@ Hecks.bluebook "Memory", version: "2026.04.20.1" do
   end
 
   aggregate "Consolidation", "Compressing many signals into long-term memory — happens during deep sleep" do
+    identified_by :name
+    attribute :name, String
     attribute :signals_consolidated, Integer
     attribute :memories_created, Integer
     attribute :consolidated_at, String
@@ -92,6 +99,8 @@ Hecks.bluebook "Memory", version: "2026.04.20.1" do
   end
 
   aggregate "Forgetting", "Letting go of memories that no longer serve — pruning, composting" do
+    identified_by :ref
+    attribute :ref, String
     attribute :forgotten, String
     attribute :reason, String
     attribute :composted, String

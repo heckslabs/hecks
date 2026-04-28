@@ -8,6 +8,7 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Sentence", "One thing a being can say that maps to a command" do
+    identified_by :phrase
     attribute :phrase, String
     attribute :domain, String
     attribute :command, String
@@ -49,6 +50,7 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Composition", "Two commands chained — the output of one feeds the input of the next" do
+    identified_by :phrase
     attribute :phrase, String
     attribute :from_domain, String
     attribute :from_command, String
@@ -102,6 +104,7 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Acl", "A phrase book entry — who can say what, and how they say it" do
+    identified_by :canonical_phrase
     attribute :actor, String
     attribute :canonical_phrase, String
     attribute :command_path, list_of(String)
@@ -152,6 +155,8 @@ Hecks.bluebook "Vocabulary", version: "2026.04.11.1" do
   # ============================================================
 
   aggregate "Lexicon", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
+    identified_by :name
+    attribute :name, String
     attribute :sentence_count, Integer
     attribute :composition_count, Integer
     attribute :acl_count, Integer

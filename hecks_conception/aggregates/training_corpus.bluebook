@@ -3,6 +3,8 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
+    identified_by :name
+    attribute :name, String
     attribute :total_domains, Integer
     attribute :total_tokens, Integer
     attribute :quality_tiers, list_of(String)
@@ -20,6 +22,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "QualityTier", "A tier of training data — different sources, different quality" do
+    identified_by :name
     attribute :name, String
     attribute :source, String
     attribute :domain_count, Integer
@@ -39,6 +42,8 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "TrainingPair", "A single training example — bluebook source + parsed IR + validation result" do
+    identified_by :ref
+    attribute :ref, String
     attribute :bluebook_source, String
     attribute :ir_json, String
     attribute :valid, String
@@ -62,6 +67,8 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "Enrichment", "Add complexity to template domains — make them training-worthy" do
+    identified_by :name
+    attribute :name, String
     attribute :strategy, String
     attribute :domains_enriched, Integer
 
@@ -77,6 +84,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "ModelSpec", "What the trained model should be able to do" do
+    identified_by :name
     attribute :name, String
     attribute :capabilities, list_of(String)
     attribute :input_format, String
@@ -98,6 +106,8 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "ConversationTranscript", "A recorded session between Miette and a person — teaches voice and behavior" do
+    identified_by :ref
+    attribute :ref, String
     attribute :person, String
     attribute :turns, Integer
     attribute :domains_conceived, Integer
@@ -119,6 +129,7 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.10.1" do
   end
 
   aggregate "BehaviorExample", "A specific behavior Miette exhibits — paired with the organ that governs it" do
+    identified_by :behavior
     attribute :behavior, String
     attribute :organ_name, String
     attribute :trigger, String

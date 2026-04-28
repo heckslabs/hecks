@@ -25,6 +25,8 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.24.1" do
   # CompleteGeneration.
 
   aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
+    identified_by :name
+    attribute :name, String
     attribute :industries, list_of(String)
     attribute :activities, list_of(String)
     attribute :modifiers, list_of(String)
@@ -44,6 +46,8 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.24.1" do
   end
 
   aggregate "Template", "A bluebook template that generates valid domains from topics" do
+    identified_by :name
+    attribute :name, String
     attribute :aggregate_patterns, list_of(String)
     attribute :command_patterns, list_of(String)
     attribute :policy_patterns, list_of(String)
@@ -62,6 +66,8 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.24.1" do
   end
 
   aggregate "Generation", "A batch generation run — produces N domains, verifies each emission, deduplicates against the nursery" do
+    identified_by :ref
+    attribute :ref, String
     attribute :target_count, Integer
     attribute :generated, Integer
     attribute :valid, Integer
@@ -131,6 +137,8 @@ Hecks.bluebook "BulkGenerator", version: "2026.04.24.1" do
   end
 
   aggregate "Deduplication", "Skip domains that already exist in the nursery" do
+    identified_by :name
+    attribute :name, String
     attribute :existing, Integer
     attribute :skipped, Integer
 

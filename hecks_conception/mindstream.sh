@@ -71,9 +71,10 @@ while true; do
       Consciousness.AdvanceRemToDeepCap \
       Consciousness.AdvanceDeepToLight \
       Consciousness.AdvanceDeepToFinalLight; do
-      $HECKS "$AGG" "$cmd" 2>/dev/null
+      $HECKS "$AGG" "$cmd" name=consciousness 2>/dev/null
     done
     $HECKS "$AGG" Consciousness.CompleteFinalLight \
+      name=consciousness \
       wake_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)" 2>/dev/null
 
     "$DIR/rem_branch.sh" "$loop_count" 2>/dev/null
@@ -88,7 +89,9 @@ while true; do
   # Tick → Ticked → EmitPulseOnTick → BodyPulse → fan-out :
   # consolidate / prune / display / fatigue / mood / sleep-advance
   # / RecordMomentOnPulse all subscribe in their own bluebooks.
-  $HECKS "$AGG" Tick.MindstreamTick 2>/dev/null
+  # name=tick routes the dispatch to the Tick singleton record
+  # (i80 identified_by natural-key contract).
+  $HECKS "$AGG" Tick.MindstreamTick name=tick 2>/dev/null
 
   # Pulse organs — float math + clamp + multi-record dispatch the
   # DSL doesn't yet express ; stays imperative until those land.

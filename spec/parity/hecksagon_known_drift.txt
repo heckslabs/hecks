@@ -39,15 +39,13 @@ examples/shell_adapter/hecks/shell_demo.hecksagon  # Rust parser skips block-for
 # of "allow ", so it's dropped. Ruby collects all 6.
 hecks_conception/aggregates/circuit_breaker.hecksagon  # Rust drops allow continuation lines
 
-# ── `adapter :daemon, name: :foo, ...` shape — Ruby strips name kwarg ──
-# Ruby's `def adapter(kind, name: nil, **opts)` extracts name as a
-# keyword argument and discards it ; opts only carries pidfile/action.
-# Rust's parse_options keeps every kwarg. Same shape as boot.hecksagon
-# on main — both will retire when the Ruby HecksagonBuilder folds name:
-# back into options for non-shell adapters (or when Rust strips it for
-# parity, but the runtime needs name to walk daemon adapters).
-hecks_conception/capabilities/boot/boot.hecksagon          # Ruby strips `name:` kwarg from `:daemon` options
-hecks_conception/capabilities/shutdown/shutdown.hecksagon  # Ruby strips `name:` kwarg from `:daemon` options
+# ── (Retired 2026-04-28 — i80) ──
+# Ruby's `def adapter(kind, name: nil, **opts)` extracted name as a
+# keyword argument and discarded it for non-shell adapters. The fix
+# folds name: back into opts before _build_io_adapter, so the canonical
+# IO adapter dump now carries `[name, :foo]` matching Rust. boot.hecksagon
+# and shutdown.hecksagon (and capabilities/system_prompt_assembly's
+# named :fs adapter) all parse cleanly now.
 
 # ── Ruby builder doesn't model the `domain "name" do … end` shape ──
 # Four nursery files use it today; method_missing raises because

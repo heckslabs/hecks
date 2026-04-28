@@ -26,6 +26,8 @@ Hecks.bluebook "DreamSeed", version: "2026.04.26.1" do
   # the same handful of keywords.
 
   aggregate "DreamSeed", "Previous dreams that feed into new sleep — memory is not storage, it's a signal source" do
+    identified_by :name
+    attribute :name, String
     attribute :images, list_of(String)
     attribute :recombinations, list_of(String)
     attribute :strongest_synapses, list_of(String)

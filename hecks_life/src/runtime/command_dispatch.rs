@@ -45,13 +45,12 @@ pub fn dispatch(
                 None => return Err(RuntimeError::AggregateNotFound(id)),
             }
         } else if is_create {
-            (AggregateState::new(&repo.next_id()), true)
+            (AggregateState::new(&repo.id_for_command(&attrs)), true)
         } else {
             return Err(RuntimeError::MissingAttribute("self-referencing id".into()));
         }
     } else {
-        // Heki adapter: if a record already exists, use it (singleton)
-        let id = repo.next_id();
+        let id = repo.id_for_command(&attrs);
         match repo.find(&id).cloned() {
             Some(s) => (s, false),
             None => (AggregateState::new(&id), true),

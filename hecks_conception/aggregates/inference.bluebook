@@ -3,6 +3,8 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   category "meta"
 
   aggregate "ContextWindow", "Everything stuffed into the prompt — grammar, organs, examples" do
+    identified_by :name
+    attribute :name, String
     attribute :system_prompt, String
     attribute :grammar_tokens, Integer
     attribute :example_tokens, Integer
@@ -23,6 +25,7 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "FewShot", "Real bluebooks included as examples in the context" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :source, String
     attribute :purpose, String
@@ -41,6 +44,7 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "LocalModel", "The locally-running model that receives the context" do
+    identified_by :name
     attribute :name, String
     attribute :context_length, Integer
     attribute :serving, String
@@ -61,6 +65,8 @@ Hecks.bluebook "Inference", version: "2026.04.10.1" do
   end
 
   aggregate "Prompt", "A single inference request — user input + context → bluebook output" do
+    identified_by :ref
+    attribute :ref, String
     attribute :input, String
     attribute :output, String
     attribute :valid, String

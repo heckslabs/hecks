@@ -55,12 +55,16 @@ Hecks.hecksagon "Inbox" do
   # found, durability failure warnings).
   adapter :stderr
 
-  # :shell — the durability adapter. Invokes git as a black box
-  # because the runtime has no first-class :git adapter yet. The
-  # CommitLocal + PushToMain commands declare WHAT runs and WHEN ;
-  # the shell adapter declares HOW the sequence is invoked. A filed
-  # runtime gap names this as the next structural cleanup.
-  adapter :shell
+  # :shell — the durability adapter for CommitLocal + PushToMain.
+  # Invokes git as a black box because the runtime has no first-class
+  # :git adapter yet. The shell adapter is declared at runner-wiring
+  # time (the runner emitted by capability_runner_shape passes the
+  # actual `git add`/`git commit`/`git push` commands inline) ; the
+  # bluebook surface here only names the capability, not the per-
+  # invocation arg vector. Once :git lands first-class, this entry
+  # retires in favour of declarative git operations declared per-
+  # command. A filed runtime gap names this as the next structural
+  # cleanup.
 
   # ---- Subcommand registry ---------------------------------------
   #

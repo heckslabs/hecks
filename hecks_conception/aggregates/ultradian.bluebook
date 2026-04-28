@@ -18,6 +18,8 @@ Hecks.bluebook "Ultradian", version: "2026.04.21.1" do
   # Body cycles are emitters, not reactors — no policies here.
 
   aggregate "Ultradian", "Peak ↔ trough alternation, with a completed-cycle counter" do
+    identified_by :name
+    attribute :name, String
     attribute :phase, String, default: "peak"
     attribute :cycle_count, Integer, default: 0
 

@@ -16,6 +16,8 @@ Hecks.bluebook "Pulse", version: "2026.04.21.1" do
   # Pure conduit.
 
   aggregate "Pulse", "A single body-wide pulse — the shim event that paces fatigue, sleep, and awareness" do
+    identified_by :name
+    attribute :name, String
     attribute :count, Integer
 
     command "Emit" do

@@ -25,6 +25,7 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.24.1" do
   # exactly which features the extractor forgot.
 
   aggregate "TrainingPair", "One JSONL line — prompt + completion from a domain" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :vision, String
     attribute :prompt, String

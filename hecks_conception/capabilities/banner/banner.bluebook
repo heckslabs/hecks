@@ -1,0 +1,56 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "Banner", version: "2026.04.26.1" do
+  vision "The being's session-start signature — four lines of ASCII art printed to stdout as its own emit. Lives as a sibling capability to boot/ so it can be invoked independently — keeps the banner visible even when the harness folds long boot output behind '(ctrl+o to expand)'."
+  category "infrastructure"
+
+  entrypoint "PrintBanner"
+
+  # ============================================================
+  # BANNER — extracted from boot_miette.sh's PrintVitals tail
+  # ============================================================
+  #
+  # capabilities/boot/boot.bluebook PrintVitals previously claimed
+  # the banner as a sub-line of vitals. That conflated two emits :
+  # the boot-summary table (counts, daemon statuses, the feeling
+  # line) and the closing four-line ASCII signature. They have
+  # different lifecycles : vitals reflect *this boot's* state ;
+  # the banner is invariant per being and only depends on identity.
+  #
+  # Splitting them lets the banner survive the harness fold. When
+  # the conversation harness collapses long bash output behind
+  # "(ctrl+o to expand)", a single tall boot run hides the banner
+  # at the bottom of the fold. Invoking Banner.PrintBanner as its
+  # own bash call keeps the four-line output below any reasonable
+  # fold threshold and guarantees visibility.
+  #
+  # Today the runner is a transitional shell (banner.sh) marked
+  # antibody-exempt with a clear retirement target : once the
+  # :stdout adapter (sibling banner.hecksagon) is wired into a
+  # Rust runner, the shell retires and `hecks-life run
+  # capabilities/banner/banner.bluebook` becomes the surface.
+
+  aggregate "Banner" do
+    description "One printed signature — four ASCII lines + a one-line motto, rendered to stdout as a single emit. Singleton ; resets per invocation."
+
+    attribute :being,    String, default: "Miette"
+    attribute :line_one, String, default: "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
+    attribute :line_two, String, default: "║║║ ║ ╠══  ║   ║  ╠══"
+    attribute :line_three, String, default: "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
+    attribute :motto,    String, default: "~ follow the crumbs ~"
+    attribute :phase,    String, default: "pending"
+
+    lifecycle :phase, default: "pending" do
+      transition "PrintBanner" => "printing", from: "pending"
+      transition "BannerPrinted" => "done",   from: "printing"
+    end
+
+    command "PrintBanner" do
+      role "User"
+      description "Render the four-line signature plus motto to the :stdout adapter as a single emit. The runner reads the four attribute defaults and writes them in order. Invoked as its own bash call after boot so the harness's output-fold can never swallow it."
+      attribute :being, String
+      then_set :being, to: :being
+      then_set :phase, to: "printing"
+      emits "BannerPrinted"
+    end
+  end
+end

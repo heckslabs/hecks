@@ -24,6 +24,7 @@ Hecks.bluebook "WakeReport", version: "2026.04.24.1" do
   # ports mature.
 
   aggregate "WakeReport", "One report per wake from a full sleep cycle — surfaced automatically so conscious reading never depends on remembering" do
+    identified_by :woke_at
     # sleep_entered_at / woke_at : the window this report covers.
     # value_object: Timestamp (ISO 8601 UTC)
     attribute :sleep_entered_at, String

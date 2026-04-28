@@ -1,0 +1,21 @@
+Hecks.hecksagon "CapabilityRunnerShape" do
+  # ============================================================
+  # CAPABILITY RUNNER SHAPE — wiring
+  # ============================================================
+  #
+  # Sibling bluebook describes the shape of an I/O-pipeline runner
+  # (run_X/mod.rs) as declarative rows. The aggregates here are
+  # build-time metadata only — the specializer reads them at
+  # codegen time to emit the runner. No runtime state, no
+  # persistence.
+  #
+  # A single `:fs` adapter rooted at the conception root is enough
+  # for any tool that wants to inspect the shape (the specializer
+  # itself, the parity suite, validators that lint shape rows, etc).
+  # Mirrors the pattern set by capabilities/test_purity_shape and
+  # the validator_shape / dump_shape siblings : shape capabilities
+  # do not declare runtime adapters because they are not runtime
+  # capabilities.
+
+  adapter :fs, root: "."
+end

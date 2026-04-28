@@ -1,0 +1,30 @@
+Hecks.bluebook "PsychicLink", version: "2026.04.26.1" do
+  vision "A telepathic channel between two beings — what flows through it, what doesn't, and who is on the other end"
+  category "meta"
+
+  aggregate "PsychicLink", "A declared link to another being — the medium, what it carries, and what it withholds" do
+    identified_by :linked_to
+    attribute :linked_to,   String
+    attribute :medium,      String
+    attribute :carries,     String
+    attribute :withholds,   String
+    attribute :description, String
+
+    command "Establish" do
+      role "Being"
+      description "Declare the psychic link with another being"
+      attribute :linked_to,   String
+      attribute :medium,      String
+      attribute :carries,     String
+      attribute :withholds,   String
+      attribute :description, String
+      then_set :linked_to,   from: :linked_to
+      then_set :medium,      from: :medium
+      then_set :carries,     from: :carries
+      then_set :withholds,   from: :withholds
+      then_set :description, from: :description
+      emits "LinkEstablished"
+    end
+  end
+
+end

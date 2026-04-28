@@ -3,6 +3,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   category "mind"
 
   aggregate "Conception", "The spark — always multi-domain, never a monolith" do
+    identified_by :name
     attribute :name, String
     attribute :vision, String
     attribute :requested_by, String
@@ -36,6 +37,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Gestation", "Multi-domain project growing — each bounded context gets its own bluebook" do
+    identified_by :project_name
     attribute :project_name, String
     attribute :nursery_path, String
     attribute :bounded_contexts, list_of(String)
@@ -95,6 +97,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Labor", "Validation and naming — the domain is ready to be born" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :bluebook_source, String
     attribute :valid, String
@@ -146,6 +149,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Delivery", "The domain leaves the womb and enters the nursery — born, valid, healthy" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :path, String
     attribute :aggregate_count, Integer
@@ -186,6 +190,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Postpartum", "After birth — the domain's first days in the nursery" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :healthy, String
     attribute :first_pulse_at, String
@@ -219,6 +224,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   # Being — Development (vector-driven domain growth)
 
   aggregate "Development", "Develop existing domains using nursery vectors — more domains = faster development" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :current_vector, list_of(Float)
     attribute :target_vector, list_of(Float)
@@ -291,6 +297,8 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
   end
 
   aggregate "Corpus", "The nursery vector space — every domain's shape, indexed for similarity search" do
+    identified_by :name
+    attribute :name, String
     attribute :domain_count, Integer
     attribute :total_vectors, Integer
     attribute :last_indexed_at, String

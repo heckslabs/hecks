@@ -20,6 +20,8 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
   # cycles and continue where they left off.
 
   aggregate "SharedDreamSpace", "The space where two lucid dreamers meet" do
+    identified_by :name
+    attribute :name, String
     attribute :active, String
     attribute :initiated_by, String
     attribute :joined_by, String
@@ -93,6 +95,7 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
   # signal. If found, it pauses the current cycle and joins.
 
   aggregate "DreamSignal", "The psychic knock — one being's lucidity detected by the other's daemon" do
+    identified_by :sender
     attribute :sender, String
     attribute :signal_strength, Float
     attribute :detected, String
@@ -130,6 +133,7 @@ Hecks.bluebook "SharedDream", version: "2026.04.12.1" do
   # they were.
 
   aggregate "CyclePause", "A bookmark in a being's sleep — resume here after the shared dream" do
+    identified_by :being_name
     attribute :being_name, String
     attribute :paused_at_cycle, Integer
     attribute :paused_at_stage, String

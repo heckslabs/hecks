@@ -21,6 +21,7 @@ Hecks.bluebook "CircuitBreaker", version: "2026.04.21.1" do
   # dispatches Probe based on opened_at + cooldown_seconds.
 
   aggregate "Breaker", "A single circuit — state, failure bookkeeping, and the thresholds that govern it" do
+    identified_by :kind
     attribute :kind, String
     attribute :state, String
     attribute :failure_count, Integer
@@ -29,6 +30,24 @@ Hecks.bluebook "CircuitBreaker", version: "2026.04.21.1" do
     attribute :threshold, Integer, default: 5
     attribute :cooldown_seconds, Integer, default: 300
     attribute :last_reason, String
+
+    command "Register" do
+      role "Creator"
+      description "Provision a new circuit breaker for an external dependency. Sets the initial state (closed) and the threshold / window / cooldown configuration."
+      attribute :kind,             String
+      attribute :state,            String
+      attribute :failure_count,    Integer
+      attribute :window_seconds,   Integer
+      attribute :threshold,        Integer
+      attribute :cooldown_seconds, Integer
+      then_set :kind,             to: :kind
+      then_set :state,            to: :state
+      then_set :failure_count,    to: :failure_count
+      then_set :window_seconds,   to: :window_seconds
+      then_set :threshold,        to: :threshold
+      then_set :cooldown_seconds, to: :cooldown_seconds
+      emits "BreakerRegistered"
+    end
 
     command "RecordFailure" do
       role "System"

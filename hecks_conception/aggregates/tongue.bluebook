@@ -3,6 +3,8 @@ Hecks.bluebook "Tongue", version: "2026.04.16.1" do
   category "body"
 
   aggregate "Speech", "Producing a response to input" do
+    identified_by :ref
+    attribute :ref, String
     attribute :input, String
     attribute :response, String
     attribute :model, String
@@ -21,6 +23,8 @@ Hecks.bluebook "Tongue", version: "2026.04.16.1" do
   end
 
   aggregate "Voice", "How I sound — personality, tone, constraints" do
+    identified_by :name
+    attribute :name, String
     attribute :personality, String
     attribute :max_sentences, Integer
     attribute :model, String

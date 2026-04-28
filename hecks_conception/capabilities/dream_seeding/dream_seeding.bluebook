@@ -38,27 +38,27 @@ Hecks.bluebook "DreamSeeding", version: "2026.04.26.1" do
   # source-selection adapters land first-class, the shell retires.
 
   # ============================================================
-  # SEEDSOURCE — one feed in the candidate pool
-  # ============================================================
-  #
-  # Each source has a `name` (logical identifier — used for
-  # tracking which sources have ever been drawn from), a `weight`
-  # (how many candidates to pull from it per night ; 0 means
-  # "never use", >1 means "draw multiple from this source"), and
-  # a `kind` (the adapter mode — see hecksagon for the outbound
-  # port wiring).
-
-  value_object "SeedSource" do
-    attribute :name, String
-    attribute :weight, Integer
-    attribute :kind, String
-  end
-
-  # ============================================================
   # SEEDPOLICY — the night's selection rules
   # ============================================================
 
   aggregate "SeedPolicy", "Per-night seed selection policy. Declares the candidate pool's sources, pool size, forced-novelty rule, and the recently-used exclusion window. One row tracks the rules in effect ; rem_branch.sh (current transitional runner) reads them and applies them. Future runtime wires the rules through first-class adapters." do
+    # ============================================================
+    # SEEDSOURCE — one feed in the candidate pool
+    # ============================================================
+    #
+    # Each source has a `name` (logical identifier — used for
+    # tracking which sources have ever been drawn from), a `weight`
+    # (how many candidates to pull from it per night ; 0 means
+    # "never use", >1 means "draw multiple from this source"), and
+    # a `kind` (the adapter mode — see hecksagon for the outbound
+    # port wiring).
+
+    value_object "SeedSource" do
+      attribute :name, String
+      attribute :weight, Integer
+      attribute :kind, String
+    end
+
     # ---- Pool sizing -----------------------------------------
     # candidates_target : how many candidates to gather before
     # narrowing to seeds_target. ~10 means roughly twice as many

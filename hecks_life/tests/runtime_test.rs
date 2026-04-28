@@ -42,12 +42,10 @@ end"#);
 }
 
 #[test]
-fn create_without_self_ref_is_singleton() {
-    // No self-reference on the Create command means the heki adapter
-    // treats the aggregate as a singleton — repeated dispatches reuse
-    // id "1" rather than allocating new ids. To get sequential ids
-    // a Create needs `reference_to(<self>)` so the runtime can tell
-    // "act on this id" from "create a new one".
+fn create_without_self_ref_mints_counter() {
+    // No self-reference and no identified_by: each Create dispatch mints
+    // a fresh counter id. Two dispatches produce two distinct records.
+    // Use identified_by :field to get find-or-create by natural key.
     let mut rt = boot(r#"Hecks.bluebook "T" do
   aggregate "Pizza" do
     description "A pizza"
@@ -60,7 +58,7 @@ end"#);
     let r1 = rt.dispatch("CreatePizza", HashMap::new()).unwrap();
     let r2 = rt.dispatch("CreatePizza", HashMap::new()).unwrap();
     assert_eq!(r1.aggregate_id, "1");
-    assert_eq!(r2.aggregate_id, "1");
+    assert_eq!(r2.aggregate_id, "2");
 }
 
 // --- Mutations ---
@@ -667,10 +665,9 @@ end"#);
 
 #[test]
 fn seed_loader_dispatches() {
-    // Each seed line counts toward the dispatched count regardless of
-    // whether they create separate records (no self-ref → singleton)
-    // or update the same one. We assert dispatched count == 2 and
-    // the singleton's name is the most recently set one.
+    // Each seed line dispatches one command. Without identified_by,
+    // each dispatch mints a new counter id — two dispatches produce
+    // two distinct Pizza records.
     let mut rt = boot(r#"Hecks.bluebook "T" do
   aggregate "Pizza" do
     description "A pizza"
@@ -687,10 +684,7 @@ end"#);
     ).unwrap();
 
     assert_eq!(count, 2);
-    assert_eq!(rt.all("Pizza").len(), 1);
-    // Auto-input only fires for is_new states. The second dispatch
-    // finds the existing singleton, so name stays at "Margherita".
-    assert_eq!(rt.all("Pizza")[0].get("name"), &s("Margherita"));
+    assert_eq!(rt.all("Pizza").len(), 2);
 }
 
 // --- Veterinary full lifecycle ---
@@ -726,10 +720,9 @@ end"#);
 
 #[test]
 fn auto_projection_tracks_aggregates() {
-    // Without a self-reference, two CreatePizza dispatches collapse
-    // onto one singleton record (heki adapter behavior). The
-    // projection sees one row; the second create updates that row's
-    // name. Test asserts the live state after both dispatches.
+    // Without identified_by, each CreatePizza dispatch mints a new
+    // counter id. Two dispatches produce two distinct records and the
+    // projection sees two rows.
     let mut rt = boot(r#"Hecks.bluebook "T" do
   aggregate "Pizza" do
     description "A pizza"
@@ -744,9 +737,9 @@ end"#);
     rt.dispatch("CreatePizza", attrs(&[("name", s("Margherita"))])).unwrap();
     rt.dispatch("CreatePizza", attrs(&[("name", s("Pepperoni"))])).unwrap();
 
-    assert_eq!(rt.projections[0].count(), 1);
+    assert_eq!(rt.projections[0].count(), 2);
     let rows = rt.projections[0].query_all();
-    assert_eq!(rows.len(), 1);
+    assert_eq!(rows.len(), 2);
 }
 
 // --- Parser: pizzas as a representative real-domain parse ---

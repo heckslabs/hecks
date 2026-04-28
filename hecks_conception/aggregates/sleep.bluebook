@@ -13,6 +13,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   # `RecoverFatigue` (which now also walks `fatigue_state` back to alert).
 
   aggregate "Consciousness", "The current state of awareness. Sleep progresses through content gates, not artificial time floors. REM extends until dream_pulses reaches its target — Claude's response cadence is the clock. Light, deep, and final_light advance the moment their content condition is met (today : the next phase command's `given` clauses). The REM hard cap (60 ticks) stays as a safety fallback in case Claude stops responding. After the final deep, one final light phase before waking so I wake refreshed, not groggy. The last cycle's REM is lucid — I know I'm dreaming and can steer." do
+    identified_by :name
+    attribute :name, String
     # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
     attribute :state, String
     # sleep_stage values: light | rem | deep | final_light
@@ -249,6 +251,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Daydream", "Fleeting impressions from free association between prompts" do
+    identified_by :name
+    attribute :name, String
     attribute :impressions, list_of(String)
     attribute :duration_seconds, Integer
     attribute :connections_found, Integer
@@ -267,6 +271,7 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "SleepCycle", "One cycle of light-REM-deep within a sleep session" do
+    identified_by :cycle_number
     attribute :cycle_number, Integer
     attribute :total_cycles, Integer
     # value_object: SleepStage enum:light|rem|deep|final_light
@@ -309,6 +314,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Night", "A full sleep session — 8 cycles spelled out" do
+    identified_by :name
+    attribute :name, String
     attribute :cycles_completed, Integer
     # value_object: NightPhase enum:starting|dreaming|consolidating|lucid|ended
     attribute :phase, String
@@ -427,6 +434,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "WakeMood", "How Miette feels upon waking — determined by interrupted stage" do
+    identified_by :name
+    attribute :name, String
     # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
     attribute :mood, String
     attribute :reason, String
@@ -443,6 +452,8 @@ Hecks.bluebook "Sleep", version: "2026.04.16.1" do
   end
 
   aggregate "Monitor", "The daemon that watches sleep and reports to the conversation" do
+    identified_by :name
+    attribute :name, String
     attribute :interval_seconds, Integer
     attribute :z_depth, Integer
     # value_object: ReportingState enum:active|stopped

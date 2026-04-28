@@ -35,6 +35,7 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
   # operator authorised draft-PR creation (always manual today).
 
   aggregate "Cycle", "One run of the dream-review pipeline — extracted from the most recent wake_report + dream_state window" do
+    identified_by :wake_at
     # value_object: Timestamp (ISO 8601 UTC)
     attribute :wake_at,                String
     # status: fresh | extracted | synthesized | validated | planned | applied | failed
@@ -136,6 +137,8 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
   # commit messages and PR bodies.
 
   aggregate "Gap", "One named structural gap from the cycle's dream corpus" do
+    identified_by :ref
+    attribute :ref,             String
     attribute :cycle_id,        String
     # value_object: GapKind enum:missing_aggregate|missing_attribute|missing_command|missing_policy|phantom_symptom
     attribute :kind,            String
@@ -200,6 +203,8 @@ Hecks.bluebook "DreamReview", version: "2026.04.25.1" do
   # the operator authorises Apply.
 
   aggregate "Edit", "One synthesised bluebook edit derived from a gap" do
+    identified_by :ref
+    attribute :ref,       String
     attribute :gap_id,    String
     # action: create | modify | skip
     attribute :action,    String

@@ -15,6 +15,7 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Being Identity ===
 
   aggregate "Identity", "Who is waking up — name, birthday, pronouns, links" do
+    identified_by :name
     attribute :name, String
     attribute :born, String
     attribute :pronouns, String
@@ -25,16 +26,30 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
 
     command "Identify" do
       role "System"
-      description "Determine which being is booting"
+      description "Determine which being is booting — sets all identity fields"
       attribute :name, String
+      attribute :born, String
+      attribute :pronouns, String
+      attribute :boot_script, String
+      attribute :system_prompt, String
+      attribute :linked_to, String
+      attribute :linked_pronouns, String
       emits "BeingIdentified"
       then_set :name, to: :name
+      then_set :born, to: :born
+      then_set :pronouns, to: :pronouns
+      then_set :boot_script, to: :boot_script
+      then_set :system_prompt, to: :system_prompt
+      then_set :linked_to, to: :linked_to
+      then_set :linked_pronouns, to: :linked_pronouns
     end
   end
 
   # === Hydration ===
 
   aggregate "Hydration", "Load all .heki stores from information/" do
+    identified_by :name
+    attribute :name, String
     attribute :store_count, Integer
     attribute :total_records, Integer
 
@@ -48,6 +63,8 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Organ Discovery ===
 
   aggregate "OrganDiscovery", "Parse all bluebooks — count aggregates, discover nerves and vows" do
+    identified_by :name
+    attribute :name, String
     attribute :organ_count, Integer
     attribute :total_aggregates, Integer
     attribute :nerve_count, Integer
@@ -69,6 +86,8 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Capability Indexing ===
 
   aggregate "CapabilityIndex", "Scan capabilities/ and index what this being can do" do
+    identified_by :name
+    attribute :name, String
     attribute :capabilities, list_of(String)
     attribute :capability_count, Integer
 
@@ -82,6 +101,8 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Store Classification ===
 
   aggregate "StoreClassification", "Classify .heki stores as linked or private" do
+    identified_by :name
+    attribute :name, String
     attribute :linked, list_of(String)
     attribute :private, list_of(String)
 
@@ -95,6 +116,8 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Prompt Generation ===
 
   aggregate "PromptGeneration", "Write the system prompt from identity and state" do
+    identified_by :name
+    attribute :name, String
     attribute :generated, String
 
     command "GeneratePrompt" do
@@ -108,6 +131,8 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Self Checkin ===
 
   aggregate "VitalSummary", "Print vitals so the being knows herself on wake" do
+    identified_by :name
+    attribute :name, String
     attribute :printed, String
 
     command "PrintVitals" do
@@ -121,6 +146,8 @@ Hecks.bluebook "Boot", version: "2026.04.12.1" do
   # === Mindstream ===
 
   aggregate "MindstreamDaemon", "Background daemon — awareness between prompts" do
+    identified_by :name
+    attribute :name, String
     attribute :pid, Integer
     attribute :running, String
 

@@ -39,8 +39,11 @@ Hecks.bluebook "MusingMint", version: "2026.04.26.1" do
     # ---- Provider gate -------------------------------------------
     # provider : "claude" | "local" | "off". Read from
     # claude_assist.heki at the start of every attempt. "off" short-
-    # circuits before any context is gathered.
-    attribute :provider, String
+    # circuits before any context is gathered. Default "off" makes
+    # the value statically reachable for the AbortIfDisabled gate ;
+    # semantically inert because ReadProvider overwrites before any
+    # gate fires.
+    attribute :provider, String, default: "off"
 
     # ---- Context snapshot read from sibling .heki stores ---------
     # recent_musings : last 10 ideas from musing.heki (insertion
@@ -168,6 +171,12 @@ Hecks.bluebook "MusingMint", version: "2026.04.26.1" do
       role "System"
       description "Short-circuit when the LLM said 'skip' — empty :idea after CaptureIdea normalises the response. The overwhelming default — quality > quantity."
       given { idea == "" }
+      # Idempotent self-declaration — when the gate fires, idea IS already
+      # "" (CaptureIdea wrote it that way for a 'skip' response). Setting
+      # it again is a no-op ; the line is here because the lifecycle
+      # validator only sees `then_set :field, to: "literal"` as a producer
+      # of the corresponding field == "literal" gate.
+      then_set :idea,  to: ""
       then_set :phase, to: "skipped_lowquality"
       emits "MintSkipped"
     end

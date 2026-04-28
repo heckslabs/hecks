@@ -33,14 +33,19 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
   # edits / bluebook ratio / recent complaints.
 
   aggregate "Enforcer", "Live bluebook-first watcher — complains on imperative edits as they happen" do
+    identified_by :name
+    attribute :name, String
     attribute :total_edits,        Integer, default: 0
     attribute :bluebook_edits,     Integer, default: 0
     attribute :imperative_edits,   Integer, default: 0
+    attribute :exempted_edits,     Integer, default: 0
     attribute :support_edits,      Integer, default: 0
     attribute :other_edits,        Integer, default: 0
-    attribute :last_complaint_at,  String,  default: ""
-    attribute :last_complaint,     String,  default: ""
-    attribute :session_started_at, String,  default: ""
+    attribute :last_complaint_at,           String,  default: ""
+    attribute :last_complaint,              String,  default: ""
+    attribute :session_started_at,          String,  default: ""
+    attribute :fixtures_runtime_violations, Integer, default: 0
+    attribute :last_fixtures_violation,     String,  default: ""
 
     command "StartSession" do
       role "System"
@@ -49,6 +54,7 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
       then_set :total_edits,        to: 0
       then_set :bluebook_edits,     to: 0
       then_set :imperative_edits,   to: 0
+      then_set :exempted_edits,     to: 0
       then_set :support_edits,      to: 0
       then_set :other_edits,        to: 0
       then_set :last_complaint_at,  to: ""
@@ -73,6 +79,15 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
       then_set :total_edits,      increment: 1
       then_set :imperative_edits, increment: 1
       emits "ImperativeEdited"
+    end
+
+    command "RecordExemptedEdit" do
+      role "Hook"
+      description "An imperative-language file was written, but the file carries a [antibody-exempt: ...] marker in its header — the discipline is satisfied, no complaint fires. The marker IS the audit trail. Tracked separately from imperative_edits so the dashboard can show 'exempted edits' alongside 'unexempted imperative edits'."
+      attribute :file_path, String
+      then_set :total_edits,    increment: 1
+      then_set :exempted_edits, increment: 1
+      emits "ExemptedEdited"
     end
 
     command "RecordSupportEdit" do
@@ -102,6 +117,67 @@ Hecks.bluebook "Enforcer", version: "2026.04.26.1" do
       then_set :last_complaint,    to: :complaint
       then_set :last_complaint_at, to: :last_complaint_at
       emits "ComplaintIssued"
+    end
+
+    command "ComplainFixturesAsRuntime" do
+      role "System"
+      description "A .fixtures file was detected being loaded at runtime (outside a test context). Mirrors Complain — records the file path, increments the fixtures_runtime_violations counter, and sets last_fixtures_violation so the dashboard can surface the pattern. The hook ALSO prints to stderr so the complaint lands in the agent's context on the next turn and forces an exemption-naming or course-correction. .fixtures files are TEST data only ; any runtime load is an architectural violation."
+      attribute :file_path, String
+      then_set :fixtures_runtime_violations, increment: 1
+      then_set :last_fixtures_violation,     to: :file_path
+      emits "FixturesAsRuntimeComplained"
+    end
+  end
+
+  # ============================================================
+  # ENFORCER CHECK — named rule rows driving the enforcer
+  # ============================================================
+  #
+  # Each EnforcerCheck is a registered rule: a named pattern kind,
+  # a severity (block | warn), and the complaint text to emit.
+  # The fixtures-as-runtime rule is the first registered check ;
+  # future checks (e.g. runtime_load_of_behaviors_extension) follow
+  # the same shape without touching the Enforcer aggregate.
+  #
+  # Lifecycle :
+  #   RegisterCheck   → check is known to the enforcer kernel
+  #   TriggerCheck    → kernel saw a match ; side-effect: Enforcer.ComplainFixturesAsRuntime
+  #   RecordViolation → the offending file is attached to this check's history
+
+  aggregate "EnforcerCheck", "A named enforcement rule — pattern kind, severity, and complaint text" do
+    identified_by :id
+    attribute :id,          String, default: ""
+    attribute :pattern_kind, String, default: ""
+    attribute :severity,    String, default: ""
+    attribute :complaint,   String, default: ""
+
+    command "RegisterCheck" do
+      role "System"
+      description "Declare a new enforcement rule. id is a stable slug (e.g. 'fixtures_at_runtime') ; pattern_kind names the detection strategy the kernel uses ; severity is 'block' or 'warn' ; complaint is the stderr text the hook emits."
+      attribute :id,           String
+      attribute :pattern_kind, String
+      attribute :severity,     String
+      attribute :complaint,    String
+      then_set :id,           to: :id
+      then_set :pattern_kind, to: :pattern_kind
+      then_set :severity,     to: :severity
+      then_set :complaint,    to: :complaint
+      emits "CheckRegistered"
+    end
+
+    command "TriggerCheck" do
+      role "System"
+      description "The enforcer kernel matched this check's pattern_kind against a live file operation. Triggering records the activation ; the kernel is responsible for also dispatching Enforcer.ComplainFixturesAsRuntime (or the appropriate Complain variant) on the Enforcer aggregate."
+      attribute :id, String
+      emits "CheckTriggered"
+    end
+
+    command "RecordViolation" do
+      role "System"
+      description "Attach a specific offending file to this check's activation log. Called after TriggerCheck when the kernel has resolved the exact file path. Kept separate from TriggerCheck so the check record carries a concrete evidence trail."
+      attribute :id,        String
+      attribute :file_path, String
+      emits "ViolationRecorded"
     end
   end
 

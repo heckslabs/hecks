@@ -87,7 +87,13 @@ module Hecksagon
         when :memory, :heki
           @persistence = { type: k }.merge(opts)
         else
-          _build_io_adapter(k, opts, &block)
+          # Preserve name: in opts so the canonical IO adapter dump
+          # carries it (Rust's parser puts `name: :x` directly into the
+          # adapter's options). Without this, named non-shell adapters
+          # (e.g. two :fs adapters distinguished by `name: :prompt_writer`)
+          # lose the name and parity diverges from the Rust dump.
+          io_opts = name ? { name: name }.merge(opts) : opts
+          _build_io_adapter(k, io_opts, &block)
         end
       end
 

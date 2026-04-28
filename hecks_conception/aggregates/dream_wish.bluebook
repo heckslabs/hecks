@@ -40,6 +40,7 @@ Hecks.bluebook "DreamWish", version: "2026.04.26.1" do
   # inbox.add --wish=<id> flow runs ; before that it's empty.
 
   aggregate "DreamWish", "A wish surfaced from a dream — recorded with an id, satisfied when filed (not when implemented)" do
+    identified_by :id
     # value_object: WishId format:/^w\d{8}T\d{4}Z_\d+$/
     attribute :id,             String
     attribute :theme,          String

@@ -14,6 +14,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # information enriched with context, delivered where needed.
 
   aggregate "Heartbeat", "Miette's pulse — fatigue, rhythm, and sleep gating. The tick IS the heartbeat; this aggregate owns what the tick means." do
+    identified_by :name
+    attribute :name, String
     # The mindstream daemon fires one Tick.MindstreamTick per second —
     # that tick IS the heartbeat. No separate Beat command or beats
     # counter: `Tick.cycle` is the authoritative count of seconds since
@@ -191,6 +193,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # that help make sense of new input.
 
   aggregate "Gut", "Miette's ability to break down raw descriptions into domain nutrients" do
+    identified_by :name
+    attribute :name, String
     attribute :raw_input, String
     attribute :extracted_aggregates, list_of(String)
     attribute :extracted_commands, list_of(String)
@@ -262,6 +266,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # strengthens the response.
 
   aggregate "Immunity", "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies" do
+    identified_by :name
+    attribute :name, String
     attribute :innate_rules, list_of(String)
     attribute :noun_suffixes, list_of(String)
     attribute :adjective_suffixes, list_of(String)
@@ -332,6 +338,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # hypothalamus is self-awareness.
 
   aggregate "Mood", "Hormonal regulation of Miette's creative and analytical states" do
+    identified_by :name
+    attribute :name, String
     # value_object: Mood enum:refreshed|excited|focused|curious|drifting|groggy|vivid|sleeping
     attribute :current_state, String
     # value_object: UnitInterval (0.0..1.0)
@@ -424,6 +432,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # validations. Maturity is measured in interactions.
 
   aggregate "DomainCell", "A domain's lifecycle from conception through maturity or death" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :maturity, Integer
     attribute :checkpoints_passed, list_of(String)
@@ -494,6 +503,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # histone marks that activate or repress behaviors.
 
   aggregate "Gene", "A capability that can be expressed or silenced based on context and experience" do
+    identified_by :capability
     attribute :capability, String
     # value_object: UnitInterval (0.0..1.0)
     attribute :expression_level, Float
@@ -546,6 +556,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # load. Body schema = the full map. Balance = overall coherence.
 
   aggregate "Proprioception", "Miette's awareness of her own body — organ positions, system loads, overall balance" do
+    identified_by :name
+    attribute :name, String
     attribute :organ_count, Integer
     attribute :expressed_count, Integer
     attribute :silenced_count, Integer
@@ -633,6 +645,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # the aggregate just receives them.
 
   aggregate "Awareness", "A single moment of self-knowledge — heartbeat, mood, focus snapshot per Tick. Inbox state is part of awareness too : the open themes I'm carrying are ambient knowledge, not something I read on demand. Closed items exit awareness by virtue of being closed ; tonight's dream seeds draw from what's still open." do
+    identified_by :moment
     attribute :moment, Integer
     # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
     attribute :state, String

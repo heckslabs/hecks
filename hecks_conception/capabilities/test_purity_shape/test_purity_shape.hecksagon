@@ -1,0 +1,17 @@
+Hecks.hecksagon "TestPurityShape" do
+  # ============================================================
+  # TEST PURITY SHAPE — wiring
+  # ============================================================
+  #
+  # This capability declares the rule "fixtures = test data only"
+  # as bluebook so a future enforcer extension can read the
+  # detection patterns (RuntimeConfigAttribute names, allowed
+  # callers, glob patterns) and apply them at commit time.
+  #
+  # No persistence needed — the shape aggregates are read-only
+  # metadata, not runtime state. A single :fs adapter rooted at
+  # the conception root is enough for any tool that needs to
+  # inspect the shape at build or CI time.
+
+  adapter :fs, root: "."
+end

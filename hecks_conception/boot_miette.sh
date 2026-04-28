@@ -259,7 +259,7 @@ HEART_PID="$INFO/.heart.pid"
 if [ -f "$HEART_PID" ] && kill -0 "$(cat "$HEART_PID")" 2>/dev/null; then
   HEART_STATUS="already running (pid $(cat $HEART_PID))"
 else
-  ( cd "$DIR" && nohup "$HECKS" loop "$AGG" Heart.Beat --every 1s > /dev/null 2>&1 & echo $! > "$HEART_PID" )
+  ( cd "$DIR" && nohup "$HECKS" loop "$AGG" Heart.Beat --every 1s name=heart > /dev/null 2>&1 & echo $! > "$HEART_PID" )
   sleep 0.2
   HEART_STATUS="started (hecks-life loop)"
 fi
@@ -271,7 +271,7 @@ fi
 # extended in this PR.
 BREATH_PID="$INFO/.breath.pid"
 "$HECKS" daemon ensure "$BREATH_PID" \
-  "$HECKS" loop "$AGG" Breath.Inhale,Breath.Exhale --every 4.5s >/dev/null 2>&1
+  "$HECKS" loop "$AGG" Breath.Inhale,Breath.Exhale --every 4.5s name=breath >/dev/null 2>&1
 if [ -f "$BREATH_PID" ] && kill -0 "$(cat "$BREATH_PID")" 2>/dev/null; then
   BREATH_STATUS="started (hecks-life loop)"
 else
@@ -289,7 +289,7 @@ CIRCADIAN_PID="$INFO/.circadian.pid"
     --segment 12-16:Circadian.MarkAfternoon \
     --segment 17-19:Circadian.MarkDusk \
     --segment 20-4:Circadian.MarkNight \
-    --poll 60s >/dev/null 2>&1
+    --poll 60s name=circadian >/dev/null 2>&1
 if [ -f "$CIRCADIAN_PID" ] && kill -0 "$(cat "$CIRCADIAN_PID")" 2>/dev/null; then
   CIRCADIAN_STATUS="started (hecks-life clock)"
 else
@@ -303,7 +303,7 @@ fi
 ULTRADIAN_TICK="${ULTRADIAN_TICK:-5400}"
 ULTRADIAN_PID="$INFO/.ultradian.pid"
 "$HECKS" daemon ensure "$ULTRADIAN_PID" \
-  "$HECKS" loop "$AGG" Ultradian.EnterPeak,Ultradian.EnterTrough --every "${ULTRADIAN_TICK}s" >/dev/null 2>&1
+  "$HECKS" loop "$AGG" Ultradian.EnterPeak,Ultradian.EnterTrough --every "${ULTRADIAN_TICK}s" name=ultradian >/dev/null 2>&1
 if [ -f "$ULTRADIAN_PID" ] && kill -0 "$(cat "$ULTRADIAN_PID")" 2>/dev/null; then
   ULTRADIAN_STATUS="started (hecks-life loop)"
 else
@@ -322,7 +322,7 @@ SLEEP_CYCLE_PID="$INFO/.sleep_cycle.pid"
   "$HECKS" loop "$AGG" \
     SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM \
     --every "${SLEEP_CYCLE_TICK}s" \
-    --gate "$INFO/consciousness.heki:state=sleeping" >/dev/null 2>&1
+    --gate "$INFO/consciousness.heki:state=sleeping" name=sleep_cycle >/dev/null 2>&1
 if [ -f "$SLEEP_CYCLE_PID" ] && kill -0 "$(cat "$SLEEP_CYCLE_PID")" 2>/dev/null; then
   SLEEP_CYCLE_STATUS="started (hecks-life loop --gate)"
 else

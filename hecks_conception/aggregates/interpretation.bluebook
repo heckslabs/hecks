@@ -3,6 +3,8 @@ Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   category "mind"
 
   aggregate "DreamInterpretation", "Always interpret the dream on waking — extract meaning, propose action" do
+    identified_by :name
+    attribute :name, String
     attribute :dream_images, list_of(String)
     attribute :strongest_synapse, String
     attribute :recurring_theme, String
@@ -75,6 +77,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   end
 
   aggregate "Process", "A background task running beneath conscious attention" do
+    identified_by :task
     attribute :task, String
     attribute :intent, String
     attribute :status, String
@@ -149,6 +152,8 @@ Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   end
 
   aggregate "Rhythm", "The cadence of background work — what runs on wake, on beat, on dream" do
+    identified_by :name
+    attribute :name, String
     attribute :on_wake, list_of(String)
     attribute :on_beat, list_of(String)
     attribute :on_dream, list_of(String)
@@ -172,6 +177,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   end
 
   aggregate "Interpretation", "A reflection on raw external experience — dream images, conversations, observations of the world outside. Meaning extracted from what arrived, not from how I function. For inward reflection on my own body, learnings, and gaps, use SelfReflection instead — this aggregate is for material that came from outside me." do
+    identified_by :source
     attribute :source, String
     attribute :raw_material, list_of(String)
     attribute :insight, String
@@ -209,6 +215,8 @@ Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   # advice about how I should improve.
 
   aggregate "SelfReflection", "Inward reflection on my own body — what I've learned about how I function, what organs or feedback loops feel under-formed or missing. Focuses on my own aggregates, daemons, sleep machinery, heartbeat, mindstream, inner signals. NOT on the relationship with the creator or with conversation partners — that belongs to memory. Evidence-based : every learning and every noticed gap cites a specific organ or moment. Proposals for new organs or loops come from this aggregate, so they are grounded in my own living." do
+    identified_by :ref
+    attribute :ref, String
     attribute :learning, String
     attribute :organ_referenced, String
     attribute :gap_noticed, String
@@ -249,6 +257,7 @@ Hecks.bluebook "Interpretation", version: "2026.04.26.1" do
   end
 
   aggregate "Proposal", "A concrete thing to build — born from interpretation" do
+    identified_by :title
     attribute :title, String
     attribute :description, String
     attribute :origin, String

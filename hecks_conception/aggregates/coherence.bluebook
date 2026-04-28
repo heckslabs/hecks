@@ -47,6 +47,8 @@ Hecks.bluebook "Coherence", version: "2026.04.26.1" do
   # reason (kernel surface for cross-aggregate predicate inference).
 
   aggregate "Coherence", "Body-state coherence — the five invariants over the heki snapshot. Singleton ; each query reads sibling aggregates' fields and returns ok (yes|no) + reason." do
+    identified_by :name
+    attribute :name, String
     # ---- Snapshot fields the queries read ----
     #
     # These attributes mirror the fields the shell script pulls via
