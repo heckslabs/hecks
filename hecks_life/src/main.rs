@@ -1732,10 +1732,14 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                     if let Some(repo) = rt.repositories.get_mut(&result.aggregate_type) {
                         if let Some((backend, model, url)) = hecksagon_llm.as_ref() {
                             let triple = (backend.as_str(), model.as_str(), url.as_str());
-                            hecks_life::runtime::adapter_llm::resolve(repo, &state, Some(triple));
+                            hecks_life::runtime::adapter_llm::resolve(
+                                repo, &state, Some(triple),
+                                &result.aggregate_type, command);
                         } else {
                             let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
-                            hecks_life::runtime::adapter_llm::resolve_ollama(repo, &state, config);
+                            hecks_life::runtime::adapter_llm::resolve_ollama(
+                                repo, &state, config,
+                                &result.aggregate_type, command);
                         }
                     }
                 }

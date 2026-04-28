@@ -41,6 +41,12 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "Invocation", "One invocation of the binary — detects the being name from argv[0], parses the subcommand from argv[1], routes to the matching handler, reports an exit code back to the OS" do
+    identified_by :pid_started_at
+    # pid_started_at : <pid>-<unix_seconds> — natural key per process.
+    # Lets the audit channel keep one record per binary fire without
+    # collisions across concurrent invocations (rare but possible).
+    attribute :pid_started_at, String
+
     # argv0 : the binary name as invoked. "hecks-life", "miette",
     # "summer" all land here ; the being detector reads this.
     attribute :argv0, String
@@ -84,6 +90,32 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     value_object "ExitKind" do
       attribute :code, Integer
       attribute :kind_name, String
+    end
+
+    # ---- Phase ----------------------------------------------------
+    #
+    # One row per pipeline phase the runtime walks. Today the trace
+    # is a single `phase: String` attribute that overwrites with each
+    # transition ; growing into a Phase entity lets us track per-phase
+    # timing, errors, and retry state without conflating them.
+    #
+    # Phase is a non-root entity : it has identity within the parent
+    # Invocation (the `name` field — "detect_being", "parse_argv", …)
+    # and mutates through its lifecycle (started_at set when it begins,
+    # ended_at + status set when it finishes ; an errored phase carries
+    # an error_message). The lifecycle is bounded by the parent : when
+    # the Invocation is retired, its phases go with it. Distinct from
+    # ExitKind above — that's an immutable categorisation, no identity.
+
+    entity "Phase" do
+      # name : detect_being | parse_argv | route_subcommand |
+      #        dispatch_handler | report_exit
+      attribute :name,            String
+      attribute :started_at,      String
+      attribute :ended_at,        String, default: ""
+      # status : in_progress | ended | errored | skipped
+      attribute :status,          String, default: "in_progress"
+      attribute :error_message,   String, default: ""
     end
 
     # ---- Commands -------------------------------------------------
@@ -161,31 +193,38 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
   end
 
   # ============================================================
-  # SUBCOMMAND REGISTRY — kernel-floor, lives in main.rs
+  # SUBCOMMAND REGISTRY — moved to sibling capability
   # ============================================================
   #
-  # The concrete subcommand → handler mapping is an if / else-if
-  # chain in hecks_life/src/main.rs. Earlier drafts of this bluebook
-  # modelled it as a catalog aggregate with 32 fixture rows, but that
-  # choice was wrong on two counts :
+  # Earlier drafts of this bluebook ruled the registry out as a
+  # catalog, on the grounds that nothing in cli.bluebook actually
+  # walked it ; the Rust if/else chain in main.rs was the only true
+  # consumer. That ruling was right *while Cli was a small phase-
+  # tracer*. As main.rs's behavior moves into bluebook, RouteSubcommand
+  # genuinely needs to consult a queryable registry — so the catalog
+  # earns its keep, and lives next door rather than inside Invocation.
   #
-  #   1. Duplication risk — every new subcommand added to main.rs
-  #      would also need a fixture row, or the bluebook would lie.
-  #      The Rust is the authoritative registry ; a second copy in
-  #      fixtures creates drift without adding capability.
+  # The split — three capabilities, each owning one concern :
   #
-  #   2. No operation — RouteSubcommand doesn't query a catalog from
-  #      inside the bluebook. It resolves a handler via the Rust if-
-  #      chain, which is static code not data. Catalogs earn their
-  #      place when bluebook commands actually walk them (antibody's
-  #      FlaggedExtension catalog is the canonical example — commands
-  #      there iterate the table). A subcommand list the bluebook
-  #      never queries is just inert declaration.
+  #   capabilities/cli/cli.bluebook            — Invocation lifecycle
+  #                                              (this file)
+  #   capabilities/argv/argv.bluebook          — Argv parsing : raw
+  #                                              argv → typed Token
+  #                                              stream (positional /
+  #                                              kwarg / flag)
+  #   capabilities/subcommand/subcommand.bluebook
+  #                                            — Subcommand catalog
+  #                                              and Handler resolution
   #
-  # So the registry stays in main.rs as kernel-floor, same category
-  # as argv parsing and help text rendering. The Invocation aggregate
-  # above declares WHAT happens at each phase ; main.rs carries HOW
-  # and against which table.
+  # Multi-domain by design : each domain owns one shape, communicates
+  # through events, grows independently. A new subcommand is one row
+  # in the Subcommand catalog ; a new argv form is one rule in argv ;
+  # a new lifecycle phase is one transition here in cli. None of the
+  # three has to know the others' internals.
+  #
+  # `RouteSubcommand` (below) carries `subcommand_ref` referencing a
+  # Subcommand record ; the runtime's reference-resolution finds the
+  # row, the handler's name flows back as `handler` on Invocation.
 
   # ============================================================
   # POLICIES — the invocation chain

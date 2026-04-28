@@ -46,10 +46,19 @@ module Hecks
           "description"   => agg.description,
           "attributes"    => (agg.attributes || []).map { |a| dump_attribute(a) },
           "value_objects" => (agg.value_objects || []).map { |vo| dump_value_object(vo) },
+          "entities"      => (agg.entities || []).map { |ent| dump_entity(ent) },
           "references"    => (agg.references || []).map { |r| dump_reference(r) },
           "commands"      => (agg.commands || []).map { |c| dump_command(c) },
           "queries"       => (agg.queries || []).map { |q| dump_query(q) },
           "lifecycle"     => agg.lifecycle && dump_lifecycle(agg.lifecycle),
+        }
+      end
+
+      def dump_entity(ent)
+        {
+          "name"        => ent.name,
+          "description" => ent.respond_to?(:description) ? ent.description : nil,
+          "attributes"  => (ent.attributes || []).map { |a| dump_attribute(a) },
         }
       end
 

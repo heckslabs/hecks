@@ -7,6 +7,7 @@ Hecks.fixtures "DumpShape" do
     fixture "DumpAggregate", name: "dump_aggregate", target_type: "Aggregate", input_binding: "agg", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 2
     fixture "DumpAttribute", name: "dump_attribute", target_type: "Attribute", input_binding: "attr", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 3
     fixture "DumpValueObject", name: "dump_value_object", target_type: "ValueObject", input_binding: "vo", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 4
+    fixture "DumpEntity", name: "dump_entity", target_type: "Entity", input_binding: "ent", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 16
     fixture "DumpReference", name: "dump_reference", target_type: "Reference", input_binding: "r", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 5
     fixture "DumpCommand", name: "dump_command", target_type: "Command", input_binding: "cmd", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 6
     fixture "DumpQuery", name: "dump_query", target_type: "Query", input_binding: "q", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 7
@@ -36,10 +37,11 @@ Hecks.fixtures "DumpShape" do
     fixture "Agg_description",   serializer: "dump_aggregate", order: 2, key: "description",   source: "description",   mapping_kind: "direct",           helper_fn: ""
     fixture "Agg_attributes",    serializer: "dump_aggregate", order: 3, key: "attributes",    source: "attributes",    mapping_kind: "recurse_list",     helper_fn: "dump_attribute"
     fixture "Agg_value_objects", serializer: "dump_aggregate", order: 4, key: "value_objects", source: "value_objects", mapping_kind: "recurse_list",     helper_fn: "dump_value_object"
-    fixture "Agg_references",    serializer: "dump_aggregate", order: 5, key: "references",    source: "references",    mapping_kind: "recurse_list",     helper_fn: "dump_reference"
-    fixture "Agg_commands",      serializer: "dump_aggregate", order: 6, key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
-    fixture "Agg_queries",       serializer: "dump_aggregate", order: 7, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
-    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 8, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
+    fixture "Agg_entities",      serializer: "dump_aggregate", order: 5, key: "entities",      source: "entities",      mapping_kind: "recurse_list",     helper_fn: "dump_entity"
+    fixture "Agg_references",    serializer: "dump_aggregate", order: 6, key: "references",    source: "references",    mapping_kind: "recurse_list",     helper_fn: "dump_reference"
+    fixture "Agg_commands",      serializer: "dump_aggregate", order: 7, key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
+    fixture "Agg_queries",       serializer: "dump_aggregate", order: 8, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
+    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 9, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
 
     # dump_attribute — 4 fields (one rename: attr_type → "type")
     fixture "Attr_name",    serializer: "dump_attribute", order: 1, key: "name",    source: "name",      mapping_kind: "direct", helper_fn: ""
@@ -51,6 +53,11 @@ Hecks.fixtures "DumpShape" do
     fixture "VO_name",        serializer: "dump_value_object", order: 1, key: "name",        source: "name",        mapping_kind: "direct",       helper_fn: ""
     fixture "VO_description", serializer: "dump_value_object", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
     fixture "VO_attributes",  serializer: "dump_value_object", order: 3, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+
+    # dump_entity — 3 fields (mirror of dump_value_object ; non-root entity)
+    fixture "Ent_name",        serializer: "dump_entity", order: 1, key: "name",        source: "name",        mapping_kind: "direct",       helper_fn: ""
+    fixture "Ent_description", serializer: "dump_entity", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
+    fixture "Ent_attributes",  serializer: "dump_entity", order: 3, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
 
     # dump_reference — 3 fields
     fixture "Ref_name",   serializer: "dump_reference", order: 1, key: "name",   source: "name",   mapping_kind: "direct", helper_fn: ""

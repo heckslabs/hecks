@@ -1,0 +1,85 @@
+Hecks.bluebook "Argv", version: "2026.04.28.1" do
+  vision "The argv parsing concern as a domain — raw argv strings → typed Token entities (positional / kwarg / flag) the rest of the CLI walks. Separates parse from dispatch so handlers require argv shapes via reference, not by re-parsing."
+  category "runtime"
+
+  # ============================================================
+  # ARGV — Phase F-12 follow-on to the Cli split
+  # ============================================================
+  #
+  # Sister capability to capabilities/cli/cli.bluebook : the Cli's
+  # Invocation aggregate carries the LIFECYCLE (detect → parse →
+  # route → dispatch → report) ; this Argv aggregate carries the
+  # PARSED FORM of argv that ParseArgv produces. Each invocation has
+  # one Argv record, identified by the same pid_started_at the
+  # Invocation uses.
+  #
+  # The split exists because argv parsing is its own concern : a
+  # `--reason "..."` is one parse rule, a `key=value` is another,
+  # a positional path arg is a third. Folding all of that into
+  # Invocation conflates the journey (Cli's job) with the structure
+  # (Argv's job). Every new argv form lands here ; Cli stays small.
+  #
+  # Multi-domain by design : argv evolves independently of cli.
+  # If the parser learns a new shape (e.g. POSIX `--key=value` vs
+  # split `--key value`, or short-flag bundling like `-abc`), the
+  # change is one rule on Token here, not a branch in Invocation's
+  # lifecycle.
+
+  # ============================================================
+  # ARGV — one parsed argv per invocation
+  # ============================================================
+
+  aggregate "Argv", "Parsed argv tokens for one invocation — positional, kwarg, and flag tokens reachable through the parent Invocation by pid_started_at" do
+    identified_by :pid_started_at
+    attribute :pid_started_at, String
+
+    # The unparsed argv as a list, preserved verbatim for audit. Lets
+    # debugging surface the exact strings the binary was invoked with
+    # even after Token parsing has resolved them into typed form.
+    attribute :raw_argv, list_of(String)
+
+    # The token stream — populated by ParseTokens. Each Token entity
+    # carries one argv slot's parsed form. Reachable only through the
+    # parent Argv (which is reachable only through Invocation by
+    # pid_started_at). Lifecycle bounded by parent.
+    #
+    # Token kinds the parser produces today :
+    #
+    #   positional : a bare argv slot. value carries the slot's
+    #                content ; key is empty.
+    #   kwarg      : `key=value`. key + value populated ; bool=no.
+    #   flag       : `--key` or `--key=value`. When `--key` alone,
+    #                bool=yes and value="true" ; when `--key=value`
+    #                the equals form, bool=no and value carries the
+    #                content.
+    #
+    # New forms (split `--key value`, short-flag bundling `-abc`, env-
+    # var injection) will earn rows here as the kinds expand.
+
+    entity "Token" do
+      # kind : positional | kwarg | flag
+      attribute :kind,     String
+      # position : 0-indexed slot in raw_argv this Token came from.
+      attribute :position, Integer
+      # key   : kwarg/flag name ; empty for positional.
+      attribute :key,      String, default: ""
+      # value : the slot's content. For positional + kwarg this is
+      #         the literal text ; for flag without =, this is "true".
+      attribute :value,    String
+      # bool  : "yes" when the token is a bare `--flag` with no value,
+      #         "no" otherwise. Lets handlers that take Bool kwargs
+      #         distinguish presence from value.
+      attribute :bool,     String, default: "no"
+    end
+
+    # ---- Commands -------------------------------------------------
+
+    command "ParseTokens" do
+      role "System"
+      description "Walk raw_argv slot by slot, classify each as positional / kwarg / flag, append the resulting Token entities to the Argv record. Idempotent within an invocation : the parser can be re-run against the same raw_argv and produce the same token stream. Note : the Rust runtime does not yet have a primitive for adding entities to a list, so today this command is declarative only — main.rs's argv parser materialises the tokens directly. The command exists so the contract is bluebook-conceived ; its IMPLEMENTATION earns its bluebook form when the runtime grows entity-mutation primitives."
+      attribute :raw_argv, list_of(String)
+      then_set :raw_argv, to: :raw_argv
+      emits "ArgvParsed"
+    end
+  end
+end

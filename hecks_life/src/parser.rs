@@ -120,6 +120,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     let mut agg = Aggregate {
         name, description: desc, attributes: vec![],
         commands: vec![], queries: vec![], value_objects: vec![],
+        entities: vec![],
         references: vec![], lifecycle: None, identified_by: None,
     };
 
@@ -145,6 +146,11 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
             } else if line.starts_with("value_object") {
                 let (vo, consumed) = parse_value_object(&lines[i..]);
                 agg.value_objects.push(vo);
+                i += consumed;
+                continue;
+            } else if line.starts_with("entity") {
+                let (ent, consumed) = parse_entity(&lines[i..]);
+                agg.entities.push(ent);
                 i += consumed;
                 continue;
             } else if line.starts_with("attribute") {
