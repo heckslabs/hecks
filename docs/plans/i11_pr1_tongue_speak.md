@@ -78,7 +78,7 @@ Truncation order: drop oldest turns → truncate input to last 4000 tokens → i
 
 - NEW: `hecks_conception/aggregates/claude_assist.bluebook` + `.hecksagon` + `.behaviors`
 - MODIFY: `hecks_conception/aggregates/spend.bluebook` (add query)
-- MODIFY: `hecks_conception/aggregates/circuit_breaker.bluebook` (add query)
+- MODIFY: `hecks_conception/aggregates/body/organs/circuit_breaker.bluebook` (add query)
 - MODIFY: `hecks_conception/aggregates/tongue.bluebook` (Speech extensions + Prompt aggregate)
 - NEW: `hecks_conception/aggregates/tongue.hecksagon`
 - NEW: `lib/miette/tongue/prompt_builder.rb`

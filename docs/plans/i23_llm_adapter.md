@@ -214,6 +214,6 @@ replaces `adapter_llm.rs` resolve hook.
 - `lib/hecks/runtime.rb` — `#register_shell_adapter` / `#shell` mirror
 - `lib/hecks/runtime/boot.rb` — `wire_shell_adapters` mirror
 - `hecks_conception/aggregates/spend.bluebook` — accounting
-- `hecks_conception/aggregates/circuit_breaker.bluebook` — gating
+- `hecks_conception/aggregates/body/organs/circuit_breaker.bluebook` — gating
 - `hecks_conception/mint_musing.sh` — first retirement target
 - `hecks_life/src/runtime/adapter_llm.rs` — parallel Rust (until Stage B)
