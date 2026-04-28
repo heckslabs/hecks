@@ -1,0 +1,32 @@
+Hecks.bluebook "TopicSource", version: "2026.04.28.1" do
+  vision "Where domain ideas come from — industry × activity combinations that drive bulk nursery generation"
+  category "world"
+
+  # ============================================================
+  # TOPIC SOURCE — industry × activity word lists
+  # ============================================================
+  #
+  # Lifted out of bulk_generator.bluebook in i112. Sibling aggregates
+  # moved to world/ : template, generation, deduplication.
+
+  aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
+    identified_by :name
+    attribute :name, String
+    attribute :industries, list_of(String)
+    attribute :activities, list_of(String)
+    attribute :modifiers, list_of(String)
+    attribute :total_combinations, Integer
+
+    command "LoadTopics" do
+      role "System"
+      description "Load industry, activity, and modifier word lists"
+      attribute :industries, list_of(String)
+      attribute :activities, list_of(String)
+      attribute :modifiers, list_of(String)
+      emits "TopicsLoaded"
+      then_set :industries, to: :industries
+      then_set :activities, to: :activities
+      then_set :modifiers, to: :modifiers
+    end
+  end
+end

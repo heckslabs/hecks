@@ -1,0 +1,34 @@
+Hecks.bluebook "Deduplication", version: "2026.04.28.1" do
+  vision "Skip domains that already exist in the nursery — bulk generation deduplicates against existing names"
+  category "world"
+
+  # ============================================================
+  # DEDUPLICATION — skip names already in the nursery
+  # ============================================================
+  #
+  # Lifted out of bulk_generator.bluebook in i112. Sibling aggregates
+  # moved to world/ : topic_source, template, generation. The
+  # ValidateOnGenerate policy follows its trigger target (CheckExisting)
+  # here — the original `across "Census"` was aspirational since
+  # CheckExisting actually lives in this aggregate, not in Census.
+
+  aggregate "Deduplication", "Skip domains that already exist in the nursery" do
+    identified_by :name
+    attribute :name, String
+    attribute :existing, Integer
+    attribute :skipped, Integer
+
+    command "CheckExisting" do
+      role "System"
+      description "Scan nursery for existing domain names to avoid duplicates"
+      attribute :existing, Integer
+      emits "ExistingChecked"
+      then_set :existing, to: :existing
+    end
+  end
+
+  policy "ValidateOnGenerate" do
+    on "GenerationCompleted"
+    trigger "CheckExisting"
+  end
+end

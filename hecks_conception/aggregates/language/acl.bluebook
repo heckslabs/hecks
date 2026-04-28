@@ -1,0 +1,60 @@
+Hecks.bluebook "Acl", version: "2026.04.28.1" do
+  vision "A phrase book entry — who can say what, and how they say it"
+  category "language"
+
+  # ============================================================
+  # ACL — access control phrase book
+  # ============================================================
+  #
+  # Lifted out of vocabulary.bluebook in i112. Sibling aggregates
+  # moved to language/ : sentence, composition, lexicon. The
+  # CompileOnGrant policy follows its trigger target (Compile) into
+  # lexicon.bluebook.
+
+  aggregate "Acl", "A phrase book entry — who can say what, and how they say it" do
+    identified_by :canonical_phrase
+    attribute :actor, String
+    attribute :canonical_phrase, String
+    attribute :command_path, list_of(String)
+    attribute :natural_phrases, list_of(String)
+    attribute :parameter_map, list_of(ParamBinding)
+
+    value_object "ParamBinding" do
+      attribute :word, String
+      attribute :maps_to, String
+      attribute :in_command, String
+    end
+
+    command "Grant" do
+      role "System"
+      description "Grant an actor the right to speak a phrase"
+      attribute :actor, String
+      attribute :canonical_phrase, String
+      attribute :command_path, list_of(String)
+      emits "AccessGranted"
+      then_set :actor, to: :actor
+      then_set :canonical_phrase, to: :canonical_phrase
+      then_set :command_path, to: :command_path
+    end
+
+    command "AddPhrase" do
+      role "Linguist"
+      description "Add a natural way to say this — the human version"
+      reference_to(Acl)
+      attribute :phrase, String
+      emits "PhraseAdded"
+      then_set :natural_phrases, append: :phrase
+    end
+
+    command "BindParam" do
+      role "Linguist"
+      description "Map a word in the phrase to a command parameter"
+      reference_to(Acl)
+      attribute :word, String
+      attribute :maps_to, String
+      attribute :in_command, String
+      emits "ParamBound"
+      then_set :parameter_map, append: { word: :word, maps_to: :maps_to, in_command: :in_command }
+    end
+  end
+end

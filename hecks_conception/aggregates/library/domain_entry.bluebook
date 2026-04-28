@@ -1,0 +1,39 @@
+Hecks.bluebook "DomainEntry", version: "2026.04.28.1" do
+  vision "A single domain's metadata in the nursery index — name, version, sector, counts, path"
+  category "library"
+
+  # ============================================================
+  # DOMAIN ENTRY — one row in the nursery index
+  # ============================================================
+  #
+  # Lifted out of census.bluebook in i112. Sibling aggregates
+  # moved to library/ : nursery_census, sector, compilation.
+
+  aggregate "DomainEntry", "A single domain's metadata in the index" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :version, String
+    attribute :sector, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :path, String
+
+    command "IndexDomain" do
+      role "System"
+      description "Add or update a domain in the index"
+      attribute :domain_name, String
+      attribute :version, String
+      attribute :sector, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :path, String
+      emits "DomainIndexed"
+      then_set :domain_name, to: :domain_name
+      then_set :version, to: :version
+      then_set :sector, to: :sector
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :path, to: :path
+    end
+  end
+end

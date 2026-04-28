@@ -1,0 +1,50 @@
+Hecks.bluebook "Sentence", version: "2026.04.28.1" do
+  vision "One thing a being can say that maps to a command — a single executable utterance"
+  category "language"
+
+  # ============================================================
+  # SENTENCE — a single executable utterance
+  # ============================================================
+  #
+  # Lifted out of vocabulary.bluebook in i112. Sibling aggregates
+  # moved to language/ : composition, acl, lexicon. The CompileOnDefine
+  # policy follows its trigger target (Compile) into lexicon.bluebook.
+
+  aggregate "Sentence", "One thing a being can say that maps to a command" do
+    identified_by :phrase
+    attribute :phrase, String
+    attribute :domain, String
+    attribute :command, String
+    attribute :aggregate, String
+    attribute :actor, String
+    attribute :parameters, list_of(String)
+    attribute :translations, list_of(String)
+
+    command "Define" do
+      role "System"
+      description "Register a single valid sentence from a bluebook command"
+      attribute :phrase, String
+      attribute :domain, String
+      attribute :command, String
+      attribute :aggregate, String
+      attribute :actor, String
+      attribute :parameters, list_of(String)
+      emits "SentenceDefined"
+      then_set :phrase, to: :phrase
+      then_set :domain, to: :domain
+      then_set :command, to: :command
+      then_set :aggregate, to: :aggregate
+      then_set :actor, to: :actor
+      then_set :parameters, to: :parameters
+    end
+
+    command "Translate" do
+      role "Linguist"
+      description "Add a natural language translation — how a human would actually say it"
+      reference_to(Sentence)
+      attribute :natural_phrase, String
+      emits "TranslationAdded"
+      then_set :translations, append: :natural_phrase
+    end
+  end
+end

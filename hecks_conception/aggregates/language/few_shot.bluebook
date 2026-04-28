@@ -1,0 +1,30 @@
+Hecks.bluebook "FewShot", version: "2026.04.28.1" do
+  vision "Real bluebooks included as examples in the context — few-shot training without fine-tuning"
+  category "language"
+
+  # ============================================================
+  # FEW SHOT — bluebooks as in-context examples
+  # ============================================================
+  #
+  # Lifted out of inference.bluebook in i112. Sibling aggregates
+  # moved to language/ : context_window, local_model, prompt.
+
+  aggregate "FewShot", "Real bluebooks included as examples in the context" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :source, String
+    attribute :purpose, String
+
+    command "AddExample" do
+      role "System"
+      description "Include a real bluebook as a few-shot example"
+      attribute :domain_name, String
+      attribute :source, String
+      attribute :purpose, String
+      emits "ExampleAdded"
+      then_set :domain_name, to: :domain_name
+      then_set :source, to: :source
+      then_set :purpose, to: :purpose
+    end
+  end
+end

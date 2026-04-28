@@ -1,0 +1,32 @@
+Hecks.bluebook "LocalModel", version: "2026.04.28.1" do
+  vision "The locally-running model that receives the context — ollama, llama.cpp, or vllm"
+  category "language"
+
+  # ============================================================
+  # LOCAL MODEL — the LLM serving inference
+  # ============================================================
+  #
+  # Lifted out of inference.bluebook in i112. Sibling aggregates
+  # moved to language/ : context_window, few_shot, prompt.
+
+  aggregate "LocalModel", "The locally-running model that receives the context" do
+    identified_by :name
+    attribute :name, String
+    attribute :context_length, Integer
+    attribute :serving, String
+    attribute :backend, String
+
+    command "StartModel" do
+      role "System"
+      description "Launch the local model — ollama, llama.cpp, or vllm"
+      attribute :name, String
+      attribute :context_length, Integer
+      attribute :backend, String
+      emits "ModelStarted"
+      then_set :name, to: :name
+      then_set :context_length, to: :context_length
+      then_set :backend, to: :backend
+      then_set :serving, to: "running"
+    end
+  end
+end

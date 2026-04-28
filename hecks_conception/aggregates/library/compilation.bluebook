@@ -1,0 +1,28 @@
+Hecks.bluebook "Compilation", version: "2026.04.28.1" do
+  vision "Compile the nursery into a compressed corpus — single-file output of all domains"
+  category "library"
+
+  # ============================================================
+  # COMPILATION — nursery → corpus file
+  # ============================================================
+  #
+  # Lifted out of census.bluebook in i112. Sibling aggregates
+  # moved to library/ : nursery_census, domain_entry, sector.
+
+  aggregate "Compilation", "Compile the nursery into a compressed corpus" do
+    identified_by :name
+    attribute :name, String
+    attribute :domains_compiled, Integer
+    attribute :output_path, String
+
+    command "CompileNursery" do
+      role "System"
+      description "Compress all nursery domains into a single corpus file"
+      attribute :domains_compiled, Integer
+      attribute :output_path, String
+      emits "NurseryCompiled"
+      then_set :domains_compiled, to: :domains_compiled
+      then_set :output_path, to: :output_path
+    end
+  end
+end

@@ -1,0 +1,34 @@
+Hecks.bluebook "Sector", version: "2026.04.28.1" do
+  vision "A grouping of domains by industry — the keyword-driven classification of nursery domains"
+  category "library"
+
+  # ============================================================
+  # SECTOR — industry grouping
+  # ============================================================
+  #
+  # Lifted out of census.bluebook in i112. Sibling aggregates
+  # moved to library/ : nursery_census, domain_entry, compilation.
+  # The IndexOnCensus policy lives here because ClassifySector is
+  # its trigger target.
+
+  aggregate "Sector", "A grouping of domains by industry" do
+    identified_by :name
+    attribute :name, String
+    attribute :domain_count, Integer
+
+    command "ClassifySector" do
+      role "System"
+      description "Assign a domain to a sector based on keywords"
+      attribute :name, String
+      attribute :domain_count, Integer
+      emits "SectorClassified"
+      then_set :name, to: :name
+      then_set :domain_count, to: :domain_count
+    end
+  end
+
+  policy "IndexOnCensus" do
+    on "CensusTaken"
+    trigger "ClassifySector"
+  end
+end

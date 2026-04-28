@@ -1,0 +1,53 @@
+Hecks.bluebook "Lexicon", version: "2026.04.28.1" do
+  vision "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching"
+  category "language"
+
+  # ============================================================
+  # LEXICON — the full compiled phrase book
+  # ============================================================
+  #
+  # Lifted out of vocabulary.bluebook in i112. Sibling aggregates
+  # moved to language/ : sentence, composition, acl. The three
+  # Compile-on-* policies all trigger Lexicon.Compile, so they
+  # live here alongside the trigger target — the across qualifier
+  # drops since the policy is now in the same bluebook as Compile.
+
+  aggregate "Lexicon", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
+    identified_by :name
+    attribute :name, String
+    attribute :sentence_count, Integer
+    attribute :composition_count, Integer
+    attribute :acl_count, Integer
+    attribute :last_compiled, String
+
+    command "Compile" do
+      role "System"
+      description "Walk all bluebooks, enumerate valid sentences and compositions, build the phrase book"
+      emits "LexiconCompiled"
+      then_set :last_compiled, to: "now"
+    end
+
+    command "Match" do
+      role "System"
+      description "Match natural input against the lexicon — return the command path or nothing"
+      reference_to(Lexicon)
+      attribute :input, String
+      emits "InputMatched"
+    end
+  end
+
+  policy "CompileOnDefine" do
+    on "SentenceDefined"
+    trigger "Compile"
+  end
+
+  policy "CompileOnCompose" do
+    on "CompositionCreated"
+    trigger "Compile"
+  end
+
+  policy "CompileOnGrant" do
+    on "AccessGranted"
+    trigger "Compile"
+  end
+end

@@ -1,0 +1,44 @@
+Hecks.bluebook "Prompt", version: "2026.04.28.1" do
+  vision "A single inference request — user input + context → bluebook output"
+  category "language"
+
+  # ============================================================
+  # PROMPT — one inference round-trip
+  # ============================================================
+  #
+  # Lifted out of inference.bluebook in i112. Sibling aggregates
+  # moved to language/ : context_window, few_shot, local_model.
+  # The ValidateOnInference policy lives here because ValidateOutput
+  # is its trigger target.
+
+  aggregate "Prompt", "A single inference request — user input + context → bluebook output" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :input, String
+    attribute :output, String
+    attribute :valid, String
+    attribute :latency_ms, Integer
+
+    command "RunInference" do
+      role "System"
+      description "Send input to the local model with full context, get bluebook output"
+      attribute :input, String
+      emits "InferenceRan"
+      then_set :input, to: :input
+    end
+
+    command "ValidateOutput" do
+      role "System"
+      description "Check if the model's output is a valid bluebook — Rust validation"
+      reference_to(Prompt)
+      attribute :valid, String
+      emits "OutputValidated"
+      then_set :valid, to: :valid
+    end
+  end
+
+  policy "ValidateOnInference" do
+    on "InferenceRan"
+    trigger "ValidateOutput"
+  end
+end

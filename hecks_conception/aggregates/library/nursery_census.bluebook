@@ -1,0 +1,51 @@
+Hecks.bluebook "NurseryCensus", version: "2026.04.28.1" do
+  vision "The master snapshot of all nursery domains — total counts of domains, aggregates, commands, policies, sectors"
+  category "library"
+
+  # ============================================================
+  # NURSERY CENSUS — master snapshot
+  # ============================================================
+  #
+  # Lifted out of census.bluebook in i112. Sibling aggregates
+  # moved to library/ : domain_entry, sector, compilation. The
+  # IndexOnCensus policy follows its trigger target (ClassifySector)
+  # into sector.bluebook.
+
+  aggregate "NurseryCensus", "The master snapshot of all nursery domains" do
+    identified_by :name
+    attribute :name, String
+    attribute :total_domains, Integer
+    attribute :total_aggregates, Integer
+    attribute :total_commands, Integer
+    attribute :total_policies, Integer
+    attribute :sector_count, Integer
+    attribute :errors, Integer
+
+    command "TakeCensus" do
+      role "System"
+      description "Scan the nursery and count everything"
+      attribute :total_domains, Integer
+      attribute :total_aggregates, Integer
+      attribute :total_commands, Integer
+      attribute :total_policies, Integer
+      attribute :sector_count, Integer
+      attribute :errors, Integer
+      emits "CensusTaken"
+      then_set :total_domains, to: :total_domains
+      then_set :total_aggregates, to: :total_aggregates
+      then_set :total_commands, to: :total_commands
+      then_set :total_policies, to: :total_policies
+      then_set :sector_count, to: :sector_count
+      then_set :errors, to: :errors
+    end
+
+    command "RecountDomains" do
+      role "System"
+      description "Quick update — just the domain count, on every beat"
+      reference_to(NurseryCensus)
+      attribute :total_domains, Integer
+      emits "DomainCountUpdated"
+      then_set :total_domains, to: :total_domains
+    end
+  end
+end
