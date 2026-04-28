@@ -21,5 +21,3 @@ hecks_conception/aggregates/disposition.bluebook         # then_set :field, from
 hecks_conception/aggregates/psychic_link.bluebook        # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
 hecks_conception/aggregates/section_template.bluebook    # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
 hecks_conception/aggregates/wake_ritual.bluebook         # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
-
-hecks_conception/capabilities/dream_seeding/dream_seeding.bluebook  # Top-level `value_object` in BluebookBuilder context not yet in Ruby DSL — Rust parses, Ruby raises "undefined method `value_object'". Pre-existing as of i114 (dream-variation). Retires when Ruby BluebookBuilder absorbs top-level value_object.
