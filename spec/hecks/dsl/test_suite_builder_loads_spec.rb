@@ -10,7 +10,7 @@
 # those names land on Test#events_include. Both fields are empty by
 # default — pre-i43 `.behaviors` files build identically.
 #
-# Parity contract (spec/parity/behaviors_parity_test.rb) owns the
+# Parity contract (parity/behaviors_parity_test.rb) owns the
 # Ruby/Rust output diff. This spec owns the Ruby-side surface: what
 # the builder methods accept, how they validate, and what the IR
 # contains afterwards.

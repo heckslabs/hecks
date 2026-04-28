@@ -259,7 +259,7 @@ severity, not by effort.
 6. **Consider a shared test harness** — the
    `tmp_audit/harness.rb` pattern (run the same pairs through both
    runners) is cheap; promote it to `hecks_life/tests/` or
-   `spec/parity/` and gate CI on it. Would have caught PR #262 before it
+   `parity/` and gate CI on it. Would have caught PR #262 before it
    shipped.
 
 ---

@@ -10,12 +10,12 @@
 # parsers produce structurally identical lists for any well-formed
 # input — that's the contract this guards.
 #
-# Run: bundle exec ruby -Ilib spec/parity/fixtures_parity_test.rb
+# Run: bundle exec ruby -Ilib parity/fixtures_parity_test.rb
 #
 require "open3"
 require "json"
 
-HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
 abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
 
 require "hecks"
@@ -76,7 +76,7 @@ end
 
 if ARGV.empty?
   files = Dir.glob("hecks_conception/**/*.fixtures") +
-          Dir.glob("spec/parity/fixtures/**/*.fixtures")
+          Dir.glob("parity/fixtures/**/*.fixtures")
 else
   files = Dir.glob(ARGV[0])
 end

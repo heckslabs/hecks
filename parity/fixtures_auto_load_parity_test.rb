@@ -16,13 +16,13 @@
 # fails. With auto-load the query returns 2; the test passes. Both
 # runners must reach the SAME verdict, whether pass or fail.
 #
-# Run: bundle exec ruby -Ilib spec/parity/fixtures_auto_load_parity_test.rb
+# Run: bundle exec ruby -Ilib parity/fixtures_auto_load_parity_test.rb
 require "open3"
 require "tmpdir"
 require "fileutils"
 
-HECKS_LIFE  = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
-RUBY_RUNNER = File.expand_path("../../bin/hecks-behaviors", __dir__)
+HECKS_LIFE  = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
+RUBY_RUNNER = File.expand_path("../bin/hecks-behaviors", __dir__)
 
 abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
 abort "ruby runner missing"  unless File.executable?(RUBY_RUNNER)

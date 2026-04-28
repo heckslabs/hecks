@@ -3,10 +3,10 @@
 # Purpose: driver for the i30 differential runtime fuzzer.
 # Iterates seeds, dispatches each generated program against the
 # Ruby and Rust runtimes, compares heki state via the canonicalizer,
-# and writes minimal failing cases to spec/parity/fuzz/failures/.
+# and writes minimal failing cases to parity/fuzz/failures/.
 #
 # CLI:
-#   ruby -Ilib spec/parity/fuzz/fuzz_test.rb [options]
+#   ruby -Ilib parity/fuzz/fuzz_test.rb [options]
 #
 # Options:
 #   --seed N             Run only seed N (great for reproducing)
@@ -22,14 +22,14 @@
 #   1  unlisted divergence seen — block pre-commit isn't this job's
 #      concern (fuzz is opt-in), but CI nightly fails fast
 #
-# Known-drift format: spec/parity/fuzz/known_drift_fuzz.txt keyed
+# Known-drift format: parity/fuzz/known_drift_fuzz.txt keyed
 # by seed (see docstring at top of that file). Blank + `#` lines
 # ignored.
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
 # fuzzer ports to bluebook-dispatched form via hecks-life run]
 
-$LOAD_PATH.unshift File.expand_path("../../../lib", __dir__)
+$LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
 require "fileutils"
 require "json"
 require "optparse"
@@ -38,7 +38,7 @@ require_relative "generator"
 require_relative "runner"
 require_relative "comparator"
 
-HECKS_LIFE = File.expand_path("../../../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
 FAILURES_DIR = File.expand_path("failures", __dir__)
 KNOWN_DRIFT = File.expand_path("known_drift_fuzz.txt", __dir__)
 

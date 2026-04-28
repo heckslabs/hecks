@@ -175,13 +175,13 @@
 - See: `docs/usage/cli_subcommand_catalog.md`
 
 ### Parity Suite
-- **Ruby ↔ Rust IR conformance** — `spec/parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
-- **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `spec/parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
+- **Ruby ↔ Rust IR conformance** — `parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
+- **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
 - **`hecks-life dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
-- **Known-drift list** — `spec/parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
+- **Known-drift list** — `parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
 - **Pre-commit gate** — `bin/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `bin/install-hooks`.
 - **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
-- **Nursery soft coverage** — `spec/parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
+- **Nursery soft coverage** — `parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
 
 ## Shebang Scripts (hecks-life run)
 

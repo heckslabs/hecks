@@ -1,7 +1,7 @@
 # spec/hecks/dsl/loads_parse_smoke_parity_spec.rb
 #
 # Ruby half of the i43 parse-parity toy fixture. Loads
-# `spec/parity/behaviors/loads_parse_smoke.behaviors` via the Ruby
+# `parity/behaviors/loads_parse_smoke.behaviors` via the Ruby
 # DSL and asserts suite.loads + test.events_include contain the
 # same values the Rust side asserts in
 # `hecks_life/tests/behaviors_loads_parity_test.rs`. Together they

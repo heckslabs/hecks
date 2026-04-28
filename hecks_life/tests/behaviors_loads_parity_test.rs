@@ -1,6 +1,6 @@
 //! behaviors_loads_parity_test — toy i43 parse-parity fixture (Rust half)
 //!
-//! Parses `spec/parity/behaviors/loads_parse_smoke.behaviors` and asserts
+//! Parses `parity/behaviors/loads_parse_smoke.behaviors` and asserts
 //! that suite.loads and test.events_include match the values declared in
 //! the file. The Ruby half lives in
 //! `spec/hecks/dsl/loads_parse_smoke_parity_spec.rb` — together they
@@ -18,7 +18,7 @@ fn fixture_path() -> PathBuf {
     // Cargo runs tests from the hecks_life crate root.
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     p.pop();
-    p.push("spec/parity/behaviors/loads_parse_smoke.behaviors");
+    p.push("parity/behaviors/loads_parse_smoke.behaviors");
     p
 }
 

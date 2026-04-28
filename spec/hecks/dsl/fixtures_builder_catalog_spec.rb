@@ -6,7 +6,7 @@
 # keyed by aggregate name. When `schema:` is absent, the catalogs
 # map stays empty — the pre-i42 shape.
 #
-# Parity contract (spec/parity/fixtures_parity_test.rb) owns the
+# Parity contract (parity/fixtures_parity_test.rb) owns the
 # Ruby/Rust output diff. This spec owns the Ruby-side surface: what
 # `schema:` accepts, how it normalizes, and what the builder returns.
 #

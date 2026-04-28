@@ -1,38 +1,36 @@
-# Hecks::Parity::HecksagonParityTest
+# Hecks::Parity::WorldParityTest
 #
-# Runs every `.hecksagon` file in-tree through both the Ruby DSL
-# builder and the Rust hecks-life parser, normalizes both outputs to
-# the canonical JSON shape (see canonical_ir.rb :: dump_hecksagon /
-# main.rs :: dump_hecksagon_json), and diffs.
-#
-# Canonical shape is the subset both parsers model: name, persistence,
-# subscriptions, io_adapters, shell_adapters, gates. Ruby-only fields
-# (capabilities, concerns, annotations, context_map, ...) go in
-# hecksagon_known_drift.txt until the Rust IR grows them.
+# Runs every `.world` file in-tree through both the Ruby DSL builder and
+# the Rust hecks-life parser, normalizes both outputs to the canonical
+# JSON shape (see canonical_ir.rb :: dump_world / main.rs ::
+# dump_world_json), and diffs.
 #
 # Status legend:
 #   ✓  parity
 #   ✗  unexpected drift — exit 1 (the pre-commit hook blocks)
-#   ⚠  expected drift (listed in hecksagon_known_drift.txt) — does not block
+#   ⚠  expected drift (listed in world_known_drift.txt) — does not block
 #   ⚑  fixture in known_drift.txt that now PASSES — celebrate, then remove
 #
-# Run: ruby -Ilib spec/parity/hecksagon_parity_test.rb
+# Run: ruby -Ilib parity/world_parity_test.rb
 #
 require "json"
 require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
 REPO_ROOT  = File.expand_path("../..", __dir__)
 
-HECKSAGON_FILES = (
-  Dir[File.join(REPO_ROOT, "hecks_conception", "**", "*.hecksagon")] +
-  Dir[File.join(REPO_ROOT, "lib", "**", "*.hecksagon")] +
-  Dir[File.join(REPO_ROOT, "examples", "**", "*.hecksagon")]
+# Cover every `.world` shipped in-tree except node_modules / vendor / git
+# trees. Roots are named explicitly so a misplaced .world file at the
+# repo root doesn't silently join the parity suite.
+WORLD_FILES = (
+  Dir[File.join(REPO_ROOT, "hecks_conception", "**", "*.world")] +
+  Dir[File.join(REPO_ROOT, "lib", "**", "*.world")] +
+  Dir[File.join(REPO_ROOT, "examples", "**", "*.world")]
 ).sort.uniq
 
-KNOWN_DRIFT_FILE = File.expand_path("hecksagon_known_drift.txt", __dir__)
+KNOWN_DRIFT_FILE = File.expand_path("world_known_drift.txt", __dir__)
 
 abort "hecks-life not built — run: (cd hecks_life && cargo build --release)" unless File.executable?(HECKS_LIFE)
 
@@ -49,14 +47,16 @@ end
 KNOWN_DRIFT = load_known_drift
 
 def ruby_dump(path)
-  Hecks.last_hecksagon = nil if Hecks.respond_to?(:last_hecksagon=)
+  # The .world file calls Hecks.world "..." do ... end. Clear any prior
+  # last_world so a failed load can't pollute the next file.
+  Hecks.last_world = nil if Hecks.respond_to?(:last_world=)
   Kernel.load(path)
-  Hecks::Parity::CanonicalIR.dump_hecksagon(Hecks.last_hecksagon)
+  Hecks::Parity::CanonicalIR.dump_world(Hecks.last_world)
 end
 
 def rust_dump(path)
-  out, err, status = Open3.capture3(HECKS_LIFE, "dump-hecksagon", path)
-  raise "rust dump-hecksagon failed for #{path}: #{err}" unless status.success?
+  out, err, status = Open3.capture3(HECKS_LIFE, "dump-world", path)
+  raise "rust dump-world failed for #{path}: #{err}" unless status.success?
   JSON.parse(out)
 end
 
@@ -95,14 +95,14 @@ def run_one(path)
   [:fail, diff_lines(ruby_ir, rust_ir).first(40).join("\n")]
 end
 
-puts "=== .hecksagon parity (#{HECKSAGON_FILES.size} files) ==="
-abort "no .hecksagon files found" if HECKSAGON_FILES.empty?
+puts "=== .world parity (#{WORLD_FILES.size} files) ==="
+abort "no .world files found under hecks_conception/, lib/, examples/" if WORLD_FILES.empty?
 
 blocking = 0
 expected = 0
 unexpected_passes = []
 
-HECKSAGON_FILES.each do |p|
+WORLD_FILES.each do |p|
   rel = p.sub(REPO_ROOT + "/", "")
   known = KNOWN_DRIFT.key?(rel)
   status, body = run_one(p)
@@ -126,7 +126,7 @@ HECKSAGON_FILES.each do |p|
   end
 end
 
-total  = HECKSAGON_FILES.size
+total  = WORLD_FILES.size
 passed = total - blocking - expected - unexpected_passes.size
 puts ""
 puts "#{passed}/#{total} match"

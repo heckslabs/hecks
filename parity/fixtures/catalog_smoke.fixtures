@@ -1,4 +1,4 @@
-# spec/parity/fixtures/catalog_smoke.fixtures
+# parity/fixtures/catalog_smoke.fixtures
 #
 # i42 smoke fixture — exercises the catalog-dialect (schema: kwarg on
 # aggregate) alongside a plain aggregate, so Ruby and Rust parsers

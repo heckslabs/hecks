@@ -378,14 +378,14 @@ No inline code generation. Every display convention is a named method on a contr
 
 ## Parity Suite
 
-Two parsers read the same `.bluebook` source: the Ruby DSL (`lib/hecks/dsl/`) and the Rust `hecks-life` runtime. A parity suite (`spec/parity/`) holds both to the same canonical IR shape.
+Two parsers read the same `.bluebook` source: the Ruby DSL (`lib/hecks/dsl/`) and the Rust `hecks-life` runtime. A parity suite (`parity/`) holds both to the same canonical IR shape.
 
 ```
-ruby -Ilib spec/parity/parity_test.rb
+ruby -Ilib parity/parity_test.rb
 # 215/215 match
 ```
 
-The suite runs every fixture in `spec/parity/bluebooks/` and every real bluebook in `hecks_conception/` through both parsers, converts each output to the canonical shape declared in `hecks_life/src/dump.rs` and `spec/parity/canonical_ir.rb`, and diffs. Known semantic gaps live in `spec/parity/known_drift.txt` — they don't block.
+The suite runs every fixture in `parity/bluebooks/` and every real bluebook in `hecks_conception/` through both parsers, converts each output to the canonical shape declared in `hecks_life/src/dump.rs` and `parity/canonical_ir.rb`, and diffs. Known semantic gaps live in `parity/known_drift.txt` — they don't block.
 
 After cloning, install the git hooks so drift can't land:
 

@@ -9,12 +9,12 @@
 #   ✓  identical verdicts
 #   ✗  divergence — exit 1 (the pre-commit hook should block this)
 #
-# Run: ruby -Ilib spec/parity/behaviors_parity_test.rb
+# Run: ruby -Ilib parity/behaviors_parity_test.rb
 #
 require "open3"
 
-HECKS_LIFE   = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
-RUBY_RUNNER  = File.expand_path("../../bin/hecks-behaviors", __dir__)
+HECKS_LIFE   = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
+RUBY_RUNNER  = File.expand_path("../bin/hecks-behaviors", __dir__)
 KNOWN_DRIFT  = File.expand_path("behaviors_known_drift.txt", __dir__)
 
 # A small sample by default so the suite runs in seconds. Pass a glob
@@ -23,7 +23,7 @@ DEFAULT_SAMPLE = %w[
   hecks_conception/catalog/pizzas.behaviors
   hecks_conception/family/conventions.behaviors
   hecks_conception/family/king_mango.behaviors
-].select { |p| File.exist?(File.expand_path("../../#{p}", __dir__)) }
+].select { |p| File.exist?(File.expand_path("../#{p}", __dir__)) }
 
 abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
 abort "ruby runner missing"  unless File.executable?(RUBY_RUNNER)

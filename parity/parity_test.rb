@@ -1,11 +1,11 @@
 # Hecks::Parity::ParityTest
 #
-# [antibody-exempt: spec/parity/parity_test.rb — surfaces validator_warnings
+# [antibody-exempt: parity/parity_test.rb — surfaces validator_warnings
 #  stderr next to the ✓ line so soft warnings show up during parity runs.
 #  Same i80 retirement contract as the main.rs wiring : the parity harness
 #  is a kernel-surface verification primitive, not a domain script.]
 #
-# Runs every fixture in spec/parity/bluebooks/ and every real bluebook in
+# Runs every fixture in parity/bluebooks/ and every real bluebook in
 # hecks_conception/aggregates/ through both the Ruby DSL parser and the
 # Rust hecks-life parser, normalizes both outputs to the canonical JSON
 # shape (see canonical_ir.rb and dump.rs), and diffs.
@@ -16,31 +16,31 @@
 #   ⚠  expected drift (listed in known_drift.txt) — does not block
 #   ⚑  fixture in known_drift.txt that now PASSES — celebrate, then remove
 #
-# Run: ruby -Ilib spec/parity/parity_test.rb
+# Run: ruby -Ilib parity/parity_test.rb
 #
 require "json"
 require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
 SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
-REAL       = Dir[File.expand_path("../../hecks_conception/aggregates/*.bluebook", __dir__)].sort
-CAPS       = Dir[File.expand_path("../../hecks_conception/capabilities/**/*.bluebook", __dir__)].sort
-CATALOG    = Dir[File.expand_path("../../hecks_conception/catalog/**/*.bluebook", __dir__)].sort
-MISC       = (Dir[File.expand_path("../../hecks_conception/family/**/*.bluebook", __dir__)] +
-              Dir[File.expand_path("../../hecks_conception/applications/**/*.bluebook", __dir__)] +
-              Dir[File.expand_path("../../hecks_conception/actions/**/*.bluebook", __dir__)] +
-              Dir[File.expand_path("../../hecks_conception/chris/**/*.bluebook", __dir__)]).sort
+REAL       = Dir[File.expand_path("../hecks_conception/aggregates/*.bluebook", __dir__)].sort
+CAPS       = Dir[File.expand_path("../hecks_conception/capabilities/**/*.bluebook", __dir__)].sort
+CATALOG    = Dir[File.expand_path("../hecks_conception/catalog/**/*.bluebook", __dir__)].sort
+MISC       = (Dir[File.expand_path("../hecks_conception/family/**/*.bluebook", __dir__)] +
+              Dir[File.expand_path("../hecks_conception/applications/**/*.bluebook", __dir__)] +
+              Dir[File.expand_path("../hecks_conception/actions/**/*.bluebook", __dir__)] +
+              Dir[File.expand_path("../hecks_conception/chris/**/*.bluebook", __dir__)]).sort
 # Nursery runs as SOFT coverage — 350 bluebooks, ~302 blocked on the
 # Ruby parser Symbol→Float/Integer bug (inbox i1/i2). Failures report
 # for visibility but do not exit 1 until that bug ships.
-NURSERY    = Dir[File.expand_path("../../hecks_conception/nursery/**/*.bluebook", __dir__)].sort
+NURSERY    = Dir[File.expand_path("../hecks_conception/nursery/**/*.bluebook", __dir__)].sort
 KNOWN_DRIFT_FILE = File.expand_path("known_drift.txt", __dir__)
 REPO_ROOT  = File.expand_path("../..", __dir__)
 
 abort "hecks-life not built — run: (cd hecks_life && cargo build --release)" unless File.executable?(HECKS_LIFE)
-abort "no fixtures in spec/parity/bluebooks/" if SYNTHETIC.empty?
+abort "no fixtures in parity/bluebooks/" if SYNTHETIC.empty?
 
 def load_known_drift
   return {} unless File.exist?(KNOWN_DRIFT_FILE)

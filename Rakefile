@@ -15,6 +15,6 @@ namespace :parity do
   desc "i30 differential fuzzer — Ruby↔Rust runtime cascade parity"
   task :fuzz do
     args = ENV["FUZZ_ARGS"] || "--start 1 --count 200"
-    sh "ruby -Ilib spec/parity/fuzz/fuzz_test.rb #{args}"
+    sh "ruby -Ilib parity/fuzz/fuzz_test.rb #{args}"
   end
 end

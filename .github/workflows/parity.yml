@@ -39,19 +39,19 @@ jobs:
         run: cargo test --release --quiet
 
       - name: Run parser parity suite (Ruby DSL ↔ Rust IR)
-        run: bundle exec ruby -Ilib spec/parity/parity_test.rb
+        run: bundle exec ruby -Ilib parity/parity_test.rb
 
       - name: Run behaviors-runner parity suite (Ruby ↔ Rust)
-        run: bundle exec ruby -Ilib spec/parity/behaviors_parity_test.rb
+        run: bundle exec ruby -Ilib parity/behaviors_parity_test.rb
 
       - name: Run fixtures parity suite (Ruby ↔ Rust)
-        run: bundle exec ruby -Ilib spec/parity/fixtures_parity_test.rb
+        run: bundle exec ruby -Ilib parity/fixtures_parity_test.rb
 
       - name: Run hecksagon parity suite (Ruby ↔ Rust)
-        run: bundle exec ruby -Ilib spec/parity/hecksagon_parity_test.rb
+        run: bundle exec ruby -Ilib parity/hecksagon_parity_test.rb
 
       - name: Run world parity suite (Ruby ↔ Rust)
-        run: bundle exec ruby -Ilib spec/parity/world_parity_test.rb
+        run: bundle exec ruby -Ilib parity/world_parity_test.rb
 
       - name: Lifecycle validator across all bluebooks
         run: |

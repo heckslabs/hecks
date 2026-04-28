@@ -291,7 +291,7 @@ module Hecks
       # fields the Rust IR models are included — Ruby-only fields
       # (capabilities, concerns, annotations, context_map, ...) are
       # intentionally outside the canonical shape. Files that depend on
-      # them go in spec/parity/hecksagon_known_drift.txt.
+      # them go in parity/hecksagon_known_drift.txt.
       def dump_hecksagon(hex)
         {
           # Normalize nil → "" so anonymous `Hecks.hecksagon do ... end`

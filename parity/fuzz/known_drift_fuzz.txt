@@ -9,7 +9,7 @@
 # run exits 0 as long as all other drift is explained. Remove the
 # seed from this file once the underlying divergence is fixed.
 #
-# Unlike spec/parity/known_drift.txt (keyed by bluebook path), this
+# Unlike parity/known_drift.txt (keyed by bluebook path), this
 # file is keyed by seed because the generator is deterministic on
 # the seed and paths are ephemeral temp dirs.
 #
