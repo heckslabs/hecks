@@ -27,7 +27,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
             mutations: vec![],
         }],
         queries: vec![],
-        value_objects: vec![],
+        value_objects: vec![], entities: vec![],
         references: refs,
         lifecycle: None,
         identified_by: None,

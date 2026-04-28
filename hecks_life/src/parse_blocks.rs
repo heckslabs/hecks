@@ -232,6 +232,40 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
     (vo, i + 1)
 }
 
+/// Parse a non-root entity block — same shape as parse_value_object
+/// (name + attributes), distinct semantics : entities have identity
+/// within the parent aggregate and can mutate, value_objects are
+/// immutable and replaced wholesale. The IR carries them in separate
+/// fields so the runtime can grow entity-mutation primitives later
+/// without breaking value_object semantics.
+pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
+    let first = lines[0].trim();
+    let name = extract_string(first).unwrap_or_default();
+    let mut ent = Entity { name, description: None, attributes: vec![] };
+
+    let mut i = 1;
+    let mut depth = 1;
+    while i < lines.len() && depth > 0 {
+        let line = lines[i].trim();
+        if line == "end" {
+            depth -= 1;
+            if depth == 0 { break; }
+        } else if ends_with_do_block(line) {
+            depth += 1;
+        }
+        if depth == 1 {
+            if line.starts_with("description") { ent.description = extract_string(line); }
+            if line.starts_with("attribute") {
+                if let Some(attr) = parse_attribute(line) { ent.attributes.push(attr); }
+            } else if is_shorthand_line(line) && !line.starts_with("reference_to(") {
+                if let Some(attr) = parse_shorthand_attribute(line) { ent.attributes.push(attr); }
+            }
+        }
+        i += 1;
+    }
+    (ent, i + 1)
+}
+
 pub fn parse_policy(lines: &[&str]) -> (Policy, usize) {
     let first = lines[0].trim();
     let name = extract_string(first).unwrap_or_default();

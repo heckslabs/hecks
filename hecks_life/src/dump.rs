@@ -23,8 +23,8 @@
 //!   # → JSON to stdout, exit 0
 
 use crate::ir::{
-    Aggregate, Attribute, Command, Domain, Fixture, Given, Lifecycle, Mutation,
-    MutationOp, Policy, Query, Reference, Transition, ValueObject,
+    Aggregate, Attribute, Command, Domain, Entity, Fixture, Given, Lifecycle,
+    Mutation, MutationOp, Policy, Query, Reference, Transition, ValueObject,
 };
 use serde_json::{json, Value};
 
@@ -45,6 +45,7 @@ fn dump_aggregate(agg: &Aggregate) -> Value {
         "description": agg.description,
         "attributes": agg.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
         "value_objects": agg.value_objects.iter().map(dump_value_object).collect::<Vec<_>>(),
+        "entities": agg.entities.iter().map(dump_entity).collect::<Vec<_>>(),
         "references": agg.references.iter().map(dump_reference).collect::<Vec<_>>(),
         "commands": agg.commands.iter().map(dump_command).collect::<Vec<_>>(),
         "queries": agg.queries.iter().map(dump_query).collect::<Vec<_>>(),
@@ -184,6 +185,14 @@ fn dump_fixture(f: &Fixture) -> Value {
         "name": f.name,
         "aggregate_name": f.aggregate_name,
         "attributes": pairs,
+    })
+}
+
+fn dump_entity(ent: &Entity) -> Value {
+    json!({
+        "name": ent.name,
+        "description": ent.description,
+        "attributes": ent.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
     })
 }
 

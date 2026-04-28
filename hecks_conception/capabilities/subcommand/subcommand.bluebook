@@ -1,0 +1,128 @@
+Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
+  vision "The subcommand catalog as a domain — one row per known hecks-life subcommand, queried by Cli's RouteSubcommand to resolve a parsed name to a handler. Earns its keep precisely because handlers walk it ; without that operation it would be inert declaration, which is the rejected shape earlier drafts of cli.bluebook called out."
+  category "runtime"
+
+  # ============================================================
+  # SUBCOMMAND REGISTRY — Phase F-13 follow-on to the Cli split
+  # ============================================================
+  #
+  # Third capability in the cli/argv/subcommand triplet :
+  #
+  #   capabilities/cli/        — Invocation lifecycle (the journey)
+  #   capabilities/argv/       — Argv parsing (the structure)
+  #   capabilities/subcommand/ — Subcommand catalog (the table)
+  #                              [this file]
+  #
+  # The registry exists *because* RouteSubcommand consults it. Earlier
+  # drafts of cli.bluebook ruled out a registry as inert duplication of
+  # main.rs's if-chain. That ruling was right while the bluebook never
+  # walked the table. This capability flips that : Subcommand records
+  # ARE the table, RouteSubcommand reads them, and main.rs's if-chain
+  # retires row-by-row as each handler ports its dispatch through the
+  # registry.
+  #
+  # Multi-domain by design : registering a new subcommand is one row
+  # here (Register command), not a branch in main.rs ; updating an
+  # ArgvShape is one mutation on the existing row (which, until the
+  # runtime grows entity-mutation primitives, is a wholesale value-
+  # object replacement on the parent Subcommand).
+
+  # ============================================================
+  # ARGVSHAPE — one row per subcommand's expected argv shape
+  # ============================================================
+  #
+  # Embedded value_object on Subcommand. Captures the rules every
+  # invocation of THIS subcommand must satisfy : how many positional
+  # args, which kwargs are allowed, which flags. Used by the runtime
+  # to validate at parse time before the handler fires.
+  #
+  # Why value_object not entity : ArgvShape doesn't have identity
+  # within Subcommand and doesn't mutate independently — it's a
+  # snapshot of the shape, replaced wholesale when the subcommand's
+  # signature changes. Identity lives one level up (Subcommand has
+  # the natural-key name).
+
+  # ============================================================
+  # SUBCOMMAND — the catalog row
+  # ============================================================
+
+  aggregate "Subcommand", "One known hecks-life subcommand — name, handler symbol, expected argv shape, exit-mapping policy. Catalog rows are added via Register and resolved via Find by parse-time RouteSubcommand." do
+    identified_by :name
+    # name : the subcommand string ("heki", "specialize", "behaviors",
+    # "conceive", "develop", "run", "serve", "loop", "daemon", …).
+    attribute :name, String
+
+    # handler : the Rust function (or future capability runner) the
+    # dispatch lands in. Today this is a string the Rust matcher
+    # consults ("run_heki", "run_conceive", "run_specialize", …) ;
+    # tomorrow it can be an aggregate.command pair when capability
+    # runners are first-class.
+    attribute :handler, String
+
+    # exit_kind_default : the ExitKind name the runtime reports when
+    # the handler returns Ok with no specific kind ("ok") vs surfacing
+    # a more precise variant ("parse_failure" for parsers, etc.).
+    attribute :exit_kind_default, String, default: "ok"
+
+    # deprecated : "yes" when the subcommand still resolves but emits
+    # a deprecation warning, "no" otherwise. Lets us announce removal
+    # without breaking existing scripts.
+    attribute :deprecated, String, default: "no"
+
+    # The expected argv shape — single value_object snapshot per row.
+    # Replaced wholesale (via Register) when a subcommand's signature
+    # changes. The runtime reads it to validate Argv tokens before
+    # dispatching the handler.
+    attribute :argv_shape, ArgvShape
+
+    value_object "ArgvShape" do
+      # min_positional / max_positional : how many positional args are
+      # required + permitted. -1 in max_positional means unbounded.
+      attribute :min_positional, Integer, default: 0
+      attribute :max_positional, Integer, default: -1
+      # allowed_kwargs / allowed_flags : comma-separated lists of
+      # accepted kwarg / flag names. Empty string means "no kwargs /
+      # flags allowed" ; "*" means "any". Until the runtime grows
+      # list-of-symbol primitives, the comma-separated form is the
+      # transitional shape.
+      attribute :allowed_kwargs, String, default: ""
+      attribute :allowed_flags,  String, default: ""
+    end
+
+    # ---- Commands -------------------------------------------------
+
+    command "Register" do
+      role "Chris"
+      description "Add a subcommand row to the catalog (or update an existing row's metadata, since identified_by :name makes registrations idempotent on name). New subcommands land via this dispatch ; the bluebook's Register command becomes the single source-of-truth registration path once handlers port through it."
+      attribute :name, String
+      attribute :handler, String
+      attribute :exit_kind_default, String
+      attribute :deprecated, String
+      attribute :argv_shape, ArgvShape
+      then_set :name, to: :name
+      then_set :handler, to: :handler
+      then_set :exit_kind_default, to: :exit_kind_default
+      then_set :deprecated, to: :deprecated
+      then_set :argv_shape, to: :argv_shape
+      emits "SubcommandRegistered"
+    end
+
+    command "Retire" do
+      role "Chris"
+      description "Remove a subcommand row from the catalog — the subcommand is gone (or has been replaced by a different name). Future RouteSubcommand of this name surfaces unknown_subcommand. Uses the then_delete primitive that #474 landed for retire-style commands."
+      reference_to(Subcommand)
+      then_delete
+      emits "SubcommandRetired"
+    end
+
+    # ---- Queries --------------------------------------------------
+
+    query "Find" do
+      description "Look up a Subcommand row by name. Cli's RouteSubcommand walks this : the parsed subcommand name from Argv resolves to a Subcommand record, whose handler field becomes Cli.Invocation.handler. When Find returns no record, RouteSubcommand transitions Cli.Invocation to failed with exit_kind=unknown_subcommand."
+    end
+
+    query "ListAll" do
+      description "Every Subcommand row, ordered alphabetically by name. The print_usage path walks this to render `hecks-life --help` ; future help capability composes per-row help from name + handler description."
+    end
+  end
+end
