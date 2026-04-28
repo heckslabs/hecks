@@ -157,7 +157,7 @@ recursion — keep givens linear.
 
 ## Pre-commit gates
 
-The pre-commit hook (`bin/git-hooks/pre-commit`) blocks commits that:
+The pre-commit hook (`tooling/git-hooks/pre-commit`) blocks commits that:
 1. Break Ruby↔Rust parser parity (`spec/parity/parity_test.rb`)
 2. Have unreachable lifecycle transitions or givens (`check-lifecycle`)
 3. Drift the two conceivers (`tests/conceiver_parity_test.rs`)

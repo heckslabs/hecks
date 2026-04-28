@@ -1,14 +1,14 @@
 # Bluebook Verification
 
 The Bluebook is the spec. No RSpec test files — the chapter definitions
-are the test suite. `bin/verify` loads every chapter, validates its IR,
+are the test suite. `tooling/verify` loads every chapter, validates its IR,
 and reports any issues.
 
 ## Usage
 
 ```bash
-bin/verify              # quiet — exits 0 or 1
-bin/verify --verbose    # prints each chapter summary
+tooling/verify              # quiet — exits 0 or 1
+tooling/verify --verbose    # prints each chapter summary
 ```
 
 Output:
@@ -35,7 +35,7 @@ a list of issues.
 
 The pre-commit hook runs three checks:
 
-1. `bin/verify` — Bluebook self-validation (~0.2s)
+1. `tooling/verify` — Bluebook self-validation (~0.2s)
 2. Smoke test — `ruby -Ilib examples/pizzas/pizzas.rb`
 3. Watchers — cross-require, file size, doc reminders
 

@@ -52,7 +52,7 @@ Extensionless binaries are classified by shebang (`ruby`, `bash`, `sh`,
 
 ## Where it runs
 
-- **Pre-commit hook (`bin/git-hooks/pre-commit`, Gate 5):** blocking.
+- **Pre-commit hook (`tooling/git-hooks/pre-commit`, Gate 5):** blocking.
   Catches violations before they become commits. Bypass in an emergency
   with `ANTIBODY_SKIP=1 git commit ...` — the bypass itself is a smell.
 - **CI (`.github/workflows/antibody.yml`):** blocking. Second layer —

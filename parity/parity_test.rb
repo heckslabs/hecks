@@ -37,7 +37,7 @@ MISC       = (Dir[File.expand_path("../hecks_conception/family/**/*.bluebook", _
 # for visibility but do not exit 1 until that bug ships.
 NURSERY    = Dir[File.expand_path("../hecks_conception/nursery/**/*.bluebook", __dir__)].sort
 KNOWN_DRIFT_FILE = File.expand_path("known_drift.txt", __dir__)
-REPO_ROOT  = File.expand_path("../..", __dir__)
+REPO_ROOT  = File.expand_path("..", __dir__)
 
 abort "hecks-life not built — run: (cd hecks_life && cargo build --release)" unless File.executable?(HECKS_LIFE)
 abort "no fixtures in parity/bluebooks/" if SYNTHETIC.empty?

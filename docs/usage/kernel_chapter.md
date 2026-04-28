@@ -38,10 +38,10 @@ The Kernel chapter is organized into five paragraphs:
 
 ## Verification
 
-The Kernel chapter is verified by `bin/verify` alongside all other chapters:
+The Kernel chapter is verified by `tooling/verify` alongside all other chapters:
 
 ```sh
-bin/verify --verbose
+tooling/verify --verbose
 # Kernel (38 aggregates, 59 commands)
 #   BootstrapKernel — Root of the kernel infrastructure...
 #   DomainBuilder — Top-level DSL builder...

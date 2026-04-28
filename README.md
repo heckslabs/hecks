@@ -390,7 +390,7 @@ The suite runs every fixture in `parity/bluebooks/` and every real bluebook in `
 After cloning, install the git hooks so drift can't land:
 
 ```
-bin/install-hooks
+tooling/install-hooks
 ```
 
 The pre-commit gate runs in ~1 second and blocks only on **unexpected** drift.

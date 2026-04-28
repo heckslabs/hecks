@@ -33,7 +33,7 @@ ruby -Ilib parity/world_parity_test.rb        # worlds
 ruby -Ilib parity/fuzz/fuzz_test.rb           # differential fuzzer
 ```
 
-The pre-commit hook (`bin/git-hooks/pre-commit`) runs the main + hecksagon + world tests in roughly a second and blocks unexpected drift. CI runs all of them on every PR.
+The pre-commit hook (`tooling/git-hooks/pre-commit`) runs the main + hecksagon + world tests in roughly a second and blocks unexpected drift. CI runs all of them on every PR.
 
 ## How drift gets resolved
 

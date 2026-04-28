@@ -10,10 +10,10 @@
 #   3. classify: verified | missing | unverifiable
 #
 # Usage:
-#   ruby tools/features_audit.rb              # summary report
-#   ruby tools/features_audit.rb --missing    # list missing claims
-#   ruby tools/features_audit.rb --section "Attributes"   # filter
-#   ruby tools/features_audit.rb --json       # machine-readable
+#   ruby tooling/features_audit.rb              # summary report
+#   ruby tooling/features_audit.rb --missing    # list missing claims
+#   ruby tooling/features_audit.rb --section "Attributes"   # filter
+#   ruby tooling/features_audit.rb --json       # machine-readable
 #
 # "verified" = at least one extracted identifier found in a searched path.
 # "missing"  = identifiers exist but none were found anywhere.

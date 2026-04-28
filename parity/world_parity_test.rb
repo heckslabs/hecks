@@ -19,7 +19,7 @@ require "hecks"
 require_relative "canonical_ir"
 
 HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
-REPO_ROOT  = File.expand_path("../..", __dir__)
+REPO_ROOT  = File.expand_path("..", __dir__)
 
 # Cover every `.world` shipped in-tree except node_modules / vendor / git
 # trees. Roots are named explicitly so a misplaced .world file at the

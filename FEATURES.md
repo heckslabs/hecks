@@ -16,7 +16,7 @@
 > the contract suite, parity suite, and behavioral tests and reports
 > pass/fail per area.
 >
-> Audit script: `tools/features_audit.py`. Split was produced mechanically
+> Audit script: `tooling/features_audit.rb`. Split was produced mechanically
 > against the test corpus on 2026-04-22; re-run when tests land to move
 > lines back up.
 
@@ -35,7 +35,7 @@
 - **Binding (spine)** — `binding "Name" { ... }` in the BluebookBuilder DSL defines the bootstrap layer that holds chapters together: module wiring, registries, errors, utilities, and cross-chapter event routing
 - **Self-hosting** — Hecks generates itself from its own Bluebook chapters. Thirteen chapters (AI, Appeal, Binding, Bluebook, CLI, Extensions, Hecksagon, Persist, Rails, Runtime, Spec, Targets, Templating, Workshop) live under `lib/hecks/chapters/` and boot as running Hecks applications via `InMemoryLoader` + `Runtime`.
 - **Self-compile manifest** — `Hecks::SelfCompile` lists all chapters in load order with `summary`, `total_aggregates`, `total_commands`, and `missing_chapters` introspection methods. Proves the Bluebook is a complete specification of Hecks.
-- **Coverage verification** — `CoverageVerifier` walks all `.rb` files in `lib/` and checks each is covered by at least one chapter aggregate. Integrated into `bin/verify` as Phase 4.
+- **Coverage verification** — `CoverageVerifier` walks all `.rb` files in `lib/` and checks each is covered by at least one chapter aggregate. Integrated into `tooling/verify` as Phase 4.
 - **Paragraphs** — `paragraph "Ports" { aggregate "EventBus" do ... end }` groups aggregates into named sections within a chapter. Paragraphs are first-class IR nodes (`Structure::Paragraph`) tracked on the domain, enabling organizational splitting without creating separate domains.
 - **Bluebook glossary** — `bluebook.glossary` prints the Ubiquitous Language for the entire composed system, walking binding + all chapters and listing every aggregate and command with descriptions.
 - Workshop chapter mode — define and play multiple chapters interactively with `workshop.chapter("Name") { ... }`
@@ -179,7 +179,7 @@
 - **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
 - **`hecks-life dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
 - **Known-drift list** — `parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
-- **Pre-commit gate** — `bin/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `bin/install-hooks`.
+- **Pre-commit gate** — `tooling/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `tooling/install-hooks`.
 - **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
 - **Nursery soft coverage** — `parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
 
@@ -416,8 +416,8 @@
 - **`bin/antibody-check`** — scans a commit's staged (or HEAD) diff for files outside the five-DSL extension set and reports them with reasons; exit code non-zero when unexempt flagged files are present
 - **Per-commit exemptions, not permanent carve-outs** — `[antibody-exempt: <reason>]` marker must appear on its own line in the commit message (regex anchored to line start so prose examples don't match) and justifies one specific change; no allowlist file, no pre-approved categories, thin reasons (`runtime`, `temporary`, `bootstrap`) are the smell the antibody is designed to prevent
 - **Scan semantics are per-commit** — `commit-msg` reads only the in-flight commit message and its staged files; earlier commits' exemption markers cannot leak into later commits on the same branch
-- **Pre-commit hook Gate 5** (`bin/git-hooks/pre-commit`) — informational, prints the flagged file list before the author writes a commit message, never blocks
-- **Commit-msg hook Gate B** (`bin/git-hooks/commit-msg`) — blocking; reads the in-flight commit message from git's `$1`, rejects with a COMMIT BLOCKED banner when non-DSL files are staged without a matching exemption
+- **Pre-commit hook Gate 5** (`tooling/git-hooks/pre-commit`) — informational, prints the flagged file list before the author writes a commit message, never blocks
+- **Commit-msg hook Gate B** (`tooling/git-hooks/commit-msg`) — blocking; reads the in-flight commit message from git's `$1`, rejects with a COMMIT BLOCKED banner when non-DSL files are staged without a matching exemption
 - **CI workflow** (`.github/workflows/antibody.yml`) — blocking second layer; runs `bin/antibody-check --each-commit` which walks every commit in `base..HEAD` and validates each one in isolation; emits GitHub `::warning::` annotations on flagged files so they appear inline on the PR diff
 
 ## Domain Interface Versioning
@@ -772,7 +772,7 @@
 - Exercises full CRUD lifecycle: index, new, create, show, edit, update, destroy
 - Validates 422 on invalid params via ActiveModel validations
 
-### FEATURES.md Audit (`tools/features_audit.py`)
+### FEATURES.md Audit (`tooling/features_audit.rb`)
 - Cross-references every bullet in `FEATURES.md` against the codebase so the claim-list cannot drift silently
 - Parses one claim per bullet, extracts backticked code, PascalCase tokens, `Namespaced::Names`, dotted calls (`Hecks.configure`), and `:symbols`, then greps across `lib/`, `hecks_life/src/`, `hecks_conception/aggregates/`, `hecks_conception/capabilities/`, `spec/`, `examples/`, `bin/`, `.claude/` (docs are excluded to avoid circular evidence)
 - Three buckets per claim: **verified** (at least one identifier resolves), **missing** (identifiers present but none found — real drift), **unverifiable** (pure prose)

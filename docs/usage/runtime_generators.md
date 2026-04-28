@@ -47,10 +47,10 @@ puts gen.generate  # => Ruby source string
 
 ## Verification
 
-Generator output is verified as Phase 4 of `bin/verify`:
+Generator output is verified as Phase 4 of `tooling/verify`:
 
 ```
-$ bin/verify --format documentation
+$ tooling/verify --format documentation
 ```
 
 Each generator is checked for valid Ruby syntax and correct module/method names.

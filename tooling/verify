@@ -4,8 +4,8 @@
 # Same output as server boot. One system.
 #
 # Usage:
-#   bin/verify                # validate everything
-#   bin/verify --format json  # machine-readable
+#   tooling/verify                # validate everything
+#   tooling/verify --format json  # machine-readable
 #
 
 $LOAD_PATH.unshift(File.join(__dir__, "../lib"))

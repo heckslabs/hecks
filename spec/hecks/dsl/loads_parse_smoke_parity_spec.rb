@@ -18,7 +18,7 @@ require "hecks/dsl/test_suite_builder"
 RSpec.describe "i43 loads_parse_smoke.behaviors — Ruby parse" do
   let(:fixture) do
     File.expand_path(
-      "../../parity/behaviors/loads_parse_smoke.behaviors", __dir__,
+      "../../../parity/behaviors/loads_parse_smoke.behaviors", __dir__,
     )
   end
 

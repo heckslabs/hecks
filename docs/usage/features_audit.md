@@ -1,6 +1,6 @@
 # features_audit.py — cross-reference FEATURES.md against the codebase
 
-`tools/features_audit.py` parses `FEATURES.md` into individual claims
+`tooling/features_audit.rb` parses `FEATURES.md` into individual claims
 and greps the codebase for evidence of each one. It reports three
 buckets per claim:
 
@@ -29,16 +29,16 @@ docs themselves would be circular.
 
 ```bash
 # summary + per-section counts
-python3 tools/features_audit.py
+ruby tooling/features_audit.rb
 
 # list every missing claim with its extracted identifiers
-python3 tools/features_audit.py --missing
+ruby tooling/features_audit.rb --missing
 
 # filter to a single section
-python3 tools/features_audit.py --section "Chapter CLI"
+ruby tooling/features_audit.rb --section "Chapter CLI"
 
 # machine-readable output
-python3 tools/features_audit.py --json
+ruby tooling/features_audit.rb --json
 ```
 
 ## How identifiers are extracted

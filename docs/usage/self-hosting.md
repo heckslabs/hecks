@@ -45,10 +45,10 @@ Hecks::SelfCompile.summary.each { |name, count| puts "#{name}: #{count}" }
 
 The coverage verifier walks all `.rb` files in `lib/` directories and checks
 each is covered by at least one chapter aggregate. It runs as part of
-`bin/verify`:
+`tooling/verify`:
 
 ```bash
-bin/verify --verbose   # includes coverage phase
+tooling/verify --verbose   # includes coverage phase
 ```
 
 ## Two Modes

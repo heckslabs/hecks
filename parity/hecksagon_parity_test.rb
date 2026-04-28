@@ -24,7 +24,7 @@ require "hecks"
 require_relative "canonical_ir"
 
 HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
-REPO_ROOT  = File.expand_path("../..", __dir__)
+REPO_ROOT  = File.expand_path("..", __dir__)
 
 HECKSAGON_FILES = (
   Dir[File.join(REPO_ROOT, "hecks_conception", "**", "*.hecksagon")] +

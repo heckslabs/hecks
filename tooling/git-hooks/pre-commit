@@ -1,7 +1,7 @@
 #!/bin/sh
 # Miette Governance — pre-commit enforcement
 #
-# Tracked hook source. Install with: bin/install-hooks
+# Tracked hook source. Install with: tooling/install-hooks
 #
 # Gates in order:
 #   1. Parity suite (Ruby/Rust parser IR agreement) — block on drift
