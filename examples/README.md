@@ -1,4 +1,8 @@
-# Hecks Examples
+# examples/
+
+*Examples* — here live the **reference uses** : domains and applications that show what Hecks looks like when someone actually picks it up and writes with it. *Pizzas* is the shape one reaches for first, the small-and-complete demonstration ; *banking*, *governance*, *bookshelf* turn the same grammar to other voices. They are **like a phrasebook** — not the language itself (that lives in *`bluebook/`*), but the language *spoken*, in real sentences, for someone who needs to hear it before they trust it. The deeper triage of what stays at this level arrives in Round 3 (inbox i128).
+
+---
 
 ## pizzas/
 
