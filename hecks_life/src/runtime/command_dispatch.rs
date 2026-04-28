@@ -85,11 +85,14 @@ pub fn dispatch(
 
     let aggregate_id = state.id.clone();
     let was_deleted = state.deleted;
+    let ctx = crate::heki::WriteContext::Dispatch {
+        aggregate: &aggregate_name, command: command_name,
+    };
     let repo = rt.repositories.get_mut(&aggregate_name).unwrap();
     if was_deleted {
-        repo.delete(&aggregate_id);
+        repo.delete(&aggregate_id, ctx);
     } else {
-        repo.save(state);
+        repo.save(state, ctx);
     }
 
     let event = build_event(rt, agg_idx, cmd_idx, &aggregate_id, &attrs);

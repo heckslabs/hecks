@@ -216,9 +216,9 @@ if [ "$consciousness" = "sleeping" ]; then
   fi
 
   if [ -n "$narrative" ]; then
-    status_str="${moon} Miette ${header}  ${narrative}"
+    status_str="${moon} ${header}  ${narrative}"
   else
-    status_str="${moon} Miette ${header}"
+    status_str="${moon} ${header}"
   fi
 else
   # Always show full details + musing appended.
@@ -247,7 +247,7 @@ else
   inbox_count=$($hecks heki count $public_info/inbox.heki --where status=queued 2>/dev/null)
   inbox_count=${inbox_count:-0}
 
-  status_str="☀️ Miette ${heart} ${beats} ${mood_icon} ${mood}"
+  status_str="${heart} ${beats} ${mood_icon} ${mood}"
   [ -n "$fatigue_icon" ] && status_str="$status_str ${fatigue_icon} ${fatigue}"
   status_str="$status_str 💭 ${ideas:-0}"
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"

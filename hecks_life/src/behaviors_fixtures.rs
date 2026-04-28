@@ -89,7 +89,9 @@ pub fn apply(rt: &mut Runtime, fixtures: &FixturesFile) -> HashMap<String, Strin
             for (key, raw) in &fix.attributes {
                 state.set(key, parse_fixture_value(raw));
             }
-            repo.save(state);
+            repo.save(state, crate::heki::WriteContext::OutOfBand {
+                reason: "behaviors test fixture seed — loads .fixtures rows into aggregate repos for test setup",
+            });
             in_scope.entry(agg_name.clone()).or_insert_with(|| id.clone());
         }
     }

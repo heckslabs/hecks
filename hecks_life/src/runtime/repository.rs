@@ -99,7 +99,7 @@ impl Repository {
         id.to_string()
     }
 
-    pub fn save(&mut self, state: AggregateState) {
+    pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) {
         self.store.insert(state.id.clone(), state);
         if let Some(ref dir) = self.data_dir {
             let path = heki_path(dir, &self.aggregate_type);
@@ -112,7 +112,7 @@ impl Repository {
                 }
                 heki_store.insert(id.clone(), rec);
             }
-            let _ = heki::write(&path, &heki_store);
+            let _ = heki::write(&path, &heki_store, ctx);
         }
     }
 
@@ -120,11 +120,11 @@ impl Repository {
     /// updated set back to heki. The companion to `save` for the
     /// `then_delete` mutation primitive ; only retire-style commands
     /// reach this path.
-    pub fn delete(&mut self, id: &str) {
+    pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) {
         self.store.remove(id);
         if let Some(ref dir) = self.data_dir {
             let path = heki_path(dir, &self.aggregate_type);
-            let _ = heki::delete(&path, id);
+            let _ = heki::delete(&path, id, ctx);
         }
     }
 

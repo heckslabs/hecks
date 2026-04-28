@@ -64,7 +64,9 @@ pub fn resolve(
     if let Some(r) = resp {
         let mut updated = state.clone();
         updated.set("response", Value::Str(r));
-        repo.save(updated);
+        repo.save(updated, crate::heki::WriteContext::OutOfBand {
+            reason: "llm adapter response writeback — adapter port writes :response after LLM call; not yet threaded through dispatch context",
+        });
     }
 }
 

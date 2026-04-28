@@ -991,31 +991,74 @@ fn heki_cmd_latest(file: &str) {
     }
 }
 
+/// Extract `--reason "<text>"` from a CLI arg list. Returns the reason
+/// and the remaining args. The reason is REQUIRED for write subcommands
+/// (append / upsert / delete) — without it, the write is a discipline
+/// gap. Use a domain command (`hecks-life $AGG <Aggregate>.<Command>`)
+/// instead, or pass --reason to acknowledge the out-of-band nature.
+fn extract_reason<'a>(rest: &'a [String]) -> Option<(String, Vec<&'a String>)> {
+    let mut iter = rest.iter().peekable();
+    let mut reason: Option<String> = None;
+    let mut remaining: Vec<&String> = Vec::new();
+    while let Some(arg) = iter.next() {
+        if arg == "--reason" {
+            if let Some(next) = iter.next() {
+                reason = Some(next.clone());
+                continue;
+            }
+            eprintln!("--reason requires a value");
+            std::process::exit(1);
+        }
+        if let Some(stripped) = arg.strip_prefix("--reason=") {
+            reason = Some(stripped.to_string());
+            continue;
+        }
+        remaining.push(arg);
+    }
+    reason.map(|r| (r, remaining))
+}
+
+fn require_reason(op: &str, rest: &[String]) -> (String, Vec<String>) {
+    match extract_reason(rest) {
+        Some((reason, rem)) => (reason, rem.into_iter().cloned().collect()),
+        None => {
+            eprintln!("hecks-life heki {} requires --reason \"<why>\" — direct heki", op);
+            eprintln!("writes bypass the dispatch path. Use a domain command instead, or");
+            eprintln!("pass --reason to mark this as an out-of-band write (test setup,");
+            eprintln!("migration, bootstrap seed). The reason is recorded in the audit log.");
+            std::process::exit(1);
+        }
+    }
+}
+
 fn heki_cmd_append(file: &str, rest: &[String]) {
-    let attrs = heki::parse_attrs(rest);
-    match heki::append(file, &attrs) {
+    let (reason, remaining) = require_reason("append", rest);
+    let attrs = heki::parse_attrs(&remaining);
+    match heki::append(file, &attrs, heki::WriteContext::OutOfBand { reason: &reason }) {
         Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
         Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
     }
 }
 
 fn heki_cmd_upsert(file: &str, rest: &[String]) {
-    let attrs = heki::parse_attrs(rest);
-    match heki::upsert(file, &attrs) {
+    let (reason, remaining) = require_reason("upsert", rest);
+    let attrs = heki::parse_attrs(&remaining);
+    match heki::upsert(file, &attrs, heki::WriteContext::OutOfBand { reason: &reason }) {
         Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
         Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
     }
 }
 
 fn heki_cmd_delete(file: &str, rest: &[String]) {
-    let id = match rest.first() {
+    let (reason, remaining) = require_reason("delete", rest);
+    let id = match remaining.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki delete <file.heki> <id>");
+            eprintln!("Usage: hecks-life heki delete <file.heki> <id> --reason \"<why>\"");
             std::process::exit(1);
         }
     };
-    match heki::delete(file, id) {
+    match heki::delete(file, id, heki::WriteContext::OutOfBand { reason: &reason }) {
         Ok(true)  => println!("deleted {}", id),
         Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
         Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
@@ -1173,6 +1216,8 @@ fn heki_cmd_values(file: &str, rest: &[String]) {
 }
 
 fn heki_cmd_mark(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("mark", rest);
+    let rest = &remaining;
     let mut filters: Vec<heki_query::Filter> = Vec::new();
     let mut sets: Vec<(String, String)> = Vec::new();
     let mut i = 0;
@@ -1223,7 +1268,7 @@ fn heki_cmd_mark(file: &str, rest: &[String]) {
         }
     }
     if matched > 0 {
-        if let Err(e) = heki::write(file, &store) {
+        if let Err(e) = heki::write(file, &store, heki::WriteContext::OutOfBand { reason: &reason }) {
             eprintln!("{}", e);
             std::process::exit(1);
         }
