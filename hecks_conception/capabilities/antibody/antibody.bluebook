@@ -225,6 +225,17 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
     # One-line rationale ; cited in the enforcer dashboard.
     attribute :reason, String
 
+    # ExemptionSpec — one (path, reason) row in a bulk register call.
+    # Used by RegisterExemptions to seed many rows in one dispatch ; the
+    # runtime iterates the list and saves one ExemptRegistry record per
+    # spec. Lives as a value_object on the aggregate so the bulk command
+    # can declare `list_of(ExemptionSpec)` and the runtime can match the
+    # VO's `path` field against the aggregate's `identified_by :path`.
+    value_object "ExemptionSpec" do
+      attribute :path,   String
+      attribute :reason, String
+    end
+
     command "RegisterExemption" do
       role "Chris"
       description "Add a kernel-surface or transitional file to the exemption list. The enforcer hook reads this on every Edit / Write event ; suffix-matching means relative or absolute paths both resolve. Idempotent — registering an existing path overwrites the reason."
@@ -232,6 +243,13 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
       attribute :reason, String
       then_set :path,    to: :path
       then_set :reason,  to: :reason
+      emits "ExemptionRegistered"
+    end
+
+    command "RegisterExemptions" do
+      role "Chris"
+      description "Bulk variant of RegisterExemption — one dispatch, N records saved. The runtime detects the bulk shape (single attribute, list_of value_object whose fields cover the aggregate's identity + value attrs) and iterates : for each ExemptionSpec it builds a per-row state and saves it through the standard save path. Upsert semantics carry through ; re-dispatching with overlapping specs overwrites the matching rows. Emits one `ExemptionRegistered` per row so downstream listeners (enforcer dashboard, audit log) see the same events whether the registration came in one-by-one or as a batch. The Many-form convention : every Register* command in the corpus that has a natural multi-row shape gets a Many sibling. Antibody is the proving ground (i113 / i116)."
+      attribute :specs, list_of(ExemptionSpec)
       emits "ExemptionRegistered"
     end
 

@@ -755,3 +755,151 @@ fn parse_pizzas() {
     // Pizza aggregate has CreatePizza, AddTopping, RemoveTopping.
     assert!(domain.aggregates[0].commands.len() >= 2);
 }
+
+// --- i113 / i116 : Many-form bulk dispatch ---
+//
+// `RegisterExemption` registers one row per dispatch. `RegisterExemptions`
+// (Many sibling) takes `list_of(ExemptionSpec)` and registers N rows in
+// one dispatch. The runtime detects the bulk shape — single attr,
+// list_of(VO) whose VO carries the aggregate's `identified_by` field —
+// and iterates : one save + one event per spec. Antibody is the proving
+// ground ; the shape extends to every Register* command with a natural
+// multi-row form.
+
+fn registry_source() -> &'static str {
+    r#"Hecks.bluebook "T" do
+  aggregate "ExemptRegistry" do
+    identified_by :path
+    attribute :path, String
+    attribute :reason, String
+    value_object "ExemptionSpec" do
+      attribute :path, String
+      attribute :reason, String
+    end
+    command "RegisterExemption" do
+      role "Chris"
+      attribute :path, String
+      attribute :reason, String
+      then_set :path, to: :path
+      then_set :reason, to: :reason
+      emits "ExemptionRegistered"
+    end
+    command "RegisterExemptions" do
+      role "Chris"
+      attribute :specs, list_of(ExemptionSpec)
+      emits "ExemptionRegistered"
+    end
+  end
+end"#
+}
+
+fn map_value(pairs: &[(&str, &str)]) -> Value {
+    let mut m = HashMap::new();
+    for (k, v) in pairs {
+        m.insert(k.to_string(), Value::Str(v.to_string()));
+    }
+    Value::Map(m)
+}
+
+#[test]
+fn bulk_register_saves_one_record_per_spec() {
+    // Three specs in, three records out — same upsert / save path as
+    // the single-form RegisterExemption.
+    let mut rt = boot(registry_source());
+    let specs = Value::List(vec![
+        map_value(&[("path", "lib/foo.rs"),  ("reason", "kernel-surface")]),
+        map_value(&[("path", "lib/bar.rs"),  ("reason", "transitional")]),
+        map_value(&[("path", "tests/baz.rs"),("reason", "test-only")]),
+    ]);
+    let result = rt.dispatch("RegisterExemptions", attrs(&[("specs", specs)])).unwrap();
+    assert_eq!(result.aggregate_type, "ExemptRegistry");
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 3);
+    assert_eq!(rt.find("ExemptRegistry", "lib/foo.rs").unwrap().get("reason"),
+        &Value::Str("kernel-surface".into()));
+    assert_eq!(rt.find("ExemptRegistry", "lib/bar.rs").unwrap().get("reason"),
+        &Value::Str("transitional".into()));
+    assert_eq!(rt.find("ExemptRegistry", "tests/baz.rs").unwrap().get("reason"),
+        &Value::Str("test-only".into()));
+}
+
+#[test]
+fn bulk_register_is_idempotent_on_overlapping_specs() {
+    // Re-dispatching with overlapping specs upserts — same record id
+    // (the natural-key path), updated reason. Final row count holds
+    // the union of inputs.
+    let mut rt = boot(registry_source());
+    let first = Value::List(vec![
+        map_value(&[("path", "a.rs"), ("reason", "first")]),
+        map_value(&[("path", "b.rs"), ("reason", "first")]),
+    ]);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", first)])).unwrap();
+
+    let second = Value::List(vec![
+        map_value(&[("path", "b.rs"), ("reason", "updated")]),  // overlap
+        map_value(&[("path", "c.rs"), ("reason", "fresh")]),    // new
+    ]);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", second)])).unwrap();
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 3);
+    assert_eq!(rt.find("ExemptRegistry", "a.rs").unwrap().get("reason"),
+        &Value::Str("first".into()));
+    assert_eq!(rt.find("ExemptRegistry", "b.rs").unwrap().get("reason"),
+        &Value::Str("updated".into()));
+    assert_eq!(rt.find("ExemptRegistry", "c.rs").unwrap().get("reason"),
+        &Value::Str("fresh".into()));
+}
+
+#[test]
+fn bulk_register_accepts_json_string_for_cli_path() {
+    // CLI passes attrs as Str — the runtime parses a JSON array of
+    // objects into specs. This keeps `hecks-life agg/ Antibody.RegisterExemptions
+    // specs='[{...},{...}]'` working without a separate codepath.
+    let mut rt = boot(registry_source());
+    let json = r#"[{"path":"x.rs","reason":"r1"},{"path":"y.rs","reason":"r2"}]"#;
+    rt.dispatch("RegisterExemptions",
+        attrs(&[("specs", Value::Str(json.into()))])).unwrap();
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 2);
+    assert_eq!(rt.find("ExemptRegistry", "x.rs").unwrap().get("reason"),
+        &Value::Str("r1".into()));
+    assert_eq!(rt.find("ExemptRegistry", "y.rs").unwrap().get("reason"),
+        &Value::Str("r2".into()));
+}
+
+#[test]
+fn single_register_still_works_alongside_bulk() {
+    // The bulk shape detection is opt-in by IR : commands without the
+    // bulk shape still run the regular single-row pipeline. Both
+    // forms compose against the same store.
+    let mut rt = boot(registry_source());
+    rt.dispatch("RegisterExemption",
+        attrs(&[("path", s("solo.rs")), ("reason", s("alone"))])).unwrap();
+    let bulk = Value::List(vec![
+        map_value(&[("path", "pair_1.rs"), ("reason", "bulk")]),
+        map_value(&[("path", "pair_2.rs"), ("reason", "bulk")]),
+    ]);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", bulk)])).unwrap();
+
+    assert_eq!(rt.all("ExemptRegistry").len(), 3);
+    assert_eq!(rt.find("ExemptRegistry", "solo.rs").unwrap().get("reason"),
+        &Value::Str("alone".into()));
+}
+
+#[test]
+fn bulk_register_thirty_eight_specs_in_one_dispatch() {
+    // The i112 catalog seed used to be 38 separate shell-loop
+    // dispatches. The Many-form retires that : one dispatch, 38 rows,
+    // no shell loop.
+    let mut rt = boot(registry_source());
+    let mut items = Vec::new();
+    for i in 0..38 {
+        items.push(map_value(&[
+            ("path", &*format!("path_{}.rs", i)),
+            ("reason", "seed"),
+        ]));
+    }
+    let specs = Value::List(items);
+    rt.dispatch("RegisterExemptions", attrs(&[("specs", specs)])).unwrap();
+    assert_eq!(rt.all("ExemptRegistry").len(), 38);
+}
