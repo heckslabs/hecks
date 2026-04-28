@@ -7,16 +7,22 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
   # ============================================================
   #
   # The conception's TODO surface — every "file an inbox item"
-  # ritual writes here. Each row is one Item with:
+  # ritual writes here. Each Inbox record is one filed TODO, with:
   #
   #   * heki uuid (primary key, opaque, set by the storage adapter)
   #   * ref       (sequential, "i42" — the short id humans type)
+  #
+  # The aggregate is named Inbox (matching the bluebook namespace
+  # and the heki file inbox.heki) because the runtime convention is
+  # one heki file per aggregate, named after the aggregate. Each
+  # *row* in inbox.heki is colloquially "an item" or "a filing" ;
+  # the aggregate type is Inbox, the rows are inbox records.
   #
   # Refs are assigned monotonically at Add time and never change.
   # Closing or dropping a row leaves the ref pointing at the same
   # record so historical mentions ("see i42") stay valid forever.
   #
-  # This file declares the JOURNAL — the Item shape, the lifecycle,
+  # This file declares the JOURNAL — the Inbox shape, the lifecycle,
   # the four state-transition commands, and the queries the CLI
   # surface drives over the .heki store.
   #
@@ -25,7 +31,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
   # / `close` / `reopen` / `drop` subcommands and the auto-commit-
   # to-main durability dance.
 
-  # ── Item ──────────────────────────────────────────────────────
+  # ── Inbox aggregate ────────────────────────────────────────────
   #
   # One row per filed TODO. priority is the operator-supplied
   # bucket (high/medium/normal/low) used by the queued list to
@@ -34,7 +40,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
   # Drop. wish_id is empty for plain filings ; populated for
   # filings that satisfy a DreamWish (i98 / 2026-04-26).
 
-  aggregate "Item", "One filed TODO — short ref, body, priority, lifecycle, optional dream-wish receipt" do
+  aggregate "Inbox", "One filed TODO — short ref, body, priority, lifecycle, optional dream-wish receipt" do
     identified_by :ref
     # ---- Identity ----
     # ref : the short id humans type ("i42"). Monotonic, stable.
@@ -83,39 +89,39 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
       then_set :posted_at,  to: :posted_at
       then_set :wish_id,    to: :wish_id
       then_set :status,     to: "queued"
-      emits "ItemAdded"
+      emits "InboxAdded"
     end
 
     command "Close" do
       role "Chris"
       description "Mark a queued item as done. Stamps completed_at and records a one-line resolution (commit sha, PR url, or free-text note). Reversible via Reopen."
-      reference_to(Item)
+      reference_to(Inbox)
       attribute :completed_at, String
       attribute :resolution,   String
       given("must be queued") { status == "queued" }
       then_set :status,       to: "done"
       then_set :completed_at, to: :completed_at
       then_set :resolution,   to: :resolution
-      emits "ItemClosed"
+      emits "InboxClosed"
     end
 
     command "Reopen" do
       role "Chris"
       description "Move a done item back to queued — a closing was premature. Clears completed_at and resolution so the row reads cleanly as freshly queued. The ref is preserved."
-      reference_to(Item)
+      reference_to(Inbox)
       given("must be done") { status == "done" }
       then_set :status,       to: "queued"
       then_set :completed_at, to: ""
       then_set :resolution,   to: ""
-      emits "ItemReopened"
+      emits "InboxReopened"
     end
 
     command "Drop" do
       role "Chris"
       description "Abandon a row (was `archive` in the shell). The implementation deletes the heki record outright ; this command marks the row as dropped first so any subscribers see the transition before the row disappears. The ref is not reassigned — historical mentions become dangling."
-      reference_to(Item)
+      reference_to(Inbox)
       then_set :status, to: "dropped"
-      emits "ItemDropped"
+      emits "InboxDropped"
     end
 
     lifecycle :status, default: "queued" do
@@ -141,19 +147,19 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
     # filter / order specs.
 
     query "ListAll" do
-      description "Every Item, ordered by priority descending (high → low) then by ref numerically ascending. Mirrors `hecks-life heki list inbox.heki --order priority:enum=high,medium,normal,low --order ref:numeric_ref`."
+      description "Every Inbox, ordered by priority descending (high → low) then by ref numerically ascending. Mirrors `hecks-life heki list inbox.heki --order priority:enum=high,medium,normal,low --order ref:numeric_ref`."
     end
 
     query "ListQueued" do
-      description "Every Item where status = queued, ordered by priority then ref. The default `inbox list` view — what's still on Chris's plate."
+      description "Every Inbox where status = queued, ordered by priority then ref. The default `inbox list` view — what's still on Chris's plate."
     end
 
     query "ListDone" do
-      description "Every Item where status = done, ordered by priority then ref. Audit trail of what's been processed."
+      description "Every Inbox where status = done, ordered by priority then ref. Audit trail of what's been processed."
     end
 
     query "GetByRef" do
-      description "Look up one Item by its short ref (e.g., 'i42'). Returns the heki uuid and the full row. The shell wrapper uses this for `inbox show <ref>` — every other transition command (Close, Reopen, Drop) goes through ref → uuid resolution first."
+      description "Look up one Inbox by its short ref (e.g., 'i42'). Returns the heki uuid and the full row. The shell wrapper uses this for `inbox show <ref>` — every other transition command (Close, Reopen, Drop) goes through ref → uuid resolution first."
     end
 
     query "NextRef" do

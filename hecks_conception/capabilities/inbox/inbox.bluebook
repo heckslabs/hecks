@@ -126,7 +126,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "ResolveNextRef" do
       role "System"
-      description "For an add invocation : run Item.NextRef against the .heki store, set next_ref to the freshly allocated short id ('i<n+1>'), stamp posted_at with the current UTC ISO time, then dispatch Item.Add. The Rust runner reads next_ref via the :fs adapter (heki next-ref helper) ; the timestamp comes from the runtime's clock primitive."
+      description "For an add invocation : run Inbox.NextRef against the .heki store, set next_ref to the freshly allocated short id ('i<n+1>'), stamp posted_at with the current UTC ISO time, then dispatch Inbox.Add. The Rust runner reads next_ref via the :fs adapter (heki next-ref helper) ; the timestamp comes from the runtime's clock primitive."
       attribute :next_ref,  String
       attribute :posted_at, String
       then_set :next_ref,   to: :next_ref
@@ -137,7 +137,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "ResolveRef" do
       role "System"
-      description "For a get/close/reopen/drop invocation : run Item.GetByRef with the supplied short ref, set uuid to the matching heki primary key. When no row matches, FailInvocation with exit_kind=ref_not_found and a friendly message ('no item with ref iN'). The :fs adapter performs the lookup."
+      description "For a get/close/reopen/drop invocation : run Inbox.GetByRef with the supplied short ref, set uuid to the matching heki primary key. When no row matches, FailInvocation with exit_kind=ref_not_found and a friendly message ('no item with ref iN'). The :fs adapter performs the lookup."
       attribute :uuid, String
       then_set :uuid,  to: :uuid
       then_set :phase, to: "ref_resolved"
@@ -146,7 +146,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "DispatchAdd" do
       role "System"
-      description "Dispatch Item.Add against the conception's inbox.heki with the resolved next_ref + posted_at and the operator's priority/body/wish_id. When wish_id is non-empty, the Item.Add rule fires DreamWish.MarkFiled inside the same transaction so the seed pool stays consistent (i98). Sets rendered to the new ref so the operator sees 'iN' on stdout."
+      description "Dispatch Inbox.Add against the conception's inbox.heki with the resolved next_ref + posted_at and the operator's priority/body/wish_id. When wish_id is non-empty, the Inbox.Add rule fires DreamWish.MarkFiled inside the same transaction so the seed pool stays consistent (i98). Sets rendered to the new ref so the operator sees 'iN' on stdout."
       attribute :rendered, String
       then_set :rendered, to: :rendered
       then_set :phase,    to: "dispatched"
@@ -155,7 +155,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "RunListQuery" do
       role "System"
-      description "Run one of Item.ListAll / Item.ListQueued / Item.ListDone based on list_filter. Format each row as `  iN  [pri/status]  body-summary` (90-char body truncate, newlines collapsed to single spaces). Sets rendered to the joined output. The Rust runner uses the :fs adapter (heki list with the matching filter + order spec) ; today the shell still drives this directly because the runtime can't execute the query IR."
+      description "Run one of Inbox.ListAll / Inbox.ListQueued / Inbox.ListDone based on list_filter. Format each row as `  iN  [pri/status]  body-summary` (90-char body truncate, newlines collapsed to single spaces). Sets rendered to the joined output. The Rust runner uses the :fs adapter (heki list with the matching filter + order spec) ; today the shell still drives this directly because the runtime can't execute the query IR."
       attribute :rendered, String
       then_set :rendered, to: :rendered
       then_set :phase,    to: "rendered"
@@ -173,7 +173,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "DispatchTransition" do
       role "System"
-      description "Dispatch the matching Item transition command (Close/Reopen/Drop) against the resolved uuid. For Close, the resolution attribute carries the operator's note (defaults to 'done'). For Drop, the row is hard-deleted by the storage adapter after the ItemDropped event fires. Sets rendered to a one-line confirmation ('closed iN', 'reopened iN', 'dropped iN')."
+      description "Dispatch the matching Inbox transition command (Close/Reopen/Drop) against the resolved uuid. For Close, the resolution attribute carries the operator's note (defaults to 'done'). For Drop, the row is hard-deleted by the storage adapter after the InboxDropped event fires. Sets rendered to a one-line confirmation ('closed iN', 'reopened iN', 'dropped iN')."
       attribute :rendered, String
       then_set :rendered, to: :rendered
       then_set :phase,    to: "dispatched"
