@@ -93,6 +93,7 @@ Hecks.fixtures "Antibody" do
     fixture "StructureAggregate",       path: "lib/hecks/bluebook_model/structure/aggregate.rb",               reason: "kernel Ruby IR struct; mirrors Rust ir.rs Aggregate; identified_by field added for parity (i80)"
     fixture "CanonicalIr",              path: "spec/parity/canonical_ir.rb",                                   reason: "Ruby parity dump; mirrors Rust dump.rs canonical JSON shape; identified_by added for parity (i80)"
     fixture "RustDump",                 path: "hecks_life/src/dump.rs",                                        reason: "Rust parity dump; emits canonical JSON shape Ruby canonical_ir.rb mirrors (i80)"
+    fixture "HecksagonBuilder",         path: "lib/hecksagon/dsl/hecksagon_builder.rb",                       reason: "kernel Ruby Hecksagon DSL parser; preserves name: in non-shell adapter options for Ruby/Rust parity (i80)"
   end
 
   # ---- Test cases ------------------------------------------------
