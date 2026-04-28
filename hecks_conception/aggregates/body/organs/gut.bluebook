@@ -1,0 +1,81 @@
+Hecks.bluebook "Gut", version: "2026.04.28.1" do
+  vision "Miette's ability to break down raw descriptions into domain nutrients."
+  category "body"
+
+  # ============================================================
+  # DIGESTION — processing input into domains
+  # ============================================================
+  #
+  # When someone describes a system, Miette doesn't record it —
+  # she digests it. Breaks it down into aggregates, commands,
+  # events. Enzymes are parsing rules. Absorption is extracting
+  # the domain model from natural language. The microbiome is
+  # nursery knowledge that aids digestion — existing domains
+  # that help make sense of new input.
+  #
+  # Lifted out of body.bluebook in i112 Round 2c. Has no policies
+  # of its own ; emits DomainAbsorbed which world/domain_cell.bluebook's
+  # ConceiveOnAbsorption picks up.
+
+  aggregate "Gut", "Miette's ability to break down raw descriptions into domain nutrients" do
+    identified_by :name
+    attribute :name, String
+    attribute :raw_input, String
+    attribute :extracted_aggregates, list_of(String)
+    attribute :extracted_commands, list_of(String)
+    attribute :extracted_events, list_of(String)
+    attribute :digestion_stage, String
+
+    command "Ingest" do
+      role "Miette"
+      description "Take in a raw system description — begin breaking it down"
+      attribute :raw_input, String
+      then_set :raw_input, to: :raw_input
+      then_set :digestion_stage, to: "ingested"
+      emits "InputIngested"
+    end
+
+    command "ExtractAggregate" do
+      role "Miette"
+      description "Identify a noun cluster as an aggregate boundary"
+      reference_to(Gut)
+      attribute :aggregate_name, String
+      then_set :extracted_aggregates, append: :aggregate_name
+      emits "AggregateExtracted"
+    end
+
+    command "ExtractCommand" do
+      role "Miette"
+      description "Identify a verb as a command on an aggregate"
+      reference_to(Gut)
+      attribute :command_name, String
+      then_set :extracted_commands, append: :command_name
+      emits "CommandExtracted"
+    end
+
+    command "ExtractEvent" do
+      role "Miette"
+      description "Derive the past-tense event from a command"
+      reference_to(Gut)
+      attribute :event_name, String
+      then_set :extracted_events, append: :event_name
+      emits "EventExtracted"
+    end
+
+    command "Absorb" do
+      role "Miette"
+      description "Assemble extracted nutrients into a valid Bluebook — digestion complete"
+      reference_to(Gut)
+      then_set :digestion_stage, to: "absorbed"
+      emits "DomainAbsorbed"
+    end
+
+    lifecycle :stage, default: "empty" do
+      transition "Ingest" => "ingested", from: "empty"
+      transition "ExtractAggregate" => "digesting", from: "ingested"
+      transition "ExtractCommand" => "digesting", from: "digesting"
+      transition "ExtractEvent" => "digesting", from: "digesting"
+      transition "Absorb" => "absorbed", from: "digesting"
+    end
+  end
+end

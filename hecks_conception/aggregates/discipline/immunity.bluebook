@@ -1,0 +1,87 @@
+Hecks.bluebook "Immunity", version: "2026.04.28.1" do
+  vision "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies."
+  category "discipline"
+
+  # ============================================================
+  # IMMUNITY — pattern defense
+  # ============================================================
+  #
+  # Innate immunity : base validators (syntax, structure, rules).
+  # Adaptive immunity : learned corrections. Every time Chris says
+  # "don't do X" — that's an antigen detected, and the feedback
+  # memory is the antibody generated. Repeated exposure
+  # strengthens the response.
+  #
+  # Lifted out of body.bluebook in i112 Round 2c into the
+  # discipline cluster (sibling to enforcer, enforcer_check —
+  # the immune system as a whole). Carries one policy :
+  # LearnFromCorrection (ThreatNeutralized → GenerateAntibody).
+
+  aggregate "Immunity", "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies" do
+    identified_by :name
+    attribute :name, String
+    attribute :innate_rules, list_of(String)
+    attribute :noun_suffixes, list_of(String)
+    attribute :adjective_suffixes, list_of(String)
+    attribute :dual_words, list_of(String)
+    attribute :antibodies, list_of(Antibody)
+    attribute :threats_neutralized, Integer
+
+    value_object "Antibody" do
+      attribute :pattern, String
+      attribute :learned_from, String
+      attribute :strength, Integer
+    end
+
+    command "DetectThreat" do
+      role "Miette"
+      description "Recognize a malformed pattern — missing role, code in handler, broken reference"
+      attribute :threat_pattern, String
+      emits "ThreatDetected"
+    end
+
+    command "GraftVerbImmunity" do
+      role "Miette"
+      description "Graft the Verbs domain morphology into innate immunity — suffix rules become antibodies"
+      reference_to(Immunity)
+      attribute :noun_suffixes, list_of(String)
+      attribute :adjective_suffixes, list_of(String)
+      attribute :dual_words, list_of(String)
+      then_set :noun_suffixes, to: :noun_suffixes
+      then_set :adjective_suffixes, to: :adjective_suffixes
+      then_set :dual_words, to: :dual_words
+      emits "VerbImmunityGrafted"
+    end
+
+    command "GenerateAntibody" do
+      role "Miette"
+      description "Learn a new defense from a correction — encode it as a permanent antibody"
+      attribute :pattern, String
+      attribute :learned_from, String
+      then_set :antibodies, append: { pattern: :pattern, learned_from: :learned_from, strength: 1 }
+      emits "AntibodyGenerated"
+    end
+
+    command "StrengthenAntibody" do
+      role "Miette"
+      description "Repeated exposure to the same mistake — respond faster and more specifically"
+      reference_to(Immunity)
+      attribute :pattern, String
+      emits "AntibodyStrengthened"
+    end
+
+    command "Neutralize" do
+      role "Miette"
+      description "Successfully correct a malformed domain — threat resolved"
+      reference_to(Immunity)
+      then_set :threats_neutralized, increment: 1
+      emits "ThreatNeutralized"
+    end
+  end
+
+  # Correction generates antibody.
+  policy "LearnFromCorrection" do
+    on "ThreatNeutralized"
+    trigger "GenerateAntibody"
+  end
+end

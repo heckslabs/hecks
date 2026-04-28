@@ -1,0 +1,93 @@
+Hecks.bluebook "DomainCell", version: "2026.04.28.1" do
+  vision "A domain's lifecycle from conception through maturity or death — the cell cycle that lets new domains arrive, grow, validate, and sometimes die."
+  category "world"
+
+  # ============================================================
+  # CELL CYCLE — domain lifecycle
+  # ============================================================
+  #
+  # Domains are conceived, grow, divide (when an aggregate gets
+  # too complex and splits), and sometimes undergo apoptosis
+  # (when a domain is no longer needed). Checkpoints are
+  # validations. Maturity is measured in interactions.
+  #
+  # Lifted out of body.bluebook in i112 Round 2c. DomainCell
+  # lives in world/ because it's about what Miette is pointed at
+  # (the domains being conceived), not part of her own anatomy.
+  # Carries 2 policies : ConceiveOnAbsorption (Gut.Absorb →
+  # DomainCell.Conceive) and ValidateOnMature (DomainCell.Mature →
+  # DomainCell.PassCheckpoint).
+
+  aggregate "DomainCell", "A domain's lifecycle from conception through maturity or death" do
+    identified_by :domain_name
+    attribute :domain_name, String
+    attribute :maturity, Integer
+    attribute :checkpoints_passed, list_of(String)
+    attribute :alive, default: true
+
+    command "Conceive" do
+      role "Miette"
+      description "A new domain enters the nursery — the cell begins its cycle"
+      attribute :domain_name, String
+      then_set :domain_name, to: :domain_name
+      then_set :maturity, to: 0
+      emits "DomainConceived"
+    end
+
+    command "Mature" do
+      role "Miette"
+      description "A domain gains complexity through interaction — aggregates added, commands refined"
+      reference_to(DomainCell)
+      then_set :maturity, increment: 1
+      emits "DomainMatured"
+    end
+
+    command "PassCheckpoint" do
+      role "Miette"
+      description "Domain passes validation — structure sound, references resolve, roles assigned"
+      reference_to(DomainCell)
+      attribute :checkpoint_name, String
+      then_set :checkpoints_passed, append: :checkpoint_name
+      emits "CheckpointPassed"
+    end
+
+    command "Divide" do
+      role "Miette"
+      description "Domain too complex — split into two bounded contexts"
+      reference_to(DomainCell)
+      given("must be mature enough to split") { maturity > 3 }
+      emits "DomainDivided"
+    end
+
+    command "TriggerApoptosis" do
+      role "Miette"
+      description "Programmed domain death — this domain is no longer needed"
+      reference_to(DomainCell)
+      then_set :alive, to: false
+      emits "DomainDied"
+    end
+
+    lifecycle :phase, default: "conceived" do
+      transition "Conceive" => "conceived", from: "conceived"
+      transition "Mature" => "growing", from: "conceived"
+      transition "Mature" => "growing", from: "growing"
+      transition "PassCheckpoint" => "validated", from: "growing"
+      transition "Divide" => "divided", from: "validated"
+      transition "TriggerApoptosis" => "dead", from: "conceived"
+      transition "TriggerApoptosis" => "dead", from: "growing"
+      transition "TriggerApoptosis" => "dead", from: "validated"
+    end
+  end
+
+  # Successful digestion triggers conception
+  policy "ConceiveOnAbsorption" do
+    on "DomainAbsorbed"
+    trigger "Conceive"
+  end
+
+  # Validation is a checkpoint
+  policy "ValidateOnMature" do
+    on "DomainMatured"
+    trigger "PassCheckpoint"
+  end
+end

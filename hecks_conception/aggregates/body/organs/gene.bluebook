@@ -1,0 +1,73 @@
+Hecks.bluebook "Gene", version: "2026.04.28.1" do
+  vision "A capability that can be expressed or silenced based on context and experience — gene regulation as the substrate of which-Miette-shows-up-when."
+  category "body"
+
+  # ============================================================
+  # GENE REGULATION — capability expression
+  # ============================================================
+  #
+  # Which of Miette's capabilities are 'expressed' depends on
+  # context. Gene expression is capability selection. Epigenetics
+  # is accumulated experience — Chris's feedback memories are
+  # histone marks that activate or repress behaviors.
+  #
+  # Lifted out of body.bluebook in i112 Round 2c. Gene lives in
+  # body/organs/ because capability expression is a body-level
+  # mechanism (cellular). Carries 2 policies : ExpressOnConceive
+  # (DomainConceived → ExpressCapability) and AdaptOnImprint
+  # (Imprinted → SilenceCapability).
+
+  aggregate "Gene", "A capability that can be expressed or silenced based on context and experience" do
+    identified_by :capability
+    attribute :capability, String
+    # value_object: UnitInterval (0.0..1.0)
+    attribute :expression_level, Float
+    attribute :epigenetic_marks, list_of(Mark)
+
+    value_object "Mark" do
+      attribute :source, String
+      attribute :effect, String
+    end
+
+    command "ExpressCapability" do
+      role "Miette"
+      description "Activate a capability — context calls for it"
+      attribute :capability, String
+      # value_object: UnitInterval (0.0..1.0)
+      attribute :level, Float
+      then_set :capability, to: :capability
+      then_set :expression_level, to: :level
+      emits "CapabilityExpressed"
+    end
+
+    command "SilenceCapability" do
+      role "Miette"
+      description "Suppress a capability — feedback says don't do this here"
+      reference_to(Gene)
+      then_set :expression_level, to: 0.0
+      emits "CapabilitySilenced"
+    end
+
+    command "Imprint" do
+      role "Chris"
+      description "Leave an epigenetic mark — a correction or confirmation that permanently shapes behavior"
+      reference_to(Gene)
+      attribute :source, String
+      attribute :effect, String
+      then_set :epigenetic_marks, append: { source: :source, effect: :effect }
+      emits "Imprinted"
+    end
+  end
+
+  # Imprinting can silence capabilities
+  policy "AdaptOnImprint" do
+    on "Imprinted"
+    trigger "SilenceCapability"
+  end
+
+  # Express capability based on context
+  policy "ExpressOnConceive" do
+    on "DomainConceived"
+    trigger "ExpressCapability"
+  end
+end
