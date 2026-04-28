@@ -1548,6 +1548,20 @@ fn run_terminal(project_dir: &str, being: &str) {
     let agg_dir = format!("{}/aggregates", project_dir);
     let data_dir = find_world_heki_dir(&agg_dir)
         .unwrap_or_else(|| format!("{}/information", project_dir));
+    let combined = load_combined_domain(&agg_dir);
+    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+    hecks_life::runtime::adapter_terminal::run(&mut rt, being);
+}
+
+/// Load every `.bluebook` under `<agg_dir>/` (organs) and under sibling
+/// `<agg_dir>/../capabilities/*/` (capability bluebooks) into a single
+/// merged Domain. Closes inbox i108 — capability bluebooks were
+/// previously skipped, so any aggregate declared in a capability bluebook
+/// (e.g. Antibody.ExemptRegistry, MusingMint.Mint, ConsolidationSweep)
+/// raised UnknownCommand on dispatch. Now they're auto-loaded alongside
+/// the organ aggregates and dispatch resolves them through the standard
+/// runtime path.
+fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     let mut combined = hecks_life::ir::Domain {
         name: "Hecksagon".into(),
         category: None, vision: None,
@@ -1556,21 +1570,44 @@ fn run_terminal(project_dir: &str, being: &str) {
         entrypoint: None,
         sections: vec![],
     };
-    if let Ok(entries) = fs::read_dir(&agg_dir) {
+    let merge = |dom: hecks_life::ir::Domain, c: &mut hecks_life::ir::Domain| {
+        c.aggregates.extend(dom.aggregates);
+        c.policies.extend(dom.policies);
+        c.fixtures.extend(dom.fixtures);
+    };
+    // Organs : every .bluebook directly under aggregates/.
+    if let Ok(entries) = fs::read_dir(agg_dir) {
         for entry in entries.flatten() {
             let p = entry.path();
             if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
                 if let Ok(source) = fs::read_to_string(&p) {
-                    let domain = parser::parse(&source);
-                    combined.aggregates.extend(domain.aggregates);
-                    combined.policies.extend(domain.policies);
-                    combined.fixtures.extend(domain.fixtures);
+                    merge(parser::parse(&source), &mut combined);
                 }
             }
         }
     }
-    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
-    hecks_life::runtime::adapter_terminal::run(&mut rt, being);
+    // Capabilities : every .bluebook under sibling capabilities/*/.
+    let cap_dir = std::path::Path::new(agg_dir).parent()
+        .map(|p| p.join("capabilities"));
+    if let Some(cap_dir) = cap_dir {
+        if let Ok(entries) = fs::read_dir(&cap_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if !p.is_dir() { continue; }
+                if let Ok(inner) = fs::read_dir(&p) {
+                    for inner_entry in inner.flatten() {
+                        let ip = inner_entry.path();
+                        if ip.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                            if let Ok(source) = fs::read_to_string(&ip) {
+                                merge(parser::parse(&source), &mut combined);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    combined
 }
 
 /// Find the heki dir from the project's *.world file — look in parent of
@@ -1599,29 +1636,7 @@ fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
 fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
-    let mut combined = hecks_life::ir::Domain {
-        name: "Hecksagon".into(),
-        category: None, vision: None,
-        aggregates: vec![], policies: vec![],
-        fixtures: vec![],
-        entrypoint: None,
-        sections: vec![],
-    };
-    let entries = fs::read_dir(agg_dir).unwrap_or_else(|e| {
-        eprintln!("Cannot read directory {}: {}", agg_dir, e);
-        std::process::exit(1);
-    });
-    for entry in entries.flatten() {
-        let p = entry.path();
-        if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
-            if let Ok(source) = fs::read_to_string(&p) {
-                let domain = parser::parse(&source);
-                combined.aggregates.extend(domain.aggregates);
-                combined.policies.extend(domain.policies);
-                combined.fixtures.extend(domain.fixtures);
-            }
-        }
-    }
+    let combined = load_combined_domain(agg_dir);
     let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
 
     // Check if this is a query — find the aggregate and check its queries

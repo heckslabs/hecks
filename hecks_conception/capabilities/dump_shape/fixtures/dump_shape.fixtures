@@ -112,5 +112,6 @@ Hecks.fixtures "DumpShape" do
     fixture "MutOp_Multiply",  serializer: "dump_mutation_op", variant: "MutationOp::Multiply",  emits: "multiply",  order: 6
     fixture "MutOp_Clamp",     serializer: "dump_mutation_op", variant: "MutationOp::Clamp",     emits: "clamp",     order: 7
     fixture "MutOp_Decay",     serializer: "dump_mutation_op", variant: "MutationOp::Decay",     emits: "decay",     order: 8
+    fixture "MutOp_Delete",    serializer: "dump_mutation_op", variant: "MutationOp::Delete",    emits: "delete",    order: 9
   end
 end

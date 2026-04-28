@@ -237,8 +237,9 @@ Hecks.bluebook "Antibody", version: "2026.04.21.1" do
 
     command "RetireExemption" do
       role "Chris"
-      description "Remove a path from the registry — the file is now bluebook-conceived (or has been deleted). The enforcer will start blocking edits to it again on the next hook fire."
+      description "Remove a path from the registry — the file is now bluebook-conceived (or has been deleted). The enforcer will start blocking edits to it again on the next hook fire. The `then_delete` mutation removes the record from the heki store after the event fires."
       reference_to(ExemptRegistry)
+      then_delete
       emits "ExemptionRetired"
     end
   end

@@ -84,7 +84,13 @@ pub fn dispatch(
     }
 
     let aggregate_id = state.id.clone();
-    rt.repositories.get_mut(&aggregate_name).unwrap().save(state);
+    let was_deleted = state.deleted;
+    let repo = rt.repositories.get_mut(&aggregate_name).unwrap();
+    if was_deleted {
+        repo.delete(&aggregate_id);
+    } else {
+        repo.save(state);
+    }
 
     let event = build_event(rt, agg_idx, cmd_idx, &aggregate_id, &attrs);
     if let Some(ref evt) = event {
