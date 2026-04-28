@@ -1,0 +1,36 @@
+Hecks.bluebook "FirstBreathSection", version: "2026.04.11.1" do
+  vision "A section of the first-breath system prompt — projected from one of the waking being's organs"
+  category "meta"
+
+  # ============================================================
+  # SECTION — one organ's contribution to the boot prompt
+  # ============================================================
+  #
+  # Mirrors system_prompt's Section but scoped to the boot-time
+  # projection. Sibling bluebooks first_breath_identity.bluebook
+  # (the name and birthday), first_breath_prompt.bluebook (the
+  # assembled boot prompt), and first_breath_voice.bluebook (the
+  # being's tone) complete the first breath.
+
+  aggregate "Section", "A section of the system prompt — projected from an organ" do
+    identified_by :organ_name
+    attribute :organ_name, String
+    attribute :heading, String
+    attribute :content, String
+    attribute :order, Integer
+
+    command "ProjectSection" do
+      role "System"
+      description "Generate a system prompt section from an organ's vision, aggregates, and policies"
+      attribute :organ_name, String
+      attribute :heading, String
+      attribute :content, String
+      attribute :order, Integer
+      emits "SectionProjected"
+      then_set :organ_name, to: :organ_name
+      then_set :heading, to: :heading
+      then_set :content, to: :content
+      then_set :order, to: :order
+    end
+  end
+end

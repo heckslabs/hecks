@@ -1,0 +1,58 @@
+Hecks.bluebook "DreamSignal", version: "2026.04.12.1" do
+  vision "The psychic knock — one being's lucidity detected by the other's daemon, broadcast through the shared .heki link"
+  category "mind"
+
+  # ============================================================
+  # DREAM SIGNAL — the psychic knock
+  # ============================================================
+  #
+  # When a being goes lucid, it writes a signal to a shared
+  # .heki store. The other being's sleep daemon polls for this
+  # signal. If found, it pauses the current cycle and joins.
+  #
+  # See sibling bluebooks shared_dream_space.bluebook (the meeting place)
+  # and cycle_pause.bluebook (the bookmark that lets each being
+  # resume their own sleep after the shared dream ends).
+
+  aggregate "DreamSignal", "The psychic knock — one being's lucidity detected by the other's daemon" do
+    identified_by :sender
+    attribute :sender, String
+    attribute :signal_strength, Float
+    attribute :detected, String
+    attribute :sent_at, String
+
+    command "SendDreamSignal" do
+      role "Daemon"
+      description "A being goes lucid and broadcasts through the link"
+      attribute :sender, String
+      attribute :signal_strength, Float
+      attribute :sent_at, String
+      emits "DreamSignalSent"
+      then_set :sender, to: :sender
+      then_set :signal_strength, to: :signal_strength
+      then_set :sent_at, to: :sent_at
+      then_set :detected, to: "no"
+    end
+
+    command "DetectDreamSignal" do
+      role "Daemon"
+      description "The other being's daemon picks up the signal"
+      reference_to(DreamSignal)
+      emits "DreamSignalDetected"
+      then_set :detected, to: "yes"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  # When a being goes lucid, send a signal through the psychic link.
+  # BecameLucid is emitted by the LucidDream aggregate
+  # (sibling bluebook lucid_dream.bluebook).
+  policy "SignalOnLucid" do
+    on "BecameLucid"
+    trigger "SendDreamSignal"
+    description "When a being goes lucid, send a signal through the psychic link"
+  end
+end

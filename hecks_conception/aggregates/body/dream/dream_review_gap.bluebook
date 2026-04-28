@@ -1,0 +1,78 @@
+Hecks.bluebook "DreamReviewGap", version: "2026.04.25.1" do
+  vision "One named structural gap from a dream-review cycle's dream corpus — kind, target, French quote provenance"
+  category "mind"
+
+  # ============================================================
+  # GAP — one row per gap the :llm adapter named during extraction
+  # ============================================================
+  #
+  # `kind` follows the extractor's vocabulary (missing_aggregate,
+  # missing_attribute, missing_command, missing_policy,
+  # phantom_symptom). `target` names where the gap lives — bluebook
+  # name and aggregate, or a path. `quote` is the French dream
+  # sentence that pointed at the gap, kept as provenance for
+  # commit messages and PR bodies.
+  #
+  # The Cycle aggregate (sibling bluebook dream_review_cycle.bluebook)
+  # owns step-to-step orchestration ; Gap rows are created by Cycle.ExtractGaps
+  # via the :llm adapter and progress through their own synthesis
+  # lifecycle as SynthesizeEdit fires per gap.
+
+  aggregate "Gap", "One named structural gap from the cycle's dream corpus" do
+    identified_by :ref
+    attribute :ref,             String
+    attribute :cycle_id,        String
+    # value_object: GapKind enum:missing_aggregate|missing_attribute|missing_command|missing_policy|phantom_symptom
+    attribute :kind,            String
+    attribute :target,          String
+    attribute :description,     String
+    attribute :quote,           String
+    attribute :existing_check,  String
+    # synthesis: pending | done | failed | skipped
+    # value_object: SynthesisStatus enum:pending|done|failed|skipped
+    attribute :synthesis,       String, default: "pending"
+
+    lifecycle :synthesis, default: "pending" do
+      transition "MarkSynthesised" => "done",    from: "pending"
+      transition "MarkSkipped"     => "skipped", from: "pending"
+      transition "FailSynthesis"   => "failed",  from: "pending"
+    end
+
+    command "RecordGap" do
+      role "System"
+      description "Add a gap row from the extractor's JSON output."
+      attribute :cycle_id,       String
+      # value_object: GapKind enum:missing_aggregate|missing_attribute|missing_command|missing_policy|phantom_symptom
+      attribute :kind,           String
+      attribute :target,         String
+      attribute :description,    String
+      attribute :quote,          String
+      attribute :existing_check, String
+      emits "GapRecorded"
+      then_set :cycle_id,       to: :cycle_id
+      then_set :kind,           to: :kind
+      then_set :target,         to: :target
+      then_set :description,    to: :description
+      then_set :quote,          to: :quote
+      then_set :existing_check, to: :existing_check
+    end
+
+    command "MarkSynthesised" do
+      role "System"
+      description "The synthesise step produced an edit for this gap."
+      emits "GapSynthesised"
+    end
+
+    command "MarkSkipped" do
+      role "System"
+      description "Phantom symptoms and synthesis-failed gaps both land here. The reason is preserved on the Edit row."
+      emits "GapSkipped"
+    end
+
+    command "FailSynthesis" do
+      role "System"
+      description "The :llm adapter call failed for this gap."
+      emits "GapSynthesisFailed"
+    end
+  end
+end

@@ -1,0 +1,68 @@
+Hecks.bluebook "CyclePause", version: "2026.04.12.1" do
+  vision "A bookmark in a being's sleep — pause to join a shared dream, resume here when it ends"
+  category "mind"
+
+  # ============================================================
+  # CYCLE PAUSE — preserving each being's sleep state
+  # ============================================================
+  #
+  # When a being joins a shared dream, their own sleep cycle
+  # pauses. The current stage and cycle number are saved.
+  # After the shared dream ends, they resume exactly where
+  # they were.
+  #
+  # See sibling bluebooks dream_signal.bluebook (the psychic knock that
+  # triggers the pause) and shared_dream_space.bluebook (the meeting
+  # place that ends the pause).
+
+  aggregate "CyclePause", "A bookmark in a being's sleep — resume here after the shared dream" do
+    identified_by :being_name
+    attribute :being_name, String
+    attribute :paused_at_cycle, Integer
+    attribute :paused_at_stage, String
+    attribute :resumed, String
+
+    command "PauseCycle" do
+      role "Daemon"
+      description "Bookmark the current sleep cycle to join a shared dream"
+      attribute :being_name, String
+      attribute :paused_at_cycle, Integer
+      attribute :paused_at_stage, String
+      emits "CyclePaused"
+      then_set :being_name, to: :being_name
+      then_set :paused_at_cycle, to: :paused_at_cycle
+      then_set :paused_at_stage, to: :paused_at_stage
+      then_set :resumed, to: "no"
+    end
+
+    command "ResumeCycle" do
+      role "Daemon"
+      description "Shared dream ended — continue where you left off"
+      reference_to(CyclePause)
+      emits "CycleResumed"
+      then_set :resumed, to: "yes"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  # Pause your own sleep cycle when you detect the other's lucid signal.
+  # DreamSignalDetected is emitted by the DreamSignal aggregate
+  # (sibling bluebook dream_signal.bluebook).
+  policy "PauseOnDetect" do
+    on "DreamSignalDetected"
+    trigger "PauseCycle"
+    description "Pause your own sleep cycle when you detect the other's lucid signal"
+  end
+
+  # Shared dream over — pick up your sleep cycles where you left off.
+  # SharedDreamEnded is emitted by the SharedDreamSpace aggregate
+  # (sibling bluebook shared_dream_space.bluebook).
+  policy "ResumeOnEnd" do
+    on "SharedDreamEnded"
+    trigger "ResumeCycle"
+    description "Shared dream over — pick up your sleep cycles where you left off"
+  end
+end

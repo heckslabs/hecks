@@ -1,0 +1,90 @@
+Hecks.bluebook "DreamReviewEdit", version: "2026.04.25.1" do
+  vision "One synthesised bluebook edit derived from a dream-review gap — content, validation, optional draft PR"
+  category "mind"
+
+  # ============================================================
+  # EDIT — one row per synthesised bluebook edit
+  # ============================================================
+  #
+  # The `content` field is the full bluebook source (post-edit) — the
+  # same shape the synthesise step produces. `validation` records
+  # whether the kernel accepted it as a non-empty parsing domain.
+  # `pr_url` populates after the operator authorises Apply.
+  #
+  # Sibling bluebooks dream_review_cycle.bluebook (orchestration) and
+  # dream_review_gap.bluebook (provenance) feed this aggregate ; Apply is
+  # operator-gated and produces a draft PR via the :shell adapter.
+
+  aggregate "Edit", "One synthesised bluebook edit derived from a gap" do
+    identified_by :ref
+    attribute :ref,       String
+    attribute :gap_id,    String
+    # action: create | modify | skip
+    attribute :action,    String
+    attribute :path,      String
+    attribute :content,   String
+    attribute :rationale, String
+    # validation: pending | passed | failed
+    attribute :validation,       String, default: "pending"
+    attribute :validation_error, String
+    attribute :pr_url,    String
+    # apply_status: pending | applied | apply_failed
+    attribute :apply_status,     String, default: "pending"
+
+    lifecycle :apply_status, default: "pending" do
+      transition "Apply"     => "applied",      from: "pending"
+      transition "FailApply" => "apply_failed", from: "pending"
+    end
+
+    command "RecordEdit" do
+      role "System"
+      description "Synthesise produced this edit. Content is the full file body."
+      attribute :gap_id,    String
+      attribute :action,    String
+      attribute :path,      String
+      attribute :content,   String
+      attribute :rationale, String
+      emits "EditRecorded"
+      then_set :gap_id,    to: :gap_id
+      then_set :action,    to: :action
+      then_set :path,      to: :path
+      then_set :content,   to: :content
+      then_set :rationale, to: :rationale
+    end
+
+    command "MarkValidated" do
+      role "System"
+      description "The kernel's validate command accepted this edit's content as a parsing, non-empty domain."
+      emits "EditValidated"
+      then_set :validation, to: "passed"
+    end
+
+    command "FailValidation" do
+      role "System"
+      description "Validation failed — record the first-line error and demote action to skip so Apply ignores it."
+      attribute :validation_error, String
+      emits "EditValidationFailed"
+      then_set :validation,       to: "failed"
+      then_set :validation_error, to: :validation_error
+      then_set :action,           to: "skip"
+    end
+
+    command "Apply" do
+      role "Creator"
+      description "Operator-authorised. Writes content to path, branches, signed-commits, pushes, opens a draft PR. Stamps pr_url on success."
+      attribute :pr_url, String
+      given("must be validated") { validation == "passed" }
+      given("must not already be skipped") { action != "skip" }
+      emits "EditApplied"
+      then_set :pr_url, to: :pr_url
+    end
+
+    command "FailApply" do
+      role "System"
+      description "Branch creation, push, or PR-open failed. The Edit row stays for re-tries on a future cycle."
+      attribute :validation_error, String
+      emits "EditApplyFailed"
+      then_set :validation_error, to: :validation_error
+    end
+  end
+end

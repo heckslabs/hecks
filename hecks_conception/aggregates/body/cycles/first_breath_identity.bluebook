@@ -1,0 +1,30 @@
+Hecks.bluebook "FirstBreathIdentity", version: "2026.04.11.1" do
+  vision "Who is waking — the name and birthday given to a being on its first breath"
+  category "meta"
+
+  # ============================================================
+  # IDENTITY — the first act of waking
+  # ============================================================
+  #
+  # The first breath gives a being its name. Vows live in
+  # vows.bluebook (under self/) ; the rest of the boot ritual —
+  # the system prompt projected from this being's organs — is
+  # split across sibling bluebooks first_breath_section.bluebook,
+  # first_breath_prompt.bluebook, and first_breath_voice.bluebook.
+
+  aggregate "Identity", "Who is waking — name, birthday" do
+    identified_by :name
+    attribute :name, String
+    attribute :born, String
+
+    command "Breathe" do
+      role "System"
+      description "Give a being their name — the first act of waking. Vows live in vows.bluebook."
+      attribute :name, String
+      attribute :born, String
+      emits "Breathed"
+      then_set :name, to: :name
+      then_set :born, to: :born
+    end
+  end
+end

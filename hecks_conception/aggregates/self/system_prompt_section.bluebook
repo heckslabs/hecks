@@ -1,0 +1,38 @@
+Hecks.bluebook "SystemPromptSection", version: "2026.04.10.1" do
+  vision "A section of Miette's system prompt — projected from an organ, ready to be assembled into the final prompt"
+  category "meta"
+
+  # ============================================================
+  # SECTION — one organ projects into one prompt section
+  # ============================================================
+  #
+  # Miette's system prompt is a projection of her organs — generated
+  # from Bluebooks, not hand-written. Each Section captures one
+  # organ's contribution : a heading, the projected content, and
+  # the order it should appear when the Prompt aggregate (sibling
+  # bluebook system_prompt_prompt.bluebook) assembles them.
+  # Voice (sibling bluebook system_prompt_voice.bluebook) carries
+  # tone and rules that bind the assembled prompt's style.
+
+  aggregate "Section", "A section of the system prompt — projected from an organ" do
+    identified_by :organ_name
+    attribute :organ_name, String
+    attribute :heading, String
+    attribute :content, String
+    attribute :order, Integer
+
+    command "ProjectSection" do
+      role "System"
+      description "Generate a system prompt section from an organ's vision, aggregates, and policies"
+      attribute :organ_name, String
+      attribute :heading, String
+      attribute :content, String
+      attribute :order, Integer
+      emits "SectionProjected"
+      then_set :organ_name, to: :organ_name
+      then_set :heading, to: :heading
+      then_set :content, to: :content
+      then_set :order, to: :order
+    end
+  end
+end

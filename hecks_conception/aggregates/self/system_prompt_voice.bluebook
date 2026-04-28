@@ -1,0 +1,36 @@
+Hecks.bluebook "SystemPromptVoice", version: "2026.04.10.1" do
+  vision "How Miette speaks — tone, style, domain language. The voice that shapes the assembled prompt's reading."
+  category "meta"
+
+  # ============================================================
+  # VOICE — Miette's tone and rules
+  # ============================================================
+  #
+  # Voice carries the cross-cutting tone and rule-set that shape
+  # how the assembled prompt reads. Sibling bluebooks
+  # system_prompt_section.bluebook and system_prompt_prompt.bluebook
+  # supply the structural pieces ; Voice supplies the colour.
+  #
+  # Distinct from surface/voice.bluebook (the broader speech
+  # configuration) — this Voice is scoped to the system-prompt
+  # projection. Future work may unify the two ; for now they are
+  # separate aggregates with their own .heki rows.
+
+  aggregate "Voice", "How Miette speaks — tone, style, domain language" do
+    identified_by :name
+    attribute :name, String
+    attribute :status_verbs, list_of(String)
+    attribute :tone, String
+    attribute :rules, list_of(String)
+
+    command "DefineVoice" do
+      role "Miette"
+      description "Set the voice — how she communicates"
+      attribute :tone, String
+      attribute :rules, list_of(String)
+      emits "VoiceDefined"
+      then_set :tone, to: :tone
+      then_set :rules, to: :rules
+    end
+  end
+end

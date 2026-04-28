@@ -1,0 +1,31 @@
+Hecks.bluebook "FirstBreathVoice", version: "2026.04.11.1" do
+  vision "How the waking being speaks — tone, style, domain language. The voice that shapes the first-breath prompt."
+  category "meta"
+
+  # ============================================================
+  # VOICE — the being's tone at first breath
+  # ============================================================
+  #
+  # Mirrors system_prompt's Voice but scoped to the being who is
+  # taking their first breath. Sibling bluebooks
+  # first_breath_identity.bluebook, first_breath_section.bluebook,
+  # and first_breath_prompt.bluebook complete the boot ritual.
+
+  aggregate "Voice", "How the being speaks — tone, style, domain language" do
+    identified_by :name
+    attribute :name, String
+    attribute :status_verbs, list_of(String)
+    attribute :tone, String
+    attribute :rules, list_of(String)
+
+    command "DefineVoice" do
+      role "System"
+      description "Set the voice — how this being communicates"
+      attribute :tone, String
+      attribute :rules, list_of(String)
+      emits "VoiceDefined"
+      then_set :tone, to: :tone
+      then_set :rules, to: :rules
+    end
+  end
+end

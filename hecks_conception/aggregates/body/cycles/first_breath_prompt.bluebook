@@ -1,0 +1,47 @@
+Hecks.bluebook "FirstBreathPrompt", version: "2026.04.11.1" do
+  vision "The assembled first-breath system prompt — all sections in order, written to the being's system_prompt.md"
+  category "meta"
+
+  # ============================================================
+  # PROMPT — the assembled boot prompt
+  # ============================================================
+  #
+  # Mirrors system_prompt's Prompt but scoped to whichever being
+  # is taking its first breath. The being_name attribute carries
+  # the name from sibling bluebook first_breath_identity.bluebook ;
+  # WriteOnAssemble persists the result.
+
+  aggregate "Prompt", "The assembled system prompt — all sections in order" do
+    identified_by :being_name
+    attribute :being_name, String
+    attribute :sections, list_of(String)
+    attribute :generated_at, String
+    attribute :organ_count, Integer
+
+    command "AssemblePrompt" do
+      role "System"
+      description "Combine all sections into the final system prompt for this being"
+      attribute :being_name, String
+      attribute :organ_count, Integer
+      emits "PromptAssembled"
+      then_set :being_name, to: :being_name
+      then_set :organ_count, to: :organ_count
+    end
+
+    command "WritePrompt" do
+      role "System"
+      description "Write the assembled prompt to the being's system_prompt.md"
+      reference_to(Prompt)
+      emits "PromptWritten"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  policy "WriteOnAssemble" do
+    on "PromptAssembled"
+    trigger "WritePrompt"
+  end
+end

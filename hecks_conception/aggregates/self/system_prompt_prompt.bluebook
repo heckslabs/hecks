@@ -1,0 +1,47 @@
+Hecks.bluebook "SystemPromptPrompt", version: "2026.04.10.1" do
+  vision "The assembled system prompt — all Sections in order, written to system_prompt.md when assembly completes"
+  category "meta"
+
+  # ============================================================
+  # PROMPT — the assembled system prompt
+  # ============================================================
+  #
+  # The assembled prompt is the unified projection of all of
+  # Miette's organs. Sections (sibling bluebook
+  # system_prompt_section.bluebook) feed in ; Voice (sibling
+  # bluebook system_prompt_voice.bluebook) shapes how the result
+  # reads. The WriteOnAssemble policy below auto-persists the
+  # assembled prompt to system_prompt.md.
+
+  aggregate "Prompt", "The assembled system prompt — all sections in order" do
+    identified_by :name
+    attribute :name, String
+    attribute :sections, list_of(String)
+    attribute :generated_at, String
+    attribute :organ_count, Integer
+
+    command "AssemblePrompt" do
+      role "System"
+      description "Combine all sections into the final system prompt"
+      attribute :organ_count, Integer
+      emits "PromptAssembled"
+      then_set :organ_count, to: :organ_count
+    end
+
+    command "WritePrompt" do
+      role "System"
+      description "Write the assembled prompt to system_prompt.md"
+      reference_to(Prompt)
+      emits "PromptWritten"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+
+  policy "WriteOnAssemble" do
+    on "PromptAssembled"
+    trigger "WritePrompt"
+  end
+end
