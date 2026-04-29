@@ -13,13 +13,13 @@ Hecks.behaviors "Memory" do
   # ── Recall aggregate ──────────────────────────────────────────
 
   test "RecallMemory sets query" do
-    tests "RecallMemory", on: "Recall"
+    tests "RecallMemory", on: "Recall", kind: :cross_cascade
     input  query: "sample"
     expect query: "sample"
   end
 
   test "RecordHit sets found + source" do
-    tests "RecordHit", on: "Recall"
+    tests "RecordHit", on: "Recall", kind: :cross_cascade
     setup  "RecallMemory", query: "sample"
     input  found: "sample", source: "sample"
     expect found: "sample", source: "sample"
@@ -29,13 +29,13 @@ Hecks.behaviors "Memory" do
   # ── Consolidation aggregate ──────────────────────────────────────────
 
   test "ConsolidateSignals sets signals_consolidated + memories_created" do
-    tests "ConsolidateSignals", on: "Consolidation"
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cross_cascade
     input  signals_consolidated: 1, memories_created: 1
     expect signals_consolidated: 1, memories_created: 1
   end
 
   test "ConsolidateSignals cascades through policy chain" do
-    tests "ConsolidateSignals", on: "Consolidation", kind: :cascade
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cross_cascade
     input  signals_consolidated: 1, memories_created: 1
     expect emits: ["SignalsConsolidated", "MemoryEncoded"]
   end
@@ -44,7 +44,7 @@ Hecks.behaviors "Memory" do
   # ── Store aggregate ──────────────────────────────────────────
 
   test "StoreMemory sets kind + payload + source + created_at" do
-    tests "StoreMemory", on: "Store"
+    tests "StoreMemory", on: "Store", kind: :cross_cascade
     input  kind: "concept", payload: "sample", source: "signal", created_at: "now"
     expect kind: "concept", payload: "sample", source: "signal", created_at: "now"
   end
@@ -53,13 +53,13 @@ Hecks.behaviors "Memory" do
   # ── Forgetting aggregate ──────────────────────────────────────────
 
   test "ForgetMemory sets forgotten + reason" do
-    tests "ForgetMemory", on: "Forgetting"
+    tests "ForgetMemory", on: "Forgetting", kind: :cross_cascade
     input  forgotten: "sample", reason: "sample"
     expect forgotten: "sample", reason: "sample", composted: "yes"
   end
 
   test "ForgetMemory cascades through policy chain" do
-    tests "ForgetMemory", on: "Forgetting", kind: :cascade
+    tests "ForgetMemory", on: "Forgetting", kind: :cross_cascade
     input  forgotten: "sample", reason: "sample"
     expect emits: ["MemoryForgotten", "SignalsConsolidated", "MemoryEncoded"]
   end
@@ -75,7 +75,7 @@ Hecks.behaviors "Memory" do
   end
 
   test "EncodeMemory cascades through policy chain" do
-    tests "EncodeMemory", on: "Memory", kind: :cascade
+    tests "EncodeMemory", on: "Memory", kind: :cross_cascade
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     expect emits: ["MemoryEncoded", "PersonaRecognized"]

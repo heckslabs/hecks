@@ -11,7 +11,7 @@ Hecks.behaviors "NurseryCensus" do
   end
 
   test "TakeCensus cascades through policy chain" do
-    tests "TakeCensus", on: "NurseryCensus", kind: :cascade
+    tests "TakeCensus", on: "NurseryCensus", kind: :cross_cascade
     input  total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
     expect emits: ["CensusTaken", "SectorClassified"]
   end

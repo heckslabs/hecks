@@ -10,7 +10,7 @@ Hecks.behaviors "Conception" do
   end
 
   test "ConceiveDomain cascades through policy chain" do
-    tests "ConceiveDomain", on: "Conception", kind: :cascade
+    tests "ConceiveDomain", on: "Conception", kind: :cross_cascade
     setup  "IndexDomain", domain_name: "sample", vector: 1.0
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     input  name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample"
@@ -21,34 +21,34 @@ Hecks.behaviors "Conception" do
   # ── Gestation aggregate ──────────────────────────────────────────
 
   test "StartGestation sets project_name + nursery_path + bounded_contexts" do
-    tests "StartGestation", on: "Gestation"
+    tests "StartGestation", on: "Gestation", kind: :cross_cascade
     input  project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     expect project_name: "sample", nursery_path: "sample", bounded_contexts: "sample", contractions: 0
   end
 
   test "FormAggregate sets aggregate_name" do
-    tests "FormAggregate", on: "Gestation"
+    tests "FormAggregate", on: "Gestation", kind: :cross_cascade
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     input  aggregate_name: "sample"
     expect aggregates_size: 1
   end
 
   test "FormCommand sets command_name" do
-    tests "FormCommand", on: "Gestation"
+    tests "FormCommand", on: "Gestation", kind: :cross_cascade
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     input  command_name: "sample"
     expect commands_size: 1
   end
 
   test "FormPolicy sets policy_name" do
-    tests "FormPolicy", on: "Gestation"
+    tests "FormPolicy", on: "Gestation", kind: :cross_cascade
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     input  policy_name: "sample"
     expect policies_size: 1
   end
 
   test "Contract runs" do
-    tests "Contract", on: "Gestation"
+    tests "Contract", on: "Gestation", kind: :cross_cascade
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     expect ok: "true"
   end
@@ -57,32 +57,32 @@ Hecks.behaviors "Conception" do
   # ── Labor aggregate ──────────────────────────────────────────
 
   test "ValidateBluebook sets domain_name + bluebook_source" do
-    tests "ValidateBluebook", on: "Labor"
+    tests "ValidateBluebook", on: "Labor", kind: :cross_cascade
     input  domain_name: "sample", bluebook_source: "sample"
     expect domain_name: "sample", bluebook_source: "sample", valid: "checking"
   end
 
   test "ValidateBluebook cascades through policy chain" do
-    tests "ValidateBluebook", on: "Labor", kind: :cascade
+    tests "ValidateBluebook", on: "Labor", kind: :cross_cascade
     input  domain_name: "sample", bluebook_source: "sample"
     expect emits: ["BluebookValidated", "ParityChecked"]
   end
 
   test "CheckParity sets parity" do
-    tests "CheckParity", on: "Labor"
+    tests "CheckParity", on: "Labor", kind: :cross_cascade
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
     input  parity: "sample"
     expect parity: "sample"
   end
 
   test "PassLabor runs" do
-    tests "PassLabor", on: "Labor"
+    tests "PassLabor", on: "Labor", kind: :cross_cascade
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
     expect valid: "yes"
   end
 
   test "PassLabor cascades through policy chain" do
-    tests "PassLabor", on: "Labor", kind: :cascade
+    tests "PassLabor", on: "Labor", kind: :cross_cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     setup  "IndexDomain", domain_name: "sample", vector: 1.0
     setup  "CheckHealth", domain_name: "sample"
@@ -91,7 +91,7 @@ Hecks.behaviors "Conception" do
   end
 
   test "FailLabor sets errors" do
-    tests "FailLabor", on: "Labor"
+    tests "FailLabor", on: "Labor", kind: :cross_cascade
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
     input  errors: "sample"
     expect errors: "sample", valid: "no"
@@ -101,13 +101,13 @@ Hecks.behaviors "Conception" do
   # ── Delivery aggregate ──────────────────────────────────────────
 
   test "DeliverDomain sets domain_name + path + aggregate_count + command_count + fixture_count" do
-    tests "DeliverDomain", on: "Delivery"
+    tests "DeliverDomain", on: "Delivery", kind: :cross_cascade
     input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
   end
 
   test "DeliverDomain cascades through policy chain" do
-    tests "DeliverDomain", on: "Delivery", kind: :cascade
+    tests "DeliverDomain", on: "Delivery", kind: :cross_cascade
     setup  "IndexDomain", domain_name: "sample", vector: 1.0
     setup  "CheckHealth", domain_name: "sample"
     input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
@@ -115,13 +115,13 @@ Hecks.behaviors "Conception" do
   end
 
   test "RegisterBirth runs" do
-    tests "RegisterBirth", on: "Delivery"
+    tests "RegisterBirth", on: "Delivery", kind: :cross_cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect ok: "true"
   end
 
   test "RegisterBirth cascades through policy chain" do
-    tests "RegisterBirth", on: "Delivery", kind: :cascade
+    tests "RegisterBirth", on: "Delivery", kind: :cross_cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     setup  "IndexDomain", domain_name: "sample", vector: 1.0
     setup  "CheckHealth", domain_name: "sample"
@@ -129,7 +129,7 @@ Hecks.behaviors "Conception" do
   end
 
   test "IndexInNursery runs" do
-    tests "IndexInNursery", on: "Delivery"
+    tests "IndexInNursery", on: "Delivery", kind: :cross_cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect indexed: "yes"
   end
@@ -138,19 +138,19 @@ Hecks.behaviors "Conception" do
   # ── Postpartum aggregate ──────────────────────────────────────────
 
   test "CheckHealth sets domain_name" do
-    tests "CheckHealth", on: "Postpartum"
+    tests "CheckHealth", on: "Postpartum", kind: :cross_cascade
     input  domain_name: "sample"
     expect domain_name: "sample"
   end
 
   test "DeclareHealthy runs" do
-    tests "DeclareHealthy", on: "Postpartum"
+    tests "DeclareHealthy", on: "Postpartum", kind: :cross_cascade
     setup  "CheckHealth", domain_name: "sample"
     expect healthy: "yes"
   end
 
   test "FlagConcern sets concern" do
-    tests "FlagConcern", on: "Postpartum"
+    tests "FlagConcern", on: "Postpartum", kind: :cross_cascade
     setup  "CheckHealth", domain_name: "sample"
     input  concern: "sample"
     expect healthy: "concern"
@@ -160,25 +160,25 @@ Hecks.behaviors "Conception" do
   # ── Development aggregate ──────────────────────────────────────────
 
   test "ComputeVector sets domain_name" do
-    tests "ComputeVector", on: "Development"
+    tests "ComputeVector", on: "Development", kind: :cross_cascade
     input  domain_name: "sample"
     expect domain_name: "sample", status: "vectorized"
   end
 
   test "ComputeVector cascades through policy chain" do
-    tests "ComputeVector", on: "Development", kind: :cascade
+    tests "ComputeVector", on: "Development", kind: :cross_cascade
     input  domain_name: "sample"
     expect emits: ["VectorComputed", "ArchetypeFound"]
   end
 
   test "FindArchetype runs" do
-    tests "FindArchetype", on: "Development"
+    tests "FindArchetype", on: "Development", kind: :cross_cascade
     setup  "ComputeVector", domain_name: "sample"
     expect status: "matched"
   end
 
   test "PlanDevelopment sets target_vector" do
-    tests "PlanDevelopment", on: "Development"
+    tests "PlanDevelopment", on: "Development", kind: :cross_cascade
     setup  "ComputeVector", domain_name: "sample"
     setup  "FindArchetype"
     input  target_vector: 1.0
@@ -186,7 +186,7 @@ Hecks.behaviors "Conception" do
   end
 
   test "DevelopDomain runs" do
-    tests "DevelopDomain", on: "Development"
+    tests "DevelopDomain", on: "Development", kind: :cross_cascade
     setup  "ComputeVector", domain_name: "sample"
     setup  "FindArchetype"
     setup  "PlanDevelopment", target_vector: 1.0
@@ -194,7 +194,7 @@ Hecks.behaviors "Conception" do
   end
 
   test "DevelopDomain cascades through policy chain" do
-    tests "DevelopDomain", on: "Development", kind: :cascade
+    tests "DevelopDomain", on: "Development", kind: :cross_cascade
     setup  "IndexDomain", domain_name: "sample", vector: 1.0
     setup  "ComputeVector", domain_name: "sample"
     setup  "FindArchetype"
@@ -203,7 +203,7 @@ Hecks.behaviors "Conception" do
   end
 
   test "RejectDevelopment runs" do
-    tests "RejectDevelopment", on: "Development"
+    tests "RejectDevelopment", on: "Development", kind: :cross_cascade
     setup  "ComputeVector", domain_name: "sample"
     setup  "FindArchetype"
     setup  "PlanDevelopment", target_vector: 1.0
@@ -214,19 +214,19 @@ Hecks.behaviors "Conception" do
   # ── Corpus aggregate ──────────────────────────────────────────
 
   test "IndexDomain sets domain_name + vector" do
-    tests "IndexDomain", on: "Corpus"
+    tests "IndexDomain", on: "Corpus", kind: :cross_cascade
     input  domain_name: "sample", vector: 1.0
     expect ok: "true"
   end
 
   test "QueryNearest sets target_vector + k" do
-    tests "QueryNearest", on: "Corpus"
+    tests "QueryNearest", on: "Corpus", kind: :cross_cascade
     input  target_vector: 1.0, k: 1
     expect ok: "true"
   end
 
   test "RebuildCorpus runs" do
-    tests "RebuildCorpus", on: "Corpus"
+    tests "RebuildCorpus", on: "Corpus", kind: :cross_cascade
     expect ok: "true"
   end
 

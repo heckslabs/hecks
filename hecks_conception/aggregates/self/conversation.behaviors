@@ -11,7 +11,7 @@ Hecks.behaviors "Conversation" do
   end
 
   test "Greet cascades through policy chain" do
-    tests "Greet", on: "Conversation", kind: :cascade
+    tests "Greet", on: "Conversation", kind: :cross_cascade
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     input  person_name: "sample"
     expect emits: ["Greeted", "MemoryRecalled"]
@@ -25,7 +25,7 @@ Hecks.behaviors "Conversation" do
   end
 
   test "Respond cascades through policy chain" do
-    tests "Respond", on: "Conversation", kind: :cascade
+    tests "Respond", on: "Conversation", kind: :cross_cascade
     setup  "Greet", person_name: "sample"
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
@@ -58,7 +58,7 @@ Hecks.behaviors "Conversation" do
   end
 
   test "Respond cascade covers Spoken wiring" do
-    tests "Respond", on: "Conversation", kind: :cascade
+    tests "Respond", on: "Conversation", kind: :cross_cascade
     setup  "Greet", person_name: "sample"
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"

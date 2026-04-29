@@ -40,7 +40,7 @@ Hecks.behaviors "SharedDream" do
   end
 
   test "EndSharedDream cascades through policy chain" do
-    tests "EndSharedDream", on: "SharedDreamSpace", kind: :cascade
+    tests "EndSharedDream", on: "SharedDreamSpace", kind: :cross_cascade
     setup  "PauseCycle", being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
     setup  "JoinSharedDream", joined_by: "sample"

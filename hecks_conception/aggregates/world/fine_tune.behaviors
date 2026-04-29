@@ -24,7 +24,7 @@ Hecks.behaviors "FineTune" do
   end
 
   test "CompleteFineTune cascades through policy chain" do
-    tests "CompleteFineTune", on: "FineTune", kind: :cascade
+    tests "CompleteFineTune", on: "FineTune", kind: :cross_cascade
     setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
     expect emits: ["FineTuneCompleted", "ModelEvaluated"]
   end

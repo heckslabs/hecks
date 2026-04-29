@@ -11,7 +11,7 @@ Hecks.behaviors "ChangeTracker" do
   end
 
   test "ScanForChanges cascades through policy chain" do
-    tests "ScanForChanges", on: "ChangeTracker", kind: :cascade
+    tests "ScanForChanges", on: "ChangeTracker", kind: :cross_cascade
     setup  "RunBatch", operation: "sample", file_count: 1
     input  tracked_files: 1, changed_since_last: 1
     expect emits: ["ChangesScanned", "BatchCompleted", "ChangesProcessed"]

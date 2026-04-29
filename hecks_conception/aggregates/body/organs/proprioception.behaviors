@@ -11,7 +11,7 @@ Hecks.behaviors "Proprioception" do
   end
 
   test "SenseOrgans cascades through policy chain" do
-    tests "SenseOrgans", on: "Proprioception", kind: :cascade
+    tests "SenseOrgans", on: "Proprioception", kind: :cross_cascade
     setup  "Express", state: "sample"
     input  organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     expect emits: ["OrgansSensed", "BalanceAssessed", "Regulated"]
@@ -32,7 +32,7 @@ Hecks.behaviors "Proprioception" do
   end
 
   test "AssessBalance cascades through policy chain" do
-    tests "AssessBalance", on: "Proprioception", kind: :cascade
+    tests "AssessBalance", on: "Proprioception", kind: :cross_cascade
     setup  "Express", state: "sample"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  balance: "sample", schema_hash: "sample"
@@ -40,7 +40,7 @@ Hecks.behaviors "Proprioception" do
   end
 
   test "DetectDrift cascades through policy chain" do
-    tests "DetectDrift", on: "Proprioception", kind: :cascade
+    tests "DetectDrift", on: "Proprioception", kind: :cross_cascade
     setup  "Express", state: "sample"
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "AssessBalance", balance: "sample", schema_hash: "sample"

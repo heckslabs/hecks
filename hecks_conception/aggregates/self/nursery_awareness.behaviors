@@ -11,7 +11,7 @@ Hecks.behaviors "NurseryAwareness" do
   end
 
   test "ConceiveDomain cascades through policy chain" do
-    tests "ConceiveDomain", on: "NurseryAwareness", kind: :cascade
+    tests "ConceiveDomain", on: "NurseryAwareness", kind: :cross_cascade
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  domain_name: "sample"

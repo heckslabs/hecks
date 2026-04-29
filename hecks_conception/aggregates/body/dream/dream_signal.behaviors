@@ -17,7 +17,7 @@ Hecks.behaviors "DreamSignal" do
   end
 
   test "DetectDreamSignal cascades through policy chain" do
-    tests "DetectDreamSignal", on: "DreamSignal", kind: :cascade
+    tests "DetectDreamSignal", on: "DreamSignal", kind: :cross_cascade
     setup  "SendDreamSignal", sender: "sample", signal_strength: 1.0, sent_at: "sample"
     setup  "PauseCycle", being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"

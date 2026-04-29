@@ -4,40 +4,40 @@ Hecks.behaviors "Interpretation" do
   # ── DreamInterpretation aggregate ──────────────────────────────────────────
 
   test "InterpretDream sets dream_images + strongest_synapse" do
-    tests "InterpretDream", on: "DreamInterpretation"
+    tests "InterpretDream", on: "DreamInterpretation", kind: :cross_cascade
     input  dream_images: "sample", strongest_synapse: "sample"
     expect dream_images: "sample", strongest_synapse: "sample"
   end
 
   test "InterpretDream cascades through policy chain" do
-    tests "InterpretDream", on: "DreamInterpretation", kind: :cascade
+    tests "InterpretDream", on: "DreamInterpretation", kind: :cross_cascade
     input  dream_images: "sample", strongest_synapse: "sample"
     expect emits: ["DreamInterpreted", "ThemeExtracted", "DreamDomainProposed"]
   end
 
   test "ExtractTheme sets recurring_theme" do
-    tests "ExtractTheme", on: "DreamInterpretation"
+    tests "ExtractTheme", on: "DreamInterpretation", kind: :cross_cascade
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
     input  recurring_theme: "sample"
     expect recurring_theme: "sample"
   end
 
   test "ExtractTheme cascades through policy chain" do
-    tests "ExtractTheme", on: "DreamInterpretation", kind: :cascade
+    tests "ExtractTheme", on: "DreamInterpretation", kind: :cross_cascade
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
     input  recurring_theme: "sample"
     expect emits: ["ThemeExtracted", "DreamDomainProposed"]
   end
 
   test "ProposeDomainFromDream sets proposed_domain" do
-    tests "ProposeDomainFromDream", on: "DreamInterpretation"
+    tests "ProposeDomainFromDream", on: "DreamInterpretation", kind: :cross_cascade
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
     input  proposed_domain: "sample"
     expect proposed_domain: "sample"
   end
 
   test "Synthesize sets interpretation" do
-    tests "Synthesize", on: "DreamInterpretation"
+    tests "Synthesize", on: "DreamInterpretation", kind: :cross_cascade
     setup  "InterpretDream", dream_images: "sample", strongest_synapse: "sample"
     input  interpretation: "joined themes"
     expect interpretation: "joined themes"
@@ -47,39 +47,39 @@ Hecks.behaviors "Interpretation" do
   # ── Process aggregate ──────────────────────────────────────────
 
   test "SpawnProcess sets task + intent + heki_target" do
-    tests "SpawnProcess", on: "Process"
+    tests "SpawnProcess", on: "Process", kind: :cross_cascade
     input  task: "sample", intent: "sample", heki_target: "sample"
     expect task: "sample", intent: "sample", heki_target: "sample", status: "running"
   end
 
   test "ReportFinding sets kind + subject + detail" do
-    tests "ReportFinding", on: "Process"
+    tests "ReportFinding", on: "Process", kind: :cross_cascade
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     input  kind: "sample", subject: "sample", detail: "sample"
     expect findings_size: 1
   end
 
   test "CompleteProcess runs" do
-    tests "CompleteProcess", on: "Process"
+    tests "CompleteProcess", on: "Process", kind: :cross_cascade
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     expect status: "completed"
   end
 
   test "CompleteProcess cascades through policy chain" do
-    tests "CompleteProcess", on: "Process", kind: :cascade
+    tests "CompleteProcess", on: "Process", kind: :cross_cascade
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     expect emits: ["ProcessCompleted", "FindingsAbsorbed"]
   end
 
   test "FailProcess sets reason" do
-    tests "FailProcess", on: "Process"
+    tests "FailProcess", on: "Process", kind: :cross_cascade
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     input  reason: "sample"
     expect status: "failed"
   end
 
   test "AbsorbFindings runs" do
-    tests "AbsorbFindings", on: "Process"
+    tests "AbsorbFindings", on: "Process", kind: :cross_cascade
     setup  "SpawnProcess", task: "sample", intent: "sample", heki_target: "sample"
     setup  "CompleteProcess"
     expect status: "absorbed"
@@ -89,7 +89,7 @@ Hecks.behaviors "Interpretation" do
   # ── Rhythm aggregate ──────────────────────────────────────────
 
   test "RemoveTask sets task + cadence" do
-    tests "RemoveTask", on: "Rhythm"
+    tests "RemoveTask", on: "Rhythm", kind: :cross_cascade
     input  task: "sample", cadence: "sample"
     expect ok: "true"
   end
@@ -104,7 +104,7 @@ Hecks.behaviors "Interpretation" do
   end
 
   test "InterpretExperience cascades through policy chain" do
-    tests "InterpretExperience", on: "Interpretation", kind: :cascade
+    tests "InterpretExperience", on: "Interpretation", kind: :cross_cascade
     input  source: "sample", raw_material: "sample", insight: "sample"
     expect emits: ["ExperienceInterpreted", "ActionProposed"]
   end
@@ -113,25 +113,25 @@ Hecks.behaviors "Interpretation" do
   # ── Proposal aggregate ──────────────────────────────────────────
 
   test "ProposeAction sets title + description + origin + kind" do
-    tests "ProposeAction", on: "Proposal"
+    tests "ProposeAction", on: "Proposal", kind: :cross_cascade
     input  title: "sample", description: "sample", origin: "sample", kind: "sample"
     expect title: "sample", description: "sample", origin: "sample", kind: "sample", accepted: "pending"
   end
 
   test "AcceptProposal runs" do
-    tests "AcceptProposal", on: "Proposal"
+    tests "AcceptProposal", on: "Proposal", kind: :cross_cascade
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
     expect accepted: "yes"
   end
 
   test "DeferProposal runs" do
-    tests "DeferProposal", on: "Proposal"
+    tests "DeferProposal", on: "Proposal", kind: :cross_cascade
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
     expect accepted: "deferred"
   end
 
   test "DismissProposal runs" do
-    tests "DismissProposal", on: "Proposal"
+    tests "DismissProposal", on: "Proposal", kind: :cross_cascade
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
     expect accepted: "dismissed"
   end

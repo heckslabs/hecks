@@ -34,7 +34,7 @@ Hecks.behaviors "Mood" do
   end
 
   test "Excite cascades through policy chain" do
-    tests "Excite", on: "Mood", kind: :cascade
+    tests "Excite", on: "Mood", kind: :cross_cascade
     setup  "Express", state: "sample"
     setup  "Accelerate"
     expect emits: ["Excited", "HeartbeatAccelerated"]

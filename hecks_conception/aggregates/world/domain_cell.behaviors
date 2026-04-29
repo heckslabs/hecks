@@ -11,7 +11,7 @@ Hecks.behaviors "DomainCell" do
   end
 
   test "Conceive cascades through policy chain" do
-    tests "Conceive", on: "DomainCell", kind: :cascade
+    tests "Conceive", on: "DomainCell", kind: :cross_cascade
     setup  "Express", state: "sample"
     setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0

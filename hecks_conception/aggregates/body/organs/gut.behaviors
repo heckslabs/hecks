@@ -41,7 +41,7 @@ Hecks.behaviors "Gut" do
   end
 
   test "Absorb cascades through policy chain" do
-    tests "Absorb", on: "Gut", kind: :cascade
+    tests "Absorb", on: "Gut", kind: :cross_cascade
     setup  "Conceive", domain_name: "sample"
     setup  "Express", state: "sample"
     setup  "Accelerate"

@@ -25,7 +25,7 @@ Hecks.behaviors "Generation" do
   end
 
   test "CompleteGeneration cascades through policy chain" do
-    tests "CompleteGeneration", on: "Generation", kind: :cascade
+    tests "CompleteGeneration", on: "Generation", kind: :cross_cascade
     setup  "StartGeneration", target_count: 1
     input  duration_seconds: 1
     expect emits: ["GenerationCompleted", "ExistingChecked"]

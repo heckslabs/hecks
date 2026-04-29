@@ -11,7 +11,7 @@ Hecks.behaviors "CyclePause" do
   end
 
   test "PauseCycle cascades through policy chain" do
-    tests "PauseCycle", on: "CyclePause", kind: :cascade
+    tests "PauseCycle", on: "CyclePause", kind: :cross_cascade
     setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
     input  being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
     expect emits: ["CyclePaused", "SharedDreamJoined"]

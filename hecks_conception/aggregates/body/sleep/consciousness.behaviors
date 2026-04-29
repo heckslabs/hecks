@@ -28,7 +28,7 @@ Hecks.behaviors "Consciousness" do
   end
 
   test "EnterSleep cascades through policy chain" do
-    tests "EnterSleep", on: "Consciousness", kind: :cascade
+    tests "EnterSleep", on: "Consciousness", kind: :cross_cascade
     setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     expect emits: ["SleepEntered", "MonitoringStarted"]
@@ -56,7 +56,7 @@ Hecks.behaviors "Consciousness" do
     # WokePartialSleep. Two runners, two answers, silent across corpus.
     # Post-fix (state_resolver.rb next_id reuses existing key): both
     # runners agree on this exact emit sequence.
-    tests "WakeUp", on: "Consciousness", kind: :cascade
+    tests "WakeUp", on: "Consciousness", kind: :cross_cascade
     setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     setup  "EnterSleep"

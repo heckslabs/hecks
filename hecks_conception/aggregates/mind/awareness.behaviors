@@ -4,13 +4,13 @@ Hecks.behaviors "Awareness" do
   # ── Attention aggregate ──────────────────────────────────────────
 
   test "AttendTo sets target + intensity" do
-    tests "AttendTo", on: "Attention"
+    tests "AttendTo", on: "Attention", kind: :cross_cascade
     input  target: "sample", intensity: 1.0
     expect target: "sample", intensity: 1.0
   end
 
   test "AttendTo cascades through policy chain" do
-    tests "AttendTo", on: "Attention", kind: :cascade
+    tests "AttendTo", on: "Attention", kind: :cross_cascade
     setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
     setup  "Observe", observing: "sample"
     setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
@@ -19,7 +19,7 @@ Hecks.behaviors "Awareness" do
   end
 
   test "ReleaseAttention runs" do
-    tests "ReleaseAttention", on: "Attention"
+    tests "ReleaseAttention", on: "Attention", kind: :cross_cascade
     setup  "AttendTo", target: "sample", intensity: 1.0
     expect intensity: 0
   end
@@ -28,13 +28,13 @@ Hecks.behaviors "Awareness" do
   # ── Sensation aggregate ──────────────────────────────────────────
 
   test "Sense sets source + content + valence" do
-    tests "Sense", on: "Sensation"
+    tests "Sense", on: "Sensation", kind: :cross_cascade
     input  source: "sample", content: "sample", valence: 1.0
     expect source: "sample", content: "sample", valence: 1.0
   end
 
   test "Sense cascades through policy chain" do
-    tests "Sense", on: "Sensation", kind: :cascade
+    tests "Sense", on: "Sensation", kind: :cross_cascade
     setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
     setup  "AttendTo", target: "sample", intensity: 1.0
     setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
@@ -48,13 +48,13 @@ Hecks.behaviors "Awareness" do
   # ── Perception aggregate ──────────────────────────────────────────
 
   test "Recognize sets sensation + recognized_as + confidence" do
-    tests "Recognize", on: "Perception"
+    tests "Recognize", on: "Perception", kind: :cross_cascade
     input  sensation: "sample", recognized_as: "sample", confidence: 1.0
     expect sensation: "sample", recognized_as: "sample", confidence: 1.0
   end
 
   test "Recognize cascades through policy chain" do
-    tests "Recognize", on: "Perception", kind: :cascade
+    tests "Recognize", on: "Perception", kind: :cross_cascade
     setup  "AttendTo", target: "sample", intensity: 1.0
     setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
     setup  "Observe", observing: "sample"
@@ -67,13 +67,13 @@ Hecks.behaviors "Awareness" do
   # ── Intention aggregate ──────────────────────────────────────────
 
   test "FormIntention sets goal + origin + strength" do
-    tests "FormIntention", on: "Intention"
+    tests "FormIntention", on: "Intention", kind: :cross_cascade
     input  goal: "sample", origin: "sample", strength: 1.0
     expect goal: "sample", origin: "sample", strength: 1.0
   end
 
   test "FormIntention cascades through policy chain" do
-    tests "FormIntention", on: "Intention", kind: :cascade
+    tests "FormIntention", on: "Intention", kind: :cross_cascade
     setup  "Observe", observing: "sample"
     setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  goal: "sample", origin: "sample", strength: 1.0
@@ -81,7 +81,7 @@ Hecks.behaviors "Awareness" do
   end
 
   test "AbandonIntention runs" do
-    tests "AbandonIntention", on: "Intention"
+    tests "AbandonIntention", on: "Intention", kind: :cross_cascade
     setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
     expect strength: 0
   end
@@ -90,7 +90,7 @@ Hecks.behaviors "Awareness" do
   # ── SelfModel aggregate ──────────────────────────────────────────
 
   test "RefreshSelfModel sets organs + impulses + fatigue_state + consciousness_state + nursery_size + family_size" do
-    tests "RefreshSelfModel", on: "SelfModel"
+    tests "RefreshSelfModel", on: "SelfModel", kind: :cross_cascade
     input  organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     expect organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
   end
@@ -99,27 +99,27 @@ Hecks.behaviors "Awareness" do
   # ── Witness aggregate ──────────────────────────────────────────
 
   test "Observe sets observing" do
-    tests "Observe", on: "Witness"
+    tests "Observe", on: "Witness", kind: :cross_cascade
     input  observing: "sample"
     expect observing: "sample", meta_level: 1
   end
 
   test "Observe cascades through policy chain" do
-    tests "Observe", on: "Witness", kind: :cascade
+    tests "Observe", on: "Witness", kind: :cross_cascade
     setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     input  observing: "sample"
     expect emits: ["Observed", "SelfModelUpdated"]
   end
 
   test "ReflectOnObservation sets insight" do
-    tests "ReflectOnObservation", on: "Witness"
+    tests "ReflectOnObservation", on: "Witness", kind: :cross_cascade
     setup  "Observe", observing: "sample"
     input  insight: "sample"
     expect meta_level: 2, insight: "sample"
   end
 
   test "ReflectOnObservation cascades through policy chain" do
-    tests "ReflectOnObservation", on: "Witness", kind: :cascade
+    tests "ReflectOnObservation", on: "Witness", kind: :cross_cascade
     setup  "Observe", observing: "sample"
     setup  "MuseOnState", trigger: "sample"
     input  insight: "sample"
@@ -130,13 +130,13 @@ Hecks.behaviors "Awareness" do
   # ── Musing aggregate ──────────────────────────────────────────
 
   test "MuseOnState sets trigger" do
-    tests "MuseOnState", on: "Musing"
+    tests "MuseOnState", on: "Musing", kind: :cross_cascade
     input  trigger: "sample"
     expect trigger: "sample"
   end
 
   test "MuseOnState cascades through policy chain" do
-    tests "MuseOnState", on: "Musing", kind: :cascade
+    tests "MuseOnState", on: "Musing", kind: :cross_cascade
     setup  "Sense", source: "sample", content: "sample", valence: 1.0
     setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
     setup  "AttendTo", target: "sample", intensity: 1.0
@@ -149,7 +149,7 @@ Hecks.behaviors "Awareness" do
   end
 
   test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do
-    tests "RecordMusing", on: "Musing"
+    tests "RecordMusing", on: "Musing", kind: :cross_cascade
     setup  "MuseOnState", trigger: "sample"
     input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
     expect sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
@@ -159,7 +159,7 @@ Hecks.behaviors "Awareness" do
   # ── Announcement aggregate ──────────────────────────────────────────
 
   test "Announce sets act + subject" do
-    tests "Announce", on: "Announcement"
+    tests "Announce", on: "Announcement", kind: :cross_cascade
     input  act: "sample", subject: "sample"
     expect act: "sample", subject: "sample"
   end
@@ -168,13 +168,13 @@ Hecks.behaviors "Awareness" do
   # ── DomainAwareness aggregate ──────────────────────────────────────────
 
   test "IdentifyRelatedDomains sets topic" do
-    tests "IdentifyRelatedDomains", on: "DomainAwareness"
+    tests "IdentifyRelatedDomains", on: "DomainAwareness", kind: :cross_cascade
     input  topic: "sample"
     expect topic: "sample", corpus_searched: "true"
   end
 
   test "HighlightDomain sets domain_name + aggregate_name + relevance" do
-    tests "HighlightDomain", on: "DomainAwareness"
+    tests "HighlightDomain", on: "DomainAwareness", kind: :cross_cascade
     setup  "IdentifyRelatedDomains", topic: "sample"
     input  domain_name: "sample", aggregate_name: "sample", relevance: "sample"
     expect ok: "true"

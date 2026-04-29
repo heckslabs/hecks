@@ -9,7 +9,7 @@ Hecks.behaviors "LucidDream" do
   end
 
   test "BecomeLucid cascades through policy chain" do
-    tests "BecomeLucid", on: "LucidDream", kind: :cascade
+    tests "BecomeLucid", on: "LucidDream", kind: :cross_cascade
     setup  "StartLucidMonitor", log_path: "sample"
     expect emits: ["BecameLucid", "LucidMonitorStarted"]
   end
@@ -32,7 +32,7 @@ Hecks.behaviors "LucidDream" do
   end
 
   test "EndLucidity cascades through policy chain" do
-    tests "EndLucidity", on: "LucidDream", kind: :cascade
+    tests "EndLucidity", on: "LucidDream", kind: :cross_cascade
     setup  "StartLucidMonitor", log_path: "sample"
     expect emits: ["LucidityEnded", "LucidMonitorStopped"]
   end
@@ -41,13 +41,13 @@ Hecks.behaviors "LucidDream" do
   # ── LucidMonitor aggregate ──────────────────────────────────────────
 
   test "StartLucidMonitor sets log_path" do
-    tests "StartLucidMonitor", on: "LucidMonitor"
+    tests "StartLucidMonitor", on: "LucidMonitor", kind: :cross_cascade
     input  log_path: "sample"
     expect reporting: "active", log_path: "sample"
   end
 
   test "StopLucidMonitor runs" do
-    tests "StopLucidMonitor", on: "LucidMonitor"
+    tests "StopLucidMonitor", on: "LucidMonitor", kind: :cross_cascade
     setup  "StartLucidMonitor", log_path: "sample"
     expect reporting: "stopped"
   end

@@ -4,7 +4,7 @@ Hecks.behaviors "Boot" do
   # ── Identity aggregate ──────────────────────────────────────────
 
   test "Identify sets name" do
-    tests "Identify", on: "Identity"
+    tests "Identify", on: "Identity", kind: :cross_cascade
     input  name: "sample"
     expect name: "sample"
   end
@@ -13,12 +13,12 @@ Hecks.behaviors "Boot" do
   # ── Hydration aggregate ──────────────────────────────────────────
 
   test "HydrateStores runs" do
-    tests "HydrateStores", on: "Hydration"
+    tests "HydrateStores", on: "Hydration", kind: :cross_cascade
     expect ok: "true"
   end
 
   test "HydrateStores cascades through policy chain" do
-    tests "HydrateStores", on: "Hydration", kind: :cascade
+    tests "HydrateStores", on: "Hydration", kind: :cross_cascade
     expect emits: ["StoresHydrated", "StoresClassified", "PromptGenerated", "MindstreamStarted"]
   end
 
@@ -26,22 +26,22 @@ Hecks.behaviors "Boot" do
   # ── OrganDiscovery aggregate ──────────────────────────────────────────
 
   test "DiscoverOrgans runs" do
-    tests "DiscoverOrgans", on: "OrganDiscovery"
+    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cross_cascade
     expect ok: "true"
   end
 
   test "DiscoverOrgans cascades through policy chain" do
-    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cascade
+    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cross_cascade
     expect emits: ["OrgansDiscovered", "CensusWritten", "VitalsPrinted"]
   end
 
   test "WriteCensus runs" do
-    tests "WriteCensus", on: "OrganDiscovery"
+    tests "WriteCensus", on: "OrganDiscovery", kind: :cross_cascade
     expect ok: "true"
   end
 
   test "WriteCensus cascades through policy chain" do
-    tests "WriteCensus", on: "OrganDiscovery", kind: :cascade
+    tests "WriteCensus", on: "OrganDiscovery", kind: :cross_cascade
     expect emits: ["CensusWritten", "VitalsPrinted"]
   end
 
@@ -49,7 +49,7 @@ Hecks.behaviors "Boot" do
   # ── CapabilityIndex aggregate ──────────────────────────────────────────
 
   test "IndexCapabilities runs" do
-    tests "IndexCapabilities", on: "CapabilityIndex"
+    tests "IndexCapabilities", on: "CapabilityIndex", kind: :cross_cascade
     expect ok: "true"
   end
 
@@ -57,12 +57,12 @@ Hecks.behaviors "Boot" do
   # ── StoreClassification aggregate ──────────────────────────────────────────
 
   test "ClassifyStores runs" do
-    tests "ClassifyStores", on: "StoreClassification"
+    tests "ClassifyStores", on: "StoreClassification", kind: :cross_cascade
     expect ok: "true"
   end
 
   test "ClassifyStores cascades through policy chain" do
-    tests "ClassifyStores", on: "StoreClassification", kind: :cascade
+    tests "ClassifyStores", on: "StoreClassification", kind: :cross_cascade
     expect emits: ["StoresClassified", "PromptGenerated", "MindstreamStarted"]
   end
 
@@ -70,12 +70,12 @@ Hecks.behaviors "Boot" do
   # ── PromptGeneration aggregate ──────────────────────────────────────────
 
   test "GeneratePrompt runs" do
-    tests "GeneratePrompt", on: "PromptGeneration"
+    tests "GeneratePrompt", on: "PromptGeneration", kind: :cross_cascade
     expect generated: "yes"
   end
 
   test "GeneratePrompt cascades through policy chain" do
-    tests "GeneratePrompt", on: "PromptGeneration", kind: :cascade
+    tests "GeneratePrompt", on: "PromptGeneration", kind: :cross_cascade
     expect emits: ["PromptGenerated", "MindstreamStarted"]
   end
 
@@ -83,7 +83,7 @@ Hecks.behaviors "Boot" do
   # ── VitalSummary aggregate ──────────────────────────────────────────
 
   test "PrintVitals runs" do
-    tests "PrintVitals", on: "VitalSummary"
+    tests "PrintVitals", on: "VitalSummary", kind: :cross_cascade
     expect printed: "yes"
   end
 
@@ -91,7 +91,7 @@ Hecks.behaviors "Boot" do
   # ── MindstreamDaemon aggregate ──────────────────────────────────────────
 
   test "StartMindstream runs" do
-    tests "StartMindstream", on: "MindstreamDaemon"
+    tests "StartMindstream", on: "MindstreamDaemon", kind: :cross_cascade
     expect running: "yes"
   end
 
