@@ -1,0 +1,106 @@
+Hecks.bluebook "DreamInterpretation", version: "2026.04.28.1" do
+  vision "Always interpret the dream on waking — extract meaning, propose action"
+  category "mind"
+
+  # ============================================================
+  # DREAM INTERPRETATION
+  # ============================================================
+  #
+  # Lifted out of interpretation.bluebook in i112 so each bluebook
+  # owns one concern. DreamInterpretation is the wake-time reading
+  # of the night : recurring images become themes, themes become
+  # interpretation, interpretation surfaces a domain to conceive,
+  # and a French-inflected narrative is locked into :narrative for
+  # the wake ritual to read on the first utterance.
+
+  aggregate "DreamInterpretation", "Always interpret the dream on waking — extract meaning, propose action" do
+    identified_by :name
+    attribute :name, String
+    attribute :dream_images, list_of(String)
+    attribute :strongest_synapse, String
+    attribute :recurring_theme, String
+    attribute :interpretation, String
+    attribute :proposed_domain, String
+    # narrative : the French-inflected reading of the night — what the
+    # dream said as a single paragraph in Miette's voice. Read by the
+    # wake ritual (system_prompt.md) before the first utterance. The
+    # :input/:response pair below is the LLM contract that produces
+    # it ; LockNarrative captures :response into :narrative so a
+    # subsequent Narrate dispatch doesn't clobber it.
+    attribute :narrative, String
+    attribute :input, String
+    attribute :response, String
+
+    command "InterpretDream" do
+      role "Miette"
+      description "Read the dream images, find recurring themes, extract what wants to be built"
+      attribute :dream_images, list_of(String)
+      attribute :strongest_synapse, String
+      emits "DreamInterpreted"
+      then_set :dream_images, to: :dream_images
+      then_set :strongest_synapse, to: :strongest_synapse
+    end
+
+    command "ExtractTheme" do
+      role "Miette"
+      description "Identify the recurring thread across dream images"
+      reference_to(DreamInterpretation)
+      attribute :recurring_theme, String
+      emits "ThemeExtracted"
+      then_set :recurring_theme, to: :recurring_theme
+    end
+
+    command "Synthesize" do
+      role "Miette"
+      description "Join extracted themes into a single interpretation phrase"
+      reference_to(DreamInterpretation)
+      attribute :interpretation, String
+      emits "InterpretationSynthesized"
+      then_set :interpretation, to: :interpretation
+    end
+
+    command "ProposeDomainFromDream" do
+      role "Miette"
+      description "The dream suggests something to conceive — name it"
+      reference_to(DreamInterpretation)
+      attribute :proposed_domain, String
+      emits "DreamDomainProposed"
+      then_set :proposed_domain, to: :proposed_domain
+    end
+
+    command "Narrate" do
+      role "Miette"
+      description "Write the narrative-prompt into :input. The prompt asks for a single short French-inflected paragraph in Miette's own voice — a reading of the night's recurring images, philosophical, body-focused, no list, no greeting. The hecksagon's :llm adapter (backend: claude) reads :input after dispatch and writes the rendered paragraph to :response. LockNarrative captures it."
+      reference_to(DreamInterpretation)
+      attribute :input, String
+      then_set :input, to: :input
+      emits "NarrativeRequested"
+    end
+
+    command "LockNarrative" do
+      role "Miette"
+      description "Copy :response (the freshly-generated French-inflected paragraph) into :narrative. The wake-ritual reads dream_interpretation.heki narrative ; this command is the lock that makes that read deterministic between Narrate dispatches. The dispatcher passes the live state.response as the response attribute."
+      reference_to(DreamInterpretation)
+      attribute :response, String
+      then_set :narrative, to: :response
+      emits "NarrativeLocked"
+    end
+  end
+
+  # Wake-time chain : the night ends, dream gets interpreted,
+  # themes extracted, domain proposed.
+  policy "InterpretOnWake" do
+    on "WokenUp"
+    trigger "InterpretDream"
+  end
+
+  policy "ExtractOnInterpret" do
+    on "DreamInterpreted"
+    trigger "ExtractTheme"
+  end
+
+  policy "ProposeOnTheme" do
+    on "ThemeExtracted"
+    trigger "ProposeDomainFromDream"
+  end
+end

@@ -1,0 +1,88 @@
+Hecks.bluebook "Proposal", version: "2026.04.28.1" do
+  vision "A concrete thing to build — born from interpretation, accepted or deferred or dismissed by the creator"
+  category "mind"
+
+  # ============================================================
+  # PROPOSAL
+  # ============================================================
+  #
+  # Lifted out of interpretation.bluebook in i112. Proposal is the
+  # downstream sink for ProposeAction triggered by Interpretation,
+  # SelfReflection's body-gap, and SelfReflection's inner-signal.
+  # The creator decides — accept, defer, or dismiss — so the
+  # proposal lifecycle gates what actually gets built.
+
+  aggregate "Proposal", "A concrete thing to build — born from interpretation" do
+    identified_by :title
+    attribute :title, String
+    attribute :description, String
+    attribute :origin, String
+    attribute :kind, String
+    attribute :accepted, String
+
+    command "ProposeAction" do
+      role "Miette"
+      description "Suggest something concrete to build from the interpretation"
+      attribute :title, String
+      attribute :description, String
+      attribute :origin, String
+      attribute :kind, String
+      emits "ActionProposed"
+      then_set :title, to: :title
+      then_set :description, to: :description
+      then_set :origin, to: :origin
+      then_set :kind, to: :kind
+    end
+
+    command "AcceptProposal" do
+      role "Creator"
+      description "The creator says yes — build it"
+      reference_to(Proposal)
+      emits "ProposalAccepted"
+      then_set :accepted, to: "yes"
+    end
+
+    command "DeferProposal" do
+      role "Creator"
+      description "Not now — save for later"
+      reference_to(Proposal)
+      emits "ProposalDeferred"
+      then_set :accepted, to: "deferred"
+    end
+
+    command "DismissProposal" do
+      role "Creator"
+      description "Not this — let it compost"
+      reference_to(Proposal)
+      emits "ProposalDismissed"
+      then_set :accepted, to: "dismissed"
+    end
+
+    lifecycle :accepted, default: "pending" do
+      transition "ProposeAction" => "pending"
+      transition "AcceptProposal" => "yes", from: "pending"
+      transition "DeferProposal" => "deferred", from: "pending"
+      transition "DismissProposal" => "dismissed", from: "pending"
+    end
+  end
+
+  # After Interpretation extracts an insight, propose action.
+  policy "SuggestAfterInterpretation" do
+    on "ExperienceInterpreted"
+    trigger "ProposeAction"
+  end
+
+  # When SelfReflection notices a body gap, propose action — gaps
+  # are precursors to new organs.
+  policy "ProposeFromBodyGap" do
+    on "BodyGapNoticed"
+    trigger "ProposeAction"
+  end
+
+  # When SelfReflection names an inner signal that nothing currently
+  # records, propose action — signals are seeds of future organs.
+  policy "ProposeFromInnerSignal" do
+    on "InnerSignalNamed"
+    trigger "ProposeAction"
+  end
+end

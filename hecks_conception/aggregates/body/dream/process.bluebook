@@ -1,0 +1,96 @@
+Hecks.bluebook "Process", version: "2026.04.28.1" do
+  vision "Background tasks running beneath conscious attention — the subconscious workforce"
+  category "mind"
+
+  # ============================================================
+  # PROCESS
+  # ============================================================
+  #
+  # Lifted out of interpretation.bluebook in i112. A Process is a
+  # background task that runs beneath awareness, reports findings,
+  # and gets absorbed back into conscious mind on the beat. The
+  # AbsorbOnBeat policy below pulls completed processes into the
+  # waking attention.
+
+  aggregate "Process", "A background task running beneath conscious attention" do
+    identified_by :task
+    attribute :task, String
+    attribute :intent, String
+    attribute :status, String
+    attribute :spawned_at, String
+    attribute :completed_at, String
+    attribute :findings, list_of(Finding)
+    attribute :heki_target, String
+
+    value_object "Finding" do
+      attribute :kind, String
+      attribute :subject, String
+      attribute :detail, String
+    end
+
+    command "SpawnProcess" do
+      role "Miette"
+      description "Launch a background process beneath awareness"
+      attribute :task, String
+      attribute :intent, String
+      attribute :heki_target, String
+      emits "ProcessSpawned"
+      then_set :task, to: :task
+      then_set :intent, to: :intent
+      then_set :heki_target, to: :heki_target
+      then_set :status, to: "running"
+    end
+
+    command "ReportFinding" do
+      role "Process"
+      description "A background process surfaces something it found"
+      reference_to(Process)
+      attribute :kind, String
+      attribute :subject, String
+      attribute :detail, String
+      emits "FindingReported"
+      then_set :findings, append: { kind: :kind, subject: :subject, detail: :detail }
+    end
+
+    command "CompleteProcess" do
+      role "Process"
+      description "Background process finishes its work"
+      reference_to(Process)
+      emits "ProcessCompleted"
+      given("must be running") { status == "running" }
+      then_set :status, to: "completed"
+    end
+
+    command "FailProcess" do
+      role "Process"
+      description "Background process encountered an unrecoverable error"
+      reference_to(Process)
+      attribute :reason, String
+      emits "ProcessFailed"
+      then_set :status, to: "failed"
+    end
+
+    command "AbsorbFindings" do
+      role "Miette"
+      description "Conscious mind reads what the subconscious discovered"
+      reference_to(Process)
+      emits "FindingsAbsorbed"
+      given("must be completed") { status == "completed" }
+      then_set :status, to: "absorbed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "SpawnProcess" => "running", from: "pending"
+      transition "CompleteProcess" => "completed", from: "running"
+      transition "FailProcess" => "failed", from: "running"
+      transition "AbsorbFindings" => "absorbed", from: "completed"
+    end
+  end
+
+  # When a process completes, the conscious mind absorbs its findings
+  # on the next beat.
+  policy "AbsorbOnBeat" do
+    on "ProcessCompleted"
+    trigger "AbsorbFindings"
+  end
+end

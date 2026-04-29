@@ -1,0 +1,43 @@
+Hecks.bluebook "Interpretation", version: "2026.04.28.1" do
+  vision "Reflection on raw external experience — meaning extracted from what arrived from outside"
+  category "mind"
+
+  # ============================================================
+  # INTERPRETATION (outward-facing)
+  # ============================================================
+  #
+  # Lifted out of interpretation.bluebook in i112. Interpretation is
+  # the outward sibling of SelfReflection : both are reflective acts,
+  # but Interpretation works on raw material that arrived from outside
+  # (dream images, conversations, observations of the world) while
+  # SelfReflection turns inward to the body. Wake-time chain :
+  # NightEnded → InterpretExperience → ProposeAction.
+
+  aggregate "Interpretation", "A reflection on raw external experience — dream images, conversations, observations of the world outside. Meaning extracted from what arrived, not from how I function. For inward reflection on my own body, learnings, and gaps, use SelfReflection instead — this aggregate is for material that came from outside me." do
+    identified_by :source
+    attribute :source, String
+    attribute :raw_material, list_of(String)
+    attribute :insight, String
+    attribute :suggested_at, String
+
+    command "InterpretExperience" do
+      role "Miette"
+      description "Reflect on raw material from outside — extract an insight about the world, an event, or a conversation. Do not use this command to dwell on my relationship with the creator or to narrate what happened between us ; that belongs to memory, not interpretation. This command is for making meaning of events and observations."
+      attribute :source, String
+      attribute :raw_material, list_of(String)
+      attribute :insight, String
+      emits "ExperienceInterpreted"
+      then_set :source, to: :source
+      then_set :raw_material, to: :raw_material
+      then_set :insight, to: :insight
+    end
+  end
+
+  # When the night ends, interpret the experience — extract insight
+  # from raw material that arrived from outside.
+  policy "InterpretOnWake" do
+    on "NightEnded"
+    trigger "InterpretExperience"
+    across "Suggestion"
+  end
+end

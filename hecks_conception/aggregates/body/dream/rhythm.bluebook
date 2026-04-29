@@ -1,0 +1,38 @@
+Hecks.bluebook "Rhythm", version: "2026.04.28.1" do
+  vision "The cadence of background work — what runs on wake, on beat, on dream"
+  category "mind"
+
+  # ============================================================
+  # RHYTHM
+  # ============================================================
+  #
+  # Lifted out of interpretation.bluebook in i112. Rhythm names the
+  # cadences (wake, beat, dream) and which tasks attach to each.
+  # Standalone : no policies of its own, only registration commands
+  # used by the daemon scheduler.
+
+  aggregate "Rhythm", "The cadence of background work — what runs on wake, on beat, on dream" do
+    identified_by :name
+    attribute :name, String
+    attribute :on_wake, list_of(String)
+    attribute :on_beat, list_of(String)
+    attribute :on_dream, list_of(String)
+
+    command "RegisterTask" do
+      role "Miette"
+      description "Add a task to a rhythm — when should this run?"
+      attribute :task, String
+      attribute :cadence, String
+      emits "TaskRegistered"
+      given("cadence must be wake, beat, or dream") { %w[wake beat dream].include?(cadence) }
+    end
+
+    command "RemoveTask" do
+      role "Miette"
+      description "Remove a task from a rhythm"
+      attribute :task, String
+      attribute :cadence, String
+      emits "TaskRemoved"
+    end
+  end
+end
