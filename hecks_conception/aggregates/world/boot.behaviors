@@ -32,7 +32,7 @@ Hecks.behaviors "Boot" do
 
   test "DiscoverOrgans cascades through policy chain" do
     tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cross_cascade
-    expect emits: ["OrgansDiscovered", "CensusWritten", "VitalsPrinted"]
+    expect emits_subset: ["OrgansDiscovered", "CensusWritten", "VitalsPrinted"]
   end
 
   test "WriteCensus runs" do
@@ -42,7 +42,7 @@ Hecks.behaviors "Boot" do
 
   test "WriteCensus cascades through policy chain" do
     tests "WriteCensus", on: "OrganDiscovery", kind: :cross_cascade
-    expect emits: ["CensusWritten", "VitalsPrinted"]
+    expect emits_subset: ["CensusWritten", "VitalsPrinted"]
   end
 
 

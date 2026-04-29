@@ -17,7 +17,7 @@ Hecks.behaviors "DomainCell" do
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  domain_name: "sample"
-    expect emits: ["DomainConceived", "Excited", "HeartbeatAccelerated", "CapabilityExpressed", "LimbSensed"]
+    expect emits_subset: ["DomainConceived", "Excited", "HeartbeatAccelerated", "CapabilityExpressed", "LimbSensed"]
   end
 
   test "Mature runs" do

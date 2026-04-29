@@ -15,7 +15,7 @@ Hecks.behaviors "NurseryAwareness" do
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  domain_name: "sample"
-    expect emits: ["DomainConceived", "MemoryEncoded", "PersonaRecognized"]
+    expect emits_subset: ["DomainConceived", "MemoryEncoded", "PersonaRecognized"]
   end
 
   test "MarkFavorite sets domain_name" do

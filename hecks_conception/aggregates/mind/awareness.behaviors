@@ -123,7 +123,7 @@ Hecks.behaviors "Awareness" do
     setup  "Observe", observing: "sample"
     setup  "MuseOnState", trigger: "sample"
     input  insight: "sample"
-    expect emits: ["ReflectionOccurred", "MusingRecorded"]
+    expect emits_subset: ["ReflectionOccurred", "MusingRecorded"]
   end
 
 

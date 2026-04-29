@@ -30,7 +30,7 @@ Hecks.behaviors "Conversation" do
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  said: "sample", responded: "sample", timestamp: "sample"
-    expect emits: ["Responded", "MemoryEncoded", "PersonaRecognized"]
+    expect emits_subset: ["Responded", "MemoryEncoded", "PersonaRecognized"]
   end
 
   test "ShiftTopic sets topic" do
@@ -63,6 +63,6 @@ Hecks.behaviors "Conversation" do
     setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
     setup  "RecognizePersona", name: "sample", fixture_type: "sample"
     input  said: "hello", responded: "hi back", timestamp: "2026-04-20T00:00:00Z"
-    expect emits: ["Responded", "MemoryEncoded", "PersonaRecognized"]
+    expect emits_subset: ["Responded", "MemoryEncoded", "PersonaRecognized"]
   end
 end

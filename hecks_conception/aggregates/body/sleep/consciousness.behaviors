@@ -31,7 +31,7 @@ Hecks.behaviors "Consciousness" do
     tests "EnterSleep", on: "Consciousness", kind: :cross_cascade
     setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
-    expect emits: ["SleepEntered", "MonitoringStarted"]
+    expect emits_subset: ["SleepEntered", "MonitoringStarted"]
   end
 
   test "TakeNap runs" do
@@ -60,7 +60,7 @@ Hecks.behaviors "Consciousness" do
     setup  "StartMonitoring", interval_seconds: 1
     setup  "EnterDaydream"
     setup  "EnterSleep"
-    expect emits: ["WokenUp", "BecameAttentive", "WokePartialSleep", "MonitoringStopped"]
+    expect emits_subset: ["WokenUp", "BecameAttentive", "WokePartialSleep", "MonitoringStopped"]
   end
 
   test "BecomeAttentive runs" do

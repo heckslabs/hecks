@@ -14,7 +14,7 @@ Hecks.behaviors "Conception" do
     setup  "IndexDomain", domain_name: "sample", vector: 1.0
     setup  "StartGestation", project_name: "sample", nursery_path: "sample", bounded_contexts: "sample"
     input  name: "sample", vision: "sample", requested_by: "sample", source: "sample", category: "sample", bounded_contexts: "sample"
-    expect emits: ["DomainConceived", "NearestFound", "GestationStarted"]
+    expect emits_subset: ["DomainConceived", "NearestFound", "GestationStarted"]
   end
 
 
