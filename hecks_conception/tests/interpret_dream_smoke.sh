@@ -59,6 +59,7 @@ EOF
 # cross the ≥3 threshold and produce musings.
 seed_image() {
   "$HECKS" heki append "$TMP/information/dream_state.heki" \
+    --reason "test setup : seed dream image for interpret_dream concept-recurrence threshold sweep" \
     source=test dream_images="$1" >/dev/null 2>&1
 }
 seed_image "the ocean dissolving in a library"

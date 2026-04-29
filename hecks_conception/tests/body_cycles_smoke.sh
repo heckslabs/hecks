@@ -74,7 +74,9 @@ phase=$("$HECKS" heki latest-field "$STORE" phase 2>/dev/null || echo "")
 echo "ultradian fast-forward (i106): cycle_count=$cycle_count, phase=$phase"
 
 # ── 2. Sleep_cycle fast-forward (i108 gate=open) ─────────────────
-"$HECKS" heki upsert "$INFO/consciousness.heki" id=1 state=sleeping >/dev/null 2>&1
+"$HECKS" heki upsert "$INFO/consciousness.heki" \
+  --reason "test setup : set consciousness asleep so sleep_cycle gate opens for body_cycles fast-forward" \
+  id=1 state=sleeping >/dev/null 2>&1
 
 "$HECKS" loop "$AGG" \
   SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM \
@@ -95,7 +97,9 @@ echo "sleep_cycle fast-forward (i108 gate=open): cycle_count=$sc_count, phase=$s
 gated_baseline="$sc_count"
 
 # ── 3. Sleep_cycle awake gate — no dispatches fire ───────────────
-"$HECKS" heki upsert "$INFO/consciousness.heki" id=1 state=attentive >/dev/null 2>&1
+"$HECKS" heki upsert "$INFO/consciousness.heki" \
+  --reason "test setup : set consciousness attentive so sleep_cycle gate closes for body_cycles awake-gate proof" \
+  id=1 state=attentive >/dev/null 2>&1
 
 "$HECKS" loop "$AGG" \
   SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM \

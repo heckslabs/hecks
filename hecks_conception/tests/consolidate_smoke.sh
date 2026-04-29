@@ -75,11 +75,13 @@ NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 for i in 1 2 3 4 5; do
   "$HECKS" heki append "$TMP/information/signal.heki" \
+    --reason "test setup : seed cold signals for consolidate promote-to-store sweep" \
     kind=concept payload="cold_$i" strength=0.5 access_count=0 \
     created_at="$OLD" >/dev/null 2>&1
 done
 for i in 1 2; do
   "$HECKS" heki append "$TMP/information/signal.heki" \
+    --reason "test setup : seed fresh signals so consolidate sweep proves freshness gate" \
     kind=concept payload="fresh_$i" strength=0.5 access_count=0 \
     created_at="$NOW" >/dev/null 2>&1
 done
@@ -87,6 +89,7 @@ done
 # ── Seed weak synapses ───────────────────────────────────────────────
 for t in doomed_a doomed_b; do
   "$HECKS" heki append "$TMP/information/synapse.heki" \
+    --reason "test setup : seed weak synapses for consolidate compost sweep" \
     from="$t" to="$t" strength=0.05 state=alive firings=0 \
     last_fired_at="$OLD" >/dev/null 2>&1
 done
@@ -95,6 +98,7 @@ done
 for i in 1 2 3 4 5; do
   ts=$(iso_offset $((i * 60)))
   "$HECKS" heki append "$TMP/information/musing.heki" \
+    --reason "test setup : seed duplicate-concept musings for consolidate concept-cluster pass" \
     idea="musing number $i" source=mindstream thinking_source=wandering \
     conceived=false status=imagined created_at="$ts" >/dev/null 2>&1
 done

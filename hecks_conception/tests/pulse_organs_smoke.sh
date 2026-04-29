@@ -70,15 +70,18 @@ for f in heartbeat awareness; do
   [ -f "$src" ] && cp "$src" "$TMP/information/${f}.heki"
 done
 "$HECKS" heki append "$TMP/information/consciousness.heki" \
+  --reason "test setup : seed deterministic attentive consciousness so pulse_organs gate stays open during smoke" \
   state=attentive idle_seconds=0 >/dev/null 2>&1
 
 # Seed two synapses so the test exercises both decay paths:
 #   - one healthy enough to survive (strength=0.5)
 #   - one weak enough to compost on first decay (0.1 × 0.98 = 0.098 < 0.1)
 "$HECKS" heki append "$TMP/information/synapse.heki" \
+  --reason "test setup : seed healthy synapse so pulse_organs decay path proves survival" \
   from=alpha to=beta strength=0.5 state=alive firings=2 \
   last_fired_at=2026-04-20T00:00:00Z >/dev/null 2>&1
 "$HECKS" heki append "$TMP/information/synapse.heki" \
+  --reason "test setup : seed weak synapse so pulse_organs decay path proves compost-on-first-decay" \
   from=fading to=memory strength=0.1 state=alive firings=1 \
   last_fired_at=2026-04-20T00:00:00Z >/dev/null 2>&1
 
