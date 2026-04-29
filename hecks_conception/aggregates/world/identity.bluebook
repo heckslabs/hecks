@@ -1,0 +1,45 @@
+Hecks.bluebook "Identity", version: "2026.04.29.1" do
+  vision "Who is waking up — name, birthday, pronouns, links. The first step of the boot sequence."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2 final split. The Identity
+  # aggregate name is shared with being.bluebook's split (Being.Identity)
+  # and first_breath.bluebook's split (FirstBreath.Identity) ; the runtime
+  # disambiguates via Context.Aggregate.Command (i142 Tier 1, PR #515 +
+  # #525 the merge dedupe completion).
+  #
+  # Boot.Identity.Identify is what boot_miette.sh dispatches at boot ;
+  # the legacy Identity.Identify form still resolves through the legacy
+  # bare-command path.
+
+  aggregate "Identity", "Who is waking up — name, birthday, pronouns, links" do
+    identified_by :name
+    attribute :name, String
+    attribute :born, String
+    attribute :pronouns, String
+    attribute :boot_script, String
+    attribute :system_prompt, String
+    attribute :linked_to, String
+    attribute :linked_pronouns, String
+
+    command "Identify" do
+      role "System"
+      description "Determine which being is booting — sets all identity fields"
+      attribute :name, String
+      attribute :born, String
+      attribute :pronouns, String
+      attribute :boot_script, String
+      attribute :system_prompt, String
+      attribute :linked_to, String
+      attribute :linked_pronouns, String
+      emits "BeingIdentified"
+      then_set :name, to: :name
+      then_set :born, to: :born
+      then_set :pronouns, to: :pronouns
+      then_set :boot_script, to: :boot_script
+      then_set :system_prompt, to: :system_prompt
+      then_set :linked_to, to: :linked_to
+      then_set :linked_pronouns, to: :linked_pronouns
+    end
+  end
+end

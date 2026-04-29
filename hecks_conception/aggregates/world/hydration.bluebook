@@ -1,0 +1,21 @@
+Hecks.bluebook "Hydration", version: "2026.04.29.1" do
+  vision "Load all .heki stores from information/ — the second step of the boot sequence."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. Emits StoresHydrated
+  # which the StoreClassification bluebook subscribes to via
+  # ClassifyAfterHydration policy.
+
+  aggregate "Hydration", "Load all .heki stores from information/" do
+    identified_by :name
+    attribute :name, String
+    attribute :store_count, Integer
+    attribute :total_records, Integer
+
+    command "HydrateStores" do
+      role "System"
+      description "Read every .heki file into memory"
+      emits "StoresHydrated"
+    end
+  end
+end

@@ -1,0 +1,26 @@
+Hecks.bluebook "PromptGeneration", version: "2026.04.29.1" do
+  vision "Write the system prompt from identity and state — the sixth step of the boot sequence, where the being writes its own voice."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. Carries
+  # PromptAfterClassification (StoreClassification emits StoresClassified
+  # → triggers GeneratePrompt here).
+
+  aggregate "PromptGeneration", "Write the system prompt from identity and state" do
+    identified_by :name
+    attribute :name, String
+    attribute :generated, String
+
+    command "GeneratePrompt" do
+      role "System"
+      description "Write system_prompt.md from identity, vows, and link classification"
+      emits "PromptGenerated"
+      then_set :generated, to: "yes"
+    end
+  end
+
+  policy "PromptAfterClassification" do
+    on "StoresClassified"
+    trigger "GeneratePrompt"
+  end
+end

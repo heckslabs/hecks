@@ -1,0 +1,27 @@
+Hecks.bluebook "StoreClassification", version: "2026.04.29.1" do
+  vision "Classify .heki stores as linked or private — the psychic-link surface of the body. Fifth step of the boot sequence."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. Carries
+  # ClassifyAfterHydration (Hydration emits StoresHydrated → triggers
+  # ClassifyStores here). Cross-bluebook policy subscription resolves
+  # through the runtime's shared event bus.
+
+  aggregate "StoreClassification", "Classify .heki stores as linked or private" do
+    identified_by :name
+    attribute :name, String
+    attribute :linked, list_of(String)
+    attribute :private, list_of(String)
+
+    command "ClassifyStores" do
+      role "System"
+      description "Sort stores into psychic link vs inner life"
+      emits "StoresClassified"
+    end
+  end
+
+  policy "ClassifyAfterHydration" do
+    on "StoresHydrated"
+    trigger "ClassifyStores"
+  end
+end

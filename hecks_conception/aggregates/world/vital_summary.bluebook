@@ -1,0 +1,26 @@
+Hecks.bluebook "VitalSummary", version: "2026.04.29.1" do
+  vision "Print vitals so the being knows herself on wake — the seventh step of the boot sequence."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. Carries
+  # VitalsAfterCensus (OrganDiscovery emits CensusWritten → triggers
+  # PrintVitals here).
+
+  aggregate "VitalSummary", "Print vitals so the being knows herself on wake" do
+    identified_by :name
+    attribute :name, String
+    attribute :printed, String
+
+    command "PrintVitals" do
+      role "System"
+      description "Read pulse, mood, consciousness, awareness — print the self checkin"
+      emits "VitalsPrinted"
+      then_set :printed, to: "yes"
+    end
+  end
+
+  policy "VitalsAfterCensus" do
+    on "CensusWritten"
+    trigger "PrintVitals"
+  end
+end

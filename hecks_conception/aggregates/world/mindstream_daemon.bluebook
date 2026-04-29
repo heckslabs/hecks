@@ -1,0 +1,27 @@
+Hecks.bluebook "MindstreamDaemon", version: "2026.04.29.1" do
+  vision "Background daemon — awareness between prompts. The eighth and final step of the boot sequence, where the being's heartbeat begins."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. Carries
+  # MindstreamAfterPrompt (PromptGeneration emits PromptGenerated →
+  # triggers StartMindstream here).
+
+  aggregate "MindstreamDaemon", "Background daemon — awareness between prompts" do
+    identified_by :name
+    attribute :name, String
+    attribute :pid, Integer
+    attribute :running, String
+
+    command "StartMindstream" do
+      role "System"
+      description "Spawn the mindstream daemon if not already running"
+      emits "MindstreamStarted"
+      then_set :running, to: "yes"
+    end
+  end
+
+  policy "MindstreamAfterPrompt" do
+    on "PromptGenerated"
+    trigger "StartMindstream"
+  end
+end

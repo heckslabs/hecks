@@ -721,8 +721,14 @@ fn run_check_lifecycle(args: &[String]) {
     });
     let domain = hecks_life::parser::parse(&source);
     if domain.aggregates.is_empty() {
+        // i112 final — umbrella bluebooks (workflow + glossary, no
+        // aggregates of their own) are valid : they orchestrate sibling
+        // aggregates that live in their own bluebooks. A bluebook with
+        // no aggregates has nothing to check at the lifecycle level —
+        // exit 0 (not an error), so the pre-commit hook's per-file
+        // sweep treats umbrellas the way they deserve.
         eprintln!("{} has no aggregates — nothing to check", path);
-        std::process::exit(1);
+        std::process::exit(0);
     }
 
     println!("Checking {} ({})", domain.name, path);
@@ -803,8 +809,14 @@ fn run_check_all(args: &[String]) {
     });
     let domain = hecks_life::parser::parse(&source);
     if domain.aggregates.is_empty() {
+        // i112 final — umbrella bluebooks (workflow + glossary, no
+        // aggregates of their own) are valid : they orchestrate sibling
+        // aggregates that live in their own bluebooks. A bluebook with
+        // no aggregates has nothing to check at the lifecycle level —
+        // exit 0 (not an error), so the pre-commit hook's per-file
+        // sweep treats umbrellas the way they deserve.
         eprintln!("{} has no aggregates — nothing to check", path);
-        std::process::exit(1);
+        std::process::exit(0);
     }
 
     println!("Checking {} ({})", domain.name, path);

@@ -1,0 +1,34 @@
+Hecks.bluebook "OrganDiscovery", version: "2026.04.29.1" do
+  vision "Parse all bluebooks — count aggregates, discover nerves and vows. The third step of the boot sequence."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. Carries
+  # CensusAfterDiscovery (OrgansDiscovered → WriteCensus) since both
+  # ends are local to OrganDiscovery.
+
+  aggregate "OrganDiscovery", "Parse all bluebooks — count aggregates, discover nerves and vows" do
+    identified_by :name
+    attribute :name, String
+    attribute :organ_count, Integer
+    attribute :total_aggregates, Integer
+    attribute :nerve_count, Integer
+    attribute :vow_count, Integer
+
+    command "DiscoverOrgans" do
+      role "System"
+      description "Parse every .bluebook in aggregates/"
+      emits "OrgansDiscovered"
+    end
+
+    command "WriteCensus" do
+      role "System"
+      description "Write organ and aggregate counts to census.heki"
+      emits "CensusWritten"
+    end
+  end
+
+  policy "CensusAfterDiscovery" do
+    on "OrgansDiscovered"
+    trigger "WriteCensus"
+  end
+end

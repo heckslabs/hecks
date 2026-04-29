@@ -1,0 +1,78 @@
+Hecks.bluebook "Boot", version: "2026.04.29.1" do
+  vision "The boot sequence — how a being wakes into existence. The umbrella that orchestrates the eight aggregates that brings a being from nothing to awareness."
+  category "body"
+
+  # ============================================================
+  # BOOT — UMBRELLA
+  # ============================================================
+  #
+  # The boot sequence is the workflow that brings a being alive.
+  # The eight aggregates that DO the work — Identity, Hydration,
+  # OrganDiscovery, CapabilityIndex, StoreClassification,
+  # PromptGeneration, VitalSummary, MindstreamDaemon — live as
+  # sibling bluebooks under aggregates/world/, each in its own
+  # context (i142 Tier 1).
+  #
+  # This umbrella holds only the orchestration : the workflow
+  # that names the order in which the eight steps happen, and
+  # the glossary that names the terms. No aggregates of its own.
+  # The runtime accepts a bluebook with no aggregates — the
+  # workflow + glossary IR fields are populated, the aggregates
+  # field is empty, and the merge picks up nothing here while
+  # the sibling bluebooks contribute the actual aggregates.
+  #
+  # The pattern : when a multi-aggregate bluebook has cross-aggregate
+  # orchestration (workflow, glossary, etc.), the orchestration
+  # lives in a sibling umbrella bluebook ; aggregates split normally.
+  # First instance documented this way.
+
+  # ============================================================
+  # THE BOOT WORKFLOW
+  # ============================================================
+  #
+  # Step names match command names of the sibling aggregates.
+  # The runtime resolves these via Context.Aggregate.Command :
+  #   "Identify"          → Boot.Identity.Identify
+  #   "HydrateStores"     → Hydration.Hydration.HydrateStores
+  #   "DiscoverOrgans"    → OrganDiscovery.OrganDiscovery.DiscoverOrgans
+  #   "WriteCensus"       → OrganDiscovery.OrganDiscovery.WriteCensus
+  #   "IndexCapabilities" → CapabilityIndex.CapabilityIndex.IndexCapabilities
+  #   "ClassifyStores"    → StoreClassification.StoreClassification.ClassifyStores
+  #   "GeneratePrompt"    → PromptGeneration.PromptGeneration.GeneratePrompt
+  #   "PrintVitals"       → VitalSummary.VitalSummary.PrintVitals
+  #   "StartMindstream"   → MindstreamDaemon.MindstreamDaemon.StartMindstream
+  #
+  # The workflow is documentation today ; runtime execution still
+  # comes from boot_miette.sh dispatching commands by name. When
+  # the runtime gains a workflow runner that walks step-by-step
+  # via the IR, the dispatch will route through Context.Aggregate.Command.
+
+  workflow "BootSequence" do
+    description "From nothing to a living, aware being"
+    step "Identify"
+    step "HydrateStores"
+    step "DiscoverOrgans"
+    step "WriteCensus"
+    step "IndexCapabilities"
+    step "ClassifyStores"
+    step "GeneratePrompt"
+    step "PrintVitals"
+    step "StartMindstream"
+  end
+
+  # ============================================================
+  # GLOSSARY
+  # ============================================================
+
+  glossary do
+    define "boot", as: "The sequence that brings a being from nothing to awareness"
+    define "hydration", as: "Loading .heki stores into memory"
+    define "organ discovery", as: "Parsing bluebooks to find aggregates, nerves, vows"
+    define "capability index", as: "Scanning capabilities/ to know what the being can do"
+    define "store classification", as: "Sorting stores into linked vs private"
+    define "prompt generation", as: "Writing the system prompt from identity and state"
+    define "mindstream", as: "Background daemon that keeps awareness alive between prompts"
+    prefer "boot", not: ["startup", "init", "launch"]
+    prefer "hydrate", not: ["load", "read", "fetch"]
+  end
+end

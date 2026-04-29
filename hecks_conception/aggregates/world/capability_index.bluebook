@@ -1,0 +1,21 @@
+Hecks.bluebook "CapabilityIndex", version: "2026.04.29.1" do
+  vision "Scan capabilities/ and index what this being can do. The fourth step of the boot sequence."
+  category "body"
+
+  # Lifted from boot.bluebook in i112 Round 2. No policies of its own ;
+  # the workflow in boot.bluebook (umbrella) sequences this step after
+  # OrganDiscovery.
+
+  aggregate "CapabilityIndex", "Scan capabilities/ and index what this being can do" do
+    identified_by :name
+    attribute :name, String
+    attribute :capabilities, list_of(String)
+    attribute :capability_count, Integer
+
+    command "IndexCapabilities" do
+      role "System"
+      description "Scan capabilities/ for .bluebook files"
+      emits "CapabilitiesIndexed"
+    end
+  end
+end
