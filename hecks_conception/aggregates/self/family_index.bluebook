@@ -1,0 +1,50 @@
+Hecks.bluebook "FamilyIndex", version: "2026.04.16.1" do
+  vision "The registry — all active family members, indexed separately from the nursery"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). Aggregated
+  # counts across the family (members, organs, incorporated domains,
+  # aggregates, commands). Updated incrementally on MemberAdded.
+  #
+  # Carries one policy : IndexOnAdd (MemberAdded → RecordAddition),
+  # which targets FamilyIndex here.
+
+  aggregate "FamilyIndex", "The registry — all active family members, indexed separately from the nursery" do
+    identified_by :name
+    attribute :name, String
+    attribute :total_members, Integer
+    attribute :total_organs, Integer
+    attribute :total_incorporated, Integer
+    attribute :total_aggregates, Integer
+    attribute :total_commands, Integer
+
+    command "RebuildIndex" do
+      role "System"
+      description "Recount all family members by kind"
+      attribute :total_members, Integer
+      attribute :total_organs, Integer
+      attribute :total_incorporated, Integer
+      attribute :total_aggregates, Integer
+      attribute :total_commands, Integer
+      emits "IndexRebuilt"
+      then_set :total_members, to: :total_members
+      then_set :total_organs, to: :total_organs
+      then_set :total_incorporated, to: :total_incorporated
+      then_set :total_aggregates, to: :total_aggregates
+      then_set :total_commands, to: :total_commands
+    end
+
+    command "RecordAddition" do
+      role "System"
+      description "A bluebook joined the family — update the index"
+      reference_to(FamilyIndex)
+      emits "AdditionRecorded"
+      then_set :total_members, increment: 1
+    end
+  end
+
+  policy "IndexOnAdd" do
+    on "MemberAdded"
+    trigger "RecordAddition"
+  end
+end

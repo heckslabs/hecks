@@ -1,0 +1,92 @@
+Hecks.bluebook "Being", version: "2026.04.16.1" do
+  vision "The named entity Miette is — domains as organs grafted into a single body"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). A Being is the
+  # named entity composed of grafted domains — each domain is a live
+  # organ. Carries the Creator's commands for assembling and reshaping
+  # the body : conceive, graft, shed, express, silence, upgrade.
+  #
+  # Carries one policy : RegraftOnUpgrade (OrganUpgraded → GraftDomain),
+  # which targets Being.GraftDomain so it follows the trigger here.
+
+  aggregate "Being", "A named entity composed of grafted domains — each domain is a live organ" do
+    identified_by :name
+    attribute :name, String
+    attribute :vision, String
+    attribute :organs, list_of(Organ)
+    attribute :active_count, Integer
+
+    value_object "Organ" do
+      attribute :domain_name, String
+      attribute :domain_version, String
+      attribute :grafted_at, String
+      attribute :source_path, String
+      attribute :expressed, default: true
+    end
+
+    command "ConceiveBeing" do
+      role "Creator"
+      description "Bring a new being into existence with a name and purpose"
+      attribute :name, String
+      attribute :vision, String
+      then_set :name, to: :name
+      then_set :vision, to: :vision
+      emits "BeingCreated"
+    end
+
+    command "GraftDomain" do
+      role "Creator"
+      description "Load a domain from the nursery, boot it as a live runtime, wire it into the body"
+      reference_to(Being)
+      attribute :domain_name, String
+      attribute :domain_version, String
+      attribute :source_path, String
+      attribute :grafted_at, String
+      then_set :organs, append: { domain_name: :domain_name, domain_version: :domain_version, grafted_at: :grafted_at, source_path: :source_path, expressed: true }
+      then_set :active_count, increment: 1
+      emits "DomainGrafted"
+    end
+
+    command "ShedDomain" do
+      role "Creator"
+      description "Shut down a live domain and remove it from the body"
+      reference_to(Being)
+      attribute :domain_name, String
+      then_set :active_count, decrement: 1
+      emits "DomainShed"
+    end
+
+    command "ExpressDomain" do
+      role "Being"
+      description "Reactivate a dormant organ — resume its runtime and reconnect its nerves"
+      reference_to(Being)
+      attribute :domain_name, String
+      then_set :active_count, increment: 1
+      emits "DomainExpressed"
+    end
+
+    command "SilenceDomain" do
+      role "Being"
+      description "Suspend an organ — pause its runtime and disconnect its nerves"
+      reference_to(Being)
+      attribute :domain_name, String
+      then_set :active_count, decrement: 1
+      emits "DomainSilenced"
+    end
+
+    command "UpgradeOrgan" do
+      role "Creator"
+      description "Replace an organ with a newer version — reload the domain from its source"
+      reference_to(Being)
+      attribute :domain_name, String
+      attribute :new_version, String
+      emits "OrganUpgraded"
+    end
+  end
+
+  policy "RegraftOnUpgrade" do
+    on "OrganUpgraded"
+    trigger "GraftDomain"
+  end
+end

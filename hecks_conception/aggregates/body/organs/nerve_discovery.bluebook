@@ -1,0 +1,27 @@
+Hecks.bluebook "NerveDiscovery", version: "2026.04.16.1" do
+  vision "Autodiscover cross-organ wiring from across policies — self-wiring"
+  category "body"
+
+  # Lifted out of being.bluebook in i112 (being-split). Walks every
+  # organ's bluebook for `across` policies and emits OrgansScanned ;
+  # the WireOnScan policy in nerve.bluebook then dispatches
+  # ConnectNerve for each discovered wire.
+
+  aggregate "NerveDiscovery", "Autodiscover cross-organ wiring from across policies — self-wiring" do
+    identified_by :name
+    attribute :name, String
+    attribute :organs_scanned, Integer
+    attribute :nerves_discovered, Integer
+    attribute :last_scanned_at, String
+
+    command "ScanOrgans" do
+      role "Being"
+      description "Walk all organ bluebooks, find across policies, wire nerves automatically"
+      attribute :organs_scanned, Integer
+      attribute :nerves_discovered, Integer
+      emits "OrgansScanned"
+      then_set :organs_scanned, to: :organs_scanned
+      then_set :nerves_discovered, to: :nerves_discovered
+    end
+  end
+end

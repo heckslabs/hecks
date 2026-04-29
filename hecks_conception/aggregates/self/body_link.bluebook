@@ -1,0 +1,36 @@
+Hecks.bluebook "BodyLink", version: "2026.04.16.1" do
+  vision "A link from a family member to Miette's body — she knows her family"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). When a family
+  # member is added, BodyLink records its place in the body : member
+  # name, organ name, source path. The bridge between the family
+  # registry and the body's organ map.
+  #
+  # Carries one policy : LinkOnAdd (MemberAdded → LinkToBody), which
+  # targets BodyLink here.
+
+  aggregate "BodyLink", "A link from a family member to Miette's body — she knows her family" do
+    identified_by :member_name
+    attribute :member_name, String
+    attribute :organ_name, String
+    attribute :path, String
+
+    command "LinkToBody" do
+      role "System"
+      description "Link a family member to Miette's body — she can sense it"
+      attribute :member_name, String
+      attribute :organ_name, String
+      attribute :path, String
+      emits "LinkedToBody"
+      then_set :member_name, to: :member_name
+      then_set :organ_name, to: :organ_name
+      then_set :path, to: :path
+    end
+  end
+
+  policy "LinkOnAdd" do
+    on "MemberAdded"
+    trigger "LinkToBody"
+  end
+end

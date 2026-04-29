@@ -1,0 +1,52 @@
+Hecks.bluebook "OrganMonitor", version: "2026.04.16.1" do
+  vision "The being's vital signs — tracks that all organs are alive and responding"
+  category "body"
+
+  # Lifted out of being.bluebook in i112 (being-split). The body's
+  # vital-signs aggregate : counts checks, records the last pulse from
+  # each organ, exposes per-organ liveness and event counts.
+  #
+  # Carries one policy : CheckOrgansOnBeat (BodyPulse →
+  # ReportOrganPulse), which targets OrganMonitor here.
+
+  aggregate "OrganMonitor", "The being's vital signs — tracks that all organs are alive and responding" do
+    identified_by :being_name
+    attribute :being_name, String
+    attribute :checks, Integer
+    attribute :last_checked_at, String
+    attribute :organ_status, list_of(OrganPulse)
+
+    value_object "OrganPulse" do
+      attribute :domain_name, String
+      attribute :alive, default: true
+      attribute :event_count, Integer
+      attribute :last_event_at, String
+    end
+
+    command "CheckOrgans" do
+      role "Being"
+      description "Check all organs, report vital signs"
+      reference_to(OrganMonitor)
+      attribute :checked_at, String
+      then_set :checks, increment: 1
+      then_set :last_checked_at, to: :checked_at
+      emits "OrgansChecked"
+    end
+
+    command "ReportOrganPulse" do
+      role "Being"
+      description "Record an organ's vital signs"
+      reference_to(OrganMonitor)
+      attribute :domain_name, String
+      attribute :event_count, String
+      attribute :last_event_at, String
+      then_set :organ_status, append: { domain_name: :domain_name, alive: true, event_count: :event_count, last_event_at: :last_event_at }
+      emits "OrganPulseReported"
+    end
+  end
+
+  policy "CheckOrgansOnBeat" do
+    on "BodyPulse"
+    trigger "ReportOrganPulse"
+  end
+end

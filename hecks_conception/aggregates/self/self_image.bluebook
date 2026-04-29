@@ -1,0 +1,72 @@
+Hecks.bluebook "SelfImage", version: "2026.04.16.1" do
+  vision "Miette's introspective snapshot — what she sees when she looks inward"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). One aggregate :
+  # the introspective frame. Reflect gathers all vital signs into a
+  # single self-image record.
+  #
+  # Carries one policy : ReflectOnBeat (BodyPulse → Reflect), which
+  # targets SelfImage here.
+
+  aggregate "SelfImage", "Miette's introspective snapshot — what she sees when she looks inward" do
+    identified_by :name
+    attribute :name, String
+    attribute :mood, String
+    attribute :creativity, Float
+    attribute :precision, Float
+    attribute :pulse_rate, String
+    attribute :carrying, String
+    attribute :persona, String
+    attribute :conversation_mood, String
+    attribute :session_count, Integer
+    attribute :nursery_size, Integer
+    attribute :catalog_size, Integer
+    attribute :organ_count, Integer
+    attribute :aggregate_count, Integer
+    attribute :record_count, Integer
+    attribute :load_time, Float
+    attribute :observed_at, String
+
+    command "Reflect" do
+      role "Being"
+      description "Look inward — gather all vital signs into a single self-image"
+      attribute :mood, String
+      attribute :creativity, Float
+      attribute :precision, Float
+      attribute :pulse_rate, String
+      attribute :carrying, String
+      attribute :persona, String
+      attribute :conversation_mood, String
+      attribute :session_count, Integer
+      attribute :nursery_size, Integer
+      attribute :catalog_size, Integer
+      attribute :organ_count, Integer
+      attribute :aggregate_count, Integer
+      attribute :record_count, Integer
+      attribute :load_time, Float
+      attribute :observed_at, String
+      then_set :mood, to: :mood
+      then_set :creativity, to: :creativity
+      then_set :precision, to: :precision
+      then_set :pulse_rate, to: :pulse_rate
+      then_set :carrying, to: :carrying
+      then_set :persona, to: :persona
+      then_set :conversation_mood, to: :conversation_mood
+      then_set :session_count, to: :session_count
+      then_set :nursery_size, to: :nursery_size
+      then_set :catalog_size, to: :catalog_size
+      then_set :organ_count, to: :organ_count
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :record_count, to: :record_count
+      then_set :load_time, to: :load_time
+      then_set :observed_at, to: :observed_at
+      emits "SelfReflected"
+    end
+  end
+
+  policy "ReflectOnBeat" do
+    on "BodyPulse"
+    trigger "Reflect"
+  end
+end

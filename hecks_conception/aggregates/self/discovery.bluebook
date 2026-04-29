@@ -1,0 +1,43 @@
+Hecks.bluebook "Discovery", version: "2026.04.16.1" do
+  vision "Autodiscover family members — scan organs, scan projects"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). Walks
+  # registered scan paths for bluebooks and registers any new family
+  # members. AddScanPath registers one path per call ; ScanForMembers
+  # walks them ; RecordDiscovery captures the final count. No policies
+  # target Discovery commands directly.
+
+  aggregate "Discovery", "Autodiscover family members — scan organs, scan projects" do
+    identified_by :name
+    attribute :name, String
+    attribute :scan_paths, list_of(String)
+    attribute :last_scanned_at, String
+    attribute :discovered, Integer
+
+    command "AddScanPath" do
+      role "System"
+      description "Register a single path to scan for bluebooks — call once per path"
+      attribute :path, String
+      emits "ScanPathAdded"
+      then_set :scan_paths, append: :path
+    end
+
+    command "ScanForMembers" do
+      role "System"
+      description "Scan known paths for bluebooks and register any new family members"
+      attribute :scan_paths, list_of(String)
+      emits "MembersScanned"
+      then_set :scan_paths, to: :scan_paths
+    end
+
+    command "RecordDiscovery" do
+      role "System"
+      description "Record how many members were found in the last scan"
+      reference_to(Discovery)
+      attribute :discovered, Integer
+      emits "DiscoveryRecorded"
+      then_set :discovered, to: :discovered
+    end
+  end
+end

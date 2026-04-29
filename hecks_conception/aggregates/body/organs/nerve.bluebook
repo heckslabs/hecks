@@ -1,0 +1,106 @@
+Hecks.bluebook "Nerve", version: "2026.04.16.1" do
+  vision "A live connection between organs — an event in one triggers a command in another"
+  category "body"
+
+  # Lifted out of being.bluebook in i112 (being-split). Nerves are the
+  # signaling fibres between organs : an event on one bus dispatches a
+  # command on another. Connect / sever / restore.
+  #
+  # Carries five policies whose triggers all target Nerve commands :
+  #   WireOnScan             OrgansScanned     → ConnectNerve
+  #   WireOnGraft            DomainGrafted     → ConnectNerve
+  #   SeverOnShed            DomainShed        → SeverNerve
+  #   SeverOnSilence         DomainSilenced    → SeverNerve
+  #   RestoreOnExpress       DomainExpressed   → RestoreNerve
+  #   SenseOrgansOnHeartbeat BodyPulse         → ConnectNerve
+  #     (nerve : Mind:BodyPulse → MietteBody:SenseOrgans)
+  #   DetectDriftOnShed      DomainShed        → ConnectNerve
+  #     (nerve : Mind:DomainShed → MietteBody:DetectDrift)
+  #
+  # WireOnGraft covers the DomainGrafted → ConnectNerve cascade.
+  # Previously duplicated by DetectDriftOnGraft, QueryVectorsOnMusing,
+  # and ArchetypeSignalOnMatch — all fired the same (DomainGrafted,
+  # ConnectNerve) pair, so ConnectNerve ran 4× per graft. The nerves
+  # those policies commented about (DetectDrift, QueryShape, EmitSignal)
+  # are installed by the subscriber that handles WireOnGraft.
+
+  aggregate "Nerve", "A live connection between organs — an event in one triggers a command in another" do
+    identified_by :name
+    attribute :name, String
+    attribute :from_domain, String
+    attribute :from_event, String
+    attribute :to_domain, String
+    attribute :to_command, String
+    attribute :active, default: true
+
+    command "ConnectNerve" do
+      role "Creator"
+      description "Subscribe to an event on one organ's bus and dispatch a command on another"
+      attribute :name, String
+      attribute :from_domain, String
+      attribute :from_event, String
+      attribute :to_domain, String
+      attribute :to_command, String
+      then_set :name, to: :name
+      then_set :from_domain, to: :from_domain
+      then_set :from_event, to: :from_event
+      then_set :to_domain, to: :to_domain
+      then_set :to_command, to: :to_command
+      emits "NerveConnected"
+    end
+
+    command "SeverNerve" do
+      role "Creator"
+      description "Unsubscribe the cross-domain event wire"
+      reference_to(Nerve)
+      then_set :active, to: false
+      emits "NerveSevered"
+    end
+
+    command "RestoreNerve" do
+      role "Creator"
+      description "Resubscribe a previously severed nerve"
+      reference_to(Nerve)
+      given("nerve must be severed") { active == false }
+      then_set :active, to: true
+      emits "NerveRestored"
+    end
+  end
+
+  policy "WireOnScan" do
+    on "OrgansScanned"
+    trigger "ConnectNerve"
+  end
+
+  policy "WireOnGraft" do
+    on "DomainGrafted"
+    trigger "ConnectNerve"
+  end
+
+  policy "SeverOnShed" do
+    on "DomainShed"
+    trigger "SeverNerve"
+  end
+
+  policy "SeverOnSilence" do
+    on "DomainSilenced"
+    trigger "SeverNerve"
+  end
+
+  policy "RestoreOnExpress" do
+    on "DomainExpressed"
+    trigger "RestoreNerve"
+  end
+
+  policy "SenseOrgansOnHeartbeat" do
+    on "BodyPulse"
+    trigger "ConnectNerve"
+    # nerve: Mind:BodyPulse → MietteBody:SenseOrgans
+  end
+
+  policy "DetectDriftOnShed" do
+    on "DomainShed"
+    trigger "ConnectNerve"
+    # nerve: Mind:DomainShed → MietteBody:DetectDrift
+  end
+end

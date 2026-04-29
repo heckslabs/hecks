@@ -1,0 +1,74 @@
+Hecks.bluebook "Member", version: "2026.04.16.1" do
+  vision "A bluebook that is part of Miette's living system — organ, tool, or incorporated domain"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). The family
+  # registry's record type. Each Member is one bluebook ; AddMember
+  # registers it, EvolveMember tracks shape changes, RetireMember
+  # marks it inactive. Has its own lifecycle (pending → active →
+  # retired). No policies target Member commands directly.
+
+  aggregate "Member", "A bluebook that is part of Miette's living system" do
+    identified_by :name
+    attribute :name, String
+    attribute :vision, String
+    attribute :path, String
+    attribute :kind, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :fixture_count, Integer
+    attribute :version, String
+    attribute :status, String
+
+    command "AddMember" do
+      role "Miette"
+      description "A bluebook joins the family — organ, tool, or incorporated domain"
+      attribute :name, String
+      attribute :vision, String
+      attribute :path, String
+      attribute :kind, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :fixture_count, Integer
+      attribute :version, String
+      emits "MemberAdded"
+      then_set :name, to: :name
+      then_set :vision, to: :vision
+      then_set :path, to: :path
+      then_set :kind, to: :kind
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :fixture_count, to: :fixture_count
+      then_set :version, to: :version
+      then_set :status, to: "active"
+    end
+
+    command "EvolveMember" do
+      role "Miette"
+      description "A family member developed — new version, new shape"
+      reference_to(Member)
+      attribute :version, String
+      attribute :aggregate_count, Integer
+      attribute :command_count, Integer
+      attribute :fixture_count, Integer
+      emits "MemberUpdated"
+      then_set :version, to: :version
+      then_set :aggregate_count, to: :aggregate_count
+      then_set :command_count, to: :command_count
+      then_set :fixture_count, to: :fixture_count
+    end
+
+    command "RetireMember" do
+      role "Miette"
+      description "A family member is no longer in active use"
+      reference_to(Member)
+      emits "MemberRetired"
+      then_set :status, to: "retired"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "AddMember"    => "active",  from: "pending"
+      transition "RetireMember" => "retired", from: "active"
+    end
+  end
+end

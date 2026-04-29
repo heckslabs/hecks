@@ -1,0 +1,55 @@
+Hecks.bluebook "BeingIdentity", version: "2026.04.16.1" do
+  vision "The being's accumulated self — sessions lived, memories encoded, people known"
+  category "self"
+
+  # Lifted out of being.bluebook in i112 (being-split). The aggregate
+  # name stays "Identity" (preserves identity.heki path) ; the
+  # bluebook namespace is "BeingIdentity" to avoid collision with the
+  # existing top-level Hecks.bluebook "Identity" lineage. The i142
+  # Tier 1 dispatch (PR #515) resolves Context.Aggregate.Command, so
+  # `Being.Identity.RecordSession` is now distinct from
+  # `Boot.Identity.*` and `FirstBreath.Identity.*` even though the
+  # aggregate names match. Pattern follows MietteMemory in self/memory.
+  #
+  # Carries one policy : RememberOnSession (SessionRecorded →
+  # EncodeIdentityMemory), which targets Identity here.
+
+  aggregate "Identity", "The being's accumulated self — who it knows, what it remembers, how many sessions it has lived" do
+    identified_by :being_name
+    attribute :being_name, String
+    attribute :memories, list_of(String)
+    attribute :personas_known, list_of(String)
+    attribute :sessions, Integer
+
+    command "RecordSession" do
+      role "Being"
+      description "Mark that the being has lived through another session"
+      reference_to(Identity)
+      then_set :sessions, increment: 1
+      emits "SessionRecorded"
+    end
+
+    command "RememberPerson" do
+      role "Being"
+      description "Add a person to the being's known world"
+      reference_to(Identity)
+      attribute :persona_name, String
+      then_set :personas_known, append: :persona_name
+      emits "PersonRemembered"
+    end
+
+    command "EncodeIdentityMemory" do
+      role "Being"
+      description "Turn an experience into a persistent memory"
+      reference_to(Identity)
+      attribute :memory, String
+      then_set :memories, append: :memory
+      emits "IdentityMemoryEncoded"
+    end
+  end
+
+  policy "RememberOnSession" do
+    on "SessionRecorded"
+    trigger "EncodeIdentityMemory"
+  end
+end
