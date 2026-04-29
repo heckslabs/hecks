@@ -43,6 +43,7 @@ module Hecks
       def dump_aggregate(agg)
         {
           "name"          => agg.name,
+          "context"       => agg.respond_to?(:context) ? agg.context : nil,
           "description"   => agg.description,
           "attributes"    => (agg.attributes || []).map { |a| dump_attribute(a) },
           "value_objects" => (agg.value_objects || []).map { |vo| dump_value_object(vo) },

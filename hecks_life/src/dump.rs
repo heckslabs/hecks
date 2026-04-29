@@ -42,6 +42,7 @@ pub fn dump(domain: &Domain) -> Value {
 fn dump_aggregate(agg: &Aggregate) -> Value {
     json!({
         "name": agg.name,
+        "context": agg.context,
         "description": agg.description,
         "attributes": agg.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
         "value_objects": agg.value_objects.iter().map(dump_value_object).collect::<Vec<_>>(),

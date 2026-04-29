@@ -24,6 +24,13 @@ module Hecks
       # @return [String] the PascalCase name of this aggregate (e.g., "Pizza", "Order")
       attr_reader :name
 
+      # @return [String, nil] the bounded context (bluebook namespace) this aggregate
+      #   was declared inside. Set by BluebookBuilder when the aggregate is added
+      #   to its bluebook. Used by the runtime for Context.Aggregate.Command
+      #   dispatch resolution (i142) and emitted by canonical_ir.rb for parity
+      #   with hecks_life/src/dump.rs.
+      attr_accessor :context
+
       # @return [Array<Attribute>] the root entity's attributes (typed fields like name, status, etc.)
       attr_reader :attributes
 
@@ -121,8 +128,10 @@ module Hecks
                      projections: [],
                      lifecycle: nil, metadata: {}, origin_domain: nil,
                      identity_fields: nil, description: nil,
-                     namespace: nil, superclass: nil, mixins: [])
+                     namespace: nil, superclass: nil, mixins: [],
+                     context: nil)
         @name = Names.aggregate_name(name)
+        @context = context
         @attributes = attributes
         @value_objects = value_objects
         @entities = entities

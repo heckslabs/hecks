@@ -275,7 +275,13 @@ module Hecks
         rescue => e
           raise Hecks::ValidationError, "Error in aggregate '#{name}': #{e.message}"
         end
-        @aggregates << builder.build
+        agg = builder.build
+        # i142 — stamp the bluebook namespace as the aggregate's context
+        # so Ruby IR matches Rust IR (parser.rs sets this from
+        # `Hecks.bluebook "X"`). Both halves of the parity contract
+        # emit "context" in their canonical JSON dumpers.
+        agg.context = @name if agg.respond_to?(:context=)
+        @aggregates << agg
       end
 
       # Define a paragraph — a named group of aggregates within a chapter.
