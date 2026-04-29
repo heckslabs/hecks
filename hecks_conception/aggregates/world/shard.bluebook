@@ -1,0 +1,41 @@
+Hecks.bluebook "Shard", version: "2026.04.28.1" do
+  vision "A sector-based partition of the nursery — domains grouped by industry. Part of how Miette stays fast at 100,000 domains."
+  category "meta"
+
+  # ============================================================
+  # SHARD
+  # ============================================================
+  #
+  # Lifted out of aggregates/scale.bluebook in i112 (scale-split).
+  # The partitioning unit of the nursery : a sector directory
+  # holding domains grouped by industry. Carving and recounting
+  # are independent operations ; no cross-aggregate policies bind
+  # to this shard.
+
+  aggregate "Shard", "A sector-based partition of the nursery — domains grouped by industry" do
+    identified_by :sector
+    attribute :sector, String
+    attribute :domain_count, Integer
+    attribute :path, String
+
+    command "CarveShard" do
+      role "System"
+      description "Create a sector directory in the nursery"
+      attribute :sector, String
+      attribute :path, String
+      emits "ShardCreated"
+      then_set :sector, to: :sector
+      then_set :path, to: :path
+      then_set :domain_count, to: 0
+    end
+
+    command "RecountShard" do
+      role "System"
+      description "Recount domains in this shard"
+      reference_to(Shard)
+      attribute :domain_count, Integer
+      emits "ShardCountUpdated"
+      then_set :domain_count, to: :domain_count
+    end
+  end
+end

@@ -1,0 +1,31 @@
+Hecks.bluebook "WorkerPool", version: "2026.04.28.1" do
+  vision "Scale parallel operations based on available cores. Part of how Miette stays fast at 100,000 domains."
+  category "meta"
+
+  # ============================================================
+  # WORKER POOL
+  # ============================================================
+  #
+  # Lifted out of aggregates/scale.bluebook in i112 (scale-split).
+  # The parallelism unit of the scale infrastructure : set worker
+  # count based on cores and task size. No cross-aggregate
+  # policies bind to this pool.
+
+  aggregate "WorkerPool", "Scale parallel operations based on available cores" do
+    identified_by :name
+    attribute :name, String
+    attribute :core_count, Integer
+    attribute :worker_count, Integer
+    attribute :active_workers, Integer
+
+    command "ScaleWorkers" do
+      role "System"
+      description "Set worker count based on cores and task size"
+      attribute :core_count, Integer
+      attribute :worker_count, Integer
+      emits "WorkersScaled"
+      then_set :core_count, to: :core_count
+      then_set :worker_count, to: :worker_count
+    end
+  end
+end

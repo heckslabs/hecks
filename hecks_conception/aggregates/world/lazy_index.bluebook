@@ -1,0 +1,37 @@
+Hecks.bluebook "LazyIndex", version: "2026.04.28.1" do
+  vision "Load domain entries on demand — not all at boot. Part of how Miette stays fast at 100,000 domains."
+  category "meta"
+
+  # ============================================================
+  # LAZY INDEX
+  # ============================================================
+  #
+  # Lifted out of aggregates/scale.bluebook in i112 (scale-split).
+  # The on-demand loader for the nursery : look up domains by
+  # name, sector, or pattern and load from .heki only when asked.
+  # Cache eviction releases unused domains. No cross-aggregate
+  # policies bind to this index.
+
+  aggregate "LazyIndex", "Load domain entries on demand — not all at boot" do
+    identified_by :name
+    attribute :name, String
+    attribute :total_indexed, Integer
+    attribute :loaded_in_memory, Integer
+    attribute :cache_hit_rate, Float
+
+    command "QueryIndex" do
+      role "System"
+      description "Look up domains by name, sector, or pattern — load from .heki on demand"
+      attribute :loaded_in_memory, Integer
+      emits "IndexQueried"
+      then_set :loaded_in_memory, to: :loaded_in_memory
+    end
+
+    command "EvictCache" do
+      role "System"
+      description "Release domains from memory that haven't been accessed recently"
+      reference_to(LazyIndex)
+      emits "CacheEvicted"
+    end
+  end
+end

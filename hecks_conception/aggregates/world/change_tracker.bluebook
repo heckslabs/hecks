@@ -1,0 +1,46 @@
+Hecks.bluebook "ChangeTracker", version: "2026.04.28.1" do
+  vision "Track what changed since last beat — only process the delta. Part of how Miette stays fast at 100,000 domains."
+  category "meta"
+
+  # ============================================================
+  # CHANGE TRACKER
+  # ============================================================
+  #
+  # Lifted out of aggregates/scale.bluebook in i112 (scale-split).
+  # The delta-detector in the scale infrastructure : compare file
+  # mtimes against last known state and report what's changed since
+  # last beat. The ProcessedOnBatch policy lives here because its
+  # trigger (MarkProcessed) fires on this aggregate after a batch
+  # completes elsewhere.
+
+  aggregate "ChangeTracker", "Track what changed since last beat — only process the delta" do
+    identified_by :name
+    attribute :name, String
+    attribute :tracked_files, Integer
+    attribute :changed_since_last, Integer
+    attribute :last_scan_at, String
+
+    command "ScanForChanges" do
+      role "System"
+      description "Compare file mtimes against last known state — find the delta"
+      attribute :tracked_files, Integer
+      attribute :changed_since_last, Integer
+      emits "ChangesScanned"
+      then_set :tracked_files, to: :tracked_files
+      then_set :changed_since_last, to: :changed_since_last
+    end
+
+    command "MarkProcessed" do
+      role "System"
+      description "Record that changes have been processed — reset the delta"
+      reference_to(ChangeTracker)
+      emits "ChangesProcessed"
+      then_set :changed_since_last, to: 0
+    end
+  end
+
+  policy "ProcessedOnBatch" do
+    on "BatchCompleted"
+    trigger "MarkProcessed"
+  end
+end

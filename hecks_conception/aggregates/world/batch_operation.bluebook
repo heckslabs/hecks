@@ -1,0 +1,38 @@
+Hecks.bluebook "BatchOperation", version: "2026.04.28.1" do
+  vision "Process many domains in one Rust invocation — no per-file process launch. Part of how Miette stays fast at 100,000 domains."
+  category "meta"
+
+  # ============================================================
+  # BATCH OPERATION
+  # ============================================================
+  #
+  # Lifted out of aggregates/scale.bluebook in i112 (scale-split).
+  # The batch dispatch layer : send a list of bluebook paths to
+  # hecks-life in a single invocation rather than one process per
+  # file. The ValidateOnChange policy lives here because its
+  # trigger (RunBatch) fires on this aggregate when the
+  # ChangeTracker reports a delta.
+
+  aggregate "BatchOperation", "Process many domains in one Rust invocation — no per-file process launch" do
+    identified_by :operation
+    attribute :operation, String
+    attribute :file_count, Integer
+    attribute :duration_ms, Integer
+    attribute :results, Integer
+
+    command "RunBatch" do
+      role "System"
+      description "Send a list of bluebook paths to hecks-life for batch processing"
+      attribute :operation, String
+      attribute :file_count, Integer
+      emits "BatchCompleted"
+      then_set :operation, to: :operation
+      then_set :file_count, to: :file_count
+    end
+  end
+
+  policy "ValidateOnChange" do
+    on "ChangesScanned"
+    trigger "RunBatch"
+  end
+end
