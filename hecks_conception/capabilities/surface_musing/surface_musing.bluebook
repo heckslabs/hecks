@@ -26,6 +26,12 @@ Hecks.bluebook "SurfaceMusing", version: "2026.04.26.1" do
   # stays balanced — new musings arrive at the rate they're consumed.
 
   aggregate "Surfacing", "One pass over the unconceived musing pool — picks the head, surfaces it, optionally retires it" do
+    identified_by :name
+    # name : Singleton key — the daemon always passes "surface" so every
+    # command in the pipeline operates on the same Surfacing record
+    # across ticks. Without this the runtime counter-mints a fresh
+    # Surfacing per dispatch and the lifecycle never advances.
+    attribute :name, String, default: "surface"
     # ---- Inputs ---------------------------------------------------
     # loop_count : tick number from the mindstream. Mod DWELL == 0
     # marks the surfaced musing conceived so the pool advances.

@@ -5,6 +5,7 @@ Hecks.behaviors "LucidDream" do
 
   test "BecomeLucid runs" do
     tests "BecomeLucid", on: "LucidDream"
+    input  onset_narrative: "becoming lucid — recognizing the dream"
     expect active: "yes", latest_narrative: "becoming lucid — recognizing the dream"
   end
 
@@ -28,6 +29,7 @@ Hecks.behaviors "LucidDream" do
 
   test "EndLucidity runs" do
     tests "EndLucidity", on: "LucidDream"
+    input  fading_narrative: "lucidity fading"
     expect active: "no", latest_narrative: "lucidity fading"
   end
 

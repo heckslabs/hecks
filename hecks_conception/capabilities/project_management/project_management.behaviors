@@ -28,7 +28,9 @@ Hecks.behaviors "ProjectManagement" do
     tests "LabelFeature", on: "Feature"
     setup  "ProposeFeature", title: "sample", description: "sample", domain_name: "sample", category: "sample", priority: "sample", assignee: "sample"
     input  label: "sample"
-    expect labels_size: 1
+    # Fixtures pre-seed each Feature with one HEC-### label ; LabelFeature
+    # appends a second. The fixtures back the canned project board state.
+    expect labels_size: 2
   end
 
   test "DeferFeature runs" do

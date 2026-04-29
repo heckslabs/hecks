@@ -145,7 +145,7 @@ Hecks.behaviors "Awareness" do
     setup  "RefreshSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
     setup  "IdentifyRelatedDomains", topic: "sample"
     input  trigger: "sample"
-    expect emits: ["Mused", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated", "RelatedDomainsIdentified"]
+    expect emits: ["Mused", "RelatedDomainsIdentified", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
   end
 
   test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do

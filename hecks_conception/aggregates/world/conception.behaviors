@@ -162,7 +162,10 @@ Hecks.behaviors "Conception" do
   test "ComputeVector sets domain_name" do
     tests "ComputeVector", on: "Development", kind: :cross_cascade
     input  domain_name: "sample"
-    expect domain_name: "sample", status: "vectorized"
+    # Cascade continues : VectorComputed → FindArchetype → status "matched".
+    # Lock the immediate domain_name mutation here ; the cascade itself is
+    # asserted by the sibling "ComputeVector cascades through policy chain".
+    expect domain_name: "sample"
   end
 
   test "ComputeVector cascades through policy chain" do

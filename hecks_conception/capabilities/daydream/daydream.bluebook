@@ -28,6 +28,12 @@ Hecks.bluebook "Daydream", version: "2026.04.26.1" do
   # the runner consults before firing the entrypoint.
 
   aggregate "Wandering", "One daydream wander — picks two domains, hunts overlap, dispatches impression + synapse" do
+    identified_by :name
+    # Singleton key — every step in the wander pipeline operates on
+    # the same record so the lifecycle advances. The daemon always
+    # passes name="wander" ; default keeps it implicit for callers
+    # that don't thread the id through every step.
+    attribute :name, String, default: "wander"
     # ---- Inputs --------------------------------------------------
     # idle_seconds : how long since the heartbeat last updated.
     # Must be ∈ [10, 60] for the wander to fire — inside that

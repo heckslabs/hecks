@@ -186,7 +186,7 @@ Hecks.behaviors "Being" do
     setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
     setup  "LinkToBody", member_name: "sample", organ_name: "sample", path: "sample"
     input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
-    expect emits: ["MemberAdded", "AdditionRecorded", "LinkedToBody"]
+    expect emits: ["MemberAdded", "LinkedToBody", "AdditionRecorded"]
   end
 
   test "EvolveMember sets version + aggregate_count + command_count + fixture_count" do
