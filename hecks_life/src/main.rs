@@ -406,7 +406,14 @@ fn main() {
             || command.ends_with(".bluebook"))
     {
         let target = command;
-        let cmd_name = path.split('.').last().unwrap_or(path);
+        // i142 — pass the full Context.Aggregate.Command (or
+        // Aggregate.Command) path to dispatch. Resolution prefers the
+        // most-specific form ; the legacy bare-command form still
+        // resolves for direct runtime callers (tests, programmatic
+        // dispatch) but the CLI now carries the full prefix so cross-
+        // context same-name aggregates (Boot.Identity vs Being.Identity)
+        // disambiguate.
+        let cmd_name = path;
         // Parse key=value attrs from remaining args
         let attrs: std::collections::HashMap<String, serde_json::Value> = args[3..].iter()
             .filter_map(|a| {

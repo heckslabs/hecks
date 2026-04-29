@@ -118,15 +118,59 @@ pub fn dispatch(
     })
 }
 
+/// Resolve a command address to a (aggregate_index, command_index).
+///
+/// Three forms are accepted, in order of specificity (i142 — bluebooks
+/// as bounded contexts) :
+///
+///   - `Context.Aggregate.Command` — three dotted parts. Filters
+///     aggregates by both context (bluebook namespace) and aggregate
+///     name. The most specific form ; resolves cross-context
+///     same-name aggregates correctly (e.g. `Boot.Identity.Identify`
+///     vs `Being.Identity.RecordSession`).
+///
+///   - `Aggregate.Command` — two dotted parts. Filters by aggregate
+///     name only ; if multiple aggregates share that name across
+///     contexts, returns the first match. Backward compat for the
+///     pre-i142 form.
+///
+///   - `Command` — bare command name. Walks every command in every
+///     aggregate ; returns the first match. Legacy form ; ambiguous
+///     when multiple aggregates declare the same command name. Used
+///     by direct-runtime callers (tests, programmatic dispatch) ;
+///     production CLI now passes the full prefix.
 fn resolve(rt: &Runtime, command_name: &str) -> Result<(usize, usize), RuntimeError> {
-    for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
-        for (ci, cmd) in agg.commands.iter().enumerate() {
-            if cmd.name == command_name {
-                return Ok((ai, ci));
+    let parts: Vec<&str> = command_name.split('.').collect();
+    match parts.as_slice() {
+        [context, agg_name, cmd_name] => {
+            for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                if agg.name != *agg_name { continue; }
+                if agg.context.as_deref() != Some(*context) { continue; }
+                for (ci, cmd) in agg.commands.iter().enumerate() {
+                    if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                }
             }
+            Err(RuntimeError::UnknownCommand(command_name.to_string()))
         }
+        [agg_name, cmd_name] => {
+            for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                if agg.name != *agg_name { continue; }
+                for (ci, cmd) in agg.commands.iter().enumerate() {
+                    if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                }
+            }
+            Err(RuntimeError::UnknownCommand(command_name.to_string()))
+        }
+        [cmd_name] => {
+            for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                for (ci, cmd) in agg.commands.iter().enumerate() {
+                    if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                }
+            }
+            Err(RuntimeError::UnknownCommand(command_name.to_string()))
+        }
+        _ => Err(RuntimeError::UnknownCommand(command_name.to_string())),
     }
-    Err(RuntimeError::UnknownCommand(command_name.to_string()))
 }
 
 fn find_self_ref(rt: &Runtime, agg_idx: usize, cmd_idx: usize) -> Option<String> {

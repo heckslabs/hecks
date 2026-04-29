@@ -59,7 +59,14 @@ pub fn parse(source: &str) -> Domain {
         }
 
         if line.starts_with("aggregate") {
-            let (agg, consumed) = parse_aggregate(&lines[i..]);
+            let (mut agg, consumed) = parse_aggregate(&lines[i..]);
+            // i142 — bluebooks ARE bounded contexts. Stamp the
+            // bluebook's namespace name onto every aggregate it
+            // declares, so dispatch can resolve Context.Aggregate.Command
+            // and same-name aggregates across contexts don't collide.
+            if !domain.name.is_empty() {
+                agg.context = Some(domain.name.clone());
+            }
             domain.aggregates.push(agg);
             i += consumed;
             continue;
@@ -118,7 +125,9 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     let desc = extract_second_string(first);
 
     let mut agg = Aggregate {
-        name, description: desc, attributes: vec![],
+        name, description: desc,
+        context: None, // populated by parse() after parse_aggregate returns
+        attributes: vec![],
         commands: vec![], queries: vec![], value_objects: vec![],
         entities: vec![],
         references: vec![], lifecycle: None, identified_by: None,
