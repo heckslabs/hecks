@@ -1,0 +1,12 @@
+Hecks.behaviors "Template" do
+  vision "Behavioral tests for the Template aggregate — aggregate/command/policy patterns."
+
+  # ── Template aggregate ──────────────────────────────────────────
+  # (merged from bulk_generator.behaviors during i112 cleanup)
+
+  test "DefineTemplate sets aggregate_patterns + command_patterns + policy_patterns" do
+    tests "DefineTemplate", on: "Template"
+    input  aggregate_patterns: "sample", command_patterns: "sample", policy_patterns: "sample"
+    expect aggregate_patterns: "sample", command_patterns: "sample", policy_patterns: "sample"
+  end
+end

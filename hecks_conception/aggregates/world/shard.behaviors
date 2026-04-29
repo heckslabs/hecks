@@ -1,0 +1,19 @@
+Hecks.behaviors "Shard" do
+  vision "Behavioral tests for the Shard aggregate — carve sector + path, recount domains."
+
+  # ── Shard aggregate ──────────────────────────────────────────
+  # (merged from scale.behaviors during i112 cleanup)
+
+  test "CarveShard sets sector + path" do
+    tests "CarveShard", on: "Shard"
+    input  sector: "sample", path: "sample"
+    expect sector: "sample", path: "sample", domain_count: 0
+  end
+
+  test "RecountShard sets domain_count" do
+    tests "RecountShard", on: "Shard"
+    setup  "CarveShard", sector: "sample", path: "sample"
+    input  domain_count: 1
+    expect domain_count: 1
+  end
+end

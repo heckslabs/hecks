@@ -1,0 +1,12 @@
+Hecks.behaviors "SystemPromptVoice" do
+  vision "Behavioral tests for the system-prompt Voice aggregate — tone + rules."
+
+  # ── Voice aggregate ──────────────────────────────────────────
+  # (merged from system_prompt.behaviors during i112 cleanup)
+
+  test "DefineVoice sets tone + rules" do
+    tests "DefineVoice", on: "Voice"
+    input  tone: "sample", rules: "sample"
+    expect tone: "sample", rules: "sample"
+  end
+end

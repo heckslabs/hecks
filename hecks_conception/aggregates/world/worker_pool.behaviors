@@ -1,0 +1,12 @@
+Hecks.behaviors "WorkerPool" do
+  vision "Behavioral tests for the WorkerPool aggregate — scale workers to core count."
+
+  # ── WorkerPool aggregate ──────────────────────────────────────────
+  # (merged from scale.behaviors during i112 cleanup)
+
+  test "ScaleWorkers sets core_count + worker_count" do
+    tests "ScaleWorkers", on: "WorkerPool"
+    input  core_count: 1, worker_count: 1
+    expect core_count: 1, worker_count: 1
+  end
+end

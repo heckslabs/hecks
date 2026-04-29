@@ -1,0 +1,12 @@
+Hecks.behaviors "LocalModel" do
+  vision "Behavioral tests for the LocalModel aggregate — name, context_length, backend."
+
+  # ── LocalModel aggregate ──────────────────────────────────────────
+  # (merged from inference.behaviors during i112 cleanup)
+
+  test "StartModel sets name + context_length + backend" do
+    tests "StartModel", on: "LocalModel"
+    input  name: "sample", context_length: 1, backend: "sample"
+    expect name: "sample", context_length: 1, backend: "sample", serving: "running"
+  end
+end

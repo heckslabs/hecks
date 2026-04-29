@@ -1,0 +1,24 @@
+Hecks.behaviors "SystemPromptPrompt" do
+  vision "Behavioral tests for the system-prompt Prompt aggregate — assemble + write."
+
+  # ── Prompt aggregate ──────────────────────────────────────────
+  # (merged from system_prompt.behaviors during i112 cleanup)
+
+  test "AssemblePrompt sets organ_count" do
+    tests "AssemblePrompt", on: "Prompt"
+    input  organ_count: 1
+    expect organ_count: 1
+  end
+
+  test "AssemblePrompt cascades through policy chain" do
+    tests "AssemblePrompt", on: "Prompt", kind: :cascade
+    input  organ_count: 1
+    expect emits: ["PromptAssembled", "PromptWritten"]
+  end
+
+  test "WritePrompt runs" do
+    tests "WritePrompt", on: "Prompt"
+    setup  "AssemblePrompt", organ_count: 1
+    expect ok: "true"
+  end
+end

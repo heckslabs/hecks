@@ -1,0 +1,19 @@
+Hecks.behaviors "BatchOperation" do
+  vision "Behavioral tests for the BatchOperation aggregate — running batches against file_count."
+
+  # ── BatchOperation aggregate ──────────────────────────────────────────
+  # (merged from scale.behaviors during i112 cleanup)
+
+  test "RunBatch sets operation + file_count" do
+    tests "RunBatch", on: "BatchOperation"
+    input  operation: "sample", file_count: 1
+    expect operation: "sample", file_count: 1
+  end
+
+  test "RunBatch cascades through policy chain" do
+    tests "RunBatch", on: "BatchOperation", kind: :cascade
+    setup  "ScanForChanges", tracked_files: 1, changed_since_last: 1
+    input  operation: "sample", file_count: 1
+    expect emits: ["BatchCompleted", "ChangesProcessed"]
+  end
+end

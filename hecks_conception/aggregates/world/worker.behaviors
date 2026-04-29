@@ -1,0 +1,26 @@
+Hecks.behaviors "SeedingWorker" do
+  vision "Behavioral tests for the seeding Worker aggregate — spawn, complete, merge."
+
+  # ── Worker aggregate ──────────────────────────────────────────
+  # (merged from seeding.behaviors during i112 cleanup)
+
+  test "SpawnWorker sets worker_id + range_start + range_end" do
+    tests "SpawnWorker", on: "Worker"
+    input  worker_id: 1, range_start: 1, range_end: 1
+    expect worker_id: 1, range_start: 1, range_end: 1
+  end
+
+  test "CompleteWorker sets domains_produced" do
+    tests "CompleteWorker", on: "Worker"
+    setup  "SpawnWorker", worker_id: 1, range_start: 1, range_end: 1
+    input  domains_produced: 1
+    expect domains_produced: 1
+  end
+
+  test "CompleteWorker cascades through policy chain" do
+    tests "CompleteWorker", on: "Worker", kind: :cascade
+    setup  "SpawnWorker", worker_id: 1, range_start: 1, range_end: 1
+    input  domains_produced: 1
+    expect emits: ["WorkerCompleted", "ResultsMerged"]
+  end
+end

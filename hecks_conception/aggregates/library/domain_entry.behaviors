@@ -1,0 +1,12 @@
+Hecks.behaviors "DomainEntry" do
+  vision "Behavioral tests for the DomainEntry aggregate — indexed domain metadata."
+
+  # ── DomainEntry aggregate ──────────────────────────────────────────
+  # (merged from census.behaviors during i112 cleanup)
+
+  test "IndexDomain sets domain_name + version + sector + aggregate_count + command_count + path" do
+    tests "IndexDomain", on: "DomainEntry"
+    input  domain_name: "sample", version: "sample", sector: "sample", aggregate_count: 1, command_count: 1, path: "sample"
+    expect domain_name: "sample", version: "sample", sector: "sample", aggregate_count: 1, command_count: 1, path: "sample"
+  end
+end

@@ -1,0 +1,51 @@
+Hecks.behaviors "Immunity" do
+  vision "Behavioral tests for the Immunity aggregate — threat detection, antibodies, neutralization."
+
+  # ── Immunity aggregate ──────────────────────────────────────────
+  # (merged from body.behaviors during i112 cleanup)
+
+  test "DetectThreat sets threat_pattern" do
+    tests "DetectThreat", on: "Immunity"
+    input  threat_pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "DetectThreat cascades through policy chain" do
+    tests "DetectThreat", on: "Immunity", kind: :cascade
+    setup  "Express", state: "sample"
+    input  threat_pattern: "sample"
+    expect emits: ["ThreatDetected", "Focused"]
+  end
+
+  test "GraftVerbImmunity sets noun_suffixes + adjective_suffixes + dual_words" do
+    tests "GraftVerbImmunity", on: "Immunity"
+    setup  "DetectThreat", threat_pattern: "sample"
+    input  noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
+    expect noun_suffixes: "sample", adjective_suffixes: "sample", dual_words: "sample"
+  end
+
+  test "GenerateAntibody sets pattern + learned_from" do
+    tests "GenerateAntibody", on: "Immunity"
+    input  pattern: "sample", learned_from: "sample"
+    expect antibodies_size: 1
+  end
+
+  test "StrengthenAntibody sets pattern" do
+    tests "StrengthenAntibody", on: "Immunity"
+    setup  "DetectThreat", threat_pattern: "sample"
+    input  pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "Neutralize runs" do
+    tests "Neutralize", on: "Immunity"
+    setup  "DetectThreat", threat_pattern: "sample"
+    expect ok: "true"
+  end
+
+  test "Neutralize cascades through policy chain" do
+    tests "Neutralize", on: "Immunity", kind: :cascade
+    setup  "DetectThreat", threat_pattern: "sample"
+    expect emits: ["ThreatNeutralized", "AntibodyGenerated"]
+  end
+end

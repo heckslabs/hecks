@@ -1,0 +1,12 @@
+Hecks.behaviors "FewShot" do
+  vision "Behavioral tests for the FewShot aggregate — example domains for the prompt."
+
+  # ── FewShot aggregate ──────────────────────────────────────────
+  # (merged from inference.behaviors during i112 cleanup)
+
+  test "AddExample sets domain_name + source + purpose" do
+    tests "AddExample", on: "FewShot"
+    input  domain_name: "sample", source: "sample", purpose: "sample"
+    expect domain_name: "sample", source: "sample", purpose: "sample"
+  end
+end

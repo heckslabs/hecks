@@ -1,0 +1,18 @@
+Hecks.behaviors "Voice" do
+  vision "Behavioral tests for the surface Voice aggregate — set/read personality, max_sentences, model."
+
+  # ── Voice aggregate ──────────────────────────────────────────
+  # (merged from tongue.behaviors during i112 cleanup)
+
+  test "SetVoice sets personality + max_sentences + model" do
+    tests "SetVoice", on: "Voice"
+    input  personality: "sample", max_sentences: 1, model: "sample"
+    expect personality: "sample", max_sentences: 1, model: "sample"
+  end
+
+  test "ReadVoice returns matching records" do
+    tests "ReadVoice", on: "Voice", kind: :query
+    setup  "SetVoice", personality: "sample", max_sentences: 1, model: "sample"
+    expect count: 1
+  end
+end

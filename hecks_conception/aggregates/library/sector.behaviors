@@ -1,0 +1,12 @@
+Hecks.behaviors "Sector" do
+  vision "Behavioral tests for the Sector aggregate — domain count per sector classification."
+
+  # ── Sector aggregate ──────────────────────────────────────────
+  # (merged from census.behaviors during i112 cleanup)
+
+  test "ClassifySector sets name + domain_count" do
+    tests "ClassifySector", on: "Sector"
+    input  name: "sample", domain_count: 1
+    expect name: "sample", domain_count: 1
+  end
+end

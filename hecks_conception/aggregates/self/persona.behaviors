@@ -1,0 +1,26 @@
+Hecks.behaviors "Persona" do
+  vision "Behavioral tests for the Persona aggregate — recognize, traits, memory appearances."
+
+  # ── Persona aggregate ──────────────────────────────────────────
+  # (merged from miette.behaviors during i112 cleanup)
+
+  test "RecognizePersona sets name + fixture_type" do
+    tests "RecognizePersona", on: "Persona"
+    input  name: "sample", fixture_type: "sample"
+    expect name: "sample", fixture_type: "sample"
+  end
+
+  test "AddTrait sets trait" do
+    tests "AddTrait", on: "Persona"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
+    input  trait: "sample"
+    expect traits_size: 1
+  end
+
+  test "AppearInMemory sets domain_name" do
+    tests "AppearInMemory", on: "Persona"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
+    input  domain_name: "sample"
+    expect appears_in_size: 1
+  end
+end

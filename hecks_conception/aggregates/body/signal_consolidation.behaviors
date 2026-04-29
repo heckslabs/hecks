@@ -1,0 +1,16 @@
+Hecks.behaviors "SignalConsolidation" do
+  vision "Behavioral tests for the SignalConsolidation aggregate — consolidate and prune."
+
+  # ── SignalConsolidation aggregate ──────────────────────────────────────────
+  # (merged from mindstream.behaviors during i112 cleanup)
+
+  test "ConsolidateSignals runs" do
+    tests "ConsolidateSignals", on: "SignalConsolidation"
+    expect ok: "true"
+  end
+
+  test "PruneSynapses runs" do
+    tests "PruneSynapses", on: "SignalConsolidation"
+    expect ok: "true"
+  end
+end

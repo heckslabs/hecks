@@ -1,0 +1,18 @@
+Hecks.behaviors "Lexicon" do
+  vision "Behavioral tests for the Lexicon aggregate — compile and match."
+
+  # ── Lexicon aggregate ──────────────────────────────────────────
+  # (merged from vocabulary.behaviors during i112 cleanup)
+
+  test "Compile runs" do
+    tests "Compile", on: "Lexicon"
+    expect last_compiled: "now"
+  end
+
+  test "Match sets input" do
+    tests "Match", on: "Lexicon"
+    setup  "Compile"
+    input  input: "sample"
+    expect ok: "true"
+  end
+end

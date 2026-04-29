@@ -1,0 +1,38 @@
+Hecks.behaviors "Synapse" do
+  vision "Behavioral tests for the Synapse aggregate — create, strengthen, decay, fire, compost."
+
+  # ── Synapse aggregate ──────────────────────────────────────────
+  # (merged from organs.behaviors during i112 cleanup)
+
+  test "CreateSynapse sets from + to + strength" do
+    tests "CreateSynapse", on: "Synapse"
+    input  from: "carrying", to: "concept", strength: 0.1
+    expect from: "carrying", to: "concept", strength: 0.1, state: "alive", firings: 0
+  end
+
+  test "StrengthenSynapse increments strength by 0.02" do
+    tests "StrengthenSynapse", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.1
+    expect ok: "true"
+  end
+
+  test "DecaySynapse sets strength" do
+    tests "DecaySynapse", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.5
+    input  strength: 0.49
+    expect strength: 0.49
+  end
+
+  test "FireSynapse increments firings + stamps last_fired_at" do
+    tests "FireSynapse", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.5
+    input  last_fired_at: "now"
+    expect last_fired_at: "now"
+  end
+
+  test "Compost flips synapse state to composted" do
+    tests "Compost", on: "Synapse"
+    setup  "CreateSynapse", from: "carrying", to: "concept", strength: 0.05
+    expect state: "composted"
+  end
+end

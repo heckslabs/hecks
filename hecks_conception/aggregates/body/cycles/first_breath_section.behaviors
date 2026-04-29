@@ -1,0 +1,12 @@
+Hecks.behaviors "FirstBreathSection" do
+  vision "Behavioral tests for the FirstBreath Section aggregate — projected organ headings."
+
+  # ── Section aggregate ──────────────────────────────────────────
+  # (merged from first_breath.behaviors during i112 cleanup)
+
+  test "ProjectSection sets organ_name + heading + content + order" do
+    tests "ProjectSection", on: "Section"
+    input  organ_name: "sample", heading: "sample", content: "sample", order: 1
+    expect organ_name: "sample", heading: "sample", content: "sample", order: 1
+  end
+end

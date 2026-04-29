@@ -1,0 +1,19 @@
+Hecks.behaviors "KnowledgeStore" do
+  vision "Behavioral tests for the KnowledgeStore aggregate — registering and writing per being."
+
+  # ── KnowledgeStore aggregate ──────────────────────────────────────────
+  # (merged from shared_knowledge.behaviors during i112 cleanup)
+
+  test "RegisterStore sets store_name" do
+    tests "RegisterStore", on: "KnowledgeStore"
+    input  store_name: "sample"
+    expect store_name: "sample", record_count: 0
+  end
+
+  test "WriteToStore sets being_name" do
+    tests "WriteToStore", on: "KnowledgeStore"
+    setup  "RegisterStore", store_name: "sample"
+    input  being_name: "sample"
+    expect last_written_by: "sample"
+  end
+end

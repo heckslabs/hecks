@@ -1,0 +1,25 @@
+Hecks.behaviors "NurseryCensus" do
+  vision "Behavioral tests for the NurseryCensus aggregate — domain/aggregate/command/policy totals."
+
+  # ── NurseryCensus aggregate ──────────────────────────────────────────
+  # (merged from census.behaviors during i112 cleanup)
+
+  test "TakeCensus sets total_domains + total_aggregates + total_commands + total_policies + sector_count + errors" do
+    tests "TakeCensus", on: "NurseryCensus"
+    input  total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    expect total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+  end
+
+  test "TakeCensus cascades through policy chain" do
+    tests "TakeCensus", on: "NurseryCensus", kind: :cascade
+    input  total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    expect emits: ["CensusTaken", "SectorClassified"]
+  end
+
+  test "RecountDomains sets total_domains" do
+    tests "RecountDomains", on: "NurseryCensus"
+    setup  "TakeCensus", total_domains: 1, total_aggregates: 1, total_commands: 1, total_policies: 1, sector_count: 1, errors: 1
+    input  total_domains: 1
+    expect total_domains: 1
+  end
+end

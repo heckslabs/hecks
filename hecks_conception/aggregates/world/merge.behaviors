@@ -1,0 +1,12 @@
+Hecks.behaviors "SeedingMerge" do
+  vision "Behavioral tests for the seeding Merge aggregate — merging worker results."
+
+  # ── Merge aggregate ──────────────────────────────────────────
+  # (merged from seeding.behaviors during i112 cleanup)
+
+  test "MergeResults sets workers_merged + total_domains" do
+    tests "MergeResults", on: "Merge"
+    input  workers_merged: 1, total_domains: 1
+    expect workers_merged: 1, total_domains: 1
+  end
+end

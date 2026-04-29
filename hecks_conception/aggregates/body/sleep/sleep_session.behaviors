@@ -1,0 +1,29 @@
+Hecks.behaviors "SleepCycle" do
+  vision "Behavioral tests for the SleepCycle aggregate (sleep session) — cycle counter, REM intensity."
+
+  # ── SleepCycle aggregate ──────────────────────────────────────────
+  # (merged from sleep.behaviors during i112 cleanup)
+  # Note: there are two "SleepCycle" namespaces — the body/sleep/sleep_cycle.bluebook
+  # one (NREM/REM phase flip) has its own behaviors. These tests are for the
+  # body/sleep/sleep_session.bluebook variant which exposes StartCycle/AdvanceStage/CompleteCycle.
+
+  test "StartCycle sets cycle_number + total_cycles" do
+    tests "StartCycle", on: "SleepCycle"
+    input  cycle_number: 1, total_cycles: 1
+    expect cycle_number: 1, total_cycles: 1, stage: "light"
+  end
+
+  test "AdvanceStage sets rem_intensity" do
+    tests "AdvanceStage", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    input  rem_intensity: 1
+    expect rem_intensity: 1, stage: "rem"
+  end
+
+  test "CompleteCycle runs" do
+    tests "CompleteCycle", on: "SleepCycle"
+    setup  "StartCycle", cycle_number: 1, total_cycles: 1
+    setup  "AdvanceStage", rem_intensity: 1
+    expect stage: "light"
+  end
+end

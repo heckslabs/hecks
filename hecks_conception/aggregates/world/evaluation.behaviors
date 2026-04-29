@@ -1,0 +1,12 @@
+Hecks.behaviors "Evaluation" do
+  vision "Behavioral tests for the Evaluation aggregate — accuracy / quality / adherence."
+
+  # ── Evaluation aggregate ──────────────────────────────────────────
+  # (merged from training_pipeline.behaviors during i112 cleanup)
+
+  test "EvaluateModel sets bluebook_accuracy + conversation_quality + behavior_adherence" do
+    tests "EvaluateModel", on: "Evaluation"
+    input  bluebook_accuracy: 1.0, conversation_quality: 1.0, behavior_adherence: 1.0
+    expect bluebook_accuracy: 1.0, conversation_quality: 1.0, behavior_adherence: 1.0
+  end
+end

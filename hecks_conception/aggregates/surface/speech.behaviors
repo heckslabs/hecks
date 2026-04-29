@@ -1,0 +1,18 @@
+Hecks.behaviors "Speech" do
+  vision "Behavioral tests for the Speech aggregate — Speak input + HearResponse query."
+
+  # ── Speech aggregate ──────────────────────────────────────────
+  # (merged from tongue.behaviors during i112 cleanup)
+
+  test "Speak sets input" do
+    tests "Speak", on: "Speech"
+    input  input: "sample"
+    expect input: "sample"
+  end
+
+  test "HearResponse returns matching records" do
+    tests "HearResponse", on: "Speech", kind: :query
+    setup  "Speak", input: "sample"
+    expect count: 1
+  end
+end

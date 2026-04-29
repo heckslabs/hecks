@@ -1,0 +1,12 @@
+Hecks.behaviors "FirstBreathIdentity" do
+  vision "Behavioral tests for the FirstBreath Identity aggregate — name + birth at boot."
+
+  # ── Identity aggregate ──────────────────────────────────────────
+  # (merged from first_breath.behaviors during i112 cleanup)
+
+  test "Breathe sets name + born" do
+    tests "Breathe", on: "Identity"
+    input  name: "sample", born: "sample"
+    expect name: "sample", born: "sample"
+  end
+end

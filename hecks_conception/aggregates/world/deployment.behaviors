@@ -1,0 +1,12 @@
+Hecks.behaviors "Deployment" do
+  vision "Behavioral tests for the Deployment aggregate — model_path + serving_method."
+
+  # ── Deployment aggregate ──────────────────────────────────────────
+  # (merged from training_pipeline.behaviors during i112 cleanup)
+
+  test "DeployModel sets model_path + serving_method" do
+    tests "DeployModel", on: "Deployment"
+    input  model_path: "sample", serving_method: "sample"
+    expect model_path: "sample", serving_method: "sample", status: "live"
+  end
+end

@@ -1,0 +1,24 @@
+Hecks.behaviors "DataPrep" do
+  vision "Behavioral tests for the DataPrep aggregate — prepare, split."
+
+  # ── DataPrep aggregate ──────────────────────────────────────────
+  # (merged from training_pipeline.behaviors during i112 cleanup)
+
+  test "PrepareData sets format" do
+    tests "PrepareData", on: "DataPrep"
+    input  format: "sample"
+    expect format: "sample", status: "prepared"
+  end
+
+  test "PrepareData cascades through policy chain" do
+    tests "PrepareData", on: "DataPrep", kind: :cascade
+    input  format: "sample"
+    expect emits: ["DataPrepared", "DatasetSplit"]
+  end
+
+  test "SplitDataset runs" do
+    tests "SplitDataset", on: "DataPrep"
+    setup  "PrepareData", format: "sample"
+    expect ok: "true"
+  end
+end

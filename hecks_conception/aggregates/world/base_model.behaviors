@@ -1,0 +1,12 @@
+Hecks.behaviors "BaseModel" do
+  vision "Behavioral tests for the BaseModel aggregate — name, parameters, source."
+
+  # ── BaseModel aggregate ──────────────────────────────────────────
+  # (merged from training_pipeline.behaviors during i112 cleanup)
+
+  test "SelectBaseModel sets name + parameters + source" do
+    tests "SelectBaseModel", on: "BaseModel"
+    input  name: "sample", parameters: "sample", source: "sample"
+    expect name: "sample", parameters: "sample", source: "sample"
+  end
+end

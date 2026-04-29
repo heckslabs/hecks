@@ -1,0 +1,93 @@
+Hecks.behaviors "Heartbeat" do
+  vision "Behavioral tests for the Heartbeat aggregate — flow rate, fatigue ladder, sleep gate, vitals."
+
+  # ── Heartbeat aggregate ──────────────────────────────────────────
+  # (merged from body.behaviors during i112 cleanup)
+
+  test "Accelerate runs" do
+    tests "Accelerate", on: "Heartbeat"
+    expect flow_rate: "rushing"
+  end
+
+  test "Steady runs" do
+    tests "Steady", on: "Heartbeat"
+    expect flow_rate: "steady"
+  end
+
+  test "Steady cascades through policy chain" do
+    tests "Steady", on: "Heartbeat", kind: :cascade
+    setup  "Express", state: "sample"
+    expect emits: ["HeartbeatSteadied", "Regulated"]
+  end
+
+  test "AccumulateFatigue increments but does not walk the ladder" do
+    # Ladder-walking moved to BecomeX commands guarded by
+    # pulses_since_sleep thresholds. A single tick from alert must stay alert.
+    tests "AccumulateFatigue", on: "Heartbeat"
+    expect fatigue_state: "alert"
+  end
+
+  test "BecomeFocused refused before threshold" do
+    tests "BecomeFocused", on: "Heartbeat"
+    expect refused: "at focused threshold"
+  end
+
+  test "AccumulateFatigue cascade stops short of sleep when not exhausted" do
+    tests "AccumulateFatigue", on: "Heartbeat", kind: :cascade
+    # CheckSleepNeeded is guarded by pulses_since_sleep > 1500; a single tick
+    # accumulates one pulse, so SleepRequired must NOT fire here.
+    expect emits: ["FatigueAccumulated"]
+  end
+
+  test "AccumulateFatigue refused while sleeping (gate closed)" do
+    # i40: the sleep_gate gate makes AccumulateFatigue refuse while
+    # Consciousness is sleeping. SleepEntered → CloseFatigueGate flips
+    # the gate; this is the behavioral proof fatigue stops at sleep.
+    tests "AccumulateFatigue", on: "Heartbeat"
+    setup  "CloseFatigueGate"
+    expect refused: "not sleeping"
+  end
+
+  test "CloseFatigueGate flips the gate to closed" do
+    tests "CloseFatigueGate", on: "Heartbeat"
+    expect sleep_gate: "closed"
+  end
+
+  test "OpenFatigueGate flips the gate back to open" do
+    tests "OpenFatigueGate", on: "Heartbeat"
+    setup  "CloseFatigueGate"
+    expect sleep_gate: "open"
+  end
+
+  test "CheckSleepNeeded refused when sleep_mode is manual (default)" do
+    # Two guards: auto-sleep must be enabled AND pulses must exceed
+    # threshold. Default sleep_mode is "manual" — fix for inbox i36
+    # (Chris reported Miette auto-sleeping mid-demo). Refusal message
+    # is the FIRST guard's, since `given` clauses short-circuit.
+    tests "CheckSleepNeeded", on: "Heartbeat"
+    expect refused: "auto sleep enabled"
+  end
+
+  test "EnableAutoSleep flips the mode" do
+    tests "EnableAutoSleep", on: "Heartbeat"
+    expect sleep_mode: "auto"
+  end
+
+  test "DisableAutoSleep flips back" do
+    tests "DisableAutoSleep", on: "Heartbeat"
+    setup  "EnableAutoSleep"
+    expect sleep_mode: "manual"
+  end
+
+  test "RecoverFatigue resets to alert" do
+    tests "RecoverFatigue", on: "Heartbeat"
+    setup  "AccumulateFatigue"
+    expect pulses_since_sleep: 0, fatigue: 0.0, fatigue_state: "alert"
+  end
+
+  test "ReadVitals returns matching records" do
+    tests "ReadVitals", on: "Heartbeat", kind: :query
+    setup  "Accelerate"
+    expect count: 1
+  end
+end

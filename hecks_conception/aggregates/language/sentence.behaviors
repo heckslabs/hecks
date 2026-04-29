@@ -1,0 +1,25 @@
+Hecks.behaviors "Sentence" do
+  vision "Behavioral tests for the Sentence aggregate — define, translate."
+
+  # ── Sentence aggregate ──────────────────────────────────────────
+  # (merged from vocabulary.behaviors during i112 cleanup)
+
+  test "Define sets phrase + domain + command + aggregate + actor + parameters" do
+    tests "Define", on: "Sentence"
+    input  phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    expect phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+  end
+
+  test "Define cascades through policy chain" do
+    tests "Define", on: "Sentence", kind: :cascade
+    input  phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    expect emits: ["SentenceDefined", "LexiconCompiled"]
+  end
+
+  test "Translate sets natural_phrase" do
+    tests "Translate", on: "Sentence"
+    setup  "Define", phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    input  natural_phrase: "sample"
+    expect translations_size: 1
+  end
+end
