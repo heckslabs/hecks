@@ -1,0 +1,61 @@
+Hecks.bluebook "SelfModel", version: "2026.04.28.1" do
+  vision "The system's model of itself — what it knows about its own state"
+  category "mind"
+
+  # ============================================================
+  # SELFMODEL — proprioception of the mind
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 2 policies :
+  #   SelfModelOnWitness (Observed → RefreshSelfModel) — every act of
+  #     witnessing refreshes the inner self-model. Trigger is local.
+  #   StatusOnSelfModel (SelfModelUpdated → RenderStatus across
+  #     "StatusBar") — the status bar reflects the current self-model.
+  #     Trigger is remote ; policy lives with the source aggregate so
+  #     SelfModel-emitted events stay grouped.
+
+  aggregate "SelfModel", "The system's model of itself — what it knows about its own state" do
+    identified_by :name
+    attribute :name, String
+    attribute :organs, Integer
+    attribute :impulses, Integer
+    # value_object: FatigueState enum:alert|focused|normal|tired|exhausted|delirious
+    attribute :fatigue_state, String
+    # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
+    attribute :consciousness_state, String
+    attribute :nursery_size, Integer
+    attribute :family_size, Integer
+
+    command "RefreshSelfModel" do
+      role "System"
+      description "Refresh the self-model from current state — proprioception of the mind"
+      attribute :organs, Integer
+      attribute :impulses, Integer
+      # value_object: FatigueState enum:alert|focused|normal|tired|exhausted|delirious
+      attribute :fatigue_state, String
+      # value_object: ConsciousnessState enum:attentive|daydreaming|sleeping|napping|waking
+      attribute :consciousness_state, String
+      attribute :nursery_size, Integer
+      attribute :family_size, Integer
+      emits "SelfModelUpdated"
+      then_set :organs, to: :organs
+      then_set :impulses, to: :impulses
+      then_set :fatigue_state, to: :fatigue_state
+      then_set :consciousness_state, to: :consciousness_state
+      then_set :nursery_size, to: :nursery_size
+      then_set :family_size, to: :family_size
+    end
+  end
+
+  policy "SelfModelOnWitness" do
+    on "Observed"
+    trigger "RefreshSelfModel"
+  end
+
+  policy "StatusOnSelfModel" do
+    on "SelfModelUpdated"
+    trigger "RenderStatus"
+    across "StatusBar"
+  end
+end

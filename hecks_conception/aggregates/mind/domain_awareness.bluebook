@@ -1,0 +1,62 @@
+Hecks.bluebook "DomainAwareness", version: "2026.04.28.1" do
+  vision "Every response highlights related domains — every thought has a domain address"
+  category "mind"
+
+  # ============================================================
+  # DOMAINAWARENESS — corpus-aware response highlighting
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 2 policies :
+  #   DomainAwarenessOnResponse (Mused → IdentifyRelatedDomains) —
+  #     each musing kicks off a corpus search for related domains.
+  #     Trigger is local.
+  #   SenseDomainsOnHighlight (DomainHighlighted → SenseOrgans across
+  #     "MietteBody") — surfacing a related domain pings the body's
+  #     proprioception. Trigger is remote ; policy lives with the
+  #     source aggregate so DomainAwareness-emitted events stay
+  #     grouped.
+
+  aggregate "DomainAwareness", "Every response highlights related domains — every thought has a domain address" do
+    identified_by :topic
+    attribute :topic, String
+    attribute :related_domains, list_of(DomainReference)
+    attribute :corpus_searched, String
+
+    value_object "DomainReference" do
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+      attribute :relevance, String
+    end
+
+    command "IdentifyRelatedDomains" do
+      role "System"
+      description "Search the corpus for domains related to the current topic"
+      attribute :topic, String
+      emits "RelatedDomainsIdentified"
+      then_set :topic, to: :topic
+      then_set :corpus_searched, to: "true"
+    end
+
+    command "HighlightDomain" do
+      role "Miette"
+      description "Surface a related domain in the response — make the connection visible"
+      reference_to(DomainAwareness)
+      attribute :domain_name, String
+      attribute :aggregate_name, String
+      attribute :relevance, String
+      emits "DomainHighlighted"
+    end
+  end
+
+  policy "DomainAwarenessOnResponse" do
+    on "Mused"
+    trigger "IdentifyRelatedDomains"
+  end
+
+  policy "SenseDomainsOnHighlight" do
+    on "DomainHighlighted"
+    trigger "SenseOrgans"
+    across "MietteBody"
+  end
+end

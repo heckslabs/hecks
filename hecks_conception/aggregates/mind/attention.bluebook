@@ -1,0 +1,47 @@
+Hecks.bluebook "Attention", version: "2026.04.28.1" do
+  vision "What is being attended to right now — the spotlight"
+  category "mind"
+
+  # ============================================================
+  # ATTENTION — the spotlight
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 1 policy whose trigger lives here :
+  #   AttendOnRecognition (Recognized → AttendTo) — recognized
+  #     sensations pull the spotlight toward what was recognized.
+
+  aggregate "Attention", "What is being attended to right now — the spotlight" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :target, String
+    # value_object: UnitInterval (0.0..1.0)
+    attribute :intensity, Float
+    # value_object: Timestamp (ISO 8601 UTC)
+    attribute :held_since, String
+
+    command "AttendTo" do
+      role "System"
+      description "Direct awareness toward something"
+      attribute :target, String
+      # value_object: UnitInterval (0.0..1.0)
+      attribute :intensity, Float
+      emits "AttentionDirected"
+      then_set :target, to: :target
+      then_set :intensity, to: :intensity
+    end
+
+    command "ReleaseAttention" do
+      role "System"
+      description "Let go of the current focus"
+      reference_to(Attention)
+      emits "AttentionReleased"
+      then_set :intensity, to: 0
+    end
+  end
+
+  policy "AttendOnRecognition" do
+    on "Recognized"
+    trigger "AttendTo"
+  end
+end

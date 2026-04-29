@@ -1,0 +1,40 @@
+Hecks.bluebook "Sensation", version: "2026.04.28.1" do
+  vision "Raw input before interpretation — what just arrived"
+  category "mind"
+
+  # ============================================================
+  # SENSATION — raw input before interpretation
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 1 policy whose trigger lives here :
+  #   SenseOnMusing (Mused → Sense) — every musing surfaces as raw
+  #     sensation feeding the next loop.
+
+  aggregate "Sensation", "Raw input before interpretation — what just arrived" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :source, String
+    attribute :content, String
+    # value_object: SignedUnitInterval (-1.0..1.0)
+    attribute :valence, Float
+
+    command "Sense" do
+      role "System"
+      description "Register raw input — a prompt, a pulse, an event"
+      attribute :source, String
+      attribute :content, String
+      # value_object: SignedUnitInterval (-1.0..1.0)
+      attribute :valence, Float
+      emits "Sensed"
+      then_set :source, to: :source
+      then_set :content, to: :content
+      then_set :valence, to: :valence
+    end
+  end
+
+  policy "SenseOnMusing" do
+    on "Mused"
+    trigger "Sense"
+  end
+end

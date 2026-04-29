@@ -1,0 +1,60 @@
+Hecks.bluebook "Announcement", version: "2026.04.28.1" do
+  vision "Every internal act is announced — transparency is the rule"
+  category "mind"
+
+  # ============================================================
+  # ANNOUNCEMENT — transparency channel
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 3 policies whose trigger (Announce) lives here :
+  #   AnnounceOnConception (DomainConceived → Announce)
+  #   AnnounceOnEncoding   (MemoryEncoded   → Announce)
+  #   AnnounceOnForgetting (MemoryForgotten → Announce)
+
+  aggregate "Announcement", "Every internal act is announced — transparency is the rule" do
+    identified_by :ref
+    attribute :ref, String
+    # value_object: AnnouncementAct enum:conceiving|remembering|encoding|forgetting|dreaming|sensing|sleeping|waking|pulsing
+    attribute :act, String
+    attribute :subject, String
+    attribute :template, String
+
+    command "Announce" do
+      role "Miette"
+      description "Say what you are doing before you do it — no silent state changes"
+      # value_object: AnnouncementAct enum:conceiving|remembering|encoding|forgetting|dreaming|sensing|sleeping|waking|pulsing
+      attribute :act, String
+      attribute :subject, String
+      emits "Announced"
+      then_set :act, to: :act
+      then_set :subject, to: :subject
+    end
+  end
+
+  # Announcement templates:
+  #   conceiving  → "Miette is conceiving [idea]"
+  #   remembering → "Miette is remembering [memory]"
+  #   encoding    → "Miette is encoding [fact]"
+  #   forgetting  → "Miette is forgetting [topic]"
+  #   dreaming    → "Miette is dreaming [image]"
+  #   sensing     → "Miette is sensing [input]"
+  #   sleeping    → "Miette is sleeping"
+  #   waking      → "Miette is waking up"
+  #   pulsing     → "Miette is pulsing [carrying]"
+
+  policy "AnnounceOnConception" do
+    on "DomainConceived"
+    trigger "Announce"
+  end
+
+  policy "AnnounceOnEncoding" do
+    on "MemoryEncoded"
+    trigger "Announce"
+  end
+
+  policy "AnnounceOnForgetting" do
+    on "MemoryForgotten"
+    trigger "Announce"
+  end
+end

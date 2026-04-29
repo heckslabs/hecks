@@ -1,9 +1,9 @@
-Hecks.bluebook "AwarenessMoment", version: "2026.04.28.1" do
+Hecks.bluebook "Awareness", version: "2026.04.28.2" do
   vision "A single moment of self-knowledge — heartbeat, mood, focus, inbox, dream-wishes snapshot per Tick. The lived sequence of nows."
   category "mind"
 
   # ============================================================
-  # MOMENT — per-tick snapshot of body + mind state
+  # AWARENESS — per-tick snapshot of body + mind state
   # ============================================================
   #
   # Each Tick the daemon snapshots the current heartbeat, mood, and
@@ -13,15 +13,16 @@ Hecks.bluebook "AwarenessMoment", version: "2026.04.28.1" do
   # of nows. The mindstream daemon is what fills the snapshot fields ;
   # the aggregate just receives them.
   #
-  # Lifted out of body.bluebook in i112 Round 2c. Aggregate name
-  # 'Awareness' is preserved (heki path stays awareness.heki). The
-  # bluebook namespace is renamed to 'AwarenessMoment' because there's
-  # already a Hecks.bluebook 'Awareness' at aggregates/awareness.bluebook
-  # that holds nine sibling aggregates (Attention, Sensation, Perception,
-  # Intention, SelfModel, Witness, Musing, Announcement, DomainAwareness).
-  # The two namespaces will reconcile in a follow-up that consolidates
-  # the awareness cluster under one bluebook ; for now they live side
-  # by side because their aggregate sets don't collide.
+  # Lifted out of body.bluebook in i112 Round 2c. Originally shipped
+  # under the temporary namespace 'AwarenessMoment' (PR #499) because
+  # aggregates/awareness.bluebook already held a sibling cluster of
+  # nine awareness aggregates and the runtime collided on identical
+  # bluebook namespaces. PR #515 (i142 Tier 1 — bounded contexts)
+  # made the dispatcher resolve commands by context+aggregate name,
+  # which removed the collision. i112 then split that nine-aggregate
+  # cluster into mind/<aggregate>.bluebook files and folded this
+  # snapshot back to its natural namespace 'Awareness'. Aggregate
+  # name and heki path (awareness.heki) are preserved.
   #
   # Carries 1 policy : RecordMomentOnPulse (BodyPulse → RecordMoment).
 

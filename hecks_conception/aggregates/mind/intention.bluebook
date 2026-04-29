@@ -1,0 +1,48 @@
+Hecks.bluebook "Intention", version: "2026.04.28.1" do
+  vision "What the system is trying to do — the current goal"
+  category "mind"
+
+  # ============================================================
+  # INTENTION — the current goal
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 1 policy whose trigger lives here :
+  #   IntendOnAttention (AttentionDirected → FormIntention) — when
+  #     the spotlight settles, a goal crystallizes from it.
+
+  aggregate "Intention", "What the system is trying to do — the current goal" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :goal, String
+    attribute :origin, String
+    # value_object: UnitInterval (0.0..1.0)
+    attribute :strength, Float
+
+    command "FormIntention" do
+      role "System"
+      description "A goal crystallizes from perception and memory"
+      attribute :goal, String
+      attribute :origin, String
+      # value_object: UnitInterval (0.0..1.0)
+      attribute :strength, Float
+      emits "IntentionFormed"
+      then_set :goal, to: :goal
+      then_set :origin, to: :origin
+      then_set :strength, to: :strength
+    end
+
+    command "AbandonIntention" do
+      role "System"
+      description "The goal dissolves — attention shifted, context changed"
+      reference_to(Intention)
+      emits "IntentionAbandoned"
+      then_set :strength, to: 0
+    end
+  end
+
+  policy "IntendOnAttention" do
+    on "AttentionDirected"
+    trigger "FormIntention"
+  end
+end

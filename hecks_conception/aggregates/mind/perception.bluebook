@@ -1,0 +1,40 @@
+Hecks.bluebook "Perception", version: "2026.04.28.1" do
+  vision "Sensation recognized as something — pattern matched to memory"
+  category "mind"
+
+  # ============================================================
+  # PERCEPTION — sensation pattern-matched to memory
+  # ============================================================
+  #
+  # Lifted out of awareness.bluebook in i112 (cluster split). Carries
+  # 1 policy whose trigger lives here :
+  #   PerceiveOnSensation (Sensed → Recognize) — every raw sensation
+  #     immediately gets recognized against what is already known.
+
+  aggregate "Perception", "Sensation recognized as something — pattern matched to memory" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :sensation, String
+    attribute :recognized_as, String
+    # value_object: UnitInterval (0.0..1.0)
+    attribute :confidence, Float
+
+    command "Recognize" do
+      role "System"
+      description "Match a sensation to a known pattern"
+      attribute :sensation, String
+      attribute :recognized_as, String
+      # value_object: UnitInterval (0.0..1.0)
+      attribute :confidence, Float
+      emits "Recognized"
+      then_set :sensation, to: :sensation
+      then_set :recognized_as, to: :recognized_as
+      then_set :confidence, to: :confidence
+    end
+  end
+
+  policy "PerceiveOnSensation" do
+    on "Sensed"
+    trigger "Recognize"
+  end
+end
