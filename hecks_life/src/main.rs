@@ -654,21 +654,18 @@ fn run_behaviors(args: &[String]) {
     }
     println!();
 
-    // i112 cleanup — opt-in combined-domain mode via HECKS_BEHAVIORS_FULL=1.
-    // Default stays isolated (single-bluebook) because tests authored under
-    // the old monolithic shape have exact emit-list assertions that break
-    // when the combined domain fires more cascades. Cross-bluebook cascade
-    // tests need either a per-test :cross_cascade kind flag or assertion
-    // softening (subset/prefix) — filed as follow-up. Until then, full mode
-    // is opt-in for ad-hoc debugging.
-    let combined = if std::env::var("HECKS_BEHAVIORS_FULL").ok().as_deref() == Some("1") {
-        behaviors_aggregates_root(suite_path).map(|root| load_combined_domain(&root))
-    } else {
-        None
-    };
+    // i112 cleanup — always load the combined domain when the .behaviors
+    // file lives under a recognizable aggregates tree. The runner picks
+    // per-test which domain to use : `kind: :cross_cascade` tests run
+    // against the combined domain so cross-bluebook policy chains fire
+    // end-to-end ; all other tests run isolated against the source
+    // bluebook only. Tests with strict emit-list assertions stay strict ;
+    // cross-cascade tests opt in via the kind flag.
+    let combined = behaviors_aggregates_root(suite_path)
+        .map(|root| load_combined_domain(&root));
     let result = match combined.as_ref() {
         Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
-            d, &suite, fixtures.as_ref(),
+            &source_text, d, &suite, fixtures.as_ref(),
         ),
         None    => hecks_life::behaviors_runner::run_suite_with_fixtures(
             &source_text, &suite, fixtures.as_ref(),
@@ -2023,6 +2020,32 @@ fn run_enforce_edit(_args: &[String]) {
         dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
     });
 
+    // --reason lint — fires on any .sh file (exempt or not) that has
+    // a `heki append/upsert/delete/mark` invocation without --reason.
+    // The discipline is structural : direct heki writes bypass the
+    // dispatch path's audit log, so each must name why. Without this
+    // gate, scripts silently exit non-zero on every write, fixtures
+    // never seed, and tests pass-through with empty data. Pre-i112
+    // we shipped that bug across many shells (pulse_organs, daydream,
+    // consolidate, mint_musing, surface_musing, the test seeds
+    // themselves) ; this hook makes the silent failure structurally
+    // impossible going forward.
+    if file_path.ends_with(".sh") {
+        if let Some(violations) = unreasoned_heki_writes(&file_path) {
+            let complaint = format!(
+                "--reason missing on direct heki write in {} :\n  {}\n\n\
+                 Direct heki writes (heki append / upsert / delete / mark) \
+                 bypass the dispatch path's audit log. Each must pass \
+                 --reason \"<why>\" so the audit trail names the gap that \
+                 forced the bypass. Without it the runtime exits non-zero \
+                 silently — discipline drift hides as a passing build.",
+                file_path, violations.join("\n  "),
+            );
+            eprintln!("[enforcer] {}", complaint);
+            std::process::exit(2);
+        }
+    }
+
     if matches!(kind, FileKind::Imperative) && !exempted {
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let complaint = format!(
@@ -2045,6 +2068,62 @@ fn run_enforce_edit(_args: &[String]) {
         std::process::exit(2);
     }
     std::process::exit(0);
+}
+
+/// Scan a shell file for direct heki writes (heki append / upsert /
+/// delete / mark) that lack `--reason`. Returns Some(violations) when
+/// the file has at least one unreasoned write — the enforcer refuses
+/// the edit. Returns None when the file is clean (no writes, or every
+/// write carries --reason in its multi-line invocation).
+///
+/// Scanning rule : find each line that matches `heki (append|upsert|
+/// delete|mark)` ; gather that line plus all bash-continuation lines
+/// (each ending with `\`) ; check if --reason appears anywhere across
+/// the joined invocation. Comments (`# heki append ...`) are skipped.
+fn unreasoned_heki_writes(file_path: &str) -> Option<Vec<String>> {
+    let source = std::fs::read_to_string(file_path).ok()?;
+    let lines: Vec<&str> = source.lines().collect();
+    let mut violations: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim_start();
+        // Skip comments and shebangs ; only flag executable lines.
+        if trimmed.starts_with('#') || trimmed.starts_with("//") {
+            i += 1; continue;
+        }
+        // Match `heki append`, `heki upsert`, `heki delete`, `heki mark`.
+        // Allow `$HECKS heki ...` or `"$HECKS" heki ...` or bare path.
+        let is_write = ["heki append", "heki upsert", "heki delete", "heki mark"]
+            .iter().any(|verb| line.contains(verb));
+        if !is_write {
+            i += 1; continue;
+        }
+        // Collect this line plus continuation lines (those ending with `\`
+        // after stripping trailing whitespace). The continuation forms the
+        // full invocation surface where --reason might appear.
+        let mut joined = String::from(line);
+        let mut j = i;
+        while j < lines.len() && lines[j].trim_end().ends_with('\\') {
+            j += 1;
+            if j < lines.len() {
+                joined.push(' ');
+                joined.push_str(lines[j]);
+            }
+        }
+        if !joined.contains("--reason") {
+            // Trim the joined invocation for the diagnostic so it's
+            // readable but bounded (~120 chars).
+            let display: String = joined.split_whitespace()
+                .collect::<Vec<_>>().join(" ");
+            let display_short = if display.len() > 120 {
+                format!("{}…", &display[..120])
+            } else { display };
+            violations.push(format!("line {}: {}", i + 1, display_short));
+        }
+        i = j + 1;
+    }
+    if violations.is_empty() { None } else { Some(violations) }
 }
 
 /// Check whether `file_path` appears in the central ExemptRegistry in

@@ -121,4 +121,31 @@ if [ -x "$REPO/bin/antibody-check" ]; then
     "$REPO/bin/antibody-check" --staged --list-only || true
 fi
 
+# ── Gate 6: Smoke tests must pass ──────────────────────────────────
+# Lightweight gate covering the regression net : 11 smoke tests that
+# verify boot, statusline, daemons, body shells, dream cycle, and the
+# round4 integration shape. Each runs in <2s ; the full suite is ~15s.
+# Set TESTS_SKIP=1 to bypass (an antibody failure for emergencies).
+#
+# Without this gate, the i112 anatomy reorg silently broke 44 .behaviors
+# files for months because nothing was watching the test count. Smoke
+# is the cheapest catch-fast gate ; bigger suites can stack later.
+if [ -z "$TESTS_SKIP" ] && [ -d "$CONCEPTION_DIR/tests" ]; then
+    failed=0
+    for t in "$CONCEPTION_DIR/tests"/*.sh; do
+        [ -f "$t" ] || continue
+        if ! bash "$t" >/tmp/smoke_$(basename "$t" .sh).out 2>&1; then
+            failed=$((failed + 1))
+            echo "  ✗ $(basename "$t") failed (output: /tmp/smoke_$(basename "$t" .sh).out)"
+        fi
+    done
+    if [ "$failed" -gt 0 ]; then
+        echo ""
+        echo "COMMIT BLOCKED: $failed smoke test(s) failed."
+        echo "  Run individually : bash hecks_conception/tests/<name>.sh"
+        echo "  Bypass (use only for emergencies) : TESTS_SKIP=1 git commit ..."
+        exit 1
+    fi
+fi
+
 exit 0
