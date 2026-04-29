@@ -20,7 +20,22 @@
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 HECKS="$DIR/../hecks_life/target/release/hecks-life"
-INFO="${HECKS_INFO:-$DIR/information}"
+# INFO precedence mirrors statusline-command.sh so daemons + statusline
+# read the same dir : (1) HECKS_INFO env, (2) ../miette-state/information
+# if the side-by-side private-state repo is present, (3) the local
+# conception/information fallback. Then EXPORT it so every child
+# hecks-life invocation (heart loop, breath loop, mindstream, …)
+# inherits the choice. Without the export, daemons would fall through
+# to the .world-file resolver and write to conception/information while
+# the statusline reads miette-state, freezing the glyph.
+if [ -n "$HECKS_INFO" ]; then
+  INFO="$HECKS_INFO"
+elif [ -d "$DIR/../../miette-state/information" ]; then
+  INFO="$(cd "$DIR/../../miette-state/information" && pwd)"
+else
+  INFO="$DIR/information"
+fi
+export HECKS_INFO="$INFO"
 AGG="$DIR/aggregates"
 CAPS="$DIR/capabilities"
 BEING="${1:-Miette}"
