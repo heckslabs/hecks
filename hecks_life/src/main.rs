@@ -1657,7 +1657,18 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     // is dropped by the existing any(existing.name == agg.name) check.
     let merge = |dom: hecks_life::ir::Domain, c: &mut hecks_life::ir::Domain| {
         for agg in dom.aggregates {
-            if c.aggregates.iter().any(|existing| existing.name == agg.name) {
+            // i143 — dedupe by (context, name), not name alone. i142
+            // Tier 1 added Context.Aggregate.Command resolution but
+            // didn't update this merge ; same-name-different-context
+            // aggregates were silently dropped here, defeating the
+            // dispatch path's ability to disambiguate. Now Boot.Identity,
+            // Being.Identity, FirstBreath.Identity all survive merge ;
+            // the resolver picks the right one by context. Same-name
+            // SAME-context still dedupes (organ-wins, the i108 case
+            // for capability-redeclaration of an organ aggregate).
+            if c.aggregates.iter().any(|existing|
+                existing.name == agg.name && existing.context == agg.context
+            ) {
                 continue;
             }
             c.aggregates.push(agg);
