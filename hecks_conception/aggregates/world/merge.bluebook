@@ -1,0 +1,39 @@
+Hecks.bluebook "SeedingMerge", version: "2026.04.28.1" do
+  vision "Combine results from parallel workers into the nursery"
+  category "world"
+
+  # ============================================================
+  # SEEDING MERGE — collects worker outputs into the nursery
+  # ============================================================
+  #
+  # Lifted out of seeding.bluebook in i112. Sibling aggregates
+  # moved to world/ : nursery_seed, worker, initial_state. The
+  # bluebook namespace is "SeedingMerge" to disambiguate the
+  # generic "Merge" name ; the aggregate name stays "Merge"
+  # (preserves merge.heki path).
+  #
+  # Carries the MergeOnComplete policy : Worker.WorkerCompleted →
+  # MergeResults. Policy follows its trigger target.
+
+  aggregate "Merge", "Combine results from parallel workers into the nursery" do
+    identified_by :name
+    attribute :name, String
+    attribute :workers_merged, Integer
+    attribute :total_domains, Integer
+
+    command "MergeResults" do
+      role "System"
+      description "Combine all worker outputs into the final nursery"
+      attribute :workers_merged, Integer
+      attribute :total_domains, Integer
+      emits "ResultsMerged"
+      then_set :workers_merged, to: :workers_merged
+      then_set :total_domains, to: :total_domains
+    end
+  end
+
+  policy "MergeOnComplete" do
+    on "WorkerCompleted"
+    trigger "MergeResults"
+  end
+end

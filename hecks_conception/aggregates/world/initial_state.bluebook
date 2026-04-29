@@ -1,0 +1,28 @@
+Hecks.bluebook "InitialState", version: "2026.04.28.1" do
+  vision "Seed Miette's organs with initial information — first breath"
+  category "world"
+
+  # ============================================================
+  # INITIAL STATE — populates organ .heki files at first breath
+  # ============================================================
+  #
+  # Lifted out of seeding.bluebook in i112. Sibling aggregates
+  # moved to world/ : nursery_seed, worker, merge.
+
+  aggregate "InitialState", "Seed Miette's organs with initial information — first breath" do
+    identified_by :name
+    attribute :name, String
+    attribute :organs_seeded, Integer
+    attribute :records_created, Integer
+
+    command "SeedOrgans" do
+      role "Creator"
+      description "Populate all organ .heki files with initial state"
+      attribute :organs_seeded, Integer
+      attribute :records_created, Integer
+      emits "OrgansSeeded"
+      then_set :organs_seeded, to: :organs_seeded
+      then_set :records_created, to: :records_created
+    end
+  end
+end

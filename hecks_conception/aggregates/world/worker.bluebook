@@ -1,0 +1,44 @@
+Hecks.bluebook "SeedingWorker", version: "2026.04.28.1" do
+  vision "A single seeding worker — conceives domains in its assigned range"
+  category "world"
+
+  # ============================================================
+  # SEEDING WORKER — one parallel worker in a seed run
+  # ============================================================
+  #
+  # Lifted out of seeding.bluebook in i112. Sibling aggregates
+  # moved to world/ : nursery_seed, merge, initial_state. The
+  # bluebook namespace is "SeedingWorker" to disambiguate the
+  # generic "Worker" name ; the aggregate name stays "Worker"
+  # (preserves worker.heki path). Pattern follows NurseryCorpus
+  # (PR #506) and NurseryCensus (PR #512).
+
+  aggregate "Worker", "A single seeding worker — conceives domains in its assigned range" do
+    identified_by :worker_id
+    attribute :worker_id, Integer
+    attribute :range_start, Integer
+    attribute :range_end, Integer
+    attribute :domains_produced, Integer
+
+    command "SpawnWorker" do
+      role "System"
+      description "Launch a worker to conceive domains in a range"
+      attribute :worker_id, Integer
+      attribute :range_start, Integer
+      attribute :range_end, Integer
+      emits "WorkerSpawned"
+      then_set :worker_id, to: :worker_id
+      then_set :range_start, to: :range_start
+      then_set :range_end, to: :range_end
+    end
+
+    command "CompleteWorker" do
+      role "System"
+      description "Worker finished its range"
+      reference_to(Worker)
+      attribute :domains_produced, Integer
+      emits "WorkerCompleted"
+      then_set :domains_produced, to: :domains_produced
+    end
+  end
+end

@@ -1,0 +1,44 @@
+Hecks.bluebook "NurserySeed", version: "2026.04.28.1" do
+  vision "Seed the nursery with domains — parallel workers conceive in bulk"
+  category "world"
+
+  # ============================================================
+  # NURSERY SEED — orchestrates parallel seeding into the nursery
+  # ============================================================
+  #
+  # Lifted out of seeding.bluebook in i112. Sibling aggregates
+  # moved to world/ : worker, merge, initial_state. Each carries
+  # its own bluebook ; policies follow the trigger target.
+
+  aggregate "NurserySeed", "Seed the nursery with domains — parallel workers conceive in bulk" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :worker_count, Integer
+    attribute :domains_seeded, Integer
+    attribute :status, String
+
+    command "StartSeeding" do
+      role "Creator"
+      description "Launch parallel workers to conceive domains into the nursery"
+      attribute :worker_count, Integer
+      emits "SeedingStarted"
+      then_set :worker_count, to: :worker_count
+      then_set :status, to: "running"
+    end
+
+    command "CompleteSeeding" do
+      role "System"
+      description "All workers finished — domains are in the nursery"
+      reference_to(NurserySeed)
+      attribute :domains_seeded, Integer
+      emits "SeedingCompleted"
+      then_set :domains_seeded, to: :domains_seeded
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "StartSeeding" => "running", from: "pending"
+      transition "CompleteSeeding" => "complete", from: "running"
+    end
+  end
+end
