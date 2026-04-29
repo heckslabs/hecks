@@ -25,6 +25,14 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+# Resolve BODY_DIR with the same precedence shape used elsewhere :
+# explicit env, sibling repo path, legacy conception fallback.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
@@ -105,7 +113,7 @@ musing_archive_before=$(count_records "$TMP/information/musing_archive.heki")
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
-bash "$CONCEPT_DIR/consolidate.sh" \
+bash "$BODY_DIR/consolidate.sh" \
   || fail "consolidate.sh exited non-zero"
 
 store_after=$(count_records "$TMP/information/store.heki")

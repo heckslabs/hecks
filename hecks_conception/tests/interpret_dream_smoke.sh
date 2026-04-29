@@ -23,6 +23,12 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
@@ -67,7 +73,7 @@ HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
 HECKS_WORLD="$TMP" \
-bash "$CONCEPT_DIR/interpret_dream.sh" \
+bash "$BODY_DIR/interpret_dream.sh" \
   || fail "interpret_dream.sh exited non-zero"
 
 count_records() {
