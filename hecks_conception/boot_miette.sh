@@ -41,6 +41,32 @@ CAPS="$DIR/capabilities"
 BEING="${1:-Miette}"
 START_TS=$(date +%s)
 
+# i117 Round 4 — export the framework-side paths so child shells
+# moved into the being's repo (mindstream / pulse_organs / dream
+# branches under ~/Projects/miette/body/) can still resolve the
+# binary, the aggregates dir, and any leaf scripts that haven't yet
+# moved. Same precedence shape as HECKS_INFO : env wins, otherwise
+# compute from this script's location. Once every shell adapter
+# moves, CONCEPTION_DIR retires.
+export HECKS_BIN="${HECKS_BIN:-$HECKS}"
+export HECKS_AGG="${HECKS_AGG:-$AGG}"
+export CONCEPTION_DIR="${CONCEPTION_DIR:-$DIR}"
+
+# Resolve the being's home repo (miette/ or spring/) — same
+# precedence shape as PROMPT_DIR below : explicit env, sibling repo,
+# legacy conception fallback. Used for mindstream + pulse_organs +
+# dream-branch invocations after they move.
+BEING_REPO_NAME="miette"
+[ "$BEING" != "Miette" ] && BEING_REPO_NAME="spring"
+if [ -n "$HECKS_BEING_HOME" ]; then
+  BEING_HOME="$HECKS_BEING_HOME"
+elif [ -d "$DIR/../../$BEING_REPO_NAME" ]; then
+  BEING_HOME="$(cd "$DIR/../../$BEING_REPO_NAME" && pwd)"
+else
+  BEING_HOME="$DIR"
+fi
+export HECKS_BEING_HOME="$BEING_HOME"
+
 # Suppress .last_dispatch breadcrumb writes for daemons spawned by this
 # script (heart, breath, circadian, ultradian, sleep_cycle, mindstream).
 # The runtime's Runtime::dispatch checks HECKS_DAEMON and skips the
@@ -151,21 +177,17 @@ PROMPT_FILE="system_prompt.md"
 BOOT_SCRIPT="boot_miette.sh"
 BORN="April 9, 2026"
 OTHER="Spring"
-BEING_REPO="miette"
 [ "$BEING" != "Miette" ] && {
   PROMPT_FILE="system_prompt_spring.md"
   BOOT_SCRIPT="boot_spring.sh"
   BORN="April 11, 2026"
   OTHER="Miette"
-  BEING_REPO="spring"
 }
-if [ -n "$HECKS_BEING_HOME" ]; then
-  PROMPT_DIR="$HECKS_BEING_HOME/self"
-elif [ -d "$DIR/../../$BEING_REPO/self" ]; then
-  PROMPT_DIR="$(cd "$DIR/../../$BEING_REPO/self" && pwd)"
-else
-  PROMPT_DIR="$DIR"
-fi
+# BEING_HOME resolved at the top of this script ; the prompt lives
+# under self/ in the being's own repo. Falls back to $DIR for legacy
+# checkouts without the side-by-side miette repo.
+PROMPT_DIR="$BEING_HOME/self"
+[ ! -d "$PROMPT_DIR" ] && PROMPT_DIR="$BEING_HOME"
 mkdir -p "$PROMPT_DIR"
 PROMPT_PATH="$PROMPT_DIR/$PROMPT_FILE"
 
@@ -298,11 +320,20 @@ PROMPT_PATH="$PROMPT_DIR/$PROMPT_FILE"
 "$HECKS" "$AGG" Identity.Identify name="$BEING" "$@" >/dev/null 2>&1 || true
 
 # ── 6. Start mindstream daemon if not already running ────────────
+# i117 Round 4 — mindstream + its branch shells move to the being's
+# body/ room. Resolution : (1) HECKS_BEING_HOME/body/mindstream.sh
+# (the new home), (2) legacy $DIR/mindstream.sh (conception fallback
+# until the shell move lands).
 PIDFILE="$INFO/.mindstream.pid"
 if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
   MINDSTREAM_STATUS="already running (pid $(cat $PIDFILE))"
 else
-  ( cd "$DIR" && nohup ./mindstream.sh > /dev/null 2>&1 & )
+  if [ -x "$BEING_HOME/body/mindstream.sh" ]; then
+    MINDSTREAM_DIR="$BEING_HOME/body"
+  else
+    MINDSTREAM_DIR="$DIR"
+  fi
+  ( cd "$MINDSTREAM_DIR" && nohup ./mindstream.sh > /dev/null 2>&1 & )
   sleep 0.5
   MINDSTREAM_STATUS="started"
 fi
