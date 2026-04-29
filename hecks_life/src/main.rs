@@ -1704,8 +1704,14 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     }
 
     // Shallowest first — root-level bluebooks beat deeper ones on
-    // name collision.
-    found.sort_by_key(|(depth, _)| *depth);
+    // name collision (i126). Within a depth, sort by path
+    // lexicographically so the dedupe is reproducible across
+    // filesystems (i141). Without the path tiebreaker, three
+    // depth-0 bluebooks declaring the same aggregate (e.g. boot,
+    // being, first_breath all declaring Identity) resolve by
+    // fs::read_dir() inode order — which is undefined across
+    // filesystems. The tiebreaker makes organ-wins deterministic.
+    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
 
     for (_, path) in found {
         if let Ok(source) = fs::read_to_string(&path) {
