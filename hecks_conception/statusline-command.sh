@@ -116,7 +116,7 @@ esac
 
 # Fatigue icon
 case "$fatigue" in
-  alert)      fatigue_icon="⚡" ;;
+  alert)      fatigue_icon="⚡️" ;;
   focused)    fatigue_icon="🎯" ;;
   normal)     fatigue_icon="" ;;
   tired)      fatigue_icon="🥱" ;;
