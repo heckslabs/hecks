@@ -1,0 +1,48 @@
+Hecks.bluebook "Remains", version: "2026.04.26.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math is bluebook-side : multiply / clamp / decay (i106) replace the shell awk-side math that pulse_organs.sh used to compute."
+  category "body"
+
+  # ============================================================
+  # REMAINS — what's left when a synapse dies
+  # ============================================================
+  # Each composted synapse leaves a record so the body remembers
+  # what once mattered. Fed by Synapse.Compost via pulse_organs.sh.
+
+  aggregate "Remains", "The trace of a dead synapse — composted memory" do
+    identified_by :from_synapse
+    attribute :from_synapse, String
+    attribute :strength_at_death, Float
+    attribute :firings, Integer
+    attribute :died_at, String
+
+    command "RecordRemains" do
+      role "Daemon"
+      description "A synapse died — record from_synapse, last strength, firings, when"
+      attribute :from_synapse, String
+      attribute :strength_at_death, Float
+      attribute :firings, Integer
+      attribute :died_at, String
+      emits "RemainsRecorded"
+      then_set :from_synapse, to: :from_synapse
+      then_set :strength_at_death, to: :strength_at_death
+      then_set :firings, to: :firings
+      then_set :died_at, to: :died_at
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  # i106 dsl-mutation-primitives (multiply / clamp / decay) moved the
+  # per-pulse math out of pulse_organs.sh and into Strengthen/DecaySynapse
+  # / AdjustWeight. The shell now reduces to a thin orchestrator that
+  # picks the synapse for the current carrying topic and dispatches —
+  # no awk, no python, no jq pipeline math.
+  #
+  # Composting and recording remains is still coordinated externally :
+  # pulse_organs orchestrates Synapse.Compost (flip state=composted)
+  # and writes the remains record via `heki append` because policy
+  # triggers carry no attrs (the dying values need to be captured
+  # from the synapse being composted, not synthesized from a fixed
+  # policy template).
+end

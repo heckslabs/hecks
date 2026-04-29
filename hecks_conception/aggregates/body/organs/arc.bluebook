@@ -1,0 +1,39 @@
+Hecks.bluebook "Arc", version: "2026.04.26.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math is bluebook-side : multiply / clamp / decay (i106) replace the shell awk-side math that pulse_organs.sh used to compute."
+  category "body"
+
+  # ============================================================
+  # ARC — where the cycle is in its long swing
+  # ============================================================
+  # Singleton-style. pulse_count++ each tick; phase shifts on
+  # transitions; topics is the cumulative bag for the current phase.
+
+  aggregate "Arc", "The long swing of the cycle — phase, pulse count, topics gathered, momentum" do
+    identified_by :name
+    attribute :name, String
+    attribute :phase, String
+    attribute :pulse_count, Integer
+    attribute :topics, list_of(String)
+    attribute :momentum, Float
+
+    command "AdvanceArc" do
+      role "Daemon"
+      description "One more pulse in this phase — the arc bends a little further"
+      reference_to(Arc)
+      then_set :pulse_count, increment: 1
+      emits "ArcAdvanced"
+    end
+
+    command "ShiftPhase" do
+      role "Daemon"
+      description "Move into a new phase — phase changes, momentum updates, topics reset for the new arc"
+      reference_to(Arc)
+      attribute :phase, String
+      attribute :momentum, Float
+      then_set :phase, to: :phase
+      then_set :momentum, to: :momentum
+      then_set :pulse_count, to: 0
+      emits "PhaseShifted"
+    end
+  end
+end

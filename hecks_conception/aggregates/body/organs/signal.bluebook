@@ -1,0 +1,51 @@
+Hecks.bluebook "Signal", version: "2026.04.26.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math is bluebook-side : multiply / clamp / decay (i106) replace the shell awk-side math that pulse_organs.sh used to compute."
+  category "body"
+
+  # ============================================================
+  # SIGNAL — short-lived messages between organs
+  # ============================================================
+  # Signals are somatic (from the body) or conceptual (from the mind).
+  # If unaccessed (≤3) and old (>20s), pulse_organs.sh archives them.
+
+  aggregate "Signal", "A short-lived message — somatic or conceptual" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :kind, String
+    attribute :payload, String
+    attribute :strength, Float
+    attribute :access_count, Integer
+    attribute :created_at, String
+
+    command "FireSignal" do
+      role "Daemon"
+      description "Emit a new signal of a kind with a payload"
+      attribute :kind, String
+      attribute :payload, String
+      attribute :strength, Float
+      attribute :created_at, String
+      emits "SignalFired"
+      then_set :kind, to: :kind
+      then_set :payload, to: :payload
+      then_set :strength, to: :strength
+      then_set :access_count, to: 0
+      then_set :created_at, to: :created_at
+    end
+
+    command "AccessSignal" do
+      role "Daemon"
+      description "Read the signal — increment access_count so consolidation knows it mattered"
+      reference_to(Signal)
+      then_set :access_count, increment: 1
+      emits "SignalAccessed"
+    end
+
+    command "ArchiveSignal" do
+      role "Daemon"
+      description "Move the signal out of the working set — old and unread"
+      reference_to(Signal)
+      then_set :kind, to: "archived"
+      emits "SignalArchived"
+    end
+  end
+end

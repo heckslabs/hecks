@@ -1,0 +1,71 @@
+Hecks.bluebook "Synapse", version: "2026.04.26.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math is bluebook-side : multiply / clamp / decay (i106) replace the shell awk-side math that pulse_organs.sh used to compute."
+  category "body"
+
+  # ============================================================
+  # SYNAPSE — neural plasticity
+  # ============================================================
+  # Each synapse connects two topics. Strength climbs with firing,
+  # decays without. Below 0.1 the synapse is composted into Remains.
+
+  aggregate "Synapse", "A connection between two topics — strengthens with firing, decays in silence" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :from, String
+    attribute :to, String
+    attribute :strength, Float
+    attribute :state, String
+    attribute :firings, Integer
+    attribute :last_fired_at, String
+
+    command "CreateSynapse" do
+      role "Daemon"
+      description "Forge a new synapse between two topics — birth strength is a small spark"
+      attribute :from, String
+      attribute :to, String
+      attribute :strength, Float
+      emits "SynapseCreated"
+      then_set :from, to: :from
+      then_set :to, to: :to
+      then_set :strength, to: :strength
+      then_set :state, to: "alive"
+      then_set :firings, to: 0
+    end
+
+    command "StrengthenSynapse" do
+      role "Daemon"
+      description "Use it — strength climbs by 0.02 per fire, clamped to [0, 1] (i106 in-DSL math)"
+      reference_to(Synapse)
+      then_set :strength, increment: 0.02
+      then_set :strength, clamp: [0.0, 1.0]
+      emits "SynapseStrengthened"
+    end
+
+    command "DecaySynapse" do
+      role "Daemon"
+      description "Silence decays the bond — ×0.98 per pulse, clamped to [0, 1] (i106 in-DSL math, no shell)"
+      reference_to(Synapse)
+      then_set :strength, multiply: 0.98
+      then_set :strength, clamp: [0.0, 1.0]
+      emits "SynapseDecayed"
+    end
+
+    command "FireSynapse" do
+      role "Daemon"
+      description "A pulse travels the synapse — increment firings, stamp the moment"
+      reference_to(Synapse)
+      attribute :last_fired_at, String
+      then_set :firings, increment: 1
+      then_set :last_fired_at, to: :last_fired_at
+      emits "SynapseFired"
+    end
+
+    command "Compost" do
+      role "Daemon"
+      description "Strength fell below 0.1 — synapse dies, remains are recorded"
+      reference_to(Synapse)
+      then_set :state, to: "composted"
+      emits "Composted"
+    end
+  end
+end

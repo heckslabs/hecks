@@ -1,0 +1,42 @@
+Hecks.bluebook "Focus", version: "2026.04.26.1" do
+  vision "Body organs — synapses, signals, focus, arc, remains. Per-tick math is bluebook-side : multiply / clamp / decay (i106) replace the shell awk-side math that pulse_organs.sh used to compute."
+  category "body"
+
+  # ============================================================
+  # FOCUS — what the body is currently weighting
+  # ============================================================
+  # Singleton-style: there is one Focus at a time. Updated by
+  # pulse_organs.sh from firing frequency.
+
+  aggregate "Focus", "What the body is currently weighting — one target at a time" do
+    identified_by :name
+    attribute :name, String
+    attribute :target, String
+    attribute :weight, Float
+    attribute :updated_at, String
+
+    command "SetFocus" do
+      role "Daemon"
+      description "Pick a new focus target — weight resets, timestamp stamped"
+      attribute :target, String
+      attribute :weight, Float
+      attribute :updated_at, String
+      emits "FocusSet"
+      then_set :target, to: :target
+      then_set :weight, to: :weight
+      then_set :updated_at, to: :updated_at
+    end
+
+    command "AdjustWeight" do
+      role "Daemon"
+      description "Re-weight the current focus — caller passes the raw weight, bluebook clamps to [0, 1] (i106)"
+      reference_to(Focus)
+      attribute :weight, Float
+      attribute :updated_at, String
+      then_set :weight, to: :weight
+      then_set :weight, clamp: [0.0, 1.0]
+      then_set :updated_at, to: :updated_at
+      emits "WeightAdjusted"
+    end
+  end
+end
