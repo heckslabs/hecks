@@ -43,7 +43,7 @@ export HECKS_DAEMON=1
 # TODO: replace these constants with a `psychic_link: true|false`
 # declaration on each aggregate so the boundary lives in the domain
 # model, not in this shell script.
-LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store heart breath circadian ultradian sleep_cycle"
+LINKED_STORES="memory awareness census conversation working_memory reflection synapse signal signal_somatic focus concentration deliberation heartbeat subconscious domain_index arc consciousness discipline metabolic_rate musing conflict_monitor run_log inbox tick announcement attention claude_assist consolidation dream_interpretation dream_seed dream_signal encoding gate generosity gut HarmonyDomain intention interpretation lucid_dream lucid_monitor monitor musing_archive musing_mint nerve nursery perception persona proposal proprioception self_image self_model sensation session shared_dream_space signal_consolidation speech training_pair wake_mood witness bodhisattva_vow character creator_auth remains store heart breath circadian ultradian sleep_cycle item identity discovery display disposition enforcer exempt_registry mode psychic_link section_template subcommand vow wake_report wake_review wake_ritual wake_ritual_step"
 PRIVATE_STORES="mood feeling dream_state impulse craving daydream pulse spend circuit_breaker"
 
 is_in_list() {
@@ -55,17 +55,22 @@ is_in_list() {
 # Count .bluebook files in aggregates/ and capabilities/. Walk each
 # domain to collect aggregate count, cross-domain policies (nerves),
 # and vows. Uses hecks-life dump to get JSON IR per file.
-ORGAN_COUNT=$(find "$AGG" -maxdepth 1 -name "*.bluebook" | wc -l | tr -d ' ')
+#
+# i112 anatomy (Round 2) clustered every bluebook into subdirectories
+# (body/, mind/, world/, library/, …). The walk is now recursive at
+# every depth ; the previous -maxdepth 1 form silently produced 0.
+# This shell counter retires when the boot capability runner picks up
+# DiscoverOrgans + WriteCensus dispatch (see run_boot/mod.rs).
+ORGAN_COUNT=$(find "$AGG" -name "*.bluebook" | wc -l | tr -d ' ')
 CAPABILITY_COUNT=0
-[ -d "$CAPS" ] && CAPABILITY_COUNT=$(find "$CAPS" -maxdepth 2 -name "*.bluebook" | wc -l | tr -d ' ')
+[ -d "$CAPS" ] && CAPABILITY_COUNT=$(find "$CAPS" -name "*.bluebook" | wc -l | tr -d ' ')
 
 # Aggregate + nerve + vow tally via dump+jq. Each `$HECKS dump` emits
 # one self-contained JSON IR object per bluebook; jq --slurp combines
 # the stream into an array the tally can sum over.
 TALLY=$(
   {
-    for bb in "$AGG"/*.bluebook; do
-      [ -f "$bb" ] || continue
+    find "$AGG" -name "*.bluebook" -print0 | while IFS= read -r -d '' bb; do
       "$HECKS" dump "$bb" 2>/dev/null
     done
   } | jq -s '
@@ -82,7 +87,11 @@ NERVE_COUNT=$(echo "$TALLY" | jq -r '.nerves')
 VOW_COUNT=$(echo "$TALLY" | jq -r '.vows')
 
 # ── 2. Write census.heki ─────────────────────────────────────────
+# --reason is required for direct heki writes (out-of-band path) ;
+# this is the boot ritual's census stamp, not a domain command.
+# Retires when the boot capability runner picks up WriteCensus dispatch.
 "$HECKS" heki upsert "$INFO/census.heki" \
+  --reason "boot ritual : census stamp from organ + capability walk" \
   id=1 \
   total_domains="$ORGAN_COUNT" \
   total_aggregates="$TOTAL_AGGREGATES" \
@@ -91,11 +100,19 @@ VOW_COUNT=$(echo "$TALLY" | jq -r '.vows')
   total_vows="$VOW_COUNT" >/dev/null 2>&1
 
 # ── 3. Classify stores into psychic-link / inner-life ─────────────
+# i142 Tier 2 — heki paths are now context-prefixed
+# (information/<ctx>/<agg>.heki). The classifier walks at any depth and
+# matches on the basename so both legacy flat and context-prefixed
+# paths resolve. Dedupe on basename so the same aggregate showing up
+# under multiple migration steps doesn't double-count.
 LINKED=""; PRIVATE=""; UNCLASSIFIED=""
-for f in "$INFO"/*.heki; do
+seen=""
+for f in $(find "$INFO" -name "*.heki" | sort); do
   [ -f "$f" ] || continue
   name=$(basename "$f" .heki)
   case "$name" in .*) continue ;; esac
+  case " $seen " in *" $name "*) continue ;; esac
+  seen="$seen $name"
   if is_in_list "$name" "$PRIVATE_STORES"; then
     PRIVATE="$PRIVATE $name"
   elif is_in_list "$name" "$LINKED_STORES"; then
