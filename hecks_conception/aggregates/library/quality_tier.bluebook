@@ -1,0 +1,26 @@
+Hecks.bluebook "QualityTier", version: "2026.04.28.1" do
+  vision "A tier of training data — different sources, different quality"
+  category "meta"
+
+  # Lifted out of training_corpus.bluebook in i112 split.
+
+  aggregate "QualityTier", "A tier of training data — different sources, different quality" do
+    identified_by :name
+    attribute :name, String
+    attribute :source, String
+    attribute :domain_count, Integer
+    attribute :description, String
+
+    command "DefineTier" do
+      role "Creator"
+      description "Define a quality tier for training data"
+      attribute :name, String
+      attribute :source, String
+      attribute :description, String
+      emits "TierDefined"
+      then_set :name, to: :name
+      then_set :source, to: :source
+      then_set :description, to: :description
+    end
+  end
+end

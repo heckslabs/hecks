@@ -1,0 +1,26 @@
+Hecks.bluebook "InstructionPair", version: "2026.04.28.1" do
+  vision "A single training example — instruction + expected response"
+  category "world"
+
+  # Lifted out of training_pipeline.bluebook in i112 split.
+
+  aggregate "InstructionPair", "A single training example — instruction + expected response" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :instruction, String
+    attribute :response, String
+    attribute :category, String
+
+    command "MintInstructionPair" do
+      role "System"
+      description "Build one training pair"
+      attribute :instruction, String
+      attribute :response, String
+      attribute :category, String
+      emits "InstructionPairCreated"
+      then_set :instruction, to: :instruction
+      then_set :response, to: :response
+      then_set :category, to: :category
+    end
+  end
+end

@@ -1,0 +1,25 @@
+Hecks.bluebook "Deployment", version: "2026.04.28.1" do
+  vision "Replace Claude with Miette's own model"
+  category "world"
+
+  # Lifted out of training_pipeline.bluebook in i112 split.
+
+  aggregate "Deployment", "Replace Claude with Miette's own model" do
+    identified_by :name
+    attribute :name, String
+    attribute :model_path, String
+    attribute :serving_method, String
+    attribute :status, String
+
+    command "DeployModel" do
+      role "Creator"
+      description "Wire the trained model into Miette's shell — she speaks with her own voice"
+      attribute :model_path, String
+      attribute :serving_method, String
+      emits "ModelDeployed"
+      then_set :model_path, to: :model_path
+      then_set :serving_method, to: :serving_method
+      then_set :status, to: "live"
+    end
+  end
+end

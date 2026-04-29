@@ -1,0 +1,37 @@
+Hecks.bluebook "DataPrep", version: "2026.04.28.1" do
+  vision "Transform Bluebooks and transcripts into training format"
+  category "world"
+
+  # Lifted out of training_pipeline.bluebook in i112 split. Carries
+  # the SplitOnPrep policy — DataPrepared → SplitDataset — both
+  # event source and trigger live on this aggregate.
+
+  aggregate "DataPrep", "Transform Bluebooks and transcripts into training format" do
+    identified_by :name
+    attribute :name, String
+    attribute :format, String
+    attribute :total_pairs, Integer
+    attribute :status, String
+
+    command "PrepareData" do
+      role "System"
+      description "Convert bluebooks to instruction-response pairs for fine-tuning"
+      attribute :format, String
+      emits "DataPrepared"
+      then_set :format, to: :format
+      then_set :status, to: "prepared"
+    end
+
+    command "SplitDataset" do
+      role "System"
+      description "Split into train/validation/test sets"
+      reference_to(DataPrep)
+      emits "DatasetSplit"
+    end
+  end
+
+  policy "SplitOnPrep" do
+    on "DataPrepared"
+    trigger "SplitDataset"
+  end
+end

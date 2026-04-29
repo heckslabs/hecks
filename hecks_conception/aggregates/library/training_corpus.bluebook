@@ -1,0 +1,31 @@
+Hecks.bluebook "TrainingCorpus", version: "2026.04.28.1" do
+  vision "The full training dataset — bluebooks plus parsed IR"
+  category "meta"
+
+  # Lifted out of training_corpus.bluebook in i112 split. The
+  # training corpus is what is *kept* — the accumulated training
+  # data. Sibling aggregates split alongside in library/ :
+  # quality_tier, training_pair_record, enrichment, model_spec,
+  # conversation_transcript, behavior_example. The EnrichOnBuild
+  # policy (CorpusBuilt → EnrichDomains) travels with Enrichment
+  # since policies follow the trigger target.
+
+  aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
+    identified_by :name
+    attribute :name, String
+    attribute :total_domains, Integer
+    attribute :total_tokens, Integer
+    attribute :quality_tiers, list_of(String)
+    attribute :format, String
+
+    command "BuildCorpus" do
+      role "Creator"
+      description "Assemble all nursery domains into a training dataset"
+      attribute :total_domains, Integer
+      attribute :format, String
+      emits "CorpusBuilt"
+      then_set :total_domains, to: :total_domains
+      then_set :format, to: :format
+    end
+  end
+end

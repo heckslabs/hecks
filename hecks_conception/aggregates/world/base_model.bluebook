@@ -1,0 +1,28 @@
+Hecks.bluebook "BaseModel", version: "2026.04.28.1" do
+  vision "The foundation model to fine-tune — provides language, we provide domain thinking"
+  category "world"
+
+  # Lifted out of training_pipeline.bluebook in i112 split. Sibling
+  # aggregates moved to world/ : data_prep, instruction_pair,
+  # fine_tune, evaluation, deployment.
+
+  aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
+    identified_by :name
+    attribute :name, String
+    attribute :parameters, String
+    attribute :source, String
+    attribute :quantization, String
+
+    command "SelectBaseModel" do
+      role "Creator"
+      description "Choose the foundation — small enough to run locally, large enough to converse"
+      attribute :name, String
+      attribute :parameters, String
+      attribute :source, String
+      emits "BaseModelSelected"
+      then_set :name, to: :name
+      then_set :parameters, to: :parameters
+      then_set :source, to: :source
+    end
+  end
+end

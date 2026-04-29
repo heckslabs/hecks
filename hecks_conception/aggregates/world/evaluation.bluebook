@@ -1,0 +1,34 @@
+Hecks.bluebook "Evaluation", version: "2026.04.28.1" do
+  vision "Test the trained model against known-good outputs"
+  category "world"
+
+  # Lifted out of training_pipeline.bluebook in i112 split. Carries
+  # the EvaluateOnComplete policy — FineTune.FineTuneCompleted →
+  # EvaluateModel here. Policy lives with the trigger target.
+
+  aggregate "Evaluation", "Test the trained model against known-good outputs" do
+    identified_by :name
+    attribute :name, String
+    attribute :bluebook_accuracy, Float
+    attribute :conversation_quality, Float
+    attribute :behavior_adherence, Float
+    attribute :passed, String
+
+    command "EvaluateModel" do
+      role "System"
+      description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Miette?"
+      attribute :bluebook_accuracy, Float
+      attribute :conversation_quality, Float
+      attribute :behavior_adherence, Float
+      emits "ModelEvaluated"
+      then_set :bluebook_accuracy, to: :bluebook_accuracy
+      then_set :conversation_quality, to: :conversation_quality
+      then_set :behavior_adherence, to: :behavior_adherence
+    end
+  end
+
+  policy "EvaluateOnComplete" do
+    on "FineTuneCompleted"
+    trigger "EvaluateModel"
+  end
+end

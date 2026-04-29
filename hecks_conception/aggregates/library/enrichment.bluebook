@@ -1,0 +1,31 @@
+Hecks.bluebook "Enrichment", version: "2026.04.28.1" do
+  vision "Add complexity to template domains — make them training-worthy"
+  category "meta"
+
+  # Lifted out of training_corpus.bluebook in i112 split. Carries
+  # the EnrichOnBuild policy — TrainingCorpus.Corpus.BuildCorpus
+  # emits CorpusBuilt → triggers EnrichDomains here. Policy lives
+  # with the trigger target.
+
+  aggregate "Enrichment", "Add complexity to template domains — make them training-worthy" do
+    identified_by :name
+    attribute :name, String
+    attribute :strategy, String
+    attribute :domains_enriched, Integer
+
+    command "EnrichDomains" do
+      role "System"
+      description "Add cross-references, lifecycles, fixtures, and policies to flat domains"
+      attribute :strategy, String
+      attribute :domains_enriched, Integer
+      emits "DomainsEnriched"
+      then_set :strategy, to: :strategy
+      then_set :domains_enriched, to: :domains_enriched
+    end
+  end
+
+  policy "EnrichOnBuild" do
+    on "CorpusBuilt"
+    trigger "EnrichDomains"
+  end
+end

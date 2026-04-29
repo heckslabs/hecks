@@ -1,0 +1,35 @@
+Hecks.bluebook "TrainingPairCorpus", version: "2026.04.28.1" do
+  vision "A single training example — bluebook source + parsed IR + validation result"
+  category "meta"
+
+  # Lifted out of training_corpus.bluebook in i112 split. The
+  # bluebook namespace is "TrainingPairCorpus" to distinguish from
+  # the TrainingExtraction.TrainingPair pair (also in library/) ;
+  # the aggregate name stays "TrainingPair" since each bluebook is
+  # parsed independently. Pattern follows NurseryCorpus / Corpus.
+
+  aggregate "TrainingPair", "A single training example — bluebook source + parsed IR + validation result" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :bluebook_source, String
+    attribute :ir_json, String
+    attribute :valid, String
+    attribute :aggregate_count, Integer
+    attribute :command_count, Integer
+    attribute :tier, String
+
+    command "MintPair" do
+      role "System"
+      description "Create a training pair from a bluebook"
+      attribute :bluebook_source, String
+      attribute :ir_json, String
+      attribute :valid, String
+      attribute :tier, String
+      emits "PairCreated"
+      then_set :bluebook_source, to: :bluebook_source
+      then_set :ir_json, to: :ir_json
+      then_set :valid, to: :valid
+      then_set :tier, to: :tier
+    end
+  end
+end

@@ -1,0 +1,29 @@
+Hecks.bluebook "ConversationTranscript", version: "2026.04.28.1" do
+  vision "A recorded session between Miette and a person — teaches voice and behavior"
+  category "meta"
+
+  # Lifted out of training_corpus.bluebook in i112 split.
+
+  aggregate "ConversationTranscript", "A recorded session between Miette and a person — teaches voice and behavior" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :person, String
+    attribute :turns, Integer
+    attribute :domains_conceived, Integer
+    attribute :dreams_interpreted, Integer
+    attribute :suggestions_made, Integer
+    attribute :memories_saved, Integer
+
+    command "RecordTranscript" do
+      role "System"
+      description "Capture a conversation session as training data"
+      attribute :person, String
+      attribute :turns, Integer
+      attribute :domains_conceived, Integer
+      emits "TranscriptRecorded"
+      then_set :person, to: :person
+      then_set :turns, to: :turns
+      then_set :domains_conceived, to: :domains_conceived
+    end
+  end
+end

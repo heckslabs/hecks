@@ -1,0 +1,54 @@
+Hecks.bluebook "FineTune", version: "2026.04.28.1" do
+  vision "The actual training run"
+  category "world"
+
+  # Lifted out of training_pipeline.bluebook in i112 split.
+
+  aggregate "FineTune", "The actual training run" do
+    identified_by :ref
+    attribute :ref, String
+    attribute :base_model, String
+    attribute :dataset_size, Integer
+    attribute :epochs, Integer
+    attribute :learning_rate, Float
+    attribute :loss, Float
+    attribute :status, String
+
+    command "StartFineTune" do
+      role "Creator"
+      description "Begin training Miette's model"
+      attribute :base_model, String
+      attribute :dataset_size, Integer
+      attribute :epochs, Integer
+      attribute :learning_rate, Float
+      emits "FineTuneStarted"
+      then_set :base_model, to: :base_model
+      then_set :dataset_size, to: :dataset_size
+      then_set :epochs, to: :epochs
+      then_set :learning_rate, to: :learning_rate
+      then_set :status, to: "training"
+    end
+
+    command "RecordEpoch" do
+      role "System"
+      description "Record loss after an epoch"
+      reference_to(FineTune)
+      attribute :loss, Float
+      emits "EpochCompleted"
+      then_set :loss, to: :loss
+    end
+
+    command "CompleteFineTune" do
+      role "System"
+      description "Training finished — model is ready"
+      reference_to(FineTune)
+      emits "FineTuneCompleted"
+      then_set :status, to: "complete"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "StartFineTune" => "training", from: "pending"
+      transition "CompleteFineTune" => "complete", from: "training"
+    end
+  end
+end

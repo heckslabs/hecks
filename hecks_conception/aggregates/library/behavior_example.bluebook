@@ -1,0 +1,31 @@
+Hecks.bluebook "BehaviorExample", version: "2026.04.28.1" do
+  vision "A specific behavior Miette exhibits — paired with the organ that governs it"
+  category "meta"
+
+  # Lifted out of training_corpus.bluebook in i112 split.
+
+  aggregate "BehaviorExample", "A specific behavior Miette exhibits — paired with the organ that governs it" do
+    identified_by :behavior
+    attribute :behavior, String
+    attribute :organ_name, String
+    attribute :trigger, String
+    attribute :example_input, String
+    attribute :example_output, String
+
+    command "RecordBehavior" do
+      role "System"
+      description "Capture a behavior-to-organ mapping as training data"
+      attribute :behavior, String
+      attribute :organ_name, String
+      attribute :trigger, String
+      attribute :example_input, String
+      attribute :example_output, String
+      emits "BehaviorRecorded"
+      then_set :behavior, to: :behavior
+      then_set :organ_name, to: :organ_name
+      then_set :trigger, to: :trigger
+      then_set :example_input, to: :example_input
+      then_set :example_output, to: :example_output
+    end
+  end
+end
