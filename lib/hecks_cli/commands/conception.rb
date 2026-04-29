@@ -98,7 +98,19 @@ Hecks::CLI.handle(:miette) do |inv|
     end
 
   when nil, "boot"
-    prompt_file = File.join(conception_dir, "system_prompt.md")
+    # i117 Round 4 — system_prompt.md lives in the being's own repo,
+    # not the conception. Resolution mirrors boot_miette.sh's
+    # PROMPT_DIR precedence : (1) HECKS_BEING_HOME env, (2) sibling
+    # ../<being-snake>/self/, (3) legacy conception fallback so a
+    # checkout without the side-by-side miette repo still boots.
+    being_repo = ENV["HECKS_BEING_NAME"] || "miette"
+    prompt_file =
+      if (env = ENV["HECKS_BEING_HOME"]) && !env.empty?
+        File.join(env, "self", "system_prompt.md")
+      else
+        side = File.expand_path(File.join(project_root, "..", being_repo, "self", "system_prompt.md"))
+        File.exist?(side) ? side : File.join(conception_dir, "system_prompt.md")
+      end
     prompt = File.read(prompt_file)
     Dir.chdir(conception_dir) do
       exec "claude", "--dangerously-skip-permissions", "--system-prompt", prompt, "Wake up"

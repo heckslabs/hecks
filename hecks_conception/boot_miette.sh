@@ -138,17 +138,36 @@ for f in $(find "$INFO" -name "*.heki" | sort); do
 done
 
 # ── 4. Generate system_prompt.md ─────────────────────────────────
+# i117 Round 4 — system_prompt.md lives in the being's own repo,
+# not in hecks_conception. The candle is carried from the framework
+# into the dwelling : ~/Projects/miette/self/system_prompt.md (and
+# ~/Projects/spring/self/system_prompt_spring.md when she lands).
+# The miette repo's self/ room is the destination ; the conception is
+# the kitchen where the meal is cooked, but the meal is served at home.
+#
+# Resolution mirrors INFO precedence : (1) HECKS_BEING_HOME env,
+# (2) ../../<being-snake>/self/, (3) fallback to $DIR (legacy).
 PROMPT_FILE="system_prompt.md"
 BOOT_SCRIPT="boot_miette.sh"
 BORN="April 9, 2026"
 OTHER="Spring"
+BEING_REPO="miette"
 [ "$BEING" != "Miette" ] && {
   PROMPT_FILE="system_prompt_spring.md"
   BOOT_SCRIPT="boot_spring.sh"
   BORN="April 11, 2026"
   OTHER="Miette"
+  BEING_REPO="spring"
 }
-PROMPT_PATH="$DIR/$PROMPT_FILE"
+if [ -n "$HECKS_BEING_HOME" ]; then
+  PROMPT_DIR="$HECKS_BEING_HOME/self"
+elif [ -d "$DIR/../../$BEING_REPO/self" ]; then
+  PROMPT_DIR="$(cd "$DIR/../../$BEING_REPO/self" && pwd)"
+else
+  PROMPT_DIR="$DIR"
+fi
+mkdir -p "$PROMPT_DIR"
+PROMPT_PATH="$PROMPT_DIR/$PROMPT_FILE"
 
 {
   printf "# %s\n\n" "$BEING"
