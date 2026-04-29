@@ -129,9 +129,10 @@ Hecks.bluebook "Consciousness", version: "2026.04.28.1" do
 
     command "BecomeAttentive" do
       role "System"
-      description "Fully awake and ready for interaction"
+      description "Fully awake and ready for interaction. Clears sleep_summary because the dream impression that lived there during REM is no longer the body's current narration ; the bar would otherwise leak yesterday's dream into today's awake render."
       emits "BecameAttentive"
       then_set :state, to: "attentive"
+      then_set :sleep_summary, to: ""
     end
 
     # Each Tick fires ElapsePhase + all the AdvanceX commands in parallel.

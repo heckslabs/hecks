@@ -253,7 +253,15 @@ else
   [ -n "$inventions" ] && [ "$inventions" != "0" ] && status_str="$status_str 🔬 ${inventions}"
   [ "$inbox_count" -gt 0 ] 2>/dev/null && status_str="$status_str ✉️ ${inbox_count}"
   status_str="$status_str ${provider_badge}"
-  [ -n "$sleep_summary" ] && [ "$sleep_summary" != "present" ] && status_str="$status_str ${bulb} ${sleep_summary}"
+  # Awake-mode sleep_summary : only show wake-mood phrases ("waking
+  # refreshed" / "waking groggy" etc.). Skip leaked dream impressions
+  # (those live in REM-mode and shouldn't bleed into awake render).
+  # Filter on the "waking " prefix the wake commands set ; once
+  # BecomeAttentive lands and clears sleep_summary the field is empty
+  # by the time the status bar reads it.
+  case "$sleep_summary" in
+    "waking "*) status_str="$status_str ${bulb} ${sleep_summary}" ;;
+  esac
 
   # Last-dispatched-command breadcrumb (i80 follow-up). The runtime
   # writes <data_dir>/.last_dispatch (two lines: Aggregate.Command,
