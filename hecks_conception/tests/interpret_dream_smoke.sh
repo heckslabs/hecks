@@ -44,7 +44,7 @@ TMP=$(mktemp -d -t interpret_dream_smoke.XXXXXX)
 trap "rm -rf $TMP" EXIT
 
 mkdir -p "$TMP/information" "$TMP/aggregates"
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
 cat > "$TMP/interpret_dream_smoke.world" <<'EOF'
 Hecks.world "InterpretDreamSmoke" do

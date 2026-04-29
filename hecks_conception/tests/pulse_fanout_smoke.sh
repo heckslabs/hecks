@@ -50,7 +50,9 @@ mkdir -p "$TMP/information" "$TMP/aggregates"
 # Link all aggregates so cross-bluebook dispatch resolves. The across
 # "Pulse" hop in mindstream.bluebook only fires if pulse.bluebook is in
 # the same aggregates directory at dispatch time.
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
+# i112 anatomy — bluebooks live in cluster subdirs (body/, mind/, ...) ;
+# the runtime walks recursively, so flatten via find.
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
 # *.world pins the heki dir — the runtime reads it relative to CWD.
 cat > "$TMP/pulse_fanout_smoke.world" <<'EOF'

@@ -47,7 +47,7 @@ trap "rm -rf $TMP" EXIT
 mkdir -p "$TMP/hecks_conception/information" "$TMP/hecks_conception/aggregates"
 mkdir -p "$TMP/hecks_life/target/release"
 ln -sf "$HECKS" "$TMP/hecks_life/target/release/hecks-life"
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/hecks_conception/aggregates/"
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
 
 INFO="$TMP/hecks_conception/information"
 AGG="$TMP/hecks_conception/aggregates"

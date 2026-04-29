@@ -19,6 +19,13 @@
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
+REPO_ROOT="$(cd "$ROOT/.." && pwd)"
+
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$ROOT"
 
 # Prefer the hecks-life binary next to this conception. If this is a
 # worktree without a built target, fall back to the main repo's binary
@@ -91,7 +98,7 @@ before=$("$HECKS" heki count "$INFO/dream_state.heki" 2>/dev/null)
 # never touched.
 for i in $(seq 1 10); do
   INFO="$INFO" AGG="$AGG" NURSERY="$TMP/nursery" \
-    HECKS="$HECKS" "$ROOT/rem_branch.sh" "$i" >/dev/null 2>&1
+    HECKS="$HECKS" "$BODY_DIR/rem_branch.sh" "$i" >/dev/null 2>&1
 done
 
 after=$("$HECKS" heki count "$INFO/dream_state.heki" 2>/dev/null)
@@ -127,7 +134,7 @@ check "rem_dream produced a non-empty image" "$([ -n "$sample" ] && echo yes)" "
   state=sleeping sleep_stage=rem is_lucid=yes \
   sleep_cycle=8 dream_pulses=0 >/dev/null 2>&1
 INFO="$INFO" AGG="$AGG" NURSERY="$TMP/nursery" \
-  HECKS="$HECKS" "$ROOT/rem_branch.sh" 999 >/dev/null 2>&1
+  HECKS="$HECKS" "$BODY_DIR/rem_branch.sh" 999 >/dev/null 2>&1
 obs=$("$HECKS" heki latest-field "$INFO/lucid_dream.heki" latest_narrative 2>/dev/null)
 check "Lucid REM dispatched LucidDream.ObserveDream" "$([ -n "$obs" ] && echo yes)" "yes"
 steer=$("$HECKS" heki latest "$INFO/lucid_dream.heki" 2>/dev/null \
