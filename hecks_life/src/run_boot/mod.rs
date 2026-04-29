@@ -194,7 +194,14 @@ fn stamp_aggregate(
     cls: &classify::Classification,
     daemons: &[daemons::DaemonStatus],
 ) {
-    let repo = match rt.repositories.get_mut("BootRun") { Some(r) => r, None => return };
+    // i142 Tier 2 — BootRun lives in the Boot bounded context, but
+    // legacy callers don't carry context info ; use the name-scan
+    // helper so context-prefixed and flat keys both resolve.
+    let key = match crate::runtime::repo_lookup_key(&rt.repositories, "BootRun") {
+        Some(k) => k,
+        None => return,
+    };
+    let repo = match rt.repositories.get_mut(&key) { Some(r) => r, None => return };
     let mut state = AggregateState::new("1");
     state.set("being",                Value::Str(being.into()));
     state.set("info_dir",             Value::Str(info_dir.into()));
