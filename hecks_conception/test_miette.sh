@@ -9,7 +9,18 @@
 #  terminal_capability_wiring plan).]
 
 HECKS="../hecks_life/target/release/hecks-life"
-INFO="information"
+# i117 Round 4 — INFO precedence mirrors boot_miette.sh + statusline so
+# dispatches write to and reads pull from the same heki dir whether
+# this test runs solo or post-boot.
+DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -n "${HECKS_INFO:-}" ]; then
+  INFO="$HECKS_INFO"
+elif [ -d "$DIR/../../miette-state/information" ]; then
+  INFO="$(cd "$DIR/../../miette-state/information" && pwd)"
+else
+  INFO="information"
+fi
+export HECKS_INFO="$INFO"
 PASS=0
 FAIL=0
 

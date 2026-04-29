@@ -597,6 +597,31 @@ fn load_seeds(rt: &mut Runtime, seed_path: Option<&str>) {
 /// Pure memory by construction — Runtime::boot has no data_dir, no
 /// hecksagon, no adapters. If a test triggers IO, the source bluebook
 /// is the thing to fix.
+/// Walk up from a .behaviors path looking for an "aggregates"
+/// directory ancestor. Returns the path to that aggregates dir
+/// (suitable for `load_combined_domain`) or None when invoked
+/// outside a conception layout (programmatic invocation, standalone
+/// test fixtures, etc.). Used by `run_behaviors` to opt into the
+/// full-domain path when the file lives in a recognizable corpus.
+fn behaviors_aggregates_root(suite_path: &str) -> Option<String> {
+    let abs = std::fs::canonicalize(suite_path).ok()?;
+    let mut cur = abs.parent()?.to_path_buf();
+    for _ in 0..6 {
+        if cur.file_name().map(|n| n == "aggregates").unwrap_or(false) {
+            return Some(cur.to_string_lossy().into_owned());
+        }
+        // also recognize tree shapes where the .behaviors lives under
+        // capabilities/ — load_combined_domain walks both at once via
+        // the sibling-capability path.
+        let agg_sibling = cur.join("aggregates");
+        if agg_sibling.is_dir() {
+            return Some(agg_sibling.to_string_lossy().into_owned());
+        }
+        if !cur.pop() { break; }
+    }
+    None
+}
+
 fn run_behaviors(args: &[String]) {
     let suite_path = args.get(2).unwrap_or_else(|| {
         eprintln!("Usage: hecks-life behaviors <X_behavioral_tests.bluebook>");
@@ -629,9 +654,26 @@ fn run_behaviors(args: &[String]) {
     }
     println!();
 
-    let result = hecks_life::behaviors_runner::run_suite_with_fixtures(
-        &source_text, &suite, fixtures.as_ref(),
-    );
+    // i112 cleanup — opt-in combined-domain mode via HECKS_BEHAVIORS_FULL=1.
+    // Default stays isolated (single-bluebook) because tests authored under
+    // the old monolithic shape have exact emit-list assertions that break
+    // when the combined domain fires more cascades. Cross-bluebook cascade
+    // tests need either a per-test :cross_cascade kind flag or assertion
+    // softening (subset/prefix) — filed as follow-up. Until then, full mode
+    // is opt-in for ad-hoc debugging.
+    let combined = if std::env::var("HECKS_BEHAVIORS_FULL").ok().as_deref() == Some("1") {
+        behaviors_aggregates_root(suite_path).map(|root| load_combined_domain(&root))
+    } else {
+        None
+    };
+    let result = match combined.as_ref() {
+        Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
+            d, &suite, fixtures.as_ref(),
+        ),
+        None    => hecks_life::behaviors_runner::run_suite_with_fixtures(
+            &source_text, &suite, fixtures.as_ref(),
+        ),
+    };
     for run in &result.runs {
         let icon = match run.status {
             hecks_life::behaviors_runner::TestStatus::Pass  => "✓",

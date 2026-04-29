@@ -14,7 +14,7 @@
 
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Domain {
     pub name: String,
     pub category: Option<String>,
@@ -53,7 +53,7 @@ pub struct SectionRow {
     pub field: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Aggregate {
     pub name: String,
     pub description: Option<String>,
@@ -105,7 +105,7 @@ pub struct Attribute {
     pub list: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Command {
     pub name: String,
     pub description: Option<String>,
@@ -117,26 +117,26 @@ pub struct Command {
     pub mutations: Vec<Mutation>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Query {
     pub name: String,
     pub description: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Given {
     pub expression: String,
     pub message: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Mutation {
     pub field: String,
     pub operation: MutationOp,
     pub value: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MutationOp {
     Set,
     Append,
@@ -171,28 +171,28 @@ pub enum MutationOp {
     Decay,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ValueObject {
     pub name: String,
     pub description: Option<String>,
     pub attributes: Vec<Attribute>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Entity {
     pub name: String,
     pub description: Option<String>,
     pub attributes: Vec<Attribute>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Reference {
     pub name: String,
     pub target: String,
     pub domain: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Policy {
     pub name: String,
     pub on_event: String,
@@ -200,21 +200,21 @@ pub struct Policy {
     pub target_domain: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lifecycle {
     pub field: String,
     pub default: String,
     pub transitions: Vec<Transition>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Transition {
     pub command: String,
     pub to_state: String,
     pub from_state: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Fixture {
     /// Optional logical identifier (set by the block form's first positional
     /// arg). None for inline-form fixtures.

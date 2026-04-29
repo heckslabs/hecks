@@ -68,15 +68,44 @@ pub fn run_suite_with_fixtures(
     fixtures: Option<&FixturesFile>,
 ) -> SuiteResult {
     let runs = suite.tests.iter()
-        .map(|t| run_one(source_text, t, fixtures))
+        .map(|t| run_one(source_text, t, fixtures, None))
         .collect();
     SuiteResult { runs }
 }
 
-fn run_one(source_text: &str, test: &Test, fixtures: Option<&FixturesFile>) -> TestRun {
+/// Cross-bluebook variant — for each test, the runtime boots with
+/// the FULL pre-loaded domain instead of just the source bluebook.
+/// Cascade tests whose policy chains hop into sibling bluebooks
+/// (heart's Steady triggers Mood.Express, Awareness.RecordMoment
+/// fires across many aggregates, etc.) need the combined domain to
+/// see the full chain ; the single-source path can't.
+///
+/// The `domain_template` is cloned per test for state isolation —
+/// the IR is read-only but Runtime takes ownership.
+pub fn run_suite_with_domain(
+    domain_template: &Domain,
+    suite: &TestSuite,
+    fixtures: Option<&FixturesFile>,
+) -> SuiteResult {
+    let runs = suite.tests.iter()
+        .map(|t| run_one("", t, fixtures, Some(domain_template)))
+        .collect();
+    SuiteResult { runs }
+}
+
+fn run_one(
+    source_text: &str,
+    test: &Test,
+    fixtures: Option<&FixturesFile>,
+    full_domain: Option<&Domain>,
+) -> TestRun {
     // Fresh in-memory runtime per test. Repositories start empty;
     // no data_dir means no heki persistence, no disk IO.
-    let domain: Domain = parser::parse(source_text);
+    let domain: Domain = match full_domain {
+        Some(d) => d.clone(),  // i112 cleanup — load full conception so
+                               // cross-bluebook cascades fire
+        None    => parser::parse(source_text),
+    };
     let mut rt = Runtime::boot(domain);
 
     // The translation layer between the bluebook (refs only) and the
