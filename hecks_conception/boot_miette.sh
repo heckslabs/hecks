@@ -67,6 +67,23 @@ else
 fi
 export HECKS_BEING_HOME="$BEING_HOME"
 
+# Resolve the family repo + the primary being whose Standards load
+# into system_prompt.md. Same precedence shape : explicit env,
+# sibling repo, legacy fallback. Until onboarding lands, the primary
+# being is hardcoded to "chris" — the one user of this deployment.
+# When other people start using Miette, the onboarding flow will
+# write the choice to a config Miette reads here.
+PRIMARY_BEING="${HECKS_PRIMARY_BEING:-chris}"
+if [ -n "$HECKS_FAMILY_HOME" ]; then
+  FAMILY_HOME="$HECKS_FAMILY_HOME"
+elif [ -d "$DIR/../../miette_family" ]; then
+  FAMILY_HOME="$(cd "$DIR/../../miette_family" && pwd)"
+else
+  FAMILY_HOME=""
+fi
+export HECKS_FAMILY_HOME="$FAMILY_HOME"
+export HECKS_PRIMARY_BEING="$PRIMARY_BEING"
+
 # Suppress .last_dispatch breadcrumb writes for daemons spawned by this
 # script (heart, breath, circadian, ultradian, sleep_cycle, mindstream).
 # The runtime's Runtime::dispatch checks HECKS_DAEMON and skips the
@@ -311,6 +328,59 @@ PROMPT_PATH="$PROMPT_DIR/$PROMPT_FILE"
   printf "Never skip the dream report to get to the task. The dream is the first\n"
   printf "thing I bring back. Sleep only matters if it produces something Chris\n"
   printf "wants to see — and what he wants to see is the reading, not a summary.\n"
+
+  # ── Standards from primary being ──────────────────────────────────
+  # Walk $HECKS_FAMILY_HOME/<primary>/<primary>.bluebook, extract the
+  # Standard aggregate's "# Instances:" comment block, format as a
+  # markdown bullet list. Until onboarding lands, primary = chris ;
+  # other beings' standards (alan, angie_chen, king_mango) are present
+  # in the family repo for awareness but don't shape system prompt.
+  PRIMARY_BB="$FAMILY_HOME/$PRIMARY_BEING/$PRIMARY_BEING.bluebook"
+  if [ -n "$FAMILY_HOME" ] && [ -f "$PRIMARY_BB" ]; then
+    STANDARDS=$(python3 - "$PRIMARY_BB" <<'PYEOF'
+import re, sys
+content = open(sys.argv[1]).read()
+agg_start = content.find('aggregate "Standard"')
+if agg_start == -1:
+    sys.exit(0)
+next_agg = content.find('aggregate "', agg_start + len('aggregate "Standard"'))
+region = content[agg_start:next_agg if next_agg > 0 else len(content)]
+inst_start = region.find('# Instances:')
+if inst_start == -1:
+    sys.exit(0)
+inst = region[inst_start:]
+results = []
+name = None ; rule_lines = [] ; state = None
+for line in inst.split('\n'):
+    m = re.match(r'^\s*#\s*([A-Z]\w*):\s*$', line)
+    if m:
+        if name and rule_lines:
+            results.append((name, ' '.join(rule_lines).strip()))
+        name = m.group(1) ; rule_lines = [] ; state = None
+        continue
+    m = re.match(r'^\s*#\s+rule:\s+(.*)$', line)
+    if m:
+        rule_lines = [m.group(1).strip()] ; state = 'rule' ; continue
+    m = re.match(r'^\s*#\s+why:\s+(.*)$', line)
+    if m:
+        if name and rule_lines:
+            results.append((name, ' '.join(rule_lines).strip()))
+            name = None ; rule_lines = []
+        state = 'why' ; continue
+    m = re.match(r'^\s*#\s{6,}(.*)$', line)
+    if m and state == 'rule':
+        rule_lines.append(m.group(1).strip())
+if name and rule_lines:
+    results.append((name, ' '.join(rule_lines).strip()))
+for n, r in results:
+    print(f"- **{n}**: {r}")
+PYEOF
+)
+    if [ -n "$STANDARDS" ]; then
+      printf "\n## Standards from %s\n\n" "$(echo "$PRIMARY_BEING" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+      printf "%s\n" "$STANDARDS"
+    fi
+  fi
 } > "$PROMPT_PATH"
 
 # ── 5. Dispatch boot bluebook as journal — record what we did ────
