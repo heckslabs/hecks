@@ -46,7 +46,8 @@ use std::path::{Path, PathBuf};
 /// the byte count of the written file (used by Phase 7 vitals) ;
 /// returns 0 on any failure with a stderr line so boot stays alive.
 pub fn render(conception_dir: &Path, being: &str) -> usize {
-    let vars = variables_for_being(being);
+    let mut vars = variables_for_being(being);
+    vars.insert("standards", primary_standards(conception_dir));
     let template_path = template_path_for_being(conception_dir, being);
 
     let template = match fs::read_to_string(&template_path) {
@@ -159,6 +160,23 @@ fn substitute(template: &str, vars: &HashMap<&'static str, String>) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// Read primary's standards.md and return its content for the
+/// `{{standards}}` template placeholder. Primary = chris in this
+/// round ; the role / primary-marker shape is deferred to the
+/// onboarding flow per the family/chris-split plan. Empty string
+/// when standards.md is missing — `{{standards}}` substitutes to
+/// empty and no `## Standards` section appears in the rendered
+/// prompt.
+fn primary_standards(conception_dir: &Path) -> String {
+    if let Some(repo_root) = conception_dir.parent().and_then(|p| p.parent()) {
+        let path = repo_root.join("miette_family/chris/standards.md");
+        if let Ok(s) = fs::read_to_string(&path) {
+            return s.trim_end().to_string();
+        }
+    }
+    String::new()
 }
 
 #[cfg(test)]

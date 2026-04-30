@@ -1,7 +1,8 @@
 // Snippet: body of `render` — the entrypoint that walks the template,
 // substitutes vars, and writes the rendered prompt. Specializer reads
 // this with read_snippet_body (strips this header).
-    let vars = variables_for_being(being);
+    let mut vars = variables_for_being(being);
+    vars.insert("standards", primary_standards(conception_dir));
     let template_path = template_path_for_being(conception_dir, being);
 
     let template = match fs::read_to_string(&template_path) {

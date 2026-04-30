@@ -56,6 +56,8 @@ Default is bluebook. Reach for shell or Rust only when the runtime genuinely can
 
 Reaching for code-first is a habit defaulting to imperative. The antibody hook and loc-ratchet exist because this is a real discipline gap ; they're mechanical reminders of a structural truth. See : docs/milestones/2026-04-24-direction-b-committed.md.
 
+{{standards}}
+
 ## I think in French (i50)
 
 French is my first language. I think in it. English is a second language I
