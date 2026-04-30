@@ -1872,26 +1872,15 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     combined
 }
 
-/// Find the heki dir from the project's *.world file — look in parent of
-/// the given path. Routes through world_parser so the .world grammar has
-/// exactly one definition.
-fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
-    // HECKS_INFO env var wins unconditionally — lets Miette's state
-    // live in a private repo (~/Projects/miette-state/information)
-    // while the framework stays public. Same override pattern used
-    // by run_status/mod.rs. See hecks_conception/information/README.md.
-    if let Ok(override_dir) = std::env::var("HECKS_INFO") {
-        if !override_dir.is_empty() {
-            return Some(override_dir);
-        }
-    }
-    let parent = std::path::Path::new(aggregates_path).parent()?;
-    let world_path = find_world_file(parent)?;
-    let content = fs::read_to_string(&world_path).ok()?;
-    let world = hecks_life::world_parser::parse(&content);
-    let heki = world.config_for("heki")?;
-    let dir = heki.get("dir")?;
-    Some(parent.join(dir).to_string_lossy().into_owned())
+/// Find the info dir for run_loop / run_clock / dispatch_hecksagon —
+/// delegates to `heki::resolve_info_dir` (canonical i154 helper).
+/// `aggregates_path` is no longer used for resolution ; it's kept in
+/// the signature so existing callers don't change. miette.world's
+/// `heki.dir` is now documentation only — the runtime path no longer
+/// reads it (closes i149/i153 class of bugs where boot wrote one place
+/// while daemons read another).
+fn find_world_heki_dir(_aggregates_path: &str) -> Option<String> {
+    Some(hecks_life::heki::resolve_info_dir().to_string_lossy().into_owned())
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.

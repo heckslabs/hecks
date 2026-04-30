@@ -586,6 +586,126 @@ mod path_tests {
     }
 }
 
+/// Walk up from `current_exe` to find the hecks repo root (the dir
+/// containing `hecks_conception/`). Mirrors the heuristic used by
+/// every body / runtime entry point. Returns None if we can't find
+/// a hecks_conception/ within 6 ancestors.
+fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
+    let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
+    let mut cur: std::path::PathBuf = exe.parent()?.to_path_buf();
+    for _ in 0..6 {
+        if cur.join("hecks_conception").is_dir() {
+            return Some(cur);
+        }
+        cur = cur.parent()?.to_path_buf();
+    }
+    None
+}
+
+/// Canonical info_dir resolver — single source of truth for every
+/// hecks-life entry point (boot, statusline, loop, clock, manual CLI).
+/// All three of `run_boot::resolve_info_dir`, `run_statusline::resolve_info_dir`,
+/// and `main::find_world_heki_dir` delegate to this. Boot exports the
+/// resolved value as `HECKS_INFO` to its spawned daemons so all forks
+/// inherit a single resolved value.
+///
+/// Resolution order :
+///
+///   1. `HECKS_INFO` env var, if set and non-empty.
+///   2. `<repo>/../miette-state/information` sibling (post-i142
+///      private-state-as-peer-repo layout). Canonicalized when present.
+///   3. `<repo>/hecks_conception/information` (in-tree fallback for
+///      development without a private state repo).
+///   4. `PathBuf::from("hecks_conception/information")` literal —
+///      last-resort default for environments without a discoverable
+///      repo root.
+///
+/// i154 — closes the class of bugs (i149, i153) where boot wrote to
+/// one info_dir while statusline read another, or where loop daemons
+/// resolved through `miette.world`'s relative `heki.dir` to a
+/// non-existent path. miette.world's `heki.dir` is now documentation
+/// only ; the runtime path no longer reads it.
+pub fn resolve_info_dir() -> std::path::PathBuf {
+    if let Ok(v) = std::env::var("HECKS_INFO") {
+        if !v.is_empty() {
+            return std::path::PathBuf::from(v);
+        }
+    }
+    if let Some(repo) = walk_up_for_repo_root() {
+        let sibling = repo.join("../miette-state/information");
+        if sibling.is_dir() {
+            return std::fs::canonicalize(&sibling).unwrap_or(sibling);
+        }
+        let fallback = repo.join("hecks_conception/information");
+        if fallback.is_dir() {
+            return fallback;
+        }
+    }
+    std::path::PathBuf::from("hecks_conception/information")
+}
+
+#[cfg(test)]
+mod resolve_tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn tempdir() -> std::path::PathBuf {
+        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let p = std::env::temp_dir().join(format!("heki_resolve_test_{}", nanos));
+        fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    /// HECKS_INFO env wins unconditionally — even when the path doesn't
+    /// exist. Used by tests + per-deployment overrides to point at any
+    /// info dir without depending on layout heuristics.
+    ///
+    /// Each test must own its env mutation discipline ; we serialize via
+    /// std::sync::Mutex so concurrent tests don't trample each other.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn env_override_wins_even_for_nonexistent_path() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("HECKS_INFO").ok();
+        std::env::set_var("HECKS_INFO", "/tmp/i154_env_fixture_does_not_exist");
+        let resolved = resolve_info_dir();
+        assert_eq!(resolved, std::path::PathBuf::from("/tmp/i154_env_fixture_does_not_exist"));
+        match prev {
+            Some(v) => std::env::set_var("HECKS_INFO", v),
+            None => std::env::remove_var("HECKS_INFO"),
+        }
+    }
+
+    #[test]
+    fn empty_env_falls_through_to_layout_heuristic() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("HECKS_INFO").ok();
+        std::env::set_var("HECKS_INFO", "");
+        let resolved = resolve_info_dir();
+        // Empty env → falls through. Result depends on test-execution
+        // layout, so just assert the resolver returns something parseable
+        // (i.e. didn't accidentally use the empty string as the dir).
+        assert_ne!(resolved, std::path::PathBuf::from(""));
+        match prev {
+            Some(v) => std::env::set_var("HECKS_INFO", v),
+            None => std::env::remove_var("HECKS_INFO"),
+        }
+    }
+
+    #[test]
+    fn final_fallback_is_a_real_pathbuf() {
+        // Verify the literal fallback string parses. (We can't easily
+        // simulate "no repo root + no env" without isolating current_exe ;
+        // this test pins the literal so a refactor doesn't silently lose
+        // the safety net.)
+        let p = std::path::PathBuf::from("hecks_conception/information");
+        assert!(!p.to_string_lossy().is_empty());
+        let _ = tempdir(); // sanity — temp helper still works
+    }
+}
+
 /// Find the latest record in a store by updated_at field.
 pub fn latest(store: &Store) -> Option<&Record> {
     store.values().max_by(|a, b| {

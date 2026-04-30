@@ -83,26 +83,12 @@ pub fn run() {
 // Path resolution
 // ────────────────────────────────────────────────────────────────
 
-/// HECKS_INFO env wins ; otherwise prefer `../miette-state/information`
-/// relative to the hecks repo (private-state repo as a peer dir, the
-/// post-i142 layout) ; fall back to `hecks_conception/information`.
+/// Delegates to `heki::resolve_info_dir` — the canonical i154 helper.
+/// Same fallback order : HECKS_INFO env → ../miette-state/information
+/// sibling → hecks_conception/information → literal fallback. Kept as
+/// a thin wrapper so internal callsites don't change.
 fn resolve_info_dir() -> PathBuf {
-    if let Ok(v) = env::var("HECKS_INFO") {
-        if !v.is_empty() {
-            return PathBuf::from(v);
-        }
-    }
-    if let Some(repo) = walk_up_for_repo_root() {
-        let sibling = repo.join("../miette-state/information");
-        if sibling.is_dir() {
-            return fs::canonicalize(&sibling).unwrap_or(sibling);
-        }
-        let fallback = repo.join("hecks_conception/information");
-        if fallback.is_dir() {
-            return fallback;
-        }
-    }
-    PathBuf::from("hecks_conception/information")
+    crate::heki::resolve_info_dir()
 }
 
 /// Public information dir always lives in the hecks repo. inbox.heki

@@ -41,6 +41,7 @@ mod system_prompt;
 mod vitals;
 mod wake;
 
+use crate::heki;
 use crate::run::ExitKind;
 use crate::runtime::adapter_registry::AdapterRegistry;
 use crate::runtime::{AggregateState, Runtime, Value};
@@ -147,44 +148,33 @@ fn parse_being(argv: &[String]) -> String {
     "Miette".to_string()
 }
 
-/// `:fs` root resolution — aligned with run_statusline::resolve_info_dir
-/// so boot writes / reads against the same heki tree the running
-/// daemons use. HECKS_INFO env wins ; otherwise prefer the post-i142
-/// `<repo>/../miette-state/information` sibling layout (private state
-/// repo) ; fall back to walking up from the script path looking for
-/// any `information/` directory ; finally fall back to the :fs
-/// adapter's declared root.
+/// `:fs` root resolution — delegates to `heki::resolve_info_dir` (the
+/// canonical i154 helper). Returns String for compatibility with
+/// existing callers. Falls through to a script-path walk-up + the :fs
+/// adapter's declared root only when the canonical helper returns the
+/// literal `hecks_conception/information` default AND that path
+/// doesn't exist (i.e. neither env override nor a discoverable repo
+/// root + sibling/conception layout was found).
 fn resolve_info_dir(registry: &AdapterRegistry, script_path: &str) -> String {
-    if let Ok(env) = std::env::var("HECKS_INFO") {
-        if !env.is_empty() { return env; }
+    let canonical = heki::resolve_info_dir();
+    let canonical_str = canonical.to_string_lossy().into_owned();
+    if canonical.exists()
+        || canonical_str != "hecks_conception/information"
+    {
+        return canonical_str;
     }
-    // Prefer the miette-state sibling if it exists. Boot's script_path
-    // is hecks_conception/boot_miette.sh ; canonicalize, then climb to
-    // the hecks repo root, then check `../miette-state/information`.
+    // Last-resort fallbacks specific to run_boot — script-path walk-up
+    // for any `information/`, then the :fs adapter declaration. These
+    // only fire when the canonical helper hit its literal default and
+    // that default doesn't exist on disk.
     let abs = std::fs::canonicalize(script_path)
         .unwrap_or_else(|_| PathBuf::from(script_path));
-    let mut cur = abs.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
-    for _ in 0..6 {
-        if cur.join("hecks_conception").is_dir() {
-            let sibling = cur.join("../miette-state/information");
-            if sibling.is_dir() {
-                if let Ok(canon) = std::fs::canonicalize(&sibling) {
-                    return canon.to_string_lossy().into_owned();
-                }
-                return sibling.to_string_lossy().into_owned();
-            }
-            break;
-        }
-        if !cur.pop() { break; }
-    }
-    // Fallback : walk up looking for any `information/` directory.
     let mut cur = abs.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
     for _ in 0..5 {
         let cand = cur.join("information");
         if cand.is_dir() { return cand.to_string_lossy().into_owned(); }
         if !cur.pop() { break; }
     }
-    // Final fallback : whatever the :fs adapter declares.
     if let Some(fs) = registry.io("fs") {
         if let Some((_, root)) = fs.options.iter().find(|(k, _)| k == "root") {
             let trimmed = root.trim_matches('"');

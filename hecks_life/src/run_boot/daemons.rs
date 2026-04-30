@@ -70,13 +70,19 @@ pub fn ensure_all(
             continue;
         }
 
-        let status = ensure_one(&pidfile, &command);
+        let status = ensure_one(&pidfile, &command, info_dir);
         out.push(DaemonStatus { name, status });
     }
     out
 }
 
-fn ensure_one(pidfile: &str, command_line: &str) -> String {
+/// Spawn one daemon via `hecks-life daemon ensure`. Sets `HECKS_INFO`
+/// in the child process env (i154) so the inner `daemon ensure`
+/// subcommand and its spawn_detached'd grandchild both see the
+/// canonical info_dir boot already resolved. Without this, every
+/// daemon re-ran its own resolver and could diverge from boot's
+/// view (the i149/i153 incidents).
+fn ensure_one(pidfile: &str, command_line: &str, info_dir: &str) -> String {
     // command_line is "<cmd> [args...]" — split on whitespace.
     let parts: Vec<&str> = command_line.split_whitespace().collect();
     if parts.is_empty() { return "skipped (empty command)".into(); }
@@ -92,6 +98,7 @@ fn ensure_one(pidfile: &str, command_line: &str) -> String {
 
     let output = Command::new(&hecks_bin)
         .args(&cmd_args)
+        .env("HECKS_INFO", info_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output();
