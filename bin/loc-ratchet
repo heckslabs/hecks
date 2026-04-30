@@ -66,11 +66,38 @@ def ignored?(path)
   IGNORED_SEGMENTS.any? { |seg| path.include?(seg) }
 end
 
+# Locate the hecks-life binary so the ratchet can ask the IR-query
+# substrate (i122) whether each scanned file is dispatched by some
+# adapter / specializer / runner. Files that ARE dispatched stop
+# counting toward the non-bluebook budget — the inversion in
+# measurement form. Without the binary we fall back to counting
+# every file (preserves pre-i122 behavior on a fresh clone before
+# `cargo build --release` runs).
+HECKS_LIFE_BIN = [
+  ENV["HECKS_BIN"],
+  File.expand_path("../hecks_life/target/release/hecks-life", __dir__),
+  File.expand_path("../hecks_life/target/debug/hecks-life",   __dir__),
+].compact.find { |p| File.executable?(p) }
+
+# Memo cache : file path → boolean. The CLI is fast (~5ms per call)
+# but a full ratchet run touches hundreds of files across two
+# treeish snapshots ; caching cuts that in half (the same path
+# appears in base and head when only the file's contents change).
+$dispatch_cache = {}
+
+def ir_claimed?(path)
+  return false unless HECKS_LIFE_BIN
+  return $dispatch_cache[path] if $dispatch_cache.key?(path)
+  _out, _err, status = Open3.capture3(HECKS_LIFE_BIN, "is-dispatched", path)
+  $dispatch_cache[path] = status.exitstatus == 0
+end
+
 def count_at(tree, exts, treeish)
   # `git ls-tree --name-only -r <treeish> -- <tree>` lists every file
   # under the given tree at the given commit. We pipe each line
-  # through an extension filter and a path-ignore filter ; the
-  # survivors get `git show` to count non-blank lines.
+  # through an extension filter, a path-ignore filter, and the i122
+  # IR-query (skip files the corpus claims) ; the survivors get
+  # `git show` to count non-blank lines.
   out, ok = run(["git", "ls-tree", "--name-only", "-r", treeish, "--", tree])
   return 0 unless ok
   total = 0
@@ -79,6 +106,10 @@ def count_at(tree, exts, treeish)
     next if ignored?(path)
     ext = File.extname(path).delete_prefix(".").downcase
     next unless exts.include?(ext)
+    # i122 — skip files claimed by some hecksagon adapter or
+    # specializer. The IR's claim IS the structural justification
+    # the override marker used to provide manually.
+    next if ir_claimed?(path)
     content, cok = run(["git", "show", "#{treeish}:#{path}"])
     next unless cok
     # Non-blank lines only — whitespace additions shouldn't fail the

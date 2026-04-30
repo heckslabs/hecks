@@ -3,22 +3,18 @@
 # with # are comments. Add new drift only after confirming it's a real
 # semantic edge (escape sequences, unicode in source tokens, etc.) —
 # do NOT use this as a way to silence regressions.
-hecks_conception/nursery/compost_loop/fixtures/compost_loop.fixtures
-hecks_conception/nursery/content_moderation/fixtures/content_moderation.fixtures
-hecks_conception/nursery/pottery_studio/fixtures/pottery_studio.fixtures
-hecks_conception/nursery/smart_grocery/fixtures/smart_grocery.fixtures
-hecks_conception/nursery/smart_rehab/fixtures/smart_rehab.fixtures
-hecks_conception/nursery/spa_and_wellness/fixtures/spa_and_wellness.fixtures
-hecks_conception/nursery/specimen_transport/fixtures/specimen_transport.fixtures
-hecks_conception/nursery/speech_media/fixtures/speech_media.fixtures
-hecks_conception/nursery/speech_therapy/fixtures/speech_therapy.fixtures
-hecks_conception/nursery/verbs/fixtures/verbs.fixtures
 
-# antibody.fixtures was originally added to this file in 6746c98d
-# (moving it from the bluebook known_drift.txt to the fixtures one).
-# Commit c0d1a06a (i38/i39 escape-handling fix) closed three drifts,
-# but inadvertently removed THIS one too — it still drifts for a
-# separate reason : the catalog-dialect `schema:` kwarg from i42 that
-# the Ruby parser hasn't learned to read yet. Restoring here closes
-# the CI regression that's been red on main since 2026-04-22.
-hecks_conception/capabilities/antibody/fixtures/antibody.fixtures
+# (empty — full parity 375/375 as of 2026-04-30 ; drift retired by :
+#   - to_bluebook_source helper in fixtures_parity_test.rb that
+#     re-renders Ruby's parsed Hash/Array values into bluebook source
+#     form (canonical_ir's mutation_value rules, lifted to the
+#     fixtures parity surface) so Ruby's =>-form inspect output
+#     matches Rust's :-form source preservation
+#   - quote-aware whitespace collapsing in normalize_attrs that
+#     squashes runs of multiple spaces OUTSIDE quoted strings (the
+#     visual-alignment whitespace some bluebooks use, e.g.
+#     `name: "Re",    meaning: "again"`)
+#   - list_of(Type) added to FixturesBuilder so catalog-dialect
+#     schema: kwargs that reference list_of resolve in Ruby
+#   - one source fix : pottery_studio.fixtures had `target_cone: 04`
+#     which Ruby parses as Integer 4 ; updated to 4 to match.)

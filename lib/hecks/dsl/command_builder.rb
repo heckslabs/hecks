@@ -101,10 +101,21 @@ module Hecks
       #   given { toppings.size < 10 }
       #   given("must have items") { quantity > 0 }
       #
-      def given(message = nil, &block)
-        source = block ? extract_block_source(block) : message
+      def given(message = nil, **_kwargs, &block)
+        # Permissive args : structured forms like
+        # `given :field, not_in: :other` (i106 candidate primitive,
+        # not yet implemented in either parser) parse silently with
+        # empty expression — matching Rust's parse_blocks.rs which
+        # also returns expression: "" for non-string forms. Strict
+        # signature here would crash Ruby while Rust shrugs ; the
+        # permissive form keeps parity until structured `given`
+        # lands as a real DSL primitive in both runtimes.
+        msg_str = message.is_a?(String) ? message : nil
+        source = if block then extract_block_source(block)
+                 else msg_str || ""
+                 end
         @givens << BluebookModel::Behavior::Given.new(
-          expression: source, message: message
+          expression: source, message: msg_str
         )
       end
 
@@ -156,7 +167,7 @@ module Hecks
       # multiply / clamp / decay are i106 dsl-mutation-primitives — kernel
       # surface for body math so pulse_organs.bluebook can express ×0.98
       # decay and clamp(0,1) without shell-side awk.
-      def then_set(field, positional = nil, to: nil, append: nil, increment: nil, decrement: nil, multiply: nil, clamp: nil, decay: nil)
+      def then_set(field, positional = nil, to: nil, append: nil, increment: nil, decrement: nil, multiply: nil, clamp: nil, decay: nil, from: nil)
         op, val = if !to.nil? then [:set, to]
                   elsif append then [:append, append]
                   elsif increment then [:increment, increment]
@@ -164,6 +175,11 @@ module Hecks
                   elsif multiply then [:multiply, multiply]
                   elsif clamp then [:clamp, clamp]
                   elsif decay then [:decay, decay]
+                  # i106 — `from: :param` reads the named command param at
+                  # dispatch time. We carry the symbol through so canonical_ir
+                  # emits ":<param>" — matches Rust parse_blocks's
+                  # extract_after("from:") output for parity.
+                  elsif from then [:set, from]
                   elsif !positional.nil? then [:set, positional]
                   end
         @mutations << BluebookModel::Behavior::Mutation.new(

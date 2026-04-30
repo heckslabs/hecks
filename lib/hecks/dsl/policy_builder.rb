@@ -167,11 +167,16 @@ module Hecks
       # @raise [RuntimeError] if +on+ or +trigger+ has not been called
       def build
         raise "Policy '#{@name}': missing 'on' (event name)" unless @event_name
-        raise "Policy '#{@name}': missing 'trigger' (command name)" unless @trigger_command
+        # Permissive on missing `trigger` : Rust's parse_blocks emits
+        # `trigger_command: ""` for policies that declare `on` without
+        # `trigger` (the pure observation form some bluebooks use,
+        # e.g. nursery/verbs's IndexOnRegister). Ruby used to crash
+        # here ; matching Rust's silent form keeps parity until
+        # observation-only policies become a real DSL primitive.
         Behavior::Policy.new(
           name: @name,
           event_name: @event_name,
-          trigger_command: @trigger_command,
+          trigger_command: @trigger_command || "",
           target_domain: @target_domain,
           async: @async,
           attribute_map: @attribute_map,
