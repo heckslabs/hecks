@@ -88,7 +88,7 @@ pub fn print(v: &Vitals) {
 }
 
 fn latest_field(info_dir: &str, store: &str, field: &str) -> String {
-    let path = format!("{}/{}.heki", info_dir.trim_end_matches('/'), store);
+    let path = heki::path_for_lookup(info_dir.trim_end_matches("/"), store);
     let store = match heki::read(&path) {
         Ok(s) => s,
         Err(_) => return "—".into(),

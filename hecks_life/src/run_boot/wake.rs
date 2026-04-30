@@ -12,7 +12,7 @@
 use crate::heki;
 
 pub fn surface(info_dir: &str) {
-    let path = format!("{}/wake_report.heki", info_dir.trim_end_matches('/'));
+    let path = heki::path_for_lookup(info_dir.trim_end_matches("/"), "wake_report");
     let store = match heki::read(&path) {
         Ok(s) if !s.is_empty() => s,
         _ => return,

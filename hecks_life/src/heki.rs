@@ -375,6 +375,217 @@ pub fn store_path(dir: &str, name: &str) -> String {
     Path::new(dir).join(format!("{}.heki", name)).to_string_lossy().into_owned()
 }
 
+// ---------------------------------------------------------------------------
+// i145 — canonical heki path resolution
+// ---------------------------------------------------------------------------
+//
+// Two callers shapes :
+//
+//   1. Writers (Repository, dispatch event log) know the aggregate's
+//      context — pass it explicitly via [`path_for`]. i142 Tier 2
+//      namespaces under `<dir>/<context_snake>/<aggregate_snake>.heki`.
+//
+//   2. Readers (statusline, status report, vitals, wake report,
+//      sleep CLI, run_boot) often don't know the writer's context —
+//      they have a name like "mood" or "tick". Use [`path_for_lookup`]
+//      which tries the i142 nested form first (where post-i142
+//      daemons write), falls back to the flat form (legacy
+//      single-context corpora, or pre-i142 state).
+//
+// Single canonical home for path resolution prevents the dead-bar
+// class of bug : Repository writes one shape, statusline reads another,
+// silent staleness across consumers. Every path-builder in the codebase
+// routes through these two functions.
+
+/// Convert PascalCase / camelCase to snake_case for filesystem-friendly
+/// path segments. "MietteBody" → "miette_body" ; "mood" → "mood".
+pub fn snake_case(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 { out.push('_'); }
+        out.push(c.to_lowercase().next().unwrap_or(c));
+    }
+    out
+}
+
+/// Authoritative path for a write site that knows the aggregate's
+/// context. When `context` is set (i142 Tier 2), returns the
+/// nested form `<dir>/<context_snake>/<aggregate_snake>.heki`.
+/// When `None`, returns the legacy flat form
+/// `<dir>/<aggregate_snake>.heki`.
+///
+/// Used by Repository::heki_path_self.
+pub fn path_for(dir: &str, aggregate: &str, context: Option<&str>) -> String {
+    let agg_snake = snake_case(aggregate);
+    match context {
+        Some(ctx) if !ctx.is_empty() => {
+            let ctx_snake = snake_case(ctx);
+            format!("{}/{}/{}.heki", dir, ctx_snake, agg_snake)
+        }
+        _ => format!("{}/{}.heki", dir, agg_snake),
+    }
+}
+
+/// Lookup path for a read site that doesn't know the writer's context.
+///
+/// Resolution order :
+///
+///   1. **Happy path** `<dir>/<name>/<name>.heki` — when bluebook
+///      name == aggregate name (the common case). Single stat().
+///   2. **Subdir scan** `<dir>/<context>/<name>.heki` — when bluebook
+///      name ≠ aggregate name (28+ such bluebooks in the corpus today,
+///      e.g. `Boot.bluebook` declares `BootRun` → file at
+///      `boot/boot_run.heki`). Walks subdirs once, returns first hit.
+///   3. **Flat fallback** `<dir>/<name>.heki` — pre-i142 corpora,
+///      or aggregates whose Repository was constructed with no
+///      context (legacy single-file callers).
+///
+/// The argument `name` should already be in the on-disk form
+/// (lowercase, snake_case) — the function does NOT re-snake it.
+/// Use this from statusline, status report, run_boot vitals, sleep
+/// CLI, etc.
+///
+/// Returns the chosen path as a String for ergonomics with existing
+/// callers that pass strings into `heki::read`. The chosen path is
+/// always one of the candidates ; never an error.
+pub fn path_for_lookup(dir: &str, name: &str) -> String {
+    // 1. Happy path : context == aggregate name.
+    let happy = format!("{}/{}/{}.heki", dir, name, name);
+    if Path::new(&happy).exists() {
+        return happy;
+    }
+    // 2. Subdir scan — handles context ≠ name (e.g. boot/boot_run.heki).
+    //    One read_dir + one stat per immediate subdir ; bounded by the
+    //    number of context dirs at the info root (~30 today).
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                let candidate = p.join(format!("{}.heki", name));
+                if candidate.exists() {
+                    return candidate.to_string_lossy().into_owned();
+                }
+            }
+        }
+    }
+    // 3. Flat fallback — pre-i142 / no-context corpora.
+    format!("{}/{}.heki", dir, name)
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn tempdir() -> std::path::PathBuf {
+        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let p = std::env::temp_dir().join(format!("heki_path_test_{}", nanos));
+        fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn snake_case_handles_pascal_camel_and_lower() {
+        assert_eq!(snake_case("Mood"),       "mood");
+        assert_eq!(snake_case("MietteBody"), "miette_body");
+        assert_eq!(snake_case("mood"),       "mood");
+        assert_eq!(snake_case("ABCD"),       "a_b_c_d");
+    }
+
+    #[test]
+    fn path_for_with_context_emits_nested() {
+        let p = path_for("/tmp/info", "Mood", Some("Body"));
+        assert_eq!(p, "/tmp/info/body/mood.heki");
+    }
+
+    #[test]
+    fn path_for_without_context_emits_flat() {
+        let p = path_for("/tmp/info", "Mood", None);
+        assert_eq!(p, "/tmp/info/mood.heki");
+    }
+
+    #[test]
+    fn path_for_with_empty_context_emits_flat() {
+        let p = path_for("/tmp/info", "Mood", Some(""));
+        assert_eq!(p, "/tmp/info/mood.heki");
+    }
+
+    #[test]
+    fn lookup_prefers_nested_when_it_exists() {
+        // Write a nested file ; flat file doesn't exist.
+        let dir = tempdir();
+        let nested_dir = dir.join("mood");
+        fs::create_dir_all(&nested_dir).unwrap();
+        let nested_file = nested_dir.join("mood.heki");
+        fs::write(&nested_file, "{}").unwrap();
+
+        let chosen = path_for_lookup(&dir.to_string_lossy(), "mood");
+        assert_eq!(chosen, format!("{}/mood/mood.heki", dir.display()));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn lookup_falls_back_to_flat_when_nested_absent() {
+        // Write only the flat file ; no nested dir.
+        let dir = tempdir();
+        let flat_file = dir.join("mood.heki");
+        fs::write(&flat_file, "{}").unwrap();
+
+        let chosen = path_for_lookup(&dir.to_string_lossy(), "mood");
+        assert_eq!(chosen, format!("{}/mood.heki", dir.display()));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn lookup_returns_flat_when_neither_exists() {
+        // Neither nested nor flat exists. Returns flat (the historical
+        // default) so heki::read fails predictably with "not found"
+        // rather than reading whichever-happens-to-exist.
+        let dir = tempdir();
+        let chosen = path_for_lookup(&dir.to_string_lossy(), "nope");
+        assert_eq!(chosen, format!("{}/nope.heki", dir.display()));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The dead-bar invariant : Repository writes to `path_for(...)` ;
+    /// every reader looking up the same aggregate via `path_for_lookup(...)`
+    /// must find the same file. Catches the class of bug where one site
+    /// writes to the nested form and another reads from the flat form.
+    #[test]
+    fn writer_and_reader_agree_on_nested_path() {
+        let dir = tempdir();
+        let writer_path = path_for(&dir.to_string_lossy(), "Mood", Some("Body"));
+        // Writer creates the nested layout.
+        if let Some(parent) = std::path::Path::new(&writer_path).parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        fs::write(&writer_path, "{}").unwrap();
+
+        // Reader (with no context knowledge) finds the same file.
+        let reader_path = path_for_lookup(&dir.to_string_lossy(), "mood");
+        assert_eq!(writer_path, reader_path,
+            "writer (path_for) and reader (path_for_lookup) must agree");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn writer_and_reader_agree_on_flat_path() {
+        // Pre-i142 corpus : Repository declares no context, writes flat.
+        // Reader finds the same flat file.
+        let dir = tempdir();
+        let writer_path = path_for(&dir.to_string_lossy(), "Mood", None);
+        fs::write(&writer_path, "{}").unwrap();
+
+        let reader_path = path_for_lookup(&dir.to_string_lossy(), "mood");
+        assert_eq!(writer_path, reader_path,
+            "writer (no context) and reader must both pick flat");
+        let _ = fs::remove_dir_all(&dir);
+    }
+}
+
 /// Find the latest record in a store by updated_at field.
 pub fn latest(store: &Store) -> Option<&Record> {
     store.values().max_by(|a, b| {

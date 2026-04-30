@@ -2897,9 +2897,9 @@ fn run_sleep(_args: &[String]) {
             .map(|p| p.join("information").to_string_lossy().into_owned())
             .unwrap_or_else(|| format!("{}/information", agg_dir))
     });
-    let consciousness_path = format!("{}/consciousness.heki", info_dir);
-    let dream_state_path   = format!("{}/dream_state.heki",   info_dir);
-    let lucid_dream_path   = format!("{}/lucid_dream.heki",   info_dir);
+    let consciousness_path = heki::path_for_lookup(&info_dir, "consciousness");
+    let dream_state_path   = heki::path_for_lookup(&info_dir, "dream_state");
+    let lucid_dream_path   = heki::path_for_lookup(&info_dir, "lucid_dream");
 
     let started = Instant::now();
     let stdout = std::io::stdout();

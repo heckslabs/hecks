@@ -80,7 +80,7 @@ impl Repository {
         if self.context.is_some() {
             let new_records = heki::read(&path).unwrap_or_default();
             if new_records.is_empty() {
-                let flat_path = heki_path(dir, &self.aggregate_type);
+                let flat_path = heki::path_for(dir, &self.aggregate_type, None);
                 if std::path::Path::new(&flat_path).exists() && flat_path != path {
                     if let Some(parent) = std::path::Path::new(&path).parent() {
                         let _ = std::fs::create_dir_all(parent);
@@ -199,15 +199,9 @@ impl Repository {
 
     /// Resolve the heki path for THIS repository — context-prefixed
     /// when context is set (i142 Tier 2), flat otherwise (legacy).
+    /// Routes through the canonical `heki::path_for` helper (i145).
     fn heki_path_self(&self, dir: &str) -> String {
-        match &self.context {
-            Some(ctx) => {
-                let agg_snake = snake_case(&self.aggregate_type);
-                let ctx_snake = snake_case(ctx);
-                format!("{}/{}/{}.heki", dir, ctx_snake, agg_snake)
-            }
-            None => heki_path(dir, &self.aggregate_type),
-        }
+        heki::path_for(dir, &self.aggregate_type, self.context.as_deref())
     }
 
     pub fn find(&self, id: &str) -> Option<&AggregateState> {
@@ -225,22 +219,6 @@ impl Repository {
     pub fn count(&self) -> usize {
         self.store.len()
     }
-}
-
-/// Heartbeat → {dir}/heartbeat.heki (legacy flat form)
-fn heki_path(dir: &str, aggregate_type: &str) -> String {
-    format!("{}/{}.heki", dir, snake_case(aggregate_type))
-}
-
-/// Convert PascalCase aggregate / context names to snake_case for
-/// filesystem-friendly paths. "MietteBody" → "miette_body".
-fn snake_case(s: &str) -> String {
-    let mut out = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { out.push('_'); }
-        out.push(c.to_lowercase().next().unwrap_or(c));
-    }
-    out
 }
 
 fn to_json(val: &Value) -> serde_json::Value {

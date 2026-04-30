@@ -177,23 +177,10 @@ struct State {
     lucid_narrative: String,
 }
 
-/// Resolve a heki store path with i142 awareness — Repository's
-/// post-i142 path shape is `<info>/<context_snake>/<aggregate_snake>.heki`
-/// (e.g. `mood/mood.heki`), but legacy single-context corpora still
-/// have flat `<info>/<aggregate_snake>.heki`. Try the context-prefixed
-/// form first (where daemons write today), fall back to flat.
-fn heki_path_for(info: &Path, name: &str) -> PathBuf {
-    let nested = info.join(name).join(format!("{}.heki", name));
-    if nested.exists() {
-        return nested;
-    }
-    info.join(format!("{}.heki", name))
-}
-
 fn read_state(info: &Path, public_info: &Path) -> State {
     let mut s = State::default();
 
-    if let Ok(store) = heki::read(&heki_path_for(info, "consciousness").to_string_lossy()) {
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "consciousness")) {
         if let Some(rec) = heki::latest(&store) {
             s.consciousness        = string_field(rec, "state");
             s.sleep_summary        = string_field(rec, "sleep_summary");
@@ -208,25 +195,25 @@ fn read_state(info: &Path, public_info: &Path) -> State {
         }
     }
 
-    if let Ok(store) = heki::read(&heki_path_for(info, "heartbeat").to_string_lossy()) {
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "heartbeat")) {
         if let Some(rec) = heki::latest(&store) {
             s.fatigue = string_field(rec, "fatigue_state");
         }
     }
 
-    if let Ok(store) = heki::read(&heki_path_for(info, "mood").to_string_lossy()) {
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "mood")) {
         if let Some(rec) = heki::latest(&store) {
             s.mood = string_field(rec, "current_state");
         }
     }
 
-    if let Ok(store) = heki::read(&heki_path_for(info, "tick").to_string_lossy()) {
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "tick")) {
         if let Some(rec) = heki::latest(&store) {
             s.beats_raw = int_field(rec, "cycle");
         }
     }
 
-    if let Ok(store) = heki::read(&heki_path_for(info, "musing_mint").to_string_lossy()) {
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "musing_mint")) {
         if let Some(rec) = heki::latest(&store) {
             s.musings_count = int_field(rec, "total_minted");
         }
@@ -234,17 +221,17 @@ fn read_state(info: &Path, public_info: &Path) -> State {
 
     // Filter-count helpers : inventions where status=proposed,
     // inbox where status=queued. heki_query::Filter::parse + filter_records.
-    s.inventions_count = filter_count(&heki_path_for(info, "invention"), "status=proposed");
-    s.inbox_count      = filter_count(&heki_path_for(public_info, "inbox"), "status=queued");
+    s.inventions_count = filter_count(&heki::path_for_lookup(&info.to_string_lossy(), "invention"), "status=proposed");
+    s.inbox_count      = filter_count(&heki::path_for_lookup(&public_info.to_string_lossy(), "inbox"), "status=queued");
 
-    if let Ok(store) = heki::read(&heki_path_for(info, "claude_assist").to_string_lossy()) {
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "claude_assist")) {
         if let Some(rec) = heki::latest(&store) {
             s.provider = string_field(rec, "provider");
         }
     }
 
     if s.is_lucid == "yes" && s.sleep_stage == "rem" {
-        if let Ok(store) = heki::read(&heki_path_for(info, "lucid_dream").to_string_lossy()) {
+        if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "lucid_dream")) {
             if let Some(rec) = heki::latest(&store) {
                 s.lucid_narrative = string_field(rec, "latest_narrative");
             }
@@ -267,8 +254,8 @@ fn int_field(rec: &heki::Record, key: &str) -> i64 {
         .unwrap_or(0)
 }
 
-fn filter_count(path: &Path, where_spec: &str) -> i64 {
-    let store = match heki::read(&path.to_string_lossy()) {
+fn filter_count(path: &str, where_spec: &str) -> i64 {
+    let store = match heki::read(path) {
         Ok(s) => s,
         Err(_) => return 0,
     };

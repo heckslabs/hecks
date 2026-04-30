@@ -316,7 +316,7 @@ fn parse_utc_seconds(ts: &str) -> Option<i64> {
 }
 
 fn load(info_dir: &str, name: &str) -> heki::Store {
-    let path = format!("{}/{}.heki", info_dir.trim_end_matches('/'), name);
+    let path = heki::path_for_lookup(info_dir.trim_end_matches("/"), name);
     heki::read(&path).unwrap_or_default()
 }
 
