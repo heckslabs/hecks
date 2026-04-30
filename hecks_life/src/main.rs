@@ -2611,28 +2611,14 @@ fn run_loop(args: &[String]) {
     // pattern, which paid full parse + boot per iteration.
     let data_dir = find_world_heki_dir(target)
         .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    // i153 — i117 Round 4 nested aggregates into bounded-context
+    // subdirs (body/, mind/, etc.) ; the previous flat read_dir
+    // loaded zero bluebooks and left every body-cycle daemon (heart,
+    // breath, ultradian, sleep_cycle) firing UnknownCommand silently.
+    // load_combined_domain mirrors dispatch_hecksagon's recursive
+    // walk so loop sees the full conception including subdirs.
     let domain = if std::path::Path::new(target).is_dir() {
-        let mut combined = hecks_life::ir::Domain {
-            name: "Loop".into(),
-            category: None, vision: None,
-            aggregates: vec![], policies: vec![],
-            fixtures: vec![], entrypoint: None,
-            sections: vec![],
-        };
-        for entry in fs::read_dir(target).unwrap_or_else(|e| {
-            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
-        }).flatten() {
-            let p = entry.path();
-            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
-                if let Ok(source) = fs::read_to_string(&p) {
-                    let d = parser::parse(&source);
-                    combined.aggregates.extend(d.aggregates);
-                    combined.policies.extend(d.policies);
-                    combined.fixtures.extend(d.fixtures);
-                }
-            }
-        }
-        combined
+        load_combined_domain(target)
     } else {
         let source = fs::read_to_string(target).unwrap_or_else(|e| {
             eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
@@ -2752,30 +2738,14 @@ fn run_clock(args: &[String]) {
     );
 
     // Build domain + boot runtime ONCE — same shape as run_loop.
+    // i153 — recursive walk so nested-context aggregates (body/, mind/,
+    // etc.) are visible. Without this, the circadian segment trigger
+    // dispatches against an empty domain and every clock dispatch
+    // fires UnknownCommand silently.
     let data_dir = find_world_heki_dir(target)
         .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
     let domain = if std::path::Path::new(target).is_dir() {
-        let mut combined = hecks_life::ir::Domain {
-            name: "Clock".into(),
-            category: None, vision: None,
-            aggregates: vec![], policies: vec![],
-            fixtures: vec![], entrypoint: None,
-            sections: vec![],
-        };
-        for entry in fs::read_dir(target).unwrap_or_else(|e| {
-            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
-        }).flatten() {
-            let p = entry.path();
-            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
-                if let Ok(source) = fs::read_to_string(&p) {
-                    let d = parser::parse(&source);
-                    combined.aggregates.extend(d.aggregates);
-                    combined.policies.extend(d.policies);
-                    combined.fixtures.extend(d.fixtures);
-                }
-            }
-        }
-        combined
+        load_combined_domain(target)
     } else {
         let source = fs::read_to_string(target).unwrap_or_else(|e| {
             eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
