@@ -31,12 +31,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: hecks
+          # status_golden's expected output has 5 commit lines ; the
+          # default shallow clone of depth 1 makes the test diverge.
+          fetch-depth: 10
 
       - name: Checkout miette (sibling)
         uses: actions/checkout@v4
         with:
           repository: chrisyoung/miette
           path: miette
+
+      - name: Install GNU coreutils (shuf, etc.)
+        # daydream.sh + rem_branch.sh + mint_musing.sh use GNU `shuf`,
+        # which macOS doesn't ship by default. Brew installs it under
+        # gnubin/ ; prepend that to PATH so the bare `shuf` command
+        # resolves to the GNU one. This is a CI-only adapter ; the
+        # body shells are transitional and retire under i144.
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
 
       - name: Checkout miette_family (sibling, optional)
         # secrets context is only available at job level for if: ; check
