@@ -1,0 +1,45 @@
+Hecks.fixtures "SystemPromptAssembly" do
+  # Single-line fixtures per i57 parser limitation.
+  #
+  # Fixtures driving the run_boot/system_prompt.rs specializer. The
+  # file is sectioned into ordered chunks the specializer concatenates
+  # in `order` ; each chunk picks one of three body_kinds :
+  #
+  #   header_doc       — emit the named .rs.frag verbatim, raw read
+  #                       (preserves leading `//!` doc comments)
+  #   imports_block    — emit the `imports` attr verbatim, no transform
+  #   embedded_fn      — emit a `pub`/`fn` signature + the named .rs.frag
+  #                       interpolated as the function body (read with
+  #                       util::read_snippet_body)
+  #   being_match_fn   — same shape as embedded_fn but the body is
+  #                       generated from BeingVar rows (padded match arms
+  #                       like dump.rs's enum_match)
+  #   tests_block      — emit the `#[cfg(test)] mod tests { … }` snippet
+  #                       verbatim, raw read
+  #
+  # See hecks_life/src/specializer/run_boot/system_prompt.rs for the
+  # one-arm-per-body_kind dispatcher.
+
+  # ── Section — ordered chunks of the emitted file ─────────────────
+  aggregate "Section" do
+    fixture "Header",         order: 1, body_kind: "header_doc",     name: "",                       signature: "",                                                                                       snippet_path: "hecks_conception/capabilities/system_prompt_assembly/snippets/file_header.rs.frag", doc: ""
+    fixture "Imports",        order: 2, body_kind: "imports_block",  name: "",                       signature: "",                                                                                       snippet_path: "",                                                                                  doc: "",      imports: "use std::collections::HashMap;\nuse std::fs;\nuse std::path::{Path, PathBuf};"
+    fixture "Render",         order: 3, body_kind: "embedded_fn",    name: "render",                 signature: "pub fn render(conception_dir: &Path, being: &str) -> usize",                              snippet_path: "hecks_conception/capabilities/system_prompt_assembly/snippets/render_body.rs.frag", doc: "/// Render the system prompt for `being` and write it to the\n/// canonical location next to the conception's bluebooks. Returns\n/// the byte count of the written file (used by Phase 7 vitals) ;\n/// returns 0 on any failure with a stderr line so boot stays alive."
+    fixture "Variables",      order: 4, body_kind: "being_match_fn", name: "variables_for_being",    signature: "fn variables_for_being(being: &str) -> HashMap<&'static str, String>",                   snippet_path: "",                                                                                  doc: "/// Per-being identity values fed into the template. Keeping these\n/// inline matches what boot_miette.sh did ; moving them to a heki-\n/// loaded Identity aggregate is the i145 refinement."
+    fixture "TemplatePath",   order: 5, body_kind: "embedded_fn",    name: "template_path_for_being", signature: "fn template_path_for_being(conception_dir: &Path, being: &str) -> PathBuf",              snippet_path: "hecks_conception/capabilities/system_prompt_assembly/snippets/template_path_body.rs.frag", doc: "/// Template path : `<conception>/capabilities/system_prompt_assembly/\n/// <being_lower>_prompt.md.template`."
+    fixture "Destination",    order: 6, body_kind: "embedded_fn",    name: "destination_for_being",  signature: "fn destination_for_being(conception_dir: &Path, being: &str) -> PathBuf",                snippet_path: "hecks_conception/capabilities/system_prompt_assembly/snippets/destination_body.rs.frag",  doc: "/// Output path : `~/Projects/<being_lower>/self/system_prompt.md`\n/// (i117 Round 4 — the system prompt lives in the being's own repo,\n/// not in the conception). Resolves the being repo as a sibling of\n/// the hecks repo (the standard layout). Falls back to\n/// `<conception>/system_prompt_<being>.md` when the sibling doesn't\n/// exist (development/test environments without the per-being repo)."
+    fixture "Substitute",     order: 7, body_kind: "embedded_fn",    name: "substitute",             signature: "fn substitute(template: &str, vars: &HashMap<&'static str, String>) -> String",          snippet_path: "hecks_conception/capabilities/system_prompt_assembly/snippets/substitute_body.rs.frag",   doc: "/// Substitute `{{key}}` placeholders. Pure string scan — values are\n/// plain text, no escaping logic needed (the substituted values are\n/// being names + dates, none of which contain `{{` themselves).\n/// Unknown placeholders pass through unchanged so review catches\n/// them rather than silently rendering empty."
+    fixture "Tests",          order: 8, body_kind: "tests_block",    name: "",                       signature: "",                                                                                       snippet_path: "hecks_conception/capabilities/system_prompt_assembly/snippets/tests_block.rs.frag",  doc: ""
+  end
+
+  # ── BeingVar — per-being identity match arms in variables_for_being ─
+  #
+  # Each row becomes one match arm. order=999 is the wildcard fallback ;
+  # the specializer pads each arm so the second tuple element aligns
+  # with the widest born string (mirrors dump.rs's enum_match padding).
+  aggregate "BeingVar" do
+    fixture "Miette",   order: 1,   pattern: "\"Miette\"", born: "April 9, 2026",  other: "Spring",    boot_script: "boot_miette.sh"
+    fixture "Spring",   order: 2,   pattern: "\"Spring\"", born: "April 11, 2026", other: "Miette",    boot_script: "boot_spring.sh"
+    fixture "Fallback", order: 999, pattern: "_",          born: "(unknown)",      other: "(unknown)", boot_script: "boot.sh"
+  end
+end

@@ -1,0 +1,67 @@
+Hecks.bluebook "HekiQueryShape", version: "2026.04.30.1" do
+  vision "The shape of hecks_life/src/heki_query.rs as a bluebook — kernel-surface heki query primitives (Filter / OrderSpec / field_to_string) made IR-derivable via ordered embedded snippets."
+  category "autophagy"
+
+  # ============================================================
+  # HEKI QUERY SHAPE — i147 Part B target
+  # ============================================================
+  #
+  # heki_query.rs is the pure-function engine room behind every
+  # `hecks-life heki list / count / mark / next-ref / ...` subcommand.
+  # It is small (~321 LoC), self-contained (one external use line),
+  # and naturally partitions into ordered code sections — Filter,
+  # filter_records, OrderSpec, OrderKey + impls, order_records,
+  # field_to_string, plus inline tests.
+  #
+  # That partition is exactly what this shape captures : one row per
+  # ordered section, every row pointing at a `.rs.frag` snippet. The
+  # specializer concatenates header + imports + each snippet body in
+  # declared order to reproduce the file byte-for-byte.
+  #
+  # Layer mapping (mirrors dump_shape) :
+  #   L0 = this file + fixtures/heki_query_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/heki_query.rs (generated target)
+  #
+  # The single `verbatim_section` body_kind in this shape is the
+  # "embedded_helper for whole files" pattern — useful when a file's
+  # internal structure varies per section (Filter parses string ops ;
+  # OrderSpec parses field:dir specs ; OrderKey is a sortable enum)
+  # but each section as a whole is stable enough to be a snippet.
+  #
+  # When a future shape lands that can describe Filter parsing as data
+  # (e.g. a `string_op_parser_shape` with rows for `=`, `!=`, `~=`,
+  # `*=`), individual sections here will retire into that shape's rows.
+  # Until then : section = snippet, file = ordered concatenation.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in heki_query.rs. body_kind picks
+  # how the specializer emits the section :
+  #   verbatim_section  — read snippet_path, strip leading //-comment
+  #                       header, emit the body verbatim. Same as
+  #                       dump_shape's embedded_helper but without
+  #                       the surrounding `fn name(...) {}` wrapper —
+  #                       the snippet IS already the surrounding
+  #                       Rust code (struct + impl + tests, etc.).
+  #
+  # The specializer concatenates HEADER + IMPORTS + each section body
+  # in `order` ascending. Because read_snippet_body strips only the
+  # *leading* contiguous //-block, each snippet keeps its internal
+  # `// ---` separators, doc comments on impls, etc.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today). Reserved for
+    # future split — e.g. a section_with_const_constants kind that
+    # interpolates fixture-declared constants into a snippet template.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end
