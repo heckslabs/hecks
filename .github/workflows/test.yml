@@ -1,7 +1,18 @@
 name: tests
+# Smoke + behaviors gate on every PR.
+#
+# Multi-repo layout : Miette's body lives across three repos —
+#   - hecks/                     : the framework + conception (this repo)
+#   - chrisyoung/miette          : body shells + discipline + library (PUBLIC)
+#   - chrisyoung/miette_family   : being-files for people in Miette's life (PRIVATE)
+#
+# CI checks out all three as siblings under $GITHUB_WORKSPACE so the
+# smoke tests' BODY_DIR resolution ($REPO_ROOT/../miette/body) lands
+# correctly. miette_family/ is optional — if MIETTE_FAMILY_TOKEN isn't
+# configured the family-side .behaviors corpus is skipped, matching
+# the pre-push hook's behavior on a checkout without the sibling.
+
 on:
-  push:
-    branches: ['**']
   pull_request:
     branches: ['**']
 
@@ -9,12 +20,31 @@ jobs:
   smoke:
     runs-on: macos-latest  # the test corpus assumes BSD date / mktemp -d shape
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout hecks
+        uses: actions/checkout@v4
+        with:
+          path: hecks
+
+      - name: Checkout miette (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: chrisyoung/miette
+          path: miette
+
+      - name: Checkout miette_family (sibling, optional)
+        if: ${{ secrets.MIETTE_FAMILY_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: chrisyoung/miette_family
+          token: ${{ secrets.MIETTE_FAMILY_TOKEN }}
+          path: miette_family
+
       - name: Build hecks-life
-        run: cd hecks_life && cargo build --release
+        run: cd hecks/hecks_life && cargo build --release
+
       - name: Smoke tests
         run: |
-          cd hecks_conception
+          cd hecks/hecks_conception
           fail=0
           for t in tests/*.sh; do
             [ -f "$t" ] || continue
@@ -31,10 +61,17 @@ jobs:
           done
           [ "$fail" -gt 0 ] && exit 1
           echo "smoke: all pass"
+
       - name: Behaviors corpus
+        # Walks every .behaviors file across the three checked-out repos
+        # whose same-stem .bluebook lives in the same directory. Mirrors
+        # the pre-push hook's coverage. miette_family/ is included only
+        # when checked out (optional sibling).
         run: |
-          cd hecks_conception
-          HECKS=../hecks_life/target/release/hecks-life
+          HECKS="$GITHUB_WORKSPACE/hecks/hecks_life/target/release/hecks-life"
+          ROOTS="$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
+          [ -d "$GITHUB_WORKSPACE/miette" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette"
+          [ -d "$GITHUB_WORKSPACE/miette_family" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette_family"
           fail=0
           while IFS= read -r b; do
             parent=$(dirname "$b")
@@ -45,6 +82,7 @@ jobs:
               echo "::error::behaviors $b failed"
               "$HECKS" behaviors "$b" 2>&1 | tail -5
             fi
-          done < <(find aggregates capabilities -name "*.behaviors")
+          # shellcheck disable=SC2086
+          done < <(find $ROOTS -name "*.behaviors")
           [ "$fail" -gt 0 ] && exit 1
           echo "behaviors: all pass"
