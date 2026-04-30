@@ -91,3 +91,8 @@ hecks_conception/information/inbox.md
 # Heki snapshots — auto-created backups before destructive heki ops
 # (delete/mark/migration). Users can clean them manually.
 .heki-snapshots/
+
+# Boot capability runner runtime artifact — Boot aggregate state
+# rewritten on each boot. Mirrors how runtime .heki under information/
+# is already excluded above.
+hecks_conception/capabilities/boot/data/
