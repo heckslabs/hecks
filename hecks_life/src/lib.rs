@@ -12,6 +12,7 @@ pub mod json_helpers;
 pub mod server;
 pub mod validator;
 pub mod validator_warnings;
+pub mod validator_corpus;
 pub mod conceiver;
 pub mod heki;
 pub mod heki_query;

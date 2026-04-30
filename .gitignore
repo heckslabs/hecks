@@ -87,3 +87,7 @@ hecks_conception/information/Perception/
 hecks_conception/information/Sensation/
 hecks_conception/information/WordClassifier/
 hecks_conception/information/inbox.md
+
+# Heki snapshots — auto-created backups before destructive heki ops
+# (delete/mark/migration). Users can clean them manually.
+.heki-snapshots/

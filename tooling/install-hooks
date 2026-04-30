@@ -21,3 +21,9 @@ for hook in "$SRC"/*; do
     chmod +x "$target"
     echo "installed: $name"
 done
+
+# Hooks installed by this loop (generic — any new hook dropped into
+# tooling/git-hooks/ is auto-installed) :
+#   • commit-msg  — antibody enforcement (only hook that sees the message)
+#   • pre-commit  — parity, lifecycle, conceiver, validator, smoke gates
+#   • pre-push    — full .behaviors run across conception + miette family

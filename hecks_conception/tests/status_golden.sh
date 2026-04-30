@@ -4,6 +4,7 @@
 # timestamps) are normalized to placeholders before diffing.
 
 set -eu
+set -m  # enable job control (process groups) for daemon isolation
 
 here="$(cd "$(dirname "$0")" && pwd)"
 conception="$(cd "$here/.." && pwd)"
@@ -19,7 +20,9 @@ fi
 export HECKS_LIFE="$hecks"
 
 tmp="$(mktemp -d -t status_golden.XXXXXX)"
-trap 'rm -rf "$tmp"' EXIT
+## Process-group cleanup : kill the entire group on EXIT so any daemon
+## spawned during the test can't survive into the next test.
+trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$tmp"' EXIT
 
 info="$tmp/information"
 mkdir -p "$info"

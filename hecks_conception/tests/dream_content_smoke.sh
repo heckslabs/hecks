@@ -17,6 +17,8 @@
 #  wrapper ports to .bluebook shebang form (tracked in
 #  terminal_capability_wiring plan).]
 
+set -m  # enable job control (process groups) for daemon isolation
+
 DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT/.." && pwd)"
@@ -47,7 +49,9 @@ if [ ! -x "$HECKS" ]; then
 fi
 
 TMP=$(mktemp -d)
-trap "rm -rf $TMP" EXIT
+# Process-group cleanup : kill the entire group on EXIT so any daemon
+# spawned during the test can't survive into the next test.
+trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 # Mirror the conception layout inside TMP so hecks-life's *.world
 # discovery lands on TMP/information, not the real one. Aggregates +

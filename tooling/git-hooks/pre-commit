@@ -6,15 +6,25 @@
 # Gates in order:
 #   1. Parity suite (Ruby/Rust parser IR agreement) — block on drift
 #   2. Lifecycle validator — block on any unreachable transitions
+#   2b. Validator gate — `hecks-life validate` on every staged .bluebook
+#       (catches duplicate command names, unknown policy targets,
+#        structural shape bugs)
 #   3. Conceiver parity test — block if either conceiver drifts
 #   4. Miette enforce (hecks-life governance) — advisory, never blocks
+#   4b. Companion-file ratchet — bluebook moves bring .behaviors +
+#       .fixtures with them ; new aggregates and commands need test
+#       coverage in their .behaviors companion
 #   5. Antibody: surface non-bluebook adds/mods (list only — the
 #      commit-msg hook does the actual enforcement, since that's
 #      the only hook that sees the message's exemption marker)
+#   6. Smoke tests must pass
 #
 # Exit 0 = commit allowed. Exit 1 = commit blocked.
 # Set PARITY_SKIP=1 to bypass gate 1 (an antibody failure).
 # Set LIFECYCLE_SKIP=1 to bypass gate 2 (also an antibody failure).
+# Set VALIDATE_SKIP=1 to bypass gate 2b (also an antibody failure).
+# Set COMPANION_SKIP=1 to bypass gate 4b (also an antibody failure).
+# Set TESTS_SKIP=1 to bypass gate 6 (also an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
@@ -90,6 +100,38 @@ if [ -z "$LIFECYCLE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
     fi
 fi
 
+# ── Gate 2b: validator gate on staged .bluebook files ─────────────
+# Runs `hecks-life validate` on every staged .bluebook. Catches
+# duplicate command names, unknown commands in policies, structural
+# shape bugs — the class of error that the lifecycle validator (Gate
+# 2) doesn't cover. Focuses on STAGED files only (not the whole
+# corpus) so it stays fast on small commits.
+#
+# Set VALIDATE_SKIP=1 to bypass (an antibody failure for emergencies).
+if [ -z "$VALIDATE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
+    staged_bluebooks=$(git diff --cached --name-only --diff-filter=ACM | grep '\.bluebook$' || true)
+    invalid=""
+    for bb in $staged_bluebooks; do
+        # Skip behavioral-tests bluebooks (legacy, not validatable).
+        case "$bb" in
+            *_behavioral_tests.bluebook) continue ;;
+        esac
+        [ -f "$REPO/$bb" ] || continue
+        out=$("$HECKS_LIFE" validate "$REPO/$bb" 2>&1)
+        if printf '%s' "$out" | grep -q "^INVALID"; then
+            invalid="${invalid}\n  ✗ $bb\n$(printf '%s' "$out" | sed 's/^/      /')"
+        fi
+    done
+    if [ -n "$invalid" ]; then
+        echo "COMMIT BLOCKED: validator gate — staged .bluebook(s) failed validate."
+        printf "$invalid\n"
+        echo ""
+        echo "  Re-run individually : hecks-life validate <path>"
+        echo "  Bypass (use only for emergencies) : VALIDATE_SKIP=1 git commit ..."
+        exit 1
+    fi
+fi
+
 # ── Gate 3: conceiver parity test ─────────────────────────────────
 # Bluebook conceiver and behaviors conceiver must keep the same
 # shape: same files, same Conceiver trait, same surface.
@@ -155,6 +197,70 @@ EOF
         printf '\n  Move the companions in the same commit (git mv) or set COMPANION_SKIP=1.\n'
         printf '  This was the failure mode of the i112 anatomy reorg : 44 silently-orphaned\n'
         printf '  .behaviors files because bluebooks moved without them.\n\n'
+        exit 1
+    fi
+
+    # ── Companion-file ratchet, second teeth : every NEW `aggregate "X"`
+    # or `command "Y"` declaration in a staged .bluebook must have a
+    # matching `tests` line in its .behaviors companion.
+    #
+    # Walk staged adds + modifications, parse the diff for newly-added
+    # `aggregate "X"` / `command "X"` lines, and for each one verify the
+    # companion .behaviors references it. Skip when the companion
+    # doesn't exist yet — the rename-only branch above already handles
+    # the companion-pending-create case for moves, and brand-new
+    # bluebooks without companions surface in pre-push.
+    untested=""
+    staged_added_or_mod=$(git diff --cached --name-only --diff-filter=AM | grep '\.bluebook$' || true)
+    for bb in $staged_added_or_mod; do
+        case "$bb" in
+            *_behavioral_tests.bluebook) continue ;;
+        esac
+        bb_dir=$(dirname "$bb")
+        bb_stem=$(basename "$bb" .bluebook)
+        companion="$bb_dir/$bb_stem.behaviors"
+        # Skip if no companion exists — pre-push owns the orphan diagnostic.
+        [ ! -f "$REPO/$companion" ] && continue
+
+        # Pull the +added lines from the staged diff and parse out
+        # newly-introduced `aggregate "X"` / `command "X"` names.
+        added=$(git diff --cached -U0 -- "$bb" | grep '^+' | grep -v '^+++')
+
+        # Aggregates : `aggregate "X"` (with optional second arg).
+        new_aggs=$(printf '%s\n' "$added" \
+            | grep -E '^\+[[:space:]]*aggregate[[:space:]]+"' \
+            | sed -E 's/^\+[[:space:]]*aggregate[[:space:]]+"([^"]+)".*/\1/' \
+            | sort -u)
+
+        # Commands : `command "Y"` (typically nested inside an aggregate).
+        new_cmds=$(printf '%s\n' "$added" \
+            | grep -E '^\+[[:space:]]*command[[:space:]]+"' \
+            | sed -E 's/^\+[[:space:]]*command[[:space:]]+"([^"]+)".*/\1/' \
+            | sort -u)
+
+        # Each new aggregate must show up as `on: "X"` in the .behaviors.
+        for agg in $new_aggs; do
+            [ -z "$agg" ] && continue
+            if ! grep -qE "on:[[:space:]]*\"$agg\"" "$REPO/$companion"; then
+                untested="${untested}    $bb : new aggregate \"$agg\" — add a test in $companion with on: \"$agg\"\n"
+            fi
+        done
+
+        # Each new command must show up as `tests "Y"` in the .behaviors.
+        for cmd in $new_cmds; do
+            [ -z "$cmd" ] && continue
+            if ! grep -qE "tests[[:space:]]+\"$cmd\"" "$REPO/$companion"; then
+                untested="${untested}    $bb : new command \"$cmd\" — add a test in $companion with tests \"$cmd\"\n"
+            fi
+        done
+    done
+
+    if [ -n "$untested" ]; then
+        printf '\nCOMMIT BLOCKED: companion-file ratchet — new aggregate(s) / command(s) without tests :\n'
+        printf "$untested"
+        printf '\n  Add the matching test(s) to the .behaviors companion, or set COMPANION_SKIP=1.\n'
+        printf '  Every new aggregate needs `tests "<command>", on: "<aggregate>"` ;\n'
+        printf '  every new command needs a `tests "<command>"` line in the same .behaviors.\n\n'
         exit 1
     fi
 fi

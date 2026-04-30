@@ -25,6 +25,7 @@
 #  Same retirement contract as the runtime primitives it tests.]
 
 set -u
+set -m  # enable job control (process groups) for daemon isolation
 
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
@@ -42,7 +43,10 @@ else
 fi
 
 TMP=$(mktemp -d -t body_cycles_smoke.XXXXXX)
-trap "rm -rf $TMP" EXIT
+# Process-group cleanup : kill the entire group on EXIT so any daemon
+# spawned during the test can't survive into the next test in a
+# pre-commit gate batch. Combined with the tmpdir cleanup.
+trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/hecks_conception/information" "$TMP/hecks_conception/aggregates"
 mkdir -p "$TMP/hecks_life/target/release"

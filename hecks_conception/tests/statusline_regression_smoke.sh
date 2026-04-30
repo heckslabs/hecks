@@ -32,6 +32,7 @@
 # Exit 0 on pass, non-zero on fail.
 
 set -u
+set -m  # enable job control (process groups) for daemon isolation
 
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
@@ -56,7 +57,9 @@ note_pass() { echo "  ✓ $*"; }
 # Create a symlink to statusline-command.sh. All scenarios invoke through
 # the symlink so the symlink resolution bug (#1) is tested on every run.
 SYMLINK_DIR="$(mktemp -d -t statusline_symlink.XXXXXX)"
-trap 'rm -rf "$SYMLINK_DIR"' EXIT
+# Process-group cleanup : kill the entire group on EXIT so any daemon
+# spawned during the test can't survive into the next test.
+trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$SYMLINK_DIR"' EXIT
 ln -s "$CONCEPT_DIR/statusline-command.sh" "$SYMLINK_DIR/statusline-command.sh"
 
 # seed <info-dir> <mood> <fatigue_state> <pulses_since_sleep>

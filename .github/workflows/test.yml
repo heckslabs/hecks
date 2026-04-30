@@ -1,0 +1,112 @@
+name: Smoke + Behaviors
+# Smoke + behaviors gate on every PR.
+#
+# Multi-repo layout : Miette's body lives across three repos —
+#   - hecks/                     : the framework + conception (this repo)
+#   - chrisyoung/miette          : body shells + discipline + library (PUBLIC)
+#   - chrisyoung/miette_family   : being-files for people in Miette's life (PRIVATE)
+#
+# CI checks out all three as siblings under $GITHUB_WORKSPACE so the
+# smoke tests' BODY_DIR resolution ($REPO_ROOT/../miette/body) lands
+# correctly. miette_family/ is optional — if MIETTE_FAMILY_TOKEN isn't
+# configured the family-side .behaviors corpus is skipped, matching
+# the pre-push hook's behavior on a checkout without the sibling.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, "**"]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-latest  # the test corpus assumes BSD date / mktemp -d shape
+    env:
+      # Surfacing secrets-presence via env so step-level if: can read it.
+      # The actual secret only flows into the with: block where it's used.
+      MIETTE_FAMILY_TOKEN_PRESENT: ${{ secrets.MIETTE_FAMILY_TOKEN != '' }}
+    steps:
+      - name: Checkout hecks
+        uses: actions/checkout@v4
+        with:
+          path: hecks
+          # status_golden's expected output has 5 commit lines ; the
+          # default shallow clone of depth 1 makes the test diverge.
+          fetch-depth: 10
+
+      - name: Checkout miette (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: chrisyoung/miette
+          path: miette
+
+      - name: Install GNU coreutils (shuf, etc.)
+        # daydream.sh + rem_branch.sh + mint_musing.sh use GNU `shuf`,
+        # which macOS doesn't ship by default. Brew installs it under
+        # gnubin/ ; prepend that to PATH so the bare `shuf` command
+        # resolves to the GNU one. This is a CI-only adapter ; the
+        # body shells are transitional and retire under i144.
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Checkout miette_family (sibling, optional)
+        # secrets context is only available at job level for if: ; check
+        # via a job-env indirection. When MIETTE_FAMILY_TOKEN isn't set,
+        # the family-side .behaviors corpus is skipped, matching the
+        # pre-push hook's behavior on a checkout without the sibling.
+        if: env.MIETTE_FAMILY_TOKEN_PRESENT == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: chrisyoung/miette_family
+          token: ${{ secrets.MIETTE_FAMILY_TOKEN }}
+          path: miette_family
+
+      - name: Build hecks-life
+        run: cd hecks/hecks_life && cargo build --release
+
+      - name: Smoke tests
+        run: |
+          cd hecks/hecks_conception
+          fail=0
+          for t in tests/*.sh; do
+            [ -f "$t" ] || continue
+            name=$(basename "$t" .sh)
+            # Skip integration smoke (heavyweight, race-prone in CI)
+            case "$name" in
+              round4_integration_smoke) continue ;;
+            esac
+            if ! bash "$t" >"/tmp/smoke_${name}.out" 2>&1; then
+              fail=$((fail + 1))
+              echo "::error::${name}.sh failed"
+              cat "/tmp/smoke_${name}.out"
+            fi
+          done
+          [ "$fail" -gt 0 ] && exit 1
+          echo "smoke: all pass"
+
+      - name: Behaviors corpus
+        # Walks every .behaviors file across the three checked-out repos
+        # whose same-stem .bluebook lives in the same directory. Mirrors
+        # the pre-push hook's coverage. miette_family/ is included only
+        # when checked out (optional sibling).
+        run: |
+          HECKS="$GITHUB_WORKSPACE/hecks/hecks_life/target/release/hecks-life"
+          ROOTS="$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
+          [ -d "$GITHUB_WORKSPACE/miette" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette"
+          [ -d "$GITHUB_WORKSPACE/miette_family" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette_family"
+          fail=0
+          while IFS= read -r b; do
+            parent=$(dirname "$b")
+            stem=$(basename "$b" .behaviors)
+            [ ! -f "$parent/$stem.bluebook" ] && continue
+            if ! "$HECKS" behaviors "$b" >/dev/null 2>&1; then
+              fail=$((fail + 1))
+              echo "::error::behaviors $b failed"
+              "$HECKS" behaviors "$b" 2>&1 | tail -5
+            fi
+          # shellcheck disable=SC2086
+          done < <(find $ROOTS -name "*.behaviors")
+          [ "$fail" -gt 0 ] && exit 1
+          echo "behaviors: all pass"
