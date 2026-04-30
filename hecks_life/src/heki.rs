@@ -79,6 +79,58 @@ fn audit_write(ctx: &WriteContext, path: &str, op: &str) {
 }
 
 // ---------------------------------------------------------------------------
+// Snapshot — backup before destructive ops
+// ---------------------------------------------------------------------------
+
+/// Snapshot a .heki file before a destructive operation. Copies
+/// `<path>` to `<path's-dir>/.heki-snapshots/<basename>.<RFC3339>.heki`
+/// before the caller's mutation. Idempotent : if the path doesn't
+/// exist, returns Ok(None) ; if it does, returns Ok(Some(snapshot_path)).
+/// Failures (permission, disk, etc.) bubble up as Err so callers can
+/// decide whether to proceed.
+///
+/// Used by Repository auto-migration (mv flat → context-prefixed),
+/// `delete()`, and any future destructive heki primitive. The
+/// snapshots directory is gitignored ; users can clean it manually.
+pub fn snapshot(path: &str) -> Result<Option<String>, String> {
+    let src = Path::new(path);
+    if !src.exists() {
+        return Ok(None);
+    }
+
+    let parent = src.parent()
+        .ok_or_else(|| format!("snapshot: cannot determine parent dir of {}", path))?;
+    let basename = src.file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("snapshot: cannot determine basename of {}", path))?;
+
+    let snap_dir = parent.join(".heki-snapshots");
+    fs::create_dir_all(&snap_dir)
+        .map_err(|e| format!("snapshot: cannot create {}: {}", snap_dir.display(), e))?;
+
+    // RFC3339 timestamp — reuse now_iso8601_internal which produces
+    // YYYY-MM-DDTHH:MM:SSZ. Colons are filesystem-legal on macOS/Linux ;
+    // keeping them preserves RFC3339 round-tripping.
+    //
+    // Collision case : two snapshots within the same second (rapid
+    // back-to-back delete/mark) would clobber. Append `.N` until the
+    // path is free so every call produces a distinct backup.
+    let ts = now_iso8601_internal();
+    let mut snap_path = snap_dir.join(format!("{}.{}.heki", basename, ts));
+    let mut n = 1;
+    while snap_path.exists() {
+        snap_path = snap_dir.join(format!("{}.{}.{}.heki", basename, ts, n));
+        n += 1;
+    }
+
+    fs::copy(src, &snap_path)
+        .map_err(|e| format!("snapshot: copy {} → {}: {}",
+            path, snap_path.display(), e))?;
+
+    Ok(Some(snap_path.to_string_lossy().into_owned()))
+}
+
+// ---------------------------------------------------------------------------
 // Read
 // ---------------------------------------------------------------------------
 

@@ -34,6 +34,11 @@
 # until the boot capability runner takes over what this asserts.]
 
 set -u
+set -m  # enable job control (process groups) for daemon isolation
+# Process-group cleanup : kill the entire group on EXIT so any daemon
+# spawned during the test can't survive into the next test in a
+# pre-commit gate batch.
+trap 'kill -- -$$ 2>/dev/null || true' EXIT
 
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"

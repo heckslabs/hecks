@@ -1,0 +1,50 @@
+name: tests
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  smoke:
+    runs-on: macos-latest  # the test corpus assumes BSD date / mktemp -d shape
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build hecks-life
+        run: cd hecks_life && cargo build --release
+      - name: Smoke tests
+        run: |
+          cd hecks_conception
+          fail=0
+          for t in tests/*.sh; do
+            [ -f "$t" ] || continue
+            name=$(basename "$t" .sh)
+            # Skip integration smoke (heavyweight, race-prone in CI)
+            case "$name" in
+              round4_integration_smoke) continue ;;
+            esac
+            if ! bash "$t" >"/tmp/smoke_${name}.out" 2>&1; then
+              fail=$((fail + 1))
+              echo "::error::${name}.sh failed"
+              cat "/tmp/smoke_${name}.out"
+            fi
+          done
+          [ "$fail" -gt 0 ] && exit 1
+          echo "smoke: all pass"
+      - name: Behaviors corpus
+        run: |
+          cd hecks_conception
+          HECKS=../hecks_life/target/release/hecks-life
+          fail=0
+          while IFS= read -r b; do
+            parent=$(dirname "$b")
+            stem=$(basename "$b" .behaviors)
+            [ ! -f "$parent/$stem.bluebook" ] && continue
+            if ! "$HECKS" behaviors "$b" >/dev/null 2>&1; then
+              fail=$((fail + 1))
+              echo "::error::behaviors $b failed"
+              "$HECKS" behaviors "$b" 2>&1 | tail -5
+            fi
+          done < <(find aggregates capabilities -name "*.behaviors")
+          [ "$fail" -gt 0 ] && exit 1
+          echo "behaviors: all pass"

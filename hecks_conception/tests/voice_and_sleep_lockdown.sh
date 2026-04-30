@@ -26,6 +26,7 @@
 #  Retires when i44 lands the chat-as-capability + voice-in-bluebook.]
 
 set -u
+set -m  # enable job control (process groups) for daemon isolation
 
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
@@ -50,7 +51,9 @@ note_pass() { echo "  ✓ $*"; }
 # Regenerate via boot_miette.sh (it writes system_prompt.md as step 4).
 # Use a tmpdir for info/ so we don't clobber live state.
 TMP_BOOT="$(mktemp -d -t voice_lockdown_boot.XXXXXX)"
-trap 'rm -rf "$TMP_BOOT"' EXIT
+# Process-group cleanup : kill the entire group on EXIT so any daemon
+# spawned during the test can't survive into the next test.
+trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP_BOOT"' EXIT
 
 # Copy info/ into tmpdir so boot can read census etc.
 cp -R "$CONCEPT_DIR/information" "$TMP_BOOT/information"

@@ -499,7 +499,23 @@ fn main() {
         "dump" => { println!("{}", serde_json::to_string_pretty(&dump::dump(&domain)).unwrap()); emit_validator_warnings_to_stderr(&domain); }
         "validate" => {
             emit_validator_warnings_to_stderr(&domain);
-            let errors = validator::validate(&domain);
+            // --corpus <dir> opts into corpus-wide checks : merges every
+            // bluebook under <dir> via load_combined_domain, then runs
+            // the corpus-only rules (phantom-trigger INVALID + dangling-
+            // event WARNING). Without --corpus, the per-file checks alone
+            // run and the corpus-only rules stay silent (they would
+            // false-positive on cross-bluebook flow).
+            let corpus_dir = args.iter().position(|a| a == "--corpus")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.as_str());
+            let mut errors = validator::validate(&domain);
+            if let Some(dir) = corpus_dir {
+                let corpus = load_combined_domain(dir);
+                errors.extend(validator::corpus_phantom_trigger_errors(&corpus));
+                for w in validator_warnings::policy_event_warnings(&corpus) {
+                    eprintln!("{}", w);
+                }
+            }
             if errors.is_empty() {
                 println!("VALID — {} ({} aggregates)", domain.name, domain.aggregates.len());
             } else {
@@ -1016,7 +1032,7 @@ fn source_for_suite(suite_path: &str) -> String {
 fn run_heki(args: &[String]) {
     if args.len() < 4 {
         eprintln!("Usage: hecks-life heki <cmd> <file.heki> [args...]");
-        eprintln!("Commands: read latest append upsert delete");
+        eprintln!("Commands: read latest append upsert delete snapshot");
         eprintln!("          get list count next-ref latest-field values mark seconds-since");
         std::process::exit(1);
     }
@@ -1031,6 +1047,7 @@ fn run_heki(args: &[String]) {
         "append"        => heki_cmd_append(file, rest),
         "upsert"        => heki_cmd_upsert(file, rest),
         "delete"        => heki_cmd_delete(file, rest),
+        "snapshot"      => heki_cmd_snapshot(file),
         "get"           => heki_cmd_get(file, rest),
         "list"          => heki_cmd_list(file, rest),
         "count"         => heki_cmd_count(file, rest),
@@ -1042,10 +1059,21 @@ fn run_heki(args: &[String]) {
         "seconds-since" => heki_cmd_seconds_since(file, rest),
         _ => {
             eprintln!("Unknown heki command: {}", sub);
-            eprintln!("Available: read latest append upsert delete get list count ids \
+            eprintln!("Available: read latest append upsert delete snapshot get list count ids \
                        next-ref latest-field values mark seconds-since");
             std::process::exit(1);
         }
+    }
+}
+
+/// Snapshot a heki file on demand. Useful before risky manual ops.
+/// Prints the snapshot path on success ; prints a notice and exits 0
+/// if the source file doesn't exist (idempotent).
+fn heki_cmd_snapshot(file: &str) {
+    match heki::snapshot(file) {
+        Ok(Some(snap)) => println!("{}", snap),
+        Ok(None) => println!("(no file at {} — nothing to snapshot)", file),
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
     }
 }
 
@@ -1137,6 +1165,13 @@ fn heki_cmd_delete(file: &str, rest: &[String]) {
             std::process::exit(1);
         }
     };
+    // Snapshot before destructive op — out-of-band deletes are exactly
+    // the case we want backup evidence for.
+    match heki::snapshot(file) {
+        Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
+        Ok(None) => {}
+        Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
+    }
     match heki::delete(file, id, heki::WriteContext::OutOfBand { reason: &reason }) {
         Ok(true)  => println!("deleted {}", id),
         Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
@@ -1347,6 +1382,14 @@ fn heki_cmd_mark(file: &str, rest: &[String]) {
         }
     }
     if matched > 0 {
+        // Snapshot before destructive overwrite — `mark` rewrites the
+        // whole store in one go, which makes targeting mistakes hard
+        // to recover from without a backup.
+        match heki::snapshot(file) {
+            Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
+            Ok(None) => {}
+            Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
+        }
         if let Err(e) = heki::write(file, &store, heki::WriteContext::OutOfBand { reason: &reason }) {
             eprintln!("{}", e);
             std::process::exit(1);

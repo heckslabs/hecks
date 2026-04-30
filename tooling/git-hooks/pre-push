@@ -1,0 +1,86 @@
+#!/bin/sh
+# Miette Governance — pre-push enforcement
+#
+# Tracked hook source. Install with: tooling/install-hooks
+#
+# Heavyweight gate that runs every .behaviors file across the
+# conception + miette body + miette_family before allowing a push.
+# Bounded (~30-60s) and local — the last line of defence before code
+# crosses the network.
+#
+# The i112 anatomy reorg silently orphaned 44 .behaviors files for
+# weeks because the discipline ratchets only ran on-demand, and the
+# pre-commit gate's lightweight smoke didn't exercise behavioral
+# coverage. Pre-push closes that loop : if any .behaviors file fails,
+# the push is refused.
+#
+# Skip rules :
+#   • A .behaviors file with no same-stem .bluebook in the same dir
+#     is treated as orphaned (skipped here so the companion-file
+#     ratchet in pre-commit owns that diagnostic).
+#
+# Exit 0 = push allowed. Exit 1 = push blocked.
+# Set BEHAVIORS_SKIP=1 to bypass for emergencies (an antibody failure).
+
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
+
+if [ -n "$BEHAVIORS_SKIP" ]; then
+    echo "pre-push: BEHAVIORS_SKIP=1 — skipping behaviors gate (antibody failure)."
+    exit 0
+fi
+
+if [ ! -x "$HECKS_LIFE" ]; then
+    echo "pre-push: hecks-life binary not found at $HECKS_LIFE — skipping."
+    echo "  Build with: (cd hecks_life && cargo build --release)"
+    exit 0
+fi
+
+# Search roots — conception aggregates + miette body + miette_family.
+# Scoped to hecks_conception/aggregates (NOT the whole conception) so
+# the synthetic nursery corpus doesn't pollute the gate. Nursery
+# bluebooks are templates/archetypes — their .behaviors fail by design
+# until conceived into a live being. The pre-push gate is about the
+# active code surface only.
+ROOTS=""
+[ -d "$REPO/hecks_conception/aggregates" ]      && ROOTS="$ROOTS $REPO/hecks_conception/aggregates"
+[ -d "$REPO/../miette" ]                        && ROOTS="$ROOTS $REPO/../miette"
+[ -d "$REPO/../miette_family" ]                 && ROOTS="$ROOTS $REPO/../miette_family"
+
+if [ -z "$ROOTS" ]; then
+    echo "pre-push: no behaviors roots found — skipping."
+    exit 0
+fi
+
+echo "pre-push: running every .behaviors file under$ROOTS"
+
+fail=0
+total=0
+failed_list=""
+
+# shellcheck disable=SC2086
+for b in $(find $ROOTS -name "*.behaviors" 2>/dev/null); do
+    parent=$(dirname "$b")
+    stem=$(basename "$b" .behaviors)
+    # Skip if no same-stem .bluebook companion ; that's an orphan,
+    # owned by the pre-commit companion-file ratchet.
+    [ ! -f "$parent/$stem.bluebook" ] && continue
+    total=$((total + 1))
+    if ! "$HECKS_LIFE" behaviors "$b" >/dev/null 2>&1; then
+        fail=$((fail + 1))
+        failed_list="$failed_list\n  ✗ $b"
+    fi
+done
+
+if [ "$fail" -gt 0 ]; then
+    echo ""
+    echo "PUSH BLOCKED: $fail of $total .behaviors file(s) failed."
+    printf "$failed_list\n"
+    echo ""
+    echo "  Run individually : hecks-life behaviors <path-to-.behaviors>"
+    echo "  Bypass (use only for emergencies) : BEHAVIORS_SKIP=1 git push ..."
+    exit 1
+fi
+
+echo "pre-push: all $total .behaviors file(s) green."
+exit 0
