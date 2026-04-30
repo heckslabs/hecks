@@ -148,6 +148,16 @@ pub fn run_script(args: &[String]) -> i32 {
         return crate::run_boot::run(&mut rt, &registry, &entrypoint, path, extra);
     }
 
+    // Restructure capability detection : :fs + :stdout + Layout aggregate
+    // with Apply + Move aggregate. Routes Layout.Plan / Apply / RevertTo
+    // to the phase orchestrator that walks the filesystem, dispatches
+    // per-Move commands, and observes the VerifyOnApplied policy chain.
+    // Any other entrypoint falls through to the generic dispatcher
+    // inside the runner.
+    if crate::run_restructure::is_restructure_capability(&registry, &rt) {
+        return crate::run_restructure::run(&mut rt, &registry, &entrypoint, path, extra);
+    }
+
     match rt.dispatch(&entrypoint, attrs) {
         Ok(_) => ExitKind::Ok.code(),
         Err(crate::runtime::RuntimeError::UnknownCommand(_)) => {
