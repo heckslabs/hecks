@@ -1086,6 +1086,7 @@ fn run_heki(args: &[String]) {
         "append"        => heki_cmd_append(file, rest),
         "upsert"        => heki_cmd_upsert(file, rest),
         "delete"        => heki_cmd_delete(file, rest),
+        "retain"        => heki_cmd_retain(file, rest),
         "snapshot"      => heki_cmd_snapshot(file),
         "get"           => heki_cmd_get(file, rest),
         "list"          => heki_cmd_list(file, rest),
@@ -1215,6 +1216,47 @@ fn heki_cmd_delete(file: &str, rest: &[String]) {
         Ok(true)  => println!("deleted {}", id),
         Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
         Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+/// `heki retain <file> <id> --reason "<why>"` — filter-rewrite a store
+/// to keep only the named record. Used to clean up i151 singleton-leak
+/// orphans : aggregate stores accumulated thousands of records when
+/// every cascade tick minted a new id ; the canonical natural-key
+/// record is the only one with real state. Snapshots the source before
+/// rewriting so the prior store can be recovered.
+fn heki_cmd_retain(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("retain", rest);
+    let id = match remaining.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki retain <file.heki> <id> --reason \"<why>\"");
+            std::process::exit(1);
+        }
+    };
+    let store = match heki::read(file) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    };
+    let kept = match store.get(id) {
+        Some(r) => r.clone(),
+        None => {
+            eprintln!("heki retain : no record with id={} in {}", id, file);
+            std::process::exit(1);
+        }
+    };
+    let dropped = store.len().saturating_sub(1);
+    // Snapshot before destructive op — same pattern heki delete uses.
+    match heki::snapshot(file) {
+        Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
+        Ok(None) => {}
+        Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
+    }
+    let mut new_store = heki::Store::new();
+    new_store.insert(id.to_string(), kept);
+    match heki::write(file, &new_store, heki::WriteContext::OutOfBand { reason: &reason }) {
+        Ok(_) => println!("retained id={} ; {} record(s) dropped", id, dropped),
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
     }
 }
 
