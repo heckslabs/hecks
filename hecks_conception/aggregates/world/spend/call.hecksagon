@@ -1,0 +1,22 @@
+# Call — Hecksagon
+#
+# Infrastructure declaration for the Call aggregate (one LLM
+# invocation : provider, token counts, cost, the triggering
+# command). Pairs with aggregates/world/spend/call.bluebook.
+#
+# Memory-adapter backed; the .heki binary store writes happen via
+# the standard Hecks persistence layer. The memory adapter is what
+# tests and behaviors run against.
+#
+# Gate:
+#   miette — the being herself records each LLM invocation as it
+#            happens. She cannot rewrite her own budget; that's
+#            Chris's prerogative (see budget.hecksagon).
+#
+Hecks.hecksagon "Call" do
+  adapter :memory
+
+  gate "Call", :miette do
+    allow :RecordCall
+  end
+end

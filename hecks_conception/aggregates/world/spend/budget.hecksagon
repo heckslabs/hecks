@@ -1,0 +1,21 @@
+# Budget — Hecksagon
+#
+# Infrastructure declaration for the Budget aggregate (spend cap
+# for a period — hour/day/month — with manual override window).
+# Pairs with aggregates/world/spend/budget.bluebook.
+#
+# Memory-adapter backed; the .heki binary store writes happen via
+# the standard Hecks persistence layer.
+#
+# Gate:
+#   chris — the creator sets and overrides budget caps. He is the
+#           one who decides how much Miette is allowed to spend
+#           shelling out to Claude/Ollama.
+#
+Hecks.hecksagon "Budget" do
+  adapter :memory
+
+  gate "Budget", :chris do
+    allow :SetBudget, :OverrideBudget, :ClearOverride
+  end
+end
