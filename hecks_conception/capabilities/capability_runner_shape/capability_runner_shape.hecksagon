@@ -1,10 +1,10 @@
 Hecks.hecksagon "CapabilityRunnerShape" do
   # ============================================================
-  # CAPABILITY RUNNER SHAPE — wiring
+  # CAPABILITY RUNNER SHAPE — wiring + body_kind catalog
   # ============================================================
   #
   # Sibling bluebook describes the shape of an I/O-pipeline runner
-  # (run_X/mod.rs) as declarative rows. The aggregates here are
+  # (run_X/mod.rs) as declarative rows. The aggregates there are
   # build-time metadata only — the specializer reads them at
   # codegen time to emit the runner. No runtime state, no
   # persistence.
@@ -18,4 +18,63 @@ Hecks.hecksagon "CapabilityRunnerShape" do
   # capabilities.
 
   adapter :fs, root: "."
+
+  # ---- Body-kind catalog -------------------------------------------
+  #
+  # Every emission strategy the specializer knows about lives here as
+  # a row. Phase rows in the bluebook reference these by name. Adding
+  # a new emission strategy = one new row + the matching template
+  # branch in the specializer ; no Rust-level enumeration drift, no
+  # comment-list drift, the catalog IS the data. Mirrors the daemon
+  # row pattern in capabilities/boot/boot.hecksagon.
+  #
+  # `name`             — the kind identifier referenced from Phase rows
+  # `description`      — what this body_kind emits at L7
+  # `signature_shape`  — the rough Rust signature, useful for docs
+  # `adapter_required` — the I/O adapter a phase using this kind needs
+  #                       in the host hecksagon (« none » when the
+  #                       phase is pure-format or only touches rt)
+
+  adapter :body_kind, name: :read_heki,
+    description: "Read N .heki stores via :fs adapter and return a struct of typed scalars.",
+    signature_shape: "fn(info_dir: &Path) -> ReadResult",
+    adapter_required: "fs"
+
+  adapter :body_kind, name: :compose_template,
+    description: "Assemble a string from a declared template + variables (system-prompt-style composition).",
+    signature_shape: "fn(vars: &Vars) -> String",
+    adapter_required: "none"
+
+  adapter :body_kind, name: :write_fs,
+    description: "Write a string to a path under the :fs adapter root.",
+    signature_shape: "fn(root: &Path, body: &str) -> io::Result<()>",
+    adapter_required: "fs"
+
+  adapter :body_kind, name: :pure_format,
+    description: "Pure function : in-memory struct to Vec<String> of formatted lines, no I/O.",
+    signature_shape: "fn(report: &Report) -> Vec<String>",
+    adapter_required: "none"
+
+  adapter :body_kind, name: :dispatch_command,
+    description: "Call rt.dispatch(<command>, attrs) ; updates aggregate state and emits events declared in the source bluebook.",
+    signature_shape: "fn(rt: &mut Runtime, attrs: HashMap<String, Value>) -> Result",
+    adapter_required: "none"
+
+  adapter :body_kind, name: :verbatim_section,
+    description: "i146/i147 pattern. The unit of decomposition is a Section ; each Section row points at a .rs.frag snippet via snippet_path. The specializer concatenates snippets by order through util::read_snippet_raw — no template interpolation, no cross-row variables. Used when a target's methods are sui-generis Rust that does not fit a small declarative pattern. Canonical reference : heki_query_shape (4 sections, 4 .rs.frag snippets, ~30 LoC emitter).",
+    signature_shape: "fn(repo_root: &Path) -> Result<String, _>",
+    adapter_required: "fs"
+
+  # walk_filesystem — the i154-followup primitive. A runner that
+  # needs to enumerate files (organ census, capability discovery,
+  # source-tree diffing, Restructure.Layout.Plan) declares one row
+  # with classification rules ; the specializer emits the recursive
+  # walk + classification logic. First instance lands with the
+  # Restructure runner ; second instance retires run_boot/discover.rs's
+  # count_organs (i149) which currently inlines what this body_kind
+  # would emit declaratively.
+  adapter :body_kind, name: :walk_filesystem,
+    description: "Walk a directory tree, classify entries against declared match rules, accumulate matches into an output struct. Use when a runner needs to enumerate files (organ census, Restructure.Layout.Plan, capability discovery). The classification rules — pattern + recurse + tag — live as row attributes on the consuming runner's Phase declaration.",
+    signature_shape: "fn(root: &Path, accumulator: &mut Vec<FsEntry>)",
+    adapter_required: "fs"
 end
