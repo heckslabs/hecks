@@ -333,6 +333,42 @@ fn main() {
         return;
     }
 
+    // `hecks-life statusline` — Statusline capability runner (i97
+    // → i145). Fires the bluebook-declared rendering of Miette's
+    // one-line body status. Replaces statusline-command.sh's 273-
+    // line shell with a Rust mirror of run_status/ : reads body
+    // heki, branches on consciousness state, prints a single line.
+    // Same family as run_status / run_loop / run_daemon — kernel-
+    // surface CLI primitive a bluebook capability dispatches into.
+    // Bluebook brain stays in capabilities/statusline/.
+    if command == "statusline" {
+        hecks_life::run_statusline::run();
+        return;
+    }
+
+    // `hecks-life is-dispatched <path>` — IR-query subcommand
+    // (i122). Exit 0 + stdout line "<kind> in <source>" if the file
+    // is claimed by some adapter / specializer ; exit 1 silently if
+    // not. The LoC ratchet calls this per-file so growth in IR-
+    // claimed surfaces stops counting against the non-bluebook
+    // budget. Same substrate the antibody enforcer uses.
+    if command == "is-dispatched" {
+        let path = match args.get(2) {
+            Some(p) => p.clone(),
+            None => {
+                eprintln!("usage: hecks-life is-dispatched <path>");
+                std::process::exit(2);
+            }
+        };
+        match dispatch_lookup(&path) {
+            Some(info) => {
+                println!("{} in {}", info.kind, info.source);
+                std::process::exit(0);
+            }
+            None => std::process::exit(1),
+        }
+    }
+
     // `hecks-life clock <agg-dir> --segment <hour-range>:<Cmd> [...] [--poll <dur>]`
     //
     // Wall-clock segment trigger primitive (i107). Boots the runtime
@@ -1952,12 +1988,23 @@ fn run_enforce_edit(_args: &[String]) {
 
     let kind = classify_file(&file_path);
 
-    // For imperative files, check the central exempt registry in
-    // antibody.fixtures (ExemptRegistry aggregate). A file is exempt
-    // iff its repo-relative path is listed there — no inline marker
-    // needed in the source file itself.
-    let exempted = matches!(kind, FileKind::Imperative)
-        && file_is_in_exempt_registry(&file_path);
+    // For imperative files, ask the IR-query substrate first
+    // (i122) ; if the corpus declares this file as dispatched (a
+    // hecksagon ShellAdapter referencing it, a specializer target,
+    // a capability runner row), exemption is structural — no
+    // marker needed. Falls back to the central exempt_registry.heki
+    // for cases the IR doesn't yet cover (the residual entries each
+    // carry a named retirement arc in the inbox). When dispatched-
+    // by-corpus fires, the kind decoration in the audit event names
+    // who claimed the file, so the audit log shows WHY the edit was
+    // exempt rather than just "exempt".
+    let dispatch_info = if matches!(kind, FileKind::Imperative) {
+        dispatch_lookup(&file_path)
+    } else {
+        None
+    };
+    let exempted = dispatch_info.is_some()
+        || (matches!(kind, FileKind::Imperative) && file_is_in_exempt_registry(&file_path));
 
     let cmd_name = match kind {
         FileKind::Bluebook   => "RecordBluebookEdit",
@@ -1975,6 +2022,28 @@ fn run_enforce_edit(_args: &[String]) {
 
     let mut attrs = std::collections::HashMap::new();
     attrs.insert("file_path".to_string(), serde_json::Value::String(file_path.clone()));
+    if let Some(ref info) = dispatch_info {
+        // Record the IR-query verdict on the audit event so the
+        // exempted edit carries a structured "why" instead of just
+        // a flag. Source = where the dispatch declaration lives ;
+        // kind = which kind of dispatch (specializer target, shell
+        // adapter, runner row) ; identifier = the specific row in
+        // that source.
+        attrs.insert("dispatch_source".into(),
+                     serde_json::Value::String(info.source.clone()));
+        attrs.insert("dispatch_kind".into(),
+                     serde_json::Value::String(info.kind.clone()));
+        attrs.insert("dispatch_identifier".into(),
+                     serde_json::Value::String(info.identifier.clone()));
+        // Structured stderr line so the substrate is observable as
+        // it works. Once the registry trim lands and the markers
+        // retire, this is the only signal that an edit was exempt
+        // and why.
+        eprintln!(
+            "[enforcer] exempt by corpus : {} ({} in {})",
+            file_path, info.kind, info.source
+        );
+    }
     let _ = std::panic::catch_unwind(|| {
         // dispatch_hecksagon expects the bare command name (no
         // "Aggregate." prefix) ; the runtime resolves by command-
@@ -2036,6 +2105,22 @@ fn file_is_in_exempt_registry(file_path: &str) -> bool {
         }
     }
     false
+}
+
+/// IR-query lookup for an imperative file (i122). Resolves the
+/// corpus root (the `hecks_conception/` dir, parent of aggregates/)
+/// and asks `dispatch_query::is_dispatched_by_corpus` whether
+/// anything in the IR claims this file. When `Some`, the antibody
+/// can exempt the edit structurally — the registry is no longer the
+/// source of truth.
+///
+/// Cheap-ish: the specializer-target arm is a static array match ;
+/// the hecksagon arm walks `*.hecksagon` files under the corpus root
+/// (parses each on first match). Scoped to one process invocation.
+fn dispatch_lookup(file_path: &str) -> Option<hecks_life::dispatch_query::DispatchInfo> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let corpus_root = std::path::Path::new(&agg_dir).parent()?;
+    hecks_life::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
 }
 
 /// Locate `hecks_conception/information/exempt_registry.heki` by
