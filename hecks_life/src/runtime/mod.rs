@@ -195,8 +195,8 @@ impl Runtime {
         }
         // Context-disambiguation path — when multiple contexts declare
         // an aggregate with the same name (e.g. self/Conversation,
-        // capabilities/cloudflare_deploy/MiettePhone::Conversation,
-        // nursery/voice/Voice::Conversation), repo_lookup_key picks
+        // capabilities/cloudflare_deploy/MiettePhone::Conversation),
+        // repo_lookup_key picks
         // a first hash-iter match nondeterministically. Walk every
         // key ending with `::<name>` and return the FIRST one whose
         // store actually carries the id — the id itself disambiguates
