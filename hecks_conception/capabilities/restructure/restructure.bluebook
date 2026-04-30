@@ -79,6 +79,13 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
       emits "LayoutReverted"
       then_set :status, to: "reverted"
     end
+
+    command "Show" do
+      role "Miette"
+      description "Render every Move record for this layout to :stdout — the diff surface. Intended to be dispatched between Plan and Apply so the operator can review what would change before committing. Does not mutate state ; emits a marker event so dispatch is auditable."
+      reference_to(Layout)
+      emits "LayoutShown"
+    end
   end
 
   # ---- Placement ---------------------------------------------------
@@ -131,9 +138,14 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
     # event logs don't conflate moves across layout versions.
     attribute :layout, String
 
-    command "PlanMove" do
+    # Per-aggregate command names (i155). Plan / Apply / Revert echo
+    # Layout's lifecycle verbs ; the names coexist now that bare-name
+    # dispatch errors on ambiguity and FQN dispatch (Move.Plan vs
+    # Layout.Plan) is the rule for cross-aggregate calls.
+
+    command "Plan" do
       role "Miette"
-      description "Queue a move from src to dest. Status starts at planned. Layout.Plan dispatches one PlanMove per matched file ; the layout attribute records which Layout this Move belongs to."
+      description "Queue a move from src to dest. Status starts at planned. Layout.Plan dispatches one Move.Plan per matched file ; the layout attribute records which Layout this Move belongs to."
       reference_to(Layout)
       attribute :move_id, String
       attribute :from, String
@@ -147,9 +159,9 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
       then_set :status, to: "planned"
     end
 
-    command "ApplyMove" do
+    command "Apply" do
       role "Miette"
-      description "Execute the planned move via the :fs adapter. Status advances to applied. Triggers VerifyMove via the VerifyOnApplied policy."
+      description "Execute the planned move via the :fs adapter. Status advances to applied. The VerifyOnApplied policy auto-fires Move.Verify next."
       reference_to(Move)
       attribute :applied_at, String
       given { status == "planned" }
@@ -158,25 +170,25 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
       then_set :applied_at, to: :applied_at
     end
 
-    command "VerifyMove" do
+    command "Verify" do
       role "Miette"
-      description "Post-move validation : dispatch Validator on the moved file via :memory. Status advances to verified on success ; on parse failure, FailMove fires and RevertOnFail triggers rollback."
+      description "Post-move validation : dispatch Validator on the moved file via :memory. Status advances to verified on success ; on parse failure, Move.Fail fires and RevertOnFail triggers rollback."
       reference_to(Move)
       given { status == "applied" }
       emits "MoveVerified"
       then_set :status, to: "verified"
     end
 
-    command "FailMove" do
+    command "Fail" do
       role "Miette"
-      description "Post-move validation rejected the moved file. Used by the runner when Validator dispatch returns invalid. Status flips to failed and RevertOnFail triggers RevertMove."
+      description "Post-move validation rejected the moved file. Used by the runner when Validator dispatch returns invalid. Status flips to failed and RevertOnFail triggers Move.Revert."
       reference_to(Move)
       given { status == "applied" }
       emits "MoveFailed"
       then_set :status, to: "failed"
     end
 
-    command "RevertMove" do
+    command "Revert" do
       role "Miette"
       description "Undo a previously-applied move. Accepts the move at any post-plan status (applied / verified / failed) ; the runner-driven cascade always lands here. The MoveReverted event payload swaps from + to so the event stream reads as the inversion path."
       reference_to(Move)
@@ -226,7 +238,7 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
 
   policy "VerifyOnApplied" do
     on "MoveApplied"
-    trigger "VerifyMove"
+    trigger "Move.Verify"
   end
 
   # On verification failure, automatically revert the move so the
@@ -234,6 +246,6 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
   # the rollback half of the post-move integrity contract.
   policy "RevertOnFail" do
     on "MoveFailed"
-    trigger "RevertMove"
+    trigger "Move.Revert"
   end
 end

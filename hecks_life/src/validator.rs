@@ -182,19 +182,33 @@ fn valid_references(domain: &Domain) -> Vec<String> {
     errors
 }
 
-/// Policy triggers must name existing commands.
+/// Policy triggers must name existing commands. Accepts bare names
+/// (Verify) and FQN forms (Aggregate.Command, Context.Aggregate.Command)
+/// per i155 — the trigger is resolved against every aggregate's command
+/// list. FQN's last segment is the command name ; the prefix segments
+/// must match an existing aggregate's name (and optionally context).
 fn valid_policy_triggers(domain: &Domain) -> Vec<String> {
-    let all_commands: HashSet<&str> = domain
-        .aggregates
-        .iter()
-        .flat_map(|a| a.commands.iter().map(|c| c.name.as_str()))
-        .collect();
+    let trigger_resolves = |trigger: &str| -> bool {
+        let parts: Vec<&str> = trigger.split('.').collect();
+        match parts.as_slice() {
+            [cmd] => domain.aggregates.iter()
+                .any(|a| a.commands.iter().any(|c| &c.name == cmd)),
+            [agg, cmd] => domain.aggregates.iter()
+                .any(|a| a.name == *agg
+                    && a.commands.iter().any(|c| &c.name == cmd)),
+            [ctx, agg, cmd] => domain.aggregates.iter()
+                .any(|a| a.name == *agg
+                    && a.context.as_deref() == Some(*ctx)
+                    && a.commands.iter().any(|c| &c.name == cmd)),
+            _ => false,
+        }
+    };
 
     domain
         .policies
         .iter()
         .filter(|p| p.target_domain.is_none()) // skip cross-domain
-        .filter(|p| !all_commands.contains(p.trigger_command.as_str()))
+        .filter(|p| !trigger_resolves(&p.trigger_command))
         .map(|p| {
             format!(
                 "Policy {} triggers unknown command: {}",
@@ -204,11 +218,16 @@ fn valid_policy_triggers(domain: &Domain) -> Vec<String> {
         .collect()
 }
 
-/// No two commands across all aggregates should share the same name.
+/// Within an aggregate, no two commands may share the same name.
+/// Across aggregates, names may collide ; FQN dispatch (Aggregate.Command)
+/// disambiguates and bare-name dispatch errors on ambiguity at resolve
+/// time. Per i155 — lifted from global-uniqueness to per-aggregate so
+/// the UL doesn't force suffix workarounds when two aggregates share
+/// a natural verb (Layout.Plan + Move.Plan, Layout.Apply + Move.Apply).
 fn no_duplicate_commands(domain: &Domain) -> Vec<String> {
-    let mut seen = HashSet::new();
     let mut errors = vec![];
     for agg in &domain.aggregates {
+        let mut seen = HashSet::new();
         for cmd in &agg.commands {
             if !seen.insert(&cmd.name) {
                 errors.push(format!(

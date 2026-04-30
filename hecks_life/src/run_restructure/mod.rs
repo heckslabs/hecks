@@ -95,6 +95,7 @@ pub fn run(
         "Layout.Plan" => phase_plan(rt, &fs_root, &attrs),
         "Layout.Apply" => phase_apply(rt, &fs_root, &attrs),
         "Layout.RevertTo" => phase_revert(rt, &fs_root, &attrs),
+        "Layout.Show" => phase_show(rt, &attrs),
         _ => match rt.dispatch(entrypoint, attrs) {
             Ok(_) => ExitKind::Ok.code(),
             Err(e) => { eprintln!("hecks-life restructure: {}", e); ExitKind::AdapterFailure.code() }
@@ -131,7 +132,7 @@ fn phase_plan(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>) 
                 move_attrs.insert("from".into(),    Value::Str(from));
                 move_attrs.insert("to".into(),      Value::Str(to));
                 move_attrs.insert("layout".into(),  Value::Str(layout_name.clone()));
-                let _ = rt.dispatch("PlanMove", move_attrs);
+                let _ = rt.dispatch("Move.Plan", move_attrs);
                 planned += 1;
                 break;
             }
@@ -172,8 +173,8 @@ fn phase_apply(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>)
                 a.insert("move".into(),       Value::Str(move_id.clone()));
                 a.insert("move_id".into(),    Value::Str(move_id.clone()));
                 a.insert("applied_at".into(), Value::Str(now.clone()));
-                if let Err(e) = rt.dispatch("ApplyMove", a) {
-                    eprintln!("Layout.Apply : ApplyMove dispatch failed for {} : {}", move_id, e);
+                if let Err(e) = rt.dispatch("Move.Apply", a) {
+                    eprintln!("Layout.Apply : Move.Apply dispatch failed for {} : {}", move_id, e);
                     failed += 1;
                     continue;
                 }
@@ -185,7 +186,7 @@ fn phase_apply(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>)
                     let mut fa: HashMap<String, Value> = HashMap::new();
                     fa.insert("move".into(),    Value::Str(move_id.clone()));
                     fa.insert("move_id".into(), Value::Str(move_id.clone()));
-                    let _ = rt.dispatch("FailMove", fa);
+                    let _ = rt.dispatch("Move.Fail", fa);
                     // Inverse rename so :fs reflects the rolled-back state.
                     let _ = execute_move(fs_root, to, from);
                     rolled_back += 1;
@@ -226,8 +227,8 @@ fn phase_revert(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>
                 let mut a: HashMap<String, Value> = HashMap::new();
                 a.insert("move".into(),    Value::Str(move_id.clone()));
                 a.insert("move_id".into(), Value::Str(move_id.clone()));
-                if let Err(e) = rt.dispatch("RevertMove", a) {
-                    eprintln!("Layout.RevertTo : RevertMove dispatch failed for {} : {}", move_id, e);
+                if let Err(e) = rt.dispatch("Move.Revert", a) {
+                    eprintln!("Layout.RevertTo : Move.Revert dispatch failed for {} : {}", move_id, e);
                     continue;
                 }
                 reverted += 1;
@@ -239,6 +240,62 @@ fn phase_revert(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>
     layout_attrs.insert("name".into(), Value::Str(layout_name.clone()));
     let _ = rt.dispatch("RevertTo", layout_attrs);
     println!("Layout.RevertTo '{}' — {} moves reverted", layout_name, reverted);
+    ExitKind::Ok.code()
+}
+
+/// Phase : Layout.Show — render every Move record linked to the named
+/// layout to :stdout. Doesn't mutate the filesystem ; the diff surface
+/// for review between Plan and Apply. Renders kv-style for grep-ability,
+/// grouped by status so applied / verified / reverted moves don't
+/// drown the still-planned ones in a multi-Plan history. Emits the
+/// LayoutShown event for auditability via rt.dispatch on Show after
+/// rendering.
+fn phase_show(rt: &mut Runtime, attrs: &HashMap<String, Value>) -> i32 {
+    let layout_name = match attrs.get("name") {
+        Some(Value::Str(s)) => s.clone(),
+        _ => { eprintln!("Layout.Show : missing name="); return ExitKind::AdapterFailure.code(); }
+    };
+    let Some(key) = crate::runtime::repo_lookup_key(&rt.repositories, "Move") else {
+        eprintln!("Layout.Show : no Move repository loaded");
+        return ExitKind::AdapterFailure.code();
+    };
+    let Some(repo) = rt.repositories.get(&key) else {
+        eprintln!("Layout.Show : Move repo not found at key {}", key);
+        return ExitKind::AdapterFailure.code();
+    };
+    let mut rows: Vec<(String, String, String, String)> = repo.all().iter()
+        .filter(|s| {
+            let l = s.fields.get("layout").map(value_to_string).unwrap_or_default();
+            l.is_empty() || l == layout_name
+        })
+        .map(|s| (
+            s.fields.get("move_id").map(value_to_string).unwrap_or(s.id.clone()),
+            s.fields.get("status").map(value_to_string).unwrap_or_default(),
+            s.fields.get("from").map(value_to_string).unwrap_or_default(),
+            s.fields.get("to").map(value_to_string).unwrap_or_default(),
+        ))
+        .collect();
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    let total = rows.len();
+    if total == 0 {
+        println!("Layout.Show '{}' — no Move records for this layout", layout_name);
+        let mut a: HashMap<String, Value> = HashMap::new();
+        a.insert("name".into(), Value::Str(layout_name));
+        let _ = rt.dispatch("Show", a);
+        return ExitKind::Ok.code();
+    }
+    println!("Layout.Show '{}' — {} move(s) :", layout_name, total);
+    println!();
+    for (mid, status, from, to) in &rows {
+        println!("move_id={}", mid);
+        println!("status={}", status);
+        println!("from={}", from);
+        println!("to={}", to);
+        println!();
+    }
+    let mut a: HashMap<String, Value> = HashMap::new();
+    a.insert("name".into(), Value::Str(layout_name));
+    let _ = rt.dispatch("Show", a);
     ExitKind::Ok.code()
 }
 

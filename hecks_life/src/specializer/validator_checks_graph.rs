@@ -78,19 +78,33 @@ pub(super) fn emit_trigger_valid(rule: &Fixture) -> String {
     let name = util::attr(rule, "rust_fn_name");
     format!(
         "\
-/// Policy triggers must name existing commands.
+/// Policy triggers must name existing commands. Accepts bare names
+/// (Verify) and FQN forms (Aggregate.Command, Context.Aggregate.Command)
+/// per i155 — the trigger is resolved against every aggregate's command
+/// list. FQN's last segment is the command name ; the prefix segments
+/// must match an existing aggregate's name (and optionally context).
 fn {name}(domain: &Domain) -> Vec<String> {{
-    let all_commands: HashSet<&str> = domain
-        .aggregates
-        .iter()
-        .flat_map(|a| a.commands.iter().map(|c| c.name.as_str()))
-        .collect();
+    let trigger_resolves = |trigger: &str| -> bool {{
+        let parts: Vec<&str> = trigger.split('.').collect();
+        match parts.as_slice() {{
+            [cmd] => domain.aggregates.iter()
+                .any(|a| a.commands.iter().any(|c| &c.name == cmd)),
+            [agg, cmd] => domain.aggregates.iter()
+                .any(|a| a.name == *agg
+                    && a.commands.iter().any(|c| &c.name == cmd)),
+            [ctx, agg, cmd] => domain.aggregates.iter()
+                .any(|a| a.name == *agg
+                    && a.context.as_deref() == Some(*ctx)
+                    && a.commands.iter().any(|c| &c.name == cmd)),
+            _ => false,
+        }}
+    }};
 
     domain
         .policies
         .iter()
         .filter(|p| p.target_domain.is_none()) // skip cross-domain
-        .filter(|p| !all_commands.contains(p.trigger_command.as_str()))
+        .filter(|p| !trigger_resolves(&p.trigger_command))
         .map(|p| {{
             format!(
                 \"Policy {{}} triggers unknown command: {{}}\",

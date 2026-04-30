@@ -164,6 +164,12 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<(usize, usize), RuntimeEr
             Err(RuntimeError::UnknownCommand(command_name.to_string()))
         }
         [cmd_name] => {
+            // Bare-name dispatch : first-match-wins. The strict-ambiguity
+            // check is filed as i156 (deferred) — depends on the corpus
+            // first migrating cross-bluebook collisions to FQN setups.
+            // Per-aggregate uniqueness (i155) still holds within a single
+            // bluebook ; cross-bluebook collisions are silently resolved
+            // by iteration order until i156 lifts.
             for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                 for (ci, cmd) in agg.commands.iter().enumerate() {
                     if cmd.name == *cmd_name { return Ok((ai, ci)); }

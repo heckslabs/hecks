@@ -108,11 +108,16 @@ fn emit_unique_across(rule: &Fixture) -> String {
     let name = util::attr(rule, "rust_fn_name");
     format!(
         "\
-/// No two commands across all aggregates should share the same name.
+/// Within an aggregate, no two commands may share the same name.
+/// Across aggregates, names may collide ; FQN dispatch (Aggregate.Command)
+/// disambiguates and bare-name dispatch errors on ambiguity at resolve
+/// time. Per i155 — lifted from global-uniqueness to per-aggregate so
+/// the UL doesn't force suffix workarounds when two aggregates share
+/// a natural verb (Layout.Plan + Move.Plan, Layout.Apply + Move.Apply).
 fn {name}(domain: &Domain) -> Vec<String> {{
-    let mut seen = HashSet::new();
     let mut errors = vec![];
     for agg in &domain.aggregates {{
+        let mut seen = HashSet::new();
         for cmd in &agg.commands {{
             if !seen.insert(&cmd.name) {{
                 errors.push(format!(

@@ -184,14 +184,22 @@ fn run_one(
     // compares events produced by THIS dispatch, not events from setup.
     let pre_dispatch_event_count = rt.event_bus.events().len();
     let input_attrs = build_attrs(&test.input, &test.tests_command, &rt, &in_scope);
+    // FQN dispatch (i155) : combine `on:` clause with the command name
+    // so bare-name ambiguity (Layout.Plan vs Move.Plan post-i155) is
+    // unambiguous via the test's declared aggregate scope.
+    let fqn = if test.on_aggregate.is_empty() || test.tests_command.contains('.') {
+        test.tests_command.clone()
+    } else {
+        format!("{}.{}", test.on_aggregate, test.tests_command)
+    };
     // `kind: :cascade` tests explicitly want the policy chain to fire
     // so they can assert the cascade via `expect emits: [...]`. All
     // other tests dispatch isolated so the asserted state matches the
     // command's DIRECT mutations (no cascade overshoot).
     let result = if test.kind == "cascade" || test.kind == "cross_cascade" {
-        rt.dispatch(&test.tests_command, input_attrs)
+        rt.dispatch(&fqn, input_attrs)
     } else {
-        rt.dispatch_isolated(&test.tests_command, input_attrs)
+        rt.dispatch_isolated(&fqn, input_attrs)
     };
 
     // The expect map drives every assertion. `refused` is a special
