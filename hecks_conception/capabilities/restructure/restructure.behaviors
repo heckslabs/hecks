@@ -1,0 +1,95 @@
+Hecks.behaviors "Restructure" do
+  vision "Behavioral tests for the Restructure capability — exercises layout lifecycle, move event spine, post-move verification, and rewind via Revert"
+
+  # ── Layout aggregate ────────────────────────────────────────
+
+  test "Define seeds a draft layout at status=draft" do
+    tests "Define", on: "Layout"
+    input  name: "v1", version: "2026.04.30.1", description: "first cut"
+    expect status: "draft", emits: ["LayoutDefined"]
+  end
+
+  test "Plan advances draft layout to planned" do
+    tests "Plan", on: "Layout"
+    setup  "Define", name: "v1", version: "2026.04.30.1", description: "first cut"
+    input  name: "v1"
+    expect status: "planned", emits: ["LayoutPlanned"]
+  end
+
+  test "Apply advances planned layout to applied" do
+    tests "Apply", on: "Layout"
+    setup  "Define", name: "v1", version: "2026.04.30.1", description: "first cut"
+    setup  "Plan",   name: "v1"
+    input  name: "v1"
+    expect status: "applied", emits: ["LayoutApplied"]
+  end
+
+  test "RevertTo advances applied layout to reverted" do
+    tests "RevertTo", on: "Layout"
+    setup  "Define", name: "v1", version: "2026.04.30.1", description: "first cut"
+    setup  "Plan",   name: "v1"
+    setup  "Apply",  name: "v1"
+    input  name: "v1"
+    expect status: "reverted", emits: ["LayoutReverted"]
+  end
+
+  # ── Placement aggregate ─────────────────────────────────────
+
+  test "Add attaches a placement rule" do
+    tests "Add", on: "Placement"
+    input  pattern: "*.bluebook", destination: "aggregates/", reason: "domains live at the root of aggregates/"
+    expect emits: ["PlacementAdded"]
+  end
+
+  # ── Move aggregate ──────────────────────────────────────────
+  #
+  # The event-source spine. Status walks planned → applied →
+  # verified → reverted via the corresponding commands. The events
+  # carry from + to so a Move.Revert log replay IS filesystem undo.
+
+  test "PlanMove queues a move at status=planned" do
+    tests "PlanMove", on: "Move"
+    input  move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
+    expect status: "planned", from: "old/path.bluebook", to: "new/path.bluebook", emits: ["MovePlanned"]
+  end
+
+  test "ApplyMove advances planned to applied" do
+    tests "ApplyMove", on: "Move"
+    setup  "PlanMove", move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
+    input  move_id: "m1", applied_at: "2026-04-30T20:00:00Z"
+    expect status: "applied", emits: ["MoveApplied"]
+  end
+
+  test "VerifyMove advances applied to verified" do
+    tests "VerifyMove", on: "Move"
+    setup  "PlanMove",  move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
+    setup  "ApplyMove", move_id: "m1", applied_at: "2026-04-30T20:00:00Z"
+    input  move_id: "m1"
+    expect status: "verified", emits: ["MoveVerified"]
+  end
+
+  test "RevertMove advances applied to reverted" do
+    tests "RevertMove", on: "Move"
+    setup  "PlanMove",  move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
+    setup  "ApplyMove", move_id: "m1", applied_at: "2026-04-30T20:00:00Z"
+    input  move_id: "m1"
+    expect status: "reverted", emits: ["MoveReverted"]
+  end
+
+  test "FailMove flips applied to failed" do
+    tests "FailMove", on: "Move"
+    setup  "PlanMove",  move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
+    setup  "ApplyMove", move_id: "m1", applied_at: "2026-04-30T20:00:00Z"
+    input  move_id: "m1"
+    expect status: "failed", emits: ["MoveFailed"]
+  end
+
+  # ── Convention aggregate ────────────────────────────────────
+
+  test "Declare seeds a loading convention" do
+    tests "Declare", on: "Convention"
+    input  name: "bluebooks_at_root", from_position: "aggregates/", look_for: "*.bluebook", recursive: "true"
+    expect emits: ["ConventionDeclared"]
+  end
+
+end

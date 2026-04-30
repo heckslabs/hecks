@@ -1,0 +1,232 @@
+Hecks.bluebook "Restructure", version: "2026.04.30.1" do
+  vision "Declare a target file layout, plan the moves, apply with post-move validation, rewind any move via the event log. Restructuring becomes one Layout.Define + Layout.Apply ; future shape-changes cost the same. Lives entirely in conception ; no new runtime code."
+  category "autophagy"
+
+  # ============================================================
+  # RESTRUCTURE — bluebook-native file relocation
+  # ============================================================
+  #
+  # The hard work : drafting the shape so any future « lay the
+  # conception out differently » becomes one Layout.Define + one
+  # Layout.Apply. The simple work — actually moving files — is
+  # automated through this capability + the :fs adapter.
+  #
+  # Standard from chris.bluebook : « We should always work on hard
+  # things, and simple things should be automated, which is hard. »
+  # This capability incarnates that standard for the restructure case.
+  #
+  # Event-sourced spine — every move emits MovePlanned / MoveApplied /
+  # MoveReverted with from + to in the payload, so a Move.Revert
+  # event log replay IS filesystem undo. Layout.RevertTo walks back
+  # to a named version by triggering Move.Revert in reverse order.
+  #
+  # Adapters declared in the sibling restructure.hecksagon :
+  #   :fs     — actual moves + tree walk
+  #   :memory — post-move Validator dispatch (every moved bluebook
+  #             must still parse)
+  #   :stdout — diff report rendering
+
+  # ---- Layout ------------------------------------------------------
+  #
+  # A named target structure (versioned). Status walks through
+  # draft → planned → applied → reverted as the lifecycle proceeds.
+  # RevertTo returns the conception to a previously-applied layout
+  # by inverting moves until the target version's state is reached.
+
+  aggregate "Layout", "A named target file structure for the conception" do
+    identified_by :name
+    attribute :name, String
+    attribute :version, String
+    attribute :description, String
+    attribute :status, String
+
+    command "Define" do
+      role "Miette"
+      description "Declare a new target layout. Status starts at draft ; placements attach via Placement.Add."
+      attribute :name, String
+      attribute :version, String
+      attribute :description, String
+      emits "LayoutDefined"
+      then_set :name, to: :name
+      then_set :version, to: :version
+      then_set :description, to: :description
+      then_set :status, to: "draft"
+    end
+
+    command "Plan" do
+      role "Miette"
+      description "Walk current filesystem against this layout's placements ; emit one MovePlanned per file that needs relocating. Status advances to planned."
+      reference_to(Layout)
+      given { status == "draft" }
+      emits "LayoutPlanned"
+      then_set :status, to: "planned"
+    end
+
+    command "Apply" do
+      role "Miette"
+      description "Execute every planned Move. Each Move.Apply emits MoveApplied + triggers Move.Verify via post-move policy. If any Verify fails, the failure is logged but the rest proceed (idempotent retry)."
+      reference_to(Layout)
+      given { status == "planned" }
+      emits "LayoutApplied"
+      then_set :status, to: "applied"
+    end
+
+    command "RevertTo" do
+      role "Miette"
+      description "Revert moves until current state matches a previously-applied target version. Triggers Move.Revert in reverse-chronological order."
+      reference_to(Layout)
+      given { status == "applied" }
+      emits "LayoutReverted"
+      then_set :status, to: "reverted"
+    end
+  end
+
+  # ---- Placement ---------------------------------------------------
+  #
+  # One rule per row : « files matching pattern X belong at
+  # destination Y under the conception ». A Layout has many.
+  # Pattern is glob-like ; destination is a path relative to the
+  # conception root. Reason carries the human-readable rationale
+  # surfaced in the diff report.
+
+  aggregate "Placement", "A single placement rule attached to a Layout" do
+    attribute :pattern, String
+    attribute :destination, String
+    attribute :reason, String
+
+    command "Add" do
+      role "Miette"
+      description "Attach a placement rule to a Layout. The Layout must be in draft status."
+      reference_to(Layout)
+      attribute :pattern, String
+      attribute :destination, String
+      attribute :reason, String
+      emits "PlacementAdded"
+      then_set :pattern, to: :pattern
+      then_set :destination, to: :destination
+      then_set :reason, to: :reason
+    end
+  end
+
+  # ---- Move --------------------------------------------------------
+  #
+  # The event-source spine. Every move emits enough payload (from +
+  # to) to invert. MoveReverted is deliberately the inversion event
+  # type — its payload swaps from / to so an event log of Move.*
+  # events read in reverse order produces the same filesystem
+  # undo path as Move.Revert dispatches.
+  #
+  # Status walks : planned → applied → verified → reverted. Verify
+  # fires automatically after Apply via the VerifyOnApplied policy.
+
+  aggregate "Move", "A single planned, applied, verified, or reverted file relocation" do
+    identified_by :move_id
+    attribute :move_id, String
+    attribute :from, String
+    attribute :to, String
+    attribute :status, String
+    attribute :applied_at, String
+
+    command "PlanMove" do
+      role "Miette"
+      description "Queue a move from src to dest. Status starts at planned. Layout.Plan dispatches one PlanMove per matched file."
+      reference_to(Layout)
+      attribute :move_id, String
+      attribute :from, String
+      attribute :to, String
+      emits "MovePlanned"
+      then_set :move_id, to: :move_id
+      then_set :from, to: :from
+      then_set :to, to: :to
+      then_set :status, to: "planned"
+    end
+
+    command "ApplyMove" do
+      role "Miette"
+      description "Execute the planned move via the :fs adapter. Status advances to applied. Triggers VerifyMove via the VerifyOnApplied policy."
+      reference_to(Move)
+      attribute :applied_at, String
+      given { status == "planned" }
+      emits "MoveApplied"
+      then_set :status, to: "applied"
+      then_set :applied_at, to: :applied_at
+    end
+
+    command "VerifyMove" do
+      role "Miette"
+      description "Post-move validation : dispatch Validator on the moved file via :memory. Status advances to verified on success ; on parse failure, FailMove fires and RevertOnFail triggers rollback."
+      reference_to(Move)
+      given { status == "applied" }
+      emits "MoveVerified"
+      then_set :status, to: "verified"
+    end
+
+    command "FailMove" do
+      role "Miette"
+      description "Post-move validation rejected the moved file. Used by the runner when Validator dispatch returns invalid. Status flips to failed and RevertOnFail triggers RevertMove."
+      reference_to(Move)
+      given { status == "applied" }
+      emits "MoveFailed"
+      then_set :status, to: "failed"
+    end
+
+    command "RevertMove" do
+      role "Miette"
+      description "Undo a previously-applied move. The MoveReverted event payload swaps from + to so the event stream reads as the inversion path."
+      reference_to(Move)
+      given { status == "applied" }
+      emits "MoveReverted"
+      then_set :status, to: "reverted"
+    end
+  end
+
+  # ---- Convention --------------------------------------------------
+  #
+  # A loading rule : « from this position in the tree, look at
+  # sibling/subdir for X ». Captures declaratively what
+  # load_combined_domain's recursive walk + dispatch_hecksagon's
+  # sibling-capabilities pickup already do imperatively. Future
+  # arc : the runtime's loader retires from the conception's
+  # Convention records (one more « runtime shrinks » payoff).
+
+  aggregate "Convention", "A declarative loading rule the runtime should honor" do
+    identified_by :name
+    attribute :name, String
+    attribute :from_position, String
+    attribute :look_for, String
+    attribute :recursive, String
+
+    command "Declare" do
+      role "Miette"
+      description "Declare a loading convention — from a tree position, what siblings or subdirs the runtime should pick up."
+      attribute :name, String
+      attribute :from_position, String
+      attribute :look_for, String
+      attribute :recursive, String
+      emits "ConventionDeclared"
+      then_set :name, to: :name
+      then_set :from_position, to: :from_position
+      then_set :look_for, to: :look_for
+      then_set :recursive, to: :recursive
+    end
+  end
+
+  # ---- Policies — the cascade --------------------------------------
+  #
+  # Layout.Apply emits LayoutApplied which fans out to every Move
+  # the layout planned. Each Move.Apply triggers Move.Verify so
+  # post-move validation gates the chain without manual orchestration.
+
+  policy "VerifyOnApplied" do
+    on "MoveApplied"
+    trigger "VerifyMove"
+  end
+
+  # On verification failure, automatically revert the move so the
+  # filesystem stays consistent with the verified-good state. This is
+  # the rollback half of the post-move integrity contract.
+  policy "RevertOnFail" do
+    on "MoveFailed"
+    trigger "RevertMove"
+  end
+end

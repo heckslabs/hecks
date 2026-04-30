@@ -1,0 +1,37 @@
+Hecks.hecksagon "Restructure" do
+  # ============================================================
+  # RESTRUCTURE — adapter wiring for the file-relocation capability
+  # ============================================================
+  #
+  # Restructure is a thin shell over runtime primitives that already
+  # exist. It declares :fs (file moves + tree walk), :memory (post-
+  # move Validator dispatch), :stdout (the diff report). Zero new
+  # adapter code required ; the runner emits from capability_runner_
+  # shape and dispatches commands declared in the sibling bluebook.
+  #
+  # Layer mapping :
+  #   L0 = restructure.bluebook (sibling) — the domain
+  #   L0 = this file — the adapter wiring
+  #   L7 = hecks_life/src/run_restructure/mod.rs — the emitted runner
+  #        (regenerates from capability_runner_shape after the
+  #        walk_filesystem body_kind lands)
+
+  # ---- Adapters ----------------------------------------------------
+
+  # :fs — actual file moves + recursive tree walk for Layout.Plan.
+  # Root anchored at the conception root so all moves are relative
+  # to the directory the runner operates on.
+  adapter :fs, root: "."
+
+  # :memory — used for post-move Validator dispatch. The runner reads
+  # the moved bluebook, dispatches a parse-validate command in the
+  # in-process runtime, and emits MoveVerified or MoveFailed based
+  # on the result. No external process spawn ; pure in-memory.
+  adapter :memory
+
+  # :stdout — renders the diff report between the current filesystem
+  # state and the target Layout. Layout.Plan walks the tree and
+  # streams one line per planned move ; Layout.Apply reports each
+  # ApplyMove + VerifyMove outcome as it happens.
+  adapter :stdout
+end
