@@ -20,9 +20,14 @@ use std::path::Path;
 
 pub mod behaviors_parser;
 pub mod behaviors_parser_dispatch;
+pub mod dispatch_query;
 pub mod dump;
 pub mod fixtures_parser;
 pub mod hecksagon_parser;
+pub mod heki_query;
+pub mod repository;
+pub mod run_boot;
+pub mod run_statusline;
 pub mod util;
 pub mod validator;
 pub mod validator_checks;
@@ -36,14 +41,19 @@ pub mod validator_warnings;
 pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
     match target {
         "behaviors_parser" => behaviors_parser::emit(repo_root),
+        "dispatch_query" => dispatch_query::emit(repo_root),
         "dump" => dump::emit(repo_root),
         "fixtures_parser" => fixtures_parser::emit(repo_root),
         "hecksagon_parser" => hecksagon_parser::emit(repo_root),
+        "heki_query" => heki_query::emit(repo_root),
+        "repository" => repository::emit(repo_root),
+        "run_statusline" => run_statusline::emit(repo_root),
+        "system_prompt" => run_boot::system_prompt::emit(repo_root),
         "validator" => validator::emit(repo_root),
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_parser, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, repository, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),

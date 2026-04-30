@@ -290,3 +290,104 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
 // meta_ruby_script, meta_ruby_module) are deleted alongside their
 // target files. Bluebook + fixtures + snippets survive as historical
 // data per the Phase E plan.
+
+// ────────────────────────────────────────────────────────────────────
+// i146 + i147 — substrate / kernel byte-identity guards
+// ────────────────────────────────────────────────────────────────────
+//
+// Each new specializer target gets a golden test that mirrors the
+// shape above : invoke `hecks-life specialize <target>` from the
+// repo root, compare its stdout to the tracked source. When any
+// hand-edit drifts the tracked file from what the meta-shape would
+// emit, the test fails — same byte-identity invariant the existing
+// 6 targets enforce.
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "dispatch_query"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize dispatch_query failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/dispatch_query.rs"))
+        .expect("dispatch_query.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_repository_rs() {
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "repository"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize repository failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/runtime/repository.rs"))
+        .expect("runtime/repository.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_run_statusline_rs() {
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "run_statusline"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize run_statusline failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/run_statusline.rs"))
+        .expect("run_statusline.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_system_prompt_rs() {
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "system_prompt"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize system_prompt failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/run_boot/system_prompt.rs"))
+        .expect("run_boot/system_prompt.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_heki_query_rs() {
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "heki_query"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize heki_query failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/heki_query.rs"))
+        .expect("heki_query.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}

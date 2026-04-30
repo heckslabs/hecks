@@ -1,0 +1,17 @@
+Hecks.fixtures "DispatchQueryShape" do
+  # Single-line per i57 parser limitation. Four ordered sections —
+  # two are verbatim snippets (prelude, body), two are structural
+  # string-table emissions (SPECIALIZER_TARGETS, SPECIALIZER_HELPER_MODULES).
+  #
+  # The "dispatch_query" entry inside Section 2's entries field is the
+  # self-claim that closes i122 : the IR-query substrate's own file is
+  # now claimed by its own static dispatch table, and the byte-identity
+  # test enforces that the table cannot drift.
+
+  aggregate "Section" do
+    fixture "Prelude", name: "prelude", order: 1, body_kind: "embedded_snippet", snippet_path: "hecks_conception/capabilities/dispatch_query_shape/snippets/prelude.rs.frag", doc_snippet: "", array_name: "", entries: ""
+    fixture "SpecializerTargets", name: "specializer_targets", order: 2, body_kind: "string_table", snippet_path: "", doc_snippet: "hecks_conception/capabilities/dispatch_query_shape/snippets/specializer_targets_doc.rs.frag", array_name: "SPECIALIZER_TARGETS", entries: "behaviors_parser,dispatch_query,dump,fixtures_parser,hecksagon_parser,heki_query,repository,run_statusline,system_prompt,validator,validator_corpus,validator_warnings"
+    fixture "SpecializerHelperModules", name: "specializer_helper_modules", order: 3, body_kind: "string_table", snippet_path: "", doc_snippet: "hecks_conception/capabilities/dispatch_query_shape/snippets/specializer_helper_modules_doc.rs.frag", array_name: "SPECIALIZER_HELPER_MODULES", entries: "behaviors_parser_dispatch,validator_morphology,validator_checks,validator_checks_graph,util,mod"
+    fixture "Body", name: "body", order: 4, body_kind: "embedded_snippet", snippet_path: "hecks_conception/capabilities/dispatch_query_shape/snippets/body.rs.frag", doc_snippet: "", array_name: "", entries: ""
+  end
+end

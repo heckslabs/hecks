@@ -107,9 +107,14 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
 /// `specializer_targets_match_emit_dispatch_table`).
 pub const SPECIALIZER_TARGETS: &[&str] = &[
     "behaviors_parser",
+    "dispatch_query",
     "dump",
     "fixtures_parser",
     "hecksagon_parser",
+    "heki_query",
+    "repository",
+    "run_statusline",
+    "system_prompt",
     "validator",
     "validator_corpus",
     "validator_warnings",

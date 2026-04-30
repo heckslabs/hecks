@@ -1,0 +1,72 @@
+Hecks.bluebook "DispatchQueryShape", version: "2026.04.30.1" do
+  vision "The shape of hecks_life/src/dispatch_query.rs as a bluebook — the IR-query substrate (i122) closes the loop on itself. dispatch_query.rs is the file every other antibody decision routes through ; once it regenerates from this shape, hand-edits to it become structurally impossible (the byte-identity test refuses them) and the substrate self-claims (its own filename appears in its own SPECIALIZER_TARGETS table)."
+  category "autophagy"
+
+  # ============================================================
+  # DISPATCH_QUERY SHAPE — i146 piece 1
+  # ============================================================
+  #
+  # dispatch_query.rs answers "is this file dispatched by something
+  # the IR declared?" — three consumers (the antibody enforcer, the
+  # LoC ratchet, the inline marker parser) all share its answers.
+  #
+  # Structurally the file is :
+  #   1. doc + imports + DISPATCH_BEARING_IO_KINDS const + DispatchInfo
+  #      struct + top-level is_dispatched_by_corpus + section divider
+  #   2. SPECIALIZER_TARGETS const (declarative table)
+  #   3. SPECIALIZER_HELPER_MODULES const (declarative table)
+  #   4. is_specializer_target + section divider + is_hecksagon_dispatched
+  #      + helper fns + walk_hecksagons + section divider + tests module
+  #
+  # Sections 1 and 4 are read verbatim from .rs.frag snippets — they
+  # contain doc comments, a struct definition, recursive functions, a
+  # closure-callback walker, pattern matching across IoAdapter and
+  # ShellAdapter IR types, and a #[cfg(test)] mod with multiple unit
+  # tests. None of that decomposes naturally into the body_kind
+  # taxonomy that dump_shape / validator_shape use ; they're prose-as-
+  # Rust. But sections 2 and 3 ARE pure tabular data (a list of
+  # filename stems), so they go through a structural emitter — and the
+  # entries attribute holds the list of names, including
+  # "dispatch_query" itself, which is the self-claim mechanic this
+  # piece of i146 is closing.
+  #
+  # Layer mapping (mirrors validator_shape / dump_shape) :
+  #   L0 = this file + fixtures/dispatch_query_shape.fixtures + snippets/*
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/dispatch_query.rs (generated target)
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered chunk of dispatch_query.rs. order is the
+  # numeric index the specializer walks ; body_kind selects the
+  # codegen branch :
+  #   embedded_snippet  — read snippet_path verbatim (no leading-
+  #                       comment strip ; doc comments and section
+  #                       dividers are load-bearing). Trailing newlines
+  #                       are preserved exactly.
+  #   string_table      — emit `<doc>\npub const <array_name>: &[&str]
+  #                       = &[\n    "<entry1>",\n    ...];\n\n` from
+  #                       three attributes : doc_snippet (path to a
+  #                       .rs.frag containing the leading `///` lines),
+  #                       array_name, entries (comma-separated).
+
+  aggregate "Section", "One ordered chunk of dispatch_query.rs — body_kind picks the emitter" do
+    attribute :name,         String
+    # order: 1..N — emission order in dispatch_query.rs
+    attribute :order,        Integer
+    # body_kind: embedded_snippet | string_table
+    attribute :body_kind,    String
+    # snippet_path: for embedded_snippet — relative path to .rs.frag
+    attribute :snippet_path, String, default: ""
+    # doc_snippet: for string_table — relative path to .rs.frag with
+    # the leading `///` doc lines
+    attribute :doc_snippet,  String, default: ""
+    # array_name: for string_table — the const identifier (e.g.
+    # "SPECIALIZER_TARGETS")
+    attribute :array_name,   String, default: ""
+    # entries: for string_table — comma-separated list of string
+    # literals to emit (one per line, 4-space indented). Order is
+    # preserved exactly as written.
+    attribute :entries,      String, default: ""
+  end
+end
