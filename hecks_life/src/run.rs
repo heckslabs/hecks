@@ -101,10 +101,18 @@ pub fn run_script(args: &[String]) -> i32 {
         Ok(x) => x,
         Err(e) => return e.code(),
     };
-    let entrypoint = match domain.entrypoint.clone() {
-        Some(e) => e,
-        None => {
-            eprintln!("hecks-life run: {} declares no `entrypoint \"…\"`", path);
+    // Entrypoint resolution : explicit `entrypoint=<Aggregate.Command>`
+    // override in argv wins (lets capability runners with multiple
+    // phases — Restructure's Plan / Apply / RevertTo, future ones —
+    // pick a phase per-invocation), otherwise the bluebook's declared
+    // entrypoint, otherwise an error.
+    let cli_entrypoint = extra.iter()
+        .find_map(|a| a.strip_prefix("entrypoint=").map(String::from));
+    let entrypoint = match (cli_entrypoint, domain.entrypoint.clone()) {
+        (Some(e), _) => e,
+        (None, Some(e)) => e,
+        (None, None) => {
+            eprintln!("hecks-life run: {} declares no `entrypoint \"…\"` (pass entrypoint=<Aggregate.Command> to override)", path);
             return ExitKind::GuardFailure.code();
         }
     };
@@ -192,7 +200,17 @@ pub fn is_stdin_loop_capability(registry: &AdapterRegistry, rt: &Runtime) -> boo
 /// Pick a data dir for heki persistence — prefer a sibling
 /// `information/` (Miette convention), otherwise fall back to
 /// `<parent>/data`.
+/// data_dir resolution for run_script. Delegates to the canonical
+/// heki::resolve_info_dir (i154) so HECKS_INFO + sibling layout pick
+/// up correctly ; falls back to bluebook-parent's information/ or
+/// data/ subdir when the canonical helper hits its literal default
+/// AND that path doesn't exist.
 fn infer_data_dir(bluebook_path: &str) -> Option<String> {
+    let canonical = crate::heki::resolve_info_dir();
+    let canonical_str = canonical.to_string_lossy().into_owned();
+    if canonical.exists() || canonical_str != "hecks_conception/information" {
+        return Some(canonical_str);
+    }
     let p = Path::new(bluebook_path);
     let parent = p.parent()?;
     let info = parent.join("information");
