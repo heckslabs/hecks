@@ -1,0 +1,62 @@
+Hecks.bluebook "ConceiverGeneratorShape", version: "2026.04.30.1" do
+  vision "The shape of hecks_life/src/conceiver/generator.rs as a bluebook — produce .bluebook DSL text from archetypes — made IR-derivable via ordered embedded snippets, mirroring heki_query_shape's verbatim_section pattern."
+  category "autophagy"
+
+  # ============================================================
+  # CONCEIVER GENERATOR SHAPE — i147 wave 2 target
+  # ============================================================
+  #
+  # generator.rs takes a Domain IR (the archetype) and produces a
+  # new bluebook with the same structural shape but placeholder
+  # names. It is small (180 LoC), self-contained (one external use
+  # line), and naturally partitions into ordered code sections —
+  # generate_bluebook, the scaffold helpers, the shared aggregate
+  # + command emitters, and the snake-case helper.
+  #
+  # That partition is exactly what this shape captures : one row
+  # per ordered section, every row pointing at a `.rs.frag`
+  # snippet. The specializer concatenates HEADER + each snippet
+  # body in declared order to reproduce the file byte-for-byte.
+  #
+  # Layer mapping (mirrors heki_query_shape) :
+  #   L0 = this file + fixtures/conceiver_generator_shape.fixtures
+  #        + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/conceiver/generator.rs (generated target)
+  #
+  # The single `verbatim_section` body_kind here matches heki_query
+  # — useful when each section as a whole is stable enough to live
+  # as a snippet but the internal structure varies (one section
+  # is a public entry fn, another is two thin wrappers + an impl,
+  # another is a casing helper). When a future shape lands that
+  # describes "emit aggregate as scaffold vs. as copy" as data
+  # (e.g. an `aggregate_emitter_shape`), individual sections here
+  # retire into that shape's rows. Until then : section = snippet,
+  # file = HEADER + ordered concatenation.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in conceiver/generator.rs.
+  # body_kind picks how the specializer emits the section :
+  #   verbatim_section  — read snippet_path raw and emit it. Same
+  #                       as heki_query_shape's only body_kind.
+  #
+  # The specializer emits a fixed HEADER (doc comment + use line +
+  # const VERSION) then concatenates each section body in `order`
+  # ascending.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today). Same vocabulary
+    # as heki_query_shape ; reserved for future split when sections
+    # gain interior structure worth describing as data.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

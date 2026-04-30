@@ -1,0 +1,60 @@
+Hecks.bluebook "BehaviorsFixturesShape", version: "2026.04.30.1" do
+  vision "The shape of hecks_life/src/behaviors_fixtures.rs as a bluebook — the .fixtures auto-loader (locate / parse / apply) made IR-derivable via ordered embedded snippets."
+  category "autophagy"
+
+  # ============================================================
+  # BEHAVIORS FIXTURES SHAPE — i147 wave 2 target
+  # ============================================================
+  #
+  # behaviors_fixtures.rs is the test-runner-side auto-loader that
+  # finds a sibling `.fixtures` file for a given `.behaviors` path
+  # and seeds a fresh runtime before each test runs. It is small
+  # (~124 LoC), self-contained, and partitions naturally into one
+  # function per ordered section : locate_path / parse_file /
+  # find_for / apply / parse_fixture_value.
+  #
+  # That partition is exactly what this shape captures : one row per
+  # ordered section, every row pointing at a `.rs.frag` snippet. The
+  # specializer concatenates HEADER + each snippet body in declared
+  # order to reproduce the file byte-for-byte.
+  #
+  # Layer mapping (mirrors heki_query_shape) :
+  #   L0 = this file + fixtures/behaviors_fixtures_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/behaviors_fixtures.rs (generated target)
+  #
+  # The single `verbatim_section` body_kind in this shape is the
+  # "embedded_helper for whole files" pattern — useful when each
+  # section is structurally a self-contained function but the file
+  # as a whole is the source of truth. When a future shape lands
+  # that can describe `apply` as data (e.g. an aggregate-grouped
+  # save_loop_shape), individual sections here will retire into
+  # that shape's rows. Until then : section = snippet, file =
+  # ordered concatenation.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in behaviors_fixtures.rs.
+  # body_kind picks how the specializer emits the section :
+  #   verbatim_section  — read snippet_path with read_snippet_raw
+  #                       (no comment-strip, no blank-line trim) and
+  #                       emit the body verbatim. Same kind heki_query
+  #                       and validator_corpus use.
+  #
+  # The specializer concatenates HEADER + each section body in
+  # `order` ascending. read_snippet_raw is required so the leading
+  # `///` doc comments on each `pub fn` are preserved verbatim.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today).
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

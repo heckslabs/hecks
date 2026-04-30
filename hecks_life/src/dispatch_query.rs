@@ -108,6 +108,7 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
 pub const SPECIALIZER_TARGETS: &[&str] = &[
     "behaviors_fixtures",
     "behaviors_parser",
+    "conceiver_generator",
     "discover",
     "dispatch_query",
     "dump",
