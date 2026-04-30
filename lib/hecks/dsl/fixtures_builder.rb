@@ -33,6 +33,24 @@ module Hecks
         @catalogs = {}
       end
 
+      # `list_of(Type)` shorthand inside fixture-builder scope. The
+      # i42 catalog-dialect form lets a `schema:` hash use it for
+      # list-typed fields :
+      #
+      #   aggregate "TestCase", schema: { paths: list_of(String) } do
+      #
+      # Same return shape as AttributeCollector#list_of — a wrapper
+      # hash whose `:list` key carries the element type. The Rust
+      # parser sees the literal text `list_of(String)` ; Ruby
+      # produces the wrapper hash, which `normalize_schema` will
+      # `to_s` back into matching shape via to_bluebook_source-style
+      # rendering when parity-test compares (the wrapper inspects to
+      # `{:list=>String}` and the parity-test normalize collapses to
+      # `{ list: String }` — same source form Rust keeps).
+      def list_of(type)
+        { list: type }
+      end
+
       # Scope the inner `fixture` calls to one aggregate type. `name`
       # is the aggregate's PascalCase name, matching the source
       # bluebook's `aggregate "X" do`.

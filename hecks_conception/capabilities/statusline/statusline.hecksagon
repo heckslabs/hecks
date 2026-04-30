@@ -7,11 +7,32 @@ Hecks.hecksagon "Statusline" do
   # only to memory ; the runner reads body heki via :fs and prints
   # via :stdout.
   #
-  # Until a Rust runner mirroring run_status/ lands, the transitional
-  # adapter is statusline-command.sh — it reads heki via the same
-  # paths declared here, dispatches Render, and prints the result.
+  # The Rust runner (hecks_life/src/run_statusline.rs) reads body
+  # heki via :fs and prints via :stdout. statusline-command.sh is
+  # the transitional shell wrapper Claude Code's harness still
+  # invokes — declared below as :shell so the i122 IR substrate
+  # claims it without a registry entry.
 
   adapter :fs, root: "information"
 
   adapter :stdout
+
+  # ---- Harness wrapper -----------------------------------------
+  #
+  # Claude Code's settings.json points its statusline action at a
+  # .sh file ; ~/.claude/statusline-command.sh is a symlink to
+  # hecks_conception/statusline-command.sh. After i145 the .sh is
+  # a 25-line transitional wrapper that exec's `hecks-life
+  # statusline`. Declaring it as a shell adapter here makes the
+  # wiring visible to the i122 IR-query substrate : the antibody
+  # enforcer no longer needs a registry entry for the wrapper
+  # because this hecksagon claims it structurally.
+  #
+  # Retires when ~/.claude/settings.json invokes `hecks-life
+  # statusline` directly without the .sh shim — at which point
+  # the wrapper file deletes and this adapter row deletes with it.
+
+  adapter :shell, name: :harness_wrapper,
+          command: "{dir}/statusline-command.sh",
+          ok_exit: 0
 end

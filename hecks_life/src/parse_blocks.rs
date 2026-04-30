@@ -499,6 +499,14 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         (MutationOp::Decay, extract_after(line, "decay:")?)
     } else if line.contains("to:") {
         (MutationOp::Set, extract_after(line, "to:")?)
+    } else if line.contains("from:") {
+        // i106 — `then_set :field, from: :param` reads the named command
+        // param at dispatch time. We carry the source symbol form
+        // (`:param`) so the canonical IR matches Ruby's then_set
+        // path : Ruby's mutation_value formats Symbol → ":param", and
+        // extract_after returns the raw `:param` token here. Both
+        // sides emit `value: ":param"` after canonical normalization.
+        (MutationOp::Set, extract_after(line, "from:")?)
     } else {
         // Positional form: `then_set :field, <value>` — value is the
         // token after the field's symbol, separated by a comma.

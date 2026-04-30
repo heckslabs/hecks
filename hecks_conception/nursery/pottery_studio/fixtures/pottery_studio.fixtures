@@ -4,7 +4,7 @@ Hecks.fixtures "PotteryStudio" do
     fixture "Raku_Bowl_", name: "Raku Bowl", form: "bowl", clay_body: "stoneware", status: "trimmed", weight_kg: 0.8
   end
   aggregate "Firing" do
-    fixture "Firing1", firing_type: "bisque", target_cone: 04, atmosphere: "oxidation", status: "loading", piece_count: 24
+    fixture "Firing1", firing_type: "bisque", target_cone: 4, atmosphere: "oxidation", status: "loading", piece_count: 24
     fixture "Firing2", firing_type: "glaze", target_cone: 6, atmosphere: "reduction", status: "firing", piece_count: 18
   end
   aggregate "Glaze" do

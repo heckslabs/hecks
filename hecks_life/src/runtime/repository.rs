@@ -28,6 +28,12 @@ pub struct Repository {
     aggregate_type: String,
     data_dir: Option<String>,
     identified_by: Option<String>,
+    /// Bounded context (bluebook namespace) — set by Runtime when the
+    /// aggregate's IR carries one. Used to namespace the heki path
+    /// (i142 Tier 2) so same-name aggregates in different contexts
+    /// don't collide on storage. None = legacy aggregate with flat
+    /// heki path (the pre-i142 default).
+    context: Option<String>,
 }
 
 impl Repository {
@@ -36,12 +42,27 @@ impl Repository {
         data_dir: Option<String>,
         identified_by: Option<String>,
     ) -> Self {
+        Self::new_with_context(aggregate_type, data_dir, identified_by, None)
+    }
+
+    /// New repository with bounded-context awareness (i142 Tier 2).
+    /// When context is set, the heki path is `<dir>/<context_snake>/<aggregate_snake>.heki`
+    /// instead of the flat `<dir>/<aggregate_snake>.heki`. Migrates
+    /// flat-path data into the context-prefixed path on first load
+    /// (when target dir is empty and source file exists).
+    pub fn new_with_context(
+        aggregate_type: &str,
+        data_dir: Option<String>,
+        identified_by: Option<String>,
+        context: Option<String>,
+    ) -> Self {
         let mut repo = Repository {
             store: HashMap::new(),
             next_id: 1,
             aggregate_type: aggregate_type.to_string(),
             data_dir,
             identified_by,
+            context,
         };
         repo.load_persisted();
         repo
@@ -49,7 +70,25 @@ impl Repository {
 
     fn load_persisted(&mut self) {
         let Some(ref dir) = self.data_dir else { return };
-        let path = heki_path(dir, &self.aggregate_type);
+        let path = self.heki_path_self(dir);
+        // i142 Tier 2 — auto-migration : when reading from the new
+        // context-prefixed path returns nothing, but the flat
+        // pre-context path has data, MOVE the flat file into the
+        // context dir. One-shot lazy migration ; runs on the first
+        // load of each aggregate after Tier 2 ships. Subsequent
+        // reads/writes go through the new path natively.
+        if self.context.is_some() {
+            let new_records = heki::read(&path).unwrap_or_default();
+            if new_records.is_empty() {
+                let flat_path = heki_path(dir, &self.aggregate_type);
+                if std::path::Path::new(&flat_path).exists() && flat_path != path {
+                    if let Some(parent) = std::path::Path::new(&path).parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    let _ = std::fs::rename(&flat_path, &path);
+                }
+            }
+        }
         let records = heki::read(&path).unwrap_or_default();
         for (_, rec) in &records {
             let id = rec.get("id")
@@ -109,7 +148,10 @@ impl Repository {
     pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) {
         self.store.insert(state.id.clone(), state);
         if let Some(ref dir) = self.data_dir {
-            let path = heki_path(dir, &self.aggregate_type);
+            let path = self.heki_path_self(dir);
+            if let Some(parent) = std::path::Path::new(&path).parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
             let mut heki_store = heki::Store::new();
             for (id, s) in &self.store {
                 let mut rec = heki::Record::new();
@@ -135,7 +177,13 @@ impl Repository {
     pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) {
         self.store.remove(id);
         if let Some(ref dir) = self.data_dir {
-            let path = heki_path(dir, &self.aggregate_type);
+            // Context-aware path resolution (i142 Tier 2) — picks the
+            // namespaced or flat heki path per the aggregate's
+            // declared context.
+            let path = self.heki_path_self(dir);
+            // Snapshot before delete (i122 round 1, the heki snapshot
+            // primitive) — the only destructive runtime call gets a
+            // backup. Failures log but don't block the dispatch.
             match heki::snapshot(&path) {
                 Ok(Some(snap)) => {
                     if std::env::var("HECKS_HEKI_AUDIT").ok().as_deref() == Some("1") {
@@ -146,6 +194,19 @@ impl Repository {
                 Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
             }
             let _ = heki::delete(&path, id, ctx);
+        }
+    }
+
+    /// Resolve the heki path for THIS repository — context-prefixed
+    /// when context is set (i142 Tier 2), flat otherwise (legacy).
+    fn heki_path_self(&self, dir: &str) -> String {
+        match &self.context {
+            Some(ctx) => {
+                let agg_snake = snake_case(&self.aggregate_type);
+                let ctx_snake = snake_case(ctx);
+                format!("{}/{}/{}.heki", dir, ctx_snake, agg_snake)
+            }
+            None => heki_path(dir, &self.aggregate_type),
         }
     }
 
@@ -166,14 +227,20 @@ impl Repository {
     }
 }
 
-/// Heartbeat → {dir}/heartbeat.heki
+/// Heartbeat → {dir}/heartbeat.heki (legacy flat form)
 fn heki_path(dir: &str, aggregate_type: &str) -> String {
-    let mut snake = String::new();
-    for (i, c) in aggregate_type.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { snake.push('_'); }
-        snake.push(c.to_lowercase().next().unwrap_or(c));
+    format!("{}/{}.heki", dir, snake_case(aggregate_type))
+}
+
+/// Convert PascalCase aggregate / context names to snake_case for
+/// filesystem-friendly paths. "MietteBody" → "miette_body".
+fn snake_case(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 { out.push('_'); }
+        out.push(c.to_lowercase().next().unwrap_or(c));
     }
-    format!("{}/{}.heki", dir, snake)
+    out
 }
 
 fn to_json(val: &Value) -> serde_json::Value {

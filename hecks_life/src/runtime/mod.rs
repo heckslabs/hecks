@@ -54,12 +54,17 @@ impl Runtime {
     pub fn boot_with_data_dir(domain: Domain, data_dir: Option<String>) -> Self {
         let mut repositories = HashMap::new();
         for agg in &domain.aggregates {
+            // i142 Tier 2 — key repositories by (context, name) so
+            // same-name aggregates in different contexts get distinct
+            // Repository instances (and distinct heki paths).
+            let key = repo_key(agg.context.as_deref(), &agg.name);
             repositories.insert(
-                agg.name.clone(),
-                Repository::new(
+                key,
+                Repository::new_with_context(
                     &agg.name,
                     data_dir.clone(),
                     agg.identified_by.clone(),
+                    agg.context.clone(),
                 ),
             );
         }
@@ -180,16 +185,38 @@ impl Runtime {
     }
 
     pub fn find(&self, aggregate_name: &str, id: &str) -> Option<&AggregateState> {
-        self.repositories
-            .get(aggregate_name)
-            .and_then(|repo| repo.find(id))
+        // Exact-key fast path — when the caller passes either the bare
+        // name (single-context corpus) or a fully-qualified
+        // `Context::Name` key (post-i142), match it directly.
+        if let Some(repo) = self.repositories.get(aggregate_name) {
+            if let Some(state) = repo.find(id) {
+                return Some(state);
+            }
+        }
+        // Context-disambiguation path — when multiple contexts declare
+        // an aggregate with the same name (e.g. self/Conversation,
+        // capabilities/cloudflare_deploy/MiettePhone::Conversation,
+        // nursery/voice/Voice::Conversation), repo_lookup_key picks
+        // a first hash-iter match nondeterministically. Walk every
+        // key ending with `::<name>` and return the FIRST one whose
+        // store actually carries the id — the id itself disambiguates
+        // which context the dispatch landed in.
+        let suffix = format!("::{}", aggregate_name);
+        for (key, repo) in &self.repositories {
+            if key.ends_with(&suffix) {
+                if let Some(state) = repo.find(id) {
+                    return Some(state);
+                }
+            }
+        }
+        None
     }
 
     pub fn all(&self, aggregate_name: &str) -> Vec<&AggregateState> {
-        self.repositories
-            .get(aggregate_name)
-            .map(|repo| repo.all())
-            .unwrap_or_default()
+        match repo_lookup_key(&self.repositories, aggregate_name) {
+            Some(key) => self.repositories.get(&key).map(|repo| repo.all()).unwrap_or_default(),
+            None => Vec::new(),
+        }
     }
 
     /// Drain policy triggers recursively — each triggered command
@@ -253,8 +280,15 @@ impl Runtime {
                         continue;
                     }
                     // Singleton fallback: pick any existing record of the
-                    // ref's target type.
-                    if let Some(repo) = self.repositories.get(&r.target) {
+                    // ref's target type. References don't carry context ;
+                    // resolve target's context by scanning the loaded
+                    // domain (i142 Tier 2). True cross-context refs land
+                    // in Tier 3.
+                    let target_ctx = self.domain.aggregates.iter()
+                        .find(|a| a.name == r.target)
+                        .and_then(|a| a.context.as_deref());
+                    let key = repo_key(target_ctx, &r.target);
+                    if let Some(repo) = self.repositories.get(&key) {
                         if let Some(existing) = repo.all().first() {
                             data.insert(r.name.clone(), Value::Str(existing.id.clone()));
                         }
@@ -275,7 +309,8 @@ impl Runtime {
                 // another counter-minted record because id_for_command
                 // honored the leaked upstream value.
                 if let Some(ref key) = agg.identified_by {
-                    if let Some(repo) = self.repositories.get(&agg.name) {
+                    let agg_key = repo_key(agg.context.as_deref(), &agg.name);
+                    if let Some(repo) = self.repositories.get(&agg_key) {
                         let needs_inject = match data.get(key.as_str()) {
                             None => true,
                             Some(v) => v.as_str()
@@ -479,6 +514,34 @@ macro_rules! attrs {
         $(map.insert($key.to_string(), $val);)*
         map
     }};
+}
+
+/// i142 Tier 2 — compose the HashMap key for a repository.
+/// Same-name aggregates in different bounded contexts get distinct
+/// keys ("Library::Inbox" vs "Workshop::Inbox") so they end up with
+/// distinct Repository instances and distinct .heki paths.
+/// Legacy aggregates without a context use their bare name.
+pub fn repo_key(context: Option<&str>, name: &str) -> String {
+    match context {
+        Some(ctx) => format!("{}::{}", ctx, name),
+        None => name.to_string(),
+    }
+}
+
+/// i142 Tier 2 — name-only lookup helper for callers that don't yet
+/// carry context info (public Runtime::find/all, behaviors runners,
+/// CommandResult-driven main loops). Scans for an exact match first
+/// (legacy / context-less repository), then for any "<ctx>::<name>"
+/// key. With name uniqueness inside the loaded domain (the common
+/// case), this is unambiguous. True same-name collisions across
+/// contexts surface as nondeterministic picks here — those callers
+/// should be migrated to keyed lookup as Tier 3 progresses.
+pub fn repo_lookup_key(repositories: &HashMap<String, Repository>, name: &str) -> Option<String> {
+    if repositories.contains_key(name) {
+        return Some(name.to_string());
+    }
+    let suffix = format!("::{}", name);
+    repositories.keys().find(|k| k.ends_with(&suffix)).cloned()
 }
 
 fn pascal_to_phrase(name: &str) -> String {

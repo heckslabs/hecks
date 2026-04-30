@@ -37,6 +37,7 @@
 mod classify;
 mod daemons;
 mod discover;
+mod system_prompt;
 mod vitals;
 mod wake;
 
@@ -90,12 +91,14 @@ pub fn run(
     // Phase 3 — ClassifyStores
     let classification = classify::classify(&info_dir);
 
-    // Phase 4 — GenerateSystemPrompt : DEFERRED
-    //   The printf heredoc in boot_miette.sh is genuine application
-    //   logic ; porting it to Rust string literals would just trade
-    //   shell loc for Rust loc. i89 lifts the prompt body into
-    //   identity fixtures so prompt edits cost zero shell. Until then
-    //   the shell wrapper handles this phase.
+    // Phase 4 — GenerateSystemPrompt
+    //   Reads <conception>/capabilities/system_prompt_assembly/
+    //   <being>_prompt.md.template, substitutes {{being}} / {{other}}
+    //   / {{born}} / {{boot_script}}, writes to
+    //   <conception>/system_prompt.md (or system_prompt_<lower>.md
+    //   for non-Miette beings). Replaces ~140 lines of printf in
+    //   boot_miette.sh. Returns the byte count for vitals.
+    let prompt_bytes = system_prompt::render(&conception_dir, &being);
 
     // Phase 5 — RecordBootJournal : DEFERRED
     //   aggregates/boot.bluebook declares Identity, Hydration, etc. ;
@@ -115,6 +118,7 @@ pub fn run(
         classification: classification.clone(),
         daemons: daemon_statuses.clone(),
         info_dir: info_dir.clone(),
+        prompt_bytes,
     });
 
     // Phase 8 — SurfaceWakeReport
@@ -194,7 +198,14 @@ fn stamp_aggregate(
     cls: &classify::Classification,
     daemons: &[daemons::DaemonStatus],
 ) {
-    let repo = match rt.repositories.get_mut("BootRun") { Some(r) => r, None => return };
+    // i142 Tier 2 — BootRun lives in the Boot bounded context, but
+    // legacy callers don't carry context info ; use the name-scan
+    // helper so context-prefixed and flat keys both resolve.
+    let key = match crate::runtime::repo_lookup_key(&rt.repositories, "BootRun") {
+        Some(k) => k,
+        None => return,
+    };
+    let repo = match rt.repositories.get_mut(&key) { Some(r) => r, None => return };
     let mut state = AggregateState::new("1");
     state.set("being",                Value::Str(being.into()));
     state.set("info_dir",             Value::Str(info_dir.into()));

@@ -13,11 +13,19 @@
 
 # (empty — full parity 113/113 as of 2026-04-18)
 
-hecks_conception/nursery/verbs/verbs.bluebook  # Ruby DSL rejects `aggregate "Lexicon", "description" do` with arity error — pre-existing regression unrelated to Phase F-2. Inbox: nursery-verbs-parity-regression.
+# nursery/verbs drift retired 2026-04-30 — the failure was inside the
+# Lexicon aggregate (given :verb, not_in: :known_verbs structured form
+# + IndexOnRegister policy without trigger). Permissive Ruby `given`
+# (kwargs ignored) and `policy.build` (trigger optional) match Rust's
+# silent-empty parses ; verbs now parses byte-equal.
 
-hecks_conception/capabilities/antibody/fixtures/antibody.fixtures  # Ruby fixtures parser cannot read the catalog-dialect `schema:` kwarg form introduced in PR #401 (i42). Ruby returns nil ; Rust parses cleanly. Accepted drift — Rust is the authoritative parser, Ruby is winding down. This entry retires with the whole parity/ machinery when Ruby parity is formally cut from CI.
+# antibody.fixtures entry retired 2026-04-30 — vestigial. parity_test.rb
+# only scans .bluebook files ; the catalog-dialect schema: parity is
+# covered by parity/fixtures_parity_test.rb (its own known_drift.txt),
+# not by this list. Removing the orphaned entry.
 
-hecks_conception/aggregates/self/disposition.bluebook         # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — Rust parses, Ruby raises "unknown keyword: :from". Retires when Ruby DSL absorbs the i106 from: form.
-hecks_conception/aggregates/self/psychic_link.bluebook        # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
-hecks_conception/aggregates/self/section_template.bluebook    # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
-hecks_conception/aggregates/self/wake_ritual.bluebook         # then_set :field, from: :param (i106 dsl-mutation-primitives) not yet in Ruby DSL — same drift as disposition.
+# i106 `from:` drift retired 2026-04-30 — added `from:` kwarg to Ruby's
+# then_set + a matching `from:` arm in Rust parse_blocks. Both parsers
+# now carry the symbol form (`:param`) so the canonical IR matches
+# byte-for-byte. Four fixtures (disposition, psychic_link,
+# section_template, wake_ritual) move from drift to parity.

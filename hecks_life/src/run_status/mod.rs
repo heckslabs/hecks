@@ -91,7 +91,12 @@ pub fn run(
 }
 
 fn stamp_aggregate(rt: &mut Runtime, r: &Report) {
-    let repo = match rt.repositories.get_mut("StatusReport") { Some(r) => r, None => return };
+    // i142 Tier 2 — name-scan to handle both flat and context-prefixed keys.
+    let key = match crate::runtime::repo_lookup_key(&rt.repositories, "StatusReport") {
+        Some(k) => k,
+        None => return,
+    };
+    let repo = match rt.repositories.get_mut(&key) { Some(r) => r, None => return };
     let mut state = AggregateState::new("1");
     state.set("identity_name",       Value::Str(r.identity_name.clone()));
     state.set("consciousness_state", Value::Str(r.consciousness_state.clone()));
