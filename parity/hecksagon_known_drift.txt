@@ -37,7 +37,7 @@ examples/shell_adapter/hecks/shell_demo.hecksagon  # Rust parser skips block-for
 # `gate "X", :role do; allow :A, :B, \n :C, :D end` — the continuation
 # line starts with `:C` which the Rust parser strips via strip_prefix
 # of "allow ", so it's dropped. Ruby collects all 6.
-hecks_conception/aggregates/circuit_breaker.hecksagon  # Rust drops allow continuation lines
+hecks_conception/aggregates/body/organs/circuit_breaker.hecksagon  # Rust drops allow continuation lines (moved from top-level by Restructure nest_hecksagons)
 
 # ── (Retired 2026-04-28 — i80) ──
 # Ruby's `def adapter(kind, name: nil, **opts)` extracted name as a
