@@ -414,7 +414,18 @@ fn validate_moved_file(path: &str) -> bool {
     let Ok(source) = std::fs::read_to_string(path) else { return false };
     if path.ends_with(".bluebook") {
         let domain = crate::parser::parse(&source);
-        !domain.aggregates.is_empty() || !domain.policies.is_empty() || !domain.fixtures.is_empty()
+        // A bluebook is valid if the parser surfaced ANY structure :
+        //   - a name (every Hecks.bluebook "Name" do ... declaration sets this)
+        //   - aggregates / policies / fixtures (the standard domain content)
+        //   - sections (workflow / glossary umbrella bluebooks like
+        //     world/boot.bluebook that hold only orchestration metadata)
+        // Any non-empty signal means the parse succeeded ; missing all
+        // of the above means the file isn't a parseable bluebook.
+        !domain.name.is_empty()
+            || !domain.aggregates.is_empty()
+            || !domain.policies.is_empty()
+            || !domain.fixtures.is_empty()
+            || !domain.sections.is_empty()
     } else if path.ends_with(".hecksagon") {
         let hex = crate::hecksagon_parser::parse(&source);
         !hex.io_adapters.is_empty() || !hex.shell_adapters.is_empty() || !hex.gates.is_empty()
