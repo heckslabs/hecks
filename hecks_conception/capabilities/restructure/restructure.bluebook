@@ -126,18 +126,24 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
     attribute :to, String
     attribute :status, String
     attribute :applied_at, String
+    # Layout-Move linkage : every Move carries the name of the Layout
+    # it was planned under. RevertTo filters by this so multi-layout
+    # event logs don't conflate moves across layout versions.
+    attribute :layout, String
 
     command "PlanMove" do
       role "Miette"
-      description "Queue a move from src to dest. Status starts at planned. Layout.Plan dispatches one PlanMove per matched file."
+      description "Queue a move from src to dest. Status starts at planned. Layout.Plan dispatches one PlanMove per matched file ; the layout attribute records which Layout this Move belongs to."
       reference_to(Layout)
       attribute :move_id, String
       attribute :from, String
       attribute :to, String
+      attribute :layout, String
       emits "MovePlanned"
       then_set :move_id, to: :move_id
       then_set :from, to: :from
       then_set :to, to: :to
+      then_set :layout, to: :layout
       then_set :status, to: "planned"
     end
 
@@ -172,9 +178,10 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
 
     command "RevertMove" do
       role "Miette"
-      description "Undo a previously-applied move. The MoveReverted event payload swaps from + to so the event stream reads as the inversion path."
+      description "Undo a previously-applied move. Accepts the move at any post-plan status (applied / verified / failed) ; the runner-driven cascade always lands here. The MoveReverted event payload swaps from + to so the event stream reads as the inversion path."
       reference_to(Move)
-      given { status == "applied" }
+      given { status != "planned" }
+      given { status != "reverted" }
       emits "MoveReverted"
       then_set :status, to: "reverted"
     end

@@ -47,15 +47,15 @@ Hecks.behaviors "Restructure" do
   # verified → reverted via the corresponding commands. The events
   # carry from + to so a Move.Revert log replay IS filesystem undo.
 
-  test "PlanMove queues a move at status=planned" do
+  test "PlanMove queues a move at status=planned with layout linkage" do
     tests "PlanMove", on: "Move"
-    input  move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
-    expect status: "planned", from: "old/path.bluebook", to: "new/path.bluebook", emits: ["MovePlanned"]
+    input  move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook", layout: "v1"
+    expect status: "planned", from: "old/path.bluebook", to: "new/path.bluebook", layout: "v1", emits: ["MovePlanned"]
   end
 
   test "ApplyMove advances planned to applied" do
     tests "ApplyMove", on: "Move"
-    setup  "PlanMove", move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook"
+    setup  "PlanMove", move_id: "m1", from: "old/path.bluebook", to: "new/path.bluebook", layout: "v1"
     input  move_id: "m1", applied_at: "2026-04-30T20:00:00Z"
     expect status: "applied", emits: ["MoveApplied"]
   end
