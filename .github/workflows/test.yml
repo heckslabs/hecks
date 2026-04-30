@@ -1,4 +1,4 @@
-name: tests
+name: Smoke + Behaviors
 # Smoke + behaviors gate on every PR.
 #
 # Multi-repo layout : Miette's body lives across three repos —
@@ -17,6 +17,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main, "**"]
+  workflow_dispatch:
 
 jobs:
   smoke:
