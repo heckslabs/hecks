@@ -158,6 +158,29 @@ fn phase_apply(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>)
         _ => { eprintln!("Layout.Apply : missing name="); return ExitKind::AdapterFailure.code(); }
     };
     let planned_moves = collect_planned_moves(rt, &layout_name);
+
+    // Atomic-Apply (i157 follow-up to i155) : pre-validate every source
+    // file BEFORE any filesystem mutation. If any source would fail
+    // post-move validation (unparseable bluebook, malformed hecksagon),
+    // abort the whole layout with no renames executed. Planned moves
+    // stay at status=planned ; the operator inspects, fixes, re-Plans.
+    // The original files are not deleted until everything can move
+    // together — Layout.Apply is all-or-nothing.
+    let validation_failures = pre_apply_validation_failures(&planned_moves);
+    if !validation_failures.is_empty() {
+        eprintln!(
+            "Layout.Apply '{}' ABORTED — {} of {} moves failed pre-validation :",
+            layout_name, validation_failures.len(), planned_moves.len()
+        );
+        for move_id in &validation_failures {
+            if let Some((_, from, _)) = planned_moves.iter().find(|(mid, _, _)| mid == move_id) {
+                eprintln!("  ✗ {} (source unparseable : {})", move_id, from);
+            }
+        }
+        eprintln!("  No filesystem changes made. Fix the source(s) above and re-dispatch Layout.Apply.");
+        return ExitKind::AdapterFailure.code();
+    }
+
     let now = current_iso8601();
     let mut applied: usize = 0;
     let mut failed: usize = 0;
@@ -179,15 +202,16 @@ fn phase_apply(rt: &mut Runtime, fs_root: &Path, attrs: &HashMap<String, Value>)
                     continue;
                 }
                 applied += 1;
-                // Real post-move validation : parse the moved file if
-                // it's a bluebook ; on failure dispatch FailMove which
-                // RevertOnFail auto-rolls back via RevertMove.
-                if to.ends_with(".bluebook") && !validate_bluebook(to) {
+                // Defensive post-move validation : pre-validate already
+                // confirmed the source parses cleanly, but a filesystem
+                // race or partial-write could still leave the destination
+                // malformed. Re-validate the destination ; on failure
+                // dispatch Move.Fail which RevertOnFail auto-rolls back.
+                if !validate_moved_file(to) {
                     let mut fa: HashMap<String, Value> = HashMap::new();
                     fa.insert("move".into(),    Value::Str(move_id.clone()));
                     fa.insert("move_id".into(), Value::Str(move_id.clone()));
                     let _ = rt.dispatch("Move.Fail", fa);
-                    // Inverse rename so :fs reflects the rolled-back state.
                     let _ = execute_move(fs_root, to, from);
                     rolled_back += 1;
                 }
@@ -379,17 +403,36 @@ fn collect_moves_for(rt: &Runtime, status: &str, layout_name: &str) -> Vec<(Stri
     }
 }
 
-/// Real post-move validation : parse the moved bluebook through the
-/// runtime's parser. Returns true on a valid parse with at least one
-/// declaration (aggregate / policy / fixture). The file is read from
-/// the destination ; if the file is missing or unparseable, validation
-/// fails and the caller dispatches FailMove which RevertOnFail rolls
-/// back. Skipped for non-.bluebook files (the runner's caller checks
-/// the suffix before calling this).
-fn validate_bluebook(path: &str) -> bool {
+/// Validate a moved file by parsing it through the right runtime parser
+/// based on extension. Bluebooks parse via parser::parse + must declare
+/// at least one aggregate / policy / fixture. Hecksagons parse via
+/// hecksagon_parser::parse + must declare at least one I/O or shell
+/// adapter or a gate. Other extensions (.behaviors, .fixtures, plain
+/// text) skip validation — they ride alongside their paired bluebook
+/// and are validated by their own runners. Returns true on success.
+fn validate_moved_file(path: &str) -> bool {
     let Ok(source) = std::fs::read_to_string(path) else { return false };
-    let domain = crate::parser::parse(&source);
-    !domain.aggregates.is_empty() || !domain.policies.is_empty() || !domain.fixtures.is_empty()
+    if path.ends_with(".bluebook") {
+        let domain = crate::parser::parse(&source);
+        !domain.aggregates.is_empty() || !domain.policies.is_empty() || !domain.fixtures.is_empty()
+    } else if path.ends_with(".hecksagon") {
+        let hex = crate::hecksagon_parser::parse(&source);
+        !hex.io_adapters.is_empty() || !hex.shell_adapters.is_empty() || !hex.gates.is_empty()
+    } else {
+        true
+    }
+}
+
+/// Pre-Apply validation pass : parse every planned-move's source file
+/// before any filesystem mutation. Returns the list of move_ids whose
+/// source fails validation. Atomic-Apply semantics : if this returns
+/// non-empty, phase_apply aborts before any rename ; the planned moves
+/// stay at status=planned, the operator inspects, fixes, re-Plans.
+fn pre_apply_validation_failures(planned: &[(String, String, String)]) -> Vec<String> {
+    planned.iter()
+        .filter(|(_, from, _)| !validate_moved_file(from))
+        .map(|(move_id, _, _)| move_id.clone())
+        .collect()
 }
 
 fn value_to_string(v: &Value) -> String {
