@@ -21,7 +21,11 @@ fn pizzas_domain_is_valid() {
 
 #[test]
 fn veterinary_clinic_domain_is_valid() {
-    let domain = parse_file("../hecks_conception/nursery/veterinary_clinic/veterinary_clinic.bluebook");
+    // The nursery migrated to its own repo (chrisyoung/hecks_nursury) on
+    // 2026-04-30 — see commit ecb14688. veterinary_clinic now lives there
+    // as a sibling-repo fixture. The relative path reaches it through the
+    // standard local layout (~/Projects/hecks/ + ~/Projects/hecks_nursury/).
+    let domain = parse_file("../../hecks_nursury/veterinary_clinic/veterinary_clinic.bluebook");
     let errors = validator::validate(&domain);
     assert!(errors.is_empty(), "veterinary_clinic errors: {:?}", errors);
 }
