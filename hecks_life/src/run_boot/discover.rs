@@ -1,15 +1,18 @@
 //! Phase 1 + 2 — DiscoverOrgans + WriteCensus
 //!
-//! Walks `aggregates/` and `capabilities/` under the conception dir,
-//! parses each .bluebook into IR, sums up :
-//!   - organs        : .bluebook files in aggregates/
+//! Walks `aggregates/` and `capabilities/` recursively under the
+//! conception dir, parses each .bluebook into IR, sums up :
+//!   - organs        : .bluebook files under aggregates/body/
+//!                     (the body anatomy subset — heart, breath,
+//!                     ultradian, sleep, dream, wake, organs/, etc.)
 //!   - capabilities  : .bluebook files under capabilities/
 //!   - aggregates    : sum of `aggregates[]` across all bluebooks
-//!   - nerves        : policies whose `target_domain` is set (cross-
-//!                     domain edges, the "nerve" metaphor)
-//!   - vows          : 0 today — the parser doesn't extract `vow "Name" do`
-//!                     blocks. The shell hand-curated this number.
-//!                     Gap : add `Domain.vows` field + parser support.
+//!                     anywhere under aggregates/
+//!   - nerves        : policies whose `target_domain` is set across
+//!                     the full tree (cross-domain edges)
+//!   - vows          : count of Vow records in <info_dir>/vow.heki
+//!                     (taken via Vows.Take dispatch — what matters
+//!                     operationally is how many vows the being holds)
 //!
 //! WriteCensus then upserts these counts into `<info>/census.heki` so
 //! anything reading the heki sees the same numbers the runner printed.
@@ -29,25 +32,44 @@ pub struct OrganCounts {
     pub vows: usize,
 }
 
-pub fn count_organs(conception_dir: &Path) -> OrganCounts {
+pub fn count_organs(conception_dir: &Path, info_dir: &str) -> OrganCounts {
     let agg_dir = conception_dir.join("aggregates");
+    let body_dir = agg_dir.join("body");
     let cap_dir = conception_dir.join("capabilities");
 
-    let organs = count_top_level_bluebooks(&agg_dir);
+    // i117 Round 4 nested aggregates into bounded-context subdirs
+    // (body/, discipline/, language/, library/, mind/, self/, surface/,
+    // world/). Census walks now recurse rather than reading the flat
+    // top level. organs is specifically the body subset ; aggregates +
+    // nerves walk the full tree.
+    let organs = count_recursive_bluebooks(&body_dir);
     let capabilities = count_recursive_bluebooks(&cap_dir);
 
     let mut aggregates = 0usize;
     let mut nerves = 0usize;
-    let mut vows = 0usize; // see module docs
+    sum_aggregates_and_nerves(&agg_dir, &mut aggregates, &mut nerves);
 
-    if let Ok(entries) = std::fs::read_dir(&agg_dir) {
+    // Vows live as runtime records in <info_dir>/vow.heki — taken via
+    // Vows.Take dispatch (2026-04-27). Count records, not declared
+    // aggregates : the Vow aggregate spec is one declaration ; what
+    // matters operationally is how many vows the being currently holds.
+    let vows = count_vow_records(info_dir);
+
+    OrganCounts { organs, capabilities, aggregates, nerves, vows }
+}
+
+fn sum_aggregates_and_nerves(dir: &Path, aggregates: &mut usize, nerves: &mut usize) {
+    if !dir.is_dir() { return; }
+    if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+            if p.is_dir() {
+                sum_aggregates_and_nerves(&p, aggregates, nerves);
+            } else if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
                 if let Ok(src) = std::fs::read_to_string(&p) {
                     let domain = parser::parse(&src);
-                    aggregates += domain.aggregates.len();
-                    nerves += domain.policies.iter()
+                    *aggregates += domain.aggregates.len();
+                    *nerves += domain.policies.iter()
                         .filter(|p| p.target_domain.as_ref()
                             .map(|s| !s.is_empty()).unwrap_or(false))
                         .count();
@@ -55,8 +77,11 @@ pub fn count_organs(conception_dir: &Path) -> OrganCounts {
             }
         }
     }
+}
 
-    OrganCounts { organs, capabilities, aggregates, nerves, vows }
+fn count_vow_records(info_dir: &str) -> usize {
+    let path = heki::path_for_lookup(info_dir.trim_end_matches("/"), "vow");
+    heki::read(&path).map(|store| store.len()).unwrap_or(0)
 }
 
 /// Upsert the discovered counts into `<info_dir>/census.heki`. Mirrors

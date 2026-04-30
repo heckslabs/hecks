@@ -83,7 +83,7 @@ pub fn run(
     let _ = rt.dispatch(entrypoint, attrs);
 
     // Phase 1 — DiscoverOrgans
-    let counts = discover::count_organs(&conception_dir);
+    let counts = discover::count_organs(&conception_dir, &info_dir);
 
     // Phase 2 — WriteCensus
     let _ = discover::write_census(&info_dir, &counts);
@@ -147,22 +147,44 @@ fn parse_being(argv: &[String]) -> String {
     "Miette".to_string()
 }
 
-/// `:fs` root resolution — same as run_status, with HECKS_INFO override.
-/// Canonicalizes the script path so relative invocations from inside
-/// the conception dir still produce absolute paths.
+/// `:fs` root resolution — aligned with run_statusline::resolve_info_dir
+/// so boot writes / reads against the same heki tree the running
+/// daemons use. HECKS_INFO env wins ; otherwise prefer the post-i142
+/// `<repo>/../miette-state/information` sibling layout (private state
+/// repo) ; fall back to walking up from the script path looking for
+/// any `information/` directory ; finally fall back to the :fs
+/// adapter's declared root.
 fn resolve_info_dir(registry: &AdapterRegistry, script_path: &str) -> String {
     if let Ok(env) = std::env::var("HECKS_INFO") {
         if !env.is_empty() { return env; }
     }
+    // Prefer the miette-state sibling if it exists. Boot's script_path
+    // is hecks_conception/boot_miette.sh ; canonicalize, then climb to
+    // the hecks repo root, then check `../miette-state/information`.
     let abs = std::fs::canonicalize(script_path)
         .unwrap_or_else(|_| PathBuf::from(script_path));
+    let mut cur = abs.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
+    for _ in 0..6 {
+        if cur.join("hecks_conception").is_dir() {
+            let sibling = cur.join("../miette-state/information");
+            if sibling.is_dir() {
+                if let Ok(canon) = std::fs::canonicalize(&sibling) {
+                    return canon.to_string_lossy().into_owned();
+                }
+                return sibling.to_string_lossy().into_owned();
+            }
+            break;
+        }
+        if !cur.pop() { break; }
+    }
+    // Fallback : walk up looking for any `information/` directory.
     let mut cur = abs.parent().unwrap_or_else(|| Path::new(".")).to_path_buf();
     for _ in 0..5 {
         let cand = cur.join("information");
         if cand.is_dir() { return cand.to_string_lossy().into_owned(); }
         if !cur.pop() { break; }
     }
-    // Fallback : whatever the :fs adapter declares.
+    // Final fallback : whatever the :fs adapter declares.
     if let Some(fs) = registry.io("fs") {
         if let Some((_, root)) = fs.options.iter().find(|(k, _)| k == "root") {
             let trimmed = root.trim_matches('"');

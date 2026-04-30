@@ -58,16 +58,19 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
 
 const HEADER: &str = r#"//! Phase 1 + 2 — DiscoverOrgans + WriteCensus
 //!
-//! Walks `aggregates/` and `capabilities/` under the conception dir,
-//! parses each .bluebook into IR, sums up :
-//!   - organs        : .bluebook files in aggregates/
+//! Walks `aggregates/` and `capabilities/` recursively under the
+//! conception dir, parses each .bluebook into IR, sums up :
+//!   - organs        : .bluebook files under aggregates/body/
+//!                     (the body anatomy subset — heart, breath,
+//!                     ultradian, sleep, dream, wake, organs/, etc.)
 //!   - capabilities  : .bluebook files under capabilities/
 //!   - aggregates    : sum of `aggregates[]` across all bluebooks
-//!   - nerves        : policies whose `target_domain` is set (cross-
-//!                     domain edges, the "nerve" metaphor)
-//!   - vows          : 0 today — the parser doesn't extract `vow "Name" do`
-//!                     blocks. The shell hand-curated this number.
-//!                     Gap : add `Domain.vows` field + parser support.
+//!                     anywhere under aggregates/
+//!   - nerves        : policies whose `target_domain` is set across
+//!                     the full tree (cross-domain edges)
+//!   - vows          : count of Vow records in <info_dir>/vow.heki
+//!                     (taken via Vows.Take dispatch — what matters
+//!                     operationally is how many vows the being holds)
 //!
 //! WriteCensus then upserts these counts into `<info>/census.heki` so
 //! anything reading the heki sees the same numbers the runner printed.
