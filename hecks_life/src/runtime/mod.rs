@@ -332,6 +332,20 @@ impl Runtime {
                                 });
                             if let Some(id) = pick {
                                 data.insert(key.clone(), Value::Str(id));
+                            } else {
+                                // Empty repo + leaked upstream key (i151) —
+                                // remove the leaked id so id_for_command
+                                // counter-mints a fresh id rather than
+                                // creating a record named after the upstream
+                                // aggregate (e.g. heartbeat with id="tick"
+                                // because Tick.MindstreamTick's name="tick"
+                                // leaked through Ticked → Pulse.Emit →
+                                // BodyPulse → AccumulateFatigue). Without
+                                // this, every singleton aggregate downstream
+                                // of a named-key emitter inherits the wrong
+                                // identifier on first dispatch and silently
+                                // accumulates orphans in subsequent ticks.
+                                data.remove(key.as_str());
                             }
                         }
                     }
