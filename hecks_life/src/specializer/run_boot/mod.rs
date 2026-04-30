@@ -4,4 +4,5 @@
 //! file byte-identical to its tracked source from a meta-shape
 //! under `capabilities/<name>_assembly/` (or similar).
 
+pub mod discover;
 pub mod system_prompt;

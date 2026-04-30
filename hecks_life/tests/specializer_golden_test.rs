@@ -376,6 +376,29 @@ fn rust_specializer_produces_byte_identical_system_prompt_rs() {
 
 // [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
+    // i147 wave 2 — Rust-native specializer for behaviors_fixtures.
+    // Section-as-snippet shape (mirrors heki_query) : five ordered
+    // verbatim_section rows for locate_path / parse_file / find_for /
+    // apply / parse_fixture_value, concatenated under a HEADER const
+    // that carries the doc comment + use lines.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "behaviors_fixtures"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize behaviors_fixtures failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/behaviors_fixtures.rs"))
+        .expect("behaviors_fixtures.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
 fn rust_specializer_produces_byte_identical_heki_query_rs() {
     let root = repo_root();
     let bin = root.join("hecks_life/target/release/hecks-life");
@@ -389,5 +412,29 @@ fn rust_specializer_produces_byte_identical_heki_query_rs() {
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("hecks_life/src/heki_query.rs"))
         .expect("heki_query.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
+    // i147 wave 2 — Rust-native specializer for run_boot/discover.rs.
+    // Section-as-snippet shape (mirrors heki_query) : five ordered
+    // verbatim_section rows for OrganCounts struct, count_organs,
+    // write_census + n helper, count_top_level_bluebooks, and
+    // count_recursive_bluebooks ; concatenated under a HEADER const
+    // that carries the doc comment + use lines.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "discover"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize discover failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/run_boot/discover.rs"))
+        .expect("run_boot/discover.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }

@@ -1,0 +1,58 @@
+Hecks.bluebook "DiscoverShape", version: "2026.04.30.1" do
+  vision "The shape of hecks_life/src/run_boot/discover.rs as a bluebook — the boot pipeline's Phase 1+2 (DiscoverOrgans + WriteCensus) made IR-derivable via ordered embedded snippets."
+  category "autophagy"
+
+  # ============================================================
+  # DISCOVER SHAPE — i147 Wave 2 target
+  # ============================================================
+  #
+  # discover.rs is the boot runner's Phase 1+2 step. It walks the
+  # conception's `aggregates/` and `capabilities/` directories, parses
+  # each .bluebook into IR, sums up organs / capabilities / aggregates
+  # / nerves / vows, and upserts those counts into `<info>/census.heki`
+  # so anything reading the heki sees the same numbers boot printed.
+  #
+  # Structurally the file is small (~111 LoC), self-contained (one
+  # external `parser` use, one `heki` use), and naturally partitions
+  # into ordered code sections — OrganCounts struct, count_organs
+  # function, write_census + n helper, count_top_level_bluebooks,
+  # count_recursive_bluebooks. That partition is exactly what this
+  # shape captures : one row per ordered section, every row pointing
+  # at a `.rs.frag` snippet. The specializer concatenates HEADER + each
+  # snippet body in declared order to reproduce the file byte-for-byte.
+  #
+  # Layer mapping (mirrors heki_query_shape) :
+  #   L0 = this file + fixtures/discover_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/run_boot/discover.rs (generated target)
+  #
+  # The `verbatim_section` body_kind is the same one heki_query_shape
+  # introduced — the snippet IS already the surrounding Rust code
+  # (struct + impl, fn definition + body). No wrapper is interpolated.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in run_boot/discover.rs. body_kind
+  # picks how the specializer emits the section :
+  #   verbatim_section  — read snippet_path raw, emit verbatim. The
+  #                       snippet keeps its trailing blank line so
+  #                       sections separate naturally on concatenation.
+  #
+  # The specializer concatenates HEADER (doc + imports, baked into the
+  # emitter as a Rust const) + each section body in `order` ascending.
+  # The last snippet ends with a single `\n` (no trailing blank) so the
+  # emitted file matches the tracked file exactly.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today).
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

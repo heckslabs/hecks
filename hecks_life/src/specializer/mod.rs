@@ -18,6 +18,7 @@
 use std::error::Error;
 use std::path::Path;
 
+pub mod behaviors_fixtures;
 pub mod behaviors_parser;
 pub mod behaviors_parser_dispatch;
 pub mod dispatch_query;
@@ -40,7 +41,9 @@ pub mod validator_warnings;
 /// match arm here and one sibling module.
 pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
     match target {
+        "behaviors_fixtures" => behaviors_fixtures::emit(repo_root),
         "behaviors_parser" => behaviors_parser::emit(repo_root),
+        "discover" => run_boot::discover::emit(repo_root),
         "dispatch_query" => dispatch_query::emit(repo_root),
         "dump" => dump::emit(repo_root),
         "fixtures_parser" => fixtures_parser::emit(repo_root),
@@ -53,7 +56,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, repository, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_fixtures, behaviors_parser, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, repository, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),

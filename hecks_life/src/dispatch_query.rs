@@ -106,7 +106,9 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
 /// asserts the array matches the actual `emit` arms (see
 /// `specializer_targets_match_emit_dispatch_table`).
 pub const SPECIALIZER_TARGETS: &[&str] = &[
+    "behaviors_fixtures",
     "behaviors_parser",
+    "discover",
     "dispatch_query",
     "dump",
     "fixtures_parser",
