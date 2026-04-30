@@ -215,6 +215,41 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     );
 }
 
+// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_validator_corpus_rs() {
+    // i146 piece 2 — Rust-native specializer for validator_corpus.rs.
+    // Three corpus-aware lint rules (corpus_phantom_trigger_errors,
+    // identified_by_warnings, policy_event_warnings). All embedded
+    // snippets — each rule is sui generis, doesn't fit a check_kind
+    // primitive, so the specializer just concatenates verbatim
+    // .rs.frag bodies (doc + signature + body + closing brace) with
+    // a blank line between each rule.
+    let root = repo_root();
+    let bin = root.join("hecks_life/target/release/hecks-life");
+    assert!(
+        bin.exists(),
+        "hecks-life binary missing — build release first",
+    );
+    let output = Command::new(&bin)
+        .args(["specialize", "validator_corpus"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize validator_corpus failed");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("hecks_life/src/validator_corpus.rs"))
+        .expect("validator_corpus.rs missing");
+    assert_eq!(
+        generated, tracked,
+        "Rust specializer output drifted from tracked file",
+    );
+}
+
 #[test]
 fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
     // Phase D — Rust-native specializer for fixtures_parser. Ports the

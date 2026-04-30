@@ -111,6 +111,7 @@ pub const SPECIALIZER_TARGETS: &[&str] = &[
     "fixtures_parser",
     "hecksagon_parser",
     "validator",
+    "validator_corpus",
     "validator_warnings",
 ];
 

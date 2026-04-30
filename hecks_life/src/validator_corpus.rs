@@ -6,15 +6,10 @@
 //! `hecks-life specialize <name>` emits — and adding hand-written
 //! functions to them breaks the 2nd Futamura proof.
 //!
-//! [antibody-exempt: hecks_life/src/validator_corpus.rs — Track B
-//!  validator extensions (corpus_phantom_trigger_errors,
-//!  identified_by_warnings, policy_event_warnings) extracted from
-//!  validator.rs / validator_warnings.rs so those files keep
-//!  byte-identity with their specializers. The substrate of i122's
-//!  cross-bluebook coherence checks. Retires under i77/i78
-//!  (specializer-files-as-bluebook) when this module is itself
-//!  emitted from a meta-shape — until then the new lint rules
-//!  live here as authored Rust with their own retirement contract.]
+//! GENERATED FILE — do not edit.
+//! Source:    hecks_conception/capabilities/validator_corpus_shape/
+//! Regenerate: hecks-life specialize validator_corpus --output hecks_life/src/validator_corpus.rs
+//! Contract:  hecks_life/src/specializer/validator_corpus.rs (Rust-native)
 //!
 //! Three rules :
 //!

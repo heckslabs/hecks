@@ -1,0 +1,54 @@
+Hecks.bluebook "ValidatorCorpusShape", version: "2026.04.30.1" do
+  vision "The shape of hecks_life/src/validator_corpus.rs as a bluebook — i146 piece 2 substrate. Three corpus-aware lint extensions (corpus_phantom_trigger_errors, identified_by_warnings, policy_event_warnings) that the i122 substrate depends on for `validate --corpus`."
+  category "autophagy"
+
+  # ============================================================
+  # VALIDATOR_CORPUS SHAPE — i146 piece 2 target
+  # ============================================================
+  #
+  # validator_corpus.rs is ~150 LoC of Rust — three pure-logic warning
+  # rules. Each iterates `domain.aggregates` / `domain.policies` and
+  # returns `Vec<String>` of warning/error messages. They were extracted
+  # from validator.rs / validator_warnings.rs so those two files keep
+  # byte-identity with their specializers ; this shape now retires
+  # validator_corpus.rs by emitting it from a meta-shape.
+  #
+  # Shape differences from validator_warnings_shape:
+  #   - Return type is Vec<String>, not Option<String>
+  #   - All three rules are sui generis (no check_kind primitive
+  #     captures their bodies usefully) — every row is body_strategy
+  #     "embedded" with a verbatim snippet
+  #   - The snippet contains the entire function : doc comment + signature
+  #     + body + closing brace. The specializer reads it raw (no leading-
+  #     comment strip) and concatenates with `\n` separator between rules
+  #
+  # Layer mapping (per docs/plans/i51_futamura_projections.md §3):
+  #   L0 = this file + fixtures/validator_corpus_shape.fixtures
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/validator_corpus.rs (generated target)
+  #
+  # Shape-only aggregate per the transitional pattern documented in
+  # validator_warnings_shape.bluebook. Same retirement path: when i42
+  # (catalog-dialect) lands, this becomes a catalog table in fixtures.
+
+  # ---- CorpusRule -------------------------------------------------
+  #
+  # One row per warning function in validator_corpus.rs. Mirrors
+  # WarningRule from validator_warnings_shape but with the corpus-rule
+  # specifics : Vec<String> return type, all rules embedded (no
+  # templating), and an `order` key so the specializer emits in the
+  # documented order (corpus_phantom_trigger_errors → identified_by_warnings
+  # → policy_event_warnings).
+
+  aggregate "CorpusRule", "One corpus-aware lint rule — name, order, snippet pointer" do
+    attribute :name,            String
+    attribute :rust_fn_name,    String
+    attribute :description,     String
+    # order: 1, 2, 3 — controls emission sequence
+    attribute :order,           Integer, default: 0
+    # snippet_path: relative path to the .rs.frag holding the entire
+    # function (doc comment + signature + body + closing brace). The
+    # specializer reads it verbatim (no leading-comment strip).
+    attribute :snippet_path,    String
+  end
+end
