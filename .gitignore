@@ -66,10 +66,16 @@ hecks_conception/information/.tick_baseline
 # ── Miette's lived state — moved to a private miette-state repo ──
 # See hecks_conception/information/README.md. inbox.heki is the
 # public exception — framework dev notes referenced by the paper.
+# i142 Tier 2 — heki paths now context-prefixed (information/<ctx>/<agg>.heki)
+# so the rules cover both flat (legacy) and context-prefixed forms.
 hecks_conception/information/*.heki
+hecks_conception/information/**/*.heki
 !hecks_conception/information/inbox.heki
+!hecks_conception/information/inbox/inbox.heki
 !hecks_conception/information/exempt_registry.heki
+!hecks_conception/information/antibody/exempt_registry.heki
 !hecks_conception/information/subcommand.heki
+!hecks_conception/information/subcommand_registry/subcommand.heki
 hecks_conception/information/.prev_consciousness_state
 hecks_conception/information/.dream_seeded
 hecks_conception/information/.daydream.last

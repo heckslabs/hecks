@@ -1848,7 +1848,8 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             Ok(result) => {
                 // Run LLM adapter if configured
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
-                    if let Some(repo) = rt.repositories.get_mut(&result.aggregate_type) {
+                    let repo_key = hecks_life::runtime::repo_lookup_key(&rt.repositories, &result.aggregate_type);
+                    if let Some(repo) = repo_key.as_ref().and_then(|k| rt.repositories.get_mut(k)) {
                         if let Some((backend, model, url)) = hecksagon_llm.as_ref() {
                             let triple = (backend.as_str(), model.as_str(), url.as_str());
                             hecks_life::runtime::adapter_llm::resolve(
