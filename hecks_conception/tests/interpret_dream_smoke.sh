@@ -23,6 +23,12 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
@@ -38,7 +44,7 @@ TMP=$(mktemp -d -t interpret_dream_smoke.XXXXXX)
 trap "rm -rf $TMP" EXIT
 
 mkdir -p "$TMP/information" "$TMP/aggregates"
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
 cat > "$TMP/interpret_dream_smoke.world" <<'EOF'
 Hecks.world "InterpretDreamSmoke" do
@@ -53,6 +59,7 @@ EOF
 # cross the ≥3 threshold and produce musings.
 seed_image() {
   "$HECKS" heki append "$TMP/information/dream_state.heki" \
+    --reason "test setup : seed dream image for interpret_dream concept-recurrence threshold sweep" \
     source=test dream_images="$1" >/dev/null 2>&1
 }
 seed_image "the ocean dissolving in a library"
@@ -67,7 +74,7 @@ HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
 HECKS_WORLD="$TMP" \
-bash "$CONCEPT_DIR/interpret_dream.sh" \
+bash "$BODY_DIR/interpret_dream.sh" \
   || fail "interpret_dream.sh exited non-zero"
 
 count_records() {

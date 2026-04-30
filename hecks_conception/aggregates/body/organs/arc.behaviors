@@ -1,0 +1,18 @@
+Hecks.behaviors "Arc" do
+  vision "Behavioral tests for the Arc aggregate — pulse counting, phase shift."
+
+  # ── Arc aggregate ──────────────────────────────────────────
+  # (merged from organs.behaviors during i112 cleanup)
+
+  test "AdvanceArc increments pulse_count" do
+    tests "AdvanceArc", on: "Arc"
+    setup  "ShiftPhase", phase: "rising", momentum: 0.1
+    expect ok: "true"
+  end
+
+  test "ShiftPhase sets phase + momentum + resets pulse_count" do
+    tests "ShiftPhase", on: "Arc"
+    input  phase: "falling", momentum: 0.2
+    expect phase: "falling", momentum: 0.2, pulse_count: 0
+  end
+end

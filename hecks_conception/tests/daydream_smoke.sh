@@ -17,6 +17,12 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
@@ -31,7 +37,7 @@ TMP=$(mktemp -d -t daydream_smoke.XXXXXX)
 trap "rm -rf $TMP" EXIT
 
 mkdir -p "$TMP/information" "$TMP/aggregates"
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
 cat > "$TMP/daydream_smoke.world" <<'EOF'
 Hecks.world "DaydreamSmoke" do
@@ -51,7 +57,7 @@ HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
 HECKS_NURSERY="$CONCEPT_DIR/nursery" \
-  bash "$CONCEPT_DIR/daydream.sh" \
+  bash "$BODY_DIR/daydream.sh" \
   || fail "daydream.sh exited non-zero"
 
 after=0

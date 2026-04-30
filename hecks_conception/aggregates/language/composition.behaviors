@@ -1,0 +1,31 @@
+Hecks.behaviors "Composition" do
+  vision "Behavioral tests for the Composition aggregate — Compose, translate, mark invalid."
+
+  # ── Composition aggregate ──────────────────────────────────────────
+  # (merged from vocabulary.behaviors during i112 cleanup)
+
+  test "Compose sets phrase + from_domain + from_command + to_domain + to_command + bridge_type + connector" do
+    tests "Compose", on: "Composition"
+    input  phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    expect phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+  end
+
+  test "Compose cascades through policy chain" do
+    tests "Compose", on: "Composition", kind: :cross_cascade
+    input  phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    expect emits: ["CompositionCreated", "LexiconCompiled"]
+  end
+
+  test "TranslateComposition sets natural_phrase" do
+    tests "TranslateComposition", on: "Composition"
+    setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    input  natural_phrase: "sample"
+    expect translations_size: 1
+  end
+
+  test "MarkInvalid runs" do
+    tests "MarkInvalid", on: "Composition"
+    setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    expect valid: "false"
+  end
+end

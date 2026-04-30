@@ -1,0 +1,12 @@
+Hecks.behaviors "SystemPromptSection" do
+  vision "Behavioral tests for the system-prompt Section aggregate — projected organ headings."
+
+  # ── Section aggregate ──────────────────────────────────────────
+  # (merged from system_prompt.behaviors during i112 cleanup)
+
+  test "ProjectSection sets organ_name + heading + content + order" do
+    tests "ProjectSection", on: "Section"
+    input  organ_name: "sample", heading: "sample", content: "sample", order: 1
+    expect organ_name: "sample", heading: "sample", content: "sample", order: 1
+  end
+end

@@ -1,0 +1,24 @@
+Hecks.behaviors "Signal" do
+  vision "Behavioral tests for the Signal aggregate — fire, access, archive."
+
+  # ── Signal aggregate ──────────────────────────────────────────
+  # (merged from organs.behaviors during i112 cleanup)
+
+  test "FireSignal sets kind + payload + strength + created_at" do
+    tests "FireSignal", on: "Signal"
+    input  kind: "somatic", payload: "pulse", strength: 0.5, created_at: "now"
+    expect kind: "somatic", payload: "pulse", strength: 0.5, access_count: 0, created_at: "now"
+  end
+
+  test "AccessSignal increments access_count" do
+    tests "AccessSignal", on: "Signal"
+    setup  "FireSignal", kind: "somatic", payload: "pulse", strength: 0.5, created_at: "now"
+    expect ok: "true"
+  end
+
+  test "ArchiveSignal sets kind to archived" do
+    tests "ArchiveSignal", on: "Signal"
+    setup  "FireSignal", kind: "concept", payload: "thought", strength: 0.3, created_at: "now"
+    expect kind: "archived"
+  end
+end

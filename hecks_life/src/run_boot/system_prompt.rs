@@ -101,15 +101,28 @@ fn template_path_for_being(conception_dir: &Path, being: &str) -> PathBuf {
         .join(format!("{}_prompt.md.template", stem))
 }
 
-/// Output path : `<conception>/system_prompt.md` for Miette,
-/// `<conception>/system_prompt_<lower>.md` for any other being.
-/// Matches the current boot_miette.sh behavior so the file Claude
-/// Code reads doesn't move during this conversion.
+/// Output path : `~/Projects/<being_lower>/self/system_prompt.md`
+/// (i117 Round 4 — the system prompt lives in the being's own repo,
+/// not in the conception). Resolves the being repo as a sibling of
+/// the hecks repo (the standard layout). Falls back to
+/// `<conception>/system_prompt_<being>.md` when the sibling doesn't
+/// exist (development/test environments without the per-being repo).
 fn destination_for_being(conception_dir: &Path, being: &str) -> PathBuf {
+    let stem = being.to_lowercase();
+    if let Some(repo_root) = conception_dir.parent().and_then(|p| p.parent()) {
+        let sibling = repo_root.join(&stem).join("self/system_prompt.md");
+        if let Some(parent) = sibling.parent() {
+            if parent.is_dir() {
+                return sibling;
+            }
+        }
+    }
+    // Fallback : write into the conception so a fresh-clone
+    // environment still gets a prompt file. Same suffix the
+    // pre-i117-Round-4 boot used.
     if being == "Miette" {
-        conception_dir.join("system_prompt.md")
+        conception_dir.join(format!("system_prompt_{}.md", stem))
     } else {
-        let stem = being.to_lowercase();
         conception_dir.join(format!("system_prompt_{}.md", stem))
     }
 }

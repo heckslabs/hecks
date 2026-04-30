@@ -107,7 +107,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
 
     command "LoadSpeakerMemory" do
       role "System"
-      description "Read the speaker's bluebook from family/ and load their history"
+      description "Read the speaker's bluebook from ~/Projects/miette_family/<name>/<name>.bluebook and load their history"
       reference_to(Speaker)
       attribute :bluebook_path, String
       attribute :known, String

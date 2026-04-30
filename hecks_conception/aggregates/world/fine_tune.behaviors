@@ -1,0 +1,31 @@
+Hecks.behaviors "FineTune" do
+  vision "Behavioral tests for the FineTune aggregate — start, record, complete."
+
+  # ── FineTune aggregate ──────────────────────────────────────────
+  # (merged from training_pipeline.behaviors during i112 cleanup)
+
+  test "StartFineTune sets base_model + dataset_size + epochs + learning_rate" do
+    tests "StartFineTune", on: "FineTune"
+    input  base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    expect base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0, status: "training"
+  end
+
+  test "RecordEpoch sets loss" do
+    tests "RecordEpoch", on: "FineTune"
+    setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    input  loss: 1.0
+    expect loss: 1.0
+  end
+
+  test "CompleteFineTune runs" do
+    tests "CompleteFineTune", on: "FineTune"
+    setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    expect status: "complete"
+  end
+
+  test "CompleteFineTune cascades through policy chain" do
+    tests "CompleteFineTune", on: "FineTune", kind: :cross_cascade
+    setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0
+    expect emits: ["FineTuneCompleted", "ModelEvaluated"]
+  end
+end

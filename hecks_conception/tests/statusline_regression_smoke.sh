@@ -64,14 +64,19 @@ ln -s "$CONCEPT_DIR/statusline-command.sh" "$SYMLINK_DIR/statusline-command.sh"
 seed() {
   local info="$1" mood="$2" fstate="$3" pulses="$4"
   "$HECKS" heki upsert "$info/mood.heki" \
+    --reason "test setup : statusline regression fixture — seed mood for coherence invariants" \
     current_state="$mood" creativity_level=0.7 precision_level=0.8 >/dev/null
   "$HECKS" heki upsert "$info/heartbeat.heki" \
+    --reason "test setup : statusline regression fixture — seed heartbeat fatigue state" \
     fatigue=0.3 fatigue_state="$fstate" pulse_rate=1.0 \
     flow_rate="steady" pulses_since_sleep="$pulses" >/dev/null
   "$HECKS" heki upsert "$info/consciousness.heki" \
+    --reason "test setup : statusline regression fixture — seed attentive consciousness" \
     state="attentive" sleep_stage="" sleep_cycle=8 sleep_total=8 \
     sleep_summary="" is_lucid="no" >/dev/null
-  "$HECKS" heki upsert "$info/tick.heki" cycle=555 >/dev/null
+  "$HECKS" heki upsert "$info/tick.heki" \
+    --reason "test setup : statusline regression fixture — seed tick cycle for monotonicity invariant" \
+    cycle=555 >/dev/null
   # Seed .tick_baseline to match so invariant 4 (tick monotonicity) passes.
   printf '%s %s\n' "$(date +%s)" 555 > "$info/.tick_baseline"
 }
@@ -88,11 +93,15 @@ render() {
   rm -rf "$tmp"
 }
 
-# Shared assertion harness.
+# Shared assertion harness. The statusline shape is :
+#   <heart_glyph> <beats> <mood_icon> <mood> [<fatigue_icon> <fatigue>] 💭 <count> [✉️ <inbox>] <provider>
+# The historical "☀️ Miette ..." prefix retired ; the heart glyph is
+# now the prefix in awake mode. We assert the line starts with one of
+# the heart glyphs (❤️ alive / 🖤 dim) instead.
 check_line() {
   local label="$1" line="$2"
-  if ! printf '%s' "$line" | grep -q "^☀️ Miette "; then
-    note_fail "[$label] rendered line did not start with ☀️ Miette — got: $line"
+  if ! printf '%s' "$line" | grep -qE '^(❤️|🖤) '; then
+    note_fail "[$label] rendered line did not start with a heart glyph — got: $line"
   fi
   if printf '%s' "$line" | grep -q "⚠"; then
     note_fail "[$label] ⚠ glyph in output — coherence check failed (likely the symlink regression) — got: $line"

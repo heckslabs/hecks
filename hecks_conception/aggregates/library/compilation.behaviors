@@ -1,0 +1,12 @@
+Hecks.behaviors "Compilation" do
+  vision "Behavioral tests for the Compilation aggregate — nursery compilation output."
+
+  # ── Compilation aggregate ──────────────────────────────────────────
+  # (merged from census.behaviors during i112 cleanup)
+
+  test "CompileNursery sets domains_compiled + output_path" do
+    tests "CompileNursery", on: "Compilation"
+    input  domains_compiled: 1, output_path: "sample"
+    expect domains_compiled: 1, output_path: "sample"
+  end
+end

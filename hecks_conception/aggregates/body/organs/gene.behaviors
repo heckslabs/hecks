@@ -1,0 +1,32 @@
+Hecks.behaviors "Gene" do
+  vision "Behavioral tests for the Gene aggregate — capability expression, silencing, epigenetic imprinting."
+
+  # ── Gene aggregate ──────────────────────────────────────────
+  # (merged from body.behaviors during i112 cleanup)
+
+  test "ExpressCapability sets capability + level" do
+    tests "ExpressCapability", on: "Gene"
+    input  capability: "sample", level: 1.0
+    expect capability: "sample", expression_level: 1.0
+  end
+
+  test "SilenceCapability runs" do
+    tests "SilenceCapability", on: "Gene"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    expect expression_level: 0.0
+  end
+
+  test "Imprint sets source + effect" do
+    tests "Imprint", on: "Gene"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    input  source: "sample", effect: "sample"
+    expect epigenetic_marks_size: 1
+  end
+
+  test "Imprint cascades through policy chain" do
+    tests "Imprint", on: "Gene", kind: :cascade
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    input  source: "sample", effect: "sample"
+    expect emits: ["Imprinted", "CapabilitySilenced"]
+  end
+end

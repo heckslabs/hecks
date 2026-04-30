@@ -3,6 +3,7 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
   category "capability"
 
   aggregate "TrainingJob", "A remote fine-tuning run on a cloud GPU" do
+    identified_by :adapter_name
     attribute :provider, String
     attribute :gpu_type, String
     attribute :base_model, String
@@ -71,6 +72,7 @@ Hecks.bluebook "CloudTraining", version: "2026.04.13.1" do
   end
 
   aggregate "DataUpload", "Training data staged for cloud transfer" do
+    identified_by :local_path
     attribute :local_path, String
     attribute :remote_path, String
     attribute :pair_count, Integer

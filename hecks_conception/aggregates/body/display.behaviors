@@ -1,0 +1,12 @@
+Hecks.behaviors "Display" do
+  vision "Behavioral tests for the Display aggregate — current thought, ideas available."
+
+  # ── Display aggregate ──────────────────────────────────────────
+  # (merged from mindstream.behaviors during i112 cleanup)
+
+  test "RefreshDisplay sets current_thought + ideas_available" do
+    tests "RefreshDisplay", on: "Display"
+    input  current_thought: "sample", ideas_available: 1
+    expect current_thought: "sample", ideas_available: 1
+  end
+end

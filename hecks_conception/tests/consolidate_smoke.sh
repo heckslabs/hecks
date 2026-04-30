@@ -25,6 +25,14 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+# Resolve BODY_DIR with the same precedence shape used elsewhere :
+# explicit env, sibling repo path, legacy conception fallback.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
@@ -41,7 +49,7 @@ trap "rm -rf $TMP" EXIT
 
 mkdir -p "$TMP/information" "$TMP/aggregates"
 
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
 cat > "$TMP/consolidate_smoke.world" <<'EOF'
 Hecks.world "ConsolidateSmoke" do
@@ -67,11 +75,13 @@ NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 for i in 1 2 3 4 5; do
   "$HECKS" heki append "$TMP/information/signal.heki" \
+    --reason "test setup : seed cold signals for consolidate promote-to-store sweep" \
     kind=concept payload="cold_$i" strength=0.5 access_count=0 \
     created_at="$OLD" >/dev/null 2>&1
 done
 for i in 1 2; do
   "$HECKS" heki append "$TMP/information/signal.heki" \
+    --reason "test setup : seed fresh signals so consolidate sweep proves freshness gate" \
     kind=concept payload="fresh_$i" strength=0.5 access_count=0 \
     created_at="$NOW" >/dev/null 2>&1
 done
@@ -79,6 +89,7 @@ done
 # ── Seed weak synapses ───────────────────────────────────────────────
 for t in doomed_a doomed_b; do
   "$HECKS" heki append "$TMP/information/synapse.heki" \
+    --reason "test setup : seed weak synapses for consolidate compost sweep" \
     from="$t" to="$t" strength=0.05 state=alive firings=0 \
     last_fired_at="$OLD" >/dev/null 2>&1
 done
@@ -87,6 +98,7 @@ done
 for i in 1 2 3 4 5; do
   ts=$(iso_offset $((i * 60)))
   "$HECKS" heki append "$TMP/information/musing.heki" \
+    --reason "test setup : seed duplicate-concept musings for consolidate concept-cluster pass" \
     idea="musing number $i" source=mindstream thinking_source=wandering \
     conceived=false status=imagined created_at="$ts" >/dev/null 2>&1
 done
@@ -105,7 +117,7 @@ musing_archive_before=$(count_records "$TMP/information/musing_archive.heki")
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
-bash "$CONCEPT_DIR/consolidate.sh" \
+bash "$BODY_DIR/consolidate.sh" \
   || fail "consolidate.sh exited non-zero"
 
 store_after=$(count_records "$TMP/information/store.heki")

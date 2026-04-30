@@ -5,6 +5,8 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   # === Phase 1: Harvest ===
 
   aggregate "Harvest", "Gather training signal from Miette's body — domains, conversations, dreams, identity" do
+    identified_by :nursery_path
+    attribute :nursery_path, String
     attribute :domains_collected, Integer
     attribute :conversations_collected, Integer
     attribute :dreams_collected, Integer

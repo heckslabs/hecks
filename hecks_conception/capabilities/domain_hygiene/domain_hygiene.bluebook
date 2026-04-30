@@ -51,6 +51,7 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
   end
 
   aggregate "Enrichment", "A targeted fix to a weak domain — add policies, events, descriptions, or givens" do
+    identified_by :domain_name
     attribute :domain_name, String
     attribute :enrichment_type, String
     attribute :before_state, String

@@ -112,6 +112,53 @@ if [ -x "$HECKS_LIFE" ] && "$HECKS_LIFE" enforce "$CONCEPTION_DIR" 2>/dev/null; 
     :
 fi
 
+# ── Gate 4b: Companion-file ratchet — moving a .bluebook means moving
+# its .behaviors and .fixtures too. ───────────────────────────────────
+# The i112 anatomy reorg silently broke 44 .behaviors files because
+# bluebooks were moved to clusters but their test companions stayed
+# at root, where the `hecks-life behaviors` runner's same-stem-in-
+# same-dir lookup quietly failed. This gate refuses that exact mistake
+# going forward : if a bluebook moves and its same-stem .behaviors /
+# .fixtures sit at the old path, the commit blocks until they move
+# too.
+#
+# Set COMPANION_SKIP=1 to bypass (an antibody failure for emergencies).
+if [ -z "$COMPANION_SKIP" ]; then
+    # `git diff --cached --diff-filter=R` lists staged renames as
+    # `R<sim>\told\tnew`. We extract old/new for any .bluebook rename
+    # and check whether old/<stem>.behaviors / .fixtures still exist
+    # untracked (i.e. not in the same staged batch).
+    moves=$(git diff --cached --name-status --diff-filter=R | awk -F'\t' '$2 ~ /\.bluebook$/')
+    orphans=""
+    while IFS=$'\t' read -r status old new; do
+        [ -z "$old" ] && continue
+        old_dir=$(dirname "$old")
+        new_dir=$(dirname "$new")
+        [ "$old_dir" = "$new_dir" ] && continue   # rename within dir
+        stem=$(basename "$old" .bluebook)
+        for ext in behaviors fixtures; do
+            companion_old="$old_dir/$stem.$ext"
+            companion_new="$new_dir/$stem.$ext"
+            # If the companion exists at the OLD path AND isn't also
+            # being moved, the bluebook is leaving its sibling behind.
+            if [ -f "$REPO/$companion_old" ] && \
+               ! git diff --cached --name-status | grep -q "$companion_old"; then
+                orphans="${orphans}    $companion_old → should move to $companion_new\n"
+            fi
+        done
+    done <<EOF
+$moves
+EOF
+    if [ -n "$orphans" ]; then
+        printf '\nCOMMIT BLOCKED: companion-file ratchet — bluebook moved but its .behaviors/.fixtures didn'"'"'t :\n'
+        printf "$orphans"
+        printf '\n  Move the companions in the same commit (git mv) or set COMPANION_SKIP=1.\n'
+        printf '  This was the failure mode of the i112 anatomy reorg : 44 silently-orphaned\n'
+        printf '  .behaviors files because bluebooks moved without them.\n\n'
+        exit 1
+    fi
+fi
+
 # ── Gate 5: Antibody — flag non-bluebook files (informational) ────
 # Actual enforcement happens in the commit-msg hook, which is the only
 # hook that sees the commit message (where exemption markers live).
@@ -119,6 +166,42 @@ fi
 # writing their message.
 if [ -x "$REPO/bin/antibody-check" ]; then
     "$REPO/bin/antibody-check" --staged --list-only || true
+fi
+
+# ── Gate 6: Smoke tests must pass ──────────────────────────────────
+# Lightweight gate covering the regression net. Skips heavyweight
+# tests that kill+reboot daemons (round4_integration_smoke) — those
+# are flaky under hook conditions when prior tests left daemons in a
+# transitional state. Run them manually before push.
+#
+# Set TESTS_SKIP=1 to bypass (an antibody failure for emergencies).
+#
+# Without this gate, the i112 anatomy reorg silently broke 44 .behaviors
+# files for months because nothing was watching the test count. Smoke
+# is the cheapest catch-fast gate ; bigger suites can stack later.
+if [ -z "$TESTS_SKIP" ] && [ -d "$CONCEPTION_DIR/tests" ]; then
+    failed=0
+    for t in "$CONCEPTION_DIR/tests"/*.sh; do
+        [ -f "$t" ] || continue
+        # Skip the integration-smoke under hook conditions ; it does
+        # full daemon kill + reboot + wait-for-tick which races when
+        # other tests in the gate are spawning daemons. Run manually :
+        #   bash hecks_conception/tests/round4_integration_smoke.sh
+        case "$(basename "$t")" in
+            round4_integration_smoke.sh) continue ;;
+        esac
+        if ! bash "$t" >/tmp/smoke_$(basename "$t" .sh).out 2>&1; then
+            failed=$((failed + 1))
+            echo "  ✗ $(basename "$t") failed (output: /tmp/smoke_$(basename "$t" .sh).out)"
+        fi
+    done
+    if [ "$failed" -gt 0 ]; then
+        echo ""
+        echo "COMMIT BLOCKED: $failed smoke test(s) failed."
+        echo "  Run individually : bash hecks_conception/tests/<name>.sh"
+        echo "  Bypass (use only for emergencies) : TESTS_SKIP=1 git commit ..."
+        exit 1
+    fi
 fi
 
 exit 0

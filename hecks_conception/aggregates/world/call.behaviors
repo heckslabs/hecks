@@ -1,0 +1,18 @@
+Hecks.behaviors "Call" do
+  vision "Behavioral tests for the Call aggregate — recording LLM call cost / tokens."
+
+  # ── Call aggregate ──────────────────────────────────────────
+  # (merged from spend.behaviors during i112 cleanup)
+
+  test "RecordCall sets provider + tokens_in + tokens_out + cost_usd + command_ref + recorded_at" do
+    tests "RecordCall", on: "Call"
+    input  provider: "claude", tokens_in: 100, tokens_out: 50, cost_usd: 0.01, command_ref: "Tongue.Speak:42", recorded_at: "2026-04-21T12:00:00Z"
+    expect provider: "claude", tokens_in: 100, tokens_out: 50, cost_usd: 0.01, command_ref: "Tongue.Speak:42", recorded_at: "2026-04-21T12:00:00Z"
+  end
+
+  test "RecordCall emits CallRecorded" do
+    tests "RecordCall", on: "Call", kind: :cascade
+    input  provider: "claude", tokens_in: 100, tokens_out: 50, cost_usd: 0.01, command_ref: "Tongue.Speak:42", recorded_at: "2026-04-21T12:00:00Z"
+    expect emits: ["CallRecorded"]
+  end
+end

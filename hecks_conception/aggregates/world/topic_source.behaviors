@@ -1,0 +1,12 @@
+Hecks.behaviors "TopicSource" do
+  vision "Behavioral tests for the TopicSource aggregate — load topics for bulk domain generation."
+
+  # ── TopicSource aggregate ──────────────────────────────────────────
+  # (merged from bulk_generator.behaviors during i112 cleanup)
+
+  test "LoadTopics sets industries + activities + modifiers" do
+    tests "LoadTopics", on: "TopicSource"
+    input  industries: "sample", activities: "sample", modifiers: "sample"
+    expect industries: "sample", activities: "sample", modifiers: "sample"
+  end
+end

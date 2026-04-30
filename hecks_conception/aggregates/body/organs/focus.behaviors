@@ -1,0 +1,19 @@
+Hecks.behaviors "Focus" do
+  vision "Behavioral tests for the Focus aggregate — set target + weight, adjust weight."
+
+  # ── Focus aggregate ──────────────────────────────────────────
+  # (merged from organs.behaviors during i112 cleanup)
+
+  test "SetFocus sets target + weight + updated_at" do
+    tests "SetFocus", on: "Focus"
+    input  target: "carrying", weight: 0.7, updated_at: "now"
+    expect target: "carrying", weight: 0.7, updated_at: "now"
+  end
+
+  test "AdjustWeight sets weight + updated_at" do
+    tests "AdjustWeight", on: "Focus"
+    setup  "SetFocus", target: "carrying", weight: 0.5, updated_at: "earlier"
+    input  weight: 0.8, updated_at: "now"
+    expect weight: 0.8, updated_at: "now"
+  end
+end

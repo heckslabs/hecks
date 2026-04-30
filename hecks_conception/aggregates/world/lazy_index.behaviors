@@ -1,0 +1,18 @@
+Hecks.behaviors "LazyIndex" do
+  vision "Behavioral tests for the LazyIndex aggregate — query and cache eviction."
+
+  # ── LazyIndex aggregate ──────────────────────────────────────────
+  # (merged from scale.behaviors during i112 cleanup)
+
+  test "QueryIndex sets loaded_in_memory" do
+    tests "QueryIndex", on: "LazyIndex"
+    input  loaded_in_memory: 1
+    expect loaded_in_memory: 1
+  end
+
+  test "EvictCache runs" do
+    tests "EvictCache", on: "LazyIndex"
+    setup  "QueryIndex", loaded_in_memory: 1
+    expect ok: "true"
+  end
+end

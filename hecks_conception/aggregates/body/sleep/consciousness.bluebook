@@ -129,9 +129,11 @@ Hecks.bluebook "Consciousness", version: "2026.04.28.1" do
 
     command "BecomeAttentive" do
       role "System"
-      description "Fully awake and ready for interaction"
+      description "Fully awake and ready for interaction. Clears sleep_summary AND sleep_stage so the body's awake state isn't shadowed by stale sleep-phase fields. Coherence invariant 5 (sleep_stage=rem but lucid narrative empty) used to trip post-wake because stage stuck at rem after WakeUp ; clearing it here keeps the invariant honest."
       emits "BecameAttentive"
       then_set :state, to: "attentive"
+      then_set :sleep_summary, to: ""
+      then_set :sleep_stage, to: ""
     end
 
     # Each Tick fires ElapsePhase + all the AdvanceX commands in parallel.

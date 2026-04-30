@@ -1,0 +1,25 @@
+Hecks.behaviors "Prompt" do
+  vision "Behavioral tests for the Prompt aggregate — run inference, validate output."
+
+  # ── Prompt aggregate ──────────────────────────────────────────
+  # (merged from inference.behaviors during i112 cleanup)
+
+  test "RunInference sets input" do
+    tests "RunInference", on: "Prompt"
+    input  input: "sample"
+    expect input: "sample"
+  end
+
+  test "RunInference cascades through policy chain" do
+    tests "RunInference", on: "Prompt", kind: :cascade
+    input  input: "sample"
+    expect emits: ["InferenceRan", "OutputValidated"]
+  end
+
+  test "ValidateOutput sets valid" do
+    tests "ValidateOutput", on: "Prompt"
+    setup  "RunInference", input: "sample"
+    input  valid: "sample"
+    expect valid: "sample"
+  end
+end

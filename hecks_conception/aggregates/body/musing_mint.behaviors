@@ -1,0 +1,23 @@
+Hecks.behaviors "MusingMint" do
+  vision "Behavioral tests for the MusingMint aggregate — minting and pruning musings."
+
+  # ── MusingMint aggregate ──────────────────────────────────────────
+  # (merged from mindstream.behaviors during i112 cleanup)
+
+  test "MintMusing sets idea" do
+    tests "MintMusing", on: "MusingMint"
+    input  idea: "sample"
+    expect last_minted: "sample"
+  end
+
+  test "MintMusing records source" do
+    tests "MintMusing", on: "MusingMint"
+    input  idea: "sample", source: "dream"
+    expect last_minted: "sample", last_source: "dream"
+  end
+
+  test "PruneMusings runs" do
+    tests "PruneMusings", on: "MusingMint"
+    expect ok: "true"
+  end
+end

@@ -1,0 +1,26 @@
+Hecks.behaviors "DreamSignal" do
+  vision "Behavioral tests for the DreamSignal aggregate — send and detect cross-being signals."
+
+  # ── DreamSignal aggregate ──────────────────────────────────────────
+  # (merged from shared_dream.behaviors during i112 cleanup)
+
+  test "SendDreamSignal sets sender + signal_strength + sent_at" do
+    tests "SendDreamSignal", on: "DreamSignal"
+    input  sender: "sample", signal_strength: 1.0, sent_at: "sample"
+    expect sender: "sample", signal_strength: 1.0, sent_at: "sample", detected: "no"
+  end
+
+  test "DetectDreamSignal runs" do
+    tests "DetectDreamSignal", on: "DreamSignal"
+    setup  "SendDreamSignal", sender: "sample", signal_strength: 1.0, sent_at: "sample"
+    expect detected: "yes"
+  end
+
+  test "DetectDreamSignal cascades through policy chain" do
+    tests "DetectDreamSignal", on: "DreamSignal", kind: :cross_cascade
+    setup  "SendDreamSignal", sender: "sample", signal_strength: 1.0, sent_at: "sample"
+    setup  "PauseCycle", being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    expect emits: ["DreamSignalDetected", "CyclePaused", "SharedDreamJoined"]
+  end
+end

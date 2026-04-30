@@ -1,0 +1,32 @@
+Hecks.behaviors "Acl" do
+  vision "Behavioral tests for the Acl aggregate — grant, add phrase, bind param."
+
+  # ── Acl aggregate ──────────────────────────────────────────
+  # (merged from vocabulary.behaviors during i112 cleanup)
+
+  test "Grant sets actor + canonical_phrase + command_path" do
+    tests "Grant", on: "Acl"
+    input  actor: "sample", canonical_phrase: "sample", command_path: "sample"
+    expect actor: "sample", canonical_phrase: "sample", command_path: "sample"
+  end
+
+  test "Grant cascades through policy chain" do
+    tests "Grant", on: "Acl", kind: :cross_cascade
+    input  actor: "sample", canonical_phrase: "sample", command_path: "sample"
+    expect emits: ["AccessGranted", "LexiconCompiled"]
+  end
+
+  test "AddPhrase sets phrase" do
+    tests "AddPhrase", on: "Acl"
+    setup  "Grant", actor: "sample", canonical_phrase: "sample", command_path: "sample"
+    input  phrase: "sample"
+    expect natural_phrases_size: 1
+  end
+
+  test "BindParam sets word + maps_to + in_command" do
+    tests "BindParam", on: "Acl"
+    setup  "Grant", actor: "sample", canonical_phrase: "sample", command_path: "sample"
+    input  word: "sample", maps_to: "sample", in_command: "sample"
+    expect parameter_map_size: 1
+  end
+end

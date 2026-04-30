@@ -1,0 +1,19 @@
+Hecks.behaviors "NurserySeed" do
+  vision "Behavioral tests for the NurserySeed aggregate — start, complete seeding."
+
+  # ── NurserySeed aggregate ──────────────────────────────────────────
+  # (merged from seeding.behaviors during i112 cleanup)
+
+  test "StartSeeding sets worker_count" do
+    tests "StartSeeding", on: "NurserySeed"
+    input  worker_count: 1
+    expect worker_count: 1, status: "running"
+  end
+
+  test "CompleteSeeding sets domains_seeded" do
+    tests "CompleteSeeding", on: "NurserySeed"
+    setup  "StartSeeding", worker_count: 1
+    input  domains_seeded: 1
+    expect domains_seeded: 1, status: "complete"
+  end
+end

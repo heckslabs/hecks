@@ -1,0 +1,21 @@
+Hecks.behaviors "ClaudeAssist" do
+  vision "Behavioral tests for the ClaudeAssist aggregate — provider switching for minting."
+
+  # ── ClaudeAssist aggregate ──────────────────────────────────────────
+  # (merged from mindstream.behaviors during i112 cleanup)
+
+  test "UseClaudeProvider runs" do
+    tests "UseClaudeProvider", on: "ClaudeAssist"
+    expect provider: "claude"
+  end
+
+  test "UseLocalProvider runs" do
+    tests "UseLocalProvider", on: "ClaudeAssist"
+    expect provider: "local"
+  end
+
+  test "DisableMinting runs" do
+    tests "DisableMinting", on: "ClaudeAssist"
+    expect provider: "off"
+  end
+end

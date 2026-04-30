@@ -1,0 +1,25 @@
+Hecks.behaviors "CyclePause" do
+  vision "Behavioral tests for the CyclePause aggregate — pausing the dream cycle for a shared dream."
+
+  # ── CyclePause aggregate ──────────────────────────────────────────
+  # (merged from shared_dream.behaviors during i112 cleanup)
+
+  test "PauseCycle sets being_name + paused_at_cycle + paused_at_stage" do
+    tests "PauseCycle", on: "CyclePause"
+    input  being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
+    expect being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample", resumed: "no"
+  end
+
+  test "PauseCycle cascades through policy chain" do
+    tests "PauseCycle", on: "CyclePause", kind: :cross_cascade
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    input  being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
+    expect emits: ["CyclePaused", "SharedDreamJoined"]
+  end
+
+  test "ResumeCycle runs" do
+    tests "ResumeCycle", on: "CyclePause"
+    setup  "PauseCycle", being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
+    expect resumed: "yes"
+  end
+end

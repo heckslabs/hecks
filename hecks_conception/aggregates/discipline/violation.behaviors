@@ -1,0 +1,18 @@
+Hecks.behaviors "Violation" do
+  vision "Behavioral tests for the Violation aggregate — detect, list."
+
+  # ── Violation aggregate ──────────────────────────────────────────
+  # (merged from validator.behaviors during i112 cleanup)
+
+  test "DetectViolation sets rule_name + message" do
+    tests "DetectViolation", on: "Violation"
+    input  rule_name: "sample", message: "sample"
+    expect rule_name: "sample", message: "sample"
+  end
+
+  test "ListViolations returns matching records" do
+    tests "ListViolations", on: "Violation", kind: :query
+    setup  "DetectViolation", rule_name: "sample", message: "sample"
+    expect count: 1
+  end
+end

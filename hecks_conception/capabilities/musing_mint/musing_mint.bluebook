@@ -36,6 +36,13 @@ Hecks.bluebook "MusingMint", version: "2026.04.26.1" do
   # local / off (off short-circuits before AttemptMint fires).
 
   aggregate "Mint", "One mint attempt — gathers context, asks the LLM, decides whether to skip or persist" do
+    identified_by :name
+    # Singleton key — every command in the pipeline (AttemptMint →
+    # ReadProvider → ... → CompleteMint) operates on the same Mint
+    # record so the lifecycle advances. Without an explicit id the
+    # runtime counter-mints a new Mint per dispatch and the phase
+    # check on the next step fails.
+    attribute :name, String, default: "mint"
     # ---- Provider gate -------------------------------------------
     # provider : "claude" | "local" | "off". Read from
     # claude_assist.heki at the start of every attempt. "off" short-

@@ -1,0 +1,19 @@
+Hecks.behaviors "InnerLife" do
+  vision "Behavioral tests for the InnerLife aggregate — felt state per being/organ + reset on wake."
+
+  # ── InnerLife aggregate ──────────────────────────────────────────
+  # (merged from shared_knowledge.behaviors during i112 cleanup)
+
+  test "Feel sets being_name + organ + state" do
+    tests "Feel", on: "InnerLife"
+    input  being_name: "sample", organ: "sample", state: "sample"
+    expect being_name: "sample", organ: "sample", state: "sample"
+  end
+
+  test "ResetOnWake sets default_state" do
+    tests "ResetOnWake", on: "InnerLife"
+    setup  "Feel", being_name: "sample", organ: "sample", state: "sample"
+    input  default_state: "sample"
+    expect state: "sample"
+  end
+end

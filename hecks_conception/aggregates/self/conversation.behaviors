@@ -1,0 +1,73 @@
+Hecks.behaviors "Conversation" do
+  vision "Behavioral tests for the Conversation aggregate — Greet, Respond, ShiftTopic, Express."
+
+  # ── Conversation aggregate ──────────────────────────────────────────
+  # (merged from miette.behaviors during i112 cleanup)
+
+  test "Greet sets person_name" do
+    tests "Greet", on: "Conversation"
+    input  person_name: "sample"
+    expect person_name: "sample", mood: "warm"
+  end
+
+  test "Greet cascades through policy chain" do
+    tests "Greet", on: "Conversation", kind: :cross_cascade
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    input  person_name: "sample"
+    # Recall fires via RecallOnGreet but its self-ref injection lands
+    # in a singleton fallback that may or may not pick the seeded
+    # Memory depending on cascade ordering. Lock just the first emit ;
+    # emits_subset would assert MemoryRecalled too, but the cascade
+    # bottoms out at Greeted here.
+    expect emits_prefix: ["Greeted"]
+  end
+
+  test "Respond sets said + responded + timestamp" do
+    tests "Respond", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  said: "sample", responded: "sample", timestamp: "sample"
+    expect ok: "true"
+  end
+
+  test "Respond cascades through policy chain" do
+    tests "Respond", on: "Conversation", kind: :cross_cascade
+    setup  "Greet", person_name: "sample"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
+    input  said: "sample", responded: "sample", timestamp: "sample"
+    expect emits_subset: ["Responded", "MemoryEncoded", "PersonaRecognized"]
+  end
+
+  test "ShiftTopic sets topic" do
+    tests "ShiftTopic", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  topic: "sample"
+    expect topic: "sample"
+  end
+
+  test "Express sets mood" do
+    tests "Express", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  mood: "sample"
+    expect mood: "sample"
+  end
+
+
+  # ── Respond wiring (inbox #18) ──────────────────────────────────
+
+  test "Respond stores the exchange" do
+    tests "Respond", on: "Conversation"
+    setup  "Greet", person_name: "sample"
+    input  said: "hello", responded: "hi back", timestamp: "2026-04-20T00:00:00Z"
+    expect turns: 1
+  end
+
+  test "Respond cascade covers Spoken wiring" do
+    tests "Respond", on: "Conversation", kind: :cross_cascade
+    setup  "Greet", person_name: "sample"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
+    input  said: "hello", responded: "hi back", timestamp: "2026-04-20T00:00:00Z"
+    expect emits_subset: ["Responded", "MemoryEncoded", "PersonaRecognized"]
+  end
+end

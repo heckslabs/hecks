@@ -1,0 +1,12 @@
+Hecks.behaviors "Deduplication" do
+  vision "Behavioral tests for the Deduplication aggregate — checking existing domain count."
+
+  # ── Deduplication aggregate ──────────────────────────────────────────
+  # (merged from bulk_generator.behaviors during i112 cleanup)
+
+  test "CheckExisting sets existing" do
+    tests "CheckExisting", on: "Deduplication"
+    input  existing: 1
+    expect existing: 1
+  end
+end

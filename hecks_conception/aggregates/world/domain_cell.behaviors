@@ -1,0 +1,48 @@
+Hecks.behaviors "DomainCell" do
+  vision "Behavioral tests for the DomainCell aggregate — conceive, mature, checkpoint, apoptosis."
+
+  # ── DomainCell aggregate ──────────────────────────────────────────
+  # (merged from body.behaviors during i112 cleanup)
+
+  test "Conceive sets domain_name" do
+    tests "Conceive", on: "DomainCell"
+    input  domain_name: "sample"
+    expect domain_name: "sample", maturity: 0, phase: "conceived"
+  end
+
+  test "Conceive cascades through policy chain" do
+    tests "Conceive", on: "DomainCell", kind: :cross_cascade
+    setup  "Express", state: "sample"
+    setup  "Accelerate"
+    setup  "ExpressCapability", capability: "sample", level: 1.0
+    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
+    input  domain_name: "sample"
+    expect emits_subset: ["DomainConceived", "Excited", "HeartbeatAccelerated", "CapabilityExpressed", "LimbSensed"]
+  end
+
+  test "Mature runs" do
+    tests "Mature", on: "DomainCell"
+    setup  "Conceive", domain_name: "sample"
+    expect phase: "growing"
+  end
+
+  test "Mature cascades through policy chain" do
+    tests "Mature", on: "DomainCell", kind: :cascade
+    setup  "Conceive", domain_name: "sample"
+    expect emits: ["DomainMatured", "CheckpointPassed"]
+  end
+
+  test "PassCheckpoint sets checkpoint_name" do
+    tests "PassCheckpoint", on: "DomainCell"
+    setup  "Conceive", domain_name: "sample"
+    setup  "Mature"
+    input  checkpoint_name: "sample"
+    expect checkpoints_passed_size: 1, phase: "validated"
+  end
+
+  test "TriggerApoptosis runs" do
+    tests "TriggerApoptosis", on: "DomainCell"
+    setup  "Conceive", domain_name: "sample"
+    expect alive: false, phase: "dead"
+  end
+end

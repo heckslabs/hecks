@@ -1,0 +1,25 @@
+Hecks.behaviors "Monitor" do
+  vision "Behavioral tests for the Monitor aggregate — sleep monitoring lifecycle."
+
+  # ── Monitor aggregate ──────────────────────────────────────────
+  # (merged from sleep.behaviors during i112 cleanup)
+
+  test "StartMonitoring sets interval_seconds" do
+    tests "StartMonitoring", on: "Monitor"
+    input  interval_seconds: 1
+    expect interval_seconds: 1, reporting: "active"
+  end
+
+  test "StopMonitoring runs" do
+    tests "StopMonitoring", on: "Monitor"
+    setup  "StartMonitoring", interval_seconds: 1
+    expect reporting: "stopped"
+  end
+
+  test "Sink sets z_depth" do
+    tests "Sink", on: "Monitor"
+    setup  "StartMonitoring", interval_seconds: 1
+    input  z_depth: 1
+    expect z_depth: 1
+  end
+end

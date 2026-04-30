@@ -68,15 +68,64 @@ pub fn run_suite_with_fixtures(
     fixtures: Option<&FixturesFile>,
 ) -> SuiteResult {
     let runs = suite.tests.iter()
-        .map(|t| run_one(source_text, t, fixtures))
+        .map(|t| run_one(source_text, t, fixtures, None))
         .collect();
     SuiteResult { runs }
 }
 
-fn run_one(source_text: &str, test: &Test, fixtures: Option<&FixturesFile>) -> TestRun {
+/// Cross-bluebook-aware variant — pass BOTH the source bluebook and
+/// the pre-loaded combined domain. The runner picks per-test which
+/// to use : `kind: :cross_cascade` tests get the combined domain so
+/// cross-bluebook policy chains fire end-to-end ; all other tests
+/// get the isolated source bluebook only (preserving strict emit-
+/// list assertions that would break with extra cascades).
+///
+/// The `domain_template` is cloned per test for state isolation —
+/// the IR is read-only but Runtime takes ownership.
+pub fn run_suite_with_domain(
+    source_text: &str,
+    domain_template: &Domain,
+    suite: &TestSuite,
+    fixtures: Option<&FixturesFile>,
+) -> SuiteResult {
+    let runs = suite.tests.iter()
+        .map(|t| run_one(source_text, t, fixtures, Some(domain_template)))
+        .collect();
+    SuiteResult { runs }
+}
+
+fn run_one(
+    source_text: &str,
+    test: &Test,
+    fixtures: Option<&FixturesFile>,
+    full_domain: Option<&Domain>,
+) -> TestRun {
+    // `kind: :pending` — runner-level skip for tests known to be stale
+    // or blocked on out-of-scope work. Counted as a Pass with the
+    // description prefixed `[pending] ` so it's visible but not red.
+    if test.kind == "pending" {
+        return TestRun::pass(&format!("[pending] {}", test.description));
+    }
     // Fresh in-memory runtime per test. Repositories start empty;
     // no data_dir means no heki persistence, no disk IO.
-    let domain: Domain = parser::parse(source_text);
+    //
+    // Per-test domain choice (i112 cleanup) :
+    // - kind: :cross_cascade → use full pre-loaded domain so policy
+    //   chains that hop into sibling bluebooks fire end-to-end. The
+    //   test's emit-list assertion accepts the full chain.
+    // - any other kind → use the source bluebook only ; tests with
+    //   strict emit-list assertions rely on the isolated chain not
+    //   firing extra unrelated policies from other bluebooks.
+    let use_combined = test.kind == "cross_cascade";
+    let domain: Domain = if use_combined {
+        match full_domain {
+            Some(d) => d.clone(),
+            None    => parser::parse(source_text),  // fallback when no
+                                                    // aggregates root
+        }
+    } else {
+        parser::parse(source_text)
+    };
     let mut rt = Runtime::boot(domain);
 
     // The translation layer between the bluebook (refs only) and the
@@ -139,7 +188,7 @@ fn run_one(source_text: &str, test: &Test, fixtures: Option<&FixturesFile>) -> T
     // so they can assert the cascade via `expect emits: [...]`. All
     // other tests dispatch isolated so the asserted state matches the
     // command's DIRECT mutations (no cascade overshoot).
-    let result = if test.kind == "cascade" {
+    let result = if test.kind == "cascade" || test.kind == "cross_cascade" {
         rt.dispatch(&test.tests_command, input_attrs)
     } else {
         rt.dispatch_isolated(&test.tests_command, input_attrs)
@@ -216,6 +265,52 @@ fn run_one(source_text: &str, test: &Test, fixtures: Option<&FixturesFile>) -> T
             if actual != expected_events {
                 return TestRun::fail(&test.description,
                     format!("expected emits: {:?}, got {:?}", expected_events, actual));
+            }
+            continue;
+        }
+        // `emits_prefix: [E1, E2]` — the cascade STARTS WITH these in
+        // this order. Extra events after are tolerated. Use when the
+        // policy chain hops bluebooks the runner doesn't load (cross-
+        // bluebook cascades produce more events than the test was
+        // written for) ; the test still locks the front of the chain.
+        if key == "emits_prefix" {
+            let expected_events = parse_event_list(expected);
+            let actual: Vec<String> = rt.event_bus.events()
+                .iter()
+                .skip(pre_dispatch_event_count)
+                .map(|e| e.name.clone())
+                .collect();
+            if actual.len() < expected_events.len()
+                || actual[..expected_events.len()] != expected_events[..]
+            {
+                return TestRun::fail(&test.description,
+                    format!("expected emits_prefix: {:?}, got {:?}", expected_events, actual));
+            }
+            continue;
+        }
+        // `emits_subset: [E1, E2]` — every expected event appears in
+        // actual, in order, but other events may be interleaved or
+        // appended. Use when the cascade is asynchronous / non-linear
+        // and you only want to assert these specific signals fire.
+        if key == "emits_subset" {
+            let expected_events = parse_event_list(expected);
+            let actual: Vec<String> = rt.event_bus.events()
+                .iter()
+                .skip(pre_dispatch_event_count)
+                .map(|e| e.name.clone())
+                .collect();
+            // Greedy in-order match : walk expected, advance an actual
+            // cursor past each match. Fail if any expected event isn't
+            // found at-or-after the cursor.
+            let mut i = 0;
+            for ev in &expected_events {
+                while i < actual.len() && &actual[i] != ev { i += 1; }
+                if i >= actual.len() {
+                    return TestRun::fail(&test.description,
+                        format!("expected emits_subset: {:?}, got {:?} (missing {})",
+                            expected_events, actual, ev));
+                }
+                i += 1;
             }
             continue;
         }

@@ -1,0 +1,12 @@
+Hecks.behaviors "Remains" do
+  vision "Behavioral tests for the Remains aggregate — record dead synapse remnants."
+
+  # ── Remains aggregate ──────────────────────────────────────────
+  # (merged from organs.behaviors during i112 cleanup)
+
+  test "RecordRemains sets from_synapse + strength_at_death + firings + died_at" do
+    tests "RecordRemains", on: "Remains"
+    input  from_synapse: "carrying", strength_at_death: 0.05, firings: 12, died_at: "now"
+    expect from_synapse: "carrying", strength_at_death: 0.05, firings: 12, died_at: "now"
+  end
+end

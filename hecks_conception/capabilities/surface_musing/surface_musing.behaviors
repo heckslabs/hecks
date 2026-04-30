@@ -22,12 +22,16 @@ Hecks.behaviors "SurfaceMusing" do
 
   test "PickHead sets picked_idea" do
     tests "PickHead", on: "Surfacing"
+    setup  "ReadPool"
+    setup  "FilterPool"
     input  picked_idea: "sample"
     expect picked_idea: "sample"
   end
 
   test "WriteStatusline runs" do
     tests "WriteStatusline", on: "Surfacing"
+    setup  "ReadPool"
+    setup  "FilterPool"
     setup  "PickHead", picked_idea: "sample"
     expect ok: "true"
   end
@@ -35,11 +39,17 @@ Hecks.behaviors "SurfaceMusing" do
   test "MarkConceived runs when loop_count > 0" do
     tests "MarkConceived", on: "Surfacing"
     setup  "Surface", loop_count: 30
+    setup  "FilterPool"
+    setup  "PickHead", picked_idea: "sample"
+    setup  "WriteStatusline"
     expect ok: "true"
   end
 
   test "CompleteSurface runs" do
     tests "CompleteSurface", on: "Surfacing"
+    setup  "ReadPool"
+    setup  "FilterPool"
+    setup  "PickHead", picked_idea: "sample"
     setup  "WriteStatusline"
     expect ok: "true"
   end

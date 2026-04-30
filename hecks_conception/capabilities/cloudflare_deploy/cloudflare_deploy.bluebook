@@ -141,6 +141,13 @@ Hecks.bluebook "CloudflareDeploy", version: "2026.04.12.2" do
   # === Deployment — one command, full stack ===
 
   aggregate "Deployment", "The full deploy — D1 + Worker + Pages in one shot" do
+    identified_by :name
+    # Singleton key — deploys are one-at-a-time per environment ; the
+    # whole pipeline operates on the same Deployment record so the
+    # provisioned → migrated → ... lifecycle advances. Defaults to
+    # "deploy" so callers don't have to thread the id through every
+    # step ; the runtime's singleton fallback finds the row.
+    attribute :name, String, default: "deploy"
     attribute :status, String
     attribute :worker_url, String
     attribute :pages_url, String

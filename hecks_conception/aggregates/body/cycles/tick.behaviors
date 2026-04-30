@@ -1,0 +1,23 @@
+Hecks.behaviors "Tick" do
+  vision "Behavioral tests for the Tick aggregate — the mindstream cadence."
+
+  # ── Tick aggregate ──────────────────────────────────────────
+  # (merged from mindstream.behaviors during i112 cleanup)
+
+  test "MindstreamTick runs" do
+    tests "MindstreamTick", on: "Tick"
+    expect ok: "true"
+  end
+
+  test "MindstreamTick cascades through policy chain" do
+    tests "MindstreamTick", on: "Tick", kind: :cascade
+    # After PR #261 (BodyPulse rewiring): EmitPulseOnTick triggers
+    # `Pulse.Emit` via `across "Pulse"` — Pulse lives in its own
+    # bluebook. The single-bluebook behaviors runner can't cross
+    # that boundary, so the cascade terminates at `Ticked`. The
+    # downstream fanout (BodyPulse → Consolidate/Prune/Display/
+    # PruneMusings) is now asserted in the respective subscriber
+    # bluebooks' cascade tests.
+    expect emits: ["Ticked"]
+  end
+end

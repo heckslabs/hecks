@@ -27,20 +27,26 @@ mkdir -p "$info"
 # Seed identity with a fixed birthday so age is deterministic-ish; we still
 # strip the age value during normalization.
 "$hecks" heki upsert "$info/identity.heki" \
+  --reason "test setup : fixture identity for status_golden render comparison" \
   first_words="Miette" born_at="golden-test" \
   birthday="2026-01-01T00:00:00Z" >/dev/null
 
 "$hecks" heki upsert "$info/consciousness.heki" \
+  --reason "test setup : fixture consciousness state for status_golden render" \
   state="awake" sleep_stage="" sleep_cycle=2 sleep_total=8 \
   sleep_summary="testing status report" >/dev/null
 
 "$hecks" heki upsert "$info/heartbeat.heki" \
+  --reason "test setup : fixture heartbeat for status_golden render" \
   fatigue=0.42 fatigue_state="normal" pulse_rate=1.0 \
   flow_rate="steady" pulses_since_sleep=42 >/dev/null
 
-"$hecks" heki upsert "$info/tick.heki" cycle=1234 >/dev/null
+"$hecks" heki upsert "$info/tick.heki" \
+  --reason "test setup : fixture tick cycle for status_golden render" \
+  cycle=1234 >/dev/null
 
 "$hecks" heki upsert "$info/mood.heki" \
+  --reason "test setup : fixture mood for status_golden render" \
   current_state="focused" creativity_level=0.7 precision_level=0.8 >/dev/null
 
 # Empty collections — create the file by upserting then deleting, or just omit.

@@ -53,6 +53,9 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
       attribute :pattern, String
       attribute :confidence, Float
       emits "PatternRegistered"
+      then_set :pattern_type, to: :pattern_type
+      then_set :pattern, to: :pattern
+      then_set :confidence, to: :confidence
     end
   end
 
@@ -78,6 +81,9 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
       attribute :pattern, String
       attribute :indicates, String
       emits "NonVerbRegistered"
+      then_set :pattern_type, to: :pattern_type
+      then_set :pattern, to: :pattern
+      then_set :indicates, to: :indicates
     end
   end
 

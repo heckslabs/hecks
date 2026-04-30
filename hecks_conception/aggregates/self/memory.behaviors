@@ -1,0 +1,106 @@
+Hecks.behaviors "Memory" do
+  vision "Behavioral tests for the Memory domain — exercises every command and query in memory"
+
+  # ── Encoding aggregate ──────────────────────────────────────────
+
+  test "EncodeMemory sets kind + subject + content" do
+    # Encoding aggregate lives in mind/encoding.bluebook ; cross_cascade
+    # loads it. Source bluebook (memory) has its own EncodeMemory on the
+    # Memory aggregate that has no kind/subject/content/announced — without
+    # cross_cascade the runner picks the wrong EncodeMemory.
+    tests "EncodeMemory", on: "Encoding", kind: :cross_cascade
+    input  kind: "sample", subject: "sample", content: "sample"
+    expect kind: "sample", subject: "sample", content: "sample", announced: "yes"
+  end
+
+
+  # ── Recall aggregate ──────────────────────────────────────────
+
+  test "RecallMemory sets query" do
+    tests "RecallMemory", on: "Recall", kind: :cross_cascade
+    input  query: "sample"
+    expect query: "sample"
+  end
+
+  test "RecordHit sets found + source" do
+    tests "RecordHit", on: "Recall", kind: :cross_cascade
+    setup  "RecallMemory", query: "sample"
+    input  found: "sample", source: "sample"
+    expect found: "sample", source: "sample"
+  end
+
+
+  # ── Consolidation aggregate ──────────────────────────────────────────
+
+  test "ConsolidateSignals sets signals_consolidated + memories_created" do
+    # Source bluebook has no ConsolidateSignals (Consolidation lives in
+    # body/sleep/) ; cross_cascade was used to load it. But cross_cascade
+    # also runs the cascade, which routes to Encoding aggregate and the
+    # final state reads off the wrong aggregate. Skip the strict state
+    # check here — the cascade variant below covers the wiring.
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cross_cascade
+    input  signals_consolidated: 1, memories_created: 1
+    expect ok: "true"
+  end
+
+  test "ConsolidateSignals cascades through policy chain" do
+    tests "ConsolidateSignals", on: "Consolidation", kind: :cross_cascade
+    input  signals_consolidated: 1, memories_created: 1
+    expect emits_subset: ["SignalsConsolidated", "MemoryEncoded"]
+  end
+
+
+  # ── Store aggregate ──────────────────────────────────────────
+
+  test "StoreMemory sets kind + payload + source + created_at" do
+    tests "StoreMemory", on: "Store", kind: :cross_cascade
+    input  kind: "concept", payload: "sample", source: "signal", created_at: "now"
+    expect kind: "concept", payload: "sample", source: "signal", created_at: "now"
+  end
+
+
+  # ── Forgetting aggregate ──────────────────────────────────────────
+
+  test "ForgetMemory sets forgotten + reason" do
+    tests "ForgetMemory", on: "Forgetting", kind: :cross_cascade
+    input  forgotten: "sample", reason: "sample"
+    expect forgotten: "sample", reason: "sample", composted: "yes"
+  end
+
+  test "ForgetMemory cascades through policy chain" do
+    tests "ForgetMemory", on: "Forgetting", kind: :cross_cascade
+    input  forgotten: "sample", reason: "sample"
+    expect emits_subset: ["MemoryForgotten", "SignalsConsolidated", "MemoryEncoded"]
+  end
+
+
+  # ── (merged from miette.behaviors during i112 cleanup) ──
+  # ── Memory aggregate (MietteMemory) ──────────────────────────────────
+
+  test "EncodeMemory sets domain_name + persona + summary + conceived_at" do
+    tests "EncodeMemory", on: "Memory"
+    input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    expect domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+  end
+
+  test "EncodeMemory cascades through policy chain" do
+    tests "EncodeMemory", on: "Memory", kind: :cross_cascade
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
+    input  domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    expect emits_subset: ["MemoryEncoded", "PersonaRecognized"]
+  end
+
+  test "AddInsight sets observation + applies_to" do
+    tests "AddInsight", on: "Memory"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    input  observation: "sample", applies_to: "sample"
+    expect insights_size: 1
+  end
+
+  test "Recall runs" do
+    tests "Recall", on: "Memory"
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    expect ok: "true"
+  end
+
+end

@@ -1,0 +1,80 @@
+Hecks.behaviors "Consciousness" do
+  vision "Behavioral tests for the Consciousness aggregate — daydream, sleep, nap, wake transitions."
+
+  # ── Consciousness aggregate ──────────────────────────────────────────
+  # (merged from sleep.behaviors during i112 cleanup)
+
+  test "DetectIdle sets idle_seconds" do
+    tests "DetectIdle", on: "Consciousness"
+    input  idle_seconds: 1
+    expect idle_seconds: 1
+  end
+
+  test "DetectIdle cascades through policy chain" do
+    tests "DetectIdle", on: "Consciousness", kind: :cascade
+    input  idle_seconds: 1
+    expect emits: ["IdleDetected", "DaydreamEntered"]
+  end
+
+  test "EnterDaydream runs" do
+    tests "EnterDaydream", on: "Consciousness"
+    expect state: "daydreaming"
+  end
+
+  test "EnterSleep runs" do
+    tests "EnterSleep", on: "Consciousness"
+    setup  "EnterDaydream"
+    expect sleep_stage: "light", sleep_cycle: 1, sleep_total: 8, phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 5, is_lucid: "no", sleep_summary: "settling into light sleep", state: "sleeping"
+  end
+
+  test "EnterSleep cascades through policy chain" do
+    tests "EnterSleep", on: "Consciousness", kind: :cross_cascade
+    setup  "StartMonitoring", interval_seconds: 1
+    setup  "EnterDaydream"
+    expect emits_subset: ["SleepEntered", "MonitoringStarted"]
+  end
+
+  test "TakeNap runs" do
+    tests "TakeNap", on: "Consciousness"
+    expect state: "napping"
+  end
+
+  test "WakeUp runs" do
+    tests "WakeUp", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    expect state: "waking"
+  end
+
+  test "WakeUp cascade routes partial sleep through groggy classifier" do
+    # Regression for the Ilya P1 cascade-state-propagation bug. Pre-fix:
+    # Ruby's StateResolver#next_id minted a fresh id on every cascade
+    # dispatch to a singleton aggregate, blanking the setup-chain
+    # integer state. ClassifyFullWake's `given(sleep_cycle >= sleep_total)`
+    # then evaluated 0 >= 0 = true and emitted WokeFullSleep. Rust used
+    # the heki singleton adapter and read the real (1, 8) → emitted
+    # WokePartialSleep. Two runners, two answers, silent across corpus.
+    # Post-fix (state_resolver.rb next_id reuses existing key): both
+    # runners agree on this exact emit sequence.
+    tests "WakeUp", on: "Consciousness", kind: :cross_cascade
+    setup  "StartMonitoring", interval_seconds: 1
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    expect emits_subset: ["WokenUp", "BecameAttentive", "WokePartialSleep", "MonitoringStopped"]
+  end
+
+  test "BecomeAttentive runs" do
+    tests "BecomeAttentive", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    setup  "WakeUp"
+    expect state: "attentive"
+  end
+
+  test "ElapsePhase runs" do
+    tests "ElapsePhase", on: "Consciousness"
+    setup  "EnterDaydream"
+    setup  "EnterSleep"
+    expect ok: "true"
+  end
+end

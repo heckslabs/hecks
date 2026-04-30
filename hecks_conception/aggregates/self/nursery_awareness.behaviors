@@ -1,0 +1,27 @@
+Hecks.behaviors "NurseryAwareness" do
+  vision "Behavioral tests for the NurseryAwareness aggregate — conceive, mark favorite."
+
+  # ── NurseryAwareness aggregate ──────────────────────────────────────────
+  # (merged from miette.behaviors during i112 cleanup)
+
+  test "ConceiveDomain sets domain_name" do
+    tests "ConceiveDomain", on: "NurseryAwareness"
+    input  domain_name: "sample"
+    expect last_conceived: "sample"
+  end
+
+  test "ConceiveDomain cascades through policy chain" do
+    tests "ConceiveDomain", on: "NurseryAwareness", kind: :cross_cascade
+    setup  "EncodeMemory", domain_name: "sample", persona: "sample", summary: "sample", conceived_at: "sample"
+    setup  "RecognizePersona", name: "sample", fixture_type: "sample"
+    input  domain_name: "sample"
+    expect emits_subset: ["DomainConceived", "MemoryEncoded", "PersonaRecognized"]
+  end
+
+  test "MarkFavorite sets domain_name" do
+    tests "MarkFavorite", on: "NurseryAwareness"
+    setup  "ConceiveDomain", domain_name: "sample"
+    input  domain_name: "sample"
+    expect favorite_domains_size: 1
+  end
+end

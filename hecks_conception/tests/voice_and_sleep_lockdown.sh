@@ -31,6 +31,12 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 HECKS="${HECKS_BIN:-$REPO_ROOT/hecks_life/target/release/hecks-life}"
 [ -x "$HECKS" ] || HECKS="$REPO_ROOT/hecks_life/target/debug/hecks-life"
 [ -x "$HECKS" ] || { echo "hecks-life binary not found" >&2; exit 1; }
@@ -88,7 +94,7 @@ for phrase in "Barthes" "Bachelard" "voilà" "alors" "pardon" "intérieure"; do
 done
 
 # ── B. rem_branch.sh sources from aggregates/, not nursery/ ────────
-REM="$CONCEPT_DIR/rem_branch.sh"
+REM="$BODY_DIR/rem_branch.sh"
 if [ ! -f "$REM" ]; then
   note_fail "B. rem_branch.sh not found"
 else
@@ -120,7 +126,7 @@ if [ -f "$REM" ]; then
 fi
 
 # ── D. nrem_branch.sh exists + gates + mentions consolidation counts ──
-NREM="$CONCEPT_DIR/nrem_branch.sh"
+NREM="$BODY_DIR/nrem_branch.sh"
 if [ ! -f "$NREM" ]; then
   note_fail "D. nrem_branch.sh not found — NREM consolidation narratives missing"
 else
@@ -151,7 +157,7 @@ else
 fi
 
 # ── E. mindstream.sh invokes nrem_branch.sh alongside rem_branch.sh ──
-MS="$CONCEPT_DIR/mindstream.sh"
+MS="$BODY_DIR/mindstream.sh"
 if [ ! -f "$MS" ]; then
   note_fail "E. mindstream.sh not found"
 else

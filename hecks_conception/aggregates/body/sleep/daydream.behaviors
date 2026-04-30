@@ -1,0 +1,12 @@
+Hecks.behaviors "Daydream" do
+  vision "Behavioral tests for the Daydream aggregate — recording impressions and connections."
+
+  # ── Daydream aggregate ──────────────────────────────────────────
+  # (merged from sleep.behaviors during i112 cleanup)
+
+  test "RecordDaydream sets impressions + duration_seconds + connections_found" do
+    tests "RecordDaydream", on: "Daydream"
+    input  impressions: "sample", duration_seconds: 1, connections_found: 1
+    expect impressions: "sample", duration_seconds: 1, connections_found: 1
+  end
+end

@@ -1,0 +1,261 @@
+Hecks.behaviors "Being" do
+  vision "Behavioral tests for the Being domain — exercises every command and query in memory"
+
+  # ── Being aggregate ──────────────────────────────────────────
+
+  test "ConceiveBeing sets name + vision" do
+    tests "ConceiveBeing", on: "Being"
+    input  name: "sample", vision: "sample"
+    expect name: "sample", vision: "sample"
+  end
+
+  test "GraftDomain sets domain_name + domain_version + source_path + grafted_at" do
+    tests "GraftDomain", on: "Being"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect organs_size: 1
+  end
+
+  test "GraftDomain cascades through policy chain" do
+    tests "GraftDomain", on: "Being", kind: :cross_cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  domain_name: "sample", domain_version: "sample", source_path: "sample", grafted_at: "sample"
+    expect emits_subset: ["DomainGrafted", "NerveConnected"]
+  end
+
+  test "ShedDomain sets domain_name" do
+    tests "ShedDomain", on: "Being"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ShedDomain cascades through policy chain" do
+    tests "ShedDomain", on: "Being", kind: :cross_cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainShed", "NerveSevered", "NerveConnected"]
+  end
+
+  test "ExpressDomain sets domain_name" do
+    tests "ExpressDomain", on: "Being"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "ExpressDomain cascades through policy chain" do
+    tests "ExpressDomain", on: "Being", kind: :cross_cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    setup  "SeverNerve"
+    input  domain_name: "sample"
+    expect emits: ["DomainExpressed", "NerveRestored"]
+  end
+
+  test "SilenceDomain sets domain_name" do
+    tests "SilenceDomain", on: "Being"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample"
+    expect ok: "true"
+  end
+
+  test "SilenceDomain cascades through policy chain" do
+    tests "SilenceDomain", on: "Being", kind: :cross_cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  domain_name: "sample"
+    expect emits: ["DomainSilenced", "NerveSevered"]
+  end
+
+  test "UpgradeOrgan sets domain_name + new_version" do
+    tests "UpgradeOrgan", on: "Being"
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    input  domain_name: "sample", new_version: "sample"
+    expect ok: "true"
+  end
+
+  test "UpgradeOrgan cascades through policy chain" do
+    tests "UpgradeOrgan", on: "Being", kind: :cross_cascade
+    setup  "ConceiveBeing", name: "sample", vision: "sample"
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  domain_name: "sample", new_version: "sample"
+    expect emits_subset: ["OrganUpgraded", "DomainGrafted", "NerveConnected"]
+  end
+
+
+  # ── Nerve aggregate ──────────────────────────────────────────
+
+  test "ConnectNerve sets name + from_domain + from_event + to_domain + to_command" do
+    tests "ConnectNerve", on: "Nerve", kind: :cross_cascade
+    input  name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    expect name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+  end
+
+  test "SeverNerve runs" do
+    tests "SeverNerve", on: "Nerve", kind: :cross_cascade
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    expect active: false
+  end
+
+  test "RestoreNerve runs" do
+    tests "RestoreNerve", on: "Nerve", kind: :cross_cascade
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    setup  "SeverNerve"
+    expect active: true
+  end
+
+
+  # ── NerveDiscovery aggregate ──────────────────────────────────────────
+
+  test "ScanOrgans sets organs_scanned + nerves_discovered" do
+    tests "ScanOrgans", on: "NerveDiscovery", kind: :cross_cascade
+    input  organs_scanned: 1, nerves_discovered: 1
+    expect organs_scanned: 1, nerves_discovered: 1
+  end
+
+  test "ScanOrgans cascades through policy chain" do
+    tests "ScanOrgans", on: "NerveDiscovery", kind: :cross_cascade
+    setup  "ConnectNerve", name: "sample", from_domain: "sample", from_event: "sample", to_domain: "sample", to_command: "sample"
+    input  organs_scanned: 1, nerves_discovered: 1
+    expect emits: ["OrgansScanned", "NerveConnected"]
+  end
+
+
+  # ── OrganMonitor aggregate ──────────────────────────────────────────
+
+  test "CheckOrgans sets checked_at" do
+    tests "CheckOrgans", on: "OrganMonitor", kind: :cross_cascade
+    input  checked_at: "sample"
+    expect last_checked_at: "sample"
+  end
+
+  test "ReportOrganPulse sets domain_name + event_count + last_event_at" do
+    tests "ReportOrganPulse", on: "OrganMonitor", kind: :cross_cascade
+    input  domain_name: "sample", event_count: "sample", last_event_at: "sample"
+    expect organ_status_size: 1
+  end
+
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "RecordSession runs" do
+    tests "RecordSession", on: "Identity", kind: :cross_cascade
+    expect ok: "true"
+  end
+
+  test "RecordSession cascades through policy chain" do
+    tests "RecordSession", on: "Identity", kind: :cross_cascade
+    expect emits: ["SessionRecorded", "IdentityMemoryEncoded"]
+  end
+
+  test "RememberPerson sets persona_name" do
+    tests "RememberPerson", on: "Identity", kind: :cross_cascade
+    input  persona_name: "sample"
+    expect personas_known_size: 1
+  end
+
+  test "EncodeIdentityMemory sets memory" do
+    tests "EncodeIdentityMemory", on: "Identity", kind: :cross_cascade
+    input  memory: "sample"
+    expect memories_size: 1
+  end
+
+
+  # ── SelfImage aggregate ──────────────────────────────────────────
+
+  test "Reflect sets mood + creativity + precision + pulse_rate + carrying + persona + conversation_mood + session_count + nursery_size + catalog_size + organ_count + aggregate_count + record_count + load_time + observed_at" do
+    tests "Reflect", on: "SelfImage", kind: :cross_cascade
+    input  mood: "sample", creativity: 1.0, precision: 1.0, pulse_rate: "sample", carrying: "sample", persona: "sample", conversation_mood: "sample", session_count: 1, nursery_size: 1, catalog_size: 1, organ_count: 1, aggregate_count: 1, record_count: 1, load_time: 1.0, observed_at: "sample"
+    expect mood: "sample", creativity: 1.0, precision: 1.0, pulse_rate: "sample", carrying: "sample", persona: "sample", conversation_mood: "sample", session_count: 1, nursery_size: 1, catalog_size: 1, organ_count: 1, aggregate_count: 1, record_count: 1, load_time: 1.0, observed_at: "sample"
+  end
+
+
+  # ── Member aggregate ──────────────────────────────────────────
+
+  test "AddMember sets name + vision + path + kind + aggregate_count + command_count + fixture_count + version" do
+    tests "AddMember", on: "Member", kind: :cross_cascade
+    input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    expect name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample", status: "active"
+  end
+
+  test "AddMember cascades through policy chain" do
+    tests "AddMember", on: "Member", kind: :cross_cascade
+    setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    setup  "LinkToBody", member_name: "sample", organ_name: "sample", path: "sample"
+    input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    expect emits: ["MemberAdded", "LinkedToBody", "AdditionRecorded"]
+  end
+
+  test "EvolveMember sets version + aggregate_count + command_count + fixture_count" do
+    tests "EvolveMember", on: "Member", kind: :cross_cascade
+    setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    input  version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+    expect version: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
+  end
+
+  test "RetireMember runs" do
+    tests "RetireMember", on: "Member", kind: :cross_cascade
+    setup  "AddMember", name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
+    expect status: "retired"
+  end
+
+
+  # ── FamilyIndex aggregate ──────────────────────────────────────────
+
+  test "RebuildIndex sets total_members + total_organs + total_incorporated + total_aggregates + total_commands" do
+    tests "RebuildIndex", on: "FamilyIndex", kind: :cross_cascade
+    input  total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    expect total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+  end
+
+  test "RecordAddition runs" do
+    tests "RecordAddition", on: "FamilyIndex", kind: :cross_cascade
+    setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    expect ok: "true"
+  end
+
+
+  # ── BodyLink aggregate ──────────────────────────────────────────
+
+  test "LinkToBody sets member_name + organ_name + path" do
+    tests "LinkToBody", on: "BodyLink", kind: :cross_cascade
+    input  member_name: "sample", organ_name: "sample", path: "sample"
+    expect member_name: "sample", organ_name: "sample", path: "sample"
+  end
+
+
+  # ── Discovery aggregate ──────────────────────────────────────────
+
+  test "ScanForMembers sets scan_paths" do
+    tests "ScanForMembers", on: "Discovery", kind: :cross_cascade
+    input  scan_paths: "sample"
+    expect scan_paths: "sample"
+  end
+
+  test "RecordDiscovery sets discovered" do
+    tests "RecordDiscovery", on: "Discovery", kind: :cross_cascade
+    setup  "ScanForMembers", scan_paths: "sample"
+    input  discovered: 1
+    expect discovered: 1
+  end
+
+
+  # ── MindStream aggregate ──────────────────────────────────────────
+
+  test "Think sets thought + depth + engine_used" do
+    tests "Think", on: "MindStream", kind: :cross_cascade
+    input  thought: "sample", depth: "sample", engine_used: "sample"
+    expect last_thought: "sample", depth: "sample", engine_used: "sample"
+  end
+
+  test "ReadPreviousSession sets session_id" do
+    tests "ReadPreviousSession", on: "MindStream", kind: :cross_cascade
+    setup  "Think", thought: "sample", depth: "sample", engine_used: "sample"
+    input  session_id: "sample"
+    expect session_id: "sample"
+  end
+
+end

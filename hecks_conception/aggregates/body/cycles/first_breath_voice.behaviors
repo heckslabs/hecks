@@ -1,0 +1,12 @@
+Hecks.behaviors "FirstBreathVoice" do
+  vision "Behavioral tests for the FirstBreath Voice aggregate — tone + rules."
+
+  # ── Voice aggregate ──────────────────────────────────────────
+  # (merged from first_breath.behaviors during i112 cleanup)
+
+  test "DefineVoice sets tone + rules" do
+    tests "DefineVoice", on: "Voice"
+    input  tone: "sample", rules: "sample"
+    expect tone: "sample", rules: "sample"
+  end
+end

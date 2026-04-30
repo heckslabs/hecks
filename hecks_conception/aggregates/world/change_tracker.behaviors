@@ -1,0 +1,25 @@
+Hecks.behaviors "ChangeTracker" do
+  vision "Behavioral tests for the ChangeTracker aggregate — scan, mark processed."
+
+  # ── ChangeTracker aggregate ──────────────────────────────────────────
+  # (merged from scale.behaviors during i112 cleanup)
+
+  test "ScanForChanges sets tracked_files + changed_since_last" do
+    tests "ScanForChanges", on: "ChangeTracker"
+    input  tracked_files: 1, changed_since_last: 1
+    expect tracked_files: 1, changed_since_last: 1
+  end
+
+  test "ScanForChanges cascades through policy chain" do
+    tests "ScanForChanges", on: "ChangeTracker", kind: :cross_cascade
+    setup  "RunBatch", operation: "sample", file_count: 1
+    input  tracked_files: 1, changed_since_last: 1
+    expect emits: ["ChangesScanned", "BatchCompleted", "ChangesProcessed"]
+  end
+
+  test "MarkProcessed runs" do
+    tests "MarkProcessed", on: "ChangeTracker"
+    setup  "ScanForChanges", tracked_files: 1, changed_since_last: 1
+    expect changed_since_last: 0
+  end
+end

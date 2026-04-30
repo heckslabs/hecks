@@ -23,6 +23,12 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i117 Round 4 — body shells moved to ~/Projects/miette/body/.
+BODY_DIR="${HECKS_BODY_DIR:-}"
+[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
+  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
+
 # Find the hecks-life binary. Prefer HECKS_BIN override; otherwise the
 # worktree's own build, then the main checkout's build.
 if [ -n "${HECKS_BIN:-}" ]; then
@@ -42,7 +48,7 @@ trap "rm -rf $TMP" EXIT
 mkdir -p "$TMP/information" "$TMP/aggregates"
 
 # Link aggregates so dispatch finds the organs/awareness/etc bluebooks.
-ln -sf "$CONCEPT_DIR/aggregates/"*.bluebook "$TMP/aggregates/"
+find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
 # *.world pins the heki dir — the runtime reads it.
 cat > "$TMP/pulse_organs_smoke.world" <<'EOF'
@@ -64,15 +70,18 @@ for f in heartbeat awareness; do
   [ -f "$src" ] && cp "$src" "$TMP/information/${f}.heki"
 done
 "$HECKS" heki append "$TMP/information/consciousness.heki" \
+  --reason "test setup : seed deterministic attentive consciousness so pulse_organs gate stays open during smoke" \
   state=attentive idle_seconds=0 >/dev/null 2>&1
 
 # Seed two synapses so the test exercises both decay paths:
 #   - one healthy enough to survive (strength=0.5)
 #   - one weak enough to compost on first decay (0.1 × 0.98 = 0.098 < 0.1)
 "$HECKS" heki append "$TMP/information/synapse.heki" \
+  --reason "test setup : seed healthy synapse so pulse_organs decay path proves survival" \
   from=alpha to=beta strength=0.5 state=alive firings=2 \
   last_fired_at=2026-04-20T00:00:00Z >/dev/null 2>&1
 "$HECKS" heki append "$TMP/information/synapse.heki" \
+  --reason "test setup : seed weak synapse so pulse_organs decay path proves compost-on-first-decay" \
   from=fading to=memory strength=0.1 state=alive firings=1 \
   last_fired_at=2026-04-20T00:00:00Z >/dev/null 2>&1
 
@@ -83,7 +92,7 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
   HECKS_INFO="$TMP/information" \
   HECKS_AGG="$TMP/aggregates" \
   HECKS_BIN="$HECKS" \
-  bash "$CONCEPT_DIR/pulse_organs.sh" \
+  bash "$BODY_DIR/pulse_organs.sh" \
     || fail "pulse_organs.sh exited non-zero on tick $i"
 done
 

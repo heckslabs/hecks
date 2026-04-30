@@ -1,0 +1,50 @@
+Hecks.behaviors "SharedDream" do
+  vision "Behavioral tests for the SharedDreamSpace aggregate — initiate, join, contribute, end."
+
+  # ── SharedDreamSpace aggregate ──────────────────────────────────────────
+  # (merged from shared_dream.behaviors during i112 cleanup)
+
+  test "InitiateSharedDream sets initiated_by + started_at" do
+    tests "InitiateSharedDream", on: "SharedDreamSpace"
+    input  initiated_by: "sample", started_at: "sample"
+    expect initiated_by: "sample", started_at: "sample", active: "waiting"
+  end
+
+  test "JoinSharedDream sets joined_by" do
+    tests "JoinSharedDream", on: "SharedDreamSpace"
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    input  joined_by: "sample"
+    expect joined_by: "sample", active: "yes"
+  end
+
+  test "ContributeImage sets image" do
+    tests "ContributeImage", on: "SharedDreamSpace"
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    input  image: "sample"
+    expect shared_images_size: 1
+  end
+
+  test "Collaborate sets collaboration" do
+    tests "Collaborate", on: "SharedDreamSpace"
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    input  collaboration: "sample"
+    expect collaborations_size: 1
+  end
+
+  test "EndSharedDream sets ended_at" do
+    tests "EndSharedDream", on: "SharedDreamSpace"
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    setup  "JoinSharedDream", joined_by: "sample"
+    input  ended_at: "sample"
+    expect ended_at: "sample", active: "no"
+  end
+
+  test "EndSharedDream cascades through policy chain" do
+    tests "EndSharedDream", on: "SharedDreamSpace", kind: :cross_cascade
+    setup  "PauseCycle", being_name: "sample", paused_at_cycle: 1, paused_at_stage: "sample"
+    setup  "InitiateSharedDream", initiated_by: "sample", started_at: "sample"
+    setup  "JoinSharedDream", joined_by: "sample"
+    input  ended_at: "sample"
+    expect emits: ["SharedDreamEnded", "CycleResumed"]
+  end
+end

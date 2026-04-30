@@ -1,0 +1,24 @@
+Hecks.behaviors "FirstBreathPrompt" do
+  vision "Behavioral tests for the FirstBreath Prompt aggregate — assemble + write at boot."
+
+  # ── Prompt aggregate ──────────────────────────────────────────
+  # (merged from first_breath.behaviors during i112 cleanup)
+
+  test "AssemblePrompt sets being_name + organ_count" do
+    tests "AssemblePrompt", on: "Prompt"
+    input  being_name: "sample", organ_count: 1
+    expect being_name: "sample", organ_count: 1
+  end
+
+  test "AssemblePrompt cascades through policy chain" do
+    tests "AssemblePrompt", on: "Prompt", kind: :cascade
+    input  being_name: "sample", organ_count: 1
+    expect emits: ["PromptAssembled", "PromptWritten"]
+  end
+
+  test "WritePrompt runs" do
+    tests "WritePrompt", on: "Prompt"
+    setup  "AssemblePrompt", being_name: "sample", organ_count: 1
+    expect ok: "true"
+  end
+end

@@ -1,0 +1,96 @@
+Hecks.behaviors "Night" do
+  vision "Behavioral tests for the Night aggregate — eight-cycle sleep arc."
+
+  # ── Night aggregate ──────────────────────────────────────────
+  # (merged from sleep.behaviors during i112 cleanup)
+
+  test "StartNight runs" do
+    tests "StartNight", on: "Night"
+    expect cycles_completed: 0, phase: "starting"
+  end
+
+  # StartNight cascade test moved to dream_seed.behaviors — it exercises
+  # the cross-aggregate SeedOnNightStart policy that triggers
+  # DreamSeed.SeedFromPreviousDreams, which now lives in
+  # aggregates/dream_seed.bluebook.
+
+  test "DreamCycle1 runs" do
+    tests "DreamCycle1", on: "Night"
+    expect cycles_completed: 1, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle1 runs" do
+    tests "ConsolidateCycle1", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle2 runs" do
+    tests "DreamCycle2", on: "Night"
+    expect cycles_completed: 2, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle2 runs" do
+    tests "ConsolidateCycle2", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle3 runs" do
+    tests "DreamCycle3", on: "Night"
+    expect cycles_completed: 3, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle3 runs" do
+    tests "ConsolidateCycle3", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle4 runs" do
+    tests "DreamCycle4", on: "Night"
+    expect cycles_completed: 4, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle4 runs" do
+    tests "ConsolidateCycle4", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle5 runs" do
+    tests "DreamCycle5", on: "Night"
+    expect cycles_completed: 5, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle5 runs" do
+    tests "ConsolidateCycle5", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle6 runs" do
+    tests "DreamCycle6", on: "Night"
+    expect cycles_completed: 6, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle6 runs" do
+    tests "ConsolidateCycle6", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle7 runs" do
+    tests "DreamCycle7", on: "Night"
+    expect cycles_completed: 7, phase: "dreaming"
+  end
+
+  test "ConsolidateCycle7 runs" do
+    tests "ConsolidateCycle7", on: "Night"
+    expect phase: "consolidating"
+  end
+
+  test "DreamCycle8 runs" do
+    tests "DreamCycle8", on: "Night"
+    expect cycles_completed: 8, phase: "lucid"
+  end
+
+  test "EndNight runs" do
+    tests "EndNight", on: "Night"
+    expect phase: "ended"
+  end
+end

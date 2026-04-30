@@ -633,6 +633,31 @@ fn load_seeds(rt: &mut Runtime, seed_path: Option<&str>) {
 /// Pure memory by construction — Runtime::boot has no data_dir, no
 /// hecksagon, no adapters. If a test triggers IO, the source bluebook
 /// is the thing to fix.
+/// Walk up from a .behaviors path looking for an "aggregates"
+/// directory ancestor. Returns the path to that aggregates dir
+/// (suitable for `load_combined_domain`) or None when invoked
+/// outside a conception layout (programmatic invocation, standalone
+/// test fixtures, etc.). Used by `run_behaviors` to opt into the
+/// full-domain path when the file lives in a recognizable corpus.
+fn behaviors_aggregates_root(suite_path: &str) -> Option<String> {
+    let abs = std::fs::canonicalize(suite_path).ok()?;
+    let mut cur = abs.parent()?.to_path_buf();
+    for _ in 0..6 {
+        if cur.file_name().map(|n| n == "aggregates").unwrap_or(false) {
+            return Some(cur.to_string_lossy().into_owned());
+        }
+        // also recognize tree shapes where the .behaviors lives under
+        // capabilities/ — load_combined_domain walks both at once via
+        // the sibling-capability path.
+        let agg_sibling = cur.join("aggregates");
+        if agg_sibling.is_dir() {
+            return Some(agg_sibling.to_string_lossy().into_owned());
+        }
+        if !cur.pop() { break; }
+    }
+    None
+}
+
 fn run_behaviors(args: &[String]) {
     let suite_path = args.get(2).unwrap_or_else(|| {
         eprintln!("Usage: hecks-life behaviors <X_behavioral_tests.bluebook>");
@@ -665,9 +690,23 @@ fn run_behaviors(args: &[String]) {
     }
     println!();
 
-    let result = hecks_life::behaviors_runner::run_suite_with_fixtures(
-        &source_text, &suite, fixtures.as_ref(),
-    );
+    // i112 cleanup — always load the combined domain when the .behaviors
+    // file lives under a recognizable aggregates tree. The runner picks
+    // per-test which domain to use : `kind: :cross_cascade` tests run
+    // against the combined domain so cross-bluebook policy chains fire
+    // end-to-end ; all other tests run isolated against the source
+    // bluebook only. Tests with strict emit-list assertions stay strict ;
+    // cross-cascade tests opt in via the kind flag.
+    let combined = behaviors_aggregates_root(suite_path)
+        .map(|root| load_combined_domain(&root));
+    let result = match combined.as_ref() {
+        Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
+            &source_text, d, &suite, fixtures.as_ref(),
+        ),
+        None    => hecks_life::behaviors_runner::run_suite_with_fixtures(
+            &source_text, &suite, fixtures.as_ref(),
+        ),
+    };
     for run in &result.runs {
         let icon = match run.status {
             hecks_life::behaviors_runner::TestStatus::Pass  => "✓",
@@ -2051,6 +2090,32 @@ fn run_enforce_edit(_args: &[String]) {
         dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
     });
 
+    // --reason lint — fires on any .sh file (exempt or not) that has
+    // a `heki append/upsert/delete/mark` invocation without --reason.
+    // The discipline is structural : direct heki writes bypass the
+    // dispatch path's audit log, so each must name why. Without this
+    // gate, scripts silently exit non-zero on every write, fixtures
+    // never seed, and tests pass-through with empty data. Pre-i112
+    // we shipped that bug across many shells (pulse_organs, daydream,
+    // consolidate, mint_musing, surface_musing, the test seeds
+    // themselves) ; this hook makes the silent failure structurally
+    // impossible going forward.
+    if file_path.ends_with(".sh") {
+        if let Some(violations) = unreasoned_heki_writes(&file_path) {
+            let complaint = format!(
+                "--reason missing on direct heki write in {} :\n  {}\n\n\
+                 Direct heki writes (heki append / upsert / delete / mark) \
+                 bypass the dispatch path's audit log. Each must pass \
+                 --reason \"<why>\" so the audit trail names the gap that \
+                 forced the bypass. Without it the runtime exits non-zero \
+                 silently — discipline drift hides as a passing build.",
+                file_path, violations.join("\n  "),
+            );
+            eprintln!("[enforcer] {}", complaint);
+            std::process::exit(2);
+        }
+    }
+
     if matches!(kind, FileKind::Imperative) && !exempted {
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let complaint = format!(
@@ -2073,6 +2138,62 @@ fn run_enforce_edit(_args: &[String]) {
         std::process::exit(2);
     }
     std::process::exit(0);
+}
+
+/// Scan a shell file for direct heki writes (heki append / upsert /
+/// delete / mark) that lack `--reason`. Returns Some(violations) when
+/// the file has at least one unreasoned write — the enforcer refuses
+/// the edit. Returns None when the file is clean (no writes, or every
+/// write carries --reason in its multi-line invocation).
+///
+/// Scanning rule : find each line that matches `heki (append|upsert|
+/// delete|mark)` ; gather that line plus all bash-continuation lines
+/// (each ending with `\`) ; check if --reason appears anywhere across
+/// the joined invocation. Comments (`# heki append ...`) are skipped.
+fn unreasoned_heki_writes(file_path: &str) -> Option<Vec<String>> {
+    let source = std::fs::read_to_string(file_path).ok()?;
+    let lines: Vec<&str> = source.lines().collect();
+    let mut violations: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim_start();
+        // Skip comments and shebangs ; only flag executable lines.
+        if trimmed.starts_with('#') || trimmed.starts_with("//") {
+            i += 1; continue;
+        }
+        // Match `heki append`, `heki upsert`, `heki delete`, `heki mark`.
+        // Allow `$HECKS heki ...` or `"$HECKS" heki ...` or bare path.
+        let is_write = ["heki append", "heki upsert", "heki delete", "heki mark"]
+            .iter().any(|verb| line.contains(verb));
+        if !is_write {
+            i += 1; continue;
+        }
+        // Collect this line plus continuation lines (those ending with `\`
+        // after stripping trailing whitespace). The continuation forms the
+        // full invocation surface where --reason might appear.
+        let mut joined = String::from(line);
+        let mut j = i;
+        while j < lines.len() && lines[j].trim_end().ends_with('\\') {
+            j += 1;
+            if j < lines.len() {
+                joined.push(' ');
+                joined.push_str(lines[j]);
+            }
+        }
+        if !joined.contains("--reason") {
+            // Trim the joined invocation for the diagnostic so it's
+            // readable but bounded (~120 chars).
+            let display: String = joined.split_whitespace()
+                .collect::<Vec<_>>().join(" ");
+            let display_short = if display.len() > 120 {
+                format!("{}…", &display[..120])
+            } else { display };
+            violations.push(format!("line {}: {}", i + 1, display_short));
+        }
+        i = j + 1;
+    }
+    if violations.is_empty() { None } else { Some(violations) }
 }
 
 /// Check whether `file_path` appears in the central ExemptRegistry in

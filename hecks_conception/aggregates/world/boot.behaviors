@@ -1,0 +1,98 @@
+Hecks.behaviors "Boot" do
+  vision "Behavioral tests for the Boot domain — exercises every command and query in memory"
+
+  # ── Identity aggregate ──────────────────────────────────────────
+
+  test "Identify sets name" do
+    tests "Identify", on: "Identity", kind: :cross_cascade
+    input  name: "sample"
+    expect name: "sample"
+  end
+
+
+  # ── Hydration aggregate ──────────────────────────────────────────
+
+  test "HydrateStores runs" do
+    tests "HydrateStores", on: "Hydration", kind: :cross_cascade
+    expect ok: "true"
+  end
+
+  test "HydrateStores cascades through policy chain" do
+    tests "HydrateStores", on: "Hydration", kind: :cross_cascade
+    expect emits: ["StoresHydrated", "StoresClassified", "PromptGenerated", "MindstreamStarted"]
+  end
+
+
+  # ── OrganDiscovery aggregate ──────────────────────────────────────────
+
+  test "DiscoverOrgans runs" do
+    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cross_cascade
+    expect ok: "true"
+  end
+
+  test "DiscoverOrgans cascades through policy chain" do
+    tests "DiscoverOrgans", on: "OrganDiscovery", kind: :cross_cascade
+    expect emits_subset: ["OrgansDiscovered", "CensusWritten", "VitalsPrinted"]
+  end
+
+  test "WriteCensus runs" do
+    tests "WriteCensus", on: "OrganDiscovery", kind: :cross_cascade
+    expect ok: "true"
+  end
+
+  test "WriteCensus cascades through policy chain" do
+    tests "WriteCensus", on: "OrganDiscovery", kind: :cross_cascade
+    expect emits_subset: ["CensusWritten", "VitalsPrinted"]
+  end
+
+
+  # ── CapabilityIndex aggregate ──────────────────────────────────────────
+
+  test "IndexCapabilities runs" do
+    tests "IndexCapabilities", on: "CapabilityIndex", kind: :cross_cascade
+    expect ok: "true"
+  end
+
+
+  # ── StoreClassification aggregate ──────────────────────────────────────────
+
+  test "ClassifyStores runs" do
+    tests "ClassifyStores", on: "StoreClassification", kind: :cross_cascade
+    expect ok: "true"
+  end
+
+  test "ClassifyStores cascades through policy chain" do
+    tests "ClassifyStores", on: "StoreClassification", kind: :cross_cascade
+    expect emits: ["StoresClassified", "PromptGenerated", "MindstreamStarted"]
+  end
+
+
+  # ── PromptGeneration aggregate ──────────────────────────────────────────
+
+  test "GeneratePrompt runs" do
+    tests "GeneratePrompt", on: "PromptGeneration", kind: :cross_cascade
+    expect generated: "yes"
+  end
+
+  test "GeneratePrompt cascades through policy chain" do
+    tests "GeneratePrompt", on: "PromptGeneration", kind: :cross_cascade
+    expect emits: ["PromptGenerated", "MindstreamStarted"]
+  end
+
+
+  # ── VitalSummary aggregate ──────────────────────────────────────────
+
+  test "PrintVitals runs" do
+    tests "PrintVitals", on: "VitalSummary", kind: :cross_cascade
+    expect printed: "yes"
+  end
+
+
+  # ── MindstreamDaemon aggregate ──────────────────────────────────────────
+
+  test "StartMindstream runs" do
+    tests "StartMindstream", on: "MindstreamDaemon", kind: :cross_cascade
+    expect running: "yes"
+  end
+
+end
