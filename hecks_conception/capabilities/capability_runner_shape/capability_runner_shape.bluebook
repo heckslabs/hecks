@@ -94,6 +94,34 @@ Hecks.bluebook "CapabilityRunnerShape", version: "2026.04.26.1" do
   #   dispatch_command  — call rt.dispatch(<command>, attrs) ; updates
   #                       aggregate state + emits events declared in
   #                       the source bluebook
+  #
+  #   verbatim_section  — i146/i147 pattern. The unit of decomposition
+  #                       is a Section (header doc, struct, function,
+  #                       test block, helper) ; each Section row points
+  #                       at a .rs.frag snippet via snippet_path. The
+  #                       specializer concatenates snippets by `order`
+  #                       through util::read_snippet_raw — no template
+  #                       interpolation, no cross-row variables. The
+  #                       byte stream IS the source of truth ; the
+  #                       fixtures + snippets just slice it at natural
+  #                       boundaries.
+  #
+  #                       Used when a target's methods are sui-generis
+  #                       Rust that doesn't fit a small declarative
+  #                       pattern — e.g. dispatch_query (closure
+  #                       walker), validator_corpus (3 lint funcs),
+  #                       repository (mixed I/O + persistence +
+  #                       snapshot), heki_query (filter + order specs).
+  #
+  #                       Canonical reference : heki_query_shape/
+  #                       (4 sections, 4 .rs.frag snippets, ~30 LoC
+  #                       emitter via crate::specializer::heki_query).
+  #
+  #                       When `verbatim_section` is the right choice,
+  #                       extending the catalog means a new
+  #                       capabilities/<name>_shape/ directory with a
+  #                       fixtures file and one snippet per section ;
+  #                       the emitter mirrors heki_query.rs.
 
   aggregate "BodyKind", "One emission strategy the specializer knows — body kind name, template module, signature shape" do
     attribute :name,             String

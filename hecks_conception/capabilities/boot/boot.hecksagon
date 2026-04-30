@@ -58,7 +58,7 @@ Hecks.hecksagon "Boot" do
 
   adapter :daemon, name: :mindstream,
     pidfile: "{info}/.mindstream.pid",
-    command: "{dir}/mindstream.sh"
+    command: "{body}/mindstream.sh"
 
   adapter :daemon, name: :heart,
     pidfile: "{info}/.heart.pid",

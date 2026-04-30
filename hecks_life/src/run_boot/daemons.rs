@@ -15,6 +15,10 @@
 //!   {dir}   → conception dir (sibling of info_dir)
 //!   {agg}   → conception/aggregates
 //!   {hecks} → path to the running hecks-life binary
+//!   {body}  → ../miette/body sibling (i117 Round 4 ; closes i148).
+//!             Resolves env HECKS_BODY_DIR first, then the standard
+//!             sibling layout. Empty when neither resolves so the
+//!             daemon spawn fails loudly rather than silently miss.
 
 use crate::hecksagon_ir::IoAdapter;
 use crate::runtime::adapter_registry::AdapterRegistry;
@@ -39,6 +43,7 @@ pub fn ensure_all(
     let hecks_bin = std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| "hecks-life".to_string());
+    let body_dir = resolve_body_dir(&conception);
 
     let mut out = Vec::new();
     for adapter in registry.hecksagon.io_adapters.iter()
@@ -51,10 +56,10 @@ pub fn ensure_all(
         if name.is_empty() { continue; }
 
         let pidfile = adapter_option(adapter, "pidfile")
-            .map(|s| substitute(&s, info_dir, &conception_str, &agg_dir, &hecks_bin))
+            .map(|s| substitute(&s, info_dir, &conception_str, &agg_dir, &hecks_bin, &body_dir))
             .unwrap_or_default();
         let command = adapter_option(adapter, "command")
-            .map(|s| substitute(&s, info_dir, &conception_str, &agg_dir, &hecks_bin))
+            .map(|s| substitute(&s, info_dir, &conception_str, &agg_dir, &hecks_bin, &body_dir))
             .unwrap_or_default();
 
         if pidfile.is_empty() || command.is_empty() {
@@ -112,12 +117,41 @@ fn ensure_one(pidfile: &str, command_line: &str) -> String {
     }
 }
 
-fn substitute(s: &str, info: &str, dir: &str, agg: &str, hecks: &str) -> String {
+fn substitute(s: &str, info: &str, dir: &str, agg: &str, hecks: &str, body: &str) -> String {
     s.trim_matches('"')
         .replace("{info}", info)
         .replace("{dir}", dir)
         .replace("{agg}", agg)
         .replace("{hecks}", hecks)
+        .replace("{body}", body)
+}
+
+/// Resolve the miette/body sibling dir for the `{body}` placeholder
+/// (i148). Mirrors run_statusline::resolve_info_dir's precedence :
+///
+///   1. HECKS_BODY_DIR env override (explicit setup, deployment-friendly)
+///   2. `<repo_root>/../miette/body` sibling — the standard layout
+///      after i117 Round 4 moved body shells to chrisyoung/miette
+///   3. empty string — when neither resolves, the placeholder
+///      substitutes to "" and the daemon command fails loudly with
+///      a "No such file or directory" rather than silently using the
+///      wrong path. Boot prints `<name>: failed: spawn failed` ; the
+///      operator knows to set HECKS_BODY_DIR or fix the layout.
+fn resolve_body_dir(conception: &Path) -> String {
+    if let Ok(v) = std::env::var("HECKS_BODY_DIR") {
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    // Conception lives at <repo_root>/hecks_conception/. The miette/body
+    // sibling lives at <repo_root>/../miette/body.
+    if let Some(repo_root) = conception.parent() {
+        let sibling = repo_root.join("../miette/body");
+        if let Ok(canonical) = std::fs::canonicalize(&sibling) {
+            return canonical.to_string_lossy().into_owned();
+        }
+    }
+    String::new()
 }
 
 fn adapter_option(adapter: &IoAdapter, key: &str) -> Option<String> {
