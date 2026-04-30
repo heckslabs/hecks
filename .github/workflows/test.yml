@@ -13,8 +13,10 @@ name: tests
 # the pre-push hook's behavior on a checkout without the sibling.
 
 on:
+  push:
+    branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches: [main, "**"]
 
 jobs:
   smoke:
