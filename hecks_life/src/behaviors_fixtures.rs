@@ -82,7 +82,11 @@ pub fn apply(rt: &mut Runtime, fixtures: &FixturesFile) -> HashMap<String, Strin
         // Fixture references an aggregate the domain doesn't define —
         // skip silently; the source bluebook/fixtures file authors will
         // see zero seed effect and can fix the mismatch.
-        let Some(repo) = rt.repositories.get_mut(&agg_name) else { continue };
+        // i142 Tier 2 — fixtures don't declare context, so use the
+        // name-scan helper to find the matching repository regardless
+        // of context-prefixed keys.
+        let Some(key) = crate::runtime::repo_lookup_key(&rt.repositories, &agg_name) else { continue };
+        let Some(repo) = rt.repositories.get_mut(&key) else { continue };
         for (i, fix) in list.iter().enumerate() {
             let id = (i + 1).to_string();
             let mut state = AggregateState::new(&id);

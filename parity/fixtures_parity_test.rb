@@ -24,16 +24,50 @@ require "hecks/dsl/fixtures_builder"
 def normalize_attrs(h)
   # Both runtimes serialize attribute values as the source token. Ruby's
   # builder keeps them in their native types (Integer, Float, String,
-  # etc.); the Rust parser keeps them as the verbatim string. To
-  # diff, stringify both, trim quotes, sort keys (Rust's
-  # serde_json::Map serializes alphabetically without preserve_order),
-  # and collapse internal whitespace so `[ "a", "b" ]` (source-form)
-  # matches `["a", "b"]` (Ruby Array#inspect form).
+  # Array, Hash, etc.); the Rust parser keeps them as the verbatim
+  # source string. To diff fairly we convert each Ruby value back to
+  # its bluebook source form (mirrors canonical_ir's mutation_value
+  # rules for hashes/arrays/symbols), then normalize whitespace and
+  # quotes so the two representations agree byte-for-byte.
   h.transform_values { |v|
-    s = v.to_s.sub(/\A"/, "").sub(/"\z/, "")
-    # Collapse whitespace immediately inside [ … ] and { … } pairs.
+    # Convert structured Ruby objects (Hash, Array) back to bluebook
+    # source form ; primitives pass through their .to_s.
+    s = if v.is_a?(Hash) || v.is_a?(Array)
+          to_bluebook_source(v)
+        else
+          v.to_s
+        end
+    s = s.sub(/\A"/, "").sub(/"\z/, "")
+    # Collapse whitespace immediately inside [ … ] and { … } pairs
+    # so `[ "a", "b" ]` (source-form) matches `["a", "b"]` (compact
+    # form). Idempotent.
     s = s.gsub(/\[\s+/, "[").gsub(/\s+\]/, "]")
          .gsub(/\{\s+/, "{").gsub(/\s+\}/, "}")
+    # Collapse runs of whitespace to single spaces OUTSIDE of quoted
+    # strings — bluebook fixtures sometimes use multi-space alignment
+    # (e.g. `name: "Re",    meaning: "again"`) which Rust preserves
+    # verbatim ; Ruby parses to objects and re-stringifies with
+    # single spaces. Walk char-by-char tracking quote state so the
+    # whitespace inside `"two  spaces"` is left alone.
+    out = String.new(capacity: s.length)
+    in_str = false
+    prev = "\0"
+    last_was_space = false
+    s.each_char do |c|
+      if c == "\"" && prev != "\\"
+        in_str = !in_str
+        out << c
+        last_was_space = false
+      elsif !in_str && (c == " " || c == "\t")
+        out << " " unless last_was_space
+        last_was_space = true
+      else
+        out << c
+        last_was_space = false
+      end
+      prev = c
+    end
+    s = out
     # Normalize trailing zeros on floats (`0.90` vs `0.9`): if the
     # value parses as a float, reformat via Ruby's Float#to_s.
     if s.match?(/\A-?\d+\.\d+\z/) && (f = Float(s, exception: false))
@@ -43,6 +77,27 @@ def normalize_attrs(h)
     s = "" if s == "nil"
     s
   }.transform_keys(&:to_s).sort.to_h
+end
+
+# Convert a Ruby value back to its bluebook source form. Mirrors the
+# rules in parity/canonical_ir.rb's mutation_value (Symbol → :sym,
+# String → "...", Hash → { k: v, ... } with shorthand symbol keys,
+# Array → [ ... ], primitives → to_s). Used to compare against
+# Rust's source-preserving fixture parser without forcing Rust to
+# reparse Ruby's `=>` inspect form.
+def to_bluebook_source(v)
+  case v
+  when Symbol then ":#{v}"
+  when String then "\"#{v}\""
+  when Numeric, TrueClass, FalseClass then v.to_s
+  when nil then "nil"
+  when Hash
+    inner = v.map { |k, val| "#{k}: #{to_bluebook_source(val)}" }.join(", ")
+    "{ #{inner} }"
+  when Array
+    "[#{v.map { |e| to_bluebook_source(e) }.join(", ")}]"
+  else v.to_s
+  end
 end
 
 def ruby_ir(path)

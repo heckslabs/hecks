@@ -32,16 +32,20 @@ Hecks.fixtures "DumpShape" do
     fixture "Dump_policies",   serializer: "dump", order: 5, key: "policies",   source: "policies",   mapping_kind: "recurse_list", helper_fn: "dump_policy"
     fixture "Dump_fixtures",   serializer: "dump", order: 6, key: "fixtures",   source: "fixtures",   mapping_kind: "recurse_list", helper_fn: "dump_fixture"
 
-    # dump_aggregate — 7 fields
-    fixture "Agg_name",          serializer: "dump_aggregate", order: 1, key: "name",          source: "name",          mapping_kind: "direct",           helper_fn: ""
-    fixture "Agg_description",   serializer: "dump_aggregate", order: 2, key: "description",   source: "description",   mapping_kind: "direct",           helper_fn: ""
-    fixture "Agg_attributes",    serializer: "dump_aggregate", order: 3, key: "attributes",    source: "attributes",    mapping_kind: "recurse_list",     helper_fn: "dump_attribute"
-    fixture "Agg_value_objects", serializer: "dump_aggregate", order: 4, key: "value_objects", source: "value_objects", mapping_kind: "recurse_list",     helper_fn: "dump_value_object"
-    fixture "Agg_entities",      serializer: "dump_aggregate", order: 5, key: "entities",      source: "entities",      mapping_kind: "recurse_list",     helper_fn: "dump_entity"
-    fixture "Agg_references",    serializer: "dump_aggregate", order: 6, key: "references",    source: "references",    mapping_kind: "recurse_list",     helper_fn: "dump_reference"
-    fixture "Agg_commands",      serializer: "dump_aggregate", order: 7, key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
-    fixture "Agg_queries",       serializer: "dump_aggregate", order: 8, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
-    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 9, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
+    # dump_aggregate — 10 fields (i142 added context : Option<String>
+    # stamped from the bluebook name by the parser ; Ruby canonical_ir
+    # already emits it. mapping_kind: "direct" — serde_json's json!
+    # macro turns Option<String> into null/value automatically.)
+    fixture "Agg_name",          serializer: "dump_aggregate", order: 1,  key: "name",          source: "name",          mapping_kind: "direct",           helper_fn: ""
+    fixture "Agg_context",       serializer: "dump_aggregate", order: 2,  key: "context",       source: "context",       mapping_kind: "direct",           helper_fn: ""
+    fixture "Agg_description",   serializer: "dump_aggregate", order: 3,  key: "description",   source: "description",   mapping_kind: "direct",           helper_fn: ""
+    fixture "Agg_attributes",    serializer: "dump_aggregate", order: 4,  key: "attributes",    source: "attributes",    mapping_kind: "recurse_list",     helper_fn: "dump_attribute"
+    fixture "Agg_value_objects", serializer: "dump_aggregate", order: 5,  key: "value_objects", source: "value_objects", mapping_kind: "recurse_list",     helper_fn: "dump_value_object"
+    fixture "Agg_entities",      serializer: "dump_aggregate", order: 6,  key: "entities",      source: "entities",      mapping_kind: "recurse_list",     helper_fn: "dump_entity"
+    fixture "Agg_references",    serializer: "dump_aggregate", order: 7,  key: "references",    source: "references",    mapping_kind: "recurse_list",     helper_fn: "dump_reference"
+    fixture "Agg_commands",      serializer: "dump_aggregate", order: 8,  key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
+    fixture "Agg_queries",       serializer: "dump_aggregate", order: 9,  key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
+    fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 10, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
 
     # dump_attribute — 4 fields (one rename: attr_type → "type")
     fixture "Attr_name",    serializer: "dump_attribute", order: 1, key: "name",    source: "name",      mapping_kind: "direct", helper_fn: ""

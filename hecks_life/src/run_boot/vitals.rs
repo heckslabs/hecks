@@ -20,6 +20,10 @@ pub struct Vitals {
     pub classification: Classification,
     pub daemons: Vec<DaemonStatus>,
     pub info_dir: String,
+    /// Byte count of the system_prompt.md just rendered by Phase 4.
+    /// Zero when Phase 4 was skipped or failed (a stderr line above
+    /// surfaced the reason).
+    pub prompt_bytes: usize,
 }
 
 pub fn print(v: &Vitals) {
@@ -50,6 +54,13 @@ pub fn print(v: &Vitals) {
         "  ultradian: {} · sleep_cycle: {}",
         s("ultradian"), s("sleep_cycle"),
     );
+
+    // System prompt size — matches boot_miette.sh's
+    // `system_prompt.md: <bytes> bytes` line. Zero when Phase 4
+    // was skipped (the warning above surfaced why).
+    if v.prompt_bytes > 0 {
+        println!("  system_prompt.md: {} bytes", v.prompt_bytes);
+    }
 
     // Body summary line — pulled from heki latest fields.
     let mood    = latest_field(&v.info_dir, "mood",          "current_state");

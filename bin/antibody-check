@@ -126,12 +126,40 @@ def exempt_reasons(message_file)
   reasons
 end
 
+# Locate the hecks-life binary so the antibody can ask the IR-query
+# substrate (i122) whether each touched file is structurally claimed
+# by some adapter / specializer / runner. Files claimed by the corpus
+# don't need exemption markers — the dispatch declaration IS the
+# justification.
+HECKS_LIFE_BIN = [
+  ENV["HECKS_BIN"],
+  File.expand_path("../hecks_life/target/release/hecks-life", __dir__),
+  File.expand_path("../hecks_life/target/debug/hecks-life",   __dir__),
+].compact.find { |p| File.executable?(p) }
+
+# Memo cache : path → bool. Same call shape the LoC ratchet uses.
+$dispatch_cache = {}
+
+def ir_claimed?(path)
+  return false unless HECKS_LIFE_BIN
+  return $dispatch_cache[path] if $dispatch_cache.key?(path)
+  _out, _err, status = Open3.capture3(HECKS_LIFE_BIN, "is-dispatched", path)
+  $dispatch_cache[path] = status.exitstatus == 0
+end
+
 def filter_code_files(paths)
   paths.select do |p|
     ext = File.extname(p).delete_prefix(".").downcase
-    next true if CODE_EXTS.include?(ext)
-    # Extensionless binaries: classify by shebang.
-    ext.empty? && !shebang_ext(p).nil?
+    is_code = CODE_EXTS.include?(ext) ||
+              # Extensionless binaries: classify by shebang.
+              (ext.empty? && !shebang_ext(p).nil?)
+    # i122 — files structurally claimed by the corpus drop out of
+    # the antibody's "non-bluebook" set entirely. The exemption is
+    # carried by the bluebook declaration, not by a marker. Falls
+    # back to the marker pathway for files the IR doesn't yet see
+    # (the residual exempt_registry entries each carry a named
+    # retirement arc in the inbox).
+    is_code && !ir_claimed?(p)
   end
 end
 

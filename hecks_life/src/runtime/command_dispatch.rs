@@ -44,8 +44,10 @@ pub fn dispatch(
 
     let self_ref = find_self_ref(rt, agg_idx, cmd_idx);
     let aggregate_name = rt.domain.aggregates[agg_idx].name.clone();
+    let aggregate_context = rt.domain.aggregates[agg_idx].context.clone();
+    let repo_hash_key = super::repo_key(aggregate_context.as_deref(), &aggregate_name);
 
-    let repo = rt.repositories.get_mut(&aggregate_name)
+    let repo = rt.repositories.get_mut(&repo_hash_key)
         .ok_or_else(|| RuntimeError::UnknownAggregate(aggregate_name.clone()))?;
 
     let (mut state, is_new) = if let Some(ref_name) = &self_ref {
@@ -99,7 +101,7 @@ pub fn dispatch(
     let ctx = crate::heki::WriteContext::Dispatch {
         aggregate: &aggregate_name, command: command_name,
     };
-    let repo = rt.repositories.get_mut(&aggregate_name).unwrap();
+    let repo = rt.repositories.get_mut(&repo_hash_key).unwrap();
     if was_deleted {
         repo.delete(&aggregate_id, ctx);
     } else {
@@ -434,9 +436,13 @@ fn save_one_row(
     command_name: &str,
     row_attrs: &HashMap<String, Value>,
 ) -> Result<String, RuntimeError> {
+    let repo_hash_key = super::repo_key(
+        rt.domain.aggregates[agg_idx].context.as_deref(),
+        aggregate_name,
+    );
     let repo = rt
         .repositories
-        .get_mut(aggregate_name)
+        .get_mut(&repo_hash_key)
         .ok_or_else(|| RuntimeError::UnknownAggregate(aggregate_name.to_string()))?;
     let id = repo.id_for_command(row_attrs);
     let (mut state, is_new) = match repo.find(&id).cloned() {
@@ -465,7 +471,7 @@ fn save_one_row(
         aggregate: aggregate_name,
         command: command_name,
     };
-    let repo = rt.repositories.get_mut(aggregate_name).unwrap();
+    let repo = rt.repositories.get_mut(&repo_hash_key).unwrap();
     let row_id = state.id.clone();
     repo.save(state, ctx);
     Ok(row_id)
