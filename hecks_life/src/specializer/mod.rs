@@ -27,6 +27,7 @@ pub mod util;
 pub mod validator;
 pub mod validator_checks;
 pub mod validator_checks_graph;
+pub mod validator_corpus;
 pub mod validator_morphology;
 pub mod validator_warnings;
 
@@ -39,9 +40,10 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "fixtures_parser" => fixtures_parser::emit(repo_root),
         "hecksagon_parser" => hecksagon_parser::emit(repo_root),
         "validator" => validator::emit(repo_root),
+        "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, validator, validator_warnings",
+            "unknown specializer target: {}. Known: behaviors_parser, dump, fixtures_parser, hecksagon_parser, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),
