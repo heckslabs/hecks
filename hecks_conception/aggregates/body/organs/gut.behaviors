@@ -43,12 +43,12 @@ Hecks.behaviors "Gut" do
   test "Absorb cascades through policy chain" do
     tests "Absorb", on: "Gut", kind: :cross_cascade
     setup  "Conceive", domain_name: "sample"
-    setup  "Express", state: "sample"
+    setup  "Mood.Express", state: "sample"
     setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     setup  "Ingest", raw_input: "sample"
     setup  "ExtractAggregate", aggregate_name: "sample"
-    expect emits_subset: ["DomainAbsorbed", "DomainConceived", "Excited", "HeartbeatAccelerated", "CapabilityExpressed", "LimbSensed"]
+    expect emits_subset: ["DomainAbsorbed", "DomainConceived", "CapabilityExpressed", "LimbSensed", "Excited", "HeartbeatAccelerated"]
   end
 end

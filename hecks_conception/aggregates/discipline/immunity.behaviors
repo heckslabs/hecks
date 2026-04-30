@@ -12,7 +12,7 @@ Hecks.behaviors "Immunity" do
 
   test "DetectThreat cascades through policy chain" do
     tests "DetectThreat", on: "Immunity", kind: :cross_cascade
-    setup  "Express", state: "sample"
+    setup  "Mood.Express", state: "sample"
     input  threat_pattern: "sample"
     expect emits: ["ThreatDetected", "Focused"]
   end

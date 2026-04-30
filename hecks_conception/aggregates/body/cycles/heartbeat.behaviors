@@ -16,7 +16,7 @@ Hecks.behaviors "Heartbeat" do
 
   test "Steady cascades through policy chain" do
     tests "Steady", on: "Heartbeat", kind: :cross_cascade
-    setup  "Express", state: "sample"
+    setup  "Mood.Express", state: "sample"
     expect emits: ["HeartbeatSteadied", "Regulated"]
   end
 

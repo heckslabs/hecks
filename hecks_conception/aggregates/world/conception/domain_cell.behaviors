@@ -12,12 +12,12 @@ Hecks.behaviors "DomainCell" do
 
   test "Conceive cascades through policy chain" do
     tests "Conceive", on: "DomainCell", kind: :cross_cascade
-    setup  "Express", state: "sample"
+    setup  "Mood.Express", state: "sample"
     setup  "Accelerate"
     setup  "ExpressCapability", capability: "sample", level: 1.0
     setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
     input  domain_name: "sample"
-    expect emits_subset: ["DomainConceived", "Excited", "HeartbeatAccelerated", "CapabilityExpressed", "LimbSensed"]
+    expect emits_subset: ["DomainConceived", "CapabilityExpressed", "LimbSensed", "Excited", "HeartbeatAccelerated"]
   end
 
   test "Mature runs" do
