@@ -22,6 +22,10 @@ on:
 jobs:
   smoke:
     runs-on: macos-latest  # the test corpus assumes BSD date / mktemp -d shape
+    env:
+      # Surfacing secrets-presence via env so step-level if: can read it.
+      # The actual secret only flows into the with: block where it's used.
+      MIETTE_FAMILY_TOKEN_PRESENT: ${{ secrets.MIETTE_FAMILY_TOKEN != '' }}
     steps:
       - name: Checkout hecks
         uses: actions/checkout@v4
@@ -35,7 +39,11 @@ jobs:
           path: miette
 
       - name: Checkout miette_family (sibling, optional)
-        if: ${{ secrets.MIETTE_FAMILY_TOKEN != '' }}
+        # secrets context is only available at job level for if: ; check
+        # via a job-env indirection. When MIETTE_FAMILY_TOKEN isn't set,
+        # the family-side .behaviors corpus is skipped, matching the
+        # pre-push hook's behavior on a checkout without the sibling.
+        if: env.MIETTE_FAMILY_TOKEN_PRESENT == 'true'
         uses: actions/checkout@v4
         with:
           repository: chrisyoung/miette_family
