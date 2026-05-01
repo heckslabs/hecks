@@ -29,6 +29,6 @@ Hecks.bluebook "Evaluation", version: "2026.04.28.1" do
 
   policy "EvaluateOnComplete" do
     on "FineTuneCompleted"
-    trigger "EvaluateModel"
+    trigger "Evaluation.EvaluateModel"
   end
 end
