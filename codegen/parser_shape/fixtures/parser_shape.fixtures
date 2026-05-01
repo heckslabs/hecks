@@ -1,0 +1,18 @@
+Hecks.fixtures "ParserShape" do
+  # One row per ordered code section in parser.rs. Specializer
+  # concatenates HEADER (doc + use lines, baked as a const in the
+  # specializer module) + each snippet's raw body in `order` ascending.
+  # read_snippet_raw is used (not read_snippet_body) so the trailing
+  # blank line at each snippet's end is preserved verbatim — that's
+  # how the section separators land in the emitted file.
+
+  aggregate "Section" do
+    fixture "ParseSection",            name: "parse",            order: 1, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/01_parse.rs.frag",            description: "pub fn parse — top-level state-machine line walker that builds the Domain IR"
+    fixture "StripShebangSection",     name: "strip_shebang",    order: 2, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/02_strip_shebang.rs.frag",     description: "pub fn strip_shebang — drops a leading #!/usr/bin/env hecks-life run line"
+    fixture "ParseAggregateSection",   name: "parse_aggregate",  order: 3, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/03_parse_aggregate.rs.frag",   description: "fn parse_aggregate — depth-tracking parser for aggregate do…end blocks (commands, value_objects, entities, attributes, references, lifecycles, queries, identified_by)"
+    fixture "AbsorbReferenceToSection", name: "absorb_reference_to", order: 4, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/04_absorb_reference_to.rs.frag", description: "fn absorb_reference_to — resolves reference_to(...) shorthand and the as:/role: alias kwargs"
+    fixture "AbsorbShorthandSection",  name: "absorb_shorthand", order: 5, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/05_absorb_shorthand.rs.frag", description: "fn absorb_shorthand — dispatches a generic shorthand line to attribute or reference"
+    fixture "PushQuerySection",        name: "push_query",       order: 6, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/06_push_query.rs.frag",        description: "fn push_query — appends a Query row to the aggregate, opens a depth frame if the line ends with do"
+    fixture "NeedsContinuationSection", name: "needs_continuation", order: 7, body_kind: "verbatim_section", snippet_path: "codegen/parser_shape/snippets/07_needs_continuation.rs.frag", description: "fn needs_continuation — dead_code-tagged predicate for a future multi-line continuation reader"
+  end
+end

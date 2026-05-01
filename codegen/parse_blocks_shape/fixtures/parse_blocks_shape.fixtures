@@ -1,0 +1,26 @@
+Hecks.fixtures "ParseBlocksShape" do
+  # One row per ordered code section in parse_blocks.rs. Specializer
+  # concatenates HEADER (doc + use lines, baked as a const in the
+  # specializer module) + each snippet's raw body in `order` ascending.
+  # read_snippet_raw is used (not read_snippet_body) so the trailing
+  # blank line at each snippet's end is preserved verbatim — that's
+  # how the section separators land in the emitted file.
+
+  aggregate "Section" do
+    fixture "ParseSectionSection",       name: "parse_section",            order: 1,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/01_parse_section.rs.frag",            description: "pub fn parse_section — section block reader for capability bluebook templates"
+    fixture "ParseSectionRowSection",    name: "parse_section_row",        order: 2,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/02_parse_section_row.rs.frag",        description: "pub fn parse_section_row — single row line reader"
+    fixture "ParseCommandSection",       name: "parse_command",            order: 3,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/03_parse_command.rs.frag",            description: "pub fn parse_command — command block reader (attributes, role, given, then_set, then_toggle, then_delete)"
+    fixture "ParseInlineCommandSection", name: "parse_inline_command",     order: 4,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/04_parse_inline_command.rs.frag",     description: "fn parse_inline_command — semicolon-delimited inline command body"
+    fixture "ParseValueObjectSection",   name: "parse_value_object",       order: 5,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/05_parse_value_object.rs.frag",       description: "pub fn parse_value_object — value_object block reader"
+    fixture "ParseEntitySection",        name: "parse_entity",             order: 6,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/06_parse_entity.rs.frag",             description: "pub fn parse_entity — non-root entity block (commands, queries, lifecycle, identified_by)"
+    fixture "ParsePolicySection",        name: "parse_policy",             order: 7,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/07_parse_policy.rs.frag",             description: "pub fn parse_policy — policy block reader (on/trigger/across)"
+    fixture "ParseLifecycleSection",     name: "parse_lifecycle",          order: 8,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/08_parse_lifecycle.rs.frag",          description: "pub fn parse_lifecycle — lifecycle block reader (transition + from/to states, list/single from forms)"
+    fixture "ParseAttributeSection",     name: "parse_attribute",          order: 9,  body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/09_parse_attribute.rs.frag",          description: "pub fn parse_attribute — attribute line reader (name, type, list_of, default)"
+    fixture "IsKwargSection",            name: "is_kwarg",                 order: 10, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/10_is_kwarg.rs.frag",                 description: "fn is_kwarg — predicate distinguishing key:value from positional types"
+    fixture "ParseFixtureSection",       name: "parse_fixture",            order: 11, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/11_parse_fixture.rs.frag",            description: "pub fn parse_fixture — single-line fixture key:value reader"
+    fixture "ParseFixtureBlockBodySection", name: "parse_fixture_block_body", order: 12, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/12_parse_fixture_block_body.rs.frag", description: "pub fn parse_fixture_block_body — block-form fixture body reader"
+    fixture "SplitTopLevelCommasSection", name: "split_top_level_commas",  order: 13, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/13_split_top_level_commas.rs.frag",    description: "fn split_top_level_commas — comma splitter that respects strings/brackets/parens/braces"
+    fixture "EscapedAtSection",          name: "escaped_at",               order: 14, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/14_escaped_at.rs.frag",               description: "fn escaped_at — true if the byte before index i is a backslash"
+    fixture "ParseMutationSection",      name: "parse_mutation",           order: 15, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/15_parse_mutation.rs.frag",          description: "pub fn parse_mutation — then_set / then_toggle / then_delete mutation reader (set/append/increment/decrement/multiply/clamp/decay/from)"
+  end
+end

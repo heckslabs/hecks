@@ -1,0 +1,60 @@
+Hecks.bluebook "ParserShape", version: "2026.05.01.1" do
+  vision "Shape of hecks_life/src/parser.rs as a bluebook — kernel-surface bluebook parser (top-level Domain assembly, line-by-line state machine dispatch) regenerated from ordered .rs.frag snippets."
+  category "autophagy"
+
+  # ============================================================
+  # PARSER SHAPE — i147 Wave 3-C target
+  # ============================================================
+  #
+  # parser.rs is THE bluebook reader — a 267-LoC line-oriented state
+  # machine that walks every .bluebook in the corpus, dispatching on
+  # leading keywords (Hecks.bluebook / category / vision / aggregate /
+  # section / policy / fixture / entrypoint) to populate a Domain IR.
+  # Sister to parse_blocks.rs (recursive descent into command /
+  # value_object / lifecycle bodies) ; together they comprise the full
+  # parser surface.
+  #
+  # Path B chosen — two shapes, two specializers : parser_shape +
+  # parse_blocks_shape. Each emits ONE file via section-as-snippet.
+  # Same `verbatim_section` body_kind as heki_query / discover /
+  # conceiver_generator. Cleanest separation : parser.rs owns the
+  # state-machine dispatch loop (its body_kind in the survey was
+  # `state_machine_dispatch`), parse_blocks.rs owns recursive-descent
+  # block parsers (`block_parser`).
+  #
+  # Layer mapping :
+  #   L0 = this file + fixtures/parser_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/parser.rs (generated target)
+  #
+  # The specializer concatenates HEADER (doc + use lines) + each
+  # snippet's raw body in `order` ascending. Each snippet ends with
+  # a trailing blank line so concatenation produces the inter-section
+  # separators verbatim ; the final section ends with `}\n` only,
+  # matching the file's last byte.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in parser.rs. body_kind is
+  # `verbatim_section` — read snippet_path verbatim (no comment-strip
+  # pass) and emit. The two body_kinds called out in the i147 Wave 3
+  # survey (`state_machine_dispatch` for the parse() loop,
+  # `block_parser` for the helpers) are captured here as "the parse
+  # loop is one section, helpers are subsequent sections" — same
+  # structural distinction without a new emitter.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today). When a future
+    # parser-row shape lands that captures dispatch keywords as data,
+    # the parse() snippet retires into rows ; helpers stay verbatim.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

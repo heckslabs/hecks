@@ -1,0 +1,54 @@
+Hecks.bluebook "ParseBlocksShape", version: "2026.05.01.1" do
+  vision "Shape of hecks_life/src/parse_blocks.rs as a bluebook — kernel-surface block parsers (recursive descent into command / value_object / entity / lifecycle / attribute / fixture / mutation bodies) regenerated from ordered .rs.frag snippets."
+  category "autophagy"
+
+  # ============================================================
+  # PARSE_BLOCKS SHAPE — i147 Wave 3-C target (sister to parser_shape)
+  # ============================================================
+  #
+  # parse_blocks.rs is the recursive-descent half of the bluebook
+  # parser — every section / aggregate / value_object / entity /
+  # lifecycle / command body that parser.rs hands off lands here.
+  # 591 LoC across 15 ordered top-level functions ; each one is one
+  # `verbatim_section` row, captured as data via this shape.
+  #
+  # Path B chosen — split from parser_shape so each shape stays small
+  # and each specializer emits exactly one file. Same `verbatim_section`
+  # body_kind as parser_shape / heki_query / discover : the section
+  # IS the surrounding Rust, no wrapper or template interpolation.
+  #
+  # Layer mapping :
+  #   L0 = this file + fixtures/parse_blocks_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/parse_blocks.rs (generated target)
+  #
+  # The specializer concatenates HEADER (doc + use lines) + each
+  # snippet's raw body in `order` ascending. Each snippet ends with
+  # a trailing blank line so concatenation produces the inter-section
+  # separators verbatim ; the final section ends with `}\n` only,
+  # matching the file's last byte.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in parse_blocks.rs. body_kind is
+  # `verbatim_section`. The survey called this body_kind `block_parser`
+  # — semantically distinct from parser_shape's `state_machine_dispatch`
+  # but emitted the same way (verbatim). The shape boundary IS the
+  # body_kind boundary : everything in this file is recursive descent.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today). Reserved for a
+    # future split — e.g. a `recursive_block_parser` body_kind that
+    # captures the depth/end-walk loop as a template, with rows for
+    # each recognised inner keyword.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

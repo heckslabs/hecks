@@ -515,3 +515,61 @@ fn rust_specializer_produces_byte_identical_adapter_llm_rs() {
         .expect("runtime/adapter_llm.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_parser_rs() {
+    // i147 Wave 3-C — Rust-native specializer for parser.rs (the
+    // top-level bluebook parser : state-machine line walker that builds
+    // the Domain IR). Section-as-snippet shape (mirrors heki_query) :
+    // seven ordered verbatim_section rows for parse, strip_shebang,
+    // parse_aggregate, absorb_reference_to, absorb_shorthand, push_query,
+    // needs_continuation ; concatenated under a HEADER const that
+    // carries the doc comment + use lines.
+    //
+    // Sister to parse_blocks_rs (Wave 3-C path B). Together these two
+    // goldens guard the entire bluebook parser surface — every .bluebook
+    // in the corpus passes through these two files, so byte-identity
+    // here is load-bearing for every parity test downstream.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "parser"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize parser failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/parser.rs"))
+        .expect("parser.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
+    // i147 Wave 3-C — Rust-native specializer for parse_blocks.rs
+    // (recursive-descent half of the bluebook parser : section / command
+    // / value_object / entity / lifecycle / attribute / fixture /
+    // mutation block readers). Section-as-snippet shape (mirrors
+    // heki_query) : fifteen ordered verbatim_section rows, one per
+    // top-level fn ; concatenated under a HEADER const that carries
+    // the doc comment + use lines.
+    //
+    // Sister to parser_rs. Path B — separate shape from parser_shape
+    // for clean separation ; same `verbatim_section` body_kind.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "parse_blocks"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize parse_blocks failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/parse_blocks.rs"))
+        .expect("parse_blocks.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
