@@ -67,7 +67,7 @@ case "$cmd" in
     ref=$(next_ref)
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     if [ -n "$wish_id" ]; then
-      "$HECKS" heki append "$HEKI" \
+      "$HECKS" heki append "$HEKI" --reason "add $ref" \
         ref="$ref" priority="$priority" status=queued posted_at="$now" \
         wish_id="$wish_id" body="$body" \
         >/dev/null
@@ -80,12 +80,12 @@ case "$cmd" in
       # append for collections, not Aggregate.Add dispatch).
       WISH_HEKI="${HECKS_INFO:-$DIR/information}/dream_wish.heki"
       if [ -f "$WISH_HEKI" ]; then
-        "$HECKS" heki upsert "$WISH_HEKI" \
+        "$HECKS" heki upsert "$WISH_HEKI" --reason "wish receipt for $ref" \
           id="$wish_id" status=filed filed_as="$ref" filed_at="$now" \
           >/dev/null 2>&1 || true
       fi
     else
-      "$HECKS" heki append "$HEKI" \
+      "$HECKS" heki append "$HEKI" --reason "add $ref" \
         ref="$ref" priority="$priority" status=queued posted_at="$now" body="$body" \
         >/dev/null
     fi
@@ -197,7 +197,7 @@ case "$cmd" in
     uuid=$(ref_to_uuid "$ref")
     [ -z "$uuid" ] && { echo "no item with ref $ref" >&2; exit 1; }
     now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    "$HECKS" heki upsert "$HEKI" \
+    "$HECKS" heki upsert "$HEKI" --reason "close $ref" \
       id="$uuid" status=done completed_at="$now" resolution="${resolution:-done}" \
       >/dev/null
     echo "closed $ref"
