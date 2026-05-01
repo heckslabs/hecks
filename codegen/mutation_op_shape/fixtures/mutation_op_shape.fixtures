@@ -1,0 +1,199 @@
+Hecks.fixtures "MutationOpShape" do
+  # i147 Wave 4-A — one shape, two consumers (interpreter.rs +
+  # aggregate_state.rs), real compression on the dispatch arms via
+  # the dispatch_kind vocabulary.
+  #
+  # Aggregates :
+  #   MutationOp     — 9 rows, one per Mutation variant. Each
+  #                    declares dispatch_kind + per-kind knobs.
+  #   MutatorMethod  — 10 rows, one per impl AggregateState method.
+  #                    Each points at a per-method snippet.
+  #   Section        — 4 rows for interpreter.rs target, 3 rows for
+  #                    aggregate_state.rs target. body_kind picks
+  #                    between verbatim_section and the synthetic
+  #                    kinds (mutation_op_dispatch, mutator_impl).
+
+  aggregate "MutationOp" do
+    fixture "Set",
+      op_name: "Set",
+      order: 1,
+      dispatch_kind: "resolve_call",
+      state_method: "set"
+
+    fixture "Append",
+      op_name: "Append",
+      order: 2,
+      dispatch_kind: "resolve_call",
+      state_method: "append"
+
+    fixture "Increment",
+      op_name: "Increment",
+      order: 3,
+      dispatch_kind: "numeric_with_float_branch",
+      doc_snippet: "codegen/mutation_op_shape/snippets/op_increment_doc.rs.frag",
+      state_method_int: "increment",
+      state_method_float: "increment_float"
+
+    fixture "Decrement",
+      op_name: "Decrement",
+      order: 4,
+      dispatch_kind: "numeric_with_float_branch",
+      state_method_int: "decrement",
+      state_method_float: "decrement_float"
+
+    fixture "Toggle",
+      op_name: "Toggle",
+      order: 5,
+      dispatch_kind: "nullary_method",
+      state_method: "toggle"
+
+    fixture "Delete",
+      op_name: "Delete",
+      order: 6,
+      dispatch_kind: "state_flag",
+      doc_snippet: "codegen/mutation_op_shape/snippets/op_delete_doc.rs.frag",
+      flag_name: "deleted"
+
+    fixture "Multiply",
+      op_name: "Multiply",
+      order: 7,
+      dispatch_kind: "field_factor",
+      doc_snippet: "codegen/mutation_op_shape/snippets/op_multiply_doc.rs.frag",
+      arg_local: "factor",
+      factor_expr: "cur * factor"
+
+    fixture "Decay",
+      op_name: "Decay",
+      order: 8,
+      dispatch_kind: "field_factor",
+      doc_snippet: "codegen/mutation_op_shape/snippets/op_decay_doc.rs.frag",
+      arg_local: "rate",
+      factor_expr: "cur * (1.0 - rate)"
+
+    fixture "Clamp",
+      op_name: "Clamp",
+      order: 9,
+      dispatch_kind: "clamp_bounds",
+      doc_snippet: "codegen/mutation_op_shape/snippets/op_clamp_doc.rs.frag"
+  end
+
+  aggregate "MutatorMethod" do
+    fixture "New",
+      name: "new",
+      order: 1,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_new.rs.frag",
+      description: "Constructor — id + empty fields HashMap + deleted=false"
+
+    fixture "Get",
+      name: "get",
+      order: 2,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_get.rs.frag",
+      description: "Field accessor — returns &Value, falling back to &Value::Null"
+
+    fixture "Set",
+      name: "set",
+      order: 3,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_set.rs.frag",
+      description: "MutationOp::Set target — fields.insert(field, value)"
+
+    fixture "Append",
+      name: "append",
+      order: 4,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_append.rs.frag",
+      description: "MutationOp::Append target — entry-or-empty-list, push value"
+
+    fixture "Increment",
+      name: "increment",
+      order: 5,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_increment.rs.frag",
+      description: "MutationOp::Increment integer fallback — match-existing-Int, insert sum"
+
+    fixture "Decrement",
+      name: "decrement",
+      order: 6,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_decrement.rs.frag",
+      description: "MutationOp::Decrement integer fallback — match-existing-Int, insert diff"
+
+    fixture "IncrementFloat",
+      name: "increment_float",
+      order: 7,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_increment_float.rs.frag",
+      description: "MutationOp::Increment fractional fast-path — current_numeric helper, sum, insert Str"
+
+    fixture "DecrementFloat",
+      name: "decrement_float",
+      order: 8,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_decrement_float.rs.frag",
+      description: "MutationOp::Decrement fractional fast-path — current_numeric helper, diff, insert Str"
+
+    fixture "SetFloat",
+      name: "set_float",
+      order: 9,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_set_float.rs.frag",
+      description: "MutationOp::{Multiply,Decay,Clamp} target — insert Str(format_numeric(value))"
+
+    fixture "Toggle",
+      name: "toggle",
+      order: 10,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_toggle.rs.frag",
+      description: "MutationOp::Toggle target — match Bool, insert Bool(!current)"
+  end
+
+  aggregate "Section" do
+    # ---- interpreter.rs file partition ----
+    fixture "InterpCheckGivens",
+      target: "interpreter",
+      name: "check_givens",
+      order: 1,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/mutation_op_shape/snippets/interpreter_01_check_givens.rs.frag",
+      description: "check_givens — predicate evaluator entry-point"
+
+    fixture "InterpApplyMutations",
+      target: "interpreter",
+      name: "apply_mutations",
+      order: 2,
+      body_kind: "mutation_op_dispatch",
+      description: "apply_mutations — emits one match arm per MutationOp row, dispatch_kind picks the arm template"
+
+    fixture "InterpHelpersTop",
+      target: "interpreter",
+      name: "helpers_top",
+      order: 3,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/mutation_op_shape/snippets/interpreter_03_helpers_top.rs.frag",
+      description: "field_numeric + clamp_bounds helpers used by apply_mutations field_factor / clamp_bounds arms"
+
+    fixture "InterpTail",
+      target: "interpreter",
+      name: "tail",
+      order: 4,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/mutation_op_shape/snippets/interpreter_04_tail.rs.frag",
+      description: "evaluate_given + resolve_expr + split_top_level + split_comparison + values_equal + compare_lt + numeric_value + rand_below_impl + resolve_mutation_value"
+
+    # ---- aggregate_state.rs file partition ----
+    fixture "AggStateStruct",
+      target: "aggregate_state",
+      name: "struct",
+      order: 1,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/mutation_op_shape/snippets/agg_state_01_struct.rs.frag",
+      description: "AggregateState struct — id + HashMap<String, Value> field bag + deleted flag"
+
+    fixture "AggStateImpl",
+      target: "aggregate_state",
+      name: "impl",
+      order: 2,
+      body_kind: "mutator_impl",
+      description: "impl AggregateState — emits each MutatorMethod row in order, separated by blank lines, wrapped by impl-opener and closing brace"
+
+    fixture "AggStateNumericHelpers",
+      target: "aggregate_state",
+      name: "numeric_helpers",
+      order: 3,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/mutation_op_shape/snippets/agg_state_03_numeric_helpers.rs.frag",
+      description: "free numeric helpers — current_numeric (Value -> f64) + format_numeric (f64 -> String)"
+  end
+end

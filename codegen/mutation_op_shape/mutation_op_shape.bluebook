@@ -1,0 +1,178 @@
+Hecks.bluebook "MutationOpShape", version: "2026.05.01.1" do
+  vision "The shape of MutationOp dispatch as a bluebook — interpreter.rs's apply_mutations match arms AND aggregate_state.rs's mutator method family regenerated from one declarative row set, closing i171."
+  category "autophagy"
+
+  # ============================================================
+  # MUTATION OP SHAPE — i147 Wave 4-A target (i171 closure)
+  # ============================================================
+  #
+  # Two kernel files share one shape :
+  #
+  #   rust/src/runtime/interpreter.rs       — the dispatcher.
+  #     apply_mutations() walks each Mutation in cmd.mutations and
+  #     match-folds on the MutationOp variant. Each arm resolves the
+  #     mutation value, then mutates the AggregateState through one
+  #     of the methods in the impl block of aggregate_state.rs.
+  #
+  #   rust/src/runtime/aggregate_state.rs   — the implementation.
+  #     impl AggregateState provides the per-op mutator family
+  #     (set, append, increment, decrement, increment_float,
+  #     decrement_float, set_float, toggle) plus the constructor,
+  #     accessor, and free numeric helpers (current_numeric,
+  #     format_numeric).
+  #
+  # Wave 3-A retired aggregate_state.rs via verbatim_section — the
+  # whole impl block was one snippet. That was bookmarking, not
+  # compression. Wave 4-A breaks the impl block into per-method
+  # snippets and pairs each with the MutationOp dispatch arm that
+  # uses it ; one shape, two consumers, real compression.
+  #
+  # Layer mapping :
+  #   L0 = this file + fixtures/mutation_op_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = rust/src/runtime/interpreter.rs (generated)
+  #        rust/src/runtime/aggregate_state.rs (generated)
+  #
+  # ## Three aggregates
+  #
+  # MutationOp     — one row per MutationOp variant (Set, Append,
+  #                  Increment, Decrement, Toggle, Delete, Multiply,
+  #                  Decay, Clamp). Each declares how to emit the
+  #                  match arm in apply_mutations.
+  #
+  # MutatorMethod  — one row per impl-block method (new, get, set,
+  #                  append, increment, decrement, increment_float,
+  #                  decrement_float, set_float, toggle). Each row
+  #                  points at a per-method .rs.frag snippet.
+  #                  Multiple MutationOp rows may share a single
+  #                  MutatorMethod (Multiply / Decay / Clamp all
+  #                  call set_float).
+  #
+  # Section        — file-level partitions. `target` knob picks which
+  #                  consumer the row belongs to ("interpreter" or
+  #                  "aggregate_state"). body_kind picks the emitter :
+  #                    verbatim_section     — read snippet_path raw
+  #                    mutation_op_dispatch — emit apply_mutations from
+  #                                           MutationOp rows
+  #                    mutator_impl         — emit impl block from
+  #                                           MutatorMethod rows
+  #
+  # ## MutationOp dispatch_kind vocabulary
+  #
+  # The 9 MutationOp variants compress into 6 dispatch_kind templates :
+  #
+  #   resolve_call               (Set, Append) — resolve mutation.value,
+  #                              then state.<state_method>(field, val).
+  #
+  #   numeric_with_float_branch  (Increment, Decrement) — resolve, check
+  #                              numeric_value for fractional ; if so
+  #                              dispatch to <state_method_float>, else
+  #                              fall through to <state_method_int> with
+  #                              val.as_int().unwrap_or(1).
+  #
+  #   nullary_method             (Toggle) — state.<state_method>(field).
+  #
+  #   state_flag                 (Delete) — state.<flag_name> = true.
+  #                              Sui generis ; the only MutationOp that
+  #                              flips a struct field rather than calling
+  #                              a mutator method.
+  #
+  #   field_factor               (Multiply, Decay) — resolve, numeric_value
+  #                              the arg, compute cur * <factor_expr>, set_float.
+  #                              factor_expr captures the per-op math :
+  #                              Multiply uses "factor", Decay uses
+  #                              "(1.0 - rate)". arg_local names the
+  #                              local f64 variable for readability.
+  #
+  #   clamp_bounds               (Clamp) — sui generis. Reads a
+  #                              [min, max] list literal via the
+  #                              clamp_bounds helper, bounds field via
+  #                              cur.max(min).min(max), set_float.
+  #
+  # 9 arms collapse to 6 templates : the three pairs (Set/Append,
+  # Increment/Decrement, Multiply/Decay) each share one template. The
+  # three sui-generis arms (Toggle, Delete, Clamp) each get their own
+  # honest template — this is real compression (33% reduction),
+  # not bookmarking, and keeps the per-op semantics in the row data
+  # rather than the specializer code.
+  #
+  # ## Per-arm doc snippets
+  #
+  # Several arms have prefix doc comments that vary substantially
+  # (Increment's float-arithmetic note, Multiply's :rate-resolution
+  # note, Clamp's pairwise-list note, Delete's repository-cascade
+  # note). Each gets a `doc_snippet` knob — a path to a small
+  # `.rs.frag` carrying just the leading `// …` doc lines for that
+  # arm. The dispatch_kind template emits the doc_snippet (when
+  # present) inside the arm before its body, preserving byte-identity
+  # against the existing tracked source.
+
+  aggregate "MutationOp", "One MutationOp variant ; describes how to emit its apply_mutations match arm" do
+    # Variant name as it appears in `MutationOp::<name>` — Set,
+    # Append, Increment, Decrement, Toggle, Delete, Multiply, Decay,
+    # Clamp. The specializer emits `MutationOp::<name> => { … }`.
+    attribute :op_name,            String
+    # order: ascending integer ; specializer sorts before emitting so
+    # the arm order stays stable across edits to row text.
+    attribute :order,              Integer
+    # dispatch_kind: resolve_call | numeric_with_float_branch |
+    # nullary_method | state_flag | field_factor | clamp_bounds.
+    attribute :dispatch_kind,      String
+    # doc_snippet: path to a .rs.frag carrying the leading `// …` doc
+    # comment for this arm. Optional ; empty when the arm has no doc.
+    attribute :doc_snippet,        String, default: ""
+    # state_method: AggregateState method name to call inside the arm.
+    # Used by resolve_call and nullary_method ; for the int-branch of
+    # numeric_with_float_branch see state_method_int.
+    attribute :state_method,       String, default: ""
+    # state_method_int / state_method_float: numeric_with_float_branch
+    # only ; pair of method names for the integer fallback and the
+    # fractional fast path.
+    attribute :state_method_int,   String, default: ""
+    attribute :state_method_float, String, default: ""
+    # arg_local: field_factor only ; the local f64 variable name in
+    # `if let Some(<arg_local>) = numeric_value(&val)`. "factor" for
+    # Multiply, "rate" for Decay — readability only, not semantics.
+    attribute :arg_local,          String, default: ""
+    # factor_expr: field_factor only ; the right-hand expression
+    # passed to set_float. Uses the local variable bound by `let cur`
+    # plus arg_local. Multiply: "cur * factor". Decay: "cur * (1.0 - rate)".
+    attribute :factor_expr,        String, default: ""
+    # flag_name: state_flag only ; the bool field on AggregateState
+    # this arm flips to true. Today: "deleted".
+    attribute :flag_name,          String, default: ""
+  end
+
+  aggregate "MutatorMethod", "One method on impl AggregateState ; emitted verbatim from a per-method snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before
+    # concatenating method bodies so the impl block is stable.
+    attribute :order,        Integer
+    # snippet_path: relative to repo root. The .rs.frag file
+    # containing the method body (incl. its leading `///` doc
+    # comment, the `pub fn …` signature, and the closing `}`).
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+
+  aggregate "Section", "One ordered code section in interpreter.rs or aggregate_state.rs" do
+    # target: which consumer file this row belongs to. The specializer
+    # emits one consumer at a time, filtered by this knob.
+    #   "interpreter"     → rust/src/runtime/interpreter.rs
+    #   "aggregate_state" → rust/src/runtime/aggregate_state.rs
+    attribute :target,       String
+    attribute :name,         String
+    # order: ascending integer (per target) ; specializer sorts
+    # before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section | mutation_op_dispatch | mutator_impl
+    attribute :body_kind,    String
+    # snippet_path: required for verbatim_section ; ignored for the
+    # synthetic kinds (mutation_op_dispatch, mutator_impl) which
+    # build their bodies from MutationOp / MutatorMethod rows.
+    attribute :snippet_path, String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

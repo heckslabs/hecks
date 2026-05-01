@@ -60,6 +60,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "fixtures_parser" => fixtures_parser::emit(repo_root),
         "hecksagon_parser" => hecksagon_parser::emit(repo_root),
         "heki_query" => heki_query::emit(repo_root),
+        "interpreter" => runtime::interpreter::emit(repo_root),
         "ir" => ir::emit(repo_root),
         "parse_blocks" => parse_blocks::emit(repo_root),
         "parser" => parser::emit(repo_root),
@@ -70,7 +71,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, behaviors_fixtures, behaviors_parser, behaviors_runner, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, ir, parse_blocks, parser, repository, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, behaviors_fixtures, behaviors_parser, behaviors_runner, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, interpreter, ir, parse_blocks, parser, repository, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),

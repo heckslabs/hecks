@@ -1,0 +1,312 @@
+fn evaluate_given(
+    expr: &str,
+    state: &AggregateState,
+    attrs: &HashMap<String, Value>,
+) -> bool {
+    let expr = expr.trim();
+
+    // Boolean operators — split lowest precedence first.
+    // `||` binds looser than `&&`, so split on `||` before `&&`.
+    // We don't honor parentheses or short-circuit semantics beyond what
+    // recursion gives us; `a || b || c` parses left-to-right via the
+    // first `||` split, which matches common usage in givens.
+    if let Some((lhs, rhs)) = split_top_level(expr, "||") {
+        return evaluate_given(lhs, state, attrs) || evaluate_given(rhs, state, attrs);
+    }
+    if let Some((lhs, rhs)) = split_top_level(expr, "&&") {
+        return evaluate_given(lhs, state, attrs) && evaluate_given(rhs, state, attrs);
+    }
+
+    // `field.any?` → field.size > 0; `field.empty?` → field.size == 0.
+    // Ruby idioms used in handwritten bluebooks; rewrite to runtime
+    // primitives so the comparison evaluator below handles them.
+    if let Some(field) = expr.strip_suffix(".any?") {
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return compare_lt(&Value::Int(0), &val);
+    }
+    if let Some(field) = expr.strip_suffix(".empty?") {
+        let val = resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+        return values_equal(&val, &Value::Int(0));
+    }
+
+    // Order matters: check `>=`/`<=` BEFORE `>`/`<` so the longer
+    // operator wins. The split_comparison helpers also bail out on the
+    // shorter operator when the longer is present.
+    if let Some((lhs, rhs)) = split_comparison(expr, ">=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !compare_lt(&left, &right);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, "<=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !compare_lt(&right, &left);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, "<") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return compare_lt(&left, &right);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, ">") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return compare_lt(&right, &left);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, "==") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return values_equal(&left, &right);
+    }
+    if let Some((lhs, rhs)) = split_comparison(expr, "!=") {
+        let left = resolve_expr(lhs.trim(), state, attrs);
+        let right = resolve_expr(rhs.trim(), state, attrs);
+        return !values_equal(&left, &right);
+    }
+
+    true
+}
+
+fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Value>) -> Value {
+    if let Ok(n) = expr.parse::<i64>() {
+        return Value::Int(n);
+    }
+    if expr.starts_with('"') && expr.ends_with('"') {
+        return Value::Str(expr[1..expr.len() - 1].to_string());
+    }
+    if expr == "true" {
+        return Value::Bool(true);
+    }
+    if expr == "false" {
+        return Value::Bool(false);
+    }
+    // rand_below(N) — uniform random integer in [0, N). The bluebook
+    // intent `given { rand_below(N) == 0 }` expresses a 1/N probability
+    // gate (every Nth tick / RANDOM % N stochastic dispatch). Lifts the
+    // gate from shell-side (mindstream's `RANDOM % 300 == 0`) into the
+    // bluebook so capabilities like MusingMint own their cadence as
+    // declarative IR. N must be a positive integer literal or an
+    // attr/state field that resolves to one ; non-positive N short-
+    // circuits to 0 so the predicate fires every call (safer than
+    // panicking in a daemon).
+    if let Some(arg) = expr.strip_prefix("rand_below(").and_then(|s| s.strip_suffix(')')) {
+        let arg_val = resolve_expr(arg.trim(), state, attrs);
+        let n = numeric_value(&arg_val).map(|f| f as i64).unwrap_or(0);
+        if n <= 0 {
+            return Value::Int(0);
+        }
+        return Value::Int(rand_below_impl(n));
+    }
+    if expr.ends_with(".size") {
+        let field = &expr[..expr.len() - 5];
+        let val = attrs.get(field)
+            .cloned()
+            .unwrap_or_else(|| state.get(field).clone());
+        return match val {
+            Value::List(v) => Value::Int(v.len() as i64),
+            Value::Str(s) => Value::Int(s.len() as i64),
+            _ => Value::Int(0),
+        };
+    }
+    // Command attributes shadow state when they share a name — the
+    // `given` clause runs at dispatch time with the inbound input
+    // already in scope, mirroring how Ruby's predicate DSL evaluates
+    // against a binding that includes both attrs and state.
+    if let Some(v) = attrs.get(expr) {
+        return v.clone();
+    }
+    state.get(expr).clone()
+}
+
+/// Split on the first occurrence of `op` that isn't inside a quoted
+/// string. Returns (lhs, rhs) trimmed slices, or None if not found.
+/// Used for boolean operators `||` and `&&` where quoted comparison
+/// values may legitimately contain pipe/ampersand characters.
+fn split_top_level<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
+    let bytes = expr.as_bytes();
+    let op_bytes = op.as_bytes();
+    let mut in_str = false;
+    let mut i = 0;
+    while i + op_bytes.len() <= bytes.len() {
+        let b = bytes[i];
+        if b == b'"' { in_str = !in_str; }
+        if !in_str && &bytes[i..i + op_bytes.len()] == op_bytes {
+            let lhs = expr[..i].trim();
+            let rhs = expr[i + op_bytes.len()..].trim();
+            return Some((lhs, rhs));
+        }
+        i += 1;
+    }
+    None
+}
+
+fn split_comparison<'a>(expr: &'a str, op: &str) -> Option<(&'a str, &'a str)> {
+    // Disambiguate single-char ops from their multi-char counterparts.
+    // `<` must not match against `<=` or `<` inside `!=`/`==`/`>=`.
+    if op == "<" && (expr.contains("<=") || expr.contains("<<")) {
+        return None;
+    }
+    if op == ">" && (expr.contains(">=") || expr.contains(">>")) {
+        return None;
+    }
+    if op == "=" {
+        return None; // Bare `=` isn't a comparison; force callers to use ==.
+    }
+    let idx = expr.find(op)?;
+    // For ==/!=, ensure we're not confusing them with =/= prefixes; find
+    // returns the first occurrence of the literal substring so this is OK.
+    Some((&expr[..idx], &expr[idx + op.len()..]))
+}
+
+/// Loose equality: Bool(true) == Str("true"), Int(42) == Str("42").
+/// Numeric coercion lets `Int(0) == Str("0")`, `Int(0) == Null` (Null
+/// stands in for an unset numeric attr), and `Str("1.0") == Int(1)`
+/// (Float values stored as strings still compare to whole-number ints).
+fn values_equal(left: &Value, right: &Value) -> bool {
+    if left == right {
+        return true;
+    }
+    if let (Some(a), Some(b)) = (numeric_value(left), numeric_value(right)) {
+        return a == b;
+    }
+    let ls = format!("{}", left);
+    let rs = format!("{}", right);
+    ls == rs
+}
+
+fn compare_lt(left: &Value, right: &Value) -> bool {
+    // Try Int<Int first; fall back to numeric coercion through f64 so
+    // Float-valued attrs (stored as Str("1.0")) and mixed Int/Str
+    // comparisons (e.g. `amount > 0` where amount is Str("1.5")) work.
+    if let (Value::Int(a), Value::Int(b)) = (left, right) { return a < b; }
+    let l = numeric_value(left);
+    let r = numeric_value(right);
+    match (l, r) {
+        (Some(a), Some(b)) => a < b,
+        _ => false,
+    }
+}
+
+/// Best-effort numeric coercion: Int as-is, Str parsed as f64, Bool to
+/// 0/1, Null as 0 (an unset Integer attr behaves as zero). Returns None
+/// for List/Map and unparseable strings.
+fn numeric_value(v: &Value) -> Option<f64> {
+    match v {
+        Value::Int(n) => Some(*n as f64),
+        Value::Bool(true) => Some(1.0),
+        Value::Bool(false) => Some(0.0),
+        Value::Str(s) => s.parse::<f64>().ok(),
+        Value::Null => Some(0.0),
+        _ => None,
+    }
+}
+
+/// Uniform random integer in [0, n). Backed by a thread-local LCG
+/// seeded from system nanos + a per-call counter — no rand crate
+/// dependency, deterministic-enough for stochastic dispatch gates
+/// (the bluebook just needs ~uniform distribution over many calls,
+/// not cryptographic strength). For tests, set HECKS_RAND_SEED=0 to
+/// always return 0 (the predicate fires every call) ; HECKS_RAND_SEED
+/// to any other positive integer makes rand_below always return that
+/// value mod n (deterministic for fixture replay).
+fn rand_below_impl(n: i64) -> i64 {
+    if let Ok(seed) = std::env::var("HECKS_RAND_SEED") {
+        if let Ok(s) = seed.parse::<i64>() {
+            return s.rem_euclid(n);
+        }
+    }
+    use std::cell::Cell;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    thread_local! {
+        static STATE: Cell<u64> = Cell::new(0);
+    }
+    STATE.with(|s| {
+        let mut x = s.get();
+        if x == 0 {
+            x = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(0x9e3779b97f4a7c15)
+                | 1; // ensure non-zero
+        }
+        // xorshift64 — fast, decent distribution, no dependency
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        s.set(x);
+        (x % (n as u64)) as i64
+    })
+}
+
+pub fn resolve_mutation_value(
+    value_expr: &str,
+    attrs: &HashMap<String, Value>,
+    state: &AggregateState,
+) -> Value {
+    let value_expr = value_expr.trim();
+
+    // Hash-like: { name: :name, amount: :amount }
+    if value_expr.starts_with('{') && value_expr.ends_with('}') {
+        let inner = &value_expr[1..value_expr.len() - 1];
+        let mut map = HashMap::new();
+        for pair in inner.split(',') {
+            let pair = pair.trim();
+            if let Some(colon) = pair.find(':') {
+                let key = pair[..colon].trim().trim_start_matches(':');
+                let val_ref = pair[colon + 1..].trim().trim_start_matches(':');
+                let val = attrs
+                    .get(val_ref)
+                    .cloned()
+                    .unwrap_or(Value::Str(val_ref.to_string()));
+                map.insert(key.to_string(), val);
+            }
+        }
+        return Value::Map(map);
+    }
+
+    // `:now` and `seconds_since(:field)` used to resolve here — both
+    // reached into the system clock from inside the domain (DDD
+    // anti-pattern). They're gone. Time is infrastructure: the caller
+    // (test, hecksagon adapter, app) provides the timestamp as a
+    // command attribute. The lifecycle_validator catches any bluebook
+    // that tries to bring them back.
+
+    if value_expr.starts_with(':') {
+        let field = &value_expr[1..];
+        // Try attrs first, then state fields
+        return attrs.get(field)
+            .or_else(|| state.fields.get(field))
+            .cloned()
+            .unwrap_or(Value::Null);
+    }
+
+    if let Ok(n) = value_expr.parse::<i64>() {
+        return Value::Int(n);
+    }
+
+    if value_expr.starts_with('"') && value_expr.ends_with('"') {
+        return Value::Str(value_expr[1..value_expr.len() - 1].to_string());
+    }
+
+    // List literal: `[]` → empty list, `[1, 2]` → list of resolved items.
+    // Without this, `then_set :foo, to: []` previously stored the string
+    // "[]", which broke `given { foo.empty? }` (length 2, not 0).
+    if value_expr.starts_with('[') && value_expr.ends_with(']') {
+        let inner = value_expr[1..value_expr.len() - 1].trim();
+        if inner.is_empty() {
+            return Value::List(vec![]);
+        }
+        let items: Vec<Value> = inner
+            .split(',')
+            .map(|item| resolve_mutation_value(item.trim(), attrs, state))
+            .collect();
+        return Value::List(items);
+    }
+
+    if value_expr == "true" { return Value::Bool(true); }
+    if value_expr == "false" { return Value::Bool(false); }
+
+    attrs
+        .get(value_expr)
+        .cloned()
+        .unwrap_or(Value::Str(value_expr.to_string()))
+}

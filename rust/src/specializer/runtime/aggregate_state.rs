@@ -1,59 +1,62 @@
-//! Rust-native specializer for `hecks_life/src/runtime/aggregate_state.rs`.
+//! Rust-native specializer for `rust/src/runtime/aggregate_state.rs`.
 //!
-//! i147 Wave 3-A target — the runtime's dynamic field bag (struct +
-//! Value-typed mutators + numeric helpers) regenerated from the
-//! `runtime_state_shape` bluebook + ordered `.rs.frag` snippets.
+//! i147 Wave 4-A target (i171 closure) — the runtime's dynamic field
+//! bag, regenerated from the `mutation_op_shape` bluebook. Wave 3-A
+//! shipped this file as a single verbatim_section snippet under
+//! `runtime_state_shape`. Wave 4-A breaks the impl block into per-
+//! method snippets driven by MutatorMethod rows, so the SAME shape
+//! that emits interpreter.rs's apply_mutations dispatch arms also
+//! emits aggregate_state.rs's mutator method family. One shape, two
+//! consumers, language-compression amortized.
 //!
-//! Design — section-as-snippet (mirrors heki_query / behaviors_fixtures
-//! / discover / conceiver/generator) :
-//!   The shape declares one `Section` row per ordered code section in
-//!   the target. Each row's `snippet_path` points at a `.rs.frag`
-//!   under `codegen/runtime_state_shape/snippets/`. The specializer
-//!   sorts sections by `order`, reads each snippet verbatim
-//!   (`read_snippet_raw` — NOT `read_snippet_body` — because each
-//!   snippet opens with `#[derive(...)]` or `impl AggregateState {` or
-//!   a `fn` declaration that is file content, not doc-strip fodder),
-//!   and concatenates HEADER + snippets to produce byte-identical
-//!   output.
+//! Design — section-as-row, body_kind dispatches emission. The shape
+//! declares one Section row per ordered code section in the target
+//! (filtered by `target = "aggregate_state"`). Each row's `body_kind`
+//! picks the emission template :
 //!
-//! Why a purpose-built `runtime_state_shape` (option (b) from the
-//! Wave 3 design choice) rather than extending `dump_shape` :
+//!   verbatim_section — read snippet_path raw, emit unchanged. Used
+//!                      for the AggregateState struct
+//!                      (`mutation_op_shape/snippets/agg_state_01_struct.rs.frag`)
+//!                      and the free numeric helpers
+//!                      (`mutation_op_shape/snippets/agg_state_03_numeric_helpers.rs.frag`).
 //!
-//!   - The mutator method bodies vary too much to share a template
-//!     (set is a one-line insert, append lazily creates a Value::List,
-//!     increment does an Int round-trip, the float siblings parse
-//!     strings, toggle flips a Bool). A `body_kind: typed_setter`
-//!     row in dump_shape would still need one body-template per
-//!     method — defeating unification.
-//!   - dump_shape is byte-identical today. Any change to its row
-//!     vocabulary triggers its golden test ; a purpose-built shape
-//!     keeps the blast radius confined to this Wave 3-A landing.
+//!   mutator_impl     — emit the impl AggregateState block. Walks
+//!                      MutatorMethod rows in `order` ascending, reads
+//!                      each row's snippet_path raw, concatenates with
+//!                      blank-line separators between methods, and
+//!                      wraps the result in `impl AggregateState {` /
+//!                      closing `}`.
 //!
-//! Why HEADER as a const :
-//!   The doc + antibody-marker + use-line prelude is short, stable,
-//!   and not naturally tabular ; baking it as a Rust const keeps the
-//!   shape's tabular rows uniform (one body_kind, one path attribute).
-//!   When a future shape lands that captures imports + antibody markers
-//!   as data, the HEADER const retires into a row.
+//! Wave 3-A's `runtime_state_shape/` directory retired in this Wave —
+//! its struct + numeric_helpers snippets moved into
+//! `mutation_op_shape/snippets/` (renamed `agg_state_*`) so all
+//! aggregate_state shape inputs live in one shape directory.
 //!
 //! Usage :
 //!   let rust = runtime::aggregate_state::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/runtime/aggregate_state.rs —
-//!  i147 Wave 3-A — Rust-native specializer for runtime/aggregate_state.rs]
+//! [antibody-exempt: rust/src/specializer/runtime/aggregate_state.rs —
+//!  i147 Wave 4-A — Rust-native specializer for runtime/aggregate_state.rs.
+//!  Re-targeted at mutation_op_shape's MutatorMethod rows ; the impl
+//!  block emits per-method, not as a single verbatim snippet.]
 
+use crate::ir::Fixture;
 use crate::specializer::util;
 use std::error::Error;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "codegen/runtime_state_shape/fixtures/runtime_state_shape.fixtures";
+    "codegen/mutation_op_shape/fixtures/mutation_op_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);
     let fixtures = util::load_fixtures(&shape)?;
-    let sections = util::by_aggregate_sorted(&fixtures, "Section", "order");
+
+    let sections: Vec<&Fixture> = util::by_aggregate_sorted(&fixtures, "Section", "order")
+        .into_iter()
+        .filter(|f| util::attr(f, "target") == "aggregate_state")
+        .collect();
 
     let mut out = String::new();
     out.push_str(HEADER);
@@ -64,11 +67,45 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
                 let body = util::read_snippet_raw(&snippet_path)?;
                 out.push_str(&body);
             }
+            "mutator_impl" => {
+                out.push_str(&emit_mutator_impl(repo_root, &fixtures)?);
+            }
             other => {
                 return Err(format!("unknown body_kind: {}", other).into());
             }
         }
     }
+    Ok(out)
+}
+
+/// Emit the `impl AggregateState { … }` block. Walks MutatorMethod
+/// rows in `order` ascending, reads each row's snippet raw, joins
+/// with single blank lines between methods, and wraps in the impl
+/// opener + closing brace + trailing blank line (matches the source
+/// shape of the original 02_impl.rs.frag snippet byte-for-byte).
+fn emit_mutator_impl(
+    repo_root: &Path,
+    fixtures: &[Fixture],
+) -> Result<String, Box<dyn Error>> {
+    let methods = util::by_aggregate_sorted(fixtures, "MutatorMethod", "order");
+
+    let mut out = String::new();
+    out.push_str("impl AggregateState {\n");
+    for (i, m) in methods.iter().enumerate() {
+        let path = repo_root.join(util::attr(m, "snippet_path"));
+        let body = util::read_snippet_raw(&path)?;
+        out.push_str(&body);
+        if i + 1 < methods.len() {
+            // Methods are separated by exactly one blank line in the
+            // tracked source. Per-method snippets end with `\n` (one
+            // closing brace, no trailing blank), so emitting one
+            // extra `\n` between methods produces the inter-method
+            // blank.
+            out.push('\n');
+        }
+    }
+    out.push_str("}\n");
+    out.push('\n');
     Ok(out)
 }
 

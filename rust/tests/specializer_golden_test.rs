@@ -442,16 +442,13 @@ fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
 // [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_aggregate_state_rs() {
-    // i147 wave 3-A — Rust-native specializer for runtime/aggregate_state.rs.
-    // Section-as-snippet shape (mirrors heki_query) : three ordered
-    // verbatim_section rows for the AggregateState struct, the impl
-    // block of Value-typed mutators, and the pair of free numeric
-    // helpers (current_numeric / format_numeric) ; concatenated under
-    // a HEADER const that carries the doc comment + antibody marker +
-    // use lines. Wave 3-A introduces a purpose-built
-    // `runtime_state_shape/` rather than extending `dump_shape` —
-    // mutator bodies vary too much to share a template, and dump_shape
-    // is byte-identical so its golden test would gate any change.
+    // i147 Wave 4-A (i171 closure) — re-targeted at mutation_op_shape.
+    // Wave 3-A shipped the impl block as a single verbatim snippet ;
+    // Wave 4-A breaks it into per-method snippets driven by
+    // MutatorMethod rows so the SAME shape that emits interpreter.rs's
+    // apply_mutations dispatch arms also emits aggregate_state.rs's
+    // mutator method family. One shape, two consumers, byte-identity
+    // preserved across the re-target.
     let root = repo_root();
     let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
@@ -464,6 +461,39 @@ fn rust_specializer_produces_byte_identical_aggregate_state_rs() {
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/aggregate_state.rs"))
         .expect("runtime/aggregate_state.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_interpreter_rs() {
+    // i147 Wave 4-A (i171 closure) — Rust-native specializer for
+    // runtime/interpreter.rs. First REAL-compression retirement of
+    // the apply_mutations dispatch : the new mutation_op_shape
+    // declares one MutationOp row per variant (Set, Append,
+    // Increment, Decrement, Toggle, Delete, Multiply, Decay, Clamp)
+    // with a `dispatch_kind` knob that picks the arm template (six
+    // templates cover the nine arms — three pairs share, three
+    // sui-generis stand alone). Per-arm doc snippets keep byte-
+    // identity against the tracked source.
+    //
+    // Sister to aggregate_state_rs : both consumers read the same
+    // mutation_op_shape fixtures, with `target` knob filtering rows
+    // per consumer. Adding a new MutationOp adds (1) a new dispatch
+    // arm in interpreter.rs and (2) typically a new mutator method
+    // in aggregate_state.rs, both from the one shape.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "interpreter"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize interpreter failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/interpreter.rs"))
+        .expect("runtime/interpreter.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 

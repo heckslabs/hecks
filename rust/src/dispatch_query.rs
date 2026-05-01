@@ -118,6 +118,7 @@ pub const SPECIALIZER_TARGETS: &[&str] = &[
     "fixtures_parser",
     "hecksagon_parser",
     "heki_query",
+    "interpreter",
     "ir",
     "parse_blocks",
     "parser",
