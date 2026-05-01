@@ -14,7 +14,7 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
   #    exceptions dorment en liste plate au lieu de vivre dans une
   #    shape que le cœur peut interroger."
   #
-  # The structural gap : verb_exceptions in hecks_life/src/validator.rs
+  # The structural gap : verb_exceptions in rust/src/validator.rs
   # is a hardcoded 24-word Rust array. The data IS declared in
   # validator_shape.fixtures::ExceptionWord and the specializer emits
   # the array byte-identical, so it is shape-driven at compile time —

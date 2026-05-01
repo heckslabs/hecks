@@ -8,7 +8,7 @@ Hecks.bluebook "Bluebook", version: "2026.05.01.1" do
   #
   # This bluebook is the canonical description of what a parsed .bluebook
   # IR contains. Both the Ruby DSL parser (lib/hecks/dsl/) and the Rust
-  # parser (hecks_life/src/parser.rs) must produce structures matching
+  # parser (rust/src/parser.rs) must produce structures matching
   # the shape declared here.
   #
   # The Domain aggregate is the sole root of the IR tree. Every other

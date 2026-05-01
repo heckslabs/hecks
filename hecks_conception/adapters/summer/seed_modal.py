@@ -55,7 +55,7 @@ def seed(project_tar: bytes):
         "organs": agg_count,
         "nursery": nursery_count,
         "path": DEST,
-        "has_hecks_life": os.path.exists(os.path.join(DEST, "hecks_life", "Cargo.toml")),
+        "has_hecks_life": os.path.exists(os.path.join(DEST, "rust", "Cargo.toml")),
     }
 
 

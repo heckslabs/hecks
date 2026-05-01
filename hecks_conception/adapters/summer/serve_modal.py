@@ -28,16 +28,16 @@ body_image = (
     .run_commands(
         "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y",
     )
-    # Bake in hecks_life source and compile
+    # Bake in rust source and compile
     .add_local_dir(
-        "/Users/christopheryoung/Projects/hecks/hecks_life",
-        remote_path="/build/hecks_life",
+        "/Users/christopheryoung/Projects/hecks/rust",
+        remote_path="/build/rust",
         copy=True,
         ignore=lambda path: "/target/" in str(path) or str(path).endswith(".DS_Store"),
     )
     .run_commands(
-        "export PATH=$HOME/.cargo/bin:$PATH && cd /build/hecks_life && cargo build --release",
-        "cp /build/hecks_life/target/release/hecks-life /usr/local/bin/hecks-life",
+        "export PATH=$HOME/.cargo/bin:$PATH && cd /build/rust && cargo build --release",
+        "cp /build/rust/target/release/hecks-life /usr/local/bin/hecks-life",
     )
     .pip_install("fastapi[standard]")
 )

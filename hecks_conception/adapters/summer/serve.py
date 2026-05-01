@@ -84,7 +84,7 @@ def validate(bluebook: str) -> bool:
 
     try:
         result = subprocess.run(
-            ["hecks_life/target/debug/hecks-life", "validate", path],
+            ["rust/target/debug/hecks-life", "validate", path],
             capture_output=True, text=True,
             cwd="/Users/christopheryoung/Projects/hecks",
         )
