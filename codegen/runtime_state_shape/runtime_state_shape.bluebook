@@ -1,0 +1,93 @@
+Hecks.bluebook "RuntimeStateShape", version: "2026.05.01.1" do
+  vision "The shape of hecks_life/src/runtime/aggregate_state.rs as a bluebook — the runtime's dynamic field bag (struct + Value-typed mutators + numeric helpers) made IR-derivable via ordered embedded snippets."
+  category "autophagy"
+
+  # ============================================================
+  # RUNTIME STATE SHAPE — i147 Wave 3-A target
+  # ============================================================
+  #
+  # aggregate_state.rs is the runtime's dynamic field bag. Aggregates
+  # in Hecks aren't typed structs — they're Value maps shaped at parse
+  # time by Bluebook IR — so the kernel needs one struct (`AggregateState`)
+  # holding a `HashMap<String, Value>` plus a small family of typed
+  # mutator methods (set / append / increment / decrement /
+  # increment_float / decrement_float / set_float / toggle) that the
+  # interpreter dispatches MutationOp variants into.
+  #
+  # The file is ~129 LoC and partitions naturally into three ordered
+  # sections : the struct definition, the impl block of mutators +
+  # accessors, and a pair of free numeric helpers (current_numeric,
+  # format_numeric). That partition is exactly what this shape captures
+  # — one row per ordered section, every row pointing at a `.rs.frag`
+  # snippet under `codegen/runtime_state_shape/snippets/`.
+  #
+  # Layer mapping (mirrors heki_query_shape) :
+  #   L0 = this file + fixtures/runtime_state_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/runtime/aggregate_state.rs (generated target)
+  #
+  # ## Why a purpose-built shape (not a dump_shape extension)
+  #
+  # The Wave 3 survey's first cut at this file proposed extending
+  # `dump_shape` with a `body_kind: typed_setter` row that emitted one
+  # `pub fn name(&mut self, …)` per MutationOp variant. Two factors
+  # tipped against that path :
+  #
+  #   1. **Bodies vary substantially.** `set` is a one-line HashMap
+  #      insert, `append` lazily inserts an empty Value::List then
+  #      pushes, `increment` does a Value::Int round-trip, the float
+  #      siblings parse strings via a helper, and `toggle` flips a
+  #      Value::Bool. There is no template the bodies share — emitting
+  #      them as data would require one body-template per method, which
+  #      defeats the point of unifying them.
+  #
+  #   2. **dump_shape is byte-identical.** Touching its row vocabulary
+  #      to add a typed_setter kind means re-running its golden test ;
+  #      any drift breaks the existing dump.rs target. A purpose-built
+  #      shape avoids that blast radius.
+  #
+  # So the Wave 3-A retirement uses the same `verbatim_section` body_kind
+  # the Wave 2 retirements (heki_query, behaviors_fixtures,
+  # conceiver/generator, run_boot/discover) ship — section = snippet,
+  # file = ordered concatenation. The "new" piece in Wave 3-A is the
+  # shape directory itself, which makes the runtime/ source subtree the
+  # first kernel area outside the flat src/ root that has its own shape.
+  # When a future shape lands that captures the mutator family as data
+  # (likely `interpreter_shape` once apply_mutations rows declare the
+  # MutationOp → method mapping declaratively), individual rows here
+  # will retire into that shape's vocabulary. Until then : section =
+  # snippet, file = ordered concatenation.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in aggregate_state.rs.
+  # body_kind picks how the specializer emits the section :
+  #   verbatim_section  — read snippet_path with read_snippet_raw
+  #                       (no comment-strip, no blank-line trim) and
+  #                       emit the body verbatim. Same kind heki_query,
+  #                       behaviors_fixtures, conceiver/generator, and
+  #                       run_boot/discover use.
+  #
+  # The specializer concatenates HEADER + each section body in
+  # `order` ascending. read_snippet_raw is required so the leading
+  # `#[derive(...)]`, `impl AggregateState {`, and the doc comments on
+  # individual mutator methods are preserved verbatim — the bare file
+  # read is the byte-identity guarantee.
+
+  aggregate "Section", "One ordered code section emitted verbatim from a .rs.frag snippet" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section (only kind today). Reserved for
+    # future split — when a `mutator_method` body_kind lands that
+    # interpolates Value-type and MutationOp metadata into a method
+    # template, the impl-block row here will retire into a fan-out of
+    # such rows.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. The .rs.frag file holding
+    # the section body. Required for verbatim_section.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

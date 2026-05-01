@@ -1,0 +1,15 @@
+Hecks.fixtures "RuntimeStateShape" do
+  # One row per ordered code section in hecks_life/src/runtime/aggregate_state.rs.
+  # Specializer concatenates HEADER (doc + antibody marker + use lines, in
+  # the .rs source) + each snippet's raw body in `order` ascending.
+  # read_snippet_raw is used (not read_snippet_body) so the leading
+  # `#[derive(...)]` attribute on the struct, the `impl AggregateState {`
+  # opener, and the trailing blank-line section separators are all
+  # preserved verbatim.
+
+  aggregate "Section" do
+    fixture "StructSection",          name: "struct",          order: 1, body_kind: "verbatim_section", snippet_path: "codegen/runtime_state_shape/snippets/01_struct.rs.frag",          description: "AggregateState struct — id + HashMap<String, Value> field bag + deleted flag for then_delete cascades"
+    fixture "ImplSection",            name: "impl",            order: 2, body_kind: "verbatim_section", snippet_path: "codegen/runtime_state_shape/snippets/02_impl.rs.frag",            description: "impl AggregateState — Value-typed mutators (set / append / increment / decrement / increment_float / decrement_float / set_float / toggle) plus get accessor and new constructor"
+    fixture "NumericHelpersSection",  name: "numeric_helpers", order: 3, body_kind: "verbatim_section", snippet_path: "codegen/runtime_state_shape/snippets/03_numeric_helpers.rs.frag", description: "Free-function numeric helpers — current_numeric (Value -> f64) and format_numeric (f64 -> String) shared by the float-aware mutators"
+  end
+end
