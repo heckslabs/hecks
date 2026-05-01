@@ -73,20 +73,20 @@ Hecks.behaviors "CorpusPruning" do
   # ── CategoryBalancer aggregate ──────────────────────────────────────────
 
   test "AssessBalance sets jsonl_path" do
-    tests "AssessBalance", on: "CategoryBalancer"
+    tests "AssessCategoryBalance", on: "CategoryBalancer"
     input  jsonl_path: "sample"
     expect ok: "true"
   end
 
   test "AssessBalance cascades through policy chain" do
-    tests "AssessBalance", on: "CategoryBalancer", kind: :cascade
+    tests "AssessCategoryBalance", on: "CategoryBalancer", kind: :cascade
     input  jsonl_path: "sample"
-    expect emits: ["BalanceAssessed", "CategoryCapped"]
+    expect emits: ["CategoryBalanceAssessed", "CategoryCapped"]
   end
 
   test "CapCategory sets category + max_count" do
     tests "CapCategory", on: "CategoryBalancer"
-    setup  "AssessBalance", jsonl_path: "sample"
+    setup  "AssessCategoryBalance", jsonl_path: "sample"
     input  category: "sample", max_count: 1
     expect ok: "true"
   end

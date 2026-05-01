@@ -105,10 +105,17 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
       attribute :target, Integer
     end
 
-    command "AssessBalance" do
+    # Renamed AssessCategoryBalance + CategoryBalanceAssessed (was
+    # AssessBalance + BalanceAssessed) to avoid event-name collision
+    # with Proprioception.AssessBalance / Proprioception.BalanceAssessed
+    # in Miette's body. CapAfterAssess now listens on the unique event
+    # name. i117 Round 4 cross-corpus dispatch surfaced the collision —
+    # both domains used the same generic name for two different concerns
+    # (training-corpus category counts vs. body proprioception).
+    command "AssessCategoryBalance" do
       description "Count domains per category, flag over and under-represented groups"
       attribute :jsonl_path, String
-      emits "BalanceAssessed"
+      emits "CategoryBalanceAssessed"
     end
 
     command "CapCategory" do
@@ -136,7 +143,7 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
   end
 
   policy "CapAfterAssess" do
-    on "BalanceAssessed"
+    on "CategoryBalanceAssessed"
     trigger "CapCategory"
   end
 end

@@ -40,6 +40,16 @@
 //!  exit 0) instead of Enforcer.Complain when the file already carries a
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
 //!  the rest of the run_enforce_edit family.]
+//!
+//! [antibody-exempt: hecks_life/src/main.rs — i117 Round 4. load_combined_domain
+//!  walks the sibling ../miette repo as an additional bluebook root at depth 1.
+//!  Miette's self/mind/body/library/surface aggregates physically live in
+//!  chrisyoung/miette post-split ; the runtime needs to find them for the same
+//!  dispatch domain that scans hecks_conception/aggregates/. The pre-push
+//!  behaviors gate (tooling/git-hooks/pre-push) has scanned this root for
+//!  weeks ; the runtime now matches. Skipped silently when the sibling repo
+//!  isn't checked out (CI running on hecks alone keeps working). Retires
+//!  alongside the broader i118 hecks/miette reshape.]
 
 use hecks_life::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
@@ -671,6 +681,16 @@ fn behaviors_aggregates_root(suite_path: &str) -> Option<String> {
         let agg_sibling = cur.join("aggregates");
         if agg_sibling.is_dir() {
             return Some(agg_sibling.to_string_lossy().into_owned());
+        }
+        // i117 Round 4 — when the .behaviors lives under the sibling
+        // miette/ repo (e.g. miette/self/identity/being.behaviors),
+        // the canonical aggregates root is hecks/hecks_conception/aggregates.
+        // Walk to a sibling hecks/hecks_conception/aggregates and return
+        // that ; load_combined_domain's i117 sibling-walk picks the
+        // miette/ root back up, so the cross-corpus dispatch works.
+        let sibling_hecks_aggs = cur.join("hecks/hecks_conception/aggregates");
+        if sibling_hecks_aggs.is_dir() {
+            return Some(sibling_hecks_aggs.to_string_lossy().into_owned());
         }
         if !cur.pop() { break; }
     }
@@ -1893,6 +1913,24 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         let cap_dir = parent.join("capabilities");
         if cap_dir.exists() && cap_dir != std::path::Path::new(agg_dir) {
             collect_bluebooks(&cap_dir, 1, &mut found);
+        }
+        // i117 Round 4 — Miette's body lives in the sibling miette/
+        // repo (chrisyoung/miette) post-split. Walk ../miette as an
+        // additional bluebook root at depth 1 so all of Miette's
+        // self/mind/body/library/surface aggregates participate in
+        // the same dispatch domain even though they live outside
+        // hecks_conception. The pre-push behaviors gate already
+        // scans this root ; the runtime now does too. Skipped
+        // silently when the sibling repo isn't checked out (e.g. CI
+        // running on hecks alone).
+        if let Some(repo_root) = parent.parent() {
+            let miette_dir = repo_root.join("../miette");
+            if miette_dir.is_dir() {
+                let canonical = std::fs::canonicalize(&miette_dir).unwrap_or(miette_dir);
+                if canonical != std::path::Path::new(agg_dir) {
+                    collect_bluebooks(&canonical, 1, &mut found);
+                }
+            }
         }
     }
 
