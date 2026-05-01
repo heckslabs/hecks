@@ -164,7 +164,21 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 continue;
             } else if line.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(line) { agg.attributes.push(attr); }
-                if ends_with_do_block(line) { depth += 1; }
+                if ends_with_do_block(line) {
+                    // `attribute :status, String, default: "X" do
+                    //    transition "Cmd" => "next"
+                    //  end`
+                    // is sugar for a lifecycle keyed on that attribute.
+                    // parse_lifecycle's first-line scan reads the symbol
+                    // and `default:` kwarg the same way for both forms,
+                    // so we can reuse it directly.
+                    let (lc, consumed) = parse_lifecycle(&lines[i..]);
+                    if !lc.transitions.is_empty() {
+                        agg.lifecycle = Some(lc);
+                    }
+                    i += consumed;
+                    continue;
+                }
             } else if line.starts_with("description") {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {

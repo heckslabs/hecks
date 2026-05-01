@@ -30,10 +30,10 @@
 # byte-for-byte. Four fixtures (disposition, psychic_link,
 # section_template, wake_ritual) move from drift to parity.
 
-# i118 R3 Wave 2 — surfaced when parity_test.rb extended its walk to
-# chapters/ (the framework's self-description). spec.bluebook produces
-# a trailing-comma JSON difference between Ruby and Rust dumps. Pre-
-# existing drift made visible by the wider parity scan, not introduced
-# by the Wave 2 capabilities lift. Worth fixing in canonical_ir.rb's
-# JSON serialization but not blocking.
-chapters/spec.bluebook  # canonical IR JSON trailing-comma drift
+# spec.bluebook drift retired — root cause was a Rust parse_command bug,
+# not a JSON serialization quirk. parse_command consumed lines past a
+# bare `command "Reset"` (no do-block), eating the closing `end` of the
+# enclosing aggregate and walking the rest of the file as if it were
+# inside one mega-command. Fixed in rust/src/parse_blocks.rs by
+# returning early when the first line of a command lacks a do-block.
+# All 12 spec aggregates now parse byte-equal between Ruby and Rust.

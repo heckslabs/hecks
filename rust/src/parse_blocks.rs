@@ -97,6 +97,15 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         return (cmd, 1);
     }
 
+    // Bare `command "Reset"` form — no `do` block, no body. Consume
+    // just the single declaration line. Without this guard the loop
+    // below walks past the closing `end` of the enclosing aggregate
+    // and eats subsequent siblings, since the parser thinks it's
+    // looking for a matching `end` that doesn't exist.
+    if !ends_with_do_block(first) {
+        return (cmd, 1);
+    }
+
     let mut i = 1;
     let mut depth = 1;
 
