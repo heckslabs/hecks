@@ -31,12 +31,32 @@ const LINKED_STORES: &[&str] = &[
     "signal_consolidation", "speech", "training_pair", "wake_mood", "witness",
     "bodhisattva_vow", "character", "creator_auth", "remains", "store",
     "heart", "breath", "circadian", "ultradian", "sleep_cycle",
+    "wake_ritual",
 ];
 
 const PRIVATE_STORES: &[&str] = &[
     "mood", "feeling", "dream_state", "impulse", "craving", "daydream",
     "pulse", "spend", "circuit_breaker",
 ];
+
+/// Stores recognised as known-retired — pre-convention orphans whose
+/// rows survive in info_dir but no current writer targets them. The
+/// classifier silently absorbs these so the unclassified warning
+/// stays focused on genuinely-new stores that need an explicit
+/// classification call. Adding to this list is an explicit choice
+/// that the orphan is acknowledged and out of the way ; the rows
+/// themselves stay in place for archaeology until someone retires
+/// the file in its origin repo.
+///
+/// `item` — pre-i142 inbox naming. The Inbox aggregate originally
+/// stored rows in `item.heki` ("an item" being the colloquial name
+/// for one inbox row). When the convention settled on heki-file-
+/// per-aggregate (one heki named after the aggregate, the rows
+/// being the aggregate's records), the canonical name became
+/// `inbox.heki`. Two debugging rows survive in `item.heki` in the
+/// miette-state repo (i997 "abs path trace", i998 "HECKS_INFO
+/// trace" — April 28 path-resolution debugging).
+const RETIRED_STORES: &[&str] = &["item"];
 
 #[derive(Debug, Clone, Default)]
 pub struct Classification {
@@ -63,6 +83,10 @@ pub fn classify(info_dir: &str) -> Classification {
         // Skip dotfiles like `.mindstream.pid` (already filtered by ext)
         // and hidden heki names like `.statusline_heart_phase`.
         if stem.starts_with('.') { continue; }
+
+        // Retired stores are silently absorbed — neither classified
+        // as a live boundary nor flagged unclassified.
+        if RETIRED_STORES.contains(&stem) { continue; }
 
         if PRIVATE_STORES.contains(&stem) {
             out.private_.push(stem.to_string());
