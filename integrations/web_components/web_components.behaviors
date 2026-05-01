@@ -1,324 +1,227 @@
 Hecks.behaviors "WebComponents" do
-  vision "Behavioral tests for the WebComponents domain — exercises every command and query in memory"
+  vision "Behavioral tests for the collapsed WebComponents domain — one root aggregate, one RenderComponent command exercised across every supported component kind"
 
-  # ── Shell aggregate ──────────────────────────────────────────
+  # ── WebComponents — RenderComponent dispatched per kind ──────
 
-  test "RenderShell sets domain_name" do
-    tests "RenderShell", on: "Shell"
-    input  domain_name: "sample"
+  test "RenderComponent renders Shell" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Shell"
     expect ok: "true"
   end
 
-
-  # ── Sidebar aggregate ──────────────────────────────────────────
-
-  test "GenerateSidebar runs" do
-    tests "GenerateSidebar", on: "Sidebar"
+  test "RenderComponent renders Sidebar" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Sidebar"
     expect ok: "true"
   end
 
-
-  # ── Navbar aggregate ──────────────────────────────────────────
-
-  test "RenderNavbar runs" do
-    tests "RenderNavbar", on: "Navbar"
+  test "RenderComponent renders Navbar" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Navbar"
     expect ok: "true"
   end
 
-
-  # ── Page aggregate ──────────────────────────────────────────
-
-  test "RenderPage sets aggregate + layout" do
-    tests "RenderPage", on: "Page"
-    input  aggregate: "sample", layout: "sample"
+  test "RenderComponent renders Page" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Page", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Tabs aggregate ──────────────────────────────────────────
-
-  test "RenderTabs sets aggregate" do
-    tests "RenderTabs", on: "Tabs"
-    input  aggregate: "sample"
+  test "RenderComponent renders Tabs" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Tabs", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Breadcrumbs aggregate ──────────────────────────────────────────
-
-  test "RenderBreadcrumbs runs" do
-    tests "RenderBreadcrumbs", on: "Breadcrumbs"
+  test "RenderComponent renders Breadcrumbs" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Breadcrumbs"
     expect ok: "true"
   end
 
-
-  # ── Steps aggregate ──────────────────────────────────────────
-
-  test "RenderSteps sets workflow" do
-    tests "RenderSteps", on: "Steps"
-    input  workflow: "sample"
+  test "RenderComponent renders Steps" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Steps"
     expect ok: "true"
   end
 
-
-  # ── AggregateCard aggregate ──────────────────────────────────────────
-
-  test "RenderCard sets aggregate + variant" do
-    tests "RenderCard", on: "AggregateCard"
-    input  aggregate: "sample", variant: "sample"
+  test "RenderComponent renders AggregateCard" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "AggregateCard", aggregate: "sample", variant: "sample"
     expect ok: "true"
   end
 
-
-  # ── DataTable aggregate ──────────────────────────────────────────
-
-  test "RenderTable sets aggregate" do
-    tests "RenderTable", on: "DataTable"
-    input  aggregate: "sample"
+  test "RenderComponent renders DataTable" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "DataTable", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── StatCard aggregate ──────────────────────────────────────────
-
-  test "RenderStat sets label + value_source" do
-    tests "RenderStat", on: "StatCard"
-    input  label: "sample", value_source: "sample"
+  test "RenderComponent renders StatCard" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "StatCard"
     expect ok: "true"
   end
 
-
-  # ── ListItem aggregate ──────────────────────────────────────────
-
-  test "RenderList sets aggregate" do
-    tests "RenderList", on: "ListItem"
-    input  aggregate: "sample"
+  test "RenderComponent renders ListItem" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "ListItem", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Badge aggregate ──────────────────────────────────────────
-
-  test "RenderBadge sets source" do
-    tests "RenderBadge", on: "Badge"
-    input  source: "sample"
+  test "RenderComponent renders Badge" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Badge"
     expect ok: "true"
   end
 
-
-  # ── Avatar aggregate ──────────────────────────────────────────
-
-  test "RenderAvatar runs" do
-    tests "RenderAvatar", on: "Avatar"
+  test "RenderComponent renders Avatar" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Avatar"
     expect ok: "true"
   end
 
-
-  # ── Timeline aggregate ──────────────────────────────────────────
-
-  test "RenderTimeline sets aggregate" do
-    tests "RenderTimeline", on: "Timeline"
-    input  aggregate: "sample"
+  test "RenderComponent renders Timeline" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Timeline", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Accordion aggregate ──────────────────────────────────────────
-
-  test "RenderAccordion sets aggregate" do
-    tests "RenderAccordion", on: "Accordion"
-    input  aggregate: "sample"
+  test "RenderComponent renders Accordion" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Accordion", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Board aggregate ──────────────────────────────────────────
-
-  test "RenderBoard sets aggregate + lifecycle_field" do
-    tests "RenderBoard", on: "Board"
-    input  aggregate: "sample", lifecycle_field: "sample"
+  test "RenderComponent renders Board" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Board", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── CommandForm aggregate ──────────────────────────────────────────
-
-  test "RenderForm sets command + variant" do
-    tests "RenderForm", on: "CommandForm"
-    input  command: "sample", variant: "sample"
+  test "RenderComponent renders CommandForm" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "CommandForm", command: "sample", variant: "sample"
     expect ok: "true"
   end
 
-
-  # ── QuickAdd aggregate ──────────────────────────────────────────
-
-  test "RenderQuickAdd sets command" do
-    tests "RenderQuickAdd", on: "QuickAdd"
-    input  command: "sample"
+  test "RenderComponent renders QuickAdd" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "QuickAdd", command: "sample"
     expect ok: "true"
   end
 
-
-  # ── FilterBar aggregate ──────────────────────────────────────────
-
-  test "RenderFilterBar sets aggregate" do
-    tests "RenderFilterBar", on: "FilterBar"
-    input  aggregate: "sample"
+  test "RenderComponent renders FilterBar" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "FilterBar", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── SearchBox aggregate ──────────────────────────────────────────
-
-  test "RenderSearchBox sets aggregates" do
-    tests "RenderSearchBox", on: "SearchBox"
-    input  aggregates: "sample"
+  test "RenderComponent renders SearchBox" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "SearchBox"
     expect ok: "true"
   end
 
-
-  # ── Rating aggregate ──────────────────────────────────────────
-
-  test "RenderRating runs" do
-    tests "RenderRating", on: "Rating"
+  test "RenderComponent renders Rating" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Rating"
     expect ok: "true"
   end
 
-
-  # ── ActionButton aggregate ──────────────────────────────────────────
-
-  test "RenderButton sets command + variant" do
-    tests "RenderButton", on: "ActionButton"
-    input  command: "sample", variant: "sample"
+  test "RenderComponent renders ActionButton" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "ActionButton", command: "sample", variant: "sample"
     expect ok: "true"
   end
 
-
-  # ── Dropdown aggregate ──────────────────────────────────────────
-
-  test "RenderDropdown sets aggregate" do
-    tests "RenderDropdown", on: "Dropdown"
-    input  aggregate: "sample"
+  test "RenderComponent renders Dropdown" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Dropdown", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Modal aggregate ──────────────────────────────────────────
-
-  test "RenderModal sets command" do
-    tests "RenderModal", on: "Modal"
-    input  command: "sample"
+  test "RenderComponent renders Modal" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Modal", command: "sample"
     expect ok: "true"
   end
 
-
-  # ── LifecycleBar aggregate ──────────────────────────────────────────
-
-  test "RenderLifecycleBar sets aggregate + lifecycle_field" do
-    tests "RenderLifecycleBar", on: "LifecycleBar"
-    input  aggregate: "sample", lifecycle_field: "sample"
+  test "RenderComponent renders LifecycleBar" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "LifecycleBar", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Fab aggregate ──────────────────────────────────────────
-
-  test "RenderFab sets aggregate" do
-    tests "RenderFab", on: "Fab"
-    input  aggregate: "sample"
+  test "RenderComponent renders Fab" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Fab", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── Swap aggregate ──────────────────────────────────────────
-
-  test "RenderSwap runs" do
-    tests "RenderSwap", on: "Swap"
+  test "RenderComponent renders Swap" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Swap"
     expect ok: "true"
   end
 
-
-  # ── Toast aggregate ──────────────────────────────────────────
-
-  test "RenderToast runs" do
-    tests "RenderToast", on: "Toast"
+  test "RenderComponent renders Toast" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Toast"
     expect ok: "true"
   end
 
-
-  # ── Alert aggregate ──────────────────────────────────────────
-
-  test "RenderAlert runs" do
-    tests "RenderAlert", on: "Alert"
+  test "RenderComponent renders Alert" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Alert"
     expect ok: "true"
   end
 
-
-  # ── Loading aggregate ──────────────────────────────────────────
-
-  test "RenderLoading runs" do
-    tests "RenderLoading", on: "Loading"
+  test "RenderComponent renders Loading" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Loading"
     expect ok: "true"
   end
 
-
-  # ── Progress aggregate ──────────────────────────────────────────
-
-  test "RenderProgress sets value_source + max_source" do
-    tests "RenderProgress", on: "Progress"
-    input  value_source: "sample", max_source: "sample"
+  test "RenderComponent renders Progress" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Progress"
     expect ok: "true"
   end
 
-
-  # ── Skeleton aggregate ──────────────────────────────────────────
-
-  test "RenderSkeleton runs" do
-    tests "RenderSkeleton", on: "Skeleton"
+  test "RenderComponent renders Skeleton" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Skeleton"
     expect ok: "true"
   end
 
-
-  # ── Tooltip aggregate ──────────────────────────────────────────
-
-  test "RenderTooltip runs" do
-    tests "RenderTooltip", on: "Tooltip"
+  test "RenderComponent renders Tooltip" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Tooltip"
     expect ok: "true"
   end
 
-
-  # ── EmptyState aggregate ──────────────────────────────────────────
-
-  test "RenderEmptyState sets aggregate" do
-    tests "RenderEmptyState", on: "EmptyState"
-    input  aggregate: "sample"
+  test "RenderComponent renders EmptyState" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "EmptyState", aggregate: "sample"
     expect ok: "true"
   end
 
-
-  # ── EventStream aggregate ──────────────────────────────────────────
-
-  test "RenderEventStream sets position" do
-    tests "RenderEventStream", on: "EventStream"
-    input  position: "sample"
+  test "RenderComponent renders EventStream" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "EventStream"
     expect ok: "true"
   end
 
-
-  # ── Theme aggregate ──────────────────────────────────────────
-
-  test "ApplyTheme sets daisy_theme" do
-    tests "ApplyTheme", on: "Theme"
-    input  daisy_theme: "sample"
+  test "RenderComponent renders Theme" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "Theme", daisy_theme: "dark"
     expect ok: "true"
   end
 
-
-  # ── ThemeToggle aggregate ──────────────────────────────────────────
-
-  test "RenderThemeToggle runs" do
-    tests "RenderThemeToggle", on: "ThemeToggle"
+  test "RenderComponent renders ThemeToggle" do
+    tests "RenderComponent", on: "WebComponents"
+    input  kind: "ThemeToggle"
     expect ok: "true"
   end
-
 end
