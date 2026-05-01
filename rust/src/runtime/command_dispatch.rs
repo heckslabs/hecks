@@ -12,7 +12,8 @@
 //!  HECKS_STRICT_DISPATCH env var ; the rest of the file is pre-i156.]
 
 use super::{AggregateState, Event, Runtime, RuntimeError, Value};
-use super::{interpreter, lifecycle};
+use super::interpreter;
+use crate::ir::{Command, Lifecycle};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -20,6 +21,51 @@ pub struct CommandResult {
     pub aggregate_id: String,
     pub aggregate_type: String,
     pub event: Option<Event>,
+}
+
+/// Resolution of a dispatch address — i111-J.
+///
+/// `Aggregate(agg_idx, cmd_idx)` — command lives directly on the
+/// aggregate's commands list.
+///
+/// `Entity(agg_idx, ent_idx, cmd_idx)` — command lives inside an
+/// entity declared inside the aggregate's `entity "Foo" do … end`
+/// block. Dispatch still operates on the parent aggregate's record
+/// (entities are reached only through the root in DDD), but uses the
+/// entity's command — its mutations, givens, lifecycle.
+#[derive(Debug, Clone, Copy)]
+enum Resolution {
+    Aggregate(usize, usize),
+    Entity(usize, usize, usize),
+}
+
+impl Resolution {
+    fn agg_idx(&self) -> usize {
+        match self {
+            Resolution::Aggregate(a, _) => *a,
+            Resolution::Entity(a, _, _) => *a,
+        }
+    }
+}
+
+/// Borrow the resolved command from the runtime's IR.
+fn cmd_for<'a>(rt: &'a Runtime, res: Resolution) -> &'a Command {
+    match res {
+        Resolution::Aggregate(a, c) => &rt.domain.aggregates[a].commands[c],
+        Resolution::Entity(a, e, c) => &rt.domain.aggregates[a].entities[e].commands[c],
+    }
+}
+
+/// Borrow the lifecycle that gates the resolved command : the entity's
+/// own lifecycle when present, otherwise the parent aggregate's.
+fn lifecycle_for<'a>(rt: &'a Runtime, res: Resolution) -> Option<&'a Lifecycle> {
+    match res {
+        Resolution::Aggregate(a, _) => rt.domain.aggregates[a].lifecycle.as_ref(),
+        Resolution::Entity(a, e, _) => rt.domain.aggregates[a].entities[e]
+            .lifecycle
+            .as_ref()
+            .or(rt.domain.aggregates[a].lifecycle.as_ref()),
+    }
 }
 
 pub fn dispatch(
@@ -30,10 +76,11 @@ pub fn dispatch(
     dispatch_inner(rt, command_name, attrs, None)
 }
 
-/// Cascade-aware dispatch — used by `Runtime::drain_policies` when the
-/// triggered command's aggregate has the SAME type as the upstream
-/// event. Passing the upstream id as a hint lets the second dispatch
-/// reuse the existing record instead of counter-minting a fresh id.
+/// Cascade-aware dispatch (i111-K) — used by `Runtime::drain_policies`
+/// when the triggered command's aggregate has the SAME type as the
+/// upstream event. Passing the upstream id as a hint lets the second
+/// dispatch reuse the existing record instead of counter-minting a
+/// fresh id.
 ///
 /// This closes the i111-C surprise : multi-step pipelines like
 /// CorpusPruning (Measure → Split with `given { measured == true }`)
@@ -64,17 +111,16 @@ fn dispatch_inner(
     attrs: HashMap<String, Value>,
     cascade_hint: Option<(String, String)>,
 ) -> Result<CommandResult, RuntimeError> {
-    let (agg_idx, cmd_idx) = resolve(rt, command_name)?;
+    let res = resolve(rt, command_name)?;
+    let agg_idx = res.agg_idx();
 
-    // Many-form dispatch (i113 / i116) — when the command takes a single
-    // `list_of(VO)` attribute and the VO carries the aggregate's
-    // identity field, treat the dispatch as a bulk register : iterate
-    // the list, save one record per spec, emit one event per row.
-    // Falls through to single-row dispatch when the shape doesn't
-    // match. Detection is purely by IR shape, no naming convention :
-    // any command that meets the contract gets the loop for free.
-    if let Some(spec_attr) = bulk_spec_attr(rt, agg_idx, cmd_idx) {
-        return dispatch_bulk(rt, agg_idx, cmd_idx, command_name, &spec_attr, attrs);
+    // Many-form dispatch (i113 / i116) — only applies to aggregate-level
+    // commands. Entity commands route through the parent's record and
+    // don't currently support the list_of(VO) bulk pattern.
+    if let Resolution::Aggregate(_, cmd_idx) = res {
+        if let Some(spec_attr) = bulk_spec_attr(rt, agg_idx, cmd_idx) {
+            return dispatch_bulk(rt, agg_idx, cmd_idx, command_name, &spec_attr, attrs);
+        }
     }
 
     let is_create = command_name.starts_with("Create")
@@ -83,7 +129,7 @@ fn dispatch_inner(
         || command_name.starts_with("Register")
         || command_name.starts_with("Open");
 
-    let self_ref = find_self_ref(rt, agg_idx, cmd_idx);
+    let self_ref = find_self_ref_res(rt, res);
     let aggregate_name = rt.domain.aggregates[agg_idx].name.clone();
     let aggregate_context = rt.domain.aggregates[agg_idx].context.clone();
     let repo_hash_key = super::repo_key(aggregate_context.as_deref(), &aggregate_name);
@@ -148,17 +194,19 @@ fn dispatch_inner(
     }
 
     // Pipeline: givens → lifecycle check → mutations → lifecycle transition
-    let cmd = &rt.domain.aggregates[agg_idx].commands[cmd_idx];
+    let cmd = cmd_for(rt, res);
     interpreter::check_givens(cmd, &state, &attrs)?;
-    lifecycle::check(rt, agg_idx, cmd_idx, &state)?;
+    check_lifecycle(rt, res, &state)?;
     interpreter::apply_mutations(cmd, &mut state, &attrs);
-    lifecycle::apply_transition(rt, agg_idx, cmd_idx, &mut state);
+    apply_lifecycle_transition(rt, res, &mut state);
 
-    // Create commands copy matching attrs to aggregate
+    // Create commands copy matching attrs to aggregate. For entity
+    // commands the parent aggregate's attribute set is the target
+    // schema (entities live within the parent's record).
     if is_new {
         let agg_attr_names: Vec<&str> = rt.domain.aggregates[agg_idx]
             .attributes.iter().map(|a| a.name.as_str()).collect();
-        let cmd = &rt.domain.aggregates[agg_idx].commands[cmd_idx];
+        let cmd = cmd_for(rt, res);
         for cmd_attr in &cmd.attributes {
             if agg_attr_names.contains(&cmd_attr.name.as_str()) {
                 if let Some(val) = attrs.get(&cmd_attr.name) {
@@ -180,7 +228,7 @@ fn dispatch_inner(
         repo.save(state, ctx);
     }
 
-    let event = build_event(rt, agg_idx, cmd_idx, &aggregate_id, &attrs);
+    let event = build_event_res(rt, res, &aggregate_id, &attrs);
     if let Some(ref evt) = event {
         rt.event_bus.publish(evt.clone());
     }
@@ -192,10 +240,10 @@ fn dispatch_inner(
     })
 }
 
-/// Resolve a command address to a (aggregate_index, command_index).
+/// Resolve a command address to a Resolution (aggregate or entity-owned).
 ///
-/// Three forms are accepted, in order of specificity (i142 — bluebooks
-/// as bounded contexts) :
+/// Forms accepted, in order of specificity (i142 — bluebooks as bounded
+/// contexts ; i111-J — entity-qualified addresses) :
 ///
 ///   - `Context.Aggregate.Command` — three dotted parts. Filters
 ///     aggregates by both context (bluebook namespace) and aggregate
@@ -203,37 +251,91 @@ fn dispatch_inner(
 ///     same-name aggregates correctly (e.g. `Boot.Identity.Identify`
 ///     vs `Being.Identity.RecordSession`).
 ///
+///   - `Aggregate.Entity.Command` — three dotted parts that DON'T
+///     match a known context. Resolves to a command declared inside
+///     the aggregate's `entity "Foo" do … end` block (i111-J — close
+///     the DDD gap). Tried after the context form so a real context
+///     match takes precedence.
+///
 ///   - `Aggregate.Command` — two dotted parts. Filters by aggregate
-///     name only ; if multiple aggregates share that name across
-///     contexts, returns the first match. Backward compat for the
-///     pre-i142 form.
+///     name only ; if not found there, walks the aggregate's entities
+///     looking for a unique entity-owned command match. Multiple
+///     entities owning the same command name on the same aggregate is
+///     ambiguous and errors loudly.
 ///
 ///   - `Command` — bare command name. Walks every command in every
-///     aggregate ; returns the first match. Legacy form ; ambiguous
-///     when multiple aggregates declare the same command name. Used
-///     by direct-runtime callers (tests, programmatic dispatch) ;
-///     production CLI now passes the full prefix.
-fn resolve(rt: &Runtime, command_name: &str) -> Result<(usize, usize), RuntimeError> {
+///     aggregate (and i111-J : every entity within them). First-match-
+///     wins ; per-aggregate uniqueness (i155) still holds within a
+///     single bluebook. Cross-bluebook strictness is filed as i156.
+fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError> {
     let parts: Vec<&str> = command_name.split('.').collect();
     match parts.as_slice() {
-        [context, agg_name, cmd_name] => {
+        [a, b, c] => {
+            // Try Context.Aggregate.Command first (i142). If no
+            // aggregate is in that context, fall through to the
+            // Aggregate.Entity.Command form (i111-J).
             for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
-                if agg.name != *agg_name { continue; }
-                if agg.context.as_deref() != Some(*context) { continue; }
+                if agg.name != *b { continue; }
+                if agg.context.as_deref() != Some(*a) { continue; }
                 for (ci, cmd) in agg.commands.iter().enumerate() {
-                    if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                    if cmd.name == *c { return Ok(Resolution::Aggregate(ai, ci)); }
+                }
+            }
+            for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                if agg.name != *a { continue; }
+                for (ei, ent) in agg.entities.iter().enumerate() {
+                    if ent.name != *b { continue; }
+                    for (ci, cmd) in ent.commands.iter().enumerate() {
+                        if cmd.name == *c { return Ok(Resolution::Entity(ai, ei, ci)); }
+                    }
                 }
             }
             Err(RuntimeError::UnknownCommand(command_name.to_string()))
         }
         [agg_name, cmd_name] => {
+            // First pass — direct aggregate command match.
             for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                 if agg.name != *agg_name { continue; }
                 for (ci, cmd) in agg.commands.iter().enumerate() {
-                    if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                    if cmd.name == *cmd_name { return Ok(Resolution::Aggregate(ai, ci)); }
                 }
             }
-            Err(RuntimeError::UnknownCommand(command_name.to_string()))
+            // Second pass (i111-J) — entity-owned command, accepted
+            // only when unambiguous (single owning entity within the
+            // aggregate). Multiple owners on the same aggregate is a
+            // corpus error ; surface it loudly.
+            let mut hits: Vec<(usize, usize, usize, String)> = Vec::new();
+            for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                if agg.name != *agg_name { continue; }
+                for (ei, ent) in agg.entities.iter().enumerate() {
+                    for (ci, cmd) in ent.commands.iter().enumerate() {
+                        if cmd.name == *cmd_name {
+                            hits.push((ai, ei, ci, ent.name.clone()));
+                        }
+                    }
+                }
+            }
+            if hits.len() == 1 {
+                Ok(Resolution::Entity(hits[0].0, hits[0].1, hits[0].2))
+            } else if hits.is_empty() {
+                Err(RuntimeError::UnknownCommand(command_name.to_string()))
+            } else {
+                // Multiple entities of the same aggregate own a command
+                // by this name. Without entity disambiguation in the
+                // address, the runtime can't pick. Same shape as i156
+                // bare-name ambiguity ; reuse UnknownCommand with the
+                // candidate list embedded in the message.
+                let mut candidates: Vec<String> = hits.iter()
+                    .map(|h| format!("{}.{}", agg_name, h.3))
+                    .collect();
+                candidates.sort();
+                candidates.dedup();
+                Err(RuntimeError::UnknownCommand(format!(
+                    "{} — ambiguous, candidates: {}",
+                    command_name,
+                    candidates.join(", ")
+                )))
+            }
         }
         [cmd_name] => {
             // Bare-name dispatch — i156 strict mode (opt-in via the
@@ -251,35 +353,60 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<(usize, usize), RuntimeEr
             // Default (non-strict) behavior preserves first-match-wins
             // for backward compat — same as before. Per-aggregate
             // uniqueness (i155) still holds within a single bluebook.
+            //
+            // i111-J — the walk also visits entity-owned commands so
+            // collapsed-entity behaviors can still dispatch by short
+            // name. Aggregate commands take precedence ; entities are
+            // the fallback. Strict-mode collision counts include
+            // entity owners alongside aggregate owners.
             let strict = std::env::var("HECKS_STRICT_DISPATCH")
                 .map(|v| v == "1" || v == "true")
                 .unwrap_or(false);
             if strict {
-                let mut hits: Vec<(usize, usize, &str)> = Vec::new();
+                let mut hits: Vec<(Resolution, String)> = Vec::new();
                 for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                     for (ci, cmd) in agg.commands.iter().enumerate() {
                         if cmd.name == *cmd_name {
-                            hits.push((ai, ci, agg.name.as_str()));
+                            hits.push((Resolution::Aggregate(ai, ci), agg.name.clone()));
+                        }
+                    }
+                    for (ei, ent) in agg.entities.iter().enumerate() {
+                        for (ci, cmd) in ent.commands.iter().enumerate() {
+                            if cmd.name == *cmd_name {
+                                hits.push((
+                                    Resolution::Entity(ai, ei, ci),
+                                    format!("{}.{}", agg.name, ent.name),
+                                ));
+                            }
                         }
                     }
                 }
                 match hits.len() {
                     0 => Err(RuntimeError::UnknownCommand(command_name.to_string())),
-                    1 => Ok((hits[0].0, hits[0].1)),
+                    1 => Ok(hits[0].0),
                     _ => {
-                        let mut candidates: Vec<&str> = hits.iter().map(|h| h.2).collect();
+                        let mut candidates: Vec<String> = hits.iter().map(|h| h.1.clone()).collect();
                         candidates.sort();
                         candidates.dedup();
                         Err(RuntimeError::AmbiguousCommand {
                             name: cmd_name.to_string(),
-                            candidates: candidates.into_iter().map(String::from).collect(),
+                            candidates,
                         })
                     }
                 }
             } else {
                 for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
                     for (ci, cmd) in agg.commands.iter().enumerate() {
-                        if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                        if cmd.name == *cmd_name { return Ok(Resolution::Aggregate(ai, ci)); }
+                    }
+                }
+                for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                    for (ei, ent) in agg.entities.iter().enumerate() {
+                        for (ci, cmd) in ent.commands.iter().enumerate() {
+                            if cmd.name == *cmd_name {
+                                return Ok(Resolution::Entity(ai, ei, ci));
+                            }
+                        }
                     }
                 }
                 Err(RuntimeError::UnknownCommand(command_name.to_string()))
@@ -289,21 +416,77 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<(usize, usize), RuntimeEr
     }
 }
 
-fn find_self_ref(rt: &Runtime, agg_idx: usize, cmd_idx: usize) -> Option<String> {
+/// Resolution-aware self-ref finder (i111-J). For an entity command,
+/// the self-ref still points at the parent aggregate's record because
+/// the entity is reached through the root. The reference's actual
+/// name (which may be aliased via `role: :incident_id`) is what the
+/// runner / DSL passes the kwarg under ; the runtime must look up
+/// under the same key.
+fn find_self_ref_res(rt: &Runtime, res: Resolution) -> Option<String> {
+    let agg_idx = res.agg_idx();
     let agg = &rt.domain.aggregates[agg_idx];
-    let cmd = &agg.commands[cmd_idx];
+    let cmd = cmd_for(rt, res);
     let agg_snake = to_snake_case(&agg.name);
     for r in &cmd.references {
         let ref_snake = to_snake_case(&r.target);
         if ref_snake == agg_snake || agg_snake.ends_with(&ref_snake) {
-            // Return the reference's actual name (which may be aliased
-            // via `role: :incident_id`), not the snake-cased target.
-            // The runner / DSL passes the kwarg under r.name; the
-            // runtime must look up under the same key.
             return Some(r.name.clone());
         }
     }
     None
+}
+
+/// Verify the command is allowed given the current lifecycle state.
+/// Mirrors lifecycle::check but routes through Resolution so entity
+/// commands consult the entity's lifecycle when present (falls back
+/// to the parent aggregate's lifecycle otherwise).
+fn check_lifecycle(
+    rt: &Runtime, res: Resolution, state: &AggregateState,
+) -> Result<(), RuntimeError> {
+    let lifecycle = match lifecycle_for(rt, res) {
+        Some(lc) => lc,
+        None => return Ok(()),
+    };
+    let cmd = cmd_for(rt, res);
+    let matching: Vec<_> = lifecycle.transitions.iter()
+        .filter(|t| t.command == cmd.name).collect();
+    if matching.is_empty() { return Ok(()); }
+
+    let current = format!("{}", state.get(&lifecycle.field));
+    let allowed = matching.iter().any(|t| match &t.from_state {
+        Some(from) => current == *from,
+        None => true,
+    });
+    if allowed { Ok(()) } else {
+        Err(RuntimeError::LifecycleViolation {
+            command: cmd.name.clone(),
+            field: lifecycle.field.clone(),
+            current,
+            allowed: matching.iter().filter_map(|t| t.from_state.clone()).collect(),
+        })
+    }
+}
+
+/// Apply the lifecycle transition if one matches the resolved command.
+/// Mirrors lifecycle::apply_transition with entity awareness (i111-J).
+fn apply_lifecycle_transition(rt: &Runtime, res: Resolution, state: &mut AggregateState) {
+    let lifecycle = match lifecycle_for(rt, res) {
+        Some(lc) => lc,
+        None => return,
+    };
+    let cmd = cmd_for(rt, res);
+    let current = format!("{}", state.get(&lifecycle.field));
+    for t in &lifecycle.transitions {
+        if t.command != cmd.name { continue; }
+        let from_ok = match &t.from_state {
+            Some(from) => current == *from,
+            None => true,
+        };
+        if from_ok {
+            state.set(&lifecycle.field, Value::Str(t.to_state.clone()));
+            return;
+        }
+    }
 }
 
 fn apply_lifecycle_default(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
@@ -327,37 +510,44 @@ fn apply_defaults(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
     }
 }
 
-fn build_event(
-    rt: &Runtime, agg_idx: usize, cmd_idx: usize,
+/// Resolution-aware event builder (i111-J). Entity commands emit
+/// events tagged with the parent aggregate's name — that's the
+/// addressable record from outside the bounded context — but use
+/// the entity command's `emits:` declaration when present.
+fn build_event_res(
+    rt: &Runtime, res: Resolution,
     aggregate_id: &str, attrs: &HashMap<String, Value>,
 ) -> Option<Event> {
+    let agg_idx = res.agg_idx();
     let agg = &rt.domain.aggregates[agg_idx];
-    let cmd = &agg.commands[cmd_idx];
-    let event_name = cmd.emits.clone().unwrap_or_else(|| {
-        if let Some(rest) = cmd.name.strip_prefix("Create") {
-            format!("{}Created", rest)
-        } else if let Some(rest) = cmd.name.strip_prefix("Add") {
-            format!("{}Added", rest)
-        } else if let Some(rest) = cmd.name.strip_prefix("Place") {
-            format!("{}Placed", rest)
-        } else if let Some(rest) = cmd.name.strip_prefix("Cancel") {
-            format!("{}Cancelled", rest)
-        } else if let Some(rest) = cmd.name.strip_prefix("Update") {
-            format!("{}Updated", rest)
-        } else if let Some(rest) = cmd.name.strip_prefix("Remove") {
-            format!("{}Removed", rest)
-        } else if let Some(rest) = cmd.name.strip_prefix("Delete") {
-            format!("{}Deleted", rest)
-        } else {
-            format!("{}Completed", cmd.name)
-        }
-    });
+    let cmd = cmd_for(rt, res);
+    let event_name = cmd.emits.clone().unwrap_or_else(|| default_event_name(&cmd.name));
     Some(Event {
         name: event_name,
         aggregate_type: agg.name.clone(),
         aggregate_id: aggregate_id.to_string(),
         data: attrs.clone(),
     })
+}
+
+fn default_event_name(cmd_name: &str) -> String {
+    if let Some(rest) = cmd_name.strip_prefix("Create") {
+        format!("{}Created", rest)
+    } else if let Some(rest) = cmd_name.strip_prefix("Add") {
+        format!("{}Added", rest)
+    } else if let Some(rest) = cmd_name.strip_prefix("Place") {
+        format!("{}Placed", rest)
+    } else if let Some(rest) = cmd_name.strip_prefix("Cancel") {
+        format!("{}Cancelled", rest)
+    } else if let Some(rest) = cmd_name.strip_prefix("Update") {
+        format!("{}Updated", rest)
+    } else if let Some(rest) = cmd_name.strip_prefix("Remove") {
+        format!("{}Removed", rest)
+    } else if let Some(rest) = cmd_name.strip_prefix("Delete") {
+        format!("{}Deleted", rest)
+    } else {
+        format!("{}Completed", cmd_name)
+    }
 }
 
 fn parse_default(default: &str, attr_type: &str) -> Value {

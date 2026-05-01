@@ -1035,3 +1035,150 @@ fn bulk_register_thirty_eight_specs_in_one_dispatch() {
     rt.dispatch("RegisterExemptions", attrs(&[("specs", specs)])).unwrap();
     assert_eq!(rt.all("ExemptRegistry").len(), 38);
 }
+
+// ============================================================
+// i111-J — entity blocks honored in dispatch
+// ============================================================
+//
+// Before i111-J, an `entity "Foo" do … end` block could only declare
+// attributes ; commands inside it were silently dropped by the
+// parser, and the runtime resolver only walked aggregates' command
+// lists. Authors collapsing aggregates into entities had to flatten
+// behaviors `on:` clauses to the parent root because the entity's
+// commands had nowhere to live. These tests exercise the closed gap.
+
+fn ledger_source() -> &'static str {
+    r#"Hecks.bluebook "Banking" do
+  aggregate "Account" do
+    attribute :owner, String
+    attribute :balance, Integer, default: 0
+    attribute :ledger_count, Integer, default: 0
+
+    entity "LedgerEntry" do
+      attribute :amount, Integer
+      attribute :memo, String
+
+      command "AddEntry" do
+        role "Bookkeeper"
+        reference_to Account
+        attribute :amount, Integer
+        attribute :memo, String
+        then_set :ledger_count, increment: 1
+        then_set :balance, increment: :amount
+        emits "EntryAdded"
+      end
+    end
+
+    command "OpenAccount" do
+      role "Customer"
+      attribute :owner, String
+      emits "AccountOpened"
+    end
+  end
+end"#
+}
+
+#[test]
+fn entity_command_dispatches_via_three_part_address() {
+    // `Aggregate.Entity.Command` resolves to the entity-owned command
+    // and dispatches through the parent aggregate's record.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Alice"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Account.LedgerEntry.AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(50)),
+            ("memo", s("opening deposit")),
+        ]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_type, "Account");
+    assert_eq!(result.event.as_ref().map(|e| e.name.as_str()), Some("EntryAdded"));
+
+    let state = rt.find("Account", "1").unwrap();
+    assert_eq!(state.get("ledger_count"), &Value::Int(1));
+    assert_eq!(state.get("balance"), &Value::Int(50));
+}
+
+#[test]
+fn entity_command_dispatches_via_two_part_address_when_unique() {
+    // `Aggregate.Command` falls through to a unique entity-owned
+    // command when no aggregate-level command by that name exists.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Bob"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Account.AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(25)),
+            ("memo", s("starter")),
+        ]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_type, "Account");
+    let state = rt.find("Account", "1").unwrap();
+    assert_eq!(state.get("ledger_count"), &Value::Int(1));
+    assert_eq!(state.get("balance"), &Value::Int(25));
+}
+
+#[test]
+fn bare_entity_command_dispatch_walks_entities() {
+    // Bare-name dispatch still works for entity commands — first
+    // checks every aggregate's commands list, then walks entities.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Carol"))])).unwrap();
+
+    rt.dispatch(
+        "AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(7)),
+            ("memo", s("bare-form")),
+        ]),
+    ).unwrap();
+
+    let state = rt.find("Account", "1").unwrap();
+    assert_eq!(state.get("balance"), &Value::Int(7));
+}
+
+#[test]
+fn unknown_entity_command_returns_unknown() {
+    // A bogus entity-qualified address still surfaces UnknownCommand
+    // — the resolver tries Context.Aggregate.Command,
+    // Aggregate.Entity.Command, then errors.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Dave"))])).unwrap();
+
+    let err = rt.dispatch(
+        "Account.LedgerEntry.NotARealCommand",
+        attrs(&[("account", s("1"))]),
+    );
+    assert!(err.is_err(), "expected UnknownCommand for bogus 3-part address");
+}
+
+#[test]
+fn entity_command_emits_event_under_parent_aggregate_type() {
+    // The event's aggregate_type is the parent aggregate's name —
+    // the addressable record from outside the bounded context.
+    // Other domains subscribe to `Account` events, not
+    // `Account.LedgerEntry`.
+    let mut rt = boot(ledger_source());
+    rt.dispatch("OpenAccount", attrs(&[("owner", s("Eve"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Account.LedgerEntry.AddEntry",
+        attrs(&[
+            ("account", s("1")),
+            ("amount", Value::Int(100)),
+            ("memo", s("payday")),
+        ]),
+    ).unwrap();
+
+    let event = result.event.unwrap();
+    assert_eq!(event.aggregate_type, "Account");
+    assert_eq!(event.aggregate_id, "1");
+    assert_eq!(event.name, "EntryAdded");
+}

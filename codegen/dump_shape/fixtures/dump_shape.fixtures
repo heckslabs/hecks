@@ -58,10 +58,15 @@ Hecks.fixtures "DumpShape" do
     fixture "VO_description", serializer: "dump_value_object", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
     fixture "VO_attributes",  serializer: "dump_value_object", order: 3, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
 
-    # dump_entity — 3 fields (mirror of dump_value_object ; non-root entity)
-    fixture "Ent_name",        serializer: "dump_entity", order: 1, key: "name",        source: "name",        mapping_kind: "direct",       helper_fn: ""
-    fixture "Ent_description", serializer: "dump_entity", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
-    fixture "Ent_attributes",  serializer: "dump_entity", order: 3, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+    # dump_entity — 7 fields (i111-J : entities can declare commands,
+    # queries, lifecycle, identified_by the same way aggregates do).
+    fixture "Ent_name",          serializer: "dump_entity", order: 1, key: "name",          source: "name",          mapping_kind: "direct",           helper_fn: ""
+    fixture "Ent_description",   serializer: "dump_entity", order: 2, key: "description",   source: "description",   mapping_kind: "direct",           helper_fn: ""
+    fixture "Ent_identified_by", serializer: "dump_entity", order: 3, key: "identified_by", source: "identified_by", mapping_kind: "direct",           helper_fn: ""
+    fixture "Ent_attributes",    serializer: "dump_entity", order: 4, key: "attributes",    source: "attributes",    mapping_kind: "recurse_list",     helper_fn: "dump_attribute"
+    fixture "Ent_commands",      serializer: "dump_entity", order: 5, key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
+    fixture "Ent_queries",       serializer: "dump_entity", order: 6, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
+    fixture "Ent_lifecycle",     serializer: "dump_entity", order: 7, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
 
     # dump_reference — 3 fields
     fixture "Ref_name",   serializer: "dump_reference", order: 1, key: "name",   source: "name",   mapping_kind: "direct", helper_fn: ""

@@ -36,18 +36,33 @@ module Hecks
       #   Each invariant has a message and an optional block evaluated in the entity's context.
       attr_reader :invariants
 
+      # i111-J — entities can declare commands, queries, lifecycle, and
+      # identified_by the same way aggregates do. Dispatch addresses
+      # them as `Aggregate.Entity.Command` (3-part) or `Aggregate.Command`
+      # when the bare name is unique among the parent's entities.
+      attr_reader :commands, :queries, :lifecycle, :identified_by
+
       # Creates a new Entity IR node.
       #
       # @param name [String] PascalCase name of the entity (e.g., "LedgerEntry")
       # @param attributes [Array<Attribute>] the entity's typed attributes
       # @param invariants [Array<Invariant>] business rules enforced on this entity
+      # @param commands [Array<Command>] commands declared inside the entity block
+      # @param queries [Array<Query>] queries declared inside the entity block
+      # @param lifecycle [Lifecycle, nil] optional lifecycle owned by this entity
+      # @param identified_by [Symbol, nil] natural primary key within the parent
       #
       # @return [Entity] a new Entity instance
-      def initialize(name:, attributes: [], invariants: [], description: nil)
+      def initialize(name:, attributes: [], invariants: [], description: nil,
+                     commands: [], queries: [], lifecycle: nil, identified_by: nil)
         @name = name
         @attributes = attributes
         @invariants = invariants
         @description = description
+        @commands = commands
+        @queries = queries
+        @lifecycle = lifecycle
+        @identified_by = identified_by
       end
 
       # @return [String, nil] human-readable description of this entity

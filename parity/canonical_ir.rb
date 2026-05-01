@@ -56,10 +56,18 @@ module Hecks
       end
 
       def dump_entity(ent)
+        # i111-J — entities can declare commands, queries, lifecycle,
+        # and identified_by the same way aggregates do. Mirror dump.rs
+        # so both parsers emit byte-equal canonical IR for entities
+        # carrying behavior.
         {
-          "name"        => ent.name,
-          "description" => ent.respond_to?(:description) ? ent.description : nil,
-          "attributes"  => (ent.attributes || []).map { |a| dump_attribute(a) },
+          "name"          => ent.name,
+          "description"   => ent.respond_to?(:description) ? ent.description : nil,
+          "identified_by" => ent.respond_to?(:identified_by) && ent.identified_by ? ent.identified_by.to_s : nil,
+          "attributes"    => (ent.attributes || []).map { |a| dump_attribute(a) },
+          "commands"      => (ent.respond_to?(:commands) ? (ent.commands || []) : []).map { |c| dump_command(c) },
+          "queries"       => (ent.respond_to?(:queries)  ? (ent.queries  || []) : []).map { |q| dump_query(q) },
+          "lifecycle"     => (ent.respond_to?(:lifecycle) && ent.lifecycle) ? dump_lifecycle(ent.lifecycle) : nil,
         }
       end
 

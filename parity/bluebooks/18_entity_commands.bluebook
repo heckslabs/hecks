@@ -1,0 +1,29 @@
+Hecks.bluebook "WithEntityCommands", version: "2026.05.01.1" do
+  vision "i111-J — entity blocks accept commands, queries, lifecycle the same way aggregates do. Both parsers must produce byte-equal IR for entity-carried behavior."
+
+  aggregate "Account", "A bank account with a ledger" do
+    attribute :owner, String
+    attribute :balance, Integer, default: 0
+
+    entity "LedgerEntry" do
+      description "Append-only ledger entry within the account"
+      attribute :amount, Integer
+      attribute :memo, String
+
+      command "AddEntry" do
+        role "Bookkeeper"
+        attribute :amount, Integer
+        attribute :memo, String
+        emits "EntryAdded"
+      end
+
+      query "Recent"
+    end
+
+    command "OpenAccount" do
+      role "Customer"
+      attribute :owner, String
+      emits "AccountOpened"
+    end
+  end
+end

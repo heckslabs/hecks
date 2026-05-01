@@ -193,7 +193,11 @@ fn dump_entity(ent: &Entity) -> Value {
     json!({
         "name": ent.name,
         "description": ent.description,
+        "identified_by": ent.identified_by,
         "attributes": ent.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
+        "commands": ent.commands.iter().map(dump_command).collect::<Vec<_>>(),
+        "queries": ent.queries.iter().map(dump_query).collect::<Vec<_>>(),
+        "lifecycle": ent.lifecycle.as_ref().map(dump_lifecycle),
     })
 }
 

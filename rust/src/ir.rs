@@ -183,6 +183,24 @@ pub struct Entity {
     pub name: String,
     pub description: Option<String>,
     pub attributes: Vec<Attribute>,
+    /// Commands declared inside the `entity "Foo" do … end` block.
+    /// Dispatch addresses them as `Aggregate.Entity.Command` (3-part)
+    /// or `Aggregate.Command` when the bare name is unique among the
+    /// parent aggregate's entities (i111-J — close the DDD gap).
+    /// Empty for entities declared with attributes only — backward
+    /// compatible with pre-i111-J bluebooks.
+    pub commands: Vec<Command>,
+    /// Queries declared inside the entity block. Same dispatch
+    /// address shape as commands : `Aggregate.Entity.Query`.
+    pub queries: Vec<Query>,
+    /// Optional lifecycle owned by this entity. Independent of the
+    /// parent aggregate's lifecycle ; both can coexist (parent gates
+    /// at root level, entity gates within its sub-record).
+    pub lifecycle: Option<Lifecycle>,
+    /// Natural primary key for this entity within the parent boundary.
+    /// When None, the entity inherits the parent aggregate's identity
+    /// for dispatch purposes (one entity instance per parent record).
+    pub identified_by: Option<String>,
 }
 
 #[derive(Debug, Clone)]
