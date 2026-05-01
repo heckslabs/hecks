@@ -1,0 +1,82 @@
+Hecks.fixtures "Statusline" do
+  # Single-line fixtures per i57 parser limitation. These rows describe
+  # how hecks_life/src/run_statusline.rs decomposes for the i146 piece-3
+  # specializer. Phases are walked in `order` ; each row's `body_kind`
+  # picks one of the emission strategies in capability_runner_shape's
+  # BodyKind table (extended for this target — see notes there). Most
+  # phases pull verbatim source from a `.rs.frag` snippet ; only the
+  # three icon tables emit declaratively from StringMatchArm rows.
+  #
+  # The runtime body block (Phase 3) bundles run() + path resolution +
+  # state struct + read_state + coherence + animation + render_sleep +
+  # render_awake into one snippet. A future refactor splits it into
+  # finer-grained phases per body_kind ; today the snippet pulls them
+  # together so byte-identity ships first. The icon tables are split
+  # out because string_match is a clean declarative win that exercises
+  # the body_kind taxonomy without inflating snippet count.
+
+  # ── CapabilityDetector — describes the runner gate ─────────────────
+  aggregate "CapabilityDetector" do
+    fixture "Statusline", name: "statusline", required_adapters: "fs,stdout", required_aggregates: "Statusline", required_commands: "Render", description: "Statusline runner — reads body heki via :fs, prints a line via :stdout"
+  end
+
+  # ── Phase — ordered emission steps walked by the specializer ───────
+  aggregate "Phase" do
+    fixture "Header",        name: "header",        order: 1,  body_kind: "doc_block",      source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/header.rs.frag",         description: "Module doc comment + antibody-exempt marker + input/branch documentation"
+    fixture "Imports",       name: "imports",       order: 2,  body_kind: "imports_block",  source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/imports.rs.frag",        description: "use std + crate::heki + crate::heki_query imports"
+    fixture "Runtime",       name: "runtime",       order: 3,  body_kind: "verbatim_body",  source_command: "Render", adapter_used: "fs",   snippet_path: "cli/statusline/snippets/runtime.rs.frag",        description: "run() entrypoint, path resolution, State struct, read_state heki readers, coherence subprocess, utc_iso_now date math, Now wall-clock, animation arrays + glyph fns, render_sleep, render_awake"
+    fixture "MoodIconFor",    name: "mood_icon_for",    order: 4,  body_kind: "string_match",   source_command: "",       adapter_used: "none", snippet_path: "", min_gap: 1, description: "Pure lookup : mood → icon glyph. 11 named moods + wildcard fallback."
+    fixture "FatigueIconFor", name: "fatigue_icon_for", order: 5,  body_kind: "string_match",   source_command: "",       adapter_used: "none", snippet_path: "", min_gap: 2, description: "Pure lookup : fatigue state → icon glyph. 6 named states + empty-string fallback."
+    fixture "ProviderBadgeFor", name: "provider_badge_for", order: 6, body_kind: "string_match", source_command: "",     adapter_used: "none", snippet_path: "", min_gap: 1, description: "Pure lookup : provider → badge glyph. 2 named providers + claude default (with inline trailing comment)."
+    fixture "FormatHelpers", name: "format_helpers", order: 7,  body_kind: "verbatim_body",  source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/format_helpers.rs.frag", description: "format_beats (1k/1m thresholds) + read_last_dispatch (breadcrumb < 30s)"
+    fixture "Tests",         name: "tests",         order: 8,  body_kind: "tests_block",    source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/tests.rs.frag",          description: "Unit tests — beats format thresholds, icon tables, render branches, coherence degrade"
+  end
+
+  # ── StringMatchArm — declarative arms for the three icon tables ────
+  #
+  # Each row is one match arm. `function` selects which fn the arm
+  # belongs to ; `pattern` is the literal string to match (or "_" for
+  # the wildcard) ; `result` is the returned `&'static str` content
+  # (without surrounding quotes — the specializer wraps them at emit
+  # time). `comment` is an optional trailing `// …` after the arm,
+  # used today only on provider_badge_for's wildcard. Padding (so the
+  # arrows align) is computed from the widest pattern at emit time.
+  #
+  # `signature` and `binding` on the matching Phase row would belong
+  # here for cleaner separation — folded into the specializer's
+  # default for now since all three fns share the &str → &'static str
+  # shape. Promote to fixture columns when a fourth string_match arrives.
+
+  aggregate "StringMatchArm" do
+    # mood_icon_for — 11 named + wildcard. Note groggy's result has a
+    # \u{200d} ZWJ : stored escaped (\\u) so the parser emits a literal
+    # backslash + u, which round-trips through Rust string quoting back
+    # to the source's \u{200d} form.
+    fixture "Mood_refreshed",  function: "mood_icon_for", order: 1,  pattern: "refreshed", result: "😊",                comment: ""
+    fixture "Mood_excited",    function: "mood_icon_for", order: 2,  pattern: "excited",   result: "🤩",                comment: ""
+    fixture "Mood_focused",    function: "mood_icon_for", order: 3,  pattern: "focused",   result: "🎯",                comment: ""
+    fixture "Mood_curious",    function: "mood_icon_for", order: 4,  pattern: "curious",   result: "🤔",                comment: ""
+    fixture "Mood_drifting",   function: "mood_icon_for", order: 5,  pattern: "drifting",  result: "🌀",                comment: ""
+    fixture "Mood_groggy",     function: "mood_icon_for", order: 6,  pattern: "groggy",    result: "😵\\u{200d}💫",       comment: ""
+    fixture "Mood_vivid",      function: "mood_icon_for", order: 7,  pattern: "vivid",     result: "✨",                comment: ""
+    fixture "Mood_sleeping",   function: "mood_icon_for", order: 8,  pattern: "sleeping",  result: "😴",                comment: ""
+    fixture "Mood_flowing",    function: "mood_icon_for", order: 9,  pattern: "flowing",   result: "🌊",                comment: ""
+    fixture "Mood_deep",       function: "mood_icon_for", order: 10, pattern: "deep",      result: "🧘",                comment: ""
+    fixture "Mood_oceanic",    function: "mood_icon_for", order: 11, pattern: "oceanic",   result: "🌌",                comment: ""
+    fixture "Mood_default",    function: "mood_icon_for", order: 12, pattern: "_",         result: "😐",                comment: ""
+
+    # fatigue_icon_for — 6 named (one empty result) + wildcard empty.
+    fixture "Fat_alert",       function: "fatigue_icon_for", order: 1, pattern: "alert",     result: "⚡",  comment: ""
+    fixture "Fat_focused",     function: "fatigue_icon_for", order: 2, pattern: "focused",   result: "🎯",  comment: ""
+    fixture "Fat_normal",      function: "fatigue_icon_for", order: 3, pattern: "normal",    result: "",   comment: ""
+    fixture "Fat_tired",       function: "fatigue_icon_for", order: 4, pattern: "tired",     result: "🥱",  comment: ""
+    fixture "Fat_exhausted",   function: "fatigue_icon_for", order: 5, pattern: "exhausted", result: "😩",  comment: ""
+    fixture "Fat_delirious",   function: "fatigue_icon_for", order: 6, pattern: "delirious", result: "🫠",  comment: ""
+    fixture "Fat_default",     function: "fatigue_icon_for", order: 7, pattern: "_",         result: "",   comment: ""
+
+    # provider_badge_for — 2 named + claude wildcard with trailing comment.
+    fixture "Prov_local",      function: "provider_badge_for", order: 1, pattern: "local", result: "🦙", comment: ""
+    fixture "Prov_off",        function: "provider_badge_for", order: 2, pattern: "off",   result: "🚫", comment: ""
+    fixture "Prov_default",    function: "provider_badge_for", order: 3, pattern: "_",     result: "🤖", comment: "// claude is the default when unset"
+  end
+end

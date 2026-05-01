@@ -1,0 +1,16 @@
+Hecks.fixtures "DiscoverShape" do
+  # One row per ordered code section in hecks_life/src/run_boot/discover.rs.
+  # Specializer concatenates HEADER (doc + imports, in the .rs source) +
+  # each snippet's raw body in `order` ascending. read_snippet_raw is
+  # used (not read_snippet_body) so the trailing blank line at each
+  # snippet's end is preserved verbatim — that's how the section
+  # separators land in the emitted file.
+
+  aggregate "Section" do
+    fixture "OrganCountsSection",     name: "organ_counts",     order: 1, body_kind: "verbatim_section", snippet_path: "codegen/discover_shape/snippets/01_organ_counts.rs.frag",     description: "OrganCounts struct — tally of bluebook objects discovered across the conception tree"
+    fixture "CountOrgansSection",     name: "count_organs",     order: 2, body_kind: "verbatim_section", snippet_path: "codegen/discover_shape/snippets/02_count_organs.rs.frag",     description: "count_organs walks aggregates/ + capabilities/, parses each .bluebook, returns OrganCounts"
+    fixture "WriteCensusSection",     name: "write_census",     order: 3, body_kind: "verbatim_section", snippet_path: "codegen/discover_shape/snippets/03_write_census.rs.frag",     description: "write_census upserts counts into <info_dir>/census.heki ; n() helper for usize→Value"
+    fixture "CountTopLevelSection",   name: "count_top_level",  order: 4, body_kind: "verbatim_section", snippet_path: "codegen/discover_shape/snippets/04_count_top_level.rs.frag",   description: "count_top_level_bluebooks — non-recursive count of *.bluebook files in dir"
+    fixture "CountRecursiveSection",  name: "count_recursive",  order: 5, body_kind: "verbatim_section", snippet_path: "codegen/discover_shape/snippets/05_count_recursive.rs.frag",  description: "count_recursive_bluebooks — recursive count of *.bluebook files under dir"
+  end
+end

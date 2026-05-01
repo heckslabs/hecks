@@ -33,7 +33,7 @@ use std::fs;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/dispatch_query_shape/fixtures/dispatch_query_shape.fixtures";
+    "codegen/dispatch_query_shape/fixtures/dispatch_query_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);

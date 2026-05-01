@@ -40,8 +40,11 @@ use crate::specializer::util;
 use std::error::Error;
 use std::path::Path;
 
+// system_prompt_assembly moved to chrisyoung/miette during i117 R4
+// Wave 2 — it's Miette-specific content (her system prompt assembly).
+// The specializer reads it from the miette sibling repo. (i163.)
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/system_prompt_assembly/fixtures/system_prompt_assembly.fixtures";
+    "../miette/self/system_prompt/system_prompt_assembly/fixtures/system_prompt_assembly.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);

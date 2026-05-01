@@ -1,7 +1,7 @@
 //! Domain validator — checks a parsed domain for DDD consistency
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/validator_shape/
+//! Source:    codegen/validator_shape/
 //! Regenerate: hecks-life specialize validator --output hecks_life/src/validator.rs
 //! Contract:  hecks_life/src/specializer/validator.rs (Rust-native)
 //! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)

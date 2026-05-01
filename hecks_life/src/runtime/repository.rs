@@ -213,17 +213,7 @@ impl Repository {
     }
 
     pub fn all(&self) -> Vec<&AggregateState> {
-        // Sort by id so callers relying on `.first()` (notably
-        // inject_refs' singleton fallback) get a deterministic
-        // record across runs. Without this, Rust's randomised
-        // HashMap iteration produced flapping cascade behaviour
-        // when two records existed in the repo — different runs
-        // picked different "first" records, sending the cascade
-        // down divergent paths and breaking parity with the Ruby
-        // runner. Closes the catalog/boot.behaviors flap.
-        let mut out: Vec<&AggregateState> = self.store.values().collect();
-        out.sort_by(|a, b| a.id.cmp(&b.id));
-        out
+        self.store.values().collect()
     }
 
     pub fn count(&self) -> usize {

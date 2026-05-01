@@ -1,7 +1,7 @@
 //! Behaviors parser — reads `_behavioral_tests.bluebook` files into a TestSuite.
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/behaviors_parser_shape/
+//! Source:    codegen/behaviors_parser_shape/
 //! Regenerate: hecks-life specialize behaviors_parser --output hecks_life/src/behaviors_parser.rs
 //! Contract:  hecks_life/src/specializer/behaviors_parser.rs (Rust-native)
 //! Tests:     in-file #[cfg(test)] mod tests

@@ -23,12 +23,11 @@ Hecks.behaviors "FineTune" do
     expect status: "complete"
   end
 
-  # PENDING (i161 / i118 R3 Wave 1 drift) : the FineTuneCompleted →
-  # Evaluate cascade hits a different Evaluate command post-Wave-1
-  # because lifting framework caps to top-level buckets changed
-  # depth-sort. Same class as awareness ReflectOnObservation and
-  # the dream/Proposal pendings. Restore once i161's runtime
-  # context-aware ref injection lands.
+  # PENDING (i161 — i118 R3 Wave 1+2 drift) : the FineTuneCompleted →
+  # Evaluate cascade hits a different Evaluate command post-lift
+  # because depth-sort changed. Same class as awareness
+  # ReflectOnObservation and the dream/Proposal pendings. Restore
+  # once i161's runtime context-aware ref injection lands.
   test "CompleteFineTune cascades through policy chain" do
     tests "CompleteFineTune", on: "FineTune", kind: :pending
     setup  "StartFineTune", base_model: "sample", dataset_size: 1, epochs: 1, learning_rate: 1.0

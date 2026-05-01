@@ -7,7 +7,7 @@
 //! functions to them breaks the 2nd Futamura proof.
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/validator_corpus_shape/
+//! Source:    codegen/validator_corpus_shape/
 //! Regenerate: hecks-life specialize validator_corpus --output hecks_life/src/validator_corpus.rs
 //! Contract:  hecks_life/src/specializer/validator_corpus.rs (Rust-native)
 //!

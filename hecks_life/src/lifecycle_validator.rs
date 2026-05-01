@@ -1,7 +1,7 @@
 //! Lifecycle validator
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/lifecycle_validator_shape/
+//! Source:    codegen/lifecycle_validator_shape/
 //! Regenerate: hecks-life specialize lifecycle --output hecks_life/src/lifecycle_validator.rs
 //! Contract:  hecks_life/src/specializer/lifecycle_validator.rs (Rust-native)
 //! Tests:     hecks_life/tests/lifecycle_validator_test.rs

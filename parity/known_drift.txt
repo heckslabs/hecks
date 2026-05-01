@@ -29,3 +29,11 @@
 # now carry the symbol form (`:param`) so the canonical IR matches
 # byte-for-byte. Four fixtures (disposition, psychic_link,
 # section_template, wake_ritual) move from drift to parity.
+
+# i118 R3 Wave 2 — surfaced when parity_test.rb extended its walk to
+# chapters/ (the framework's self-description). spec.bluebook produces
+# a trailing-comma JSON difference between Ruby and Rust dumps. Pre-
+# existing drift made visible by the wider parity scan, not introduced
+# by the Wave 2 capabilities lift. Worth fixing in canonical_ir.rb's
+# JSON serialization but not blocking.
+chapters/spec.bluebook  # canonical IR JSON trailing-comma drift

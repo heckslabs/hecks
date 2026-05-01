@@ -1,7 +1,7 @@
 //! Canonical IR dump — JSON shape that both Ruby and Rust must agree on.
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/dump_shape/
+//! Source:    codegen/dump_shape/
 //! Regenerate: hecks-life specialize dump --output hecks_life/src/dump.rs
 //! Contract:  hecks_life/src/specializer/dump.rs (Rust-native)
 //!

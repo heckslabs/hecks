@@ -27,7 +27,7 @@ use std::error::Error;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/dump_shape/fixtures/dump_shape.fixtures";
+    "codegen/dump_shape/fixtures/dump_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);
@@ -46,7 +46,7 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
 const HEADER: &str = r#"//! Canonical IR dump — JSON shape that both Ruby and Rust must agree on.
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/dump_shape/
+//! Source:    codegen/dump_shape/
 //! Regenerate: hecks-life specialize dump --output hecks_life/src/dump.rs
 //! Contract:  hecks_life/src/specializer/dump.rs (Rust-native)
 //!

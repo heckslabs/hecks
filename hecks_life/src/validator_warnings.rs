@@ -1,7 +1,7 @@
 //! Soft warnings for domain quality — non-failing bounded-context checks
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/validator_warnings_shape/
+//! Source:    codegen/validator_warnings_shape/
 //! Regenerate: hecks-life specialize validator_warnings --output hecks_life/src/validator_warnings.rs
 //! Contract:  hecks_life/src/specializer/validator_warnings.rs (Rust-native)
 //! Tests:     hecks_life/tests/validator_warnings_test.rs

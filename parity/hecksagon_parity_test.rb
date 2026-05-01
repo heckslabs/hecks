@@ -1,5 +1,13 @@
 # Hecks::Parity::HecksagonParityTest
 #
+# [antibody-exempt: parity/hecksagon_parity_test.rb — kernel-surface
+#  verification primitive. Walks every .hecksagon file in-tree through
+#  both parsers and asserts identical canonical IR. Same i80 retirement
+#  contract as parity/parity_test.rb. The file-walk extends to the new
+#  top-level buckets (i118 R3) and the miette/miette_family siblings
+#  (i117 R4) so Ruby and Rust stay in parity on every file the
+#  framework can read.]
+#
 # Runs every `.hecksagon` file in-tree through both the Ruby DSL
 # builder and the Rust hecks-life parser, normalizes both outputs to
 # the canonical JSON shape (see canonical_ir.rb :: dump_hecksagon /
@@ -29,7 +37,19 @@ REPO_ROOT  = File.expand_path("..", __dir__)
 HECKSAGON_FILES = (
   Dir[File.join(REPO_ROOT, "hecks_conception", "**", "*.hecksagon")] +
   Dir[File.join(REPO_ROOT, "lib", "**", "*.hecksagon")] +
-  Dir[File.join(REPO_ROOT, "examples", "**", "*.hecksagon")]
+  Dir[File.join(REPO_ROOT, "examples", "**", "*.hecksagon")] +
+  # i118 R3 — capabilities lifted to top-level buckets ; walk them all.
+  Dir[File.join(REPO_ROOT, "runtime",      "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "discipline",   "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "codegen",      "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "cli",          "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "integrations", "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "tools",        "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "bluebook",     "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "chapters",     "**", "*.hecksagon")] +
+  # i117 R4 — Miette + miette_family siblings
+  Dir[File.join(REPO_ROOT, "..", "miette",        "**", "*.hecksagon")] +
+  Dir[File.join(REPO_ROOT, "..", "miette_family", "**", "*.hecksagon")]
 ).sort.uniq
 
 KNOWN_DRIFT_FILE = File.expand_path("hecksagon_known_drift.txt", __dir__)

@@ -26,8 +26,29 @@ require_relative "canonical_ir"
 HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
 SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
 REAL       = Dir[File.expand_path("../hecks_conception/aggregates/**/*.bluebook", __dir__)].sort
-CAPS       = Dir[File.expand_path("../hecks_conception/capabilities/**/*.bluebook", __dir__)].sort
+# i118 Round 3 — capabilities lifted from hecks_conception/capabilities/
+# into named top-level buckets. CAPS now walks all six bucket dirs at
+# the hecks repo root + the legacy capabilities/ dir for any caps that
+# haven't lifted yet. The framework's self-description (chapters/,
+# bluebook/) is included too so the language and the framework's
+# anatomy stay in parity check. Ruby + Rust must agree on every file
+# the framework can read.
+CAPS       = (Dir[File.expand_path("../hecks_conception/capabilities/**/*.bluebook", __dir__)] +
+              Dir[File.expand_path("../runtime/**/*.bluebook",      __dir__)] +
+              Dir[File.expand_path("../discipline/**/*.bluebook",   __dir__)] +
+              Dir[File.expand_path("../codegen/**/*.bluebook",      __dir__)] +
+              Dir[File.expand_path("../cli/**/*.bluebook",          __dir__)] +
+              Dir[File.expand_path("../integrations/**/*.bluebook", __dir__)] +
+              Dir[File.expand_path("../tools/**/*.bluebook",        __dir__)] +
+              Dir[File.expand_path("../bluebook/**/*.bluebook",     __dir__)] +
+              Dir[File.expand_path("../chapters/**/*.bluebook",     __dir__)]).sort
 CATALOG    = Dir[File.expand_path("../hecks_conception/catalog/**/*.bluebook", __dir__)].sort
+# i117 Round 4 — Miette's anatomy moved to chrisyoung/miette (sibling
+# repo). Both parsers must read it identically when the sibling is
+# present. miette_family/ holds beings in Miette's life ; same parity
+# requirement.
+MIETTE     = (Dir[File.expand_path("../../miette/**/*.bluebook",        __dir__)] +
+              Dir[File.expand_path("../../miette_family/**/*.bluebook", __dir__)]).sort
 MISC       = (Dir[File.expand_path("../hecks_conception/family/**/*.bluebook", __dir__)] +
               Dir[File.expand_path("../hecks_conception/applications/**/*.bluebook", __dir__)] +
               Dir[File.expand_path("../hecks_conception/actions/**/*.bluebook", __dir__)] +
@@ -162,24 +183,26 @@ end
 
 s_total, s_block, s_expected, s_unx = section("Synthetic fixtures", SYNTHETIC, max_diff_lines: 40)
 r_total, r_block, r_expected, r_unx = section("Real bluebooks (aggregates/)", REAL, max_diff_lines: 8)
-c_total, c_block, c_expected, c_unx = section("Capability bluebooks (capabilities/)", CAPS, max_diff_lines: 8)
+c_total, c_block, c_expected, c_unx = section("Framework bluebooks (capabilities + buckets + chapters + bluebook)", CAPS, max_diff_lines: 8)
 k_total, k_block, k_expected, k_unx = section("Catalog bluebooks (catalog/)", CATALOG, max_diff_lines: 8)
+mi_total, mi_block, mi_expected, mi_unx = section("Miette bluebooks (../miette + ../miette_family)", MIETTE, max_diff_lines: 8)
 m_total, m_block, m_expected, m_unx = section("Misc bluebooks (family/applications/actions/chris)", MISC, max_diff_lines: 8)
 n_total, n_block, n_expected, n_unx = section("Nursery bluebooks (nursery/)", NURSERY, max_diff_lines: 4, soft: true)
 
-total       = s_total + r_total + c_total + k_total + m_total + n_total
-blocking    = s_block + r_block + c_block + k_block + m_block
+total       = s_total + r_total + c_total + k_total + mi_total + m_total + n_total
+blocking    = s_block + r_block + c_block + k_block + mi_block + m_block
 soft_fail   = n_block
-expected    = s_expected + r_expected + c_expected + k_expected + m_expected + n_expected
-unx_passes  = s_unx + r_unx + c_unx + k_unx + m_unx + n_unx
+expected    = s_expected + r_expected + c_expected + k_expected + mi_expected + m_expected + n_expected
+unx_passes  = s_unx + r_unx + c_unx + k_unx + mi_unx + m_unx + n_unx
 passed      = total - blocking - soft_fail - expected - unx_passes.size
 
 puts ""
 puts "#{passed}/#{total} match"
 puts "  synthetic #{s_total - s_block - s_expected}/#{s_total}"
 puts "  real (aggregates) #{r_total - r_block - r_expected}/#{r_total}"
-puts "  capabilities #{c_total - c_block - c_expected}/#{c_total}"
+puts "  capabilities + framework #{c_total - c_block - c_expected}/#{c_total}"
 puts "  catalog #{k_total - k_block - k_expected}/#{k_total}"
+puts "  miette #{mi_total - mi_block - mi_expected}/#{mi_total}"
 puts "  misc #{m_total - m_block - m_expected}/#{m_total}"
 puts "  nursery (soft) #{n_total - n_block - n_expected}/#{n_total}"
 puts "#{expected} known-drift (allowed)" if expected > 0

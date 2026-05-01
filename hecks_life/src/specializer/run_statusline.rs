@@ -47,7 +47,7 @@ use std::fs;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/statusline/fixtures/statusline.fixtures";
+    "cli/statusline/fixtures/statusline.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);

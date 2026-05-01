@@ -1,0 +1,15 @@
+Hecks.fixtures "BehaviorsFixturesShape" do
+  # One row per ordered code section in behaviors_fixtures.rs.
+  # Specializer concatenates HEADER (the doc + use lines, hardcoded
+  # in the emitter) + each snippet's raw body in `order` ascending.
+  # read_snippet_raw is used (not read_snippet_body) so the leading
+  # `///` doc comments at the top of each `pub fn` survive verbatim.
+
+  aggregate "Section" do
+    fixture "LocatePathSection",       name: "locate_path",         order: 1, body_kind: "verbatim_section", snippet_path: "codegen/behaviors_fixtures_shape/snippets/01_locate_path.rs.frag",         description: "locate_path — sibling-then-fixtures-dir discovery"
+    fixture "ParseFileSection",        name: "parse_file",          order: 2, body_kind: "verbatim_section", snippet_path: "codegen/behaviors_fixtures_shape/snippets/02_parse_file.rs.frag",          description: "parse_file — read + parse a .fixtures file"
+    fixture "FindForSection",          name: "find_for",            order: 3, body_kind: "verbatim_section", snippet_path: "codegen/behaviors_fixtures_shape/snippets/03_find_for.rs.frag",            description: "find_for — convenience locate + parse"
+    fixture "ApplySection",            name: "apply",               order: 4, body_kind: "verbatim_section", snippet_path: "codegen/behaviors_fixtures_shape/snippets/04_apply.rs.frag",               description: "apply — seed runtime per-aggregate, return in_scope delta"
+    fixture "ParseFixtureValueSection", name: "parse_fixture_value", order: 5, body_kind: "verbatim_section", snippet_path: "codegen/behaviors_fixtures_shape/snippets/05_parse_fixture_value.rs.frag", description: "parse_fixture_value — list / int / bool / str token parser"
+  end
+end

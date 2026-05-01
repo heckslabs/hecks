@@ -29,7 +29,7 @@ fn repo_root() -> PathBuf {
 fn specializer_hecksagon_wiring_is_present() {
     // Confirms the capability wiring exists and declares the memory
     // adapter, all three shell adapters, and the SpecializeRun gate.
-    let path = repo_root().join("hecks_conception/capabilities/specializer/specializer.hecksagon");
+    let path = repo_root().join("codegen/specializer/specializer.hecksagon");
     let src = fs::read_to_string(&path)
         .expect("specializer.hecksagon not found — capability wiring missing");
     let hex = hecksagon_parser::parse(&src);

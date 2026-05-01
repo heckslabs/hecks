@@ -31,7 +31,7 @@ use std::error::Error;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/behaviors_fixtures_shape/fixtures/behaviors_fixtures_shape.fixtures";
+    "codegen/behaviors_fixtures_shape/fixtures/behaviors_fixtures_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);

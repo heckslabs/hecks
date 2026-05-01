@@ -25,7 +25,7 @@ use std::fs;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/hecksagon_parser_shape/fixtures/hecksagon_parser_shape.fixtures";
+    "codegen/hecksagon_parser_shape/fixtures/hecksagon_parser_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);

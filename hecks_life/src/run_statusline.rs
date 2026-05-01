@@ -2,7 +2,7 @@
 //!
 //! [antibody-exempt: hecks_life/src/run_statusline.rs — Rust runner
 //!  for the Statusline capability declared in
-//!  hecks_conception/capabilities/statusline/. Mirrors run_status/
+//!  cli/statusline/. Mirrors run_status/
 //!  shape : reads body heki, branches on consciousness state,
 //!  composes a single line. Replaces statusline-command.sh's 273-
 //!  line shell rendering. Retires under i78 (specializer-files-as-

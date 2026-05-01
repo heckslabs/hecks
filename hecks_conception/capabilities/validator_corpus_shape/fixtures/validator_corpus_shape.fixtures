@@ -1,9 +1,0 @@
-Hecks.fixtures "ValidatorCorpusShape" do
-  # ── 3 corpus-aware lint rules — one fixture each, mirrors validator_corpus.rs 1:1 ──
-  # Single-line per i57 parser limitation (same as validator_warnings_shape).
-  aggregate "CorpusRule" do
-    fixture "CorpusPhantomTriggerErrors", name: "corpus_phantom_trigger_errors", rust_fn_name: "corpus_phantom_trigger_errors", description: "INVALID-grade : a policy's trigger_command is not declared by any aggregate in the corpus. The runtime would explode at dispatch time.", order: 1, snippet_path: "hecks_conception/capabilities/validator_corpus_shape/snippets/corpus_phantom_trigger_errors.rs.frag"
-    fixture "IdentifiedByWarnings", name: "identified_by_warnings", rust_fn_name: "identified_by_warnings", description: "Advisory : an aggregate has a lifecycle or self-referencing command but no identified_by, so dispatch counter-mints a fresh id on every fire and the lifecycle state never advances past pending.", order: 2, snippet_path: "hecks_conception/capabilities/validator_corpus_shape/snippets/identified_by_warnings.rs.frag"
-    fixture "PolicyEventWarnings", name: "policy_event_warnings", rust_fn_name: "policy_event_warnings", description: "Advisory : a policy subscribes to an event that no command emits anywhere in the corpus. The policy is dangling — placeholder, or a typo.", order: 3, snippet_path: "hecks_conception/capabilities/validator_corpus_shape/snippets/policy_event_warnings.rs.frag"
-  end
-end

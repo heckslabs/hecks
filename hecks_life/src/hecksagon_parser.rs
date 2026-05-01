@@ -1,7 +1,7 @@
 //! Hecksagon parser — reads .hecksagon files into the Hecksagon IR.
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/hecksagon_parser_shape/
+//! Source:    codegen/hecksagon_parser_shape/
 //! Regenerate: hecks-life specialize hecksagon_parser --output hecks_life/src/hecksagon_parser.rs
 //! Contract:  hecks_life/src/specializer/hecksagon_parser.rs (Rust-native)
 //! Tests:     hecks_life/tests/hecksagon_parser_test.rs

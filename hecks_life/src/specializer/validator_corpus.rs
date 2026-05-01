@@ -25,7 +25,7 @@ use std::error::Error;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/validator_corpus_shape/fixtures/validator_corpus_shape.fixtures";
+    "codegen/validator_corpus_shape/fixtures/validator_corpus_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);
@@ -55,7 +55,7 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //! functions to them breaks the 2nd Futamura proof.
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/validator_corpus_shape/
+//! Source:    codegen/validator_corpus_shape/
 //! Regenerate: hecks-life specialize validator_corpus --output hecks_life/src/validator_corpus.rs
 //! Contract:  hecks_life/src/specializer/validator_corpus.rs (Rust-native)
 //!

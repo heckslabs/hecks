@@ -17,7 +17,7 @@ use std::error::Error;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/validator_warnings_shape/fixtures/validator_warnings_shape.fixtures";
+    "codegen/validator_warnings_shape/fixtures/validator_warnings_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);
@@ -37,7 +37,7 @@ fn emit_header() -> String {
     r#"//! Soft warnings for domain quality — non-failing bounded-context checks
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/validator_warnings_shape/
+//! Source:    codegen/validator_warnings_shape/
 //! Regenerate: hecks-life specialize validator_warnings --output hecks_life/src/validator_warnings.rs
 //! Contract:  hecks_life/src/specializer/validator_warnings.rs (Rust-native)
 //! Tests:     hecks_life/tests/validator_warnings_test.rs

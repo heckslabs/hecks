@@ -37,7 +37,7 @@ use std::error::Error;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "hecks_conception/capabilities/validator_shape/fixtures/validator_shape.fixtures";
+    "codegen/validator_shape/fixtures/validator_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);
@@ -117,7 +117,7 @@ const HEADER: &str = "\
 //! Domain validator — checks a parsed domain for DDD consistency
 //!
 //! GENERATED FILE — do not edit.
-//! Source:    hecks_conception/capabilities/validator_shape/
+//! Source:    codegen/validator_shape/
 //! Regenerate: hecks-life specialize validator --output hecks_life/src/validator.rs
 //! Contract:  hecks_life/src/specializer/validator.rs (Rust-native)
 //! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
