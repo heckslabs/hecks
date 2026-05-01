@@ -1,10 +1,10 @@
-// hecks_life/tests/specializer_golden_test.rs
+// rust/tests/specializer_golden_test.rs
 //
 // Golden tests for the i51 Futamura specializers. Phase E deleted the
 // Ruby `bin/specialize` driver + Ruby specializer modules; the Rust-
 // native `hecks-life specialize <target>` subcommand is now the only
 // path. These tests invoke it and assert byte-identity against the
-// tracked, generated `.rs` sources under `hecks_life/src/`.
+// tracked, generated `.rs` sources under `rust/src/`.
 //
 // When any test goes green, we have a Futamura proof for that module:
 // a specialized interpreter (bluebook → Rust) that produces the same
@@ -21,7 +21,7 @@ use std::process::Command;
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("hecks_life has a parent")
+        .expect("rust has a parent")
         .to_path_buf()
 }
 
@@ -59,7 +59,7 @@ fn rust_specializer_produces_byte_identical_validator_warnings_rs() {
     // side. Every subsequent Phase D port added another test with the
     // same shape.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -75,7 +75,7 @@ fn rust_specializer_produces_byte_identical_validator_warnings_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/validator_warnings.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/validator_warnings.rs"))
         .expect("validator_warnings.rs missing");
     assert_eq!(
         generated, tracked,
@@ -90,7 +90,7 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
     // padded enum_match emitter. Every subsequent Rust-emitting
     // specializer (validator, the parsers) reuses this vocabulary.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -106,7 +106,7 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/dump.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/dump.rs"))
         .expect("dump.rs missing");
     assert_eq!(
         generated, tracked,
@@ -114,7 +114,7 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
     );
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     // Phase D — Rust-native specializer for hecksagon_parser. Third
@@ -124,7 +124,7 @@ fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     // multiline_block, and multiline_adapter handler kinds against the
     // simplest single-parse-loop shape.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -140,7 +140,7 @@ fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/hecksagon_parser.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/hecksagon_parser.rs"))
         .expect("hecksagon_parser.rs missing");
     assert_eq!(
         generated, tracked,
@@ -148,7 +148,7 @@ fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     );
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_validator_rs() {
     // Phase D — Rust-native specializer for validator.rs. Largest
@@ -159,7 +159,7 @@ fn rust_specializer_produces_byte_identical_validator_rs() {
     // tables, verb-exception list, and verb-suffix list. No .rs.frag
     // snippets — all emission is inline Rust format! strings.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -175,7 +175,7 @@ fn rust_specializer_produces_byte_identical_validator_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/validator.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/validator.rs"))
         .expect("validator.rs missing");
     assert_eq!(
         generated, tracked,
@@ -191,7 +191,7 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     // capture_quoted_into_option / push_all_quoted_onto /
     // multiline_block_direct handler kinds.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -207,7 +207,7 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/behaviors_parser.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/behaviors_parser.rs"))
         .expect("behaviors_parser.rs missing");
     assert_eq!(
         generated, tracked,
@@ -215,7 +215,7 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     );
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_validator_corpus_rs() {
     // i146 piece 2 — Rust-native specializer for validator_corpus.rs.
@@ -226,7 +226,7 @@ fn rust_specializer_produces_byte_identical_validator_corpus_rs() {
     // .rs.frag bodies (doc + signature + body + closing brace) with
     // a blank line between each rule.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -242,7 +242,7 @@ fn rust_specializer_produces_byte_identical_validator_corpus_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/validator_corpus.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/validator_corpus.rs"))
         .expect("validator_corpus.rs missing");
     assert_eq!(
         generated, tracked,
@@ -261,7 +261,7 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
     // top-level comma …`), so the port uses a bare file read instead
     // of util::read_snippet_body's leading-comment strip.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(
         bin.exists(),
         "hecks-life binary missing — build release first",
@@ -277,7 +277,7 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
         String::from_utf8_lossy(&output.stderr),
     );
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/fixtures_parser.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/fixtures_parser.rs"))
         .expect("fixtures_parser.rs missing");
     assert_eq!(
         generated, tracked,
@@ -302,11 +302,11 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
 // emit, the test fails — same byte-identity invariant the existing
 // 6 targets enforce.
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "dispatch_query"])
@@ -315,16 +315,16 @@ fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
         .expect("hecks-life specialize dispatch_query failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/dispatch_query.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/dispatch_query.rs"))
         .expect("dispatch_query.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_repository_rs() {
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "repository"])
@@ -333,16 +333,16 @@ fn rust_specializer_produces_byte_identical_repository_rs() {
         .expect("hecks-life specialize repository failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/runtime/repository.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/repository.rs"))
         .expect("runtime/repository.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_run_statusline_rs() {
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "run_statusline"])
@@ -351,16 +351,16 @@ fn rust_specializer_produces_byte_identical_run_statusline_rs() {
         .expect("hecks-life specialize run_statusline failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/run_statusline.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/run_statusline.rs"))
         .expect("run_statusline.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_system_prompt_rs() {
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "system_prompt"])
@@ -369,12 +369,12 @@ fn rust_specializer_produces_byte_identical_system_prompt_rs() {
         .expect("hecks-life specialize system_prompt failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/run_boot/system_prompt.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/run_boot/system_prompt.rs"))
         .expect("run_boot/system_prompt.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
     // i147 wave 2 — Rust-native specializer for behaviors_fixtures.
@@ -383,7 +383,7 @@ fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
     // apply / parse_fixture_value, concatenated under a HEADER const
     // that carries the doc comment + use lines.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "behaviors_fixtures"])
@@ -392,16 +392,16 @@ fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
         .expect("hecks-life specialize behaviors_fixtures failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/behaviors_fixtures.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/behaviors_fixtures.rs"))
         .expect("behaviors_fixtures.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_heki_query_rs() {
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "heki_query"])
@@ -410,12 +410,12 @@ fn rust_specializer_produces_byte_identical_heki_query_rs() {
         .expect("hecks-life specialize heki_query failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/heki_query.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/heki_query.rs"))
         .expect("heki_query.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
     // i147 wave 2 — Rust-native specializer for run_boot/discover.rs.
@@ -425,7 +425,7 @@ fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
     // count_recursive_bluebooks ; concatenated under a HEADER const
     // that carries the doc comment + use lines.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "discover"])
@@ -434,12 +434,12 @@ fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
         .expect("hecks-life specialize discover failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/run_boot/discover.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/run_boot/discover.rs"))
         .expect("run_boot/discover.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: hecks_life/tests/specializer_golden_test.rs — golden-test scaffolding]
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
     // i147 wave 2 — Rust-native specializer for conceiver/generator.rs.
@@ -448,7 +448,7 @@ fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
     // aggregate + command emitters, and to_snake helper ; concatenated
     // under a HEADER const that carries the doc comment + use + VERSION.
     let root = repo_root();
-    let bin = root.join("hecks_life/target/release/hecks-life");
+    let bin = root.join("rust/target/release/hecks-life");
     assert!(bin.exists(), "hecks-life binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "conceiver_generator"])
@@ -457,7 +457,7 @@ fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
         .expect("hecks-life specialize conceiver_generator failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
-    let tracked = fs::read_to_string(root.join("hecks_life/src/conceiver/generator.rs"))
+    let tracked = fs::read_to_string(root.join("rust/src/conceiver/generator.rs"))
         .expect("conceiver/generator.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
