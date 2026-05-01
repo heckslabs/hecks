@@ -21,4 +21,4 @@ The thirteenth chapter — `bluebook.bluebook` (the IR shape itself : Domain, Ag
 
 Each chapter is `category "framework"` and uses the same DSL the framework offers its users. Reading appeal.bluebook teaches you both what the IDE does AND how Hecks talks about software.
 
-`self/` here doesn't mirror `miette/self/` shape-for-shape — *vows belong to a being, not a framework*. Hecks defines the `Vow` aggregate as a concept beings can use ; what hecks itself holds (parity contracts, deterministic dispatch, byte-identity from the specializer, the discipline ratchets) is a different noun that hasn't found its name yet.
+`self/` here doesn't mirror `miette/self/` shape-for-shape — *vows belong to a being, not a framework*. Hecks defines the `Vow` aggregate as a concept beings can use ; what hecks itself holds (parity contracts, deterministic dispatch, byte-identity from the specializer, the discipline ratchets) are **standards** — same shape as `Standard` in `miette_family/chris/chris.bluebook` (`identified_by :name`, `:rule`, `:why`), just with a different declarer. Some day a `self/standards.bluebook` could enumerate them ; not yet.
