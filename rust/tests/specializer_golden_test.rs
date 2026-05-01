@@ -773,6 +773,42 @@ fn rust_specializer_produces_byte_identical_runtime_rs() {
 
 // [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_html_domain_rs() {
+    // i147 Wave 9-A — Rust-native specializer for server/html_domain.rs
+    // (the dashboard's per-domain detail page : title bar, vision blurb,
+    // usage section, creation cards, divider, records table, plus the
+    // legacy module-card system kept for re-introduction). Section-as-
+    // snippet shape (mirrors assemble_shape) : four ordered
+    // verbatim_section rows for page / helpers / records_table /
+    // legacy_modules ; concatenated under a HEADER const that carries
+    // the doc comment + use lines.
+    //
+    // Family decision : SOLO. The html_*.rs siblings (workflow,
+    // fixtures, kpi, usage, shared, sidebar, scripts, narration, icons,
+    // help, rules, wizard, policy_chain) all emit HTML strings, but
+    // their input IR + helper signatures + DOM templates diverge —
+    // there's no two-consumer template that justifies inventing
+    // html_section / html_form_template / string_table body_kinds
+    // today. The post-W6 plan flagged the family option but explicitly
+    // defers it ; promote when two siblings actually share a real
+    // template.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "html_domain"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize html_domain failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/server/html_domain.rs"))
+        .expect("server/html_domain.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
 fn rust_specializer_produces_byte_identical_assemble_rs() {
     // i147 Wave 8 — Rust-native specializer for run_status/assemble.rs
     // (the StatusReport pure read layer that flattens heki stores +

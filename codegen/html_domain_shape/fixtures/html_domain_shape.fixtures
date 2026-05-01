@@ -1,0 +1,17 @@
+Hecks.fixtures "HtmlDomainShape" do
+  # One row per ordered code section in rust/src/server/html_domain.rs.
+  # Specializer concatenates HEADER (doc + imports, in the .rs source) +
+  # each snippet's raw body in `order` ascending. read_snippet_raw is
+  # used (not read_snippet_body) so the trailing blank line at each
+  # snippet's end is preserved verbatim — that's how the section
+  # separators land in the emitted file. body_kind = verbatim_section
+  # for all four sections today (mirrors assemble_shape /
+  # discover_shape / behaviors_fixtures_shape / parser_shape).
+
+  aggregate "Section" do
+    fixture "PageSection",          name: "page",            order: 1, body_kind: "verbatim_section", snippet_path: "codegen/html_domain_shape/snippets/01_page.rs.frag",            description: "generate_domain_page (top-level entry — title, vision, usage, creation cards, divider, records) + creation_cards (grid of per-aggregate cards) + aggregate_form (unified form merging entity-create and value-object child commands)"
+    fixture "HelpersSection",       name: "helpers",         order: 2, body_kind: "verbatim_section", snippet_path: "codegen/html_domain_shape/snippets/02_helpers.rs.frag",         description: "field_input (one input element per command attribute) + command_palette (#[allow(dead_code)] Glass palette — fuzzy command search with inline form ; kept verbatim for future re-introduction)"
+    fixture "RecordsTableSection",  name: "records_table",   order: 3, body_kind: "verbatim_section", snippet_path: "codegen/html_domain_shape/snippets/03_records.rs.frag",         description: "records_table — wraps html_fixtures::fixtures_section with an empty-state placeholder when the domain has no records yet"
+    fixture "LegacyModulesSection", name: "legacy_modules",  order: 4, body_kind: "verbatim_section", snippet_path: "codegen/html_domain_shape/snippets/04_legacy_modules.rs.frag", description: "Legacy module-card system — module_navbar, module_card, command_section, wizard_button, inline_form. The earlier per-aggregate accordion UI ; kept around for re-introduction even though the live page now uses creation_cards instead"
+  end
+end

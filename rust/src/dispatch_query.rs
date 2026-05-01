@@ -121,6 +121,7 @@ pub const SPECIALIZER_TARGETS: &[&str] = &[
     "fixtures_parser",
     "hecksagon_parser",
     "heki_query",
+    "html_domain",
     "interpreter",
     "ir",
     "lifecycle_validator",
