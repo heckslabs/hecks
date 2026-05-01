@@ -770,3 +770,36 @@ fn rust_specializer_produces_byte_identical_runtime_rs() {
         .expect("runtime/mod.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_assemble_rs() {
+    // i147 Wave 8 — Rust-native specializer for run_status/assemble.rs
+    // (the StatusReport pure read layer that flattens heki stores +
+    // filesystem state into a Report struct for the renderer).
+    // Section-as-snippet shape (mirrors discover_shape) : three ordered
+    // verbatim_section rows for structs (DaemonRow + Report) / build /
+    // helpers ; concatenated under a HEADER const that carries the doc
+    // comment + use lines.
+    //
+    // body_kind decision : reuse verbatim_section. The str_field /
+    // first_present / load / latest helpers ARE the canonical heki-
+    // loading idiom, but they're each defined ONCE at the bottom of
+    // the file ; the repetition is at the call site inside build()
+    // which is expression-level, not section-level. Promote to a
+    // shared snippet pool when a second consumer (run_statusline.rs
+    // has the same idiom) wants to share these bodies.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "assemble"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize assemble failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/run_status/assemble.rs"))
+        .expect("run_status/assemble.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}

@@ -1,0 +1,16 @@
+Hecks.fixtures "AssembleShape" do
+  # One row per ordered code section in rust/src/run_status/assemble.rs.
+  # Specializer concatenates HEADER (doc + imports, in the .rs source) +
+  # each snippet's raw body in `order` ascending. read_snippet_raw is
+  # used (not read_snippet_body) so the trailing blank line at each
+  # snippet's end is preserved verbatim — that's how the section
+  # separators land in the emitted file. body_kind = verbatim_section
+  # for all three sections today (mirrors discover_shape /
+  # behaviors_fixtures_shape / parser_shape).
+
+  aggregate "Section" do
+    fixture "StructsSection",  name: "structs",  order: 1, body_kind: "verbatim_section", snippet_path: "codegen/assemble_shape/snippets/01_structs.rs.frag",  description: "DaemonRow (pidfile + liveness) + Report (flat dashboard snapshot, every field surfaced on the renderer ; field order mirrors the dashboard's table of contents)"
+    fixture "BuildSection",    name: "build",    order: 2, body_kind: "verbatim_section", snippet_path: "codegen/assemble_shape/snippets/02_build.rs.frag",    description: "build(info_dir, conception_dir, registry) — reads every declared heki store, runs daemon liveness checks, walks the conception bluebook tree, returns a populated Report"
+    fixture "HelpersSection",  name: "helpers",  order: 3, body_kind: "verbatim_section", snippet_path: "codegen/assemble_shape/snippets/03_helpers.rs.frag",  description: "Helpers — daemon_row, wish_summary, recent_commits, humanize_age, humanize_age_from_born, parse_utc_seconds, load, latest, timestamp, str_field, first_present, dream_text, turn_text, mindstream_alive, count_bluebooks"
+  end
+end

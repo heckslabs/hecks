@@ -19,6 +19,7 @@ use std::error::Error;
 use std::path::Path;
 
 pub mod adapter_llm;
+pub mod assemble;
 pub mod behaviors_fixtures;
 pub mod behaviors_parser;
 pub mod behaviors_parser_dispatch;
@@ -51,6 +52,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
     match target {
         "adapter_llm" | "driven_adapter" => adapter_llm::emit(repo_root),
         "aggregate_state" => runtime::aggregate_state::emit(repo_root),
+        "assemble" => assemble::emit(repo_root),
         "behaviors_fixtures" => behaviors_fixtures::emit(repo_root),
         "behaviors_parser" => behaviors_parser::emit(repo_root),
         "behaviors_runner" => behaviors_runner::emit(repo_root),
@@ -75,7 +77,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, interpreter, ir, parse_blocks, parser, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, assemble, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, interpreter, ir, parse_blocks, parser, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),

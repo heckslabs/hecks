@@ -108,6 +108,7 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
 pub const SPECIALIZER_TARGETS: &[&str] = &[
     "adapter_llm",
     "aggregate_state",
+    "assemble",
     "behaviors_fixtures",
     "behaviors_parser",
     "behaviors_runner",
