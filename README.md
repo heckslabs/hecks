@@ -4,7 +4,9 @@
 
 # Hecks
 
-**A domain compiler for Ruby.** Describe your business in a single DSL file — the *Bluebook* — and Hecks gives you typed aggregates, commands that emit events, lifecycle state machines, queries, validations, a web explorer, behavioral tests, and a generated app in your choice of Ruby, Rails, Go, or Sinatra. You own the output.
+**A domain compiler for Ruby.** Describe your business in a five-rule DSL — the *Bluebook* — and Hecks generates the running runtime by construction. The description and the running code are byte-identical by design ; there is no layer of glue between what you wrote and what runs.
+
+You get aggregates, events, lifecycles, queries, validations, a web explorer, behavioral tests, and a generated app — Ruby, Rails, Go, or Sinatra. You own the output.
 
 ```ruby
 Hecks.bluebook "Banking" do
