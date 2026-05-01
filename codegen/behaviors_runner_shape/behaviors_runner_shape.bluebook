@@ -1,0 +1,103 @@
+Hecks.bluebook "BehaviorsRunnerShape", version: "2026.05.01.1" do
+  vision "The shape of hecks_life/src/behaviors_runner.rs as a bluebook — pure-memory test-suite executor (3-overload entry-point family + per-test run_one + helpers) made IR-derivable via per-overload body_kind compression."
+  category "autophagy"
+
+  # ============================================================
+  # BEHAVIORS RUNNER SHAPE — i147 Wave 4-B target
+  # ============================================================
+  #
+  # behaviors_runner.rs is the test-suite executor that runs every
+  # `.behaviors` file in pure memory through Runtime::boot. It is the
+  # KERNEL of the testing language : 117 corpus .behaviors files pass
+  # through this file, so byte-identity here is load-bearing for every
+  # downstream parity test.
+  #
+  # Compression target — the suite-entry-point family :
+  #   The file declares THREE public entry points :
+  #     - run_suite              — delegating shim
+  #     - run_suite_with_fixtures — fixture-aware variant
+  #     - run_suite_with_domain   — cross-bluebook variant (extra Domain arg)
+  #   They share a structural template : "iterate suite.tests, call
+  #   run_one with this signature, collect into SuiteResult". The doc
+  #   comments differ ; the body skeleton does not. That family is what
+  #   the new `suite_overload` body_kind compresses : one row per
+  #   overload, the dispatcher emits the function from knobs.
+  #
+  # Layer mapping (mirrors driven_adapter_shape) :
+  #   L0 = this file + fixtures/behaviors_runner_shape.fixtures
+  #        + snippets/*.rs.frag + docs/*.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/behaviors_runner.rs (generated target)
+  #
+  # Body_kind vocabulary :
+  #
+  #   verbatim_section — read snippet_path verbatim ; emit unchanged.
+  #                      Used for the types block (TestStatus / TestRun /
+  #                      SuiteResult) and the long bodies that don't
+  #                      naturally compress (run_one, run_query, the
+  #                      ten helpers). Same body_kind that wave-2 / 3
+  #                      shapes carry.
+  #
+  #   suite_overload   — emit one of the three suite-entry overloads
+  #                      from knobs. Knobs : fn_name, doc_path (relative
+  #                      path to a .frag with the function's doc
+  #                      comment), kind (`delegate` for run_suite ;
+  #                      `iter` for the two iter().map().collect()
+  #                      variants), has_domain (`true`/empty — only used
+  #                      when kind=iter ; controls whether the signature
+  #                      carries `domain_template: &Domain` and whether
+  #                      the run_one call passes Some(domain_template)
+  #                      vs None as its 4th arg).
+  #
+  # The new body_kind emits THREE distinct functions from one shared
+  # template — that's the real-compression goal Wave 4 is calling out.
+  # When a fourth overload lands (e.g. a streaming variant or a
+  # parallel runner), it adds a row here ; no specializer change.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in behaviors_runner.rs.
+  # body_kind picks how the specializer emits the section :
+  #   verbatim_section — snippet emitted verbatim
+  #   suite_overload   — knob-driven emission of one of the three
+  #                      suite-entry overloads (run_suite / _with_fixtures
+  #                      / _with_domain)
+  #
+  # The specializer concatenates HEADER + each section body in `order`
+  # ascending. For verbatim_section rows, snippet_path points at a
+  # `.rs.frag` ; for suite_overload rows, the row's knobs (fn_name,
+  # doc_path, kind, has_domain) drive templated emission.
+
+  aggregate "Section", "One ordered code section emitted from the behaviors_runner shape" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section | suite_overload
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. Required for verbatim_section
+    # (the snippet IS the body) ; ignored for suite_overload.
+    attribute :snippet_path, String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+
+    # ---- suite_overload knobs ----
+    # fn_name: emitted as `pub fn <fn_name>(...) -> SuiteResult`.
+    attribute :fn_name,      String, default: ""
+    # doc_path: relative path to a .frag carrying the doc comment lines
+    # that precede the function. Read verbatim and emitted before the
+    # `pub fn` line.
+    attribute :doc_path,     String, default: ""
+    # kind: `delegate` (single-line body delegating to another fn) or
+    # `iter` (the suite.tests.iter().map(|t| run_one(...)).collect()
+    # pattern). Selects the body template.
+    attribute :kind,         String, default: ""
+    # has_domain: `true` (signature carries `domain_template: &Domain`,
+    # run_one's 4th arg is Some(domain_template)) or empty (no domain
+    # param ; run_one's 4th arg is None). Only consulted when kind=iter.
+    attribute :has_domain,   String, default: ""
+    # has_fixtures: `true` (signature carries `fixtures: Option<&FixturesFile>`)
+    # or empty. Only consulted when kind=iter ; the delegate row hard-codes
+    # its delegate target as run_suite_with_fixtures.
+    attribute :has_fixtures, String, default: ""
+  end
+end

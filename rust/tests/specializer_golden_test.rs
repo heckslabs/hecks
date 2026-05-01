@@ -548,6 +548,36 @@ fn rust_specializer_produces_byte_identical_parser_rs() {
 
 // [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_behaviors_runner_rs() {
+    // i147 Wave 4-B — Rust-native specializer for behaviors_runner.rs
+    // (the pure-memory test-suite executor that runs every .behaviors
+    // file through Runtime::boot). REAL compression : the new
+    // `suite_overload` body_kind emits the three suite-entry overloads
+    // (run_suite, run_suite_with_fixtures, run_suite_with_domain) from
+    // a shared template — knobs (kind, has_domain, has_fixtures) drive
+    // the signature + body shape ; only the doc comments are bespoke
+    // (read from .frag fragments). The remaining twelve sections are
+    // verbatim_section snippets concatenated under a HEADER const.
+    //
+    // Load-bearing : 117 corpus .behaviors files pass through this file,
+    // so byte-identity here gates every downstream parity test.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "behaviors_runner"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize behaviors_runner failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/behaviors_runner.rs"))
+        .expect("behaviors_runner.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
 fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
     // i147 Wave 3-C — Rust-native specializer for parse_blocks.rs
     // (recursive-descent half of the bluebook parser : section / command
