@@ -1,7 +1,7 @@
 # Hecks::Behaviors::AggregateState
 #
 # Per-instance aggregate state held by the in-memory runtime.
-# Mirrors hecks_life/src/runtime/mod.rs `AggregateState`. Pure
+# Mirrors rust/src/runtime/mod.rs `AggregateState`. Pure
 # field bag; the Interpreter and dispatch loop apply mutations
 # and read fields.
 #

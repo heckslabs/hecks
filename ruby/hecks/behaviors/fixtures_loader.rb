@@ -11,7 +11,7 @@
 # registry slot as standalone fixtures loading). The loader returns
 # the parsed `FixturesFile` — the runner decides when to apply it.
 #
-# Parity: mirrors hecks_life/src/behaviors_runner.rs fixtures_loader
+# Parity: mirrors rust/src/behaviors_runner.rs fixtures_loader
 # helpers, same discovery rules, same FixturesFile shape.
 #
 # [antibody-exempt: test runner auto-loads fixtures for cross-aggregate

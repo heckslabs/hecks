@@ -28,7 +28,7 @@ module Hecks
       #   was declared inside. Set by BluebookBuilder when the aggregate is added
       #   to its bluebook. Used by the runtime for Context.Aggregate.Command
       #   dispatch resolution (i142) and emitted by canonical_ir.rb for parity
-      #   with hecks_life/src/dump.rs.
+      #   with rust/src/dump.rs.
       attr_accessor :context
 
       # @return [Array<Attribute>] the root entity's attributes (typed fields like name, status, etc.)

@@ -13,7 +13,7 @@ module Hecksagon
     # decides their meaning). `on_events` lists event names the adapter
     # reacts to, declared via `on :EventName` inside an optional block.
     #
-    # Mirrors hecks_life/src/hecksagon_ir.rs :: IoAdapter. The parity
+    # Mirrors rust/src/hecksagon_ir.rs :: IoAdapter. The parity
     # suite's canonical dump emits options as `[[key, value_source], …]`
     # where value_source is the Ruby-source repr of the value (what
     # Object#inspect produces for strings, arrays, symbols) — matching

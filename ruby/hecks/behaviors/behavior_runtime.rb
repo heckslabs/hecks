@@ -1,7 +1,7 @@
 # Hecks::Behaviors::BehaviorRuntime
 #
 # Pure-memory runtime for behavioral tests. Mirrors
-# hecks_life/src/runtime/mod.rs Runtime — no hecksagon, no adapters,
+# rust/src/runtime/mod.rs Runtime — no hecksagon, no adapters,
 # no IO, no extensions. Just repositories (id → AggregateState),
 # an event bus (ordered list of {name, payload}), and dispatch.
 #
@@ -119,7 +119,7 @@ module Hecks
         out
       end
 
-      # Mirrors hecks_life/src/runtime/command_dispatch.rs auto-input:
+      # Mirrors rust/src/runtime/command_dispatch.rs auto-input:
       # for `is_new` states, copy any cmd attribute that names an
       # aggregate attribute into state. Lets `String :name` on a Create
       # command become `state.name = attrs[:name]` without an explicit

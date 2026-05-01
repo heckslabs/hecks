@@ -48,7 +48,7 @@ module Hecksagon
 
       # Canonical JSON-safe shape matching the Rust dump-world output.
       # This is the parity contract (see spec/parity/world_parity_test.rb
-      # and hecks_life/src/main.rs :: dump_world_json). Field order is not
+      # and rust/src/main.rs :: dump_world_json). Field order is not
       # load-bearing — the parity harness sorts keys before comparing.
       #
       # Values in `configs` are stringified so Ruby's Integer/Float/Symbol

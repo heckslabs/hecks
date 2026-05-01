@@ -43,7 +43,7 @@ Hecks::CLI.handle(:miette) do |inv|
 
   conception_dir = File.join(project_root, "hecks_conception")
   aggregates_dir = File.join(conception_dir, "aggregates")
-  hecks_life     = File.join(project_root, "hecks_life", "target", "release", "hecks-life")
+  hecks_life     = File.join(project_root, "rust", "target", "release", "hecks-life")
 
   needs_domain = ->(verb) {
     next true if domain
@@ -54,7 +54,7 @@ Hecks::CLI.handle(:miette) do |inv|
   dispatch = ->(command, *args) {
     unless File.executable?(hecks_life)
       say "hecks-life binary not found at #{hecks_life}", :red
-      say "Build it: (cd hecks_life && cargo build --release)", :yellow
+      say "Build it: (cd rust && cargo build --release)", :yellow
       next
     end
     system(hecks_life, aggregates_dir, command, *args)

@@ -161,7 +161,7 @@ module Hecks
       #   then_set :weight, clamp: [0.0, 1.0]  # i106 — bound to interval
       #
       # The positional form mirrors Rust's permissive line-scanner (see
-      # `hecks_life/src/parse_blocks.rs`). Rust treats `then_set :f, V` as
+      # `rust/src/parse_blocks.rs`). Rust treats `then_set :f, V` as
       # `Set` with the bare value, so we do the same here for parity.
       #
       # multiply / clamp / decay are i106 dsl-mutation-primitives — kernel

@@ -13,7 +13,7 @@ module Hecks
     module ParityVerifier
       Result = Struct.new(:pass_count, :errors)
 
-      HECKS_LIFE = File.expand_path("../../../hecks_life/target/debug/hecks-life", __dir__)
+      HECKS_LIFE = File.expand_path("../../../rust/target/debug/hecks-life", __dir__)
 
       def self.run(format: :progress)
         result = Result.new(0, [])

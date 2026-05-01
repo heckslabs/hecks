@@ -133,8 +133,8 @@ end
 # justification.
 HECKS_LIFE_BIN = [
   ENV["HECKS_BIN"],
-  File.expand_path("../hecks_life/target/release/hecks-life", __dir__),
-  File.expand_path("../hecks_life/target/debug/hecks-life",   __dir__),
+  File.expand_path("../rust/target/release/hecks-life", __dir__),
+  File.expand_path("../rust/target/debug/hecks-life",   __dir__),
 ].compact.find { |p| File.executable?(p) }
 
 # Memo cache : path → bool. Same call shape the LoC ratchet uses.

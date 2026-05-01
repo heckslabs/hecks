@@ -1,7 +1,7 @@
 # Hecks::Behaviors::Value
 #
 # Typed dynamic value used by the in-memory behaviors runtime.
-# Mirrors hecks_life/src/runtime/mod.rs `Value` enum: Int, Bool, Str,
+# Mirrors rust/src/runtime/mod.rs `Value` enum: Int, Bool, Str,
 # Null, List, Map. Comparable across types via numeric coercion so
 # `Int(0) == Str("0")` and `Bool(true) == Str("true")`.
 #
@@ -118,7 +118,7 @@ module Hecks
       # A Null on either side compares via numeric ONLY — it must NOT
       # fall through to the display-form tiebreaker, where Null's ""
       # would match Str("") and make `before_snapshot != ""` silently
-      # pass on uninitialized state. Mirrors hecks_life's
+      # pass on uninitialized state. Mirrors rust's
       # `values_equal`, where `Display(Null) = "null"` keeps the same
       # fallback false and the cascade (policy→command→given) advances.
       # A :list on either side likewise short-circuits: Rust's

@@ -1,6 +1,6 @@
 # Hecks::Behaviors::PolicyDrain
 #
-# Cascade engine. Mirrors hecks_life/src/runtime/mod.rs drain_policies +
+# Cascade engine. Mirrors rust/src/runtime/mod.rs drain_policies +
 # inject_refs: walks events that this dispatch produced, fires every
 # matching policy's trigger command, and recurses. Policies on the
 # recursion stack are blocked (cycle break, allows diamond fan-in).

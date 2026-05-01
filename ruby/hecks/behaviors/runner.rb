@@ -1,7 +1,7 @@
 # Hecks::Behaviors::Runner
 #
 # Runs a TestSuite against a source domain in pure memory. Mirrors
-# hecks_life/src/behaviors_runner.rs so the Ruby and Rust runners
+# rust/src/behaviors_runner.rs so the Ruby and Rust runners
 # produce identical pass/fail/error counts and per-test results
 # (enforced by spec/parity/behaviors_parity_test.rb).
 #

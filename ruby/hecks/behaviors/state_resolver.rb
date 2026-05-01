@@ -51,7 +51,7 @@ module Hecks
         end
       end
 
-      # Mirrors hecks_life/src/runtime/repository.rs Repository#next_id:
+      # Mirrors rust/src/runtime/repository.rs Repository#next_id:
       # for singleton (no-self-ref) commands the heki adapter REUSES the
       # existing record's id rather than minting a fresh one. Without
       # this, every cascade-triggered policy command on a singleton

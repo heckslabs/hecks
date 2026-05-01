@@ -1,7 +1,7 @@
 # Hecks::Behaviors::Interpreter
 #
 # Evaluates given expressions and applies mutations against an
-# AggregateState. Mirrors hecks_life/src/runtime/interpreter.rs
+# AggregateState. Mirrors rust/src/runtime/interpreter.rs
 # exactly so the Ruby and Rust runners agree on every test.
 #
 # Operators supported (highest → lowest precedence):
@@ -46,7 +46,7 @@ module Hecks
 
       # Float-aware increment/decrement so `then_set :fatigue,
       # increment: 0.01` actually adds 0.01 (rather than rounding to 1
-      # via `.to_i`). Mirrors hecks_life/src/runtime/aggregate_state.rs
+      # via `.to_i`). Mirrors rust/src/runtime/aggregate_state.rs
       # increment_float.
       def increment_field(state, field, val, sign: 1)
         amount = val.numeric || 1
@@ -157,7 +157,7 @@ module Hecks
         return Value.from(true)  if expr == "true"
         return Value.from(false) if expr == "false"
         # rand_below(N) — uniform random integer in [0, N). Mirrors the
-        # Rust evaluator (hecks_life/src/runtime/interpreter.rs) so
+        # Rust evaluator (rust/src/runtime/interpreter.rs) so
         # `given { rand_below(N) == 0 }` evaluates the same in both
         # runners. HECKS_RAND_SEED env var overrides RNG for tests :
         # seed=0 makes the predicate fire (always returns 0) ; seed=k

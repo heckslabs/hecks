@@ -55,7 +55,7 @@ module Hecksagon
       end
 
       # Declare an adapter. Three-way dispatch on kind — mirrors the Rust
-      # hecksagon_parser (hecks_life/src/hecksagon_parser.rs :: absorb_adapter) :
+      # hecksagon_parser (rust/src/hecksagon_parser.rs :: absorb_adapter) :
       #
       #   adapter :memory                    # persistence — unnamed, default
       #   adapter :heki                      # persistence — binary event log

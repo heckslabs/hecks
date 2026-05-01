@@ -328,7 +328,7 @@ module Hecks
       # Capability dashboards (status, statusline) declare their layout
       # as ordered `section "Title" do row "label", :field … end` blocks.
       # The Rust runner walks these to render — see
-      # capabilities/status/status.bluebook + hecks_life/src/run_status/.
+      # capabilities/status/status.bluebook + rust/src/run_status/.
       # Ruby parity dump intentionally ignores the rows ; sections are
       # not yet first-class in BluebookModel. The block is evaluated
       # against a tiny no-op SectionBuilder so the DSL parses cleanly
