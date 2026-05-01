@@ -118,20 +118,31 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "Drop" do
       role "Chris"
-      description "Abandon a row (was `archive` in the shell). The implementation deletes the heki record outright ; this command marks the row as dropped first so any subscribers see the transition before the row disappears. The ref is not reassigned — historical mentions become dangling."
+      description "Abandon a row genuinely — spam, mistakes, garbage. Marks the row as dropped so any subscribers see the transition before the row is hard-deleted. Use Archive instead for the normal completed-work case ; Drop is for rows that should never have been filed. The ref is not reassigned — historical mentions become dangling."
       reference_to(Inbox)
       then_set :status, to: "dropped"
       emits "InboxDropped"
     end
 
+    command "Archive" do
+      role "Chris"
+      description "Move a closed row out of the live store (inbox.heki) into the sibling archive store (inbox_archive.heki). Preserves every field — ref, body, priority, posted_at, completed_at, resolution, wish_id, status — so historical mentions ('see i42') resolve against the archive. Only done or dropped rows are eligible ; archiving a queued row is a guard error. Idempotent at the ref level : archiving an already-archived ref is a no-op (the live store no longer contains it). The runtime motion is a composite : read the full record, append it to the archive store, delete it from the live store ; today the inbox.sh shell adapter drives this directly via the heki primitives because the runtime doesn't yet have a cross-store move primitive (filed as a runtime gap)."
+      reference_to(Inbox)
+      given("must be done or dropped") { status == "done" || status == "dropped" }
+      emits "InboxArchived"
+    end
+
     lifecycle :status, default: "queued" do
       # Add is the creation command — no `from:` clause because the
       # record doesn't exist yet. Default "queued" applies on creation.
-      transition "Add"    => "queued"
-      transition "Close"  => "done",    from: "queued"
-      transition "Reopen" => "queued",  from: "done"
-      transition "Drop"   => "dropped", from: "queued"
-      transition "Drop"   => "dropped", from: "done"
+      transition "Add"     => "queued"
+      transition "Close"   => "done",    from: "queued"
+      transition "Reopen"  => "queued",  from: "done"
+      transition "Drop"    => "dropped", from: "queued"
+      transition "Drop"    => "dropped", from: "done"
+      # Archive is a store-move, not a status change — the row leaves
+      # the live store carrying its existing status (done or dropped).
+      # No transition entry : Archive doesn't mutate :status.
     end
 
     # ============================================================

@@ -39,7 +39,8 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
   aggregate "Invocation", "One invocation of the inbox CLI — parses argv, routes to the subcommand handler, dispatches the matching Item command or query, renders the result, fires the durability protocol when the .heki store changed" do
     # ---- Argv ----
-    # subcommand : add | list | get | close | reopen | drop | next-ref
+    # subcommand : add | list | get | close | reopen | drop |
+    #              archive | archive-all-done | next-ref
     attribute :subcommand,    String
     # priority/body/wish_id : add inputs
     attribute :priority,      String
@@ -119,7 +120,7 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
 
     command "RouteSubcommand" do
       role "System"
-      description "Switch on `subcommand` to pick the next phase. add → ResolveNextRef ; list → RunListQuery ; get → ResolveRef → RunGetByRef ; close/reopen/drop → ResolveRef → DispatchTransition. Unknown subcommands FailInvocation with exit_kind=command_not_found."
+      description "Switch on `subcommand` to pick the next phase. add → ResolveNextRef ; list → RunListQuery ; get → ResolveRef → RunGetByRef ; close/reopen/drop/archive → ResolveRef → DispatchTransition (archive composes the get + append-to-archive-store + delete-from-live-store sequence ; today the shell drives the composition because the runtime has no cross-store move primitive) ; archive-all-done iterates done + dropped rows and dispatches Archive on each. Unknown subcommands FailInvocation with exit_kind=command_not_found."
       then_set :phase, to: "routed"
       emits "SubcommandRouted"
     end

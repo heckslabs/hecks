@@ -24,7 +24,11 @@
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 HECKS="$DIR/../rust/target/release/hecks-life"
-HEKI="$DIR/information/inbox.heki"
+# i112 moved inbox.heki under information/inbox/. The archive store
+# is a sibling — same shape, different file — so historical rows
+# can be preserved out of the live working set.
+HEKI="$DIR/information/inbox/inbox.heki"
+HEKI_ARCHIVE="$DIR/information/inbox/inbox_archive.heki"
 
 # Look up a record's uuid by its short ref. Prints uuid or empty.
 ref_to_uuid() {
@@ -199,19 +203,85 @@ case "$cmd" in
     echo "closed $ref"
     ;;
   archive)
+    # Real, non-destructive archive : move a done-or-dropped row out of
+    # the live store into the sibling archive store, preserving every
+    # field. Today the runtime doesn't have a cross-store move primitive,
+    # so we compose : `heki get` reads the full record, per-field jq
+    # extraction lets shell variables hold values with embedded spaces /
+    # newlines safely, `heki append` writes to the archive store, then
+    # `heki delete` removes from the live store. The whole flow is the
+    # transitional surface for the bluebook Inbox.Archive command (the
+    # bluebook declares the spec ; this shell drives it until the
+    # runtime gains an Archive dispatch path).
     ref="$1"
     [ -z "$ref" ] && { echo "usage: inbox.sh archive <ref>" >&2; exit 1; }
     uuid=$(ref_to_uuid "$ref")
     [ -z "$uuid" ] && { echo "no item with ref $ref" >&2; exit 1; }
-    "$HECKS" heki delete "$HEKI" "$uuid" >/dev/null
+    rec_json=$("$HECKS" heki get "$HEKI" "$uuid")
+    status=$(printf '%s' "$rec_json" | jq -r '.status // ""')
+    case "$status" in
+      done|dropped) ;;
+      *) echo "cannot archive $ref : status=$status (must be done or dropped — use Close first)" >&2
+         exit 1 ;;
+    esac
+    # Per-field extraction with jq — shell vars carry values with
+    # embedded whitespace / newlines safely as positional argv tokens.
+    rec_id=$(printf       '%s' "$rec_json" | jq -r '.id           // ""')
+    rec_ref=$(printf      '%s' "$rec_json" | jq -r '.ref          // ""')
+    rec_body=$(printf     '%s' "$rec_json" | jq -r '.body         // ""')
+    rec_priority=$(printf '%s' "$rec_json" | jq -r '.priority     // ""')
+    rec_posted=$(printf   '%s' "$rec_json" | jq -r '.posted_at    // ""')
+    rec_completed=$(printf '%s' "$rec_json" | jq -r '.completed_at // ""')
+    rec_resolution=$(printf '%s' "$rec_json" | jq -r '.resolution // ""')
+    rec_wish=$(printf     '%s' "$rec_json" | jq -r '.wish_id      // ""')
+    "$HECKS" heki append "$HEKI_ARCHIVE" --reason "archive $ref" \
+      id="$rec_id" ref="$rec_ref" status="$status" priority="$rec_priority" \
+      posted_at="$rec_posted" completed_at="$rec_completed" \
+      resolution="$rec_resolution" wish_id="$rec_wish" body="$rec_body" \
+      >/dev/null
+    "$HECKS" heki delete "$HEKI" "$uuid" --reason "archive $ref" >/dev/null
     echo "archived $ref"
+    ;;
+  archive-all-done)
+    # Sweep : archive every record currently in done or dropped state.
+    # Use heki list with --where filters to find candidates by ref, then
+    # iterate with the single-row archive flow above. Keeps the audit
+    # trail clean (one --reason per archived row) and the implementation
+    # idempotent (a second sweep finds nothing left to archive).
+    archived_count=0
+    for state in done dropped; do
+      "$HECKS" heki list "$HEKI" --where "status=$state" --fields ref --format tsv 2>/dev/null \
+      | while IFS= read -r r; do
+          [ -z "$r" ] && continue
+          # Re-invoke ourself for one-row archive. Keeps the per-row
+          # logic in one place ; the cost is a fork per row but the
+          # set is bounded (typically <100).
+          "$0" archive "$r"
+        done
+    done
+    echo "archive-all-done complete"
+    ;;
+  drop)
+    # The destructive path — for genuinely-bad rows (spam, mistakes,
+    # garbage). Marks the row dropped first so subscribers see the
+    # transition, then hard-deletes via heki delete. Ref is preserved
+    # in the index but the row content is gone. Use Archive instead
+    # for the normal completed-work case.
+    ref="$1"
+    [ -z "$ref" ] && { echo "usage: inbox.sh drop <ref>" >&2; exit 1; }
+    uuid=$(ref_to_uuid "$ref")
+    [ -z "$uuid" ] && { echo "no item with ref $ref" >&2; exit 1; }
+    "$HECKS" heki upsert "$HEKI" --reason "drop $ref" \
+      id="$uuid" status=dropped >/dev/null
+    "$HECKS" heki delete "$HEKI" "$uuid" --reason "drop $ref" >/dev/null
+    echo "dropped $ref"
     ;;
   next-ref)
     next_ref
     ;;
   *)
     echo "unknown command: $cmd" >&2
-    echo "usage: inbox.sh {add|list|show|done|archive|next-ref}" >&2
+    echo "usage: inbox.sh {add|list|show|done|archive|archive-all-done|drop|next-ref}" >&2
     exit 1
     ;;
 esac
