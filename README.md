@@ -354,6 +354,18 @@ For the longer argument, see [`docs/why_hecks.md`](docs/why_hecks.md), [`docs/dd
 
 ---
 
+## A Future Where AI Writes in Specs
+
+Today's models are trained on empirical languages — Ruby, Python, Go, JavaScript — discovered through millions of human iterations, full of accidental complexity, unspoken conventions, and behaviour the language itself can't constrain. The model learns the surface and infers the architecture from a corpus that disagrees with itself.
+
+A specification language flips this. The Bluebook is small enough to learn completely. Its grammar is finite. Its rules — what an aggregate is, why a value object can't reference an aggregate root, what a policy emits — are *declared*, not absorbed. An AI that writes a Bluebook writes intent directly, then watches that intent compile into Ruby, Rails, Go, or the next runtime someone targets. The mistakes change shape too: a bad imperative draft hides its violations inside a 300-line method ; a bad Bluebook gets caught by a validator with a one-line fix. The model doesn't have to be right about generated code. It has to be right about the spec.
+
+Hecks bets on this direction. The Bluebook is the source of truth ; code is generation ; correctness is decidable at the spec level before a line of runtime exists. Two implementations (Ruby and Rust) held to byte-identical IR are not a curiosity — they're the proof that one specification can mean exactly the same thing in two languages, which means it can mean the same thing in any language a generator targets next. We're shipping in a way that's compatible with a near future where the AI's working language isn't a programming language at all. It's a spec.
+
+For the technical argument behind this — DDD validation, MCP-native modelling, the Futamura projection that lets Hecks specialise itself, cascade lockdown, language-neutral parity — see [`docs/papers/prior_use/`](docs/papers/prior_use/).
+
+---
+
 ## A Covenant
 
 Hecks is built around three principles encoded as defaults:
