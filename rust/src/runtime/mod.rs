@@ -284,9 +284,25 @@ impl Runtime {
                     // resolve target's context by scanning the loaded
                     // domain (i142 Tier 2). True cross-context refs land
                     // in Tier 3.
-                    let target_ctx = self.domain.aggregates.iter()
-                        .find(|a| a.name == r.target)
-                        .and_then(|a| a.context.as_deref());
+                    //
+                    // i161 — when the same aggregate name lives in
+                    // multiple contexts (e.g. Mind.Musing + Musings.Musing
+                    // post-i117 R4), the naive `find()` returns the first
+                    // by depth-then-path iteration order, so the wrong
+                    // context wins and singleton fallback hits the wrong
+                    // repo. The dispatching command is on `agg` ; prefer
+                    // a target in the SAME context, fall back to first
+                    // match for genuine cross-context refs. Self-refs
+                    // (r.target == agg.name) resolve trivially via
+                    // agg.context — no domain scan needed.
+                    let target_ctx = if r.target == agg.name {
+                        agg.context.as_deref()
+                    } else {
+                        self.domain.aggregates.iter()
+                            .find(|a| a.name == r.target && a.context == agg.context)
+                            .or_else(|| self.domain.aggregates.iter().find(|a| a.name == r.target))
+                            .and_then(|a| a.context.as_deref())
+                    };
                     let key = repo_key(target_ctx, &r.target);
                     if let Some(repo) = self.repositories.get(&key) {
                         if let Some(existing) = repo.all().first() {

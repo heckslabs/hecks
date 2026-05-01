@@ -35,10 +35,31 @@ ref_to_uuid() {
   "$HECKS" heki list "$HEKI" --where "ref=$1" --fields id --format tsv 2>/dev/null | head -n1
 }
 
-# Compute the next ref by scanning all existing refs (handles both the
-# in-order and out-of-order cases — gaps from deleted items are skipped).
+# Compute the next ref by scanning all existing refs across BOTH the
+# live store and the archive store, taking the higher suggestion.
+# Without the archive scan, refs reused : after archive moved a closed
+# row out of the live store, the live max dropped, and the next add
+# would re-mint the just-archived ref pointing at brand-new content.
+# The archive scan keeps refs monotonic across the live/archive split.
+# Refs are gap-tolerant : the next ref after a deletion is max+1, not
+# the gap, so historical mentions stay valid forever.
 next_ref() {
-  "$HECKS" heki next-ref "$HEKI" --prefix i --field ref 2>/dev/null
+  live=$("$HECKS" heki next-ref "$HEKI" --prefix i --field ref 2>/dev/null)
+  archive=$("$HECKS" heki next-ref "$HEKI_ARCHIVE" --prefix i --field ref 2>/dev/null)
+  # Strip the prefix and pick the higher number. Handle the empty-
+  # archive case (next-ref returns "i1" when the file doesn't exist
+  # or has no records) by treating any candidate as numeric.
+  live_n="${live#i}"
+  archive_n="${archive#i}"
+  if [ -z "$archive_n" ]; then
+    echo "$live"
+  elif [ -z "$live_n" ]; then
+    echo "$archive"
+  elif [ "$live_n" -ge "$archive_n" ]; then
+    echo "$live"
+  else
+    echo "$archive"
+  fi
 }
 
 cmd="${1:-list}"
