@@ -1,0 +1,2667 @@
+
+fn run_batch(command: &str) {
+    use std::io::{self, BufRead};
+    let stdin = io::stdin();
+    let (mut valid, mut invalid, mut total) = (0, 0, 0);
+
+    for line in stdin.lock().lines() {
+        let file_path = match line {
+            Ok(l) => l.trim().to_string(),
+            Err(_) => continue,
+        };
+        if file_path.is_empty() { continue; }
+        total += 1;
+
+        let source = match fs::read_to_string(&file_path) {
+            Ok(s) => s,
+            Err(e) => { eprintln!("ERROR|{}|{}", file_path, e); invalid += 1; continue; }
+        };
+
+        let domain = parser::parse(&source);
+        match command {
+            "validate" => {
+                emit_validator_warnings_to_stderr(&domain);
+                let errors = validator::validate(&domain);
+                if errors.is_empty() {
+                    println!("VALID|{}", file_path); valid += 1;
+                }
+                else { println!("INVALID|{}|{}", file_path, errors.join("; ")); invalid += 1; }
+            }
+            "counts" => {
+                let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
+                println!("{}|{}|{}|{}|{}|{}", file_path, domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
+                valid += 1;
+            }
+            _ => { eprintln!("Batch mode only supports: validate, counts"); std::process::exit(1); }
+        }
+    }
+    eprintln!("Batch: {} total, {} valid, {} invalid", total, valid, invalid);
+    if invalid > 0 { std::process::exit(1); }
+}
+
+fn load_seeds(rt: &mut Runtime, seed_path: Option<&str>) {
+    if let Some(path) = seed_path {
+        match hecks_life::runtime::seed_loader::load(rt, path) {
+            Ok(count) => eprintln!("  loaded {} seed commands from {}", count, path),
+            Err(e) => eprintln!("  seed error: {}", e),
+        }
+    }
+}
+
+/// `hecks-life behaviors path/to/X_behavioral_tests.bluebook`
+///
+/// Loads the matching source bluebook (suffix-stripped: pizzas_behavioral_tests
+/// → pizzas), runs every test through Runtime::boot in pure-memory mode,
+/// prints PASS/FAIL per test plus a summary, exits non-zero on any failure.
+///
+/// Pure memory by construction — Runtime::boot has no data_dir, no
+/// hecksagon, no adapters. If a test triggers IO, the source bluebook
+/// is the thing to fix.
+/// Walk up from a .behaviors path looking for an "aggregates"
+/// directory ancestor. Returns the path to that aggregates dir
+/// (suitable for `load_combined_domain`) or None when invoked
+/// outside a conception layout (programmatic invocation, standalone
+/// test fixtures, etc.). Used by `run_behaviors` to opt into the
+/// full-domain path when the file lives in a recognizable corpus.
+fn behaviors_aggregates_root(suite_path: &str) -> Option<String> {
+    let abs = std::fs::canonicalize(suite_path).ok()?;
+    let mut cur = abs.parent()?.to_path_buf();
+    for _ in 0..6 {
+        if cur.file_name().map(|n| n == "aggregates").unwrap_or(false) {
+            return Some(cur.to_string_lossy().into_owned());
+        }
+        // also recognize tree shapes where the .behaviors lives under
+        // capabilities/ — load_combined_domain walks both at once via
+        // the sibling-capability path.
+        let agg_sibling = cur.join("aggregates");
+        if agg_sibling.is_dir() {
+            return Some(agg_sibling.to_string_lossy().into_owned());
+        }
+        // i117 Round 4 — when the .behaviors lives under the sibling
+        // miette/ repo (e.g. miette/self/identity/being.behaviors),
+        // the canonical aggregates root is hecks/hecks_conception/aggregates.
+        // Walk to a sibling hecks/hecks_conception/aggregates and return
+        // that ; load_combined_domain's i117 sibling-walk picks the
+        // miette/ root back up, so the cross-corpus dispatch works.
+        let sibling_hecks_aggs = cur.join("hecks/hecks_conception/aggregates");
+        if sibling_hecks_aggs.is_dir() {
+            return Some(sibling_hecks_aggs.to_string_lossy().into_owned());
+        }
+        // i118 Round 3 (capabilities reorg) — when the .behaviors lives
+        // under one of the new bucket dirs at the hecks repo root
+        // (runtime/, discipline/, cli/, integrations/, tools/), the
+        // canonical aggregates root is the same repo's
+        // hecks_conception/aggregates. Walk to it directly. Without
+        // this, behaviors tests on lifted caps fall to single-file
+        // domain (cross_cascade tests can`t fire policy chains that
+        // hop into sibling bluebooks).
+        let inner_hecks_aggs = cur.join("hecks_conception/aggregates");
+        if inner_hecks_aggs.is_dir() {
+            return Some(inner_hecks_aggs.to_string_lossy().into_owned());
+        }
+        if !cur.pop() { break; }
+    }
+    None
+}
+
+fn run_behaviors(args: &[String]) {
+    let suite_path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life behaviors <X_behavioral_tests.bluebook>");
+        std::process::exit(1);
+    });
+    let source_path = source_for_suite(suite_path);
+    let suite_text = std::fs::read_to_string(suite_path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", suite_path, e); std::process::exit(1);
+    });
+    let source_text = std::fs::read_to_string(&source_path).unwrap_or_else(|e| {
+        eprintln!("Cannot read source {}: {}", source_path, e); std::process::exit(1);
+    });
+    if !hecks_life::behaviors_parser::is_behaviors_source(&suite_text) {
+        eprintln!("{} is not a Hecks.behaviors file", suite_path);
+        std::process::exit(1);
+    }
+    let suite = hecks_life::behaviors_parser::parse(&suite_text);
+
+    // Auto-load sibling .fixtures if present (i4 gap 8). Cross-aggregate
+    // cascades that read state seeded by another aggregate's fixtures no
+    // longer need explicit setup chains in every test.
+    let fixtures_path = hecks_life::behaviors_fixtures::locate_path(suite_path);
+    let fixtures = fixtures_path.as_deref()
+        .and_then(hecks_life::behaviors_fixtures::parse_file);
+
+    println!("Running {} test(s) from {}", suite.tests.len(), suite_path);
+    println!("  source: {}", source_path);
+    if let Some(ref fp) = fixtures_path {
+        println!("  fixtures: {}", fp);
+    }
+    println!();
+
+    // i112 cleanup — always load the combined domain when the .behaviors
+    // file lives under a recognizable aggregates tree. The runner picks
+    // per-test which domain to use : `kind: :cross_cascade` tests run
+    // against the combined domain so cross-bluebook policy chains fire
+    // end-to-end ; all other tests run isolated against the source
+    // bluebook only. Tests with strict emit-list assertions stay strict ;
+    // cross-cascade tests opt in via the kind flag.
+    let combined = behaviors_aggregates_root(suite_path)
+        .map(|root| load_combined_domain(&root));
+    let result = match combined.as_ref() {
+        Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
+            &source_text, d, &suite, fixtures.as_ref(),
+        ),
+        None    => hecks_life::behaviors_runner::run_suite_with_fixtures(
+            &source_text, &suite, fixtures.as_ref(),
+        ),
+    };
+    for run in &result.runs {
+        let icon = match run.status {
+            hecks_life::behaviors_runner::TestStatus::Pass  => "✓",
+            hecks_life::behaviors_runner::TestStatus::Fail  => "✗",
+            hecks_life::behaviors_runner::TestStatus::Error => "⚠",
+        };
+        println!("{} {}", icon, run.description);
+        if let Some(msg) = &run.message {
+            println!("    {}", msg);
+        }
+    }
+    println!("\n{} passed, {} failed, {} errored",
+             result.passed(), result.failed(), result.errored());
+    if !result.all_passed() { std::process::exit(1); }
+}
+
+/// `hecks-life check-io <bluebook> [--strict]`
+///
+/// Asserts a bluebook is pure-memory-runnable. Two layers: static IR
+/// scan for IO-suggestive patterns (advisory by default), and a
+/// runtime smoke that boots Runtime::boot in pure-memory mode and
+/// dispatches every command. Exit 0 when runtime smoke passes
+/// (--strict promotes warnings to errors).
+fn run_check_io(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-io <bluebook> [--strict]");
+        std::process::exit(1);
+    });
+    let strict = args.iter().any(|a| a == "--strict");
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+    if domain.aggregates.is_empty() {
+        eprintln!("{} has no aggregates — nothing to validate", path);
+        std::process::exit(1);
+    }
+
+    println!("Checking {} ({})", domain.name, path);
+
+    let report = hecks_life::io_validator::check(domain);
+
+    if !report.static_findings.is_empty() {
+        println!("\nStatic IR scan:");
+        for f in &report.static_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nStatic IR scan: clean");
+    }
+
+    if !report.runtime_findings.is_empty() {
+        println!("\nRuntime smoke (pure-memory dispatch):");
+        for f in &report.runtime_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nRuntime smoke: clean");
+    }
+
+    println!("\n{} error(s), {} warning(s)", report.errors(), report.warnings());
+    if report.passes(strict) {
+        println!("PASS — {} runs in pure memory", path);
+    } else {
+        println!("FAIL — {} {}", path,
+                 if report.errors() > 0 { "has IO-implying issues" }
+                 else { "has warnings (--strict)" });
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life check-lifecycle <bluebook> [--strict]`
+///
+/// Catches contradictory lifecycle declarations — transitions whose
+/// `from:` state is unreachable, defaults that no transition can
+/// exit, etc. Static IR walk; no runtime needed.
+fn run_check_lifecycle(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-lifecycle <bluebook> [--strict]");
+        std::process::exit(1);
+    });
+    let strict = args.iter().any(|a| a == "--strict");
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+    if domain.aggregates.is_empty() {
+        // i112 final — umbrella bluebooks (workflow + glossary, no
+        // aggregates of their own) are valid : they orchestrate sibling
+        // aggregates that live in their own bluebooks. A bluebook with
+        // no aggregates has nothing to check at the lifecycle level —
+        // exit 0 (not an error), so the pre-commit hook's per-file
+        // sweep treats umbrellas the way they deserve.
+        eprintln!("{} has no aggregates — nothing to check", path);
+        std::process::exit(0);
+    }
+
+    println!("Checking {} ({})", domain.name, path);
+
+    let report = hecks_life::lifecycle_validator::check(&domain);
+    if report.findings.is_empty() {
+        println!("\nLifecycle: clean");
+    } else {
+        println!("\nLifecycle:");
+        for f in &report.findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    }
+
+    println!("\n{} error(s), {} warning(s)", report.errors(), report.warnings());
+    if report.passes(strict) {
+        println!("PASS — {} has consistent lifecycles", path);
+    } else {
+        println!("FAIL — {} {}", path,
+                 if report.errors() > 0 { "has unreachable transitions" }
+                 else { "has stuck-default warnings (--strict)" });
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life check-duplicate-policies <bluebook>`
+///
+/// Refuses bluebooks that declare two or more policies sharing the
+/// same `(on_event, trigger_command)` pair. Today those silently
+/// coexist — the runtime fires every matching policy, so the trigger
+/// command runs once per duplicate. Flat IR walk; no runtime needed.
+fn run_check_duplicate_policies(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-duplicate-policies <bluebook>");
+        std::process::exit(1);
+    });
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+
+    println!("Checking {} ({})", domain.name, path);
+
+    let report = hecks_life::duplicate_policy_validator::check(&domain);
+    if report.findings.is_empty() {
+        println!("\nPolicies: clean ({} policies, no duplicates)", domain.policies.len());
+    } else {
+        println!("\nDuplicate policies:");
+        for f in &report.findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    }
+
+    println!("\n{} error(s)", report.errors());
+    if report.passes() {
+        println!("PASS — {} has no duplicate (event, trigger) pairs", path);
+    } else {
+        println!("FAIL — {} has duplicate policies", path);
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life check-all <bluebook> [--strict]`
+///
+/// Run every validator in one go: lifecycle (unreachable transitions
+/// + givens + mutation refs) and IO (declarative IO smells + pure-
+/// memory dispatch smoke). Exits 0 only if both pass.
+fn run_check_all(args: &[String]) {
+    let path = args.get(2).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life check-all <bluebook> [--strict]");
+        std::process::exit(1);
+    });
+    let strict = args.iter().any(|a| a == "--strict");
+
+    let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
+    });
+    let domain = hecks_life::parser::parse(&source);
+    if domain.aggregates.is_empty() {
+        // i112 final — umbrella bluebooks (workflow + glossary, no
+        // aggregates of their own) are valid : they orchestrate sibling
+        // aggregates that live in their own bluebooks. A bluebook with
+        // no aggregates has nothing to check at the lifecycle level —
+        // exit 0 (not an error), so the pre-commit hook's per-file
+        // sweep treats umbrellas the way they deserve.
+        eprintln!("{} has no aggregates — nothing to check", path);
+        std::process::exit(0);
+    }
+
+    println!("Checking {} ({})", domain.name, path);
+    let mut overall_ok = true;
+
+    // Lifecycle (borrows the domain — runs first).
+    let lc = hecks_life::lifecycle_validator::check(&domain);
+    if !lc.findings.is_empty() {
+        println!("\nLifecycle:");
+        for f in &lc.findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nLifecycle: clean");
+    }
+    if !lc.passes(strict) { overall_ok = false; }
+
+    // IO (consumes the domain — runs second).
+    let io = hecks_life::io_validator::check(domain);
+    if !io.static_findings.is_empty() {
+        println!("\nIO static scan:");
+        for f in &io.static_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nIO static scan: clean");
+    }
+    if !io.runtime_findings.is_empty() {
+        println!("\nIO runtime smoke:");
+        for f in &io.runtime_findings {
+            println!("  {} {} — {}", f.icon(), f.location, f.message);
+        }
+    } else {
+        println!("\nIO runtime smoke: clean");
+    }
+    if !io.passes(strict) { overall_ok = false; }
+
+    let total_errs = lc.errors() + io.errors();
+    let total_warns = lc.warnings() + io.warnings();
+    println!("\n{} error(s), {} warning(s)", total_errs, total_warns);
+    if overall_ok {
+        println!("PASS — {} is healthy{}", path, if strict { " (strict)" } else { "" });
+    } else {
+        println!("FAIL — {} has issues", path);
+        std::process::exit(1);
+    }
+}
+
+/// `hecks-life specialize <target> [--output PATH]`
+///
+/// i51 Phase D pilot — Rust-native specializer driver. Mirrors
+/// `bin/specialize <target>` on the Ruby side; both runtimes must
+/// produce byte-identical output for every ported target until the
+/// migration completes.
+///
+/// Target name (the first positional arg) dispatches to the matching
+/// module under `hecks_life::specializer::`. Writes to `--output
+/// PATH` when provided, otherwise prints to stdout.
+fn run_specialize(args: &[String]) {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or("");
+    if target.is_empty() {
+        eprintln!("Usage: hecks-life specialize <target> [--output PATH]");
+        std::process::exit(2);
+    }
+
+    let output_path: Option<String> = args
+        .iter()
+        .position(|a| a == "--output" || a == "-o")
+        .and_then(|i| args.get(i + 1).cloned());
+
+    let repo_root = match specialize_repo_root() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("cannot locate repo root: {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    let rust = match hecks_life::specializer::emit(target, &repo_root) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("specialize {} failed: {}", target, e);
+            std::process::exit(1);
+        }
+    };
+
+    match output_path {
+        Some(p) => {
+            if let Err(e) = std::fs::write(&p, &rust) {
+                eprintln!("cannot write {}: {}", p, e);
+                std::process::exit(1);
+            }
+            eprintln!("wrote {} bytes to {}", rust.len(), p);
+        }
+        None => print!("{}", rust),
+    }
+}
+
+/// Locate the repository root for the `specialize` subcommand.
+///
+/// Prefers `heki::repo_root()` (executable-anchored, worktree-aware —
+/// skips `.claude/worktrees/agent-XXX/` matches and finds the real
+/// hecks checkout). Falls back to `env::current_dir()` when the
+/// executable-walk returns None — invocation convention from a
+/// non-test terminal is `hecks-life specialize …` run from the repo
+/// root (same as `bin/specialize` on the Ruby side).
+///
+/// The test harness in rust/tests/specializer_golden_test.rs sets
+/// cwd to its CARGO_MANIFEST_DIR/.. which equals the worktree root
+/// when tests run inside an agent worktree. The cwd-fallback would
+/// pick the worktree's hecks_conception/ copy and downstream
+/// specializers (e.g. system_prompt's shape at ../miette/...) would
+/// fail because the worktree's parent is .claude/worktrees/, not
+/// the projects root that holds sibling miette/. Going through
+/// heki::repo_root() finds the canonical checkout regardless.
+fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    if let Some(root) = hecks_life::heki::repo_root() {
+        return Ok(root);
+    }
+    let cwd = env::current_dir()?;
+    if !cwd.join("hecks_conception").is_dir() {
+        return Err(format!(
+            "expected to run `specialize` from the repo root (cwd={}, no hecks_conception/ sibling)",
+            cwd.display()
+        )
+        .into());
+    }
+    Ok(cwd)
+}
+
+/// Find the source bluebook for a behaviors file.
+///
+/// Two name conventions, in order of preference:
+///   `path/to/foo.behaviors`                    → `path/to/foo.bluebook`
+///   `path/to/foo_behavioral_tests.bluebook`    → `path/to/foo.bluebook` (legacy)
+fn source_for_suite(suite_path: &str) -> String {
+    let p = std::path::PathBuf::from(suite_path);
+    let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let source_stem = stem.trim_end_matches("_behavioral_tests");
+    let parent = p.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
+    parent.join(format!("{}.bluebook", source_stem)).to_string_lossy().into_owned()
+}
+
+/// heki subcommands — read/write + query shapes the shell scripts need.
+///
+/// Write/read (original):
+///   hecks-life heki read   <file.heki>
+///   hecks-life heki append <file.heki> key=val key2=val2
+///   hecks-life heki upsert <file.heki> key=val key2=val2
+///   hecks-life heki delete <file.heki> <id>
+///   hecks-life heki latest <file.heki>
+///
+/// Query shapes (i37 Phase A — replace python3 -c invocations):
+///   hecks-life heki get           <file.heki> <id> [<field>]
+///   hecks-life heki list          <file.heki> [--where k=v]... [--order f[:asc|desc|enum=a,b,c]]
+///                                             [--fields a,b,c] [--format json|tsv|kv]
+///   hecks-life heki count         <file.heki> [--where k=v]...
+///   hecks-life heki next-ref      <file.heki> [--prefix i] [--field ref]
+///   hecks-life heki latest-field  <file.heki> <field>
+///   hecks-life heki values        <file.heki> <field>
+///   hecks-life heki mark          <file.heki> --where k=v [--where k=v]... --set k=v [--set k=v]...
+///   hecks-life heki seconds-since <file.heki> <field>
+///
+/// Exit codes:
+///   0 success
+///   1 file not found / IO error
+///   2 invalid filter / order syntax
+///   3 field not found (get / latest-field / seconds-since)
+///
+/// [antibody-exempt: register new heki subcommand dispatchers; same
+///  shape as existing run_heki arms]
+fn run_heki(args: &[String]) {
+    if args.len() < 4 {
+        eprintln!("Usage: hecks-life heki <cmd> <file.heki> [args...]");
+        eprintln!("Commands: read latest append upsert delete snapshot");
+        eprintln!("          get list count next-ref latest-field values mark seconds-since");
+        std::process::exit(1);
+    }
+
+    let sub = args[2].as_str();
+    let file = args[3].as_str();
+    let rest = &args[4..];
+
+    match sub {
+        "read"          => heki_cmd_read(file),
+        "latest"        => heki_cmd_latest(file),
+        "append"        => heki_cmd_append(file, rest),
+        "upsert"        => heki_cmd_upsert(file, rest),
+        "delete"        => heki_cmd_delete(file, rest),
+        "retain"        => heki_cmd_retain(file, rest),
+        "snapshot"      => heki_cmd_snapshot(file),
+        "get"           => heki_cmd_get(file, rest),
+        "list"          => heki_cmd_list(file, rest),
+        "count"         => heki_cmd_count(file, rest),
+        "ids"           => heki_cmd_ids(file, rest),
+        "next-ref"      => heki_cmd_next_ref(file, rest),
+        "latest-field"  => heki_cmd_latest_field(file, rest),
+        "values"        => heki_cmd_values(file, rest),
+        "mark"          => heki_cmd_mark(file, rest),
+        "seconds-since" => heki_cmd_seconds_since(file, rest),
+        _ => {
+            eprintln!("Unknown heki command: {}", sub);
+            eprintln!("Available: read latest append upsert delete snapshot get list count ids \
+                       next-ref latest-field values mark seconds-since");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Snapshot a heki file on demand. Useful before risky manual ops.
+/// Prints the snapshot path on success ; prints a notice and exits 0
+/// if the source file doesn't exist (idempotent).
+fn heki_cmd_snapshot(file: &str) {
+    match heki::snapshot(file) {
+        Ok(Some(snap)) => println!("{}", snap),
+        Ok(None) => println!("(no file at {} — nothing to snapshot)", file),
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+// -------- Existing read/write commands (extracted for readability) ---------
+
+fn heki_cmd_read(file: &str) {
+    match heki::read(file) {
+        Ok(store) => println!("{}", serde_json::to_string_pretty(&store).unwrap_or_default()),
+        Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_latest(file: &str) {
+    match heki::read(file) {
+        Ok(store) => {
+            match heki::latest(&store) {
+                Some(rec) => println!("{}", serde_json::to_string_pretty(rec).unwrap_or_default()),
+                None      => println!("{{}}"),
+            }
+        }
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+/// Extract `--reason "<text>"` from a CLI arg list. Returns the reason
+/// and the remaining args. The reason is REQUIRED for write subcommands
+/// (append / upsert / delete) — without it, the write is a discipline
+/// gap. Use a domain command (`hecks-life $AGG <Aggregate>.<Command>`)
+/// instead, or pass --reason to acknowledge the out-of-band nature.
+fn extract_reason<'a>(rest: &'a [String]) -> Option<(String, Vec<&'a String>)> {
+    let mut iter = rest.iter().peekable();
+    let mut reason: Option<String> = None;
+    let mut remaining: Vec<&String> = Vec::new();
+    while let Some(arg) = iter.next() {
+        if arg == "--reason" {
+            if let Some(next) = iter.next() {
+                reason = Some(next.clone());
+                continue;
+            }
+            eprintln!("--reason requires a value");
+            std::process::exit(1);
+        }
+        if let Some(stripped) = arg.strip_prefix("--reason=") {
+            reason = Some(stripped.to_string());
+            continue;
+        }
+        remaining.push(arg);
+    }
+    reason.map(|r| (r, remaining))
+}
+
+fn require_reason(op: &str, rest: &[String]) -> (String, Vec<String>) {
+    match extract_reason(rest) {
+        Some((reason, rem)) => (reason, rem.into_iter().cloned().collect()),
+        None => {
+            eprintln!("hecks-life heki {} requires --reason \"<why>\" — direct heki", op);
+            eprintln!("writes bypass the dispatch path. Use a domain command instead, or");
+            eprintln!("pass --reason to mark this as an out-of-band write (test setup,");
+            eprintln!("migration, bootstrap seed). The reason is recorded in the audit log.");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn heki_cmd_append(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("append", rest);
+    let attrs = heki::parse_attrs(&remaining);
+    match heki::append(file, &attrs, heki::WriteContext::OutOfBand { reason: &reason }) {
+        Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
+        Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_upsert(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("upsert", rest);
+    let attrs = heki::parse_attrs(&remaining);
+    match heki::upsert(file, &attrs, heki::WriteContext::OutOfBand { reason: &reason }) {
+        Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
+        Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+fn heki_cmd_delete(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("delete", rest);
+    let id = match remaining.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki delete <file.heki> <id> --reason \"<why>\"");
+            std::process::exit(1);
+        }
+    };
+    // Snapshot before destructive op — out-of-band deletes are exactly
+    // the case we want backup evidence for.
+    match heki::snapshot(file) {
+        Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
+        Ok(None) => {}
+        Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
+    }
+    match heki::delete(file, id, heki::WriteContext::OutOfBand { reason: &reason }) {
+        Ok(true)  => println!("deleted {}", id),
+        Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
+        Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+/// `heki retain <file> <id> --reason "<why>"` — filter-rewrite a store
+/// to keep only the named record. Used to clean up i151 singleton-leak
+/// orphans : aggregate stores accumulated thousands of records when
+/// every cascade tick minted a new id ; the canonical natural-key
+/// record is the only one with real state. Snapshots the source before
+/// rewriting so the prior store can be recovered.
+fn heki_cmd_retain(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("retain", rest);
+    let id = match remaining.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki retain <file.heki> <id> --reason \"<why>\"");
+            std::process::exit(1);
+        }
+    };
+    let store = match heki::read(file) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    };
+    let kept = match store.get(id) {
+        Some(r) => r.clone(),
+        None => {
+            eprintln!("heki retain : no record with id={} in {}", id, file);
+            std::process::exit(1);
+        }
+    };
+    let dropped = store.len().saturating_sub(1);
+    // Snapshot before destructive op — same pattern heki delete uses.
+    match heki::snapshot(file) {
+        Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
+        Ok(None) => {}
+        Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
+    }
+    let mut new_store = heki::Store::new();
+    new_store.insert(id.to_string(), kept);
+    match heki::write(file, &new_store, heki::WriteContext::OutOfBand { reason: &reason }) {
+        Ok(_) => println!("retained id={} ; {} record(s) dropped", id, dropped),
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+// -------- New query commands ------------------------------------------------
+
+fn heki_cmd_get(file: &str, rest: &[String]) {
+    let id = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki get <file.heki> <id> [<field>]");
+            std::process::exit(1);
+        }
+    };
+    let field = rest.get(1).map(|s| s.as_str());
+
+    let store = read_store_or_exit(file);
+    let rec = match store.get(id) {
+        Some(r) => r,
+        None    => { eprintln!("no record with id {}", id); std::process::exit(1); }
+    };
+    match field {
+        None => println!("{}", serde_json::to_string_pretty(rec).unwrap_or_default()),
+        Some(f) => {
+            if !rec.contains_key(f) {
+                eprintln!("field not found: {}", f);
+                std::process::exit(3);
+            }
+            println!("{}", heki_query::field_to_string(rec.get(f)));
+        }
+    }
+}
+
+fn heki_cmd_list(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+
+    let mut recs = heki_query::filter_records(&store, &opts.filters);
+    let default_order = vec![heki_query::OrderSpec {
+        field: "created_at".into(),
+        dir: heki_query::OrderDir::Asc,
+        enum_order: None,
+        numeric_ref: false,
+    }];
+    let order_specs: &[heki_query::OrderSpec] = if opts.orders.is_empty() {
+        &default_order
+    } else {
+        &opts.orders
+    };
+    recs = heki_query::order_records_multi(recs, order_specs);
+
+    let fields = opts.fields.clone();
+    match opts.format.as_str() {
+        "tsv" => print_tsv(&recs, &fields),
+        "kv"  => print_kv(&recs, &fields),
+        _     => print_json(&recs, &fields),
+    }
+}
+
+fn heki_cmd_count(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+    let recs = heki_query::filter_records(&store, &opts.filters);
+    println!("{}", recs.len());
+}
+
+// List the aggregate IDs present in a heki store, one per line. Honors
+// the same filter-flags as list/count (--where field=value) so callers
+// can scope to a subset. Useful for debugging dispatches that miss : the
+// dispatch may write to a default id like "1" while the existing record
+// is keyed by a UUID, leaving the persisted state stale and the in-
+// memory response misleading.
+fn heki_cmd_ids(file: &str, rest: &[String]) {
+    let opts = parse_query_opts(rest);
+    let store = read_store_or_exit(file);
+    let recs = heki_query::filter_records(&store, &opts.filters);
+    for rec in &recs {
+        if let Some(id) = rec.get("id").and_then(|v| v.as_str()) {
+            println!("{}", id);
+        }
+    }
+}
+
+fn heki_cmd_next_ref(file: &str, rest: &[String]) {
+    let mut prefix = "i".to_string();
+    let mut field = "ref".to_string();
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--prefix" => { prefix = rest.get(i+1).cloned().unwrap_or_default(); i += 2; }
+            "--field"  => { field  = rest.get(i+1).cloned().unwrap_or_default(); i += 2; }
+            _ => i += 1,
+        }
+    }
+
+    let store = read_store_or_exit(file);
+    let mut max_n: Option<i64> = None;
+    for rec in store.values() {
+        let v = heki_query::field_to_string(rec.get(&field));
+        if let Some(tail) = v.strip_prefix(&prefix) {
+            if let Ok(n) = tail.parse::<i64>() {
+                max_n = Some(max_n.map_or(n, |cur| cur.max(n)));
+            }
+        }
+    }
+    let next = max_n.map_or(1, |n| n + 1);
+    println!("{}{}", prefix, next);
+}
+
+fn heki_cmd_latest_field(file: &str, rest: &[String]) {
+    let field = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki latest-field <file.heki> <field>");
+            std::process::exit(1);
+        }
+    };
+    let store = read_store_or_exit(file);
+    match heki::latest(&store) {
+        Some(rec) => {
+            if !rec.contains_key(field) {
+                eprintln!("field not found: {}", field);
+                std::process::exit(3);
+            }
+            println!("{}", heki_query::field_to_string(rec.get(field)));
+        }
+        None => { /* empty store — print nothing, exit 0 */ }
+    }
+}
+
+fn heki_cmd_values(file: &str, rest: &[String]) {
+    let field = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki values <file.heki> <field>");
+            std::process::exit(1);
+        }
+    };
+    let store = read_store_or_exit(file);
+    // Stable order — sort by created_at so output is deterministic.
+    let spec = heki_query::OrderSpec {
+        field: "created_at".into(),
+        dir: heki_query::OrderDir::Asc,
+        enum_order: None,
+        numeric_ref: false,
+    };
+    let recs = heki_query::order_records(store.values().collect(), &spec);
+    for rec in recs {
+        if let Some(v) = rec.get(field) {
+            println!("{}", heki_query::field_to_string(Some(v)));
+        }
+    }
+}
+
+fn heki_cmd_mark(file: &str, rest: &[String]) {
+    let (reason, remaining) = require_reason("mark", rest);
+    let rest = &remaining;
+    let mut filters: Vec<heki_query::Filter> = Vec::new();
+    let mut sets: Vec<(String, String)> = Vec::new();
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--where" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match heki_query::Filter::parse(&spec) {
+                    Ok(f) => filters.push(f),
+                    Err(e) => { eprintln!("{}", e); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            "--set" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match spec.find('=') {
+                    Some(eq) => sets.push((spec[..eq].to_string(), spec[eq+1..].to_string())),
+                    None => { eprintln!("invalid --set spec: {}", spec); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+
+    if filters.is_empty() {
+        eprintln!("heki mark requires at least one --where");
+        std::process::exit(2);
+    }
+    if sets.is_empty() {
+        eprintln!("heki mark requires at least one --set");
+        std::process::exit(2);
+    }
+
+    let mut store = read_store_or_exit(file);
+    let ids: Vec<String> = store.iter()
+        .filter(|(_, rec)| filters.iter().all(|f| f.matches(rec)))
+        .map(|(id, _)| id.clone())
+        .collect();
+    let matched = ids.len();
+    let now = heki::now_iso();
+    for id in &ids {
+        if let Some(rec) = store.get_mut(id) {
+            for (k, v) in &sets {
+                rec.insert(k.clone(), typed_value(v));
+            }
+            rec.insert("updated_at".into(), serde_json::Value::String(now.clone()));
+        }
+    }
+    if matched > 0 {
+        // Snapshot before destructive overwrite — `mark` rewrites the
+        // whole store in one go, which makes targeting mistakes hard
+        // to recover from without a backup.
+        match heki::snapshot(file) {
+            Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
+            Ok(None) => {}
+            Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
+        }
+        if let Err(e) = heki::write(file, &store, heki::WriteContext::OutOfBand { reason: &reason }) {
+            eprintln!("{}", e);
+            std::process::exit(1);
+        }
+    }
+    println!("{}", matched);
+}
+
+fn heki_cmd_seconds_since(file: &str, rest: &[String]) {
+    let field = match rest.first() {
+        Some(s) => s.as_str(),
+        None => {
+            eprintln!("Usage: hecks-life heki seconds-since <file.heki> <field>");
+            std::process::exit(1);
+        }
+    };
+    let store = read_store_or_exit(file);
+    let rec = match heki::latest(&store) {
+        Some(r) => r,
+        None    => { println!("0"); return; }
+    };
+    let ts = heki_query::field_to_string(rec.get(field));
+    if ts.is_empty() {
+        eprintln!("field not found or empty: {}", field);
+        std::process::exit(3);
+    }
+    let secs = heki::seconds_since_iso(&ts);
+    // Integer seconds — what the shell scripts want for -ge/-le compares.
+    println!("{}", secs as i64);
+}
+
+// -------- Query option parsing (shared by list / count) --------------------
+
+struct QueryOpts {
+    filters: Vec<heki_query::Filter>,
+    orders: Vec<heki_query::OrderSpec>,
+    fields: Vec<String>,
+    format: String,
+}
+
+fn parse_query_opts(rest: &[String]) -> QueryOpts {
+    let mut filters: Vec<heki_query::Filter> = Vec::new();
+    let mut orders: Vec<heki_query::OrderSpec> = Vec::new();
+    let mut fields: Vec<String> = Vec::new();
+    let mut format = "json".to_string();
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--where" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match heki_query::Filter::parse(&spec) {
+                    Ok(f) => filters.push(f),
+                    Err(e) => { eprintln!("{}", e); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            "--order" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                match heki_query::OrderSpec::parse(&spec) {
+                    Ok(o) => orders.push(o),
+                    Err(e) => { eprintln!("{}", e); std::process::exit(2); }
+                }
+                i += 2;
+            }
+            "--fields" => {
+                let spec = rest.get(i+1).cloned().unwrap_or_default();
+                fields = spec.split(',').map(|s| s.to_string()).collect();
+                i += 2;
+            }
+            "--format" => {
+                format = rest.get(i+1).cloned().unwrap_or_else(|| "json".into());
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+    QueryOpts { filters, orders, fields, format }
+}
+
+fn read_store_or_exit(file: &str) -> heki::Store {
+    match heki::read(file) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("{}", e); std::process::exit(1); }
+    }
+}
+
+/// `heki mark --set k=v` parses the value the same way `parse_attrs`
+/// does — int / float / bool / string — so the shell doesn't have to
+/// worry about quoting.
+fn typed_value(v: &str) -> serde_json::Value {
+    if let Ok(n) = v.parse::<i64>() {
+        return serde_json::Value::Number(n.into());
+    }
+    if let Ok(f) = v.parse::<f64>() {
+        return serde_json::json!(f);
+    }
+    if v == "true"  { return serde_json::Value::Bool(true);  }
+    if v == "false" { return serde_json::Value::Bool(false); }
+    serde_json::Value::String(v.to_string())
+}
+
+// -------- Output formats ---------------------------------------------------
+
+fn project(rec: &heki::Record, fields: &[String]) -> serde_json::Value {
+    if fields.is_empty() {
+        return serde_json::to_value(rec).unwrap_or(serde_json::json!({}));
+    }
+    let mut map = serde_json::Map::new();
+    for f in fields {
+        if let Some(v) = rec.get(f) {
+            map.insert(f.clone(), v.clone());
+        } else {
+            map.insert(f.clone(), serde_json::Value::Null);
+        }
+    }
+    serde_json::Value::Object(map)
+}
+
+fn print_json(recs: &[&heki::Record], fields: &[String]) {
+    let arr: Vec<serde_json::Value> = recs.iter().map(|r| project(r, fields)).collect();
+    println!("{}", serde_json::to_string_pretty(&arr).unwrap_or_else(|_| "[]".into()));
+}
+
+fn print_tsv(recs: &[&heki::Record], fields: &[String]) {
+    if fields.is_empty() {
+        eprintln!("--format tsv requires --fields");
+        std::process::exit(2);
+    }
+    for rec in recs {
+        let row: Vec<String> = fields.iter()
+            .map(|f| heki_query::field_to_string(rec.get(f)))
+            .collect();
+        println!("{}", row.join("\t"));
+    }
+}
+
+fn print_kv(recs: &[&heki::Record], fields: &[String]) {
+    for rec in recs {
+        let keys: Vec<String> = if fields.is_empty() {
+            let mut ks: Vec<String> = rec.keys().cloned().collect();
+            ks.sort();
+            ks
+        } else {
+            fields.to_vec()
+        };
+        for k in keys {
+            println!("{}={}", k, heki_query::field_to_string(rec.get(&k)));
+        }
+        println!(); // blank line between records
+    }
+}
+
+/// Canonical JSON for a `.hecksagon` file — matches the shape the Ruby
+/// parity harness emits for `Hecksagon::Structure::Hecksagon#to_canonical_h`.
+///
+/// Only the subset the Rust IR models is included: name, persistence,
+/// subscriptions, shell_adapters, io_adapters, gates. Ruby-side fields
+/// outside that set (capabilities, concerns, annotations, context_map,
+/// etc.) are intentionally NOT in the canonical shape — files that
+/// depend on them go in hecksagon_known_drift.txt.
+fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json::Value {
+    let gates: Vec<serde_json::Value> = hex.gates.iter().map(|g| {
+        serde_json::json!({
+            "aggregate": g.aggregate,
+            "role":      g.role,
+            "allowed":   g.allowed_commands,
+        })
+    }).collect();
+    let io_adapters: Vec<serde_json::Value> = hex.io_adapters.iter().map(|io| {
+        let opts: Vec<serde_json::Value> = io.options.iter().map(|(k, v)| {
+            serde_json::json!([k, v])
+        }).collect();
+        serde_json::json!({
+            "kind":      io.kind,
+            "options":   opts,
+            "on_events": io.on_events,
+        })
+    }).collect();
+    let shell_adapters: Vec<serde_json::Value> = hex.shell_adapters.iter().map(|sa| {
+        let env: Vec<serde_json::Value> = sa.env.iter().map(|(k, v)| {
+            serde_json::json!([k, v])
+        }).collect();
+        serde_json::json!({
+            "name":          sa.name,
+            "command":       sa.command,
+            "args":          sa.args,
+            "output_format": sa.output_format,
+            "timeout":       sa.timeout,
+            "working_dir":   sa.working_dir,
+            "env":           env,
+            "ok_exit":       sa.ok_exit,
+        })
+    }).collect();
+    serde_json::json!({
+        "name":           hex.name,
+        "persistence":    hex.persistence,
+        "subscriptions":  hex.subscriptions,
+        "io_adapters":    io_adapters,
+        "shell_adapters": shell_adapters,
+        "gates":          gates,
+    })
+}
+
+/// Canonical JSON for a `.world` file — matches the shape the Ruby
+/// parity harness emits for `Hecksagon::Structure::World#to_canonical_h`.
+fn dump_world_json(world: &hecks_life::world_ir::World) -> serde_json::Value {
+    let concerns: Vec<serde_json::Value> = world.concerns.iter().map(|c| {
+        serde_json::json!({
+            "name": c.name,
+            "description": c.description,
+        })
+    }).collect();
+    let mut configs = serde_json::Map::new();
+    for cfg in &world.configs {
+        let mut obj = serde_json::Map::new();
+        for (k, v) in &cfg.values {
+            obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+        }
+        configs.insert(cfg.name.clone(), serde_json::Value::Object(obj));
+    }
+    serde_json::json!({
+        "name":     world.name,
+        "purpose":  world.purpose,
+        "vision":   world.vision,
+        "audience": world.audience,
+        "concerns": concerns,
+        "configs":  configs,
+    })
+}
+
+/// Derive the being name from argv[0].
+/// "miette" or "/path/to/miette" -> "Miette"
+/// "summer" or "/path/to/summer" -> "Summer"
+/// Anything else (hecks-life, etc) -> "Miette" (default)
+fn being_from_argv0(argv0: &str) -> String {
+    let bin = std::path::Path::new(argv0)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("miette");
+    match bin {
+        "summer" => "Summer".into(),
+        "miette" => "Miette".into(),
+        _ => "Miette".into(),
+    }
+}
+
+/// Locate a domain-named `*.world` file in the given directory.
+/// Returns the first match sorted alphabetically so behavior is deterministic.
+fn find_world_file(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    let mut matches: Vec<std::path::PathBuf> = fs::read_dir(dir).ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().map(|e| e == "world").unwrap_or(false))
+        .collect();
+    matches.sort();
+    matches.into_iter().next()
+}
+
+/// Read ollama config from the project's *.world file — returns
+/// (model, url) if configured. Routes through world_parser so there is
+/// one canonical shape for all .world consumers.
+fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
+    let parent = std::path::Path::new(agg_path).parent()?;
+    let world_path = find_world_file(parent)?;
+    let content = fs::read_to_string(&world_path).ok()?;
+    let world = hecks_life::world_parser::parse(&content);
+    let cfg = world.config_for("ollama")?;
+    let model = cfg.get("model")?.to_string();
+    let url   = cfg.get("url")?.to_string();
+    Some((model, url))
+}
+
+/// Scan every `*.hecksagon` in `agg_dir` for an `adapter :llm,
+/// backend: :X` declaration. Returns the (backend, model, url) triple
+/// the LLM adapter expects — model and url are pulled from the world's
+/// `ollama { model:, url: }` block when present so the ollama backend
+/// stays wired ; for the claude backend, model/url are ignored by the
+/// adapter and we pass empty strings.
+///
+/// This is the runtime side of the contract `wake_review.hecksagon`
+/// and `interpretation.hecksagon` and `rem_dream.hecksagon` already
+/// declare in bluebook : `adapter :llm, backend: :claude`. Without
+/// this scan, dispatch only honored ollama-from-world ; with it, the
+/// hecksagon's declaration is the source of truth and Compose/Narrate
+/// fire end-to-end via bluebook.
+///
+/// Returns None when no `:llm` adapter is declared (so the existing
+/// ollama-from-world path stays the default for conversational
+/// dispatch).
+fn find_hecksagon_llm_config(agg_dir: &str) -> Option<(String, String, String)> {
+    let entries = fs::read_dir(agg_dir).ok()?;
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if !p.extension().map(|e| e == "hecksagon").unwrap_or(false) { continue; }
+        let Ok(source) = fs::read_to_string(&p) else { continue };
+        let hex = hecks_life::hecksagon_parser::parse(&source);
+        let Some(io) = hex.io_adapter("llm") else { continue };
+        let backend = io.options.iter()
+            .find(|(k, _)| k == "backend")
+            .map(|(_, v)| strip_symbol_or_quotes(v))
+            .unwrap_or_else(|| "ollama".to_string());
+        // For ollama backend we still need (model, url) ; pull from
+        // .world if available, otherwise empty (resolve will skip).
+        let (model, url) = find_world_ollama_config(agg_dir)
+            .unwrap_or_else(|| (String::new(), String::new()));
+        return Some((backend, model, url));
+    }
+    None
+}
+
+/// Strip a leading `:` or surrounding quotes from a hecksagon option
+/// value. Mirrors the symbol/quote handling in hecksagon_helpers but
+/// kept inline-tiny so main.rs doesn't grow a helpers dep.
+fn strip_symbol_or_quotes(v: &str) -> String {
+    let t = v.trim();
+    if let Some(rest) = t.strip_prefix(':') { return rest.to_string(); }
+    let t = t.trim_matches('"').trim_matches('\'');
+    t.to_string()
+}
+
+/// Boot the hecksagon and run the terminal adapter.
+fn run_terminal(project_dir: &str, being: &str) {
+    let agg_dir = format!("{}/aggregates", project_dir);
+    let data_dir = find_world_heki_dir(&agg_dir)
+        .unwrap_or_else(|| format!("{}/information", project_dir));
+    let combined = load_combined_domain(&agg_dir);
+    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+    hecks_life::runtime::adapter_terminal::run(&mut rt, being);
+}
+
+/// Load every `.bluebook` under `<agg_dir>/` (organs) and under sibling
+/// `<agg_dir>/../capabilities/*/` (capability bluebooks) into a single
+/// merged Domain. Closes inbox i108 — capability bluebooks were
+/// previously skipped, so any aggregate declared in a capability bluebook
+/// (e.g. Antibody.ExemptRegistry, MusingMint.Mint, ConsolidationSweep)
+/// raised UnknownCommand on dispatch. Now they're auto-loaded alongside
+/// the organ aggregates and dispatch resolves them through the standard
+/// runtime path.
+///
+/// **Organ-wins dedupe.** When a capability bluebook re-declares an
+/// aggregate already defined under aggregates/ (e.g. self_checkin.bluebook
+/// declared a second `Heartbeat` without identified_by, which silently
+/// overwrote body.bluebook's canonical one), the organ definition wins
+/// and the capability copy is dropped. Capabilities can REFERENCE organ
+/// aggregates ; redeclaration is a name conflict, not an extension.
+fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
+    let mut combined = hecks_life::ir::Domain {
+        name: "Hecksagon".into(),
+        category: None, vision: None,
+        aggregates: vec![], policies: vec![],
+        fixtures: vec![],
+        entrypoint: None,
+        sections: vec![],
+    };
+    // Organ-wins dedupe (i108) — when two bluebooks declare the same
+    // aggregate, the one closest to the dispatch root wins. Recursive
+    // walk (i126) collects bluebooks with their depth ; we sort
+    // shallowest-first and merge in that order so the deeper duplicate
+    // is dropped by the existing any(existing.name == agg.name) check.
+    let merge = |dom: hecks_life::ir::Domain, c: &mut hecks_life::ir::Domain| {
+        for agg in dom.aggregates {
+            // i143 — dedupe by (context, name), not name alone. i142
+            // Tier 1 added Context.Aggregate.Command resolution but
+            // didn't update this merge ; same-name-different-context
+            // aggregates were silently dropped here, defeating the
+            // dispatch path's ability to disambiguate. Now Boot.Identity,
+            // Being.Identity, FirstBreath.Identity all survive merge ;
+            // the resolver picks the right one by context. Same-name
+            // SAME-context still dedupes (organ-wins, the i108 case
+            // for capability-redeclaration of an organ aggregate).
+            if c.aggregates.iter().any(|existing|
+                existing.name == agg.name && existing.context == agg.context
+            ) {
+                continue;
+            }
+            c.aggregates.push(agg);
+        }
+        c.policies.extend(dom.policies);
+        c.fixtures.extend(dom.fixtures);
+    };
+
+    // Recursive bluebook discovery (i126). Walk agg_dir at any depth.
+    // Skip directories that are known not to contain domain content :
+    // .git, target, information (heki stores), .claude (worktree
+    // state), node_modules, generated, fixtures (test data),
+    // snippets, behaviors (test fixtures, distinct from .behaviors
+    // files which are picked up by their extension separately).
+    // Symlinks not followed.
+    fn collect_bluebooks(dir: &std::path::Path, depth: usize,
+                          out: &mut Vec<(usize, std::path::PathBuf)>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".git" | "target" | "information" | ".claude"
+                | "node_modules" | "generated" | "fixtures" | "snippets"
+                | "behaviors" | "behaviours") {
+                continue;
+            }
+            if p.is_dir() {
+                collect_bluebooks(&p, depth + 1, out);
+            } else if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
+                out.push((depth, p));
+            }
+        }
+    }
+
+    let mut found: Vec<(usize, std::path::PathBuf)> = Vec::new();
+    collect_bluebooks(std::path::Path::new(agg_dir), 0, &mut found);
+
+    // Backward compat : the historic two-root model has organ
+    // bluebooks under aggregates/ and capability shapes under sibling
+    // capabilities/. The recursive walk above already finds children
+    // of agg_dir ; we extend it to the sibling capabilities/ directory
+    // when agg_dir's parent has one, so existing
+    // `hecks-life aggregates/ Cmd ...` invocations keep working.
+    // Capability bluebooks land at depth 1 (a level below organs) so
+    // the organ-wins dedupe rule is preserved.
+    if let Some(parent) = std::path::Path::new(agg_dir).parent() {
+        let cap_dir = parent.join("capabilities");
+        if cap_dir.exists() && cap_dir != std::path::Path::new(agg_dir) {
+            collect_bluebooks(&cap_dir, 1, &mut found);
+        }
+        // i117 Round 4 — Miette's body lives in the sibling miette/
+        // repo (chrisyoung/miette) post-split. Walk ../miette as an
+        // additional bluebook root at depth 1 so all of Miette's
+        // self/mind/body/library/surface aggregates participate in
+        // the same dispatch domain even though they live outside
+        // hecks_conception. The pre-push behaviors gate already
+        // scans this root ; the runtime now does too. Skipped
+        // silently when the sibling repo isn't checked out (e.g. CI
+        // running on hecks alone).
+        //
+        // Use heki::repo_root() (walks up from the executable) rather
+        // than `parent.parent()` because `agg_dir` can be a relative
+        // path (e.g. "hecks_conception/aggregates") whose parent.parent()
+        // is empty/relative — `..` from there points to cwd's parent,
+        // not the repo's parent. From a worktree under
+        // `.claude/worktrees/agent-XXX/` that breaks reach to the real
+        // `~/Projects/miette/`. The executable lives in the main
+        // checkout's `hecks_life/target/release/`, so walk-up from
+        // current_exe finds the canonical hecks/ root. (i117 Round 4
+        // follow-on : Chris's "no inbox row, just fix it" call after
+        // the Wave 2 agent's worktree-path-resolution false-failure.)
+        let canonical_miette = hecks_life::heki::repo_root()
+            .map(|r| r.join("../miette"))
+            .filter(|p| p.is_dir())
+            .and_then(|p| std::fs::canonicalize(&p).ok());
+        if let Some(canonical) = canonical_miette {
+            if canonical != std::path::Path::new(agg_dir) {
+                collect_bluebooks(&canonical, 1, &mut found);
+            }
+        }
+        // i118 Round 3 (capabilities reorg) — the 58 framework
+        // capabilities that used to live under hecks_conception/capabilities/
+        // are being lifted into top-level buckets at the hecks repo root :
+        // runtime/, discipline/, codegen/, cli/, integrations/, tools/.
+        // Wave 1 of the lift moves 33 caps ; codegen/ + statusline land in
+        // Wave 2 (specializer-fed paths require golden regeneration). For
+        // each known bucket directory at the repo root, collect bluebooks at
+        // depth 1 so the dispatch domain still resolves them. The legacy
+        // hecks_conception/capabilities/ walk above keeps working for caps
+        // that haven't been lifted yet (the deferred codegen + statusline).
+        if let Some(repo_root) = hecks_life::heki::repo_root() {
+            // Runtime buckets only — chapters/ and bluebook/ are
+            // descriptive (the framework's self-description and
+            // language definition) and intentionally excluded from
+            // the dispatch domain. Walking them in would surface
+            // documentation-level Compile / Build / etc. commands
+            // that collide with runtime-level same-named commands
+            // (e.g. language/grammar's Compile gets shadowed by
+            // chapters/cli.bluebook's Compile via depth-sort).
+            for bucket in &["runtime", "discipline", "codegen", "cli",
+                            "integrations", "tools"] {
+                let bucket_dir = repo_root.join(bucket);
+                if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
+                    collect_bluebooks(&bucket_dir, 1, &mut found);
+                }
+            }
+        }
+    }
+
+    // Shallowest first — root-level bluebooks beat deeper ones on
+    // name collision (i126). Within a depth, sort by path
+    // lexicographically so the dedupe is reproducible across
+    // filesystems (i141). Without the path tiebreaker, three
+    // depth-0 bluebooks declaring the same aggregate (e.g. boot,
+    // being, first_breath all declaring Identity) resolve by
+    // fs::read_dir() inode order — which is undefined across
+    // filesystems. The tiebreaker makes organ-wins deterministic.
+    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+
+    for (_, path) in found {
+        if let Ok(source) = fs::read_to_string(&path) {
+            merge(parser::parse(&source), &mut combined);
+        }
+    }
+    combined
+}
+
+/// Find the info dir for run_loop / run_clock / dispatch_hecksagon —
+/// delegates to `heki::resolve_info_dir` (canonical i154 helper).
+/// `aggregates_path` is no longer used for resolution ; it's kept in
+/// the signature so existing callers don't change. miette.world's
+/// `heki.dir` is now documentation only — the runtime path no longer
+/// reads it (closes i149/i153 class of bugs where boot wrote one place
+/// while daemons read another).
+fn find_world_heki_dir(_aggregates_path: &str) -> Option<String> {
+    Some(hecks_life::heki::resolve_info_dir().to_string_lossy().into_owned())
+}
+
+/// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
+fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = load_combined_domain(agg_dir);
+    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+
+    // Check if this is a query — find the aggregate and check its queries
+    let is_query = rt.domain.aggregates.iter().any(|a|
+        a.queries.iter().any(|q| q.name == command));
+
+    if is_query {
+        let result = rt.resolve_query(command, &attrs.iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+            .collect::<std::collections::HashMap<_, _>>());
+        println!("{}", result);
+    } else {
+        // Command: dispatch, mutate, run adapters, return state.
+        //
+        // LLM config resolution :
+        //   1. Hecksagon-declared `adapter :llm, backend: :X` wins (i109
+        //      runtime gap closure ; the source of truth is the
+        //      bluebook surface, not .world). Backends: "claude" (no
+        //      model/url needed) or "ollama" (uses world model/url).
+        //   2. Otherwise, fall back to .world's ollama block — the
+        //      legacy conversational path that long predates the
+        //      hecksagon :llm declaration.
+        let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
+        let ollama_config = find_world_ollama_config(agg_dir);
+        let rt_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = attrs.iter()
+            .map(|(k, v)| (k.clone(), match v {
+                serde_json::Value::String(s) => hecks_life::runtime::Value::Str(s.clone()),
+                _ => hecks_life::runtime::Value::Str(v.to_string()),
+            }))
+            .collect();
+        match rt.dispatch(command, rt_attrs) {
+            Ok(result) => {
+                // Run LLM adapter if configured
+                if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
+                    let repo_key = hecks_life::runtime::repo_lookup_key(&rt.repositories, &result.aggregate_type);
+                    if let Some(repo) = repo_key.as_ref().and_then(|k| rt.repositories.get_mut(k)) {
+                        if let Some((backend, model, url)) = hecksagon_llm.as_ref() {
+                            let triple = (backend.as_str(), model.as_str(), url.as_str());
+                            hecks_life::runtime::adapter_llm::resolve(
+                                repo, &state, Some(triple),
+                                &result.aggregate_type, command);
+                        } else {
+                            let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
+                            hecks_life::runtime::adapter_llm::resolve_ollama(
+                                repo, &state, config,
+                                &result.aggregate_type, command);
+                        }
+                    }
+                }
+                let state = rt.find(&result.aggregate_type, &result.aggregate_id);
+                let fields = state.map(|s| {
+                    let mut map = serde_json::Map::new();
+                    for (k, v) in &s.fields {
+                        map.insert(k.clone(), match v {
+                            hecks_life::runtime::Value::Str(s) => serde_json::json!(s),
+                            hecks_life::runtime::Value::Int(n) => serde_json::json!(n),
+                            hecks_life::runtime::Value::Bool(b) => serde_json::json!(b),
+                            _ => serde_json::json!(v.to_string()),
+                        });
+                    }
+                    serde_json::Value::Object(map)
+                }).unwrap_or(serde_json::json!({}));
+                println!("{}", serde_json::json!({
+                    "ok": true,
+                    "aggregate": result.aggregate_type,
+                    "id": result.aggregate_id,
+                    "state": fields,
+                }));
+            }
+            Err(e) => {
+                eprintln!("dispatch error: {:?}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+/// Parse a loop-cadence duration string.
+///
+/// Accepts "1s", "500ms", "2m", "5h", or a bare integer (treated as
+/// seconds for backwards compat). Returns None if unparseable.
+///
+/// The unit suffix order matters — "ms" must be checked before "s"
+/// so "500ms" doesn't match "500m"+"s". Same for "h" before "ms"
+/// (no overlap, but explicit ordering is safer).
+fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
+    use std::time::Duration;
+    let s = s.trim();
+    if let Some(ms) = s.strip_suffix("ms") {
+        ms.trim().parse::<u64>().ok().map(Duration::from_millis)
+    } else if let Some(h) = s.strip_suffix("h") {
+        h.trim().parse::<u64>().ok().map(|n| Duration::from_secs(n * 3600))
+    } else if let Some(m) = s.strip_suffix("m") {
+        m.trim().parse::<u64>().ok().map(|n| Duration::from_secs(n * 60))
+    } else if let Some(sec) = s.strip_suffix("s") {
+        sec.trim().parse::<f64>().ok().map(Duration::from_secs_f64)
+    } else {
+        s.parse::<u64>().ok().map(Duration::from_secs)
+    }
+}
+
+/// Run the loop subcommand. Boots the runtime once, dispatches the named
+/// command at the given cadence, exits cleanly on SIGINT / SIGTERM.
+///
+/// Args layout : hecks-life loop <target> <Aggregate.Command> --every <dur> [k=v ...]
+///   args[0] = binary
+///   args[1] = "loop"
+///   args[2] = target (agg dir or .bluebook)
+///   args[3] = "Aggregate.Command"
+///   args[4..] = "--every", "<dur>", and key=val attrs
+// ============================================================
+// DAEMON SUBCOMMAND — process-lifecycle primitive
+// ============================================================
+//
+// Three actions, each idempotent against a pidfile :
+//
+//   ensure <pidfile> <command> [args...]
+//     If pidfile exists and the PID is alive, prints `alive: <pid>`
+//     and exits 0 (idempotent boot — same shape as the existing
+//     boot_miette.sh `kill -0` checks). Otherwise spawns the command
+//     in a new session (setsid) with stdio routed to /dev/null, writes
+//     the child's PID to the pidfile, prints `spawned: <pid>` and exits 0.
+//
+//     The setsid call is what makes this NOT leak. The wrapping subshell
+//     pattern (`( cd ... && nohup ./script & )`) used in boot_miette.sh
+//     today produces PPID=1 orphans on macOS because the wrapper bash
+//     shell doesn't always exit cleanly after backgrounding. Spawning
+//     directly via Command + pre_exec(setsid) puts the daemon in its
+//     own session/process-group and the parent (this hecks-life process)
+//     exits immediately — no wrapping shell to leak.
+//
+//   status <pidfile>
+//     Prints `alive: <pid>` (exit 0), `dead: <pid>` (exit 1), or
+//     `none` (exit 1). For health-check use (i94).
+//
+//   stop <pidfile>
+//     If the PID is alive, sends SIGTERM and prints `stopped: <pid>`.
+//     Removes the pidfile.
+
+// ============================================================
+// ENFORCE-EDIT SUBCOMMAND — PostToolUse listener primitive
+// ============================================================
+//
+// Reads JSON from stdin (Claude Code's PostToolUse contract),
+// extracts tool_name and tool_input.file_path, classifies the
+// extension, dispatches into the Enforcer aggregate, and routes
+// imperative-edit complaints back to the agent via stderr + exit 2.
+//
+// Replaces ~/.claude/hooks/enforce_bluebook.sh (i104). Same family
+// as run_loop / run_daemon : kernel-surface CLI primitive that a
+// bluebook capability dispatches into. Bluebook brain
+// (aggregates/enforcer.bluebook) stays unchanged ; the shell glue
+// retires.
+
+fn run_enforce_edit(_args: &[String]) {
+    use std::io::Read;
+    let mut input = String::new();
+    if std::io::stdin().read_to_string(&mut input).is_err() {
+        std::process::exit(0);
+    }
+    let json: serde_json::Value = match serde_json::from_str(&input) {
+        Ok(v) => v,
+        Err(_) => std::process::exit(0),
+    };
+    let tool_name = json.get("tool_name")
+        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let file_path = json.pointer("/tool_input/file_path")
+        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if file_path.is_empty() {
+        std::process::exit(0);
+    }
+
+    let kind = classify_file(&file_path);
+
+    // For imperative files, ask the IR-query substrate first
+    // (i122) ; if the corpus declares this file as dispatched (a
+    // hecksagon ShellAdapter referencing it, a specializer target,
+    // a capability runner row), exemption is structural — no
+    // marker needed. Falls back to the central exempt_registry.heki
+    // for cases the IR doesn't yet cover (the residual entries each
+    // carry a named retirement arc in the inbox). When dispatched-
+    // by-corpus fires, the kind decoration in the audit event names
+    // who claimed the file, so the audit log shows WHY the edit was
+    // exempt rather than just "exempt".
+    let dispatch_info = if matches!(kind, FileKind::Imperative) {
+        dispatch_lookup(&file_path)
+    } else {
+        None
+    };
+    let exempted = dispatch_info.is_some()
+        || (matches!(kind, FileKind::Imperative) && file_is_in_exempt_registry(&file_path));
+
+    let cmd_name = match kind {
+        FileKind::Bluebook   => "RecordBluebookEdit",
+        FileKind::Imperative => if exempted { "RecordExemptedEdit" } else { "RecordImperativeEdit" },
+        FileKind::Support    => "RecordSupportEdit",
+        FileKind::Other      => "RecordOtherEdit",
+    };
+
+    // Resolve aggregates dir relative to the binary's project layout.
+    // Same path the rest of the body uses.
+    let agg_dir = match resolve_aggregates_dir() {
+        Some(p) => p,
+        None    => std::process::exit(0),
+    };
+
+    let mut attrs = std::collections::HashMap::new();
+    attrs.insert("file_path".to_string(), serde_json::Value::String(file_path.clone()));
+    if let Some(ref info) = dispatch_info {
+        // Record the IR-query verdict on the audit event so the
+        // exempted edit carries a structured "why" instead of just
+        // a flag. Source = where the dispatch declaration lives ;
+        // kind = which kind of dispatch (specializer target, shell
+        // adapter, runner row) ; identifier = the specific row in
+        // that source.
+        attrs.insert("dispatch_source".into(),
+                     serde_json::Value::String(info.source.clone()));
+        attrs.insert("dispatch_kind".into(),
+                     serde_json::Value::String(info.kind.clone()));
+        attrs.insert("dispatch_identifier".into(),
+                     serde_json::Value::String(info.identifier.clone()));
+        // Structured stderr line so the substrate is observable as
+        // it works. Once the registry trim lands and the markers
+        // retire, this is the only signal that an edit was exempt
+        // and why.
+        eprintln!(
+            "[enforcer] exempt by corpus : {} ({} in {})",
+            file_path, info.kind, info.source
+        );
+    }
+    let _ = std::panic::catch_unwind(|| {
+        // dispatch_hecksagon expects the bare command name (no
+        // "Aggregate." prefix) ; the runtime resolves by command-
+        // name within the loaded domain. Same shape run_loop uses.
+        dispatch_hecksagon(&agg_dir, cmd_name, attrs.clone());
+    });
+
+    // --reason lint — fires on any .sh file (exempt or not) that has
+    // a `heki append/upsert/delete/mark` invocation without --reason.
+    // The discipline is structural : direct heki writes bypass the
+    // dispatch path's audit log, so each must name why. Without this
+    // gate, scripts silently exit non-zero on every write, fixtures
+    // never seed, and tests pass-through with empty data. Pre-i112
+    // we shipped that bug across many shells (pulse_organs, daydream,
+    // consolidate, mint_musing, surface_musing, the test seeds
+    // themselves) ; this hook makes the silent failure structurally
+    // impossible going forward.
+    if file_path.ends_with(".sh") {
+        if let Some(violations) = unreasoned_heki_writes(&file_path) {
+            let complaint = format!(
+                "--reason missing on direct heki write in {} :\n  {}\n\n\
+                 Direct heki writes (heki append / upsert / delete / mark) \
+                 bypass the dispatch path's audit log. Each must pass \
+                 --reason \"<why>\" so the audit trail names the gap that \
+                 forced the bypass. Without it the runtime exits non-zero \
+                 silently — discipline drift hides as a passing build.",
+                file_path, violations.join("\n  "),
+            );
+            eprintln!("[enforcer] {}", complaint);
+            std::process::exit(2);
+        }
+    }
+
+    if matches!(kind, FileKind::Imperative) && !exempted {
+        let ext = file_path.rsplit('.').next().unwrap_or("");
+        let complaint = format!(
+            "bluebook-first violation : {} wrote .{} ({}). The enforcer expected a \
+             bluebook (.bluebook / .hecksagon / .fixtures / .behaviors / .world). If \
+             this is genuinely kernel-surface or transitional, name the exemption in \
+             the file's antibody marker AND in the next commit's message ; otherwise, \
+             revert and reach for bluebook.",
+            tool_name, ext, file_path
+        );
+        let ts = chrono_utc_now();
+        let mut complain_attrs = std::collections::HashMap::new();
+        complain_attrs.insert("file_path".into(), serde_json::Value::String(file_path));
+        complain_attrs.insert("complaint".into(), serde_json::Value::String(complaint.clone()));
+        complain_attrs.insert("last_complaint_at".into(), serde_json::Value::String(ts));
+        let _ = std::panic::catch_unwind(|| {
+            dispatch_hecksagon(&agg_dir, "Complain", complain_attrs);
+        });
+        eprintln!("[enforcer] {}", complaint);
+        std::process::exit(2);
+    }
+    std::process::exit(0);
+}
+
+/// Scan a shell file for direct heki writes (heki append / upsert /
+/// delete / mark) that lack `--reason`. Returns Some(violations) when
+/// the file has at least one unreasoned write — the enforcer refuses
+/// the edit. Returns None when the file is clean (no writes, or every
+/// write carries --reason in its multi-line invocation).
+///
+/// Scanning rule : find each line that matches `heki (append|upsert|
+/// delete|mark)` ; gather that line plus all bash-continuation lines
+/// (each ending with `\`) ; check if --reason appears anywhere across
+/// the joined invocation. Comments (`# heki append ...`) are skipped.
+fn unreasoned_heki_writes(file_path: &str) -> Option<Vec<String>> {
+    let source = std::fs::read_to_string(file_path).ok()?;
+    let lines: Vec<&str> = source.lines().collect();
+    let mut violations: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim_start();
+        // Skip comments and shebangs ; only flag executable lines.
+        if trimmed.starts_with('#') || trimmed.starts_with("//") {
+            i += 1; continue;
+        }
+        // Match `heki append`, `heki upsert`, `heki delete`, `heki mark`.
+        // Allow `$HECKS heki ...` or `"$HECKS" heki ...` or bare path.
+        let is_write = ["heki append", "heki upsert", "heki delete", "heki mark"]
+            .iter().any(|verb| line.contains(verb));
+        if !is_write {
+            i += 1; continue;
+        }
+        // Collect this line plus continuation lines (those ending with `\`
+        // after stripping trailing whitespace). The continuation forms the
+        // full invocation surface where --reason might appear.
+        let mut joined = String::from(line);
+        let mut j = i;
+        while j < lines.len() && lines[j].trim_end().ends_with('\\') {
+            j += 1;
+            if j < lines.len() {
+                joined.push(' ');
+                joined.push_str(lines[j]);
+            }
+        }
+        if !joined.contains("--reason") {
+            // Trim the joined invocation for the diagnostic so it's
+            // readable but bounded (~120 chars).
+            let display: String = joined.split_whitespace()
+                .collect::<Vec<_>>().join(" ");
+            let display_short = if display.len() > 120 {
+                format!("{}…", &display[..120])
+            } else { display };
+            violations.push(format!("line {}: {}", i + 1, display_short));
+        }
+        i = j + 1;
+    }
+    if violations.is_empty() { None } else { Some(violations) }
+}
+
+/// Check whether `file_path` appears in the central ExemptRegistry in
+/// `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`.
+/// Matching is suffix-based: a registry entry `path: "hecks_life/src/main.rs"`
+/// matches any edited path that ends with that string. This keeps
+/// repo-relative paths working whether the editor passes absolute or
+/// relative paths.
+///
+/// Returns `false` on any read/parse error — safe default for a hook
+/// that must never panic the editor.
+fn file_is_in_exempt_registry(file_path: &str) -> bool {
+    // ExemptRegistry rows live in `information/exempt_registry.heki`
+    // (per test-purity rule : runtime config goes through .heki, not
+    // .fixtures). Each row carries `path` as the natural-key id and
+    // a `reason` field — the enforcer only needs `path` for the
+    // suffix-match.
+    let registry_path = match find_exempt_registry_heki() {
+        Some(p) => p,
+        None => return false,
+    };
+    let store = match crate::heki::read(&registry_path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    for (_id, rec) in &store {
+        let Some(path_v) = rec.get("path").and_then(|v| v.as_str()) else { continue };
+        if file_path.ends_with(path_v) {
+            return true;
+        }
+    }
+    false
+}
+
+/// IR-query lookup for an imperative file (i122). Resolves the
+/// corpus root (the `hecks_conception/` dir, parent of aggregates/)
+/// and asks `dispatch_query::is_dispatched_by_corpus` whether
+/// anything in the IR claims this file. When `Some`, the antibody
+/// can exempt the edit structurally — the registry is no longer the
+/// source of truth.
+///
+/// Cheap-ish: the specializer-target arm is a static array match ;
+/// the hecksagon arm walks `*.hecksagon` files under the corpus root
+/// (parses each on first match). Scoped to one process invocation.
+fn dispatch_lookup(file_path: &str) -> Option<hecks_life::dispatch_query::DispatchInfo> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let corpus_root = std::path::Path::new(&agg_dir).parent()?;
+    hecks_life::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
+}
+
+/// Locate `hecks_conception/information/exempt_registry.heki` by
+/// resolving from `resolve_aggregates_dir()` (which gives
+/// `…/hecks_conception/aggregates`) up one level then into `information`.
+fn find_exempt_registry_heki() -> Option<String> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let p = std::path::Path::new(&agg_dir)
+        .parent()?
+        .join("information/exempt_registry.heki");
+    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
+}
+
+/// Look up a subcommand by name in the Subcommand catalog
+/// (`information/subcommand.heki`). Returns the heki record when
+/// present, `None` when the subcommand isn't registered.
+///
+/// Reads heki directly without booting a runtime — the catalog gate
+/// at the top of `main()` runs on every invocation and a full runtime
+/// boot per binary fire would be expensive. Same path-resolution
+/// pattern as `find_exempt_registry_heki` : prefer in-tree catalog
+/// (so the seed ships with the repo), no HECKS_INFO override needed
+/// because the catalog is repo-content not user-state.
+fn lookup_subcommand(name: &str) -> Option<heki::Record> {
+    let path = find_subcommand_heki()?;
+    let store = heki::read(&path).ok()?;
+    store.get(name).cloned()
+}
+
+fn find_subcommand_heki() -> Option<String> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let p = std::path::Path::new(&agg_dir)
+        .parent()?
+        .join("information/subcommand.heki");
+    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
+}
+
+enum FileKind { Bluebook, Imperative, Support, Other }
+
+fn classify_file(path: &str) -> FileKind {
+    let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+    match ext.as_str() {
+        "bluebook" | "hecksagon" | "fixtures" | "behaviors" | "world" => FileKind::Bluebook,
+        "rs" | "sh" | "rb" | "js" | "jsx" | "ts" | "tsx"
+            | "py" | "go" | "c" | "cpp" | "h" | "hpp" | "java" | "swift" => FileKind::Imperative,
+        "md" | "heki" | "json" | "toml" | "yaml" | "yml" | "txt" => FileKind::Support,
+        _ => FileKind::Other,
+    }
+}
+
+fn resolve_aggregates_dir() -> Option<String> {
+    // HECKS_HOME points at the repo root (sibling of hecks_conception
+    // and hecks_life), not at hecks_conception itself.
+    if let Ok(home) = env::var("HECKS_HOME") {
+        let p = format!("{}/hecks_conception/aggregates", home);
+        if std::path::Path::new(&p).is_dir() { return Some(p); }
+    }
+    // Walk up from the binary :
+    //   /…/hecks/hecks_life/target/release/hecks-life
+    //   .parent() = release
+    //   .parent() = target
+    //   .parent() = hecks_life
+    //   .parent() = hecks (repo root)
+    if let Ok(exe) = env::current_exe() {
+        if let Ok(real) = exe.canonicalize() {
+            if let Some(repo) = real.parent()
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+            {
+                let agg = repo.join("hecks_conception").join("aggregates");
+                if agg.is_dir() {
+                    return Some(agg.to_string_lossy().into_owned());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn chrono_utc_now() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    // Inline ISO-8601 — avoids pulling chrono crate just for this.
+    let (year, month, day, hour, min, sec) = ymdhms_from_unix(now);
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
+}
+
+/// Convert unix seconds to UTC y/m/d/h/m/s. Howard Hinnant's algorithm.
+fn ymdhms_from_unix(secs: i64) -> (i64, i64, i64, i64, i64, i64) {
+    let z = secs / 86400;
+    let s = secs.rem_euclid(86400);
+    let hour = s / 3600;
+    let min = (s % 3600) / 60;
+    let sec = s % 60;
+    let z_shift = z + 719468;
+    let era = if z_shift >= 0 { z_shift } else { z_shift - 146096 } / 146097;
+    let doe = (z_shift - era * 146097) as i64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if month <= 2 { y + 1 } else { y };
+    (year, month, day, hour, min, sec)
+}
+
+fn run_daemon(args: &[String]) {
+    let action = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon <ensure|status|stop> <pidfile> [command...]");
+        std::process::exit(1);
+    });
+    match action {
+        "ensure" => daemon_ensure(&args[3..]),
+        "status" => daemon_status(&args[3..]),
+        "stop"   => daemon_stop(&args[3..]),
+        _ => {
+            eprintln!("Unknown daemon action: {}", action);
+            eprintln!("Usage: hecks-life daemon <ensure|status|stop> <pidfile> [command...]");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn daemon_ensure(rest: &[String]) {
+    let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon ensure <pidfile> <command> [args...]");
+        std::process::exit(1);
+    });
+    if let Some(pid) = read_pidfile(pidfile) {
+        if pid_alive(pid) {
+            println!("alive: {}", pid);
+            return;
+        }
+    }
+    if rest.len() < 2 {
+        eprintln!("daemon ensure : need <command> after <pidfile>");
+        std::process::exit(1);
+    }
+    let cmd = &rest[1];
+    let cmd_args = &rest[2..];
+    match spawn_detached(cmd, cmd_args) {
+        Ok(pid) => {
+            if let Err(e) = write_pidfile(pidfile, pid) {
+                eprintln!("warning: spawned pid {} but pidfile write failed: {}", pid, e);
+            }
+            println!("spawned: {}", pid);
+        }
+        Err(e) => {
+            eprintln!("spawn failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn daemon_status(rest: &[String]) {
+    let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon status <pidfile>");
+        std::process::exit(1);
+    });
+    match read_pidfile(pidfile) {
+        Some(pid) if pid_alive(pid) => println!("alive: {}", pid),
+        Some(pid) => { println!("dead: {}", pid); std::process::exit(1); }
+        None => { println!("none"); std::process::exit(1); }
+    }
+}
+
+fn daemon_stop(rest: &[String]) {
+    let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life daemon stop <pidfile>");
+        std::process::exit(1);
+    });
+    match read_pidfile(pidfile) {
+        Some(pid) if pid_alive(pid) => {
+            extern "C" { fn kill(pid: i32, sig: i32) -> i32; }
+            unsafe { kill(pid as i32, 15); } // SIGTERM
+            println!("stopped: {}", pid);
+            let _ = std::fs::remove_file(pidfile);
+        }
+        Some(_) => {
+            println!("not running");
+            let _ = std::fs::remove_file(pidfile);
+        }
+        None => {
+            println!("no pidfile");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn read_pidfile(path: &str) -> Option<u32> {
+    std::fs::read_to_string(path).ok()
+        .and_then(|s| s.trim().parse().ok())
+}
+
+fn write_pidfile(path: &str, pid: u32) -> std::io::Result<()> {
+    std::fs::write(path, format!("{}\n", pid))
+}
+
+fn pid_alive(pid: u32) -> bool {
+    extern "C" { fn kill(pid: i32, sig: i32) -> i32; }
+    unsafe { kill(pid as i32, 0) == 0 }
+}
+
+fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
+    use std::os::unix::process::CommandExt;
+    use std::process::{Command, Stdio};
+    extern "C" { fn setsid() -> i32; }
+
+    let mut command = Command::new(cmd);
+    command
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    unsafe {
+        command.pre_exec(|| {
+            setsid();
+            Ok(())
+        });
+    }
+    let child = command.spawn()?;
+    Ok(child.id())
+}
+
+fn run_loop(args: &[String]) {
+    // [antibody-exempt: hecks_life/src/main.rs run_loop — extends the cadence
+    //  primitive with multi-command rotation (i106) and gated cadence (i108).
+    //  This IS the structural rewrite that lets breath / ultradian / sleep_cycle
+    //  retire. Same i80 retirement contract as the rest of the loop / daemon /
+    //  enforce-edit family. Net ~30 LoC.]
+    //
+    // Args layout : hecks-life loop <target> <Cmd1[,Cmd2,...]> --every <dur>
+    //               [--gate <heki-file>:<field>=<value>] [k=v ...]
+    //
+    // Multi-command rotation (i106) : if <Aggregate.Command> contains commas,
+    // the loop rotates through the list one-per-tick. `Breath.Inhale,Breath.Exhale`
+    // alternates inhale → exhale → inhale → exhale every tick.
+    //
+    // Gated cadence (i108) : `--gate <file.heki>:<field>=<value>` skips the
+    // dispatch (but still sleeps) when the gate predicate is false. Used
+    // by sleep_cycle to advance NREM/REM only while consciousness.state ==
+    // sleeping.
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life loop <bluebook-or-dir> <Aggregate.Command[,Aggregate.Command2,...]> --every <duration> [--gate <file.heki>:<field>=<value>] [key=val ...]");
+        std::process::exit(1);
+    });
+    let cmd_full = args.get(3).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("loop : missing <Aggregate.Command>");
+        std::process::exit(1);
+    });
+    let every_str = args.iter().position(|a| a == "--every")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str())
+        .unwrap_or_else(|| {
+            eprintln!("loop : missing --every <duration> (e.g. 1s, 500ms, 2m)");
+            std::process::exit(1);
+        });
+    let every = parse_loop_duration(every_str).unwrap_or_else(|| {
+        eprintln!("loop : cannot parse --every '{}' (try 1s, 500ms, 2m)", every_str);
+        std::process::exit(1);
+    });
+
+    // Multi-command rotation (i106). Split on commas and strip per-entry
+    // "Aggregate." prefix so the runtime gets the bare command name.
+    let cmd_names: Vec<String> = cmd_full.split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.split('.').last().unwrap_or(s).to_string())
+        .collect();
+    if cmd_names.is_empty() {
+        eprintln!("loop : empty command list '{}'", cmd_full);
+        std::process::exit(1);
+    }
+
+    // Gate parsing (i108). --gate <file.heki>:<field>=<value> — when the
+    // predicate is false, we sleep without dispatching. Format chosen to
+    // avoid ambiguity with shell-quoting and the existing key=val attr
+    // parser : `:` separates path from predicate, `=` separates field from
+    // value. e.g. : --gate information/consciousness.heki:state=sleeping
+    let gate: Option<(String, String, String)> = args.iter().position(|a| a == "--gate")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|spec| {
+            let (path, pred) = spec.split_once(':')?;
+            let (field, value) = pred.split_once('=')?;
+            Some((path.to_string(), field.to_string(), value.to_string()))
+        });
+
+    // Parse trailing key=val attrs, skipping the --every / --gate flags
+    // and their values.
+    let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut i = 4;
+    while i < args.len() {
+        if args[i] == "--every" { i += 2; continue; }
+        if args[i] == "--gate"  { i += 2; continue; }
+        if args[i].starts_with("--") { i += 1; continue; }
+        let mut parts = args[i].splitn(2, '=');
+        if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
+            attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+        }
+        i += 1;
+    }
+
+    if let Some((p, f, v)) = &gate {
+        eprintln!(
+            "[hecks-life loop] {} every {:?} gated on {}:{}={} (Ctrl-C to stop)",
+            cmd_full, every, p, f, v
+        );
+    } else {
+        eprintln!(
+            "[hecks-life loop] {} every {:?} (Ctrl-C to stop)",
+            cmd_full, every
+        );
+    }
+
+    // Build the combined domain ONCE (parse all bluebooks in the target),
+    // boot the runtime ONCE, then loop dispatching. This is the speedup
+    // over the shell `while true ; do hecks-life agg/ Cmd ; sleep N ; done`
+    // pattern, which paid full parse + boot per iteration.
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    // i153 — i117 Round 4 nested aggregates into bounded-context
+    // subdirs (body/, mind/, etc.) ; the previous flat read_dir
+    // loaded zero bluebooks and left every body-cycle daemon (heart,
+    // breath, ultradian, sleep_cycle) firing UnknownCommand silently.
+    // load_combined_domain mirrors dispatch_hecksagon's recursive
+    // walk so loop sees the full conception including subdirs.
+    let domain = if std::path::Path::new(target).is_dir() {
+        load_combined_domain(target)
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        parser::parse(&source)
+    };
+
+    let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    let mut idx: usize = 0;
+    loop {
+        let gate_open = match &gate {
+            None => true,
+            Some((path, field, expected)) => gate_predicate_holds(path, field, expected),
+        };
+        if gate_open {
+            let cmd_name = &cmd_names[idx % cmd_names.len()];
+            if let Err(e) = rt.dispatch(cmd_name, attrs.clone()) {
+                eprintln!("[hecks-life loop] dispatch error: {:?}", e);
+            }
+            idx = idx.wrapping_add(1);
+        }
+        std::thread::sleep(every);
+    }
+}
+
+/// Predicate for the --gate flag on `hecks-life loop` (i108). Reads the
+/// latest record from the named .heki store, looks up `field`, and
+/// returns true iff its string form equals `expected`. Missing file,
+/// missing field, or read errors all evaluate to false (gate closed) so
+/// the gated loop is conservative — it only fires when the gate is
+/// definitively open.
+fn gate_predicate_holds(file: &str, field: &str, expected: &str) -> bool {
+    let store = match heki::read(file) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let rec = match heki::latest(&store) {
+        Some(r) => r,
+        None => return false,
+    };
+    let actual = heki_query::field_to_string(rec.get(field));
+    actual == expected
+}
+
+/// Wall-clock segment trigger primitive (i107). Boots the runtime once,
+/// polls every `--poll <dur>` (default 60s), and dispatches the
+/// configured command for the current local-hour segment whenever the
+/// segment changes. The first tick after boot always dispatches —
+/// .heki state catches up if the daemon was down across a transition.
+///
+/// Args layout :
+///   hecks-life clock <target>
+///     --segment <lo>-<hi>:<Aggregate.Command>   (one or more)
+///     [--poll <duration>]                       (default 60s)
+///
+/// `lo`-`hi` are local-hour boundaries in [0,23]. Wrap-around supported
+/// (`20-4` covers 20:00 through 04:59). First matching segment wins.
+fn run_clock(args: &[String]) {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
+        eprintln!("Usage: hecks-life clock <bluebook-or-dir> --segment <lo>-<hi>:<Aggregate.Command> [--segment ...] [--poll <dur>]");
+        std::process::exit(1);
+    });
+
+    // Collect every --segment <lo>-<hi>:<Aggregate.Command>. Order matters :
+    // first match wins on overlap.
+    let mut segments: Vec<(u32, u32, String)> = Vec::new();
+    let mut i = 3;
+    let mut poll = std::time::Duration::from_secs(60);
+    while i < args.len() {
+        match args[i].as_str() {
+            "--segment" => {
+                let spec = args.get(i + 1).map(|s| s.as_str()).unwrap_or_else(|| {
+                    eprintln!("clock : --segment needs <lo>-<hi>:<Aggregate.Command>");
+                    std::process::exit(1);
+                });
+                let (range, cmd_full) = spec.split_once(':').unwrap_or_else(|| {
+                    eprintln!("clock : bad --segment '{}' (expected <lo>-<hi>:<Cmd>)", spec);
+                    std::process::exit(1);
+                });
+                let (lo_s, hi_s) = range.split_once('-').unwrap_or_else(|| {
+                    eprintln!("clock : bad hour-range '{}' (expected <lo>-<hi>)", range);
+                    std::process::exit(1);
+                });
+                let lo: u32 = lo_s.parse().unwrap_or_else(|_| {
+                    eprintln!("clock : bad lo hour '{}'", lo_s); std::process::exit(1);
+                });
+                let hi: u32 = hi_s.parse().unwrap_or_else(|_| {
+                    eprintln!("clock : bad hi hour '{}'", hi_s); std::process::exit(1);
+                });
+                if lo > 23 || hi > 23 {
+                    eprintln!("clock : hours must be 0..=23 (got {}-{})", lo, hi);
+                    std::process::exit(1);
+                }
+                let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
+                segments.push((lo, hi, cmd_name));
+                i += 2;
+            }
+            "--poll" => {
+                let dur_s = args.get(i + 1).map(|s| s.as_str()).unwrap_or("60s");
+                poll = parse_loop_duration(dur_s).unwrap_or_else(|| {
+                    eprintln!("clock : cannot parse --poll '{}'", dur_s);
+                    std::process::exit(1);
+                });
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+    if segments.is_empty() {
+        eprintln!("clock : need at least one --segment <lo>-<hi>:<Cmd>");
+        std::process::exit(1);
+    }
+
+    eprintln!(
+        "[hecks-life clock] {} segments, polling every {:?} (Ctrl-C to stop)",
+        segments.len(), poll
+    );
+
+    // Build domain + boot runtime ONCE — same shape as run_loop.
+    // i153 — recursive walk so nested-context aggregates (body/, mind/,
+    // etc.) are visible. Without this, the circadian segment trigger
+    // dispatches against an empty domain and every clock dispatch
+    // fires UnknownCommand silently.
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    let domain = if std::path::Path::new(target).is_dir() {
+        load_combined_domain(target)
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        parser::parse(&source)
+    };
+    let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+
+    // Parse trailing key=val attrs (same pattern as run_loop)
+    let mut clock_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    for arg in &args[3..] {
+        if arg.starts_with("--") { continue; }
+        let mut parts = arg.splitn(2, '=');
+        if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
+            clock_attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+        }
+    }
+
+    let mut last_cmd: Option<String> = None;
+    loop {
+        let hour = current_local_hour();
+        if let Some(cmd_name) = match_segment(&segments, hour) {
+            if last_cmd.as_deref() != Some(cmd_name) {
+                if let Err(e) = rt.dispatch(cmd_name, clock_attrs.clone()) {
+                    eprintln!("[hecks-life clock] dispatch error: {:?}", e);
+                }
+                last_cmd = Some(cmd_name.to_string());
+            }
+        }
+        std::thread::sleep(poll);
+    }
+}
+
+/// Returns local-time hour [0,23] without pulling chrono. Uses libc
+/// localtime_r so DST behaves correctly.
+fn current_local_hour() -> u32 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    #[repr(C)]
+    struct Tm {
+        sec: i32, min: i32, hour: i32, mday: i32, mon: i32, year: i32,
+        wday: i32, yday: i32, isdst: i32,
+        gmtoff: i64, zone: *const i8,
+    }
+    extern "C" {
+        fn localtime_r(time: *const i64, tm: *mut Tm) -> *mut Tm;
+    }
+    let mut tm = Tm {
+        sec: 0, min: 0, hour: 0, mday: 0, mon: 0, year: 0,
+        wday: 0, yday: 0, isdst: 0, gmtoff: 0, zone: std::ptr::null(),
+    };
+    unsafe { localtime_r(&secs, &mut tm); }
+    tm.hour as u32
+}
+
+/// First-match-wins on the segments list. Wrap-around handled : if
+/// `lo > hi`, the segment spans midnight (e.g. 20-4 = 20:00 through
+/// 04:59).
+fn match_segment<'a>(segs: &'a [(u32, u32, String)], hour: u32) -> Option<&'a str> {
+    for (lo, hi, cmd) in segs {
+        let in_range = if lo <= hi {
+            hour >= *lo && hour <= *hi
+        } else {
+            hour >= *lo || hour <= *hi
+        };
+        if in_range {
+            return Some(cmd.as_str());
+        }
+    }
+    None
+}
+
+// ============================================================
+// SLEEP SUBCOMMAND — blocking streaming-sleep CLI (i113)
+// ============================================================
+//
+// Joins / starts a sleep session and streams stage transitions +
+// dream impressions to stdout, then prints the wake report when
+// the body wakes. One blocking command, one stream of state
+// changes — the parent shell sees sleep happen.
+//
+// Resolution order :
+//   1. If consciousness state is already "sleeping", join mid-flight
+//      (no second EnterSleep dispatch).
+//   2. Otherwise, dispatch Consciousness.EnterSleep through the
+//      hecksagon and start polling.
+//
+// Stream contract :
+//   [hh:mm]  <stage>  cycle <N>/<total>   [· <impression>]
+//   [hh:mm]  lucid <stage>  cycle <N>     [· <observation>]
+//   [hh:mm]  waking <mood>
+//
+// Each line is a state CHANGE (not every poll) — emitted once per
+// new value of (sleep_stage, sleep_cycle, is_lucid, latest dream
+// impression, latest lucid observation, state). stdout flushed
+// after each emit.
+//
+// Exit codes :
+//   0  clean wake (state left "sleeping")
+//   1  30-min timeout without waking
+fn run_sleep(_args: &[String]) {
+    use std::io::Write;
+    use std::time::Instant;
+
+    // Resolve aggregates dir + heki dir the same way run_enforce_edit
+    // does — HECKS_HOME, then walk up from the binary. The find_world_
+    // heki_dir helper honors HECKS_INFO override, so private-state
+    // setups (~/Projects/miette-state/information) keep working.
+    let agg_dir = match resolve_aggregates_dir() {
+        Some(p) => p,
+        None    => {
+            eprintln!("[sleep] cannot resolve aggregates dir (set HECKS_HOME)");
+            std::process::exit(1);
+        }
+    };
+    let info_dir = find_world_heki_dir(&agg_dir).unwrap_or_else(|| {
+        // Best-effort fallback : sibling `information/` of aggregates
+        std::path::Path::new(&agg_dir).parent()
+            .map(|p| p.join("information").to_string_lossy().into_owned())
+            .unwrap_or_else(|| format!("{}/information", agg_dir))
+    });
+    let consciousness_path = heki::path_for_lookup(&info_dir, "consciousness");
+    let dream_state_path   = heki::path_for_lookup(&info_dir, "dream_state");
+    let lucid_dream_path   = heki::path_for_lookup(&info_dir, "lucid_dream");
+
+    let started = Instant::now();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+
+    // ---- Step 1 : dispatch EnterSleep unless already sleeping --------
+    let already_sleeping = sleep_read_state(&consciousness_path) == Some("sleeping".into());
+    if already_sleeping {
+        let _ = writeln!(out, "[00:00]  joining mid-sleep");
+    } else {
+        let _ = writeln!(out, "[00:00]  dispatching EnterSleep");
+        let _ = out.flush();
+        let attrs: std::collections::HashMap<String, serde_json::Value> =
+            std::collections::HashMap::new();
+        // Fire through the hecksagon — same path Daemon roles take.
+        // catch_unwind so a dispatch failure (e.g. given clause refuses)
+        // doesn't abort the streamer ; we'll see state stay non-sleeping
+        // and exit 1 on timeout.
+        let _ = std::panic::catch_unwind(|| {
+            dispatch_hecksagon(&agg_dir, "EnterSleep", attrs);
+        });
+    }
+    let _ = out.flush();
+
+    // ---- Step 2 : poll loop, emit on change --------------------------
+    let mut last_stage:    Option<String> = None;
+    let mut last_cycle:    Option<i64>    = None;
+    let mut last_lucid:    Option<String> = None;
+    let mut last_dream_id: Option<String> = None;
+    let mut last_lucid_id: Option<String> = None;
+    let mut last_state:    Option<String> = None;
+
+    loop {
+        // 30-min timeout
+        let elapsed = started.elapsed();
+        if elapsed.as_secs() > 30 * 60 {
+            let _ = writeln!(out, "[{}]  TIMEOUT — 30 min without wake",
+                             sleep_fmt_elapsed(elapsed.as_secs()));
+            let _ = out.flush();
+            std::process::exit(1);
+        }
+
+        // -- consciousness.heki : state, sleep_stage, sleep_cycle, is_lucid
+        let cons = hecks_life::heki::read(&consciousness_path).ok()
+            .and_then(|store| hecks_life::heki::latest(&store).cloned());
+
+        if let Some(rec) = &cons {
+            let state = rec.get("state").and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+            let stage = rec.get("sleep_stage").and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+            let cycle = rec.get("sleep_cycle").and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let total = rec.get("sleep_total").and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let lucid = rec.get("is_lucid").and_then(|v| v.as_str())
+                .unwrap_or("no").to_string();
+            let summary = rec.get("sleep_summary").and_then(|v| v.as_str())
+                .unwrap_or("").to_string();
+
+            // Stage / cycle / lucid change → stream a stage line
+            let stage_changed = last_stage.as_deref() != Some(stage.as_str());
+            let cycle_changed = last_cycle != Some(cycle);
+            let lucid_changed = last_lucid.as_deref() != Some(lucid.as_str());
+            if (stage_changed || cycle_changed || lucid_changed)
+                && !stage.is_empty() && state == "sleeping"
+            {
+                let prefix = if lucid == "yes" {
+                    format!("lucid {}", stage)
+                } else {
+                    stage.clone()
+                };
+                let _ = writeln!(out, "[{}]  {:<10}  cycle {}/{}",
+                                 sleep_fmt_elapsed(elapsed.as_secs()),
+                                 prefix, cycle, total);
+                let _ = out.flush();
+                last_stage = Some(stage);
+                last_cycle = Some(cycle);
+                last_lucid = Some(lucid);
+            }
+
+            // State change to non-sleeping → break to wake-read
+            if last_state.as_deref() != Some(state.as_str()) {
+                if state != "sleeping" && state != "" && last_state.is_some() {
+                    let suffix = if !summary.is_empty() {
+                        format!("  ·  {}", sleep_truncate(&summary, 80))
+                    } else {
+                        String::new()
+                    };
+                    let _ = writeln!(out, "[{}]  waking {}{}",
+                                     sleep_fmt_elapsed(elapsed.as_secs()),
+                                     state, suffix);
+                    let _ = out.flush();
+                    break;
+                }
+                last_state = Some(state.clone());
+            }
+
+            // First-iteration check : if state was never "sleeping" at
+            // poll-1 (EnterSleep refused, e.g. stuck in waking), don't
+            // hang — break out.
+            if last_state.as_deref() != Some("sleeping")
+                && elapsed.as_secs() > 5
+            {
+                let _ = writeln!(out, "[{}]  state={} — never entered sleep, exiting",
+                                 sleep_fmt_elapsed(elapsed.as_secs()),
+                                 last_state.as_deref().unwrap_or(""));
+                let _ = out.flush();
+                std::process::exit(1);
+            }
+        }
+
+        // -- dream_state.heki : latest impression text ---------------
+        if let Ok(store) = hecks_life::heki::read(&dream_state_path) {
+            if let Some(rec) = hecks_life::heki::latest(&store) {
+                let id = rec.get("id").and_then(|v| v.as_str())
+                    .unwrap_or("").to_string();
+                if !id.is_empty() && last_dream_id.as_deref() != Some(id.as_str()) {
+                    let text = sleep_pick_dream_text(rec);
+                    if !text.is_empty() {
+                        let _ = writeln!(out, "[{}]  dream  ·  {}",
+                                         sleep_fmt_elapsed(elapsed.as_secs()),
+                                         sleep_truncate(&text, 120));
+                        let _ = out.flush();
+                    }
+                    last_dream_id = Some(id);
+                }
+            }
+        }
+
+        // -- lucid_dream.heki : latest narrative + observations ------
+        if let Ok(store) = hecks_life::heki::read(&lucid_dream_path) {
+            if let Some(rec) = hecks_life::heki::latest(&store) {
+                let id = rec.get("id").and_then(|v| v.as_str())
+                    .unwrap_or("").to_string();
+                if !id.is_empty() && last_lucid_id.as_deref() != Some(id.as_str()) {
+                    let narrative = rec.get("latest_narrative")
+                        .and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    if !narrative.is_empty() {
+                        let _ = writeln!(out, "[{}]  lucid  ·  {}",
+                                         sleep_fmt_elapsed(elapsed.as_secs()),
+                                         sleep_truncate(&narrative, 120));
+                        let _ = out.flush();
+                    }
+                    last_lucid_id = Some(id);
+                }
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+
+    // ---- Step 3 : wait briefly for /tmp/wake_review_latest.md -------
+    // The wake hook (wake_review.sh + interpret_dream.sh) fires
+    // automatically on WokenUp ; give it ~5s to land before reading.
+    let wake_path = "/tmp/wake_review_latest.md";
+    let pre_mtime = sleep_file_mtime(wake_path);
+    let wait_started = Instant::now();
+    while wait_started.elapsed().as_secs() < 5 {
+        let now_mtime = sleep_file_mtime(wake_path);
+        if now_mtime != pre_mtime && now_mtime.is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+
+    if let Ok(contents) = fs::read_to_string(wake_path) {
+        let _ = writeln!(out);
+        let _ = writeln!(out, "── wake report ──");
+        let _ = writeln!(out, "{}", contents);
+        let _ = out.flush();
+    } else {
+        let _ = writeln!(out, "(no wake report at {})", wake_path);
+        let _ = out.flush();
+    }
+}
+
+/// Read the latest `state` field from consciousness.heki, if any.
+fn sleep_read_state(path: &str) -> Option<String> {
+    let store = hecks_life::heki::read(path).ok()?;
+    let rec = hecks_life::heki::latest(&store)?;
+    rec.get("state").and_then(|v| v.as_str()).map(|s| s.to_string())
+}
+
+/// Pick the human-readable dream text from a dream_state record.
+/// Records may carry `english_translation`, `impression`, `text`, or
+/// `french_image` (raw) — prefer the English variants if present.
+fn sleep_pick_dream_text(rec: &hecks_life::heki::Record) -> String {
+    for key in ["english_translation", "english", "impression", "text",
+                "translation", "french_image", "image"] {
+        if let Some(s) = rec.get(key).and_then(|v| v.as_str()) {
+            if !s.is_empty() { return s.to_string(); }
+        }
+    }
+    String::new()
+}
+
+fn sleep_truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max { return s.to_string(); }
+    let truncated: String = s.chars().take(max).collect();
+    format!("{}…", truncated)
+}
+
+fn sleep_fmt_elapsed(secs: u64) -> String {
+    let h = secs / 3600;
+    let m = (secs % 3600) / 60;
+    let s = secs % 60;
+    if h > 0 {
+        format!("{:02}:{:02}:{:02}", h, m, s)
+    } else {
+        format!("{:02}:{:02}", m, s)
+    }
+}
+
+fn sleep_file_mtime(path: &str) -> Option<std::time::SystemTime> {
+    fs::metadata(path).ok().and_then(|m| m.modified().ok())
+}
+
+/// Resolve the project home directory for a named being.
+/// 1. HECKS_HOME env var
+/// 2. ~/.hecks_home file (single line: path to hecks_conception)
+/// 3. Follow symlink from the binary to hecks_life/../hecks_conception
+/// 4. Fall back to "."
+fn resolve_home(_being: &str) -> String {
+    // Check env var first
+    if let Ok(home) = env::var("HECKS_HOME") {
+        return home;
+    }
+    // Check ~/.hecks_home file
+    if let Ok(home_dir) = env::var("HOME") {
+        let home_file = format!("{}/.hecks_home", home_dir);
+        eprintln!("  resolve_home: checking {}", home_file);
+        match fs::read_to_string(&home_file) {
+            Ok(contents) => {
+                let path = contents.trim().to_string();
+                eprintln!("  resolve_home: found path={}", path);
+                if std::path::Path::new(&path).is_dir() {
+                    return path;
+                }
+                eprintln!("  resolve_home: path is not a dir");
+            }
+            Err(e) => eprintln!("  resolve_home: read error: {}", e),
+        }
+    } else {
+        eprintln!("  resolve_home: HOME not set");
+    }
+    // Try to resolve from the binary's real location
+    // binary lives at hecks_life/target/release/hecks-life
+    // project lives at hecks_conception (sibling of hecks_life)
+    if let Ok(exe) = env::current_exe() {
+        if let Ok(real) = exe.canonicalize() {
+            if let Some(hecks2) = real.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
+                let conception = hecks2.join("hecks_conception");
+                if conception.is_dir() {
+                    return conception.to_string_lossy().into_owned();
+                }
+            }
+        }
+    }
+    ".".into()
+}
+
+fn dirs() -> Option<String> {
+    env::var("HOME").ok()
+}
+

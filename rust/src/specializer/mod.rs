@@ -23,6 +23,7 @@ pub mod behaviors_fixtures;
 pub mod behaviors_parser;
 pub mod behaviors_parser_dispatch;
 pub mod behaviors_runner;
+pub mod cli_dispatch;
 pub mod conceiver;
 pub mod dispatch_query;
 pub mod dump;
@@ -53,6 +54,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "behaviors_fixtures" => behaviors_fixtures::emit(repo_root),
         "behaviors_parser" => behaviors_parser::emit(repo_root),
         "behaviors_runner" => behaviors_runner::emit(repo_root),
+        "cli_dispatch" | "main" => cli_dispatch::emit(repo_root),
         "command_dispatch" => runtime::command_dispatch::emit(repo_root),
         "conceiver_generator" => conceiver::generator::emit(repo_root),
         "discover" => run_boot::discover::emit(repo_root),
@@ -73,7 +75,7 @@ pub fn emit(target: &str, repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "validator_corpus" => validator_corpus::emit(repo_root),
         "validator_warnings" => validator_warnings::emit(repo_root),
         other => Err(format!(
-            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, behaviors_fixtures, behaviors_parser, behaviors_runner, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, interpreter, ir, parse_blocks, parser, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
+            "unknown specializer target: {}. Known: adapter_llm, aggregate_state, behaviors_fixtures, behaviors_parser, behaviors_runner, cli_dispatch, command_dispatch, conceiver_generator, discover, dispatch_query, dump, fixtures_parser, hecksagon_parser, heki_query, interpreter, ir, parse_blocks, parser, repository, runtime, run_statusline, system_prompt, validator, validator_corpus, validator_warnings",
             other
         )
         .into()),

@@ -700,6 +700,45 @@ fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
 
 // [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_main_rs() {
+    // i147 Wave 6 — Rust-native specializer for rust/src/main.rs (the
+    // CLI entry-point — every `hecks-life X` invocation lands in fn
+    // main()'s if-chain on argv[1]). REAL compression : the new
+    // cli_dispatch_shape declares one Subcommand row per arm in the
+    // dispatch chain (lexicon, terminal, transitional_print, heki,
+    // conceive, develop, conceive_behaviors, behaviors, dump_fixtures,
+    // dump_world, dump_hecksagon, specialize, cascade, check_io,
+    // check_lifecycle, check_duplicate_policies, check_all, run, loop,
+    // daemon, enforce_edit, statusline, is_dispatched, clock, sleep,
+    // repl) plus one HelpRow per command in print_usage's listing.
+    // The dispatch ROUTING — the ORDER of arms and the help listing —
+    // is now data, not Rust code. Adding a new CLI subcommand is a
+    // single fixture row + per-arm snippet.
+    //
+    // Load-bearing : every `hecks-life X` invocation passes through
+    // this file. byte-identity is critical — a regenerated drift
+    // would break every CLI invocation in the corpus.
+    //
+    // Scope : Wave 6 retires the dispatch CHAIN + print_usage. The
+    // helper function bodies (run_heki, run_specialize, run_loop, etc.)
+    // stay verbatim ; per-family sub-shapes are filed as a follow-on.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "cli_dispatch"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize cli_dispatch failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/main.rs"))
+        .expect("main.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
 fn rust_specializer_produces_byte_identical_runtime_rs() {
     // i147 Wave 5-B — Rust-native specializer for runtime/mod.rs (the
     // top-level Runtime struct + boot pipeline + dispatch surface +

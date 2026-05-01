@@ -111,6 +111,7 @@ pub const SPECIALIZER_TARGETS: &[&str] = &[
     "behaviors_fixtures",
     "behaviors_parser",
     "behaviors_runner",
+    "cli_dispatch",
     "command_dispatch",
     "conceiver_generator",
     "discover",

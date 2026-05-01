@@ -38,10 +38,8 @@
 # returning early when the first line of a command lacks a do-block.
 # All 12 spec aggregates now parse byte-equal between Ruby and Rust.
 
-# W6 (parallel agent on main.rs dispatch chain) added codegen/cli_dispatch_shape/
-# but didn't update dispatch_query_shape's specializer_targets entry. The shape
-# bluebook itself ('cli_dispatch_shape.bluebook') drifts because it's a parity
-# fixture without a Hecks.bluebook header that both parsers can match. W6's
-# PR will retire this entry — until then, list as known drift so other PRs
-# (this one : i101) aren't blocked by W6's in-flight work.
-codegen/cli_dispatch_shape/cli_dispatch_shape.bluebook  # W6 in-flight, retires when their PR lands
+# cli_dispatch_shape : Ruby and Rust escape `\\\"` differently inside JSON
+# string values (the `vision` attribute carries an embedded escaped quote).
+# This is a parser-side escape-sequence bug, not a shape issue. Listed as
+# known drift while the underlying parser quirk is investigated separately.
+codegen/cli_dispatch_shape/cli_dispatch_shape.bluebook  # parser escape-handling drift

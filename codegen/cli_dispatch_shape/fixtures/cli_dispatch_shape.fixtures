@@ -1,0 +1,228 @@
+Hecks.fixtures "CliDispatchShape" do
+  # i147 Wave 6 — main.rs as data. Six Section rows partition the file
+  # (four verbatim_section + one synthetic dispatch_chain + one synthetic
+  # usage_help). Twenty-six Subcommand rows compose the if-chain.
+  # Nineteen HelpRow rows compose the print_usage Commands: listing.
+
+  aggregate "Section" do
+    fixture "MainOpen",
+      name: "main_open",
+      order: 1,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/cli_dispatch_shape/snippets/sec_01_main_open.rs.frag",
+      description: "fn main() opening — argv collection, being detection, args.len()<2 short-circuit, command/path parsing, and the subcommand-catalog gate (lookup_subcommand handler-match for print_usage)."
+
+    fixture "DispatchChain",
+      name: "dispatch_chain",
+      order: 2,
+      body_kind: "dispatch_chain",
+      description: "The 26-arm if-chain on argv[1] — assembled from Subcommand rows in order. Each arm dispatches to a handler (run_X) or runs an inline body and returns."
+
+    fixture "MainTail",
+      name: "main_tail",
+      order: 3,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/cli_dispatch_shape/snippets/sec_03_main_tail.rs.frag",
+      description: "fn main() tail — batch mode, bluebook PascalCase dispatch, multi-domain serve, behaviors-vs-domain branching, the parse/dump/validate/inspect/tree/list/serve/train/project/counts match block, and the closing brace of fn main."
+
+    fixture "HelpersMainBlock",
+      name: "helpers_main_block",
+      order: 4,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/cli_dispatch_shape/snippets/sec_04_helpers_main_block.rs.frag",
+      description: "Helper functions from run_batch through dirs() — every CLI handler implementation (run_heki, run_specialize, run_loop, run_daemon, run_clock, run_sleep, etc.), the heki subcommand suite, the helpers (load_combined_domain, dispatch_hecksagon, run_terminal, etc.), and the resolve_home / dirs scaffolding. Filed as a follow-on for per-family sub-shapes."
+
+    fixture "UsageHelp",
+      name: "usage_help",
+      order: 5,
+      body_kind: "usage_help",
+      description: "fn print_usage() — assembled from HelpRow rows for the Commands: list, with hardcoded prelude, Heki subcommands block, and Options block."
+
+    fixture "HelpersTail",
+      name: "helpers_tail",
+      order: 6,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/cli_dispatch_shape/snippets/sec_06_helpers_tail.rs.frag",
+      description: "emit_validator_warnings_to_stderr — the four-warning fan-out called by parse/dump/validate/inspect arms in the match block."
+  end
+
+  aggregate "Subcommand" do
+    fixture "Lexicon",
+      name: "lexicon",
+      order: 1,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_01_lexicon.rs.frag",
+      description: "Hecksagon-driven lexicon query — args.get(3) drives MatchInput vs ListAll."
+
+    fixture "Terminal",
+      name: "terminal",
+      order: 2,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_02_terminal.rs.frag",
+      description: "Interactive terminal — run_terminal in resolved-home dir."
+
+    fixture "TransitionalPrint",
+      name: "transitional_print",
+      order: 3,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_03_transitional_print.rs.frag",
+      description: "Four-into-one redirect arm — speak/status/musings/boot now dispatch through the hecksagon ; this arm prints the redirect message and returns."
+
+    fixture "Heki",
+      name: "heki",
+      order: 4,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_04_heki.rs.frag",
+      description: "delegate_run pattern — run_heki(&args)."
+
+    fixture "Conceive",
+      name: "conceive",
+      order: 5,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_05_conceive.rs.frag",
+      description: "delegate_run pattern — conceiver::commands::run_conceive(&args)."
+
+    fixture "Develop",
+      name: "develop",
+      order: 6,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_06_develop.rs.frag",
+      description: "delegate_run pattern — conceiver::commands::run_develop(&args)."
+
+    fixture "ConceiveBehaviors",
+      name: "conceive_behaviors",
+      order: 7,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_07_conceive_behaviors.rs.frag",
+      description: "delegate_run pattern — hecks_life::behaviors_conceiver::commands::run_conceive_behaviors(&args)."
+
+    fixture "Behaviors",
+      name: "behaviors",
+      order: 8,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_08_behaviors.rs.frag",
+      description: "delegate_run pattern — run_behaviors(&args)."
+
+    fixture "DumpFixtures",
+      name: "dump_fixtures",
+      order: 9,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_09_dump_fixtures.rs.frag",
+      description: "Sui-generis arm — parses a .fixtures file and emits canonical JSON with optional catalogs key."
+
+    fixture "DumpWorld",
+      name: "dump_world",
+      order: 10,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_10_dump_world.rs.frag",
+      description: "Sui-generis arm — parses a .world file and emits canonical JSON via dump_world_json."
+
+    fixture "DumpHecksagon",
+      name: "dump_hecksagon",
+      order: 11,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_11_dump_hecksagon.rs.frag",
+      description: "Sui-generis arm — parses a .hecksagon file and emits canonical JSON via dump_hecksagon_json."
+
+    fixture "Specialize",
+      name: "specialize",
+      order: 12,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_12_specialize.rs.frag",
+      description: "delegate_run pattern — run_specialize(&args)."
+
+    fixture "Cascade",
+      name: "cascade",
+      order: 13,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_13_cascade.rs.frag",
+      description: "Sui-generis arm — prints cascade_emits chains for every aggregate command in a bluebook."
+
+    fixture "CheckIo",
+      name: "check_io",
+      order: 14,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_14_check_io.rs.frag",
+      description: "delegate_run pattern — run_check_io(&args)."
+
+    fixture "CheckLifecycle",
+      name: "check_lifecycle",
+      order: 15,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_15_check_lifecycle.rs.frag",
+      description: "delegate_run pattern — run_check_lifecycle(&args)."
+
+    fixture "CheckDuplicatePolicies",
+      name: "check_duplicate_policies",
+      order: 16,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_16_check_duplicate_policies.rs.frag",
+      description: "delegate_run pattern — run_check_duplicate_policies(&args)."
+
+    fixture "CheckAll",
+      name: "check_all",
+      order: 17,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_17_check_all.rs.frag",
+      description: "delegate_run pattern — run_check_all(&args)."
+
+    fixture "Run",
+      name: "run",
+      order: 18,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_18_run.rs.frag",
+      description: "Script-mode execution — std::process::exit(hecks_life::run::run_script(&args))."
+
+    fixture "Loop",
+      name: "loop",
+      order: 19,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_19_loop.rs.frag",
+      description: "delegate_run pattern — run_loop(&args). Cadence-loop primitive."
+
+    fixture "Daemon",
+      name: "daemon",
+      order: 20,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_20_daemon.rs.frag",
+      description: "delegate_run pattern — run_daemon(&args). Process-lifecycle primitive."
+
+    fixture "EnforceEdit",
+      name: "enforce_edit",
+      order: 21,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_21_enforce_edit.rs.frag",
+      description: "delegate_run pattern — run_enforce_edit(&args). PostToolUse listener primitive."
+
+    fixture "Statusline",
+      name: "statusline",
+      order: 22,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_22_statusline.rs.frag",
+      description: "delegate_run pattern — hecks_life::run_statusline::run(). Statusline capability runner."
+
+    fixture "IsDispatched",
+      name: "is_dispatched",
+      order: 23,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_23_is_dispatched.rs.frag",
+      description: "Sui-generis arm — IR-query subcommand. Exit 0 + stdout if dispatched, exit 1 silently if not."
+
+    fixture "Clock",
+      name: "clock",
+      order: 24,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_24_clock.rs.frag",
+      description: "delegate_run pattern — run_clock(&args). Wall-clock segment trigger primitive."
+
+    fixture "Sleep",
+      name: "sleep",
+      order: 25,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_25_sleep.rs.frag",
+      description: "delegate_run pattern — run_sleep(&args). Blocking streaming-sleep CLI."
+
+    fixture "Repl",
+      name: "repl",
+      order: 26,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_26_repl.rs.frag",
+      description: "Sui-generis arm — interactive REPL. Boots Runtime, loads seeds, runs interactive loop."
+  end
+
+  aggregate "HelpRow" do
+    fixture "Parse",          name: "parse",          order: 1,  command: "parse",          description: "Parse and print domain summary"
+    fixture "Validate",       name: "validate",       order: 2,  command: "validate",       description: "Check domain for DDD consistency"
+    fixture "Inspect",        name: "inspect",        order: 3,  command: "inspect",        description: "Full domain inspection with all details"
+    fixture "Tree",           name: "tree",           order: 4,  command: "tree",           description: "Tree view of aggregates and commands"
+    fixture "List",           name: "list",           order: 5,  command: "list",           description: "Summary list of aggregates and commands"
+    fixture "Run",            name: "run",            order: 6,  command: "run",            description: "Execute a bluebook as an executable (shebang-run)"
+    fixture "Repl",           name: "repl",           order: 7,  command: "repl",           description: "Boot runtime with interactive REPL (legacy `run`)"
+    fixture "Serve",          name: "serve",          order: 8,  command: "serve",          description: "Boot runtime as HTTP JSON API (file or directory)"
+    fixture "Conceive",       name: "conceive",       order: 9,  command: "conceive",       description: "Generate a new domain from corpus archetypes"
+    fixture "Develop",        name: "develop",        order: 10, command: "develop",        description: "Develop features in an existing domain"
+    fixture "Boot",           name: "boot",           order: 11, command: "boot",           description: "Full boot: hydrate + nerves + prompt gen"
+    fixture "Daemon",         name: "daemon",         order: 12, command: "daemon",         description: "Run background daemons (pulse, daydream, sleep)"
+    fixture "Loop",           name: "loop",           order: 13, command: "loop",           description: "Cadence loop : dispatch one or more commands every <dur>"
+    fixture "Clock",          name: "clock",          order: 14, command: "clock",          description: "Wall-clock segment trigger : dispatch on local-hour transitions"
+    fixture "Sleep",          name: "sleep",          order: 15, command: "sleep",          description: "Dispatch EnterSleep, stream stage/dream changes, print wake report"
+    fixture "Hydrate",        name: "hydrate",        order: 16, command: "hydrate",        description: "Load .heki stores and print vital signs"
+    fixture "Heki",           name: "heki",           order: 17, command: "heki",           description: "Read/write .heki binary stores"
+    fixture "DumpWorld",      name: "dump_world",     order: 18, command: "dump-world",     description: "Parse a .world file and emit canonical JSON"
+    fixture "DumpHecksagon",  name: "dump_hecksagon", order: 19, command: "dump-hecksagon", description: "Parse a .hecksagon file and emit canonical JSON", padded_width: 16, trailing_newline: "yes"
+  end
+end
