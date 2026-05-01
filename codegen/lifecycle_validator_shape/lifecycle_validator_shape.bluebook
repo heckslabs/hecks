@@ -1,4 +1,4 @@
-Hecks.bluebook "LifecycleValidatorShape", version: "2026.04.23.1" do
+Hecks.bluebook "LifecycleValidatorShape", version: "2026.05.01.1" do
   vision "Shape of hecks_life/src/lifecycle_validator.rs — second DiagnosticValidator retirement (post-i59, flat_with_strict report_kind)."
   category "autophagy"
 
@@ -29,26 +29,33 @@ Hecks.bluebook "LifecycleValidatorShape", version: "2026.04.23.1" do
   #     validator, name, doc_comment (supports /// lines AND // +
   #     #[attribute] lines as a free-form preamble), signature,
   #     body_snippet, order.
+  #
+  # i111-F : both are zero-command catalog rows. Collapsed under one
+  # root with no behaviour change.
 
-  aggregate "DiagnosticValidator", "One diagnostic-style validator module" do
-    attribute :module,              String
-    attribute :doc_snippet,         String
-    attribute :imports,             String
-    attribute :report_kind,         String
-    attribute :rule_fn_name,        String
-    attribute :rule_signature,      String
-    attribute :check_body_snippet,  String
-    # helpers_after_rule: emission order.
-    # true for lifecycle — pub fn check comes before the helpers.
-    attribute :helpers_after_rule,  TrueClass, default: false
-  end
+  aggregate "LifecycleValidatorShape", "Static schema for the lifecycle_validator.rs codegen target — DiagnosticValidator + DiagnosticHelper rows live in the sibling fixtures file" do
+    value_object "DiagnosticValidator" do
+      description "One diagnostic-style validator module"
+      attribute :module,              String
+      attribute :doc_snippet,         String
+      attribute :imports,             String
+      attribute :report_kind,         String
+      attribute :rule_fn_name,        String
+      attribute :rule_signature,      String
+      attribute :check_body_snippet,  String
+      # helpers_after_rule: emission order.
+      # true for lifecycle — pub fn check comes before the helpers.
+      attribute :helpers_after_rule,  TrueClass, default: false
+    end
 
-  aggregate "DiagnosticHelper", "A private helper fn used by a DiagnosticValidator" do
-    attribute :validator,      String
-    attribute :name,           String
-    attribute :doc_comment,    String
-    attribute :signature,      String
-    attribute :body_snippet,   String
-    attribute :order,          Integer
+    value_object "DiagnosticHelper" do
+      description "A private helper fn used by a DiagnosticValidator"
+      attribute :validator,      String
+      attribute :name,           String
+      attribute :doc_comment,    String
+      attribute :signature,      String
+      attribute :body_snippet,   String
+      attribute :order,          Integer
+    end
   end
 end

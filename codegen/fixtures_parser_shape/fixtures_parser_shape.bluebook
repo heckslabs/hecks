@@ -1,4 +1,4 @@
-Hecks.bluebook "FixturesParserShape", version: "2026.04.23.1" do
+Hecks.bluebook "FixturesParserShape", version: "2026.05.01.1" do
   vision "Shape of hecks_life/src/fixtures_parser.rs — i51 Phase B closing target. Fifth and final non-specializer parser/validator/dump retirement; closes the Phase B Rust retirement arc. Liberal escape-hatching (per-fn verbatim snippets, verbatim test block) — byte-identity is the gate, clean shape is aspirational."
   category "autophagy"
 
@@ -38,82 +38,93 @@ Hecks.bluebook "FixturesParserShape", version: "2026.04.23.1" do
   # LineDispatch rows are KEPT for documentation (plan asks for one
   # row per dispatch branch) but NOT walked by the specializer —
   # parse_body_snippet is authoritative.
+  #
+  # i111-F : single root aggregate with three nested value_objects
+  # (LineParser / LineDispatch / ParserHelper). Zero commands across
+  # the trio — pure schema rows. Fixtures hold the data ; the
+  # specializer reads fixtures, not this bluebook, so the collapse
+  # is shape-only.
 
-  aggregate "LineParser", "One line-oriented parser module" do
-    attribute :module,             String
-    # doc_snippet: path to the //! module-level doc comment snippet
-    attribute :doc_snippet,        String
-    # imports: newline-separated use lines (without "use " prefix
-    # and without trailing semicolon — specializer adds both).
-    attribute :imports,            String
-    # root_fn_name: the public entry — usually "parse"
-    attribute :root_fn_name,       String
-    # root_signature: full signature minus body, e.g.
-    # "pub fn parse(source: &str) -> FixturesFile"
-    attribute :root_signature,     String
-    # parse_body_snippet: path to a .rs.frag with the verbatim parse()
-    # fn body (between `{` and `}`, without the outer braces). When
-    # non-empty, the specializer emits parse() directly from this
-    # snippet and does NOT walk LineDispatch rows.
-    attribute :parse_body_snippet, String, default: ""
-    # test_block_snippet: path to the full `#[cfg(test)] mod tests {…}`
-    # block, emitted at the file bottom. Empty = no in-file tests.
-    attribute :test_block_snippet, String, default: ""
-    # detector_fn_name: the is_<kind>_source detector entry. Empty =
-    # no detector emitted (fixtures_parser.rs has none — detection is
-    # handled by the calling layer).
-    attribute :detector_fn_name,   String, default: ""
-    # detector_keyword: prefix the detector matches. Ignored when
-    # detector_fn_name is empty.
-    attribute :detector_keyword,   String, default: ""
-  end
+  aggregate "FixturesParserShape", "Static schema for the fixtures_parser.rs codegen target — LineParser + LineDispatch + ParserHelper rows live in the sibling fixtures file" do
+    value_object "LineParser" do
+      description "One line-oriented parser module"
+      attribute :module,             String
+      # doc_snippet: path to the //! module-level doc comment snippet
+      attribute :doc_snippet,        String
+      # imports: newline-separated use lines (without "use " prefix
+      # and without trailing semicolon — specializer adds both).
+      attribute :imports,            String
+      # root_fn_name: the public entry — usually "parse"
+      attribute :root_fn_name,       String
+      # root_signature: full signature minus body, e.g.
+      # "pub fn parse(source: &str) -> FixturesFile"
+      attribute :root_signature,     String
+      # parse_body_snippet: path to a .rs.frag with the verbatim parse()
+      # fn body (between `{` and `}`, without the outer braces). When
+      # non-empty, the specializer emits parse() directly from this
+      # snippet and does NOT walk LineDispatch rows.
+      attribute :parse_body_snippet, String, default: ""
+      # test_block_snippet: path to the full `#[cfg(test)] mod tests {…}`
+      # block, emitted at the file bottom. Empty = no in-file tests.
+      attribute :test_block_snippet, String, default: ""
+      # detector_fn_name: the is_<kind>_source detector entry. Empty =
+      # no detector emitted (fixtures_parser.rs has none — detection is
+      # handled by the calling layer).
+      attribute :detector_fn_name,   String, default: ""
+      # detector_keyword: prefix the detector matches. Ignored when
+      # detector_fn_name is empty.
+      attribute :detector_keyword,   String, default: ""
+    end
 
-  aggregate "LineDispatch", "One line-leading-token dispatch inside the root parse() loop" do
-    # parser: links to LineParser.module
-    attribute :parser,        String
-    # starts_with: the line prefix this dispatch matches. When
-    # match_kind is "equals", holds the exact string literal.
-    attribute :starts_with,   String
-    # match_kind: starts_with (default) | starts_with_do_block | equals
-    attribute :match_kind,    String, default: "starts_with"
-    # handler_kind: capture_quoted_into | push_quoted_onto |
-    #               multiline_block    | multiline_adapter |
-    #               body_snippet       | stateful
-    attribute :handler_kind,  String
-    # target_field: struct field on the IR. Ignored for body_snippet.
-    attribute :target_field,  String, default: ""
-    # helper_fn: name of the helper this dispatch delegates to.
-    # Empty for trivial handlers.
-    attribute :helper_fn,     String, default: ""
-    # order: emission order inside the while loop
-    attribute :order,         Integer
-  end
+    value_object "LineDispatch" do
+      description "One line-leading-token dispatch inside the root parse() loop"
+      # parser: links to LineParser.module
+      attribute :parser,        String
+      # starts_with: the line prefix this dispatch matches. When
+      # match_kind is "equals", holds the exact string literal.
+      attribute :starts_with,   String
+      # match_kind: starts_with (default) | starts_with_do_block | equals
+      attribute :match_kind,    String, default: "starts_with"
+      # handler_kind: capture_quoted_into | push_quoted_onto |
+      #               multiline_block    | multiline_adapter |
+      #               body_snippet       | stateful
+      attribute :handler_kind,  String
+      # target_field: struct field on the IR. Ignored for body_snippet.
+      attribute :target_field,  String, default: ""
+      # helper_fn: name of the helper this dispatch delegates to.
+      # Empty for trivial handlers.
+      attribute :helper_fn,     String, default: ""
+      # order: emission order inside the while loop
+      attribute :order,         Integer
+    end
 
-  aggregate "ParserHelper", "A private helper fn used by a LineParser" do
-    # parser: links to LineParser.module
-    attribute :parser,       String
-    attribute :name,         String
-    # doc_comment: line-delimited /// above the signature. Empty string
-    # skips the doc block entirely. For long multi-line docs, use
-    # doc_snippet instead (mutually exclusive — if doc_snippet is set,
-    # doc_comment is ignored).
-    attribute :doc_comment,  String, default: ""
-    # doc_snippet: path to a .rs.frag with the verbatim /// doc block
-    # (including leading /// and trailing newline). Used when the doc
-    # is too long to encode as a \n-escaped fixture string.
-    attribute :doc_snippet,  String, default: ""
-    # signature: full Rust signature, e.g.
-    # "fn extract_schema_kwarg(line: &str) -> Option<Vec<CatalogAttr>>"
-    attribute :signature,    String
-    # body_snippet: path to the fn body snippet (between `{` and `}`).
-    # Read with bare File.read (the fixtures_parser specializer
-    # overrides read_snippet_body) because several bodies start with
-    # their own //-comments that would be stripped by the generic
-    # helper's leading-comment skip.
-    attribute :body_snippet, String
-    # position: "before_root" emits above parse(); "after_root" below.
-    attribute :position,     String, default: "after_root"
-    # order: emission order within each position bucket.
-    attribute :order,        Integer
+    value_object "ParserHelper" do
+      description "A private helper fn used by a LineParser"
+      # parser: links to LineParser.module
+      attribute :parser,       String
+      attribute :name,         String
+      # doc_comment: line-delimited /// above the signature. Empty string
+      # skips the doc block entirely. For long multi-line docs, use
+      # doc_snippet instead (mutually exclusive — if doc_snippet is set,
+      # doc_comment is ignored).
+      attribute :doc_comment,  String, default: ""
+      # doc_snippet: path to a .rs.frag with the verbatim /// doc block
+      # (including leading /// and trailing newline). Used when the doc
+      # is too long to encode as a \n-escaped fixture string.
+      attribute :doc_snippet,  String, default: ""
+      # signature: full Rust signature, e.g.
+      # "fn extract_schema_kwarg(line: &str) -> Option<Vec<CatalogAttr>>"
+      attribute :signature,    String
+      # body_snippet: path to the fn body snippet (between `{` and `}`).
+      # Read with bare File.read (the fixtures_parser specializer
+      # overrides read_snippet_body) because several bodies start with
+      # their own //-comments that would be stripped by the generic
+      # helper's leading-comment skip.
+      attribute :body_snippet, String
+      # position: "before_root" emits above parse(); "after_root" below.
+      attribute :position,     String, default: "after_root"
+      # order: emission order within each position bucket.
+      attribute :order,        Integer
+    end
   end
 end

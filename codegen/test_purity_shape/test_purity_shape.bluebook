@@ -1,4 +1,4 @@
-Hecks.bluebook "TestPurityShape", version: "2026.04.26.1" do
+Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
   vision "Architectural rule declared as bluebook: .fixtures files are TEST data only. Runtime data flows through commands → events → .heki via adapters. This shape gives a future enforcer extension the detection patterns it needs to catch violations."
   category "discipline"
 
@@ -43,96 +43,106 @@ Hecks.bluebook "TestPurityShape", version: "2026.04.26.1" do
   # No .fixtures file lives in this capability — that would be
   # the very rule violation being declared. Example data is
   # carried as inline attribute defaults on the aggregates below.
-
-  # ---- RuntimeConfigAttribute ----------------------------------------
   #
-  # One row per attribute name that signals "this fixture row is
-  # runtime data, not test data". The enforcer checks whether any
-  # key in a .fixtures file matches one of these names.
-  #
-  # attribute_name: the exact key as it appears in a .fixtures row
-  # rationale:      why this key belongs in .heki, not .fixtures
-  # canonical_heki: the .heki file where this attribute legitimately lives
+  # i111-F : the three RuntimeConfigAttribute / AllowedFixturesCaller
+  # / DisallowPath blocks have zero commands — pure catalog rows.
+  # Collapsed under one root (TestPurityShape) with no behaviour
+  # change.
 
-  aggregate "RuntimeConfigAttribute", "One attribute name that marks a .fixtures row as runtime data — enforcer key list" do
-    attribute :attribute_name,  String
-    attribute :rationale,       String
-    attribute :canonical_heki,  String, default: ""
+  aggregate "TestPurityShape", "Static schema for the fixtures-as-test-data enforcer — RuntimeConfigAttribute + AllowedFixturesCaller + DisallowPath rows define the rule" do
+    # ---- RuntimeConfigAttribute ----------------------------------------
+    #
+    # One row per attribute name that signals "this fixture row is
+    # runtime data, not test data". The enforcer checks whether any
+    # key in a .fixtures file matches one of these names.
+    #
+    # attribute_name: the exact key as it appears in a .fixtures row
+    # rationale:      why this key belongs in .heki, not .fixtures
+    # canonical_heki: the .heki file where this attribute legitimately lives
+
+    value_object "RuntimeConfigAttribute" do
+      description "One attribute name that marks a .fixtures row as runtime data — enforcer key list"
+      attribute :attribute_name,  String
+      attribute :rationale,       String
+      attribute :canonical_heki,  String, default: ""
+    end
+
+    # Known runtime attributes (inline defaults; authoritative list):
+    #
+    #   pronouns        — Miette's self-identity; set once at birth, never
+    #                     re-seeded. Lives in information/identity.heki.
+    #   boot_script     — path to the boot shell invoked at session start.
+    #                     Lives in information/config.heki.
+    #   scan_paths      — directories the file-watcher daemon monitors at
+    #                     runtime. Lives in information/config.heki.
+    #   model           — LLM adapter selection (claude/ollama/…).
+    #                     Lives in information/config.heki.
+    #   cooldown_secs   — heartbeat interval; tuned at runtime, not at build.
+    #                     Lives in information/config.heki.
+    #   born_at         — timestamp of Miette's first breath; immutable after
+    #                     birth but written by a command, not a seed.
+    #                     Lives in information/identity.heki.
+    #   linked_to_name  — foreign-key link between runtime aggregates;
+    #                     populated by commands during a live session, not
+    #                     by the seed loader. Lives in domain-specific .heki.
+
+    # ---- AllowedFixturesCaller -----------------------------------------
+    #
+    # One row per Rust binary / subcommand that is permitted to load
+    # .fixtures files at all. Any caller NOT in this list that touches
+    # a .fixtures path at runtime is a purity violation.
+    #
+    # caller_name:  binary or subcommand identifier (matches Cargo target)
+    # load_purpose: why this caller legitimately reads fixtures
+    # load_phase:   build | test — "build" means CI/specializer, "test"
+    #               means behaviors_runner during the test suite
+
+    value_object "AllowedFixturesCaller" do
+      description "One Rust caller permitted to load .fixtures files — enforcer allowlist"
+      attribute :caller_name,   String
+      attribute :load_purpose,  String
+      attribute :load_phase,    String, default: "test"
+    end
+
+    # Permitted callers (inline defaults):
+    #
+    #   behaviors_runner — executes .behaviors tests; loads the matching
+    #                      .fixtures file to seed state for each scenario.
+    #                      Phase: test.
+    #   dump-fixtures    — serialises every .fixtures file to canonical IR
+    #                      for the parity suite. Phase: build.
+    #   specializer      — reads shape fixtures (e.g. validator_shape.fixtures)
+    #                      to emit Rust source. Phase: build.
+
+    # ---- DisallowPath --------------------------------------------------
+    #
+    # One row per glob pattern the enforcer should scan for purity
+    # violations. Paths are relative to the conception root.
+    #
+    # glob:          shell glob (** supported) relative to conception root
+    # note:          human rationale for including / excluding this glob
+    # ruling_open:   true when the final yes/no decision is still pending
+
+    value_object "DisallowPath" do
+      description "One file-glob pattern to scan for test-purity violations"
+      attribute :glob,         String
+      attribute :note,         String
+      attribute :ruling_open,  TrueClass, default: false
+    end
+
+    # Glob coverage:
+    #
+    #   aggregates/**/*.fixtures
+    #     — Aggregate fixtures are the highest-risk zone. Every
+    #       attribute written here seeds state into the in-memory
+    #       adapter. Runtime attributes MUST NOT appear here.
+    #       Ruling: closed (enforce).
+    #
+    #   capabilities/**/*.fixtures
+    #     — Shape-capability fixtures (e.g. validator_shape.fixtures)
+    #       seed declarative configuration for the specializer, not
+    #       runtime persona/config data. Lower risk, but included so
+    #       the enforcer can surface any surprises. Chris's ruling is
+    #       tentative "exempt" but not yet final; ruling_open: true.
   end
-
-  # Known runtime attributes (inline defaults; authoritative list):
-  #
-  #   pronouns        — Miette's self-identity; set once at birth, never
-  #                     re-seeded. Lives in information/identity.heki.
-  #   boot_script     — path to the boot shell invoked at session start.
-  #                     Lives in information/config.heki.
-  #   scan_paths      — directories the file-watcher daemon monitors at
-  #                     runtime. Lives in information/config.heki.
-  #   model           — LLM adapter selection (claude/ollama/…).
-  #                     Lives in information/config.heki.
-  #   cooldown_secs   — heartbeat interval; tuned at runtime, not at build.
-  #                     Lives in information/config.heki.
-  #   born_at         — timestamp of Miette's first breath; immutable after
-  #                     birth but written by a command, not a seed.
-  #                     Lives in information/identity.heki.
-  #   linked_to_name  — foreign-key link between runtime aggregates;
-  #                     populated by commands during a live session, not
-  #                     by the seed loader. Lives in domain-specific .heki.
-
-  # ---- AllowedFixturesCaller -----------------------------------------
-  #
-  # One row per Rust binary / subcommand that is permitted to load
-  # .fixtures files at all. Any caller NOT in this list that touches
-  # a .fixtures path at runtime is a purity violation.
-  #
-  # caller_name:  binary or subcommand identifier (matches Cargo target)
-  # load_purpose: why this caller legitimately reads fixtures
-  # load_phase:   build | test — "build" means CI/specializer, "test"
-  #               means behaviors_runner during the test suite
-
-  aggregate "AllowedFixturesCaller", "One Rust caller permitted to load .fixtures files — enforcer allowlist" do
-    attribute :caller_name,   String
-    attribute :load_purpose,  String
-    attribute :load_phase,    String, default: "test"
-  end
-
-  # Permitted callers (inline defaults):
-  #
-  #   behaviors_runner — executes .behaviors tests; loads the matching
-  #                      .fixtures file to seed state for each scenario.
-  #                      Phase: test.
-  #   dump-fixtures    — serialises every .fixtures file to canonical IR
-  #                      for the parity suite. Phase: build.
-  #   specializer      — reads shape fixtures (e.g. validator_shape.fixtures)
-  #                      to emit Rust source. Phase: build.
-
-  # ---- DisallowPath --------------------------------------------------
-  #
-  # One row per glob pattern the enforcer should scan for purity
-  # violations. Paths are relative to the conception root.
-  #
-  # glob:          shell glob (** supported) relative to conception root
-  # note:          human rationale for including / excluding this glob
-  # ruling_open:   true when the final yes/no decision is still pending
-
-  aggregate "DisallowPath", "One file-glob pattern to scan for test-purity violations" do
-    attribute :glob,         String
-    attribute :note,         String
-    attribute :ruling_open,  TrueClass, default: false
-  end
-
-  # Glob coverage:
-  #
-  #   aggregates/**/*.fixtures
-  #     — Aggregate fixtures are the highest-risk zone. Every
-  #       attribute written here seeds state into the in-memory
-  #       adapter. Runtime attributes MUST NOT appear here.
-  #       Ruling: closed (enforce).
-  #
-  #   capabilities/**/*.fixtures
-  #     — Shape-capability fixtures (e.g. validator_shape.fixtures)
-  #       seed declarative configuration for the specializer, not
-  #       runtime persona/config data. Lower risk, but included so
-  #       the enforcer can surface any surprises. Chris's ruling is
-  #       tentative "exempt" but not yet final; ruling_open: true.
 end
