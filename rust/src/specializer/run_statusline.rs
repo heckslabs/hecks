@@ -1,19 +1,19 @@
-//! Rust-native specializer for `hecks_life/src/run_statusline.rs`.
+//! Rust-native specializer for `rust/src/run_statusline.rs`.
 //!
-//! [antibody-exempt: hecks_life/src/specializer/run_statusline.rs —
-//!  i146 piece-3 specializer implementation. Kernel-surface codegen
-//!  module that walks the Statusline fixtures and emits the runner
-//!  byte-identically. Sibling of dump.rs / validator.rs / etc. ;
-//!  declared by capability_runner_shape's BodyKind table at L0.]
+//! i147 Wave 7 target — the statusline runner, regenerated from the
+//! `run_statusline_shape` bluebook + ordered Phase / StringMatchArm
+//! rows + per-phase `.rs.frag` snippets at codegen/run_statusline_shape/.
 //!
-//! Walks the Statusline fixtures (capability_runner_shape's Phase rows
-//! plus a StringMatchArm catalog for the three icon tables) and emits
-//! the statusline runner byte-identically. i146 piece 3 — the largest
-//! capability_runner_shape client yet, exercising four body_kinds :
-//! `doc_block`, `imports_block`, `verbatim_body`, and `string_match`,
-//! plus a `tests_block` terminator.
+//! [antibody-exempt: rust/src/specializer/run_statusline.rs —
+//!  i147 Wave 7 specializer for run_statusline.rs. Kernel-surface
+//!  codegen module that walks the run_statusline_shape fixtures and
+//!  emits the runner byte-identically. Sibling of cli_dispatch.rs /
+//!  dump.rs / validator.rs. Retires when the specializer itself is
+//!  regenerated from a meta-shape (i78).]
 //!
-//! ## Body kinds (extending capability_runner_shape's BodyKind table)
+//! Walks the RunStatuslineShape fixtures (Phase rows plus a
+//! StringMatchArm catalog for the three icon tables) and emits the
+//! statusline runner byte-identically. Five body_kinds :
 //!
 //!   - `doc_block`      — read .rs.frag verbatim ; preserves leading
 //!                        `//!` lines (no comment-strip pass)
@@ -27,14 +27,15 @@
 //!   - `tests_block`    — read .rs.frag verbatim ; the trailing
 //!                        `#[cfg(test)] mod tests { … }` block
 //!
-//! The runtime phase today bundles run + path resolution + state +
-//! coherence + animation + render_sleep + render_awake into one
-//! snippet ; a future refactor splits it along finer body_kind lines
-//! (`read_heki`, `compose_template`, `static_data`, `branch_compose`)
-//! once those emitters are implemented. Byte-identity is the gate
-//! today ; richer body_kinds become reality as the implementation
-//! grows. See the BodyKind comments in capability_runner_shape.bluebook
-//! for the planned next steps.
+//! The four snippet body_kinds (doc_block, imports_block,
+//! verbatim_body, tests_block) collapse to one emitter today (read
+//! raw, no transform). They stay distinct in the bluebook so the
+//! taxonomy is explicit ; future refactors split verbatim_body
+//! further (read_heki, compose_template, static_data,
+//! branch_compose) so the animation tables and render branches
+//! become first-class body_kinds rather than inline source. Byte-
+//! identity is the gate today ; richer body_kinds become reality as
+//! the implementation grows.
 //!
 //! Usage:
 //!   let rust = run_statusline::emit(repo_root)?;
@@ -47,7 +48,7 @@ use std::fs;
 use std::path::Path;
 
 const SHAPE_REL: &str =
-    "cli/statusline/fixtures/statusline.fixtures";
+    "codegen/run_statusline_shape/fixtures/run_statusline_shape.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);

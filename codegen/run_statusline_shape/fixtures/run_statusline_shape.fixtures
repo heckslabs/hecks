@@ -1,11 +1,11 @@
-Hecks.fixtures "Statusline" do
+Hecks.fixtures "RunStatuslineShape" do
   # Single-line fixtures per i57 parser limitation. These rows describe
-  # how hecks_life/src/run_statusline.rs decomposes for the i146 piece-3
-  # specializer. Phases are walked in `order` ; each row's `body_kind`
-  # picks one of the emission strategies in capability_runner_shape's
-  # BodyKind table (extended for this target — see notes there). Most
-  # phases pull verbatim source from a `.rs.frag` snippet ; only the
-  # three icon tables emit declaratively from StringMatchArm rows.
+  # how rust/src/run_statusline.rs decomposes for the i147 W7 specializer
+  # (run_statusline_shape — relocated from cli/statusline/ at i147 W7).
+  # Phases are walked in `order` ; each row's `body_kind` picks one of
+  # the emission strategies in run_statusline_shape's BodyKind table.
+  # Most phases pull verbatim source from a `.rs.frag` snippet ; only
+  # the three icon tables emit declaratively from StringMatchArm rows.
   #
   # The runtime body block (Phase 3) bundles run() + path resolution +
   # state struct + read_state + coherence + animation + render_sleep +
@@ -22,14 +22,14 @@ Hecks.fixtures "Statusline" do
 
   # ── Phase — ordered emission steps walked by the specializer ───────
   aggregate "Phase" do
-    fixture "Header",        name: "header",        order: 1,  body_kind: "doc_block",      source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/header.rs.frag",         description: "Module doc comment + antibody-exempt marker + input/branch documentation"
-    fixture "Imports",       name: "imports",       order: 2,  body_kind: "imports_block",  source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/imports.rs.frag",        description: "use std + crate::heki + crate::heki_query imports"
-    fixture "Runtime",       name: "runtime",       order: 3,  body_kind: "verbatim_body",  source_command: "Render", adapter_used: "fs",   snippet_path: "cli/statusline/snippets/runtime.rs.frag",        description: "run() entrypoint, path resolution, State struct, read_state heki readers, coherence subprocess, utc_iso_now date math, Now wall-clock, animation arrays + glyph fns, render_sleep, render_awake"
+    fixture "Header",        name: "header",        order: 1,  body_kind: "doc_block",      source_command: "",       adapter_used: "none", snippet_path: "codegen/run_statusline_shape/snippets/header.rs.frag",         description: "Module doc comment + antibody-exempt marker + input/branch documentation"
+    fixture "Imports",       name: "imports",       order: 2,  body_kind: "imports_block",  source_command: "",       adapter_used: "none", snippet_path: "codegen/run_statusline_shape/snippets/imports.rs.frag",        description: "use std + crate::heki + crate::heki_query imports"
+    fixture "Runtime",       name: "runtime",       order: 3,  body_kind: "verbatim_body",  source_command: "Render", adapter_used: "fs",   snippet_path: "codegen/run_statusline_shape/snippets/runtime.rs.frag",        description: "run() entrypoint, path resolution, State struct, read_state heki readers, coherence subprocess, utc_iso_now date math, Now wall-clock, animation arrays + glyph fns, render_sleep, render_awake"
     fixture "MoodIconFor",    name: "mood_icon_for",    order: 4,  body_kind: "string_match",   source_command: "",       adapter_used: "none", snippet_path: "", min_gap: 1, description: "Pure lookup : mood → icon glyph. 11 named moods + wildcard fallback."
     fixture "FatigueIconFor", name: "fatigue_icon_for", order: 5,  body_kind: "string_match",   source_command: "",       adapter_used: "none", snippet_path: "", min_gap: 2, description: "Pure lookup : fatigue state → icon glyph. 6 named states + empty-string fallback."
     fixture "ProviderBadgeFor", name: "provider_badge_for", order: 6, body_kind: "string_match", source_command: "",     adapter_used: "none", snippet_path: "", min_gap: 1, description: "Pure lookup : provider → badge glyph. 2 named providers + claude default (with inline trailing comment)."
-    fixture "FormatHelpers", name: "format_helpers", order: 7,  body_kind: "verbatim_body",  source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/format_helpers.rs.frag", description: "format_beats (1k/1m thresholds) + read_last_dispatch (breadcrumb < 30s)"
-    fixture "Tests",         name: "tests",         order: 8,  body_kind: "tests_block",    source_command: "",       adapter_used: "none", snippet_path: "cli/statusline/snippets/tests.rs.frag",          description: "Unit tests — beats format thresholds, icon tables, render branches, coherence degrade"
+    fixture "FormatHelpers", name: "format_helpers", order: 7,  body_kind: "verbatim_body",  source_command: "",       adapter_used: "none", snippet_path: "codegen/run_statusline_shape/snippets/format_helpers.rs.frag", description: "format_beats (1k/1m thresholds) + read_last_dispatch (breadcrumb < 30s)"
+    fixture "Tests",         name: "tests",         order: 8,  body_kind: "tests_block",    source_command: "",       adapter_used: "none", snippet_path: "codegen/run_statusline_shape/snippets/tests.rs.frag",          description: "Unit tests — beats format thresholds, icon tables, render branches, coherence degrade"
   end
 
   # ── StringMatchArm — declarative arms for the three icon tables ────
