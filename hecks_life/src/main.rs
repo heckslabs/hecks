@@ -692,6 +692,18 @@ fn behaviors_aggregates_root(suite_path: &str) -> Option<String> {
         if sibling_hecks_aggs.is_dir() {
             return Some(sibling_hecks_aggs.to_string_lossy().into_owned());
         }
+        // i118 Round 3 (capabilities reorg) — when the .behaviors lives
+        // under one of the new bucket dirs at the hecks repo root
+        // (runtime/, discipline/, cli/, integrations/, tools/), the
+        // canonical aggregates root is the same repo's
+        // hecks_conception/aggregates. Walk to it directly. Without
+        // this, behaviors tests on lifted caps fall to single-file
+        // domain (cross_cascade tests can`t fire policy chains that
+        // hop into sibling bluebooks).
+        let inner_hecks_aggs = cur.join("hecks_conception/aggregates");
+        if inner_hecks_aggs.is_dir() {
+            return Some(inner_hecks_aggs.to_string_lossy().into_owned());
+        }
         if !cur.pop() { break; }
     }
     None
@@ -1942,6 +1954,33 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         if let Some(canonical) = canonical_miette {
             if canonical != std::path::Path::new(agg_dir) {
                 collect_bluebooks(&canonical, 1, &mut found);
+            }
+        }
+        // i118 Round 3 (capabilities reorg) — the 58 framework
+        // capabilities that used to live under hecks_conception/capabilities/
+        // are being lifted into top-level buckets at the hecks repo root :
+        // runtime/, discipline/, codegen/, cli/, integrations/, tools/.
+        // Wave 1 of the lift moves 33 caps ; codegen/ + statusline land in
+        // Wave 2 (specializer-fed paths require golden regeneration). For
+        // each known bucket directory at the repo root, collect bluebooks at
+        // depth 1 so the dispatch domain still resolves them. The legacy
+        // hecks_conception/capabilities/ walk above keeps working for caps
+        // that haven't been lifted yet (the deferred codegen + statusline).
+        if let Some(repo_root) = hecks_life::heki::repo_root() {
+            // Runtime buckets only — chapters/ and bluebook/ are
+            // descriptive (the framework's self-description and
+            // language definition) and intentionally excluded from
+            // the dispatch domain. Walking them in would surface
+            // documentation-level Compile / Build / etc. commands
+            // that collide with runtime-level same-named commands
+            // (e.g. language/grammar's Compile gets shadowed by
+            // chapters/cli.bluebook's Compile via depth-sort).
+            for bucket in &["runtime", "discipline", "codegen", "cli",
+                            "integrations", "tools"] {
+                let bucket_dir = repo_root.join(bucket);
+                if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
+                    collect_bluebooks(&bucket_dir, 1, &mut found);
+                }
             }
         }
     }
