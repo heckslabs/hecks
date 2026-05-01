@@ -50,6 +50,64 @@ The only way `:checked_out` flips is `CheckOut`. The command takes arguments, mu
 **5. The bluebook is the system.**
 What you read above *is* what runs. There is no separate compiled runtime interpreting a different model — the compiler enforces byte-identity between the description and the running code. If the bluebook says it, the runtime does it. If the runtime does it, the bluebook says it. We call this the Futamura discipline.
 
+## The Napkin, in Bluebook
+
+The five rules above can themselves be written as bluebook. Here is the napkin describing itself.
+
+```ruby
+Hecks.bluebook "Napkin" do
+  aggregate "Bluebook" do
+    attribute :name, String
+    attribute :aggregates, Array
+
+    command "DefineAggregate" do
+      attribute :name, String
+      emits "AggregateDefined"
+    end
+  end
+
+  aggregate "Aggregate" do
+    attribute :name, String
+    attribute :attributes, Array
+    attribute :commands, Array
+    attribute :queries, Array
+    attribute :policies, Array
+
+    command "DefineCommand" do
+      attribute :name, String
+      emits "CommandDefined"
+    end
+  end
+
+  aggregate "Command" do
+    attribute :name, String
+    attribute :attributes, Array
+    attribute :mutations, Array
+    attribute :emits, String
+  end
+
+  aggregate "Query" do
+    attribute :name, String
+    attribute :where, Hash
+    attribute :order_by, Symbol
+    attribute :limit, Integer
+  end
+
+  aggregate "Policy" do
+    attribute :name, String
+    attribute :on, String
+    attribute :dispatch, String
+
+    policy "RegisterListener" do
+      on "CommandDefined"
+      dispatch "BindHandler"
+    end
+  end
+end
+```
+
+The aggregate `Aggregate` has a `command "DefineCommand"` that registers a Command. The aggregate `Bluebook` collects them. The whole napkin lives inside the language it describes.
+
 ## What Is Not on the Napkin
 
 The runtime substrate — file I/O, persistence (the heki binary store), the bootstrap parser, the specializer engine, the host language bindings. Real, finite, and not part of the spec.
