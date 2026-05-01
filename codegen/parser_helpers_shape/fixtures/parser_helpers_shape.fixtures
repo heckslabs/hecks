@@ -1,0 +1,19 @@
+Hecks.fixtures "ParserHelpersShape" do
+  # One row per ordered code section in rust/src/parser_helpers.rs.
+  # Specializer concatenates HEADER (the 4-line doc comment) + each
+  # snippet's raw body in `order` ascending. read_snippet_raw is used
+  # (not read_snippet_body) so the trailing blank line at each
+  # snippet's end is preserved verbatim — that's how the section
+  # separators land in the emitted file. body_kind = verbatim_section
+  # for all five sections today (mirrors assemble_shape /
+  # discover_shape / behaviors_fixtures_shape / parser_shape /
+  # parse_blocks_shape).
+
+  aggregate "Section" do
+    fixture "ExtractHelpersSection",   name: "extract_helpers",   order: 1, body_kind: "verbatim_section", snippet_path: "codegen/parser_helpers_shape/snippets/01_extract_helpers.rs.frag",   description: "String-extraction primitives — extract_string, extract_second_string, extract_symbol, extract_word_after, extract_block, extract_after, extract_state_token, ends_with_do_block"
+    fixture "ToSnakeCaseSection",      name: "to_snake_case",     order: 2, body_kind: "verbatim_section", snippet_path: "codegen/parser_helpers_shape/snippets/02_to_snake_case.rs.frag",      description: "to_snake_case — ActiveSupport-compatible case conversion with acronym handling (DNAProfile -> dna_profile, APIEndpoint -> api_endpoint)"
+    fixture "SnakeCaseTestsSection",   name: "snake_case_tests",  order: 3, body_kind: "verbatim_section", snippet_path: "codegen/parser_helpers_shape/snippets/03_snake_case_tests.rs.frag",   description: "#[cfg(test)] mod snake_case_tests — 14 case rows covering acronym, leading/trailing, mixed, and edge cases"
+    fixture "ShorthandTablesSection",  name: "shorthand_tables",  order: 4, body_kind: "verbatim_section", snippet_path: "codegen/parser_helpers_shape/snippets/04_shorthand_tables.rs.frag",  description: "Shorthand-syntax section header comment + SHORTHAND_TYPES (primitive types) + KEYWORDS (DSL words) const tables"
+    fixture "ShorthandParsersSection", name: "shorthand_parsers", order: 5, body_kind: "verbatim_section", snippet_path: "codegen/parser_helpers_shape/snippets/05_shorthand_parsers.rs.frag", description: "Shorthand parser family — is_shorthand_line, is_shorthand_command, parse_shorthand_attribute, parse_shorthand_reference, ShorthandResult enum, parse_shorthand dispatcher"
+  end
+end

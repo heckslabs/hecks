@@ -809,6 +809,32 @@ fn rust_specializer_produces_byte_identical_html_domain_rs() {
 
 // [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
+fn rust_specializer_produces_byte_identical_parser_helpers_rs() {
+    // i147 Wave 9-B — Rust-native specializer for parser_helpers.rs
+    // (the bluebook parser's helper grab-bag : string-extraction
+    // primitives, to_snake_case + tests, and the shorthand-syntax
+    // detector + parser family). Section-as-snippet shape (mirrors
+    // assemble_shape) : five ordered verbatim_section rows for
+    // extract_helpers / to_snake_case / snake_case_tests /
+    // shorthand_tables / shorthand_parsers ; concatenated under a
+    // HEADER const that carries the 4-line doc comment.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "parser_helpers"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize parser_helpers failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/parser_helpers.rs"))
+        .expect("parser_helpers.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
 fn rust_specializer_produces_byte_identical_assemble_rs() {
     // i147 Wave 8 — Rust-native specializer for run_status/assemble.rs
     // (the StatusReport pure read layer that flattens heki stores +

@@ -127,6 +127,7 @@ pub const SPECIALIZER_TARGETS: &[&str] = &[
     "lifecycle_validator",
     "parse_blocks",
     "parser",
+    "parser_helpers",
     "repository",
     "runtime",
     "run_statusline",
