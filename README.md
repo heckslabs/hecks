@@ -4,41 +4,129 @@
 
 # Hecks
 
-**In the world of AI, specification is king.**
+**A domain compiler for Ruby.** Describe your business in a single DSL file — the *Bluebook* — and Hecks gives you typed aggregates, commands that emit events, lifecycle state machines, queries, validations, a web explorer, behavioral tests, and a generated app in your choice of Ruby, Rails, Go, or Sinatra. You own the output.
 
-Hecks is a domain compiler. Describe your business once. Generate complete applications in Ruby, Go, or Rails. Zero runtime dependency. The output is yours.
+```ruby
+Hecks.bluebook "Banking" do
+  aggregate "Account" do
+    attribute :balance, Float, default: 0.0
+
+    command "Deposit" do
+      reference_to Account
+      attribute :amount, Float
+      then_set :balance, plus: :amount
+    end
+
+    invariant("balance must not be negative") { balance >= 0 }
+  end
+end
+```
+
+That's the source of truth. Boot it, dispatch a command, watch an event:
+
+```ruby
+require "hecks"
+app = Hecks.boot(__dir__)
+account = app.Account.create
+app.Account.deposit(account_id: account.id, amount: 50.0)
+# => DepositedAccount { balance: 50.0 }
+```
 
 ---
 
-## A Covenant
-
-Software affects living beings — humans, animals, ecosystems. A domain model is not neutral. It encodes values about who matters, whose data is protected, what can be taken without consent, what gets discarded. Most frameworks treat these as the developer's problem. Hecks treats them as the framework's responsibility.
-
-Hecks is built around three root principles:
-
-**Transparency** — make the true nature of your system visible. Events are observable. State changes are auditable. Nothing is hidden from the people it affects.
-
-**Equity** — build systems that serve without clinging. Not extracting engagement, not maximizing dependency, not gatekeeping by wealth or identity.
-
-**Consent** — design for the beings your software serves, not against them. Their autonomy and inner life are sacred.
-
-These principles are not marketing. They are encoded into the framework as validators, defaults, and the first question `hecks new` asks you.
-
-The defaults protect people. Overriding them requires a deliberate choice. That choice is yours — but it won't be accidental.
-
----
+## Install
 
 ```bash
-$ gem install hecks
+gem install hecks
 ```
+
+Or from source:
+
+```bash
+git clone https://github.com/chrisyoung/hecks.git
+cd hecks
+bundle install
+```
+
+Hecks ships two parsers — a Ruby DSL (`ruby/`) and a Rust runtime (`rust/`) — held to byte-identical IR by a parity suite. Most workflows only use the gem; the `hecks-life` binary becomes useful when you start authoring behavioral tests or running validators outside Ruby.
 
 **[Getting Started — zero to a running domain in 10 minutes](docs/getting_started.md)**
 
 ---
 
-## Sketch
+## The Bluebook DSL
 
-Hecks comes with a console for building domains. You sketch, then you play.
+A Bluebook describes one bounded context. Each construct maps to a real generated thing:
+
+| Construct | What it produces |
+|----------|------------------|
+| `aggregate` | Business object with typed attributes, identity, repository |
+| `attribute` | Typed field with validation, default, lifecycle hooks |
+| `command` | Class method that emits a domain event when called |
+| `lifecycle` / `transition` | State machine with guarded transitions |
+| `value_object` | Frozen, immutable detail embedded in an aggregate |
+| `entity` | Mutable sub-object with its own identity |
+| `validation` | Checked at command time |
+| `invariant` | Enforced on aggregate state after every change |
+| `specification` | Reusable, composable predicate |
+| `query` | Named, chainable query object |
+| `policy` | Reacts to an event by triggering another command |
+| `service` | Orchestrates multiple commands across aggregates |
+| `port` | Role-based access control boundary |
+
+A complete domain looks like this:
+
+```ruby
+Hecks.bluebook "Bookshelf" do
+  aggregate "Book" do
+    attribute :title,  String
+    attribute :author, String
+    attribute :status, String, default: "available" do
+      transition "CheckOutBook" => "checked_out"
+      transition "ReturnBook"   => "available"
+    end
+
+    validation :title,  presence: true
+    validation :author, presence: true
+
+    command "AddBook" do
+      attribute :title,  String
+      attribute :author, String
+    end
+
+    command "CheckOutBook" do
+      reference_to Book
+    end
+
+    query "Available" do
+      where(status: "available")
+    end
+  end
+
+  aggregate "Loan" do
+    reference_to Book
+    attribute :borrower_name, String
+    attribute :due_date,      String
+    attribute :status,        String, default: "active" do
+      transition "CloseLoan" => "returned"
+    end
+
+    command "CreateLoan" do
+      reference_to Book
+      attribute :borrower_name, String
+      attribute :due_date,      String
+    end
+  end
+end
+```
+
+The full reference is in [`docs/usage/dsl_reference.md`](docs/usage/dsl_reference.md). For each construct there's a matching usage doc under [`docs/usage/`](docs/usage/) with runnable examples.
+
+---
+
+## Sketch and Play
+
+You don't have to write the file in one shot. The console builds it for you.
 
 ```bash
 $ hecks new blog
@@ -46,215 +134,83 @@ $ cd blog
 $ hecks console
 ```
 
-```ruby
+```
 hecks(sketch)> Post
 created Post
-
 hecks(sketch)> Post.title String
 added attribute title to Post
-
-hecks(sketch)> Post.status String
+hecks(sketch)> Post.status String, default: "draft"
 added attribute status to Post
-
-hecks(sketch)> Post.lifecycle :status, default: "draft"
-added lifecycle on status, default: draft
-
 hecks(sketch)> Post.transition "PublishPost" => "published"
 added transition PublishPost → published
-
-hecks(sketch)> Post.transition "ArchivePost" => "archived"
-added transition ArchivePost → archived
-
-hecks(sketch)> Post.create
-created CreatePost
-
 hecks(sketch)> Post.create.title String
 added attribute title to CreatePost → CreatedPost
-```
-
-Blogs need comments.
-
-```ruby
-hecks(sketch)> Comment
-created Comment
-
-hecks(sketch)> Comment.post_id reference_to("Post")
-added reference post_id → Post
-
-hecks(sketch)> Comment.author String
-added attribute author to Comment
-
-hecks(sketch)> Comment.body String
-added attribute body to Comment
-
-hecks(sketch)> Comment.create
-created CreateComment
-
-hecks(sketch)> Comment.create.post_id reference_to("Post")
-added reference post_id → Post
-
-hecks(sketch)> Comment.create.author String
-added attribute author to CreateComment
-
-hecks(sketch)> Comment.create.body String
-added attribute body to CreateComment → CreatedComment
-```
-
-## Play
-
-```ruby
 hecks(sketch)> play!
-```
-
-> `Entering play mode (2 aggregates, 2 commands)`
-
-```ruby
+Entering play mode (1 aggregate, 2 commands)
 hecks(play)> Post.create(title: "Hello World")
-```
-
-> `CreatedPost { title: "Hello World", status: "draft" }`
-
-```ruby
+=> CreatedPost { title: "Hello World", status: "draft" }
 hecks(play)> Post.publish(post_id: Post.all.first.id)
-```
-
-> `PublishedPost { status: "published" }`
-
-When we like it, we save it.
-
-```ruby
+=> PublishedPost { status: "published" }
 hecks(play)> export
+Wrote hecks_domain.rb -- the source of truth.
 ```
 
-> Wrote `hecks_domain.rb` -- the source of truth. Everything generates from this.
+`sketch` mode mutates the in-memory IR. `play` runs commands against a fresh in-memory store. `export` writes the Bluebook. See [`docs/usage/console_tour.md`](docs/usage/console_tour.md).
+
+---
 
 ## The Web Explorer
 
 ```ruby
 hecks(play)> serve!
+# Serving BlogDomain on http://localhost:9292
 ```
 
-> `Serving BlogDomain on http://localhost:9292`
+Open the browser. Create a post. Watch the lifecycle badge flip from `draft` to `published`. Add a comment — the Post dropdown shows your aggregates. Hit `/_events` for the JSON event log.
 
-Open the browser. Create a post. Watch the lifecycle badge change from "draft" to "published." Add a comment -- the Post dropdown shows your posts. Check the event log.
+These are domain events, not framework events: `CreatedPost`, `PublishedPost`, `CreatedComment`. This is your ubiquitous language.
 
-These are domain events, not framework events. `CreatedPost`. `PublishedPost`. `CreatedComment`. This is your ubiquitous language.
-
-## Let Claude Drive
-
-Hecks is AI-native. It ships with an MCP server so Claude can model domains alongside you.
+The explorer also runs standalone:
 
 ```bash
-$ hecks mcp
+$ hecks serve
 ```
 
-> "Build me a photo gallery. Photos have a title, url, taken_at date, and tags."
+See [`docs/usage/serve_web_app.md`](docs/usage/serve_web_app.md) for routes, embedding, and customisation.
 
-Claude generates the domain. Every operation shows its result.
+---
 
-> "Promote Comments into its own domain. Wire it into both Blog and Photos."
+## Build Targets
 
-Claude promotes the aggregate, creates the new domain file, wires both consumers.
+The same Bluebook compiles to multiple targets.
 
-> "When I upload a photo, create a draft blog post automatically."
-
-Claude adds one policy:
+**Plain Ruby:**
 
 ```ruby
-policy "AutoDraft" do
-  on "UploadedPhoto"
-  trigger "CreateDraftPost"
-  map title: :title
-end
+require "hecks"
+app = Hecks.boot(__dir__)
+app.Account.deposit(account_id: id, amount: 50.0)
 ```
 
-One policy. Three domains talking through events. Upload a photo, a draft post appears. The event log shows the chain: `UploadedPhoto -> AutoDraft -> CreatedDraftPost`.
-
-## Extend
-
-Everything so far is in memory. Fix that with one word.
-
-```ruby
-extend :sqlite
-```
-
-Oops, we need multitenancy.
-
-```ruby
-extend :tenancy
-```
-
-Oops, it's selling like hotcakes. Real database.
-
-```ruby
-extend :postgres
-```
-
-Slack notifications for the dev team.
-
-```ruby
-extend :slack, webhook: ENV["SLACK_URL"]
-```
-
-The company got acquired. They need our events in real time.
-
-```ruby
-extend :queue, adapter: :rabbitmq
-```
-
-Each one is one line. No migrations, no config files. Extensions layer on at runtime -- no reboot. When you're happy, `export` captures everything.
-
-## Go
-
-The acquiring company uses Go exclusively. We don't want a long learning curve.
-
-```bash
-$ hecks build --target go
-$ ./blog serve 9292
-```
-
-Same web explorer. Same forms. Same lifecycle badges. Single Go binary. The team is productive on day one.
-
-Two languages, one domain. Hecks domains are versioned so apps don't break when the interface changes.
-
-```bash
-$ hecks diff
-```
-
-> `Removed command: ArchivePost. Added attribute: Post.tags.`
-
-## Rails
-
-This one's for my family.
+**Rails:**
 
 ```bash
 $ hecks build --target rails
 $ rails server
 ```
 
-> Hecks on Rails!
-
-You can use Hecks as a drop-in replacement for ActiveRecord.
-
 ```ruby
 class PostsController < ApplicationController
   def create
     Post.create(title: params[:title], body: params[:body])
+    redirect_to posts_path
   end
 end
 ```
 
-```erb
-<%= form_with model: @post do |f| %>
-  <%= f.text_field :title %>
-  <%= f.text_area :body %>
-  <%= f.submit %>
-<% end %>
-```
+Hecks owns the domain and the database; Rails owns the request cycle. No ActiveRecord. See [`docs/usage/hecks_on_rails.md`](docs/usage/hecks_on_rails.md).
 
-Hecks handles the domain and the database. Rails handles the web. No ActiveRecord. Same forms.
-
-Not everyone loves Rails.
+**Sinatra:**
 
 ```ruby
 require "sinatra"
@@ -266,186 +222,231 @@ post "/posts" do
 end
 ```
 
-Same domain. Ten lines. Pick your framework.
+**Go (single binary):**
 
-## The Real Thing
+```bash
+$ hecks build --target go
+$ ./blog serve 9292
+```
 
-Blog, comments, photos -- this has been done. Here's something real.
+Same web explorer. Same forms. Same lifecycle badges. See [`docs/usage/go_runtime_interpreter.md`](docs/usage/go_runtime_interpreter.md).
 
-I tried asking Claude to build a complex app using DDD and hexagonal architecture. If you've tried this, you know it did not go well. **Claude doesn't have an opinion. Hecks does.** Convention over configuration.
+---
 
-I asked Claude to build an AI governance platform using Hecks. 5 bounded contexts. 14 aggregates. Cross-domain event flows:
+## Extensions
 
-| Domain | Aggregates |
-|--------|-----------|
-| **Compliance** | Governance Policies, Compliance Reviews, Exemptions, Training Records |
-| **Identity** | Stakeholders, Audit Log |
-| **Model Registry** | AI Models, Vendors, Data Usage Agreements |
-| **Operations** | Deployments, Incidents, Monitoring |
-| **Risk Assessment** | Assessments with Findings and Mitigations |
-
-Lifecycle badges. Reference dropdowns across bounded contexts. Direct-action buttons. Event log. Wiring diagram showing how contexts connect through reactive policies.
-
-The explorer is the proof that the domain works. Your app uses the same `Post.create`, `Post.publish` API.
-
-## The DSL
-
-Everything above generates from a single Ruby file:
+Persistence and integrations layer on at runtime — one line each, no migrations to write, no reboot.
 
 ```ruby
-Hecks.domain "Banking" do
-  aggregate "Account" do
-    attribute :balance, Float
-    attribute :status, String, default: "open"
-    attribute :ledger, list_of("LedgerEntry")
+extend :sqlite                              # local file
+extend :postgres                            # production
+extend :tenancy                             # multi-tenant scoping
+extend :slack,    webhook: ENV["SLACK_URL"] # event notifications
+extend :queue,    adapter: :rabbitmq        # publish events
+extend :outbox                              # transactional outbox
+extend :scheduler                           # cron policies
+```
 
-    entity "LedgerEntry" do
-      attribute :amount, Float
-      attribute :description, String
-    end
+When you `export`, the extensions are captured in the Bluebook so the next boot reproduces them. See [`docs/usage/extension_adapter_types.md`](docs/usage/extension_adapter_types.md) and [`docs/usage/creating_extensions.md`](docs/usage/creating_extensions.md) to write your own.
 
-    command "Deposit" do
-      attribute :account_id, String
-      attribute :amount, Float
-    end
+---
 
-    lifecycle :status, default: "open" do
-      transition "CloseAccount" => "closed"
-    end
+## Behavioral Tests, For Free
 
-    validation :balance, presence: true
-    invariant("balance must not be negative") { balance >= 0 }
-    specification("LargeWithdrawal") { |w| w.amount > 10_000 }
-    query("ByCustomer") { |cid| where(customer_id: cid) }
+Every Bluebook gets a behavioral-tests companion generated from its IR. Run them in pure memory — no database, no I/O:
 
-    port :teller do
-      allow :find, :all, :deposit
-    end
-  end
+```bash
+$ hecks-life conceive-behaviors path/to/source.bluebook
+# writes path/to/source_behavioral_tests.bluebook
 
-  policy "DisburseFunds" do
-    on "IssuedLoan"
-    trigger "Deposit"
-    map account_id: :account_id, principal: :amount
+$ hecks-life behaviors path/to/source_behavioral_tests.bluebook
+# 12 tests · 12 passed · 0 failed
+```
+
+The test DSL is itself a Bluebook, sibling to `Hecks.bluebook`:
+
+```ruby
+Hecks.behaviors "Bookshelf" do
+  test "CheckOutBook flips status to checked_out" do
+    setup  "AddBook", title: "Dune", author: "Herbert"
+    tests  "CheckOutBook", on: "Book"
+    expect status: "checked_out"
   end
 end
 ```
 
-| Concept | Purpose |
-|---------|---------|
-| **Aggregates** | Business objects with typed attributes and commands |
-| **Value Objects** | Frozen, immutable details embedded in an aggregate |
-| **Entities** | Mutable sub-objects with their own identity |
-| **Commands** | Become class methods and auto-generate domain events |
-| **Lifecycles** | State machines with transition guards |
-| **Validations** | Checked at creation time |
-| **Invariants** | Enforced on aggregate state after every change |
-| **Specifications** | Reusable, composable predicates |
-| **Policies** | React to events by triggering commands |
-| **Queries & Scopes** | Named, chainable query objects |
-| **Services** | Orchestrate multiple commands across aggregates |
-| **Ports** | Role-based access control boundaries |
+References resolve from in-scope — no IDs in test source. The cascade-aware planner follows policy chains so tests assert on the final state. Three validators stack on top:
+
+```bash
+hecks-life check-lifecycle <bluebook>   # unreachable transitions, undefined refs
+hecks-life check-io        <bluebook>   # confirms the bluebook stays in-memory
+hecks-life check-all       <bluebook>   # both at once
+```
+
+See [`docs/usage/behavioral_tests.md`](docs/usage/behavioral_tests.md).
+
+---
 
 ## Build-Time Validation
 
 Hecks validates your domain before generating anything. Every error includes a fix suggestion.
 
 | Rule | What it checks |
-|------|---------------|
-| CommandNaming | Commands start with a verb |
-| NoBidirectionalReferences | No circular A->B and B->A references |
-| NoSelfReferences | Aggregates don't reference themselves |
-| ValidReferences | References point to existing aggregates |
-| NoImplicitForeignKeys | Warns when `_id String` should be `reference_to` |
-| + 7 more | Name collisions, reserved words, policy wiring, structure |
-
-## Data Contracts
-
-Eight contracts guarantee Ruby and Go generate identical behavior:
-
-| Contract | Governs |
-|----------|---------|
-| `AggregateContract` | Validations, enums, lifecycle, self-ref detection |
-| `DisplayContract` | Cell rendering, lifecycle transitions, summaries |
-| `FormParsingContract` | Type coercion for form submissions |
-| `UILabelContract` | PascalCase splitting, pluralization |
-| `EventLogContract` | `/_events` JSON shape |
-| `ViewContract` | Template structs, short ID display |
-| `TypeContract` | Type mapping across Ruby, Go, SQL, JSON |
-| `EventContract` | Event interface, required fields |
-
-No inline code generation. Every display convention is a named method on a contract.
-
-## Parity Suite
-
-Two parsers read the same `.bluebook` source: the Ruby DSL (`ruby/hecks/dsl/`) and the Rust `hecks-life` runtime. A parity suite (`parity/`) holds both to the same canonical IR shape.
-
-```
-ruby -Iruby parity/parity_test.rb
-# 215/215 match
-```
-
-The suite runs every fixture in `parity/bluebooks/` and every real bluebook in `hecks_conception/` through both parsers, converts each output to the canonical shape declared in `rust/src/dump.rs` and `parity/canonical_ir.rb`, and diffs. Known semantic gaps live in `parity/known_drift.txt` — they don't block.
-
-After cloning, install the git hooks so drift can't land:
-
-```
-tooling/install-hooks
-```
-
-The pre-commit gate runs in ~1 second and blocks only on **unexpected** drift.
-
-## Behavioral Tests
-
-Every bluebook gets behavioral tests for free. The conceiver walks the source IR and emits a `_behavioral_tests.bluebook` companion; the runner executes each test in pure memory (`Runtime::boot`, no `data_dir`, no hecksagon).
+|------|----------------|
+| `CommandNaming` | Commands start with a verb |
+| `NoBidirectionalReferences` | No circular A→B and B→A references |
+| `ValidReferences` | References point to existing aggregates |
+| `NoImplicitForeignKeys` | Warns when `_id String` should be `reference_to` |
+| `LifecycleReachability` | Every state is reachable from the default |
+| `PolicyWiring` | Triggered commands exist; emitted events are real |
+| `PortConsistency` | Port-allowed methods exist on the aggregate |
+| + more | Name collisions, reserved words, value-object purity, structural shape |
 
 ```bash
-hecks-life conceive-behaviors path/to/source.bluebook   # generate
-hecks-life behaviors          path/to/source_behavioral_tests.bluebook  # run
+$ hecks validate
 ```
 
-The test DSL is itself a bluebook — sibling to `Hecks.bluebook`, parity-locked the same way:
-
-```ruby
-Hecks.behaviors "Pizzas" do
-  test "AddTopping appends to toppings" do
-    setup  "CreatePizza", name: "Margherita", description: "Classic"
-    tests  "AddTopping", on: "Pizza"
-    input  name: "basil", amount: 5
-    expect toppings_size: 1
-  end
-end
-```
-
-No IDs in the test source — references resolve from in-scope. The cascade-aware planner follows policy chains (emit → trigger) so tests assert on the final cascaded state.
-
-Three validators stack on the parity contract:
-
-```bash
-hecks-life check-lifecycle <bluebook>     # unreachable transitions, givens, mutation refs
-hecks-life check-io        <bluebook>     # bluebook stays in-memory
-hecks-life check-all       <bluebook>     # both at once
-```
-
-The lifecycle validator catches transitions whose `from:` is unreachable, givens that no command can satisfy, mutation references to undefined symbols, and Clock anti-patterns (`then_set :ts, to: :now` — domain shouldn't grab time, inject it). The IO validator confirms every command in the bluebook runs in pure memory without reaching into infrastructure. See `docs/usage/behavioral_tests.md` for the full pipeline.
-
-## Why Not Just AI?
-
-AI is good at writing code. It's bad at maintaining constraints across a codebase over time.
-
-Ask Claude to generate a domain layer and you'll get something that works today. Next week, someone adds a bidirectional reference. The week after, a command gets named "ProcessData." A month later, a value object holds a reference to an aggregate root. None of these are bugs -- the code runs fine. They're architectural violations that compound silently.
-
-Hecks catches all of these at build time. Twelve rules, checked before a single line of code is generated. The generated output has typed ports, event-driven policies, and bounded context boundaries that can't be bypassed.
-
-Use AI to write the DSL. Use Hecks to guarantee the architecture holds.
+See [`docs/usage/specialize_validator.md`](docs/usage/specialize_validator.md) and the validator entries in [`FEATURES.md`](FEATURES.md) for the full list.
 
 ---
 
+## AI-Native
+
+Hecks ships an MCP server so Claude (or any MCP client) can model domains alongside you.
+
 ```bash
-$ gem install hecks
+$ hecks mcp
 ```
 
-[Getting Started](docs/getting_started.md) | [All Features](FEATURES.md) | [Into the Weeds](INTO_THE_WEEDS.md) | [DDD Mapping](hecks_docs/ddd.md) | [Hexagonal Architecture](hecks_docs/hexagonal.md) | [Why Hecks](hecks_docs/why_hecks.md) | [Architecture Decisions](docs/usage/architecture_decisions.md) | [The Covenant](docs/covenant.md)
+> "Build me a photo gallery. Photos have a title, url, taken_at date, and tags."
+
+Claude generates the Bluebook. Every operation reports its result.
+
+> "Promote `Comment` into its own domain. Wire it into Blog and Photos."
+
+Claude promotes the aggregate, creates the new domain file, wires both consumers through events.
+
+> "When I upload a photo, create a draft blog post automatically."
+
+```ruby
+policy "AutoDraft" do
+  on "UploadedPhoto"
+  trigger "CreateDraftPost"
+  map title: :title
+end
+```
+
+Three domains talking through events. Upload a photo, a draft post appears. The event log shows the chain: `UploadedPhoto → AutoDraft → CreatedDraftPost`. See [`docs/usage/mcp_runtime_from_ir.md`](docs/usage/mcp_runtime_from_ir.md) and [`docs/usage/mcp_visible_output.md`](docs/usage/mcp_visible_output.md).
+
+---
+
+## Why Hecks
+
+AI is good at writing code. It's bad at maintaining constraints across a codebase over time.
+
+Ask Claude to generate a domain layer and you'll get something that works today. Next week, someone adds a bidirectional reference. The week after, a command gets named "ProcessData." A month later, a value object holds a reference to an aggregate root. None of these are bugs — the code runs. They're architectural violations that compound silently.
+
+Hecks catches all of them at build time. The generated output has typed ports, event-driven policies, and bounded-context boundaries that can't be bypassed.
+
+> Use AI to write the DSL. Use Hecks to guarantee the architecture holds.
+
+For the longer argument, see [`docs/why_hecks.md`](docs/why_hecks.md), [`docs/ddd.md`](docs/ddd.md) (DDD mapping), and [`docs/hexagonal.md`](docs/hexagonal.md) (hexagonal architecture mapping).
+
+---
+
+## A Covenant
+
+Hecks is built around three principles encoded as defaults:
+
+- **Transparency** — events are observable, state changes are auditable, nothing is hidden from the people the system affects.
+- **Equity** — systems that serve without clinging. Not extracting engagement, not maximising dependency.
+- **Consent** — design for the beings the software serves, not against them.
+
+The defaults protect people. Overriding them requires a deliberate choice. See [`docs/covenant.md`](docs/covenant.md).
+
+---
+
+## Examples
+
+The [`examples/`](examples/) directory has runnable domains for every target:
+
+- [`examples/bookshelf`](examples/bookshelf) — Books with lifecycle, Loans with references — the canonical first read
+- [`examples/banking`](examples/banking) — Accounts, ledger entries, ports, services, invariants
+- [`examples/governance`](examples/governance) — 5 bounded contexts, 14 aggregates, cross-domain policies
+- [`examples/pizzas`](examples/pizzas) — Value objects and lists
+- [`examples/pizzas_rails`](examples/pizzas_rails) — Same domain, Rails target
+- [`examples/pizzas_static_go`](examples/pizzas_static_go) — Same domain, single Go binary
+- [`examples/sinatra_app`](examples/sinatra_app) — Minimal HTTP integration
+- [`examples/multi_domain`](examples/multi_domain) — Cross-context event flow
+
+Each comes with a README and runs from the project root with one command.
+
+---
+
+## Repository Layout
+
+```
+hecks/
+├── bluebook/        the language — grammar, verbs, primitives
+├── chapters/        the framework's anatomy described in Bluebook
+├── runtime/         execution machinery — boot, dispatch, projection, server
+├── discipline/      antibody, validators, restructure, security
+├── codegen/         specializer, meta-shapes, conceivers, target generators
+├── cli/             argv, banner, console, status, statusline, terminal
+├── integrations/    rails, web components, cloudflare deploy
+├── tools/           inbox, project_management, training, inventions
+├── ruby/            Ruby implementation — DSL, IR, runtime, generators, CLI
+├── rust/            Rust implementation — bluebook parser, heki store, daemons
+├── parity/          byte-identical IR proof between Ruby and Rust
+├── examples/        runnable demo domains for every target
+├── tooling/         git hooks, install scripts
+└── docs/            prose — usage, papers, milestones, decisions
+```
+
+The framework's own anatomy is described in `chapters/` — twelve Bluebook files, parsed by the same parsers your domain is. If you want the deep version of how that works, the prior-use papers in [`docs/papers/prior_use/`](docs/papers/prior_use/) cover validation, MCP, the Futamura projection, cascade lockdown, and language-neutral parity.
+
+---
+
+## Documentation
+
+- **[Getting Started](docs/getting_started.md)** — first 10 minutes
+- **[DSL Reference](docs/usage/dsl_reference.md)** — every Bluebook construct
+- **[Usage docs](docs/usage/)** — one runnable doc per feature
+- **[Architecture Tour](docs/usage/architecture_tour.md)** — how the pieces fit
+- **[Architecture Decisions](docs/usage/architecture_decisions.md)** — why they fit that way
+- **[Papers](docs/papers/prior_use/)** — DDD validation, MCP, Futamura, cascade lockdown, parity
+- **[Covenant](docs/covenant.md)** — the principles encoded as defaults
+- **[FEATURES.md](FEATURES.md)** — full feature index with usage links
+
+---
+
+## Contributing
+
+After cloning, install the git hooks so drift can't land:
+
+```bash
+$ tooling/install-hooks
+```
+
+The pre-commit gate runs in roughly a second and blocks on:
+
+- Test-suite failures (Ruby specs and Rust `cargo test --lib`)
+- Parity drift between the Ruby and Rust IR (only **unexpected** drift; known gaps live in `parity/known_drift.txt`)
+- File-size regressions (200-line code-only ceiling)
+- Antibody failures (scripts that should be Bluebook)
+
+Run the suites manually:
+
+```bash
+$ ruby -Iruby parity/parity_test.rb           # Ruby ↔ Rust IR parity
+$ ruby -Iruby parity/hecksagon_parity_test.rb # Hecksagon parity
+$ cargo test --lib --manifest-path rust/Cargo.toml
+$ ruby -Iruby spec/                           # Ruby behavior
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, branch conventions, and PR template.
+
+---
 
 ## License
 
