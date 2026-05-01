@@ -32,6 +32,8 @@ app.Account.deposit(account_id: account.id, amount: 50.0)
 # => DepositedAccount { balance: 50.0 }
 ```
 
+The whole language is five rules. **[Bluebook on a Napkin →](docs/napkin.md)**
+
 ---
 
 ## Install
