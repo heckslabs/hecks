@@ -1,9 +1,9 @@
-Hecks.bluebook "RepositoryShape", version: "2026.04.26.2" do
-  vision "Shape of hecks_life/src/runtime/repository.rs — in-memory aggregate store with heki persistence. Id dispatch is driven by identified_by from the aggregate's own IR: when set, id_for_command reads attrs[identified_by] as the natural key; when absent, mints a u64 counter. No fixtures file — the aggregate's own bluebook declaration is the adapter."
+Hecks.bluebook "RepositoryShape", version: "2026.05.01.1" do
+  vision "Shape of rust/src/runtime/repository.rs — in-memory aggregate store with heki persistence. Id dispatch is driven by identified_by from the aggregate's own IR: when set, id_for_command reads attrs[identified_by] as the natural key; when absent, mints a u64 counter. The trivial-accessor family (find, find_mut, all, count) compresses into a single store_accessor_block body_kind plus four Accessor rows — REAL compression on the shape's most uniform surface."
   category "autophagy"
 
   # ============================================================
-  # REPOSITORY SHAPE
+  # REPOSITORY SHAPE — i147 Wave 1 + Wave 5-C
   # ============================================================
   #
   # The Repository stores AggregateState instances keyed by id
@@ -35,15 +35,41 @@ Hecks.bluebook "RepositoryShape", version: "2026.04.26.2" do
   # adapter. Declaring `identified_by` is the upgrade path from
   # singleton to natural-key dispatch; absence means singleton.
   #
-  # Layer mapping:
-  #   L0 = this file
-  #   L1 = canonical_ir of this file
-  #   L7 = hecks_life/src/runtime/repository.rs (specializer target)
+  # ## Wave 5-C : the trivial-accessor compression
   #
-  # No fixtures file at this layer — the id strategy is read from
-  # the aggregate's own IR (identified_by field), not from shape
-  # fixture rows. Fixtures are test data; adapters are production
-  # configuration. The distinction is the entire point of this shape.
+  # Four read-only methods — find, find_mut, all, count — share one
+  # honest shape :
+  #
+  #   pub fn <name>(<receiver>[, <arg>]) -> <ret> {
+  #       self.store.<call>
+  #   }
+  #
+  # Wave 5-C captures that uniformity by introducing one body_kind
+  # (`store_accessor_block`) that the specializer reads from four
+  # `Accessor` rows. Each row carries the per-method knobs (name,
+  # receiver, arg, ret, accessor_kind) ; the specializer assembles the
+  # method bodies from the kind vocabulary :
+  #
+  #   value_get        — `self.store.get(id)`         (find)
+  #   value_get_mut    — `self.store.get_mut(id)`     (find_mut)
+  #   values_collect   — `self.store.values().collect()`  (all)
+  #   len              — `self.store.len()`           (count)
+  #
+  # 4 methods → 1 body_kind handler with 4 row entries. The 4 dedicated
+  # `.rs.frag` files retire — bodies live as 4 lines of Rust template
+  # inside the specializer, parameterized by the row knobs.
+  #
+  # The load-bearing I/O methods (load_persisted, save, delete,
+  # id_for_command, new_with_context, heki_path_self) keep their
+  # per-method snippets because their bodies are honestly sui-generis :
+  # heki migration logic, snapshot orchestration, natural-key dispatch,
+  # context-prefixed path resolution. Compressing them would be
+  # over-fitting ; their per-method snippets are correct.
+  #
+  # Layer mapping:
+  #   L0 = this file + fixtures/repository_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir of this file
+  #   L7 = rust/src/runtime/repository.rs (specializer target)
 
   aggregate "RepositoryConfig", "Fixed surface of the Repository struct — field and method names consumed by the specializer to emit repository.rs" do
     attribute :struct_name,          String, default: "Repository"
@@ -55,5 +81,28 @@ Hecks.bluebook "RepositoryShape", version: "2026.04.26.2" do
     attribute :store_field,          String, default: "store"
     # identified_by_field: the Option<String> struct field carrying the natural-key attr name
     attribute :identified_by_field,  String, default: "identified_by"
+  end
+
+  aggregate "Accessor", "One trivial accessor on Repository ; emitted by the store_accessor_block body_kind" do
+    # name: method name as it appears in `pub fn <name>(…)`. find,
+    # find_mut, all, count.
+    attribute :name,           String
+    # order: ascending integer ; specializer sorts before emitting so
+    # the method order stays stable across edits to row text.
+    attribute :order,          Integer
+    # accessor_kind: picks the one-liner body template.
+    #   value_get        — `self.store.get(id)`
+    #   value_get_mut    — `self.store.get_mut(id)`
+    #   values_collect   — `self.store.values().collect()`
+    #   len              — `self.store.len()`
+    attribute :accessor_kind,  String
+    # receiver: the `self` form. `&self` or `&mut self`.
+    attribute :receiver,       String
+    # arg: the argument list excluding the receiver. `id: &str` for
+    # find / find_mut ; empty string for all / count (no args).
+    attribute :arg,            String, default: ""
+    # ret: the return type after the `->` arrow. e.g.
+    # `Option<&AggregateState>`, `Vec<&AggregateState>`, `usize`.
+    attribute :ret,            String
   end
 end
