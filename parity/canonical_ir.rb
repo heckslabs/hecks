@@ -113,6 +113,35 @@ module Hecks
         {
           "name"        => q.name.to_s,
           "description" => q.respond_to?(:description) ? q.description : nil,
+          "attributes"  => (q.respond_to?(:attributes) && q.attributes || []).map { |a| dump_attribute(a) },
+          "wheres"      => (q.respond_to?(:wheres) && q.wheres || []).map { |w| dump_where_clause(w) },
+          "order_by"    => (q.respond_to?(:order_by) && q.order_by) ? dump_order_by(q.order_by) : nil,
+          "limit"       => (q.respond_to?(:limit) && q.limit) ? dump_limit_spec(q.limit) : nil,
+        }
+      end
+
+      # i101 — structured query clauses. Mirror Rust's dump.rs shape :
+      # WhereClause { field, op, value } / OrderBy { field, direction } /
+      # LimitSpec { value }. Op + Direction render as lowercase strings
+      # to match Rust's enum_match emitters.
+      def dump_where_clause(w)
+        {
+          "field" => w.field.to_s,
+          "op"    => w.op.to_s,
+          "value" => w.value.to_s,
+        }
+      end
+
+      def dump_order_by(o)
+        {
+          "field"     => o.field.to_s,
+          "direction" => o.direction.to_s,
+        }
+      end
+
+      def dump_limit_spec(l)
+        {
+          "value" => l.value.to_s,
         }
       end
 

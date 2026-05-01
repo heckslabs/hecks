@@ -406,11 +406,21 @@ impl Runtime {
         vec![]
     }
     /// Resolve a query — search IR or return aggregate state.
+    ///
+    /// i101 — when the IR Query carries structured wheres / order_by /
+    /// limit, the executor walks repo.all() and applies them in order :
+    /// filter → sort → truncate. The opaque-Ruby-block era is retired.
     pub fn resolve_query(&self, query_name: &str, attrs: &std::collections::HashMap<String, String>) -> serde_json::Value {
-        let agg_name = self.domain.aggregates.iter()
-            .find(|a| a.queries.iter().any(|q| q.name == query_name))
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
+        let (agg_name, query_ir) = self.domain.aggregates.iter()
+            .find_map(|a| a.queries.iter().find(|q| q.name == query_name).map(|q| (a.name.clone(), q.clone())))
+            .unwrap_or_else(|| (String::new(), crate::ir::Query {
+                name: query_name.to_string(),
+                description: None,
+                attributes: vec![],
+                wheres: vec![],
+                order_by: None,
+                limit: None,
+            }));
 
         // MatchInput: search loaded commands by phrase
         if query_name == "MatchInput" {
@@ -442,9 +452,31 @@ impl Runtime {
             });
         }
 
-        // Generic query: return aggregate state
+        // Generic query: walk repo.all(), apply wheres / order_by / limit.
         let state = self.all(&agg_name);
-        let records: Vec<serde_json::Value> = state.iter().map(|s| {
+        let mut filtered: Vec<&AggregateState> = state.into_iter()
+            .filter(|s| query_ir.wheres.iter().all(|w| where_matches(s, w, attrs)))
+            .collect();
+
+        if let Some(ref ob) = query_ir.order_by {
+            filtered.sort_by(|a, b| {
+                let av = a.fields.get(&ob.field).map(|v| v.to_string()).unwrap_or_default();
+                let bv = b.fields.get(&ob.field).map(|v| v.to_string()).unwrap_or_default();
+                match ob.direction {
+                    crate::ir::Direction::Asc  => av.cmp(&bv),
+                    crate::ir::Direction::Desc => bv.cmp(&av),
+                }
+            });
+        }
+
+        if let Some(ref ls) = query_ir.limit {
+            let cap = resolve_limit_value(&ls.value, attrs);
+            if let Some(n) = cap {
+                filtered.truncate(n);
+            }
+        }
+
+        let records: Vec<serde_json::Value> = filtered.iter().map(|s| {
             let mut map = serde_json::Map::new();
             for (k, v) in &s.fields {
                 map.insert(k.clone(), match v {
@@ -603,6 +635,62 @@ pub fn repo_lookup_key(repositories: &HashMap<String, Repository>, name: &str) -
     }
     let suffix = format!("::{}", name);
     repositories.keys().find(|k| k.ends_with(&suffix)).cloned()
+}
+
+/// i101 — apply one WhereClause to one record. Resolves kwarg-refs
+/// (`":author"`) against the dispatch attrs ; literal values match
+/// the record's field as a string. Returns true when the record
+/// matches the clause, false otherwise.
+fn where_matches(
+    state: &AggregateState,
+    clause: &crate::ir::WhereClause,
+    attrs: &std::collections::HashMap<String, String>,
+) -> bool {
+    let target = resolve_where_value(&clause.value, attrs);
+    let actual = state.fields.get(&clause.field).map(|v| v.to_string()).unwrap_or_default();
+    match clause.op {
+        crate::ir::WhereOp::Eq  => actual == target,
+        crate::ir::WhereOp::Ne  => actual != target,
+        crate::ir::WhereOp::Gt  => compare_strings(&actual, &target).is_gt(),
+        crate::ir::WhereOp::Gte => !compare_strings(&actual, &target).is_lt(),
+        crate::ir::WhereOp::Lt  => compare_strings(&actual, &target).is_lt(),
+        crate::ir::WhereOp::Lte => !compare_strings(&actual, &target).is_gt(),
+    }
+}
+
+/// Numeric ordering when both sides parse as i64 ; lexical otherwise.
+/// Keeps the runtime executor honest for both string-typed status
+/// fields and numeric-typed counters.
+fn compare_strings(a: &str, b: &str) -> std::cmp::Ordering {
+    if let (Ok(an), Ok(bn)) = (a.parse::<i64>(), b.parse::<i64>()) {
+        return an.cmp(&bn);
+    }
+    a.cmp(b)
+}
+
+/// Resolve a where-clause value : `:foo` reads `attrs["foo"]` (kwarg-ref) ;
+/// any other token is a literal returned as-is.
+fn resolve_where_value(
+    value: &str,
+    attrs: &std::collections::HashMap<String, String>,
+) -> String {
+    if let Some(kwarg) = value.strip_prefix(':') {
+        return attrs.get(kwarg).cloned().unwrap_or_default();
+    }
+    value.to_string()
+}
+
+/// Resolve a limit value : `:foo` reads `attrs["foo"]` and parses as
+/// usize ; numeric token parses directly. Returns None when the source
+/// can't be parsed (so the executor leaves the result un-truncated).
+fn resolve_limit_value(
+    value: &str,
+    attrs: &std::collections::HashMap<String, String>,
+) -> Option<usize> {
+    if let Some(kwarg) = value.strip_prefix(':') {
+        return attrs.get(kwarg).and_then(|s| s.parse::<usize>().ok());
+    }
+    value.parse::<usize>().ok()
 }
 
 fn pascal_to_phrase(name: &str) -> String {

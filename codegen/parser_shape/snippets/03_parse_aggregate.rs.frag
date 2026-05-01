@@ -72,6 +72,17 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
             } else if is_shorthand_line(line) {
                 absorb_shorthand(line, &mut agg);
             } else if line.starts_with("query") {
+                // i101 — block-form queries flow through parse_query
+                // so attribute / where / order_by / limit clauses are
+                // captured as structured IR. Single-line form keeps
+                // the legacy push_query path for back-compat with
+                // bluebooks that only declare name + description.
+                if ends_with_do_block(line) {
+                    let (q, consumed) = parse_query(&lines[i..]);
+                    agg.queries.push(q);
+                    i += consumed;
+                    continue;
+                }
                 push_query(line, &mut agg, &mut depth);
             } else if ends_with_do_block(line) {
                 depth += 1;

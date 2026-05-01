@@ -70,8 +70,9 @@ const HEADER: &str = r#"//! Canonical IR dump — JSON shape that both Ruby and 
 "#;
 
 const IMPORTS: &str = "use crate::ir::{
-    Aggregate, Attribute, Command, Domain, Entity, Fixture, Given, Lifecycle,
-    Mutation, MutationOp, Policy, Query, Reference, Transition, ValueObject,
+    Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
+    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy, Query,
+    Reference, Transition, ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 

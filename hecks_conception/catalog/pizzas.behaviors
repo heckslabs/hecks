@@ -12,6 +12,7 @@ Hecks.behaviors "Pizzas" do
   test "ByDescription returns matching records" do
     tests "ByDescription", on: "Pizza", kind: :query
     setup  "CreatePizza", name: "sample", description: "sample"
+    input  desc: "sample"
     expect count: 1
   end
 

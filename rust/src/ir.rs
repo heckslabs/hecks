@@ -121,6 +121,27 @@ pub struct Command {
 pub struct Query {
     pub name: String,
     pub description: Option<String>,
+    /// Query input parameters. When the DSL declares `attribute :author,
+    /// String` inside a query block, that attribute becomes a kwarg the
+    /// caller supplies at dispatch time. Where-clauses can reference
+    /// these attributes by their symbol form (`:author`) and the runtime
+    /// resolves the kwarg to a literal at filter time. (i101)
+    pub attributes: Vec<Attribute>,
+    /// Filter clauses applied in sequence by the runtime executor.
+    /// `where(field: value)` parses to a WhereClause where `value` is
+    /// either a literal (`"available"`) or a kwarg-ref (`":author"`)
+    /// resolved against the query's input attributes at dispatch
+    /// time. Multiple wheres compose as logical AND. (i101)
+    pub wheres: Vec<WhereClause>,
+    /// Optional sort spec. `order_by :title` parses to ascending on the
+    /// named field ; `order_by :title, :desc` flips direction. The
+    /// runtime sorts after where-filtering, before limit truncation. (i101)
+    pub order_by: Option<OrderBy>,
+    /// Optional record cap. `limit 10` truncates to ten records ;
+    /// `limit :max_results` reads the value from the query's input
+    /// kwargs at dispatch time. Same literal-or-kwarg pattern as
+    /// where-clause values. (i101)
+    pub limit: Option<LimitSpec>,
 }
 
 #[derive(Debug, Clone)]
@@ -239,6 +260,48 @@ pub struct Fixture {
     pub name: Option<String>,
     pub aggregate_name: String,
     pub attributes: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhereClause {
+    pub field: String,
+    pub op: WhereOp,
+    pub value: String,
+}
+
+/// Filter operator for a WhereClause. Eq / Ne are the canonical pair
+/// (handles `where(field: value)` and `where(field: { ne: value })`) ;
+/// Gt / Gte / Lt / Lte cover ordered comparisons against numeric or
+/// string fields. The runtime parses the value side as a literal or
+/// kwarg-ref and applies the op to each candidate record. (i101)
+#[derive(Debug, Clone)]
+pub enum WhereOp {
+    Eq,
+    Ne,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+}
+
+#[derive(Debug, Clone)]
+pub struct OrderBy {
+    pub field: String,
+    pub direction: Direction,
+}
+
+/// Sort direction for an OrderBy clause. Asc is the default when the
+/// DSL declares `order_by :field` ; Desc is selected explicitly via
+/// `order_by :field, :desc`. (i101)
+#[derive(Debug, Clone)]
+pub enum Direction {
+    Asc,
+    Desc,
+}
+
+#[derive(Debug, Clone)]
+pub struct LimitSpec {
+    pub value: String,
 }
 
 impl fmt::Display for Domain {

@@ -43,12 +43,27 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                 i += consumed;
                 continue;
             } else if line.starts_with("query") {
+                // i101 — block-form queries delegate to parse_query so
+                // entity-scoped queries get the same structured IR as
+                // aggregate-scoped ones.
+                if ends_with_do_block(line) {
+                    let (q, consumed) = parse_query(&lines[i..]);
+                    ent.queries.push(q);
+                    i += consumed;
+                    continue;
+                }
                 let q_name = extract_string(line).unwrap_or_else(|| {
                     line.split_whitespace().nth(1).unwrap_or("").trim_matches('"').to_string()
                 });
                 let q_desc = extract_second_string(line);
-                ent.queries.push(Query { name: q_name, description: q_desc });
-                if ends_with_do_block(line) { depth += 1; }
+                ent.queries.push(Query {
+                    name: q_name,
+                    description: q_desc,
+                    attributes: vec![],
+                    wheres: vec![],
+                    order_by: None,
+                    limit: None,
+                });
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 ent.lifecycle = Some(lc);

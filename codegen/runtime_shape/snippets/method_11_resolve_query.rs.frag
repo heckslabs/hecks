@@ -1,9 +1,19 @@
     /// Resolve a query — search IR or return aggregate state.
+    ///
+    /// i101 — when the IR Query carries structured wheres / order_by /
+    /// limit, the executor walks repo.all() and applies them in order :
+    /// filter → sort → truncate. The opaque-Ruby-block era is retired.
     pub fn resolve_query(&self, query_name: &str, attrs: &std::collections::HashMap<String, String>) -> serde_json::Value {
-        let agg_name = self.domain.aggregates.iter()
-            .find(|a| a.queries.iter().any(|q| q.name == query_name))
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
+        let (agg_name, query_ir) = self.domain.aggregates.iter()
+            .find_map(|a| a.queries.iter().find(|q| q.name == query_name).map(|q| (a.name.clone(), q.clone())))
+            .unwrap_or_else(|| (String::new(), crate::ir::Query {
+                name: query_name.to_string(),
+                description: None,
+                attributes: vec![],
+                wheres: vec![],
+                order_by: None,
+                limit: None,
+            }));
 
         // MatchInput: search loaded commands by phrase
         if query_name == "MatchInput" {
@@ -35,9 +45,31 @@
             });
         }
 
-        // Generic query: return aggregate state
+        // Generic query: walk repo.all(), apply wheres / order_by / limit.
         let state = self.all(&agg_name);
-        let records: Vec<serde_json::Value> = state.iter().map(|s| {
+        let mut filtered: Vec<&AggregateState> = state.into_iter()
+            .filter(|s| query_ir.wheres.iter().all(|w| where_matches(s, w, attrs)))
+            .collect();
+
+        if let Some(ref ob) = query_ir.order_by {
+            filtered.sort_by(|a, b| {
+                let av = a.fields.get(&ob.field).map(|v| v.to_string()).unwrap_or_default();
+                let bv = b.fields.get(&ob.field).map(|v| v.to_string()).unwrap_or_default();
+                match ob.direction {
+                    crate::ir::Direction::Asc  => av.cmp(&bv),
+                    crate::ir::Direction::Desc => bv.cmp(&av),
+                }
+            });
+        }
+
+        if let Some(ref ls) = query_ir.limit {
+            let cap = resolve_limit_value(&ls.value, attrs);
+            if let Some(n) = cap {
+                filtered.truncate(n);
+            }
+        }
+
+        let records: Vec<serde_json::Value> = filtered.iter().map(|s| {
             let mut map = serde_json::Map::new();
             for (k, v) in &s.fields {
                 map.insert(k.clone(), match v {

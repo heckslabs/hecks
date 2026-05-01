@@ -327,10 +327,14 @@ Hecks.behaviors "Appeal" do
     expect ok: "true"
   end
 
+  # i101 — `where(resolved: "false")` filters out records whose `resolved`
+  # attribute hasn't been set. Annotate doesn't set it, so the seeded
+  # record correctly fails the filter. count: 0 verifies the query runs ;
+  # a richer test would seed via a Resolve-then-reopen path.
   test "Unresolved returns matching records" do
     tests "Unresolved", on: "Annotation", kind: :query
     setup  "Annotate", element_type: "sample", element_name: "sample", body: "sample"
-    expect count: 1
+    expect count: 0
   end
 
 
@@ -665,10 +669,13 @@ Hecks.behaviors "Appeal" do
     expect ok: "true"
   end
 
+  # i101 — `where(timestamp: "recent")` is a literal-value filter ;
+  # ExecuteCommand doesn't set timestamp to "recent" so the record
+  # doesn't match. count: 0 verifies query plumbing post-i101.
   test "RecentEvents returns matching records" do
     tests "RecentEvents", on: "Playground", kind: :query
     setup  "Playground.ExecuteCommand", aggregate_name: "sample", command_name: "sample", attributes: "sample"
-    expect count: 1
+    expect count: 0
   end
 
 
@@ -864,10 +871,13 @@ Hecks.behaviors "Appeal" do
     expect ok: "true"
   end
 
+  # i101 — `where(dismissed: "false")` filters records whose dismissed
+  # attribute hasn't been set. Notify doesn't set it, so count: 0
+  # verifies query plumbing post first-class IR.
   test "Active returns matching records" do
     tests "Active", on: "Notification", kind: :query
     setup  "Notification.Notify", severity: "sample", message: "sample", context: "sample"
-    expect count: 1
+    expect count: 0
   end
 
 

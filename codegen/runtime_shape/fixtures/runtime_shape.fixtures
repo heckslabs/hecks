@@ -85,16 +85,23 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/37_repo_lookup_key_fn.rs.frag",
       description: "repo_lookup_key — name-only HashMap lookup helper for callers that don't yet carry context info"
 
+    fixture "QueryExecutorFns",
+      name: "query_executor_fns",
+      order: 11,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/runtime_shape/snippets/40_query_executor_fns.rs.frag",
+      description: "i101 — where_matches / compare_strings / resolve_where_value / resolve_limit_value : runtime query executor helpers for first-class IR queries"
+
     fixture "PascalToPhraseFn",
       name: "pascal_to_phrase_fn",
-      order: 11,
+      order: 12,
       body_kind: "verbatim_section",
       snippet_path: "codegen/runtime_shape/snippets/38_pascal_to_phrase_fn.rs.frag",
       description: "pascal_to_phrase — converts CamelCase command names to lowercase phrases for trigram matching"
 
     fixture "TrigramSimFn",
       name: "trigram_sim_fn",
-      order: 12,
+      order: 13,
       body_kind: "verbatim_section",
       snippet_path: "codegen/runtime_shape/snippets/39_trigram_sim_fn.rs.frag",
       description: "trigram_sim — Sørensen-Dice-like trigram similarity scoring used by resolve_query's MatchInput"

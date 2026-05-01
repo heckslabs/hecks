@@ -1,0 +1,24 @@
+Hecks.bluebook "QueryClauses", version: "2026.05.01.1" do
+  vision "i101 — first-class query IR : where / order_by / limit clauses round-trip byte-equal between Ruby and Rust parsers"
+
+  aggregate "Book", "Bookshelf entry" do
+    attribute :title,  String
+    attribute :author, String
+    attribute :status, String, default: "available"
+
+    query "Available" do
+      description "Books that are currently on the shelf"
+      where(status: "available")
+    end
+
+    query "ByAuthor" do |author|
+      where(author: author)
+    end
+
+    query "RecentByTitle" do
+      where(status: "available")
+      order_by :title
+      limit 10
+    end
+  end
+end

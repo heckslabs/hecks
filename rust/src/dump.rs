@@ -23,8 +23,9 @@
 //!   # → JSON to stdout, exit 0
 
 use crate::ir::{
-    Aggregate, Attribute, Command, Domain, Entity, Fixture, Given, Lifecycle,
-    Mutation, MutationOp, Policy, Query, Reference, Transition, ValueObject,
+    Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
+    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy, Query,
+    Reference, Transition, ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 
@@ -96,6 +97,10 @@ fn dump_query(q: &Query) -> Value {
     json!({
         "name": q.name,
         "description": q.description,
+        "attributes": q.attributes.iter().map(dump_attribute).collect::<Vec<_>>(),
+        "wheres": q.wheres.iter().map(dump_where_clause).collect::<Vec<_>>(),
+        "order_by": q.order_by.as_ref().map(dump_order_by),
+        "limit": q.limit.as_ref().map(dump_limit_spec),
     })
 }
 
@@ -198,6 +203,45 @@ fn dump_entity(ent: &Entity) -> Value {
         "commands": ent.commands.iter().map(dump_command).collect::<Vec<_>>(),
         "queries": ent.queries.iter().map(dump_query).collect::<Vec<_>>(),
         "lifecycle": ent.lifecycle.as_ref().map(dump_lifecycle),
+    })
+}
+
+fn dump_where_clause(w: &WhereClause) -> Value {
+    json!({
+        "field": w.field,
+        "op": dump_where_op(&w.op),
+        "value": w.value,
+    })
+}
+
+fn dump_where_op(op: &WhereOp) -> &'static str {
+    match op {
+        WhereOp::Eq  => "eq",
+        WhereOp::Ne  => "ne",
+        WhereOp::Gt  => "gt",
+        WhereOp::Gte => "gte",
+        WhereOp::Lt  => "lt",
+        WhereOp::Lte => "lte",
+    }
+}
+
+fn dump_order_by(o: &OrderBy) -> Value {
+    json!({
+        "field": o.field,
+        "direction": dump_direction(&o.direction),
+    })
+}
+
+fn dump_direction(d: &Direction) -> &'static str {
+    match d {
+        Direction::Asc  => "asc",
+        Direction::Desc => "desc",
+    }
+}
+
+fn dump_limit_spec(l: &LimitSpec) -> Value {
+    json!({
+        "value": l.value,
     })
 }
 

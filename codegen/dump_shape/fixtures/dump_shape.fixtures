@@ -19,6 +19,15 @@ Hecks.fixtures "DumpShape" do
     fixture "DumpTransition", name: "dump_transition", target_type: "Transition", input_binding: "t", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 13
     fixture "DumpPolicy", name: "dump_policy", target_type: "Policy", input_binding: "p", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 14
     fixture "DumpFixture", name: "dump_fixture", target_type: "Fixture", input_binding: "f", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 15
+    # i101 — first-class query IR : structured WhereClause / OrderBy /
+    # LimitSpec serializers, plus the WhereOp / Direction enum_match
+    # helpers. dump_query gains attributes / wheres / order_by / limit
+    # JsonField rows below.
+    fixture "DumpWhereClause", name: "dump_where_clause", target_type: "WhereClause", input_binding: "w",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 17
+    fixture "DumpWhereOp",     name: "dump_where_op",     target_type: "WhereOp",     input_binding: "op", return_type: "&'static str",   is_entry: false, body_kind: "enum_match",  snippet_path: "", order: 18
+    fixture "DumpOrderBy",     name: "dump_order_by",     target_type: "OrderBy",     input_binding: "o",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 19
+    fixture "DumpDirection",   name: "dump_direction",    target_type: "Direction",   input_binding: "d",  return_type: "&'static str",   is_entry: false, body_kind: "enum_match",  snippet_path: "", order: 20
+    fixture "DumpLimitSpec",   name: "dump_limit_spec",   target_type: "LimitSpec",   input_binding: "l",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 21
   end
 
   # ── JsonField — one row per JSON key in each json_object serializer ──
@@ -83,9 +92,25 @@ Hecks.fixtures "DumpShape" do
     fixture "Cmd_givens",      serializer: "dump_command", order: 7, key: "givens",      source: "givens",      mapping_kind: "recurse_list", helper_fn: "dump_given"
     fixture "Cmd_mutations",   serializer: "dump_command", order: 8, key: "mutations",   source: "mutations",   mapping_kind: "recurse_list", helper_fn: "dump_mutation"
 
-    # dump_query — 2 fields
-    fixture "Qry_name",        serializer: "dump_query", order: 1, key: "name",        source: "name",        mapping_kind: "direct", helper_fn: ""
-    fixture "Qry_description", serializer: "dump_query", order: 2, key: "description", source: "description", mapping_kind: "direct", helper_fn: ""
+    # dump_query — 6 fields (i101 added attributes / wheres / order_by / limit)
+    fixture "Qry_name",        serializer: "dump_query", order: 1, key: "name",        source: "name",        mapping_kind: "direct",           helper_fn: ""
+    fixture "Qry_description", serializer: "dump_query", order: 2, key: "description", source: "description", mapping_kind: "direct",           helper_fn: ""
+    fixture "Qry_attributes",  serializer: "dump_query", order: 3, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list",     helper_fn: "dump_attribute"
+    fixture "Qry_wheres",      serializer: "dump_query", order: 4, key: "wheres",      source: "wheres",      mapping_kind: "recurse_list",     helper_fn: "dump_where_clause"
+    fixture "Qry_order_by",    serializer: "dump_query", order: 5, key: "order_by",    source: "order_by",    mapping_kind: "recurse_optional", helper_fn: "dump_order_by"
+    fixture "Qry_limit",       serializer: "dump_query", order: 6, key: "limit",       source: "limit",       mapping_kind: "recurse_optional", helper_fn: "dump_limit_spec"
+
+    # dump_where_clause — 3 fields (i101).
+    fixture "Whr_field", serializer: "dump_where_clause", order: 1, key: "field", source: "field", mapping_kind: "direct",      helper_fn: ""
+    fixture "Whr_op",    serializer: "dump_where_clause", order: 2, key: "op",    source: "op",    mapping_kind: "helper_call", helper_fn: "dump_where_op"
+    fixture "Whr_value", serializer: "dump_where_clause", order: 3, key: "value", source: "value", mapping_kind: "direct",      helper_fn: ""
+
+    # dump_order_by — 2 fields (i101).
+    fixture "Ord_field",     serializer: "dump_order_by", order: 1, key: "field",     source: "field",     mapping_kind: "direct",      helper_fn: ""
+    fixture "Ord_direction", serializer: "dump_order_by", order: 2, key: "direction", source: "direction", mapping_kind: "helper_call", helper_fn: "dump_direction"
+
+    # dump_limit_spec — 1 field (i101).
+    fixture "Lim_value", serializer: "dump_limit_spec", order: 1, key: "value", source: "value", mapping_kind: "direct", helper_fn: ""
 
     # dump_given — 2 fields
     fixture "Gvn_expression", serializer: "dump_given", order: 1, key: "expression", source: "expression", mapping_kind: "direct", helper_fn: ""
@@ -129,5 +154,17 @@ Hecks.fixtures "DumpShape" do
     fixture "MutOp_Clamp",     serializer: "dump_mutation_op", variant: "MutationOp::Clamp",     emits: "clamp",     order: 7
     fixture "MutOp_Decay",     serializer: "dump_mutation_op", variant: "MutationOp::Decay",     emits: "decay",     order: 8
     fixture "MutOp_Delete",    serializer: "dump_mutation_op", variant: "MutationOp::Delete",    emits: "delete",    order: 9
+
+    # dump_where_op — 6 variants (i101).
+    fixture "WhereOp_Eq",  serializer: "dump_where_op", variant: "WhereOp::Eq",  emits: "eq",  order: 1
+    fixture "WhereOp_Ne",  serializer: "dump_where_op", variant: "WhereOp::Ne",  emits: "ne",  order: 2
+    fixture "WhereOp_Gt",  serializer: "dump_where_op", variant: "WhereOp::Gt",  emits: "gt",  order: 3
+    fixture "WhereOp_Gte", serializer: "dump_where_op", variant: "WhereOp::Gte", emits: "gte", order: 4
+    fixture "WhereOp_Lt",  serializer: "dump_where_op", variant: "WhereOp::Lt",  emits: "lt",  order: 5
+    fixture "WhereOp_Lte", serializer: "dump_where_op", variant: "WhereOp::Lte", emits: "lte", order: 6
+
+    # dump_direction — 2 variants (i101).
+    fixture "Direction_Asc",  serializer: "dump_direction", variant: "Direction::Asc",  emits: "asc",  order: 1
+    fixture "Direction_Desc", serializer: "dump_direction", variant: "Direction::Desc", emits: "desc", order: 2
   end
 end

@@ -21,7 +21,8 @@ Hecks.fixtures "IrShape" do
     # Command — verb on an aggregate or entity, with givens and mutations.
     fixture "Command", name: "Command", order: 6, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Command verb — attributes, references, givens, mutations"
 
-    # Query — read-side capability declaration, just name + description.
+    # Query — read-side capability declaration ; i101 added attributes,
+    # wheres, order_by, and limit so the DSL block is no longer opaque.
     fixture "Query", name: "Query", order: 7, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Query — read-side capability"
 
     # Given — precondition expression on a command.
@@ -54,8 +55,18 @@ Hecks.fixtures "IrShape" do
     # Fixture — seeded data record bound to an aggregate.
     fixture "Fixture", name: "Fixture", order: 17, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
 
+    # i101 — first-class query IR. WhereClause / WhereOp / OrderBy /
+    # Direction / LimitSpec extend Query with structured filter / sort /
+    # cap fields so the runtime executor can walk repo.all() without
+    # delegating to an opaque Ruby block.
+    fixture "WhereClause", name: "WhereClause", order: 18, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Where clause — field op value tuple, ANDed with siblings"
+    fixture "WhereOp",     name: "WhereOp",     order: 19, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/where_op.rs.frag", description: "Filter operator — Eq / Ne / Gt / Gte / Lt / Lte"
+    fixture "OrderBy",     name: "OrderBy",     order: 20, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Order by clause — field + direction"
+    fixture "Direction",   name: "Direction",   order: 21, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
+    fixture "LimitSpec",   name: "LimitSpec",   order: 22, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
+
     # Display impl on Domain — pretty-printed aggregate / command tree.
-    fixture "DisplayDomain", name: "DisplayDomain", order: 18, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+    fixture "DisplayDomain", name: "DisplayDomain", order: 23, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -107,9 +118,13 @@ Hecks.fixtures "IrShape" do
     fixture "Command_givens",      type_name: "Command", order: 7, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
     fixture "Command_mutations",   type_name: "Command", order: 8, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
 
-    # Query — 2 fields.
-    fixture "Query_name",        type_name: "Query", order: 1, name: "name",        field_type: "String",         doc_snippet: ""
-    fixture "Query_description", type_name: "Query", order: 2, name: "description", field_type: "Option<String>", doc_snippet: ""
+    # Query — 6 fields ; i101 added attributes, wheres, order_by, limit.
+    fixture "Query_name",        type_name: "Query", order: 1, name: "name",        field_type: "String",            doc_snippet: ""
+    fixture "Query_description", type_name: "Query", order: 2, name: "description", field_type: "Option<String>",    doc_snippet: ""
+    fixture "Query_attributes",  type_name: "Query", order: 3, name: "attributes",  field_type: "Vec<Attribute>",    doc_snippet: "codegen/ir_shape/snippets/docs/query_attributes.rs.frag"
+    fixture "Query_wheres",      type_name: "Query", order: 4, name: "wheres",      field_type: "Vec<WhereClause>",  doc_snippet: "codegen/ir_shape/snippets/docs/query_wheres.rs.frag"
+    fixture "Query_order_by",    type_name: "Query", order: 5, name: "order_by",    field_type: "Option<OrderBy>",   doc_snippet: "codegen/ir_shape/snippets/docs/query_order_by.rs.frag"
+    fixture "Query_limit",       type_name: "Query", order: 6, name: "limit",       field_type: "Option<LimitSpec>", doc_snippet: "codegen/ir_shape/snippets/docs/query_limit.rs.frag"
 
     # Given — 2 fields.
     fixture "Given_expression", type_name: "Given", order: 1, name: "expression", field_type: "String",         doc_snippet: ""
@@ -159,6 +174,18 @@ Hecks.fixtures "IrShape" do
     fixture "Fixture_name",           type_name: "Fixture", order: 1, name: "name",           field_type: "Option<String>",       doc_snippet: "codegen/ir_shape/snippets/docs/fixture_name.rs.frag"
     fixture "Fixture_aggregate_name", type_name: "Fixture", order: 2, name: "aggregate_name", field_type: "String",               doc_snippet: ""
     fixture "Fixture_attributes",     type_name: "Fixture", order: 3, name: "attributes",     field_type: "Vec<(String, String)>", doc_snippet: ""
+
+    # WhereClause — 3 fields (i101).
+    fixture "WhereClause_field", type_name: "WhereClause", order: 1, name: "field", field_type: "String",   doc_snippet: ""
+    fixture "WhereClause_op",    type_name: "WhereClause", order: 2, name: "op",    field_type: "WhereOp",  doc_snippet: ""
+    fixture "WhereClause_value", type_name: "WhereClause", order: 3, name: "value", field_type: "String",   doc_snippet: ""
+
+    # OrderBy — 2 fields (i101).
+    fixture "OrderBy_field",     type_name: "OrderBy", order: 1, name: "field",     field_type: "String",    doc_snippet: ""
+    fixture "OrderBy_direction", type_name: "OrderBy", order: 2, name: "direction", field_type: "Direction", doc_snippet: ""
+
+    # LimitSpec — 1 field (i101).
+    fixture "LimitSpec_value", type_name: "LimitSpec", order: 1, name: "value", field_type: "String", doc_snippet: ""
   end
 
   # ── Variant — variants of every enum row, sorted by `order` ────────────
@@ -173,5 +200,17 @@ Hecks.fixtures "IrShape" do
     fixture "MutationOp_Multiply",  type_name: "MutationOp", order: 7, name: "Multiply",  doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_multiply.rs.frag"
     fixture "MutationOp_Clamp",     type_name: "MutationOp", order: 8, name: "Clamp",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_clamp.rs.frag"
     fixture "MutationOp_Decay",     type_name: "MutationOp", order: 9, name: "Decay",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_decay.rs.frag"
+
+    # WhereOp — 6 variants (i101).
+    fixture "WhereOp_Eq",  type_name: "WhereOp", order: 1, name: "Eq",  doc_snippet: ""
+    fixture "WhereOp_Ne",  type_name: "WhereOp", order: 2, name: "Ne",  doc_snippet: ""
+    fixture "WhereOp_Gt",  type_name: "WhereOp", order: 3, name: "Gt",  doc_snippet: ""
+    fixture "WhereOp_Gte", type_name: "WhereOp", order: 4, name: "Gte", doc_snippet: ""
+    fixture "WhereOp_Lt",  type_name: "WhereOp", order: 5, name: "Lt",  doc_snippet: ""
+    fixture "WhereOp_Lte", type_name: "WhereOp", order: 6, name: "Lte", doc_snippet: ""
+
+    # Direction — 2 variants (i101).
+    fixture "Direction_Asc",  type_name: "Direction", order: 1, name: "Asc",  doc_snippet: ""
+    fixture "Direction_Desc", type_name: "Direction", order: 2, name: "Desc", doc_snippet: ""
   end
 end
