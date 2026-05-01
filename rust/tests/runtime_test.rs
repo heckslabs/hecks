@@ -530,6 +530,138 @@ end"#);
     assert!(names.contains(&"ReserveStockCompleted"));
 }
 
+#[test]
+fn cascade_preserves_id_on_same_type_hop_without_identified_by() {
+    // i111-K — when a cascade triggers a command on the SAME aggregate
+    // type as the upstream event, the runtime preserves the dispatched
+    // id. Without this, `id_for_command` counter-mints a fresh id per
+    // step (id="1" creates the record, the gated cascade hits id="2"
+    // with `flag == false` because the new record never had Measure
+    // run on it). Pipeline roots like CorpusPruning previously had to
+    // declare `identified_by` to make their gated cascades work — this
+    // test asserts that requirement is gone.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pipeline" do
+    description "A two-step pipeline with a gating flag"
+    attribute :measured, Boolean, default: false
+    attribute :ran_split, Boolean, default: false
+    command "MeasureDomain" do
+      role "Worker"
+      emits "DomainMeasured"
+      then_set :measured, to: true
+    end
+    command "SplitMonster" do
+      role "Worker"
+      given { measured == true }
+      emits "MonsterSplit"
+      then_set :ran_split, to: true
+    end
+  end
+  policy "SplitAfterMeasure" do
+    on "DomainMeasured"
+    trigger "SplitMonster"
+  end
+end"#);
+
+    rt.dispatch("MeasureDomain", HashMap::new()).unwrap();
+
+    // The cascade should land on the SAME Pipeline record, so both
+    // measured and ran_split end up true on a single row. Before the
+    // fix, MeasureDomain creates record id="1" (measured=true), then
+    // the SplitMonster cascade counter-mints id="2", whose `measured`
+    // is the default `false`, so the given clause fails silently and
+    // no MonsterSplit event fires.
+    let names: Vec<&str> = rt.event_bus.events().iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"DomainMeasured"),
+        "expected DomainMeasured in events, got {:?}", names);
+    assert!(names.contains(&"MonsterSplit"),
+        "expected MonsterSplit in events (cascade should preserve id, given gate should pass), got {:?}", names);
+
+    // Single record carries both transitions.
+    let records = rt.all("Pipeline");
+    assert_eq!(records.len(), 1, "expected 1 Pipeline record, got {}", records.len());
+    assert_eq!(records[0].get("measured"), &Value::Bool(true));
+    assert_eq!(records[0].get("ran_split"), &Value::Bool(true));
+}
+
+#[test]
+fn cascade_preserves_id_with_identified_by_still_works() {
+    // Sanity check : the existing `identified_by` path keeps working
+    // exactly as before. The runtime change adds a new arm for the
+    // no-identified_by case ; declaring `identified_by` continues to
+    // route cascades through the natural-key resolution.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Pipeline" do
+    description "A two-step pipeline with identified_by"
+    identified_by :name
+    attribute :name, String
+    attribute :measured, Boolean, default: false
+    attribute :ran_split, Boolean, default: false
+    command "MeasureDomain" do
+      role "Worker"
+      attribute :name
+      emits "DomainMeasured"
+      then_set :measured, to: true
+    end
+    command "SplitMonster" do
+      role "Worker"
+      given { measured == true }
+      emits "MonsterSplit"
+      then_set :ran_split, to: true
+    end
+  end
+  policy "SplitAfterMeasure" do
+    on "DomainMeasured"
+    trigger "SplitMonster"
+  end
+end"#);
+
+    rt.dispatch("MeasureDomain", attrs(&[("name", s("alpha"))])).unwrap();
+
+    let names: Vec<&str> = rt.event_bus.events().iter().map(|e| e.name.as_str()).collect();
+    assert!(names.contains(&"MonsterSplit"),
+        "expected MonsterSplit cascade with identified_by, got {:?}", names);
+
+    let records = rt.all("Pipeline");
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].get("name"), &Value::Str("alpha".into()));
+    assert_eq!(records[0].get("ran_split"), &Value::Bool(true));
+}
+
+#[test]
+fn cascade_cross_type_hop_still_mints_fresh_for_target() {
+    // Cross-type cascade `A → B` keeps existing behavior : B doesn't
+    // inherit A's id (different aggregates, different repos). The
+    // same-type fix only kicks in when upstream and downstream
+    // aggregate types match.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Order" do
+    description "An order"
+    command "PlaceOrder" do
+      role "Customer"
+      emits "OrderPlaced"
+    end
+  end
+  aggregate "Notification" do
+    description "A notification"
+    command "SendConfirmation" do
+      role "System"
+    end
+  end
+  policy "ConfirmOrder" do
+    on "OrderPlaced"
+    trigger "SendConfirmation"
+  end
+end"#);
+
+    rt.dispatch("PlaceOrder", HashMap::new()).unwrap();
+
+    // Each type has its own counter ; both hit "1" because each repo
+    // counter-mints independently.
+    assert_eq!(rt.all("Order").len(), 1);
+    assert_eq!(rt.all("Notification").len(), 1);
+}
+
 // --- Error cases ---
 
 #[test]
