@@ -1,0 +1,177 @@
+Hecks.fixtures "IrShape" do
+  # Single-line fixtures per i57 parser limitation.
+
+  # ── Type — 18 top-level items in ir.rs (16 structs + 1 enum + 1 impl) ──
+  aggregate "Type" do
+    # Domain — root of the parsed bluebook tree, holds aggregates / policies / fixtures / sections.
+    fixture "Domain", name: "Domain", order: 1, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Root IR node — holds the parsed bluebook tree"
+
+    # Section — named section in a capability dashboard ; struct-level doc above the derive.
+    fixture "Section", name: "Section", order: 2, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_type.rs.frag", description: "One named section in a capability dashboard"
+
+    # SectionRow — one (label, field) row inside a Section ; struct-level doc above the derive.
+    fixture "SectionRow", name: "SectionRow", order: 3, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_row_type.rs.frag", description: "One row inside a section — label + field reference"
+
+    # Aggregate — the dominant IR node, several fields with extensive doc.
+    fixture "Aggregate", name: "Aggregate", order: 4, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Aggregate root — name, attributes, commands, lifecycle"
+
+    # Attribute — name + Rust type (string) + default + list flag.
+    fixture "Attribute", name: "Attribute", order: 5, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Single attribute on an aggregate / value object / entity"
+
+    # Command — verb on an aggregate or entity, with givens and mutations.
+    fixture "Command", name: "Command", order: 6, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Command verb — attributes, references, givens, mutations"
+
+    # Query — read-side capability declaration, just name + description.
+    fixture "Query", name: "Query", order: 7, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Query — read-side capability"
+
+    # Given — precondition expression on a command.
+    fixture "Given", name: "Given", order: 8, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Given — precondition expression on a command"
+
+    # Mutation — field + op + value tuple.
+    fixture "Mutation", name: "Mutation", order: 9, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation — field, op, value"
+
+    # MutationOp — enum with 9 variants, four of which carry doc comments.
+    fixture "MutationOp", name: "MutationOp", order: 10, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation primitive — Set / Append / Increment / Decrement / Toggle / Delete / Multiply / Clamp / Decay"
+
+    # ValueObject — immutable value with attributes.
+    fixture "ValueObject", name: "ValueObject", order: 11, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Value object — immutable, replaced wholesale"
+
+    # Entity — non-root entity with optional commands / queries / lifecycle / identified_by.
+    fixture "Entity", name: "Entity", order: 12, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Non-root entity owned by an aggregate"
+
+    # Reference — name + target + optional cross-domain identifier.
+    fixture "Reference", name: "Reference", order: 13, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Reference to another aggregate / entity"
+
+    # Policy — event → command trigger.
+    fixture "Policy", name: "Policy", order: 14, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Policy — on event, trigger command"
+
+    # Lifecycle — state field + default + transitions list.
+    fixture "Lifecycle", name: "Lifecycle", order: 15, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle — state field, default state, transitions"
+
+    # Transition — command + to_state + optional from_state guard.
+    fixture "Transition", name: "Transition", order: 16, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle transition — command takes the aggregate from from_state to to_state"
+
+    # Fixture — seeded data record bound to an aggregate.
+    fixture "Fixture", name: "Fixture", order: 17, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
+
+    # Display impl on Domain — pretty-printed aggregate / command tree.
+    fixture "DisplayDomain", name: "DisplayDomain", order: 18, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+  end
+
+  # ── Field — pub fields of every struct row, sorted by `order` ──────────
+  aggregate "Field" do
+    # Domain — 8 fields ; entrypoint and sections carry per-field docs.
+    fixture "Domain_name",       type_name: "Domain", order: 1, name: "name",       field_type: "String",          doc_snippet: ""
+    fixture "Domain_category",   type_name: "Domain", order: 2, name: "category",   field_type: "Option<String>",  doc_snippet: ""
+    fixture "Domain_vision",     type_name: "Domain", order: 3, name: "vision",     field_type: "Option<String>",  doc_snippet: ""
+    fixture "Domain_aggregates", type_name: "Domain", order: 4, name: "aggregates", field_type: "Vec<Aggregate>",  doc_snippet: ""
+    fixture "Domain_policies",   type_name: "Domain", order: 5, name: "policies",   field_type: "Vec<Policy>",     doc_snippet: ""
+    fixture "Domain_fixtures",   type_name: "Domain", order: 6, name: "fixtures",   field_type: "Vec<Fixture>",    doc_snippet: ""
+    fixture "Domain_entrypoint", type_name: "Domain", order: 7, name: "entrypoint", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/domain_entrypoint.rs.frag"
+    fixture "Domain_sections",   type_name: "Domain", order: 8, name: "sections",   field_type: "Vec<Section>",    doc_snippet: "codegen/ir_shape/snippets/docs/domain_sections.rs.frag"
+
+    # Section — 2 fields.
+    fixture "Section_title", type_name: "Section", order: 1, name: "title", field_type: "String",           doc_snippet: ""
+    fixture "Section_rows",  type_name: "Section", order: 2, name: "rows",  field_type: "Vec<SectionRow>",  doc_snippet: ""
+
+    # SectionRow — 2 fields.
+    fixture "SectionRow_label", type_name: "SectionRow", order: 1, name: "label", field_type: "String", doc_snippet: ""
+    fixture "SectionRow_field", type_name: "SectionRow", order: 2, name: "field", field_type: "String", doc_snippet: ""
+
+    # Aggregate — 11 fields ; context, identified_by, entities carry doc.
+    fixture "Aggregate_name",          type_name: "Aggregate", order: 1,  name: "name",          field_type: "String",          doc_snippet: ""
+    fixture "Aggregate_description",   type_name: "Aggregate", order: 2,  name: "description",   field_type: "Option<String>",  doc_snippet: ""
+    fixture "Aggregate_context",       type_name: "Aggregate", order: 3,  name: "context",       field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_context.rs.frag"
+    fixture "Aggregate_identified_by", type_name: "Aggregate", order: 4,  name: "identified_by", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_identified_by.rs.frag"
+    fixture "Aggregate_attributes",    type_name: "Aggregate", order: 5,  name: "attributes",    field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Aggregate_commands",      type_name: "Aggregate", order: 6,  name: "commands",      field_type: "Vec<Command>",    doc_snippet: ""
+    fixture "Aggregate_queries",       type_name: "Aggregate", order: 7,  name: "queries",       field_type: "Vec<Query>",      doc_snippet: ""
+    fixture "Aggregate_value_objects", type_name: "Aggregate", order: 8,  name: "value_objects", field_type: "Vec<ValueObject>", doc_snippet: ""
+    fixture "Aggregate_entities",      type_name: "Aggregate", order: 9,  name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
+    fixture "Aggregate_references",    type_name: "Aggregate", order: 10, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 11, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
+
+    # Attribute — 4 fields.
+    fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
+    fixture "Attribute_attr_type", type_name: "Attribute", order: 2, name: "attr_type", field_type: "String",         doc_snippet: ""
+    fixture "Attribute_default",   type_name: "Attribute", order: 3, name: "default",   field_type: "Option<String>", doc_snippet: ""
+    fixture "Attribute_list",      type_name: "Attribute", order: 4, name: "list",      field_type: "bool",           doc_snippet: ""
+
+    # Command — 8 fields.
+    fixture "Command_name",        type_name: "Command", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
+    fixture "Command_description", type_name: "Command", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_role",        type_name: "Command", order: 3, name: "role",        field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_attributes",  type_name: "Command", order: 4, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Command_references",  type_name: "Command", order: 5, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Command_emits",       type_name: "Command", order: 6, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
+    fixture "Command_givens",      type_name: "Command", order: 7, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
+    fixture "Command_mutations",   type_name: "Command", order: 8, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
+
+    # Query — 2 fields.
+    fixture "Query_name",        type_name: "Query", order: 1, name: "name",        field_type: "String",         doc_snippet: ""
+    fixture "Query_description", type_name: "Query", order: 2, name: "description", field_type: "Option<String>", doc_snippet: ""
+
+    # Given — 2 fields.
+    fixture "Given_expression", type_name: "Given", order: 1, name: "expression", field_type: "String",         doc_snippet: ""
+    fixture "Given_message",    type_name: "Given", order: 2, name: "message",    field_type: "Option<String>", doc_snippet: ""
+
+    # Mutation — 3 fields.
+    fixture "Mutation_field",     type_name: "Mutation", order: 1, name: "field",     field_type: "String",      doc_snippet: ""
+    fixture "Mutation_operation", type_name: "Mutation", order: 2, name: "operation", field_type: "MutationOp",  doc_snippet: ""
+    fixture "Mutation_value",     type_name: "Mutation", order: 3, name: "value",     field_type: "String",      doc_snippet: ""
+
+    # ValueObject — 3 fields.
+    fixture "ValueObject_name",        type_name: "ValueObject", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
+    fixture "ValueObject_description", type_name: "ValueObject", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
+    fixture "ValueObject_attributes",  type_name: "ValueObject", order: 3, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
+
+    # Entity — 7 fields ; commands / queries / lifecycle / identified_by carry doc.
+    fixture "Entity_name",          type_name: "Entity", order: 1, name: "name",          field_type: "String",            doc_snippet: ""
+    fixture "Entity_description",   type_name: "Entity", order: 2, name: "description",   field_type: "Option<String>",    doc_snippet: ""
+    fixture "Entity_attributes",    type_name: "Entity", order: 3, name: "attributes",    field_type: "Vec<Attribute>",    doc_snippet: ""
+    fixture "Entity_commands",      type_name: "Entity", order: 4, name: "commands",      field_type: "Vec<Command>",      doc_snippet: "codegen/ir_shape/snippets/docs/entity_commands.rs.frag"
+    fixture "Entity_queries",       type_name: "Entity", order: 5, name: "queries",       field_type: "Vec<Query>",        doc_snippet: "codegen/ir_shape/snippets/docs/entity_queries.rs.frag"
+    fixture "Entity_lifecycle",     type_name: "Entity", order: 6, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: "codegen/ir_shape/snippets/docs/entity_lifecycle.rs.frag"
+    fixture "Entity_identified_by", type_name: "Entity", order: 7, name: "identified_by", field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/entity_identified_by.rs.frag"
+
+    # Reference — 3 fields.
+    fixture "Reference_name",   type_name: "Reference", order: 1, name: "name",   field_type: "String",         doc_snippet: ""
+    fixture "Reference_target", type_name: "Reference", order: 2, name: "target", field_type: "String",         doc_snippet: ""
+    fixture "Reference_domain", type_name: "Reference", order: 3, name: "domain", field_type: "Option<String>", doc_snippet: ""
+
+    # Policy — 4 fields.
+    fixture "Policy_name",            type_name: "Policy", order: 1, name: "name",            field_type: "String",         doc_snippet: ""
+    fixture "Policy_on_event",        type_name: "Policy", order: 2, name: "on_event",        field_type: "String",         doc_snippet: ""
+    fixture "Policy_trigger_command", type_name: "Policy", order: 3, name: "trigger_command", field_type: "String",         doc_snippet: ""
+    fixture "Policy_target_domain",   type_name: "Policy", order: 4, name: "target_domain",   field_type: "Option<String>", doc_snippet: ""
+
+    # Lifecycle — 3 fields.
+    fixture "Lifecycle_field",       type_name: "Lifecycle", order: 1, name: "field",       field_type: "String",          doc_snippet: ""
+    fixture "Lifecycle_default",     type_name: "Lifecycle", order: 2, name: "default",     field_type: "String",          doc_snippet: ""
+    fixture "Lifecycle_transitions", type_name: "Lifecycle", order: 3, name: "transitions", field_type: "Vec<Transition>", doc_snippet: ""
+
+    # Transition — 3 fields.
+    fixture "Transition_command",    type_name: "Transition", order: 1, name: "command",    field_type: "String",         doc_snippet: ""
+    fixture "Transition_to_state",   type_name: "Transition", order: 2, name: "to_state",   field_type: "String",         doc_snippet: ""
+    fixture "Transition_from_state", type_name: "Transition", order: 3, name: "from_state", field_type: "Option<String>", doc_snippet: ""
+
+    # Fixture — 3 fields ; name carries a doc.
+    fixture "Fixture_name",           type_name: "Fixture", order: 1, name: "name",           field_type: "Option<String>",       doc_snippet: "codegen/ir_shape/snippets/docs/fixture_name.rs.frag"
+    fixture "Fixture_aggregate_name", type_name: "Fixture", order: 2, name: "aggregate_name", field_type: "String",               doc_snippet: ""
+    fixture "Fixture_attributes",     type_name: "Fixture", order: 3, name: "attributes",     field_type: "Vec<(String, String)>", doc_snippet: ""
+  end
+
+  # ── Variant — variants of every enum row, sorted by `order` ────────────
+  aggregate "Variant" do
+    # MutationOp — 9 variants ; Delete / Multiply / Clamp / Decay carry doc.
+    fixture "MutationOp_Set",       type_name: "MutationOp", order: 1, name: "Set",       doc_snippet: ""
+    fixture "MutationOp_Append",    type_name: "MutationOp", order: 2, name: "Append",    doc_snippet: ""
+    fixture "MutationOp_Increment", type_name: "MutationOp", order: 3, name: "Increment", doc_snippet: ""
+    fixture "MutationOp_Decrement", type_name: "MutationOp", order: 4, name: "Decrement", doc_snippet: ""
+    fixture "MutationOp_Toggle",    type_name: "MutationOp", order: 5, name: "Toggle",    doc_snippet: ""
+    fixture "MutationOp_Delete",    type_name: "MutationOp", order: 6, name: "Delete",    doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_delete.rs.frag"
+    fixture "MutationOp_Multiply",  type_name: "MutationOp", order: 7, name: "Multiply",  doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_multiply.rs.frag"
+    fixture "MutationOp_Clamp",     type_name: "MutationOp", order: 8, name: "Clamp",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_clamp.rs.frag"
+    fixture "MutationOp_Decay",     type_name: "MutationOp", order: 9, name: "Decay",     doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_decay.rs.frag"
+  end
+end

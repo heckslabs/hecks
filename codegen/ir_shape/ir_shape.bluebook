@@ -1,0 +1,111 @@
+Hecks.bluebook "IrShape", version: "2026.05.01.1" do
+  vision "The shape of hecks_life/src/ir.rs as a bluebook — i147 Wave 4-C target. The canonical IR struct vocabulary that every downstream specializer (parser, dump, behaviors_parser, hecksagon_parser, fixtures_parser) reads to bind against field names and types. Making this declarative closes the stale-coupling risk : adding a struct field is a fixture-row edit, not a Rust hand-edit + cascading specializer chase."
+  category "autophagy"
+
+  # ============================================================
+  # IR SHAPE — i147 Wave 4-C target (REAL compression)
+  # ============================================================
+  #
+  # ir.rs defines the Domain IR — 16 structs + 1 enum + 1 impl that
+  # form the canonical vocabulary of a parsed bluebook. Every other
+  # Rust file in hecks_life ultimately reads or writes one of these
+  # structs : the parser builds them, dump.rs serializes them, the
+  # validators inspect them, the runtime mutates them.
+  #
+  # That central position is exactly why this retirement matters and
+  # why it had to wait until Wave 4 : a typo in any field name or type
+  # ripples across every downstream consumer at compile time. The W4-C
+  # discipline says : encode every struct as a Type row + N Field rows,
+  # every enum as a Type row + N Variant rows, every impl as a Type row
+  # + verbatim body snippet. The specializer walks the rows and emits.
+  #
+  # Layer mapping (mirrors dump_shape / driven_adapter_shape) :
+  #   L0 = this file + fixtures/ir_shape.fixtures + snippets/**/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/ir.rs (generated target)
+  #
+  # Body_kind vocabulary :
+  #
+  #   struct          — emit `#[derive(<derives>)]\npub struct <Name> {\n
+  #                     <fields>\n}\n`. Fields come from Field rows
+  #                     filtered by type_name == this row's name, sorted
+  #                     by order. Each field's optional doc_snippet is
+  #                     prepended verbatim before the field declaration.
+  #
+  #   enum            — emit `#[derive(<derives>)]\npub enum <Name> {\n
+  #                     <variants>\n}\n`. Variants come from Variant
+  #                     rows filtered by type_name. Each variant's
+  #                     optional doc_snippet is prepended verbatim.
+  #
+  #   impl            — emit `impl <impl_target> {\n<body_snippet>\n}\n`.
+  #                     Body comes verbatim from the snippet ; impl
+  #                     bodies are too bespoke to compress further. (This
+  #                     differs from `verbatim_section` because it carries
+  #                     impl-specific knobs : impl_target picks the trait
+  #                     and the type. One impl row per impl block.)
+  #
+  # Type-level doc comments (above the `#[derive(...)]` line) are an
+  # optional doc_snippet on the Type row itself. Most structs don't have
+  # one ; Section and SectionRow do.
+  #
+  # Cross-consumer stale-coupling closure (door this opens) :
+  # downstream specializers that today bind to Rust struct field names
+  # by string literal (e.g., `dump_aggregate` rows reference "context"
+  # and "identified_by") could in principle consult ir_shape's Field
+  # rows to derive their own field knowledge. That refactor is out of
+  # scope for this PR but the IR-as-data IS the prerequisite.
+
+  aggregate "Type", "One top-level item in ir.rs — struct / enum / impl" do
+    attribute :name,         String
+    # order: emission order in the .rs file
+    attribute :order,        Integer
+    # body_kind: struct | enum | impl
+    attribute :body_kind,    String
+    # derives: comma-separated list inside `#[derive(...)]` ; empty for impl
+    attribute :derives,      String, default: ""
+    # impl_target: for body_kind=impl ; the `impl <X> for <Y>` portion,
+    # written verbatim (e.g. "fmt::Display for Domain"). Empty for
+    # struct / enum rows.
+    attribute :impl_target,  String, default: ""
+    # body_snippet: for body_kind=impl only ; relative path (under repo
+    # root) to a .rs.frag holding the impl body — everything between the
+    # opening `{` and closing `}`, indented as it should appear, NOT
+    # including the braces themselves.
+    attribute :body_snippet, String, default: ""
+    # doc_snippet: optional ; relative path to a .rs.frag holding the
+    # doc comment that precedes `#[derive(...)]` (or `impl`) for this
+    # Type. Verbatim — including trailing newline. Empty when no doc.
+    attribute :doc_snippet,  String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+
+  aggregate "Field", "One pub field inside a struct row — order driven by 'order'" do
+    # type_name: foreign-key-like link to Type.name (struct name)
+    attribute :type_name,    String
+    # order: position within the struct's field list (1-based)
+    attribute :order,        Integer
+    # name: field name (snake_case)
+    attribute :name,         String
+    # field_type: Rust type written verbatim — e.g. "String",
+    # "Option<String>", "Vec<Aggregate>", "Vec<(String, String)>"
+    attribute :field_type,   String
+    # doc_snippet: optional ; relative path to a .rs.frag holding the
+    # doc comment that precedes this field. Already 4-space indented to
+    # match the field. Verbatim. Empty when no doc.
+    attribute :doc_snippet,  String, default: ""
+  end
+
+  aggregate "Variant", "One variant in an enum row" do
+    # type_name: foreign-key-like link to Type.name (enum name)
+    attribute :type_name,    String
+    # order: position within the enum's variant list (1-based)
+    attribute :order,        Integer
+    # name: variant identifier
+    attribute :name,         String
+    # doc_snippet: optional ; relative path to a .rs.frag holding the
+    # doc comment that precedes this variant. Already 4-space indented.
+    # Empty when no doc.
+    attribute :doc_snippet,  String, default: ""
+  end
+end
