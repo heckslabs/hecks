@@ -1,6 +1,6 @@
 # parity/
 
-The conformance contract between hecks's two implementations — Ruby (`lib/hecks/`) and Rust (`hecks_life/`). Neither owns this directory ; both must answer to it.
+The conformance contract between hecks's two implementations — Ruby (`ruby/hecks/`) and Rust (`rust/`). Neither owns this directory ; both must answer to it.
 
 Lifted from `spec/parity/` in Round 1 of inbox `i118` (the framework reshape arc) so the role becomes visible at the top level. *Le contrat n'appartient à personne ; il tient les deux à la même règle.*
 
@@ -25,12 +25,12 @@ Lifted from `spec/parity/` in Round 1 of inbox `i118` (the framework reshape arc
 ## Running the suite
 
 ```sh
-ruby -Ilib parity/parity_test.rb              # main suite
-ruby -Ilib parity/behaviors_parity_test.rb    # behaviours
-ruby -Ilib parity/fixtures_parity_test.rb     # fixtures
-ruby -Ilib parity/hecksagon_parity_test.rb    # hecksagons
-ruby -Ilib parity/world_parity_test.rb        # worlds
-ruby -Ilib parity/fuzz/fuzz_test.rb           # differential fuzzer
+ruby -Iruby parity/parity_test.rb              # main suite
+ruby -Iruby parity/behaviors_parity_test.rb    # behaviours
+ruby -Iruby parity/fixtures_parity_test.rb     # fixtures
+ruby -Iruby parity/hecksagon_parity_test.rb    # hecksagons
+ruby -Iruby parity/world_parity_test.rb        # worlds
+ruby -Iruby parity/fuzz/fuzz_test.rb           # differential fuzzer
 ```
 
 The pre-commit hook (`tooling/git-hooks/pre-commit`) runs the main + hecksagon + world tests in roughly a second and blocks unexpected drift. CI runs all of them on every PR.
@@ -47,6 +47,6 @@ When a fixture starts failing :
 ## See also
 
 - `lib/hecks/bluebook_model/` — the Ruby half of the canonical contract
-- `hecks_life/src/dump.rs` — the Rust half
+- `rust/src/dump.rs` — the Rust half
 - inbox `i118` — the framework reshape arc that lifted parity to a top-level peer
 - inbox `i1` / `i2` — known-drift items currently keeping the nursery section soft
