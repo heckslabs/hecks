@@ -1,5 +1,14 @@
 //! Heki — Binary record storage
 //!
+//! [antibody-exempt: hecks_life/src/heki.rs — kernel-floor binary
+//!  record storage AND repo-root / info-dir path resolution. The
+//!  bluebook DSL has no concept of "where to look for files" —
+//!  this is the layer the loader uses BEFORE bluebooks can be
+//!  parsed. Made `repo_root()` public for load_combined_domain's
+//!  sibling-walk to find `../miette/` robustly across worktree
+//!  layouts (i117 Round 4 follow-on). Retires alongside the broader
+//!  i118 reshape.]
+//!
 //! Reads and writes .heki files: HEKI magic (4 bytes) + record count (u32 BE)
 //! + zlib-compressed JSON. The JSON payload is a map of { id: String => record: Object }.
 //!
@@ -590,6 +599,19 @@ mod path_tests {
 /// containing `hecks_conception/`). Mirrors the heuristic used by
 /// every body / runtime entry point. Returns None if we can't find
 /// a hecks_conception/ within 6 ancestors.
+///
+/// Public — used by load_combined_domain to find the real hecks/
+/// checkout when resolving the sibling `../miette/` root. Worktrees
+/// nested under `.claude/worktrees/agent-XXX/` have their own
+/// `hecks_conception/` copy ; relative-path math from a worktree's
+/// agg_dir doesn't reach the real `~/Projects/miette/` because
+/// `..` points inside `.claude/worktrees/`. Walking up from the
+/// executable (which lives in the main checkout's
+/// `hecks_life/target/release/`) finds the canonical repo root.
+pub fn repo_root() -> Option<std::path::PathBuf> {
+    walk_up_for_repo_root()
+}
+
 fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
     let mut cur: std::path::PathBuf = exe.parent()?.to_path_buf();

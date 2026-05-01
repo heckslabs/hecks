@@ -1923,13 +1923,25 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         // scans this root ; the runtime now does too. Skipped
         // silently when the sibling repo isn't checked out (e.g. CI
         // running on hecks alone).
-        if let Some(repo_root) = parent.parent() {
-            let miette_dir = repo_root.join("../miette");
-            if miette_dir.is_dir() {
-                let canonical = std::fs::canonicalize(&miette_dir).unwrap_or(miette_dir);
-                if canonical != std::path::Path::new(agg_dir) {
-                    collect_bluebooks(&canonical, 1, &mut found);
-                }
+        //
+        // Use heki::repo_root() (walks up from the executable) rather
+        // than `parent.parent()` because `agg_dir` can be a relative
+        // path (e.g. "hecks_conception/aggregates") whose parent.parent()
+        // is empty/relative — `..` from there points to cwd's parent,
+        // not the repo's parent. From a worktree under
+        // `.claude/worktrees/agent-XXX/` that breaks reach to the real
+        // `~/Projects/miette/`. The executable lives in the main
+        // checkout's `hecks_life/target/release/`, so walk-up from
+        // current_exe finds the canonical hecks/ root. (i117 Round 4
+        // follow-on : Chris's "no inbox row, just fix it" call after
+        // the Wave 2 agent's worktree-path-resolution false-failure.)
+        let canonical_miette = hecks_life::heki::repo_root()
+            .map(|r| r.join("../miette"))
+            .filter(|p| p.is_dir())
+            .and_then(|p| std::fs::canonicalize(&p).ok());
+        if let Some(canonical) = canonical_miette {
+            if canonical != std::path::Path::new(agg_dir) {
+                collect_bluebooks(&canonical, 1, &mut found);
             }
         }
     }
