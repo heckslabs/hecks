@@ -1,5 +1,16 @@
 # Hecks::Chapters
 #
+# [antibody-exempt: lib/hecks/chapters.rb — kernel-floor Ruby chapter
+#  loader. Reads each chapter's .bluebook source to discover its
+#  aggregate names, then requires the matching .rb implementations.
+#  i118 Round 2 Phase A split the chapter sources from a single
+#  hecks/ root into self/ (12 chapters) + bluebook/ (1 chapter, the
+#  IR). BLUEBOOK_DIRS searches both new roots and falls back to the
+#  legacy hecks/ root for any out-of-tree consumers. No bluebook DSL
+#  covers "where to look for chapter sources" — this is the layer
+#  that bootstraps chapter loading. Same i80 retirement contract as
+#  the rest of lib/hecks/'s kernel-floor markers.]
+#
 # Infrastructure for self-describing chapter definitions.
 # Provides paragraph loading, aggregate loading from chapters,
 # and chapter-to-implementation wiring via naming conventions.
@@ -69,11 +80,31 @@ module Hecks
     #
     #   Chapters.definition_from_bluebook("runtime")
     #
-    BLUEBOOK_DIR = File.expand_path("../../../hecks", __FILE__)
+    # i118 Round 2 (Phase A) split the 13 chapters into two roots :
+    #   self/      — 12 chapters describing what hecks IS (cli, runtime, ...)
+    #   bluebook/  — 1 chapter (bluebook.bluebook) which is the IR canonical
+    #                shape (the language itself, the Futamura fixed point)
+    # The legacy hecks/ root is kept as a final fallback for any
+    # out-of-tree consumers ; the per-name lookup tries each in order.
+    BLUEBOOK_DIRS = [
+      File.expand_path("../../../self",     __FILE__),
+      File.expand_path("../../../bluebook", __FILE__),
+      File.expand_path("../../../hecks",    __FILE__),  # legacy fallback
+    ].freeze
+    BLUEBOOK_DIR = BLUEBOOK_DIRS.first  # back-compat for any external readers
+
+    def self.bluebook_path_for(name)
+      filename = "#{name}.bluebook"
+      BLUEBOOK_DIRS.each do |dir|
+        path = File.join(dir, filename)
+        return path if File.exist?(path)
+      end
+      nil
+    end
 
     def self.definition_from_bluebook(name)
-      path = File.join(BLUEBOOK_DIR, "#{name}.bluebook")
-      return nil unless File.exist?(path)
+      path = bluebook_path_for(name)
+      return nil unless path
 
       source = File.read(path)
       # Extract domain name and block body from the Hecks.bluebook header
@@ -97,8 +128,8 @@ module Hecks
     def self.aggregate_names_from_bluebook(chapter_module)
       slug = chapter_module.name.to_s.split("::").last
       return nil unless slug
-      path = File.join(BLUEBOOK_DIR, "#{underscore(slug)}.bluebook")
-      return nil unless File.exist?(path)
+      path = bluebook_path_for(underscore(slug))
+      return nil unless path
       File.read(path).scan(/^\s*aggregate\s+"([^"]+)"/).flatten
     end
     private_class_method :aggregate_names_from_bluebook
