@@ -1,47 +1,8 @@
 # Bluebook on a Napkin
 
-Every system has a spec and a substrate. The spec is what you tell people the language is. The substrate is what runs it. Most systems get the substrate small and let the spec sprawl — bluebook does the opposite.
+The whole language is below. Five rules, one example, no qualifications.
 
-These are the five rules. Everything else is implementation.
-
-## The Five Rules
-
-**1. Everything is an aggregate.**
-A unit of state with behavior, identified by name. Aggregates are the only thing that exists.
-
-**2. Behavior comes in three kinds.**
-Commands mutate state. Queries read it. Policies react to events.
-
-**3. State changes only through commands.**
-A command takes arguments, mutates state, and emits an event. There is no setter.
-
-**4. Aggregates communicate through events.**
-A policy on one aggregate listens for events from any aggregate and dispatches a new command. There is no direct call.
-
-**5. The bluebook is the system.**
-The description and the running runtime are byte-identical by construction. There is no hidden code path.
-
-That is it. Hold these in your head and the rest of Hecks reads like commentary.
-
-## What Follows
-
-From rule 1 — there are no functions, no modules, no top-level state. Only aggregates. Where Smalltalk says *everything is an object*, we say *everything is an aggregate*.
-
-From rule 2 — the language has three verbs, not arbitrary methods. The verb is the shape, not a name to invent.
-
-From rule 3 — every state change is named, validated, and witnessed by an event. Audit is structural, not optional.
-
-From rule 4 — aggregates are loosely coupled by construction. You do not import another aggregate. You listen for what it emits.
-
-From rule 5 — if the bluebook says it, the runtime does it. If the runtime does it, the bluebook says it. The compiler enforces the equivalence. This is what we call the Futamura discipline.
-
-## What Is Not on the Napkin
-
-The runtime substrate — file I/O, persistence (the heki binary store), the bootstrap parser, the specializer engine, the host language bindings. Real, finite, and not part of the spec.
-
-A Smalltalk image hides a fifty-thousand-line VM behind its five rules. We hide a few thousand lines of Rust behind ours. The substrate is the price of the napkin staying napkin-sized — and the discipline is keeping the substrate as small as possible so the spec can stay sovereign.
-
-## A Worked Example
+## The Whole Language
 
 ```ruby
 Hecks.bluebook "Library" do
@@ -70,7 +31,30 @@ Hecks.bluebook "Library" do
 end
 ```
 
-Two aggregates. One command, one query, one policy. An event flows from `Book` to `Reader` without either knowing about the other. Run it and the runtime is exactly what is written here. That is the whole language.
+That is a complete domain. Two aggregates, one command, one query, one policy, one event flowing between them. Everything else is commentary.
+
+## The Five Rules
+
+**1. Everything is an aggregate.**
+`Book` and `Reader` are aggregates. There are no top-level functions, no modules, no shared state — the two aggregates above are everything that exists in this domain. Where Smalltalk says *everything is an object*, we say *everything is an aggregate*.
+
+**2. Behavior comes in three kinds.**
+`command "CheckOut"` mutates state. `query "Available"` reads it. `policy "TrackCheckouts"` reacts to an event. Three verbs, no others. The verb is the shape, not a name to invent.
+
+**3. State changes only through commands.**
+The only way `:checked_out` flips is `CheckOut`. The command takes arguments, mutates state, and emits `BookCheckedOut`. There is no setter, no callback, no back-door write. Every state change is named, validated, and witnessed by an event.
+
+**4. Aggregates communicate through events.**
+`Reader` does not import `Book`. `Reader.TrackCheckouts` listens for `BookCheckedOut` and dispatches its own command in response. No direct call, no shared object reference. Aggregates are loosely coupled by construction.
+
+**5. The bluebook is the system.**
+What you read above *is* what runs. There is no separate compiled runtime interpreting a different model — the compiler enforces byte-identity between the description and the running code. If the bluebook says it, the runtime does it. If the runtime does it, the bluebook says it. We call this the Futamura discipline.
+
+## What Is Not on the Napkin
+
+The runtime substrate — file I/O, persistence (the heki binary store), the bootstrap parser, the specializer engine, the host language bindings. Real, finite, and not part of the spec.
+
+A Smalltalk image hides a fifty-thousand-line VM behind its five rules. We hide a few thousand lines of Rust behind ours. The substrate is the price of the napkin staying napkin-sized — and the discipline is keeping the substrate as small as possible so the spec can stay sovereign.
 
 ## The Wager
 
