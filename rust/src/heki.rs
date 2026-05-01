@@ -615,11 +615,31 @@ pub fn repo_root() -> Option<std::path::PathBuf> {
 fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
     let mut cur: std::path::PathBuf = exe.parent()?.to_path_buf();
-    for _ in 0..6 {
+    // Walk further than 6 to handle worktree-nested binaries : agent
+    // worktrees live at .claude/worktrees/agent-XXX/rust/target/release/
+    // which is 6 deep from the worktree root and 8 deep from the real
+    // hecks repo root.
+    for _ in 0..10 {
         if cur.join("hecks_conception").is_dir() {
-            return Some(cur);
+            // When running inside a Claude agent worktree, the worktree
+            // has its own hecks_conception/ copy but is NOT the canonical
+            // repo root — the sibling ../miette/ and ../miette_family/
+            // checkouts only exist at the REAL hecks repo root, not
+            // alongside the worktree dir. Skip the worktree match and
+            // keep walking until we find a hecks_conception/ that's
+            // outside any .claude/worktrees/ subtree.
+            //
+            // Detection : the worktree path contains ".claude/worktrees/"
+            // somewhere in its ancestry. The real checkout doesn't.
+            let s = cur.to_string_lossy();
+            if !s.contains("/.claude/worktrees/") {
+                return Some(cur);
+            }
+            // Otherwise fall through and keep walking.
         }
-        cur = cur.parent()?.to_path_buf();
+        let parent = cur.parent()?.to_path_buf();
+        if parent == cur { break; }
+        cur = parent;
     }
     None
 }

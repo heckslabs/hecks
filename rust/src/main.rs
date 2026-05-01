@@ -1046,11 +1046,25 @@ fn run_specialize(args: &[String]) {
 
 /// Locate the repository root for the `specialize` subcommand.
 ///
-/// Uses `env::current_dir` — invocation convention is `hecks-life
-/// specialize …` run from the repo root (same as `bin/specialize` on
-/// the Ruby side). A sanity check verifies the expected
-/// `hecks_conception/` sibling exists.
+/// Prefers `heki::repo_root()` (executable-anchored, worktree-aware —
+/// skips `.claude/worktrees/agent-XXX/` matches and finds the real
+/// hecks checkout). Falls back to `env::current_dir()` when the
+/// executable-walk returns None — invocation convention from a
+/// non-test terminal is `hecks-life specialize …` run from the repo
+/// root (same as `bin/specialize` on the Ruby side).
+///
+/// The test harness in rust/tests/specializer_golden_test.rs sets
+/// cwd to its CARGO_MANIFEST_DIR/.. which equals the worktree root
+/// when tests run inside an agent worktree. The cwd-fallback would
+/// pick the worktree's hecks_conception/ copy and downstream
+/// specializers (e.g. system_prompt's shape at ../miette/...) would
+/// fail because the worktree's parent is .claude/worktrees/, not
+/// the projects root that holds sibling miette/. Going through
+/// heki::repo_root() finds the canonical checkout regardless.
 fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    if let Some(root) = hecks_life::heki::repo_root() {
+        return Ok(root);
+    }
     let cwd = env::current_dir()?;
     if !cwd.join("hecks_conception").is_dir() {
         return Err(format!(
