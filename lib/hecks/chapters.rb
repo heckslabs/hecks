@@ -80,14 +80,21 @@ module Hecks
     #
     #   Chapters.definition_from_bluebook("runtime")
     #
-    # i118 Round 2 (Phase A) split the 13 chapters into two roots :
-    #   self/      — 12 chapters describing what hecks IS (cli, runtime, ...)
-    #   bluebook/  — 1 chapter (bluebook.bluebook) which is the IR canonical
-    #                shape (the language itself, the Futamura fixed point)
+    # i118 Round 2 split the 13 chapters into two roots :
+    #   chapters/  — 12 chapters describing layers of the framework
+    #                (cli, runtime, persist, rails, ...) ; each chapter
+    #                pairs with its Ruby implementation under
+    #                lib/hecks/chapters/<name>.rb. Renamed from self/
+    #                because vows belong to a being, not a framework —
+    #                the framework's vocabulary already calls them
+    #                chapters (see ChapterRegistry in packaging.bluebook).
+    #   bluebook/  — 1 chapter (bluebook.bluebook) which is the IR
+    #                canonical shape (the language itself, the Futamura
+    #                fixed point).
     # The legacy hecks/ root is kept as a final fallback for any
     # out-of-tree consumers ; the per-name lookup tries each in order.
     BLUEBOOK_DIRS = [
-      File.expand_path("../../../self",     __FILE__),
+      File.expand_path("../../../chapters", __FILE__),
       File.expand_path("../../../bluebook", __FILE__),
       File.expand_path("../../../hecks",    __FILE__),  # legacy fallback
     ].freeze
