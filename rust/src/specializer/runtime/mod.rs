@@ -14,4 +14,5 @@
 //!  specializer/conceiver/mod.rs]
 
 pub mod aggregate_state;
+pub mod command_dispatch;
 pub mod interpreter;

@@ -1,0 +1,136 @@
+Hecks.bluebook "CommandDispatchShape", version: "2026.05.01.1" do
+  vision "The shape of rust/src/runtime/command_dispatch.rs as a bluebook — the dispatch kernel's pipeline made declarative. dispatch_inner's twelve phases (resolve → bulk_short_circuit → prepare → cascade_id → repo_borrow → load_state → apply_new_defaults → pipeline_core → copy_create_attrs → persist → emit → return) become Phase rows the specializer assembles in order."
+  category "autophagy"
+
+  # ============================================================
+  # COMMAND DISPATCH SHAPE — i147 Wave 5-A target
+  # ============================================================
+  #
+  # command_dispatch.rs is THE dispatch kernel — every runtime command
+  # in the corpus passes through `dispatch_inner`. It resolves the
+  # command address, runs givens, checks lifecycle, applies mutations,
+  # transitions state, persists, and emits an event. The file has been
+  # churned heavily (i111-J Resolution enum, i111-K cascade-id hint,
+  # i113/i116 bulk dispatch, i142 context-aware addressing, i156 strict
+  # bare-name resolution) — the shape captures the current settled form.
+  #
+  # Layer mapping :
+  #   L0 = this file + fixtures/command_dispatch_shape.fixtures
+  #        + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = rust/src/runtime/command_dispatch.rs (generated)
+  #
+  # Two aggregates :
+  #
+  #   Phase    — one row per ordered pipeline step inside dispatch_inner.
+  #              Twelve phases compose the dispatch contract :
+  #
+  #                resolve              — `let res = resolve(...)?;
+  #                                        let agg_idx = res.agg_idx();`
+  #                bulk_short_circuit   — many-form list_of(VO) early-out
+  #                                        for aggregate-level commands
+  #                prepare              — is_create, self_ref, names,
+  #                                        repo_hash_key
+  #                cascade_id           — i111-K same-type cascade id
+  #                                        preservation lookup
+  #                repo_borrow          — `let repo = rt.repositories
+  #                                        .get_mut(&repo_hash_key)?;`
+  #                load_state           — state loading branches : self-ref
+  #                                        kwarg / cascade hint / counter-
+  #                                        mint create / find existing
+  #                apply_new_defaults   — apply_defaults +
+  #                                        apply_lifecycle_default for new
+  #                                        records
+  #                pipeline_core        — givens → check_lifecycle →
+  #                                        apply_mutations →
+  #                                        apply_lifecycle_transition
+  #                copy_create_attrs    — copy matching command attrs onto
+  #                                        the aggregate when is_new
+  #                persist              — aggregate_id snapshot, deleted
+  #                                        check, repo.save / repo.delete
+  #                emit                 — build_event_res +
+  #                                        event_bus.publish
+  #                return               — `Ok(CommandResult { ... })`
+  #
+  #              Each phase declares :
+  #                name         — pipeline-step identifier (kebab-case
+  #                               family : resolve, pipeline_core, …)
+  #                order        — ascending integer ; specializer sorts
+  #                               before emitting so the pipeline stays
+  #                               stable across edits to row text.
+  #                snippet_path — relative path to a .rs.frag carrying
+  #                               the phase body (already indented to
+  #                               4 spaces, the dispatch_inner body
+  #                               level).
+  #                description  — prose for humans reading the bluebook ;
+  #                               not emitted.
+  #
+  #              The specializer concatenates phases in `order` ascending,
+  #              separating them with a single blank line, then closes
+  #              dispatch_inner with `}\n`.
+  #
+  #   Section  — one row per ordered top-level code block in the file
+  #              (around dispatch_inner). body_kind picks the emitter :
+  #
+  #                verbatim_section    — read snippet_path raw, emit
+  #                                       unchanged. Used for the type
+  #                                       definitions (CommandResult,
+  #                                       Resolution + helpers), the
+  #                                       public entry-points (dispatch +
+  #                                       dispatch_cascade), the resolve
+  #                                       address-form walker, the
+  #                                       lifecycle helpers, the event
+  #                                       builders, and the bulk dispatch
+  #                                       suite.
+  #                dispatch_inner      — synthetic body_kind ; the
+  #                                       specializer builds dispatch_inner
+  #                                       from Phase rows. snippet_path is
+  #                                       ignored.
+  #
+  # REAL compression : the dispatch contract — the ORDER of phases that
+  # makes a command go from name to event — is data, not code. Adding a
+  # new phase (e.g. middleware_before, middleware_after) becomes a
+  # Phase row + a tiny snippet, not a hand-edit of dispatch_inner.
+  # Removing a phase, reordering phases, or porting the pipeline to a
+  # different language all become declarative operations.
+  #
+  # Why phase rows aren't fully knob-driven : the per-phase logic is
+  # genuinely diverse — load_state has six branches (self-ref kwarg
+  # found / not found / cascade hint / create / find existing / cascade
+  # missing), persist branches on `was_deleted`, return constructs the
+  # CommandResult. Reducing each to a handful of knobs would push the
+  # template complexity into the specializer code, fighting the same
+  # gravity W4-A pushed back against. Snippet-per-phase keeps each
+  # phase's semantics readable in isolation while the shape encodes
+  # what matters declaratively : the ORDER and the SET of phases.
+
+  aggregate "Phase", "One ordered phase inside dispatch_inner ; emitted as a snippet body, separated from sibling phases by a blank line" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating
+    # phases so the pipeline order is stable across row-text edits.
+    attribute :order,        Integer
+    # snippet_path: relative to repo root. The .rs.frag file containing
+    # the phase body, already indented to 4 spaces (dispatch_inner body
+    # level). The specializer reads it raw and emits it verbatim.
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+
+  aggregate "Section", "One ordered top-level code block in command_dispatch.rs ; body_kind picks how the specializer emits it" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating
+    # so the file order is stable.
+    attribute :order,        Integer
+    # body_kind: verbatim_section | dispatch_inner
+    #   verbatim_section — read snippet_path raw, emit unchanged.
+    #   dispatch_inner   — synthetic ; specializer assembles dispatch_inner
+    #                      from Phase rows. snippet_path is ignored.
+    attribute :body_kind,    String
+    # snippet_path: required for verbatim_section ; ignored for the
+    # synthetic dispatch_inner kind.
+    attribute :snippet_path, String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end

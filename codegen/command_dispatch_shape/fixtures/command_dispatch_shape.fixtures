@@ -1,0 +1,144 @@
+Hecks.fixtures "CommandDispatchShape" do
+  # i147 Wave 5-A — command_dispatch.rs as data. Twelve Phase rows
+  # compose dispatch_inner ; eight Section rows partition the rest of
+  # the file (verbatim_section snippets) plus the synthetic
+  # dispatch_inner kind that drives Phase-row assembly.
+
+  aggregate "Phase" do
+    fixture "Resolve",
+      name: "resolve",
+      order: 1,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_01_resolve.rs.frag",
+      description: "Resolve the command address to a Resolution (Aggregate or Entity), pull agg_idx out for downstream phases."
+
+    fixture "BulkShortCircuit",
+      name: "bulk_short_circuit",
+      order: 2,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_02_bulk_short_circuit.rs.frag",
+      description: "i113/i116 many-form dispatch — when the aggregate-level command takes a single list_of(VO) attribute matching the bulk shape, route to dispatch_bulk and return early. Entity commands skip this phase."
+
+    fixture "Prepare",
+      name: "prepare",
+      order: 3,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_03_prepare.rs.frag",
+      description: "Compute is_create (command-name prefix family), find self_ref name, snapshot aggregate_name + aggregate_context + repo_hash_key for the rest of the pipeline."
+
+    fixture "CascadeId",
+      name: "cascade_id",
+      order: 4,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_04_cascade_id.rs.frag",
+      description: "i111-K same-type cascade id preservation — when the dispatch hop is Aggregate -> Aggregate of the same type and a record exists at the upstream id, reuse it rather than counter-minting."
+
+    fixture "RepoBorrow",
+      name: "repo_borrow",
+      order: 5,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_05_repo_borrow.rs.frag",
+      description: "Borrow the repository for the resolved aggregate (mut, since later phases save/delete). UnknownAggregate when missing."
+
+    fixture "LoadState",
+      name: "load_state",
+      order: 6,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_06_load_state.rs.frag",
+      description: "State loading — six branches : self-ref kwarg present / cascade hint with self-ref / create with self-ref / no self-ref + cascade hint / no self-ref + counter-mint id, then find or new."
+
+    fixture "ApplyNewDefaults",
+      name: "apply_new_defaults",
+      order: 7,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_07_apply_new_defaults.rs.frag",
+      description: "For new aggregates, seed default field values + lifecycle default state."
+
+    fixture "PipelineCore",
+      name: "pipeline_core",
+      order: 8,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_08_pipeline_core.rs.frag",
+      description: "The classic four-step dispatch pipeline : check_givens -> check_lifecycle -> apply_mutations -> apply_lifecycle_transition."
+
+    fixture "CopyCreateAttrs",
+      name: "copy_create_attrs",
+      order: 9,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_09_copy_create_attrs.rs.frag",
+      description: "On create, copy command attrs whose names match the parent aggregate's attribute schema onto the new aggregate state."
+
+    fixture "Persist",
+      name: "persist",
+      order: 10,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_10_persist.rs.frag",
+      description: "Persistence — snapshot id + deleted flag, build the heki WriteContext, then repo.save or repo.delete depending on was_deleted."
+
+    fixture "Emit",
+      name: "emit",
+      order: 11,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_11_emit.rs.frag",
+      description: "Build the event from the resolved command (entity or aggregate) and publish on the event bus."
+
+    fixture "Return",
+      name: "return",
+      order: 12,
+      snippet_path: "codegen/command_dispatch_shape/snippets/phase_12_return.rs.frag",
+      description: "Construct and return the CommandResult — aggregate id, aggregate type, optional event."
+  end
+
+  aggregate "Section" do
+    fixture "TypesAndHelpers",
+      name: "types_and_helpers",
+      order: 1,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_01_types_and_helpers.rs.frag",
+      description: "CommandResult struct + Resolution enum + Resolution::agg_idx + cmd_for + lifecycle_for helpers."
+
+    fixture "DispatchEntries",
+      name: "dispatch_entries",
+      order: 2,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_02_dispatch_entries.rs.frag",
+      description: "Public entry-points : dispatch (top-level) and dispatch_cascade (i111-K cascade-aware variant). Both delegate to dispatch_inner."
+
+    fixture "DispatchInner",
+      name: "dispatch_inner",
+      order: 3,
+      body_kind: "dispatch_inner",
+      description: "dispatch_inner — synthesized from Phase rows in order. The dispatch contract made declarative."
+
+    fixture "Resolve",
+      name: "resolve",
+      order: 4,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_04_resolve.rs.frag",
+      description: "Address resolution walker : Context.Aggregate.Command (i142) | Aggregate.Entity.Command (i111-J) | Aggregate.Command | Command (with i156 strict-mode env-var gate)."
+
+    fixture "FindSelfRef",
+      name: "find_self_ref",
+      order: 5,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_05_find_self_ref.rs.frag",
+      description: "find_self_ref_res — Resolution-aware self-ref finder ; entity commands resolve through the parent aggregate's record."
+
+    fixture "LifecycleHelpers",
+      name: "lifecycle_helpers",
+      order: 6,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_06_lifecycle_helpers.rs.frag",
+      description: "check_lifecycle + apply_lifecycle_transition + apply_lifecycle_default — the lifecycle gate and transition machinery used by the pipeline_core phase."
+
+    fixture "Defaults",
+      name: "defaults",
+      order: 7,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_07_defaults.rs.frag",
+      description: "apply_defaults — seed default attribute values + empty lists for VO-typed fields on new aggregates."
+
+    fixture "EventHelpers",
+      name: "event_helpers",
+      order: 8,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_08_event_helpers.rs.frag",
+      description: "build_event_res + default_event_name (Created / Added / Placed / Cancelled / Updated / Removed / Deleted / Completed verb table) + parse_default + to_snake_case helpers."
+
+    fixture "BulkDispatch",
+      name: "bulk_dispatch",
+      order: 9,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/command_dispatch_shape/snippets/sec_09_bulk_dispatch.rs.frag",
+      description: "Many-form bulk dispatch suite (i113/i116) : bulk_spec_attr + dispatch_bulk + spec_to_attrs + json_to_value + parse_specs_from_str + save_one_row."
+  end
+end
