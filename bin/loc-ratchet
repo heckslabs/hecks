@@ -1,10 +1,14 @@
 #!/usr/bin/env ruby
 # loc-ratchet — the non-bluebook LoC may not increase in a PR.
 #
-# Counts `*.rs` under hecks_life/src/ and `*.sh` under hecks_conception/
+# Counts `*.rs` under rust/src/ and `*.sh` under hecks_conception/
 # on HEAD vs the base branch. If HEAD's total exceeds base's total, the
 # PR fails — unless the increase is authorised by a signed commit
 # carrying a [loc-ratchet-override: <reason>] marker.
+#
+# i118 renamed hecks_life/ → rust/ ; the path here was updated 2026-05-01
+# to match. Before that, the scan returned 0 trivially because the old
+# path didn't exist post-rename, so the ratchet was a no-op gate.
 #
 # Why this exists : Phase F shipped eleven PRs that declared bluebooks
 # + hecksagons WITHOUT deleting the corresponding Rust (see i62 in the
@@ -31,7 +35,7 @@ require "open3"
 # Intentionally narrow : the point is to ratchet THE CATEGORIES Phase
 # F aims to shrink, not every line of code in the repo.
 COUNTED_TREES = [
-  ["hecks_life/src",     %w[rs]],
+  ["rust/src",           %w[rs]],
   ["hecks_conception",   %w[sh]],
 ].freeze
 

@@ -48,11 +48,11 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            hecks_life/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('hecks_life/Cargo.lock', 'hecks_life/Cargo.toml') }}
+            rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
 
       - name: Build hecks-life (release)
-        working-directory: hecks_life
+        working-directory: rust
         run: cargo build --release --quiet
 
       - name: Run differential fuzzer

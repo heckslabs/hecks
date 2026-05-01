@@ -64,7 +64,7 @@ jobs:
           path: miette_family
 
       - name: Build hecks-life
-        run: cd hecks/hecks_life && cargo build --release
+        run: cd hecks/rust && cargo build --release
 
       - name: Smoke tests
         run: |
@@ -92,7 +92,7 @@ jobs:
         # the pre-push hook's coverage. miette_family/ is included only
         # when checked out (optional sibling).
         run: |
-          HECKS="$GITHUB_WORKSPACE/hecks/hecks_life/target/release/hecks-life"
+          HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/hecks-life"
           ROOTS="$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
           [ -d "$GITHUB_WORKSPACE/miette" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette"
           [ -d "$GITHUB_WORKSPACE/miette_family" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette_family"

@@ -1,7 +1,7 @@
 name: LoC Ratchet
 
 # Fails when a PR increases the count of non-bluebook LoC (*.rs under
-# hecks_life/src/, *.sh under hecks_conception/) without a signed
+# rust/src/, *.sh under hecks_conception/) without a signed
 # [loc-ratchet-override: ...] commit marker. The discipline matches
 # the antibody-exemption signing rule — only the operator authorises
 # increases. See bin/loc-ratchet and inbox i62 / i65 / i66.

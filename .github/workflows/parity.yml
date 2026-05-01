@@ -27,15 +27,15 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            hecks_life/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('hecks_life/Cargo.lock', 'hecks_life/Cargo.toml') }}
+            rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
 
       - name: Build hecks-life (release)
-        working-directory: hecks_life
+        working-directory: rust
         run: cargo build --release --quiet
 
       - name: Cargo tests (incl. conceiver_parity_test)
-        working-directory: hecks_life
+        working-directory: rust
         run: cargo test --release --quiet
 
       - name: Run parser parity suite (Ruby DSL ↔ Rust IR)
@@ -58,7 +58,7 @@ jobs:
           BAD=""
           for f in $(find hecks_conception -name "*.bluebook" \
                         ! -name "*_behavioral_tests.bluebook"); do
-            if ! hecks_life/target/release/hecks-life check-lifecycle "$f" >/dev/null 2>&1; then
+            if ! rust/target/release/hecks-life check-lifecycle "$f" >/dev/null 2>&1; then
               BAD="$BAD\n  $f"
             fi
           done
@@ -71,7 +71,7 @@ jobs:
 
       - name: Behavioral test corpus sweep (must be 100%)
         run: |
-          BIN=hecks_life/target/release/hecks-life
+          BIN=rust/target/release/hecks-life
           tot_pass=0; tot_fail=0; tot_err=0
           for tf in $(find hecks_conception -name "*_behavioral_tests.bluebook"); do
             out=$($BIN behaviors "$tf" 2>&1 | tail -1)
