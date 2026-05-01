@@ -159,14 +159,23 @@ fn parse_gate(lines: &[&str]) -> (Option<Gate>, usize) {
     }
     let mut i = 1;
     let mut depth = if first.trim_end().ends_with("do") { 1 } else { 0 };
+    let mut in_allow = false;
     while i < lines.len() && depth > 0 {
         let t = lines[i].trim();
-        if t == "end" { depth -= 1; i += 1; continue; }
-        if let Some(rest) = t.strip_prefix("allow ") {
-            for sym in rest.split(',') {
+        if t == "end" { depth -= 1; in_allow = false; i += 1; continue; }
+        let body = if let Some(rest) = t.strip_prefix("allow ") {
+            Some(rest)
+        } else if in_allow {
+            Some(t)
+        } else {
+            None
+        };
+        if let Some(body_str) = body {
+            for sym in body_str.split(',') {
                 let name = strip_symbol(sym.trim());
                 if !name.is_empty() { gate.allowed_commands.push(name); }
             }
+            in_allow = body_str.trim_end().ends_with(',');
         }
         i += 1;
     }
@@ -180,11 +189,12 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
     let mut consumed = 0;
     let mut depth: i32 = 0;
     let mut in_str = false;
-    for line in lines {
-        let t = line.trim();
+    let mut idx = 0;
+    while idx < lines.len() {
+        let t = lines[idx].trim();
         consumed += 1;
+        idx += 1;
         if t.is_empty() || t.starts_with('#') {
-            if !joined.is_empty() && depth > 0 { continue; }
             if joined.is_empty() { continue; }
             continue;
         }
@@ -202,6 +212,24 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
         }
         let ends_comma = t.trim_end().ends_with(',');
         if depth <= 0 && !ends_comma { break; }
+    }
+    if joined.trim_end().ends_with(" do") {
+        joined = joined.trim_end().trim_end_matches(" do").trim_end().to_string();
+        while idx < lines.len() {
+            let t = lines[idx].trim();
+            consumed += 1;
+            idx += 1;
+            if t.is_empty() || t.starts_with('#') { continue; }
+            if t == "end" { break; }
+            if let Some(sp) = t.find(char::is_whitespace) {
+                let key = &t[..sp];
+                let val = t[sp..].trim();
+                joined.push_str(", ");
+                joined.push_str(key);
+                joined.push_str(": ");
+                joined.push_str(val);
+            }
+        }
     }
     (joined, consumed)
 }

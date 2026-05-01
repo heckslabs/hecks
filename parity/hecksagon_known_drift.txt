@@ -18,26 +18,28 @@
 #                                    `persistence :X` to `adapter :X`
 #                                    so Rust parses them too
 
-# ── Ruby shell-adapter validation rejects shapes Rust auto-splits ──
-# The antibody's `command: "git rev-parse --verify {{ref}}"` form is
-# auto-split by the Rust parser into command="git", args=["rev-parse",
-# "--verify", "{{ref}}"]. Ruby's Structure::ShellAdapter raises because
-# the command contains `{{`. Same fix as Rust would be: auto-split in
-# apply_options before validation.
-hecks_conception/capabilities/antibody/antibody.hecksagon  # Ruby rejects {{ in command before autosplit
+# ── (Retired 2026-04-30 — implicit-args form rewritten as explicit) ──
+# The drift came from antibody.hecksagon using the implicit-args
+# convenience form (`command: "git rev-parse {{ref}}"` with no args).
+# Rust silently auto-split ; Ruby's Structure::ShellAdapter validator
+# rejected `{{` in the command. Bluebook-first fix : declare argv
+# explicitly (`command: "git", args: ["rev-parse", "{{ref}}"]`). Both
+# parsers handle the explicit form cleanly ; no Ruby code change ;
+# no exemption needed. Pattern : when a parser convenience produces
+# parity drift, prefer the bluebook write that needs no convenience.
 
-# ── Rust parser doesn't yet support the block form of `adapter :shell` ──
-# `adapter :shell, name: :x do; command "…"; args [...]; end` — the
-# second adapter in shell_demo uses this shape. Rust parses it but
-# `parse_shell_adapter` requires `command:` in the args, so it's
-# dropped entirely.
-examples/shell_adapter/hecks/shell_demo.hecksagon  # Rust parser skips block-form shell adapter
+# ── (Retired 2026-04-30 — block-form shell adapter) ──
+# join_adapter_lines now flattens block-form `adapter :shell, ... do
+# ... end` into kwargs by translating each indented `key value` line
+# into `, key: value` appended to the joined invocation. parse_shell_adapter
+# stays unchanged. shell_demo.hecksagon now parses byte-equal.
 
-# ── Rust gate parser doesn't handle multi-line `allow` ──
-# `gate "X", :role do; allow :A, :B, \n :C, :D end` — the continuation
-# line starts with `:C` which the Rust parser strips via strip_prefix
-# of "allow ", so it's dropped. Ruby collects all 6.
-hecks_conception/aggregates/body/organs/circuit_breaker.hecksagon  # Rust drops allow continuation lines (moved from top-level by Restructure nest_hecksagons)
+# ── (Retired 2026-04-30 — multi-line allow continuation) ──
+# Rust gate parser now tracks an `in_allow` continuation flag :
+# when an `allow :A, :B,` line ends with a comma, subsequent lines
+# until `end` are parsed as continuation of the symbol list.
+# parse_gate_body.rs.frag updated ; circuit_breaker.hecksagon now
+# parses byte-equal between Ruby and Rust.
 
 # ── (Retired 2026-04-28 — i80) ──
 # Ruby's `def adapter(kind, name: nil, **opts)` extracted name as a
@@ -47,12 +49,11 @@ hecks_conception/aggregates/body/organs/circuit_breaker.hecksagon  # Rust drops 
 # and shutdown.hecksagon (and capabilities/system_prompt_assembly's
 # named :fs adapter) all parse cleanly now.
 
-# ── Ruby builder doesn't model the `domain "name" do … end` shape ──
-# Four nursery files use it today; method_missing raises because
-# `domain` isn't in the DSL surface yet. The Rust parser ignores the
-# unknown statement. Tracked separately; canonical contract should
-# grow the field once the shape is decided.
-hecks_conception/nursery/alans_engine_additive_business/alans_engine_additive_business.hecksagon  # domain "..." not in Ruby DSL
-hecks_conception/nursery/domain_compression/domain_compression.hecksagon                          # domain "..." not in Ruby DSL
-hecks_conception/nursery/domain_conception/domain_conception.hecksagon                            # domain "..." not in Ruby DSL
-hecks_conception/nursery/executable_artifact/executable_artifact.hecksagon                        # domain "..." not in Ruby DSL
+# ── (Retired 2026-04-30 — nursery migration) ──
+# Four nursery files (alans_engine_additive_business, domain_compression,
+# domain_conception, executable_artifact) using `domain "name" do … end`
+# moved to the chrisyoung/hecks_nursury sibling repo on 2026-04-30.
+# The drift entries pointed at paths that no longer exist in this repo,
+# so they could never trigger. The underlying gap (Ruby DSL doesn't
+# model `domain "name"`) is real but tracked alongside the nursery
+# corpus's training role, not here.

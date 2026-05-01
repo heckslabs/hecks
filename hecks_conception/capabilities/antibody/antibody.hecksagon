@@ -19,39 +19,53 @@ Hecks.hecksagon "Antibody" do
   # adapters become first-class and the Rust shim (follow-up PR) binds
   # them to the CommitCheck / BranchScan / StagedCheck commands.
 
+  # Each adapter declares its argv explicitly (command + args). The
+  # alternative implicit form (`command: "git rev-parse {{ref}}"` with
+  # no args) made Rust silently auto-split while Ruby's validator
+  # rejected `{{` in the command — pure parity drift. Writing argv
+  # explicitly keeps both parsers byte-equal without either side
+  # auto-splitting.
+
   adapter :shell,
           name:    :git_resolve_ref,
-          command: "git rev-parse --verify {{ref}}",
+          command: "git",
+          args:    ["rev-parse", "--verify", "{{ref}}"],
           ok_exit: 0
 
   adapter :shell,
           name:    :git_list_commits,
-          command: "git log --format=%H --reverse {{base_ref}}..HEAD",
+          command: "git",
+          args:    ["log", "--format=%H", "--reverse", "{{base_ref}}..HEAD"],
           ok_exit: 0
 
   adapter :shell,
           name:    :git_show_touched,
-          command: "git show --name-only --diff-filter=AM --format= {{sha}}",
+          command: "git",
+          args:    ["show", "--name-only", "--diff-filter=AM", "--format=", "{{sha}}"],
           ok_exit: 0
 
   adapter :shell,
           name:    :git_commit_message,
-          command: "git log -1 --format=%B {{sha}}",
+          command: "git",
+          args:    ["log", "-1", "--format=%B", "{{sha}}"],
           ok_exit: 0
 
   adapter :shell,
           name:    :git_commit_subject,
-          command: "git log -1 --format=%s {{sha}}",
+          command: "git",
+          args:    ["log", "-1", "--format=%s", "{{sha}}"],
           ok_exit: 0
 
   adapter :shell,
           name:    :git_branch_diff,
-          command: "git diff --name-only --diff-filter=AM {{base_ref}}...HEAD",
+          command: "git",
+          args:    ["diff", "--name-only", "--diff-filter=AM", "{{base_ref}}...HEAD"],
           ok_exit: 0
 
   adapter :shell,
           name:    :git_staged_files,
-          command: "git diff --cached --name-only --diff-filter=AM",
+          command: "git",
+          args:    ["diff", "--cached", "--name-only", "--diff-filter=AM"],
           ok_exit: 0
 
   # ---- Gates ------------------------------------------------------
