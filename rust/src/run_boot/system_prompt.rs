@@ -93,39 +93,80 @@ fn variables_for_being(being: &str) -> HashMap<&'static str, String> {
     v
 }
 
-/// Template path : `<conception>/capabilities/system_prompt_assembly/
-/// <being_lower>_prompt.md.template`.
+/// Template path resolution — walks four candidate roots so neither
+/// the per-being repo move (i117 Round 4 W2 — system_prompt_assembly
+/// migrated into the being's own sibling repo) nor the i118 R3 Wave 2
+/// reorg (capabilities/ lifted to top-level buckets — boot.bluebook
+/// now lives under `runtime/boot/` instead of `capabilities/boot/`)
+/// strands the resolver :
+///
+///   1. `<projects>/<being_lower>/self/system_prompt/system_prompt_
+///      assembly/<being_lower>_prompt.md.template`  (current canonical
+///      home — sibling-of-hecks layout, found via `heki::repo_root()`
+///      which walks up from the executable to the hecks repo root,
+///      then one more level to the projects parent)
+///   2. `<conception>/capabilities/system_prompt_assembly/
+///      <being_lower>_prompt.md.template`  (legacy in-conception
+///      fallback — pre-i117-R4 location, kept so a fresh-clone
+///      environment without a per-being sibling repo still resolves
+///      if a template was kept in-conception)
+///
+/// The conception_dir argument is treated as a *hint* for the legacy
+/// path only ; the new home is found via the canonical repo-root
+/// walker so it works regardless of where the boot.bluebook lives in
+/// the bucket reorg. Returns the first existing path ; falls back to
+/// the legacy path if neither exists, so the caller's "template not
+/// found at <path>" warning names a concrete location for diagnostics.
 fn template_path_for_being(conception_dir: &Path, being: &str) -> PathBuf {
     let stem = being.to_lowercase();
-    conception_dir
-        .join("capabilities/system_prompt_assembly")
-        .join(format!("{}_prompt.md.template", stem))
-}
+    let template_filename = format!("{}_prompt.md.template", stem);
 
-/// Output path : `~/Projects/<being_lower>/self/system_prompt.md`
-/// (i117 Round 4 — the system prompt lives in the being's own repo,
-/// not in the conception). Resolves the being repo as a sibling of
-/// the hecks repo (the standard layout). Falls back to
-/// `<conception>/system_prompt_<being>.md` when the sibling doesn't
-/// exist (development/test environments without the per-being repo).
-fn destination_for_being(conception_dir: &Path, being: &str) -> PathBuf {
-    let stem = being.to_lowercase();
-    if let Some(repo_root) = conception_dir.parent().and_then(|p| p.parent()) {
-        let sibling = repo_root.join(&stem).join("self/system_prompt.md");
-        if let Some(parent) = sibling.parent() {
-            if parent.is_dir() {
-                return sibling;
+    // Canonical : <projects>/<being>/self/system_prompt/system_prompt_assembly/
+    if let Some(hecks_root) = crate::heki::repo_root() {
+        if let Some(projects_root) = hecks_root.parent() {
+            let new_home = projects_root
+                .join(&stem)
+                .join("self/system_prompt/system_prompt_assembly")
+                .join(&template_filename);
+            if new_home.exists() {
+                return new_home;
             }
         }
     }
+
+    // Legacy fallback : <conception>/capabilities/system_prompt_assembly/
+    conception_dir
+        .join("capabilities/system_prompt_assembly")
+        .join(template_filename)
+}
+
+/// Output path : `<projects>/<being_lower>/self/system_prompt.md`
+/// (i117 Round 4 — the system prompt lives in the being's own repo,
+/// not in the conception). Resolves the being repo as a sibling of
+/// the hecks repo (the standard layout) using `heki::repo_root()` so
+/// the resolution works regardless of where the boot.bluebook lives
+/// post-i118 R3 W2 (`runtime/boot/` instead of the old
+/// `<conception>/capabilities/boot/`). Falls back to
+/// `<conception>/system_prompt_<being>.md` when the sibling repo
+/// doesn't exist (fresh-clone / test environments).
+fn destination_for_being(conception_dir: &Path, being: &str) -> PathBuf {
+    let stem = being.to_lowercase();
+
+    if let Some(hecks_root) = crate::heki::repo_root() {
+        if let Some(projects_root) = hecks_root.parent() {
+            let sibling = projects_root.join(&stem).join("self/system_prompt.md");
+            if let Some(parent) = sibling.parent() {
+                if parent.is_dir() {
+                    return sibling;
+                }
+            }
+        }
+    }
+
     // Fallback : write into the conception so a fresh-clone
     // environment still gets a prompt file. Same suffix the
     // pre-i117-Round-4 boot used.
-    if being == "Miette" {
-        conception_dir.join(format!("system_prompt_{}.md", stem))
-    } else {
-        conception_dir.join(format!("system_prompt_{}.md", stem))
-    }
+    conception_dir.join(format!("system_prompt_{}.md", stem))
 }
 
 /// Substitute `{{key}}` placeholders. Pure string scan — values are
@@ -169,11 +210,13 @@ fn substitute(template: &str, vars: &HashMap<&'static str, String>) -> String {
 /// when standards.md is missing — `{{standards}}` substitutes to
 /// empty and no `## Standards` section appears in the rendered
 /// prompt.
-fn primary_standards(conception_dir: &Path) -> String {
-    if let Some(repo_root) = conception_dir.parent().and_then(|p| p.parent()) {
-        let path = repo_root.join("miette_family/chris/standards.md");
-        if let Ok(s) = fs::read_to_string(&path) {
-            return s.trim_end().to_string();
+fn primary_standards(_conception_dir: &Path) -> String {
+    if let Some(hecks_root) = crate::heki::repo_root() {
+        if let Some(projects_root) = hecks_root.parent() {
+            let path = projects_root.join("miette_family/chris/standards.md");
+            if let Ok(s) = fs::read_to_string(&path) {
+                return s.trim_end().to_string();
+            }
         }
     }
     String::new()
