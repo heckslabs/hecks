@@ -2,11 +2,20 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
   vision "The pipeline that makes Summer smarter — harvest Miette's knowledge, shape it for training, fine-tune, evaluate, repeat"
   category "capability"
 
-  # === Phase 1: Harvest ===
+  # i111-C : pipeline-stage collapse — Becoming has one aggregate root,
+  # Harvest, that owns the whole 6-phase workflow (harvest → shape →
+  # enrich → conceive → train → evaluate). The five phase aggregates
+  # (Shape / Enrich / Conceive / Train / Evaluate) had no identified_by
+  # and no own lifecycle ; per Evans's DDD they were stages of one
+  # workflow on one root, not peers. Their commands and attributes
+  # collapse into Harvest. The pipeline policies are unchanged — they
+  # match on event names, not aggregates.
 
-  aggregate "Harvest", "Gather training signal from Miette's body — domains, conversations, dreams, identity" do
+  aggregate "Harvest", "Gather training signal from Miette's body and shape, enrich, train, and evaluate the corpus through to a new adapter" do
     identified_by :nursery_path
     attribute :nursery_path, String
+
+    # ── Harvest counts ──
     attribute :domains_collected, Integer
     attribute :conversations_collected, Integer
     attribute :dreams_collected, Integer
@@ -16,6 +25,54 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
     # train on. HarvestDomains gates on this — the planner picks ScanNursery
     # as the producer.
     attribute :nursery_ready, Boolean, default: false
+
+    # ── Shape counts (was Shape) ──
+    attribute :positive_pairs, Integer
+    attribute :negative_pairs, Integer
+    attribute :varied_pairs, Integer
+    attribute :chain_of_thought_pairs, Integer
+    attribute :category_balance_score, Float
+    # Set true once CountCategories confirms enough categories are
+    # well-populated. BalanceCategories gates on this — planner picks
+    # CountCategories as the producer.
+    attribute :categories_counted, Boolean, default: false
+
+    # ── Enrich counts (was Enrich) ──
+    attribute :cross_aggregate_policies_added, Integer
+    attribute :specifications_added, Integer
+    attribute :collections_added, Integer
+    attribute :workflows_deepened, Integer
+
+    # ── Conceive counts (was Conceive) ──
+    attribute :new_domains, Integer
+    attribute :crossovers, Integer
+    attribute :fusions, Integer
+    attribute :topics, list_of(String)
+
+    # ── Train state (was Train) ──
+    attribute :base_model, String
+    attribute :adapter_path, String
+    attribute :iterations, Integer
+    attribute :learning_rate, Float
+    attribute :final_train_loss, Float
+    attribute :final_val_loss, Float
+    # Flag flips true when PrepareSplit finishes; RunFineTune gates on it.
+    # Planner picks PrepareSplit as the producer.
+    attribute :split_ready, Boolean, default: false
+
+    # ── Evaluate state (was Evaluate) ──
+    attribute :domains_tested, Integer
+    attribute :valid_outputs, Integer
+    attribute :with_policies, Integer
+    attribute :with_references, Integer
+    attribute :with_workflow_chains, Integer
+    attribute :structural_accuracy, Float
+    attribute :passed, TrueClass
+    # Flag flips true when RunEvaluation finishes; DecideNextRound gates
+    # on it. The planner picks RunEvaluation as the producer.
+    attribute :evaluation_complete, Boolean, default: false
+
+    # ── Phase 1: Harvest ──
 
     command "ScanNursery" do
       description "Count valid bluebooks in the nursery and confirm the corpus is large enough to harvest"
@@ -45,24 +102,11 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
       description "Extract who Miette is from character.heki, bodhisattva_vow.heki, arc.heki"
       emits "IdentityHarvested"
     end
-  end
 
-  # === Phase 2: Shape ===
-
-  aggregate "Shape", "Transform raw training signal into clean pairs — vary prompts, add negatives, balance categories" do
-    attribute :positive_pairs, Integer
-    attribute :negative_pairs, Integer
-    attribute :varied_pairs, Integer
-    attribute :chain_of_thought_pairs, Integer
-    attribute :category_balance_score, Float
-    # Set true once CountCategories confirms enough categories are
-    # well-populated. BalanceCategories gates on this — planner picks
-    # CountCategories as the producer.
-    attribute :categories_counted, Boolean, default: false
+    # ── Phase 2: Shape ──
 
     command "VaryPrompts" do
       description "Generate 2 alternative phrasings per domain pair — same completion, different prompt"
-      reference_to(Harvest)
       emits "PromptsVaried"
     end
 
@@ -73,7 +117,6 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
 
     command "AddChainOfThought" do
       description "Write reasoning traces explaining why each domain has its structure"
-      reference_to(Harvest)
       emits "ChainOfThoughtAdded"
     end
 
@@ -87,48 +130,30 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
       description "Cap over-represented categories, flag under-represented ones for growth"
       emits "CategoriesBalanced"
     end
-  end
 
-  # === Phase 3: Enrich ===
-
-  aggregate "Enrich", "Deepen the training signal — cross-aggregate flows, specifications, collections, workflows" do
-    attribute :cross_aggregate_policies_added, Integer
-    attribute :specifications_added, Integer
-    attribute :collections_added, Integer
-    attribute :workflows_deepened, Integer
+    # ── Phase 3: Enrich ──
 
     command "AddCrossAggregateFlows" do
       description "Wire events from aggregate A to commands on aggregate B where domain logic connects them"
-      reference_to(Harvest)
       emits "CrossAggregateFlowsAdded"
     end
 
     command "AddSpecifications" do
       description "Extract named business rules as specification predicates"
-      reference_to(Harvest)
       emits "SpecificationsAdded"
     end
 
     command "AddCollections" do
       description "Add list_of value objects where an aggregate logically owns children"
-      reference_to(Harvest)
       emits "CollectionsAdded"
     end
 
     command "DeepenWorkflows" do
       description "Extend 2-step policy chains to 5+ step cascading workflows"
-      reference_to(Harvest)
       emits "WorkflowsDeepened"
     end
-  end
 
-  # === Phase 4: Conceive ===
-
-  aggregate "Conceive", "Grow the corpus — new domains, crossovers, second-gen fusions" do
-    attribute :new_domains, Integer
-    attribute :crossovers, Integer
-    attribute :fusions, Integer
-    attribute :topics, list_of(String)
+    # ── Phase 4: Conceive ──
 
     command "ConceiveNewDomains" do
       description "Generate genuinely unique domains across diverse topics"
@@ -148,69 +173,39 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
       attribute :fusion_count, Integer
       emits "GenerationsFused"
     end
-  end
 
-  # === Phase 5: Train ===
-
-  aggregate "Train", "Fine-tune Summer on the shaped corpus — produce a new adapter" do
-    attribute :base_model, String
-    attribute :adapter_path, String
-    attribute :iterations, Integer
-    attribute :learning_rate, Float
-    attribute :final_train_loss, Float
-    attribute :final_val_loss, Float
-    # Flag flips true when PrepareSplit finishes; RunFineTune gates on it.
-    # Planner picks PrepareSplit as the producer.
-    attribute :split_ready, Boolean, default: false
+    # ── Phase 5: Train ──
 
     command "PrepareSplit" do
       description "Merge all signal types into train/valid JSONL, shuffle, split 90/10"
-      reference_to(Shape)
       emits "SplitPrepared"
       then_set :split_ready, to: true
     end
 
     command "RunFineTune" do
       description "LoRA fine-tune the base model on the prepared data"
-      reference_to(Train)
       attribute :base_model, String
       attribute :iterations, Integer
       attribute :learning_rate, Float
       given { split_ready == true }
       emits "FineTuneComplete"
     end
-  end
 
-  # === Phase 6: Evaluate ===
-
-  aggregate "Evaluate", "Test Summer against held-out domains — does she conceive, review, reason, and chain?" do
-    attribute :domains_tested, Integer
-    attribute :valid_outputs, Integer
-    attribute :with_policies, Integer
-    attribute :with_references, Integer
-    attribute :with_workflow_chains, Integer
-    attribute :structural_accuracy, Float
-    attribute :passed, TrueClass
-    # Flag flips true when RunEvaluation finishes; DecideNextRound gates
-    # on it. The planner picks RunEvaluation as the producer.
-    attribute :evaluation_complete, Boolean, default: false
+    # ── Phase 6: Evaluate ──
 
     command "RunEvaluation" do
       description "Generate domains from held-out visions, validate each, measure structural fingerprint"
-      reference_to(Train)
       emits "EvaluationComplete"
       then_set :evaluation_complete, to: true
     end
 
     command "CompareToBaseline" do
       description "Run the same test on the base model without adapter — measure the delta"
-      reference_to(Evaluate)
       emits "BaselineCompared"
     end
 
     command "DecideNextRound" do
       description "Did Summer improve enough? If not, what signal is missing?"
-      reference_to(Evaluate)
       given { evaluation_complete == true }
       emits "NextRoundDecided"
     end

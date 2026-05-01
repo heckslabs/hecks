@@ -1,7 +1,10 @@
 Hecks.behaviors "Becoming" do
   vision "Behavioral tests for the Becoming domain — exercises every command and query in memory"
 
-  # ── Harvest aggregate ──────────────────────────────────────────
+  # i111-C : phase aggregates collapsed into Harvest. Every test now
+  # targets Harvest.
+
+  # ── Phase 1: Harvest ──────────────────────────────────────────
 
   test "ScanNursery sets nursery_path" do
     tests "ScanNursery", on: "Harvest"
@@ -44,16 +47,16 @@ Hecks.behaviors "Becoming" do
   end
 
 
-  # ── Shape aggregate ──────────────────────────────────────────
+  # ── Phase 2: Shape (was Shape aggregate) ──────────────────────────────────────────
 
   test "VaryPrompts runs" do
-    tests "VaryPrompts", on: "Shape"
+    tests "VaryPrompts", on: "Harvest"
     setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "VaryPrompts cascades through policy chain" do
-    tests "VaryPrompts", on: "Shape", kind: :cascade
+    tests "VaryPrompts", on: "Harvest", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
     setup  "AddCrossAggregateFlows"
     setup  "ConceiveNewDomains", topics: "sample", target_count: 1
@@ -63,12 +66,12 @@ Hecks.behaviors "Becoming" do
   end
 
   test "GenerateNegatives runs" do
-    tests "GenerateNegatives", on: "Shape"
+    tests "GenerateNegatives", on: "Harvest"
     expect ok: "true"
   end
 
   test "GenerateNegatives cascades through policy chain" do
-    tests "GenerateNegatives", on: "Shape", kind: :cascade
+    tests "GenerateNegatives", on: "Harvest", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
     setup  "AddCrossAggregateFlows"
     setup  "ConceiveNewDomains", topics: "sample", target_count: 1
@@ -78,13 +81,13 @@ Hecks.behaviors "Becoming" do
   end
 
   test "AddChainOfThought runs" do
-    tests "AddChainOfThought", on: "Shape"
+    tests "AddChainOfThought", on: "Harvest"
     setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "AddChainOfThought cascades through policy chain" do
-    tests "AddChainOfThought", on: "Shape", kind: :cascade
+    tests "AddChainOfThought", on: "Harvest", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
     setup  "AddCrossAggregateFlows"
     setup  "ConceiveNewDomains", topics: "sample", target_count: 1
@@ -94,17 +97,17 @@ Hecks.behaviors "Becoming" do
   end
 
   test "CountCategories runs" do
-    tests "CountCategories", on: "Shape"
+    tests "CountCategories", on: "Harvest"
     expect categories_counted: true
   end
 
   test "BalanceCategories runs" do
-    tests "BalanceCategories", on: "Shape"
+    tests "BalanceCategories", on: "Harvest"
     expect ok: "true"
   end
 
   test "BalanceCategories cascades through policy chain" do
-    tests "BalanceCategories", on: "Shape", kind: :cascade
+    tests "BalanceCategories", on: "Harvest", kind: :cascade
     setup  "AddCrossAggregateFlows"
     setup  "ScanNursery", nursery_path: "sample"
     setup  "ConceiveNewDomains", topics: "sample", target_count: 1
@@ -114,16 +117,16 @@ Hecks.behaviors "Becoming" do
   end
 
 
-  # ── Enrich aggregate ──────────────────────────────────────────
+  # ── Phase 3: Enrich (was Enrich aggregate) ──────────────────────────────────────────
 
   test "AddCrossAggregateFlows runs" do
-    tests "AddCrossAggregateFlows", on: "Enrich"
+    tests "AddCrossAggregateFlows", on: "Harvest"
     setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "AddCrossAggregateFlows cascades through policy chain" do
-    tests "AddCrossAggregateFlows", on: "Enrich", kind: :cascade
+    tests "AddCrossAggregateFlows", on: "Harvest", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
     setup  "ConceiveNewDomains", topics: "sample", target_count: 1
     setup  "PrepareSplit"
@@ -133,25 +136,25 @@ Hecks.behaviors "Becoming" do
   end
 
   test "AddSpecifications runs" do
-    tests "AddSpecifications", on: "Enrich"
+    tests "AddSpecifications", on: "Harvest"
     setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "AddCollections runs" do
-    tests "AddCollections", on: "Enrich"
+    tests "AddCollections", on: "Harvest"
     setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "DeepenWorkflows runs" do
-    tests "DeepenWorkflows", on: "Enrich"
+    tests "DeepenWorkflows", on: "Harvest"
     setup  "ScanNursery", nursery_path: "sample"
     expect ok: "true"
   end
 
   test "DeepenWorkflows cascades through policy chain" do
-    tests "DeepenWorkflows", on: "Enrich", kind: :cascade
+    tests "DeepenWorkflows", on: "Harvest", kind: :cascade
     setup  "ScanNursery", nursery_path: "sample"
     setup  "ConceiveNewDomains", topics: "sample", target_count: 1
     setup  "PrepareSplit"
@@ -161,16 +164,16 @@ Hecks.behaviors "Becoming" do
   end
 
 
-  # ── Conceive aggregate ──────────────────────────────────────────
+  # ── Phase 4: Conceive (was Conceive aggregate) ──────────────────────────────────────────
 
   test "ConceiveNewDomains sets topics + target_count" do
-    tests "ConceiveNewDomains", on: "Conceive"
+    tests "ConceiveNewDomains", on: "Harvest"
     input  topics: "sample", target_count: 1
     expect ok: "true"
   end
 
   test "ConceiveNewDomains cascades through policy chain" do
-    tests "ConceiveNewDomains", on: "Conceive", kind: :cascade
+    tests "ConceiveNewDomains", on: "Harvest", kind: :cascade
     setup  "PrepareSplit"
     setup  "VaryPrompts"
     setup  "RunEvaluation"
@@ -179,13 +182,13 @@ Hecks.behaviors "Becoming" do
   end
 
   test "BreedCrossovers sets pair_count" do
-    tests "BreedCrossovers", on: "Conceive"
+    tests "BreedCrossovers", on: "Harvest"
     input  pair_count: 1
     expect ok: "true"
   end
 
   test "BreedCrossovers cascades through policy chain" do
-    tests "BreedCrossovers", on: "Conceive", kind: :cascade
+    tests "BreedCrossovers", on: "Harvest", kind: :cascade
     setup  "PrepareSplit"
     setup  "VaryPrompts"
     setup  "RunEvaluation"
@@ -194,36 +197,36 @@ Hecks.behaviors "Becoming" do
   end
 
   test "FuseGenerations sets fusion_count" do
-    tests "FuseGenerations", on: "Conceive"
+    tests "FuseGenerations", on: "Harvest"
     input  fusion_count: 1
     expect ok: "true"
   end
 
 
-  # ── Train aggregate ──────────────────────────────────────────
+  # ── Phase 5: Train (was Train aggregate) ──────────────────────────────────────────
 
   test "PrepareSplit runs" do
-    tests "PrepareSplit", on: "Train"
+    tests "PrepareSplit", on: "Harvest"
     setup  "VaryPrompts"
     expect split_ready: true
   end
 
   test "PrepareSplit cascades through policy chain" do
-    tests "PrepareSplit", on: "Train", kind: :cascade
+    tests "PrepareSplit", on: "Harvest", kind: :cascade
     setup  "VaryPrompts"
     setup  "RunEvaluation"
     expect emits: ["SplitPrepared", "FineTuneComplete", "EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
   test "RunFineTune sets base_model + iterations + learning_rate" do
-    tests "RunFineTune", on: "Train"
+    tests "RunFineTune", on: "Harvest"
     setup  "PrepareSplit"
     input  base_model: "sample", iterations: 1, learning_rate: 1.0
     expect ok: "true"
   end
 
   test "RunFineTune cascades through policy chain" do
-    tests "RunFineTune", on: "Train", kind: :cascade
+    tests "RunFineTune", on: "Harvest", kind: :cascade
     setup  "RunEvaluation"
     setup  "PrepareSplit"
     input  base_model: "sample", iterations: 1, learning_rate: 1.0
@@ -231,34 +234,34 @@ Hecks.behaviors "Becoming" do
   end
 
 
-  # ── Evaluate aggregate ──────────────────────────────────────────
+  # ── Phase 6: Evaluate (was Evaluate aggregate) ──────────────────────────────────────────
 
   test "RunEvaluation runs" do
-    tests "RunEvaluation", on: "Evaluate"
+    tests "RunEvaluation", on: "Harvest"
     setup  "PrepareSplit"
     expect evaluation_complete: true
   end
 
   test "RunEvaluation cascades through policy chain" do
-    tests "RunEvaluation", on: "Evaluate", kind: :cascade
+    tests "RunEvaluation", on: "Harvest", kind: :cascade
     setup  "PrepareSplit"
     expect emits: ["EvaluationComplete", "BaselineCompared", "NextRoundDecided"]
   end
 
   test "CompareToBaseline runs" do
-    tests "CompareToBaseline", on: "Evaluate"
+    tests "CompareToBaseline", on: "Harvest"
     setup  "RunEvaluation"
     expect ok: "true"
   end
 
   test "CompareToBaseline cascades through policy chain" do
-    tests "CompareToBaseline", on: "Evaluate", kind: :cascade
+    tests "CompareToBaseline", on: "Harvest", kind: :cascade
     setup  "RunEvaluation"
     expect emits: ["BaselineCompared", "NextRoundDecided"]
   end
 
   test "DecideNextRound runs" do
-    tests "DecideNextRound", on: "Evaluate"
+    tests "DecideNextRound", on: "Harvest"
     setup  "RunEvaluation"
     expect ok: "true"
   end

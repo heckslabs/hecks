@@ -2,7 +2,18 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
   vision "Run a complete training data cycle — grow, enrich, prune, extract, assess, repeat until quality target is met"
   category "capability"
 
+  # i111-C : pipeline-stage collapse — Round is the sole aggregate root.
+  # The five phase concepts (Growth / Enrichment / Pruning / Extraction /
+  # Decision) used to be sibling aggregates ; per Evans's DDD they are
+  # phases of one workflow on a single root, not peer aggregates with
+  # their own identity. None had identified_by, none had a self-ref
+  # lifecycle ; they were attribute-bags hanging off command names.
+  # Their commands migrate to Round ; their descriptive attributes merge
+  # into Round's state ; the workflow shape is preserved by the existing
+  # `phases : list_of(Phase)` value_object collection.
+
   aggregate "Round", "One full cycle of corpus improvement — tracks what happened and what to do next" do
+    # ── Round metrics ──
     attribute :round_number, Integer
     attribute :starting_pairs, Integer
     attribute :ending_pairs, Integer
@@ -12,6 +23,39 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
     attribute :status, String
     attribute :complete, TrueClass, default: false
     attribute :phases, list_of(Phase)
+
+    # ── Growth phase metrics (was GrowthPhase) ──
+    attribute :target_count, Integer
+    attribute :conceived, Integer
+    attribute :validated, Integer
+    attribute :topics, list_of(String)
+
+    # ── Enrichment phase metrics (was EnrichmentPhase) ──
+    attribute :domains_scanned, Integer
+    attribute :references_added, Integer
+    attribute :collections_added, Integer
+    attribute :givens_added, Integer
+    attribute :revalidated, Integer
+
+    # ── Pruning phase metrics (was PruningPhase) ──
+    attribute :monsters_split, Integer
+    attribute :duplicates_merged, Integer
+    attribute :categories_capped, Integer
+    attribute :final_pair_count, Integer
+
+    # ── Extraction phase metrics (was ExtractionPhase) ──
+    attribute :output_path, String
+    attribute :total_pairs, Integer
+    attribute :reference_pct, Float
+    attribute :policy_pct, Float
+    attribute :gaps, list_of(String)
+
+    # ── Decision metrics (was Decision) ──
+    attribute :targets_met, TrueClass
+    attribute :reference_gap, Float
+    attribute :policy_gap, Float
+    attribute :pair_deficit, Integer
+    attribute :recommendation, String
 
     value_object "Phase" do
       attribute :name, String
@@ -33,16 +77,8 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
 
     command "CompleteRound" do
       description "Finalize a round — record metrics and decide if another is needed"
-      reference_to(Round)
       emits "RoundCompleted"
     end
-  end
-
-  aggregate "GrowthPhase", "Conceive new domains to expand the corpus" do
-    attribute :target_count, Integer
-    attribute :conceived, Integer
-    attribute :validated, Integer
-    attribute :topics, list_of(String)
 
     command "RunGrowth" do
       description "Conceive domains across diverse topics, validate each one"
@@ -50,26 +86,11 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
       attribute :topics, list_of(String)
       emits "GrowthComplete"
     end
-  end
-
-  aggregate "EnrichmentPhase", "Add missing features to shallow domains" do
-    attribute :domains_scanned, Integer
-    attribute :references_added, Integer
-    attribute :collections_added, Integer
-    attribute :givens_added, Integer
-    attribute :revalidated, Integer
 
     command "RunEnrichment" do
       description "Scan all domains, add references, collections, and givens where missing"
       emits "EnrichmentComplete"
     end
-  end
-
-  aggregate "PruningPhase", "Shape the corpus for training — split, dedup, balance" do
-    attribute :monsters_split, Integer
-    attribute :duplicates_merged, Integer
-    attribute :categories_capped, Integer
-    attribute :final_pair_count, Integer
 
     command "RunPruning" do
       description "Split monsters, merge duplicates, balance categories"
@@ -77,34 +98,15 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
       attribute :similarity_threshold, Float
       emits "PruningComplete"
     end
-  end
-
-  aggregate "ExtractionPhase", "Harvest training pairs and assess quality" do
-    attribute :output_path, String
-    attribute :total_pairs, Integer
-    attribute :strong_pairs, Integer
-    attribute :reference_pct, Float
-    attribute :policy_pct, Float
-    attribute :gaps, list_of(String)
 
     command "RunExtraction" do
       description "Extract JSONL training pairs from all valid domains and assess quality"
       attribute :output_path, String
       emits "ExtractionComplete"
     end
-  end
-
-  aggregate "Decision", "Should we run another round or is the corpus good enough?" do
-    attribute :round_number, Integer
-    attribute :targets_met, TrueClass
-    attribute :reference_gap, Float
-    attribute :policy_gap, Float
-    attribute :pair_deficit, Integer
-    attribute :recommendation, String
 
     command "Evaluate" do
       description "Compare current metrics against targets — recommend continue or ship"
-      reference_to(Round)
       emits "DecisionMade"
     end
   end

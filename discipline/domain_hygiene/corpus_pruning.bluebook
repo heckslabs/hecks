@@ -2,7 +2,16 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
   vision "Shape training data for learning — split monsters, add missing features, deduplicate, balance categories"
   category "capability"
 
-  aggregate "MonsterSplit", "A domain too large for uniform training — split into focused sub-domains" do
+  # i111-C : pipeline-stage collapse — added a CorpusPruning root that
+  # owns all four phase concepts (MonsterSplit / FeatureEnrichment /
+  # Deduplicator / CategoryBalancer). None of the originals had
+  # identified_by ; they were stages of one pruning workflow, not peers.
+  # Their commands and attributes collapse into the root ; their
+  # value_objects (Chunk, DuplicatePair, CategoryWeight) ride along.
+
+  aggregate "CorpusPruning", "One full pruning sweep — split monsters, enrich features, dedupe, balance categories" do
+    identified_by :domain_name
+    # ── MonsterSplit phase ──
     attribute :source_domain, String
     attribute :original_size, Integer
     attribute :chunk_count, Integer
@@ -11,12 +20,43 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
     # The planner picks MeasureDomain as the producer.
     attribute :measured, Boolean, default: false
 
+    # ── FeatureEnrichment phase ──
+    attribute :domain_name, String
+    attribute :feature_type, String
+    attribute :additions_made, Integer
+    attribute :still_valid, TrueClass
+
+    # ── Deduplicator phase ──
+    attribute :total_pairs, Integer
+    attribute :duplicates_found, Integer
+    attribute :matches, list_of(DuplicatePair)
+
+    # ── CategoryBalancer phase ──
+    attribute :weights, list_of(CategoryWeight)
+    attribute :target_per_category, Integer
+    attribute :rebalanced_count, Integer
+
     value_object "Chunk" do
       attribute :sub_domain_name, String
       attribute :aggregate_count, Integer
       attribute :command_count, Integer
       attribute :focus_description, String
     end
+
+    value_object "DuplicatePair" do
+      attribute :domain_a, String
+      attribute :domain_b, String
+      attribute :similarity, Float
+    end
+
+    value_object "CategoryWeight" do
+      attribute :category, String
+      attribute :count, Integer
+      attribute :percentage, Float
+      attribute :target, Integer
+    end
+
+    # ── MonsterSplit commands ──
 
     command "MeasureDomain" do
       description "Count aggregates in the source domain so SplitMonster knows whether it is large enough to chunk"
@@ -35,13 +75,8 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
       given { original_size > 8 }
       emits "MonsterSplit"
     end
-  end
 
-  aggregate "FeatureEnrichment", "Add missing structural features to domains that lack them" do
-    attribute :domain_name, String
-    attribute :feature_type, String
-    attribute :additions_made, Integer
-    attribute :still_valid, TrueClass
+    # ── FeatureEnrichment commands ──
 
     command "AddReferences" do
       description "Add reference_to to action commands that operate on existing aggregates"
@@ -63,21 +98,10 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "Revalidate" do
       description "Confirm the domain still boots after enrichment"
-      reference_to(FeatureEnrichment)
       emits "EnrichmentValidated"
     end
-  end
 
-  aggregate "Deduplicator", "Find and merge duplicate domains in the training corpus" do
-    attribute :total_pairs, Integer
-    attribute :duplicates_found, Integer
-    attribute :matches, list_of(DuplicatePair)
-
-    value_object "DuplicatePair" do
-      attribute :domain_a, String
-      attribute :domain_b, String
-      attribute :similarity, Float
-    end
+    # ── Deduplicator commands ──
 
     command "FindDuplicates" do
       description "Compare all domain pairs by structural vector similarity — flag near-clones"
@@ -88,22 +112,10 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "MergeDuplicates" do
       description "Keep the richer domain from each duplicate pair, discard the thinner one"
-      reference_to(Deduplicator)
       emits "DuplicatesMerged"
     end
-  end
 
-  aggregate "CategoryBalancer", "Ensure no single category dominates the training set" do
-    attribute :weights, list_of(CategoryWeight)
-    attribute :target_per_category, Integer
-    attribute :rebalanced_count, Integer
-
-    value_object "CategoryWeight" do
-      attribute :category, String
-      attribute :count, Integer
-      attribute :percentage, Float
-      attribute :target, Integer
-    end
+    # ── CategoryBalancer commands ──
 
     # Renamed AssessCategoryBalance + CategoryBalanceAssessed (was
     # AssessBalance + BalanceAssessed) to avoid event-name collision
@@ -120,7 +132,6 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "CapCategory" do
       description "Randomly sample down an over-represented category to the target count"
-      reference_to(CategoryBalancer)
       attribute :category, String
       attribute :max_count, Integer
       emits "CategoryCapped"

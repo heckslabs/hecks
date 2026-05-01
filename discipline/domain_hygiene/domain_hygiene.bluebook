@@ -2,27 +2,26 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
   vision "Miette keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
   category "capability"
 
-  aggregate "HealthCheck", "A scan of the full corpus — what boots, what fails, what's missing" do
+  # i111-C : pipeline-stage collapse — added a DomainHygiene root that
+  # owns the four phase concepts (HealthCheck / QualityReport /
+  # TrainingHarvest / CorpusGrowth). Enrichment kept its own root
+  # because it carries identified_by :domain_name (per-domain identity),
+  # which is genuinely a different aggregate root than the pipeline-
+  # state-bag this collapse targets. Per Evans : entities with their
+  # own identity stay as roots, attribute-bags merge.
+
+  aggregate "DomainHygiene", "One pass through the hygiene pipeline — health check, quality assessment, harvest, growth report" do
+    identified_by :domain_name
+    attribute :domain_name, String
+
+    # ── HealthCheck phase ──
     attribute :total_domains, Integer
     attribute :valid_count, Integer
     attribute :invalid_count, Integer
     attribute :failures, list_of(ValidationFailure)
     attribute :scanned_at, String
 
-    value_object "ValidationFailure" do
-      attribute :domain_name, String
-      attribute :file_path, String
-      attribute :error_message, String
-    end
-
-    command "ScanCorpus" do
-      description "Parse and validate every bluebook — report what boots and what breaks"
-      attribute :root_path, String
-      emits "CorpusScanned"
-    end
-  end
-
-  aggregate "QualityReport", "Training data quality metrics — bias, gaps, coverage" do
+    # ── QualityReport phase ──
     attribute :total_pairs, Integer
     attribute :unique_domains, Integer
     attribute :with_policies, Integer
@@ -31,11 +30,53 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
     attribute :distribution, list_of(CategoryCount)
     attribute :gaps, list_of(String)
 
+    # ── TrainingHarvest phase ──
+    attribute :output_path, String
+    attribute :pair_count, Integer
+    attribute :strong_pairs, Integer
+    attribute :harvested_at, String
+
+    # ── CorpusGrowth phase ──
+    attribute :target_count, Integer
+    attribute :conceived, Integer
+    attribute :valid, Integer
+    attribute :repaired, Integer
+    attribute :enriched, Integer
+    attribute :harvested, Integer
+    attribute :waves, list_of(GrowthWave)
+    # Flipped true once RepairFailures finishes — at that point the wave's
+    # remaining domains are valid and ready for enrichment.
+    attribute :wave_valid, Boolean, default: false
+
+    value_object "ValidationFailure" do
+      attribute :domain_name, String
+      attribute :file_path, String
+      attribute :error_message, String
+    end
+
     value_object "CategoryCount" do
       attribute :category, String
       attribute :count, Integer
       attribute :percentage, Float
     end
+
+    value_object "GrowthWave" do
+      attribute :wave_number, Integer
+      attribute :attempted, Integer
+      attribute :survived, Integer
+      attribute :repaired, Integer
+      attribute :phase, String
+    end
+
+    # ── HealthCheck commands ──
+
+    command "ScanCorpus" do
+      description "Parse and validate every bluebook — report what boots and what breaks"
+      attribute :root_path, String
+      emits "CorpusScanned"
+    end
+
+    # ── QualityReport commands ──
 
     command "AssessQuality" do
       description "Analyze the training JSONL for bias, missing features, and category balance"
@@ -45,11 +86,59 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
 
     command "IdentifyGaps" do
       description "Find underrepresented categories and missing structural features"
-      reference_to(QualityReport)
       emits "GapsIdentified"
+    end
+
+    # ── TrainingHarvest commands ──
+
+    command "HarvestTrainingData" do
+      description "Walk all valid bluebooks, extract prompt/completion pairs as JSONL"
+      attribute :root_path, String
+      attribute :output_path, String
+      emits "DataHarvested"
+    end
+
+    command "CompareVersions" do
+      description "Diff two training JSONL files to see what improved"
+      attribute :previous_path, String
+      emits "VersionsCompared"
+    end
+
+    # ── CorpusGrowth commands ──
+
+    command "GrowCorpus" do
+      description "Launch a growth cycle — conceive N domains across diverse topics"
+      attribute :target_count, Integer
+      emits "GrowthStarted"
+    end
+
+    command "ConceiveBatch" do
+      description "Conceive a batch of domains from visions — fan out to parallel agents"
+      attribute :batch_size, Integer
+      attribute :topics, list_of(String)
+      emits "BatchConceived"
+    end
+
+    command "RepairFailures" do
+      description "Read validation errors, fix the bluebooks, revalidate"
+      emits "FailuresRepaired"
+      then_set :wave_valid, to: true
+    end
+
+    command "EnrichShallow" do
+      description "Add policies, references, and givens to valid but thin domains"
+      given { wave_valid == true }
+      emits "ShallowEnriched"
+    end
+
+    command "ReportGrowth" do
+      description "Summarize what survived — count, depth, category distribution"
+      emits "GrowthReported"
     end
   end
 
+  # Enrichment stays a separate root — it has identified_by :domain_name
+  # and represents per-domain enrichment identity, not pipeline state.
   aggregate "Enrichment", "A targeted fix to a weak domain — add policies, events, descriptions, or givens" do
     identified_by :domain_name
     attribute :domain_name, String
@@ -80,82 +169,6 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
       description "Re-parse and validate after enrichment to confirm the domain still boots"
       reference_to(Enrichment)
       emits "EnrichmentValidated"
-    end
-  end
-
-  aggregate "TrainingHarvest", "Extract training pairs from the corpus and track dataset evolution" do
-    attribute :output_path, String
-    attribute :pair_count, Integer
-    attribute :strong_pairs, Integer
-    attribute :harvested_at, String
-
-    command "HarvestTrainingData" do
-      description "Walk all valid bluebooks, extract prompt/completion pairs as JSONL"
-      attribute :root_path, String
-      attribute :output_path, String
-      emits "DataHarvested"
-    end
-
-    command "CompareVersions" do
-      description "Diff two training JSONL files to see what improved"
-      reference_to(TrainingHarvest)
-      attribute :previous_path, String
-      emits "VersionsCompared"
-    end
-  end
-
-  aggregate "CorpusGrowth", "The loop — conceive domains, validate, repair failures, enrich shallow ones, harvest" do
-    attribute :target_count, Integer
-    attribute :conceived, Integer
-    attribute :valid, Integer
-    attribute :repaired, Integer
-    attribute :enriched, Integer
-    attribute :harvested, Integer
-    attribute :waves, list_of(GrowthWave)
-    # Flipped true once RepairFailures finishes — at that point the wave's
-    # remaining domains are valid and ready for enrichment.
-    attribute :wave_valid, Boolean, default: false
-
-    value_object "GrowthWave" do
-      attribute :wave_number, Integer
-      attribute :attempted, Integer
-      attribute :survived, Integer
-      attribute :repaired, Integer
-      attribute :phase, String
-    end
-
-    command "GrowCorpus" do
-      description "Launch a growth cycle — conceive N domains across diverse topics"
-      attribute :target_count, Integer
-      emits "GrowthStarted"
-    end
-
-    command "ConceiveBatch" do
-      description "Conceive a batch of domains from visions — fan out to parallel agents"
-      reference_to(CorpusGrowth)
-      attribute :batch_size, Integer
-      attribute :topics, list_of(String)
-      emits "BatchConceived"
-    end
-
-    command "RepairFailures" do
-      description "Read validation errors, fix the bluebooks, revalidate"
-      reference_to(CorpusGrowth)
-      emits "FailuresRepaired"
-      then_set :wave_valid, to: true
-    end
-
-    command "EnrichShallow" do
-      description "Add policies, references, and givens to valid but thin domains"
-      reference_to(CorpusGrowth)
-      given { wave_valid == true }
-      emits "ShallowEnriched"
-    end
-
-    command "ReportGrowth" do
-      description "Summarize what survived — count, depth, category distribution"
-      reference_to(CorpusGrowth)
-      emits "GrowthReported"
     end
   end
 
