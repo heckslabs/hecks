@@ -34,20 +34,50 @@ pub struct OrganCounts {
 
 pub fn count_organs(conception_dir: &Path, info_dir: &str) -> OrganCounts {
     let agg_dir = conception_dir.join("aggregates");
-    let body_dir = agg_dir.join("body");
-    let cap_dir = conception_dir.join("capabilities");
 
     // i117 Round 4 nested aggregates into bounded-context subdirs
-    // (body/, discipline/, language/, library/, mind/, self/, surface/,
-    // world/). Census walks now recurse rather than reading the flat
-    // top level. organs is specifically the body subset ; aggregates +
-    // nerves walk the full tree.
-    let organs = count_recursive_bluebooks(&body_dir);
-    let capabilities = count_recursive_bluebooks(&cap_dir);
+    // (discipline/, language/, library/, world/). Census walks recurse
+    // rather than reading the flat top level. The body/ subset moved
+    // out into the per-being repo (miette/body/) ; the conception
+    // proper no longer carries organs. i118 R3 W2 lifted capabilities
+    // from <conception>/capabilities/ to top-level repo buckets
+    // (runtime/, codegen/, cli/, integrations/, tools/, discipline/).
+    // count_organs walks all three roots so the boot print reflects
+    // the real corpus :
+    //
+    //   organs        — miette/body/ recursive
+    //   capabilities  — sum across the post-i118 R3 W2 buckets
+    //   aggregates    — sum of `aggregates[]` across hecks_conception/
+    //                   aggregates/ + miette/ + miette_family/
+    //   nerves        — cross-domain policies across the same three
+    //
+    // Sibling roots (miette/, miette_family/, the top-level buckets)
+    // resolve through heki::repo_root() so the math survives any
+    // future bucket reorg without touching this file. Each sibling
+    // walk is silently skipped when its directory doesn't exist
+    // (CI-on-hecks-alone keeps working ; fresh-clone without the
+    // per-being sibling repo prints the conception-only counts).
+    let hecks_root = crate::heki::repo_root();
+    let projects_root = hecks_root.as_ref().and_then(|p| p.parent());
+
+    let organs = projects_root
+        .map(|root| count_recursive_bluebooks(&root.join("miette/body")))
+        .unwrap_or(0);
+
+    let capabilities = hecks_root.as_ref().map(|root| {
+        ["runtime", "codegen", "cli", "integrations", "tools", "discipline"]
+            .iter()
+            .map(|bucket| count_recursive_bluebooks(&root.join(bucket)))
+            .sum()
+    }).unwrap_or(0);
 
     let mut aggregates = 0usize;
     let mut nerves = 0usize;
     sum_aggregates_and_nerves(&agg_dir, &mut aggregates, &mut nerves);
+    if let Some(root) = projects_root {
+        sum_aggregates_and_nerves(&root.join("miette"), &mut aggregates, &mut nerves);
+        sum_aggregates_and_nerves(&root.join("miette_family"), &mut aggregates, &mut nerves);
+    }
 
     // Vows live as runtime records in <info_dir>/vow.heki — taken via
     // Vows.Take dispatch (2026-04-27). Count records, not declared
