@@ -123,6 +123,7 @@ pub const SPECIALIZER_TARGETS: &[&str] = &[
     "heki_query",
     "interpreter",
     "ir",
+    "lifecycle_validator",
     "parse_blocks",
     "parser",
     "repository",

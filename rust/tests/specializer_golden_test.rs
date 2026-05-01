@@ -803,3 +803,35 @@ fn rust_specializer_produces_byte_identical_assemble_rs() {
         .expect("run_status/assemble.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_lifecycle_validator_rs() {
+    // i147 Wave 9-C — Rust-native specializer for lifecycle_validator.rs
+    // (the lifecycle DiagnosticValidator : two checks — unreachable
+    // from_state and stuck-default warning — plus mutation-reference
+    // and given-coverage helpers). First DiagnosticValidator family
+    // member to graduate to a Rust-native specializer ; consumes the
+    // shared DiagnosticValidator + DiagnosticHelper schema (also used
+    // by duplicate_policy_validator_shape, scheduled later).
+    //
+    // body_kind decision : reuse the diagnostic-validator-family
+    // schema (validator + helpers as fixture rows, snippet bodies for
+    // each helper, report_kind = flat_with_strict drives the Report
+    // struct template). The empty-body `_force_command_use` stub
+    // collapses to `fn x() {}` on the signature line — handled inline
+    // in the emitter rather than as a new body_kind.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "lifecycle_validator"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize lifecycle_validator failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/lifecycle_validator.rs"))
+        .expect("lifecycle_validator.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}
