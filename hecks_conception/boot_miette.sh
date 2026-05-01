@@ -28,4 +28,4 @@ HECKS="$DIR/../rust/target/release/hecks-life"
 # when set ; this env propagates to every child hecks-life invocation.
 export HECKS_DAEMON=1
 
-exec "$HECKS" run "$DIR/capabilities/boot/boot.bluebook" "$@"
+exec "$HECKS" run "$DIR/../runtime/boot/boot.bluebook" "$@"
