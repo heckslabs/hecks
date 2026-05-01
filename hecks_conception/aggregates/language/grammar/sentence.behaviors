@@ -18,7 +18,7 @@ Hecks.behaviors "Sentence" do
 
   test "Translate sets natural_phrase" do
     tests "Translate", on: "Sentence"
-    setup  "Define", phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
+    setup  "Sentence.Define", phrase: "sample", domain: "sample", command: "sample", aggregate: "sample", actor: "sample", parameters: "sample"
     input  natural_phrase: "sample"
     expect translations_size: 1
   end

@@ -45,7 +45,7 @@ Hecks.behaviors "Inventions" do
 
   test "FinishGrooming runs" do
     tests "FinishGrooming", on: "Grooming"
-    setup  "StartGrooming"
+    setup  "Grooming.StartGrooming"
     expect status: "complete"
   end
 

@@ -11,7 +11,7 @@ Hecks.behaviors "OllamaAdapter" do
 
   test "CheckHealth returns matching records" do
     tests "CheckHealth", on: "Connection", kind: :query
-    setup  "Connect", url: "sample", model: "sample"
+    setup  "Connection.Connect", url: "sample", model: "sample"
     expect count: 1
   end
 

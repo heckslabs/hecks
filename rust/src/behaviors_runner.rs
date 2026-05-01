@@ -12,6 +12,11 @@
 //! The runner finds the source bluebook by stripping the
 //! `_behavioral_tests` suffix (e.g. `pizzas_behavioral_tests.bluebook`
 //! → `pizzas.bluebook`).
+//!
+//! [antibody-exempt: rust/src/behaviors_runner.rs — pure-memory test
+//!  scaffolding. i156 taught find_command to handle qualified setups
+//!  (Aggregate.Command) so reference-injection still finds self-refs
+//!  when callers migrate from bare names.]
 
 use crate::behaviors_ir::{Test, TestSuite};
 use crate::behaviors_fixtures;
@@ -417,12 +422,41 @@ fn build_attrs(
 }
 
 fn find_command<'a>(rt: &'a Runtime, name: &str) -> Option<&'a crate::ir::Command> {
-    for agg in &rt.domain.aggregates {
-        if let Some(c) = agg.commands.iter().find(|c| c.name == name) {
-            return Some(c);
+    // i156 — accept the same three address forms as `command_dispatch::resolve` :
+    // Context.Aggregate.Command, Aggregate.Command, and bare Command. Bare-name
+    // setups historically picked first-match-wins ; qualified setups (i142+)
+    // must filter by aggregate (and optionally context) so reference injection
+    // looks up self-ref kwargs against the right aggregate.
+    let parts: Vec<&str> = name.split('.').collect();
+    match parts.as_slice() {
+        [context, agg_name, cmd_name] => {
+            for agg in &rt.domain.aggregates {
+                if agg.name != *agg_name { continue; }
+                if agg.context.as_deref() != Some(*context) { continue; }
+                if let Some(c) = agg.commands.iter().find(|c| c.name == *cmd_name) {
+                    return Some(c);
+                }
+            }
+            None
+        }
+        [agg_name, cmd_name] => {
+            for agg in &rt.domain.aggregates {
+                if agg.name != *agg_name { continue; }
+                if let Some(c) = agg.commands.iter().find(|c| c.name == *cmd_name) {
+                    return Some(c);
+                }
+            }
+            None
+        }
+        _ => {
+            for agg in &rt.domain.aggregates {
+                if let Some(c) = agg.commands.iter().find(|c| c.name == name) {
+                    return Some(c);
+                }
+            }
+            None
         }
     }
-    None
 }
 
 /// For every aggregate where every command requires a self-ref to its

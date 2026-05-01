@@ -8,6 +8,10 @@
 //!   let domain = parser::parse(&source);
 //!   let mut rt = Runtime::boot(domain);
 //!   let result = rt.dispatch("CreatePizza", attrs! { "name" => "Margherita" });
+//!
+//! [antibody-exempt: rust/src/runtime/mod.rs — kernel-floor runtime.
+//!  i156 added the AmbiguousCommand variant for strict bare-name
+//!  dispatch ; the rest is pre-i156.]
 
 mod aggregate_state;
 mod command_dispatch;
@@ -518,6 +522,15 @@ pub enum RuntimeError {
         current: String,
         allowed: Vec<String>,
     },
+    /// i156 — bare-name dispatch resolved to multiple aggregates when
+    /// `HECKS_STRICT_DISPATCH=1` is set. The validator_corpus
+    /// `bare_name_collisions` rule flags these statically ; this is
+    /// the runtime-side enforcement for callers that haven't
+    /// migrated.
+    AmbiguousCommand {
+        name: String,
+        candidates: Vec<String>,
+    },
 }
 
 impl std::fmt::Display for RuntimeError {
@@ -531,6 +544,10 @@ impl std::fmt::Display for RuntimeError {
             RuntimeError::LifecycleViolation { command, field, current, allowed } => {
                 write!(f, "lifecycle violation: {} cannot run when {} is '{}' (allowed from: {:?})",
                     command, field, current, allowed)
+            }
+            RuntimeError::AmbiguousCommand { name, candidates } => {
+                write!(f, "ambiguous bare-name dispatch: '{}' is declared on aggregates {:?} — qualify with `Aggregate.{}`",
+                    name, candidates, name)
             }
         }
     }

@@ -64,7 +64,7 @@ Hecks.behaviors "Appeal" do
     tests "OpenFile", on: "Explorer", kind: :cascade
     setup  "OpenProject", path: "sample"
     setup  "OpenPanel", panel_name: "sample"
-    setup  "GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
+    setup  "Diagram.GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
     input  path: "sample", domain: "sample"
     expect emits: ["FileOpened", "TabSelected", "DiagramGenerated"]
   end
@@ -667,7 +667,7 @@ Hecks.behaviors "Appeal" do
 
   test "RecentEvents returns matching records" do
     tests "RecentEvents", on: "Playground", kind: :query
-    setup  "ExecuteCommand", aggregate_name: "sample", command_name: "sample", attributes: "sample"
+    setup  "Playground.ExecuteCommand", aggregate_name: "sample", command_name: "sample", attributes: "sample"
     expect count: 1
   end
 
@@ -765,7 +765,7 @@ Hecks.behaviors "Appeal" do
 
   test "SelectTab cascades through policy chain" do
     tests "SelectTab", on: "Layout", kind: :cascade
-    setup  "GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
+    setup  "Diagram.GenerateDiagram", view_type: "sample", path: "sample", domain: "sample"
     input  tab_name: "sample"
     expect emits: ["TabSelected", "DiagramGenerated"]
   end
@@ -866,7 +866,7 @@ Hecks.behaviors "Appeal" do
 
   test "Active returns matching records" do
     tests "Active", on: "Notification", kind: :query
-    setup  "Notify", severity: "sample", message: "sample", context: "sample"
+    setup  "Notification.Notify", severity: "sample", message: "sample", context: "sample"
     expect count: 1
   end
 

@@ -6,6 +6,10 @@
 //!
 //! Usage:
 //!   let result = dispatch(&mut runtime, "CreatePizza", attrs)?;
+//!
+//! [antibody-exempt: rust/src/runtime/command_dispatch.rs — kernel-floor
+//!  dispatch path. i156 added strict bare-name resolution gated by the
+//!  HECKS_STRICT_DISPATCH env var ; the rest of the file is pre-i156.]
 
 use super::{AggregateState, Event, Runtime, RuntimeError, Value};
 use super::{interpreter, lifecycle};
@@ -164,18 +168,54 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<(usize, usize), RuntimeEr
             Err(RuntimeError::UnknownCommand(command_name.to_string()))
         }
         [cmd_name] => {
-            // Bare-name dispatch : first-match-wins. The strict-ambiguity
-            // check is filed as i156 (deferred) — depends on the corpus
-            // first migrating cross-bluebook collisions to FQN setups.
-            // Per-aggregate uniqueness (i155) still holds within a single
-            // bluebook ; cross-bluebook collisions are silently resolved
-            // by iteration order until i156 lifts.
-            for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
-                for (ci, cmd) in agg.commands.iter().enumerate() {
-                    if cmd.name == *cmd_name { return Ok((ai, ci)); }
+            // Bare-name dispatch — i156 strict mode (opt-in via the
+            // HECKS_STRICT_DISPATCH env var). When strict mode is on AND
+            // the bare name appears on more than one aggregate across
+            // the loaded corpus, fail loudly with the candidate list
+            // instead of silently first-match-wins.
+            //
+            // Strict mode stays opt-in until the corpus migration is
+            // complete (the validator_corpus::bare_name_collisions rule
+            // surfaces what's left ; ~107 .behaviors setups already
+            // migrated to qualified form by i156 part 2). The i156 PR
+            // body documents the gating decision.
+            //
+            // Default (non-strict) behavior preserves first-match-wins
+            // for backward compat — same as before. Per-aggregate
+            // uniqueness (i155) still holds within a single bluebook.
+            let strict = std::env::var("HECKS_STRICT_DISPATCH")
+                .map(|v| v == "1" || v == "true")
+                .unwrap_or(false);
+            if strict {
+                let mut hits: Vec<(usize, usize, &str)> = Vec::new();
+                for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                    for (ci, cmd) in agg.commands.iter().enumerate() {
+                        if cmd.name == *cmd_name {
+                            hits.push((ai, ci, agg.name.as_str()));
+                        }
+                    }
                 }
+                match hits.len() {
+                    0 => Err(RuntimeError::UnknownCommand(command_name.to_string())),
+                    1 => Ok((hits[0].0, hits[0].1)),
+                    _ => {
+                        let mut candidates: Vec<&str> = hits.iter().map(|h| h.2).collect();
+                        candidates.sort();
+                        candidates.dedup();
+                        Err(RuntimeError::AmbiguousCommand {
+                            name: cmd_name.to_string(),
+                            candidates: candidates.into_iter().map(String::from).collect(),
+                        })
+                    }
+                }
+            } else {
+                for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+                    for (ci, cmd) in agg.commands.iter().enumerate() {
+                        if cmd.name == *cmd_name { return Ok((ai, ci)); }
+                    }
+                }
+                Err(RuntimeError::UnknownCommand(command_name.to_string()))
             }
-            Err(RuntimeError::UnknownCommand(command_name.to_string()))
         }
         _ => Err(RuntimeError::UnknownCommand(command_name.to_string())),
     }

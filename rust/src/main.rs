@@ -564,6 +564,9 @@ fn main() {
                 for w in hecks_life::validator_corpus::policy_event_warnings(&corpus) {
                     eprintln!("{}", w);
                 }
+                for w in hecks_life::validator_corpus::bare_name_collisions(&corpus) {
+                    eprintln!("{}", w);
+                }
             }
             if errors.is_empty() {
                 println!("VALID — {} ({} aggregates)", domain.name, domain.aggregates.len());

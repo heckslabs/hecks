@@ -125,7 +125,7 @@ Hecks.behaviors "Mind" do
     setup  "StartLucidMonitor", log_path: "sample"
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
     setup  "MuseOnState", trigger: "sample"
-    setup  "EncodeMemory", kind: "sample", subject: "sample", content: "sample"
+    setup  "Encoding.EncodeMemory", kind: "sample", subject: "sample", content: "sample"
     setup  "Announce", act: "sample", subject: "sample"
     input  insight: "sample"
     expect emits: ["ReflectionOccurred", "BecameLucid", "LucidMonitorStarted", "ActionProposed", "MusingRecorded", "MemoryEncoded", "Announced"]
@@ -160,7 +160,7 @@ Hecks.behaviors "Mind" do
 
   test "RecordMusing cascades through policy chain" do
     tests "RecordMusing", on: "Musing", kind: :cascade
-    setup  "EncodeMemory", kind: "sample", subject: "sample", content: "sample"
+    setup  "Encoding.EncodeMemory", kind: "sample", subject: "sample", content: "sample"
     setup  "Announce", act: "sample", subject: "sample"
     input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
     expect emits: ["MusingRecorded", "MemoryEncoded", "Announced"]
@@ -218,7 +218,7 @@ Hecks.behaviors "Mind" do
 
   test "ConsolidateSignals cascades through policy chain" do
     tests "ConsolidateSignals", on: "Consolidation", kind: :cascade
-    setup  "EncodeMemory", kind: "sample", subject: "sample", content: "sample"
+    setup  "Encoding.EncodeMemory", kind: "sample", subject: "sample", content: "sample"
     setup  "Announce", act: "sample", subject: "sample"
     input  signals_consolidated: 1, memories_created: 1
     expect emits: ["SignalsConsolidated", "MemoryEncoded", "Announced"]
@@ -236,8 +236,8 @@ Hecks.behaviors "Mind" do
   test "ForgetMemory cascades through policy chain" do
     tests "ForgetMemory", on: "Forgetting", kind: :cascade
     setup  "Announce", act: "sample", subject: "sample"
-    setup  "ConsolidateSignals", signals_consolidated: 1, memories_created: 1
-    setup  "EncodeMemory", kind: "sample", subject: "sample", content: "sample"
+    setup  "Consolidation.ConsolidateSignals", signals_consolidated: 1, memories_created: 1
+    setup  "Encoding.EncodeMemory", kind: "sample", subject: "sample", content: "sample"
     input  forgotten: "sample", reason: "sample"
     expect emits: ["MemoryForgotten", "Announced", "SignalsConsolidated", "MemoryEncoded", "Announced"]
   end
@@ -449,7 +449,7 @@ Hecks.behaviors "Mind" do
   test "ConceiveDomain cascades through policy chain" do
     tests "ConceiveDomain", on: "Conception", kind: :cascade
     setup  "Announce", act: "sample", subject: "sample"
-    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "Corpus.IndexDomain", domain_name: "sample", vector: 1.0
     setup  "StartGestation", domain_name: "sample", nursery_path: "sample"
     input  name: "sample", vision: "sample", requested_by: "sample", source: "sample"
     expect emits: ["DomainConceived", "Announced", "NearestFound", "GestationStarted"]
@@ -529,8 +529,8 @@ Hecks.behaviors "Mind" do
   test "PassLabor cascades through policy chain" do
     tests "PassLabor", on: "Labor", kind: :cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    setup  "IndexDomain", domain_name: "sample", vector: 1.0
-    setup  "CheckHealth", domain_name: "sample"
+    setup  "Corpus.IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "Postpartum.CheckHealth", domain_name: "sample"
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
     expect emits: ["LaborPassed", "DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery", "BirthRegistered", "DomainIndexed", "HealthChecked"]
   end
@@ -553,8 +553,8 @@ Hecks.behaviors "Mind" do
 
   test "DeliverDomain cascades through policy chain" do
     tests "DeliverDomain", on: "Delivery", kind: :cascade
-    setup  "IndexDomain", domain_name: "sample", vector: 1.0
-    setup  "CheckHealth", domain_name: "sample"
+    setup  "Corpus.IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "Postpartum.CheckHealth", domain_name: "sample"
     input  domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
     expect emits: ["DomainDelivered", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery", "BirthRegistered", "DomainIndexed", "HealthChecked"]
   end
@@ -568,8 +568,8 @@ Hecks.behaviors "Mind" do
   test "RegisterBirth cascades through policy chain" do
     tests "RegisterBirth", on: "Delivery", kind: :cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    setup  "IndexDomain", domain_name: "sample", vector: 1.0
-    setup  "CheckHealth", domain_name: "sample"
+    setup  "Corpus.IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "Postpartum.CheckHealth", domain_name: "sample"
     expect emits: ["BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery", "BirthRegistered", "DomainIndexed", "HealthChecked"]
   end
 
@@ -582,8 +582,8 @@ Hecks.behaviors "Mind" do
   test "IndexInNursery cascades through policy chain" do
     tests "IndexInNursery", on: "Delivery", kind: :cascade
     setup  "DeliverDomain", domain_name: "sample", path: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1
-    setup  "IndexDomain", domain_name: "sample", vector: 1.0
-    setup  "CheckHealth", domain_name: "sample"
+    setup  "Corpus.IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "Postpartum.CheckHealth", domain_name: "sample"
     expect emits: ["IndexedInNursery", "BirthRegistered", "DomainIndexed", "HealthChecked", "IndexedInNursery"]
   end
 
@@ -598,13 +598,13 @@ Hecks.behaviors "Mind" do
 
   test "DeclareHealthy runs" do
     tests "DeclareHealthy", on: "Postpartum"
-    setup  "CheckHealth", domain_name: "sample"
+    setup  "Postpartum.CheckHealth", domain_name: "sample"
     expect healthy: "yes"
   end
 
   test "FlagConcern sets concern" do
     tests "FlagConcern", on: "Postpartum"
-    setup  "CheckHealth", domain_name: "sample"
+    setup  "Postpartum.CheckHealth", domain_name: "sample"
     input  concern: "sample"
     expect healthy: "concern"
   end
@@ -648,7 +648,7 @@ Hecks.behaviors "Mind" do
 
   test "DevelopDomain cascades through policy chain" do
     tests "DevelopDomain", on: "Development", kind: :cascade
-    setup  "IndexDomain", domain_name: "sample", vector: 1.0
+    setup  "Corpus.IndexDomain", domain_name: "sample", vector: 1.0
     setup  "ComputeVector", domain_name: "sample"
     setup  "FindArchetype"
     setup  "PlanDevelopment", target_vector: 1.0
@@ -1059,7 +1059,7 @@ Hecks.behaviors "Mind" do
 
   test "AddMember cascades through policy chain" do
     tests "AddMember", on: "Member", kind: :cascade
-    setup  "RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
+    setup  "FamilyIndex.RebuildIndex", total_members: 1, total_organs: 1, total_incorporated: 1, total_aggregates: 1, total_commands: 1
     setup  "LinkToBody", member_name: "sample", organ_name: "sample", path: "sample"
     input  name: "sample", vision: "sample", path: "sample", kind: "sample", aggregate_count: 1, command_count: 1, fixture_count: 1, version: "sample"
     expect emits: ["MemberAdded", "AdditionRecorded", "LinkedToBody"]

@@ -17,7 +17,7 @@ Hecks.behaviors "MiettePhone" do
 
   test "RevokeSession runs" do
     tests "RevokeSession", on: "Gate"
-    setup  "Authenticate", pin: "sample"
+    setup  "Gate.Authenticate", pin: "sample"
     expect locked: "true"
   end
 

@@ -59,7 +59,7 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //! Regenerate: hecks-life specialize validator_corpus --output hecks_life/src/validator_corpus.rs
 //! Contract:  hecks_life/src/specializer/validator_corpus.rs (Rust-native)
 //!
-//! Three rules :
+//! Four rules :
 //!
 //!   - `corpus_phantom_trigger_errors` — INVALID-grade : a policy's
 //!     `trigger_command` is not declared by any aggregate in the
@@ -73,6 +73,11 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //!   - `policy_event_warnings` — advisory : a policy subscribes to
 //!     an event that no command emits anywhere in the corpus. The
 //!     policy is dangling — placeholder, or a typo.
+//!
+//!   - `bare_name_collisions` — advisory : a command name is declared
+//!     on more than one aggregate across the corpus. Bare-name
+//!     dispatch is ambiguous — qualify call sites with
+//!     `Aggregate.Command` to disambiguate. i156.
 
 "#;
 

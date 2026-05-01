@@ -12,7 +12,7 @@ Hecks.behaviors "Catalog" do
   test "RegisterDomain cascades through policy chain" do
     tests "RegisterDomain", on: "Entry", kind: :cascade
     setup  "SnapshotVersion", domain_name: "sample", version: "sample", snapshot: "sample", developed_from: "sample", aggregate_count: 1, command_count: 1, vector: 1.0
-    setup  "RebuildIndex", catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
+    setup  "Index.RebuildIndex", catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
     input  name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     expect emits: ["DomainRegistered", "VersionSnapshotted", "IndexRebuilt"]
   end
@@ -28,7 +28,7 @@ Hecks.behaviors "Catalog" do
     tests "DevelopDomain", on: "Entry", kind: :cascade
     setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     setup  "SnapshotVersion", domain_name: "sample", version: "sample", snapshot: "sample", developed_from: "sample", aggregate_count: 1, command_count: 1, vector: 1.0
-    setup  "RebuildIndex", catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
+    setup  "Index.RebuildIndex", catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
     input  version: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     expect emits: ["DomainDeveloped", "VersionSnapshotted", "IndexRebuilt"]
   end
@@ -72,7 +72,7 @@ Hecks.behaviors "Catalog" do
     tests "DetectDrift", on: "Mirror", kind: :cascade
     setup  "RegisterDomain", name: "sample", version: "sample", path: "sample", aggregate_count: 1, command_count: 1, policy_count: 1, lines: 1
     setup  "SnapshotVersion", domain_name: "sample", version: "sample", snapshot: "sample", developed_from: "sample", aggregate_count: 1, command_count: 1, vector: 1.0
-    setup  "RebuildIndex", catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
+    setup  "Index.RebuildIndex", catalog_count: 1, nursery_count: 1, total_aggregates: 1, total_commands: 1
     expect emits: ["DriftDetected", "DomainDeveloped", "VersionSnapshotted", "IndexRebuilt"]
   end
 

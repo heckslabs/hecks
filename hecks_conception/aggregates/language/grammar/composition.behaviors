@@ -18,14 +18,14 @@ Hecks.behaviors "Composition" do
 
   test "TranslateComposition sets natural_phrase" do
     tests "TranslateComposition", on: "Composition"
-    setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    setup  "Composition.Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
     input  natural_phrase: "sample"
     expect translations_size: 1
   end
 
   test "MarkInvalid runs" do
     tests "MarkInvalid", on: "Composition"
-    setup  "Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
+    setup  "Composition.Compose", phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
     expect valid: "false"
   end
 end

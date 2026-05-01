@@ -11,7 +11,7 @@ Hecks.behaviors "Lexicon" do
 
   test "Match sets input" do
     tests "Match", on: "Lexicon"
-    setup  "Compile"
+    setup  "Lexicon.Compile"
     input  input: "sample"
     expect ok: "true"
   end

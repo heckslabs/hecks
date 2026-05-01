@@ -18,20 +18,20 @@ Hecks.behaviors "RustToBluebook" do
 
   test "MapToBluebook runs" do
     tests "MapToBluebook", on: "RustFile"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     expect status: "mapped"
   end
 
   test "MapToBluebook cascades through policy chain" do
     tests "MapToBluebook", on: "RustFile", kind: :cascade
     setup  "StartConversion"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     expect emits: ["BluebookMapped", "BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
   end
 
   test "GenerateBluebook runs" do
     tests "GenerateBluebook", on: "RustFile"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     setup  "MapToBluebook"
     expect status: "generated"
   end
@@ -39,14 +39,14 @@ Hecks.behaviors "RustToBluebook" do
   test "GenerateBluebook cascades through policy chain" do
     tests "GenerateBluebook", on: "RustFile", kind: :cascade
     setup  "StartConversion"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     setup  "MapToBluebook"
     expect emits: ["BluebookGenerated", "BluebookVerified", "RustDeleted", "FileConverted"]
   end
 
   test "Verify runs" do
     tests "Verify", on: "RustFile"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"
     expect status: "verified"
@@ -55,7 +55,7 @@ Hecks.behaviors "RustToBluebook" do
   test "Verify cascades through policy chain" do
     tests "Verify", on: "RustFile", kind: :cascade
     setup  "StartConversion"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"
     expect emits: ["BluebookVerified", "RustDeleted", "FileConverted"]
@@ -63,20 +63,20 @@ Hecks.behaviors "RustToBluebook" do
 
   test "DeleteRust runs" do
     tests "DeleteRust", on: "RustFile"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"
-    setup  "Verify"
+    setup  "RustFile.Verify"
     expect status: "deleted"
   end
 
   test "DeleteRust cascades through policy chain" do
     tests "DeleteRust", on: "RustFile", kind: :cascade
     setup  "StartConversion"
-    setup  "Analyze", path: "sample"
+    setup  "RustFile.Analyze", path: "sample"
     setup  "MapToBluebook"
     setup  "GenerateBluebook"
-    setup  "Verify"
+    setup  "RustFile.Verify"
     expect emits: ["RustDeleted", "FileConverted"]
   end
 
