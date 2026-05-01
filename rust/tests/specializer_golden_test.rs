@@ -489,3 +489,29 @@ fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
         .expect("conceiver/generator.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_adapter_llm_rs() {
+    // i147 Wave 3-B — Rust-native specializer for runtime/adapter_llm.rs.
+    // First NEEDS-NEW-BODY-KIND retirement : the driven_adapter_shape
+    // adds two new body_kinds — `http_post` (ollama backend) and
+    // `shell_invoke` (claude backend) — alongside a verbatim_section
+    // row for the dispatcher (resolve + resolve_ollama + LlmConfig).
+    // The two new kinds emit different function bodies but the same
+    // input → Option<String> signature family, which is what lets the
+    // dispatcher route to either by config triple.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "adapter_llm"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize adapter_llm failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/adapter_llm.rs"))
+        .expect("runtime/adapter_llm.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}

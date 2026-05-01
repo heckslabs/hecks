@@ -1,0 +1,119 @@
+Hecks.bluebook "DrivenAdapterShape", version: "2026.05.01.1" do
+  vision "The shape of hecks_life/src/runtime/adapter_llm.rs as a bluebook — driven LLM adapter (ollama HTTP-POST + claude shell-invoke + dispatcher) made IR-derivable via per-backend body_kind vocabulary."
+  category "autophagy"
+
+  # ============================================================
+  # DRIVEN ADAPTER SHAPE — i147 Wave 3-B target
+  # ============================================================
+  #
+  # adapter_llm.rs is the runtime's pluggable language-inference port.
+  # It dispatches to one of N backends after a command resolves on an
+  # aggregate carrying `:input` / `:response` fields. Today there are
+  # two backends — `ollama` (HTTP-POST to a local model server) and
+  # `claude` (shell-invoke of the local `claude` CLI binary).
+  #
+  # The two backends emit DIFFERENT function bodies but each maps a
+  # prompt string to an Option<String> response. That uniformity is
+  # what lets the dispatcher (`resolve`) route to either one based on
+  # a `(backend, model, url)` triple supplied by the runtime.
+  #
+  # Layer mapping (mirrors heki_query_shape) :
+  #   L0 = this file + fixtures/driven_adapter_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = hecks_life/src/runtime/adapter_llm.rs (generated target)
+  #
+  # Body_kind vocabulary :
+  #
+  #   verbatim_section — read snippet_path verbatim ; emit unchanged.
+  #                      Used for the header (doc + use + LlmConfig
+  #                      typedef) and the dispatcher (resolve +
+  #                      resolve_ollama back-compat shim). Same
+  #                      body_kind that wave-2 shapes carry.
+  #
+  #   http_post        — backend that POSTs JSON to a URL, decodes
+  #                      a field from the response. Emits a private
+  #                      `fn call_<name>(url, model, input) ->
+  #                      Option<String>` whose body builds a JSON
+  #                      request body, shells out to `curl`, parses
+  #                      the response JSON, and extracts a field.
+  #                      Knobs : url_path, prompt_prefix, response_field,
+  #                      timeout_secs, num_predict.
+  #
+  #   shell_invoke     — backend that invokes a local CLI binary with
+  #                      a flag and an input string, captures stdout.
+  #                      Emits a private `fn call_<name>(input) ->
+  #                      Option<String>` whose body resolves the bin
+  #                      via env var, runs `timeout <secs> <bin> <flag>
+  #                      input`, collapses stdout, and length-checks
+  #                      the result. Knobs : env_var, default_bin,
+  #                      flag, timeout_secs, min_len, max_len.
+  #
+  # The two new body_kinds emit different function bodies but the
+  # same SIGNATURE family (input → Option<String>) so the dispatcher
+  # can route uniformly via match-on-backend-string.
+  #
+  # When a third backend lands (e.g. an HTTP backend that takes a
+  # bearer token, or a gRPC backend), it adds a third body_kind row
+  # with its own template. The dispatcher row's snippet absorbs the
+  # new arm.
+
+  # ---- Section -----------------------------------------------------
+  #
+  # One row per ordered code section in adapter_llm.rs. body_kind
+  # picks how the specializer emits the section :
+  #   verbatim_section — snippet emitted verbatim
+  #   http_post        — knobs interpolated into the http_post template
+  #   shell_invoke     — knobs interpolated into the shell_invoke template
+  #
+  # The specializer concatenates HEADER + each section body in `order`
+  # ascending. For verbatim_section rows, snippet_path points at a
+  # `.rs.frag` ; for http_post / shell_invoke rows, the row's knob
+  # attributes (url_path, env_var, etc.) drive the templated emission.
+
+  aggregate "Section", "One ordered code section emitted from the driven_adapter shape" do
+    attribute :name,             String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,            Integer
+    # body_kind: verbatim_section | http_post | shell_invoke
+    attribute :body_kind,        String
+    # snippet_path: relative to repo root. Required for verbatim_section
+    # (the snippet IS the body) ; ignored for http_post / shell_invoke.
+    attribute :snippet_path,     String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,      String, default: ""
+    # doc_snippet: relative path to a .rs.frag holding the per-backend
+    # doc comment (`///` lines). Optional ; if blank, no doc emitted.
+    # Used by http_post and shell_invoke body_kinds where the prose is
+    # bespoke per backend but the function shape is uniform.
+    attribute :doc_snippet,      String, default: ""
+
+    # ---- http_post knobs ----
+    # function name (e.g. "call_ollama") ; specializer emits
+    # `fn <fn_name>(url: &str, model: &str, input: &str) -> Option<String>`
+    attribute :fn_name,          String, default: ""
+    # url_path: appended to the url arg (e.g. "/api/generate")
+    attribute :url_path,         String, default: ""
+    # prompt_prefix: a literal string concatenated before the input
+    # to form the prompt (used as `format!("<prefix>{}", input)`).
+    # Use `\n` for newlines.
+    attribute :prompt_prefix,    String, default: ""
+    # response_field: the JSON field path to extract from the response
+    # (e.g. "response" for ollama).
+    attribute :response_field,   String, default: ""
+    # timeout_secs: passed as `-m` to curl.
+    attribute :timeout_secs,     Integer, default: 0
+    # num_predict: ollama-specific options.num_predict cap.
+    attribute :num_predict,      Integer, default: 0
+
+    # ---- shell_invoke knobs ----
+    # env_var: env var name holding the binary path (e.g. "CLAUDE_BIN")
+    attribute :env_var,          String, default: ""
+    # default_bin: fallback path when env var unset
+    attribute :default_bin,      String, default: ""
+    # flag: CLI flag preceding the input arg (e.g. "-p")
+    attribute :flag,             String, default: ""
+    # min_len / max_len: post-processing length filter on stdout
+    attribute :min_len,          Integer, default: 0
+    attribute :max_len,          Integer, default: 0
+  end
+end

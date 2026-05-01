@@ -1,0 +1,56 @@
+Hecks.fixtures "DrivenAdapterShape" do
+  # One row per ordered code section in adapter_llm.rs. Specializer
+  # concatenates HEADER (doc + use lines) + each section body in
+  # `order` ascending.
+  #
+  # Body kinds :
+  #   verbatim_section — read snippet_path raw, emit unchanged.
+  #   http_post        — emit `fn <fn_name>(url, model, input) ->
+  #                      Option<String>` template, interpolating the
+  #                      url_path / prompt prefix (read from snippet) /
+  #                      response_field / timeout / num_predict knobs.
+  #   shell_invoke     — emit `fn <fn_name>(input) -> Option<String>`
+  #                      template, interpolating the env_var /
+  #                      default_bin / flag / timeout / min_len / max_len
+  #                      knobs ; doc_snippet supplies the per-backend
+  #                      doc comment block.
+  #
+  # The dispatcher row is verbatim — its body is the LlmConfig typedef
+  # plus the `resolve` function plus the `resolve_ollama` back-compat
+  # shim, lifted byte-for-byte from the source.
+
+  aggregate "Section" do
+    fixture "DispatcherSection",
+      name: "dispatcher",
+      order: 1,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/driven_adapter_shape/snippets/01_dispatcher.rs.frag",
+      description: "LlmConfig typedef + resolve dispatcher + resolve_ollama back-compat shim"
+
+    fixture "OllamaBackend",
+      name: "ollama",
+      order: 2,
+      body_kind: "http_post",
+      fn_name: "call_ollama",
+      url_path: "/api/generate",
+      response_field: "response",
+      timeout_secs: 15,
+      num_predict: 100,
+      snippet_path: "codegen/driven_adapter_shape/snippets/02_ollama_prompt_prefix.rs.frag",
+      description: "Ollama HTTP-POST backend ; calls <url>/api/generate with the Miette prompt-prefix wrapper, decodes response field"
+
+    fixture "ClaudeBackend",
+      name: "claude",
+      order: 3,
+      body_kind: "shell_invoke",
+      fn_name: "call_claude",
+      env_var: "CLAUDE_BIN",
+      default_bin: "/Users/christopheryoung/.local/bin/claude",
+      flag: "-p",
+      timeout_secs: 20,
+      min_len: 10,
+      max_len: 2000,
+      doc_snippet: "codegen/driven_adapter_shape/snippets/03_claude_doc.rs.frag",
+      description: "Claude shell-invoke backend ; runs the local claude CLI binary with -p, collapses stdout, length-checks the result"
+  end
+end
