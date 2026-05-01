@@ -1,0 +1,74 @@
+    pub fn dispatch(
+        &mut self,
+        command_name: &str,
+        attrs: HashMap<String, Value>,
+    ) -> Result<CommandResult, RuntimeError> {
+        // Middleware: before
+        let ctx = CommandContext {
+            command_name: command_name.to_string(),
+            attrs: attrs.clone(),
+            result: None,
+        };
+        self.middleware.run_before(&ctx);
+
+        // Core dispatch
+        let result = command_dispatch::dispatch(self, command_name, attrs)?;
+
+        // Breadcrumb : write the entry-point command (the top-level
+        // dispatch the user / CLI invoked) to a tiny plaintext file
+        // under data_dir. The statusline reads it.
+        //
+        // Two filters keep the statusline glyph showing what's actually
+        // INTERESTING, not the constant body-daemon traffic :
+        //
+        //   1. Top-level only — `drain_policies`'s cascade calls go
+        //      through `command_dispatch::dispatch` directly and don't
+        //      touch the breadcrumb. Without this, the cascade leaf
+        //      (Synapse.DecaySynapse / Awareness.RecordMoment / Mode.
+        //      SetAttentive) drowned the entry-point variety.
+        //
+        //   2. Non-daemon only — when HECKS_DAEMON=1 is set in the
+        //      environment, the dispatch is body-cycle plumbing
+        //      (mindstream.sh, pulse_organs.sh, heart/breath loops)
+        //      and the breadcrumb is suppressed. The statusline glyph
+        //      then only updates when a HUMAN-driven dispatch fires
+        //      (Antibody.RegisterExemption from the prompt, Mood.
+        //      Express, etc.) — exactly the "what are we working on"
+        //      signal the bar is for.
+        let is_daemon = std::env::var("HECKS_DAEMON").ok().as_deref() == Some("1");
+        if !is_daemon {
+            if let Some(ref dir) = self.data_dir {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs()).unwrap_or(0);
+                let path = format!("{}/.last_dispatch", dir.trim_end_matches('/'));
+                let _ = std::fs::write(&path,
+                    format!("{}.{}\n{}\n", result.aggregate_type, command_name, now));
+            }
+        }
+
+        // Middleware: after
+        let ctx = CommandContext {
+            command_name: command_name.to_string(),
+            attrs: ctx.attrs,
+            result: Some(CommandResult {
+                aggregate_id: result.aggregate_id.clone(),
+                aggregate_type: result.aggregate_type.clone(),
+                event: result.event.clone(),
+            }),
+        };
+        self.middleware.run_after(&ctx);
+
+        // Update projections
+        if let Some(ref event) = result.event {
+            for proj in &mut self.projections {
+                proj.apply(event);
+            }
+        }
+
+        // Drain policy triggers — recursively, so chains cascade fully
+        self.drain_policies(&result);
+
+        Ok(result)
+    }
+

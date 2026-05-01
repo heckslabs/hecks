@@ -16,3 +16,4 @@
 pub mod aggregate_state;
 pub mod command_dispatch;
 pub mod interpreter;
+pub mod root;

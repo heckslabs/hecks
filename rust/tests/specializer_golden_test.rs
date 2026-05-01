@@ -697,3 +697,37 @@ fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
         .expect("parse_blocks.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
+
+// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
+#[test]
+fn rust_specializer_produces_byte_identical_runtime_rs() {
+    // i147 Wave 5-B — Rust-native specializer for runtime/mod.rs (the
+    // top-level Runtime struct + boot pipeline + dispatch surface +
+    // Value / RuntimeError + repo_key / repo_lookup_key + trigram
+    // helpers). Three-level nested shape : Section rows for top-level
+    // partitions, RuntimeMethod rows for impl-block methods, BootPhase
+    // rows for the four-phase boot pipeline (wire_repositories,
+    // wire_policies, wire_projections, assemble_runtime).
+    //
+    // Real compression : adding a boot phase (e.g. wire_adapters when
+    // adapter wiring lifts out of terminal/io into the boot pipeline)
+    // is now a single fixture row + snippet pair, not a hand-edit to
+    // boot_with_data_dir. Same for adding an impl Runtime method.
+    //
+    // Sister to command_dispatch_rs (Wave 5-A). Together these two
+    // goldens guard the runtime kernel's dispatch + wiring surface ;
+    // every behavior test downstream passes through these files.
+    let root = repo_root();
+    let bin = root.join("rust/target/release/hecks-life");
+    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let output = Command::new(&bin)
+        .args(["specialize", "runtime"])
+        .current_dir(&root)
+        .output()
+        .expect("hecks-life specialize runtime failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
+    let tracked = fs::read_to_string(root.join("rust/src/runtime/mod.rs"))
+        .expect("runtime/mod.rs missing");
+    assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
+}

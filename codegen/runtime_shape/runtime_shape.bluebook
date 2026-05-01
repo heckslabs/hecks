@@ -1,0 +1,130 @@
+Hecks.bluebook "RuntimeShape", version: "2026.05.01.1" do
+  vision "The shape of rust/src/runtime/mod.rs as a bluebook — the top-level Runtime struct + boot pipeline + dispatch surface, regenerated from declarative section / method / phase rows so the boot pipeline phases (wire repositories, wire policies, wire projections, assemble) become row-edits rather than hand-edits to the kernel."
+  category "autophagy"
+
+  # ============================================================
+  # RUNTIME SHAPE — i147 Wave 5-B target
+  # ============================================================
+  #
+  # rust/src/runtime/mod.rs is the runtime kernel root :
+  #
+  #   - declares the Runtime struct (the seven-field Domain + repos +
+  #     event_bus + policy_engine + projections + middleware + data_dir
+  #     bag) ;
+  #
+  #   - implements the boot pipeline (Domain → wired Runtime) as
+  #     `boot_with_data_dir`, with a thin `boot` overload ;
+  #
+  #   - hosts the public Runtime impl methods (dispatch, dispatch_isolated,
+  #     find, all, drain_policies, inject_refs, projections, resolve_query,
+  #     run_interactive) — every dispatch the runtime answers passes
+  #     through one of these ;
+  #
+  #   - declares the dynamic Value enum (Str/Int/Bool/List/Map/Null) +
+  #     its accessors + Display impl ;
+  #
+  #   - declares the RuntimeError enum + its Display impl ;
+  #
+  #   - exports the `attrs!` macro and the `repo_key` /
+  #     `repo_lookup_key` helpers + the trigram-similarity helpers
+  #     (pascal_to_phrase, trigram_sim) used by resolve_query.
+  #
+  # Wave 5-B retires the file via three aggregates :
+  #
+  #   Section       — file-level partitions in source order. body_kind
+  #                   "verbatim_section" reads a snippet raw ; body_kind
+  #                   "runtime_impl" emits the impl Runtime { … } block
+  #                   by walking RuntimeMethod rows.
+  #
+  #   RuntimeMethod — methods inside `impl Runtime { … }`, in source
+  #                   order. body_kind "verbatim_method" reads a snippet
+  #                   raw ; body_kind "boot_pipeline" emits the
+  #                   boot_with_data_dir function by walking BootPhase
+  #                   rows.
+  #
+  #   BootPhase     — ordered phases of boot_with_data_dir. Each row
+  #                   points at a per-phase snippet :
+  #                     wire_repositories — for-loop building the per-
+  #                                         aggregate Repository HashMap
+  #                                         keyed by (context, name).
+  #                     wire_policies     — for-loop registering each
+  #                                         declared policy with the
+  #                                         PolicyEngine.
+  #                     wire_projections  — iter+map+collect that builds
+  #                                         a Projection per aggregate
+  #                                         via projection::auto_projection.
+  #                     assemble_runtime  — the Runtime { … } literal
+  #                                         that wires EventBus::new() +
+  #                                         MiddlewareStack::new() into
+  #                                         the constructed value.
+  #                   Adding a new boot phase is a row edit ; the
+  #                   specializer concatenates phase snippets in `order`
+  #                   ascending inside the boot function header/footer.
+  #
+  # Layer mapping :
+  #   L0 = this file + fixtures/runtime_shape.fixtures + snippets/*.rs.frag
+  #   L1 = canonical_ir representation of this file
+  #   L7 = rust/src/runtime/mod.rs (generated)
+  #
+  # Why three aggregates rather than one : the file has nested structure.
+  # Section is one level (top-level partitions), RuntimeMethod is the
+  # second level (method bodies inside the impl block), BootPhase is the
+  # third level (phases inside one method's body). Modeling each level
+  # as its own aggregate keeps the row data declarative ; the alternative
+  # (one big Section list with knobs for nesting) would push the
+  # branching logic out of the data and into the specializer.
+
+  aggregate "Section", "One ordered top-level code section in runtime/mod.rs" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_section | runtime_impl
+    #   verbatim_section — read snippet_path raw, emit unchanged.
+    #   runtime_impl     — emit `impl Runtime { … }` block by walking
+    #                      RuntimeMethod rows in `order` ascending,
+    #                      wrapped by `impl Runtime {\n` opener and
+    #                      closing `}\n`.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. Required for verbatim_section ;
+    # ignored for runtime_impl (which builds its body from RuntimeMethod rows).
+    attribute :snippet_path, String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+
+  aggregate "RuntimeMethod", "One method inside impl Runtime { … }, emitted in source order" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating.
+    attribute :order,        Integer
+    # body_kind: verbatim_method | boot_pipeline
+    #   verbatim_method — read snippet_path raw, emit unchanged. The
+    #                     snippet is the full method (incl. leading doc
+    #                     comment when present and trailing blank line
+    #                     separator when present).
+    #   boot_pipeline   — emit `pub fn boot_with_data_dir(domain, data_dir)
+    #                     -> Self { … }` by walking BootPhase rows in
+    #                     `order` ascending, wrapped by the function
+    #                     signature and closing brace + trailing blank.
+    attribute :body_kind,    String
+    # snippet_path: relative to repo root. Required for verbatim_method ;
+    # ignored for boot_pipeline (which builds its body from BootPhase rows).
+    attribute :snippet_path, String, default: ""
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+
+  aggregate "BootPhase", "One ordered phase in boot_with_data_dir's pipeline" do
+    attribute :name,         String
+    # order: ascending integer ; specializer sorts before concatenating
+    # phase snippets inside the boot function's body.
+    attribute :order,        Integer
+    # snippet_path: relative to repo root. The .rs.frag file containing
+    # this phase's body (incl. trailing blank-line separator when the
+    # phase is followed by another phase ; the final phase's snippet has
+    # no trailing blank because the closing function brace follows
+    # immediately).
+    attribute :snippet_path, String
+    # description: prose for humans reading the bluebook ; not emitted.
+    attribute :description,  String, default: ""
+  end
+end
