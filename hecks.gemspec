@@ -1,4 +1,4 @@
-require_relative "lib/hecks/version"
+require_relative "ruby/hecks/version"
 
 Gem::Specification.new do |spec|
   spec.name          = "hecks"
@@ -9,10 +9,10 @@ Gem::Specification.new do |spec|
   spec.homepage      = "https://github.com/chrisyoung/hecks"
   spec.license       = "MIT"
 
-  spec.files         = Dir["lib/**/*.{rb,hec,bluebook,html,js,css}"] +
+  spec.files         = Dir["ruby/**/*.{rb,hec,bluebook,html,js,css}"] +
                        Dir["hecks/**/*.{bluebook,hecksagon,world}"] +
                        ["README.md", "FEATURES.md", "hecks_logo.png"]
-  spec.require_paths = ["lib"]
+  spec.require_paths = ["ruby"]
   spec.bindir        = "bin"
   spec.executables   = ["hecks", "hecks_claude", "appeal"]
 

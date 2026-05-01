@@ -5,7 +5,7 @@
 # For each bullet in FEATURES.md:
 #   1. extract code-like identifiers (PascalCase, backticked tokens,
 #      Hecks::Namespaced names)
-#   2. grep lib/, hecks_life/src/, hecks_conception/aggregates/**,
+#   2. grep lib/, rust/src/, hecks_conception/aggregates/**,
 #      hecks_conception/capabilities/**, and spec/ for evidence
 #   3. classify: verified | missing | unverifiable
 #
@@ -30,8 +30,8 @@ FEATURES = REPO / "FEATURES.md"
 
 # Paths searched for evidence. Order matters only for reporting.
 SEARCH_PATHS = [
-  ["ruby", REPO / "lib"],
-  ["rust", REPO / "hecks_life" / "src"],
+  ["ruby", REPO / "ruby"],
+  ["rust", REPO / "rust" / "src"],
   ["bluebook_aggregates", REPO / "hecks_conception" / "aggregates"],
   ["bluebook_capabilities", REPO / "hecks_conception" / "capabilities"],
   ["tests", REPO / "spec"],

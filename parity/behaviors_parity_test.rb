@@ -13,7 +13,7 @@
 #
 require "open3"
 
-HECKS_LIFE   = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE   = File.expand_path("../rust/target/release/hecks-life", __dir__)
 RUBY_RUNNER  = File.expand_path("../bin/hecks-behaviors", __dir__)
 KNOWN_DRIFT  = File.expand_path("behaviors_known_drift.txt", __dir__)
 

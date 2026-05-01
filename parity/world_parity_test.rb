@@ -18,7 +18,7 @@ require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE = File.expand_path("../rust/target/release/hecks-life", __dir__)
 REPO_ROOT  = File.expand_path("..", __dir__)
 
 # Cover every `.world` shipped in-tree except node_modules / vendor / git
@@ -26,13 +26,13 @@ REPO_ROOT  = File.expand_path("..", __dir__)
 # repo root doesn't silently join the parity suite.
 WORLD_FILES = (
   Dir[File.join(REPO_ROOT, "hecks_conception", "**", "*.world")] +
-  Dir[File.join(REPO_ROOT, "lib", "**", "*.world")] +
+  Dir[File.join(REPO_ROOT, "ruby", "**", "*.world")] +
   Dir[File.join(REPO_ROOT, "examples", "**", "*.world")]
 ).sort.uniq
 
 KNOWN_DRIFT_FILE = File.expand_path("world_known_drift.txt", __dir__)
 
-abort "hecks-life not built — run: (cd hecks_life && cargo build --release)" unless File.executable?(HECKS_LIFE)
+abort "hecks-life not built — run: (cd rust && cargo build --release)" unless File.executable?(HECKS_LIFE)
 
 def load_known_drift
   return {} unless File.exist?(KNOWN_DRIFT_FILE)

@@ -43,7 +43,7 @@ trap 'kill -- -$$ 2>/dev/null || true' EXIT
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
-HECKS="${HECKS_BIN:-$REPO_ROOT/hecks_life/target/release/hecks-life}"
+HECKS="${HECKS_BIN:-$REPO_ROOT/rust/target/release/hecks-life}"
 [ -x "$HECKS" ] || { echo "FAIL — hecks-life binary not found at $HECKS" >&2; exit 2; }
 
 MIETTE="$REPO_ROOT/../miette"

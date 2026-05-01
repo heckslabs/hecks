@@ -9,7 +9,7 @@
 
 set -u
 DIR="$(cd "$(dirname "$0")" && pwd)"
-HECKS="$DIR/../hecks_life/target/release/hecks-life"
+HECKS="$DIR/../rust/target/release/hecks-life"
 CHECK="$DIR/status_coherence.sh"
 
 pass=0; fail=0

@@ -27,7 +27,7 @@
 # Set TESTS_SKIP=1 to bypass gate 6 (also an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
+HECKS_LIFE="$REPO/rust/target/release/hecks-life"
 CONCEPTION_DIR="$REPO/hecks_conception"
 PARITY_TEST="$REPO/parity/parity_test.rb"
 HECKSAGON_PARITY_TEST="$REPO/parity/hecksagon_parity_test.rb"
@@ -37,7 +37,7 @@ WORLD_PARITY_TEST="$REPO/parity/world_parity_test.rb"
 # Ruby DSL parser and Rust hecks-life parser must agree on every
 # fixture not listed in parity/known_drift.txt.
 if [ -z "$PARITY_SKIP" ] && [ -f "$PARITY_TEST" ]; then
-    if ! (cd "$REPO" && ruby -Ilib "$PARITY_TEST" >/tmp/parity.out 2>&1); then
+    if ! (cd "$REPO" && ruby -Iruby "$PARITY_TEST" >/tmp/parity.out 2>&1); then
         echo "COMMIT BLOCKED: parity suite failed (unexpected drift)."
         echo ""
         tail -40 /tmp/parity.out
@@ -45,7 +45,7 @@ if [ -z "$PARITY_SKIP" ] && [ -f "$PARITY_TEST" ]; then
         echo "Either fix the drift, or — if it is a real semantic gap —"
         echo "add the fixture path to parity/known_drift.txt."
         echo ""
-        echo "Re-run: ruby -Ilib parity/parity_test.rb"
+        echo "Re-run: ruby -Iruby parity/parity_test.rb"
         exit 1
     fi
 fi
@@ -54,22 +54,22 @@ fi
 # Same contract as Gate 1, but for the .hecksagon and .world DSLs
 # (see parity/{hecksagon,world}_known_drift.txt for allowed drift).
 if [ -z "$PARITY_SKIP" ] && [ -f "$HECKSAGON_PARITY_TEST" ]; then
-    if ! (cd "$REPO" && ruby -Ilib "$HECKSAGON_PARITY_TEST" >/tmp/hecksagon_parity.out 2>&1); then
+    if ! (cd "$REPO" && ruby -Iruby "$HECKSAGON_PARITY_TEST" >/tmp/hecksagon_parity.out 2>&1); then
         echo "COMMIT BLOCKED: hecksagon parity suite failed."
         echo ""
         tail -40 /tmp/hecksagon_parity.out
         echo ""
-        echo "Re-run: ruby -Ilib parity/hecksagon_parity_test.rb"
+        echo "Re-run: ruby -Iruby parity/hecksagon_parity_test.rb"
         exit 1
     fi
 fi
 if [ -z "$PARITY_SKIP" ] && [ -f "$WORLD_PARITY_TEST" ]; then
-    if ! (cd "$REPO" && ruby -Ilib "$WORLD_PARITY_TEST" >/tmp/world_parity.out 2>&1); then
+    if ! (cd "$REPO" && ruby -Iruby "$WORLD_PARITY_TEST" >/tmp/world_parity.out 2>&1); then
         echo "COMMIT BLOCKED: world parity suite failed."
         echo ""
         tail -40 /tmp/world_parity.out
         echo ""
-        echo "Re-run: ruby -Ilib parity/world_parity_test.rb"
+        echo "Re-run: ruby -Iruby parity/world_parity_test.rb"
         exit 1
     fi
 fi
@@ -135,15 +135,15 @@ fi
 # ── Gate 3: conceiver parity test ─────────────────────────────────
 # Bluebook conceiver and behaviors conceiver must keep the same
 # shape: same files, same Conceiver trait, same surface.
-if [ -d "$REPO/hecks_life" ]; then
-    if ! (cd "$REPO/hecks_life" \
+if [ -d "/rust" ]; then
+    if ! (cd "/rust" \
             && cargo test --release --test conceiver_parity_test \
                  >/tmp/conceiver_parity.out 2>&1); then
         echo "COMMIT BLOCKED: conceiver parity test failed (drift between conceivers)."
         echo ""
         tail -30 /tmp/conceiver_parity.out
         echo ""
-        echo "Re-run: (cd hecks_life && cargo test --release --test conceiver_parity_test)"
+        echo "Re-run: (cd rust && cargo test --release --test conceiver_parity_test)"
         exit 1
     fi
 fi

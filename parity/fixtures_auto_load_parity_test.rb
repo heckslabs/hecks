@@ -21,7 +21,7 @@ require "open3"
 require "tmpdir"
 require "fileutils"
 
-HECKS_LIFE  = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE  = File.expand_path("../rust/target/release/hecks-life", __dir__)
 RUBY_RUNNER = File.expand_path("../bin/hecks-behaviors", __dir__)
 
 abort "hecks-life not built" unless File.executable?(HECKS_LIFE)

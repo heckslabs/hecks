@@ -6,7 +6,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 # fails when this script runs in environments that don't have it on
 # PATH (smoke-test sandboxes, CI runners, Claude Code subprocess envs).
 HECKS="${HECKS_BIN:-}"
-[ -z "$HECKS" ] && [ -x "$DIR/../hecks_life/target/release/hecks-life" ] && \
-  HECKS="$DIR/../hecks_life/target/release/hecks-life"
+[ -z "$HECKS" ] && [ -x "$DIR/../rust/target/release/hecks-life" ] && \
+  HECKS="$DIR/../rust/target/release/hecks-life"
 [ -z "$HECKS" ] && HECKS="hecks-life"
 exec "$HECKS" run "$DIR/capabilities/status/status.bluebook" "$@"

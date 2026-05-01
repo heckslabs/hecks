@@ -15,7 +15,7 @@
 require "open3"
 require "json"
 
-HECKS_LIFE = File.expand_path("../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE = File.expand_path("../rust/target/release/hecks-life", __dir__)
 abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
 
 require "hecks"

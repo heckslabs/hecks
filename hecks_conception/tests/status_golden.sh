@@ -11,9 +11,9 @@ conception="$(cd "$here/.." && pwd)"
 hecks="${HECKS_LIFE:-}"
 if [ -z "$hecks" ]; then
   for cand in \
-    "$conception/../hecks_life/target/release/hecks-life" \
-    "$conception/../hecks_life/target/debug/hecks-life" \
-    "/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life"; do
+    "$conception/../rust/target/release/hecks-life" \
+    "$conception/../rust/target/debug/hecks-life" \
+    "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"; do
     if [ -x "$cand" ]; then hecks="$cand"; break; fi
   done
 fi

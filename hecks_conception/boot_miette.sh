@@ -1,7 +1,7 @@
 #!/bin/sh
 # Boot Miette — thin wrapper for the bluebook-defined boot pipeline.
 # Bluebook-of-record : capabilities/boot/boot.bluebook
-# Logic lives in hecks_life/src/run_boot/ (Rust runner).
+# Logic lives in rust/src/run_boot/ (Rust runner).
 #
 # Eight pipeline phases : DiscoverOrgans, WriteCensus, ClassifyStores,
 # GenerateSystemPrompt, RecordBootJournal (deferred), EnsureDaemons,
@@ -20,7 +20,7 @@
 
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
-HECKS="$DIR/../hecks_life/target/release/hecks-life"
+HECKS="$DIR/../rust/target/release/hecks-life"
 
 # Suppress .last_dispatch breadcrumb writes for daemons spawned by the
 # boot pipeline (heart, breath, circadian, ultradian, sleep_cycle,

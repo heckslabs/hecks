@@ -23,7 +23,7 @@
 
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
-HECKS="$DIR/../hecks_life/target/release/hecks-life"
+HECKS="$DIR/../rust/target/release/hecks-life"
 HEKI="$DIR/information/inbox.heki"
 
 # Look up a record's uuid by its short ref. Prints uuid or empty.

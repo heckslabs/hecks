@@ -23,7 +23,7 @@
 # Set BEHAVIORS_SKIP=1 to bypass for emergencies (an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-HECKS_LIFE="$REPO/hecks_life/target/release/hecks-life"
+HECKS_LIFE="$REPO/rust/target/release/hecks-life"
 
 if [ -n "$BEHAVIORS_SKIP" ]; then
     echo "pre-push: BEHAVIORS_SKIP=1 — skipping behaviors gate (antibody failure)."
@@ -32,7 +32,7 @@ fi
 
 if [ ! -x "$HECKS_LIFE" ]; then
     echo "pre-push: hecks-life binary not found at $HECKS_LIFE — skipping."
-    echo "  Build with: (cd hecks_life && cargo build --release)"
+    echo "  Build with: (cd rust && cargo build --release)"
     exit 0
 fi
 

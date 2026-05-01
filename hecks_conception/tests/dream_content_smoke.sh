@@ -32,13 +32,13 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
 # Prefer the hecks-life binary next to this conception. If this is a
 # worktree without a built target, fall back to the main repo's binary
 # (the worktree shares its Cargo workspace but doesn't own a target).
-HECKS="${HECKS:-$ROOT/../hecks_life/target/release/hecks-life}"
+HECKS="${HECKS:-$ROOT/../rust/target/release/hecks-life}"
 if [ ! -x "$HECKS" ]; then
   # Walk up until we find a built hecks-life or hit /.
   candidate="$ROOT"
   while [ "$candidate" != "/" ]; do
-    if [ -x "$candidate/hecks_life/target/release/hecks-life" ]; then
-      HECKS="$candidate/hecks_life/target/release/hecks-life"; break
+    if [ -x "$candidate/rust/target/release/hecks-life" ]; then
+      HECKS="$candidate/rust/target/release/hecks-life"; break
     fi
     candidate="$(dirname "$candidate")"
   done

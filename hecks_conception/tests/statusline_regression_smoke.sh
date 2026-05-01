@@ -40,10 +40,10 @@ REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/hecks_life/target/release/hecks-life"
-elif [ -x "$REPO_ROOT/hecks_life/target/debug/hecks-life" ]; then
-  HECKS="$REPO_ROOT/hecks_life/target/debug/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/debug/hecks-life" ]; then
+  HECKS="$REPO_ROOT/rust/target/debug/hecks-life"
 else
   echo "hecks-life binary not found" >&2
   exit 1

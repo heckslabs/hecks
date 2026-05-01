@@ -33,10 +33,10 @@ REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/hecks_life/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/hecks_life/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/hecks_life/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
 else
   echo "FAIL — can't find hecks-life binary"
   exit 2
@@ -49,8 +49,8 @@ TMP=$(mktemp -d -t body_cycles_smoke.XXXXXX)
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/hecks_conception/information" "$TMP/hecks_conception/aggregates"
-mkdir -p "$TMP/hecks_life/target/release"
-ln -sf "$HECKS" "$TMP/hecks_life/target/release/hecks-life"
+mkdir -p "$TMP/rust/target/release"
+ln -sf "$HECKS" "$TMP/rust/target/release/hecks-life"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
 
 INFO="$TMP/hecks_conception/information"
