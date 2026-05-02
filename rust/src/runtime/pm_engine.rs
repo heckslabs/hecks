@@ -45,6 +45,13 @@ pub struct PMInstanceState {
     pub correlation_id: String,
     pub state: String,
     pub last_event: Option<String>,
+    /// Per-instance attribute storage. Phase 2.c
+    /// (pm-attribute-writes) — writes flow in from `set :attr, ...`
+    /// directives in PM handlers ; reads flow out via `from_pm(:attr)`
+    /// in the same handlers' dispatch with-specs. Stringly typed to
+    /// match the existing ValueSpec literal/default convention ; the
+    /// dispatch evaluator wraps reads as `Value::Str`.
+    pub attributes: HashMap<String, String>,
 }
 
 /// What PMEngine returns when an event triggers state changes.
@@ -128,6 +135,7 @@ impl PMEngine {
                             correlation_id: correlation_id.clone(),
                             state: initial.clone(),
                             last_event: Some(event.name.clone()),
+                            attributes: HashMap::new(),
                         },
                     );
                     initial
@@ -145,12 +153,24 @@ impl PMEngine {
         let to_state = handler.to_state.clone();
         let dispatches = handler.dispatches.clone();
 
+        // Preserve per-instance attributes across the transition. Set
+        // directives evaluated by the runtime later (drain_pms) mutate
+        // them in place via `apply_set` ; this clone keeps anything
+        // that was set on a previous handler firing intact when the
+        // current handler doesn't write to that key.
+        let prior_attributes = binding
+            .instances
+            .get(&correlation_id)
+            .map(|inst| inst.attributes.clone())
+            .unwrap_or_default();
+
         binding.instances.insert(
             correlation_id.clone(),
             PMInstanceState {
                 correlation_id: correlation_id.clone(),
                 state: to_state.clone(),
                 last_event: Some(event.name.clone()),
+                attributes: prior_attributes,
             },
         );
 
@@ -166,6 +186,32 @@ impl PMEngine {
 
     pub fn complete(&mut self, pm_name: &str) {
         self.in_flight.remove(pm_name);
+    }
+
+    /// Phase 2.c — apply one resolved (attr, value) pair to the named
+    /// PM instance's per-instance attribute map. Caller (Runtime
+    /// drain_pms) evaluates the handler's `set_specs` ValueSpecs first
+    /// (using the same evaluator as `with_spec`), then walks the
+    /// resolved pairs through `apply_set`. No-op when the binding or
+    /// instance is missing — drain_pms only reaches this after a
+    /// successful PMTrigger so the row exists in normal flow.
+    pub fn apply_set(&mut self, pm_name: &str, correlation_id: &str, attr: &str, value: String) {
+        if let Some(binding) = self.bindings.get_mut(pm_name) {
+            if let Some(inst) = binding.instances.get_mut(correlation_id) {
+                inst.attributes.insert(attr.to_string(), value);
+            }
+        }
+    }
+
+    /// Phase 2.c — read one attribute off a PM instance for
+    /// from_pm(:attr) evaluation. Returns None when the binding,
+    /// instance, or attribute is absent ; the caller falls back to
+    /// the ValueSpec's `default`.
+    pub fn read_attribute(&self, pm_name: &str, correlation_id: &str, attr: &str) -> Option<&str> {
+        self.bindings
+            .get(pm_name)
+            .and_then(|b| b.instances.get(correlation_id))
+            .and_then(|inst| inst.attributes.get(attr).map(|s| s.as_str()))
     }
 
     pub fn bindings(&self) -> impl Iterator<Item = &PMBinding> {
@@ -212,12 +258,28 @@ impl PMEngine {
                         .get("last_event")
                         .and_then(|v| v.as_str())
                         .map(String::from);
+                    // Phase 2.c — read the per-instance attributes hash
+                    // back. The on-disk shape is a JSON object under
+                    // the "attributes" key ; missing key (legacy
+                    // pre-2.c records) loads as an empty hash.
+                    let attributes = record
+                        .get("attributes")
+                        .and_then(|v| v.as_object())
+                        .map(|obj| {
+                            obj.iter()
+                                .filter_map(|(k, v)| {
+                                    v.as_str().map(|s| (k.clone(), s.to_string()))
+                                })
+                                .collect::<HashMap<String, String>>()
+                        })
+                        .unwrap_or_default();
                     binding.instances.insert(
                         correlation_id.clone(),
                         PMInstanceState {
                             correlation_id,
                             state,
                             last_event,
+                            attributes,
                         },
                     );
                 }
@@ -262,6 +324,18 @@ impl PMEngine {
                 serde_json::Value::String(le.clone()),
             );
         }
+        // Phase 2.c — round-trip per-instance attributes. Always
+        // emitted (even when empty) so loaders see a consistent shape ;
+        // empty hash deserialises identically to the missing-key case
+        // for legacy records.
+        let mut attrs_obj = serde_json::Map::new();
+        for (k, v) in &inst.attributes {
+            attrs_obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+        }
+        record.insert(
+            "attributes".to_string(),
+            serde_json::Value::Object(attrs_obj),
+        );
 
         let path = pm_heki_path(dir, pm_name);
         // Ensure the parent dir exists before heki tries to write.
@@ -324,12 +398,14 @@ mod tests {
                         command_name: "Inventory.Decrement".into(),
                         with_spec: vec![],
                     }],
+                    set_specs: vec![],
                 },
                 ProcessManagerHandler {
                     event_type: "OrderDelivered".into(),
                     from_state: "shipped".into(),
                     to_state: "delivered".into(),
                     dispatches: vec![],
+                    set_specs: vec![],
                 }, // dispatches: empty Vec<DispatchSpec>
             ],
         }
@@ -435,6 +511,95 @@ mod tests {
             assert_eq!(triggers.len(), 1);
             assert_eq!(triggers[0].from_state, "shipped");
             assert_eq!(triggers[0].to_state, "delivered");
+        }
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ---- Phase 2.c — PM attribute writes -----------------------------
+
+    #[test]
+    fn apply_set_writes_per_instance_attribute() {
+        let mut engine = PMEngine::new();
+        engine.register(&order_pm());
+        let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+        engine.complete("OrderFulfillment");
+
+        engine.apply_set("OrderFulfillment", "ord_42", "carrying", "body".into());
+        assert_eq!(
+            engine.read_attribute("OrderFulfillment", "ord_42", "carrying"),
+            Some("body")
+        );
+    }
+
+    #[test]
+    fn read_attribute_returns_none_when_unset() {
+        let mut engine = PMEngine::new();
+        engine.register(&order_pm());
+        let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+        engine.complete("OrderFulfillment");
+
+        assert!(engine.read_attribute("OrderFulfillment", "ord_42", "missing").is_none());
+        assert!(engine.read_attribute("OrderFulfillment", "missing_id", "x").is_none());
+        assert!(engine.read_attribute("Missing", "ord_42", "x").is_none());
+    }
+
+    #[test]
+    fn attributes_survive_subsequent_transitions() {
+        let mut engine = PMEngine::new();
+        engine.register(&order_pm());
+        let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+        engine.complete("OrderFulfillment");
+        engine.apply_set("OrderFulfillment", "ord_42", "carrying", "body".into());
+
+        // Drive the next transition ; attribute must still be there.
+        let _ = engine.react(&evt("OrderShipped", "ord_42"));
+        engine.complete("OrderFulfillment");
+        assert_eq!(
+            engine.read_attribute("OrderFulfillment", "ord_42", "carrying"),
+            Some("body")
+        );
+    }
+
+    #[test]
+    fn attributes_round_trip_through_heki_persistence() {
+        let tmp = std::env::temp_dir().join(format!(
+            "hecks_pm_attrs_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let dir = tmp.to_string_lossy().to_string();
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Subprocess 1 : create, set attr, persist.
+        {
+            let mut engine = PMEngine::new();
+            engine.register(&order_pm());
+            engine.load_persisted(Some(&dir));
+            let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+            engine.complete("OrderFulfillment");
+            engine.apply_set("OrderFulfillment", "ord_42", "carrying", "body".into());
+            engine.apply_set("OrderFulfillment", "ord_42", "tick", "7".into());
+            engine
+                .persist_instance("OrderFulfillment", "ord_42", Some(&dir))
+                .unwrap();
+        }
+
+        // Subprocess 2 : load + verify the attributes persisted.
+        {
+            let mut engine = PMEngine::new();
+            engine.register(&order_pm());
+            engine.load_persisted(Some(&dir));
+            assert_eq!(
+                engine.read_attribute("OrderFulfillment", "ord_42", "carrying"),
+                Some("body")
+            );
+            assert_eq!(
+                engine.read_attribute("OrderFulfillment", "ord_42", "tick"),
+                Some("7")
+            );
         }
 
         let _ = std::fs::remove_dir_all(&tmp);

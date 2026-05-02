@@ -1,3 +1,5 @@
+# [antibody-exempt: ruby/hecks/dsl/process_manager_builder.rb — kernel-floor
+#  PM DSL builder, Phase 2.c set-directive surface mirrors rust/src/parse_blocks.rs.]
 module Hecks
   module DSL
 
@@ -119,6 +121,7 @@ module Hecks
         #    commands ; no Ruby proc execution required.
         action = nil
         dispatches = []
+        set_specs = []
         if block
           if block.arity == 2 || block.arity == -3
             action = block
@@ -126,6 +129,7 @@ module Hecks
             sub = OnHandlerBuilder.new
             sub.instance_eval(&block)
             dispatches = sub.dispatches
+            set_specs  = sub.set_specs
           end
         end
 
@@ -133,7 +137,8 @@ module Hecks
           event_type: event_type.to_s,
           transition: transition,
           action: action,
-          dispatches: dispatches
+          dispatches: dispatches,
+          set_specs: set_specs
         )
       end
 
@@ -162,10 +167,11 @@ module Hecks
         DispatchSpec = Behavior::ProcessManager::DispatchSpec
         ValueSpec    = Behavior::ProcessManager::ValueSpec
 
-        attr_reader :dispatches
+        attr_reader :dispatches, :set_specs
 
         def initialize
           @dispatches = []
+          @set_specs  = []
         end
 
         # Declare a command to dispatch when this handler fires.
@@ -182,6 +188,34 @@ module Hecks
             command_name: command_name.to_s,
             with_spec: with_spec
           )
+        end
+
+        # Phase 2.c — write a value into the PM instance's per-instance
+        # attributes hash. The same +ValueSpec+ vocabulary as
+        # +dispatch ..., with: { ... }+ resolves the value at handler
+        # firing time : a literal scalar passes through ; +from_event+
+        # reads the upstream event ; +from_pm+ reads a previously-set
+        # PM attribute (chained writes within a single handler see
+        # earlier writes via the runtime's evaluation order).
+        #
+        # @param attr [Symbol, String] the PM attribute name
+        # @param value [Object, ValueSpec] literal scalar or ValueSpec
+        #
+        #   set :carrying, "body"
+        #   set :steering_target, from_event(:target)
+        #   set :tick, from_pm(:tick, default: "0")
+        def set(attr, value)
+          spec = if value.is_a?(ValueSpec)
+                   value
+                 else
+                   ValueSpec.new(
+                     kind: :literal,
+                     name: nil,
+                     value: value,
+                     default: nil
+                   )
+                 end
+          @set_specs << [attr.to_s, spec]
         end
 
         # Sentinel : at dispatch time, read +event.data[name]+ ; fall back

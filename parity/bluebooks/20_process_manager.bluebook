@@ -51,5 +51,16 @@ Hecks.bluebook "Sleep", version: "2026.05.02.1" do
         occurred_at: from_event(:occurred_at)
       }
     end
+
+    # Phase 2.c — declarative `set` writes to PM attributes. Three
+    # forms mirroring the with-spec : literal / from_event / from_pm.
+    # The set evaluates BEFORE the dispatch, so the dispatched
+    # commands' from_pm reads see the freshly-set value.
+    on "TargetSighted", transition: { rem: :rem } do
+      set :steering_target, from_event(:target)
+      set :carrying, "body"
+      set :tick, from_pm(:tick, default: "0")
+      dispatch "Body.Steer", with: { target: from_pm(:steering_target) }
+    end
   end
 end

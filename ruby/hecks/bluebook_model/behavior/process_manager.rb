@@ -35,6 +35,8 @@
 #   pm.declared?(:rem)      # => true
 #   pm.handler_for("PhaseElapsed").transition  # => { light: :light }
 #
+# [antibody-exempt: ruby/hecks/bluebook_model/behavior/process_manager.rb —
+#  kernel-floor IR struct, Phase 2.c set_specs field mirrors rust/src/ir.rs.]
 module Hecks
   module BluebookModel
     module Behavior
@@ -45,16 +47,22 @@ module Hecks
         # +Hecks::EventSourcing::ProcessManager::Handler+ shape, minus
         # +correlate+ (the PM declares correlates_by once, runtime threads
         # it into each handler at instantiation time).
+        #
+        # Phase 2.c — +set_specs+ carries the declarative
+        # +set :attr, value_spec+ list captured from the on-block.
+        # Each entry is +[attr_name_string, ValueSpec]+. Empty when no
+        # +set+ was declared. Mirrors +rust/src/ir.rs+ ProcessManagerHandler.
         Handler = Struct.new(
-          :event_type, :transition, :action, :dispatches,
+          :event_type, :transition, :action, :dispatches, :set_specs,
           keyword_init: true
         ) do
-          # Default `dispatches` to [] when caller doesn't provide it.
-          # Existing tests using the Ruby-proc form (action set,
-          # dispatches absent) construct cleanly.
+          # Default `dispatches` and `set_specs` to [] when caller
+          # doesn't provide them. Existing tests using the Ruby-proc
+          # form (action set, the new fields absent) construct cleanly.
           def initialize(*)
             super
             self.dispatches ||= []
+            self.set_specs  ||= []
           end
         end
 
