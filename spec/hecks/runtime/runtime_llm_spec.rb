@@ -41,10 +41,11 @@ RSpec.describe Hecks::Runtime do
   describe "#register_llm_adapter" do
     it "stores the adapter by name" do
       runtime.register_llm_adapter(dream_adapter)
-      # Look-up confirmed by #llm reaching the dispatcher (stub raises
-      # NotImplementedError — the real impl ships in step 4 / step 6).
-      expect { runtime.llm(:dream_image, seed_image: "blue") }
-        .to raise_error(NotImplementedError, /LlmDispatcher\.call/)
+      # Look-up confirmed by #llm reaching the dispatcher. Post-step-4
+      # the dispatcher is real ; we just need to confirm the lookup
+      # delegates rather than raising ConfigurationError.
+      expect(Hecks::Runtime::LlmDispatcher).to receive(:call).and_return(:ok)
+      expect { runtime.llm(:dream_image, seed_image: "blue") }.not_to raise_error
     end
   end
 
