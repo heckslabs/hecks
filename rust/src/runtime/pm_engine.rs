@@ -1,5 +1,13 @@
 //! PMEngine — process_manager runtime execution
 //!
+//! [antibody-exempt: rust/src/runtime/pm_engine.rs — generic state-machine
+//!  interpreter for process_manager IR. PMs are bluebook ; this Rust
+//!  runtime that drives them is kernel floor at L_a (mirror of
+//!  policy_engine.rs). The deeper L_b lift — `runtime_engine` primitive
+//!  unifying PolicyEngine + PMEngine + WorkflowExecutor as one
+//!  declarable kind — is filed as a follow-on branch (see
+//!  miette/dream-study/DEBRIEF.md → "Bluebook-First backlog").]
+//!
 //! Stateful coordinator for `process_manager` declarations. Each
 //! `ProcessManager` IR registers its handlers ; on each event published
 //! to the bus, PMEngine looks up bindings, finds matching PM instances
@@ -17,6 +25,7 @@
 //!     (Policy + PM + Workflow). Future work.
 
 use super::Event;
+use crate::heki;
 use crate::ir::{ProcessManager, ProcessManagerHandler};
 use std::collections::{HashMap, HashSet};
 
@@ -164,6 +173,117 @@ impl PMEngine {
     pub fn instances(&self, pm_name: &str) -> Option<&HashMap<String, PMInstanceState>> {
         self.bindings.get(pm_name).map(|b| &b.instances)
     }
+
+    // ---- Phase D : heki persistence -----------------------------------
+    //
+    // Production daemons fork hecks-life per dispatch. Without persistence,
+    // each subprocess builds an empty PMEngine and transitions don't
+    // accumulate across ticks. Persistence routes each PM's instances
+    // through `<data_dir>/process_managers/<pm_snake>.heki`. Records are
+    // keyed by correlation_id ; each record carries state + last_event.
+    // Last-write-wins on race ; the daemon model dispatches one event
+    // per fork so concurrent writes to the same instance are rare.
+
+    /// Load existing PM instances from heki for every registered PM.
+    /// Called once at Runtime boot after register. No-op when data_dir
+    /// is None (in-memory test runtimes don't persist).
+    pub fn load_persisted(&mut self, data_dir: Option<&str>) {
+        let dir = match data_dir {
+            Some(d) => d,
+            None => return,
+        };
+        let names: Vec<String> = self.bindings.keys().cloned().collect();
+        for pm_name in names {
+            let path = pm_heki_path(dir, &pm_name);
+            let store = match heki::read(&path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            if let Some(binding) = self.bindings.get_mut(&pm_name) {
+                for (correlation_id, record) in store {
+                    let state = record
+                        .get("state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let last_event = record
+                        .get("last_event")
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
+                    binding.instances.insert(
+                        correlation_id.clone(),
+                        PMInstanceState {
+                            correlation_id,
+                            state,
+                            last_event,
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    /// Persist one instance's current state to heki. Called by Runtime
+    /// after each successful react. Idempotent — re-persisting the
+    /// same state is a no-op heki-side besides bumping updated_at.
+    pub fn persist_instance(
+        &self,
+        pm_name: &str,
+        correlation_id: &str,
+        data_dir: Option<&str>,
+    ) -> Result<(), String> {
+        let dir = match data_dir {
+            Some(d) => d,
+            None => return Ok(()),
+        };
+        let binding = self
+            .bindings
+            .get(pm_name)
+            .ok_or_else(|| format!("pm_engine.persist : no binding for {}", pm_name))?;
+        let inst = binding
+            .instances
+            .get(correlation_id)
+            .ok_or_else(|| format!("pm_engine.persist : no instance for {}/{}", pm_name, correlation_id))?;
+
+        let mut record: heki::Record = HashMap::new();
+        record.insert(
+            "id".to_string(),
+            serde_json::Value::String(correlation_id.to_string()),
+        );
+        record.insert(
+            "state".to_string(),
+            serde_json::Value::String(inst.state.clone()),
+        );
+        if let Some(le) = &inst.last_event {
+            record.insert(
+                "last_event".to_string(),
+                serde_json::Value::String(le.clone()),
+            );
+        }
+
+        let path = pm_heki_path(dir, pm_name);
+        // Ensure the parent dir exists before heki tries to write.
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        heki::upsert(
+            &path,
+            &record,
+            heki::WriteContext::Dispatch {
+                aggregate: pm_name,
+                command: "PMTransition",
+            },
+        )?;
+        Ok(())
+    }
+}
+
+/// Heki path for a process manager's instance store.
+/// Convention : `<data_dir>/process_managers/<pm_snake>.heki`
+fn pm_heki_path(data_dir: &str, pm_name: &str) -> String {
+    let snake = heki::snake_case(pm_name);
+    let trimmed = data_dir.trim_end_matches('/');
+    format!("{}/process_managers/{}.heki", trimmed, snake)
 }
 
 fn extract_correlation_id(event: &Event, correlates_by: &str) -> Option<String> {
@@ -259,5 +379,57 @@ mod tests {
         engine.complete("OrderFulfillment");
         let instances = engine.instances("OrderFulfillment").unwrap();
         assert_eq!(instances.len(), 2);
+    }
+
+    #[test]
+    fn persists_and_reloads_instance_state() {
+        let tmp = std::env::temp_dir().join(format!(
+            "hecks_pm_persist_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let dir = tmp.to_string_lossy().to_string();
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Subprocess 1 : create instance, transition, persist.
+        {
+            let mut engine = PMEngine::new();
+            engine.register(&order_pm());
+            engine.load_persisted(Some(&dir));
+
+            let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+            engine.complete("OrderFulfillment");
+            engine
+                .persist_instance("OrderFulfillment", "ord_42", Some(&dir))
+                .unwrap();
+
+            let _ = engine.react(&evt("OrderShipped", "ord_42"));
+            engine
+                .persist_instance("OrderFulfillment", "ord_42", Some(&dir))
+                .unwrap();
+            engine.complete("OrderFulfillment");
+        }
+
+        // Subprocess 2 : load + verify the prior state persisted.
+        {
+            let mut engine = PMEngine::new();
+            engine.register(&order_pm());
+            engine.load_persisted(Some(&dir));
+
+            let instances = engine.instances("OrderFulfillment").unwrap();
+            let inst = instances.get("ord_42").expect("instance must be loaded");
+            assert_eq!(inst.state, "shipped", "state should persist across forks");
+            assert_eq!(inst.last_event.as_deref(), Some("OrderShipped"));
+
+            // And further transitions on top of loaded state work :
+            let triggers = engine.react(&evt("OrderDelivered", "ord_42"));
+            assert_eq!(triggers.len(), 1);
+            assert_eq!(triggers[0].from_state, "shipped");
+            assert_eq!(triggers[0].to_state, "delivered");
+        }
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }
