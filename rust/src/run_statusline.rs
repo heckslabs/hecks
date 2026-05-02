@@ -607,8 +607,8 @@ mod tests {
         let s = State {
             consciousness: "sleeping".into(),
             sleep_stage: "rem".into(),
-            sleep_cycle: "3".into(),
-            sleep_total: "8".into(),
+            sleep_cycle: 3,
+            sleep_total: 8,
             phase_ticks: 4,            // 40 seconds elapsed
             dream_pulses: 2,
             dream_pulses_needed: 5,

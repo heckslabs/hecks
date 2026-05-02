@@ -835,18 +835,22 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
             } else if line.starts_with("on ") || line.starts_with("on\t") {
                 if let Some(h) = parse_pm_handler(line) { pm.handlers.push(h); }
                 if ends_with_do_block(line) {
-                    // Skip the action body — Ruby-side execution. Walk
-                    // until the matching `end`, tracking nested do-blocks
-                    // (curly braces in the body don't count ; only `do`).
-                    let mut body_depth = 1usize;
-                    while i + 1 < lines.len() && body_depth > 0 {
+                    // Skip the action body — Ruby-side execution. Use
+                    // indentation matching : the closing `end` of the
+                    // `on ... do` block is at the same column as `on`.
+                    // Tracking by `do`-counter alone breaks because Ruby
+                    // action bodies use `if/else/end`, `case/end`, etc. ;
+                    // those `end`s are NOT the do/end's close. Indentation
+                    // is the cleanest discriminator the canonical bluebook
+                    // formatting respects.
+                    let on_indent = lines[i].len() - lines[i].trim_start().len();
+                    while i + 1 < lines.len() {
                         i += 1;
-                        let l = lines[i].trim();
-                        if l == "end" {
-                            body_depth -= 1;
-                            if body_depth == 0 { break; }
-                        } else if ends_with_do_block(l) {
-                            body_depth += 1;
+                        let raw = lines[i];
+                        let trimmed = raw.trim();
+                        let indent = raw.len() - raw.trim_start().len();
+                        if trimmed == "end" && indent == on_indent {
+                            break;
                         }
                     }
                 }
