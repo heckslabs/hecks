@@ -65,6 +65,7 @@ module Hecks
         @attributes = []
         @actors = []
         @sagas = []
+        @process_managers = []
         @glossary_rules = []
         @fixtures = []
         @modules = []
@@ -165,6 +166,27 @@ module Hecks
         builder = SagaBuilder.new(name)
         builder.instance_eval(&block) if block
         @sagas << builder.build
+      end
+
+      # Process manager for event-driven cross-aggregate state machines.
+      # Mirrors the runtime class +Hecks::EventSourcing::ProcessManager+ exactly,
+      # so the DSL reads as a thin declarative wrapper. Phase 1 of the dream-study
+      # plan ships parser + IR ; runtime instantiation is Phase 2.
+      #
+      #   process_manager "SleepCycle" do
+      #     correlates_by :body_id
+      #     starts_on    "SleepStarted"
+      #     ends_on      "WakeFinished"
+      #     state "light"
+      #     state "rem"
+      #     on "PhaseElapsed", transition: { light: :light } do |event, pm|
+      #       { commands: ["AdvancePhase"] }
+      #     end
+      #   end
+      def process_manager(name, &block)
+        builder = ProcessManagerBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @process_managers << builder.build
       end
 
       # Ubiquitous language enforcement.
@@ -447,7 +469,8 @@ module Hecks
           services: @services, views: @views, workflows: @workflows,
           actors: @actors, tenancy: @tenancy,
           event_subscribers: @event_subscribers,
-          sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules,
+          sagas: @sagas, process_managers: @process_managers,
+          glossary_rules: @glossary_rules, modules: @modules,
           glossary_strict: @glossary_strict || false,
           world_concerns: @world_concerns,
           description: @description,

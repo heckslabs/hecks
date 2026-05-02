@@ -104,6 +104,7 @@ module Hecks
     autoload :WorkflowBuilder,     "hecks/dsl/workflow_builder"
     autoload :BranchBuilder,       "hecks/dsl/workflow_builder"
     autoload :StepCollector,       "hecks/dsl/workflow_builder"
+    autoload :ProcessManagerBuilder, "hecks/dsl/process_manager_builder"
   end
 
   # = Hecks::Generators
