@@ -25,7 +25,7 @@
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
     Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
-    ProcessManager, ProcessManagerHandler, Query, Reference, Transition,
+    DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
     ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
@@ -55,11 +55,47 @@ fn dump_process_manager(pm: &ProcessManager) -> Value {
 
 fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
     json!({
-        "dispatches": h.dispatches,
+        "dispatches": h.dispatches.iter().map(dump_dispatch).collect::<Vec<_>>(),
         "event_type": h.event_type,
         "from_state": h.from_state,
         "to_state": h.to_state,
     })
+}
+
+/// Mirror Ruby's CanonicalIR.dump_dispatch. Phase 2.b
+/// (pm-dispatch-enrichment) — dispatches carry a structured
+/// command_name + ordered with-spec map.
+fn dump_dispatch(d: &DispatchSpec) -> Value {
+    let with_pairs: Vec<Value> = d
+        .with_spec
+        .iter()
+        .map(|(k, spec)| json!([k, dump_value_spec(spec)]))
+        .collect();
+    json!({
+        "command_name": d.command_name,
+        "with": with_pairs,
+    })
+}
+
+/// Mirror Ruby's CanonicalIR.dump_value_spec. Three kinds : literal,
+/// from_event, from_pm. Defaults serialise as JSON null when absent.
+fn dump_value_spec(spec: &ValueSpec) -> Value {
+    match spec {
+        ValueSpec::Literal { value } => json!({
+            "kind": "literal",
+            "value": value,
+        }),
+        ValueSpec::FromEvent { name, default } => json!({
+            "kind": "from_event",
+            "name": name,
+            "default": default,
+        }),
+        ValueSpec::FromPm { name, default } => json!({
+            "kind": "from_pm",
+            "name": name,
+            "default": default,
+        }),
+    }
 }
 
 fn dump_aggregate(agg: &Aggregate) -> Value {

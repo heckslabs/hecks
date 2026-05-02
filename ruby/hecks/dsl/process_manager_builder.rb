@@ -141,7 +141,27 @@ module Hecks
       # `on/transition do ... end`. Captures one or more dispatch lines
       # in declaration order. The parent reads `dispatches` after
       # instance_eval returns.
+      #
+      # Two surface forms supported (Phase 2.b — pm-dispatch-enrichment) :
+      #
+      #   1. Bare command   :  +dispatch "Aggregate.Command"+
+      #      No attribute flow. Runtime injects upstream refs only.
+      #
+      #   2. Enriched form  :  +dispatch "Aggregate.Command", with: { ... }+
+      #      The +with:+ hash maps the receiving command's attribute name
+      #      to a value spec. Three spec forms :
+      #
+      #        - String / scalar literal           — passed through as-is
+      #        - +from_event(:name, default: ...)+ — reads event.data[name]
+      #        - +from_pm(:name, default: ...)+    — reads pm.data[name]
+      #
+      # Sentinel methods +from_event+ and +from_pm+ return +ValueSpec+
+      # objects that serialise into canonical IR ; the Rust runtime
+      # evaluates them at dispatch time.
       class OnHandlerBuilder
+        DispatchSpec = Behavior::ProcessManager::DispatchSpec
+        ValueSpec    = Behavior::ProcessManager::ValueSpec
+
         attr_reader :dispatches
 
         def initialize
@@ -151,8 +171,67 @@ module Hecks
         # Declare a command to dispatch when this handler fires.
         # Format : "AggregateName.CommandName" (qualified). Multiple
         # dispatches per handler fire in declaration order.
-        def dispatch(command_name)
-          @dispatches << command_name.to_s
+        #
+        # @param command_name [String] qualified command name
+        # @param with [Hash, nil] optional attr→value-spec map. Each
+        #   value is either a literal scalar (passed through) or a
+        #   ValueSpec returned by +from_event+/+from_pm+.
+        def dispatch(command_name, with: nil)
+          with_spec = build_with_spec(with)
+          @dispatches << DispatchSpec.new(
+            command_name: command_name.to_s,
+            with_spec: with_spec
+          )
+        end
+
+        # Sentinel : at dispatch time, read +event.data[name]+ ; fall back
+        # to +default+ if the key is missing. +name+ is a Symbol (the
+        # event-attribute key). +default+ is any literal scalar.
+        def from_event(name, default: nil)
+          ValueSpec.new(
+            kind: :from_event,
+            name: name.to_sym,
+            value: nil,
+            default: default
+          )
+        end
+
+        # Sentinel : at dispatch time, read +pm_instance.data[name]+ ;
+        # fall back to +default+ if the key is missing. PM-state writes
+        # are a separate (Phase-2.c) concern ; until then, +from_pm+
+        # always falls through to +default+ which is identical to the
+        # legacy procs' +pm.attributes[:x] || "—"+ pattern.
+        def from_pm(name, default: nil)
+          ValueSpec.new(
+            kind: :from_pm,
+            name: name.to_sym,
+            value: nil,
+            default: default
+          )
+        end
+
+        private
+
+        # Normalise the +with:+ hash into an ordered Array<[String, ValueSpec]>.
+        # Order preserves declaration order ; the canonical IR carries
+        # this as a list of pairs (not an unordered Hash) so byte-equal
+        # parity with the Rust dump survives Ruby Hash insertion-order
+        # quirks across versions.
+        def build_with_spec(with)
+          return [] if with.nil? || with.empty?
+          with.map do |key, value|
+            spec = if value.is_a?(ValueSpec)
+                     value
+                   else
+                     ValueSpec.new(
+                       kind: :literal,
+                       name: nil,
+                       value: value,
+                       default: nil
+                     )
+                   end
+            [key.to_s, spec]
+          end
         end
       end
 

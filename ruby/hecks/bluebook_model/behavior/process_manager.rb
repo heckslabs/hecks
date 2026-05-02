@@ -58,6 +58,42 @@ module Hecks
           end
         end
 
+        # Hecks::BluebookModel::Behavior::ProcessManager::DispatchSpec
+        #
+        # One declarative `dispatch "Cmd", with: {...}` entry inside an
+        # on-handler block. Carries the command name plus an ordered list
+        # of [attr_name, ValueSpec] pairs declared via `with:`. Empty
+        # +with_spec+ means the dispatch fires with no explicit attrs ;
+        # the runtime auto-injects upstream refs the same way the bare
+        # `dispatch "Cmd"` form does today.
+        DispatchSpec = Struct.new(
+          :command_name, :with_spec,
+          keyword_init: true
+        ) do
+          def initialize(*)
+            super
+            self.with_spec ||= []
+          end
+        end
+
+        # Hecks::BluebookModel::Behavior::ProcessManager::ValueSpec
+        #
+        # Sentinel value class describing how a single +with:+ attribute is
+        # resolved at dispatch time. Three kinds :
+        #
+        #   :literal     — the source value carried as-is
+        #   :from_event  — read +event.data[name]+ at dispatch ; +default+
+        #                  fires when the key is absent
+        #   :from_pm     — read +pm_instance.data[name]+ at dispatch ;
+        #                  +default+ fires when the key is absent
+        #
+        # +default+ is +nil+ when omitted ; runtime treats nil-default as
+        # "leave the key unset on the dispatched command's input".
+        ValueSpec = Struct.new(
+          :kind, :name, :value, :default,
+          keyword_init: true
+        )
+
         # @return [String] the PM name (PascalCase)
         attr_reader :name
 

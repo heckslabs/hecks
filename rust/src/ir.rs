@@ -62,16 +62,49 @@ pub struct ProcessManager {
 /// two named fields rather than a one-key map so the canonical JSON
 /// shape is unambiguous.
 ///
-/// `dispatches` carries the list of "Aggregate.Command" strings declared
-/// via the declarative `dispatch "..."` keyword inside `on/transition do
-/// ... end` blocks. Empty when the handler used the Ruby-proc form
-/// (action body opaque to Rust).
+/// `dispatches` carries the structured list of declarative dispatches
+/// declared via the `dispatch "Cmd", with: { ... }` keyword inside
+/// `on/transition do ... end` blocks. Empty when the handler used the
+/// Ruby-proc form (action body opaque to Rust). Phase 2.b
+/// (pm-dispatch-enrichment) lifts bare-string dispatches into
+/// `DispatchSpec` carrying per-call attribute flow.
 #[derive(Debug, Clone)]
 pub struct ProcessManagerHandler {
     pub event_type: String,
     pub from_state: String,
     pub to_state: String,
-    pub dispatches: Vec<String>,
+    pub dispatches: Vec<DispatchSpec>,
+}
+
+/// One declarative `dispatch "Cmd", with: { ... }` entry. The
+/// `with_spec` is an ordered list of `(attr_name, ValueSpec)` pairs ;
+/// declaration order is preserved (canonical IR uses an ordered
+/// list of pairs, not an unordered map). Empty `with_spec` means the
+/// dispatch fires bare (runtime auto-injects upstream refs).
+#[derive(Debug, Clone)]
+pub struct DispatchSpec {
+    pub command_name: String,
+    pub with_spec: Vec<(String, ValueSpec)>,
+}
+
+/// Sentinel describing how a single `with:` attribute resolves at
+/// dispatch time. Mirrors the Ruby
+/// `Behavior::ProcessManager::ValueSpec` shape exactly so canonical
+/// IR is byte-equal across both halves.
+///
+/// - `Literal` — pass `value` through unchanged.
+/// - `FromEvent` — read `event.data[name]` ; fall back to `default`.
+/// - `FromPm` — read `pm_instance.data[name]` ; fall back to `default`.
+///
+/// `default` is `None` when omitted in the DSL ; runtime treats a
+/// `None` default as "leave the key unset on the dispatched command's
+/// input" (the receiving aggregate will see no key, exactly as if the
+/// dispatch never named it).
+#[derive(Debug, Clone)]
+pub enum ValueSpec {
+    Literal { value: String },
+    FromEvent { name: String, default: Option<String> },
+    FromPm { name: String, default: Option<String> },
 }
 
 /// One named section in a capability dashboard. Title becomes the bordered
