@@ -57,6 +57,7 @@ module Hecks
       runtimes = boot_domains(domains, root: boot_root)
       wire_persistence(runtimes)
       wire_shell_adapters(runtimes)
+      wire_llm_adapters(runtimes)
       autoload_services(dir) unless domain
       print_boot_summary(runtimes)
       runtimes.size == 1 ? runtimes.first : runtimes
@@ -187,6 +188,19 @@ module Hecks
         hecksagon = rt.instance_variable_get(:@hecksagon)
         next unless hecksagon.respond_to?(:shell_adapters)
         hecksagon.shell_adapters.each { |sa| rt.register_shell_adapter(sa) }
+      end
+    end
+
+    # Register every `adapter :llm` declared on each runtime's
+    # hecksagon. After this call, `runtime.llm(:name, **attrs)`
+    # dispatches through Hecks::Runtime::LlmDispatcher. Mirrors
+    # wire_shell_adapters in shape — both run in the boot sequence
+    # right after wire_persistence.
+    def wire_llm_adapters(runtimes)
+      runtimes.each do |rt|
+        hecksagon = rt.instance_variable_get(:@hecksagon)
+        next unless hecksagon.respond_to?(:llm_adapters)
+        hecksagon.llm_adapters.each { |la| rt.register_llm_adapter(la) }
       end
     end
 
