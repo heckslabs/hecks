@@ -25,6 +25,7 @@ require "hecks/runtime/llm_dispatcher"
 require "hecks/runtime/llm_providers/base"
 require "hecks/runtime/llm_providers/claude_provider"
 require "hecks/runtime/llm_providers/ollama_provider"
+require "hecks/runtime/prompt_scaffolder"
 require "hecks/runtime/process_manager_setup"
 
 module Hecks
