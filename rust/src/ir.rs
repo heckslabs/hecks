@@ -32,6 +32,40 @@ pub struct Domain {
     /// dashboard rather than hard-coding section composition in Rust.
     /// Empty for bluebooks that don't declare any.
     pub sections: Vec<Section>,
+    /// Process managers — event-driven state machines that coordinate
+    /// multi-step business processes across aggregates. Phase 3 of the
+    /// dream-study plan ships parser + IR ; runtime instantiation is
+    /// Ruby-side. The Rust IR captures only the static shape (name,
+    /// correlates_by, starts/ends event types, declared states, and
+    /// per-event handlers with their from→to transition). The handler
+    /// action body is intentionally NOT captured — that's Ruby code.
+    pub process_managers: Vec<ProcessManager>,
+}
+
+/// One declared process_manager. Mirrors
+/// `Hecks::BluebookModel::Behavior::ProcessManager` minus the action proc
+/// (which is Ruby-side execution and not part of the static shape).
+/// Parity contract : this struct round-trips byte-identically through
+/// canonical_ir.rb / dump.rs.
+#[derive(Debug, Clone)]
+pub struct ProcessManager {
+    pub name: String,
+    pub correlates_by: String,
+    pub starts_on: String,
+    pub ends_on: Option<String>,
+    pub states: Vec<String>,
+    pub handlers: Vec<ProcessManagerHandler>,
+}
+
+/// One on-event handler within a process manager. The transition is
+/// always single-entry (validated Ruby-side) ; we surface from→to as
+/// two named fields rather than a one-key map so the canonical JSON
+/// shape is unambiguous.
+#[derive(Debug, Clone)]
+pub struct ProcessManagerHandler {
+    pub event_type: String,
+    pub from_state: String,
+    pub to_state: String,
 }
 
 /// One named section in a capability dashboard. Title becomes the bordered

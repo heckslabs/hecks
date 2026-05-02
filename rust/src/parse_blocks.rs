@@ -777,3 +777,125 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
     };
     Some(Mutation { field, operation: op, value })
 }
+
+/// Parse a `process_manager "Name" do … end` block.
+///
+/// Captures the static shape of the PM (name, correlates_by, starts_on,
+/// ends_on, declared states, and per-event handlers with their from→to
+/// transition). The action body inside `on "Event", transition: { x: :y }
+/// do |event, pm| … end` is intentionally consumed-and-discarded — that
+/// proc is Ruby-side execution, not part of the parity contract.
+///
+/// Form:
+///   process_manager "SleepCycle" do
+///     correlates_by :body_id
+///     starts_on    "SleepStarted"
+///     ends_on      "WakeFinished"
+///     state "light"
+///     state "rem"
+///     on "PhaseElapsed", transition: { light: :light } do |event, pm|
+///       { commands: ["AdvancePhase"] }
+///     end
+///   end
+///
+/// Returns the parsed ProcessManager plus the number of source lines
+/// consumed (including the closing `end`).
+pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
+    let first = lines[0].trim();
+    let name = extract_string(first).unwrap_or_default();
+    let mut pm = ProcessManager {
+        name,
+        correlates_by: String::new(),
+        starts_on: String::new(),
+        ends_on: None,
+        states: vec![],
+        handlers: vec![],
+    };
+
+    let mut i = 1;
+    let mut depth = 1usize;
+    while i < lines.len() && depth > 0 {
+        let line = lines[i].trim();
+        if line == "end" {
+            depth -= 1;
+            if depth == 0 { break; }
+            i += 1;
+            continue;
+        }
+
+        if depth == 1 {
+            if line.starts_with("correlates_by") {
+                if let Some(sym) = extract_symbol(line) { pm.correlates_by = sym; }
+            } else if line.starts_with("starts_on") {
+                if let Some(s) = extract_string(line) { pm.starts_on = s; }
+            } else if line.starts_with("ends_on") {
+                if let Some(s) = extract_string(line) { pm.ends_on = Some(s); }
+            } else if line.starts_with("state ") || line.starts_with("state\t") {
+                if let Some(s) = extract_string(line) { pm.states.push(s); }
+            } else if line.starts_with("on ") || line.starts_with("on\t") {
+                if let Some(h) = parse_pm_handler(line) { pm.handlers.push(h); }
+                if ends_with_do_block(line) {
+                    // Skip the action body — Ruby-side execution. Walk
+                    // until the matching `end`, tracking nested do-blocks
+                    // (curly braces in the body don't count ; only `do`).
+                    let mut body_depth = 1usize;
+                    while i + 1 < lines.len() && body_depth > 0 {
+                        i += 1;
+                        let l = lines[i].trim();
+                        if l == "end" {
+                            body_depth -= 1;
+                            if body_depth == 0 { break; }
+                        } else if ends_with_do_block(l) {
+                            body_depth += 1;
+                        }
+                    }
+                }
+            } else if ends_with_do_block(line) {
+                depth += 1;
+            }
+        } else if ends_with_do_block(line) {
+            depth += 1;
+        }
+
+        i += 1;
+    }
+    (pm, i + 1)
+}
+
+/// Parse one `on "Event", transition: { from: :to } do |event, pm|` line
+/// into a ProcessManagerHandler. Returns None if the shape is unparseable.
+///
+/// Source forms recognized :
+///   on "Event", transition: { light: :light } do |event, pm|
+///   on "Event", transition: { :light => :rem } do |event, pm|
+fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
+    let event_type = extract_string(line)?;
+    // Pull the `{ … }` after `transition:`. The action's `do |event, pm|`
+    // tail comes AFTER the transition hash, so we look for the first
+    // `{` and its matching `}` to bound the hash.
+    let trans_pos = line.find("transition:")?;
+    let after = &line[trans_pos + "transition:".len()..];
+    let open = after.find('{')?;
+    let close = after[open..].find('}')? + open;
+    let body = after[open + 1..close].trim();
+    // Body is one of :
+    //   `from: :to`        — symbol-rocket sugar
+    //   `:from => :to`     — explicit hash-rocket
+    let (from, to) = if body.contains("=>") {
+        let mut parts = body.splitn(2, "=>");
+        let lhs = parts.next()?.trim();
+        let rhs = parts.next()?.trim();
+        let from = lhs.trim_start_matches(':').trim_end_matches(',').trim().to_string();
+        let to = rhs.trim_start_matches(':').trim().to_string();
+        (from, to)
+    } else {
+        let colon = body.find(':')?;
+        let from = body[..colon].trim().to_string();
+        let rhs = body[colon + 1..].trim().trim_start_matches(':').trim();
+        let to = rhs.split(|c: char| c == ',' || c.is_whitespace())
+            .next().unwrap_or("").to_string();
+        (from, to)
+    };
+    if from.is_empty() || to.is_empty() { return None; }
+    Some(ProcessManagerHandler { event_type, from_state: from, to_state: to })
+}
