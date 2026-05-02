@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn fatigue_icon_table_covers_emitters() {
-        for f in ["alert", "focused", "tired", "exhausted", "delirious"] {
+        for f in ["rested", "alert", "focused", "tired", "exhausted", "delirious"] {
             assert!(!fatigue_icon_for(f).is_empty(), "{} should have an icon", f);
         }
         assert_eq!(fatigue_icon_for("normal"), ""); // intentionally empty
