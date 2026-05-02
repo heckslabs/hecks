@@ -43,3 +43,10 @@
 # This is a parser-side escape-sequence bug, not a shape issue. Listed as
 # known drift while the underlying parser quirk is investigated separately.
 codegen/cli_dispatch_shape/cli_dispatch_shape.bluebook  # parser escape-handling drift
+
+# parser_helpers_shape : same escape-handling drift as cli_dispatch_shape —
+# the vision string contains a literal `find('\\"')` reference to parser
+# internals, so the embedded escaped quote triggers the same Ruby-vs-Rust
+# backslash-count divergence. Surfaced 2026-05-02 ; same root cause, same
+# fix path (the underlying parser quirk).
+codegen/parser_helpers_shape/parser_helpers_shape.bluebook  # parser escape-handling drift (same as cli_dispatch_shape)
