@@ -16,6 +16,7 @@
 mod aggregate_state;
 mod command_dispatch;
 mod event_bus;
+pub mod pm_engine;
 mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
@@ -34,6 +35,7 @@ pub use command_dispatch::CommandResult;
 pub use event_bus::{Event, EventBus};
 pub use middleware::{CommandContext, MiddlewareStack, Phase};
 pub use policy_engine::{PolicyEngine, PolicyTrigger};
+pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
 
@@ -45,6 +47,7 @@ pub struct Runtime {
     pub repositories: HashMap<String, Repository>,
     pub event_bus: EventBus,
     pub policy_engine: PolicyEngine,
+    pub pm_engine: PMEngine,
     pub projections: Vec<Projection>,
     pub middleware: MiddlewareStack,
     pub data_dir: Option<String>,
@@ -78,6 +81,11 @@ impl Runtime {
             policy_engine.register(&policy.name, &policy.on_event, &policy.trigger_command);
         }
 
+        let mut pm_engine = PMEngine::new();
+        for pm in &domain.process_managers {
+            pm_engine.register(pm);
+        }
+
         let projections = domain
             .aggregates
             .iter()
@@ -89,6 +97,7 @@ impl Runtime {
             repositories,
             event_bus: EventBus::new(),
             policy_engine,
+            pm_engine,
             projections,
             middleware: MiddlewareStack::new(),
             data_dir,
@@ -237,6 +246,35 @@ impl Runtime {
     /// triggers — so this injection is what makes the prediction true.
     fn drain_policies(&mut self, result: &CommandResult) {
         if let Some(ref event) = result.event {
+            // Drive process_managers + dispatch their declared commands.
+            // Each PMTrigger carries dispatches: Vec<String> populated
+            // from the handler's declarative `dispatch "..."` lines ;
+            // route through cascade dispatcher so policies + nested PMs
+            // + downstream emits all fire normally.
+            let pm_triggers = self.pm_engine.react(event);
+            for t in pm_triggers.clone() {
+                for dispatched in &t.dispatches {
+                    let mut data = std::collections::HashMap::new();
+                    self.inject_refs(
+                        dispatched,
+                        &event.aggregate_type,
+                        &event.aggregate_id,
+                        &mut data,
+                    );
+                    let inner = command_dispatch::dispatch_cascade(
+                        self,
+                        dispatched,
+                        data,
+                        &event.aggregate_type,
+                        &event.aggregate_id,
+                    );
+                    if let Ok(inner_result) = inner {
+                        self.drain_policies(&inner_result);
+                    }
+                }
+                self.pm_engine.complete(&t.pm_name);
+            }
+
             let triggers = self.policy_engine.react(event);
             for trigger in triggers {
                 let policy_name = trigger.policy_name.clone();
