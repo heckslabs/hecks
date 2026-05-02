@@ -366,7 +366,25 @@ module Hecks
           "io_adapters"    => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
                                 .map { |io| dump_io_adapter(io) },
           "shell_adapters" => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
+          "llm_adapters"   => Array(hex.respond_to?(:llm_adapters) ? hex.llm_adapters : [])
+                                .map { |la| dump_llm_adapter(la) },
           "gates"          => Array(hex.gates).map { |g| dump_gate(g) },
+        }
+      end
+
+      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json's
+      # llm_adapters projection. Ruby holds the response routing as
+      # two attributes (target + attr) ; the canonical shape mirrors
+      # both fields so the parity diff is byte-equal.
+      def dump_llm_adapter(la)
+        {
+          "name"                 => la.name.to_s,
+          "prompt_template"      => la.prompt_template.to_s,
+          "model"                => la.model,
+          "max_tokens"           => la.max_tokens,
+          "response_into_target" => la.response_into_target,
+          "response_into_attr"   => la.response_into_attr&.to_s,
+          "backend"              => la.backend&.to_s,
         }
       end
 

@@ -22,13 +22,13 @@ module Hecksagon
       attr_reader :name, :gates, :persistence, :extensions, :subscriptions, :tenancy,
                   :capabilities, :concerns, :excluded_capabilities, :aggregate_capabilities,
                   :annotations, :context_map, :driving_ports, :driven_ports, :port_contracts,
-                  :shell_adapters, :io_adapters
+                  :shell_adapters, :io_adapters, :llm_adapters
 
       def initialize(name:, gates: [], persistence: nil, extensions: [], subscriptions: [],
                      tenancy: nil, capabilities: [], concerns: [], excluded_capabilities: [],
                      aggregate_capabilities: {}, annotations: [], context_map: [],
                      driving_ports: [], driven_ports: [], port_contracts: [],
-                     shell_adapters: [], io_adapters: [])
+                     shell_adapters: [], io_adapters: [], llm_adapters: [])
         @name = name
         @gates = gates
         @persistence = persistence
@@ -46,6 +46,7 @@ module Hecksagon
         @port_contracts = port_contracts
         @shell_adapters = shell_adapters
         @io_adapters = io_adapters
+        @llm_adapters = llm_adapters
       end
 
       # Look up a declared shell adapter by name.
@@ -55,6 +56,15 @@ module Hecksagon
       def shell_adapter(adapter_name)
         sym = adapter_name.to_sym
         @shell_adapters.find { |a| a.name == sym }
+      end
+
+      # Look up a declared LLM adapter by name.
+      #
+      # @param adapter_name [Symbol, String]
+      # @return [Hecksagon::Structure::LlmAdapter, nil]
+      def llm_adapter(adapter_name)
+        sym = adapter_name.to_sym
+        @llm_adapters.find { |a| a.name == sym }
       end
 
       # Check if a capability is excluded.

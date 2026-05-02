@@ -25,6 +25,7 @@ module Hecksagon
         @context_map = []
         @shell_adapters = []
         @io_adapters = []
+        @llm_adapters = []
       end
 
       # Declare context map relationships between bounded contexts.
@@ -84,6 +85,8 @@ module Hecksagon
         case k
         when :shell
           _build_shell_adapter(name, opts, &block)
+        when :llm
+          _build_llm_adapter(name, opts, &block)
         when :memory, :heki
           @persistence = { type: k }.merge(opts)
         else
@@ -117,6 +120,32 @@ module Hecksagon
         end
       end
       private :_build_shell_adapter
+
+      # Internal — llm adapter branch of the four-way dispatch. Mirrors
+      # _build_shell_adapter shape : block sub-DSL via LlmAdapterBuilder
+      # collects prompt_template, model, max_tokens, response_into,
+      # backend ; one-liner kwargs are merged on top.
+      #
+      # When `name:` is omitted the call falls back to the io_adapter
+      # bucket — matches the Rust parser's parse_llm_adapter behaviour
+      # and keeps backward-compat with the existing bare
+      # `adapter :llm, backend: :claude` form already in production
+      # hecksagons (wake_review, musing_mint, dream_review, rem_dream).
+      def _build_llm_adapter(name, opts, &block)
+        if name.nil?
+          _build_io_adapter(:llm, opts, &block)
+          return
+        end
+        sym = name.to_sym
+        if @llm_adapters.any? { |a| a.name == sym }
+          raise ArgumentError, "llm adapter :#{name} already declared in this hecksagon"
+        end
+        builder = LlmAdapterBuilder.new(name)
+        builder.instance_eval(&block) if block
+        builder.apply_options(opts)
+        @llm_adapters << builder.build
+      end
+      private :_build_llm_adapter
 
       # Internal — io adapter branch of the three-way dispatch. Optional
       # block runs in an IoAdapterBuilder to collect `on :Event` hooks.
@@ -330,7 +359,8 @@ module Hecksagon
           driven_ports: @driven_ports || [],
           port_contracts: @port_contracts || [],
           shell_adapters: @shell_adapters,
-          io_adapters: @io_adapters
+          io_adapters: @io_adapters,
+          llm_adapters: @llm_adapters
         )
       end
 
