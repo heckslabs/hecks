@@ -20,6 +20,13 @@
 //! Usage:
 //!   let rust = dump::emit(repo_root)?;
 //!   print!("{}", rust);
+//!
+//! [antibody-exempt: rust/src/specializer/dump.rs — kernel-floor
+//!  Rust-native specializer for dump.rs ; reads dump_shape fixtures and
+//!  emits the Rust source. The IMPORTS hardcoded constant is the
+//!  remaining hand-edit surface — i221 retires it via render_use_line
+//!  derived from fixture rows. Test-only kernel surface adjacent
+//!  (specializer source). Retires when i221 lands.]
 
 use crate::ir::Fixture;
 use crate::specializer::util;
@@ -71,8 +78,9 @@ const HEADER: &str = r#"//! Canonical IR dump — JSON shape that both Ruby and 
 
 const IMPORTS: &str = "use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
-    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy, Query,
-    Reference, Transition, ValueObject, WhereClause, WhereOp,
+    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
+    ProcessManager, ProcessManagerHandler, Query, Reference, Transition,
+    ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 
