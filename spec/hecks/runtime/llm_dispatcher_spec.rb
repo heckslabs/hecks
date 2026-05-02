@@ -80,12 +80,12 @@ RSpec.describe Hecks::Runtime::LlmDispatcher do
       expect(result.response_text).to include("[test-provider:unknown-prompt")
     end
 
-    it "returns LlmInvocationSkipped when backend is unknown and providers map is empty" do
+    it "returns Skipped(provider_unavailable) when backend is unknown and providers map is empty" do
       a = adapter(backend: :claude)
       out = described_class.call(a, {}, providers: {})
-      expect(out).to be_a(Hecks::LlmInvocationSkipped)
-      expect(out.provider).to eq(:claude)
+      expect(out).to be_a(described_class::Skipped)
       expect(out.reason).to eq("provider_unavailable")
+      expect(out.details[:provider]).to eq(:claude)
     end
 
     it "raises LlmInvocationFailed when the strict TestProvider has no fixture" do
