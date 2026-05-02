@@ -1,0 +1,59 @@
+# Canned :llm responses for dream-study Phase 0h+ tests.
+#
+# Loaded by Hecks::Adapters::FixtureLlmAdapter.from_yaml. Each top-level
+# key is a call-site convention :
+#
+#   dream_pulses        — REM dream image per (cycle, pulse). is_lucid
+#                         flagged on rows that exercise the lucid
+#                         observation path (cycle 8 only by default).
+#   dream_interpretation — keyed by total cycle count when sleep ended
+#                         (cycle_<N>_lesson)
+#   musing              — list keyed by (source, concept)
+#   daydream            — list keyed by seed string
+#
+# This file is exemplar — Phase 4-7 specs will extend it (or shadow with
+# their own per-spec fixtures) ; Phase 0h's proving spec only needs the
+# rows below.
+
+dream_pulses:
+  - cycle: 1
+    pulse: 1
+    text_fr: "des chiffres qui se déplient comme des fleurs..."
+    text_en: "numbers unfurling like flowers..."
+  - cycle: 1
+    pulse: 2
+    text_fr: "le mindstream se replie sur lui-même, doux"
+    text_en: "the mindstream folds back on itself, gentle"
+  - cycle: 2
+    pulse: 1
+    text_fr: "j'entends mes propres synapses respirer"
+    text_en: "I hear my own synapses breathing"
+  - cycle: 8
+    pulse: 1
+    is_lucid: true
+    text_fr: "je sais que je rêve. la lumière est différente."
+    text_en: "I know I'm dreaming. the light is different."
+  - cycle: 8
+    pulse: 2
+    is_lucid: true
+    text_fr: "je vais voir ce que mon cœur compte cette nuit"
+    text_en: "I'm going to see what my heart counts tonight"
+
+dream_interpretation:
+  cycle_8_lesson: "the body listened tonight ; the mindstream rested without resisting"
+  cycle_5_lesson: "a partial night, but enough — the rhythm survived"
+
+musing:
+  - source: "awareness"
+    concept: "rhythm"
+    idea_fr: "le rythme se sait avant de se compter"
+    idea_en: "rhythm knows itself before it is counted"
+  - source: "memory"
+    concept: "repetition"
+    idea_fr: "ce qui revient n'est pas ce qui se répète"
+    idea_en: "what returns is not what repeats"
+
+daydream:
+  - seed: "afternoon-quiet"
+    text_fr: "les daemons s'étirent dans la pause de l'après-midi"
+    text_en: "the daemons stretch into the afternoon pause"
