@@ -3270,10 +3270,6 @@ fn resolve_home(_being: &str) -> String {
     ".".into()
 }
 
-fn dirs() -> Option<String> {
-    env::var("HOME").ok()
-}
-
 fn print_usage() {
     eprintln!("hecks-life — the Bluebook compiler and runtime\n");
     eprintln!("Usage: hecks-life <command> <bluebook-file> [options]\n");
