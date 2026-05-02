@@ -132,6 +132,7 @@
 - `adapter :shell` — named argv-only subprocess adapter; `command` is a fixed binary, `args` is a list-of-strings with `{{placeholder}}` tokens substituted per-element at dispatch time; supports `output_format` (`:text`, `:lines`, `:json`, `:json_lines`, `:exit_code`), `timeout`, `working_dir`, `env`
 - `runtime.shell(:name, **attrs)` — dispatches a shell adapter; returns a `Result` with `output` (format-parsed), `raw_stdout`, `stderr`, `exit_status`
 - Shell dispatch security: `Open3.capture3`/`popen3` (no shell), `unsetenv_others: true` (empty env baseline, only declared env entries cross), explicit `working_dir`, sealed empty stdin, active-kill on timeout via pgroup SIGKILL
+- `adapter :llm` — named LLM-binding adapter (Phase 1 shipped — DSL + IR + Rust parser + parity fixture); declares `prompt_template` with `{{placeholder}}` tokens, `model`, `max_tokens`, `response_into "Aggregate.Command", attr: :field`, and `backend` (`:claude`, `:ollama`, `:fixture`, `:test`, `:off`); bare `adapter :llm` (no `name:`) falls back to the io-adapter bucket for backward-compat with shipped hecksagons; Phase 2 wires runtime dispatcher + `Spend.RecordCall` + `CircuitBreaker.IsOpen?` integration; see [`docs/usage/llm_adapter.md`](docs/usage/llm_adapter.md)
 - `persistence :type, ...` remains as a deprecated alias for `adapter :type, ...` (emits a one-shot warning per builder) — closes the long-standing gap where the public `adapter` DSL was vestigial
 
 ### Application Service Extensions
