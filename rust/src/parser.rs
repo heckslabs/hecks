@@ -24,6 +24,7 @@ pub fn parse(source: &str) -> Domain {
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        process_managers: vec![],
     };
 
     let source = strip_shebang(source);
@@ -82,6 +83,13 @@ pub fn parse(source: &str) -> Domain {
         if line.starts_with("policy") {
             let (policy, consumed) = parse_policy(&lines[i..]);
             domain.policies.push(policy);
+            i += consumed;
+            continue;
+        }
+
+        if line.starts_with("process_manager") {
+            let (pm, consumed) = parse_process_manager(&lines[i..]);
+            domain.process_managers.push(pm);
             i += consumed;
             continue;
         }

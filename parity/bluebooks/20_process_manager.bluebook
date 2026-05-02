@@ -1,0 +1,36 @@
+Hecks.bluebook "Sleep", version: "2026.05.02.1" do
+  vision "Process manager fixture covering all DSL features"
+
+  aggregate "Body", "The body whose sleep we coordinate" do
+    attribute :body_id, String
+
+    command "Start" do
+      role "System"
+      attribute :body_id, String
+      emits "SleepStarted"
+    end
+  end
+
+  process_manager "SleepCycle" do
+    correlates_by :body_id
+    starts_on    "SleepStarted"
+    ends_on      "WakeFinished"
+
+    state "light"
+    state "rem"
+    state "deep"
+    state "studying_dream"
+
+    on "PhaseElapsed", transition: { light: :rem } do |event, pm|
+      { commands: ["AdvancePhase"] }
+    end
+
+    on "DreamPulsed", transition: { rem: :rem } do |event, pm|
+      { commands: ["RecordDream"] }
+    end
+
+    on "DeepEntered", transition: { rem: :deep } do |event, pm|
+      { commands: ["MarkDeep"] }
+    end
+  end
+end

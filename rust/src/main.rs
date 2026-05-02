@@ -1873,6 +1873,7 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        process_managers: vec![],
     };
     // Organ-wins dedupe (i108) — when two bluebooks declare the same
     // aggregate, the one closest to the dispatch root wins. Recursive

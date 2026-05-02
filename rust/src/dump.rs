@@ -24,8 +24,9 @@
 
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
-    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy, Query,
-    Reference, Transition, ValueObject, WhereClause, WhereOp,
+    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
+    ProcessManager, ProcessManagerHandler, Query, Reference, Transition,
+    ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 
@@ -37,6 +38,26 @@ pub fn dump(domain: &Domain) -> Value {
         "aggregates": domain.aggregates.iter().map(dump_aggregate).collect::<Vec<_>>(),
         "policies": domain.policies.iter().map(dump_policy).collect::<Vec<_>>(),
         "fixtures": domain.fixtures.iter().map(dump_fixture).collect::<Vec<_>>(),
+        "process_managers": domain.process_managers.iter().map(dump_process_manager).collect::<Vec<_>>(),
+    })
+}
+
+fn dump_process_manager(pm: &ProcessManager) -> Value {
+    json!({
+        "name": pm.name,
+        "correlates_by": pm.correlates_by,
+        "starts_on": pm.starts_on,
+        "ends_on": pm.ends_on,
+        "states": pm.states,
+        "handlers": pm.handlers.iter().map(dump_pm_handler).collect::<Vec<_>>(),
+    })
+}
+
+fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
+    json!({
+        "event_type": h.event_type,
+        "from_state": h.from_state,
+        "to_state": h.to_state,
     })
 }
 

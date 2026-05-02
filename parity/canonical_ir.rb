@@ -30,13 +30,38 @@ module Hecks
 
       def dump(domain)
         all_policies = collect_all_policies(domain)
+        pms = domain.respond_to?(:process_managers) ? (domain.process_managers || []) : []
         {
-          "name"       => domain.name,
-          "category"   => category_for(domain),
-          "vision"     => domain.vision,
-          "aggregates" => domain.aggregates.map { |a| dump_aggregate(a) },
-          "policies"   => all_policies.map { |p| dump_policy(p) },
-          "fixtures"   => (domain.fixtures || []).map { |f| dump_fixture(f) },
+          "name"             => domain.name,
+          "category"         => category_for(domain),
+          "vision"           => domain.vision,
+          "aggregates"       => domain.aggregates.map { |a| dump_aggregate(a) },
+          "policies"         => all_policies.map { |p| dump_policy(p) },
+          "fixtures"         => (domain.fixtures || []).map { |f| dump_fixture(f) },
+          "process_managers" => pms.map { |pm| dump_process_manager(pm) },
+        }
+      end
+
+      # Mirror Rust's dump_process_manager. Static shape only — the action
+      # proc on each handler is intentionally NOT dumped (Ruby-side
+      # execution, not part of the parity contract).
+      def dump_process_manager(pm)
+        {
+          "name"          => pm.name.to_s,
+          "correlates_by" => pm.correlates_by.to_s,
+          "starts_on"     => pm.starts_on.to_s,
+          "ends_on"       => pm.ends_on.nil? ? nil : pm.ends_on.to_s,
+          "states"        => (pm.states || []).map(&:to_s),
+          "handlers"      => (pm.handlers || []).map { |h| dump_pm_handler(h) },
+        }
+      end
+
+      def dump_pm_handler(h)
+        from, to = h.transition.first
+        {
+          "event_type" => h.event_type.to_s,
+          "from_state" => from.to_s,
+          "to_state"   => to.to_s,
         }
       end
 
