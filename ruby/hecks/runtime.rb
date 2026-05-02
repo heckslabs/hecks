@@ -21,6 +21,7 @@ Hecks::Chapters.load_chapter(
 require "hecks/runtime/projection_setup"
 require "hecks/runtime/projection"
 require "hecks/runtime/shell_dispatcher"
+require "hecks/runtime/llm_dispatcher"
 require "hecks/runtime/process_manager_setup"
 
 module Hecks
