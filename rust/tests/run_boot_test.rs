@@ -4,6 +4,12 @@
 //! shape match the boot capability ; (2) the psychic-link classifier
 //! sorts heki filenames into linked / private / unclassified per the
 //! constants ported from boot_miette.sh.
+//!
+//! [antibody-exempt: rust/tests/run_boot_test.rs — kernel-surface
+//!  integration test for run_boot capability detection + classifier.
+//!  Same category as restructure_integration_test.rs (test-only kernel
+//!  surface). Retires when behaviors framework gains capability-
+//!  detection coverage end-to-end.]
 
 use hecks_life::hecksagon_parser;
 use hecks_life::parser;
@@ -12,10 +18,10 @@ use hecks_life::runtime::Runtime;
 use hecks_life::runtime::adapter_registry::AdapterRegistry;
 
 const BOOT_BLUEBOOK: &str = include_str!(
-    "../../hecks_conception/capabilities/boot/boot.bluebook"
+    "../../runtime/boot/boot.bluebook"
 );
 const BOOT_HECKSAGON: &str = include_str!(
-    "../../hecks_conception/capabilities/boot/boot.hecksagon"
+    "../../runtime/boot/boot.hecksagon"
 );
 
 #[test]
