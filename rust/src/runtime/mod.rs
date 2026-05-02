@@ -85,6 +85,11 @@ impl Runtime {
         for pm in &domain.process_managers {
             pm_engine.register(pm);
         }
+        // Phase D — load persisted PM instances from heki so transitions
+        // resume across hecks-life subprocess forks (production daemons
+        // fork per dispatch ; without this, in-memory state evaporates
+        // and PMs effectively don't accumulate).
+        pm_engine.load_persisted(data_dir.as_deref());
 
         let projections = domain
             .aggregates
@@ -253,6 +258,17 @@ impl Runtime {
             // + downstream emits all fire normally.
             let pm_triggers = self.pm_engine.react(event);
             for t in pm_triggers.clone() {
+                // Phase D — persist the new instance state immediately
+                // after each transition so the next subprocess fork sees
+                // it. Best-effort : a failed write doesn't abort the
+                // cascade ; the audit trail captures it via heki's
+                // dispatch context.
+                let _ = self.pm_engine.persist_instance(
+                    &t.pm_name,
+                    &t.correlation_id,
+                    self.data_dir.as_deref(),
+                );
+
                 for dispatched in &t.dispatches {
                     let mut data = std::collections::HashMap::new();
                     self.inject_refs(
