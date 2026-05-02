@@ -21,6 +21,7 @@ Hecks::Chapters.load_chapter(
 require "hecks/runtime/projection_setup"
 require "hecks/runtime/projection"
 require "hecks/runtime/shell_dispatcher"
+require "hecks/runtime/process_manager_setup"
 
 module Hecks
   # Hecks::Runtime
@@ -40,13 +41,14 @@ module Hecks
     include AuthCoverageCheck
     include ReferenceCoverageCheck
     include SagaSetup
+    include ProcessManagerSetup
     include ExtensionDispatch
     include ConfigurationDSL
     include CommandDispatch
     include AdapterWiring
     include ProjectionSetup
 
-    attr_reader :domain, :event_bus, :command_bus, :actor_system
+    attr_reader :domain, :event_bus, :command_bus, :actor_system, :process_managers
 
     # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
     # @param gate [Symbol, nil] optional gate name
@@ -81,6 +83,7 @@ module Hecks
       ServiceSetup.bind(@domain, @mod, @command_bus)
       setup_workflows
       setup_sagas
+      setup_process_managers
       hoist_constants
       setup_actor_system
       apply_hecksagon_capabilities unless skip_capabilities
