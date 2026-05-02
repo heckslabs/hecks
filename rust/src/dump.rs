@@ -55,6 +55,7 @@ fn dump_process_manager(pm: &ProcessManager) -> Value {
 
 fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
     json!({
+        "dispatches": h.dispatches,
         "event_type": h.event_type,
         "from_state": h.from_state,
         "to_state": h.to_state,

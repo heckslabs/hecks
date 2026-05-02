@@ -238,4 +238,49 @@ RSpec.describe Hecks::DSL::ProcessManagerBuilder do
       }.to raise_error(ArgumentError, /single-entry/)
     end
   end
+
+  describe "declarative dispatch form" do
+    def builder
+      b = described_class.new("OrderFulfillment")
+      b.correlates_by :order_id
+      b.starts_on "OrderPlaced"
+      b.state "started"
+      b.state "shipped"
+      b
+    end
+
+    it "captures dispatch lines from a no-arg block" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        dispatch "Inventory.Decrement"
+        dispatch "Notification.Send"
+      end
+
+      pm = b.build
+      handler = pm.handlers.first
+      expect(handler.dispatches).to eq(["Inventory.Decrement", "Notification.Send"])
+      expect(handler.action).to be_nil
+    end
+
+    it "preserves the action proc when block has |event, pm| arity" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do |event, pm|
+        { commands: ["Inventory.Decrement"] }
+      end
+
+      pm = b.build
+      handler = pm.handlers.first
+      expect(handler.action).to be_a(Proc)
+      expect(handler.dispatches).to eq([])
+    end
+
+    it "defaults dispatches to [] when no block" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped })
+      pm = b.build
+      handler = pm.handlers.first
+      expect(handler.dispatches).to eq([])
+      expect(handler.action).to be_nil
+    end
+  end
 end

@@ -46,9 +46,17 @@ module Hecks
         # +correlate+ (the PM declares correlates_by once, runtime threads
         # it into each handler at instantiation time).
         Handler = Struct.new(
-          :event_type, :transition, :action,
+          :event_type, :transition, :action, :dispatches,
           keyword_init: true
-        )
+        ) do
+          # Default `dispatches` to [] when caller doesn't provide it.
+          # Existing tests using the Ruby-proc form (action set,
+          # dispatches absent) construct cleanly.
+          def initialize(*)
+            super
+            self.dispatches ||= []
+          end
+        end
 
         # @return [String] the PM name (PascalCase)
         attr_reader :name

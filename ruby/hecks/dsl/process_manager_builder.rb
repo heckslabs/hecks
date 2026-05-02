@@ -102,18 +102,58 @@ module Hecks
       # @param transition [Hash{Symbol,nil => Symbol}] from_state => to_state
       # @yield [event, pm] optional action block (captured but not executed)
       # @return [void]
-      def on(event_type, transition:, &action)
+      def on(event_type, transition:, &block)
         unless transition.is_a?(Hash) && transition.size == 1
           raise ArgumentError,
                 "process_manager '#{@name}' on '#{event_type}' transition: " \
                 "must be a single-entry { from: :to } hash, got #{transition.inspect}"
         end
 
+        # Two block forms supported :
+        #
+        # 1. |event, pm| arity-2 — Ruby action proc returning
+        #    { commands: [...] }. Opaque to Rust ; runs in Ruby PM only.
+        # 2. arity-0 (no params) — declarative DSL. Block instance_evals
+        #    against an OnHandlerBuilder that captures `dispatch "Cmd"`
+        #    lines. The Rust runtime reads the dispatches list and fires
+        #    commands ; no Ruby proc execution required.
+        action = nil
+        dispatches = []
+        if block
+          if block.arity == 2 || block.arity == -3
+            action = block
+          else
+            sub = OnHandlerBuilder.new
+            sub.instance_eval(&block)
+            dispatches = sub.dispatches
+          end
+        end
+
         @handlers << Behavior::ProcessManager::Handler.new(
           event_type: event_type.to_s,
           transition: transition,
-          action: action
+          action: action,
+          dispatches: dispatches
         )
+      end
+
+      # Sub-builder for the declarative `dispatch "Cmd"` form inside
+      # `on/transition do ... end`. Captures one or more dispatch lines
+      # in declaration order. The parent reads `dispatches` after
+      # instance_eval returns.
+      class OnHandlerBuilder
+        attr_reader :dispatches
+
+        def initialize
+          @dispatches = []
+        end
+
+        # Declare a command to dispatch when this handler fires.
+        # Format : "AggregateName.CommandName" (qualified). Multiple
+        # dispatches per handler fire in declaration order.
+        def dispatch(command_name)
+          @dispatches << command_name.to_s
+        end
       end
 
       # Build and return the BluebookModel::Behavior::ProcessManager IR node.
