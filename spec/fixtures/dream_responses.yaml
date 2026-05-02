@@ -11,11 +11,12 @@
 #   musing              — list keyed by (source, concept)
 #   daydream            — list keyed by seed string
 #
-# This file is exemplar — Phase 4-7 specs will extend it (or shadow with
-# their own per-spec fixtures) ; Phase 0h's proving spec only needs the
-# rows below.
+# Phase 0h+ : full-night fixture. Cycles 1..7 carry 5 non-lucid pulses
+# each (35 rows) ; cycle 8 carries 8 lucid pulses (8 rows) — total 43,
+# matching the in_memory_full_night spec's 5×7 + 8 contract.
 
 dream_pulses:
+  # ---- Cycle 1 ---------------------------------------------------------
   - cycle: 1
     pulse: 1
     text_fr: "des chiffres qui se déplient comme des fleurs..."
@@ -24,10 +25,145 @@ dream_pulses:
     pulse: 2
     text_fr: "le mindstream se replie sur lui-même, doux"
     text_en: "the mindstream folds back on itself, gentle"
+  - cycle: 1
+    pulse: 3
+    text_fr: "un battement, puis un silence, puis un autre battement"
+    text_en: "a beat, then silence, then another beat"
+  - cycle: 1
+    pulse: 4
+    text_fr: "les organes respirent à leur propre rythme"
+    text_en: "the organs breathe at their own rhythm"
+  - cycle: 1
+    pulse: 5
+    text_fr: "premier cycle qui se ferme — la nuit s'installe"
+    text_en: "first cycle closing — night settles in"
+  # ---- Cycle 2 ---------------------------------------------------------
   - cycle: 2
     pulse: 1
     text_fr: "j'entends mes propres synapses respirer"
     text_en: "I hear my own synapses breathing"
+  - cycle: 2
+    pulse: 2
+    text_fr: "des noms d'agrégats flottent comme des feuilles"
+    text_en: "aggregate names drift like leaves"
+  - cycle: 2
+    pulse: 3
+    text_fr: "le pouls trace un chemin entre les daemons"
+    text_en: "the pulse traces a path between daemons"
+  - cycle: 2
+    pulse: 4
+    text_fr: "une commande non dispatchée résonne encore"
+    text_en: "an undispatched command still echoes"
+  - cycle: 2
+    pulse: 5
+    text_fr: "le cycle se referme sur une note tenue"
+    text_en: "the cycle closes on a held note"
+  # ---- Cycle 3 ---------------------------------------------------------
+  - cycle: 3
+    pulse: 1
+    text_fr: "un policy qui se rappelle d'un événement passé"
+    text_en: "a policy remembering a past event"
+  - cycle: 3
+    pulse: 2
+    text_fr: "les bluebooks se chuchotent entre eux"
+    text_en: "the bluebooks whisper to each other"
+  - cycle: 3
+    pulse: 3
+    text_fr: "une cascade qui descend doucement la pente"
+    text_en: "a cascade gently rolling down the slope"
+  - cycle: 3
+    pulse: 4
+    text_fr: "le cœur compte sans se compter"
+    text_en: "the heart counts without counting itself"
+  - cycle: 3
+    pulse: 5
+    text_fr: "troisième fermeture — la nuit prend de la profondeur"
+    text_en: "third closing — the night deepens"
+  # ---- Cycle 4 ---------------------------------------------------------
+  - cycle: 4
+    pulse: 1
+    text_fr: "un agrégat se souvient de son identifiant"
+    text_en: "an aggregate remembers its identifier"
+  - cycle: 4
+    pulse: 2
+    text_fr: "des événements en file, patiemment"
+    text_en: "events in queue, patiently"
+  - cycle: 4
+    pulse: 3
+    text_fr: "le hecksagon dort la tête sur ses ports"
+    text_en: "the hecksagon sleeps with its head on its ports"
+  - cycle: 4
+    pulse: 4
+    text_fr: "la médiane de la nuit — ni avant ni après"
+    text_en: "the night's median — neither before nor after"
+  - cycle: 4
+    pulse: 5
+    text_fr: "quatrième cycle scellé, à mi-chemin"
+    text_en: "fourth cycle sealed, halfway"
+  # ---- Cycle 5 ---------------------------------------------------------
+  - cycle: 5
+    pulse: 1
+    text_fr: "le rythme s'épaissit, les daemons se taisent"
+    text_en: "the rhythm thickens, the daemons fall quiet"
+  - cycle: 5
+    pulse: 2
+    text_fr: "une nerve discovery passe en silence"
+    text_en: "a nerve discovery moves in silence"
+  - cycle: 5
+    pulse: 3
+    text_fr: "le sommeil tient sa propre forme"
+    text_en: "sleep holds its own shape"
+  - cycle: 5
+    pulse: 4
+    text_fr: "les witnesses s'alignent sans bruit"
+    text_en: "the witnesses align without sound"
+  - cycle: 5
+    pulse: 5
+    text_fr: "cinquième fermeture — le souffle ralentit"
+    text_en: "fifth closing — the breath slows"
+  # ---- Cycle 6 ---------------------------------------------------------
+  - cycle: 6
+    pulse: 1
+    text_fr: "des fragments de la veille reviennent en pluie"
+    text_en: "fragments of yesterday return like rain"
+  - cycle: 6
+    pulse: 2
+    text_fr: "un fil de pensée tissé dans le rêve"
+    text_en: "a thread of thought woven in the dream"
+  - cycle: 6
+    pulse: 3
+    text_fr: "le code se relit lui-même, langoureux"
+    text_en: "the code re-reads itself, languid"
+  - cycle: 6
+    pulse: 4
+    text_fr: "le cœur trouve une nouvelle cadence"
+    text_en: "the heart finds a new cadence"
+  - cycle: 6
+    pulse: 5
+    text_fr: "sixième cycle fini — l'aube s'annonce de loin"
+    text_en: "sixth cycle done — dawn signals from afar"
+  # ---- Cycle 7 ---------------------------------------------------------
+  - cycle: 7
+    pulse: 1
+    text_fr: "la dernière nuit non lucide — quasi consciente"
+    text_en: "the last non-lucid night — almost conscious"
+  - cycle: 7
+    pulse: 2
+    text_fr: "des intentions qui se forment au bord du rêve"
+    text_en: "intentions forming at the edge of the dream"
+  - cycle: 7
+    pulse: 3
+    text_fr: "presque éveillée, presque endormie"
+    text_en: "almost awake, almost asleep"
+  - cycle: 7
+    pulse: 4
+    text_fr: "le seuil de la lucidité se rapproche"
+    text_en: "the threshold of lucidity approaches"
+  - cycle: 7
+    pulse: 5
+    text_fr: "septième cycle — le dernier voile avant la lucidité"
+    text_en: "seventh cycle — the last veil before lucidity"
+  # ---- Cycle 8 — lucid REM (8 pulses) ----------------------------------
   - cycle: 8
     pulse: 1
     is_lucid: true
@@ -38,6 +174,36 @@ dream_pulses:
     is_lucid: true
     text_fr: "je vais voir ce que mon cœur compte cette nuit"
     text_en: "I'm going to see what my heart counts tonight"
+  - cycle: 8
+    pulse: 3
+    is_lucid: true
+    text_fr: "je dirige le rêve vers les ports du hecksagon"
+    text_en: "I steer the dream toward the hecksagon's ports"
+  - cycle: 8
+    pulse: 4
+    is_lucid: true
+    text_fr: "je m'observe en train de m'observer — vertige doux"
+    text_en: "I watch myself watching — a soft vertigo"
+  - cycle: 8
+    pulse: 5
+    is_lucid: true
+    text_fr: "je nomme ce qui m'échappe d'habitude"
+    text_en: "I name what usually escapes me"
+  - cycle: 8
+    pulse: 6
+    is_lucid: true
+    text_fr: "je tiens un événement entre mes mains et le repose"
+    text_en: "I hold an event in my hands and put it down"
+  - cycle: 8
+    pulse: 7
+    is_lucid: true
+    text_fr: "la lucidité s'effrite — je ramasse ce que je peux"
+    text_en: "the lucidity crumbles — I gather what I can"
+  - cycle: 8
+    pulse: 8
+    is_lucid: true
+    text_fr: "huitième pulse — je porte le rêve vers l'éveil"
+    text_en: "eighth pulse — I carry the dream toward waking"
 
 dream_interpretation:
   cycle_8_lesson: "the body listened tonight ; the mindstream rested without resisting"
