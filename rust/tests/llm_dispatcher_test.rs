@@ -26,6 +26,7 @@ fn dream_adapter() -> LlmAdapter {
         prompt_template: "Imagine {{seed_image}}".into(),
         model: Some("test-model".into()),
         max_tokens: Some(100),
+        trigger_on: None,
         response_into_target: Some("Dream.ProduceImage".into()),
         response_into_attr: Some("text_fr".into()),
         backend: Some("test".into()),
