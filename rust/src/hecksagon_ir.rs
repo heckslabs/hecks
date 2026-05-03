@@ -29,6 +29,11 @@ pub struct Hecksagon {
     pub io_adapters: Vec<IoAdapter>,
     /// `adapter :shell, name:, command:, args:, …` entries.
     pub shell_adapters: Vec<ShellAdapter>,
+    /// `adapter :llm, name:, prompt_template:, model:, max_tokens:,
+    /// response_into:, backend:, …` entries. The Phase 1 IR holds the
+    /// declared shape ; Phase 2 wires runtime dispatch into Claude /
+    /// Ollama and routes the response into the named command.
+    pub llm_adapters: Vec<LlmAdapter>,
     /// `gate "Aggregate", :role do allow :Cmd end` entries.
     pub gates: Vec<Gate>,
     /// `subscribe "OtherDomain"` — reads a directed edge into the
@@ -101,6 +106,22 @@ pub struct Gate {
     pub allowed_commands: Vec<String>,
 }
 
+/// Mirror of Hecksagon::Structure::LlmAdapter. Holds the prompt
+/// template (with {{placeholder}} tokens), model identifier,
+/// max_tokens budget, response routing target ("Aggregate.Command"
+/// path + the receiving attribute name), and optional backend
+/// (:claude / :ollama / :fixture).
+#[derive(Debug, Clone, Default)]
+pub struct LlmAdapter {
+    pub name: String,
+    pub prompt_template: String,
+    pub model: Option<String>,
+    pub max_tokens: Option<u64>,
+    pub response_into_target: Option<String>,
+    pub response_into_attr: Option<String>,
+    pub backend: Option<String>,
+}
+
 impl Hecksagon {
     pub fn shell_adapter(&self, adapter_name: &str) -> Option<&ShellAdapter> {
         self.shell_adapters.iter().find(|a| a.name == adapter_name)
@@ -108,6 +129,10 @@ impl Hecksagon {
 
     pub fn io_adapter(&self, kind: &str) -> Option<&IoAdapter> {
         self.io_adapters.iter().find(|a| a.kind == kind)
+    }
+
+    pub fn llm_adapter(&self, adapter_name: &str) -> Option<&LlmAdapter> {
+        self.llm_adapters.iter().find(|a| a.name == adapter_name)
     }
 
     pub fn gate_for(&self, aggregate: &str, role: &str) -> Option<&Gate> {
