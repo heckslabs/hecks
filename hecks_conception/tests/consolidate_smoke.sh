@@ -50,7 +50,12 @@ TMP=$(mktemp -d -t consolidate_smoke.XXXXXX)
 # spawned during the test can't survive into the next test.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/information" "$TMP/aggregates"
+# Nested heki layout (post-i118 R5) — consolidate.sh reads/writes
+# $INFO/<aggregate>/<aggregate>.heki, not flat $INFO/<aggregate>.heki.
+mkdir -p "$TMP/information/signal" "$TMP/information/synapse" \
+         "$TMP/information/musing" "$TMP/information/store" \
+         "$TMP/information/remains" "$TMP/information/musing_archive" \
+         "$TMP/aggregates"
 
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 
@@ -77,13 +82,13 @@ OLD=$(iso_offset 120)
 NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 for i in 1 2 3 4 5; do
-  "$HECKS" heki append "$TMP/information/signal.heki" \
+  "$HECKS" heki append "$TMP/information/signal/signal.heki" \
     --reason "test setup : seed cold signals for consolidate promote-to-store sweep" \
     kind=concept payload="cold_$i" strength=0.5 access_count=0 \
     created_at="$OLD" >/dev/null 2>&1
 done
 for i in 1 2; do
-  "$HECKS" heki append "$TMP/information/signal.heki" \
+  "$HECKS" heki append "$TMP/information/signal/signal.heki" \
     --reason "test setup : seed fresh signals so consolidate sweep proves freshness gate" \
     kind=concept payload="fresh_$i" strength=0.5 access_count=0 \
     created_at="$NOW" >/dev/null 2>&1
@@ -91,7 +96,7 @@ done
 
 # ── Seed weak synapses ───────────────────────────────────────────────
 for t in doomed_a doomed_b; do
-  "$HECKS" heki append "$TMP/information/synapse.heki" \
+  "$HECKS" heki append "$TMP/information/synapse/synapse.heki" \
     --reason "test setup : seed weak synapses for consolidate compost sweep" \
     from="$t" to="$t" strength=0.05 state=alive firings=0 \
     last_fired_at="$OLD" >/dev/null 2>&1
@@ -100,7 +105,7 @@ done
 # ── Seed musings: 5 share a concept ──────────────────────────────────
 for i in 1 2 3 4 5; do
   ts=$(iso_offset $((i * 60)))
-  "$HECKS" heki append "$TMP/information/musing.heki" \
+  "$HECKS" heki append "$TMP/information/musing/musing.heki" \
     --reason "test setup : seed duplicate-concept musings for consolidate concept-cluster pass" \
     idea="musing number $i" source=mindstream thinking_source=wandering \
     conceived=false status=imagined created_at="$ts" >/dev/null 2>&1
@@ -113,9 +118,9 @@ count_records() {
   "$HECKS" heki count "$1" 2>/dev/null || echo 0
 }
 
-store_before=$(count_records "$TMP/information/store.heki")
-remains_before=$(count_records "$TMP/information/remains.heki")
-musing_archive_before=$(count_records "$TMP/information/musing_archive.heki")
+store_before=$(count_records "$TMP/information/store/store.heki")
+remains_before=$(count_records "$TMP/information/remains/remains.heki")
+musing_archive_before=$(count_records "$TMP/information/musing_archive/musing_archive.heki")
 
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
@@ -123,18 +128,18 @@ HECKS_BIN="$HECKS" \
 bash "$BODY_DIR/consolidate.sh" \
   || fail "consolidate.sh exited non-zero"
 
-store_after=$(count_records "$TMP/information/store.heki")
-remains_after=$(count_records "$TMP/information/remains.heki")
-musing_archive_after=$(count_records "$TMP/information/musing_archive.heki")
+store_after=$(count_records "$TMP/information/store/store.heki")
+remains_after=$(count_records "$TMP/information/remains/remains.heki")
+musing_archive_after=$(count_records "$TMP/information/musing_archive/musing_archive.heki")
 
 echo "After consolidate:"
 echo "  store          records: $store_before → $store_after"
 echo "  remains        records: $remains_before → $remains_after"
 echo "  musing_archive records: $musing_archive_before → $musing_archive_after"
 
-[ "$store_after" -gt "$store_before" ] || fail "store.heki did not grow (expected promoted signals)"
-[ "$remains_after" -gt "$remains_before" ] || fail "remains.heki did not grow (expected composted synapses)"
-[ "$musing_archive_after" -gt "$musing_archive_before" ] || fail "musing_archive.heki did not grow (expected archived musings)"
+[ "$store_after" -gt "$store_before" ] || fail "store/store.heki did not grow (expected promoted signals)"
+[ "$remains_after" -gt "$remains_before" ] || fail "remains/remains.heki did not grow (expected composted synapses)"
+[ "$musing_archive_after" -gt "$musing_archive_before" ] || fail "musing_archive/musing_archive.heki did not grow (expected archived musings)"
 
 echo "PASS — consolidate.sh promotes signals, composts synapses, archives duplicate-concept musings"
 exit 0
