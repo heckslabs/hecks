@@ -1713,12 +1713,24 @@ fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json:
             "ok_exit":       sa.ok_exit,
         })
     }).collect();
+    let llm_adapters: Vec<serde_json::Value> = hex.llm_adapters.iter().map(|la| {
+        serde_json::json!({
+            "name":                 la.name,
+            "prompt_template":      la.prompt_template,
+            "model":                la.model,
+            "max_tokens":           la.max_tokens,
+            "response_into_target": la.response_into_target,
+            "response_into_attr":   la.response_into_attr,
+            "backend":              la.backend,
+        })
+    }).collect();
     serde_json::json!({
         "name":           hex.name,
         "persistence":    hex.persistence,
         "subscriptions":  hex.subscriptions,
         "io_adapters":    io_adapters,
         "shell_adapters": shell_adapters,
+        "llm_adapters":   llm_adapters,
         "gates":          gates,
     })
 }
@@ -2203,8 +2215,29 @@ fn run_enforce_edit(_args: &[String]) {
     };
     let tool_name = json.get("tool_name")
         .and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let file_path = json.pointer("/tool_input/file_path")
+    let mut file_path = json.pointer("/tool_input/file_path")
         .and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    // Bash-write detection (2026-05-02) : the cadence-primitive Phase 1b
+    // agent flagged that kernel-surface .rs edits via Edit/Write got
+    // enforced, but the same edits routed through `bash -c "python3
+    // <<EOF\nopen('foo.rs','w').write(...)\nEOF"` slipped through —
+    // the hook matcher was Edit|Write|MultiEdit only, so Bash bypassed
+    // the discipline entirely. Tighten : when tool_name is Bash, parse
+    // the command string for kernel-surface write patterns and treat
+    // them as if an Edit had hit that path.
+    //
+    // Fast-path : if the command doesn't even mention a kernel-surface
+    // extension, exit 0 immediately. Most bash invocations are reads
+    // (git, grep, ls) ; we don't want enforcer overhead on every shell.
+    if file_path.is_empty() && tool_name == "Bash" {
+        let bash_cmd = json.pointer("/tool_input/command")
+            .and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if let Some(target) = detect_bash_write_target(&bash_cmd) {
+            file_path = target;
+        }
+    }
+
     if file_path.is_empty() {
         std::process::exit(0);
     }
@@ -2322,6 +2355,189 @@ fn run_enforce_edit(_args: &[String]) {
         std::process::exit(2);
     }
     std::process::exit(0);
+}
+
+/// Detect whether a Bash command writes to a kernel-surface file.
+/// Returns Some(path) when a write to .rb / .rs / .sh / .py is detected ;
+/// None otherwise. Closes the bypass the cadence-primitive Phase 1b
+/// agent flagged on 2026-05-02 — the antibody hook only matched Edit /
+/// Write / MultiEdit tools, so the same edits routed through `bash -c
+/// "python3 <<EOF\nopen('foo.rs', 'w').write(...)\nEOF"` slipped
+/// through entirely.
+///
+/// Fast-path : if the command doesn't mention any kernel-surface
+/// extension, return None immediately. Most bash invocations are
+/// reads (git, grep, ls, find) ; we don't want enforcer overhead
+/// on every shell call.
+///
+/// Patterns matched (each catches one canonical write shape) :
+///   1. `> path.rs`           — stdout redirect to file
+///   2. `>> path.rs`          — append redirect to file
+///   3. `tee path.rs`         — tee redirect (with or without -a)
+///   4. `cat > path.rs`       — heredoc-via-cat target
+///   5. `python ... open('path.rs', 'w')` — python file write
+///   6. `python ... write_text('path.rs')` — pathlib write
+///   7. `sed -i ... path.rs`  — in-place sed edit
+///   8. `awk -i inplace ... path.rs` — in-place awk edit
+fn detect_bash_write_target(cmd: &str) -> Option<String> {
+    // Fast-path : require ANY kernel-surface extension to even consider scanning.
+    if !cmd.contains(".rb") && !cmd.contains(".rs")
+        && !cmd.contains(".sh") && !cmd.contains(".py") {
+        return None;
+    }
+
+    // Helper : check if a path looks kernel-surface.
+    let is_kernel_surface = |path: &str| -> bool {
+        path.ends_with(".rb") || path.ends_with(".rs")
+            || path.ends_with(".sh") || path.ends_with(".py")
+    };
+
+    // Token-by-token scan over the command, tracking the last
+    // "redirect-like" operator seen. When we see one and the next
+    // non-flag token is a kernel-surface path, that's a write target.
+    let bytes = cmd.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+
+        // Skip strings (' or ") in the OUTER scan — but record the
+        // path INSIDE the string if it's a write target. Python heredocs
+        // and quoted paths both flow through here.
+        if c == '\'' || c == '"' {
+            let quote = c;
+            let start = i + 1;
+            i += 1;
+            while i < bytes.len() && bytes[i] as char != quote {
+                if bytes[i] as char == '\\' && i + 1 < bytes.len() { i += 1; }
+                i += 1;
+            }
+            let inside = &cmd[start..i.min(cmd.len())];
+            // Look for python-style file-write patterns inside the string.
+            // open('path.rs', 'w') or write_text('path.rs') or
+            // Path('path.rs').write_text(...).
+            if let Some(target) = scan_python_write_in(inside) {
+                return Some(target);
+            }
+            i += 1; // skip closing quote
+            continue;
+        }
+
+        // Skip comments (# to end of line) outside strings.
+        if c == '#' {
+            while i < bytes.len() && bytes[i] as char != '\n' { i += 1; }
+            continue;
+        }
+
+        // Redirect operators : > >> | tee | python ... heredoc.
+        if c == '>' {
+            // Skip the operator (one or two chars).
+            let mut j = i + 1;
+            if j < bytes.len() && bytes[j] as char == '>' { j += 1; }
+            // Skip whitespace.
+            while j < bytes.len() && (bytes[j] as char).is_whitespace() { j += 1; }
+            // Read the next token (until whitespace, |, ;, &, <, >).
+            let start = j;
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if ch.is_whitespace() || ch == '|' || ch == ';' || ch == '&'
+                    || ch == '<' || ch == '>' { break; }
+                j += 1;
+            }
+            let target = &cmd[start..j];
+            // Strip surrounding quotes if any.
+            let target = target.trim_matches(|c| c == '\'' || c == '"');
+            if !target.is_empty() && is_kernel_surface(target) {
+                return Some(target.to_string());
+            }
+            i = j;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    // Word-level scan for tee, sed -i, awk -i inplace, and python heredocs
+    // that we missed via string-scanning above. These all have a
+    // "command name + flags + path" structure.
+    for (cmd_name, flag_required) in &[("tee", false), ("sed", true), ("awk", true)] {
+        if let Some(target) = scan_command_with_path_arg(cmd, cmd_name, *flag_required) {
+            return Some(target);
+        }
+    }
+
+    None
+}
+
+/// Scan a string for Python write patterns : `open('path', 'w')` or
+/// `write_text('path')` or `Path('path').write_text(...)`.
+fn scan_python_write_in(s: &str) -> Option<String> {
+    // open('path', 'w' | 'a' | 'wb') — naïve match
+    let mut idx = 0;
+    while let Some(pos) = s[idx..].find("open(") {
+        let p = idx + pos + "open(".len();
+        // Read the first quoted string (path).
+        let path = read_quoted_after(&s[p..])?;
+        // Look for ", 'w'" or ", 'a'" within ~30 chars after.
+        let after = &s[p..];
+        let lookahead = &after[..after.len().min(60)];
+        if lookahead.contains(",'w") || lookahead.contains(",\"w")
+            || lookahead.contains(", 'w") || lookahead.contains(", \"w")
+            || lookahead.contains(",'a") || lookahead.contains(", 'a")
+            || lookahead.contains(",\"a") || lookahead.contains(", \"a") {
+            if !path.is_empty() && (path.ends_with(".rb") || path.ends_with(".rs")
+                || path.ends_with(".sh") || path.ends_with(".py")) {
+                return Some(path);
+            }
+        }
+        idx = p;
+    }
+    None
+}
+
+fn read_quoted_after(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() && (bytes[i] as char).is_whitespace() { i += 1; }
+    if i >= bytes.len() { return None; }
+    let q = bytes[i] as char;
+    if q != '\'' && q != '"' { return None; }
+    let start = i + 1;
+    let mut j = start;
+    while j < bytes.len() && bytes[j] as char != q {
+        if bytes[j] as char == '\\' && j + 1 < bytes.len() { j += 1; }
+        j += 1;
+    }
+    Some(s[start..j].to_string())
+}
+
+/// Scan a bash command for `<cmd_name> [flags] path.{rb,rs,sh,py}` —
+/// catches `tee path.rs`, `sed -i 's/foo/bar/' path.sh`, and similar.
+fn scan_command_with_path_arg(cmd: &str, cmd_name: &str, flag_required: bool) -> Option<String> {
+    // Find the command name as a word boundary.
+    let needle = format!("{} ", cmd_name);
+    let pos = cmd.find(&needle)?;
+    let after = &cmd[pos + needle.len()..];
+    let mut saw_flag = !flag_required;
+    for token in after.split_whitespace() {
+        if token == "|" || token == ";" || token == "&&" || token == "||" {
+            return None;
+        }
+        if token.starts_with("-") {
+            // sed -i, awk -i inplace, etc.
+            saw_flag = true;
+            continue;
+        }
+        if !saw_flag {
+            continue;
+        }
+        // Strip quotes.
+        let path = token.trim_matches(|c| c == '\'' || c == '"');
+        if path.ends_with(".rb") || path.ends_with(".rs")
+            || path.ends_with(".sh") || path.ends_with(".py") {
+            return Some(path.to_string());
+        }
+    }
+    None
 }
 
 /// Scan a shell file for direct heki writes (heki append / upsert /

@@ -106,6 +106,18 @@ fn absorb_adapter(joined: &str, hex: &mut Hecksagon) {
         "shell" => {
             if let Some(sa) = parse_shell_adapter(rest) { hex.shell_adapters.push(sa); }
         }
+        "llm" => {
+            if let Some(la) = parse_llm_adapter(rest) {
+                hex.llm_adapters.push(la);
+            } else {
+                // Bare `adapter :llm, backend: :claude` form (no name:) —
+                // keep backward-compat with existing wake_review /
+                // musing_mint hecksagons that route through io_adapter.
+                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
+                for ev in extract_on_events(rest) { io.on_events.push(ev); }
+                hex.io_adapters.push(io);
+            }
+        }
         "memory" | "heki" => { hex.persistence = Some(kind); }
         _ => {
             let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
@@ -113,6 +125,29 @@ fn absorb_adapter(joined: &str, hex: &mut Hecksagon) {
             hex.io_adapters.push(io);
         }
     }
+}
+
+/// Map `name:, prompt_template:, model:, max_tokens:, response_into:,
+/// attr:, backend:` into an LlmAdapter. Returns None when no `name:` is
+/// declared — that lets the caller fall back to io_adapter routing for
+/// the bare `adapter :llm, backend: :X` form already in production.
+fn parse_llm_adapter(rest: &str) -> Option<LlmAdapter> {
+    let mut la = LlmAdapter::default();
+    let mut got_name = false;
+    for (k, v) in parse_options(rest) {
+        match k.as_str() {
+            "name" => { la.name = strip_symbol(&v); got_name = true; }
+            "prompt_template" => la.prompt_template = strip_quotes(&v),
+            "model" => la.model = Some(strip_quotes(&v)),
+            "max_tokens" => la.max_tokens = v.trim().parse::<u64>().ok(),
+            "response_into" => la.response_into_target = Some(strip_quotes(&v)),
+            "attr" => la.response_into_attr = Some(strip_symbol(&v)),
+            "backend" => la.backend = Some(strip_symbol(&v)),
+            _ => {}
+        }
+    }
+    if !got_name { return None; }
+    Some(la)
 }
 
 /// Map `name:, command:, args:, output_format:, timeout:, working_dir:,
