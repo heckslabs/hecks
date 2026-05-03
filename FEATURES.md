@@ -132,7 +132,6 @@
 - `adapter :shell` — named argv-only subprocess adapter; `command` is a fixed binary, `args` is a list-of-strings with `{{placeholder}}` tokens substituted per-element at dispatch time; supports `output_format` (`:text`, `:lines`, `:json`, `:json_lines`, `:exit_code`), `timeout`, `working_dir`, `env`
 - `runtime.shell(:name, **attrs)` — dispatches a shell adapter; returns a `Result` with `output` (format-parsed), `raw_stdout`, `stderr`, `exit_status`
 - Shell dispatch security: `Open3.capture3`/`popen3` (no shell), `unsetenv_others: true` (empty env baseline, only declared env entries cross), explicit `working_dir`, sealed empty stdin, active-kill on timeout via pgroup SIGKILL
-- `adapter :llm` — named LLM-binding adapter (Phase 1 shipped — DSL + IR + Rust parser + parity fixture); declares `prompt_template` with `{{placeholder}}` tokens, `model`, `max_tokens`, `response_into "Aggregate.Command", attr: :field`, and `backend` (`:claude`, `:ollama`, `:fixture`, `:test`, `:off`); bare `adapter :llm` (no `name:`) falls back to the io-adapter bucket for backward-compat with shipped hecksagons; Phase 2 wires runtime dispatcher + `Spend.RecordCall` + `CircuitBreaker.IsOpen?` integration; see [`docs/usage/llm_adapter.md`](docs/usage/llm_adapter.md)
 - `persistence :type, ...` remains as a deprecated alias for `adapter :type, ...` (emits a one-shot warning per builder) — closes the long-standing gap where the public `adapter` DSL was vestigial
 
 ### Application Service Extensions
@@ -423,6 +422,7 @@
 - **`as:` reference alias kwarg** — canonical: `reference_to(Order, as: :recent_purchase)`. Five forms accepted: bare, `as:`, `role:` (legacy), `.as(:foo)` suffix, trailing-symbol shorthand
 - **Clock anti-pattern check** — `lifecycle_validator` flags `:now` and `seconds_since(:field)` in mutations and givens. Time is infrastructure; the caller (test, hecksagon adapter, app) provides timestamps as command attributes.
 - **Compound boolean givens** — interpreter supports `||` and `&&` (top-level split, `&&` binds tighter), plus `==`, `!=`, `>=`, `<=`, `>`, `<`, `field.any?`, `field.empty?`
+- **Stochastic & periodic given primitives** (i229) — `given { rand_below(N) == 0 }` is a 1/N stochastic gate (uniform random in `[0, N)`); `given { <expr>.modulo(N) == 0 }` is an every-Nth periodic gate (resolves the receiver as int, returns `% N`). Both lift legacy shell-side cadence math (`if [ $((RANDOM % N)) -eq 0 ]`, `if (tick % N).zero?`) into bluebook IR ; `HECKS_RAND_SEED` pins the RNG for tests ; non-positive N short-circuits to 0 (predicate fires every call) so daemons degrade gracefully on typos. Ruby parity mirror in `ruby/hecks/behaviors/interpreter.rb`. See `docs/usage/given_predicate_primitives.md`.
 - **List literal mutations** — `then_set :items, to: []` resolves to `Value::List(vec![])` (not `Str("[]")`); `then_set :items, to: [a, b]` resolves each element through the same value resolver
 
 ## Self-Governance

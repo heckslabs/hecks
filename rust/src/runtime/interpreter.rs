@@ -16,6 +16,13 @@
 //!  shell-side into bluebook givens. Lets surface_musing /
 //!  musing_mint / daydream fire end-to-end via bluebook. Same i80
 //!  retirement contract.]
+//!
+//! [antibody-exempt: i229 tick.modulo(N) periodic cadence primitive —
+//!  `<expr>.modulo(N)` resolves the receiver as an integer and returns
+//!  `receiver % N`, lifting `if (tick % N).zero?` shell-side gates into
+//!  declarative bluebook givens. Mirrors the rand_below shape : same
+//!  retirement contract, same Ruby parity mirror in
+//!  ruby/hecks/behaviors/interpreter.rb.]
 
 use super::{AggregateState, RuntimeError, Value};
 use crate::ir::{Command, MutationOp};
@@ -252,6 +259,30 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
             Value::Str(s) => Value::Int(s.len() as i64),
             _ => Value::Int(0),
         };
+    }
+    // <expr>.modulo(N) — periodic cadence gate. Resolves the receiver
+    // as an integer (attr / state field / literal) and returns
+    // `receiver % N`. The bluebook intent `given { tick.modulo(60) == 0 }`
+    // expresses an every-Nth-tick gate (Memory.Consolidate per-60-tick,
+    // any heartbeat-counter periodic cadence). Lifts the gate from
+    // shell-side (`if (tick % 60).zero?`) into the bluebook so capabilities
+    // own their periodic cadence as declarative IR. N must be a positive
+    // integer literal or an attr/state field that resolves to one ;
+    // non-positive N short-circuits to 0 so the predicate fires every
+    // call (mirrors rand_below's safer-than-panicking guard).
+    if let Some(modulo_idx) = expr.rfind(".modulo(") {
+        if expr.ends_with(')') {
+            let receiver = &expr[..modulo_idx];
+            let arg = &expr[modulo_idx + ".modulo(".len()..expr.len() - 1];
+            let recv_val = resolve_expr(receiver.trim(), state, attrs);
+            let arg_val = resolve_expr(arg.trim(), state, attrs);
+            let n = numeric_value(&arg_val).map(|f| f as i64).unwrap_or(0);
+            if n <= 0 {
+                return Value::Int(0);
+            }
+            let lhs = numeric_value(&recv_val).map(|f| f as i64).unwrap_or(0);
+            return Value::Int(lhs.rem_euclid(n));
+        }
     }
     // Command attributes shadow state when they share a name — the
     // `given` clause runs at dispatch time with the inbound input
