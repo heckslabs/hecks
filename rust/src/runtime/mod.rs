@@ -30,6 +30,9 @@ mod policy_engine;
 mod projection;
 mod repository;
 pub mod seed_loader;
+pub mod llm_dispatcher;
+pub mod llm_providers;
+pub mod prompt_scaffolder;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
@@ -41,6 +44,7 @@ pub use projection::Projection;
 pub use repository::Repository;
 
 use crate::ir::Domain;
+use crate::hecksagon_ir::Hecksagon;
 use std::collections::HashMap;
 
 pub struct Runtime {
@@ -52,11 +56,50 @@ pub struct Runtime {
     pub projections: Vec<Projection>,
     pub middleware: MiddlewareStack,
     pub data_dir: Option<String>,
+    /// i221 — every hecksagon loaded alongside the domain. The
+    /// `drain_policies` hook scans these for `:llm` adapters whose
+    /// `response_into_target` matches a recently-dispatched command,
+    /// substitutes the prompt template, calls the resolved provider,
+    /// and dispatches the response back into the named target. Empty
+    /// when the runtime is booted via the legacy `Runtime::boot(domain)`
+    /// (no hecksagons known) — preserves backward compat with every
+    /// existing caller that didn't carry hecksagons.
+    pub hecksagons: Vec<Hecksagon>,
+    /// i221 — provider registry keyed by backend name (`"test"`,
+    /// `"claude"`, `"ollama"`). When empty (default), only the `:test`
+    /// backend is implicitly available — claude/ollama require an
+    /// explicit `register_llm_provider` call so unit tests can never
+    /// silently shell out to a real model.
+    pub llm_providers: HashMap<String, Box<dyn llm_providers::LlmProvider>>,
 }
 
 impl Runtime {
     pub fn boot(domain: Domain) -> Self {
         Self::boot_with_data_dir(domain, None)
+    }
+
+    /// i221 — boot with hecksagons attached so the LLM dispatcher's
+    /// `drain_policies` hook can resolve `:llm` adapters whose
+    /// `response_into_target` references a freshly-dispatched command.
+    pub fn boot_with_hecksagons(
+        domain: Domain,
+        data_dir: Option<String>,
+        hecksagons: Vec<Hecksagon>,
+    ) -> Self {
+        let mut rt = Self::boot_with_data_dir(domain, data_dir);
+        rt.hecksagons = hecksagons;
+        rt
+    }
+
+    /// i221 — register an LLM provider under a backend name. Lets the
+    /// caller wire `:claude` / `:ollama` (or test doubles) without
+    /// touching the dispatcher. Idempotent on the key.
+    pub fn register_llm_provider(
+        &mut self,
+        backend: impl Into<String>,
+        provider: Box<dyn llm_providers::LlmProvider>,
+    ) {
+        self.llm_providers.insert(backend.into(), provider);
     }
 
     pub fn boot_with_data_dir(domain: Domain, data_dir: Option<String>) -> Self {
@@ -107,6 +150,8 @@ impl Runtime {
             projections,
             middleware: MiddlewareStack::new(),
             data_dir,
+            hecksagons: Vec::new(),
+            llm_providers: HashMap::new(),
         }
     }
 
@@ -181,6 +226,20 @@ impl Runtime {
         // Drain policy triggers — recursively, so chains cascade fully
         self.drain_policies(&result);
 
+        // i221 — LLM dispatcher hook. After the cascade settles,
+        // scan loaded hecksagons for any `:llm` adapter whose
+        // `response_into_target` matches `Aggregate.Command` (the
+        // command the user just dispatched). When one matches,
+        // substitute its prompt template from the upstream
+        // aggregate's state + the dispatched attrs, call the
+        // resolved provider, and chain the response as a real
+        // dispatch back into the target with `response_into_attr`
+        // carrying the response text. The chain is finite by
+        // discipline : the response-driven dispatch has the
+        // populated attr already so its givens fall through (no
+        // re-entry), exactly as the Ruby surface relies on.
+        self.resolve_llm_adapters(&result, command_name);
+
         Ok(result)
     }
 
@@ -224,6 +283,91 @@ impl Runtime {
             event: Some(event),
         };
         self.drain_policies(&result);
+    }
+
+    /// i221 — scan every loaded hecksagon for an `adapter :llm`
+    /// declaration whose `response_into_target` matches the just-
+    /// dispatched `Aggregate.Command` ; for each match, substitute
+    /// the prompt template from the upstream state + attrs, call the
+    /// resolved provider, and chain the response as a `dispatch_cascade`
+    /// into the target carrying `response_into_attr` as the kwarg.
+    ///
+    /// Adapter resolution is by exact target-string match. The
+    /// `response_into_target` field on the IR is "Aggregate.Command"
+    /// per the Phase 1 parser ; we compare against the same form
+    /// reconstructed from `result.aggregate_type` + `command_name`.
+    /// Adapters without `response_into_target` are inert (the
+    /// declaration is just a parse-time descriptor without runtime
+    /// trigger) and are skipped silently.
+    fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        if self.hecksagons.is_empty() { return; }
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+
+        // Snapshot adapters that match — we need to walk hecksagons
+        // by ref but mutate self.repositories/etc. via dispatch_cascade
+        // afterward, so collect the adapter clones first.
+        let adapters: Vec<crate::hecksagon_ir::LlmAdapter> = self.hecksagons.iter()
+            .flat_map(|h| h.llm_adapters.iter())
+            .filter(|la| la.response_into_target.as_deref() == Some(target.as_str()))
+            .cloned()
+            .collect();
+        if adapters.is_empty() { return; }
+
+        // Snapshot upstream state for placeholder substitution.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+
+        // Build the attrs map (string-shaped) from the upstream state
+        // — kwargs the user passed at dispatch are gone by here, but
+        // they are persisted on the aggregate state, so the
+        // {{placeholder}} substitution still resolves through state.
+        let attrs: HashMap<String, String> = state_clone.as_ref()
+            .map(|s| s.fields.iter().map(|(k, v)| (k.clone(), v.to_string())).collect())
+            .unwrap_or_default();
+
+        for adapter in &adapters {
+            // Take ownership of the providers map briefly so we can
+            // pass an immutable borrow to the dispatcher without
+            // tripping the multi-borrow rule on self. The runtime
+            // still owns the providers — we just hand them through.
+            let outcome = {
+                let providers = &self.llm_providers;
+                let providers_arg = if providers.is_empty() { None } else { Some(providers) };
+                llm_dispatcher::call(adapter, state_clone.as_ref(), &attrs, providers_arg)
+            };
+
+            let result_data = match outcome {
+                llm_dispatcher::LlmOutcome::Completed(r) => r,
+                llm_dispatcher::LlmOutcome::Skipped(_)   => continue,
+            };
+
+            // Chain the response as a cascade dispatch. The target is
+            // `response_into_target` (Aggregate.Command) ; the kwarg
+            // name is `response_into_attr` ; the value is the
+            // response text.
+            let (target_agg, target_cmd) = match adapter.response_into_target.as_deref()
+                .and_then(llm_dispatcher::split_target) {
+                Some(p) => p,
+                None    => continue,
+            };
+            let attr_name = match adapter.response_into_attr.as_deref() {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+
+            let mut chain_attrs: HashMap<String, Value> = HashMap::new();
+            chain_attrs.insert(attr_name, Value::Str(result_data.response_text.clone()));
+            let cmd_qualified = format!("{}.{}", target_agg, target_cmd);
+            let _ = command_dispatch::dispatch_cascade(
+                self,
+                &cmd_qualified,
+                chain_attrs,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+        }
     }
 
     pub fn find(&self, aggregate_name: &str, id: &str) -> Option<&AggregateState> {

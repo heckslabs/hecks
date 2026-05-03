@@ -2070,12 +2070,78 @@ fn find_world_heki_dir(_aggregates_path: &str) -> Option<String> {
     Some(hecks_life::heki::resolve_info_dir().to_string_lossy().into_owned())
 }
 
+/// i221 — load every `*.hecksagon` reachable from agg_dir (the agg_dir
+/// itself + sibling hecksagon roots discovered the same way bluebooks
+/// are). Used by `Runtime::boot_with_hecksagons` so the LLM dispatcher
+/// hook can resolve named `:llm` adapters at runtime.
+fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon> {
+    let mut out = Vec::new();
+    fn walk(dir: &std::path::Path, out: &mut Vec<hecks_life::hecksagon_ir::Hecksagon>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".git" | "target" | "information" | ".claude"
+                | "node_modules" | "generated" | "fixtures" | "snippets") {
+                continue;
+            }
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+                if let Ok(source) = fs::read_to_string(&p) {
+                    out.push(hecks_life::hecksagon_parser::parse(&source));
+                }
+            }
+        }
+    }
+    walk(std::path::Path::new(agg_dir), &mut out);
+    out
+}
+
+/// i221 — register the runtime's `:llm` providers from the env. The
+/// `:test` provider is always present (in-memory ; no network) ; the
+/// `:claude` and `:ollama` providers are added when their backends
+/// are referenced by any loaded hecksagon's `:llm` adapter. The TestProvider's
+/// fixture file path is read from HECKS_LLM_FIXTURES (a `dream.fixtures`-
+/// shaped flat file). When unset, the provider runs in lenient mode
+/// (synthetic placeholder for unknown prompts).
+fn register_llm_providers(rt: &mut Runtime) {
+    use hecks_life::runtime::llm_providers::{TestProvider, ClaudeProvider, OllamaProvider};
+    // Test provider — always present.
+    let test_provider: Box<dyn hecks_life::runtime::llm_providers::LlmProvider> =
+        if let Ok(path) = std::env::var("HECKS_LLM_FIXTURES") {
+            Box::new(TestProvider::from_fixtures_file(path))
+        } else {
+            Box::new(TestProvider::new(std::collections::HashMap::new()))
+        };
+    rt.register_llm_provider("test", test_provider);
+    // Discover backends declared in hecksagons.
+    let mut backends: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for h in &rt.hecksagons {
+        for la in &h.llm_adapters {
+            if let Some(b) = la.backend.as_deref() {
+                backends.insert(b.to_string());
+            }
+        }
+    }
+    if backends.contains("claude") {
+        rt.register_llm_provider("claude", Box::new(ClaudeProvider::new()));
+    }
+    if backends.contains("ollama") {
+        let url = std::env::var("OLLAMA_URL")
+            .unwrap_or_else(|_| "http://localhost:11434".to_string());
+        rt.register_llm_provider("ollama", Box::new(OllamaProvider::new(url)));
+    }
+}
+
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
 fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
     let combined = load_combined_domain(agg_dir);
-    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt);
 
     // Check if this is a query — find the aggregate and check its queries
     let is_query = rt.domain.aggregates.iter().any(|a|
