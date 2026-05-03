@@ -39,6 +39,9 @@ use std::collections::HashMap;
 
 pub mod recent_musings;
 pub mod aggregate_corpus_window;
+pub mod dream_corpus_stopwords;
+pub mod dream_corpus_json;
+pub mod tokenize_dream_corpus;
 
 /// Registry dispatcher — match the function name and call the
 /// corresponding implementation. Adding a function here is the
@@ -57,6 +60,9 @@ pub fn invoke(
         "aggregate_corpus_window" => Some(
             aggregate_corpus_window::aggregate_corpus_window(state, attrs, data_dir)
         ),
+        "tokenize_dream_corpus" => Some(
+            tokenize_dream_corpus::tokenize_dream_corpus(state, attrs, data_dir)
+        ),
         _ => None,
     }
 }
@@ -67,5 +73,5 @@ pub fn invoke(
 /// directly through `invoke()`.
 #[cfg(test)]
 pub fn registered_names() -> Vec<&'static str> {
-    vec!["summarize_recent_musings", "aggregate_corpus_window"]
+    vec!["summarize_recent_musings", "aggregate_corpus_window", "tokenize_dream_corpus"]
 }
