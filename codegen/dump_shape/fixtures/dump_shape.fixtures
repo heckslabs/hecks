@@ -1,33 +1,35 @@
 Hecks.fixtures "DumpShape" do
   # Single-line fixtures per i57 parser limitation.
 
-  # ── Serializer — 15 top-level fns in dump.rs ─────────────────────
+  # ── Serializer — 17 top-level fns in dump.rs (PMs at 2, 3 ; rest unchanged) ──
   aggregate "Serializer" do
     fixture "Dump", name: "dump", target_type: "Domain", input_binding: "domain", return_type: "Value", is_entry: true, body_kind: "json_object", snippet_path: "", order: 1
-    fixture "DumpAggregate", name: "dump_aggregate", target_type: "Aggregate", input_binding: "agg", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 2
-    fixture "DumpAttribute", name: "dump_attribute", target_type: "Attribute", input_binding: "attr", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 3
-    fixture "DumpValueObject", name: "dump_value_object", target_type: "ValueObject", input_binding: "vo", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 4
-    fixture "DumpEntity", name: "dump_entity", target_type: "Entity", input_binding: "ent", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 16
-    fixture "DumpReference", name: "dump_reference", target_type: "Reference", input_binding: "r", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 5
-    fixture "DumpCommand", name: "dump_command", target_type: "Command", input_binding: "cmd", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 6
-    fixture "DumpQuery", name: "dump_query", target_type: "Query", input_binding: "q", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 7
-    fixture "DumpGiven", name: "dump_given", target_type: "Given", input_binding: "g", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 8
-    fixture "DumpMutation", name: "dump_mutation", target_type: "Mutation", input_binding: "m", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 9
-    fixture "NormalizeValue", name: "normalize_value", target_type: "str", input_binding: "s", return_type: "String", is_entry: false, body_kind: "embedded_helper", snippet_path: "codegen/dump_shape/snippets/normalize_value.rs.frag", order: 10
-    fixture "DumpMutationOp", name: "dump_mutation_op", target_type: "MutationOp", input_binding: "op", return_type: "&'static str", is_entry: false, body_kind: "enum_match", snippet_path: "", order: 11
-    fixture "DumpLifecycle", name: "dump_lifecycle", target_type: "Lifecycle", input_binding: "lc", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 12
-    fixture "DumpTransition", name: "dump_transition", target_type: "Transition", input_binding: "t", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 13
-    fixture "DumpPolicy", name: "dump_policy", target_type: "Policy", input_binding: "p", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 14
-    fixture "DumpFixture", name: "dump_fixture", target_type: "Fixture", input_binding: "f", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 15
+    fixture "DumpProcessManager", name: "dump_process_manager", target_type: "ProcessManager", input_binding: "pm", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 2
+    fixture "DumpPmHandler", name: "dump_pm_handler", target_type: "ProcessManagerHandler", input_binding: "h", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 3
+    fixture "DumpAggregate", name: "dump_aggregate", target_type: "Aggregate", input_binding: "agg", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 4
+    fixture "DumpAttribute", name: "dump_attribute", target_type: "Attribute", input_binding: "attr", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 5
+    fixture "DumpValueObject", name: "dump_value_object", target_type: "ValueObject", input_binding: "vo", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 6
+    fixture "DumpEntity", name: "dump_entity", target_type: "Entity", input_binding: "ent", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 18
+    fixture "DumpReference", name: "dump_reference", target_type: "Reference", input_binding: "r", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 7
+    fixture "DumpCommand", name: "dump_command", target_type: "Command", input_binding: "cmd", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 8
+    fixture "DumpQuery", name: "dump_query", target_type: "Query", input_binding: "q", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 9
+    fixture "DumpGiven", name: "dump_given", target_type: "Given", input_binding: "g", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 10
+    fixture "DumpMutation", name: "dump_mutation", target_type: "Mutation", input_binding: "m", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 11
+    fixture "NormalizeValue", name: "normalize_value", target_type: "str", input_binding: "s", return_type: "String", is_entry: false, body_kind: "embedded_helper", snippet_path: "codegen/dump_shape/snippets/normalize_value.rs.frag", order: 12
+    fixture "DumpMutationOp", name: "dump_mutation_op", target_type: "MutationOp", input_binding: "op", return_type: "&'static str", is_entry: false, body_kind: "enum_match", snippet_path: "", order: 13
+    fixture "DumpLifecycle", name: "dump_lifecycle", target_type: "Lifecycle", input_binding: "lc", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 14
+    fixture "DumpTransition", name: "dump_transition", target_type: "Transition", input_binding: "t", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 15
+    fixture "DumpPolicy", name: "dump_policy", target_type: "Policy", input_binding: "p", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 16
+    fixture "DumpFixture", name: "dump_fixture", target_type: "Fixture", input_binding: "f", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 17
     # i101 — first-class query IR : structured WhereClause / OrderBy /
     # LimitSpec serializers, plus the WhereOp / Direction enum_match
     # helpers. dump_query gains attributes / wheres / order_by / limit
     # JsonField rows below.
-    fixture "DumpWhereClause", name: "dump_where_clause", target_type: "WhereClause", input_binding: "w",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 17
-    fixture "DumpWhereOp",     name: "dump_where_op",     target_type: "WhereOp",     input_binding: "op", return_type: "&'static str",   is_entry: false, body_kind: "enum_match",  snippet_path: "", order: 18
-    fixture "DumpOrderBy",     name: "dump_order_by",     target_type: "OrderBy",     input_binding: "o",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 19
-    fixture "DumpDirection",   name: "dump_direction",    target_type: "Direction",   input_binding: "d",  return_type: "&'static str",   is_entry: false, body_kind: "enum_match",  snippet_path: "", order: 20
-    fixture "DumpLimitSpec",   name: "dump_limit_spec",   target_type: "LimitSpec",   input_binding: "l",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 21
+    fixture "DumpWhereClause", name: "dump_where_clause", target_type: "WhereClause", input_binding: "w",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 19
+    fixture "DumpWhereOp",     name: "dump_where_op",     target_type: "WhereOp",     input_binding: "op", return_type: "&'static str",   is_entry: false, body_kind: "enum_match",  snippet_path: "", order: 20
+    fixture "DumpOrderBy",     name: "dump_order_by",     target_type: "OrderBy",     input_binding: "o",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 21
+    fixture "DumpDirection",   name: "dump_direction",    target_type: "Direction",   input_binding: "d",  return_type: "&'static str",   is_entry: false, body_kind: "enum_match",  snippet_path: "", order: 22
+    fixture "DumpLimitSpec",   name: "dump_limit_spec",   target_type: "LimitSpec",   input_binding: "l",  return_type: "Value",          is_entry: false, body_kind: "json_object", snippet_path: "", order: 23
   end
 
   # ── JsonField — one row per JSON key in each json_object serializer ──
@@ -40,6 +42,20 @@ Hecks.fixtures "DumpShape" do
     fixture "Dump_aggregates", serializer: "dump", order: 4, key: "aggregates", source: "aggregates", mapping_kind: "recurse_list", helper_fn: "dump_aggregate"
     fixture "Dump_policies",   serializer: "dump", order: 5, key: "policies",   source: "policies",   mapping_kind: "recurse_list", helper_fn: "dump_policy"
     fixture "Dump_fixtures",   serializer: "dump", order: 6, key: "fixtures",   source: "fixtures",   mapping_kind: "recurse_list", helper_fn: "dump_fixture"
+    fixture "Dump_process_managers", serializer: "dump", order: 7, key: "process_managers", source: "process_managers", mapping_kind: "recurse_list", helper_fn: "dump_process_manager"
+
+    # dump_process_manager — 6 fields ; Phase 3 dream-study addition.
+    fixture "PM_name",          serializer: "dump_process_manager", order: 1, key: "name",          source: "name",          mapping_kind: "direct",       helper_fn: ""
+    fixture "PM_correlates_by", serializer: "dump_process_manager", order: 2, key: "correlates_by", source: "correlates_by", mapping_kind: "direct",       helper_fn: ""
+    fixture "PM_starts_on",     serializer: "dump_process_manager", order: 3, key: "starts_on",     source: "starts_on",     mapping_kind: "direct",       helper_fn: ""
+    fixture "PM_ends_on",       serializer: "dump_process_manager", order: 4, key: "ends_on",       source: "ends_on",       mapping_kind: "direct",       helper_fn: ""
+    fixture "PM_states",        serializer: "dump_process_manager", order: 5, key: "states",        source: "states",        mapping_kind: "direct",       helper_fn: ""
+    fixture "PM_handlers",      serializer: "dump_process_manager", order: 6, key: "handlers",      source: "handlers",      mapping_kind: "recurse_list", helper_fn: "dump_pm_handler"
+
+    # dump_pm_handler — 3 fields.
+    fixture "PMH_event_type", serializer: "dump_pm_handler", order: 1, key: "event_type", source: "event_type", mapping_kind: "direct", helper_fn: ""
+    fixture "PMH_from_state", serializer: "dump_pm_handler", order: 2, key: "from_state", source: "from_state", mapping_kind: "direct", helper_fn: ""
+    fixture "PMH_to_state",   serializer: "dump_pm_handler", order: 3, key: "to_state",   source: "to_state",   mapping_kind: "direct", helper_fn: ""
 
     # dump_aggregate — 10 fields (i142 added context : Option<String>
     # stamped from the bluebook name by the parser ; Ruby canonical_ir

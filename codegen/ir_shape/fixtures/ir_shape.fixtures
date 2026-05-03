@@ -1,72 +1,79 @@
 Hecks.fixtures "IrShape" do
   # Single-line fixtures per i57 parser limitation.
 
-  # ── Type — 18 top-level items in ir.rs (16 structs + 1 enum + 1 impl) ──
+  # ── Type — 20 top-level items in ir.rs (18 structs + 1 enum + 1 impl) ──
   aggregate "Type" do
-    # Domain — root of the parsed bluebook tree, holds aggregates / policies / fixtures / sections.
+    # Domain — root of the parsed bluebook tree, holds aggregates / policies / fixtures / sections / process_managers.
     fixture "Domain", name: "Domain", order: 1, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Root IR node — holds the parsed bluebook tree"
 
+    # ProcessManager — Phase 3 dream-study addition. Static shape of an
+    # event-driven state machine ; runtime instantiation is Ruby-side.
+    fixture "ProcessManager", name: "ProcessManager", order: 2, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/process_manager_type.rs.frag", description: "One declared process manager — name, correlates_by, starts/ends, states, handlers"
+
+    # ProcessManagerHandler — one on-event handler inside a PM, with from→to transition.
+    fixture "ProcessManagerHandler", name: "ProcessManagerHandler", order: 3, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/process_manager_handler_type.rs.frag", description: "PM on-event handler — event_type + from_state + to_state"
+
     # Section — named section in a capability dashboard ; struct-level doc above the derive.
-    fixture "Section", name: "Section", order: 2, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_type.rs.frag", description: "One named section in a capability dashboard"
+    fixture "Section", name: "Section", order: 4, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_type.rs.frag", description: "One named section in a capability dashboard"
 
     # SectionRow — one (label, field) row inside a Section ; struct-level doc above the derive.
-    fixture "SectionRow", name: "SectionRow", order: 3, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_row_type.rs.frag", description: "One row inside a section — label + field reference"
+    fixture "SectionRow", name: "SectionRow", order: 5, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/section_row_type.rs.frag", description: "One row inside a section — label + field reference"
 
     # Aggregate — the dominant IR node, several fields with extensive doc.
-    fixture "Aggregate", name: "Aggregate", order: 4, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Aggregate root — name, attributes, commands, lifecycle"
+    fixture "Aggregate", name: "Aggregate", order: 6, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Aggregate root — name, attributes, commands, lifecycle"
 
     # Attribute — name + Rust type (string) + default + list flag.
-    fixture "Attribute", name: "Attribute", order: 5, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Single attribute on an aggregate / value object / entity"
+    fixture "Attribute", name: "Attribute", order: 7, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Single attribute on an aggregate / value object / entity"
 
     # Command — verb on an aggregate or entity, with givens and mutations.
-    fixture "Command", name: "Command", order: 6, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Command verb — attributes, references, givens, mutations"
+    fixture "Command", name: "Command", order: 8, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Command verb — attributes, references, givens, mutations"
 
     # Query — read-side capability declaration ; i101 added attributes,
     # wheres, order_by, and limit so the DSL block is no longer opaque.
-    fixture "Query", name: "Query", order: 7, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Query — read-side capability"
+    fixture "Query", name: "Query", order: 9, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Query — read-side capability"
 
     # Given — precondition expression on a command.
-    fixture "Given", name: "Given", order: 8, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Given — precondition expression on a command"
+    fixture "Given", name: "Given", order: 10, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Given — precondition expression on a command"
 
     # Mutation — field + op + value tuple.
-    fixture "Mutation", name: "Mutation", order: 9, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation — field, op, value"
+    fixture "Mutation", name: "Mutation", order: 11, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation — field, op, value"
 
     # MutationOp — enum with 9 variants, four of which carry doc comments.
-    fixture "MutationOp", name: "MutationOp", order: 10, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation primitive — Set / Append / Increment / Decrement / Toggle / Delete / Multiply / Clamp / Decay"
+    fixture "MutationOp", name: "MutationOp", order: 12, body_kind: "enum", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Mutation primitive — Set / Append / Increment / Decrement / Toggle / Delete / Multiply / Clamp / Decay"
 
     # ValueObject — immutable value with attributes.
-    fixture "ValueObject", name: "ValueObject", order: 11, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Value object — immutable, replaced wholesale"
+    fixture "ValueObject", name: "ValueObject", order: 13, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Value object — immutable, replaced wholesale"
 
     # Entity — non-root entity with optional commands / queries / lifecycle / identified_by.
-    fixture "Entity", name: "Entity", order: 12, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Non-root entity owned by an aggregate"
+    fixture "Entity", name: "Entity", order: 14, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Non-root entity owned by an aggregate"
 
     # Reference — name + target + optional cross-domain identifier.
-    fixture "Reference", name: "Reference", order: 13, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Reference to another aggregate / entity"
+    fixture "Reference", name: "Reference", order: 15, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Reference to another aggregate / entity"
 
     # Policy — event → command trigger.
-    fixture "Policy", name: "Policy", order: 14, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Policy — on event, trigger command"
+    fixture "Policy", name: "Policy", order: 16, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Policy — on event, trigger command"
 
     # Lifecycle — state field + default + transitions list.
-    fixture "Lifecycle", name: "Lifecycle", order: 15, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle — state field, default state, transitions"
+    fixture "Lifecycle", name: "Lifecycle", order: 17, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle — state field, default state, transitions"
 
     # Transition — command + to_state + optional from_state guard.
-    fixture "Transition", name: "Transition", order: 16, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle transition — command takes the aggregate from from_state to to_state"
+    fixture "Transition", name: "Transition", order: 18, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle transition — command takes the aggregate from from_state to to_state"
 
     # Fixture — seeded data record bound to an aggregate.
-    fixture "Fixture", name: "Fixture", order: 17, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
+    fixture "Fixture", name: "Fixture", order: 19, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
 
     # i101 — first-class query IR. WhereClause / WhereOp / OrderBy /
     # Direction / LimitSpec extend Query with structured filter / sort /
     # cap fields so the runtime executor can walk repo.all() without
     # delegating to an opaque Ruby block.
-    fixture "WhereClause", name: "WhereClause", order: 18, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Where clause — field op value tuple, ANDed with siblings"
-    fixture "WhereOp",     name: "WhereOp",     order: 19, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/where_op.rs.frag", description: "Filter operator — Eq / Ne / Gt / Gte / Lt / Lte"
-    fixture "OrderBy",     name: "OrderBy",     order: 20, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Order by clause — field + direction"
-    fixture "Direction",   name: "Direction",   order: 21, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
-    fixture "LimitSpec",   name: "LimitSpec",   order: 22, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
+    fixture "WhereClause", name: "WhereClause", order: 20, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Where clause — field op value tuple, ANDed with siblings"
+    fixture "WhereOp",     name: "WhereOp",     order: 21, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/where_op.rs.frag", description: "Filter operator — Eq / Ne / Gt / Gte / Lt / Lte"
+    fixture "OrderBy",     name: "OrderBy",     order: 22, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Order by clause — field + direction"
+    fixture "Direction",   name: "Direction",   order: 23, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
+    fixture "LimitSpec",   name: "LimitSpec",   order: 24, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
 
     # Display impl on Domain — pretty-printed aggregate / command tree.
-    fixture "DisplayDomain", name: "DisplayDomain", order: 23, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+    fixture "DisplayDomain", name: "DisplayDomain", order: 25, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -80,6 +87,20 @@ Hecks.fixtures "IrShape" do
     fixture "Domain_fixtures",   type_name: "Domain", order: 6, name: "fixtures",   field_type: "Vec<Fixture>",    doc_snippet: ""
     fixture "Domain_entrypoint", type_name: "Domain", order: 7, name: "entrypoint", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/domain_entrypoint.rs.frag"
     fixture "Domain_sections",   type_name: "Domain", order: 8, name: "sections",   field_type: "Vec<Section>",    doc_snippet: "codegen/ir_shape/snippets/docs/domain_sections.rs.frag"
+    fixture "Domain_process_managers", type_name: "Domain", order: 9, name: "process_managers", field_type: "Vec<ProcessManager>", doc_snippet: "codegen/ir_shape/snippets/docs/domain_process_managers.rs.frag"
+
+    # ProcessManager — 6 fields ; Phase 3 dream-study addition.
+    fixture "ProcessManager_name",          type_name: "ProcessManager", order: 1, name: "name",          field_type: "String",                     doc_snippet: ""
+    fixture "ProcessManager_correlates_by", type_name: "ProcessManager", order: 2, name: "correlates_by", field_type: "String",                     doc_snippet: ""
+    fixture "ProcessManager_starts_on",     type_name: "ProcessManager", order: 3, name: "starts_on",     field_type: "String",                     doc_snippet: ""
+    fixture "ProcessManager_ends_on",       type_name: "ProcessManager", order: 4, name: "ends_on",       field_type: "Option<String>",             doc_snippet: ""
+    fixture "ProcessManager_states",        type_name: "ProcessManager", order: 5, name: "states",        field_type: "Vec<String>",                doc_snippet: ""
+    fixture "ProcessManager_handlers",      type_name: "ProcessManager", order: 6, name: "handlers",      field_type: "Vec<ProcessManagerHandler>", doc_snippet: ""
+
+    # ProcessManagerHandler — 3 fields ; from→to as named fields, not a 1-key map.
+    fixture "ProcessManagerHandler_event_type", type_name: "ProcessManagerHandler", order: 1, name: "event_type", field_type: "String", doc_snippet: ""
+    fixture "ProcessManagerHandler_from_state", type_name: "ProcessManagerHandler", order: 2, name: "from_state", field_type: "String", doc_snippet: ""
+    fixture "ProcessManagerHandler_to_state",   type_name: "ProcessManagerHandler", order: 3, name: "to_state",   field_type: "String", doc_snippet: ""
 
     # Section — 2 fields.
     fixture "Section_title", type_name: "Section", order: 1, name: "title", field_type: "String",           doc_snippet: ""
