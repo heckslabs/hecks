@@ -16,6 +16,7 @@
 mod aggregate_state;
 mod command_dispatch;
 mod event_bus;
+pub mod loop_driver;
 pub mod pm_engine;
 mod interpreter;
 pub mod adapter_io;
@@ -200,6 +201,29 @@ impl Runtime {
             }
         }
         Ok(result)
+    }
+
+    /// Inject a synthetic event into the runtime — drive PMs and
+    /// policies as if a command had emitted it, without going through
+    /// the full command-dispatch path.
+    ///
+    /// This is the substrate the PM loop driver uses to fire cadence
+    /// events (BodyPulse, HeartTick, etc.) at fixed intervals : the
+    /// daemon ticks, calls this with a fresh Event, the PM engine
+    /// reacts, dispatches cascade, persistence happens — same machinery
+    /// as a real command's emit, just with the upstream command stripped.
+    ///
+    /// Bus listeners + history capture the event ; projections are
+    /// not updated (no aggregate state changed). Returns nothing —
+    /// callers wanting cascade results should use `dispatch`.
+    pub fn publish_synthetic_event(&mut self, event: Event) {
+        self.event_bus.publish(event.clone());
+        let result = CommandResult {
+            aggregate_id: event.aggregate_id.clone(),
+            aggregate_type: event.aggregate_type.clone(),
+            event: Some(event),
+        };
+        self.drain_policies(&result);
     }
 
     pub fn find(&self, aggregate_name: &str, id: &str) -> Option<&AggregateState> {
