@@ -56,6 +56,11 @@ Hecks.bluebook "DumpShape", version: "2026.05.01.1" do
       attribute :body_kind,       String
       # snippet_path: for embedded_helper only — relative path to .rs.frag
       attribute :snippet_path,    String, default: ""
+      # doc_text: optional /// doc-comment block emitted before the
+      # signature. Newline-separated literal `///` lines. Leave empty
+      # to skip the doc block (back-compat for json_object / enum_match
+      # rows ; only embedded_helper rows currently use this attribute).
+      attribute :doc_text,        String, default: ""
       # order: emission order in the .rs file (matches hand-written)
       attribute :order,           Integer
     end
