@@ -42,6 +42,16 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
   #                          idempotent spawn + setsid detach + pidfile
   #                          management. No more wrapping subshells.
   #                          Adapter : :daemon (the new primitive).
+  #
+  #                          mindstream cadence (i75 closure) : spawns
+  #                          `hecks-life run-loop <repo> --every 1s
+  #                          --emit BodyPulse:Consciousness:consciousness`.
+  #                          The BodyCycle PM (body/cycles/body_cycle.bluebook)
+  #                          observes the synthetic BodyPulse and dispatches
+  #                          per-state, replacing the legacy mindstream.sh
+  #                          while-true scheduler. The body/mindstream.sh
+  #                          alias forwards to the same command for
+  #                          daemon-registry continuity.
   #   7. PrintVitals       — render the boot-summary section to stdout.
   #                          Adapter : :stdout.
   #   8. SurfaceWakeReport — if /tmp/wake_review_latest.md exists,
@@ -178,7 +188,7 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
 
     command "EnsureDaemons" do
       role "System"
-      description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run hecks-life daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in hecks_life/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses hecks-life loop (cadence primitive, i76) wrapped through daemon ensure ; the others wrap their .sh script directly."
+      description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run hecks-life daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in hecks_life/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses hecks-life loop (cadence primitive, i76) wrapped through daemon ensure. mindstream now spawns `hecks-life run-loop <repo> --every 1s --emit BodyPulse:Consciousness:consciousness` (i75 closure) — BodyCycle PM observes the synthetic BodyPulse and dispatches per-state, retiring the legacy 310-line while-true scheduler. The mindstream.sh alias forwards to the same command for daemon-registry continuity until the registry move-over."
       attribute :mindstream_status,  String
       attribute :heart_status,       String
       attribute :breath_status,      String
