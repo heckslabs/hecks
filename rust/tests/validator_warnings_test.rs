@@ -5,6 +5,12 @@
 //!   - multi_domain_split_warning   (>11 aggregates — second-tier warn)
 //!   - mixed_concerns_warning       (5+ aggregates, disconnected)
 //!   - small connected domain       (no warnings)
+//!
+//! [antibody-exempt: rust/tests/validator_warnings_test.rs — kernel-
+//!  surface test for validator_warnings logic, builds Domain literals
+//!  directly to exercise the warning rules. Test-only kernel surface.
+//!  Retires when validators are bluebook-driven via meta-shape (the
+//!  same path that retired meta_diagnostic_validator).]
 
 use hecks_life::ir::{Aggregate, Command, Domain, Reference};
 use hecks_life::validator_warnings::{
@@ -48,6 +54,7 @@ fn empty_domain(name: &str, aggregates: Vec<Aggregate>) -> Domain {
         category: None,
         vision: None,
         aggregates,
+        process_managers: vec![],
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
