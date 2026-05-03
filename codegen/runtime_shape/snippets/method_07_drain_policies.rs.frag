@@ -106,6 +106,14 @@
                         );
                         if let Ok(inner_result) = inner {
                             self.drain_policies(&inner_result);
+                            // i220 sub-gap 5 — fire the :compute hook
+                            // on PM cascade dispatches first, so the
+                            // chained context-populated state is
+                            // visible when the LLM hook reads from
+                            // the same target's state below.
+                            self.resolve_compute_adapters(
+                                &inner_result, &dispatched.command_name,
+                            );
                             // i220-1 — fire the :llm hook on cascade
                             // dispatches the same way `Runtime::dispatch`
                             // fires it after top-level dispatch settles.
@@ -157,6 +165,11 @@
                 );
                 if let Ok(inner_result) = inner {
                     self.drain_policies(&inner_result);
+                    // i220 sub-gap 5 — :compute hook on policy
+                    // cascades. Same ordering as the PM arm above :
+                    // compute first (populates fields), then LLM
+                    // (reads them in the prompt template).
+                    self.resolve_compute_adapters(&inner_result, &cmd);
                     // i220-1 — same cascade-LLM hook as the PM-dispatch
                     // arm above. Policy-driven cascades (react_to /
                     // policy.bluebook) need the named-adapter pipeline

@@ -1117,14 +1117,29 @@ fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json:
             "backend":              la.backend,
         })
     }).collect();
+    // i220 sub-gap 5 (compute-adapter-primitive) — parity dump for
+    // the new `:compute` family. Mirrors llm_adapters' shape minus
+    // prompt_template / model / max_tokens / backend (compute has
+    // no prompt + no provider) ; carries `function_name` instead
+    // (the registry key the runtime resolves at dispatch time).
+    let compute_adapters: Vec<serde_json::Value> = hex.compute_adapters.iter().map(|ca| {
+        serde_json::json!({
+            "name":                 ca.name,
+            "function_name":        ca.function_name,
+            "trigger_on":           ca.trigger_on,
+            "response_into_target": ca.response_into_target,
+            "response_into_attr":   ca.response_into_attr,
+        })
+    }).collect();
     serde_json::json!({
-        "name":           hex.name,
-        "persistence":    hex.persistence,
-        "subscriptions":  hex.subscriptions,
-        "io_adapters":    io_adapters,
-        "shell_adapters": shell_adapters,
-        "llm_adapters":   llm_adapters,
-        "gates":          gates,
+        "name":             hex.name,
+        "persistence":      hex.persistence,
+        "subscriptions":    hex.subscriptions,
+        "io_adapters":      io_adapters,
+        "shell_adapters":   shell_adapters,
+        "llm_adapters":     llm_adapters,
+        "compute_adapters": compute_adapters,
+        "gates":            gates,
     })
 }
 
