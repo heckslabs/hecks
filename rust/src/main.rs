@@ -306,6 +306,30 @@ fn main() {
         return;
     }
 
+    // `hecks-life run-loop <bluebook-tree> [--every <dur>] [--emit <Event:Type:Id>]
+    //   [--dispatch <Aggregate.Command> [--with k=v ...]]`
+    //
+    // PM loop driver — long-running runtime daemon. Boots once, ticks
+    // at the configured cadence, fires registered events / commands
+    // into the runtime so PMs (sleep_cycle, dream, mind, ...) advance
+    // their state continuously instead of one-shot per shell invocation.
+    //
+    // Substrate for retiring `mindstream.sh` : that shell exists because
+    // no Rust scheduler does. With run-loop the cadence becomes Rust
+    // and the bluebook-declared PMs react to each tick's events through
+    // the same pm_engine + drain_policies machinery the one-shot
+    // dispatch path already uses.
+    //
+    // Today the cadence + actions are passed via CLI flags ; once
+    // block_grammar (i218) lifts the `cadence ... every Xs` keyword
+    // into Rust IR, run-loop reads them from the parsed Domain and
+    // mindstream.sh retires entirely. This subcommand IS the
+    // long-running substrate that lift requires.
+    if command == "run-loop" {
+        run_pm_loop(&args);
+        return;
+    }
+
     // `hecks-life daemon <ensure|status|stop> <pidfile> [command...]`
     //
     // Process-lifecycle primitive — the runtime gap that kept boot_miette
@@ -2996,6 +3020,129 @@ fn run_loop(args: &[String]) {
         }
         std::thread::sleep(every);
     }
+}
+
+/// `hecks-life run-loop <target> [--every <dur>]
+///   [--emit <EventName:AggregateType:AggregateId>]...
+///   [--dispatch <Aggregate.Command>]... [k=v ...]`
+///
+/// Runtime daemon — boots a Runtime once, ticks at the configured
+/// cadence, fires registered actions on each tick. Wires the new
+/// LoopDriver in `runtime/loop_driver.rs` to the CLI ; defaults
+/// produce a 1Hz "BodyPulse" emit, matching mindstream.sh's actual
+/// real cadence.
+///
+/// `--emit X:Y:Z` injects a synthetic event into the runtime's bus
+/// (drives PMs only, no command pipeline). `--dispatch Cmd` runs the
+/// full command path. Multiple of each may be passed ; they fire in
+/// declaration order each tick. Trailing `k=v` pairs become attrs
+/// for `--dispatch` actions (shared across all dispatches in the tick,
+/// matching `hecks-life loop`'s convention).
+///
+/// SIGTERM / SIGINT today : the daemon exits at the next tick boundary
+/// (graceful) when the stop flag flips. Per-transition PM persistence
+/// in drain_policies means hard-kill loses no PM state — the worst
+/// case is replaying one tick's policy cascade. Signal-driven shutdown
+/// is a follow-up (needs signal_hook ; the runtime is dep-light today).
+fn run_pm_loop(args: &[String]) {
+    use hecks_life::runtime::loop_driver::{LoopDriver, TickAction};
+
+    let target = match args.get(2).map(|s| s.as_str()) {
+        Some(t) => t,
+        None => {
+            eprintln!(
+                "Usage: hecks-life run-loop <bluebook-or-dir> \
+                 [--every <duration>] \
+                 [--emit <Event:AggType:AggId>]... \
+                 [--dispatch <Aggregate.Command>]... \
+                 [key=val ...]"
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let every_str = args.iter().position(|a| a == "--every")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str())
+        .unwrap_or("1s");
+    let interval = parse_loop_duration(every_str).unwrap_or_else(|| {
+        eprintln!("run-loop : cannot parse --every '{}' (try 1s, 500ms, 2m)", every_str);
+        std::process::exit(1);
+    });
+
+    // Collect emit + dispatch actions in argv order so a user can
+    // declare multiple cadenced events and command dispatches in one
+    // run. Multi-value flag pattern : repeat the flag.
+    let mut emits: Vec<(String, String, String)> = Vec::new();
+    let mut dispatches: Vec<String> = Vec::new();
+    let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut i = 3;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--every" => { i += 2; continue; }
+            "--emit" => {
+                if let Some(spec) = args.get(i + 1) {
+                    let parts: Vec<&str> = spec.splitn(3, ':').collect();
+                    if parts.len() == 3 {
+                        emits.push((parts[0].into(), parts[1].into(), parts[2].into()));
+                    } else {
+                        eprintln!("run-loop : --emit needs Event:AggType:AggId, got '{}'", spec);
+                        std::process::exit(1);
+                    }
+                }
+                i += 2;
+            }
+            "--dispatch" => {
+                if let Some(c) = args.get(i + 1) {
+                    dispatches.push(c.split('.').last().unwrap_or(c).to_string());
+                }
+                i += 2;
+            }
+            s if s.starts_with("--") => { i += 1; }
+            s => {
+                if let Some((k, v)) = s.split_once('=') {
+                    attrs.insert(k.into(), hecks_life::runtime::Value::Str(v.into()));
+                }
+                i += 1;
+            }
+        }
+    }
+
+    // Default action when no --emit / --dispatch given : fire a 1Hz
+    // BodyPulse synthetic event. This matches mindstream's actual
+    // real cadence and lets PMs that subscribe to BodyPulse advance
+    // out of the box. Override by passing explicit flags.
+    if emits.is_empty() && dispatches.is_empty() {
+        emits.push(("BodyPulse".into(), "Pulse".into(), "pulse".into()));
+    }
+
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    let domain = if std::path::Path::new(target).is_dir() {
+        load_combined_domain(target)
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        parser::parse(&source)
+    };
+
+    let rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    let mut driver = LoopDriver::new(rt, interval);
+    for (ev, ty, id) in emits {
+        driver.add_emit(&ev, &ty, &id, std::collections::HashMap::new());
+    }
+    for cmd in dispatches {
+        driver.add_action(TickAction::Dispatch {
+            command_name: cmd,
+            attrs: attrs.clone(),
+        });
+    }
+    eprintln!(
+        "[hecks-life run-loop] {} actions/tick every {:?} (Ctrl-C to stop)",
+        driver.runtime().domain.name, interval
+    );
+    driver.run();
 }
 
 /// Predicate for the --gate flag on `hecks-life loop` (i108). Reads the
