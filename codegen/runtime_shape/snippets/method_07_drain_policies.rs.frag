@@ -106,6 +106,21 @@
                         );
                         if let Ok(inner_result) = inner {
                             self.drain_policies(&inner_result);
+                            // i220-1 — fire the :llm hook on cascade
+                            // dispatches the same way `Runtime::dispatch`
+                            // fires it after top-level dispatch settles.
+                            // Without this, PM-driven cascades (Dream PM
+                            // dispatching Dream.RecordImage, etc.) never
+                            // reach the named-adapter pipeline that wires
+                            // `:dream_image` / `:dream_translate` to
+                            // Claude. The recursion is bounded : the
+                            // LLM hook itself uses `dispatch_cascade`
+                            // (not `Runtime::dispatch`), so the response
+                            // chain is one-shot per match — same shape
+                            // the top-level call already relies on.
+                            self.resolve_llm_adapters(
+                                &inner_result, &dispatched.command_name,
+                            );
                         }
                     }
                 }
@@ -142,6 +157,13 @@
                 );
                 if let Ok(inner_result) = inner {
                     self.drain_policies(&inner_result);
+                    // i220-1 — same cascade-LLM hook as the PM-dispatch
+                    // arm above. Policy-driven cascades (react_to /
+                    // policy.bluebook) need the named-adapter pipeline
+                    // too. Without this, any policy chain landing on
+                    // `Dream.RecordImage` (or any other adapter target)
+                    // would silently skip Claude.
+                    self.resolve_llm_adapters(&inner_result, &cmd);
                 }
                 self.policy_engine.complete(&policy_name);
             }

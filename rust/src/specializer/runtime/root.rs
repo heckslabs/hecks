@@ -179,7 +179,12 @@ const HEADER: &str = r#"//! Hecks Runtime — executes domains from IR
 //!  in `drain_policies` + an `iter_data` parameter on
 //!  `evaluate_value_spec` so `for_each:` dispatches resolve `from_iter
 //!  (:field)` against per-record state — kernel-surface because the
-//!  PM cascade lives here, no bluebook can describe its own driver.]
+//!  PM cascade lives here, no bluebook can describe its own driver.
+//!  i220-1 fires the `:llm` adapter hook after each cascade dispatch
+//!  inside `drain_policies` so PM/policy-driven cascade dispatches
+//!  reach the named-adapter pipeline the same way top-level dispatch
+//!  does — kernel-surface plumbing on the rem_branch.sh retirement
+//!  arc, no bluebook can describe its own driver.]
 
 mod aggregate_state;
 mod command_dispatch;
