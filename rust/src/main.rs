@@ -1938,6 +1938,18 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         }
         c.policies.extend(dom.policies);
         c.fixtures.extend(dom.fixtures);
+        // i75-pulse-organs : process_managers + cadences + block_grammars
+        // were dropped by the merge function — load_combined_domain only
+        // ever surfaced the FIRST merged file's PMs, silently swallowing
+        // every subsequent bluebook's process_manager declarations. The
+        // Pulse / SleepCycle / Dream / Mind / Lucidity PMs that the
+        // dream-study branch declares all hit this — registered in Ruby
+        // specs (which load files individually), inert in `hecks-life
+        // run-loop` (which load_combined_domain's the directory). i75
+        // closes this so the PMs reach PMEngine when run-loop boots.
+        c.process_managers.extend(dom.process_managers);
+        c.cadences.extend(dom.cadences);
+        c.block_grammars.extend(dom.block_grammars);
     };
 
     // Recursive bluebook discovery (i126). Walk agg_dir at any depth.
