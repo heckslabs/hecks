@@ -58,7 +58,15 @@ module Hecksagon
         trigger_on(opts[:trigger_on]) if opts.key?(:trigger_on)
         if opts.key?(:response_into)
           target = opts[:response_into]
-          attr = opts[:response_attr]
+          # i220 sub-gap 5 heal : the one-liner kwarg form uses `attr:`
+          # (matches the .hecksagon DSL surface and the Rust parser's
+          # `attr` key). Earlier shape mistakenly looked up :response_attr
+          # which never appears in the one-liner form, so apply_options
+          # silently dropped attr and Ruby canonical_ir emitted null
+          # while Rust emitted the real value — caught at main-scope
+          # hecksagon parity for body/wake/wake_review.hecksagon's
+          # :compute :dream_corpus_window adapter.
+          attr = opts[:attr]
           response_into(target, attr: attr)
         end
         self
