@@ -66,6 +66,14 @@
             }
         }
 
+        // i220 sub-gap 5 — resolve `:compute` adapters BEFORE the
+        // policy cascade drains. Compute adapters populate context
+        // fields (e.g. recent_musings_summary) that downstream
+        // policy-driven dispatches (and the LLM hook below) read.
+        // Firing them first means a single top-level dispatch
+        // produces the fully-populated downstream chain.
+        self.resolve_compute_adapters(&result, command_name);
+
         // Drain policy triggers — recursively, so chains cascade fully
         self.drain_policies(&result);
 

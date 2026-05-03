@@ -206,6 +206,12 @@ pub mod seed_loader;
 pub mod llm_dispatcher;
 pub mod llm_providers;
 pub mod prompt_scaffolder;
+// i220 sub-gap 5 (compute-adapter-primitive) — sibling of llm_dispatcher
+// for local computation. Adapters declared as `:compute` in a hecksagon
+// route through `compute_dispatcher::call` which resolves
+// `function_name` against the static `compute_functions` registry.
+pub mod compute_dispatcher;
+pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
