@@ -61,12 +61,59 @@ module Hecks
         {
           # `dispatches` carries the declarative Aggregate.Command list
           # captured from `dispatch "..."` keyword inside the on-block.
-          # Empty when the handler used the Ruby-proc form.
-          "dispatches" => (h.respond_to?(:dispatches) ? (h.dispatches || []) : []),
+          # Empty when the handler used the Ruby-proc form. Each entry
+          # is a structured DispatchSpec carrying the command name and
+          # an ordered with-spec : Phase 2.b (pm-dispatch-enrichment)
+          # extends bare strings with attribute flow (literal /
+          # from_event / from_pm).
+          "dispatches" => (h.respond_to?(:dispatches) ? (h.dispatches || []) : []).map { |d| dump_dispatch(d) },
           "event_type" => h.event_type.to_s,
           "from_state" => from.to_s,
           "to_state"   => to.to_s,
         }
+      end
+
+      # Mirror Rust's dump_dispatch. Accepts both the new DispatchSpec
+      # struct (Phase 2.b+) and bare strings (legacy ; future-proof if
+      # hand-built IRs in tests still pass strings). Strings normalise
+      # to a DispatchSpec with empty +with_spec+.
+      def dump_dispatch(d)
+        if d.is_a?(String)
+          { "command_name" => d, "with" => [] }
+        else
+          {
+            "command_name" => d.command_name.to_s,
+            "with"         => (d.with_spec || []).map { |key, spec| [key.to_s, dump_value_spec(spec)] },
+          }
+        end
+      end
+
+      # Mirror Rust's dump_value_spec. Three kinds : literal, from_event,
+      # from_pm. Literals stringify their +value+ through to_s ; future
+      # work may type-tag this when dispatch_cascade learns numeric
+      # passing. +default+ is dumped as-is (nil → JSON null).
+      def dump_value_spec(spec)
+        case spec.kind.to_sym
+        when :literal
+          { "kind" => "literal", "value" => stringify_literal(spec.value) }
+        when :from_event
+          { "kind" => "from_event", "name" => spec.name.to_s,
+            "default" => stringify_literal(spec.default) }
+        when :from_pm
+          { "kind" => "from_pm", "name" => spec.name.to_s,
+            "default" => stringify_literal(spec.default) }
+        else
+          raise "unknown ValueSpec.kind=#{spec.kind.inspect}"
+        end
+      end
+
+      # Literals + defaults arrive as Ruby scalars in the DSL ; Rust
+      # captures them as Strings (parser layer is line-textual). Coerce
+      # to String for byte-identical canonical JSON. nil → nil (JSON
+      # null), else to_s.
+      def stringify_literal(v)
+        return nil if v.nil?
+        v.to_s
       end
 
       def dump_aggregate(agg)

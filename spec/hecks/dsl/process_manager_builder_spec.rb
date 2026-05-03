@@ -258,8 +258,69 @@ RSpec.describe Hecks::DSL::ProcessManagerBuilder do
 
       pm = b.build
       handler = pm.handlers.first
-      expect(handler.dispatches).to eq(["Inventory.Decrement", "Notification.Send"])
+      # Phase 2.b — dispatches are structured DispatchSpec objects.
+      # Bare-string form lifts to a spec with empty with_spec.
+      expect(handler.dispatches.map(&:command_name))
+        .to eq(["Inventory.Decrement", "Notification.Send"])
+      expect(handler.dispatches.map(&:with_spec)).to eq([[], []])
       expect(handler.action).to be_nil
+    end
+
+    it "captures with: literal entries" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        dispatch "Inventory.Decrement", with: { name: "body", count: 1 }
+      end
+      pm = b.build
+      spec = pm.handlers.first.dispatches.first
+      expect(spec.command_name).to eq("Inventory.Decrement")
+      expect(spec.with_spec.map(&:first)).to eq(%w[name count])
+      expect(spec.with_spec.map { |_, s| s.kind }).to eq(%i[literal literal])
+      expect(spec.with_spec.map { |_, s| s.value }).to eq(["body", 1])
+    end
+
+    it "captures from_event sentinels with optional default" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        dispatch "Inventory.Decrement", with: {
+          tick: from_event(:tick),
+          when: from_event(:occurred_at, default: "now")
+        }
+      end
+      pm = b.build
+      spec = pm.handlers.first.dispatches.first
+      tick = spec.with_spec.assoc("tick").last
+      whenv = spec.with_spec.assoc("when").last
+      expect(tick.kind).to eq(:from_event)
+      expect(tick.name).to eq(:tick)
+      expect(tick.default).to be_nil
+      expect(whenv.kind).to eq(:from_event)
+      expect(whenv.default).to eq("now")
+    end
+
+    it "captures from_pm sentinels with default fallback" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        dispatch "Inventory.Decrement", with: {
+          carrying: from_pm(:carrying, default: "—")
+        }
+      end
+      pm = b.build
+      spec = pm.handlers.first.dispatches.first
+      carrying = spec.with_spec.assoc("carrying").last
+      expect(carrying.kind).to eq(:from_pm)
+      expect(carrying.name).to eq(:carrying)
+      expect(carrying.default).to eq("—")
+    end
+
+    it "preserves with: declaration order" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        dispatch "X.Y", with: { a: 1, b: 2, c: 3, d: 4 }
+      end
+      pm = b.build
+      spec = pm.handlers.first.dispatches.first
+      expect(spec.with_spec.map(&:first)).to eq(%w[a b c d])
     end
 
     it "preserves the action proc when block has |event, pm| arity" do

@@ -270,16 +270,33 @@ impl Runtime {
                 );
 
                 for dispatched in &t.dispatches {
+                    // Phase 2.b (pm-dispatch-enrichment) — evaluate
+                    // each ValueSpec in the with_spec at dispatch
+                    // time. Order : with_spec resolution first (so an
+                    // explicit `name: "body"` literal beats refs the
+                    // inject_refs heuristic might guess), then
+                    // upstream-ref injection fills in everything
+                    // still unset.
                     let mut data = std::collections::HashMap::new();
+                    for (key, spec) in &dispatched.with_spec {
+                        if let Some(v) = self.evaluate_value_spec(
+                            spec,
+                            event,
+                            &t.pm_name,
+                            &t.correlation_id,
+                        ) {
+                            data.insert(key.clone(), v);
+                        }
+                    }
                     self.inject_refs(
-                        dispatched,
+                        &dispatched.command_name,
                         &event.aggregate_type,
                         &event.aggregate_id,
                         &mut data,
                     );
                     let inner = command_dispatch::dispatch_cascade(
                         self,
-                        dispatched,
+                        &dispatched.command_name,
                         data,
                         &event.aggregate_type,
                         &event.aggregate_id,
@@ -323,6 +340,51 @@ impl Runtime {
                     self.drain_policies(&inner_result);
                 }
                 self.policy_engine.complete(&policy_name);
+            }
+        }
+    }
+
+    /// Evaluate one with-spec entry into a runtime Value at PM
+    /// dispatch time. Three kinds :
+    ///
+    ///   - `Literal { value }`             → `Value::Str(value)`
+    ///   - `FromEvent { name, default }`    → `event.data[name]` ;
+    ///                                        falls back to literal
+    ///                                        from `default` ;
+    ///                                        returns `None` when
+    ///                                        both are absent.
+    ///   - `FromPm { name, default }`       → `pm.attributes[name]` ;
+    ///                                        same fallback semantics.
+    ///
+    /// Returns `None` when no value resolves (caller skips the key
+    /// so the receiving aggregate sees no entry — same as if the
+    /// dispatch never named it).
+    ///
+    /// PM-state attribute reads currently always fall through to
+    /// `default` because PMInstanceState doesn't carry per-instance
+    /// attribute storage yet (filed as Phase 2.c follow-up). This
+    /// matches the legacy procs' `pm.attributes[:x] || "—"` pattern
+    /// exactly : the default fires.
+    fn evaluate_value_spec(
+        &self,
+        spec: &crate::ir::ValueSpec,
+        event: &Event,
+        _pm_name: &str,
+        _correlation_id: &str,
+    ) -> Option<Value> {
+        use crate::ir::ValueSpec;
+        match spec {
+            ValueSpec::Literal { value } => Some(Value::Str(value.clone())),
+            ValueSpec::FromEvent { name, default } => {
+                if let Some(v) = event.data.get(name) {
+                    return Some(v.clone());
+                }
+                default.as_ref().map(|d| Value::Str(d.clone()))
+            }
+            ValueSpec::FromPm { name: _, default } => {
+                // PM attribute storage lands in Phase 2.c ; until
+                // then, FromPm always falls through to default.
+                default.as_ref().map(|d| Value::Str(d.clone()))
             }
         }
     }

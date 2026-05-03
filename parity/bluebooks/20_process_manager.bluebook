@@ -38,5 +38,18 @@ Hecks.bluebook "Sleep", version: "2026.05.02.1" do
       dispatch "Body.WakeUp"
       dispatch "WakeReport.Compose"
     end
+
+    # Phase 2.b — declarative dispatch with `with:` attribute flow.
+    # Three forms exercised here :
+    #   - bare scalar literal (`name: "body"`)
+    #   - `from_event(:tick)` — read upstream event attribute
+    #   - `from_pm(:carrying, default: "—")` — read PM attribute, default fires
+    on "Beat", transition: { rem: :rem } do
+      dispatch "Body.Tick", with: { name: "body", tick: from_event(:tick) }
+      dispatch "Mood.Reweight", with: {
+        carrying: from_pm(:carrying, default: "—"),
+        occurred_at: from_event(:occurred_at)
+      }
+    end
   end
 end

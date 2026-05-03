@@ -26,7 +26,7 @@
 
 use super::Event;
 use crate::heki;
-use crate::ir::{ProcessManager, ProcessManagerHandler};
+use crate::ir::{DispatchSpec, ProcessManager, ProcessManagerHandler};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -48,8 +48,10 @@ pub struct PMInstanceState {
 }
 
 /// What PMEngine returns when an event triggers state changes.
-/// `dispatches` carries the "Aggregate.Command" strings declared
-/// via the handler's `dispatch "..."` lines ; caller dispatches them.
+/// `dispatches` carries the structured DispatchSpec entries declared
+/// via the handler's `dispatch "Cmd", with: { ... }` lines ; caller
+/// evaluates each spec's with_spec at dispatch time and routes
+/// through the cascade dispatcher.
 #[derive(Debug, Clone)]
 pub struct PMTrigger {
     pub pm_name: String,
@@ -57,7 +59,7 @@ pub struct PMTrigger {
     pub from_state: String,
     pub to_state: String,
     pub event_name: String,
-    pub dispatches: Vec<String>,
+    pub dispatches: Vec<DispatchSpec>,
 }
 
 pub struct PMEngine {
@@ -318,14 +320,17 @@ mod tests {
                     event_type: "OrderShipped".into(),
                     from_state: "pending".into(),
                     to_state: "shipped".into(),
-                    dispatches: vec!["Inventory.Decrement".into()],
+                    dispatches: vec![DispatchSpec {
+                        command_name: "Inventory.Decrement".into(),
+                        with_spec: vec![],
+                    }],
                 },
                 ProcessManagerHandler {
                     event_type: "OrderDelivered".into(),
                     from_state: "shipped".into(),
                     to_state: "delivered".into(),
                     dispatches: vec![],
-                },
+                }, // dispatches: empty Vec<DispatchSpec>
             ],
         }
     }
@@ -353,13 +358,15 @@ mod tests {
         assert_eq!(triggers.len(), 1);
         assert_eq!(triggers[0].from_state, "pending");
         assert_eq!(triggers[0].to_state, "shipped");
-        assert_eq!(triggers[0].dispatches, vec!["Inventory.Decrement".to_string()]);
+        assert_eq!(triggers[0].dispatches.len(), 1);
+        assert_eq!(triggers[0].dispatches[0].command_name, "Inventory.Decrement");
+        assert!(triggers[0].dispatches[0].with_spec.is_empty());
 
         engine.complete("OrderFulfillment");
         let triggers = engine.react(&evt("OrderDelivered", "ord_42"));
         assert_eq!(triggers.len(), 1);
         assert_eq!(triggers[0].to_state, "delivered");
-        assert_eq!(triggers[0].dispatches, Vec::<String>::new());
+        assert!(triggers[0].dispatches.is_empty());
     }
 
     #[test]

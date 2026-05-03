@@ -839,7 +839,11 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
                     // Capture `dispatch "Cmd"` lines as declarative
                     // dispatches ; other body lines (Ruby-proc form,
                     // conditionals, etc.) are still consumed-and-discarded
-                    // (opaque to Rust).
+                    // (opaque to Rust). Phase 2.b
+                    // (pm-dispatch-enrichment) glues continuation lines
+                    // when a `dispatch ..., with: {` hash spans multiple
+                    // lines, so the parser sees one logical dispatch
+                    // statement at a time.
                     let on_indent = lines[i].len() - lines[i].trim_start().len();
                     while i + 1 < lines.len() {
                         i += 1;
@@ -849,9 +853,21 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
                         if trimmed == "end" && indent == on_indent {
                             break;
                         }
+                        if !is_dispatch_start(trimmed) {
+                            continue;
+                        }
+                        // Glue continuation lines until braces +
+                        // parens are balanced (with: hash + sentinel
+                        // calls can wrap across multiple lines).
+                        let mut joined = trimmed.to_string();
+                        while !is_balanced(&joined) && i + 1 < lines.len() {
+                            i += 1;
+                            joined.push(' ');
+                            joined.push_str(lines[i].trim());
+                        }
                         if let Some(ref mut h) = handler {
-                            if let Some(cmd) = parse_dispatch_line(trimmed) {
-                                h.dispatches.push(cmd);
+                            if let Some(spec) = parse_dispatch_statement(&joined) {
+                                h.dispatches.push(spec);
                             }
                         }
                     }
@@ -912,15 +928,250 @@ fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
     })
 }
 
-/// Parse one `dispatch "Aggregate.Command"` line into the command name.
-/// Returns None when the line isn't a dispatch line.
-fn parse_dispatch_line(line: &str) -> Option<String> {
-    let trimmed = line.trim();
-    if !(trimmed.starts_with("dispatch ")
+/// Returns true when `trimmed` starts a `dispatch` statement (used by
+/// the on-block walker before it joins continuation lines).
+fn is_dispatch_start(trimmed: &str) -> bool {
+    trimmed.starts_with("dispatch ")
         || trimmed.starts_with("dispatch\t")
-        || trimmed.starts_with("dispatch\""))
-    {
-        return None;
+        || trimmed.starts_with("dispatch\"")
+}
+
+/// Returns true when every `(`/`)` and `{`/`}` pair in `s` is matched.
+/// Used to detect the end of a multi-line `dispatch ..., with: { ... }`
+/// statement. Quotes are not respected — a `{` or `(` inside a string
+/// would mis-balance. The DSL surface today doesn't put braces in
+/// string literals, so this approximation holds ; sources that do
+/// would be surfaced as parser drift in parity tests.
+fn is_balanced(s: &str) -> bool {
+    let mut paren = 0i32;
+    let mut brace = 0i32;
+    for c in s.chars() {
+        match c {
+            '(' => paren += 1,
+            ')' => paren -= 1,
+            '{' => brace += 1,
+            '}' => brace -= 1,
+            _ => (),
+        }
     }
-    extract_string(trimmed)
+    paren == 0 && brace == 0
+}
+
+/// Parse one (possibly glued-multi-line) `dispatch "Cmd"` statement
+/// into a structured DispatchSpec. Two source forms recognized :
+///
+///   dispatch "Aggregate.Command"
+///   dispatch "Aggregate.Command", with: { foo: from_event(:bar),
+///                                         baz: "lit",
+///                                         qux: from_pm(:n, default: "—") }
+///
+/// Returns None when the shape is unparseable. The caller's outer
+/// walk skips non-dispatch lines via `is_dispatch_start`, so this
+/// function is called only on confirmed dispatch statements.
+fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
+    let trimmed = line.trim();
+    if !is_dispatch_start(trimmed) { return None; }
+    let command_name = extract_string(trimmed)?;
+
+    // Find the `with:` keyword. Tolerant of variable whitespace
+    // around the comma (e.g. `dispatch "X",   with: {...}`). The
+    // search starts after the closing quote of the command name so
+    // a stray `with:` inside the command string can't false-match.
+    let cmd_end = match trimmed.match_indices('"').nth(1) {
+        Some((idx, _)) => idx + 1,
+        None => trimmed.len(),
+    };
+    let tail = &trimmed[cmd_end..];
+    let with_spec = match tail.find("with:") {
+        None => Vec::new(),
+        Some(pos) => {
+            let after = &tail[pos + "with:".len()..];
+            let open = after.find('{')?;
+            // The matching close brace bounds the with hash. Use a
+            // depth counter so nested `from_event(:foo)` parens or any
+            // future nested hash don't trip the search.
+            let close = match_close_brace(&after[open..])? + open;
+            let body = after[open + 1..close].trim();
+            parse_with_hash(body)
+        }
+    };
+
+    Some(DispatchSpec {
+        command_name,
+        with_spec,
+    })
+}
+
+/// Given a slice that starts at `{`, return the index of the matching
+/// `}` (counting depth). Returns None when unmatched. Quotes are not
+/// respected — same approximation as `is_balanced`.
+fn match_close_brace(s: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    for (i, c) in s.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 { return Some(i); }
+            }
+            _ => (),
+        }
+    }
+    None
+}
+
+/// Parse the inside of a `with: { ... }` hash into an ordered Vec of
+/// `(key, ValueSpec)` pairs. Splitting respects nested parens (so
+/// `default: "—,"` inside `from_pm(...)` doesn't split), at the cost
+/// of not respecting string literals (matches the wider parser
+/// surface : an author-supplied literal containing a comma would be
+/// surfaced as parity drift).
+fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
+    let mut out: Vec<(String, ValueSpec)> = Vec::new();
+    for raw_entry in split_top_level_commas(body) {
+        let entry = raw_entry.trim().trim_end_matches(',').trim();
+        if entry.is_empty() { continue; }
+        // `key: value` where key is a bare ident or a quoted string,
+        // and value is a literal (string / number) or a sentinel call
+        // `from_event(...)` / `from_pm(...)`. A trailing comma after
+        // the last entry is tolerated.
+        let colon = match entry.find(':') {
+            Some(p) => p,
+            None => continue,
+        };
+        // Skip cases where the `:` is part of `=>` or starts a Symbol
+        // literal value — for now we only accept the kwarg-shorthand
+        // form `key: value`. Hash-rocket form is filed as a follow-up
+        // (no PM in the corpus uses it for `with:`).
+        let key_raw = entry[..colon].trim();
+        let val_raw = entry[colon + 1..].trim();
+        let key = key_raw
+            .trim_matches(|c| c == '"' || c == '\'' || c == ':')
+            .to_string();
+        if key.is_empty() { continue; }
+        if let Some(spec) = parse_value_spec(val_raw) {
+            out.push((key, spec));
+        }
+    }
+    out
+}
+
+/// Parse one with-value into a ValueSpec. Three forms :
+///
+///   "literal"                              → ValueSpec::Literal
+///   from_event(:name)                       → FromEvent { default: None }
+///   from_event(:name, default: "x")         → FromEvent { default: Some("x") }
+///   from_pm(:name)                          → FromPm   { default: None }
+///   from_pm(:name, default: "—")            → FromPm   { default: Some("—") }
+///
+/// Numeric / bare-ident literals are accepted and stringified ; that
+/// matches the wider parser convention (canonical IR carries scalars
+/// as strings). Returns None on malformed input.
+fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
+    let s = raw.trim();
+    if s.starts_with("from_event") {
+        let (name, default) = parse_sentinel_args(s, "from_event")?;
+        Some(ValueSpec::FromEvent { name, default })
+    } else if s.starts_with("from_pm") {
+        let (name, default) = parse_sentinel_args(s, "from_pm")?;
+        Some(ValueSpec::FromPm { name, default })
+    } else if s.starts_with('"') || s.starts_with('\'') {
+        let value = extract_string(s).unwrap_or_default();
+        Some(ValueSpec::Literal { value })
+    } else {
+        // Bare ident / number / symbol — stringify the trimmed token.
+        let token = s.trim_end_matches(',').trim().to_string();
+        if token.is_empty() {
+            return None;
+        }
+        Some(ValueSpec::Literal { value: token })
+    }
+}
+
+/// Parse the `(...)` arglist of a sentinel call into (name, default).
+/// `name` is required and arrives as `:foo` or `"foo"` ; `default`
+/// is optional and named (`default: "..."` form only ; positional
+/// not supported).
+fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)> {
+    let after = &s[fname.len()..];
+    let open = after.find('(')?;
+    let close = after[open..].rfind(')')? + open;
+    let inner = after[open + 1..close].trim();
+    if inner.is_empty() { return None; }
+
+    let parts = split_top_level_commas(inner);
+    let mut iter = parts.into_iter();
+    let name_raw = iter.next()?.trim().to_string();
+    let name = name_raw
+        .trim_start_matches(':')
+        .trim_matches(|c: char| c == '"' || c == '\'')
+        .to_string();
+    if name.is_empty() { return None; }
+
+    let mut default: Option<String> = None;
+    for rest in iter {
+        let r = rest.trim();
+        if let Some(rest_after) = r.strip_prefix("default:") {
+            let v = rest_after.trim();
+            if v.starts_with('"') || v.starts_with('\'') {
+                default = extract_string(v);
+            } else if !v.is_empty() {
+                default = Some(v.trim_end_matches(',').trim().to_string());
+            }
+        }
+    }
+    Some((name, default))
+}
+
+#[cfg(test)]
+mod dispatch_tests {
+    use super::*;
+
+    #[test]
+    fn parses_bare_dispatch() {
+        let s = parse_dispatch_statement(r#"dispatch "Body.WakeUp""#).unwrap();
+        assert_eq!(s.command_name, "Body.WakeUp");
+        assert!(s.with_spec.is_empty());
+    }
+
+    #[test]
+    fn parses_dispatch_with_literal_and_from_event() {
+        let line = r#"dispatch "Body.Tick", with: { name: "body", tick: from_event(:tick) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.command_name, "Body.Tick");
+        assert_eq!(s.with_spec.len(), 2);
+        assert_eq!(s.with_spec[0].0, "name");
+        assert!(matches!(s.with_spec[0].1, ValueSpec::Literal { ref value } if value == "body"));
+        assert_eq!(s.with_spec[1].0, "tick");
+        assert!(matches!(s.with_spec[1].1, ValueSpec::FromEvent { ref name, default: None } if name == "tick"));
+    }
+
+    #[test]
+    fn parses_from_pm_with_default() {
+        let line = r#"dispatch "X.Y", with: { carrying: from_pm(:carrying, default: "—") }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.with_spec.len(), 1);
+        match &s.with_spec[0].1 {
+            ValueSpec::FromPm { name, default } => {
+                assert_eq!(name, "carrying");
+                assert_eq!(default.as_deref(), Some("—"));
+            }
+            other => panic!("expected FromPm, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn tolerates_variable_whitespace_around_with() {
+        let line = r#"dispatch "X.Y",          with: { tick: from_event(:tick) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.with_spec.len(), 1);
+        assert_eq!(s.with_spec[0].0, "tick");
+    }
+
+    #[test]
+    fn preserves_with_declaration_order() {
+        let line = r#"dispatch "X.Y", with: { a: 1, b: 2, c: 3 }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.with_spec.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(), vec!["a", "b", "c"]);
+    }
 }
