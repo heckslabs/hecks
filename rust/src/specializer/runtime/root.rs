@@ -4,11 +4,11 @@
 //! the `runtime_shape` bluebook + ordered `.rs.frag` snippets +
 //! per-method / per-phase rows.
 //!
-//! Design — three-level section / method / phase nesting :
-//!   The shape declares one `Section` row per top-level partition in
-//!   the file, in source order. Each row's `body_kind` picks the
-//!   emission template :
+//! Design — three-level section / method / phase nesting. The shape
+//! declares one `Section` row per top-level partition in the file, in
+//! source order. Each row's `body_kind` picks the emission template :
 //!
+//! ```text
 //!     verbatim_section — read snippet_path raw, emit unchanged.
 //!                        Used for the Runtime struct, the Value enum
 //!                        + impls, the RuntimeError enum + Display
@@ -20,8 +20,11 @@
 //!                        walking RuntimeMethod rows in `order`
 //!                        ascending, wrapped by the impl opener and
 //!                        closing brace.
+//! ```
 //!
-//!   Each RuntimeMethod row's body_kind in turn picks :
+//! Each RuntimeMethod row's body_kind in turn picks :
+//!
+//! ```text
 //!     verbatim_method  — read snippet_path raw, emit unchanged. The
 //!                        snippet is the full method (incl. leading
 //!                        doc comment when present and trailing blank
@@ -34,6 +37,7 @@
 //!                        blank are emitted by the template ; phase
 //!                        snippets carry the inter-phase blank-line
 //!                        separators inline.
+//! ```
 //!
 //! Real compression : adding a boot phase (e.g. wire_adapters when the
 //! adapter wiring lifts out of terminal/io into the boot pipeline) is
@@ -41,8 +45,11 @@
 //! function. Same for adding a Runtime impl method.
 //!
 //! Usage :
+//!
+//! ```ignore
 //!   let rust = runtime::root::emit(repo_root)?;
 //!   print!("{}", rust);
+//! ```
 //!
 //! [antibody-exempt: rust/src/specializer/runtime/root.rs —
 //!  i147 Wave 5-B Rust-native specializer for runtime/mod.rs.
