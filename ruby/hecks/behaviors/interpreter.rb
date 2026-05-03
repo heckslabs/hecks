@@ -180,6 +180,24 @@ module Hecks
           return Value.from(v.str_size)  if v.kind == :str
           return Value.from(0)
         end
+        # <expr>.modulo(N) — periodic cadence gate. Resolves the receiver
+        # as an integer (attr / state field / literal) and returns
+        # `receiver % N`. Mirrors rust/src/runtime/interpreter.rs so
+        # `given { tick.modulo(60) == 0 }` evaluates the same in both
+        # runners. Non-positive N short-circuits to 0 (predicate fires
+        # every call) — same safer-than-panicking guard as rand_below.
+        if (modulo_idx = expr.rindex(".modulo("))
+          if expr.end_with?(")")
+            receiver = expr[0...modulo_idx]
+            arg = expr[(modulo_idx + ".modulo(".length)...-1]
+            recv_val = resolve_expr(receiver.strip, state, attrs)
+            arg_val  = resolve_expr(arg.strip, state, attrs)
+            n = (arg_val.numeric.to_i rescue 0)
+            return Value.from(0) if n <= 0
+            lhs = (recv_val.numeric.to_i rescue 0)
+            return Value.from(lhs % n)
+          end
+        end
         if (v = attrs[expr] || attrs[expr.to_sym])
           return Value.from(v)
         end
