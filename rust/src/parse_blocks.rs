@@ -8,6 +8,14 @@
 //!  on `then_set`. Same retirement contract as ir.rs : the .rs surface
 //!  exists to enable pulse_organs.bluebook + consolidate retirement
 //!  (i80 cli-routing-as-bluebook).]
+//!
+//! [antibody-exempt: i226 parse-where-comparator-hash-form — kernel-surface
+//!  parser extension that recognizes `where(field: { lt|lte|gt|gte|ne: value })`
+//!  hash-form comparators. The IR's WhereOp already carries every variant ;
+//!  this is the parser side wiring that makes them reachable from .bluebook.
+//!  Without it, queries like `Synapse.cold` (where last_fired_at < cutoff)
+//!  cannot be expressed as first-class queries, and consolidate.sh /
+//!  rem_branch.sh cannot retire (i221 / i222). Same retirement contract.]
 
 use crate::ir::*;
 use crate::parser_helpers::*;
@@ -305,11 +313,15 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
 
 /// Parse one `where ...` line into one or more WhereClauses.
 ///
-/// Forms recognized (all eq op for now ; richer ops follow as fixtures
-/// demand them) :
-///   where field: value           (hash form, eq)
-///   where(field: value)          (parenthesized hash form, eq)
-///   where field1: v1, field2: v2 (multi-pair, all eq)
+/// Forms recognized :
+///   where field: value                  (hash form, eq)
+///   where(field: value)                 (parenthesized hash form, eq)
+///   where field1: v1, field2: v2        (multi-pair, all eq)
+///   where(field: { lt: value })         (comparator hash form — i226)
+///   where(field: { lte: value })
+///   where(field: { gt: value })
+///   where(field: { gte: value })
+///   where(field: { ne: value })
 ///
 /// Values are captured as canonical source tokens : `"available"` keeps
 /// its quotes stripped → "available" ; `:author` keeps its colon prefix
@@ -330,27 +342,23 @@ pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> 
         }
     }
     let mut out = Vec::new();
-    for part in body.split(',') {
+    for part in split_top_level_commas(body) {
         let part = part.trim();
         if part.is_empty() { continue; }
         if let Some(colon) = part.find(':') {
             let field = part[..colon].trim().to_string();
             let raw = part[colon + 1..].trim();
             if field.is_empty() { continue; }
-            let value = if raw.starts_with('"') {
-                extract_string(raw).unwrap_or_default()
-            } else if raw.starts_with(':') {
-                raw.split(|c: char| c == ',' || c.is_whitespace())
-                    .next().unwrap_or("").to_string()
-            } else {
-                let token = raw.split(|c: char| c == ',' || c.is_whitespace())
-                    .next().unwrap_or("").to_string();
-                if param_names.iter().any(|p| p == &token) {
-                    format!(":{}", token)
-                } else {
-                    token
+            // Comparator hash form: `field: { op: value }`. Recognize
+            // op key, recurse into value extraction.
+            if raw.starts_with('{') {
+                if let Some((op, inner)) = parse_comparator_hash(raw) {
+                    let value = extract_where_value(inner, param_names);
+                    out.push(WhereClause { field, op, value });
+                    continue;
                 }
-            };
+            }
+            let value = extract_where_value(raw, param_names);
             out.push(WhereClause {
                 field,
                 op: WhereOp::Eq,
@@ -360,6 +368,50 @@ pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> 
     }
     out
 }
+
+/// Extract the canonical value token from a where-clause RHS, applying
+/// the kwarg-ref convention (bare identifiers that match a query param
+/// name get a leading colon).
+fn extract_where_value(raw: &str, param_names: &[String]) -> String {
+    let raw = raw.trim();
+    if raw.starts_with('"') {
+        extract_string(raw).unwrap_or_default()
+    } else if raw.starts_with(':') {
+        raw.split(|c: char| c == ',' || c.is_whitespace())
+            .next().unwrap_or("").to_string()
+    } else {
+        let token = raw.split(|c: char| c == ',' || c.is_whitespace())
+            .next().unwrap_or("").to_string();
+        if param_names.iter().any(|p| p == &token) {
+            format!(":{}", token)
+        } else {
+            token
+        }
+    }
+}
+
+/// Parse a comparator hash like `{ lt: "2026-05-01T00:00:00Z" }` into
+/// the matching WhereOp variant plus the inner value source. Returns
+/// None if the brace form is malformed or the op key is unrecognized.
+fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
+    let raw = raw.trim_start_matches('{');
+    let close = raw.rfind('}')?;
+    let inner = raw[..close].trim();
+    let colon = inner.find(':')?;
+    let op_key = inner[..colon].trim().trim_start_matches(':');
+    let value_part = inner[colon + 1..].trim();
+    let op = match op_key {
+        "lt"  => WhereOp::Lt,
+        "lte" => WhereOp::Lte,
+        "gt"  => WhereOp::Gt,
+        "gte" => WhereOp::Gte,
+        "ne"  => WhereOp::Ne,
+        "eq"  => WhereOp::Eq,
+        _     => return None,
+    };
+    Some((op, value_part))
+}
+
 
 /// Parse `order_by :field` or `order_by :field, :desc` into an OrderBy.
 pub fn parse_order_by_line(line: &str) -> Option<OrderBy> {

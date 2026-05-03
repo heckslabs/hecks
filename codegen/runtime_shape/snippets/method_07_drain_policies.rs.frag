@@ -52,39 +52,61 @@
                 );
 
                 for dispatched in &t.dispatches {
-                    // Phase 2.b (pm-dispatch-enrichment) — evaluate
-                    // each ValueSpec in the with_spec at dispatch
-                    // time. Order : with_spec resolution first (so an
-                    // explicit `name: "body"` literal beats refs the
-                    // inject_refs heuristic might guess), then
-                    // upstream-ref injection fills in everything
-                    // still unset.
-                    let mut data = std::collections::HashMap::new();
-                    for (key, spec) in &dispatched.with_spec {
-                        if let Some(v) = self.evaluate_value_spec(
-                            spec,
-                            event,
-                            &t.pm_name,
-                            &t.correlation_id,
-                        ) {
-                            data.insert(key.clone(), v);
+                    // i221-B — sweep dispatch. When the DispatchSpec
+                    // carries `for_each: Some(spec)`, look up the
+                    // named query (Aggregate.query_name) in the
+                    // domain IR, run it against the in-memory
+                    // repository to enumerate matching records, and
+                    // dispatch one cascade per record threading the
+                    // record's fields as `iter_data`. `from_iter
+                    // (:field)` in the with-spec resolves against
+                    // each record. When `for_each` is `None` (the
+                    // bare-dispatch path), the loop body runs once
+                    // with `iter_data = None` — same shape as before.
+                    let iter_records: Vec<HashMap<String, Value>> = match &dispatched.for_each {
+                        Some(spec) => self.sweep_records(spec),
+                        None => vec![HashMap::new()],
+                    };
+                    let is_sweep = dispatched.for_each.is_some();
+
+                    for record in &iter_records {
+                        // Phase 2.b (pm-dispatch-enrichment) —
+                        // evaluate each ValueSpec in the with_spec
+                        // at dispatch time. Order : with_spec
+                        // resolution first (so an explicit
+                        // `name: "body"` literal beats refs the
+                        // inject_refs heuristic might guess), then
+                        // upstream-ref injection fills in
+                        // everything still unset.
+                        let mut data = std::collections::HashMap::new();
+                        let iter_arg = if is_sweep { Some(record) } else { None };
+                        for (key, spec) in &dispatched.with_spec {
+                            if let Some(v) = self.evaluate_value_spec(
+                                spec,
+                                event,
+                                &t.pm_name,
+                                &t.correlation_id,
+                                iter_arg,
+                            ) {
+                                data.insert(key.clone(), v);
+                            }
                         }
-                    }
-                    self.inject_refs(
-                        &dispatched.command_name,
-                        &event.aggregate_type,
-                        &event.aggregate_id,
-                        &mut data,
-                    );
-                    let inner = command_dispatch::dispatch_cascade(
-                        self,
-                        &dispatched.command_name,
-                        data,
-                        &event.aggregate_type,
-                        &event.aggregate_id,
-                    );
-                    if let Ok(inner_result) = inner {
-                        self.drain_policies(&inner_result);
+                        self.inject_refs(
+                            &dispatched.command_name,
+                            &event.aggregate_type,
+                            &event.aggregate_id,
+                            &mut data,
+                        );
+                        let inner = command_dispatch::dispatch_cascade(
+                            self,
+                            &dispatched.command_name,
+                            data,
+                            &event.aggregate_type,
+                            &event.aggregate_id,
+                        );
+                        if let Ok(inner_result) = inner {
+                            self.drain_policies(&inner_result);
+                        }
                     }
                 }
                 self.pm_engine.complete(&t.pm_name);
