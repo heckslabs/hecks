@@ -24,6 +24,20 @@
                 hex.io_adapters.push(io);
             }
         }
+        // i220 sub-gap 5 — sibling of `:llm`. Same shape as
+        // parse_llm_adapter / fallback to io_adapter when `name:` is
+        // absent, so a bare `adapter :compute, root: "."` (if anyone
+        // ever writes one) still lands as an io adapter rather than
+        // disappearing.
+        "compute" => {
+            if let Some(ca) = parse_compute_adapter(rest) {
+                hex.compute_adapters.push(ca);
+            } else {
+                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
+                for ev in extract_on_events(rest) { io.on_events.push(ev); }
+                hex.io_adapters.push(io);
+            }
+        }
         "memory" | "heki" => { hex.persistence = Some(kind); }
         _ => {
             let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
