@@ -300,9 +300,18 @@ impl Runtime {
     /// declaration is just a parse-time descriptor without runtime
     /// trigger) and are skipped silently.
     fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
-        if self.hecksagons.is_empty() { return; }
+        let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
+        if debug_llm {
+            eprintln!("[llm:debug] resolve_llm_adapters cmd={} agg_type={} hecksagons={} providers={}",
+                command_name, result.aggregate_type, self.hecksagons.len(), self.llm_providers.len());
+        }
+        if self.hecksagons.is_empty() {
+            if debug_llm { eprintln!("[llm:debug] no hecksagons — returning"); }
+            return;
+        }
         let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
         let target = format!("{}.{}", result.aggregate_type, bare_command);
+        if debug_llm { eprintln!("[llm:debug] target={}", target); }
 
         // Snapshot adapters that match — we need to walk hecksagons
         // by ref but mutate self.repositories/etc. via dispatch_cascade
@@ -312,6 +321,11 @@ impl Runtime {
             .filter(|la| la.response_into_target.as_deref() == Some(target.as_str()))
             .cloned()
             .collect();
+        if debug_llm {
+            eprintln!("[llm:debug] matched {} adapters (out of {} total in hecksagons)",
+                adapters.len(),
+                self.hecksagons.iter().map(|h| h.llm_adapters.len()).sum::<usize>());
+        }
         if adapters.is_empty() { return; }
 
         // Snapshot upstream state for placeholder substitution.

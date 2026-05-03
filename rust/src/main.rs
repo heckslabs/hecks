@@ -2095,6 +2095,39 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon
         }
     }
     walk(std::path::Path::new(agg_dir), &mut out);
+    // i221 follow-up — mirror load_combined_domain's parent walk so
+    // hecksagons in sibling roots participate in :llm adapter
+    // resolution. Without this the named-adapter chain
+    // (Dream.RecordImage → :dream_image) silently skipped because
+    // body/dream/dream.hecksagon lives in ../miette, not under agg_dir.
+    // Same skip-when-missing semantics as the bluebook walk : sibling
+    // repos that aren't checked out (CI on hecks alone) are silently
+    // absent.
+    if let Some(repo_root) = hecks_life::heki::repo_root() {
+        // Sibling repos via canonical repo_root — mirrors
+        // load_combined_domain's miette/miette_family walk (line ~2006).
+        // Use heki::repo_root() because agg_dir can be relative ; from
+        // a worktree under .claude/worktrees/agent-XXX/, parent.parent()
+        // dead-ends at .claude/, but heki::repo_root() walks up from
+        // current_exe to find the canonical hecks/ checkout regardless.
+        for sibling in &["miette", "miette_family"] {
+            if let Ok(canonical) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
+                if canonical.is_dir() && canonical != std::path::Path::new(agg_dir) {
+                    walk(&canonical, &mut out);
+                }
+            }
+        }
+        // Top-level buckets at hecks repo root (mirrors the
+        // post-i118-R3 bluebook walk : runtime/, discipline/, codegen/,
+        // cli/, integrations/, tools/).
+        for bucket in &["runtime", "discipline", "codegen", "cli",
+                        "integrations", "tools", "capabilities"] {
+            let bucket_dir = repo_root.join(bucket);
+            if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
+                walk(&bucket_dir, &mut out);
+            }
+        }
+    }
     out
 }
 
