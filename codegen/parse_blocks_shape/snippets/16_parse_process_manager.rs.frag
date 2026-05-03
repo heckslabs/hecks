@@ -53,16 +53,17 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
             } else if line.starts_with("state ") || line.starts_with("state\t") {
                 if let Some(s) = extract_string(line) { pm.states.push(s); }
             } else if line.starts_with("on ") || line.starts_with("on\t") {
-                if let Some(h) = parse_pm_handler(line) { pm.handlers.push(h); }
+                let mut handler = parse_pm_handler(line);
                 if ends_with_do_block(line) {
-                    // Skip the action body — Ruby-side execution. Use
-                    // indentation matching : the closing `end` of the
-                    // `on ... do` block is at the same column as `on`.
-                    // Tracking by `do`-counter alone breaks because Ruby
-                    // action bodies use `if/else/end`, `case/end`, etc. ;
-                    // those `end`s are NOT the do/end's close. Indentation
-                    // is the cleanest discriminator the canonical bluebook
-                    // formatting respects.
+                    // Walk the body to its indent-matched closing `end`.
+                    // Capture `dispatch "Cmd"` lines as declarative
+                    // dispatches ; other body lines (Ruby-proc form,
+                    // conditionals, etc.) are still consumed-and-discarded
+                    // (opaque to Rust). Phase 2.b
+                    // (pm-dispatch-enrichment) glues continuation lines
+                    // when a `dispatch ..., with: {` hash spans multiple
+                    // lines, so the parser sees one logical dispatch
+                    // statement at a time.
                     let on_indent = lines[i].len() - lines[i].trim_start().len();
                     while i + 1 < lines.len() {
                         i += 1;
@@ -72,8 +73,32 @@ pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
                         if trimmed == "end" && indent == on_indent {
                             break;
                         }
+                        if !is_dispatch_start(trimmed) && !is_set_start(trimmed) {
+                            continue;
+                        }
+                        // Glue continuation lines until braces +
+                        // parens are balanced (with: hash + sentinel
+                        // calls can wrap across multiple lines).
+                        let mut joined = trimmed.to_string();
+                        while !is_balanced(&joined) && i + 1 < lines.len() {
+                            i += 1;
+                            joined.push(' ');
+                            joined.push_str(lines[i].trim());
+                        }
+                        if let Some(ref mut h) = handler {
+                            if is_dispatch_start(&joined) {
+                                if let Some(spec) = parse_dispatch_statement(&joined) {
+                                    h.dispatches.push(spec);
+                                }
+                            } else if is_set_start(&joined) {
+                                if let Some((attr, spec)) = parse_set_statement(&joined) {
+                                    h.set_specs.push((attr, spec));
+                                }
+                            }
+                        }
                     }
                 }
+                if let Some(h) = handler { pm.handlers.push(h); }
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
