@@ -99,6 +99,21 @@ pub fn call(
     // wire through unchanged.
     let backend = if backend == "fixture" { "test".to_string() } else { backend };
 
+    // gap3 (i220-3) — global override hook for the deterministic-fixture
+    // test path. When `HECKS_LLM_PROVIDER` is set, every adapter uses that
+    // backend regardless of what the hecksagon declared. This is what
+    // lets the dream_content smoke flip the entire dispatch chain to
+    // `:test` without editing miette/body/dream/dream.hecksagon (which
+    // ships with `backend :claude` for production). Two recognized
+    // values : `test` and `fixture` (alias of test). Anything else is
+    // treated as a literal backend name (forwards-compatible if a future
+    // backend lands).
+    let backend = match std::env::var("HECKS_LLM_PROVIDER").ok() {
+        Some(s) if s == "fixture" => "test".to_string(),
+        Some(s) if !s.is_empty()  => s,
+        _ => backend,
+    };
+
     let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
     if debug_llm {
         eprintln!("[llm:debug] call adapter={} backend={} provider_registered={}",
