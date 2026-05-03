@@ -165,6 +165,7 @@ module Hecks
       # evaluates them at dispatch time.
       class OnHandlerBuilder
         DispatchSpec = Behavior::ProcessManager::DispatchSpec
+        ForEachSpec  = Behavior::ProcessManager::ForEachSpec
         ValueSpec    = Behavior::ProcessManager::ValueSpec
 
         attr_reader :dispatches, :set_specs
@@ -178,15 +179,27 @@ module Hecks
         # Format : "AggregateName.CommandName" (qualified). Multiple
         # dispatches per handler fire in declaration order.
         #
+        # i221-A — +for_each:+ promotes a single dispatch to a sweep :
+        # the runtime reads the named query at dispatch time and fires
+        # the receiving command once per returned record. The +with:+
+        # hash can mix the existing +literal+ / +from_event+ / +from_pm+
+        # forms with the new +from_iter(:field)+ sentinel that reads
+        # the current iteration record's attribute.
+        #
         # @param command_name [String] qualified command name
+        # @param for_each [Hash, nil] optional sweep declaration of the
+        #   form +{ from: "Aggregate.query_name" }+ ; +nil+ leaves the
+        #   dispatch as a single-record fire (back-compat default).
         # @param with [Hash, nil] optional attr→value-spec map. Each
         #   value is either a literal scalar (passed through) or a
-        #   ValueSpec returned by +from_event+/+from_pm+.
-        def dispatch(command_name, with: nil)
+        #   ValueSpec returned by +from_event+ / +from_pm+ / +from_iter+.
+        def dispatch(command_name, for_each: nil, with: nil)
           with_spec = build_with_spec(with)
+          for_each_spec = build_for_each_spec(for_each)
           @dispatches << DispatchSpec.new(
             command_name: command_name.to_s,
-            with_spec: with_spec
+            with_spec: with_spec,
+            for_each_spec: for_each_spec
           )
         end
 
@@ -244,7 +257,55 @@ module Hecks
           )
         end
 
+        # i221-A — Sentinel : at sweep-dispatch time, read the iteration
+        # record's +data[field]+ . Only meaningful inside a dispatch that
+        # also declares +for_each: { from: "Agg.query" }+ ; absent the
+        # for_each, the runtime treats it as a missing key (i221-B will
+        # add the runtime expansion).
+        #
+        #   dispatch "Synapse.Compost",
+        #     for_each: { from: "Synapse.cold" },
+        #     with: { id: from_iter(:id) }
+        def from_iter(field)
+          ValueSpec.new(
+            kind: :from_iter,
+            name: field.to_sym,
+            value: nil,
+            default: nil
+          )
+        end
+
         private
+
+        # i221-A — normalise the +for_each:+ kwarg into a +ForEachSpec+
+        # struct. Accepts +{ from: "Aggregate.query_name" }+ ; +nil+
+        # passes through (bare / single-record dispatch). Splits the
+        # qualified literal on the first dot into +source_aggregate+
+        # and +query_name+ ; raises +ArgumentError+ when the literal
+        # is malformed (no dot, empty halves) so authors get a loud
+        # error rather than a silent runtime miss.
+        def build_for_each_spec(for_each)
+          return nil if for_each.nil?
+          unless for_each.is_a?(Hash)
+            raise ArgumentError,
+                  "dispatch for_each: must be a Hash like { from: \"Aggregate.query\" }, got #{for_each.inspect}"
+          end
+          from_value = for_each[:from] || for_each["from"]
+          unless from_value.is_a?(String)
+            raise ArgumentError,
+                  "dispatch for_each: must declare a String `from:` literal, got #{from_value.inspect}"
+          end
+          dot = from_value.index('.')
+          if dot.nil? || dot.zero? || dot == from_value.length - 1
+            raise ArgumentError,
+                  "dispatch for_each: `from:` literal must be qualified " \
+                  "(\"Aggregate.query_name\"), got #{from_value.inspect}"
+          end
+          ForEachSpec.new(
+            source_aggregate: from_value[0...dot],
+            query_name: from_value[(dot + 1)..]
+          )
+        end
 
         # Normalise the +with:+ hash into an ordered Array<[String, ValueSpec]>.
         # Order preserves declaration order ; the canonical IR carries

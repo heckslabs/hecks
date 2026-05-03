@@ -1,0 +1,46 @@
+Hecks.bluebook "Synapse", version: "2026.05.02.1" do
+  vision "i221-A — sweep dispatch round-trip fixture"
+
+  aggregate "Synapse", "A connection between two ideas" do
+    attribute :id, String
+    attribute :strength, Float
+
+    command "Compost" do
+      role "System"
+      attribute :id, String
+      emits "Composted"
+    end
+
+    query "all" do
+    end
+  end
+
+  process_manager "SynapseSweeper" do
+    correlates_by :id
+    starts_on    "Started"
+
+    state "rem"
+
+    # i221-A — bare dispatch ; for_each is None.
+    on "BodyTick", transition: { rem: :rem } do
+      dispatch "Synapse.Compost"
+    end
+
+    # i221-A — sweep dispatch with for_each + from_iter, all on a
+    # single logical line (the parser glues continuations only when
+    # the opening brace is on the same line as `dispatch`).
+    on "RemEntered", transition: { rem: :rem } do
+      dispatch "Synapse.Compost", for_each: { from: "Synapse.all" }, with: { id: from_iter(:id) }
+    end
+
+    # i221-A — sweep dispatch with mixed literal + from_iter +
+    # from_event, multi-line via the with: { brace-glue path.
+    on "Beat", transition: { rem: :rem } do
+      dispatch "Synapse.Compost", for_each: { from: "Synapse.all" }, with: {
+        id: from_iter(:id),
+        tag: "swept",
+        tick: from_event(:tick)
+      }
+    end
+  end
+end

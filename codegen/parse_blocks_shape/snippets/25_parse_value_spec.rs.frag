@@ -1,10 +1,11 @@
-/// Parse one with-value into a ValueSpec. Three forms :
+/// Parse one with-value into a ValueSpec. Four forms :
 ///
 ///   "literal"                              → ValueSpec::Literal
 ///   from_event(:name)                       → FromEvent { default: None }
 ///   from_event(:name, default: "x")         → FromEvent { default: Some("x") }
 ///   from_pm(:name)                          → FromPm   { default: None }
 ///   from_pm(:name, default: "—")            → FromPm   { default: Some("—") }
+///   from_iter(:field)                       → FromIter { field } (i221-A)
 ///
 /// Numeric / bare-ident literals are accepted and stringified ; that
 /// matches the wider parser convention (canonical IR carries scalars
@@ -17,6 +18,13 @@ fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
     } else if s.starts_with("from_pm") {
         let (name, default) = parse_sentinel_args(s, "from_pm")?;
         Some(ValueSpec::FromPm { name, default })
+    } else if s.starts_with("from_iter") {
+        // i221-A — sweep-iteration sentinel. Reuses parse_sentinel_args
+        // for the (name, default) extraction ; the default slot is
+        // ignored (FromIter has no default field — sweeps either find
+        // the iter record's attribute or the runtime surfaces the miss).
+        let (name, _default) = parse_sentinel_args(s, "from_iter")?;
+        Some(ValueSpec::FromIter { field: name })
     } else if s.starts_with('"') || s.starts_with('\'') {
         let value = extract_string(s).unwrap_or_default();
         Some(ValueSpec::Literal { value })
