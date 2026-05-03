@@ -364,6 +364,76 @@ end"#);
     }
 }
 
+// --- tick.modulo periodic cadence gate (i229) ---
+//
+// `<expr>.modulo(N) == 0` is the every-Nth-tick gate. The receiver
+// resolves through the same attr/state lookup chain as any expression,
+// so the gate works against command attributes, aggregate state fields,
+// or literal integers. This test covers the canonical attribute-bound
+// shape (Memory.Consolidate's tick attr % 60 == 0 cadence).
+
+#[test]
+fn modulo_predicate_passes_when_divisible() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Memory" do
+    description "Memory consolidator"
+    command "Consolidate" do
+      role "System"
+      attribute :tick, Integer
+      given { tick.modulo(60) == 0 }
+    end
+  end
+end"#);
+    // tick=120 → 120 % 60 == 0 → predicate fires
+    let ok = rt.dispatch("Consolidate", attrs(&[("tick", Value::Int(120))]));
+    assert!(ok.is_ok(), "tick=120 modulo 60 should be 0 (predicate passes)");
+}
+
+#[test]
+fn modulo_predicate_blocks_when_indivisible() {
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Memory" do
+    description "Memory consolidator"
+    command "Consolidate" do
+      role "System"
+      attribute :tick, Integer
+      given { tick.modulo(60) == 0 }
+    end
+  end
+end"#);
+    // tick=37 → 37 % 60 == 37 ≠ 0 → predicate blocks
+    let err = rt.dispatch("Consolidate", attrs(&[("tick", Value::Int(37))]));
+    assert!(err.is_err(), "tick=37 modulo 60 should be 37 (predicate blocks)");
+}
+
+#[test]
+fn modulo_predicate_against_state_field() {
+    // Receiver resolves against the aggregate's own state field — same
+    // path that lets `given { cycle.modulo(60) == 0 }` gate a Tick
+    // aggregate's commands without needing an explicit attribute.
+    let mut rt = boot(r#"Hecks.bluebook "T" do
+  aggregate "Counter" do
+    description "Periodic counter"
+    identified_by :name
+    attribute :name, String
+    attribute :cycle, Integer, default: "0"
+    command "Tick" do
+      role "Daemon"
+      attribute :cycle, Integer
+      then_set :cycle, to: :cycle
+    end
+    command "Sweep" do
+      role "Daemon"
+      given { cycle.modulo(10) == 0 }
+    end
+  end
+end"#);
+    // Seed cycle=20 via Tick, then Sweep — 20 % 10 == 0 → passes
+    rt.dispatch("Tick", attrs(&[("name", s("counter")), ("cycle", Value::Int(20))])).unwrap();
+    let ok = rt.dispatch("Sweep", attrs(&[("name", s("counter"))]));
+    assert!(ok.is_ok(), "cycle=20 modulo 10 should be 0 (predicate passes)");
+}
+
 // --- Default values ---
 
 #[test]
