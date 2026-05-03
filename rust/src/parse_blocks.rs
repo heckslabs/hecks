@@ -1002,12 +1002,15 @@ fn is_balanced(s: &str) -> bool {
 }
 
 /// Parse one (possibly glued-multi-line) `dispatch "Cmd"` statement
-/// into a structured DispatchSpec. Two source forms recognized :
+/// into a structured DispatchSpec. Three source forms recognized :
 ///
 ///   dispatch "Aggregate.Command"
 ///   dispatch "Aggregate.Command", with: { foo: from_event(:bar),
 ///                                         baz: "lit",
 ///                                         qux: from_pm(:n, default: "—") }
+///   dispatch "Aggregate.Command",
+///     for_each: { from: "Aggregate.query_name" },
+///     with: { id: from_iter(:id) }
 ///
 /// Returns None when the shape is unparseable. The caller's outer
 /// walk skips non-dispatch lines via `is_dispatch_start`, so this
@@ -1017,15 +1020,16 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
     if !is_dispatch_start(trimmed) { return None; }
     let command_name = extract_string(trimmed)?;
 
-    // Find the `with:` keyword. Tolerant of variable whitespace
-    // around the comma (e.g. `dispatch "X",   with: {...}`). The
-    // search starts after the closing quote of the command name so
+    // Find the `with:` and `for_each:` keywords. Tolerant of variable
+    // whitespace around the comma (e.g. `dispatch "X",   with: {...}`).
+    // The search starts after the closing quote of the command name so
     // a stray `with:` inside the command string can't false-match.
     let cmd_end = match trimmed.match_indices('"').nth(1) {
         Some((idx, _)) => idx + 1,
         None => trimmed.len(),
     };
     let tail = &trimmed[cmd_end..];
+
     let with_spec = match tail.find("with:") {
         None => Vec::new(),
         Some(pos) => {
@@ -1040,10 +1044,41 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
         }
     };
 
+    // i221-A — sweep dispatch. `for_each: { from: "Aggregate.query" }`
+    // splits on the first dot into the two structured halves. Absent
+    // `for_each:` leaves `for_each = None` (the back-compat default).
+    let for_each = parse_for_each_clause(tail);
+
     Some(DispatchSpec {
         command_name,
         with_spec,
+        for_each,
     })
+}
+
+/// i221-A — locate the `for_each: { from: "Aggregate.query_name" }`
+/// clause in a dispatch line and lift it to a `ForEachSpec`. Returns
+/// `None` when the clause is absent (the common back-compat case) or
+/// malformed (no `from:` literal, no qualifying dot, empty halves).
+fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
+    let pos = tail.find("for_each:")?;
+    let after = &tail[pos + "for_each:".len()..];
+    let open = after.find('{')?;
+    let close = match_close_brace(&after[open..])? + open;
+    let body = after[open + 1..close].trim();
+    // Body shape : `from: "Aggregate.query_name"` (kwarg-shorthand).
+    // Hash-rocket form (`:from => "..."`) is not used in the corpus
+    // and would be filed as a follow-on.
+    let from_pos = body.find("from:")?;
+    let value_raw = body[from_pos + "from:".len()..].trim();
+    let literal = extract_string(value_raw)?;
+    let dot = literal.find('.')?;
+    if dot == 0 || dot == literal.len() - 1 {
+        return None;
+    }
+    let source_aggregate = literal[..dot].to_string();
+    let query_name = literal[dot + 1..].to_string();
+    Some(ForEachSpec { source_aggregate, query_name })
 }
 
 /// Given a slice that starts at `{`, return the index of the matching
@@ -1100,13 +1135,14 @@ fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
     out
 }
 
-/// Parse one with-value into a ValueSpec. Three forms :
+/// Parse one with-value into a ValueSpec. Four forms :
 ///
 ///   "literal"                              → ValueSpec::Literal
 ///   from_event(:name)                       → FromEvent { default: None }
 ///   from_event(:name, default: "x")         → FromEvent { default: Some("x") }
 ///   from_pm(:name)                          → FromPm   { default: None }
 ///   from_pm(:name, default: "—")            → FromPm   { default: Some("—") }
+///   from_iter(:field)                       → FromIter { field } (i221-A)
 ///
 /// Numeric / bare-ident literals are accepted and stringified ; that
 /// matches the wider parser convention (canonical IR carries scalars
@@ -1119,6 +1155,13 @@ fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
     } else if s.starts_with("from_pm") {
         let (name, default) = parse_sentinel_args(s, "from_pm")?;
         Some(ValueSpec::FromPm { name, default })
+    } else if s.starts_with("from_iter") {
+        // i221-A — sweep-iteration sentinel. Reuses parse_sentinel_args
+        // for the (name, default) extraction ; the default slot is
+        // ignored (FromIter has no default field — sweeps either find
+        // the iter record's attribute or the runtime surfaces the miss).
+        let (name, _default) = parse_sentinel_args(s, "from_iter")?;
+        Some(ValueSpec::FromIter { field: name })
     } else if s.starts_with('"') || s.starts_with('\'') {
         let value = extract_string(s).unwrap_or_default();
         Some(ValueSpec::Literal { value })
@@ -1386,6 +1429,81 @@ mod dispatch_tests {
         assert!(parse_set_statement(r#"set :, "body""#).is_none());
         // Not a set line at all.
         assert!(parse_set_statement(r#"dispatch "X.Y""#).is_none());
+    }
+
+    // ---- i221-A — `for_each:` + `from_iter(:field)` parser tests ----
+
+    #[test]
+    fn parses_bare_dispatch_carries_no_for_each() {
+        let s = parse_dispatch_statement(r#"dispatch "Body.WakeUp""#).unwrap();
+        assert!(s.for_each.is_none(), "bare dispatch must leave for_each None");
+    }
+
+    #[test]
+    fn parses_dispatch_for_each_into_qualified_halves() {
+        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.command_name, "Synapse.Compost");
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+        assert_eq!(s.with_spec.len(), 1);
+        assert_eq!(s.with_spec[0].0, "id");
+        match &s.with_spec[0].1 {
+            ValueSpec::FromIter { field } => assert_eq!(field, "id"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_dispatch_for_each_only_no_with() {
+        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+        assert!(s.with_spec.is_empty());
+    }
+
+    #[test]
+    fn parses_from_iter_value_spec_in_isolation() {
+        let spec = parse_value_spec("from_iter(:strength)").unwrap();
+        match spec {
+            ValueSpec::FromIter { field } => assert_eq!(field, "strength"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn for_each_clause_rejects_unqualified_literal() {
+        // No dot — can't split into source_aggregate / query_name.
+        let line = r#"dispatch "X.Y", for_each: { from: "cold" }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        // Malformed for_each is filtered to None, dispatch still parses
+        // (the receiving aggregate command name is still valid).
+        assert!(s.for_each.is_none());
+    }
+
+    #[test]
+    fn parse_process_manager_captures_for_each_dispatch() {
+        let src = r#"process_manager "P" do
+  correlates_by :id
+  starts_on "Started"
+  state "rem"
+  on "Beat", transition: { rem: :rem } do
+    dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }
+  end
+end
+"#;
+        let lines: Vec<&str> = src.lines().collect();
+        let (pm, _consumed) = parse_process_manager(&lines);
+        assert_eq!(pm.handlers.len(), 1);
+        let h = &pm.handlers[0];
+        assert_eq!(h.dispatches.len(), 1);
+        let d = &h.dispatches[0];
+        let fe = d.for_each.as_ref().expect("for_each captured");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
     }
 
     #[test]

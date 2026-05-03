@@ -36,7 +36,9 @@
 #   pm.handler_for("PhaseElapsed").transition  # => { light: :light }
 #
 # [antibody-exempt: ruby/hecks/bluebook_model/behavior/process_manager.rb —
-#  kernel-floor IR struct, Phase 2.c set_specs field mirrors rust/src/ir.rs.]
+#  kernel-floor IR struct, Phase 2.c set_specs field mirrors rust/src/ir.rs.
+#  i221-A — DispatchSpec.for_each_spec + ForEachSpec + ValueSpec :from_iter
+#  mirror the same parity-locked surface in rust/src/ir.rs.]
 module Hecks
   module BluebookModel
     module Behavior
@@ -74,8 +76,13 @@ module Hecks
         # +with_spec+ means the dispatch fires with no explicit attrs ;
         # the runtime auto-injects upstream refs the same way the bare
         # `dispatch "Cmd"` form does today.
+        #
+        # i221-A — sweep dispatch : when +for_each_spec+ is non-nil the
+        # runtime fires the dispatch once per record returned by the
+        # named query. +nil+ means a bare / single-record dispatch (the
+        # back-compat default for every existing dispatch).
         DispatchSpec = Struct.new(
-          :command_name, :with_spec,
+          :command_name, :with_spec, :for_each_spec,
           keyword_init: true
         ) do
           def initialize(*)
@@ -84,16 +91,33 @@ module Hecks
           end
         end
 
+        # Hecks::BluebookModel::Behavior::ProcessManager::ForEachSpec
+        #
+        # Sweep source on a +DispatchSpec+. i221-A — the runtime reads
+        # the named query at dispatch time and fires the receiving
+        # command once per returned record ; +from_iter(:field)+ in the
+        # +with:+ hash reads the iteration record's +field+ attribute.
+        #
+        # +source_aggregate+ — qualified aggregate name (left half of the
+        # +"Aggregate.query"+ literal in the DSL).
+        # +query_name+        — query identifier (right half).
+        ForEachSpec = Struct.new(
+          :source_aggregate, :query_name,
+          keyword_init: true
+        )
+
         # Hecks::BluebookModel::Behavior::ProcessManager::ValueSpec
         #
         # Sentinel value class describing how a single +with:+ attribute is
-        # resolved at dispatch time. Three kinds :
+        # resolved at dispatch time. Four kinds :
         #
         #   :literal     — the source value carried as-is
         #   :from_event  — read +event.data[name]+ at dispatch ; +default+
         #                  fires when the key is absent
         #   :from_pm     — read +pm_instance.data[name]+ at dispatch ;
         #                  +default+ fires when the key is absent
+        #   :from_iter   — i221-A — read +iter_record.data[field]+ during
+        #                  a +for_each:+ sweep dispatch
         #
         # +default+ is +nil+ when omitted ; runtime treats nil-default as
         # "leave the key unset on the dispatched command's input".

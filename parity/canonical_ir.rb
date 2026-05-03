@@ -86,22 +86,43 @@ module Hecks
       # Mirror Rust's dump_dispatch. Accepts both the new DispatchSpec
       # struct (Phase 2.b+) and bare strings (legacy ; future-proof if
       # hand-built IRs in tests still pass strings). Strings normalise
-      # to a DispatchSpec with empty +with_spec+.
+      # to a DispatchSpec with empty +with_spec+ and +for_each = nil+.
+      #
+      # i221-A — emits +"for_each"+ key on every DispatchSpec. The
+      # value is a +{source_aggregate, query_name}+ object when the
+      # dispatch declared a sweep, +nil+ (JSON null) otherwise. Bare
+      # / single-record dispatches stay byte-identical to the prior
+      # shape because the only addition is a new key whose value
+      # serialises as +null+.
       def dump_dispatch(d)
         if d.is_a?(String)
-          { "command_name" => d, "with" => [] }
+          { "command_name" => d, "for_each" => nil, "with" => [] }
         else
           {
             "command_name" => d.command_name.to_s,
+            "for_each"     => dump_for_each_spec(d.respond_to?(:for_each_spec) ? d.for_each_spec : nil),
             "with"         => (d.with_spec || []).map { |key, spec| [key.to_s, dump_value_spec(spec)] },
           }
         end
       end
 
-      # Mirror Rust's dump_value_spec. Three kinds : literal, from_event,
-      # from_pm. Literals stringify their +value+ through to_s ; future
-      # work may type-tag this when dispatch_cascade learns numeric
-      # passing. +default+ is dumped as-is (nil → JSON null).
+      # i221-A — mirror Rust's dump_for_each. +nil+ → JSON null ;
+      # otherwise emit a fixed-key object with +source_aggregate+ and
+      # +query_name+. Both fields stringified through +to_s+ so the
+      # canonical shape is unambiguous.
+      def dump_for_each_spec(spec)
+        return nil if spec.nil?
+        {
+          "source_aggregate" => spec.source_aggregate.to_s,
+          "query_name"       => spec.query_name.to_s,
+        }
+      end
+
+      # Mirror Rust's dump_value_spec. Four kinds : literal, from_event,
+      # from_pm, from_iter (i221-A). Literals stringify their +value+
+      # through to_s ; future work may type-tag this when
+      # dispatch_cascade learns numeric passing. +default+ is dumped
+      # as-is (nil → JSON null).
       def dump_value_spec(spec)
         case spec.kind.to_sym
         when :literal
@@ -112,6 +133,8 @@ module Hecks
         when :from_pm
           { "kind" => "from_pm", "name" => spec.name.to_s,
             "default" => stringify_literal(spec.default) }
+        when :from_iter
+          { "kind" => "from_iter", "field" => spec.name.to_s }
         else
           raise "unknown ValueSpec.kind=#{spec.kind.inspect}"
         end
