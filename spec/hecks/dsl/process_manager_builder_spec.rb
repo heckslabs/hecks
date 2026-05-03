@@ -344,4 +344,70 @@ RSpec.describe Hecks::DSL::ProcessManagerBuilder do
       expect(handler.action).to be_nil
     end
   end
+
+  describe "Phase 2.c — declarative `set` directive" do
+    def builder
+      b = described_class.new("OrderFulfillment")
+      b.correlates_by :order_id
+      b.starts_on "OrderPlaced"
+      b.state "started"
+      b.state "shipped"
+      b
+    end
+
+    it "captures a literal-value set as [attr_string, ValueSpec(:literal)]" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        set :carrying, "body"
+      end
+      pm = b.build
+      handler = pm.handlers.first
+      expect(handler.set_specs.size).to eq(1)
+      attr, spec = handler.set_specs.first
+      expect(attr).to eq("carrying")
+      expect(spec.kind).to eq(:literal)
+      expect(spec.value).to eq("body")
+    end
+
+    it "captures from_event and from_pm sentinels in set values" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        set :steering_target, from_event(:target)
+        set :tick, from_pm(:tick, default: "0")
+      end
+      pm = b.build
+      handler = pm.handlers.first
+      target_attr, target_spec = handler.set_specs[0]
+      tick_attr, tick_spec = handler.set_specs[1]
+      expect(target_attr).to eq("steering_target")
+      expect(target_spec.kind).to eq(:from_event)
+      expect(target_spec.name).to eq(:target)
+      expect(tick_attr).to eq("tick")
+      expect(tick_spec.kind).to eq(:from_pm)
+      expect(tick_spec.default).to eq("0")
+    end
+
+    it "preserves declaration order across mixed set + dispatch" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        set :a, "1"
+        set :b, "2"
+        dispatch "X.Y", with: { v: from_pm(:a) }
+        set :c, "3"
+      end
+      pm = b.build
+      handler = pm.handlers.first
+      expect(handler.set_specs.map(&:first)).to eq(%w[a b c])
+      expect(handler.dispatches.size).to eq(1)
+    end
+
+    it "defaults set_specs to [] when no `set` is declared" do
+      b = builder
+      b.on("OrderShipped", transition: { started: :shipped }) do
+        dispatch "X.Y"
+      end
+      pm = b.build
+      expect(pm.handlers.first.set_specs).to eq([])
+    end
+  end
 end

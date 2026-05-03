@@ -269,6 +269,27 @@ impl Runtime {
                     self.data_dir.as_deref(),
                 );
 
+                // Phase 2.c — apply the handler's set_specs BEFORE the
+                // dispatches so that `from_pm(:attr)` reads inside the
+                // same handler's dispatch with-spec see the freshly
+                // written value. This matches the legacy proc form
+                // where the action body assigned `pm.attributes[:x]`
+                // at the top, then returned `{ commands: [...] }`
+                // referring to those same values.
+                let set_pairs = self.pm_set_pairs(&t, event);
+                for (attr, value) in set_pairs {
+                    self.pm_engine
+                        .apply_set(&t.pm_name, &t.correlation_id, &attr, value);
+                }
+                // Re-persist after the set so the attributes hash
+                // round-trips with the new values. Best-effort, like
+                // the state-only persist above.
+                let _ = self.pm_engine.persist_instance(
+                    &t.pm_name,
+                    &t.correlation_id,
+                    self.data_dir.as_deref(),
+                );
+
                 for dispatched in &t.dispatches {
                     // Phase 2.b (pm-dispatch-enrichment) — evaluate
                     // each ValueSpec in the with_spec at dispatch
@@ -360,17 +381,16 @@ impl Runtime {
     /// so the receiving aggregate sees no entry — same as if the
     /// dispatch never named it).
     ///
-    /// PM-state attribute reads currently always fall through to
-    /// `default` because PMInstanceState doesn't carry per-instance
-    /// attribute storage yet (filed as Phase 2.c follow-up). This
-    /// matches the legacy procs' `pm.attributes[:x] || "—"` pattern
-    /// exactly : the default fires.
+    /// Phase 2.c — FromPm now reads from the PM instance's
+    /// `attributes` hash (populated by handlers' `set` directives).
+    /// When the attribute is absent the spec's `default` fires ;
+    /// when both are absent, returns None.
     fn evaluate_value_spec(
         &self,
         spec: &crate::ir::ValueSpec,
         event: &Event,
-        _pm_name: &str,
-        _correlation_id: &str,
+        pm_name: &str,
+        correlation_id: &str,
     ) -> Option<Value> {
         use crate::ir::ValueSpec;
         match spec {
@@ -381,12 +401,48 @@ impl Runtime {
                 }
                 default.as_ref().map(|d| Value::Str(d.clone()))
             }
-            ValueSpec::FromPm { name: _, default } => {
-                // PM attribute storage lands in Phase 2.c ; until
-                // then, FromPm always falls through to default.
+            ValueSpec::FromPm { name, default } => {
+                if let Some(v) = self.pm_engine.read_attribute(pm_name, correlation_id, name) {
+                    return Some(Value::Str(v.to_string()));
+                }
                 default.as_ref().map(|d| Value::Str(d.clone()))
             }
         }
+    }
+
+    /// Phase 2.c — resolve every `set` directive on the firing
+    /// handler into concrete (attr, String) pairs, ready to write to
+    /// the PM instance. Reuses the same ValueSpec evaluator as the
+    /// dispatch with-spec ; coerces the resolved Value to its
+    /// Display form (matches the storage convention — attributes
+    /// round-trip as JSON strings). Skips entries that resolve to
+    /// None (no event match + no default = leave attr untouched).
+    fn pm_set_pairs(&self, t: &PMTrigger, event: &Event) -> Vec<(String, String)> {
+        // The set_specs live on the handler that fired ; PMTrigger
+        // doesn't carry them directly (the engine drops them when it
+        // returns), so re-look them up via pm_name + (event_name,
+        // from_state). One handler matches per (event_type, from_state)
+        // pair (Ruby builder enforces this via single-entry
+        // transition).
+        let binding = match self.pm_engine.bindings().find(|b| b.name == t.pm_name) {
+            Some(b) => b,
+            None => return Vec::new(),
+        };
+        let handler = match binding
+            .handlers
+            .iter()
+            .find(|h| h.event_type == t.event_name && h.from_state == t.from_state)
+        {
+            Some(h) => h,
+            None => return Vec::new(),
+        };
+        let mut out = Vec::new();
+        for (attr, spec) in &handler.set_specs {
+            if let Some(v) = self.evaluate_value_spec(spec, event, &t.pm_name, &t.correlation_id) {
+                out.push((attr.clone(), v.to_string()));
+            }
+        }
+        out
     }
 
     /// For each reference on the triggered command, inject an id under its

@@ -1,3 +1,6 @@
+# [antibody-exempt: parity/canonical_ir.rb — kernel-floor canonical IR dump,
+#  Phase 2.c set_specs key mirrors rust/src/dump.rs.]
+#
 # Hecks::Parity::CanonicalIR
 #
 # Walks a Hecks::BluebookModel::Structure::Domain and emits canonical JSON
@@ -58,6 +61,12 @@ module Hecks
 
       def dump_pm_handler(h)
         from, to = h.transition.first
+        # Phase 2.c — `set_specs` carries the declarative
+        # `set :attr, value_spec` list captured from the on-block.
+        # Each entry serialises as a [attr_name, value_spec] pair so
+        # declaration order survives JSON round-trip (matches Rust's
+        # Vec<(String, ValueSpec)> shape exactly).
+        set_specs = (h.respond_to?(:set_specs) ? (h.set_specs || []) : [])
         {
           # `dispatches` carries the declarative Aggregate.Command list
           # captured from `dispatch "..."` keyword inside the on-block.
@@ -69,6 +78,7 @@ module Hecks
           "dispatches" => (h.respond_to?(:dispatches) ? (h.dispatches || []) : []).map { |d| dump_dispatch(d) },
           "event_type" => h.event_type.to_s,
           "from_state" => from.to_s,
+          "set_specs"  => set_specs.map { |attr, spec| [attr.to_s, dump_value_spec(spec)] },
           "to_state"   => to.to_s,
         }
       end
