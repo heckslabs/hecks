@@ -160,3 +160,177 @@ fn dispatcher_skips_silently_when_no_hecksagon_loaded() {
     assert!(summary.is_empty() || summary == "null",
         "expected empty summary without hecksagon, got {:?}", summary);
 }
+
+// ─── aggregate_corpus_window tests ───────────────────────────────────
+
+#[test]
+fn aggregate_corpus_window_returns_empty_without_data_dir() {
+    let result = hecks_life::runtime::compute_functions::invoke(
+        "aggregate_corpus_window", None, &HashMap::new(), None,
+    );
+    assert_eq!(result, Some("".to_string()));
+}
+
+#[test]
+fn aggregate_corpus_window_returns_empty_when_bounds_missing() {
+    // heki + field default to wake-review values ; without bound
+    // attrs (or sleep_entered_at/woke_at fallbacks) the function
+    // returns empty.
+    let attrs: HashMap<String, String> = HashMap::new();
+    let result = hecks_life::runtime::compute_functions::invoke(
+        "aggregate_corpus_window", None, &attrs, Some("/tmp"),
+    );
+    assert_eq!(result, Some("".to_string()),
+        "should return empty when bound attrs absent");
+}
+
+#[test]
+fn aggregate_corpus_window_falls_back_to_wake_review_state_attrs() {
+    use std::fs;
+    use serde_json::json;
+
+    let tmpdir = std::env::temp_dir().join(format!(
+        "acw_test_wr_{}", std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmpdir);
+    fs::create_dir_all(&tmpdir).expect("mkdir tmpdir");
+
+    let mut store = hecks_life::heki::Store::new();
+    let mut r1 = hecks_life::heki::Record::new();
+    r1.insert("updated_at".into(), json!("2026-05-03T10:00:00Z"));
+    r1.insert("dream_images".into(), json!("le poisson dort"));
+    store.insert("k1".into(), r1);
+
+    let path = tmpdir.join("dream_state.heki");
+    let path_str = path.to_str().unwrap().to_string();
+    hecks_life::heki::write(
+        &path_str, &store,
+        hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" },
+    ).expect("write store");
+
+    // No `heki:`, `field:`, `lower_bound:`, `upper_bound:` — purely
+    // the WakeReview state field names. Function should default heki
+    // to dream_state, field to dream_images, and use the WakeReview
+    // bounds aliases.
+    let mut attrs: HashMap<String, String> = HashMap::new();
+    attrs.insert("sleep_entered_at".into(), "2026-05-03T09:00:00Z".into());
+    attrs.insert("woke_at".into(), "2026-05-03T12:00:00Z".into());
+
+    let result = hecks_life::runtime::compute_functions::invoke(
+        "aggregate_corpus_window", None, &attrs,
+        Some(tmpdir.to_str().unwrap()),
+    ).expect("function should return Some");
+
+    assert_eq!(result, "le poisson dort",
+        "expected wake-review default fallbacks to work, got {:?}", result);
+
+    let _ = fs::remove_dir_all(&tmpdir);
+}
+
+#[test]
+fn aggregate_corpus_window_returns_empty_when_heki_missing() {
+    let mut attrs: HashMap<String, String> = HashMap::new();
+    attrs.insert("heki".into(), "no_such_corpus_xyz".into());
+    attrs.insert("field".into(), "dream_images".into());
+    attrs.insert("lower_bound".into(), "2026-01-01T00:00:00Z".into());
+    attrs.insert("upper_bound".into(), "2026-12-31T23:59:59Z".into());
+    let result = hecks_life::runtime::compute_functions::invoke(
+        "aggregate_corpus_window", None, &attrs, Some("/tmp"),
+    );
+    assert_eq!(result, Some("".to_string()),
+        "missing heki file → empty corpus");
+}
+
+#[test]
+fn aggregate_corpus_window_filters_by_window_and_joins_field() {
+    use std::fs;
+    use serde_json::json;
+
+    // Set up a temp directory with a fabricated dream_state.heki.
+    let tmpdir = std::env::temp_dir().join(format!(
+        "acw_test_{}", std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmpdir);
+    fs::create_dir_all(&tmpdir).expect("mkdir tmpdir");
+
+    // Build a Store with three records — two inside the window, one outside.
+    let mut store = hecks_life::heki::Store::new();
+    let mut r1 = hecks_life::heki::Record::new();
+    r1.insert("updated_at".into(), json!("2026-05-03T10:00:00Z"));
+    r1.insert("dream_images".into(), json!("first dream image"));
+    store.insert("k1".into(), r1);
+    let mut r2 = hecks_life::heki::Record::new();
+    r2.insert("updated_at".into(), json!("2026-05-03T11:00:00Z"));
+    r2.insert("dream_images".into(), json!("second dream image"));
+    store.insert("k2".into(), r2);
+    let mut r3 = hecks_life::heki::Record::new();
+    r3.insert("updated_at".into(), json!("2026-05-03T20:00:00Z"));
+    r3.insert("dream_images".into(), json!("OUT-OF-WINDOW image"));
+    store.insert("k3".into(), r3);
+
+    let path = tmpdir.join("dream_state.heki");
+    let path_str = path.to_str().unwrap().to_string();
+    hecks_life::heki::write(
+        &path_str, &store,
+        hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" },
+    ).expect("write store");
+
+    let mut attrs: HashMap<String, String> = HashMap::new();
+    attrs.insert("heki".into(), "dream_state".into());
+    attrs.insert("field".into(), "dream_images".into());
+    attrs.insert("lower_bound".into(), "2026-05-03T09:00:00Z".into());
+    attrs.insert("upper_bound".into(), "2026-05-03T12:00:00Z".into());
+
+    let result = hecks_life::runtime::compute_functions::invoke(
+        "aggregate_corpus_window", None, &attrs,
+        Some(tmpdir.to_str().unwrap()),
+    ).expect("function should return Some");
+
+    // Records inside the window joined by \n, in chronological order.
+    assert_eq!(result, "first dream image\nsecond dream image",
+        "expected window-filtered + chronological join, got {:?}", result);
+
+    let _ = fs::remove_dir_all(&tmpdir);
+}
+
+#[test]
+fn aggregate_corpus_window_honors_custom_timestamp_field() {
+    use std::fs;
+    use serde_json::json;
+
+    let tmpdir = std::env::temp_dir().join(format!(
+        "acw_test_ts_{}", std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmpdir);
+    fs::create_dir_all(&tmpdir).expect("mkdir tmpdir");
+
+    let mut store = hecks_life::heki::Store::new();
+    let mut r1 = hecks_life::heki::Record::new();
+    // Use `created_at` as the timestamp field (default would be `updated_at`).
+    r1.insert("created_at".into(), json!("2026-05-03T10:00:00Z"));
+    r1.insert("dream_images".into(), json!("only image"));
+    store.insert("k1".into(), r1);
+
+    let path = tmpdir.join("dream_state.heki");
+    let path_str = path.to_str().unwrap().to_string();
+    hecks_life::heki::write(
+        &path_str, &store,
+        hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" },
+    ).expect("write store");
+
+    let mut attrs: HashMap<String, String> = HashMap::new();
+    attrs.insert("heki".into(), "dream_state".into());
+    attrs.insert("field".into(), "dream_images".into());
+    attrs.insert("timestamp_field".into(), "created_at".into());
+    attrs.insert("lower_bound".into(), "2026-05-03T09:00:00Z".into());
+    attrs.insert("upper_bound".into(), "2026-05-03T12:00:00Z".into());
+
+    let result = hecks_life::runtime::compute_functions::invoke(
+        "aggregate_corpus_window", None, &attrs,
+        Some(tmpdir.to_str().unwrap()),
+    ).expect("function should return Some");
+
+    assert_eq!(result, "only image");
+
+    let _ = fs::remove_dir_all(&tmpdir);
+}
