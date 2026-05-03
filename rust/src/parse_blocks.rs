@@ -1167,6 +1167,109 @@ fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)>
     Some((name, default))
 }
 
+/// Parse a `cadence "Name" do … end` block declaring scheduled
+/// dispatch. i218 — invoked via the block_grammar registry.
+///
+/// Form :
+///   cadence "BodyTick" do
+///     every "1s"
+///     dispatch "Consciousness.ElapsePhase", name: "consciousness"
+///     dispatch "Tick.MindstreamTick",       name: "tick"
+///   end
+pub fn parse_cadence(lines: &[&str]) -> (Cadence, usize) {
+    let first = lines[0].trim();
+    let name = extract_string(first).unwrap_or_default();
+    let mut cad = Cadence {
+        name,
+        interval: String::new(),
+        dispatches: vec![],
+    };
+
+    let mut i = 1;
+    let mut depth = 1usize;
+    while i < lines.len() && depth > 0 {
+        let line = lines[i].trim();
+        if line == "end" {
+            depth -= 1;
+            if depth == 0 { break; }
+            i += 1;
+            continue;
+        }
+
+        if depth == 1 {
+            if line.starts_with("every") {
+                if let Some(s) = extract_string(line) { cad.interval = s; }
+            } else if line.starts_with("dispatch ")
+                || line.starts_with("dispatch\t")
+                || line.starts_with("dispatch\"")
+            {
+                if let Some(d) = parse_cadence_dispatch_line(line) {
+                    cad.dispatches.push(d);
+                }
+            } else if ends_with_do_block(line) {
+                depth += 1;
+            }
+        } else if ends_with_do_block(line) {
+            depth += 1;
+        }
+
+        i += 1;
+    }
+    (cad, i + 1)
+}
+
+/// Parse one `dispatch "Aggregate.Command", k1: v1, k2: v2` line into
+/// a CadenceDispatch. Captures the qualified command name and an
+/// ordered (key, source-text-value) attribute list. Returns None when
+/// the line isn't a dispatch line.
+pub fn parse_cadence_dispatch_line(line: &str) -> Option<CadenceDispatch> {
+    let trimmed = line.trim();
+    let command_name = extract_string(trimmed)?;
+    let q1 = trimmed.find('"')?;
+    let q2 = trimmed[q1 + 1..].find('"')? + q1 + 1;
+    let after = trimmed[q2 + 1..].trim();
+    let mut attrs: Vec<(String, String)> = Vec::new();
+    if let Some(rest) = after.strip_prefix(',') {
+        let kwargs = rest.trim();
+        attrs = split_top_level_cadence(kwargs)
+            .into_iter()
+            .filter_map(|pair| {
+                let p = pair.trim();
+                let colon = p.find(':')?;
+                let key = p[..colon].trim().trim_matches(':').to_string();
+                let value = p[colon + 1..].trim().to_string();
+                if key.is_empty() || value.is_empty() { None } else { Some((key, value)) }
+            })
+            .collect();
+    }
+    Some(CadenceDispatch { command_name, attrs })
+}
+
+/// Split a kwarg list on top-level commas only — bracket / brace /
+/// paren / string contents are protected. Cadence-local helper.
+fn split_top_level_cadence(s: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut buf = String::new();
+    let mut depth: i32 = 0;
+    let mut in_str = false;
+    let mut prev = '\0';
+    for c in s.chars() {
+        match c {
+            '"' if prev != '\\' => { in_str = !in_str; buf.push(c); }
+            '[' | '{' | '(' if !in_str => { depth += 1; buf.push(c); }
+            ']' | '}' | ')' if !in_str => { depth -= 1; buf.push(c); }
+            ',' if !in_str && depth == 0 => {
+                out.push(buf.trim().to_string());
+                buf.clear();
+            }
+            _ => buf.push(c),
+        }
+        prev = c;
+    }
+    if !buf.trim().is_empty() { out.push(buf.trim().to_string()); }
+    out
+}
+
 #[cfg(test)]
 mod dispatch_tests {
     use super::*;

@@ -40,6 +40,141 @@ pub struct Domain {
     /// per-event handlers with their from→to transition). The handler
     /// action body is intentionally NOT captured — that's Ruby code.
     pub process_managers: Vec<ProcessManager>,
+    /// Cadences — declarative scheduled dispatch. Replaces imperative
+    /// while-true-sleep-1-dispatch loops in shells (e.g. mindstream.sh)
+    /// with a static IR : interval (e.g. "1s") + ordered list of
+    /// `Aggregate.Command` dispatches with literal kwargs. Empty for
+    /// bluebooks that declare no cadences.
+    pub cadences: Vec<Cadence>,
+    /// Block grammars — declarative keyword routing for the parser
+    /// itself (i218). Each entry declares an ordered list of
+    /// (keyword, parser_name) pairs. The parser walks a registry built
+    /// from this IR rather than a hardcoded if-chain. Empty for
+    /// bluebooks that don't declare grammar surface.
+    pub block_grammars: Vec<BlockGrammar>,
+}
+
+/// One declared cadence. Mirrors
+/// `Hecks::BluebookModel::Behavior::Cadence`. Static shape only — the
+/// runtime tick loop is Ruby-side and not part of the parity contract.
+#[derive(Debug, Clone)]
+pub struct Cadence {
+    pub name: String,
+    pub interval: String,
+    pub dispatches: Vec<CadenceDispatch>,
+}
+
+/// One scheduled dispatch within a cadence. `command_name` is the
+/// qualified `Aggregate.Command` ; `attrs` carries literal kwargs as
+/// ordered (key, source-text-value) pairs so the canonical JSON shape
+/// is unambiguous and round-trips byte-identically with the Ruby dumper.
+#[derive(Debug, Clone)]
+pub struct CadenceDispatch {
+    pub command_name: String,
+    pub attrs: Vec<(String, String)>,
+}
+
+/// One declared block grammar (i218). Mirrors
+/// `Hecks::BluebookModel::Behavior::BlockGrammar`.
+///
+/// `blocks` is an ordered Vec of `(keyword, parser_kind)` pairs ; the
+/// parser walks them in declaration order, claiming a line for the
+/// first keyword whose prefix matches. Authors can shadow a parent
+/// keyword by listing a more-specific keyword first.
+#[derive(Debug, Clone)]
+pub struct BlockGrammar {
+    pub name: String,
+    pub blocks: Vec<BlockGrammarEntry>,
+}
+
+/// One keyword -> parser binding within a block grammar. `parser` is
+/// the typed enum variant (not a function pointer) so each parser's
+/// distinct return type stays in the type system.
+#[derive(Debug, Clone)]
+pub struct BlockGrammarEntry {
+    pub keyword: String,
+    pub parser: BlockParser,
+}
+
+/// Enum-keyed dispatch for the block_grammar registry (i218).
+///
+/// Each variant names one block parser kind. The parser's main loop
+/// matches on this enum and calls the right typed `parse_*` function ;
+/// adding a new keyword = one variant + one match arm + one row in the
+/// canonical bluebook grammar.
+///
+/// Why an enum (not function pointers) : each parse function returns a
+/// different IR struct (Aggregate / Policy / Cadence / ...). A function
+/// pointer table would need either `Box<dyn Any>` returns or one giant
+/// unified return enum ; matching on the kind and pushing into the
+/// right Domain Vec is cleaner and zero-cost.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockParser {
+    Aggregate,
+    Policy,
+    ProcessManager,
+    Cadence,
+    Section,
+    Fixture,
+}
+
+impl BlockParser {
+    /// Resolve a parser-name string (as declared in the bluebook
+    /// grammar) to a typed BlockParser variant. None when the name is
+    /// unknown — the bluebook grammar can't reach functions that
+    /// haven't been linked into the binary.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "parse_aggregate" => Some(Self::Aggregate),
+            "parse_policy" => Some(Self::Policy),
+            "parse_process_manager" => Some(Self::ProcessManager),
+            "parse_cadence" => Some(Self::Cadence),
+            "parse_section" => Some(Self::Section),
+            "parse_fixture" => Some(Self::Fixture),
+            _ => None,
+        }
+    }
+
+    /// Stable string name (round-trips through `from_name`). Used by
+    /// dump.rs / canonical_ir.rb so the parity contract carries the
+    /// declared parser identity rather than a Rust-only enum tag.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Aggregate => "parse_aggregate",
+            Self::Policy => "parse_policy",
+            Self::ProcessManager => "parse_process_manager",
+            Self::Cadence => "parse_cadence",
+            Self::Section => "parse_section",
+            Self::Fixture => "parse_fixture",
+        }
+    }
+}
+
+impl BlockGrammar {
+    /// The canonical Bluebook grammar — used by `parser::parse` until
+    /// a domain explicitly declares one via `block_grammar "Bluebook"
+    /// do ... end`. Mirrors `bluebook/grammars/bluebook.grammar`
+    /// declaration order. The specializer can regenerate this function
+    /// from the .grammar bluebook ; it lives in code today as the
+    /// kernel-floor bootstrap (the parser of bluebook can't itself
+    /// require a parsed bluebook to run).
+    pub fn canonical_bluebook() -> Self {
+        Self {
+            name: "Bluebook".into(),
+            blocks: vec![
+                entry("aggregate", BlockParser::Aggregate),
+                entry("section", BlockParser::Section),
+                entry("policy", BlockParser::Policy),
+                entry("process_manager", BlockParser::ProcessManager),
+                entry("cadence", BlockParser::Cadence),
+                entry("fixture", BlockParser::Fixture),
+            ],
+        }
+    }
+}
+
+fn entry(keyword: &str, parser: BlockParser) -> BlockGrammarEntry {
+    BlockGrammarEntry { keyword: keyword.into(), parser }
 }
 
 /// One declared process_manager. Mirrors
