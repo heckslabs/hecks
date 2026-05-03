@@ -12,6 +12,84 @@
     /// triggers — so this injection is what makes the prediction true.
     fn drain_policies(&mut self, result: &CommandResult) {
         if let Some(ref event) = result.event {
+            // Drive process_managers + dispatch their declared commands.
+            // Each PMTrigger carries dispatches: Vec<String> populated
+            // from the handler's declarative `dispatch "..."` lines ;
+            // route through cascade dispatcher so policies + nested PMs
+            // + downstream emits all fire normally.
+            let pm_triggers = self.pm_engine.react(event);
+            for t in pm_triggers.clone() {
+                // Phase D — persist the new instance state immediately
+                // after each transition so the next subprocess fork sees
+                // it. Best-effort : a failed write doesn't abort the
+                // cascade ; the audit trail captures it via heki's
+                // dispatch context.
+                let _ = self.pm_engine.persist_instance(
+                    &t.pm_name,
+                    &t.correlation_id,
+                    self.data_dir.as_deref(),
+                );
+
+                // Phase 2.c — apply the handler's set_specs BEFORE the
+                // dispatches so that `from_pm(:attr)` reads inside the
+                // same handler's dispatch with-spec see the freshly
+                // written value. This matches the legacy proc form
+                // where the action body assigned `pm.attributes[:x]`
+                // at the top, then returned `{ commands: [...] }`
+                // referring to those same values.
+                let set_pairs = self.pm_set_pairs(&t, event);
+                for (attr, value) in set_pairs {
+                    self.pm_engine
+                        .apply_set(&t.pm_name, &t.correlation_id, &attr, value);
+                }
+                // Re-persist after the set so the attributes hash
+                // round-trips with the new values. Best-effort, like
+                // the state-only persist above.
+                let _ = self.pm_engine.persist_instance(
+                    &t.pm_name,
+                    &t.correlation_id,
+                    self.data_dir.as_deref(),
+                );
+
+                for dispatched in &t.dispatches {
+                    // Phase 2.b (pm-dispatch-enrichment) — evaluate
+                    // each ValueSpec in the with_spec at dispatch
+                    // time. Order : with_spec resolution first (so an
+                    // explicit `name: "body"` literal beats refs the
+                    // inject_refs heuristic might guess), then
+                    // upstream-ref injection fills in everything
+                    // still unset.
+                    let mut data = std::collections::HashMap::new();
+                    for (key, spec) in &dispatched.with_spec {
+                        if let Some(v) = self.evaluate_value_spec(
+                            spec,
+                            event,
+                            &t.pm_name,
+                            &t.correlation_id,
+                        ) {
+                            data.insert(key.clone(), v);
+                        }
+                    }
+                    self.inject_refs(
+                        &dispatched.command_name,
+                        &event.aggregate_type,
+                        &event.aggregate_id,
+                        &mut data,
+                    );
+                    let inner = command_dispatch::dispatch_cascade(
+                        self,
+                        &dispatched.command_name,
+                        data,
+                        &event.aggregate_type,
+                        &event.aggregate_id,
+                    );
+                    if let Ok(inner_result) = inner {
+                        self.drain_policies(&inner_result);
+                    }
+                }
+                self.pm_engine.complete(&t.pm_name);
+            }
+
             let triggers = self.policy_engine.react(event);
             for trigger in triggers {
                 let policy_name = trigger.policy_name.clone();
