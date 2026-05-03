@@ -15,7 +15,12 @@
 //!  in `drain_policies` + an `iter_data` parameter on
 //!  `evaluate_value_spec` so `for_each:` dispatches resolve `from_iter
 //!  (:field)` against per-record state — kernel-surface because the
-//!  PM cascade lives here, no bluebook can describe its own driver.]
+//!  PM cascade lives here, no bluebook can describe its own driver.
+//!  i220-1 fires the `:llm` adapter hook after each cascade dispatch
+//!  inside `drain_policies` so PM/policy-driven cascade dispatches
+//!  reach the named-adapter pipeline the same way top-level dispatch
+//!  does — kernel-surface plumbing on the rem_branch.sh retirement
+//!  arc, no bluebook can describe its own driver.]
 
 mod aggregate_state;
 mod command_dispatch;
@@ -561,6 +566,21 @@ impl Runtime {
                         );
                         if let Ok(inner_result) = inner {
                             self.drain_policies(&inner_result);
+                            // i220-1 — fire the :llm hook on cascade
+                            // dispatches the same way `Runtime::dispatch`
+                            // fires it after top-level dispatch settles.
+                            // Without this, PM-driven cascades (Dream PM
+                            // dispatching Dream.RecordImage, etc.) never
+                            // reach the named-adapter pipeline that wires
+                            // `:dream_image` / `:dream_translate` to
+                            // Claude. The recursion is bounded : the
+                            // LLM hook itself uses `dispatch_cascade`
+                            // (not `Runtime::dispatch`), so the response
+                            // chain is one-shot per match — same shape
+                            // the top-level call already relies on.
+                            self.resolve_llm_adapters(
+                                &inner_result, &dispatched.command_name,
+                            );
                         }
                     }
                 }
@@ -597,6 +617,13 @@ impl Runtime {
                 );
                 if let Ok(inner_result) = inner {
                     self.drain_policies(&inner_result);
+                    // i220-1 — same cascade-LLM hook as the PM-dispatch
+                    // arm above. Policy-driven cascades (react_to /
+                    // policy.bluebook) need the named-adapter pipeline
+                    // too. Without this, any policy chain landing on
+                    // `Dream.RecordImage` (or any other adapter target)
+                    // would silently skip Claude.
+                    self.resolve_llm_adapters(&inner_result, &cmd);
                 }
                 self.policy_engine.complete(&policy_name);
             }
