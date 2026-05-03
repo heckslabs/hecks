@@ -1515,18 +1515,41 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon
 /// i221 — register the runtime's `:llm` providers from the env. The
 /// `:test` provider is always present (in-memory ; no network) ; the
 /// `:claude` and `:ollama` providers are added when their backends
-/// are referenced by any loaded hecksagon's `:llm` adapter. The TestProvider's
-/// fixture file path is read from HECKS_LLM_FIXTURES (a `dream.fixtures`-
-/// shaped flat file). When unset, the provider runs in lenient mode
-/// (synthetic placeholder for unknown prompts).
-fn register_llm_providers(rt: &mut Runtime) {
+/// are referenced by any loaded hecksagon's `:llm` adapter.
+///
+/// TestProvider fixture sources, in priority order :
+///   1. `HECKS_LLM_FIXTURES` env var — explicit path to a single
+///      fixtures file (TSV or Ruby DSL). Wins outright when set.
+///   2. Sibling `<stem>.fixtures` files next to each loaded
+///      `*.hecksagon` (gap3 / i220-3). The DrearmContent smoke and
+///      any other PM-cascade test ships its canned French responses
+///      next to the hecksagon they belong to ; the runtime auto-merges
+///      them into one prompt-keyed map. Cleaner than forcing every
+///      smoke to set HECKS_LLM_FIXTURES manually.
+///   3. Lenient default (no fixtures) — TestProvider returns a
+///      synthetic `[test-provider:unknown-prompt sha256=…]` placeholder
+///      so the chain still flows ; useful while fixtures are still
+///      being captured.
+///
+/// gap3 (i220-3) note : when `HECKS_LLM_PROVIDER=test` is also set,
+/// `llm_dispatcher::call` overrides every adapter's backend to `:test`
+/// regardless of what the hecksagon declared (`backend :claude`),
+/// which is what makes the smoke deterministic without editing the
+/// production hecksagon.
+fn register_llm_providers(rt: &mut Runtime, agg_dir: &str) {
     use hecks_life::runtime::llm_providers::{TestProvider, ClaudeProvider, OllamaProvider};
-    // Test provider — always present.
+    // Test provider — always present. Loading order : explicit env
+    // path > auto-discovered sibling files > lenient empty.
     let test_provider: Box<dyn hecks_life::runtime::llm_providers::LlmProvider> =
         if let Ok(path) = std::env::var("HECKS_LLM_FIXTURES") {
             Box::new(TestProvider::from_fixtures_file(path))
         } else {
-            Box::new(TestProvider::new(std::collections::HashMap::new()))
+            let merged = collect_sibling_fixtures(agg_dir);
+            if merged.is_empty() {
+                Box::new(TestProvider::new(std::collections::HashMap::new()))
+            } else {
+                Box::new(TestProvider::new(merged))
+            }
         };
     rt.register_llm_provider("test", test_provider);
     // Discover backends declared in hecksagons.
@@ -1548,6 +1571,111 @@ fn register_llm_providers(rt: &mut Runtime) {
     }
 }
 
+/// Auto-discover `*.fixtures` siblings of every loaded hecksagon and
+/// fold their `input` → `response` pairs into one SHA-keyed map.
+///
+/// Walks the same roots `load_all_hecksagons` walks (agg_dir + sibling
+/// repos like miette + top-level buckets) and pairs every `*.hecksagon`
+/// with its `<stem>.fixtures` sibling when one exists. Missing siblings
+/// are silently skipped — the lenient default still kicks in for any
+/// adapter whose hecksagon ships without a companion fixtures file.
+///
+/// gap3 / i220-3 wiring : this is the function that makes
+/// `body/dream/dream.fixtures` the canonical source of canned dream
+/// responses for the dream_content smoke without forcing the smoke
+/// to know that path explicitly. The same scan-roots that brought the
+/// hecksagons in bring their fixtures siblings in.
+fn collect_sibling_fixtures(
+    agg_dir: &str,
+) -> std::collections::HashMap<String, String> {
+    use hecks_life::runtime::llm_providers::TestProvider;
+    let mut merged: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    fn walk_for_fixtures(dir: &std::path::Path, out: &mut std::collections::HashMap<String, String>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            // Mirror load_all_hecksagons's skip set so we don't
+            // accidentally pick up codegen shape fixtures or test-
+            // capture bins. The :test provider should ONLY see
+            // adapter-aligned response fixtures.
+            if matches!(name, ".git" | "target" | "information" | ".claude"
+                | "node_modules" | "generated" | "fixtures" | "snippets") {
+                continue;
+            }
+            if p.is_dir() {
+                walk_for_fixtures(&p, out);
+                continue;
+            }
+            // We're looking for `<stem>.fixtures` siblings of `<stem>.hecksagon`.
+            // Keying off the .hecksagon presence keeps shape/spec/etc. fixtures
+            // (which carry Section / Aggregate rows, not input/response) out.
+            if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+                let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { continue };
+                let Some(parent) = p.parent() else { continue };
+                let sibling = parent.join(format!("{}.fixtures", stem));
+                if !sibling.exists() { continue; }
+                let Ok(contents) = std::fs::read_to_string(&sibling) else { continue };
+                merge_fixtures_contents(&contents, out);
+            }
+        }
+    }
+
+    fn merge_fixtures_contents(contents: &str, out: &mut std::collections::HashMap<String, String>) {
+        let trimmed = contents.lines()
+            .find(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+            .unwrap_or("").trim();
+        if trimmed.starts_with("Hecks.fixtures") {
+            let parsed = hecks_life::fixtures_parser::parse(contents);
+            for fx in &parsed.fixtures {
+                let mut input: Option<&str> = None;
+                let mut response: Option<&str> = None;
+                for (k, v) in &fx.attributes {
+                    match k.as_str() {
+                        "input"    => input = Some(v.as_str()),
+                        "response" => response = Some(v.as_str()),
+                        _ => {}
+                    }
+                }
+                if let (Some(p), Some(r)) = (input, response) {
+                    out.insert(TestProvider::hash_for(p), r.to_string());
+                }
+            }
+        } else {
+            for line in contents.lines() {
+                let l = line.trim_end_matches('\r');
+                if l.is_empty() || l.starts_with('#') { continue; }
+                if let Some((digest, body)) = l.split_once('\t') {
+                    let d = digest.trim().to_string();
+                    if d.len() == 64 && d.chars().all(|c| c.is_ascii_hexdigit()) {
+                        out.insert(d, body.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    walk_for_fixtures(std::path::Path::new(agg_dir), &mut merged);
+    if let Some(repo_root) = hecks_life::heki::repo_root() {
+        for sibling in &["miette", "miette_family"] {
+            if let Ok(canonical) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
+                if canonical.is_dir() && canonical != std::path::Path::new(agg_dir) {
+                    walk_for_fixtures(&canonical, &mut merged);
+                }
+            }
+        }
+        for bucket in &["runtime", "discipline", "codegen", "cli",
+                        "integrations", "tools", "capabilities"] {
+            let bucket_dir = repo_root.join(bucket);
+            if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
+                walk_for_fixtures(&bucket_dir, &mut merged);
+            }
+        }
+    }
+    merged
+}
+
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
 fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
@@ -1555,7 +1683,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     let combined = load_combined_domain(agg_dir);
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
-    register_llm_providers(&mut rt);
+    register_llm_providers(&mut rt, agg_dir);
 
     // Check if this is a query — find the aggregate and check its queries
     let is_query = rt.domain.aggregates.iter().any(|a|
@@ -2569,16 +2697,22 @@ fn run_loop(args: &[String]) {
     // breath, ultradian, sleep_cycle) firing UnknownCommand silently.
     // load_combined_domain mirrors dispatch_hecksagon's recursive
     // walk so loop sees the full conception including subdirs.
-    let domain = if std::path::Path::new(target).is_dir() {
-        load_combined_domain(target)
+    let (domain, hecksagons) = if std::path::Path::new(target).is_dir() {
+        (load_combined_domain(target), load_all_hecksagons(target))
     } else {
         let source = fs::read_to_string(target).unwrap_or_else(|e| {
             eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
         });
-        parser::parse(&source)
+        (parser::parse(&source), Vec::new())
     };
 
-    let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    // gap3 (i220-3) — boot with hecksagons + providers so the LLM
+    // dispatcher's drain_policies hook resolves :llm adapters during the
+    // PM cascade. Without this, run_loop's ProduceImage cascade would
+    // dispatch fine but no :llm adapter would fire and text_fr / text_en
+    // would never populate. Mirrors the dispatch_hecksagon path.
+    let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, target);
     let mut idx: usize = 0;
     loop {
         let gate_open = match &gate {
@@ -2760,16 +2894,20 @@ fn run_pm_loop(args: &[String]) {
 
     let data_dir = find_world_heki_dir(target)
         .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
-    let domain = if std::path::Path::new(target).is_dir() {
-        load_combined_domain(target)
+    let (domain, hecksagons) = if std::path::Path::new(target).is_dir() {
+        (load_combined_domain(target), load_all_hecksagons(target))
     } else {
         let source = fs::read_to_string(target).unwrap_or_else(|e| {
             eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
         });
-        parser::parse(&source)
+        (parser::parse(&source), Vec::new())
     };
 
-    let rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    // gap3 (i220-3) — boot with hecksagons + providers so the LLM
+    // dispatcher's drain_policies hook resolves :llm adapters during
+    // PM-cascade dispatches. Same wiring as run_loop / dispatch_hecksagon.
+    let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, target);
     let mut driver = LoopDriver::new(rt, interval);
     for (ev, ty, id) in emits {
         driver.add_emit(&ev, &ty, &id, std::collections::HashMap::new());
