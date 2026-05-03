@@ -1,0 +1,34 @@
+Hecks.bluebook "BluebookGrammar", version: "2026.05.02.1" do
+  vision "The Bluebook keyword routing as bluebook itself. i218 — retires the hardcoded if-chain in rust/src/parser.rs by lifting the parser's own dispatch table into a declarative bluebook surface. Adding a new keyword is a one-line bluebook edit (plus one BlockParser variant + one parse_* function in parse_blocks.rs). Mirrors the canonical seed in rust/src/ir.rs::BlockGrammar::canonical_bluebook ; the specializer can regenerate the seed from this file once the codegen path lands."
+  category "meta"
+
+  # ============================================================
+  # CANONICAL BLUEBOOK GRAMMAR
+  # ============================================================
+  #
+  # Each `block` row maps a top-level keyword to the named parser
+  # function in rust/src/parse_blocks.rs (and its mirror in
+  # ruby/hecks/dsl/). Order matters : the parser walks the list and
+  # claims a line for the first keyword whose prefix matches with a
+  # word boundary after it (so `policy` doesn't claim `policy_foo`).
+  #
+  # `parser_name` resolves to a BlockParser enum variant via
+  # `BlockParser::from_name` ; an unknown name is dropped at IR-build
+  # time (you can't reach a function not linked into the binary).
+  #
+  # To add a new keyword :
+  #   1. add a `block "<keyword>", parser: :parse_<keyword>` row here
+  #   2. add a `BlockParser::<Variant>` variant in rust/src/ir.rs
+  #   3. add a `parse_<keyword>` function in rust/src/parse_blocks.rs
+  #   4. add a match arm in parser.rs::invoke
+  # No edits to parser.rs's main loop required.
+
+  block_grammar "Bluebook" do
+    block "aggregate",        parser: :parse_aggregate
+    block "section",          parser: :parse_section
+    block "policy",           parser: :parse_policy
+    block "process_manager",  parser: :parse_process_manager
+    block "cadence",          parser: :parse_cadence
+    block "fixture",          parser: :parse_fixture
+  end
+end

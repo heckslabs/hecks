@@ -63,6 +63,18 @@ module Hecks
       #   dream-study plan: parser + IR only ; runtime walks them in Phase 2.
       attr_reader :process_managers
 
+      # @return [Array<BluebookModel::Behavior::Cadence>] cadence declarations
+      #   from the +cadence+ DSL keyword. Each carries an interval + dispatch
+      #   list. The runtime tick-loop walks these.
+      attr_reader :cadences
+
+      # @return [Array<BluebookModel::Behavior::BlockGrammar>] block_grammar
+      #   declarations from the +block_grammar+ DSL keyword. Each declares
+      #   the keyword routing for its named grammar (typically just
+      #   "Bluebook"). i218 — retires the hardcoded if-chain in
+      #   rust/src/parser.rs by lifting it into bluebook itself.
+      attr_reader :block_grammars
+
       # @return [Array<Hash>] ubiquitous language rules
       attr_reader :glossary_rules
 
@@ -133,6 +145,7 @@ module Hecks
                      workflows: [], actors: [], custom_verbs: [],
                      tenancy: nil, event_subscribers: [],
                      sagas: [], process_managers: [],
+                     cadences: [], block_grammars: [],
                      glossary_rules: [], modules: [], glossary_strict: false,
                      version: nil, world_concerns: [], description: nil,
                      entry_points: [],
@@ -150,6 +163,8 @@ module Hecks
         @actors = actors
         @sagas = sagas
         @process_managers = process_managers
+        @cadences = cadences
+        @block_grammars = block_grammars
         @glossary_rules = glossary_rules
         @glossary_strict = glossary_strict
         @modules = modules
