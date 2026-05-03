@@ -44,6 +44,12 @@ Hecks.bluebook "IrShape", version: "2026.05.01.1" do
   #                     impl-specific knobs : impl_target picks the trait
   #                     and the type. One impl row per impl block.)
   #
+  #   verbatim_section — emit body_snippet contents verbatim, with no
+  #                     wrapping. Used for free functions / other items
+  #                     that don't fit struct/enum/impl (e.g. the
+  #                     `fn entry()` helper between BlockGrammar's impl
+  #                     and ProcessManager's struct definition).
+  #
   # Type-level doc comments (above the `#[derive(...)]` line) are an
   # optional doc_snippet on the Type row itself. Most structs don't have
   # one ; Section and SectionRow do.
@@ -103,6 +109,11 @@ Hecks.bluebook "IrShape", version: "2026.05.01.1" do
     attribute :order,        Integer
     # name: variant identifier
     attribute :name,         String
+    # body: optional struct-variant payload, written verbatim — e.g.
+    # `{ value: String }`. The specializer emits `Name <body>,` when
+    # body is non-empty, `Name,` otherwise. Empty by default for the
+    # common bare-variant case.
+    attribute :body,         String, default: ""
     # doc_snippet: optional ; relative path to a .rs.frag holding the
     # doc comment that precedes this variant. Already 4-space indented.
     # Empty when no doc.

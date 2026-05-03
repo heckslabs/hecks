@@ -33,5 +33,12 @@ fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
         (from, to)
     };
     if from.is_empty() || to.is_empty() { return None; }
-    Some(ProcessManagerHandler { event_type, from_state: from, to_state: to })
+    Some(ProcessManagerHandler {
+        event_type,
+        from_state: from,
+        to_state: to,
+        dispatches: vec![],
+        set_specs: vec![],
+    })
 }
+

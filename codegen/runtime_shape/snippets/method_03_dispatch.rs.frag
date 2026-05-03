@@ -69,6 +69,20 @@
         // Drain policy triggers — recursively, so chains cascade fully
         self.drain_policies(&result);
 
+        // i221 — LLM dispatcher hook. After the cascade settles,
+        // scan loaded hecksagons for any `:llm` adapter whose
+        // `response_into_target` matches `Aggregate.Command` (the
+        // command the user just dispatched). When one matches,
+        // substitute its prompt template from the upstream
+        // aggregate's state + the dispatched attrs, call the
+        // resolved provider, and chain the response as a real
+        // dispatch back into the target with `response_into_attr`
+        // carrying the response text. The chain is finite by
+        // discipline : the response-driven dispatch has the
+        // populated attr already so its givens fall through (no
+        // re-entry), exactly as the Ruby surface relies on.
+        self.resolve_llm_adapters(&result, command_name);
+
         Ok(result)
     }
 

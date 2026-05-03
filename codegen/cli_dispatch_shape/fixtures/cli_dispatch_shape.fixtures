@@ -161,45 +161,55 @@ Hecks.fixtures "CliDispatchShape" do
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_19_loop.rs.frag",
       description: "delegate_run pattern — run_loop(&args). Cadence-loop primitive."
 
+    # i221 / dream-study : run-loop subcommand. PM loop driver — boots
+    # the runtime once and ticks at the configured cadence, firing
+    # registered events / commands so PMs advance their state. Substrate
+    # for retiring mindstream.sh.
+    fixture "RunLoop",
+      name: "run_loop",
+      order: 20,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_19a_run_loop.rs.frag",
+      description: "delegate_run pattern — run_pm_loop(&args). PM-loop daemon."
+
     fixture "Daemon",
       name: "daemon",
-      order: 20,
+      order: 21,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_20_daemon.rs.frag",
       description: "delegate_run pattern — run_daemon(&args). Process-lifecycle primitive."
 
     fixture "EnforceEdit",
       name: "enforce_edit",
-      order: 21,
+      order: 22,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_21_enforce_edit.rs.frag",
       description: "delegate_run pattern — run_enforce_edit(&args). PostToolUse listener primitive."
 
     fixture "Statusline",
       name: "statusline",
-      order: 22,
+      order: 23,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_22_statusline.rs.frag",
       description: "delegate_run pattern — hecks_life::run_statusline::run(). Statusline capability runner."
 
     fixture "IsDispatched",
       name: "is_dispatched",
-      order: 23,
+      order: 24,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_23_is_dispatched.rs.frag",
       description: "Sui-generis arm — IR-query subcommand. Exit 0 + stdout if dispatched, exit 1 silently if not."
 
     fixture "Clock",
       name: "clock",
-      order: 24,
+      order: 25,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_24_clock.rs.frag",
       description: "delegate_run pattern — run_clock(&args). Wall-clock segment trigger primitive."
 
     fixture "Sleep",
       name: "sleep",
-      order: 25,
+      order: 26,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_25_sleep.rs.frag",
       description: "delegate_run pattern — run_sleep(&args). Blocking streaming-sleep CLI."
 
     fixture "Repl",
       name: "repl",
-      order: 26,
+      order: 27,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_26_repl.rs.frag",
       description: "Sui-generis arm — interactive REPL. Boots Runtime, loads seeds, runs interactive loop."
   end
