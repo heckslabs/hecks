@@ -39,10 +39,28 @@
     /// Adapters with no effective trigger (both fields None) are inert
     /// — just parse-time descriptors — and are skipped silently.
     fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        let mut fired: std::collections::HashSet<String> = std::collections::HashSet::new();
+        self.resolve_llm_adapters_with_excluded(result, command_name, &mut fired);
+    }
+
+    /// gap3 (i220-3) helper — `fired` is the set of adapter NAMES that
+    /// have already run in this dispatch chain. The cascade-of-cascade
+    /// recursion (an :llm response landing on a different command that
+    /// itself triggers another :llm adapter) skips any adapter already
+    /// in the set, which prevents infinite loops when an adapter's
+    /// effective_trigger matches its own response_into_target (the
+    /// historical default trigger=response shape, which the very-first
+    /// :llm wiring relied on).
+    fn resolve_llm_adapters_with_excluded(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        fired: &mut std::collections::HashSet<String>,
+    ) {
         let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
         if debug_llm {
-            eprintln!("[llm:debug] resolve_llm_adapters cmd={} agg_type={} hecksagons={} providers={}",
-                command_name, result.aggregate_type, self.hecksagons.len(), self.llm_providers.len());
+            eprintln!("[llm:debug] resolve_llm_adapters cmd={} agg_type={} hecksagons={} providers={} fired={}",
+                command_name, result.aggregate_type, self.hecksagons.len(), self.llm_providers.len(), fired.len());
         }
         if self.hecksagons.is_empty() {
             if debug_llm { eprintln!("[llm:debug] no hecksagons — returning"); }
@@ -57,10 +75,13 @@
         // afterward, so collect the adapter clones first. i228 — match
         // on the effective trigger (trigger_on || response_into_target)
         // so PM-cascade-only adapters fire on a ProduceX command while
-        // routing the LLM reply into a separate RecordX command.
+        // routing the LLM reply into a separate RecordX command. gap3
+        // (i220-3) — also exclude adapters in `fired` to break the
+        // cascade-of-cascade loop when trigger == response.
         let adapters: Vec<crate::hecksagon_ir::LlmAdapter> = self.hecksagons.iter()
             .flat_map(|h| h.llm_adapters.iter())
             .filter(|la| la.effective_trigger() == Some(target.as_str()))
+            .filter(|la| !fired.contains(&la.name))
             .cloned()
             .collect();
         if debug_llm {
@@ -114,6 +135,13 @@
         }
 
         for adapter in &adapters {
+            // Mark this adapter as fired BEFORE the cascade so a
+            // recursive resolve sees it in the exclude set. The
+            // dispatch_cascade can transitively land on the same
+            // target ; without the pre-mark, we'd re-enter for the
+            // historical trigger==response case.
+            fired.insert(adapter.name.clone());
+
             // Take ownership of the providers map briefly so we can
             // pass an immutable borrow to the dispatcher without
             // tripping the multi-borrow rule on self. The runtime
@@ -146,13 +174,30 @@
             let mut chain_attrs: HashMap<String, Value> = HashMap::new();
             chain_attrs.insert(attr_name, Value::Str(result_data.response_text.clone()));
             let cmd_qualified = format!("{}.{}", target_agg, target_cmd);
-            let _ = command_dispatch::dispatch_cascade(
+            let cascade_outcome = command_dispatch::dispatch_cascade(
                 self,
                 &cmd_qualified,
                 chain_attrs,
                 &result.aggregate_type,
                 &result.aggregate_id,
             );
+            // gap3 (i220-3) — chain LLM resolution on the response cascade
+            // so a second adapter whose effective_trigger matches the
+            // response-target command fires too. Concretely : the
+            // :dream_image adapter cascades into Dream.RecordImage(text_fr:),
+            // which is exactly the trigger of the :dream_translate adapter
+            // (response_into Dream.RecordImage with attr text_en — its
+            // effective_trigger falls back to the same target). Without
+            // this recursion, text_en stays empty in production. The chain
+            // is finite because the `fired` exclude-set tracks adapter
+            // names across the recursion : an adapter whose trigger ==
+            // response (the historical self-cascading shape) only fires
+            // once per dispatch tree.
+            if let Ok(inner_result) = cascade_outcome {
+                self.resolve_llm_adapters_with_excluded(
+                    &inner_result, &cmd_qualified, fired,
+                );
+            }
         }
     }
 

@@ -179,6 +179,71 @@ fn end_to_end_cascade_writes_response_into_target_attr() {
         "expected text_fr populated via :llm cascade ; got {:?}", state.fields);
 }
 
+// gap3 (i220-3) — HECKS_LLM_PROVIDER overrides the hecksagon's
+// declared backend. Lets the dream_content smoke flip every adapter
+// to :test without editing miette's production hecksagon (which
+// ships `backend :claude`). The override is read at call time, so
+// the same adapter routes differently across runs.
+#[test]
+fn env_override_routes_to_test_provider_regardless_of_backend() {
+    // Force the dispatcher to use :test even though the adapter says
+    // :claude. The default :test provider is lenient — returns a
+    // synthetic placeholder rather than reaching for the (absent)
+    // claude binary.
+    let prior = std::env::var("HECKS_LLM_PROVIDER").ok();
+    std::env::set_var("HECKS_LLM_PROVIDER", "test");
+
+    let mut adapter = dream_adapter();
+    adapter.backend = Some("claude".into());
+    let mut attrs = HashMap::new();
+    attrs.insert("seed_image".into(), "snow".into());
+    let outcome = llm_dispatcher::call(&adapter, None, &attrs, None);
+
+    // Restore env so other tests aren't disturbed (cargo runs tests
+    // in parallel by default ; --test-threads=1 isn't required for
+    // correctness here because the env is per-process and the assert
+    // happens before the restore).
+    match prior {
+        Some(v) => std::env::set_var("HECKS_LLM_PROVIDER", v),
+        None    => std::env::remove_var("HECKS_LLM_PROVIDER"),
+    }
+
+    match outcome {
+        LlmOutcome::Completed(r) => {
+            assert_eq!(r.provider, "test", "env override should rewrite backend to :test");
+        }
+        LlmOutcome::Skipped(s) => panic!("expected completed (lenient :test fallback), got skipped: {:?}", s),
+    }
+}
+
+// gap3 (i220-3) — TestProvider auto-detects the Ruby DSL form so
+// miette's body/dream/dream.fixtures (a Hecks.fixtures DSL file) loads
+// directly into the prompt-keyed map. This is the path that lets the
+// dream_content smoke ship canned French responses as readable DSL
+// instead of pre-hashed TSV.
+#[test]
+fn test_provider_loads_ruby_dsl_fixtures_file() {
+    use hecks_life::runtime::llm_providers::{LlmProvider, TestProvider};
+
+    let tmp = std::env::temp_dir().join("gap3_dsl_fixtures.fixtures");
+    let dsl = r#"Hecks.fixtures "DreamSmoke" do
+  aggregate "Dream" do
+    fixture "FrenchImage_Sample",
+      input:    "Imagine snow falling",
+      response: "Neige qui tombe doucement."
+  end
+end"#;
+    std::fs::write(&tmp, dsl).expect("write tmp fixture");
+
+    let provider = TestProvider::from_fixtures_file(&tmp);
+    assert_eq!(provider.fixture_count(), 1, "DSL row should land");
+
+    let result = provider.invoke("Imagine snow falling", "test-model", 100)
+        .expect("provider invoke");
+    assert_eq!(result.response_text, "Neige qui tombe doucement.");
+    let _ = std::fs::remove_file(&tmp);
+}
+
 #[test]
 fn dispatcher_skips_silently_when_no_hecksagon_loaded() {
     let domain: Domain = parser::parse(DREAM_BLUEBOOK);
