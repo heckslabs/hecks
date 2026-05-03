@@ -32,5 +32,11 @@ Hecks.bluebook "Sleep", version: "2026.05.02.1" do
     on "DeepEntered", transition: { rem: :deep } do |event, pm|
       { commands: ["MarkDeep"] }
     end
+
+    # Declarative dispatch form — Rust runtime reads this directly
+    on "WakeRequested", transition: { deep: :studying_dream } do
+      dispatch "Body.WakeUp"
+      dispatch "WakeReport.Compose"
+    end
   end
 end

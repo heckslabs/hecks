@@ -59,6 +59,10 @@ module Hecks
       def dump_pm_handler(h)
         from, to = h.transition.first
         {
+          # `dispatches` carries the declarative Aggregate.Command list
+          # captured from `dispatch "..."` keyword inside the on-block.
+          # Empty when the handler used the Ruby-proc form.
+          "dispatches" => (h.respond_to?(:dispatches) ? (h.dispatches || []) : []),
           "event_type" => h.event_type.to_s,
           "from_state" => from.to_s,
           "to_state"   => to.to_s,
