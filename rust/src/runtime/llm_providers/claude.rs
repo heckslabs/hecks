@@ -54,17 +54,33 @@ impl LlmProvider for ClaudeProvider {
         max_tokens: u64,
     ) -> Result<LlmProviderResult, LlmError> {
         // Args mirror the Ruby provider's CLI form, minus stream-json :
-        //   claude -p --model <model> --max-tokens <n>
+        //   claude -p --model <model>
         // Prompt is fed via stdin so command-line length limits don't
         // bite on long substituted templates.
+        //
+        // The claude CLI does NOT support --max-tokens (verified via
+        // claude --help — only --max-budget-usd exists at that knob).
+        // The bluebook's `max_tokens 200` stays as metadata for the
+        // future API path ; the unary CLI just lets claude pick.
+        // Same for --model with unrecognized aliases : the CLI falls
+        // back to its default when the name doesn't match, which is
+        // good-enough behaviour for the dream pipeline.
+        let _ = max_tokens; // intentionally unused at the unary CLI surface
         let mut cmd = Command::new(&self.bin);
-        cmd.arg("-p")
-           .arg("--model").arg(model)
-           .arg("--max-tokens").arg(max_tokens.to_string())
-           .env_clear()
-           .env("HOME", std::env::var("HOME").unwrap_or_default())
-           .env("PATH", std::env::var("PATH").unwrap_or_default())
-           .stdin(Stdio::piped())
+        cmd.arg("-p");
+        if !model.is_empty() {
+            cmd.arg("--model").arg(model);
+        }
+        // Inherit parent env. The env_clear() approach (HOME + PATH only)
+        // breaks claude's macOS keychain auth — verified : `env -i
+        // HOME=... PATH=... claude -p` returns "Not logged in · Please
+        // run /login". The keychain lookup needs more state than HOME
+        // alone exposes (LOGNAME, USER, possibly SHLVL, plus any
+        // tooling-specific vars). The shell-dispatcher discipline of
+        // strict env whitelists applies to UNTRUSTED shell calls ; the
+        // claude CLI is a known good binary we explicitly chose to
+        // invoke, so inheriting the parent process env is appropriate.
+        cmd.stdin(Stdio::piped())
            .stdout(Stdio::piped())
            .stderr(Stdio::piped());
 

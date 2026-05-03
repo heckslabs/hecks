@@ -99,9 +99,19 @@ pub fn call(
     // wire through unchanged.
     let backend = if backend == "fixture" { "test".to_string() } else { backend };
 
+    let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
+    if debug_llm {
+        eprintln!("[llm:debug] call adapter={} backend={} provider_registered={}",
+            adapter.name, backend,
+            providers.map(|m| m.contains_key(&backend)).unwrap_or(false));
+    }
+
     let prompt = super::prompt_scaffolder::substitute(
         &adapter.prompt_template, attrs, state,
     );
+    if debug_llm {
+        eprintln!("[llm:debug] prompt_first_80={}", prompt.chars().take(80).collect::<String>());
+    }
 
     // Resolve provider. Owned (default) and borrowed (explicit map)
     // sources branch — both invoke through the trait.
@@ -131,31 +141,47 @@ pub fn call(
         }
     };
 
+    let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
     match result {
-        Ok(pres) => LlmOutcome::Completed(LlmResult {
-            adapter_name: adapter.name.clone(),
-            prompt,
-            response_text: pres.response_text,
-            provider: backend,
-            model_used: pres.model_used,
-            tokens_in: pres.tokens_in,
-            tokens_out: pres.tokens_out,
-        }),
-        Err(LlmError::Unavailable { reason, .. }) => LlmOutcome::Skipped(LlmSkipped {
-            adapter_name: adapter.name.clone(),
-            reason: "provider_unavailable".into(),
-            details: reason,
-        }),
-        Err(LlmError::FixtureMissing { digest }) => LlmOutcome::Skipped(LlmSkipped {
-            adapter_name: adapter.name.clone(),
-            reason: "fixture_missing".into(),
-            details: format!("sha256={}", digest),
-        }),
-        Err(LlmError::Transport { message, .. }) => LlmOutcome::Skipped(LlmSkipped {
-            adapter_name: adapter.name.clone(),
-            reason: "transport_error".into(),
-            details: message,
-        }),
+        Ok(pres) => {
+            if debug_llm {
+                eprintln!("[llm:debug] Completed adapter={} response_first_80={}",
+                    adapter.name, pres.response_text.chars().take(80).collect::<String>());
+            }
+            LlmOutcome::Completed(LlmResult {
+                adapter_name: adapter.name.clone(),
+                prompt,
+                response_text: pres.response_text,
+                provider: backend,
+                model_used: pres.model_used,
+                tokens_in: pres.tokens_in,
+                tokens_out: pres.tokens_out,
+            })
+        },
+        Err(LlmError::Unavailable { reason, .. }) => {
+            if debug_llm { eprintln!("[llm:debug] Skipped Unavailable adapter={} reason={}", adapter.name, reason); }
+            LlmOutcome::Skipped(LlmSkipped {
+                adapter_name: adapter.name.clone(),
+                reason: "provider_unavailable".into(),
+                details: reason,
+            })
+        },
+        Err(LlmError::FixtureMissing { digest }) => {
+            if debug_llm { eprintln!("[llm:debug] Skipped FixtureMissing adapter={} sha256={}", adapter.name, digest); }
+            LlmOutcome::Skipped(LlmSkipped {
+                adapter_name: adapter.name.clone(),
+                reason: "fixture_missing".into(),
+                details: format!("sha256={}", digest),
+            })
+        },
+        Err(LlmError::Transport { message, .. }) => {
+            if debug_llm { eprintln!("[llm:debug] Skipped Transport adapter={} message={}", adapter.name, message); }
+            LlmOutcome::Skipped(LlmSkipped {
+                adapter_name: adapter.name.clone(),
+                reason: "transport_error".into(),
+                details: message,
+            })
+        },
     }
 }
 
