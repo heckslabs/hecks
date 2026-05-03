@@ -38,6 +38,7 @@ use super::AggregateState;
 use std::collections::HashMap;
 
 pub mod recent_musings;
+pub mod aggregate_corpus_window;
 
 /// Registry dispatcher — match the function name and call the
 /// corresponding implementation. Adding a function here is the
@@ -53,6 +54,9 @@ pub fn invoke(
         "summarize_recent_musings" => Some(
             recent_musings::summarize_recent_musings(state, attrs, data_dir)
         ),
+        "aggregate_corpus_window" => Some(
+            aggregate_corpus_window::aggregate_corpus_window(state, attrs, data_dir)
+        ),
         _ => None,
     }
 }
@@ -63,5 +67,5 @@ pub fn invoke(
 /// directly through `invoke()`.
 #[cfg(test)]
 pub fn registered_names() -> Vec<&'static str> {
-    vec!["summarize_recent_musings"]
+    vec!["summarize_recent_musings", "aggregate_corpus_window"]
 }
