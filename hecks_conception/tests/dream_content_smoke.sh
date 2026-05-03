@@ -171,6 +171,16 @@ pulses_before=$(field_value "$TMP/information/consciousness/consciousness.heki" 
 # (Dream PM correlates_by :name) but the upstream Body events route
 # via the dispatch context.
 RUN_LOG="$TMP/run_loop.log"
+# gap3 (i220-3) — flip every :llm adapter to the in-process TestProvider
+# regardless of what the hecksagon declared (`backend :claude`). The
+# TestProvider is lenient by default : missing fixtures return a
+# synthetic placeholder string so the cascade still completes and
+# text_fr / text_en land non-empty. The shipped body/dream/dream.fixtures
+# is auto-discovered alongside dream.hecksagon and merged into the
+# prompt-keyed map ; rows whose SHA matches the live substituted prompt
+# return their canonical French ; rows that don't match fall through
+# to lenient.
+HECKS_LLM_PROVIDER=test \
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
 HECKS_BIN="$HECKS" \
@@ -235,10 +245,47 @@ echo "  dream_pulses       : $pulses_before → $pulses_after"
 # (or the PM is updated to dispatch Consciousness.DreamPulse with
 # the right impression attr), gate this assertion.
 
-echo "PASS — Dream PM boots via run-loop ; dream_seed grew via i221-A for_each Musing.recent sweep"
+# ── gap3 (i220-3) : :llm cascade lands text_fr on Dream singleton ──
+#
+# When the PM dispatches Dream.ProduceImage on PhaseElapsed, the
+# :dream_image adapter (trigger_on Dream.ProduceImage in
+# body/dream/dream.hecksagon) fires through the TestProvider — the
+# response cascades into Dream.RecordImage(text_fr:). Verify the
+# Dream singleton holds a non-empty text_fr after the run-loop drains.
+#
+# Lenient mode : an unknown prompt returns a synthetic
+# `[test-provider:unknown-prompt sha256=...]` string. Either way,
+# text_fr is non-empty after the cascade — that's what gap3 closes.
+# A precise-content assertion lives in the rust llm_dispatcher_test
+# integration tests (which use a fixture-keyed-by-known-SHA path).
+# Dream aggregate lives in the BodyDream context (its bluebook
+# declares `category "body"`). Heki paths reflect (context, name)
+# pairing post-i142, so the singleton lands at
+# `body_dream/dream.heki`, not `dream/dream.heki` (the latter is
+# the PM persistence heki — same file basename, different role).
+DREAM_HEKI="$TMP/information/body_dream/dream.heki"
+text_fr=$(field_value "$DREAM_HEKI" text_fr)
+if [ -z "$text_fr" ] || [ "$text_fr" = "null" ]; then
+  echo "----- run-loop output -----"
+  cat "$RUN_LOG"
+  echo "----- dream.heki -----"
+  "$HECKS" heki list "$DREAM_HEKI" --format json 2>/dev/null || echo "(no dream.heki yet)"
+  fail "Dream.text_fr empty after PM cascade — :dream_image adapter did not fire through TestProvider (gap3)"
+fi
+echo "  text_fr            : ${text_fr:0:60}..."
+
+# text_en is the second leg : :dream_translate adapter on
+# Dream.RecordImage. Routes through TestProvider too.
+text_en=$(field_value "$DREAM_HEKI" text_en)
+if [ -n "$text_en" ] && [ "$text_en" != "null" ]; then
+  echo "  text_en            : ${text_en:0:60}..."
+else
+  echo "  text_en            : (not populated — :dream_translate adapter chains on RecordImage ; investigate if needed)"
+fi
+
+echo "PASS — Dream PM boots via run-loop ; dream_seed grew via i221-A for_each Musing.recent sweep ; text_fr lands via :llm cascade through TestProvider (gap3)"
 echo ""
 echo "Deferred (named gaps, not blockers for this smoke) :"
-echo "  - text_fr / text_en content production : i228 (chain-trigger separate from response-target) + i220-3 (FixtureLlmAdapter)"
 echo "  - lucid path (LucidDream.ObserveDream / SteerDream) : same i228 chain-trigger gap"
 echo "  - Body.RecordDreamPulse / Consciousness.dream_pulses growth : Body aggregate forward-ref ; bluebook surgery follow-on"
 exit 0
