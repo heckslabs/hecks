@@ -48,7 +48,12 @@ TMP=$(mktemp -d -t pulse_organs_smoke.XXXXXX)
 # spawned during the test can't survive into the next test.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-mkdir -p "$TMP/information" "$TMP/aggregates"
+# Nested heki layout (post-i118 R5) — pulse_organs.sh + sibling daemons
+# read $INFO/<aggregate>/<aggregate>.heki, not flat $INFO/<aggregate>.heki.
+mkdir -p "$TMP/information/heartbeat" "$TMP/information/awareness" \
+         "$TMP/information/consciousness" "$TMP/information/synapse" \
+         "$TMP/information/signal" "$TMP/information/focus" \
+         "$TMP/information/remains" "$TMP/aggregates"
 
 # Link aggregates so dispatch finds the organs/awareness/etc bluebooks.
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
@@ -62,28 +67,30 @@ Hecks.world "PulseOrgansSmoke" do
 end
 EOF
 
-# Seed: copy heartbeat + awareness from live (benign — they only affect
-# which topic the synapse forms around). Do NOT copy consciousness.heki:
-# pulse_organs.sh bails early when state=sleeping, so inheriting Miette's
-# live state makes the test flake whenever she's asleep. Seed it
-# deterministically as attentive instead. Do NOT copy organ stores —
-# we want to prove pulse_organs.sh creates them from scratch.
+# Seed: copy heartbeat + awareness from live miette-state (benign —
+# they only affect which topic the synapse forms around). Do NOT copy
+# consciousness : pulse_organs.sh bails early when state=sleeping, so
+# inheriting Miette's live state makes the test flake whenever she's
+# asleep. Seed it deterministically as attentive instead. Do NOT copy
+# organ stores — we want to prove pulse_organs.sh creates them from
+# scratch.
+LIVE_INFO="${HECKS_LIVE_INFO:-$REPO_ROOT/../miette-state/information}"
 for f in heartbeat awareness; do
-  src="$CONCEPT_DIR/information/${f}.heki"
-  [ -f "$src" ] && cp "$src" "$TMP/information/${f}.heki"
+  src="$LIVE_INFO/${f}/${f}.heki"
+  [ -f "$src" ] && cp "$src" "$TMP/information/${f}/${f}.heki"
 done
-"$HECKS" heki append "$TMP/information/consciousness.heki" \
+"$HECKS" heki append "$TMP/information/consciousness/consciousness.heki" \
   --reason "test setup : seed deterministic attentive consciousness so pulse_organs gate stays open during smoke" \
   state=attentive idle_seconds=0 >/dev/null 2>&1
 
 # Seed two synapses so the test exercises both decay paths:
 #   - one healthy enough to survive (strength=0.5)
 #   - one weak enough to compost on first decay (0.1 × 0.98 = 0.098 < 0.1)
-"$HECKS" heki append "$TMP/information/synapse.heki" \
+"$HECKS" heki append "$TMP/information/synapse/synapse.heki" \
   --reason "test setup : seed healthy synapse so pulse_organs decay path proves survival" \
   from=alpha to=beta strength=0.5 state=alive firings=2 \
   last_fired_at=2026-04-20T00:00:00Z >/dev/null 2>&1
-"$HECKS" heki append "$TMP/information/synapse.heki" \
+"$HECKS" heki append "$TMP/information/synapse/synapse.heki" \
   --reason "test setup : seed weak synapse so pulse_organs decay path proves compost-on-first-decay" \
   from=fading to=memory strength=0.1 state=alive firings=1 \
   last_fired_at=2026-04-20T00:00:00Z >/dev/null 2>&1
@@ -104,10 +111,10 @@ count_records() {
   "$HECKS" heki count "$1" 2>/dev/null || echo 0
 }
 
-synapse_count=$(count_records "$TMP/information/synapse.heki")
-signal_count=$(count_records "$TMP/information/signal.heki")
-focus_count=$(count_records "$TMP/information/focus.heki")
-remains_count=$(count_records "$TMP/information/remains.heki")
+synapse_count=$(count_records "$TMP/information/synapse/synapse.heki")
+signal_count=$(count_records "$TMP/information/signal/signal.heki")
+focus_count=$(count_records "$TMP/information/focus/focus.heki")
+remains_count=$(count_records "$TMP/information/remains/remains.heki")
 
 echo "After 10 pulses:"
 echo "  synapse records: $synapse_count"
@@ -115,10 +122,10 @@ echo "  signal records:  $signal_count"
 echo "  focus records:   $focus_count"
 echo "  remains records: $remains_count"
 
-[ "$synapse_count" -ge 1 ] || fail "synapse.heki has no records"
-[ -f "$TMP/information/remains.heki" ] || fail "remains.heki was not created"
-[ "$signal_count" -gt 1 ] || fail "signal.heki should have >1 record (got $signal_count)"
-[ "$focus_count" -ge 1 ] || fail "focus.heki has no records"
+[ "$synapse_count" -ge 1 ] || fail "synapse/synapse.heki has no records"
+[ -f "$TMP/information/remains/remains.heki" ] || fail "remains/remains.heki was not created"
+[ "$signal_count" -gt 1 ] || fail "signal/signal.heki should have >1 record (got $signal_count)"
+[ "$focus_count" -ge 1 ] || fail "focus/focus.heki has no records"
 
 echo "PASS — pulse_organs.sh grows synapse/signal/focus/remains as expected"
 exit 0

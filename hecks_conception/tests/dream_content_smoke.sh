@@ -59,7 +59,7 @@ trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 # only mutable target (that's the whole point of using a tmpdir).
 INFO="$TMP/information"
 AGG="$TMP/aggregates"
-mkdir -p "$INFO"
+mkdir -p "$INFO/consciousness"
 ln -s "$ROOT/aggregates" "$AGG"
 ln -s "$ROOT/nursery"    "$TMP/nursery"
 cat > "$TMP/miette_test.world" <<'EOF'
@@ -90,7 +90,7 @@ for i in 1 2 3 4 5 6; do
 done
 
 # Force consciousness into REM, first cycle, no pulses yet.
-"$HECKS" heki upsert "$INFO/consciousness.heki" \
+"$HECKS" heki upsert "$INFO/consciousness/consciousness.heki" \
   --reason "test setup : force consciousness into REM cycle 1 so dream_content rem_branch fires the dream-production path" \
   state=sleeping sleep_stage=rem sleep_cycle=1 sleep_total=8 \
   phase_ticks=0 dream_pulses=0 dream_pulses_needed=5 is_lucid=no \
@@ -136,7 +136,7 @@ sample=$("$HECKS" heki list "$INFO/dream_state.heki" --where source=mindstream \
 check "rem_dream produced a non-empty image" "$([ -n "$sample" ] && echo yes)" "yes"
 
 # Lucid path — flip is_lucid=yes, run once, expect ObserveDream + SteerDream.
-"$HECKS" heki upsert "$INFO/consciousness.heki" \
+"$HECKS" heki upsert "$INFO/consciousness/consciousness.heki" \
   --reason "test setup : flip consciousness to lucid REM so dream_content lucid path dispatches ObserveDream + SteerDream" \
   state=sleeping sleep_stage=rem is_lucid=yes \
   sleep_cycle=8 dream_pulses=0 >/dev/null 2>&1
