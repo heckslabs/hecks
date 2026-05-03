@@ -22,19 +22,22 @@
     }
 
     /// i221 — scan every loaded hecksagon for an `adapter :llm`
-    /// declaration whose `response_into_target` matches the just-
+    /// declaration whose effective trigger target matches the just-
     /// dispatched `Aggregate.Command` ; for each match, substitute
     /// the prompt template from the upstream state + attrs, call the
     /// resolved provider, and chain the response as a `dispatch_cascade`
-    /// into the target carrying `response_into_attr` as the kwarg.
+    /// into `response_into_target` carrying `response_into_attr`.
     ///
-    /// Adapter resolution is by exact target-string match. The
-    /// `response_into_target` field on the IR is "Aggregate.Command"
-    /// per the Phase 1 parser ; we compare against the same form
+    /// Adapter resolution is by exact target-string match. The IR
+    /// holds `trigger_on` (i228) for the firing target and
+    /// `response_into_target` for the response routing target. When
+    /// `trigger_on` is None the runtime falls back to
+    /// `response_into_target` so the historical self-triggering shape
+    /// (trigger == response) keeps working without per-adapter
+    /// declaration. We compare against `Aggregate.Command`
     /// reconstructed from `result.aggregate_type` + `command_name`.
-    /// Adapters without `response_into_target` are inert (the
-    /// declaration is just a parse-time descriptor without runtime
-    /// trigger) and are skipped silently.
+    /// Adapters with no effective trigger (both fields None) are inert
+    /// — just parse-time descriptors — and are skipped silently.
     fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
         let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
         if debug_llm {
@@ -51,10 +54,13 @@
 
         // Snapshot adapters that match — we need to walk hecksagons
         // by ref but mutate self.repositories/etc. via dispatch_cascade
-        // afterward, so collect the adapter clones first.
+        // afterward, so collect the adapter clones first. i228 — match
+        // on the effective trigger (trigger_on || response_into_target)
+        // so PM-cascade-only adapters fire on a ProduceX command while
+        // routing the LLM reply into a separate RecordX command.
         let adapters: Vec<crate::hecksagon_ir::LlmAdapter> = self.hecksagons.iter()
             .flat_map(|h| h.llm_adapters.iter())
-            .filter(|la| la.response_into_target.as_deref() == Some(target.as_str()))
+            .filter(|la| la.effective_trigger() == Some(target.as_str()))
             .cloned()
             .collect();
         if debug_llm {

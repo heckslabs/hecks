@@ -4,6 +4,12 @@
 // can fall back to io_adapter routing for the bare
 // `adapter :llm, backend: :claude` form already in production
 // (wake_review / musing_mint hecksagons).
+//
+// i228 — `trigger_on "Aggregate.Command"` decouples the dispatch
+// target that fires the adapter from `response_into` (where the
+// LLM's reply cascades). When omitted the runtime falls back to
+// `response_into_target`, preserving the historical self-triggering
+// shape every other adapter relied on.
     let mut la = LlmAdapter::default();
     let mut got_name = false;
     for (k, v) in parse_options(rest) {
@@ -17,6 +23,7 @@
             "prompt_template" => la.prompt_template = strip_quotes_unescape(&v),
             "model" => la.model = Some(strip_quotes(&v)),
             "max_tokens" => la.max_tokens = v.trim().parse::<u64>().ok(),
+            "trigger_on" => la.trigger_on = Some(strip_quotes(&v)),
             "response_into" => la.response_into_target = Some(strip_quotes(&v)),
             "attr" => la.response_into_attr = Some(strip_symbol(&v)),
             "backend" => la.backend = Some(strip_symbol(&v)),
