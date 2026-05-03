@@ -397,6 +397,7 @@ mod tests {
                     dispatches: vec![DispatchSpec {
                         command_name: "Inventory.Decrement".into(),
                         with_spec: vec![],
+                        for_each: None,
                     }],
                     set_specs: vec![],
                 },

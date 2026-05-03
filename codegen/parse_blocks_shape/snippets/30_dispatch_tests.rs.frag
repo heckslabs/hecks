@@ -117,6 +117,81 @@ mod dispatch_tests {
         assert!(parse_set_statement(r#"dispatch "X.Y""#).is_none());
     }
 
+    // ---- i221-A — `for_each:` + `from_iter(:field)` parser tests ----
+
+    #[test]
+    fn parses_bare_dispatch_carries_no_for_each() {
+        let s = parse_dispatch_statement(r#"dispatch "Body.WakeUp""#).unwrap();
+        assert!(s.for_each.is_none(), "bare dispatch must leave for_each None");
+    }
+
+    #[test]
+    fn parses_dispatch_for_each_into_qualified_halves() {
+        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.command_name, "Synapse.Compost");
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+        assert_eq!(s.with_spec.len(), 1);
+        assert_eq!(s.with_spec[0].0, "id");
+        match &s.with_spec[0].1 {
+            ValueSpec::FromIter { field } => assert_eq!(field, "id"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_dispatch_for_each_only_no_with() {
+        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+        assert!(s.with_spec.is_empty());
+    }
+
+    #[test]
+    fn parses_from_iter_value_spec_in_isolation() {
+        let spec = parse_value_spec("from_iter(:strength)").unwrap();
+        match spec {
+            ValueSpec::FromIter { field } => assert_eq!(field, "strength"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn for_each_clause_rejects_unqualified_literal() {
+        // No dot — can't split into source_aggregate / query_name.
+        let line = r#"dispatch "X.Y", for_each: { from: "cold" }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        // Malformed for_each is filtered to None, dispatch still parses
+        // (the receiving aggregate command name is still valid).
+        assert!(s.for_each.is_none());
+    }
+
+    #[test]
+    fn parse_process_manager_captures_for_each_dispatch() {
+        let src = r#"process_manager "P" do
+  correlates_by :id
+  starts_on "Started"
+  state "rem"
+  on "Beat", transition: { rem: :rem } do
+    dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }
+  end
+end
+"#;
+        let lines: Vec<&str> = src.lines().collect();
+        let (pm, _consumed) = parse_process_manager(&lines);
+        assert_eq!(pm.handlers.len(), 1);
+        let h = &pm.handlers[0];
+        assert_eq!(h.dispatches.len(), 1);
+        let d = &h.dispatches[0];
+        let fe = d.for_each.as_ref().expect("for_each captured");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+    }
+
     #[test]
     fn parse_process_manager_captures_set_specs_in_declaration_order() {
         // Block-shape mirrors the synthetic 20_process_manager fixture's
