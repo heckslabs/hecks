@@ -26,6 +26,7 @@ module Hecksagon
         @shell_adapters = []
         @io_adapters = []
         @llm_adapters = []
+        @compute_adapters = []
       end
 
       # Declare context map relationships between bounded contexts.
@@ -87,6 +88,8 @@ module Hecksagon
           _build_shell_adapter(name, opts, &block)
         when :llm
           _build_llm_adapter(name, opts, &block)
+        when :compute
+          _build_compute_adapter(name, opts, &block)
         when :memory, :heki
           @persistence = { type: k }.merge(opts)
         else
@@ -146,6 +149,29 @@ module Hecksagon
         @llm_adapters << builder.build
       end
       private :_build_llm_adapter
+
+      # i220 sub-gap 5 — compute adapter branch. Same shape as the LLM
+      # branch : block sub-DSL via ComputeAdapterBuilder collects
+      # function name + trigger_on + response_into ; one-liner kwargs
+      # are merged on top. When `name:` is omitted we fall back to the
+      # io_adapter bucket — matches the Rust parser's
+      # parse_compute_adapter behaviour and leaves room for future
+      # bare `:compute` forms.
+      def _build_compute_adapter(name, opts, &block)
+        if name.nil?
+          _build_io_adapter(:compute, opts, &block)
+          return
+        end
+        sym = name.to_sym
+        if @compute_adapters.any? { |a| a.name == sym }
+          raise ArgumentError, "compute adapter :#{name} already declared in this hecksagon"
+        end
+        builder = ComputeAdapterBuilder.new(name)
+        builder.instance_eval(&block) if block
+        builder.apply_options(opts)
+        @compute_adapters << builder.build
+      end
+      private :_build_compute_adapter
 
       # Internal — io adapter branch of the three-way dispatch. Optional
       # block runs in an IoAdapterBuilder to collect `on :Event` hooks.
@@ -360,7 +386,8 @@ module Hecksagon
           port_contracts: @port_contracts || [],
           shell_adapters: @shell_adapters,
           io_adapters: @io_adapters,
-          llm_adapters: @llm_adapters
+          llm_adapters: @llm_adapters,
+          compute_adapters: @compute_adapters
         )
       end
 

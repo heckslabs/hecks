@@ -444,15 +444,33 @@ module Hecks
           # Normalize nil → "" so anonymous `Hecks.hecksagon do ... end`
           # files match the Rust parser (which defaults `name: String` to
           # the empty string when the quoted-name slot is absent).
-          "name"           => hex.name.to_s,
-          "persistence"    => hecksagon_persistence(hex),
-          "subscriptions"  => Array(hex.subscriptions).map(&:to_s),
-          "io_adapters"    => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
-                                .map { |io| dump_io_adapter(io) },
-          "shell_adapters" => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
-          "llm_adapters"   => Array(hex.respond_to?(:llm_adapters) ? hex.llm_adapters : [])
-                                .map { |la| dump_llm_adapter(la) },
-          "gates"          => Array(hex.gates).map { |g| dump_gate(g) },
+          "name"             => hex.name.to_s,
+          "persistence"      => hecksagon_persistence(hex),
+          "subscriptions"    => Array(hex.subscriptions).map(&:to_s),
+          "io_adapters"      => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
+                                  .map { |io| dump_io_adapter(io) },
+          "shell_adapters"   => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
+          "llm_adapters"     => Array(hex.respond_to?(:llm_adapters) ? hex.llm_adapters : [])
+                                  .map { |la| dump_llm_adapter(la) },
+          # i220 sub-gap 5 — compute adapter family parity dump.
+          "compute_adapters" => Array(hex.respond_to?(:compute_adapters) ? hex.compute_adapters : [])
+                                  .map { |ca| dump_compute_adapter(ca) },
+          "gates"            => Array(hex.gates).map { |g| dump_gate(g) },
+        }
+      end
+
+      # i220 sub-gap 5 — compute adapter family parity dump.
+      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json's
+      # compute_adapters projection. The shape carries `function_name`
+      # in place of llm's `prompt_template` / `model` / `max_tokens` /
+      # `backend` (no prompt + no provider for compute adapters).
+      def dump_compute_adapter(ca)
+        {
+          "name"                 => ca.name.to_s,
+          "function_name"        => ca.function_name.to_s,
+          "trigger_on"           => ca.trigger_on,
+          "response_into_target" => ca.response_into_target,
+          "response_into_attr"   => ca.response_into_attr&.to_s,
         }
       end
 

@@ -20,7 +20,19 @@
 //!  so the dispatch target that fires the adapter can differ from the
 //!  target the response cascades back into ; both halves' parsers must
 //!  produce equivalent canonical IR, so the field lives in the kernel
-//!  IR struct alongside the existing `response_into_*` pair.]
+//!  IR struct alongside the existing `response_into_*` pair.
+//!
+//!  i220 sub-gap 5 (compute-adapter-primitive) adds the
+//!  `:compute` adapter family — sibling of `:llm` for local
+//!  computation. Where `:llm` adapters call out to a model with a
+//!  substituted prompt and chain the response back into a target
+//!  command's attribute, `:compute` adapters invoke a named
+//!  built-in function (resolved through a registry in
+//!  rust/src/runtime/compute_functions/) and chain the computed
+//!  string into a target command's attribute. The IR shape mirrors
+//!  LlmAdapter (name + trigger_on + response_into_target +
+//!  response_into_attr) plus a `function_name` slot for the
+//!  registry key.]
 
 /// A .hecksagon file parsed into IR. Name echoes the Ruby class name.
 #[derive(Debug, Default)]
@@ -41,6 +53,14 @@ pub struct Hecksagon {
     /// declared shape ; Phase 2 wires runtime dispatch into Claude /
     /// Ollama and routes the response into the named command.
     pub llm_adapters: Vec<LlmAdapter>,
+    /// i220 sub-gap 5 — `adapter :compute, name:, function:, trigger_on:,
+    /// response_into:, attr:` entries. Sibling of `llm_adapters` for
+    /// local computation : the runtime resolves `function_name` to a
+    /// built-in function (registry in runtime/compute_functions/),
+    /// invokes it with the upstream state + dispatch attrs, and chains
+    /// the returned string into `response_into_target` under
+    /// `response_into_attr`.
+    pub compute_adapters: Vec<ComputeAdapter>,
     /// `gate "Aggregate", :role do allow :Cmd end` entries.
     pub gates: Vec<Gate>,
     /// `subscribe "OtherDomain"` — reads a directed edge into the
@@ -148,6 +168,40 @@ impl LlmAdapter {
     }
 }
 
+/// i220 sub-gap 5 — sibling of `LlmAdapter` for local computation.
+/// Where `:llm` substitutes a prompt and chains the model's response,
+/// `:compute` calls a named built-in function (resolved through
+/// `runtime/compute_functions`) and chains the returned string into
+/// `response_into_target` under `response_into_attr`.
+///
+///   adapter :compute, name: :recent_musings_summary do
+///     function "summarize_recent_musings"
+///     trigger_on "MusingMint.RequestMint"
+///     response_into "MusingMint.MintMusing", attr: :recent_musings_summary
+///   end
+///
+/// Same `effective_trigger` fallback semantics as `LlmAdapter` —
+/// when `trigger_on` is absent the runtime treats `response_into_target`
+/// as the firing target.
+#[derive(Debug, Clone, Default)]
+pub struct ComputeAdapter {
+    pub name: String,
+    pub function_name: String,
+    pub trigger_on: Option<String>,
+    pub response_into_target: Option<String>,
+    pub response_into_attr: Option<String>,
+}
+
+impl ComputeAdapter {
+    /// Effective trigger target. `trigger_on` when set ; otherwise
+    /// `response_into_target` (matches LlmAdapter's fallback so the
+    /// historical self-triggering shape works without per-adapter
+    /// declaration).
+    pub fn effective_trigger(&self) -> Option<&str> {
+        self.trigger_on.as_deref().or(self.response_into_target.as_deref())
+    }
+}
+
 impl Hecksagon {
     pub fn shell_adapter(&self, adapter_name: &str) -> Option<&ShellAdapter> {
         self.shell_adapters.iter().find(|a| a.name == adapter_name)
@@ -159,6 +213,10 @@ impl Hecksagon {
 
     pub fn llm_adapter(&self, adapter_name: &str) -> Option<&LlmAdapter> {
         self.llm_adapters.iter().find(|a| a.name == adapter_name)
+    }
+
+    pub fn compute_adapter(&self, adapter_name: &str) -> Option<&ComputeAdapter> {
+        self.compute_adapters.iter().find(|a| a.name == adapter_name)
     }
 
     pub fn gate_for(&self, aggregate: &str, role: &str) -> Option<&Gate> {
