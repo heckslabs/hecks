@@ -334,12 +334,42 @@ impl Runtime {
             .cloned();
 
         // Build the attrs map (string-shaped) from the upstream state
-        // — kwargs the user passed at dispatch are gone by here, but
-        // they are persisted on the aggregate state, so the
-        // {{placeholder}} substitution still resolves through state.
-        let attrs: HashMap<String, String> = state_clone.as_ref()
-            .map(|s| s.fields.iter().map(|(k, v)| (k.clone(), v.to_string())).collect())
-            .unwrap_or_default();
+        // PLUS every other aggregate's latest state (i218 cross-aggregate
+        // scaffolder gap). The lucid_dream :lucid_observe template
+        // references {{text_fr}} which lives on Dream, not LucidDream
+        // — without cross-aggregate access the substitution silently
+        // failed and Claude received literal {{text_fr}} markers.
+        //
+        // Resolution order : prefixed forms ({{Dream_text_fr}}) first,
+        // then bare ({{text_fr}}) so prefixed wins on collision. Bare
+        // gets last-write-wins across aggregates, which is fine for
+        // singleton aggregates (each field is unique-ish) and harmless
+        // when callers reach for the prefixed form.
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        // Cross-aggregate fields with prefixed keys, plus bare keys
+        // for cross-aggregate references (last-write-wins across
+        // aggregates). The dispatched aggregate's state then writes
+        // over both — its fields are the most specific source.
+        let agg_names: Vec<String> = self.repositories.keys().cloned().collect();
+        for agg_name in &agg_names {
+            let states: Vec<AggregateState> = self.repositories.get(agg_name)
+                .map(|r| r.all().into_iter().cloned().collect())
+                .unwrap_or_default();
+            if let Some(latest) = states.last() {
+                for (k, v) in &latest.fields {
+                    attrs.insert(format!("{}_{}", agg_name, k), v.to_string());
+                    if agg_name != &result.aggregate_type {
+                        attrs.entry(k.clone()).or_insert_with(|| v.to_string());
+                    }
+                }
+            }
+        }
+        // Upstream (dispatched) aggregate's state wins on bare-name keys.
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
 
         for adapter in &adapters {
             // Take ownership of the providers map briefly so we can
