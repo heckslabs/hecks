@@ -54,10 +54,16 @@ fn dump_process_manager(pm: &ProcessManager) -> Value {
 }
 
 fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
+    let set_pairs: Vec<Value> = h
+        .set_specs
+        .iter()
+        .map(|(k, spec)| json!([k, dump_value_spec(spec)]))
+        .collect();
     json!({
         "dispatches": h.dispatches.iter().map(dump_dispatch).collect::<Vec<_>>(),
         "event_type": h.event_type,
         "from_state": h.from_state,
+        "set_specs": set_pairs,
         "to_state": h.to_state,
     })
 }

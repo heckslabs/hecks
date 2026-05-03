@@ -68,12 +68,21 @@ pub struct ProcessManager {
 /// Ruby-proc form (action body opaque to Rust). Phase 2.b
 /// (pm-dispatch-enrichment) lifts bare-string dispatches into
 /// `DispatchSpec` carrying per-call attribute flow.
+///
+/// `set_specs` carries the structured list of `set :attr, value_spec`
+/// directives declared inside the on-block. Phase 2.c
+/// (pm-attribute-writes) — writes flow into the PM instance's
+/// per-instance attributes hash, where future `from_pm(:attr)` reads
+/// resolve them. Empty `set_specs` means the handler doesn't write any
+/// PM attributes (the most common case ; equivalent to all prior
+/// handlers).
 #[derive(Debug, Clone)]
 pub struct ProcessManagerHandler {
     pub event_type: String,
     pub from_state: String,
     pub to_state: String,
     pub dispatches: Vec<DispatchSpec>,
+    pub set_specs: Vec<(String, ValueSpec)>,
 }
 
 /// One declarative `dispatch "Cmd", with: { ... }` entry. The
