@@ -9,9 +9,12 @@ pub fn parse(source: &str) -> Domain {
         entrypoint: None,
         sections: vec![],
         process_managers: vec![],
+        cadences: vec![],
+        block_grammars: vec![],
     };
 
     let source = strip_shebang(source);
+    let grammar = BlockGrammar::canonical_bluebook();
 
     let lines: Vec<&str> = source.lines().collect();
     let mut i = 0;
@@ -43,51 +46,26 @@ pub fn parse(source: &str) -> Domain {
             }
         }
 
-        if line.starts_with("aggregate") {
-            let (mut agg, consumed) = parse_aggregate(&lines[i..]);
-            // i142 — bluebooks ARE bounded contexts. Stamp the
-            // bluebook's namespace name onto every aggregate it
-            // declares, so dispatch can resolve Context.Aggregate.Command
-            // and same-name aggregates across contexts don't collide.
-            if !domain.name.is_empty() {
-                agg.context = Some(domain.name.clone());
-            }
-            domain.aggregates.push(agg);
+        // i218 — block_grammar is itself parsed inline at the top level
+        // so a bluebook can declare its own grammar (e.g. an extension
+        // bluebook adding new keywords). Authored grammars accumulate
+        // on `domain.block_grammars` ; the parser of THIS source still
+        // walks the canonical grammar (chicken-and-egg : you can't
+        // reparse with the freshly-declared grammar mid-stream).
+        if line.starts_with("block_grammar") {
+            let (bg, consumed) = parse_block_grammar(&lines[i..]);
+            domain.block_grammars.push(bg);
             i += consumed;
             continue;
         }
 
-        if line.starts_with("section ") || line.starts_with("section\t") {
-            let (sec, consumed) = parse_section(&lines[i..]);
-            domain.sections.push(sec);
+        // Walk the block_grammar registry. First keyword whose prefix
+        // matches the line claims it. Adding a new keyword = one row
+        // in the canonical grammar (and one BlockParser variant if the
+        // parser function is new) — no edits to this loop.
+        if let Some(consumed) = dispatch_block(line, &lines[i..], &grammar, &mut domain) {
             i += consumed;
             continue;
-        }
-
-        if line.starts_with("policy") {
-            let (policy, consumed) = parse_policy(&lines[i..]);
-            domain.policies.push(policy);
-            i += consumed;
-            continue;
-        }
-
-        if line.starts_with("process_manager") {
-            let (pm, consumed) = parse_process_manager(&lines[i..]);
-            domain.process_managers.push(pm);
-            i += consumed;
-            continue;
-        }
-
-        if line.starts_with("fixture") {
-            if ends_with_do_block(line) {
-                let mut depth = 1;
-                while i + 1 < lines.len() && depth > 0 {
-                    i += 1;
-                    let l = lines[i].trim();
-                    if l == "end" { depth -= 1; }
-                    else if ends_with_do_block(l) { depth += 1; }
-                }
-            }
         }
 
         i += 1;
