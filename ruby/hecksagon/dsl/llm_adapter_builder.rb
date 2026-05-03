@@ -27,9 +27,22 @@ module Hecksagon
         @prompt_template = ""
         @model = nil
         @max_tokens = nil
+        @trigger_on = nil
         @response_into_target = nil
         @response_into_attr = nil
         @backend = nil
+      end
+
+      # i228 — declare the dispatch target that fires this adapter,
+      # independently of `response_into` (where the LLM's reply is
+      # routed). When omitted the runtime falls back to the
+      # response_into target so the historical self-triggering shape
+      # keeps working without per-adapter declaration.
+      #
+      #   trigger_on "Dream.ProduceImage"           # fires on PM cascade
+      #   response_into "Dream.RecordImage", attr: :text_fr
+      def trigger_on(target)
+        @trigger_on = target.to_s
       end
 
       # Declare the prompt template — heredocs welcome. May contain
@@ -72,6 +85,7 @@ module Hecksagon
         prompt_template(opts[:prompt_template]) if opts.key?(:prompt_template)
         model(opts[:model])                     if opts.key?(:model)
         max_tokens(opts[:max_tokens])           if opts.key?(:max_tokens)
+        trigger_on(opts[:trigger_on])           if opts.key?(:trigger_on)
         backend(opts[:backend])                 if opts.key?(:backend)
         if opts.key?(:response_into)
           target = opts[:response_into]
@@ -87,6 +101,7 @@ module Hecksagon
           prompt_template: @prompt_template,
           model: @model,
           max_tokens: @max_tokens,
+          trigger_on: @trigger_on,
           response_into_target: @response_into_target,
           response_into_attr: @response_into_attr,
           backend: @backend,

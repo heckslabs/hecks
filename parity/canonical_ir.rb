@@ -466,6 +466,7 @@ module Hecks
           "prompt_template"      => la.prompt_template.to_s,
           "model"                => la.model,
           "max_tokens"           => la.max_tokens,
+          "trigger_on"           => la.trigger_on,
           "response_into_target" => la.response_into_target,
           "response_into_attr"   => la.response_into_attr&.to_s,
           "backend"              => la.backend&.to_s,

@@ -35,9 +35,10 @@ module Hecksagon
       PLACEHOLDER_RE = /\{\{(\w+)\}\}/
 
       attr_reader :name, :prompt_template, :model, :max_tokens,
-                  :response_into_target, :response_into_attr, :backend
+                  :trigger_on, :response_into_target, :response_into_attr, :backend
 
       def initialize(name:, prompt_template: "", model: nil, max_tokens: nil,
+                     trigger_on: nil,
                      response_into_target: nil, response_into_attr: nil,
                      backend: nil)
         raise ArgumentError, "llm adapter requires :name" if name.nil?
@@ -45,9 +46,17 @@ module Hecksagon
         @prompt_template = prompt_template.to_s
         @model = model.nil? ? nil : model.to_s
         @max_tokens = max_tokens.nil? ? nil : Integer(max_tokens)
+        @trigger_on = trigger_on.nil? ? nil : trigger_on.to_s
         @response_into_target = response_into_target.nil? ? nil : response_into_target.to_s
         @response_into_attr = response_into_attr.nil? ? nil : response_into_attr.to_sym
         @backend = backend.nil? ? nil : backend.to_sym
+      end
+
+      # Effective trigger target — `trigger_on` when set ; otherwise
+      # `response_into_target` (the historical default that kept
+      # trigger and response identical). i228.
+      def effective_trigger
+        @trigger_on || @response_into_target
       end
 
       # Unique placeholder names referenced in the prompt_template,

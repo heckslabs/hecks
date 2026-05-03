@@ -127,10 +127,16 @@ fn absorb_adapter(joined: &str, hex: &mut Hecksagon) {
     }
 }
 
-/// Map `name:, prompt_template:, model:, max_tokens:, response_into:,
-/// attr:, backend:` into an LlmAdapter. Returns None when no `name:` is
-/// declared — that lets the caller fall back to io_adapter routing for
-/// the bare `adapter :llm, backend: :X` form already in production.
+/// Map `name:, prompt_template:, model:, max_tokens:, trigger_on:,
+/// response_into:, attr:, backend:` into an LlmAdapter. Returns None
+/// when no `name:` is declared — that lets the caller fall back to
+/// io_adapter routing for the bare `adapter :llm, backend: :X` form
+/// already in production.
+///
+/// i228 — `trigger_on "Aggregate.Command"` decouples the dispatch
+/// target that fires the adapter from `response_into` (which routes
+/// the LLM's reply). Falls back to `response_into_target` at runtime
+/// when absent, preserving the historical self-triggering shape.
 fn parse_llm_adapter(rest: &str) -> Option<LlmAdapter> {
     let mut la = LlmAdapter::default();
     let mut got_name = false;
@@ -145,6 +151,7 @@ fn parse_llm_adapter(rest: &str) -> Option<LlmAdapter> {
             "prompt_template" => la.prompt_template = strip_quotes_unescape(&v),
             "model" => la.model = Some(strip_quotes(&v)),
             "max_tokens" => la.max_tokens = v.trim().parse::<u64>().ok(),
+            "trigger_on" => la.trigger_on = Some(strip_quotes(&v)),
             "response_into" => la.response_into_target = Some(strip_quotes(&v)),
             "attr" => la.response_into_attr = Some(strip_symbol(&v)),
             "backend" => la.backend = Some(strip_symbol(&v)),
