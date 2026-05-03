@@ -16,6 +16,44 @@ pub fn strip_quotes(s: &str) -> String {
     else { t.to_string() }
 }
 
+/// Strip outer quotes AND interpret Ruby-style escape sequences inside
+/// the string body. Ruby's double-quoted strings unescape `\n`, `\t`,
+/// `\\`, `\"`, `\r`, `\0` to their byte values ; `strip_quotes` alone
+/// preserves them as literal backslash sequences, which produces the
+/// Ruby-vs-Rust parity drift we hit in :llm adapter prompt templates
+/// (Ruby canonical_ir emits one-level JSON-escaped `\\n` while Rust
+/// emits double-escaped `\\\\n` because the backslash was kept
+/// literal).
+///
+/// Use this for any source field that's typed as a Ruby string
+/// literal — :llm prompt_template is the canonical case ; long
+/// description strings on commands / aggregates qualify too.
+pub fn strip_quotes_unescape(s: &str) -> String {
+    let inner = strip_quotes(s);
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n')  => out.push('\n'),
+            Some('t')  => out.push('\t'),
+            Some('r')  => out.push('\r'),
+            Some('0')  => out.push('\0'),
+            Some('\\') => out.push('\\'),
+            Some('"')  => out.push('"'),
+            Some('\'') => out.push('\''),
+            // Unknown escape — preserve verbatim so we don't silently
+            // mutate strings the parser doesn't yet model.
+            Some(other) => { out.push('\\'); out.push(other); }
+            None => out.push('\\'),
+        }
+    }
+    out
+}
+
 /// Drop leading `:` and trailing commas from a `:symbol` token.
 pub fn strip_symbol(s: &str) -> String {
     s.trim().trim_start_matches(':').trim_end_matches(',').trim().to_string()
