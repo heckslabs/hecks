@@ -4,10 +4,11 @@
 //! from the `behaviors_runner_shape` bluebook + ordered `.rs.frag`
 //! snippets + per-overload `.frag` doc fragments.
 //!
-//! Design — section-as-row, body_kind dispatches emission :
-//!   The shape declares one `Section` row per ordered code section in
-//!   the target. Each row's `body_kind` picks the emission template :
+//! Design — section-as-row, body_kind dispatches emission. The shape
+//! declares one `Section` row per ordered code section in the target.
+//! Each row's `body_kind` picks the emission template :
 //!
+//! ```text
 //!     verbatim_section — read `snippet_path` raw, emit unchanged.
 //!                        Used for the types block (TestStatus / TestRun /
 //!                        SuiteResult) and the long bodies that don't
@@ -22,19 +23,23 @@
 //!                        emits the function from a shared template ;
 //!                        ~38 lines of source compressed into 3 fixture
 //!                        rows + 3 small doc fragments.
+//! ```
 //!
 //! Why a new body_kind instead of falling back to verbatim_section :
-//!   Wave 3-A and 3-C both fell back to verbatim_section bookmarking ;
-//!   Wave 4 makes REAL compression non-negotiable. The three suite-entry
-//!   overloads share a structural template — "iterate suite.tests, call
-//!   run_one with this signature, collect into SuiteResult" — that IS
-//!   compressible : only the doc comment, the signature param set, and
-//!   one of two body shapes vary. Those variations are knobs ; the
-//!   shared skeleton is in this emitter.
+//! Wave 3-A and 3-C both fell back to verbatim_section bookmarking ;
+//! Wave 4 makes REAL compression non-negotiable. The three suite-entry
+//! overloads share a structural template — "iterate suite.tests, call
+//! run_one with this signature, collect into SuiteResult" — that IS
+//! compressible : only the doc comment, the signature param set, and
+//! one of two body shapes vary. Those variations are knobs ; the
+//! shared skeleton is in this emitter.
 //!
 //! Usage :
+//!
+//! ```ignore
 //!   let rust = behaviors_runner::emit(repo_root)?;
 //!   print!("{}", rust);
+//! ```
 //!
 //! [antibody-exempt: hecks_life/src/specializer/behaviors_runner.rs —
 //!  i147 Wave 4-B Rust-native specializer for behaviors_runner.rs.
