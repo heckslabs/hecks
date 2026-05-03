@@ -173,6 +173,8 @@ const HEADER: &str = r#"//! Hecks Runtime — executes domains from IR
 mod aggregate_state;
 mod command_dispatch;
 mod event_bus;
+pub mod loop_driver;
+pub mod pm_engine;
 mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
@@ -185,15 +187,20 @@ mod policy_engine;
 mod projection;
 mod repository;
 pub mod seed_loader;
+pub mod llm_dispatcher;
+pub mod llm_providers;
+pub mod prompt_scaffolder;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
 pub use event_bus::{Event, EventBus};
 pub use middleware::{CommandContext, MiddlewareStack, Phase};
 pub use policy_engine::{PolicyEngine, PolicyTrigger};
+pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
 
 use crate::ir::Domain;
+use crate::hecksagon_ir::Hecksagon;
 use std::collections::HashMap;
 "#;
