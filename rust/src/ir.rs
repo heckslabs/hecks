@@ -225,10 +225,29 @@ pub struct ProcessManagerHandler {
 /// declaration order is preserved (canonical IR uses an ordered
 /// list of pairs, not an unordered map). Empty `with_spec` means the
 /// dispatch fires bare (runtime auto-injects upstream refs).
+///
+/// i221-A — `for_each` promotes a single dispatch to a sweep. When
+/// `Some`, the runtime reads the named query at dispatch time and
+/// fires the receiving command once per returned record ;
+/// `from_iter(:field)` in the with-spec resolves against the current
+/// iteration record. `None` is the back-compat default for every
+/// existing dispatch.
 #[derive(Debug, Clone)]
 pub struct DispatchSpec {
     pub command_name: String,
     pub with_spec: Vec<(String, ValueSpec)>,
+    pub for_each: Option<ForEachSpec>,
+}
+
+/// Sweep source on a `DispatchSpec` (i221-A). Splits the qualified
+/// `"Aggregate.query_name"` literal declared via `for_each: { from:
+/// "..." }` into the two structured halves. The runtime reads
+/// `Aggregate.query_name()` at dispatch time and re-fires the
+/// receiving command once per returned record.
+#[derive(Debug, Clone)]
+pub struct ForEachSpec {
+    pub source_aggregate: String,
+    pub query_name: String,
 }
 
 /// Sentinel describing how a single `with:` attribute resolves at
@@ -239,6 +258,8 @@ pub struct DispatchSpec {
 /// - `Literal` — pass `value` through unchanged.
 /// - `FromEvent` — read `event.data[name]` ; fall back to `default`.
 /// - `FromPm` — read `pm_instance.data[name]` ; fall back to `default`.
+/// - `FromIter` — i221-A — read `iter_record.data[field]` during a
+///   `for_each:` sweep dispatch.
 ///
 /// `default` is `None` when omitted in the DSL ; runtime treats a
 /// `None` default as "leave the key unset on the dispatched command's
@@ -249,6 +270,7 @@ pub enum ValueSpec {
     Literal { value: String },
     FromEvent { name: String, default: Option<String> },
     FromPm { name: String, default: Option<String> },
+    FromIter { field: String },
 }
 
 /// One named section in a capability dashboard. Title becomes the bordered

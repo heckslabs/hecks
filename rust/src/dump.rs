@@ -70,21 +70,31 @@ fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
 
 /// Mirror Ruby's CanonicalIR.dump_dispatch. Phase 2.b
 /// (pm-dispatch-enrichment) — dispatches carry a structured
-/// command_name + ordered with-spec map.
+/// command_name + ordered with-spec map. i221-A — also emit a
+/// `for_each` key (Some sweep → object, None → null).
 fn dump_dispatch(d: &DispatchSpec) -> Value {
     let with_pairs: Vec<Value> = d
         .with_spec
         .iter()
         .map(|(k, spec)| json!([k, dump_value_spec(spec)]))
         .collect();
+    let for_each = match &d.for_each {
+        Some(fe) => json!({
+            "source_aggregate": fe.source_aggregate,
+            "query_name": fe.query_name,
+        }),
+        None => Value::Null,
+    };
     json!({
         "command_name": d.command_name,
+        "for_each": for_each,
         "with": with_pairs,
     })
 }
 
-/// Mirror Ruby's CanonicalIR.dump_value_spec. Three kinds : literal,
-/// from_event, from_pm. Defaults serialise as JSON null when absent.
+/// Mirror Ruby's CanonicalIR.dump_value_spec. Four kinds : literal,
+/// from_event, from_pm, from_iter (i221-A). Defaults serialise as
+/// JSON null when absent.
 fn dump_value_spec(spec: &ValueSpec) -> Value {
     match spec {
         ValueSpec::Literal { value } => json!({
@@ -100,6 +110,10 @@ fn dump_value_spec(spec: &ValueSpec) -> Value {
             "kind": "from_pm",
             "name": name,
             "default": default,
+        }),
+        ValueSpec::FromIter { field } => json!({
+            "kind": "from_iter",
+            "field": field,
         }),
     }
 }

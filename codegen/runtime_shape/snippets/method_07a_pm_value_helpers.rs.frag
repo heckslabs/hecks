@@ -1,5 +1,5 @@
     /// Evaluate one with-spec entry into a runtime Value at PM
-    /// dispatch time. Three kinds :
+    /// dispatch time. Four kinds :
     ///
     ///   - `Literal { value }`             → `Value::Str(value)`
     ///   - `FromEvent { name, default }`    → `event.data[name]` ;
@@ -9,6 +9,11 @@
     ///                                        both are absent.
     ///   - `FromPm { name, default }`       → `pm.attributes[name]` ;
     ///                                        same fallback semantics.
+    ///   - `FromIter { field }`             → i221-A stub : returns
+    ///                                        `None` until i221-B
+    ///                                        wires the sweep loop
+    ///                                        (the per-record iter
+    ///                                        context lives there).
     ///
     /// Returns `None` when no value resolves (caller skips the key
     /// so the receiving aggregate sees no entry — same as if the
@@ -40,6 +45,11 @@
                 }
                 default.as_ref().map(|d| Value::Str(d.clone()))
             }
+            // i221-A stub : the sweep iteration context lands in
+            // i221-B (drain_policies expansion). Until then, a
+            // FromIter resolution outside a sweep returns None,
+            // which the caller treats as "leave the key unset".
+            ValueSpec::FromIter { field: _ } => None,
         }
     }
 

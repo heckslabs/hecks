@@ -6,6 +6,8 @@
 /// - `Literal` — pass `value` through unchanged.
 /// - `FromEvent` — read `event.data[name]` ; fall back to `default`.
 /// - `FromPm` — read `pm_instance.data[name]` ; fall back to `default`.
+/// - `FromIter` — i221-A — read `iter_record.data[field]` during a
+///   `for_each:` sweep dispatch.
 ///
 /// `default` is `None` when omitted in the DSL ; runtime treats a
 /// `None` default as "leave the key unset on the dispatched command's
