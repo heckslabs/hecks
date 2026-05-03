@@ -105,6 +105,17 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_section",
       snippet_path: "codegen/runtime_shape/snippets/39_trigram_sim_fn.rs.frag",
       description: "trigram_sim — Sørensen-Dice-like trigram similarity scoring used by resolve_query's MatchInput"
+
+    # i221-B — converts serde_json::Map (from resolve_query's JSON dump
+    # of matched records) back into the runtime's Value enum so
+    # from_iter(:field) reads land in the right shape during sweep
+    # dispatch. Lives at the bottom of the file, after trigram_sim.
+    fixture "JsonObjToValueMapFn",
+      name: "json_obj_to_value_map_fn",
+      order: 14,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/runtime_shape/snippets/41_json_obj_to_value_map_fn.rs.frag",
+      description: "json_obj_to_value_map — converts serde_json::Map<String, serde_json::Value> into HashMap<String, Value> for sweep_records iter_data ; i221-B free helper at file bottom"
   end
 
   aggregate "RuntimeMethod" do
