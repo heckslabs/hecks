@@ -2597,6 +2597,7 @@ fn run_loop(args: &[String]) {
 
 /// `hecks-life run-loop <target> [--every <dur>]
 ///   [--emit <EventName:AggregateType:AggregateId>]...
+///   [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]...
 ///   [--dispatch <Aggregate.Command>]... [k=v ...]`
 ///
 /// Runtime daemon — boots a Runtime once, ticks at the configured
@@ -2612,13 +2613,24 @@ fn run_loop(args: &[String]) {
 /// for `--dispatch` actions (shared across all dispatches in the tick,
 /// matching `hecks-life loop`'s convention).
 ///
+/// `--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>`
+/// (i223) is a one-shot first-tick predicate-and-emit. On the first
+/// tick only, if the named aggregate's named field equals the
+/// expected value, the daemon emits a synthetic event keyed by the
+/// trailing triple. After the first tick the bootstrap is drained
+/// (no replay). Closes the mind-pm-bootstrap-on-attentive-restart
+/// gap : a daemon restarting while consciousness is already
+/// `attentive` never sees a fresh `WokenUp`, so PMs that
+/// `starts_on "WokenUp"` are stranded with no instance and the
+/// wake handler is inert. Multiple bootstraps may be declared.
+///
 /// SIGTERM / SIGINT today : the daemon exits at the next tick boundary
 /// (graceful) when the stop flag flips. Per-transition PM persistence
 /// in drain_policies means hard-kill loses no PM state — the worst
 /// case is replaying one tick's policy cascade. Signal-driven shutdown
 /// is a follow-up (needs signal_hook ; the runtime is dep-light today).
 fn run_pm_loop(args: &[String]) {
-    use hecks_life::runtime::loop_driver::{LoopDriver, TickAction};
+    use hecks_life::runtime::loop_driver::{BootstrapEmit, LoopDriver, TickAction};
 
     let target = match args.get(2).map(|s| s.as_str()) {
         Some(t) => t,
@@ -2627,6 +2639,7 @@ fn run_pm_loop(args: &[String]) {
                 "Usage: hecks-life run-loop <bluebook-or-dir> \
                  [--every <duration>] \
                  [--emit <Event:AggType:AggId>]... \
+                 [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]... \
                  [--dispatch <Aggregate.Command>]... \
                  [key=val ...]"
             );
@@ -2643,11 +2656,18 @@ fn run_pm_loop(args: &[String]) {
         std::process::exit(1);
     });
 
-    // Collect emit + dispatch actions in argv order so a user can
-    // declare multiple cadenced events and command dispatches in one
-    // run. Multi-value flag pattern : repeat the flag.
+    // Collect emit + dispatch + bootstrap actions in argv order so a
+    // user can declare multiple cadenced events, command dispatches,
+    // and one-shot bootstraps in one run. Multi-value flag pattern :
+    // repeat the flag.
     let mut emits: Vec<(String, String, String)> = Vec::new();
     let mut dispatches: Vec<String> = Vec::new();
+    // i223 — predicate-gated first-tick emissions. Each entry :
+    // (predicate_agg_type, predicate_field, expected_value,
+    //  emit_event_name, emit_agg_type, emit_agg_id). The aggregate_id
+    //  the predicate reads is `emit_agg_id` (the bootstrap targets
+    //  one record at a time ; the tuple shape stays small).
+    let mut bootstraps: Vec<(String, String, String, String, String, String)> = Vec::new();
     let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
     let mut i = 3;
     while i < args.len() {
@@ -2662,6 +2682,54 @@ fn run_pm_loop(args: &[String]) {
                         eprintln!("run-loop : --emit needs Event:AggType:AggId, got '{}'", spec);
                         std::process::exit(1);
                     }
+                }
+                i += 2;
+            }
+            "--bootstrap-if" => {
+                // i223 — parse <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>.
+                // Two split phases : first split on ':' into 4 parts
+                // (predicate, event_name, emit_agg_type, emit_agg_id),
+                // then split the predicate on '=' (state lhs vs rhs)
+                // and on '.' (aggregate vs field).
+                if let Some(spec) = args.get(i + 1) {
+                    let parts: Vec<&str> = spec.splitn(4, ':').collect();
+                    if parts.len() != 4 {
+                        eprintln!(
+                            "run-loop : --bootstrap-if needs \
+                             <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>, got '{}'",
+                            spec
+                        );
+                        std::process::exit(1);
+                    }
+                    let predicate = parts[0];
+                    let event_name = parts[1].to_string();
+                    let emit_agg_type = parts[2].to_string();
+                    let emit_agg_id = parts[3].to_string();
+                    let (lhs, expected) = match predicate.split_once('=') {
+                        Some(p) => p,
+                        None => {
+                            eprintln!(
+                                "run-loop : --bootstrap-if predicate must contain '=', got '{}'",
+                                predicate
+                            );
+                            std::process::exit(1);
+                        }
+                    };
+                    let (agg_type, field) = match lhs.split_once('.') {
+                        Some(p) => p,
+                        None => {
+                            eprintln!(
+                                "run-loop : --bootstrap-if predicate lhs must be \
+                                 <Aggregate>.<field>, got '{}'",
+                                lhs
+                            );
+                            std::process::exit(1);
+                        }
+                    };
+                    bootstraps.push((
+                        agg_type.into(), field.into(), expected.into(),
+                        event_name, emit_agg_type, emit_agg_id,
+                    ));
                 }
                 i += 2;
             }
@@ -2711,9 +2779,31 @@ fn run_pm_loop(args: &[String]) {
             attrs: attrs.clone(),
         });
     }
+    // i223 — register parsed bootstraps. The predicate aggregate_id is
+    // the same as the emit aggregate_id for the canonical
+    // Consciousness.state=attentive case ; if a future caller needs a
+    // cross-aggregate predicate (read X to decide whether to emit on
+    // Y), the CLI surface can grow a second `:` field. For today's
+    // single-aggregate case, sharing keeps the surface terse.
+    let bootstrap_count = bootstraps.len();
+    for (agg_type, field, expected, event_name, emit_agg_type, emit_agg_id) in bootstraps {
+        driver.add_bootstrap(BootstrapEmit {
+            aggregate_type: agg_type,
+            aggregate_id: emit_agg_id.clone(),
+            field,
+            expected,
+            event: TickAction::Emit {
+                event_name,
+                aggregate_type: emit_agg_type,
+                aggregate_id: emit_agg_id,
+                data: std::collections::HashMap::new(),
+            },
+        });
+    }
     eprintln!(
-        "[hecks-life run-loop] {} actions/tick every {:?} (Ctrl-C to stop)",
-        driver.runtime().domain.name, interval
+        "[hecks-life run-loop] {} actions/tick every {:?} ({} bootstrap{}, Ctrl-C to stop)",
+        driver.runtime().domain.name, interval, bootstrap_count,
+        if bootstrap_count == 1 { "" } else { "s" }
     );
     driver.run();
 }
