@@ -9,6 +9,7 @@ JSON::Validator.use_multi_json = false if defined?(JSON::Validator)
 # BluebookBuilder depend on, so they cannot be chapter-driven.
 require "hecks/errors"
 require "hecks/errors/shell_adapter_error"
+require "hecks/errors/llm_adapter_error"
 require "hecks/conventions"
 require "hecks/autoloads"
 
