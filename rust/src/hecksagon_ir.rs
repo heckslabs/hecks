@@ -14,6 +14,13 @@
 //! Only the subset the Rust runtime needs is modeled — extensions,
 //! capabilities, tenancy, context_map etc. stay Ruby-only until the
 //! runtime grows a reason to honor them.
+//!
+//! [antibody-exempt: rust/src/hecksagon_ir.rs — kernel-floor IR mirror
+//!  of the .hecksagon DSL surface. i228 adds `trigger_on` to LlmAdapter
+//!  so the dispatch target that fires the adapter can differ from the
+//!  target the response cascades back into ; both halves' parsers must
+//!  produce equivalent canonical IR, so the field lives in the kernel
+//!  IR struct alongside the existing `response_into_*` pair.]
 
 /// A .hecksagon file parsed into IR. Name echoes the Ruby class name.
 #[derive(Debug, Default)]
@@ -108,18 +115,37 @@ pub struct Gate {
 
 /// Mirror of Hecksagon::Structure::LlmAdapter. Holds the prompt
 /// template (with {{placeholder}} tokens), model identifier,
-/// max_tokens budget, response routing target ("Aggregate.Command"
-/// path + the receiving attribute name), and optional backend
-/// (:claude / :ollama / :fixture).
+/// max_tokens budget, optional `trigger_on` ("Aggregate.Command"
+/// path that fires the adapter — defaults to `response_into_target`
+/// when absent), response routing target ("Aggregate.Command" path +
+/// the receiving attribute name), and optional backend (:claude /
+/// :ollama / :fixture).
+///
+/// i228 — `trigger_on` lets the dispatch target that fires the adapter
+/// differ from the target the response cascades back into. Common case
+/// (PM cascade dispatches `Dream.ProduceImage` ; the response carries
+/// text into `Dream.RecordImage`) needs the two to differ. When
+/// omitted, the runtime falls back to `response_into_target` so
+/// existing adapters stay self-triggering.
 #[derive(Debug, Clone, Default)]
 pub struct LlmAdapter {
     pub name: String,
     pub prompt_template: String,
     pub model: Option<String>,
     pub max_tokens: Option<u64>,
+    pub trigger_on: Option<String>,
     pub response_into_target: Option<String>,
     pub response_into_attr: Option<String>,
     pub backend: Option<String>,
+}
+
+impl LlmAdapter {
+    /// Effective trigger target. `trigger_on` when set ; otherwise
+    /// `response_into_target` (the historical default that kept
+    /// trigger and response identical).
+    pub fn effective_trigger(&self) -> Option<&str> {
+        self.trigger_on.as_deref().or(self.response_into_target.as_deref())
+    }
 }
 
 impl Hecksagon {
