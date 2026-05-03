@@ -9,4 +9,4 @@ HECKS="${HECKS_BIN:-}"
 [ -z "$HECKS" ] && [ -x "$DIR/../rust/target/release/hecks-life" ] && \
   HECKS="$DIR/../rust/target/release/hecks-life"
 [ -z "$HECKS" ] && HECKS="hecks-life"
-exec "$HECKS" run "$DIR/capabilities/status/status.bluebook" "$@"
+exec "$HECKS" run "$DIR/../cli/status/status.bluebook" "$@"

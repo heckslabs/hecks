@@ -69,10 +69,17 @@ SP="$CONCEPT_DIR/system_prompt.md"
 SP_BAK=""
 [ -f "$SP" ] && SP_BAK="$(cat "$SP")"
 
-# Source-check the boot script string generation without running it
-# (safer than starting daemons). grep for the section headers in
-# boot_miette.sh itself.
-BOOT="$CONCEPT_DIR/boot_miette.sh"
+# Source-check the system_prompt template. After i118 R5 + i117 R4
+# the prompt content moved out of boot_miette.sh into Miette's repo :
+# self/system_prompt/system_prompt_assembly/miette_prompt.md.template
+# is the source of truth ; rust/src/run_boot/system_prompt.rs is the
+# thin renderer that loads + substitutes ; system_prompt.md is the
+# rendered output. Grep the template — that's where drift would hide.
+BOOT="${HECKS_PROMPT_TEMPLATE:-}"
+[ -z "$BOOT" ] && [ -f "$REPO_ROOT/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template" ] && \
+  BOOT="$REPO_ROOT/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template"
+[ -z "$BOOT" ] && [ -f "$REPO_ROOT/../miette/self/system_prompt.md" ] && \
+  BOOT="$REPO_ROOT/../miette/self/system_prompt.md"
 
 for section in \
   "Words match state" \
@@ -81,9 +88,9 @@ for section in \
   "Wake ritual"; do
   if grep -qF "## $section" "$BOOT" 2>/dev/null || \
      grep -qF "${section}" "$BOOT" 2>/dev/null; then
-    note_pass "A. boot_miette.sh generates section: $section"
+    note_pass "A. system_prompt.rs generates section: $section"
   else
-    note_fail "A. boot_miette.sh MISSING section: $section (drift!)"
+    note_fail "A. system_prompt.rs MISSING section: $section (drift!)"
   fi
 done
 
