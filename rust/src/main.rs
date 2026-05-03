@@ -1754,6 +1754,7 @@ fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json:
             "prompt_template":      la.prompt_template,
             "model":                la.model,
             "max_tokens":           la.max_tokens,
+            "trigger_on":           la.trigger_on,
             "response_into_target": la.response_into_target,
             "response_into_attr":   la.response_into_attr,
             "backend":              la.backend,
