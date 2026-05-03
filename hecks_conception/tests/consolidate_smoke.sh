@@ -1,41 +1,63 @@
 #!/bin/bash
-# consolidate_smoke.sh — smoke test for the Consolidation PM (i75).
+# consolidate_smoke.sh — smoke test for the Consolidation PM (i75 / i225).
+#
 # [antibody-exempt: i75 retirement of nrem_branch.sh + consolidate.sh —
 #  smoke now drives the bluebook PM via `hecks-life run-loop` instead
-#  of forking the legacy shell. Retires entirely when the runtime
-#  sweep primitive lands and the consolidate.sh transitional adapter
-#  goes away.]
+#  of forking the legacy shell ; i225 close lets the assertion path
+#  read store.heki / remains.heki growth produced by the runtime sweep
+#  (`for_each: { from: "Aggregate.cold" }`) directly. Retires entirely
+#  when smoke tests port to a bluebook-shebang form.]
 #
-# What this smoke verifies, post-i75 :
+# Closes the i75 retirement loop. With i221-A (parser : `for_each:` +
+# `from_iter`), i225 (runtime : `drain_policies` enumerates the named
+# query into per-record cascades), and i226 (parser : hash-form `where`
+# comparators `{ lt|lte|gt|gte|ne: }`) all merged on dream-study, the
+# Consolidation PM can declare its sweeps natively :
+#
+#   dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" },
+#                               with: { id: from_iter(:id) }
+#
+# and the runtime walks the named query, fires the receiving command
+# once per record. The body/consolidate.sh transitional adapter is
+# retired ; this smoke now drives the PM directly via `hecks-life
+# run-loop` and reads store.heki / remains.heki to verify growth.
+#
+# What this smoke verifies :
 #
 #   1. The Consolidation PM (body/sleep/consolidation/consolidation.bluebook)
 #      parses cleanly under both Ruby + Rust loaders. The run-loop boot
 #      builds the Domain ; if any DSL surface (process_manager, on /
-#      transition, dispatch) drifts, the boot fails.
+#      transition, dispatch + for_each + with + from_iter) drifts, the
+#      boot fails.
 #
-#   2. The four step commands referenced by the PM resolve to declared
-#      aggregates :
+#   2. The five step dispatches the PM declares resolve to declared
+#      aggregates / commands / queries :
 #        - Store.PromoteSignal       (body/sleep/consolidation/store.bluebook)
-#        - Synapse.Compost           (body/organs/synapse.bluebook)
+#        - Signal.ArchiveSignal      (body/organs/signal.bluebook ; sweep on Signal.cold)
+#        - Synapse.Compost           (body/organs/synapse.bluebook  ; sweep on Synapse.cold)
 #        - Remains.RecordRemains     (body/organs/remains.bluebook)
-#        - MusingArchive.Archive     (mind/memory/musing_archive.bluebook)
 #        - Consciousness.DreamPulse  (body/sleep/consciousness.bluebook)
 #
-#   3. run-loop emits a synthetic PhaseElapsed event into the bus ; the
-#      PM observes it and runs through its declared dispatches. The
-#      smoke catches PM-handler crashes (e.g. command-not-found,
-#      transition-not-declared) by reading run-loop's stderr.
+#   3. run-loop emits a synthetic SleepEntered (births the PM into
+#      :light) followed by a PhaseElapsed (drives the nrem self-loop).
+#      The PM observes both and runs its declared dispatches. The
+#      sweeps enumerate Signal.cold / Synapse.cold and produce growth
+#      in store.heki and remains.heki — read directly to assert.
 #
-# What this smoke does NOT verify (transitional gap, follow-up branch) :
+# Filed gaps (acknowledged here, not blockers for this smoke) :
 #
-#   The actual heki growth (store / remains / musing_archive per-tick
-#   record appends) requires a runtime sweep primitive — single-record
-#   dispatches today, multi-record sweep semantics tomorrow. Until
-#   then, the legacy consolidate.sh shell continues to do the actual
-#   work in production daemons (same belt-and-suspenders pattern
-#   rem_branch.sh's rem_dream block carries until self-dispatch
-#   closes). Growth-assertion mode runs as a fallback below when the
-#   shell is still present.
+#   - The musing-archive sweep needs a group-by aggregation primitive
+#     (`Musing.duplicate_concept`) ; i101 first-class queries don't
+#     support group-by yet. The PM omits the MusingArchive.Archive
+#     dispatch until that primitive lands ; this smoke does not assert
+#     musing_archive growth (the `before/after` count is reported but
+#     not gated, so the gap is visible without failing the smoke).
+#
+#   - Singleton-fallback for receiver aggregates without `id` on the
+#     command (Store.PromoteSignal) : each iteration of the for_each
+#     sweep upsserts the same singleton, so the visible store row count
+#     is 1 rather than the iteration count. The contract (store.heki
+#     grew) still holds. Filed as i75-followon (append-mode dispatch).
 #
 # Exit 0 on pass, non-zero on fail.
 
@@ -201,20 +223,18 @@ fi
 
 echo "PM boot via run-loop : OK"
 
-# ── Transitional growth assertion ───────────────────────────────────
-# Until the runtime sweep primitive lands, the actual heki growth runs
-# through the consolidate.sh shell. We invoke it once here so the
-# end-to-end "store / remains / musing_archive grow per tick" contract
-# the i75 issue declared still holds — same belt-and-suspenders pattern
-# rem_branch.sh / rem_dream PM share. Retires when the runtime sweep
-# primitive activates the PM's dispatches.
-if [ -x "$BODY_DIR/consolidate.sh" ]; then
-  HECKS_INFO="$TMP/information" \
-  HECKS_AGG="$TMP/aggregates" \
-  HECKS_BIN="$HECKS" \
-  bash "$BODY_DIR/consolidate.sh" \
-    || fail "transitional consolidate.sh exited non-zero"
-fi
+# ── Growth assertion (PM-driven, no shell fallback) ─────────────────
+# i225 closes the runtime sweep primitive : `for_each: { from:
+# "Aggregate.cold" }` enumerates the named query at dispatch time and
+# fires the receiving command once per record. The PM's NREM self-loop
+# now produces store + remains growth declaratively ; the legacy
+# consolidate.sh transitional adapter is retired.
+#
+# Note (singleton-fallback) : Store.PromoteSignal + Remains.RecordRemains
+# don't carry an `id` from the iter ; receivers fall back to singleton-
+# upsert so the visible row count is 1 rather than the iteration count.
+# The contract (store.heki + remains.heki grew) still holds. Filed as
+# i75-followon (append-mode dispatch primitive, distinct from i225).
 
 store_after=$(count_records "$TMP/information/store/store.heki")
 remains_after=$(count_records "$TMP/information/remains/remains.heki")
@@ -223,11 +243,13 @@ musing_archive_after=$(count_records "$TMP/information/musing_archive/musing_arc
 echo "After consolidation pass :"
 echo "  store          records: $store_before → $store_after"
 echo "  remains        records: $remains_before → $remains_after"
-echo "  musing_archive records: $musing_archive_before → $musing_archive_after"
+echo "  musing_archive records: $musing_archive_before → $musing_archive_after  (gap : group-by primitive — see header)"
 
-[ "$store_after" -gt "$store_before" ] || fail "store/store.heki did not grow (expected promoted signals)"
-[ "$remains_after" -gt "$remains_before" ] || fail "remains/remains.heki did not grow (expected composted synapses)"
-[ "$musing_archive_after" -gt "$musing_archive_before" ] || fail "musing_archive/musing_archive.heki did not grow (expected archived musings)"
+[ "$store_after" -gt "$store_before" ] || fail "store/store.heki did not grow (expected promoted signals via for_each Signal.cold)"
+[ "$remains_after" -gt "$remains_before" ] || fail "remains/remains.heki did not grow (expected composted synapses via for_each Synapse.cold)"
+# musing_archive growth is not asserted — gap : Musing.duplicate_concept
+# needs a group-by aggregation primitive that i101 doesn't yet support.
+# Reported above so the gap stays visible. Tracked for follow-up.
 
-echo "PASS — Consolidation PM boots via run-loop ; store + remains + musing_archive grow during NREM consolidation"
+echo "PASS — Consolidation PM boots via run-loop ; store + remains grew via i225 for_each sweeps (musing_archive deferred — group-by gap)"
 exit 0
