@@ -11,7 +11,11 @@
 //!
 //! [antibody-exempt: rust/src/runtime/mod.rs — kernel-floor runtime.
 //!  i156 added the AmbiguousCommand variant for strict bare-name
-//!  dispatch ; the rest is pre-i156.]
+//!  dispatch ; the rest is pre-i156. i221-B adds sweep-loop expansion
+//!  in `drain_policies` + an `iter_data` parameter on
+//!  `evaluate_value_spec` so `for_each:` dispatches resolve `from_iter
+//!  (:field)` against per-record state — kernel-surface because the
+//!  PM cascade lives here, no bluebook can describe its own driver.]
 
 mod aggregate_state;
 mod command_dispatch;
@@ -503,39 +507,61 @@ impl Runtime {
                 );
 
                 for dispatched in &t.dispatches {
-                    // Phase 2.b (pm-dispatch-enrichment) — evaluate
-                    // each ValueSpec in the with_spec at dispatch
-                    // time. Order : with_spec resolution first (so an
-                    // explicit `name: "body"` literal beats refs the
-                    // inject_refs heuristic might guess), then
-                    // upstream-ref injection fills in everything
-                    // still unset.
-                    let mut data = std::collections::HashMap::new();
-                    for (key, spec) in &dispatched.with_spec {
-                        if let Some(v) = self.evaluate_value_spec(
-                            spec,
-                            event,
-                            &t.pm_name,
-                            &t.correlation_id,
-                        ) {
-                            data.insert(key.clone(), v);
+                    // i221-B — sweep dispatch. When the DispatchSpec
+                    // carries `for_each: Some(spec)`, look up the
+                    // named query (Aggregate.query_name) in the
+                    // domain IR, run it against the in-memory
+                    // repository to enumerate matching records, and
+                    // dispatch one cascade per record threading the
+                    // record's fields as `iter_data`. `from_iter
+                    // (:field)` in the with-spec resolves against
+                    // each record. When `for_each` is `None` (the
+                    // bare-dispatch path), the loop body runs once
+                    // with `iter_data = None` — same shape as before.
+                    let iter_records: Vec<HashMap<String, Value>> = match &dispatched.for_each {
+                        Some(spec) => self.sweep_records(spec),
+                        None => vec![HashMap::new()],
+                    };
+                    let is_sweep = dispatched.for_each.is_some();
+
+                    for record in &iter_records {
+                        // Phase 2.b (pm-dispatch-enrichment) —
+                        // evaluate each ValueSpec in the with_spec
+                        // at dispatch time. Order : with_spec
+                        // resolution first (so an explicit
+                        // `name: "body"` literal beats refs the
+                        // inject_refs heuristic might guess), then
+                        // upstream-ref injection fills in
+                        // everything still unset.
+                        let mut data = std::collections::HashMap::new();
+                        let iter_arg = if is_sweep { Some(record) } else { None };
+                        for (key, spec) in &dispatched.with_spec {
+                            if let Some(v) = self.evaluate_value_spec(
+                                spec,
+                                event,
+                                &t.pm_name,
+                                &t.correlation_id,
+                                iter_arg,
+                            ) {
+                                data.insert(key.clone(), v);
+                            }
                         }
-                    }
-                    self.inject_refs(
-                        &dispatched.command_name,
-                        &event.aggregate_type,
-                        &event.aggregate_id,
-                        &mut data,
-                    );
-                    let inner = command_dispatch::dispatch_cascade(
-                        self,
-                        &dispatched.command_name,
-                        data,
-                        &event.aggregate_type,
-                        &event.aggregate_id,
-                    );
-                    if let Ok(inner_result) = inner {
-                        self.drain_policies(&inner_result);
+                        self.inject_refs(
+                            &dispatched.command_name,
+                            &event.aggregate_type,
+                            &event.aggregate_id,
+                            &mut data,
+                        );
+                        let inner = command_dispatch::dispatch_cascade(
+                            self,
+                            &dispatched.command_name,
+                            data,
+                            &event.aggregate_type,
+                            &event.aggregate_id,
+                        );
+                        if let Ok(inner_result) = inner {
+                            self.drain_policies(&inner_result);
+                        }
                     }
                 }
                 self.pm_engine.complete(&t.pm_name);
@@ -588,11 +614,11 @@ impl Runtime {
     ///                                        both are absent.
     ///   - `FromPm { name, default }`       → `pm.attributes[name]` ;
     ///                                        same fallback semantics.
-    ///   - `FromIter { field }`             → i221-A stub : returns
-    ///                                        `None` until i221-B
-    ///                                        wires the sweep loop
-    ///                                        (the per-record iter
-    ///                                        context lives there).
+    ///   - `FromIter { field }`             → i221-B : reads
+    ///                                        `iter_data[field]` (the
+    ///                                        current sweep record).
+    ///                                        Returns `None` outside a
+    ///                                        `for_each:` sweep.
     ///
     /// Returns `None` when no value resolves (caller skips the key
     /// so the receiving aggregate sees no entry — same as if the
@@ -602,12 +628,18 @@ impl Runtime {
     /// `attributes` hash (populated by handlers' `set` directives).
     /// When the attribute is absent the spec's `default` fires ;
     /// when both are absent, returns None.
+    ///
+    /// i221-B — `iter_data` carries the current sweep record's fields
+    /// (set by `drain_policies` when a DispatchSpec has `for_each:
+    /// Some(_)`). `None` for bare dispatches ; `Some(&fields)` per
+    /// record during a sweep loop.
     fn evaluate_value_spec(
         &self,
         spec: &crate::ir::ValueSpec,
         event: &Event,
         pm_name: &str,
         correlation_id: &str,
+        iter_data: Option<&HashMap<String, Value>>,
     ) -> Option<Value> {
         use crate::ir::ValueSpec;
         match spec {
@@ -624,11 +656,13 @@ impl Runtime {
                 }
                 default.as_ref().map(|d| Value::Str(d.clone()))
             }
-            // i221-A stub : the sweep iteration context lands in
-            // i221-B (drain_policies expansion). Until then, a
-            // FromIter resolution outside a sweep returns None,
-            // which the caller treats as "leave the key unset".
-            ValueSpec::FromIter { field: _ } => None,
+            // i221-B — pull the named field off the current sweep
+            // record. When `iter_data` is `None` (bare dispatch), or
+            // the record doesn't carry the field, returns `None` and
+            // the caller leaves the key unset.
+            ValueSpec::FromIter { field } => {
+                iter_data.and_then(|m| m.get(field).cloned())
+            }
         }
     }
 
@@ -660,11 +694,80 @@ impl Runtime {
         };
         let mut out = Vec::new();
         for (attr, spec) in &handler.set_specs {
-            if let Some(v) = self.evaluate_value_spec(spec, event, &t.pm_name, &t.correlation_id) {
+            // i221-B — set_specs run BEFORE the dispatch loop ; they
+            // can't be inside a `for_each:` iteration (the iter
+            // context belongs to the dispatched command, not the PM
+            // attribute write). Pass `None` for iter_data so any
+            // stray `from_iter(:_)` in a set spec resolves to None
+            // (= no write), which is the correct fallback semantics.
+            if let Some(v) = self.evaluate_value_spec(spec, event, &t.pm_name, &t.correlation_id, None) {
                 out.push((attr.clone(), v.to_string()));
             }
         }
         out
+    }
+
+    /// i221-B — resolve a `for_each: { from: "Aggregate.query" }`
+    /// sweep source to a list of per-record field maps. Each returned
+    /// HashMap carries the record's fields keyed by attribute name ;
+    /// `from_iter(:field)` in the dispatch's with-spec reads from
+    /// these maps during the cascade loop.
+    ///
+    /// Resolution order :
+    ///
+    ///   1. Look up the named query in the source aggregate's IR ;
+    ///      run it through `resolve_query` to apply declared wheres /
+    ///      order_by / limit. Returns the structured records.
+    ///   2. When the query name doesn't match a declared query (the
+    ///      Synapse.cold / Signal.cold use case where the predicate
+    ///      lives in the aggregate's specifications block, not its
+    ///      queries), fall back to `repo.all()` so the sweep at
+    ///      least enumerates every record. Future i225 work : lift
+    ///      specifications into queryable predicates so the sweep is
+    ///      a true filtered enumeration.
+    ///
+    /// An empty sweep returns an empty Vec, which the caller treats
+    /// as "no records → no dispatches" — same as a `for_each` over an
+    /// empty iterable.
+    fn sweep_records(&self, spec: &crate::ir::ForEachSpec) -> Vec<HashMap<String, Value>> {
+        // First : try the structured query path.
+        let has_query = self.domain.aggregates.iter()
+            .any(|a| a.name == spec.source_aggregate
+                && a.queries.iter().any(|q| q.name == spec.query_name));
+
+        if has_query {
+            let attrs: HashMap<String, String> = HashMap::new();
+            let json = self.resolve_query(&spec.query_name, &attrs);
+            let mut out = Vec::new();
+            // resolve_query returns either an object (single match)
+            // or an array under .state. Normalize.
+            let state = json.get("state").cloned().unwrap_or(serde_json::Value::Null);
+            match state {
+                serde_json::Value::Array(arr) => {
+                    for item in arr {
+                        if let serde_json::Value::Object(map) = item {
+                            out.push(json_obj_to_value_map(map));
+                        }
+                    }
+                }
+                serde_json::Value::Object(map) => {
+                    out.push(json_obj_to_value_map(map));
+                }
+                _ => {}
+            }
+            return out;
+        }
+
+        // Fallback : enumerate all records of the source aggregate.
+        // The aggregate-level specification (e.g. Synapse :cold) isn't
+        // a first-class query yet ; sweeping `repo.all()` and letting
+        // the receiving command's givens gate is the transitional
+        // semantics. Receiving aggregates with `given` clauses will
+        // short-circuit on records that don't qualify.
+        self.all(&spec.source_aggregate)
+            .iter()
+            .map(|s| s.fields.clone())
+            .collect()
     }
 
     /// For each reference on the triggered command, inject an id under its
@@ -1103,4 +1206,26 @@ fn trigram_sim(a: &str, b: &str) -> f64 {
     if a_t.is_empty() || b_t.is_empty() { return 0.0; }
     let matches = a_t.iter().filter(|t| b_t.contains(t)).count();
     (2.0 * matches as f64) / (a_t.len() + b_t.len()) as f64
+}
+
+/// i221-B — convert a serde_json::Map into a HashMap<String, Value>
+/// for use as `iter_data` in a sweep dispatch. The sweep records come
+/// from `resolve_query` which serializes through serde_json ; this
+/// brings them back into the runtime's Value enum so `from_iter
+/// (:field)` reads land in the right shape.
+fn json_obj_to_value_map(map: serde_json::Map<String, serde_json::Value>) -> HashMap<String, Value> {
+    let mut out = HashMap::new();
+    for (k, v) in map {
+        let value = match v {
+            serde_json::Value::String(s) => Value::Str(s),
+            serde_json::Value::Bool(b)   => Value::Bool(b),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() { Value::Int(i) } else { Value::Str(n.to_string()) }
+            }
+            serde_json::Value::Null      => Value::Null,
+            other                        => Value::Str(other.to_string()),
+        };
+        out.insert(k, value);
+    }
+    out
 }

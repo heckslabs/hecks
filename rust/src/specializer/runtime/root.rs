@@ -175,7 +175,11 @@ const HEADER: &str = r#"//! Hecks Runtime — executes domains from IR
 //!
 //! [antibody-exempt: rust/src/runtime/mod.rs — kernel-floor runtime.
 //!  i156 added the AmbiguousCommand variant for strict bare-name
-//!  dispatch ; the rest is pre-i156.]
+//!  dispatch ; the rest is pre-i156. i221-B adds sweep-loop expansion
+//!  in `drain_policies` + an `iter_data` parameter on
+//!  `evaluate_value_spec` so `for_each:` dispatches resolve `from_iter
+//!  (:field)` against per-record state — kernel-surface because the
+//!  PM cascade lives here, no bluebook can describe its own driver.]
 
 mod aggregate_state;
 mod command_dispatch;
