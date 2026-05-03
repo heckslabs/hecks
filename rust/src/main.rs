@@ -41,6 +41,17 @@
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
 //!  the rest of the run_enforce_edit family.]
 //!
+//! [antibody-exempt: hecks_life/src/main.rs detect_bash_write_target +
+//!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
+//!  classifier treated `sed -n '...'` (autoprint-suppress, read-only) as a
+//!  write target whenever any flag was present, blocking honest reads of
+//!  .rs files. New shape : each cmd_name names the exact write signatures
+//!  (None for tee/always-write ; Some(&[bigrams]) for sed -i / --in-place
+//!  and awk -i inplace). Same i80 retirement contract as the rest of the
+//!  run_enforce_edit family — retires when the enforcer's command-string
+//!  classification becomes a domain dispatched from
+//!  aggregates/discipline/enforcer/.]
+//!
 //! [antibody-exempt: hecks_life/src/main.rs — i117 Round 4. load_combined_domain
 //!  walks the sibling ../miette repo as an additional bluebook root at depth 1.
 //!  Miette's self/mind/body/library/surface aggregates physically live in
@@ -2596,8 +2607,25 @@ fn detect_bash_write_target(cmd: &str) -> Option<String> {
     // Word-level scan for tee, sed -i, awk -i inplace, and python heredocs
     // that we missed via string-scanning above. These all have a
     // "command name + flags + path" structure.
-    for (cmd_name, flag_required) in &[("tee", false), ("sed", true), ("awk", true)] {
-        if let Some(target) = scan_command_with_path_arg(cmd, cmd_name, *flag_required) {
+    //
+    // 2026-05-02 false-positive heal : sed and awk both accept harmless
+    // read-only flags (`sed -n` to suppress autoprint ; `awk -F` for
+    // field separator). The previous "any flag activates write
+    // detection" rule mis-fired on `sed -n '120,200p' foo.rs` and
+    // similar reads. Tighten : sed only writes with `-i` /
+    // `--in-place` ; awk only writes with `-i inplace`. tee remains
+    // always-write. Each entry names the bigram(s) that mean "this is
+    // a write" — None for always-write, Some(&[…]) for required
+    // tokens (an OR over the entries). For multi-token write
+    // signatures (`awk -i inplace`), both tokens must appear in the
+    // command string before path scanning starts.
+    let scans: &[(&str, Option<&[&[&str]]>)] = &[
+        ("tee", None),
+        ("sed", Some(&[&["-i"][..], &["--in-place"][..]])),
+        ("awk", Some(&[&["-i", "inplace"][..]])),
+    ];
+    for (cmd_name, write_signatures) in scans {
+        if let Some(target) = scan_command_with_path_arg(cmd, cmd_name, *write_signatures) {
             return Some(target);
         }
     }
@@ -2647,24 +2675,99 @@ fn read_quoted_after(s: &str) -> Option<String> {
     Some(s[start..j].to_string())
 }
 
+/// Find `needle` in `cmd`, but skip occurrences inside single- or
+/// double-quoted regions (heredoc bodies, here-strings, embedded
+/// scripts that mention paths as documentation). Walks the command
+/// character-by-character ; toggles a quote-state on `'` and `"`
+/// (respecting `\\\"` escapes) and only reports matches outside.
+///
+/// Used by scan_command_with_path_arg so a command like
+/// `gh pr create --body "...tee rust/src/main.rs..."` doesn't
+/// trigger the write classifier on its documentation text.
+fn find_outside_quotes(cmd: &str, needle: &str) -> Option<usize> {
+    if needle.is_empty() { return Some(0); }
+    let bytes = cmd.as_bytes();
+    let mut i = 0usize;
+    let mut in_quote: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match in_quote {
+            Some(q) => {
+                if c == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+                if c == q { in_quote = None; }
+                i += 1;
+            }
+            None => {
+                if c == b'\'' || c == b'"' { in_quote = Some(c); i += 1; continue; }
+                if cmd[i..].starts_with(needle) {
+                    return Some(i);
+                }
+                i += 1;
+            }
+        }
+    }
+    None
+}
+
 /// Scan a bash command for `<cmd_name> [flags] path.{rb,rs,sh,py}` —
 /// catches `tee path.rs`, `sed -i 's/foo/bar/' path.sh`, and similar.
-fn scan_command_with_path_arg(cmd: &str, cmd_name: &str, flag_required: bool) -> Option<String> {
-    // Find the command name as a word boundary.
+///
+/// `write_signatures` declares which token sequences mean "this is a
+/// write" :
+///   - `None` — the command is always a write (e.g. tee).
+///   - `Some(&[&["-i"], &["--in-place"]])` — any of the inner sequences
+///     present in the post-command-name token stream activates path
+///     scanning. Each sequence is a list of consecutive tokens (a
+///     bigram like `["-i", "inplace"]` requires both tokens to appear
+///     consecutively).
+///
+/// 2026-05-02 false-positive heal : prior signature was a single
+/// `flag_required: bool` ; "any flag activates" mis-classified
+/// `sed -n '120,200p' foo.rs` (read-only print) as a write. The new
+/// shape lets each cmd_name name the exact tokens that mean write.
+fn scan_command_with_path_arg(
+    cmd: &str,
+    cmd_name: &str,
+    write_signatures: Option<&[&[&str]]>,
+) -> Option<String> {
+    // Find the command name as a word boundary, OUTSIDE any quoted
+    // region. The outer detect_bash_write_target scan already skips
+    // string literals when looking for redirects ; this word-level
+    // scan needs the same discipline. Without it, a Bash command
+    // like `gh pr create --body "...tee rust/src/main.rs..."` (the
+    // tee mention is inside a heredoc body) trips the classifier
+    // even though no actual write is happening. 2026-05-02 false-
+    // positive heal, follow-on to the sed-n fix.
     let needle = format!("{} ", cmd_name);
-    let pos = cmd.find(&needle)?;
+    let pos = match find_outside_quotes(cmd, &needle) {
+        Some(p) => p,
+        None => return None,
+    };
     let after = &cmd[pos + needle.len()..];
-    let mut saw_flag = !flag_required;
-    for token in after.split_whitespace() {
-        if token == "|" || token == ";" || token == "&&" || token == "||" {
-            return None;
-        }
+    let tokens: Vec<&str> = after.split_whitespace()
+        .take_while(|t| *t != "|" && *t != ";" && *t != "&&" && *t != "||")
+        .collect();
+
+    // Decide whether the post-command token stream contains a write
+    // signature. None means "always a write". Some means "scan for one
+    // of the bigrams ; if absent, the command is a read".
+    let is_write = match write_signatures {
+        None => true,
+        Some(sigs) => sigs.iter().any(|sig| {
+            // Bigram match : every token in sig must appear in tokens
+            // consecutively, in order. Empty sig matches always.
+            if sig.is_empty() { return true; }
+            tokens.windows(sig.len()).any(|window| {
+                window.iter().zip(sig.iter()).all(|(t, s)| t == s)
+            })
+        }),
+    };
+    if !is_write {
+        return None;
+    }
+
+    for token in &tokens {
         if token.starts_with("-") {
-            // sed -i, awk -i inplace, etc.
-            saw_flag = true;
-            continue;
-        }
-        if !saw_flag {
             continue;
         }
         // Strip quotes.
