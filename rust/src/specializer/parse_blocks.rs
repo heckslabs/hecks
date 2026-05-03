@@ -70,6 +70,14 @@ const HEADER: &str = r#"//! Block parsers — parse command, value_object, polic
 //!  on `then_set`. Same retirement contract as ir.rs : the .rs surface
 //!  exists to enable pulse_organs.bluebook + consolidate retirement
 //!  (i80 cli-routing-as-bluebook).]
+//!
+//! [antibody-exempt: i226 parse-where-comparator-hash-form — kernel-surface
+//!  parser extension that recognizes `where(field: { lt|lte|gt|gte|ne: value })`
+//!  hash-form comparators. The IR's WhereOp already carries every variant ;
+//!  this is the parser side wiring that makes them reachable from .bluebook.
+//!  Without it, queries like `Synapse.cold` (where last_fired_at < cutoff)
+//!  cannot be expressed as first-class queries, and consolidate.sh /
+//!  rem_branch.sh cannot retire (i221 / i222). Same retirement contract.]
 
 use crate::ir::*;
 use crate::parser_helpers::*;
