@@ -2675,6 +2675,40 @@ fn read_quoted_after(s: &str) -> Option<String> {
     Some(s[start..j].to_string())
 }
 
+/// Find `needle` in `cmd`, but skip occurrences inside single- or
+/// double-quoted regions (heredoc bodies, here-strings, embedded
+/// scripts that mention paths as documentation). Walks the command
+/// character-by-character ; toggles a quote-state on `'` and `"`
+/// (respecting `\\\"` escapes) and only reports matches outside.
+///
+/// Used by scan_command_with_path_arg so a command like
+/// `gh pr create --body "...tee rust/src/main.rs..."` doesn't
+/// trigger the write classifier on its documentation text.
+fn find_outside_quotes(cmd: &str, needle: &str) -> Option<usize> {
+    if needle.is_empty() { return Some(0); }
+    let bytes = cmd.as_bytes();
+    let mut i = 0usize;
+    let mut in_quote: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match in_quote {
+            Some(q) => {
+                if c == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+                if c == q { in_quote = None; }
+                i += 1;
+            }
+            None => {
+                if c == b'\'' || c == b'"' { in_quote = Some(c); i += 1; continue; }
+                if cmd[i..].starts_with(needle) {
+                    return Some(i);
+                }
+                i += 1;
+            }
+        }
+    }
+    None
+}
+
 /// Scan a bash command for `<cmd_name> [flags] path.{rb,rs,sh,py}` —
 /// catches `tee path.rs`, `sed -i 's/foo/bar/' path.sh`, and similar.
 ///
@@ -2696,9 +2730,19 @@ fn scan_command_with_path_arg(
     cmd_name: &str,
     write_signatures: Option<&[&[&str]]>,
 ) -> Option<String> {
-    // Find the command name as a word boundary.
+    // Find the command name as a word boundary, OUTSIDE any quoted
+    // region. The outer detect_bash_write_target scan already skips
+    // string literals when looking for redirects ; this word-level
+    // scan needs the same discipline. Without it, a Bash command
+    // like `gh pr create --body "...tee rust/src/main.rs..."` (the
+    // tee mention is inside a heredoc body) trips the classifier
+    // even though no actual write is happening. 2026-05-02 false-
+    // positive heal, follow-on to the sed-n fix.
     let needle = format!("{} ", cmd_name);
-    let pos = cmd.find(&needle)?;
+    let pos = match find_outside_quotes(cmd, &needle) {
+        Some(p) => p,
+        None => return None,
+    };
     let after = &cmd[pos + needle.len()..];
     let tokens: Vec<&str> = after.split_whitespace()
         .take_while(|t| *t != "|" && *t != ";" && *t != "&&" && *t != "||")
