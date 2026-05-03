@@ -79,7 +79,7 @@ const HEADER: &str = r#"//! Canonical IR dump — JSON shape that both Ruby and 
 const IMPORTS: &str = "use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
     Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
-    ProcessManager, ProcessManagerHandler, Query, Reference, Transition,
+    DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
     ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
@@ -183,7 +183,14 @@ fn emit_json_object(fixtures: &[Fixture], ser: &Fixture) -> String {
 fn emit_embedded_helper(repo_root: &Path, ser: &Fixture) -> Result<String, Box<dyn Error>> {
     let snippet_path = repo_root.join(util::attr(ser, "snippet_path"));
     let body = util::read_snippet_body(&snippet_path)?;
-    let doc = if util::attr(ser, "name") == "normalize_value" { NORMALIZE_DOC } else { "" };
+    let doc_text = util::attr(ser, "doc_text");
+    let doc = if !doc_text.is_empty() {
+        format!("{}\n", doc_text)
+    } else if util::attr(ser, "name") == "normalize_value" {
+        NORMALIZE_DOC.to_string()
+    } else {
+        String::new()
+    };
     Ok(format!("{}{} {{\n{}}}\n\n", doc, signature(ser), body))
 }
 
