@@ -1,0 +1,435 @@
+//! PMEngine — process_manager runtime execution
+//!
+//! [antibody-exempt: rust/src/runtime/pm_engine.rs — generic state-machine
+//!  interpreter for process_manager IR. PMs are bluebook ; this Rust
+//!  runtime that drives them is kernel floor at L_a (mirror of
+//!  policy_engine.rs). The deeper L_b lift — `runtime_engine` primitive
+//!  unifying PolicyEngine + PMEngine + WorkflowExecutor as one
+//!  declarable kind — is filed as a follow-on branch (see
+//!  miette/dream-study/DEBRIEF.md → "Bluebook-First backlog").]
+//!
+//! Stateful coordinator for `process_manager` declarations. Each
+//! `ProcessManager` IR registers its handlers ; on each event published
+//! to the bus, PMEngine looks up bindings, finds matching PM instances
+//! by correlation_id, transitions state per from/to map, and returns
+//! commands to dispatch via the handler's declared `dispatch` list.
+//!
+//! Mirrors `PolicyEngine` shape — both react to events ; PMEngine adds
+//! per-correlation state.
+//!
+//! Two layers of bluebook-first :
+//!   - L_a (this file) : PMs are bluebook ; this generic interpreter
+//!     drives them. Kernel floor at this layer.
+//!   - L_b (follow-on `runtime_engine` branch) : the engine itself
+//!     declared as bluebook ; one interpreter walks all engine kinds
+//!     (Policy + PM + Workflow). Future work.
+
+use super::Event;
+use crate::heki;
+use crate::ir::{ProcessManager, ProcessManagerHandler};
+use std::collections::{HashMap, HashSet};
+
+#[derive(Debug, Clone)]
+pub struct PMBinding {
+    pub name: String,
+    pub correlates_by: String,
+    pub starts_on: String,
+    pub ends_on: Option<String>,
+    pub states: Vec<String>,
+    pub handlers: Vec<ProcessManagerHandler>,
+    pub instances: HashMap<String, PMInstanceState>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PMInstanceState {
+    pub correlation_id: String,
+    pub state: String,
+    pub last_event: Option<String>,
+}
+
+/// What PMEngine returns when an event triggers state changes.
+/// `dispatches` carries the "Aggregate.Command" strings declared
+/// via the handler's `dispatch "..."` lines ; caller dispatches them.
+#[derive(Debug, Clone)]
+pub struct PMTrigger {
+    pub pm_name: String,
+    pub correlation_id: String,
+    pub from_state: String,
+    pub to_state: String,
+    pub event_name: String,
+    pub dispatches: Vec<String>,
+}
+
+pub struct PMEngine {
+    bindings: HashMap<String, PMBinding>,
+    in_flight: HashSet<String>,
+}
+
+impl PMEngine {
+    pub fn new() -> Self {
+        PMEngine {
+            bindings: HashMap::new(),
+            in_flight: HashSet::new(),
+        }
+    }
+
+    pub fn register(&mut self, pm_ir: &ProcessManager) {
+        let existing_instances = self
+            .bindings
+            .get(&pm_ir.name)
+            .map(|b| b.instances.clone())
+            .unwrap_or_default();
+        self.bindings.insert(
+            pm_ir.name.clone(),
+            PMBinding {
+                name: pm_ir.name.clone(),
+                correlates_by: pm_ir.correlates_by.clone(),
+                starts_on: pm_ir.starts_on.clone(),
+                ends_on: pm_ir.ends_on.clone(),
+                states: pm_ir.states.clone(),
+                handlers: pm_ir.handlers.clone(),
+                instances: existing_instances,
+            },
+        );
+    }
+
+    pub fn react(&mut self, event: &Event) -> Vec<PMTrigger> {
+        let mut triggers = vec![];
+        let names: Vec<String> = self.bindings.keys().cloned().collect();
+        for pm_name in names {
+            if self.in_flight.contains(&pm_name) {
+                continue;
+            }
+            if let Some(t) = self.try_react_one(&pm_name, event) {
+                self.in_flight.insert(pm_name.clone());
+                triggers.push(t);
+            }
+        }
+        triggers
+    }
+
+    fn try_react_one(&mut self, pm_name: &str, event: &Event) -> Option<PMTrigger> {
+        let binding = self.bindings.get_mut(pm_name)?;
+        let correlation_id = extract_correlation_id(event, &binding.correlates_by)?;
+
+        // Get-or-create-on-starts_on : starts_on creates fresh instance
+        // in first declared state ; other events for non-existent
+        // instances are ignored.
+        let current_state = match binding.instances.get(&correlation_id) {
+            Some(inst) => inst.state.clone(),
+            None => {
+                if event.name == binding.starts_on {
+                    let initial = binding.states.first().cloned().unwrap_or_default();
+                    binding.instances.insert(
+                        correlation_id.clone(),
+                        PMInstanceState {
+                            correlation_id: correlation_id.clone(),
+                            state: initial.clone(),
+                            last_event: Some(event.name.clone()),
+                        },
+                    );
+                    initial
+                } else {
+                    return None;
+                }
+            }
+        };
+
+        let handler = binding
+            .handlers
+            .iter()
+            .find(|h| h.event_type == event.name && h.from_state == current_state)?;
+        let from_state = handler.from_state.clone();
+        let to_state = handler.to_state.clone();
+        let dispatches = handler.dispatches.clone();
+
+        binding.instances.insert(
+            correlation_id.clone(),
+            PMInstanceState {
+                correlation_id: correlation_id.clone(),
+                state: to_state.clone(),
+                last_event: Some(event.name.clone()),
+            },
+        );
+
+        Some(PMTrigger {
+            pm_name: pm_name.to_string(),
+            correlation_id,
+            from_state,
+            to_state,
+            event_name: event.name.clone(),
+            dispatches,
+        })
+    }
+
+    pub fn complete(&mut self, pm_name: &str) {
+        self.in_flight.remove(pm_name);
+    }
+
+    pub fn bindings(&self) -> impl Iterator<Item = &PMBinding> {
+        self.bindings.values()
+    }
+
+    pub fn instances(&self, pm_name: &str) -> Option<&HashMap<String, PMInstanceState>> {
+        self.bindings.get(pm_name).map(|b| &b.instances)
+    }
+
+    // ---- Phase D : heki persistence -----------------------------------
+    //
+    // Production daemons fork hecks-life per dispatch. Without persistence,
+    // each subprocess builds an empty PMEngine and transitions don't
+    // accumulate across ticks. Persistence routes each PM's instances
+    // through `<data_dir>/process_managers/<pm_snake>.heki`. Records are
+    // keyed by correlation_id ; each record carries state + last_event.
+    // Last-write-wins on race ; the daemon model dispatches one event
+    // per fork so concurrent writes to the same instance are rare.
+
+    /// Load existing PM instances from heki for every registered PM.
+    /// Called once at Runtime boot after register. No-op when data_dir
+    /// is None (in-memory test runtimes don't persist).
+    pub fn load_persisted(&mut self, data_dir: Option<&str>) {
+        let dir = match data_dir {
+            Some(d) => d,
+            None => return,
+        };
+        let names: Vec<String> = self.bindings.keys().cloned().collect();
+        for pm_name in names {
+            let path = pm_heki_path(dir, &pm_name);
+            let store = match heki::read(&path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            if let Some(binding) = self.bindings.get_mut(&pm_name) {
+                for (correlation_id, record) in store {
+                    let state = record
+                        .get("state")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let last_event = record
+                        .get("last_event")
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
+                    binding.instances.insert(
+                        correlation_id.clone(),
+                        PMInstanceState {
+                            correlation_id,
+                            state,
+                            last_event,
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    /// Persist one instance's current state to heki. Called by Runtime
+    /// after each successful react. Idempotent — re-persisting the
+    /// same state is a no-op heki-side besides bumping updated_at.
+    pub fn persist_instance(
+        &self,
+        pm_name: &str,
+        correlation_id: &str,
+        data_dir: Option<&str>,
+    ) -> Result<(), String> {
+        let dir = match data_dir {
+            Some(d) => d,
+            None => return Ok(()),
+        };
+        let binding = self
+            .bindings
+            .get(pm_name)
+            .ok_or_else(|| format!("pm_engine.persist : no binding for {}", pm_name))?;
+        let inst = binding
+            .instances
+            .get(correlation_id)
+            .ok_or_else(|| format!("pm_engine.persist : no instance for {}/{}", pm_name, correlation_id))?;
+
+        let mut record: heki::Record = HashMap::new();
+        record.insert(
+            "id".to_string(),
+            serde_json::Value::String(correlation_id.to_string()),
+        );
+        record.insert(
+            "state".to_string(),
+            serde_json::Value::String(inst.state.clone()),
+        );
+        if let Some(le) = &inst.last_event {
+            record.insert(
+                "last_event".to_string(),
+                serde_json::Value::String(le.clone()),
+            );
+        }
+
+        let path = pm_heki_path(dir, pm_name);
+        // Ensure the parent dir exists before heki tries to write.
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        heki::upsert(
+            &path,
+            &record,
+            heki::WriteContext::Dispatch {
+                aggregate: pm_name,
+                command: "PMTransition",
+            },
+        )?;
+        Ok(())
+    }
+}
+
+/// Heki path for a process manager's instance store.
+/// Convention : `<data_dir>/process_managers/<pm_snake>.heki`
+fn pm_heki_path(data_dir: &str, pm_name: &str) -> String {
+    let snake = heki::snake_case(pm_name);
+    let trimmed = data_dir.trim_end_matches('/');
+    format!("{}/process_managers/{}.heki", trimmed, snake)
+}
+
+fn extract_correlation_id(event: &Event, correlates_by: &str) -> Option<String> {
+    if let Some(v) = event.data.get(correlates_by) {
+        return Some(v.to_string());
+    }
+    Some(event.aggregate_id.clone())
+}
+
+impl Default for PMEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::{ProcessManager, ProcessManagerHandler};
+    use crate::runtime::Value;
+    use std::collections::HashMap;
+
+    fn order_pm() -> ProcessManager {
+        ProcessManager {
+            name: "OrderFulfillment".to_string(),
+            correlates_by: "order_id".to_string(),
+            starts_on: "OrderPlaced".to_string(),
+            ends_on: Some("OrderDelivered".to_string()),
+            states: vec!["pending".into(), "shipped".into(), "delivered".into()],
+            handlers: vec![
+                ProcessManagerHandler {
+                    event_type: "OrderShipped".into(),
+                    from_state: "pending".into(),
+                    to_state: "shipped".into(),
+                    dispatches: vec!["Inventory.Decrement".into()],
+                },
+                ProcessManagerHandler {
+                    event_type: "OrderDelivered".into(),
+                    from_state: "shipped".into(),
+                    to_state: "delivered".into(),
+                    dispatches: vec![],
+                },
+            ],
+        }
+    }
+
+    fn evt(name: &str, order_id: &str) -> Event {
+        let mut data = HashMap::new();
+        data.insert("order_id".into(), Value::Str(order_id.into()));
+        Event {
+            name: name.into(),
+            aggregate_type: "Order".into(),
+            aggregate_id: order_id.into(),
+            data,
+        }
+    }
+
+    #[test]
+    fn full_lifecycle() {
+        let mut engine = PMEngine::new();
+        engine.register(&order_pm());
+
+        let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+        engine.complete("OrderFulfillment");
+
+        let triggers = engine.react(&evt("OrderShipped", "ord_42"));
+        assert_eq!(triggers.len(), 1);
+        assert_eq!(triggers[0].from_state, "pending");
+        assert_eq!(triggers[0].to_state, "shipped");
+        assert_eq!(triggers[0].dispatches, vec!["Inventory.Decrement".to_string()]);
+
+        engine.complete("OrderFulfillment");
+        let triggers = engine.react(&evt("OrderDelivered", "ord_42"));
+        assert_eq!(triggers.len(), 1);
+        assert_eq!(triggers[0].to_state, "delivered");
+        assert_eq!(triggers[0].dispatches, Vec::<String>::new());
+    }
+
+    #[test]
+    fn no_op_for_unrelated_event() {
+        let mut engine = PMEngine::new();
+        engine.register(&order_pm());
+        assert_eq!(engine.react(&evt("RandomEvent", "ord_42")).len(), 0);
+    }
+
+    #[test]
+    fn isolated_correlation_ids() {
+        let mut engine = PMEngine::new();
+        engine.register(&order_pm());
+        let _ = engine.react(&evt("OrderPlaced", "ord_1"));
+        engine.complete("OrderFulfillment");
+        let _ = engine.react(&evt("OrderPlaced", "ord_2"));
+        engine.complete("OrderFulfillment");
+        let instances = engine.instances("OrderFulfillment").unwrap();
+        assert_eq!(instances.len(), 2);
+    }
+
+    #[test]
+    fn persists_and_reloads_instance_state() {
+        let tmp = std::env::temp_dir().join(format!(
+            "hecks_pm_persist_test_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let dir = tmp.to_string_lossy().to_string();
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // Subprocess 1 : create instance, transition, persist.
+        {
+            let mut engine = PMEngine::new();
+            engine.register(&order_pm());
+            engine.load_persisted(Some(&dir));
+
+            let _ = engine.react(&evt("OrderPlaced", "ord_42"));
+            engine.complete("OrderFulfillment");
+            engine
+                .persist_instance("OrderFulfillment", "ord_42", Some(&dir))
+                .unwrap();
+
+            let _ = engine.react(&evt("OrderShipped", "ord_42"));
+            engine
+                .persist_instance("OrderFulfillment", "ord_42", Some(&dir))
+                .unwrap();
+            engine.complete("OrderFulfillment");
+        }
+
+        // Subprocess 2 : load + verify the prior state persisted.
+        {
+            let mut engine = PMEngine::new();
+            engine.register(&order_pm());
+            engine.load_persisted(Some(&dir));
+
+            let instances = engine.instances("OrderFulfillment").unwrap();
+            let inst = instances.get("ord_42").expect("instance must be loaded");
+            assert_eq!(inst.state, "shipped", "state should persist across forks");
+            assert_eq!(inst.last_event.as_deref(), Some("OrderShipped"));
+
+            // And further transitions on top of loaded state work :
+            let triggers = engine.react(&evt("OrderDelivered", "ord_42"));
+            assert_eq!(triggers.len(), 1);
+            assert_eq!(triggers[0].from_state, "shipped");
+            assert_eq!(triggers[0].to_state, "delivered");
+        }
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+}
