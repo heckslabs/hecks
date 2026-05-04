@@ -56,6 +56,13 @@ mkdir -p "$TMP/information" "$TMP/aggregates"
 # i112 anatomy — bluebooks live in cluster subdirs (body/, mind/, ...) ;
 # the runtime walks recursively, so flatten via find.
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
+# Body / mind / being aggregates live in the miette sibling repo (Heart,
+# Nerve, SignalConsolidation, Pulse, etc.). Link them so cross-bluebook
+# dispatch — the across "Pulse" hop in mindstream — resolves at boot.
+MIETTE_BODY="$REPO_ROOT/../miette/body"
+if [ -d "$MIETTE_BODY" ]; then
+  find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
+fi
 
 # *.world pins the heki dir — the runtime reads it relative to CWD.
 cat > "$TMP/pulse_fanout_smoke.world" <<'EOF'
@@ -80,10 +87,10 @@ field() {
   "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || true
 }
 
-pulse_count=$(field "$TMP/information/pulse.heki" count)
-pulses=$(field "$TMP/information/heartbeat.heki" pulses_since_sleep)
-pruned=$(field "$TMP/information/signal_consolidation.heki" synapses_pruned)
-nerve_active=$(field "$TMP/information/nerve.heki" active)
+pulse_count=$(field "$TMP/information/pulse/pulse.heki" count)
+pulses=$(field "$TMP/information/heartbeat/heartbeat.heki" pulses_since_sleep)
+pruned=$(field "$TMP/information/signal_consolidation/signal_consolidation.heki" synapses_pruned)
+nerve_active=$(field "$TMP/information/nerve/nerve.heki" active)
 
 echo "After 1 tick:"
 echo "  pulse.count:                          $pulse_count"

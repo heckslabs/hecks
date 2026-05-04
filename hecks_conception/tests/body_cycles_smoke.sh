@@ -52,6 +52,14 @@ mkdir -p "$TMP/hecks_conception/information" "$TMP/hecks_conception/aggregates"
 mkdir -p "$TMP/rust/target/release"
 ln -sf "$HECKS" "$TMP/rust/target/release/hecks-life"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
+# Body cycles (Ultradian, SleepCycle, Pulse, etc.) live in the miette
+# sibling repo at ../miette/body/. The test dispatches Ultradian.* and
+# SleepCycle.* commands so those bluebooks must be reachable. Link from
+# the sibling when present.
+MIETTE_BODY="$REPO_ROOT/../miette/body"
+if [ -d "$MIETTE_BODY" ]; then
+  find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
+fi
 
 INFO="$TMP/hecks_conception/information"
 AGG="$TMP/hecks_conception/aggregates"
@@ -71,52 +79,56 @@ sleep 2.5
 kill "$PID" 2>/dev/null
 wait "$PID" 2>/dev/null
 
-STORE="$INFO/ultradian.heki"
+STORE="$INFO/ultradian/ultradian.heki"
 cycle_count=$("$HECKS" heki latest-field "$STORE" cycle_count 2>/dev/null || echo 0)
 phase=$("$HECKS" heki latest-field "$STORE" phase 2>/dev/null || echo "")
 [ "$cycle_count" -ge 1 ] || fail "ultradian: expected cycle_count ≥1, got $cycle_count"
 echo "ultradian fast-forward (i106): cycle_count=$cycle_count, phase=$phase"
 
-# ── 2. Sleep_cycle fast-forward (i108 gate=open) ─────────────────
-"$HECKS" heki upsert "$INFO/consciousness.heki" \
-  --reason "test setup : set consciousness asleep so sleep_cycle gate opens for body_cycles fast-forward" \
+# ── 2. Heart.Beat gated cadence — open gate (i108) ───────────────
+# The gated-cadence primitive (i108) is verified via Heart.Beat — a
+# simple single-command primitive that increments beat_count. Original
+# smoke used SleepCycle.EnterNREM* commands which were retired by the
+# dream-study refactor (SleepCycle is now a process_manager driven by
+# Body.Advance* events, not a cadence target). Heart.Beat covers the
+# i108 contract cleanly without depending on retired commands.
+mkdir -p "$INFO/consciousness"
+"$HECKS" heki upsert "$INFO/consciousness/consciousness.heki" \
+  --reason "test setup : set consciousness asleep so the gated-cadence test opens" \
   id=1 state=sleeping >/dev/null 2>&1
 
-"$HECKS" loop "$AGG" \
-  SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM \
-  --every 1s --gate "$INFO/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
-PID=$!
-sleep 3.5
-kill "$PID" 2>/dev/null
-wait "$PID" 2>/dev/null
-
-STORE="$INFO/sleep_cycle.heki"
-sc_count=$("$HECKS" heki latest-field "$STORE" cycle_count 2>/dev/null || echo 0)
-sc_phase=$("$HECKS" heki latest-field "$STORE" phase 2>/dev/null || echo "")
-[ "$sc_count" -ge 1 ] || fail "sleep_cycle: expected cycle_count ≥1 while sleeping, got $sc_count"
-echo "sleep_cycle fast-forward (i108 gate=open): cycle_count=$sc_count, phase=$sc_phase"
-
-# Capture the count after the sleeping phase ; it must NOT advance once
-# the gate is closed (state=attentive).
-gated_baseline="$sc_count"
-
-# ── 3. Sleep_cycle awake gate — no dispatches fire ───────────────
-"$HECKS" heki upsert "$INFO/consciousness.heki" \
-  --reason "test setup : set consciousness attentive so sleep_cycle gate closes for body_cycles awake-gate proof" \
-  id=1 state=attentive >/dev/null 2>&1
-
-"$HECKS" loop "$AGG" \
-  SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM \
-  --every 1s --gate "$INFO/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
+"$HECKS" loop "$AGG" Heart.Beat \
+  --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
 PID=$!
 sleep 2
 kill "$PID" 2>/dev/null
 wait "$PID" 2>/dev/null
 
-after_gate=$("$HECKS" heki latest-field "$STORE" cycle_count 2>/dev/null || echo 0)
+STORE="$INFO/heart/heart.heki"
+heart_count=$("$HECKS" heki latest-field "$STORE" beat_count 2>/dev/null || echo 0)
+[ "$heart_count" -ge 1 ] || fail "heart: expected beat_count ≥1 while sleeping, got $heart_count"
+echo "heart gated fast-forward (i108 gate=open): beat_count=$heart_count"
+
+# Capture the count after the sleeping phase ; it must NOT advance once
+# the gate is closed (state=attentive).
+gated_baseline="$heart_count"
+
+# ── 3. Heart.Beat awake gate — no dispatches fire (i108 gate=closed) ─
+"$HECKS" heki upsert "$INFO/consciousness/consciousness.heki" \
+  --reason "test setup : set consciousness attentive so the gate closes for the awake-gate proof" \
+  id=1 state=attentive >/dev/null 2>&1
+
+"$HECKS" loop "$AGG" Heart.Beat \
+  --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
+PID=$!
+sleep 2
+kill "$PID" 2>/dev/null
+wait "$PID" 2>/dev/null
+
+after_gate=$("$HECKS" heki latest-field "$STORE" beat_count 2>/dev/null || echo 0)
 [ "$after_gate" = "$gated_baseline" ] \
-  || fail "sleep_cycle: gate did not close — count $gated_baseline → $after_gate"
-echo "sleep_cycle awake gate (i108 gate=closed): cycle_count held at $after_gate"
+  || fail "heart: gate did not close — beat_count $gated_baseline → $after_gate"
+echo "heart awake gate (i108 gate=closed): beat_count held at $after_gate"
 
 echo "PASS — i106 multi-command rotation + i108 gated cadence both work"
 exit 0
