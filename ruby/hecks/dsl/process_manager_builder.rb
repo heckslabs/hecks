@@ -295,15 +295,31 @@ module Hecks
             raise ArgumentError,
                   "dispatch for_each: must declare a String `from:` literal, got #{from_value.inspect}"
           end
-          dot = from_value.index('.')
-          if dot.nil? || dot.zero? || dot == from_value.length - 1
+          # Two qualified forms accepted :
+          #   "Aggregate.query_name"            — 2-part (back-compat)
+          #   "Context.Aggregate.query_name"    — 3-part, disambiguates
+          #                                       when multiple bluebooks
+          #                                       declare the same
+          #                                       aggregate name (i142)
+          parts = from_value.split('.')
+          context, aggregate, query =
+            case parts.length
+            when 2 then [nil, parts[0], parts[1]]
+            when 3 then [parts[0], parts[1], parts[2]]
+            else
+              raise ArgumentError,
+                    "dispatch for_each: `from:` literal must be qualified " \
+                    "(\"Aggregate.query_name\" or \"Context.Aggregate.query_name\"), " \
+                    "got #{from_value.inspect}"
+            end
+          if (context && context.empty?) || aggregate.empty? || query.empty?
             raise ArgumentError,
-                  "dispatch for_each: `from:` literal must be qualified " \
-                  "(\"Aggregate.query_name\"), got #{from_value.inspect}"
+                  "dispatch for_each: `from:` literal has empty parts, got #{from_value.inspect}"
           end
           ForEachSpec.new(
-            source_aggregate: from_value[0...dot],
-            query_name: from_value[(dot + 1)..]
+            source_context:   context,
+            source_aggregate: aggregate,
+            query_name:       query
           )
         end
 

@@ -102,12 +102,13 @@ for src in \
   "$BODY_DIR/dream/dream_seed.bluebook" ; do
   [ -f "$src" ] && ln -sf "$src" "$TMP/aggregates/"
 done
-# Mind-side musing.bluebook for the DreamSeed.PlantSeed sweep source.
-MIND_DIR="${HECKS_MIND_DIR:-}"
-[ -z "$MIND_DIR" ] && [ -d "$BODY_DIR/../mind" ] && \
-  MIND_DIR="$(cd "$BODY_DIR/../mind" && pwd)"
-[ -n "$MIND_DIR" ] && [ -f "$MIND_DIR/state/musing.bluebook" ] && \
-  ln -sf "$MIND_DIR/state/musing.bluebook" "$TMP/aggregates/"
+# Mind-side musings.bluebook for the DreamSeed.PlantSeed sweep source.
+# Two `Musing` aggregates exist in miette : mind/state/musing.bluebook
+# (consciousness-loop) and mind/musings/musings.bluebook (idea-backlog,
+# carries the `recent` query). The dispatch in dream.bluebook qualifies
+# its for_each as `Musings.Musing.recent` (context.aggregate.query, i142),
+# so the runtime resolves to mind/musings unambiguously. The parent walk
+# into ../miette finds both ; no test-side symlink needed.
 
 cat > "$TMP/dream_content_smoke.world" <<'EOF'
 Hecks.world "DreamContentSmoke" do
