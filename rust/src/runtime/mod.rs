@@ -1138,6 +1138,12 @@ impl Runtime {
     /// i101 — when the IR Query carries structured wheres / order_by /
     /// limit, the executor walks repo.all() and applies them in order :
     /// filter → sort → truncate. The opaque-Ruby-block era is retired.
+    ///
+    /// Back-compat unqualified entry point. Delegates to
+    /// `resolve_query_qualified` with `(None, "")` so callers that only
+    /// know the query name still work. Sweep dispatches (i221-A) reach
+    /// for the qualified form so same-named queries across bluebooks
+    /// can be disambiguated.
     pub fn resolve_query(&self, query_name: &str, attrs: &std::collections::HashMap<String, String>) -> serde_json::Value {
         self.resolve_query_qualified(None, "", query_name, attrs)
     }
