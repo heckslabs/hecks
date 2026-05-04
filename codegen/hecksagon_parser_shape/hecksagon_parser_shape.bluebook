@@ -68,8 +68,13 @@ Hecks.bluebook "HecksagonParserShape", version: "2026.05.01.1" do
       # ("adapter ,adapter(") when the same handler fires on multiple
       # prefixes.
       attribute :starts_with,   String
-      # handler_kind: capture_quoted_into | push_quoted_onto |
-      #               multiline_block    | multiline_adapter
+      # handler_kind: capture_quoted_into | capture_quoted_with_framework_kind |
+      #               push_quoted_onto    | multiline_block | multiline_adapter
+      # capture_quoted_with_framework_kind (Phase 1 of adapter-family
+      # activation) is a sibling of capture_quoted_into that ALSO sets
+      # `framework_kind` on the IR — the Hecks.adapter_family /
+      # Hecks.provider / Hecks.behavior_kind top-level forms each map
+      # to one row using this kind.
       attribute :handler_kind,  String
       # target_field: struct field on the IR (e.g. "name",
       # "subscriptions", "gates", ""). Ignored for multiline_adapter
@@ -78,6 +83,15 @@ Hecks.bluebook "HecksagonParserShape", version: "2026.05.01.1" do
       # helper_fn: name of the helper this dispatch delegates to
       # (parse_gate, absorb_adapter, ...). Empty for trivial handlers.
       attribute :helper_fn,     String, default: ""
+      # framework_kind: meta-layer discriminator value the dispatch
+      # stamps on the IR. Only consulted by handler_kind ==
+      # capture_quoted_with_framework_kind. Empty / absent for every
+      # other dispatch.
+      attribute :framework_kind, String, default: ""
+      # dispatch_comment: optional explanatory comment emitted as
+      # `// ...` lines immediately before the dispatch's `if`. Newline-
+      # separated for multi-line comments. Empty / absent = no comment.
+      attribute :dispatch_comment, String, default: ""
       # order: emission order inside the while loop
       attribute :order,         Integer
     end

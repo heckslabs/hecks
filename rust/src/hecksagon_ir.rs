@@ -39,6 +39,14 @@
 pub struct Hecksagon {
     /// Declared inside `Hecks.hecksagon "Name" do`.
     pub name: String,
+    /// Phase 1 of adapter-family activation : files declared with the
+    /// new top-level forms (`Hecks.adapter_family` / `Hecks.provider` /
+    /// `Hecks.behavior_kind`) carry a meta-layer kind discriminator.
+    /// Plain `Hecks.hecksagon "Name" do ... end` files leave this `None`.
+    /// The kernel registry walks framework/* and indexes by this field.
+    /// Phase 2 will add a richer payload (fields, providers list,
+    /// request_body wire shape) so the runtime can drive dispatch.
+    pub framework_kind: Option<String>,
     /// `adapter :memory` or `adapter :heki` — persistence wiring. None
     /// means the bluebook's runtime default (memory repository) applies.
     pub persistence: Option<String>,

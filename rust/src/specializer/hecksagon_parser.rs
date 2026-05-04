@@ -85,15 +85,55 @@ fn emit_imports(parser: &Fixture) -> String {
 fn emit_detector(parser: &Fixture) -> String {
     let kw = util::attr(parser, "detector_keyword");
     let fn_name = util::attr(parser, "detector_fn_name");
-    format!(
+    // Multi-prefix detector : `detector_keyword` may carry a comma-
+    // separated list. Single keyword stays single-line ; multiple
+    // keywords emit a chained `t.starts_with("X") || t.starts_with("Y")`
+    // with every alternative on its own indented line. Phase 1 of the
+    // adapter-family activation needed this so the hecksagon parser
+    // could recognise the legacy `Hecks.hecksagon` AND the new meta-
+    // layer top-level forms (Hecks.adapter_family / Hecks.provider /
+    // Hecks.behavior_kind) at source-detect time.
+    let kws: Vec<&str> = kw.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    let detector_doc = if kws.len() > 1 {
+        // Match the doc text used in the hand-written variant — the
+        // multi-prefix case warrants explicit explanation in the docs.
         "\
 /// Lowest-cost source detection. Skips leading blanks and `#` comments
 /// and checks the first non-empty line.
+///
+/// Recognises the legacy `Hecks.hecksagon` form AND the Phase 1 adapter-
+/// family meta-layer forms (`Hecks.adapter_family` / `Hecks.provider` /
+/// `Hecks.behavior_kind`). All four set up a Hecksagon IR ; the meta-
+/// layer forms additionally stamp `framework_kind` so the kernel
+/// registry can index by kind."
+    } else {
+        "\
+/// Lowest-cost source detection. Skips leading blanks and `#` comments
+/// and checks the first non-empty line."
+    };
+    let return_expr = if kws.len() == 1 {
+        format!("return t.starts_with(\"{}\");", kws[0])
+    } else {
+        let mut lines: Vec<String> = Vec::new();
+        for (i, k) in kws.iter().enumerate() {
+            if i == 0 {
+                lines.push(format!("return t.starts_with(\"{k}\")"));
+            } else if i == kws.len() - 1 {
+                lines.push(format!("            || t.starts_with(\"{k}\");"));
+            } else {
+                lines.push(format!("            || t.starts_with(\"{k}\")"));
+            }
+        }
+        lines.join("\n")
+    };
+    format!(
+        "\
+{detector_doc}
 pub fn {fn_name}(source: &str) -> bool {{
     for line in source.lines() {{
         let t = line.trim();
         if t.is_empty() || t.starts_with('#') {{ continue; }}
-        return t.starts_with(\"{kw}\");
+        {return_expr}
     }}
     false
 }}
@@ -150,6 +190,18 @@ fn emit_dispatch_block(dispatch: &Fixture) -> String {
     let condition = dispatch_condition(starts_with);
     let body = dispatch_body_lines(dispatch);
     let mut lines: Vec<String> = Vec::new();
+    // Phase 1 of adapter-family activation : a fixture may carry an
+    // optional `dispatch_comment` (newline-separated lines) that emits
+    // as `// ...` before the `if`. Used by the framework-form rows so
+    // the generated parser explains why the meta-layer dispatches set
+    // both `name` and `framework_kind`. Empty / absent attribute = no
+    // comment emitted ; back-compat with every existing fixture.
+    let comment = util::attr(dispatch, "dispatch_comment");
+    if !comment.is_empty() {
+        for l in comment.split('\n') {
+            lines.push(format!("        // {l}"));
+        }
+    }
     lines.push(format!("        if {condition} {{"));
     for l in body {
         lines.push(format!("            {l}"));
@@ -178,6 +230,22 @@ fn dispatch_body_lines(dispatch: &Fixture) -> Vec<String> {
             format!("if let Some(n) = between_quotes(line) {{ hex.{field} = n; }}"),
             "i += 1;".to_string(),
         ],
+        // Phase 1 of adapter-family activation : same as
+        // capture_quoted_into but ALSO stamps `framework_kind` on the
+        // IR so the kernel registry can distinguish a meta-layer file
+        // (Hecks.adapter_family / Hecks.provider / Hecks.behavior_kind)
+        // from a plain hecksagon. The fixture's `framework_kind` field
+        // carries the value to set ; `target_field` stays "name" so
+        // both halves capture the quoted family / provider / behavior
+        // name into the same slot.
+        "capture_quoted_with_framework_kind" => {
+            let fk = util::attr(dispatch, "framework_kind");
+            vec![
+                format!("if let Some(n) = between_quotes(line) {{ hex.{field} = n; }}"),
+                format!("hex.framework_kind = Some(\"{fk}\".to_string());"),
+                "i += 1;".to_string(),
+            ]
+        }
         "push_quoted_onto" => vec![
             format!("if let Some(n) = between_quotes(line) {{ hex.{field}.push(n); }}"),
             "i += 1;".to_string(),
