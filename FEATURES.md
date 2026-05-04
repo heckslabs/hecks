@@ -128,6 +128,7 @@
 - Every extension has a "Future gem" comment documenting its intended gem name
 
 ### Hecksagon Adapters
+- `Hecks.adapter_family "name" do ... end` / `Hecks.provider "name" do ... end` / `Hecks.behavior_kind "name" do ... end` — Phase 1 of the adapter-family meta-layer. Three sibling top-level forms for the framework's pure-data declarations of what an adapter family IS, what concrete providers implement it, what runtime behavior it satisfies. Each file lives under `hecks_conception/aggregates/framework/` ; both Ruby and Rust parsers recognise the forms and emit byte-equal canonical IR with a `framework_kind` discriminator. Phase 2 will capture the inner DSL (fields, providers, request_body, ...) into a richer payload so the runtime registry can drive dispatch.
 - `adapter :kind, ...` — unified DSL for declaring infrastructure adapters; persistence kinds (`:memory`, `:sqlite`, `:postgres`, `:mysql2`, `:mongodb`, etc.) stay unnamed and at most one per hecksagon; `adapter :shell, name: :x` is named and may appear multiple times
 - `adapter :shell` — named argv-only subprocess adapter; `command` is a fixed binary, `args` is a list-of-strings with `{{placeholder}}` tokens substituted per-element at dispatch time; supports `output_format` (`:text`, `:lines`, `:json`, `:json_lines`, `:exit_code`), `timeout`, `working_dir`, `env`
 - `runtime.shell(:name, **attrs)` — dispatches a shell adapter; returns a `Result` with `output` (format-parsed), `raw_stdout`, `stderr`, `exit_status`

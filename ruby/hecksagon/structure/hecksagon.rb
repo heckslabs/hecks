@@ -22,14 +22,22 @@ module Hecksagon
       attr_reader :name, :gates, :persistence, :extensions, :subscriptions, :tenancy,
                   :capabilities, :concerns, :excluded_capabilities, :aggregate_capabilities,
                   :annotations, :context_map, :driving_ports, :driven_ports, :port_contracts,
-                  :shell_adapters, :io_adapters, :llm_adapters, :compute_adapters
+                  :shell_adapters, :io_adapters, :llm_adapters, :compute_adapters,
+                  :framework_kind
 
+      # `framework_kind` carries the meta-layer kind for files declared with
+      # `Hecks.adapter_family`, `Hecks.provider`, or `Hecks.behavior_kind` — one
+      # of `"adapter_family"`, `"provider"`, `"behavior_kind"`. Plain
+      # `Hecks.hecksagon` files leave it `nil`. The kernel registry walks
+      # framework/* and indexes by this field. Pure-data Phase 1 surface ;
+      # the inner DSL (fields, providers, request_body, etc.) is captured
+      # into +framework_payload+ verbatim and parsed by the Phase 2 runtime.
       def initialize(name:, gates: [], persistence: nil, extensions: [], subscriptions: [],
                      tenancy: nil, capabilities: [], concerns: [], excluded_capabilities: [],
                      aggregate_capabilities: {}, annotations: [], context_map: [],
                      driving_ports: [], driven_ports: [], port_contracts: [],
                      shell_adapters: [], io_adapters: [], llm_adapters: [],
-                     compute_adapters: [])
+                     compute_adapters: [], framework_kind: nil)
         @name = name
         @gates = gates
         @persistence = persistence
@@ -49,6 +57,7 @@ module Hecksagon
         @io_adapters = io_adapters
         @llm_adapters = llm_adapters
         @compute_adapters = compute_adapters
+        @framework_kind = framework_kind
       end
 
       # i220 sub-gap 5 — look up a declared compute adapter by name.

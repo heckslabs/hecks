@@ -445,6 +445,12 @@ module Hecks
           # files match the Rust parser (which defaults `name: String` to
           # the empty string when the quoted-name slot is absent).
           "name"             => hex.name.to_s,
+          # Phase 1 of adapter-family activation : files declared with
+          # `Hecks.adapter_family` / `Hecks.provider` / `Hecks.behavior_kind`
+          # carry the meta-layer kind. Plain `Hecks.hecksagon` files leave
+          # this nil. Both halves must emit byte-equal canonical JSON, so
+          # the field is unconditionally present.
+          "framework_kind"   => (hex.respond_to?(:framework_kind) ? hex.framework_kind : nil),
           "persistence"      => hecksagon_persistence(hex),
           "subscriptions"    => Array(hex.subscriptions).map(&:to_s),
           "io_adapters"      => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
