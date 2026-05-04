@@ -1,0 +1,249 @@
+# DRAFT — Hecks::Runtime::ProcessManagerLoader
+#
+# == What this draft is
+#
+# Phase 2 runtime wiring for the +process_manager+ DSL keyword. Pure
+# design artifact ; sits in +dream-study/draft/+ so the autoloader does
+# not pick it up. When Phase 1 (the Ruby DSL parser + IR) merges and
+# Chris approves Phase 2, this file's contents move to
+# +ruby/hecks/runtime/process_manager_loader.rb+ as the production
+# implementation. The +.rb.draft+ extension is the antibody marker for
+# "design only, not active code".
+#
+# == When this activates
+#
+# Two preconditions :
+#
+# 1. Phase 1 commit lands on +dream-study+ (currently STAGED — antibody
+#    hook is awaiting Chris's per-file exemption call). Once landed,
+#    +Hecks::BluebookModel::Structure::Domain#process_managers+ returns
+#    the IR collection at runtime.
+# 2. Chris approves Phase 2 PR. Then this file moves to
+#    +ruby/hecks/runtime/process_manager_loader.rb+, gets a +require+
+#    in +ruby/hecks/runtime.rb+, and +Runtime#initialize+ calls
+#    +ProcessManagerLoader.load_all(@domain, @event_bus)+ after
+#    +setup_sagas+ — see the verification footer for the exact diff.
+#
+# == API contract
+#
+# Public surface is one class method, +load_all+ :
+#
+#   pms = Hecks::Runtime::ProcessManagerLoader.load_all(domain, event_bus)
+#   pms                  # => Array<Hecks::EventSourcing::ProcessManager>
+#   pms.first.name       # => "SleepCycle"
+#
+# The returned array is the bound, subscribed runtime PMs. The caller
+# (+Runtime+) stores them as +@process_managers+ for inspection. Each
+# PM is already +subscribe_to+'d the supplied event bus before
+# +load_all+ returns ; the caller does not need to subscribe.
+#
+# == Why a loader class vs a Setup mixin
+#
+# Sagas (+Hecks::Runtime::SagaSetup+) and Workflows
+# (+Hecks::Runtime::WorkflowSetup+) are mixins included into +Runtime+
+# that mutate +@mod+ by defining singleton methods. Process managers
+# don't define methods on the domain module — they're pure event
+# subscribers — so they don't need access to +Runtime+'s internals.
+#
+# Extracting as a standalone loader class :
+#
+# * keeps +Runtime+ lighter (no extra mixin to track ; just one call)
+# * makes the IR -> runtime mapping testable in isolation
+#   (no full Runtime construction needed in the spec — just a
+#   synthetic domain stub + an event bus)
+# * mirrors the +Hecks::Hecksagon::Loader+ class-method-only shape that
+#   Hecks already uses for IR -> runtime translations elsewhere
+#
+# The trade-off : a tiny break from the +setup_sagas+ / +setup_workflows+
+# rhythm. If Chris prefers consistency over the cleaner extraction, the
+# logic transposes trivially to a +ProcessManagerSetup+ module — see the
+# alternative shape in the verification footer.
+#
+# == Existing loader patterns mirrored
+#
+# Inspected at draft time :
+#
+# * +Hecks::Runtime::SagaSetup+ — closest analogue ; mints a runner per
+#   IR, stores instances on the runtime ; uses +SagaStore.new+ for state.
+#   This loader reuses +SagaStore+ exactly (it's documented as the
+#   intended PM backing store on
+#   +Hecks::EventSourcing::ProcessManager+'s class doc, line 9).
+# * +Hecks::Runtime::SubscriberSetup+ — same +event_bus.subscribe(...)+
+#   pattern this loader uses transitively via +pm.subscribe_to(bus)+.
+# * +Hecks::Runtime::WorkflowSetup+ — confirms the "walk a domain IR
+#   collection, instantiate one runtime per IR" pattern.
+#
+# Finding worth recording : there is no existing standalone +Loader+
+# class in +runtime/+ today. Sagas and Workflows are mixins ; the
+# subscriber wiring is also a mixin. This loader, if landed as a
+# class, becomes the first runtime/*_loader.rb file. Acceptable
+# precedent — the alternative (mixin form) is one file rename away
+# if Chris prefers consistency.
+#
+# == Usage example
+#
+#   # Inside Runtime#initialize, after setup_sagas :
+#   @process_managers = ProcessManagerLoader.load_all(@domain, @event_bus)
+#
+#   # The returned PMs are already wired ; events flowing through the
+#   # event bus drive their state machines. Inspect any one :
+#   sleep_cycle = @process_managers.find { |pm| pm.name == "SleepCycle" }
+#   # store accessible via sleep_cycle.store ; per-instance state
+#   # introspectable via sleep_cycle.store.find(correlation_id).
+module Hecks
+  class Runtime
+    # Hecks::Runtime::ProcessManagerLoader
+    #
+    # Translates the Domain IR's +process_managers+ collection into live,
+    # event-bus-subscribed +Hecks::EventSourcing::ProcessManager+ instances.
+    # Called once from +Runtime#initialize+ at boot ; not intended to be
+    # called again at runtime.
+    class ProcessManagerLoader
+      # Walk +domain.process_managers+, instantiate one runtime PM per
+      # IR node, bind every handler, subscribe each PM to the event bus,
+      # and return the collection.
+      #
+      # If the domain doesn't respond to +process_managers+ (older IR
+      # before Phase 1), or the collection is empty, returns +[]+ and
+      # touches no state.
+      #
+      # @param domain [Hecks::BluebookModel::Structure::Domain] the IR
+      # @param event_bus [Hecks::EventBus] the bus to subscribe each PM to
+      # @return [Array<Hecks::EventSourcing::ProcessManager>] bound, subscribed PMs
+      def self.load_all(domain, event_bus)
+        return [] unless domain.respond_to?(:process_managers)
+        return [] if domain.process_managers.nil? || domain.process_managers.empty?
+
+        domain.process_managers.map { |pm_ir| instantiate(pm_ir, event_bus) }
+      end
+
+      # Instantiate one runtime PM from one IR node. Binds every handler
+      # in declaration order, then subscribes the PM to the event bus.
+      #
+      # @param pm_ir [Hecks::BluebookModel::Behavior::ProcessManager]
+      # @param event_bus [Hecks::EventBus]
+      # @return [Hecks::EventSourcing::ProcessManager] bound + subscribed
+      def self.instantiate(pm_ir, event_bus)
+        pm = Hecks::EventSourcing::ProcessManager.new(
+          name: pm_ir.name,
+          store: Hecks::SagaStore.new
+        )
+        bind_handlers(pm, pm_ir)
+        pm.subscribe_to(event_bus)
+        pm
+      end
+
+      # Translate every IR Handler (+event_type+, +transition+, +action+)
+      # into a runtime +pm.on(event_type, correlate:, transition:, &action)+
+      # call. The IR's +correlates_by+ is threaded into each handler at
+      # this seam — the IR factors it out once per PM, the runtime takes
+      # it per-handler.
+      #
+      # @param pm [Hecks::EventSourcing::ProcessManager] the runtime PM
+      # @param pm_ir [Hecks::BluebookModel::Behavior::ProcessManager] the IR node
+      # @return [void]
+      def self.bind_handlers(pm, pm_ir)
+        pm_ir.handlers.each do |handler|
+          pm.on(
+            handler.event_type,
+            correlate: pm_ir.correlates_by,
+            transition: handler.transition,
+            &handler.action
+          )
+        end
+      end
+    end
+  end
+end
+
+# == Verification plan (when this lands as live code)
+#
+# === Activation diff
+#
+# When promoting from .draft to live :
+#
+# 1. +mv dream-study/draft/process_manager_loader.rb.draft \
+#         ruby/hecks/runtime/process_manager_loader.rb+
+# 2. In +ruby/hecks/runtime.rb+ :
+#    +require "hecks/runtime/process_manager_loader"+ near the existing
+#    +require "hecks/runtime/projection_setup"+ block.
+# 3. In +Runtime#initialize+, after the +setup_sagas+ line :
+#    +@process_managers = ProcessManagerLoader.load_all(@domain, @event_bus)+
+# 4. Add an +attr_reader :process_managers+ to +Runtime+'s reader list.
+#
+# === Spec sketch (synthetic PM end-to-end)
+#
+# In +spec/hecks/runtime/process_manager_loader_spec.rb+ — should run
+# in well under one second (no full +Runtime+, no real boot) :
+#
+#   describe Hecks::Runtime::ProcessManagerLoader do
+#     it "instantiates, binds, subscribes a synthetic PM" do
+#       handler = Hecks::BluebookModel::Behavior::ProcessManager::Handler.new(
+#         event_type: "OrderPlaced",
+#         transition: { nil => :started },
+#         action: ->(_event, _instance) { { commands: ["ReserveInventory"] } }
+#       )
+#       pm_ir = Hecks::BluebookModel::Behavior::ProcessManager.new(
+#         name: "OrderFulfillment",
+#         correlates_by: :order_id,
+#         starts_on: "OrderPlaced",
+#         states: %w[started],
+#         handlers: [handler]
+#       )
+#       domain = double(process_managers: [pm_ir])
+#       bus = Hecks::EventBus.new
+#
+#       pms = described_class.load_all(domain, bus)
+#       expect(pms.size).to eq(1)
+#       expect(pms.first.name).to eq("OrderFulfillment")
+#
+#       # Drive the state machine through the bus :
+#       event = double("OrderPlaced", order_id: "ord_42")
+#       def event.class; OrderPlaced ; end  # for const_short_name
+#       bus.publish("OrderPlaced", event)
+#
+#       instance = pms.first.store.find("ord_42")
+#       expect(instance[:state]).to eq(:started)
+#       expect(instance[:pending_commands]).to eq(["ReserveInventory"])
+#     end
+#
+#     it "is a no-op when domain has no process_managers attr" do
+#       expect(described_class.load_all(double, Hecks::EventBus.new)).to eq([])
+#     end
+#
+#     it "is a no-op when process_managers is empty" do
+#       domain = double(process_managers: [])
+#       expect(described_class.load_all(domain, Hecks::EventBus.new)).to eq([])
+#     end
+#   end
+#
+# === Smoke check (post-landing)
+#
+# +ruby -Iruby examples/pizzas/pizzas.rb+ — pizzas has no PMs, so it
+# must boot identically to before (proves the loader is benign on
+# domains that don't use the keyword).
+#
+# === SleepCycle integration (Phase 4 bridge)
+#
+# Once Phase 4's +sleep_cycle.bluebook+ declares the SleepCycle PM, the
+# verification is end-to-end : boot Miette, send a +SleepEntered+
+# event, confirm the PM transitions through its declared states by
+# inspecting +runtime.process_managers.first.store.find(body_id)+.
+#
+# == Runtime gaps spotted (inbox-worthy)
+#
+# 1. +Runtime+ owns the event bus and the IR ; calling the loader from
+#    inside +Runtime#initialize+ is the natural seam. +Hecks.boot+
+#    itself does not need changes — the loader hooks below the boot
+#    surface. (Sometimes Chris's prompt phrasing implies +Hecks.boot+
+#    is the integration point ; in this codebase it isn't.)
+# 2. +Hecks::SagaStore.new+ is in-memory only. PM instance state is
+#    lost on process restart. Acceptable for Phase 2 (matches saga
+#    behavior), but a follow-up inbox item should pair PM persistence
+#    with saga persistence so they evolve together.
+# 3. +pm.subscribe_to(event_bus)+ subscribes per declared event type.
+#    If the same event type is declared on two PMs (e.g. both SleepCycle
+#    and AwakeLife observe +PhaseElapsed+), both PMs receive the event
+#    independently — confirmed by re-reading +EventBus#subscribe+ ;
+#    that's the desired behavior, not a gap. Worth noting in the
+#    glossary lock at Phase 10.

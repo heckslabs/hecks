@@ -1,3 +1,6 @@
+# [antibody-exempt: parity/canonical_ir.rb — kernel-floor canonical IR dump,
+#  Phase 2.c set_specs key mirrors rust/src/dump.rs.]
+#
 # Hecks::Parity::CanonicalIR
 #
 # Walks a Hecks::BluebookModel::Structure::Domain and emits canonical JSON
@@ -30,14 +33,120 @@ module Hecks
 
       def dump(domain)
         all_policies = collect_all_policies(domain)
+        pms = domain.respond_to?(:process_managers) ? (domain.process_managers || []) : []
         {
-          "name"       => domain.name,
-          "category"   => category_for(domain),
-          "vision"     => domain.vision,
-          "aggregates" => domain.aggregates.map { |a| dump_aggregate(a) },
-          "policies"   => all_policies.map { |p| dump_policy(p) },
-          "fixtures"   => (domain.fixtures || []).map { |f| dump_fixture(f) },
+          "name"             => domain.name,
+          "category"         => category_for(domain),
+          "vision"           => domain.vision,
+          "aggregates"       => domain.aggregates.map { |a| dump_aggregate(a) },
+          "policies"         => all_policies.map { |p| dump_policy(p) },
+          "fixtures"         => (domain.fixtures || []).map { |f| dump_fixture(f) },
+          "process_managers" => pms.map { |pm| dump_process_manager(pm) },
         }
+      end
+
+      # Mirror Rust's dump_process_manager. Static shape only — the action
+      # proc on each handler is intentionally NOT dumped (Ruby-side
+      # execution, not part of the parity contract).
+      def dump_process_manager(pm)
+        {
+          "name"          => pm.name.to_s,
+          "correlates_by" => pm.correlates_by.to_s,
+          "starts_on"     => pm.starts_on.to_s,
+          "ends_on"       => pm.ends_on.nil? ? nil : pm.ends_on.to_s,
+          "states"        => (pm.states || []).map(&:to_s),
+          "handlers"      => (pm.handlers || []).map { |h| dump_pm_handler(h) },
+        }
+      end
+
+      def dump_pm_handler(h)
+        from, to = h.transition.first
+        # Phase 2.c — `set_specs` carries the declarative
+        # `set :attr, value_spec` list captured from the on-block.
+        # Each entry serialises as a [attr_name, value_spec] pair so
+        # declaration order survives JSON round-trip (matches Rust's
+        # Vec<(String, ValueSpec)> shape exactly).
+        set_specs = (h.respond_to?(:set_specs) ? (h.set_specs || []) : [])
+        {
+          # `dispatches` carries the declarative Aggregate.Command list
+          # captured from `dispatch "..."` keyword inside the on-block.
+          # Empty when the handler used the Ruby-proc form. Each entry
+          # is a structured DispatchSpec carrying the command name and
+          # an ordered with-spec : Phase 2.b (pm-dispatch-enrichment)
+          # extends bare strings with attribute flow (literal /
+          # from_event / from_pm).
+          "dispatches" => (h.respond_to?(:dispatches) ? (h.dispatches || []) : []).map { |d| dump_dispatch(d) },
+          "event_type" => h.event_type.to_s,
+          "from_state" => from.to_s,
+          "set_specs"  => set_specs.map { |attr, spec| [attr.to_s, dump_value_spec(spec)] },
+          "to_state"   => to.to_s,
+        }
+      end
+
+      # Mirror Rust's dump_dispatch. Accepts both the new DispatchSpec
+      # struct (Phase 2.b+) and bare strings (legacy ; future-proof if
+      # hand-built IRs in tests still pass strings). Strings normalise
+      # to a DispatchSpec with empty +with_spec+ and +for_each = nil+.
+      #
+      # i221-A — emits +"for_each"+ key on every DispatchSpec. The
+      # value is a +{source_aggregate, query_name}+ object when the
+      # dispatch declared a sweep, +nil+ (JSON null) otherwise. Bare
+      # / single-record dispatches stay byte-identical to the prior
+      # shape because the only addition is a new key whose value
+      # serialises as +null+.
+      def dump_dispatch(d)
+        if d.is_a?(String)
+          { "command_name" => d, "for_each" => nil, "with" => [] }
+        else
+          {
+            "command_name" => d.command_name.to_s,
+            "for_each"     => dump_for_each_spec(d.respond_to?(:for_each_spec) ? d.for_each_spec : nil),
+            "with"         => (d.with_spec || []).map { |key, spec| [key.to_s, dump_value_spec(spec)] },
+          }
+        end
+      end
+
+      # i221-A — mirror Rust's dump_for_each. +nil+ → JSON null ;
+      # otherwise emit a fixed-key object with +source_aggregate+ and
+      # +query_name+. Both fields stringified through +to_s+ so the
+      # canonical shape is unambiguous.
+      def dump_for_each_spec(spec)
+        return nil if spec.nil?
+        {
+          "source_aggregate" => spec.source_aggregate.to_s,
+          "query_name"       => spec.query_name.to_s,
+        }
+      end
+
+      # Mirror Rust's dump_value_spec. Four kinds : literal, from_event,
+      # from_pm, from_iter (i221-A). Literals stringify their +value+
+      # through to_s ; future work may type-tag this when
+      # dispatch_cascade learns numeric passing. +default+ is dumped
+      # as-is (nil → JSON null).
+      def dump_value_spec(spec)
+        case spec.kind.to_sym
+        when :literal
+          { "kind" => "literal", "value" => stringify_literal(spec.value) }
+        when :from_event
+          { "kind" => "from_event", "name" => spec.name.to_s,
+            "default" => stringify_literal(spec.default) }
+        when :from_pm
+          { "kind" => "from_pm", "name" => spec.name.to_s,
+            "default" => stringify_literal(spec.default) }
+        when :from_iter
+          { "kind" => "from_iter", "field" => spec.name.to_s }
+        else
+          raise "unknown ValueSpec.kind=#{spec.kind.inspect}"
+        end
+      end
+
+      # Literals + defaults arrive as Ruby scalars in the DSL ; Rust
+      # captures them as Strings (parser layer is line-textual). Coerce
+      # to String for byte-identical canonical JSON. nil → nil (JSON
+      # null), else to_s.
+      def stringify_literal(v)
+        return nil if v.nil?
+        v.to_s
       end
 
       def dump_aggregate(agg)
@@ -335,13 +444,56 @@ module Hecks
           # Normalize nil → "" so anonymous `Hecks.hecksagon do ... end`
           # files match the Rust parser (which defaults `name: String` to
           # the empty string when the quoted-name slot is absent).
-          "name"           => hex.name.to_s,
-          "persistence"    => hecksagon_persistence(hex),
-          "subscriptions"  => Array(hex.subscriptions).map(&:to_s),
-          "io_adapters"    => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
-                                .map { |io| dump_io_adapter(io) },
-          "shell_adapters" => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
-          "gates"          => Array(hex.gates).map { |g| dump_gate(g) },
+          "name"             => hex.name.to_s,
+          # Phase 1 of adapter-family activation : files declared with
+          # `Hecks.adapter_family` / `Hecks.provider` / `Hecks.behavior_kind`
+          # carry the meta-layer kind. Plain `Hecks.hecksagon` files leave
+          # this nil. Both halves must emit byte-equal canonical JSON, so
+          # the field is unconditionally present.
+          "framework_kind"   => (hex.respond_to?(:framework_kind) ? hex.framework_kind : nil),
+          "persistence"      => hecksagon_persistence(hex),
+          "subscriptions"    => Array(hex.subscriptions).map(&:to_s),
+          "io_adapters"      => Array(hex.respond_to?(:io_adapters) ? hex.io_adapters : [])
+                                  .map { |io| dump_io_adapter(io) },
+          "shell_adapters"   => Array(hex.shell_adapters).map { |sa| dump_shell_adapter(sa) },
+          "llm_adapters"     => Array(hex.respond_to?(:llm_adapters) ? hex.llm_adapters : [])
+                                  .map { |la| dump_llm_adapter(la) },
+          # i220 sub-gap 5 — compute adapter family parity dump.
+          "compute_adapters" => Array(hex.respond_to?(:compute_adapters) ? hex.compute_adapters : [])
+                                  .map { |ca| dump_compute_adapter(ca) },
+          "gates"            => Array(hex.gates).map { |g| dump_gate(g) },
+        }
+      end
+
+      # i220 sub-gap 5 — compute adapter family parity dump.
+      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json's
+      # compute_adapters projection. The shape carries `function_name`
+      # in place of llm's `prompt_template` / `model` / `max_tokens` /
+      # `backend` (no prompt + no provider for compute adapters).
+      def dump_compute_adapter(ca)
+        {
+          "name"                 => ca.name.to_s,
+          "function_name"        => ca.function_name.to_s,
+          "trigger_on"           => ca.trigger_on,
+          "response_into_target" => ca.response_into_target,
+          "response_into_attr"   => ca.response_into_attr&.to_s,
+        }
+      end
+
+      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json's
+      # llm_adapters projection. Ruby holds the response routing as
+      # two attributes (target + attr) ; the canonical shape mirrors
+      # both fields so the parity diff is byte-equal.
+      def dump_llm_adapter(la)
+        {
+          "name"                 => la.name.to_s,
+          "prompt_template"      => la.prompt_template.to_s,
+          "model"                => la.model,
+          "max_tokens"           => la.max_tokens,
+          "trigger_on"           => la.trigger_on,
+          "response_into_target" => la.response_into_target,
+          "response_into_attr"   => la.response_into_attr&.to_s,
+          "backend"              => la.backend&.to_s,
         }
       end
 

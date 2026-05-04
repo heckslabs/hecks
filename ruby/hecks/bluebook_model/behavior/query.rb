@@ -1,3 +1,10 @@
+# [antibody-exempt: ruby/hecks/bluebook_model/behavior/query.rb — kernel-
+#  surface bluebook DSL query recorder. i226 wires hash-form comparators
+#  (`where(field: { lt|lte|gt|gte|ne: value })`) on the Ruby side to
+#  mirror parse_blocks.rs ; the IR's WhereOp already carries each
+#  variant. Same retirement contract as parse_blocks.rs : exists to
+#  enable consolidate.sh + rem_branch.sh retirement (i221 / i222).]
+
 module Hecks
   module BluebookModel
     module Behavior
@@ -125,18 +132,49 @@ module Hecks
         self
       end
 
-      # `where(field: value)` records each kwarg as a WhereClause. Op
-      # defaults to :eq ; richer ops (gt / lt / ne / …) follow the same
-      # path when the DSL surface is extended.
+      # `where(field: value)` records each kwarg as a WhereClause.
+      #
+      # Two forms recognized (i226) :
+      #
+      #   where(field: value)              # eq form (default)
+      #   where(field: { lt: value })      # comparator hash form
+      #
+      # The comparator hash form uses a single-key inner hash where the
+      # key is one of :lt / :lte / :gt / :gte / :ne / :eq. Anything else
+      # falls through to eq with the literal hash as the value (best-
+      # effort — the parity test gates the canonical shapes).
+      COMPARATOR_OPS = {
+        lt:  "lt",  "lt"  => "lt",
+        lte: "lte", "lte" => "lte",
+        gt:  "gt",  "gt"  => "gt",
+        gte: "gte", "gte" => "gte",
+        ne:  "ne",  "ne"  => "ne",
+        eq:  "eq",  "eq"  => "eq",
+      }.freeze
+
       def where(**conditions)
         conditions.each do |field, value|
+          op, inner = extract_comparator(value)
           @wheres << WhereClause.new(
             field: field.to_s,
-            op:    "eq",
-            value: format_value(value),
+            op:    op,
+            value: format_value(inner),
           )
         end
         self
+      end
+
+      # If `value` is a single-key Hash whose key names a comparator op,
+      # return [op_string, inner_value]. Otherwise return ["eq", value]
+      # so the bare-form keeps the existing semantics.
+      def extract_comparator(value)
+        if value.is_a?(Hash) && value.size == 1
+          k, v = value.first
+          if (op = COMPARATOR_OPS[k])
+            return [op, v]
+          end
+        end
+        ["eq", value]
       end
 
       # `order_by :field` (asc by default) or `order_by :field, :desc`.

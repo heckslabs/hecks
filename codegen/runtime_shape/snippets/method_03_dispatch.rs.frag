@@ -66,8 +66,30 @@
             }
         }
 
+        // i220 sub-gap 5 — resolve `:compute` adapters BEFORE the
+        // policy cascade drains. Compute adapters populate context
+        // fields (e.g. recent_musings_summary) that downstream
+        // policy-driven dispatches (and the LLM hook below) read.
+        // Firing them first means a single top-level dispatch
+        // produces the fully-populated downstream chain.
+        self.resolve_compute_adapters(&result, command_name);
+
         // Drain policy triggers — recursively, so chains cascade fully
         self.drain_policies(&result);
+
+        // i221 — LLM dispatcher hook. After the cascade settles,
+        // scan loaded hecksagons for any `:llm` adapter whose
+        // `response_into_target` matches `Aggregate.Command` (the
+        // command the user just dispatched). When one matches,
+        // substitute its prompt template from the upstream
+        // aggregate's state + the dispatched attrs, call the
+        // resolved provider, and chain the response as a real
+        // dispatch back into the target with `response_into_attr`
+        // carrying the response text. The chain is finite by
+        // discipline : the response-driven dispatch has the
+        // populated attr already so its givens fall through (no
+        // re-entry), exactly as the Ruby surface relies on.
+        self.resolve_llm_adapters(&result, command_name);
 
         Ok(result)
     }

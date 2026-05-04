@@ -1,0 +1,66 @@
+Hecks.bluebook "Sleep", version: "2026.05.02.1" do
+  vision "Process manager fixture covering all DSL features"
+
+  aggregate "Body", "The body whose sleep we coordinate" do
+    attribute :body_id, String
+
+    command "Start" do
+      role "System"
+      attribute :body_id, String
+      emits "SleepStarted"
+    end
+  end
+
+  process_manager "SleepCycle" do
+    correlates_by :body_id
+    starts_on    "SleepStarted"
+    ends_on      "WakeFinished"
+
+    state "light"
+    state "rem"
+    state "deep"
+    state "studying_dream"
+
+    on "PhaseElapsed", transition: { light: :rem } do |event, pm|
+      { commands: ["AdvancePhase"] }
+    end
+
+    on "DreamPulsed", transition: { rem: :rem } do |event, pm|
+      { commands: ["RecordDream"] }
+    end
+
+    on "DeepEntered", transition: { rem: :deep } do |event, pm|
+      { commands: ["MarkDeep"] }
+    end
+
+    # Declarative dispatch form — Rust runtime reads this directly
+    on "WakeRequested", transition: { deep: :studying_dream } do
+      dispatch "Body.WakeUp"
+      dispatch "WakeReport.Compose"
+    end
+
+    # Phase 2.b — declarative dispatch with `with:` attribute flow.
+    # Three forms exercised here :
+    #   - bare scalar literal (`name: "body"`)
+    #   - `from_event(:tick)` — read upstream event attribute
+    #   - `from_pm(:carrying, default: "—")` — read PM attribute, default fires
+    on "Beat", transition: { rem: :rem } do
+      dispatch "Body.Tick", with: { name: "body", tick: from_event(:tick) }
+      dispatch "Mood.Reweight", with: {
+        carrying: from_pm(:carrying, default: "—"),
+        occurred_at: from_event(:occurred_at)
+      }
+    end
+
+    # Phase 2.c — declarative `set` writes to PM attributes. Three
+    # forms mirroring the with-spec : literal / from_event / from_pm.
+    # The set evaluates BEFORE the dispatch, so the dispatched
+    # commands' from_pm reads see the freshly-set value.
+    on "TargetSighted", transition: { rem: :rem } do
+      set :steering_target, from_event(:target)
+      set :carrying, "body"
+      set :tick, from_pm(:tick, default: "0")
+      dispatch "Body.Steer", with: { target: from_pm(:steering_target) }
+    end
+  end
+end

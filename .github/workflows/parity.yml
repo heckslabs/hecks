@@ -11,12 +11,29 @@ jobs:
     name: Ruby DSL ↔ Rust hecks-life
     runs-on: ubuntu-latest
 
+    # Multi-repo layout — same shape as test.yml. The Rust specializer
+    # for `system_prompt` reads from `<hecks-root>/../miette/self/...`
+    # ; checking out miette as a sibling under $GITHUB_WORKSPACE makes
+    # `../miette` resolve correctly from the cloned hecks dir. Without
+    # this, the rust_specializer_produces_byte_identical_system_prompt_rs
+    # cargo test panics with "cannot read shape ... No such file or
+    # directory" because miette isn't checked out.
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout hecks
+        uses: actions/checkout@v4
+        with:
+          path: hecks
+
+      - name: Checkout miette (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: chrisyoung/miette
+          path: miette
 
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
+          working-directory: hecks
           bundler-cache: true
 
       - uses: dtolnay/rust-toolchain@stable
@@ -27,33 +44,39 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            rust/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
+            hecks/rust/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('hecks/rust/Cargo.lock', 'hecks/rust/Cargo.toml') }}
 
       - name: Build hecks-life (release)
-        working-directory: rust
+        working-directory: hecks/rust
         run: cargo build --release --quiet
 
       - name: Cargo tests (incl. conceiver_parity_test)
-        working-directory: rust
+        working-directory: hecks/rust
         run: cargo test --release --quiet
 
       - name: Run parser parity suite (Ruby DSL ↔ Rust IR)
+        working-directory: hecks
         run: bundle exec ruby -Ilib parity/parity_test.rb
 
       - name: Run behaviors-runner parity suite (Ruby ↔ Rust)
+        working-directory: hecks
         run: bundle exec ruby -Ilib parity/behaviors_parity_test.rb
 
       - name: Run fixtures parity suite (Ruby ↔ Rust)
+        working-directory: hecks
         run: bundle exec ruby -Ilib parity/fixtures_parity_test.rb
 
       - name: Run hecksagon parity suite (Ruby ↔ Rust)
+        working-directory: hecks
         run: bundle exec ruby -Ilib parity/hecksagon_parity_test.rb
 
       - name: Run world parity suite (Ruby ↔ Rust)
+        working-directory: hecks
         run: bundle exec ruby -Ilib parity/world_parity_test.rb
 
       - name: Lifecycle validator across all bluebooks
+        working-directory: hecks
         run: |
           BAD=""
           for f in $(find hecks_conception -name "*.bluebook" \
@@ -70,6 +93,7 @@ jobs:
           echo "All bluebooks pass check-lifecycle"
 
       - name: Behavioral test corpus sweep (must be 100%)
+        working-directory: hecks
         run: |
           BIN=rust/target/release/hecks-life
           tot_pass=0; tot_fail=0; tot_err=0

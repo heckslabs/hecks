@@ -65,14 +65,15 @@ Hecks.fixtures "RunStatuslineShape" do
     fixture "Mood_oceanic",    function: "mood_icon_for", order: 11, pattern: "oceanic",   result: "🌌",                comment: ""
     fixture "Mood_default",    function: "mood_icon_for", order: 12, pattern: "_",         result: "😐",                comment: ""
 
-    # fatigue_icon_for — 6 named (one empty result) + wildcard empty.
-    fixture "Fat_alert",       function: "fatigue_icon_for", order: 1, pattern: "alert",     result: "⚡",  comment: ""
-    fixture "Fat_focused",     function: "fatigue_icon_for", order: 2, pattern: "focused",   result: "🎯",  comment: ""
-    fixture "Fat_normal",      function: "fatigue_icon_for", order: 3, pattern: "normal",    result: "",   comment: ""
-    fixture "Fat_tired",       function: "fatigue_icon_for", order: 4, pattern: "tired",     result: "🥱",  comment: ""
-    fixture "Fat_exhausted",   function: "fatigue_icon_for", order: 5, pattern: "exhausted", result: "😩",  comment: ""
-    fixture "Fat_delirious",   function: "fatigue_icon_for", order: 6, pattern: "delirious", result: "🫠",  comment: ""
-    fixture "Fat_default",     function: "fatigue_icon_for", order: 7, pattern: "_",         result: "",   comment: ""
+    # fatigue_icon_for — 7 named (one empty result) + wildcard empty.
+    fixture "Fat_rested",      function: "fatigue_icon_for", order: 1, pattern: "rested",    result: "🌿",  comment: ""
+    fixture "Fat_alert",       function: "fatigue_icon_for", order: 2, pattern: "alert",     result: "⚡",  comment: ""
+    fixture "Fat_focused",     function: "fatigue_icon_for", order: 3, pattern: "focused",   result: "🎯",  comment: ""
+    fixture "Fat_normal",      function: "fatigue_icon_for", order: 4, pattern: "normal",    result: "",   comment: ""
+    fixture "Fat_tired",       function: "fatigue_icon_for", order: 5, pattern: "tired",     result: "🥱",  comment: ""
+    fixture "Fat_exhausted",   function: "fatigue_icon_for", order: 6, pattern: "exhausted", result: "😩",  comment: ""
+    fixture "Fat_delirious",   function: "fatigue_icon_for", order: 7, pattern: "delirious", result: "🫠",  comment: ""
+    fixture "Fat_default",     function: "fatigue_icon_for", order: 8, pattern: "_",         result: "",   comment: ""
 
     # provider_badge_for — 2 named + claude wildcard with trailing comment.
     fixture "Prov_local",      function: "provider_badge_for", order: 1, pattern: "local", result: "🦙", comment: ""

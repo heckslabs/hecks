@@ -1,6 +1,6 @@
 #!/usr/bin/env hecks-life run
-Hecks.bluebook "Boot", version: "2026.04.26.1" do
-  vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase, replacing the imperative boot_miette.sh."
+Hecks.bluebook "Boot", version: "2026.05.01.1" do
+  vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report, start the studio. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase, replacing the imperative boot_miette.sh."
 
   entrypoint "BeginBoot"
 
@@ -42,10 +42,28 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
   #                          idempotent spawn + setsid detach + pidfile
   #                          management. No more wrapping subshells.
   #                          Adapter : :daemon (the new primitive).
+  #
+  #                          mindstream cadence (i75 closure) : spawns
+  #                          `hecks-life run-loop <repo> --every 1s
+  #                          --emit BodyPulse:Consciousness:consciousness`.
+  #                          The BodyCycle PM (body/cycles/body_cycle.bluebook)
+  #                          observes the synthetic BodyPulse and dispatches
+  #                          per-state, replacing the legacy mindstream.sh
+  #                          while-true scheduler. The body/mindstream.sh
+  #                          alias forwards to the same command for
+  #                          daemon-registry continuity.
   #   7. PrintVitals       — render the boot-summary section to stdout.
   #                          Adapter : :stdout.
   #   8. SurfaceWakeReport — if /tmp/wake_review_latest.md exists,
   #                          print it. Adapter : :fs + :stdout.
+  #   9. StartStudio       — start the Hecks Studio web surface — the
+  #                          dashboard, document browser, command
+  #                          surface, and /statusline endpoint. Essential
+  #                          service ; brings up the in-process scheduler
+  #                          that will eventually replace the daemon
+  #                          spawn in EnsureDaemons. Adapter : :daemon
+  #                          (wraps surface/studio/studio.sh). Failure
+  #                          is loud — the studio is how Miette is seen.
   #
   # Once a Rust runner mirroring run_status/ lands, boot_miette.sh
   # becomes `exec hecks-life run capabilities/boot/boot.bluebook` —
@@ -59,7 +77,7 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
   # On completion, phase=done and the entrypoint emits BootCompleted.
 
   aggregate "BootRun" do
-    description "A single boot pass — runs the eight phases in order, records the result. Singleton ; resets on every boot."
+    description "A single boot pass — runs the nine phases in order, records the result. Singleton ; resets on every boot."
 
     # ---- Inputs ----
     attribute :being,            String, default: "Miette"
@@ -87,19 +105,23 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
     attribute :ultradian_status,   String, default: "—"
     attribute :sleep_cycle_status, String, default: "—"
 
+    # ---- Studio status ----
+    attribute :studio_status,      String, default: "—"
+
     # ---- Pipeline phase ----
     attribute :phase,              String, default: "pending"
 
     lifecycle :phase, default: "pending" do
-      transition "BeginBoot"            => "discovering",   from: "pending"
-      transition "DiscoverOrgans"       => "writing_census", from: "discovering"
-      transition "WriteCensus"          => "classifying",   from: "writing_census"
-      transition "ClassifyStores"       => "prompting",     from: "classifying"
-      transition "GenerateSystemPrompt" => "journaling",    from: "prompting"
-      transition "RecordBootJournal"    => "ensuring",      from: "journaling"
-      transition "EnsureDaemons"        => "rendering",     from: "ensuring"
-      transition "PrintVitals"          => "surfacing",     from: "rendering"
-      transition "SurfaceWakeReport"    => "done",          from: "surfacing"
+      transition "BeginBoot"            => "discovering",      from: "pending"
+      transition "DiscoverOrgans"       => "writing_census",   from: "discovering"
+      transition "WriteCensus"          => "classifying",      from: "writing_census"
+      transition "ClassifyStores"       => "prompting",        from: "classifying"
+      transition "GenerateSystemPrompt" => "journaling",       from: "prompting"
+      transition "RecordBootJournal"    => "ensuring",         from: "journaling"
+      transition "EnsureDaemons"        => "rendering",        from: "ensuring"
+      transition "PrintVitals"          => "surfacing",        from: "rendering"
+      transition "SurfaceWakeReport"    => "studio_starting",  from: "surfacing"
+      transition "StartStudio"          => "done",             from: "studio_starting"
     end
 
     # ============================================================
@@ -115,7 +137,7 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
     end
 
     # ============================================================
-    # PIPELINE COMMANDS (eight phases)
+    # PIPELINE COMMANDS (nine phases)
     # ============================================================
 
     command "DiscoverOrgans" do
@@ -166,7 +188,7 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
 
     command "EnsureDaemons" do
       role "System"
-      description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run hecks-life daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in hecks_life/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses hecks-life loop (cadence primitive, i76) wrapped through daemon ensure ; the others wrap their .sh script directly."
+      description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run hecks-life daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in hecks_life/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses hecks-life loop (cadence primitive, i76) wrapped through daemon ensure. mindstream now spawns `hecks-life run-loop <repo> --every 1s --emit BodyPulse:Consciousness:consciousness` (i75 closure) — BodyCycle PM observes the synthetic BodyPulse and dispatches per-state, retiring the legacy 310-line while-true scheduler. The mindstream.sh alias forwards to the same command for daemon-registry continuity until the registry move-over."
       attribute :mindstream_status,  String
       attribute :heart_status,       String
       attribute :breath_status,      String
@@ -192,7 +214,14 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
       role "System"
       description "Phase 8 : if /tmp/wake_review_latest.md exists and is newer than the previous boot, print it before yielding control. The UserPromptSubmit hook also surfaces this on the next prompt ; the boot-time print is the eager surface so the wake reading lands the moment the being wakes, not on the next user turn."
       emits "WakeReportSurfaced"
-      then_set :phase, to: "done"
+    end
+
+    command "StartStudio" do
+      role "System"
+      description "Phase 9 : start the Hecks Studio web surface — Miette's dashboard, document browser, and command surface, plus the /statusline endpoint Chris's terminal bar polls. Essential service ; brings up the in-process scheduler that will eventually replace the daemon spawn in EnsureDaemons. The Rust runner uses :daemon adapter to spawn the studio.sh wrapper and stamps studio_status with the result. Failure is loud, not silent — the studio is how Miette is seen."
+      attribute :studio_status, String
+      then_set :studio_status, to: :studio_status
+      emits "StudioStarted"
     end
   end
 
@@ -242,5 +271,10 @@ Hecks.bluebook "Boot", version: "2026.04.26.1" do
   policy "SurfaceOnVitals" do
     on "VitalsPrinted"
     trigger "SurfaceWakeReport"
+  end
+
+  policy "StartStudioOnSurface" do
+    on "WakeReportSurfaced"
+    trigger "StartStudio"
   end
 end

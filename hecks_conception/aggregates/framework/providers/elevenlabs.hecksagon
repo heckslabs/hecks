@@ -1,0 +1,47 @@
+Hecks.provider "elevenlabs" do
+  # ElevenLabs as a provider for the :tts adapter family. The provider
+  # declaration says : "when an :tts adapter has provider: :elevenlabs,
+  # here is the HTTP shape, the auth, and the response handling."
+  #
+  # Adding a NEW field to :tts (e.g. :emotion) and wanting it to reach
+  # ElevenLabs = add the field to the request_body mapping below. Pure
+  # bluebook ; no kernel work.
+
+  vision "ElevenLabs TTS provider — bell-clear synthesis with strong accent
+          control via Voice Design. Wraps the v1/text-to-speech endpoint
+          and the voice_settings sub-object."
+
+  family :tts                       # which adapter family this implements
+  behavior :render_text_to_audio    # which kernel behavior_kind we satisfy
+
+  # Auth — the api key lives in a file. The runtime resolves the path,
+  # reads the file at first use, caches in memory.
+  api_key_path "~/.config/miette/elevenlabs.key"
+  api_key_header "xi-api-key"
+
+  # The HTTP request shape. Placeholders in the path interpolate the
+  # adapter instance's field values at dispatch time.
+  endpoint method: :POST,
+           url: "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+           content_type: "application/json"
+
+  # The request body — left side is the wire field, right side is either
+  # a literal, an adapter-instance field reference, or the dispatched text.
+  request_body do
+    text          from_dispatch(:text)         # the text being spoken
+    model_id      from_field(:model)           # adapter instance's :model
+    voice_settings do
+      speed             from_field(:speed)
+      stability         from_field(:stability, default: 0.5)
+      similarity_boost  from_field(:similarity_boost, default: 0.75)
+      style             from_field(:style, default: 0.0)
+    end
+  end
+
+  # The response — ElevenLabs returns binary MP3 ; we save it to the
+  # adapter instance's cache_dir, then optionally play.
+  response_kind :binary_audio
+  cache_into from_field(:cache_dir),
+             name_template: "miette_{utc_timestamp}.mp3"
+  play_after_cache when_field: :auto_play
+end

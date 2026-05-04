@@ -23,5 +23,33 @@ Hecks.fixtures "ParseBlocksShape" do
     fixture "SplitTopLevelCommasSection", name: "split_top_level_commas",  order: 14, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/13_split_top_level_commas.rs.frag",    description: "fn split_top_level_commas — comma splitter that respects strings/brackets/parens/braces"
     fixture "EscapedAtSection",          name: "escaped_at",               order: 15, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/14_escaped_at.rs.frag",               description: "fn escaped_at — true if the byte before index i is a backslash"
     fixture "ParseMutationSection",      name: "parse_mutation",           order: 16, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/15_parse_mutation.rs.frag",          description: "pub fn parse_mutation — then_set / then_toggle / then_delete mutation reader (set/append/increment/decrement/multiply/clamp/decay/from)"
+    fixture "ParseProcessManagerSection", name: "parse_process_manager",   order: 17, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/16_parse_process_manager.rs.frag",  description: "pub fn parse_process_manager — process_manager block reader (correlates_by, starts_on, ends_on, states, on/transition handlers ; action body skipped via on-indent matching)"
+    fixture "ParsePmHandlerSection",     name: "parse_pm_handler",         order: 18, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/17_parse_pm_handler.rs.frag",      description: "fn parse_pm_handler — single on-line handler reader (transition: { from: :to } in either symbol-rocket or hash-rocket form)"
+
+    # Phase 2.b/2.c (pm-dispatch-enrichment + pm-attribute-writes) :
+    # parse_process_manager's body walker now captures `dispatch "Cmd",
+    # with: { ... }` and `set :attr, value_spec` lines into structured
+    # DispatchSpec / ValueSpec values on each handler. The eight new
+    # helpers are emitted in the same verbatim_section style.
+    fixture "IsDispatchStartSection",       name: "is_dispatch_start",        order: 19, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/18_is_dispatch_start.rs.frag",       description: "fn is_dispatch_start — predicate guarding the on-block dispatch capture"
+    fixture "IsSetStartSection",            name: "is_set_start",             order: 20, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/19_is_set_start.rs.frag",            description: "fn is_set_start — predicate guarding the on-block set capture"
+    fixture "ParseSetStatementSection",     name: "parse_set_statement",      order: 21, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/20_parse_set_statement.rs.frag",     description: "fn parse_set_statement — `set :attr, value_spec` line reader"
+    fixture "IsBalancedSection",            name: "is_balanced",              order: 22, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/21_is_balanced.rs.frag",            description: "fn is_balanced — paren / brace balance check for multi-line glue"
+    fixture "ParseDispatchStatementSection", name: "parse_dispatch_statement", order: 23, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/22_parse_dispatch_statement.rs.frag", description: "fn parse_dispatch_statement — `dispatch \"Cmd\", with: { ... }` reader"
+    fixture "MatchCloseBraceSection",       name: "match_close_brace",        order: 24, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/23_match_close_brace.rs.frag",       description: "fn match_close_brace — depth-counting brace matcher"
+    fixture "ParseWithHashSection",         name: "parse_with_hash",          order: 25, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/24_parse_with_hash.rs.frag",         description: "fn parse_with_hash — with-hash body reader to ordered (key, ValueSpec) pairs"
+    fixture "ParseValueSpecSection",        name: "parse_value_spec",         order: 26, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/25_parse_value_spec.rs.frag",        description: "fn parse_value_spec — Literal / FromEvent / FromPm dispatch reader"
+    fixture "ParseSentinelArgsSection",     name: "parse_sentinel_args",      order: 27, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/26_parse_sentinel_args.rs.frag",     description: "fn parse_sentinel_args — (name, default) parser for from_event / from_pm sentinels"
+
+    # i76 cadence primitive : parse_cadence + parse_cadence_dispatch_line
+    # + the cadence-local split_top_level_cadence helper.
+    fixture "ParseCadenceSection",              name: "parse_cadence",              order: 28, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/27_parse_cadence.rs.frag",              description: "pub fn parse_cadence — cadence block reader (i76)"
+    fixture "ParseCadenceDispatchLineSection",  name: "parse_cadence_dispatch_line", order: 29, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/28_parse_cadence_dispatch_line.rs.frag", description: "pub fn parse_cadence_dispatch_line — single dispatch line within a cadence block"
+    fixture "SplitTopLevelCadenceSection",      name: "split_top_level_cadence",     order: 30, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/29_split_top_level_cadence.rs.frag",      description: "fn split_top_level_cadence — kwarg-aware comma splitter for cadence dispatch lines"
+
+    # Phase 2.b/2.c unit tests live alongside the parser they exercise ;
+    # block stays at the file's tail so cargo test pulls them with the
+    # rest of parse_blocks.
+    fixture "DispatchTestsSection",             name: "dispatch_tests",              order: 31, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/30_dispatch_tests.rs.frag",              description: "#[cfg(test)] mod dispatch_tests — Phase 2.b/2.c parser unit tests"
   end
 end

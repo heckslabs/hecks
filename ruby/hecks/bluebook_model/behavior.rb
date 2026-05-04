@@ -43,6 +43,9 @@ module Hecks
       autoload :ScheduledStep,  "hecks/bluebook_model/behavior/workflow_step"
       autoload :Saga,           "hecks/bluebook_model/behavior/saga"
       autoload :SagaStep,       "hecks/bluebook_model/behavior/saga_step"
+      autoload :ProcessManager, "hecks/bluebook_model/behavior/process_manager"
+      autoload :Cadence,        "hecks/bluebook_model/behavior/cadence"
+      autoload :BlockGrammar,   "hecks/bluebook_model/behavior/block_grammar"
       autoload :Given,          "hecks/bluebook_model/behavior/given"
       autoload :Mutation,       "hecks/bluebook_model/behavior/mutation"
     end

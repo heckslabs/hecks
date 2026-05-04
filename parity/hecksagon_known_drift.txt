@@ -57,3 +57,19 @@
 # so they could never trigger. The underlying gap (Ruby DSL doesn't
 # model `domain "name"`) is real but tracked alongside the nursery
 # corpus's training role, not here.
+
+# ── (Retired 2026-05-04 — adapter-family activation Phase 1) ──
+# The framework hecksagons (Hecks.adapter_family / Hecks.provider /
+# Hecks.behavior_kind) now parse byte-equal between Ruby and Rust :
+#   - Ruby half : Hecks.adapter_family / .provider / .behavior_kind
+#     entry methods in builder_methods.rb route to a shared
+#     FrameworkDeclarationBuilder that captures name + framework_kind
+#     and tolerates any inner DSL silently.
+#   - Rust half : is_hecksagon_source + parse() recognise the three
+#     new top-level prefixes and stamp `framework_kind` on the IR.
+#   - Canonical IR : `framework_kind` joins the dump shape on both
+#     halves (Some("adapter_family"|"provider"|"behavior_kind") for
+#     framework files ; null for plain hecksagons).
+# Phase 2 will capture the inner DSL (fields, providers, request_body,
+# endpoint, voice_settings, from_dispatch, from_field, ...) into a
+# richer payload so the runtime registry can drive dispatch.

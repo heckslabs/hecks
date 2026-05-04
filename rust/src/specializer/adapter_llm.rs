@@ -4,10 +4,11 @@
 //! claude shell-invoke + dispatcher) regenerated from the
 //! `driven_adapter_shape` bluebook + ordered `.rs.frag` snippets.
 //!
-//! Design — section-as-row, body_kind dispatches emission :
-//!   The shape declares one `Section` row per ordered code section in
-//!   the target. Each row's `body_kind` picks the emission template :
+//! Design — section-as-row, body_kind dispatches emission. The shape
+//! declares one `Section` row per ordered code section in the target.
+//! Each row's `body_kind` picks the emission template :
 //!
+//! ```text
 //!     verbatim_section — read `snippet_path` raw, emit unchanged.
 //!                        Used for the dispatcher (LlmConfig typedef +
 //!                        resolve + resolve_ollama back-compat shim).
@@ -30,14 +31,18 @@
 //!                        default_bin, flag, timeout_secs, min_len,
 //!                        max_len ; the per-backend doc comment block
 //!                        comes from `doc_snippet`.
+//! ```
 //!
 //! The two new body_kinds emit different function bodies but the
 //! same input → Option<String> signature family, which is what lets
 //! the dispatcher route to either via match-on-backend-string.
 //!
 //! Usage :
+//!
+//! ```ignore
 //!   let rust = adapter_llm::emit(repo_root)?;
 //!   print!("{}", rust);
+//! ```
 //!
 //! [antibody-exempt: hecks_life/src/specializer/adapter_llm.rs —
 //!  i147 Wave 3-B Rust-native specializer for runtime/adapter_llm.rs.

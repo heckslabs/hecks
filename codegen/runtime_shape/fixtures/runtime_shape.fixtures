@@ -105,6 +105,17 @@ Hecks.fixtures "RuntimeShape" do
       body_kind: "verbatim_section",
       snippet_path: "codegen/runtime_shape/snippets/39_trigram_sim_fn.rs.frag",
       description: "trigram_sim — Sørensen-Dice-like trigram similarity scoring used by resolve_query's MatchInput"
+
+    # i221-B — converts serde_json::Map (from resolve_query's JSON dump
+    # of matched records) back into the runtime's Value enum so
+    # from_iter(:field) reads land in the right shape during sweep
+    # dispatch. Lives at the bottom of the file, after trigram_sim.
+    fixture "JsonObjToValueMapFn",
+      name: "json_obj_to_value_map_fn",
+      order: 14,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/runtime_shape/snippets/41_json_obj_to_value_map_fn.rs.frag",
+      description: "json_obj_to_value_map — converts serde_json::Map<String, serde_json::Value> into HashMap<String, Value> for sweep_records iter_data ; i221-B free helper at file bottom"
   end
 
   aggregate "RuntimeMethod" do
@@ -115,78 +126,106 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/method_01_boot.rs.frag",
       description: "boot — three-line overload that delegates to boot_with_data_dir(domain, None)"
 
+    # i221 — boot_with_hecksagons + register_llm_provider helpers wire
+    # the LLM dispatcher into the runtime. Live between boot and
+    # boot_with_data_dir.
+    fixture "BootHelpers",
+      name: "boot_helpers",
+      order: 2,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/method_01a_boot_helpers.rs.frag",
+      description: "boot_with_hecksagons + register_llm_provider — i221 hooks for LLM dispatcher"
+
     fixture "BootWithDataDir",
       name: "boot_with_data_dir",
-      order: 2,
+      order: 3,
       body_kind: "boot_pipeline",
       description: "boot_with_data_dir — synthetic ; emits the full Domain → wired Runtime pipeline by walking BootPhase rows in order"
 
     fixture "Dispatch",
       name: "dispatch",
-      order: 3,
+      order: 4,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_03_dispatch.rs.frag",
       description: "dispatch — entry point for top-level command dispatch ; runs middleware, calls command_dispatch::dispatch, writes the .last_dispatch breadcrumb (non-daemon only), runs after-middleware, applies projections, drains policy cascades"
 
     fixture "DispatchIsolated",
       name: "dispatch_isolated",
-      order: 4,
+      order: 5,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_04_dispatch_isolated.rs.frag",
       description: "dispatch_isolated — dispatch without firing policy cascades ; used for SETUP commands in behavior tests"
 
+    # i221 — publish_synthetic_event + resolve_llm_adapters. Live
+    # between dispatch_isolated and find.
+    fixture "PmHelpers",
+      name: "pm_helpers",
+      order: 6,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/method_04a_pm_helpers.rs.frag",
+      description: "publish_synthetic_event + resolve_llm_adapters — substrate for the PM loop driver and the i221 LLM dispatcher hook"
+
     fixture "Find",
       name: "find",
-      order: 5,
+      order: 7,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_05_find.rs.frag",
       description: "find — exact-key fast path then context-disambiguation suffix walk ; returns the AggregateState for (aggregate_name, id)"
 
     fixture "All",
       name: "all",
-      order: 6,
+      order: 8,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_06_all.rs.frag",
       description: "all — returns every AggregateState for an aggregate name via repo_lookup_key"
 
     fixture "DrainPolicies",
       name: "drain_policies",
-      order: 7,
+      order: 9,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_07_drain_policies.rs.frag",
-      description: "drain_policies — recursive policy-trigger cascade ; injects refs (self-ref + singleton fallback), passes upstream type+id as cascade hint, completes each policy"
+      description: "drain_policies — recursive policy-trigger cascade ; injects refs (self-ref + singleton fallback), passes upstream type+id as cascade hint, completes each policy. Phase 2.b/2.c walks PM dispatches with structured ValueSpec resolution."
+
+    # Phase 2.b/2.c — ValueSpec evaluation + set-pairs evaluation
+    # live between drain_policies and inject_refs.
+    fixture "PmValueHelpers",
+      name: "pm_value_helpers",
+      order: 10,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/method_07a_pm_value_helpers.rs.frag",
+      description: "evaluate_value_spec + pm_set_pairs — runtime ValueSpec resolution for PM dispatch"
 
     fixture "InjectRefs",
       name: "inject_refs",
-      order: 8,
+      order: 11,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_08_inject_refs.rs.frag",
       description: "inject_refs — for each reference on the triggered command, inject an id under its kwarg name (upstream-type match → upstream id ; singleton fallback) ; also injects identified_by key for natural-key singletons"
 
     fixture "AddProjection",
       name: "add_projection",
-      order: 9,
+      order: 12,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_09_add_projection.rs.frag",
       description: "add_projection — public API for tests / Rails integration to push a Projection onto the runtime"
 
     fixture "QueryProjection",
       name: "query_projection",
-      order: 10,
+      order: 13,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_10_query_projection.rs.frag",
       description: "query_projection — runs a named query against the named projection ; returns Vec<HashMap<String,Value>>. Note : in source there is NO blank line between query_projection's closing brace and resolve_query's leading doc comment, so this snippet has no trailing blank"
 
     fixture "ResolveQuery",
       name: "resolve_query",
-      order: 11,
+      order: 14,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_11_resolve_query.rs.frag",
       description: "resolve_query — search IR (MatchInput trigram path) or return aggregate state ; the MCP query surface"
 
     fixture "RunInteractive",
       name: "run_interactive",
-      order: 12,
+      order: 15,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_12_run_interactive.rs.frag",
       description: "run_interactive — terminal adapter REPL entry point ; the final method in impl Runtime"
@@ -205,15 +244,24 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/phase_2_wire_policies.rs.frag",
       description: "Phase 2 — for-loop over domain.policies : register each policy (name, on_event, trigger_command) with a fresh PolicyEngine"
 
+    # dream-study Phase 3 — PM engine wiring + load_persisted hook so PM
+    # instances resume across subprocess forks. Inserted between
+    # wire_policies and wire_projections to keep boot in source order.
+    fixture "WirePmEngine",
+      name: "wire_pm_engine",
+      order: 3,
+      snippet_path: "codegen/runtime_shape/snippets/phase_2a_wire_pm_engine.rs.frag",
+      description: "Phase 2a — PMEngine wiring : for-loop over domain.process_managers + load_persisted from heki"
+
     fixture "WireProjections",
       name: "wire_projections",
-      order: 3,
+      order: 4,
       snippet_path: "codegen/runtime_shape/snippets/phase_3_wire_projections.rs.frag",
       description: "Phase 3 — iter+map+collect over domain.aggregates : build a Projection per aggregate via projection::auto_projection"
 
     fixture "AssembleRuntime",
       name: "assemble_runtime",
-      order: 4,
+      order: 5,
       snippet_path: "codegen/runtime_shape/snippets/phase_4_assemble_runtime.rs.frag",
       description: "Phase 4 — Runtime { … } literal that takes domain + data_dir from the function args, the locals built by phases 1-3, and fresh EventBus::new() + MiddlewareStack::new() instances"
   end

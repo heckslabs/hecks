@@ -1,0 +1,112 @@
+# Phase 9 prep — value_object enum tables for Mood / FatigueState / Provider
+#
+# Each table replaces a `match` block in run_statusline.rs. Glyphs live
+# in fixture rows ; the runtime walks the table by name and reads :icon.
+# Bluebook syntax sketch — drops alongside the source aggregate that
+# emits the named state.
+#
+# The "fixture rows" pattern is the same shape DreamLanguage and
+# SteeringTarget will use ; getting it landed here unblocks both.
+
+# ============================================================
+# Mood — 11 named states + "_ → 😐" fallback
+# ============================================================
+#
+# Drop into `aggregates/.../mood.bluebook` (or wherever Mood lives,
+# alongside the `aggregate "Mood"` block).
+
+value_object "MoodState" do
+  description "A named hormonal state ; carries its glyph as data."
+
+  attribute :name, String, primary: true
+  attribute :icon, String
+
+  fixtures do
+    row name: "refreshed", icon: "😊"
+    row name: "excited",   icon: "🤩"
+    row name: "focused",   icon: "🎯"
+    row name: "curious",   icon: "🤔"
+    row name: "drifting",  icon: "🌀"
+    row name: "groggy",    icon: "😵‍💫"   # face-with-spiral-eyes ZWJ
+    row name: "vivid",     icon: "✨"
+    row name: "sleeping",  icon: "😴"
+    row name: "flowing",   icon: "🌊"
+    row name: "deep",      icon: "🧘"
+    row name: "oceanic",   icon: "🌌"
+  end
+
+  fallback :icon, "😐"   # the unknown-mood face the Rust match returns
+end
+
+# ============================================================
+# FatigueState — 7 named states + "" hide-row fallback
+# ============================================================
+#
+# Drop into `aggregates/.../heartbeat.bluebook` (or fatigue.bluebook)
+# alongside Heartbeat's :fatigue_state attribute.
+
+value_object "FatigueState" do
+  description "Tiredness rung. Empty :icon → row hidden in statusline."
+
+  attribute :name, String, primary: true
+  attribute :icon, String
+
+  fixtures do
+    row name: "rested",    icon: "🌿"
+    row name: "alert",     icon: "⚡"
+    row name: "focused",   icon: "🎯"
+    row name: "normal",    icon: ""    # intentionally empty → hides row
+    row name: "tired",     icon: "🥱"
+    row name: "exhausted", icon: "😩"
+    row name: "delirious", icon: "🫠"
+  end
+
+  fallback :icon, ""   # unknown fatigue → hide row
+end
+
+# ============================================================
+# Provider — 3 known badges + claude-default fallback
+# ============================================================
+#
+# Drop into `aggregates/.../claude_assist.bluebook` alongside the
+# :provider attribute.
+
+value_object "Provider" do
+  description "LLM provider currently bound to ClaudeAssist."
+
+  attribute :name, String, primary: true
+  attribute :icon, String
+
+  fixtures do
+    row name: "claude", icon: "🤖"
+    row name: "local",  icon: "🦙"
+    row name: "off",    icon: "🚫"
+  end
+
+  fallback :icon, "🤖"   # unset / unknown → claude default
+end
+
+# ============================================================
+# Notes
+# ============================================================
+#
+# 1. The `fallback :icon, "..."` form is new ; sketches the gap. The
+#    runtime needs a way to register "missing-key default" on a
+#    value_object lookup. Today that's a `match _ => "😐"` arm in
+#    Rust ; tomorrow it's a single attribute on the table.
+#
+# 2. The MoodState "groggy" entry uses the explicit ZWJ codepoint
+#    (`‍`) to preserve the byte-exact face-with-spiral-eyes
+#    sequence the Rust file emits. The fixture parser must keep this
+#    intact — bluebook strings should support `\uXXXX` escapes (or the
+#    encoder emits the literal three-codepoint sequence).
+#
+# 3. FatigueState's :name "rested" was added 2026-04-30 via PR #555 ;
+#    the fixture row mirrors the i147 W7 specializer regeneration.
+#
+# 4. The Render query (see draft_render_query.bluebook) reaches each
+#    table via `via: :icon_of` / `via: :icon_of_fatigue` / `via:
+#    :icon_of_provider` ; that operator is shorthand for "look up
+#    value_object by name on the source aggregate's reading, return
+#    its :icon attribute, fall back to the table's :fallback if the
+#    name is unrecognised."

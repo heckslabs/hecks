@@ -21,6 +21,12 @@ Hecks::Chapters.load_chapter(
 require "hecks/runtime/projection_setup"
 require "hecks/runtime/projection"
 require "hecks/runtime/shell_dispatcher"
+require "hecks/runtime/llm_dispatcher"
+require "hecks/runtime/llm_providers/base"
+require "hecks/runtime/llm_providers/claude_provider"
+require "hecks/runtime/llm_providers/ollama_provider"
+require "hecks/runtime/prompt_scaffolder"
+require "hecks/runtime/process_manager_setup"
 
 module Hecks
   # Hecks::Runtime
@@ -40,13 +46,14 @@ module Hecks
     include AuthCoverageCheck
     include ReferenceCoverageCheck
     include SagaSetup
+    include ProcessManagerSetup
     include ExtensionDispatch
     include ConfigurationDSL
     include CommandDispatch
     include AdapterWiring
     include ProjectionSetup
 
-    attr_reader :domain, :event_bus, :command_bus, :actor_system
+    attr_reader :domain, :event_bus, :command_bus, :actor_system, :process_managers
 
     # @param domain [Hecks::BluebookModel::Structure::Domain] the domain IR
     # @param gate [Symbol, nil] optional gate name
@@ -67,6 +74,7 @@ module Hecks
       @runtime_options = {}
       @async_handler = nil
       @shell_adapters = {}
+      @llm_adapters = {}
 
       instance_eval(&config) if config
 
@@ -81,6 +89,7 @@ module Hecks
       ServiceSetup.bind(@domain, @mod, @command_bus)
       setup_workflows
       setup_sagas
+      setup_process_managers
       hoist_constants
       setup_actor_system
       apply_hecksagon_capabilities unless skip_capabilities
@@ -117,6 +126,35 @@ module Hecks
               "no shell adapter :#{name} registered on runtime :#{@domain.name}"
       end
       ShellDispatcher.call(adapter, attrs)
+    end
+
+    # Register a hecksagon LLM adapter so `#llm(name, **attrs)` can
+    # dispatch it. Called from Hecks::Boot#wire_llm_adapters after
+    # hecksagons are loaded.
+    #
+    # @param adapter [Hecksagon::Structure::LlmAdapter]
+    # @return [Hecksagon::Structure::LlmAdapter]
+    def register_llm_adapter(adapter)
+      @llm_adapters[adapter.name] = adapter
+    end
+
+    # Dispatch a named LLM adapter with runtime attrs substituted into
+    # its prompt_template's {{placeholder}} tokens.
+    #
+    #   runtime.llm(:dream_image, seed_image: "blue")
+    #   # => LlmDispatcher::Result
+    #
+    # @param name [Symbol, String] adapter name
+    # @param attrs [Hash] placeholder values
+    # @return [Hecks::Runtime::LlmDispatcher::Result]
+    # @raise [Hecks::ConfigurationError] if no adapter with that name is registered
+    def llm(name, **attrs)
+      adapter = @llm_adapters[name.to_sym]
+      unless adapter
+        raise Hecks::ConfigurationError,
+              "no llm adapter :#{name} registered on runtime :#{@domain.name}"
+      end
+      LlmDispatcher.call(adapter, attrs)
     end
 
     private
