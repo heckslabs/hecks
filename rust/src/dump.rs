@@ -24,8 +24,9 @@
 
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
-    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy, Query,
-    Reference, Transition, ValueObject, WhereClause, WhereOp,
+    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
+    DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
+    ValueObject, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 
@@ -37,7 +38,84 @@ pub fn dump(domain: &Domain) -> Value {
         "aggregates": domain.aggregates.iter().map(dump_aggregate).collect::<Vec<_>>(),
         "policies": domain.policies.iter().map(dump_policy).collect::<Vec<_>>(),
         "fixtures": domain.fixtures.iter().map(dump_fixture).collect::<Vec<_>>(),
+        "process_managers": domain.process_managers.iter().map(dump_process_manager).collect::<Vec<_>>(),
     })
+}
+
+fn dump_process_manager(pm: &ProcessManager) -> Value {
+    json!({
+        "name": pm.name,
+        "correlates_by": pm.correlates_by,
+        "starts_on": pm.starts_on,
+        "ends_on": pm.ends_on,
+        "states": pm.states,
+        "handlers": pm.handlers.iter().map(dump_pm_handler).collect::<Vec<_>>(),
+    })
+}
+
+fn dump_pm_handler(h: &ProcessManagerHandler) -> Value {
+    let set_pairs: Vec<Value> = h
+        .set_specs
+        .iter()
+        .map(|(k, spec)| json!([k, dump_value_spec(spec)]))
+        .collect();
+    json!({
+        "dispatches": h.dispatches.iter().map(dump_dispatch).collect::<Vec<_>>(),
+        "event_type": h.event_type,
+        "from_state": h.from_state,
+        "set_specs": set_pairs,
+        "to_state": h.to_state,
+    })
+}
+
+/// Mirror Ruby's CanonicalIR.dump_dispatch. Phase 2.b
+/// (pm-dispatch-enrichment) — dispatches carry a structured
+/// command_name + ordered with-spec map. i221-A — also emit a
+/// `for_each` key (Some sweep → object, None → null).
+fn dump_dispatch(d: &DispatchSpec) -> Value {
+    let with_pairs: Vec<Value> = d
+        .with_spec
+        .iter()
+        .map(|(k, spec)| json!([k, dump_value_spec(spec)]))
+        .collect();
+    let for_each = match &d.for_each {
+        Some(fe) => json!({
+            "source_aggregate": fe.source_aggregate,
+            "query_name": fe.query_name,
+        }),
+        None => Value::Null,
+    };
+    json!({
+        "command_name": d.command_name,
+        "for_each": for_each,
+        "with": with_pairs,
+    })
+}
+
+/// Mirror Ruby's CanonicalIR.dump_value_spec. Four kinds : literal,
+/// from_event, from_pm, from_iter (i221-A). Defaults serialise as
+/// JSON null when absent.
+fn dump_value_spec(spec: &ValueSpec) -> Value {
+    match spec {
+        ValueSpec::Literal { value } => json!({
+            "kind": "literal",
+            "value": value,
+        }),
+        ValueSpec::FromEvent { name, default } => json!({
+            "kind": "from_event",
+            "name": name,
+            "default": default,
+        }),
+        ValueSpec::FromPm { name, default } => json!({
+            "kind": "from_pm",
+            "name": name,
+            "default": default,
+        }),
+        ValueSpec::FromIter { field } => json!({
+            "kind": "from_iter",
+            "field": field,
+        }),
+    }
 }
 
 fn dump_aggregate(agg: &Aggregate) -> Value {

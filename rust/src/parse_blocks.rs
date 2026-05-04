@@ -8,6 +8,14 @@
 //!  on `then_set`. Same retirement contract as ir.rs : the .rs surface
 //!  exists to enable pulse_organs.bluebook + consolidate retirement
 //!  (i80 cli-routing-as-bluebook).]
+//!
+//! [antibody-exempt: i226 parse-where-comparator-hash-form — kernel-surface
+//!  parser extension that recognizes `where(field: { lt|lte|gt|gte|ne: value })`
+//!  hash-form comparators. The IR's WhereOp already carries every variant ;
+//!  this is the parser side wiring that makes them reachable from .bluebook.
+//!  Without it, queries like `Synapse.cold` (where last_fired_at < cutoff)
+//!  cannot be expressed as first-class queries, and consolidate.sh /
+//!  rem_branch.sh cannot retire (i221 / i222). Same retirement contract.]
 
 use crate::ir::*;
 use crate::parser_helpers::*;
@@ -305,11 +313,15 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
 
 /// Parse one `where ...` line into one or more WhereClauses.
 ///
-/// Forms recognized (all eq op for now ; richer ops follow as fixtures
-/// demand them) :
-///   where field: value           (hash form, eq)
-///   where(field: value)          (parenthesized hash form, eq)
-///   where field1: v1, field2: v2 (multi-pair, all eq)
+/// Forms recognized :
+///   where field: value                  (hash form, eq)
+///   where(field: value)                 (parenthesized hash form, eq)
+///   where field1: v1, field2: v2        (multi-pair, all eq)
+///   where(field: { lt: value })         (comparator hash form — i226)
+///   where(field: { lte: value })
+///   where(field: { gt: value })
+///   where(field: { gte: value })
+///   where(field: { ne: value })
 ///
 /// Values are captured as canonical source tokens : `"available"` keeps
 /// its quotes stripped → "available" ; `:author` keeps its colon prefix
@@ -330,27 +342,23 @@ pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> 
         }
     }
     let mut out = Vec::new();
-    for part in body.split(',') {
+    for part in split_top_level_commas(body) {
         let part = part.trim();
         if part.is_empty() { continue; }
         if let Some(colon) = part.find(':') {
             let field = part[..colon].trim().to_string();
             let raw = part[colon + 1..].trim();
             if field.is_empty() { continue; }
-            let value = if raw.starts_with('"') {
-                extract_string(raw).unwrap_or_default()
-            } else if raw.starts_with(':') {
-                raw.split(|c: char| c == ',' || c.is_whitespace())
-                    .next().unwrap_or("").to_string()
-            } else {
-                let token = raw.split(|c: char| c == ',' || c.is_whitespace())
-                    .next().unwrap_or("").to_string();
-                if param_names.iter().any(|p| p == &token) {
-                    format!(":{}", token)
-                } else {
-                    token
+            // Comparator hash form: `field: { op: value }`. Recognize
+            // op key, recurse into value extraction.
+            if raw.starts_with('{') {
+                if let Some((op, inner)) = parse_comparator_hash(raw) {
+                    let value = extract_where_value(inner, param_names);
+                    out.push(WhereClause { field, op, value });
+                    continue;
                 }
-            };
+            }
+            let value = extract_where_value(raw, param_names);
             out.push(WhereClause {
                 field,
                 op: WhereOp::Eq,
@@ -360,6 +368,50 @@ pub fn parse_where_line(line: &str, param_names: &[String]) -> Vec<WhereClause> 
     }
     out
 }
+
+/// Extract the canonical value token from a where-clause RHS, applying
+/// the kwarg-ref convention (bare identifiers that match a query param
+/// name get a leading colon).
+fn extract_where_value(raw: &str, param_names: &[String]) -> String {
+    let raw = raw.trim();
+    if raw.starts_with('"') {
+        extract_string(raw).unwrap_or_default()
+    } else if raw.starts_with(':') {
+        raw.split(|c: char| c == ',' || c.is_whitespace())
+            .next().unwrap_or("").to_string()
+    } else {
+        let token = raw.split(|c: char| c == ',' || c.is_whitespace())
+            .next().unwrap_or("").to_string();
+        if param_names.iter().any(|p| p == &token) {
+            format!(":{}", token)
+        } else {
+            token
+        }
+    }
+}
+
+/// Parse a comparator hash like `{ lt: "2026-05-01T00:00:00Z" }` into
+/// the matching WhereOp variant plus the inner value source. Returns
+/// None if the brace form is malformed or the op key is unrecognized.
+fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
+    let raw = raw.trim_start_matches('{');
+    let close = raw.rfind('}')?;
+    let inner = raw[..close].trim();
+    let colon = inner.find(':')?;
+    let op_key = inner[..colon].trim().trim_start_matches(':');
+    let value_part = inner[colon + 1..].trim();
+    let op = match op_key {
+        "lt"  => WhereOp::Lt,
+        "lte" => WhereOp::Lte,
+        "gt"  => WhereOp::Gt,
+        "gte" => WhereOp::Gte,
+        "ne"  => WhereOp::Ne,
+        "eq"  => WhereOp::Eq,
+        _     => return None,
+    };
+    Some((op, value_part))
+}
+
 
 /// Parse `order_by :field` or `order_by :field, :desc` into an OrderBy.
 pub fn parse_order_by_line(line: &str) -> Option<OrderBy> {
@@ -776,4 +828,772 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
         (MutationOp::Set, value)
     };
     Some(Mutation { field, operation: op, value })
+}
+
+/// Parse a `process_manager "Name" do … end` block.
+///
+/// Captures the static shape of the PM (name, correlates_by, starts_on,
+/// ends_on, declared states, and per-event handlers with their from→to
+/// transition). The action body inside `on "Event", transition: { x: :y }
+/// do |event, pm| … end` is intentionally consumed-and-discarded — that
+/// proc is Ruby-side execution, not part of the parity contract.
+///
+/// Form:
+///   process_manager "SleepCycle" do
+///     correlates_by :body_id
+///     starts_on    "SleepStarted"
+///     ends_on      "WakeFinished"
+///     state "light"
+///     state "rem"
+///     on "PhaseElapsed", transition: { light: :light } do |event, pm|
+///       { commands: ["AdvancePhase"] }
+///     end
+///   end
+///
+/// Returns the parsed ProcessManager plus the number of source lines
+/// consumed (including the closing `end`).
+pub fn parse_process_manager(lines: &[&str]) -> (ProcessManager, usize) {
+    let first = lines[0].trim();
+    let name = extract_string(first).unwrap_or_default();
+    let mut pm = ProcessManager {
+        name,
+        correlates_by: String::new(),
+        starts_on: String::new(),
+        ends_on: None,
+        states: vec![],
+        handlers: vec![],
+    };
+
+    let mut i = 1;
+    let mut depth = 1usize;
+    while i < lines.len() && depth > 0 {
+        let line = lines[i].trim();
+        if line == "end" {
+            depth -= 1;
+            if depth == 0 { break; }
+            i += 1;
+            continue;
+        }
+
+        if depth == 1 {
+            if line.starts_with("correlates_by") {
+                if let Some(sym) = extract_symbol(line) { pm.correlates_by = sym; }
+            } else if line.starts_with("starts_on") {
+                if let Some(s) = extract_string(line) { pm.starts_on = s; }
+            } else if line.starts_with("ends_on") {
+                if let Some(s) = extract_string(line) { pm.ends_on = Some(s); }
+            } else if line.starts_with("state ") || line.starts_with("state\t") {
+                if let Some(s) = extract_string(line) { pm.states.push(s); }
+            } else if line.starts_with("on ") || line.starts_with("on\t") {
+                let mut handler = parse_pm_handler(line);
+                if ends_with_do_block(line) {
+                    // Walk the body to its indent-matched closing `end`.
+                    // Capture `dispatch "Cmd"` lines as declarative
+                    // dispatches ; other body lines (Ruby-proc form,
+                    // conditionals, etc.) are still consumed-and-discarded
+                    // (opaque to Rust). Phase 2.b
+                    // (pm-dispatch-enrichment) glues continuation lines
+                    // when a `dispatch ..., with: {` hash spans multiple
+                    // lines, so the parser sees one logical dispatch
+                    // statement at a time.
+                    let on_indent = lines[i].len() - lines[i].trim_start().len();
+                    while i + 1 < lines.len() {
+                        i += 1;
+                        let raw = lines[i];
+                        let trimmed = raw.trim();
+                        let indent = raw.len() - raw.trim_start().len();
+                        if trimmed == "end" && indent == on_indent {
+                            break;
+                        }
+                        if !is_dispatch_start(trimmed) && !is_set_start(trimmed) {
+                            continue;
+                        }
+                        // Glue continuation lines until braces +
+                        // parens are balanced (with: hash + sentinel
+                        // calls can wrap across multiple lines).
+                        let mut joined = trimmed.to_string();
+                        while !is_balanced(&joined) && i + 1 < lines.len() {
+                            i += 1;
+                            joined.push(' ');
+                            joined.push_str(lines[i].trim());
+                        }
+                        if let Some(ref mut h) = handler {
+                            if is_dispatch_start(&joined) {
+                                if let Some(spec) = parse_dispatch_statement(&joined) {
+                                    h.dispatches.push(spec);
+                                }
+                            } else if is_set_start(&joined) {
+                                if let Some((attr, spec)) = parse_set_statement(&joined) {
+                                    h.set_specs.push((attr, spec));
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(h) = handler { pm.handlers.push(h); }
+            } else if ends_with_do_block(line) {
+                depth += 1;
+            }
+        } else if ends_with_do_block(line) {
+            depth += 1;
+        }
+
+        i += 1;
+    }
+    (pm, i + 1)
+}
+
+/// Parse one `on "Event", transition: { from: :to } do |event, pm|` line
+/// into a ProcessManagerHandler. Returns None if the shape is unparseable.
+///
+/// Source forms recognized :
+///   on "Event", transition: { light: :light } do |event, pm|
+///   on "Event", transition: { :light => :rem } do |event, pm|
+fn parse_pm_handler(line: &str) -> Option<ProcessManagerHandler> {
+    let event_type = extract_string(line)?;
+    // Pull the `{ … }` after `transition:`. The action's `do |event, pm|`
+    // tail comes AFTER the transition hash, so we look for the first
+    // `{` and its matching `}` to bound the hash.
+    let trans_pos = line.find("transition:")?;
+    let after = &line[trans_pos + "transition:".len()..];
+    let open = after.find('{')?;
+    let close = after[open..].find('}')? + open;
+    let body = after[open + 1..close].trim();
+    // Body is one of :
+    //   `from: :to`        — symbol-rocket sugar
+    //   `:from => :to`     — explicit hash-rocket
+    let (from, to) = if body.contains("=>") {
+        let mut parts = body.splitn(2, "=>");
+        let lhs = parts.next()?.trim();
+        let rhs = parts.next()?.trim();
+        let from = lhs.trim_start_matches(':').trim_end_matches(',').trim().to_string();
+        let to = rhs.trim_start_matches(':').trim().to_string();
+        (from, to)
+    } else {
+        let colon = body.find(':')?;
+        let from = body[..colon].trim().to_string();
+        let rhs = body[colon + 1..].trim().trim_start_matches(':').trim();
+        let to = rhs.split(|c: char| c == ',' || c.is_whitespace())
+            .next().unwrap_or("").to_string();
+        (from, to)
+    };
+    if from.is_empty() || to.is_empty() { return None; }
+    Some(ProcessManagerHandler {
+        event_type,
+        from_state: from,
+        to_state: to,
+        dispatches: vec![],
+        set_specs: vec![],
+    })
+}
+
+/// Returns true when `trimmed` starts a `dispatch` statement (used by
+/// the on-block walker before it joins continuation lines).
+fn is_dispatch_start(trimmed: &str) -> bool {
+    trimmed.starts_with("dispatch ")
+        || trimmed.starts_with("dispatch\t")
+        || trimmed.starts_with("dispatch\"")
+}
+
+/// Phase 2.c — returns true when `trimmed` starts a `set` statement
+/// inside an on-block. Matches `set :attr, ...` (the Ruby positional
+/// form with a Symbol literal) and `set "attr", ...` (string form).
+/// The DSL surface today is `set :attr, value_spec` ; the string form
+/// is supported defensively. Care taken not to false-match other
+/// keywords starting with "set" (e.g. `set_inventory`) by requiring
+/// whitespace after.
+fn is_set_start(trimmed: &str) -> bool {
+    trimmed.starts_with("set ") || trimmed.starts_with("set\t")
+}
+
+/// Parse one (possibly glued-multi-line) `set :attr, value_spec` line
+/// into an `(attr, ValueSpec)` pair. Three forms recognized for the
+/// value : same as the with-spec evaluator (literal / from_event /
+/// from_pm). Returns None when the shape is unparseable.
+///
+///   set :steering_target, from_event(:target)
+///   set :carrying, "body"
+///   set :tick, from_pm(:tick, default: "0")
+fn parse_set_statement(line: &str) -> Option<(String, ValueSpec)> {
+    let trimmed = line.trim();
+    if !is_set_start(trimmed) { return None; }
+    // Drop the leading `set` keyword + whitespace.
+    let rest = trimmed[3..].trim_start();
+    // Find the first comma at top-level (parens not respected — there
+    // shouldn't be any in the attr name).
+    let comma = rest.find(',')?;
+    let attr_raw = rest[..comma].trim();
+    let attr = attr_raw
+        .trim_matches(|c| c == '"' || c == '\'' || c == ':')
+        .to_string();
+    if attr.is_empty() { return None; }
+    let val_raw = rest[comma + 1..].trim();
+    let spec = parse_value_spec(val_raw)?;
+    Some((attr, spec))
+}
+
+/// Returns true when every `(`/`)` and `{`/`}` pair in `s` is matched.
+/// Used to detect the end of a multi-line `dispatch ..., with: { ... }`
+/// statement. Quotes are not respected — a `{` or `(` inside a string
+/// would mis-balance. The DSL surface today doesn't put braces in
+/// string literals, so this approximation holds ; sources that do
+/// would be surfaced as parser drift in parity tests.
+fn is_balanced(s: &str) -> bool {
+    let mut paren = 0i32;
+    let mut brace = 0i32;
+    for c in s.chars() {
+        match c {
+            '(' => paren += 1,
+            ')' => paren -= 1,
+            '{' => brace += 1,
+            '}' => brace -= 1,
+            _ => (),
+        }
+    }
+    paren == 0 && brace == 0
+}
+
+/// Parse one (possibly glued-multi-line) `dispatch "Cmd"` statement
+/// into a structured DispatchSpec. Three source forms recognized :
+///
+///   dispatch "Aggregate.Command"
+///   dispatch "Aggregate.Command", with: { foo: from_event(:bar),
+///                                         baz: "lit",
+///                                         qux: from_pm(:n, default: "—") }
+///   dispatch "Aggregate.Command",
+///     for_each: { from: "Aggregate.query_name" },
+///     with: { id: from_iter(:id) }
+///
+/// Returns None when the shape is unparseable. The caller's outer
+/// walk skips non-dispatch lines via `is_dispatch_start`, so this
+/// function is called only on confirmed dispatch statements.
+fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
+    let trimmed = line.trim();
+    if !is_dispatch_start(trimmed) { return None; }
+    let command_name = extract_string(trimmed)?;
+
+    // Find the `with:` and `for_each:` keywords. Tolerant of variable
+    // whitespace around the comma (e.g. `dispatch "X",   with: {...}`).
+    // The search starts after the closing quote of the command name so
+    // a stray `with:` inside the command string can't false-match.
+    let cmd_end = match trimmed.match_indices('"').nth(1) {
+        Some((idx, _)) => idx + 1,
+        None => trimmed.len(),
+    };
+    let tail = &trimmed[cmd_end..];
+
+    let with_spec = match tail.find("with:") {
+        None => Vec::new(),
+        Some(pos) => {
+            let after = &tail[pos + "with:".len()..];
+            let open = after.find('{')?;
+            // The matching close brace bounds the with hash. Use a
+            // depth counter so nested `from_event(:foo)` parens or any
+            // future nested hash don't trip the search.
+            let close = match_close_brace(&after[open..])? + open;
+            let body = after[open + 1..close].trim();
+            parse_with_hash(body)
+        }
+    };
+
+    // i221-A — sweep dispatch. `for_each: { from: "Aggregate.query" }`
+    // splits on the first dot into the two structured halves. Absent
+    // `for_each:` leaves `for_each = None` (the back-compat default).
+    let for_each = parse_for_each_clause(tail);
+
+    Some(DispatchSpec {
+        command_name,
+        with_spec,
+        for_each,
+    })
+}
+
+/// i221-A — locate the `for_each: { from: "Aggregate.query_name" }`
+/// clause in a dispatch line and lift it to a `ForEachSpec`. Returns
+/// `None` when the clause is absent (the common back-compat case) or
+/// malformed (no `from:` literal, no qualifying dot, empty halves).
+fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
+    let pos = tail.find("for_each:")?;
+    let after = &tail[pos + "for_each:".len()..];
+    let open = after.find('{')?;
+    let close = match_close_brace(&after[open..])? + open;
+    let body = after[open + 1..close].trim();
+    // Body shape : `from: "Aggregate.query_name"` (kwarg-shorthand).
+    // Hash-rocket form (`:from => "..."`) is not used in the corpus
+    // and would be filed as a follow-on.
+    let from_pos = body.find("from:")?;
+    let value_raw = body[from_pos + "from:".len()..].trim();
+    let literal = extract_string(value_raw)?;
+    let dot = literal.find('.')?;
+    if dot == 0 || dot == literal.len() - 1 {
+        return None;
+    }
+    let source_aggregate = literal[..dot].to_string();
+    let query_name = literal[dot + 1..].to_string();
+    Some(ForEachSpec { source_aggregate, query_name })
+}
+
+/// Given a slice that starts at `{`, return the index of the matching
+/// `}` (counting depth). Returns None when unmatched. Quotes are not
+/// respected — same approximation as `is_balanced`.
+fn match_close_brace(s: &str) -> Option<usize> {
+    let mut depth = 0i32;
+    for (i, c) in s.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 { return Some(i); }
+            }
+            _ => (),
+        }
+    }
+    None
+}
+
+/// Parse the inside of a `with: { ... }` hash into an ordered Vec of
+/// `(key, ValueSpec)` pairs. Splitting respects nested parens (so
+/// `default: "—,"` inside `from_pm(...)` doesn't split), at the cost
+/// of not respecting string literals (matches the wider parser
+/// surface : an author-supplied literal containing a comma would be
+/// surfaced as parity drift).
+fn parse_with_hash(body: &str) -> Vec<(String, ValueSpec)> {
+    let mut out: Vec<(String, ValueSpec)> = Vec::new();
+    for raw_entry in split_top_level_commas(body) {
+        let entry = raw_entry.trim().trim_end_matches(',').trim();
+        if entry.is_empty() { continue; }
+        // `key: value` where key is a bare ident or a quoted string,
+        // and value is a literal (string / number) or a sentinel call
+        // `from_event(...)` / `from_pm(...)`. A trailing comma after
+        // the last entry is tolerated.
+        let colon = match entry.find(':') {
+            Some(p) => p,
+            None => continue,
+        };
+        // Skip cases where the `:` is part of `=>` or starts a Symbol
+        // literal value — for now we only accept the kwarg-shorthand
+        // form `key: value`. Hash-rocket form is filed as a follow-up
+        // (no PM in the corpus uses it for `with:`).
+        let key_raw = entry[..colon].trim();
+        let val_raw = entry[colon + 1..].trim();
+        let key = key_raw
+            .trim_matches(|c| c == '"' || c == '\'' || c == ':')
+            .to_string();
+        if key.is_empty() { continue; }
+        if let Some(spec) = parse_value_spec(val_raw) {
+            out.push((key, spec));
+        }
+    }
+    out
+}
+
+/// Parse one with-value into a ValueSpec. Four forms :
+///
+///   "literal"                              → ValueSpec::Literal
+///   from_event(:name)                       → FromEvent { default: None }
+///   from_event(:name, default: "x")         → FromEvent { default: Some("x") }
+///   from_pm(:name)                          → FromPm   { default: None }
+///   from_pm(:name, default: "—")            → FromPm   { default: Some("—") }
+///   from_iter(:field)                       → FromIter { field } (i221-A)
+///
+/// Numeric / bare-ident literals are accepted and stringified ; that
+/// matches the wider parser convention (canonical IR carries scalars
+/// as strings). Returns None on malformed input.
+fn parse_value_spec(raw: &str) -> Option<ValueSpec> {
+    let s = raw.trim();
+    if s.starts_with("from_event") {
+        let (name, default) = parse_sentinel_args(s, "from_event")?;
+        Some(ValueSpec::FromEvent { name, default })
+    } else if s.starts_with("from_pm") {
+        let (name, default) = parse_sentinel_args(s, "from_pm")?;
+        Some(ValueSpec::FromPm { name, default })
+    } else if s.starts_with("from_iter") {
+        // i221-A — sweep-iteration sentinel. Reuses parse_sentinel_args
+        // for the (name, default) extraction ; the default slot is
+        // ignored (FromIter has no default field — sweeps either find
+        // the iter record's attribute or the runtime surfaces the miss).
+        let (name, _default) = parse_sentinel_args(s, "from_iter")?;
+        Some(ValueSpec::FromIter { field: name })
+    } else if s.starts_with('"') || s.starts_with('\'') {
+        let value = extract_string(s).unwrap_or_default();
+        Some(ValueSpec::Literal { value })
+    } else {
+        // Bare ident / number / symbol — stringify the trimmed token.
+        let token = s.trim_end_matches(',').trim().to_string();
+        if token.is_empty() {
+            return None;
+        }
+        Some(ValueSpec::Literal { value: token })
+    }
+}
+
+/// Parse the `(...)` arglist of a sentinel call into (name, default).
+/// `name` is required and arrives as `:foo` or `"foo"` ; `default`
+/// is optional and named (`default: "..."` form only ; positional
+/// not supported).
+fn parse_sentinel_args(s: &str, fname: &str) -> Option<(String, Option<String>)> {
+    let after = &s[fname.len()..];
+    let open = after.find('(')?;
+    let close = after[open..].rfind(')')? + open;
+    let inner = after[open + 1..close].trim();
+    if inner.is_empty() { return None; }
+
+    let parts = split_top_level_commas(inner);
+    let mut iter = parts.into_iter();
+    let name_raw = iter.next()?.trim().to_string();
+    let name = name_raw
+        .trim_start_matches(':')
+        .trim_matches(|c: char| c == '"' || c == '\'')
+        .to_string();
+    if name.is_empty() { return None; }
+
+    let mut default: Option<String> = None;
+    for rest in iter {
+        let r = rest.trim();
+        if let Some(rest_after) = r.strip_prefix("default:") {
+            let v = rest_after.trim();
+            if v.starts_with('"') || v.starts_with('\'') {
+                default = extract_string(v);
+            } else if !v.is_empty() {
+                default = Some(v.trim_end_matches(',').trim().to_string());
+            }
+        }
+    }
+    Some((name, default))
+}
+
+/// Parse a `cadence "Name" do … end` block declaring scheduled
+/// dispatch. i218 — invoked via the block_grammar registry.
+///
+/// Form :
+///   cadence "BodyTick" do
+///     every "1s"
+///     dispatch "Consciousness.ElapsePhase", name: "consciousness"
+///     dispatch "Tick.MindstreamTick",       name: "tick"
+///   end
+pub fn parse_cadence(lines: &[&str]) -> (Cadence, usize) {
+    let first = lines[0].trim();
+    let name = extract_string(first).unwrap_or_default();
+    let mut cad = Cadence {
+        name,
+        interval: String::new(),
+        dispatches: vec![],
+    };
+
+    let mut i = 1;
+    let mut depth = 1usize;
+    while i < lines.len() && depth > 0 {
+        let line = lines[i].trim();
+        if line == "end" {
+            depth -= 1;
+            if depth == 0 { break; }
+            i += 1;
+            continue;
+        }
+
+        if depth == 1 {
+            if line.starts_with("every") {
+                if let Some(s) = extract_string(line) { cad.interval = s; }
+            } else if line.starts_with("dispatch ")
+                || line.starts_with("dispatch\t")
+                || line.starts_with("dispatch\"")
+            {
+                if let Some(d) = parse_cadence_dispatch_line(line) {
+                    cad.dispatches.push(d);
+                }
+            } else if ends_with_do_block(line) {
+                depth += 1;
+            }
+        } else if ends_with_do_block(line) {
+            depth += 1;
+        }
+
+        i += 1;
+    }
+    (cad, i + 1)
+}
+
+/// Parse one `dispatch "Aggregate.Command", k1: v1, k2: v2` line into
+/// a CadenceDispatch. Captures the qualified command name and an
+/// ordered (key, source-text-value) attribute list. Returns None when
+/// the line isn't a dispatch line.
+pub fn parse_cadence_dispatch_line(line: &str) -> Option<CadenceDispatch> {
+    let trimmed = line.trim();
+    let command_name = extract_string(trimmed)?;
+    let q1 = trimmed.find('"')?;
+    let q2 = trimmed[q1 + 1..].find('"')? + q1 + 1;
+    let after = trimmed[q2 + 1..].trim();
+    let mut attrs: Vec<(String, String)> = Vec::new();
+    if let Some(rest) = after.strip_prefix(',') {
+        let kwargs = rest.trim();
+        attrs = split_top_level_cadence(kwargs)
+            .into_iter()
+            .filter_map(|pair| {
+                let p = pair.trim();
+                let colon = p.find(':')?;
+                let key = p[..colon].trim().trim_matches(':').to_string();
+                let value = p[colon + 1..].trim().to_string();
+                if key.is_empty() || value.is_empty() { None } else { Some((key, value)) }
+            })
+            .collect();
+    }
+    Some(CadenceDispatch { command_name, attrs })
+}
+
+/// Split a kwarg list on top-level commas only — bracket / brace /
+/// paren / string contents are protected. Cadence-local helper.
+fn split_top_level_cadence(s: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut buf = String::new();
+    let mut depth: i32 = 0;
+    let mut in_str = false;
+    let mut prev = '\0';
+    for c in s.chars() {
+        match c {
+            '"' if prev != '\\' => { in_str = !in_str; buf.push(c); }
+            '[' | '{' | '(' if !in_str => { depth += 1; buf.push(c); }
+            ']' | '}' | ')' if !in_str => { depth -= 1; buf.push(c); }
+            ',' if !in_str && depth == 0 => {
+                out.push(buf.trim().to_string());
+                buf.clear();
+            }
+            _ => buf.push(c),
+        }
+        prev = c;
+    }
+    if !buf.trim().is_empty() { out.push(buf.trim().to_string()); }
+    out
+}
+
+#[cfg(test)]
+mod dispatch_tests {
+    use super::*;
+
+    #[test]
+    fn parses_bare_dispatch() {
+        let s = parse_dispatch_statement(r#"dispatch "Body.WakeUp""#).unwrap();
+        assert_eq!(s.command_name, "Body.WakeUp");
+        assert!(s.with_spec.is_empty());
+    }
+
+    #[test]
+    fn parses_dispatch_with_literal_and_from_event() {
+        let line = r#"dispatch "Body.Tick", with: { name: "body", tick: from_event(:tick) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.command_name, "Body.Tick");
+        assert_eq!(s.with_spec.len(), 2);
+        assert_eq!(s.with_spec[0].0, "name");
+        assert!(matches!(s.with_spec[0].1, ValueSpec::Literal { ref value } if value == "body"));
+        assert_eq!(s.with_spec[1].0, "tick");
+        assert!(matches!(s.with_spec[1].1, ValueSpec::FromEvent { ref name, default: None } if name == "tick"));
+    }
+
+    #[test]
+    fn parses_from_pm_with_default() {
+        let line = r#"dispatch "X.Y", with: { carrying: from_pm(:carrying, default: "—") }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.with_spec.len(), 1);
+        match &s.with_spec[0].1 {
+            ValueSpec::FromPm { name, default } => {
+                assert_eq!(name, "carrying");
+                assert_eq!(default.as_deref(), Some("—"));
+            }
+            other => panic!("expected FromPm, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn tolerates_variable_whitespace_around_with() {
+        let line = r#"dispatch "X.Y",          with: { tick: from_event(:tick) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.with_spec.len(), 1);
+        assert_eq!(s.with_spec[0].0, "tick");
+    }
+
+    #[test]
+    fn preserves_with_declaration_order() {
+        let line = r#"dispatch "X.Y", with: { a: 1, b: 2, c: 3 }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.with_spec.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(), vec!["a", "b", "c"]);
+    }
+
+    // ---- Phase 2.c — `set :attr, value_spec` parser tests ----------
+
+    #[test]
+    fn is_set_start_distinguishes_set_directive() {
+        assert!(is_set_start("set :carrying, \"body\""));
+        assert!(is_set_start("set\t:tick, from_event(:tick)"));
+        // Don't match other identifiers that happen to begin with "set".
+        assert!(!is_set_start("set_inventory :foo"));
+        assert!(!is_set_start("settings :foo"));
+        // Don't match dispatch (the existing keyword).
+        assert!(!is_set_start("dispatch \"X.Y\""));
+    }
+
+    #[test]
+    fn parses_set_with_literal() {
+        let (attr, spec) = parse_set_statement(r#"set :carrying, "body""#).unwrap();
+        assert_eq!(attr, "carrying");
+        assert!(matches!(spec, ValueSpec::Literal { ref value } if value == "body"));
+    }
+
+    #[test]
+    fn parses_set_with_from_event() {
+        let (attr, spec) = parse_set_statement(r#"set :steering_target, from_event(:target)"#).unwrap();
+        assert_eq!(attr, "steering_target");
+        match spec {
+            ValueSpec::FromEvent { name, default } => {
+                assert_eq!(name, "target");
+                assert!(default.is_none());
+            }
+            other => panic!("expected FromEvent, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_set_with_from_pm_and_default() {
+        let (attr, spec) =
+            parse_set_statement(r#"set :tick, from_pm(:tick, default: "0")"#).unwrap();
+        assert_eq!(attr, "tick");
+        match spec {
+            ValueSpec::FromPm { name, default } => {
+                assert_eq!(name, "tick");
+                assert_eq!(default.as_deref(), Some("0"));
+            }
+            other => panic!("expected FromPm, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_set_with_string_attr_form() {
+        // Defensive : the DSL surface is :attr (Symbol) but the parser
+        // also tolerates the string form for hand-built fixtures.
+        let (attr, spec) = parse_set_statement(r#"set "carrying", "body""#).unwrap();
+        assert_eq!(attr, "carrying");
+        assert!(matches!(spec, ValueSpec::Literal { ref value } if value == "body"));
+    }
+
+    #[test]
+    fn rejects_malformed_set_lines() {
+        // No comma — can't tell attr from value.
+        assert!(parse_set_statement("set :carrying").is_none());
+        // Empty attribute name after stripping :,",'
+        assert!(parse_set_statement(r#"set :, "body""#).is_none());
+        // Not a set line at all.
+        assert!(parse_set_statement(r#"dispatch "X.Y""#).is_none());
+    }
+
+    // ---- i221-A — `for_each:` + `from_iter(:field)` parser tests ----
+
+    #[test]
+    fn parses_bare_dispatch_carries_no_for_each() {
+        let s = parse_dispatch_statement(r#"dispatch "Body.WakeUp""#).unwrap();
+        assert!(s.for_each.is_none(), "bare dispatch must leave for_each None");
+    }
+
+    #[test]
+    fn parses_dispatch_for_each_into_qualified_halves() {
+        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        assert_eq!(s.command_name, "Synapse.Compost");
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+        assert_eq!(s.with_spec.len(), 1);
+        assert_eq!(s.with_spec[0].0, "id");
+        match &s.with_spec[0].1 {
+            ValueSpec::FromIter { field } => assert_eq!(field, "id"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn parses_dispatch_for_each_only_no_with() {
+        let line = r#"dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+        assert!(s.with_spec.is_empty());
+    }
+
+    #[test]
+    fn parses_from_iter_value_spec_in_isolation() {
+        let spec = parse_value_spec("from_iter(:strength)").unwrap();
+        match spec {
+            ValueSpec::FromIter { field } => assert_eq!(field, "strength"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn for_each_clause_rejects_unqualified_literal() {
+        // No dot — can't split into source_aggregate / query_name.
+        let line = r#"dispatch "X.Y", for_each: { from: "cold" }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        // Malformed for_each is filtered to None, dispatch still parses
+        // (the receiving aggregate command name is still valid).
+        assert!(s.for_each.is_none());
+    }
+
+    #[test]
+    fn parse_process_manager_captures_for_each_dispatch() {
+        let src = r#"process_manager "P" do
+  correlates_by :id
+  starts_on "Started"
+  state "rem"
+  on "Beat", transition: { rem: :rem } do
+    dispatch "Synapse.Compost", for_each: { from: "Synapse.cold" }, with: { id: from_iter(:id) }
+  end
+end
+"#;
+        let lines: Vec<&str> = src.lines().collect();
+        let (pm, _consumed) = parse_process_manager(&lines);
+        assert_eq!(pm.handlers.len(), 1);
+        let h = &pm.handlers[0];
+        assert_eq!(h.dispatches.len(), 1);
+        let d = &h.dispatches[0];
+        let fe = d.for_each.as_ref().expect("for_each captured");
+        assert_eq!(fe.source_aggregate, "Synapse");
+        assert_eq!(fe.query_name, "cold");
+    }
+
+    #[test]
+    fn parse_process_manager_captures_set_specs_in_declaration_order() {
+        // Block-shape mirrors the synthetic 20_process_manager fixture's
+        // `on "TargetSighted"` handler. The parser must collect three
+        // set entries in source order, all on the same handler.
+        let src = r#"process_manager "P" do
+  correlates_by :id
+  starts_on "Started"
+  state "rem"
+  on "TargetSighted", transition: { rem: :rem } do
+    set :steering_target, from_event(:target)
+    set :carrying, "body"
+    set :tick, from_pm(:tick, default: "0")
+    dispatch "Body.Steer", with: { target: from_pm(:steering_target) }
+  end
+end
+"#;
+        let lines: Vec<&str> = src.lines().collect();
+        let (pm, _consumed) = parse_process_manager(&lines);
+        assert_eq!(pm.handlers.len(), 1);
+        let h = &pm.handlers[0];
+        assert_eq!(h.event_type, "TargetSighted");
+        assert_eq!(
+            h.set_specs.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
+            vec!["steering_target", "carrying", "tick"]
+        );
+        // The third entry is the from_pm(:tick, default: "0") form.
+        match &h.set_specs[2].1 {
+            ValueSpec::FromPm { name, default } => {
+                assert_eq!(name, "tick");
+                assert_eq!(default.as_deref(), Some("0"));
+            }
+            other => panic!("expected FromPm, got {:?}", other),
+        }
+        // Dispatches still parsed alongside set_specs on the same handler.
+        assert_eq!(h.dispatches.len(), 1);
+        assert_eq!(h.dispatches[0].command_name, "Body.Steer");
+    }
 }

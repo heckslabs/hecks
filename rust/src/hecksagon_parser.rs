@@ -31,11 +31,20 @@ use crate::hecksagon_ir::*;
 
 /// Lowest-cost source detection. Skips leading blanks and `#` comments
 /// and checks the first non-empty line.
+///
+/// Recognises the legacy `Hecks.hecksagon` form AND the Phase 1 adapter-
+/// family meta-layer forms (`Hecks.adapter_family` / `Hecks.provider` /
+/// `Hecks.behavior_kind`). All four set up a Hecksagon IR ; the meta-
+/// layer forms additionally stamp `framework_kind` so the kernel
+/// registry can index by kind.
 pub fn is_hecksagon_source(source: &str) -> bool {
     for line in source.lines() {
         let t = line.trim();
         if t.is_empty() || t.starts_with('#') { continue; }
-        return t.starts_with("Hecks.hecksagon");
+        return t.starts_with("Hecks.hecksagon")
+            || t.starts_with("Hecks.adapter_family")
+            || t.starts_with("Hecks.provider")
+            || t.starts_with("Hecks.behavior_kind");
     }
     false
 }
@@ -51,6 +60,32 @@ pub fn parse(source: &str) -> Hecksagon {
 
         if line.starts_with("Hecks.hecksagon") {
             if let Some(n) = between_quotes(line) { hex.name = n; }
+            i += 1;
+            continue;
+        }
+
+        // Phase 1 of adapter-family activation : the meta-layer top-level
+        // forms set both `name` (the family / provider / behavior name)
+        // and `framework_kind` (the discriminator). Inner DSL is skipped
+        // here ; Phase 2 will capture fields / providers / request_body
+        // into a richer payload.
+        if line.starts_with("Hecks.adapter_family") {
+            if let Some(n) = between_quotes(line) { hex.name = n; }
+            hex.framework_kind = Some("adapter_family".to_string());
+            i += 1;
+            continue;
+        }
+
+        if line.starts_with("Hecks.provider") {
+            if let Some(n) = between_quotes(line) { hex.name = n; }
+            hex.framework_kind = Some("provider".to_string());
+            i += 1;
+            continue;
+        }
+
+        if line.starts_with("Hecks.behavior_kind") {
+            if let Some(n) = between_quotes(line) { hex.name = n; }
+            hex.framework_kind = Some("behavior_kind".to_string());
             i += 1;
             continue;
         }
@@ -106,6 +141,32 @@ fn absorb_adapter(joined: &str, hex: &mut Hecksagon) {
         "shell" => {
             if let Some(sa) = parse_shell_adapter(rest) { hex.shell_adapters.push(sa); }
         }
+        "llm" => {
+            if let Some(la) = parse_llm_adapter(rest) {
+                hex.llm_adapters.push(la);
+            } else {
+                // Bare `adapter :llm, backend: :claude` form (no name:) —
+                // keep backward-compat with existing wake_review /
+                // musing_mint hecksagons that route through io_adapter.
+                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
+                for ev in extract_on_events(rest) { io.on_events.push(ev); }
+                hex.io_adapters.push(io);
+            }
+        }
+        // i220 sub-gap 5 — sibling of `:llm`. Same shape as
+        // parse_llm_adapter / fallback to io_adapter when `name:` is
+        // absent, so a bare `adapter :compute, root: "."` (if anyone
+        // ever writes one) still lands as an io adapter rather than
+        // disappearing.
+        "compute" => {
+            if let Some(ca) = parse_compute_adapter(rest) {
+                hex.compute_adapters.push(ca);
+            } else {
+                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
+                for ev in extract_on_events(rest) { io.on_events.push(ev); }
+                hex.io_adapters.push(io);
+            }
+        }
         "memory" | "heki" => { hex.persistence = Some(kind); }
         _ => {
             let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
@@ -113,6 +174,71 @@ fn absorb_adapter(joined: &str, hex: &mut Hecksagon) {
             hex.io_adapters.push(io);
         }
     }
+}
+
+/// Map `name:, prompt_template:, model:, max_tokens:, trigger_on:,
+/// response_into:, attr:, backend:` into an LlmAdapter. Returns None
+/// when no `name:` is declared — that lets the caller fall back to
+/// io_adapter routing for the bare `adapter :llm, backend: :X` form
+/// already in production.
+///
+/// i228 — `trigger_on "Aggregate.Command"` decouples the dispatch
+/// target that fires the adapter from `response_into` (which routes
+/// the LLM's reply). Falls back to `response_into_target` at runtime
+/// when absent, preserving the historical self-triggering shape.
+fn parse_llm_adapter(rest: &str) -> Option<LlmAdapter> {
+    let mut la = LlmAdapter::default();
+    let mut got_name = false;
+    for (k, v) in parse_options(rest) {
+        match k.as_str() {
+            "name" => { la.name = strip_symbol(&v); got_name = true; }
+            // prompt_template is a Ruby double-quoted string literal —
+            // unescape \n / \t / \\ / \" so canonical_ir emits a value
+            // identical to the Ruby parser's. strip_quotes alone left
+            // them literal and broke parity (i75 musing_mint heal,
+            // 2026-05-02).
+            "prompt_template" => la.prompt_template = strip_quotes_unescape(&v),
+            "model" => la.model = Some(strip_quotes(&v)),
+            "max_tokens" => la.max_tokens = v.trim().parse::<u64>().ok(),
+            "trigger_on" => la.trigger_on = Some(strip_quotes(&v)),
+            "response_into" => la.response_into_target = Some(strip_quotes(&v)),
+            "attr" => la.response_into_attr = Some(strip_symbol(&v)),
+            "backend" => la.backend = Some(strip_symbol(&v)),
+            _ => {}
+        }
+    }
+    if !got_name { return None; }
+    Some(la)
+}
+
+/// i220 sub-gap 5 (compute-adapter-primitive) — parse the named-adapter form
+/// `adapter :compute, name: :foo, function: "fn_name", trigger_on:,
+/// response_into:, attr:` into a ComputeAdapter. Returns None when
+/// `name:` is absent — the caller falls back to io_adapter routing
+/// for any bare `:compute` form (forwards-compat, mirrors
+/// parse_llm_adapter's contract).
+fn parse_compute_adapter(rest: &str) -> Option<ComputeAdapter> {
+    let mut ca = ComputeAdapter::default();
+    let mut got_name = false;
+    for (k, v) in parse_options(rest) {
+        match k.as_str() {
+            "name" => { ca.name = strip_symbol(&v); got_name = true; }
+            // `function:` is a string identifier (the registry key).
+            // Accept symbol form `:summarize_recent_musings` AND
+            // string form `"summarize_recent_musings"` — both
+            // canonicalize to the bare identifier.
+            "function" => {
+                let stripped = strip_quotes(&v);
+                ca.function_name = if stripped == v { strip_symbol(&v) } else { stripped };
+            }
+            "trigger_on" => ca.trigger_on = Some(strip_quotes(&v)),
+            "response_into" => ca.response_into_target = Some(strip_quotes(&v)),
+            "attr" => ca.response_into_attr = Some(strip_symbol(&v)),
+            _ => {}
+        }
+    }
+    if !got_name { return None; }
+    Some(ca)
 }
 
 /// Map `name:, command:, args:, output_format:, timeout:, working_dir:,

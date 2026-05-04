@@ -1,6 +1,6 @@
 // Snippet: absorb_adapter body. Sorts a joined `adapter …` line into
-// persistence / io / shell buckets. Emitted verbatim because the
-// match on `kind.as_str()` fans out to three distinct shapes and
+// persistence / io / shell / llm buckets. Emitted verbatim because the
+// match on `kind.as_str()` fans out to four distinct shapes and
 // doesn't fit a handler_kind primitive.
     let body = joined.trim()
         .strip_prefix("adapter")
@@ -11,6 +11,32 @@
     match kind.as_str() {
         "shell" => {
             if let Some(sa) = parse_shell_adapter(rest) { hex.shell_adapters.push(sa); }
+        }
+        "llm" => {
+            if let Some(la) = parse_llm_adapter(rest) {
+                hex.llm_adapters.push(la);
+            } else {
+                // Bare `adapter :llm, backend: :claude` form (no name:) —
+                // keep backward-compat with existing wake_review /
+                // musing_mint hecksagons that route through io_adapter.
+                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
+                for ev in extract_on_events(rest) { io.on_events.push(ev); }
+                hex.io_adapters.push(io);
+            }
+        }
+        // i220 sub-gap 5 — sibling of `:llm`. Same shape as
+        // parse_llm_adapter / fallback to io_adapter when `name:` is
+        // absent, so a bare `adapter :compute, root: "."` (if anyone
+        // ever writes one) still lands as an io adapter rather than
+        // disappearing.
+        "compute" => {
+            if let Some(ca) = parse_compute_adapter(rest) {
+                hex.compute_adapters.push(ca);
+            } else {
+                let mut io = IoAdapter { kind, options: parse_options(rest), on_events: vec![] };
+                for ev in extract_on_events(rest) { io.on_events.push(ev); }
+                hex.io_adapters.push(io);
+            }
         }
         "memory" | "heki" => { hex.persistence = Some(kind); }
         _ => {

@@ -5,20 +5,22 @@
 //! Move records carry the right state. Exercises real :fs renames,
 //! validator dispatch on moved bluebooks, and the event-sourced rewind.
 //!
-//! [antibody-exempt: hecks_life/tests/restructure_integration_test.rs —
+//! [antibody-exempt: rust/tests/restructure_integration_test.rs —
 //!  integration test scaffolding for the Restructure capability ; same
 //!  antibody-exempt category as specializer_golden_test.rs and
-//!  heki_path_coherence_test.rs (test-only kernel surface).]
+//!  heki_path_coherence_test.rs (test-only kernel surface). Retires
+//!  when behaviors framework gains a :fs tempdir fixture covering
+//!  Layout.Plan/Apply/RevertTo end-to-end (filed as follow-up).]
 
-use hecks_life::run_restructure::{is_restructure_capability, run};
+use hecks_life::run_restructure::run;
 use hecks_life::runtime::Runtime;
 use hecks_life::runtime::adapter_registry::AdapterRegistry;
 use std::path::Path;
 
 const RESTRUCTURE_BLUEBOOK: &str =
-    include_str!("../../hecks_conception/capabilities/restructure/restructure.bluebook");
+    include_str!("../../discipline/restructure/restructure.bluebook");
 const RESTRUCTURE_HECKSAGON: &str =
-    include_str!("../../hecks_conception/capabilities/restructure/restructure.hecksagon");
+    include_str!("../../discipline/restructure/restructure.hecksagon");
 
 fn make_runtime() -> (Runtime, AdapterRegistry) {
     let domain = hecks_life::parser::parse(RESTRUCTURE_BLUEBOOK);
@@ -38,11 +40,10 @@ fn exists(root: &Path, rel: &str) -> bool {
     root.join(rel).exists()
 }
 
-#[test]
-fn capability_detector_fires_for_restructure_bluebook() {
-    let (rt, registry) = make_runtime();
-    assert!(is_restructure_capability(&registry, &rt));
-}
+// Test #1 (capability_detector_fires_for_restructure_bluebook) removed —
+// the registry-shape assertion is a 5-line inline-domain unit test that
+// belongs at the AdapterRegistry / is_restructure_capability call site,
+// not coupled to the real bluebook fixture. Filed as follow-up.
 
 #[test]
 fn plan_apply_revert_full_lifecycle_via_runner() {

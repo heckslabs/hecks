@@ -11,11 +11,22 @@
 //!
 //! [antibody-exempt: rust/src/runtime/mod.rs — kernel-floor runtime.
 //!  i156 added the AmbiguousCommand variant for strict bare-name
-//!  dispatch ; the rest is pre-i156.]
+//!  dispatch ; the rest is pre-i156. i221-B adds sweep-loop expansion
+//!  in `drain_policies` + an `iter_data` parameter on
+//!  `evaluate_value_spec` so `for_each:` dispatches resolve `from_iter
+//!  (:field)` against per-record state — kernel-surface because the
+//!  PM cascade lives here, no bluebook can describe its own driver.
+//!  i220-1 fires the `:llm` adapter hook after each cascade dispatch
+//!  inside `drain_policies` so PM/policy-driven cascade dispatches
+//!  reach the named-adapter pipeline the same way top-level dispatch
+//!  does — kernel-surface plumbing on the rem_branch.sh retirement
+//!  arc, no bluebook can describe its own driver.]
 
 mod aggregate_state;
 mod command_dispatch;
 mod event_bus;
+pub mod loop_driver;
+pub mod pm_engine;
 mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
@@ -28,16 +39,27 @@ mod policy_engine;
 mod projection;
 mod repository;
 pub mod seed_loader;
+pub mod llm_dispatcher;
+pub mod llm_providers;
+pub mod prompt_scaffolder;
+// i220 sub-gap 5 (compute-adapter-primitive) — sibling of llm_dispatcher
+// for local computation. Adapters declared as `:compute` in a hecksagon
+// route through `compute_dispatcher::call` which resolves
+// `function_name` against the static `compute_functions` registry.
+pub mod compute_dispatcher;
+pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
 pub use event_bus::{Event, EventBus};
 pub use middleware::{CommandContext, MiddlewareStack, Phase};
 pub use policy_engine::{PolicyEngine, PolicyTrigger};
+pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
 
 use crate::ir::Domain;
+use crate::hecksagon_ir::Hecksagon;
 use std::collections::HashMap;
 
 pub struct Runtime {
@@ -45,14 +67,54 @@ pub struct Runtime {
     pub repositories: HashMap<String, Repository>,
     pub event_bus: EventBus,
     pub policy_engine: PolicyEngine,
+    pub pm_engine: PMEngine,
     pub projections: Vec<Projection>,
     pub middleware: MiddlewareStack,
     pub data_dir: Option<String>,
+    /// i221 — every hecksagon loaded alongside the domain. The
+    /// `drain_policies` hook scans these for `:llm` adapters whose
+    /// `response_into_target` matches a recently-dispatched command,
+    /// substitutes the prompt template, calls the resolved provider,
+    /// and dispatches the response back into the named target. Empty
+    /// when the runtime is booted via the legacy `Runtime::boot(domain)`
+    /// (no hecksagons known) — preserves backward compat with every
+    /// existing caller that didn't carry hecksagons.
+    pub hecksagons: Vec<Hecksagon>,
+    /// i221 — provider registry keyed by backend name (`"test"`,
+    /// `"claude"`, `"ollama"`). When empty (default), only the `:test`
+    /// backend is implicitly available — claude/ollama require an
+    /// explicit `register_llm_provider` call so unit tests can never
+    /// silently shell out to a real model.
+    pub llm_providers: HashMap<String, Box<dyn llm_providers::LlmProvider>>,
 }
 
 impl Runtime {
     pub fn boot(domain: Domain) -> Self {
         Self::boot_with_data_dir(domain, None)
+    }
+
+    /// i221 — boot with hecksagons attached so the LLM dispatcher's
+    /// `drain_policies` hook can resolve `:llm` adapters whose
+    /// `response_into_target` references a freshly-dispatched command.
+    pub fn boot_with_hecksagons(
+        domain: Domain,
+        data_dir: Option<String>,
+        hecksagons: Vec<Hecksagon>,
+    ) -> Self {
+        let mut rt = Self::boot_with_data_dir(domain, data_dir);
+        rt.hecksagons = hecksagons;
+        rt
+    }
+
+    /// i221 — register an LLM provider under a backend name. Lets the
+    /// caller wire `:claude` / `:ollama` (or test doubles) without
+    /// touching the dispatcher. Idempotent on the key.
+    pub fn register_llm_provider(
+        &mut self,
+        backend: impl Into<String>,
+        provider: Box<dyn llm_providers::LlmProvider>,
+    ) {
+        self.llm_providers.insert(backend.into(), provider);
     }
 
     pub fn boot_with_data_dir(domain: Domain, data_dir: Option<String>) -> Self {
@@ -78,6 +140,16 @@ impl Runtime {
             policy_engine.register(&policy.name, &policy.on_event, &policy.trigger_command);
         }
 
+        let mut pm_engine = PMEngine::new();
+        for pm in &domain.process_managers {
+            pm_engine.register(pm);
+        }
+        // Phase D — load persisted PM instances from heki so transitions
+        // resume across hecks-life subprocess forks (production daemons
+        // fork per dispatch ; without this, in-memory state evaporates
+        // and PMs effectively don't accumulate).
+        pm_engine.load_persisted(data_dir.as_deref());
+
         let projections = domain
             .aggregates
             .iter()
@@ -89,9 +161,12 @@ impl Runtime {
             repositories,
             event_bus: EventBus::new(),
             policy_engine,
+            pm_engine,
             projections,
             middleware: MiddlewareStack::new(),
             data_dir,
+            hecksagons: Vec::new(),
+            llm_providers: HashMap::new(),
         }
     }
 
@@ -163,8 +238,30 @@ impl Runtime {
             }
         }
 
+        // i220 sub-gap 5 — resolve `:compute` adapters BEFORE the
+        // policy cascade drains. Compute adapters populate context
+        // fields (e.g. recent_musings_summary) that downstream
+        // policy-driven dispatches (and the LLM hook below) read.
+        // Firing them first means a single top-level dispatch
+        // produces the fully-populated downstream chain.
+        self.resolve_compute_adapters(&result, command_name);
+
         // Drain policy triggers — recursively, so chains cascade fully
         self.drain_policies(&result);
+
+        // i221 — LLM dispatcher hook. After the cascade settles,
+        // scan loaded hecksagons for any `:llm` adapter whose
+        // `response_into_target` matches `Aggregate.Command` (the
+        // command the user just dispatched). When one matches,
+        // substitute its prompt template from the upstream
+        // aggregate's state + the dispatched attrs, call the
+        // resolved provider, and chain the response as a real
+        // dispatch back into the target with `response_into_attr`
+        // carrying the response text. The chain is finite by
+        // discipline : the response-driven dispatch has the
+        // populated attr already so its givens fall through (no
+        // re-entry), exactly as the Ruby surface relies on.
+        self.resolve_llm_adapters(&result, command_name);
 
         Ok(result)
     }
@@ -186,6 +283,323 @@ impl Runtime {
             }
         }
         Ok(result)
+    }
+
+    /// Inject a synthetic event into the runtime — drive PMs and
+    /// policies as if a command had emitted it, without going through
+    /// the full command-dispatch path.
+    ///
+    /// This is the substrate the PM loop driver uses to fire cadence
+    /// events (BodyPulse, HeartTick, etc.) at fixed intervals : the
+    /// daemon ticks, calls this with a fresh Event, the PM engine
+    /// reacts, dispatches cascade, persistence happens — same machinery
+    /// as a real command's emit, just with the upstream command stripped.
+    ///
+    /// Bus listeners + history capture the event ; projections are
+    /// not updated (no aggregate state changed). Returns nothing —
+    /// callers wanting cascade results should use `dispatch`.
+    pub fn publish_synthetic_event(&mut self, event: Event) {
+        self.event_bus.publish(event.clone());
+        let result = CommandResult {
+            aggregate_id: event.aggregate_id.clone(),
+            aggregate_type: event.aggregate_type.clone(),
+            event: Some(event),
+        };
+        self.drain_policies(&result);
+    }
+
+    /// i221 — scan every loaded hecksagon for an `adapter :llm`
+    /// declaration whose effective trigger target matches the just-
+    /// dispatched `Aggregate.Command` ; for each match, substitute
+    /// the prompt template from the upstream state + attrs, call the
+    /// resolved provider, and chain the response as a `dispatch_cascade`
+    /// into `response_into_target` carrying `response_into_attr`.
+    ///
+    /// Adapter resolution is by exact target-string match. The IR
+    /// holds `trigger_on` (i228) for the firing target and
+    /// `response_into_target` for the response routing target. When
+    /// `trigger_on` is None the runtime falls back to
+    /// `response_into_target` so the historical self-triggering shape
+    /// (trigger == response) keeps working without per-adapter
+    /// declaration. We compare against `Aggregate.Command`
+    /// reconstructed from `result.aggregate_type` + `command_name`.
+    /// Adapters with no effective trigger (both fields None) are inert
+    /// — just parse-time descriptors — and are skipped silently.
+    fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        let mut fired: std::collections::HashSet<String> = std::collections::HashSet::new();
+        self.resolve_llm_adapters_with_excluded(result, command_name, &mut fired);
+    }
+
+    /// gap3 (i220-3) helper — `fired` is the set of adapter NAMES that
+    /// have already run in this dispatch chain. The cascade-of-cascade
+    /// recursion (an :llm response landing on a different command that
+    /// itself triggers another :llm adapter) skips any adapter already
+    /// in the set, which prevents infinite loops when an adapter's
+    /// effective_trigger matches its own response_into_target (the
+    /// historical default trigger=response shape, which the very-first
+    /// :llm wiring relied on).
+    fn resolve_llm_adapters_with_excluded(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        fired: &mut std::collections::HashSet<String>,
+    ) {
+        let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
+        if debug_llm {
+            eprintln!("[llm:debug] resolve_llm_adapters cmd={} agg_type={} hecksagons={} providers={} fired={}",
+                command_name, result.aggregate_type, self.hecksagons.len(), self.llm_providers.len(), fired.len());
+        }
+        if self.hecksagons.is_empty() {
+            if debug_llm { eprintln!("[llm:debug] no hecksagons — returning"); }
+            return;
+        }
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        if debug_llm { eprintln!("[llm:debug] target={}", target); }
+
+        // Snapshot adapters that match — we need to walk hecksagons
+        // by ref but mutate self.repositories/etc. via dispatch_cascade
+        // afterward, so collect the adapter clones first. i228 — match
+        // on the effective trigger (trigger_on || response_into_target)
+        // so PM-cascade-only adapters fire on a ProduceX command while
+        // routing the LLM reply into a separate RecordX command. gap3
+        // (i220-3) — also exclude adapters in `fired` to break the
+        // cascade-of-cascade loop when trigger == response.
+        let adapters: Vec<crate::hecksagon_ir::LlmAdapter> = self.hecksagons.iter()
+            .flat_map(|h| h.llm_adapters.iter())
+            .filter(|la| la.effective_trigger() == Some(target.as_str()))
+            .filter(|la| !fired.contains(&la.name))
+            .cloned()
+            .collect();
+        if debug_llm {
+            eprintln!("[llm:debug] matched {} adapters (out of {} total in hecksagons)",
+                adapters.len(),
+                self.hecksagons.iter().map(|h| h.llm_adapters.len()).sum::<usize>());
+        }
+        if adapters.is_empty() { return; }
+
+        // Snapshot upstream state for placeholder substitution.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+
+        // Build the attrs map (string-shaped) from the upstream state
+        // PLUS every other aggregate's latest state (i218 cross-aggregate
+        // scaffolder gap). The lucid_dream :lucid_observe template
+        // references {{text_fr}} which lives on Dream, not LucidDream
+        // — without cross-aggregate access the substitution silently
+        // failed and Claude received literal {{text_fr}} markers.
+        //
+        // Resolution order : prefixed forms ({{Dream_text_fr}}) first,
+        // then bare ({{text_fr}}) so prefixed wins on collision. Bare
+        // gets last-write-wins across aggregates, which is fine for
+        // singleton aggregates (each field is unique-ish) and harmless
+        // when callers reach for the prefixed form.
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        // Cross-aggregate fields with prefixed keys, plus bare keys
+        // for cross-aggregate references (last-write-wins across
+        // aggregates). The dispatched aggregate's state then writes
+        // over both — its fields are the most specific source.
+        let agg_names: Vec<String> = self.repositories.keys().cloned().collect();
+        for agg_name in &agg_names {
+            let states: Vec<AggregateState> = self.repositories.get(agg_name)
+                .map(|r| r.all().into_iter().cloned().collect())
+                .unwrap_or_default();
+            if let Some(latest) = states.last() {
+                for (k, v) in &latest.fields {
+                    attrs.insert(format!("{}_{}", agg_name, k), v.to_string());
+                    if agg_name != &result.aggregate_type {
+                        attrs.entry(k.clone()).or_insert_with(|| v.to_string());
+                    }
+                }
+            }
+        }
+        // Upstream (dispatched) aggregate's state wins on bare-name keys.
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+
+        for adapter in &adapters {
+            // Mark this adapter as fired BEFORE the cascade so a
+            // recursive resolve sees it in the exclude set. The
+            // dispatch_cascade can transitively land on the same
+            // target ; without the pre-mark, we'd re-enter for the
+            // historical trigger==response case.
+            fired.insert(adapter.name.clone());
+
+            // Take ownership of the providers map briefly so we can
+            // pass an immutable borrow to the dispatcher without
+            // tripping the multi-borrow rule on self. The runtime
+            // still owns the providers — we just hand them through.
+            let outcome = {
+                let providers = &self.llm_providers;
+                let providers_arg = if providers.is_empty() { None } else { Some(providers) };
+                llm_dispatcher::call(adapter, state_clone.as_ref(), &attrs, providers_arg)
+            };
+
+            let result_data = match outcome {
+                llm_dispatcher::LlmOutcome::Completed(r) => r,
+                llm_dispatcher::LlmOutcome::Skipped(_)   => continue,
+            };
+
+            // Chain the response as a cascade dispatch. The target is
+            // `response_into_target` (Aggregate.Command) ; the kwarg
+            // name is `response_into_attr` ; the value is the
+            // response text.
+            let (target_agg, target_cmd) = match adapter.response_into_target.as_deref()
+                .and_then(llm_dispatcher::split_target) {
+                Some(p) => p,
+                None    => continue,
+            };
+            let attr_name = match adapter.response_into_attr.as_deref() {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+
+            let mut chain_attrs: HashMap<String, Value> = HashMap::new();
+            chain_attrs.insert(attr_name, Value::Str(result_data.response_text.clone()));
+            let cmd_qualified = format!("{}.{}", target_agg, target_cmd);
+            let cascade_outcome = command_dispatch::dispatch_cascade(
+                self,
+                &cmd_qualified,
+                chain_attrs,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+            // gap3 (i220-3) — chain LLM resolution on the response cascade
+            // so a second adapter whose effective_trigger matches the
+            // response-target command fires too. Concretely : the
+            // :dream_image adapter cascades into Dream.RecordImage(text_fr:),
+            // which is exactly the trigger of the :dream_translate adapter
+            // (response_into Dream.RecordImage with attr text_en — its
+            // effective_trigger falls back to the same target). Without
+            // this recursion, text_en stays empty in production. The chain
+            // is finite because the `fired` exclude-set tracks adapter
+            // names across the recursion : an adapter whose trigger ==
+            // response (the historical self-cascading shape) only fires
+            // once per dispatch tree.
+            if let Ok(inner_result) = cascade_outcome {
+                self.resolve_llm_adapters_with_excluded(
+                    &inner_result, &cmd_qualified, fired,
+                );
+            }
+        }
+    }
+
+    /// i220 sub-gap 5 — compute-adapter resolver. Mirror of
+    /// `resolve_llm_adapters` for the `:compute` family. Scans every
+    /// loaded hecksagon for an `adapter :compute` declaration whose
+    /// effective trigger target matches the just-dispatched
+    /// `Aggregate.Command` ; for each match, invokes the named
+    /// function from the `compute_functions` registry and chains the
+    /// returned String as a `dispatch_cascade` into
+    /// `response_into_target` carrying `response_into_attr`.
+    ///
+    /// Same fallback shape as the LLM resolver : adapters with
+    /// neither `trigger_on` nor `response_into_target` are inert
+    /// descriptors and are skipped silently. The `fired` exclude-set
+    /// breaks self-cascade loops (an adapter whose trigger matches
+    /// its own response target only fires once per dispatch tree).
+    fn resolve_compute_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        let mut fired: std::collections::HashSet<String> = std::collections::HashSet::new();
+        self.resolve_compute_adapters_with_excluded(result, command_name, &mut fired);
+    }
+
+    fn resolve_compute_adapters_with_excluded(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        fired: &mut std::collections::HashSet<String>,
+    ) {
+        let debug = std::env::var("HECKS_DEBUG").is_ok();
+        if debug {
+            eprintln!("[compute:debug] resolve_compute_adapters cmd={} agg_type={} hecksagons={} fired={}",
+                command_name, result.aggregate_type, self.hecksagons.len(), fired.len());
+        }
+        if self.hecksagons.is_empty() {
+            return;
+        }
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+
+        // Snapshot adapters that match — same pattern the LLM
+        // resolver uses (walk hecksagons by ref then mutate self
+        // through dispatch_cascade after).
+        let adapters: Vec<crate::hecksagon_ir::ComputeAdapter> = self.hecksagons.iter()
+            .flat_map(|h| h.compute_adapters.iter())
+            .filter(|ca| ca.effective_trigger() == Some(target.as_str()))
+            .filter(|ca| !fired.contains(&ca.name))
+            .cloned()
+            .collect();
+        if debug {
+            eprintln!("[compute:debug] matched {} adapters target={}", adapters.len(), target);
+        }
+        if adapters.is_empty() { return; }
+
+        // Snapshot upstream state for the function call.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+
+        // Build the attrs map (string-shaped) from the upstream
+        // state — same projection the LLM resolver uses, but
+        // limited to the dispatched aggregate (compute functions
+        // generally don't need cross-aggregate scaffolding ; if
+        // they ever do we'll lift the bigger projection).
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+
+        let data_dir = self.data_dir.clone();
+        for adapter in &adapters {
+            fired.insert(adapter.name.clone());
+
+            let outcome = compute_dispatcher::call(
+                adapter,
+                state_clone.as_ref(),
+                &attrs,
+                data_dir.as_deref(),
+            );
+            let result_data = match outcome {
+                compute_dispatcher::ComputeOutcome::Completed(r) => r,
+                compute_dispatcher::ComputeOutcome::Skipped(_)   => continue,
+            };
+
+            let (target_agg, target_cmd) = match adapter.response_into_target.as_deref()
+                .and_then(compute_dispatcher::split_target) {
+                Some(p) => p,
+                None    => continue,
+            };
+            let attr_name = match adapter.response_into_attr.as_deref() {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+
+            let mut chain_attrs: HashMap<String, Value> = HashMap::new();
+            chain_attrs.insert(attr_name, Value::Str(result_data.response_text.clone()));
+            let cmd_qualified = format!("{}.{}", target_agg, target_cmd);
+            let cascade_outcome = command_dispatch::dispatch_cascade(
+                self,
+                &cmd_qualified,
+                chain_attrs,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+            // Recurse through the compute resolver so a chain of
+            // :compute adapters all populating context-fields fires
+            // end-to-end before the LLM hook lands. The `fired`
+            // exclude-set bounds the recursion.
+            if let Ok(inner_result) = cascade_outcome {
+                self.resolve_compute_adapters_with_excluded(
+                    &inner_result, &cmd_qualified, fired,
+                );
+            }
+        }
     }
 
     pub fn find(&self, aggregate_name: &str, id: &str) -> Option<&AggregateState> {
@@ -237,6 +651,129 @@ impl Runtime {
     /// triggers — so this injection is what makes the prediction true.
     fn drain_policies(&mut self, result: &CommandResult) {
         if let Some(ref event) = result.event {
+            // Drive process_managers + dispatch their declared commands.
+            // Each PMTrigger carries dispatches: Vec<String> populated
+            // from the handler's declarative `dispatch "..."` lines ;
+            // route through cascade dispatcher so policies + nested PMs
+            // + downstream emits all fire normally.
+            let pm_triggers = self.pm_engine.react(event);
+            for t in pm_triggers.clone() {
+                // Phase D — persist the new instance state immediately
+                // after each transition so the next subprocess fork sees
+                // it. Best-effort : a failed write doesn't abort the
+                // cascade ; the audit trail captures it via heki's
+                // dispatch context.
+                let _ = self.pm_engine.persist_instance(
+                    &t.pm_name,
+                    &t.correlation_id,
+                    self.data_dir.as_deref(),
+                );
+
+                // Phase 2.c — apply the handler's set_specs BEFORE the
+                // dispatches so that `from_pm(:attr)` reads inside the
+                // same handler's dispatch with-spec see the freshly
+                // written value. This matches the legacy proc form
+                // where the action body assigned `pm.attributes[:x]`
+                // at the top, then returned `{ commands: [...] }`
+                // referring to those same values.
+                let set_pairs = self.pm_set_pairs(&t, event);
+                for (attr, value) in set_pairs {
+                    self.pm_engine
+                        .apply_set(&t.pm_name, &t.correlation_id, &attr, value);
+                }
+                // Re-persist after the set so the attributes hash
+                // round-trips with the new values. Best-effort, like
+                // the state-only persist above.
+                let _ = self.pm_engine.persist_instance(
+                    &t.pm_name,
+                    &t.correlation_id,
+                    self.data_dir.as_deref(),
+                );
+
+                for dispatched in &t.dispatches {
+                    // i221-B — sweep dispatch. When the DispatchSpec
+                    // carries `for_each: Some(spec)`, look up the
+                    // named query (Aggregate.query_name) in the
+                    // domain IR, run it against the in-memory
+                    // repository to enumerate matching records, and
+                    // dispatch one cascade per record threading the
+                    // record's fields as `iter_data`. `from_iter
+                    // (:field)` in the with-spec resolves against
+                    // each record. When `for_each` is `None` (the
+                    // bare-dispatch path), the loop body runs once
+                    // with `iter_data = None` — same shape as before.
+                    let iter_records: Vec<HashMap<String, Value>> = match &dispatched.for_each {
+                        Some(spec) => self.sweep_records(spec),
+                        None => vec![HashMap::new()],
+                    };
+                    let is_sweep = dispatched.for_each.is_some();
+
+                    for record in &iter_records {
+                        // Phase 2.b (pm-dispatch-enrichment) —
+                        // evaluate each ValueSpec in the with_spec
+                        // at dispatch time. Order : with_spec
+                        // resolution first (so an explicit
+                        // `name: "body"` literal beats refs the
+                        // inject_refs heuristic might guess), then
+                        // upstream-ref injection fills in
+                        // everything still unset.
+                        let mut data = std::collections::HashMap::new();
+                        let iter_arg = if is_sweep { Some(record) } else { None };
+                        for (key, spec) in &dispatched.with_spec {
+                            if let Some(v) = self.evaluate_value_spec(
+                                spec,
+                                event,
+                                &t.pm_name,
+                                &t.correlation_id,
+                                iter_arg,
+                            ) {
+                                data.insert(key.clone(), v);
+                            }
+                        }
+                        self.inject_refs(
+                            &dispatched.command_name,
+                            &event.aggregate_type,
+                            &event.aggregate_id,
+                            &mut data,
+                        );
+                        let inner = command_dispatch::dispatch_cascade(
+                            self,
+                            &dispatched.command_name,
+                            data,
+                            &event.aggregate_type,
+                            &event.aggregate_id,
+                        );
+                        if let Ok(inner_result) = inner {
+                            self.drain_policies(&inner_result);
+                            // i220 sub-gap 5 — fire the :compute hook
+                            // on PM cascade dispatches first, so the
+                            // chained context-populated state is
+                            // visible when the LLM hook reads from
+                            // the same target's state below.
+                            self.resolve_compute_adapters(
+                                &inner_result, &dispatched.command_name,
+                            );
+                            // i220-1 — fire the :llm hook on cascade
+                            // dispatches the same way `Runtime::dispatch`
+                            // fires it after top-level dispatch settles.
+                            // Without this, PM-driven cascades (Dream PM
+                            // dispatching Dream.RecordImage, etc.) never
+                            // reach the named-adapter pipeline that wires
+                            // `:dream_image` / `:dream_translate` to
+                            // Claude. The recursion is bounded : the
+                            // LLM hook itself uses `dispatch_cascade`
+                            // (not `Runtime::dispatch`), so the response
+                            // chain is one-shot per match — same shape
+                            // the top-level call already relies on.
+                            self.resolve_llm_adapters(
+                                &inner_result, &dispatched.command_name,
+                            );
+                        }
+                    }
+                }
+                self.pm_engine.complete(&t.pm_name);
+            }
+
             let triggers = self.policy_engine.react(event);
             for trigger in triggers {
                 let policy_name = trigger.policy_name.clone();
@@ -267,10 +804,189 @@ impl Runtime {
                 );
                 if let Ok(inner_result) = inner {
                     self.drain_policies(&inner_result);
+                    // i220 sub-gap 5 — :compute hook on policy
+                    // cascades. Same ordering as the PM arm above :
+                    // compute first (populates fields), then LLM
+                    // (reads them in the prompt template).
+                    self.resolve_compute_adapters(&inner_result, &cmd);
+                    // i220-1 — same cascade-LLM hook as the PM-dispatch
+                    // arm above. Policy-driven cascades (react_to /
+                    // policy.bluebook) need the named-adapter pipeline
+                    // too. Without this, any policy chain landing on
+                    // `Dream.RecordImage` (or any other adapter target)
+                    // would silently skip Claude.
+                    self.resolve_llm_adapters(&inner_result, &cmd);
                 }
                 self.policy_engine.complete(&policy_name);
             }
         }
+    }
+
+    /// Evaluate one with-spec entry into a runtime Value at PM
+    /// dispatch time. Four kinds :
+    ///
+    ///   - `Literal { value }`             → `Value::Str(value)`
+    ///   - `FromEvent { name, default }`    → `event.data[name]` ;
+    ///                                        falls back to literal
+    ///                                        from `default` ;
+    ///                                        returns `None` when
+    ///                                        both are absent.
+    ///   - `FromPm { name, default }`       → `pm.attributes[name]` ;
+    ///                                        same fallback semantics.
+    ///   - `FromIter { field }`             → i221-B : reads
+    ///                                        `iter_data[field]` (the
+    ///                                        current sweep record).
+    ///                                        Returns `None` outside a
+    ///                                        `for_each:` sweep.
+    ///
+    /// Returns `None` when no value resolves (caller skips the key
+    /// so the receiving aggregate sees no entry — same as if the
+    /// dispatch never named it).
+    ///
+    /// Phase 2.c — FromPm now reads from the PM instance's
+    /// `attributes` hash (populated by handlers' `set` directives).
+    /// When the attribute is absent the spec's `default` fires ;
+    /// when both are absent, returns None.
+    ///
+    /// i221-B — `iter_data` carries the current sweep record's fields
+    /// (set by `drain_policies` when a DispatchSpec has `for_each:
+    /// Some(_)`). `None` for bare dispatches ; `Some(&fields)` per
+    /// record during a sweep loop.
+    fn evaluate_value_spec(
+        &self,
+        spec: &crate::ir::ValueSpec,
+        event: &Event,
+        pm_name: &str,
+        correlation_id: &str,
+        iter_data: Option<&HashMap<String, Value>>,
+    ) -> Option<Value> {
+        use crate::ir::ValueSpec;
+        match spec {
+            ValueSpec::Literal { value } => Some(Value::Str(value.clone())),
+            ValueSpec::FromEvent { name, default } => {
+                if let Some(v) = event.data.get(name) {
+                    return Some(v.clone());
+                }
+                default.as_ref().map(|d| Value::Str(d.clone()))
+            }
+            ValueSpec::FromPm { name, default } => {
+                if let Some(v) = self.pm_engine.read_attribute(pm_name, correlation_id, name) {
+                    return Some(Value::Str(v.to_string()));
+                }
+                default.as_ref().map(|d| Value::Str(d.clone()))
+            }
+            // i221-B — pull the named field off the current sweep
+            // record. When `iter_data` is `None` (bare dispatch), or
+            // the record doesn't carry the field, returns `None` and
+            // the caller leaves the key unset.
+            ValueSpec::FromIter { field } => {
+                iter_data.and_then(|m| m.get(field).cloned())
+            }
+        }
+    }
+
+    /// Phase 2.c — resolve every `set` directive on the firing
+    /// handler into concrete (attr, String) pairs, ready to write to
+    /// the PM instance. Reuses the same ValueSpec evaluator as the
+    /// dispatch with-spec ; coerces the resolved Value to its
+    /// Display form (matches the storage convention — attributes
+    /// round-trip as JSON strings). Skips entries that resolve to
+    /// None (no event match + no default = leave attr untouched).
+    fn pm_set_pairs(&self, t: &PMTrigger, event: &Event) -> Vec<(String, String)> {
+        // The set_specs live on the handler that fired ; PMTrigger
+        // doesn't carry them directly (the engine drops them when it
+        // returns), so re-look them up via pm_name + (event_name,
+        // from_state). One handler matches per (event_type, from_state)
+        // pair (Ruby builder enforces this via single-entry
+        // transition).
+        let binding = match self.pm_engine.bindings().find(|b| b.name == t.pm_name) {
+            Some(b) => b,
+            None => return Vec::new(),
+        };
+        let handler = match binding
+            .handlers
+            .iter()
+            .find(|h| h.event_type == t.event_name && h.from_state == t.from_state)
+        {
+            Some(h) => h,
+            None => return Vec::new(),
+        };
+        let mut out = Vec::new();
+        for (attr, spec) in &handler.set_specs {
+            // i221-B — set_specs run BEFORE the dispatch loop ; they
+            // can't be inside a `for_each:` iteration (the iter
+            // context belongs to the dispatched command, not the PM
+            // attribute write). Pass `None` for iter_data so any
+            // stray `from_iter(:_)` in a set spec resolves to None
+            // (= no write), which is the correct fallback semantics.
+            if let Some(v) = self.evaluate_value_spec(spec, event, &t.pm_name, &t.correlation_id, None) {
+                out.push((attr.clone(), v.to_string()));
+            }
+        }
+        out
+    }
+
+    /// i221-B — resolve a `for_each: { from: "Aggregate.query" }`
+    /// sweep source to a list of per-record field maps. Each returned
+    /// HashMap carries the record's fields keyed by attribute name ;
+    /// `from_iter(:field)` in the dispatch's with-spec reads from
+    /// these maps during the cascade loop.
+    ///
+    /// Resolution order :
+    ///
+    ///   1. Look up the named query in the source aggregate's IR ;
+    ///      run it through `resolve_query` to apply declared wheres /
+    ///      order_by / limit. Returns the structured records.
+    ///   2. When the query name doesn't match a declared query (the
+    ///      Synapse.cold / Signal.cold use case where the predicate
+    ///      lives in the aggregate's specifications block, not its
+    ///      queries), fall back to `repo.all()` so the sweep at
+    ///      least enumerates every record. Future i225 work : lift
+    ///      specifications into queryable predicates so the sweep is
+    ///      a true filtered enumeration.
+    ///
+    /// An empty sweep returns an empty Vec, which the caller treats
+    /// as "no records → no dispatches" — same as a `for_each` over an
+    /// empty iterable.
+    fn sweep_records(&self, spec: &crate::ir::ForEachSpec) -> Vec<HashMap<String, Value>> {
+        // First : try the structured query path.
+        let has_query = self.domain.aggregates.iter()
+            .any(|a| a.name == spec.source_aggregate
+                && a.queries.iter().any(|q| q.name == spec.query_name));
+
+        if has_query {
+            let attrs: HashMap<String, String> = HashMap::new();
+            let json = self.resolve_query(&spec.query_name, &attrs);
+            let mut out = Vec::new();
+            // resolve_query returns either an object (single match)
+            // or an array under .state. Normalize.
+            let state = json.get("state").cloned().unwrap_or(serde_json::Value::Null);
+            match state {
+                serde_json::Value::Array(arr) => {
+                    for item in arr {
+                        if let serde_json::Value::Object(map) = item {
+                            out.push(json_obj_to_value_map(map));
+                        }
+                    }
+                }
+                serde_json::Value::Object(map) => {
+                    out.push(json_obj_to_value_map(map));
+                }
+                _ => {}
+            }
+            return out;
+        }
+
+        // Fallback : enumerate all records of the source aggregate.
+        // The aggregate-level specification (e.g. Synapse :cold) isn't
+        // a first-class query yet ; sweeping `repo.all()` and letting
+        // the receiving command's givens gate is the transitional
+        // semantics. Receiving aggregates with `given` clauses will
+        // short-circuit on records that don't qualify.
+        self.all(&spec.source_aggregate)
+            .iter()
+            .map(|s| s.fields.clone())
+            .collect()
     }
 
     /// For each reference on the triggered command, inject an id under its
@@ -709,4 +1425,26 @@ fn trigram_sim(a: &str, b: &str) -> f64 {
     if a_t.is_empty() || b_t.is_empty() { return 0.0; }
     let matches = a_t.iter().filter(|t| b_t.contains(t)).count();
     (2.0 * matches as f64) / (a_t.len() + b_t.len()) as f64
+}
+
+/// i221-B — convert a serde_json::Map into a HashMap<String, Value>
+/// for use as `iter_data` in a sweep dispatch. The sweep records come
+/// from `resolve_query` which serializes through serde_json ; this
+/// brings them back into the runtime's Value enum so `from_iter
+/// (:field)` reads land in the right shape.
+fn json_obj_to_value_map(map: serde_json::Map<String, serde_json::Value>) -> HashMap<String, Value> {
+    let mut out = HashMap::new();
+    for (k, v) in map {
+        let value = match v {
+            serde_json::Value::String(s) => Value::Str(s),
+            serde_json::Value::Bool(b)   => Value::Bool(b),
+            serde_json::Value::Number(n) => {
+                if let Some(i) = n.as_i64() { Value::Int(i) } else { Value::Str(n.to_string()) }
+            }
+            serde_json::Value::Null      => Value::Null,
+            other                        => Value::Str(other.to_string()),
+        };
+        out.insert(k, value);
+    }
+    out
 }

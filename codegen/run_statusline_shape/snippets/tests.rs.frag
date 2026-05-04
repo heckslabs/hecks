@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn fatigue_icon_table_covers_emitters() {
-        for f in ["alert", "focused", "tired", "exhausted", "delirious"] {
+        for f in ["rested", "alert", "focused", "tired", "exhausted", "delirious"] {
             assert!(!fatigue_icon_for(f).is_empty(), "{} should have an icon", f);
         }
         assert_eq!(fatigue_icon_for("normal"), ""); // intentionally empty
@@ -73,8 +73,8 @@ mod tests {
         let s = State {
             consciousness: "sleeping".into(),
             sleep_stage: "rem".into(),
-            sleep_cycle: "3".into(),
-            sleep_total: "8".into(),
+            sleep_cycle: 3,
+            sleep_total: 8,
             phase_ticks: 4,            // 40 seconds elapsed
             dream_pulses: 2,
             dream_pulses_needed: 5,

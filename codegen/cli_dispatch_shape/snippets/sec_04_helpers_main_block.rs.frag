@@ -1105,13 +1105,49 @@ fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json:
             "ok_exit":       sa.ok_exit,
         })
     }).collect();
+    let llm_adapters: Vec<serde_json::Value> = hex.llm_adapters.iter().map(|la| {
+        serde_json::json!({
+            "name":                 la.name,
+            "prompt_template":      la.prompt_template,
+            "model":                la.model,
+            "max_tokens":           la.max_tokens,
+            "trigger_on":           la.trigger_on,
+            "response_into_target": la.response_into_target,
+            "response_into_attr":   la.response_into_attr,
+            "backend":              la.backend,
+        })
+    }).collect();
+    // i220 sub-gap 5 (compute-adapter-primitive) — parity dump for
+    // the new `:compute` family. Mirrors llm_adapters' shape minus
+    // prompt_template / model / max_tokens / backend (compute has
+    // no prompt + no provider) ; carries `function_name` instead
+    // (the registry key the runtime resolves at dispatch time).
+    let compute_adapters: Vec<serde_json::Value> = hex.compute_adapters.iter().map(|ca| {
+        serde_json::json!({
+            "name":                 ca.name,
+            "function_name":        ca.function_name,
+            "trigger_on":           ca.trigger_on,
+            "response_into_target": ca.response_into_target,
+            "response_into_attr":   ca.response_into_attr,
+        })
+    }).collect();
     serde_json::json!({
-        "name":           hex.name,
-        "persistence":    hex.persistence,
-        "subscriptions":  hex.subscriptions,
-        "io_adapters":    io_adapters,
-        "shell_adapters": shell_adapters,
-        "gates":          gates,
+        "name":             hex.name,
+        // Phase 1 of adapter-family activation : meta-layer files
+        // (Hecks.adapter_family / Hecks.provider / Hecks.behavior_kind)
+        // carry a kind discriminator. Plain Hecks.hecksagon files emit
+        // null. Mirrors parity/canonical_ir.rb :: dump_hecksagon — both
+        // halves emit the field unconditionally so the canonical JSON
+        // shape is byte-equal regardless of whether framework_kind is
+        // populated.
+        "framework_kind":   hex.framework_kind,
+        "persistence":      hex.persistence,
+        "subscriptions":    hex.subscriptions,
+        "io_adapters":      io_adapters,
+        "shell_adapters":   shell_adapters,
+        "llm_adapters":     llm_adapters,
+        "compute_adapters": compute_adapters,
+        "gates":            gates,
     })
 }
 
@@ -1265,6 +1301,9 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        process_managers: vec![],
+        cadences: vec![],
+        block_grammars: vec![],
     };
     // Organ-wins dedupe (i108) — when two bluebooks declare the same
     // aggregate, the one closest to the dispatch root wins. Recursive
@@ -1291,6 +1330,18 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         }
         c.policies.extend(dom.policies);
         c.fixtures.extend(dom.fixtures);
+        // i75-pulse-organs : process_managers + cadences + block_grammars
+        // were dropped by the merge function — load_combined_domain only
+        // ever surfaced the FIRST merged file's PMs, silently swallowing
+        // every subsequent bluebook's process_manager declarations. The
+        // Pulse / SleepCycle / Dream / Mind / Lucidity PMs that the
+        // dream-study branch declares all hit this — registered in Ruby
+        // specs (which load files individually), inert in `hecks-life
+        // run-loop` (which load_combined_domain's the directory). i75
+        // closes this so the PMs reach PMEngine when run-loop boots.
+        c.process_managers.extend(dom.process_managers);
+        c.cadences.extend(dom.cadences);
+        c.block_grammars.extend(dom.block_grammars);
     };
 
     // Recursive bluebook discovery (i126). Walk agg_dir at any depth.
@@ -1423,12 +1474,239 @@ fn find_world_heki_dir(_aggregates_path: &str) -> Option<String> {
     Some(hecks_life::heki::resolve_info_dir().to_string_lossy().into_owned())
 }
 
+/// i221 — load every `*.hecksagon` reachable from agg_dir (the agg_dir
+/// itself + sibling hecksagon roots discovered the same way bluebooks
+/// are). Used by `Runtime::boot_with_hecksagons` so the LLM dispatcher
+/// hook can resolve named `:llm` adapters at runtime.
+fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon> {
+    let mut out = Vec::new();
+    fn walk(dir: &std::path::Path, out: &mut Vec<hecks_life::hecksagon_ir::Hecksagon>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(name, ".git" | "target" | "information" | ".claude"
+                | "node_modules" | "generated" | "fixtures" | "snippets") {
+                continue;
+            }
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+                if let Ok(source) = fs::read_to_string(&p) {
+                    out.push(hecks_life::hecksagon_parser::parse(&source));
+                }
+            }
+        }
+    }
+    walk(std::path::Path::new(agg_dir), &mut out);
+    // i221 follow-up — mirror load_combined_domain's parent walk so
+    // hecksagons in sibling roots participate in :llm adapter
+    // resolution. Without this the named-adapter chain
+    // (Dream.RecordImage → :dream_image) silently skipped because
+    // body/dream/dream.hecksagon lives in ../miette, not under agg_dir.
+    // Same skip-when-missing semantics as the bluebook walk : sibling
+    // repos that aren't checked out (CI on hecks alone) are silently
+    // absent.
+    if let Some(repo_root) = hecks_life::heki::repo_root() {
+        // Sibling repos via canonical repo_root — mirrors
+        // load_combined_domain's miette/miette_family walk (line ~2006).
+        // Use heki::repo_root() because agg_dir can be relative ; from
+        // a worktree under .claude/worktrees/agent-XXX/, parent.parent()
+        // dead-ends at .claude/, but heki::repo_root() walks up from
+        // current_exe to find the canonical hecks/ checkout regardless.
+        for sibling in &["miette", "miette_family"] {
+            if let Ok(canonical) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
+                if canonical.is_dir() && canonical != std::path::Path::new(agg_dir) {
+                    walk(&canonical, &mut out);
+                }
+            }
+        }
+        // Top-level buckets at hecks repo root (mirrors the
+        // post-i118-R3 bluebook walk : runtime/, discipline/, codegen/,
+        // cli/, integrations/, tools/).
+        for bucket in &["runtime", "discipline", "codegen", "cli",
+                        "integrations", "tools", "capabilities"] {
+            let bucket_dir = repo_root.join(bucket);
+            if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
+                walk(&bucket_dir, &mut out);
+            }
+        }
+    }
+    out
+}
+
+/// i221 — register the runtime's `:llm` providers from the env. The
+/// `:test` provider is always present (in-memory ; no network) ; the
+/// `:claude` and `:ollama` providers are added when their backends
+/// are referenced by any loaded hecksagon's `:llm` adapter.
+///
+/// TestProvider fixture sources, in priority order :
+///   1. `HECKS_LLM_FIXTURES` env var — explicit path to a single
+///      fixtures file (TSV or Ruby DSL). Wins outright when set.
+///   2. Sibling `<stem>.fixtures` files next to each loaded
+///      `*.hecksagon` (gap3 / i220-3). The DrearmContent smoke and
+///      any other PM-cascade test ships its canned French responses
+///      next to the hecksagon they belong to ; the runtime auto-merges
+///      them into one prompt-keyed map. Cleaner than forcing every
+///      smoke to set HECKS_LLM_FIXTURES manually.
+///   3. Lenient default (no fixtures) — TestProvider returns a
+///      synthetic `[test-provider:unknown-prompt sha256=…]` placeholder
+///      so the chain still flows ; useful while fixtures are still
+///      being captured.
+///
+/// gap3 (i220-3) note : when `HECKS_LLM_PROVIDER=test` is also set,
+/// `llm_dispatcher::call` overrides every adapter's backend to `:test`
+/// regardless of what the hecksagon declared (`backend :claude`),
+/// which is what makes the smoke deterministic without editing the
+/// production hecksagon.
+fn register_llm_providers(rt: &mut Runtime, agg_dir: &str) {
+    use hecks_life::runtime::llm_providers::{TestProvider, ClaudeProvider, OllamaProvider};
+    // Test provider — always present. Loading order : explicit env
+    // path > auto-discovered sibling files > lenient empty.
+    let test_provider: Box<dyn hecks_life::runtime::llm_providers::LlmProvider> =
+        if let Ok(path) = std::env::var("HECKS_LLM_FIXTURES") {
+            Box::new(TestProvider::from_fixtures_file(path))
+        } else {
+            let merged = collect_sibling_fixtures(agg_dir);
+            if merged.is_empty() {
+                Box::new(TestProvider::new(std::collections::HashMap::new()))
+            } else {
+                Box::new(TestProvider::new(merged))
+            }
+        };
+    rt.register_llm_provider("test", test_provider);
+    // Discover backends declared in hecksagons.
+    let mut backends: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for h in &rt.hecksagons {
+        for la in &h.llm_adapters {
+            if let Some(b) = la.backend.as_deref() {
+                backends.insert(b.to_string());
+            }
+        }
+    }
+    if backends.contains("claude") {
+        rt.register_llm_provider("claude", Box::new(ClaudeProvider::new()));
+    }
+    if backends.contains("ollama") {
+        let url = std::env::var("OLLAMA_URL")
+            .unwrap_or_else(|_| "http://localhost:11434".to_string());
+        rt.register_llm_provider("ollama", Box::new(OllamaProvider::new(url)));
+    }
+}
+
+/// Auto-discover `*.fixtures` siblings of every loaded hecksagon and
+/// fold their `input` → `response` pairs into one SHA-keyed map.
+///
+/// Walks the same roots `load_all_hecksagons` walks (agg_dir + sibling
+/// repos like miette + top-level buckets) and pairs every `*.hecksagon`
+/// with its `<stem>.fixtures` sibling when one exists. Missing siblings
+/// are silently skipped — the lenient default still kicks in for any
+/// adapter whose hecksagon ships without a companion fixtures file.
+///
+/// gap3 / i220-3 wiring : this is the function that makes
+/// `body/dream/dream.fixtures` the canonical source of canned dream
+/// responses for the dream_content smoke without forcing the smoke
+/// to know that path explicitly. The same scan-roots that brought the
+/// hecksagons in bring their fixtures siblings in.
+fn collect_sibling_fixtures(
+    agg_dir: &str,
+) -> std::collections::HashMap<String, String> {
+    use hecks_life::runtime::llm_providers::TestProvider;
+    let mut merged: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    fn walk_for_fixtures(dir: &std::path::Path, out: &mut std::collections::HashMap<String, String>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            // Mirror load_all_hecksagons's skip set so we don't
+            // accidentally pick up codegen shape fixtures or test-
+            // capture bins. The :test provider should ONLY see
+            // adapter-aligned response fixtures.
+            if matches!(name, ".git" | "target" | "information" | ".claude"
+                | "node_modules" | "generated" | "fixtures" | "snippets") {
+                continue;
+            }
+            if p.is_dir() {
+                walk_for_fixtures(&p, out);
+                continue;
+            }
+            // We're looking for `<stem>.fixtures` siblings of `<stem>.hecksagon`.
+            // Keying off the .hecksagon presence keeps shape/spec/etc. fixtures
+            // (which carry Section / Aggregate rows, not input/response) out.
+            if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+                let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { continue };
+                let Some(parent) = p.parent() else { continue };
+                let sibling = parent.join(format!("{}.fixtures", stem));
+                if !sibling.exists() { continue; }
+                let Ok(contents) = std::fs::read_to_string(&sibling) else { continue };
+                merge_fixtures_contents(&contents, out);
+            }
+        }
+    }
+
+    fn merge_fixtures_contents(contents: &str, out: &mut std::collections::HashMap<String, String>) {
+        let trimmed = contents.lines()
+            .find(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
+            .unwrap_or("").trim();
+        if trimmed.starts_with("Hecks.fixtures") {
+            let parsed = hecks_life::fixtures_parser::parse(contents);
+            for fx in &parsed.fixtures {
+                let mut input: Option<&str> = None;
+                let mut response: Option<&str> = None;
+                for (k, v) in &fx.attributes {
+                    match k.as_str() {
+                        "input"    => input = Some(v.as_str()),
+                        "response" => response = Some(v.as_str()),
+                        _ => {}
+                    }
+                }
+                if let (Some(p), Some(r)) = (input, response) {
+                    out.insert(TestProvider::hash_for(p), r.to_string());
+                }
+            }
+        } else {
+            for line in contents.lines() {
+                let l = line.trim_end_matches('\r');
+                if l.is_empty() || l.starts_with('#') { continue; }
+                if let Some((digest, body)) = l.split_once('\t') {
+                    let d = digest.trim().to_string();
+                    if d.len() == 64 && d.chars().all(|c| c.is_ascii_hexdigit()) {
+                        out.insert(d, body.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    walk_for_fixtures(std::path::Path::new(agg_dir), &mut merged);
+    if let Some(repo_root) = hecks_life::heki::repo_root() {
+        for sibling in &["miette", "miette_family"] {
+            if let Ok(canonical) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
+                if canonical.is_dir() && canonical != std::path::Path::new(agg_dir) {
+                    walk_for_fixtures(&canonical, &mut merged);
+                }
+            }
+        }
+        for bucket in &["runtime", "discipline", "codegen", "cli",
+                        "integrations", "tools", "capabilities"] {
+            let bucket_dir = repo_root.join(bucket);
+            if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
+                walk_for_fixtures(&bucket_dir, &mut merged);
+            }
+        }
+    }
+    merged
+}
+
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
 fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
     let combined = load_combined_domain(agg_dir);
-    let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, agg_dir);
 
     // Check if this is a query — find the aggregate and check its queries
     let is_query = rt.domain.aggregates.iter().any(|a|
@@ -1594,8 +1872,29 @@ fn run_enforce_edit(_args: &[String]) {
     };
     let tool_name = json.get("tool_name")
         .and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let file_path = json.pointer("/tool_input/file_path")
+    let mut file_path = json.pointer("/tool_input/file_path")
         .and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    // Bash-write detection (2026-05-02) : the cadence-primitive Phase 1b
+    // agent flagged that kernel-surface .rs edits via Edit/Write got
+    // enforced, but the same edits routed through `bash -c "python3
+    // <<EOF\nopen('foo.rs','w').write(...)\nEOF"` slipped through —
+    // the hook matcher was Edit|Write|MultiEdit only, so Bash bypassed
+    // the discipline entirely. Tighten : when tool_name is Bash, parse
+    // the command string for kernel-surface write patterns and treat
+    // them as if an Edit had hit that path.
+    //
+    // Fast-path : if the command doesn't even mention a kernel-surface
+    // extension, exit 0 immediately. Most bash invocations are reads
+    // (git, grep, ls) ; we don't want enforcer overhead on every shell.
+    if file_path.is_empty() && tool_name == "Bash" {
+        let bash_cmd = json.pointer("/tool_input/command")
+            .and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if let Some(target) = detect_bash_write_target(&bash_cmd) {
+            file_path = target;
+        }
+    }
+
     if file_path.is_empty() {
         std::process::exit(0);
     }
@@ -1713,6 +2012,281 @@ fn run_enforce_edit(_args: &[String]) {
         std::process::exit(2);
     }
     std::process::exit(0);
+}
+
+/// Detect whether a Bash command writes to a kernel-surface file.
+/// Returns Some(path) when a write to .rb / .rs / .sh / .py is detected ;
+/// None otherwise. Closes the bypass the cadence-primitive Phase 1b
+/// agent flagged on 2026-05-02 — the antibody hook only matched Edit /
+/// Write / MultiEdit tools, so the same edits routed through `bash -c
+/// "python3 <<EOF\nopen('foo.rs', 'w').write(...)\nEOF"` slipped
+/// through entirely.
+///
+/// Fast-path : if the command doesn't mention any kernel-surface
+/// extension, return None immediately. Most bash invocations are
+/// reads (git, grep, ls, find) ; we don't want enforcer overhead
+/// on every shell call.
+///
+/// Patterns matched (each catches one canonical write shape) :
+///   1. `> path.rs`           — stdout redirect to file
+///   2. `>> path.rs`          — append redirect to file
+///   3. `tee path.rs`         — tee redirect (with or without -a)
+///   4. `cat > path.rs`       — heredoc-via-cat target
+///   5. `python ... open('path.rs', 'w')` — python file write
+///   6. `python ... write_text('path.rs')` — pathlib write
+///   7. `sed -i ... path.rs`  — in-place sed edit
+///   8. `awk -i inplace ... path.rs` — in-place awk edit
+fn detect_bash_write_target(cmd: &str) -> Option<String> {
+    // Fast-path : require ANY kernel-surface extension to even consider scanning.
+    if !cmd.contains(".rb") && !cmd.contains(".rs")
+        && !cmd.contains(".sh") && !cmd.contains(".py") {
+        return None;
+    }
+
+    // Helper : check if a path looks kernel-surface.
+    let is_kernel_surface = |path: &str| -> bool {
+        path.ends_with(".rb") || path.ends_with(".rs")
+            || path.ends_with(".sh") || path.ends_with(".py")
+    };
+
+    // Token-by-token scan over the command, tracking the last
+    // "redirect-like" operator seen. When we see one and the next
+    // non-flag token is a kernel-surface path, that's a write target.
+    let bytes = cmd.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+
+        // Skip strings (' or ") in the OUTER scan — but record the
+        // path INSIDE the string if it's a write target. Python heredocs
+        // and quoted paths both flow through here.
+        if c == '\'' || c == '"' {
+            let quote = c;
+            let start = i + 1;
+            i += 1;
+            while i < bytes.len() && bytes[i] as char != quote {
+                if bytes[i] as char == '\\' && i + 1 < bytes.len() { i += 1; }
+                i += 1;
+            }
+            let inside = &cmd[start..i.min(cmd.len())];
+            // Look for python-style file-write patterns inside the string.
+            // open('path.rs', 'w') or write_text('path.rs') or
+            // Path('path.rs').write_text(...).
+            if let Some(target) = scan_python_write_in(inside) {
+                return Some(target);
+            }
+            i += 1; // skip closing quote
+            continue;
+        }
+
+        // Skip comments (# to end of line) outside strings.
+        if c == '#' {
+            while i < bytes.len() && bytes[i] as char != '\n' { i += 1; }
+            continue;
+        }
+
+        // Redirect operators : > >> | tee | python ... heredoc.
+        if c == '>' {
+            // Skip the operator (one or two chars).
+            let mut j = i + 1;
+            if j < bytes.len() && bytes[j] as char == '>' { j += 1; }
+            // Skip whitespace.
+            while j < bytes.len() && (bytes[j] as char).is_whitespace() { j += 1; }
+            // Read the next token (until whitespace, |, ;, &, <, >).
+            let start = j;
+            while j < bytes.len() {
+                let ch = bytes[j] as char;
+                if ch.is_whitespace() || ch == '|' || ch == ';' || ch == '&'
+                    || ch == '<' || ch == '>' { break; }
+                j += 1;
+            }
+            let target = &cmd[start..j];
+            // Strip surrounding quotes if any.
+            let target = target.trim_matches(|c| c == '\'' || c == '"');
+            if !target.is_empty() && is_kernel_surface(target) {
+                return Some(target.to_string());
+            }
+            i = j;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    // Word-level scan for tee, sed -i, awk -i inplace, and python heredocs
+    // that we missed via string-scanning above. These all have a
+    // "command name + flags + path" structure.
+    //
+    // 2026-05-02 false-positive heal : sed and awk both accept harmless
+    // read-only flags (`sed -n` to suppress autoprint ; `awk -F` for
+    // field separator). The previous "any flag activates write
+    // detection" rule mis-fired on `sed -n '120,200p' foo.rs` and
+    // similar reads. Tighten : sed only writes with `-i` /
+    // `--in-place` ; awk only writes with `-i inplace`. tee remains
+    // always-write. Each entry names the bigram(s) that mean "this is
+    // a write" — None for always-write, Some(&[…]) for required
+    // tokens (an OR over the entries). For multi-token write
+    // signatures (`awk -i inplace`), both tokens must appear in the
+    // command string before path scanning starts.
+    let scans: &[(&str, Option<&[&[&str]]>)] = &[
+        ("tee", None),
+        ("sed", Some(&[&["-i"][..], &["--in-place"][..]])),
+        ("awk", Some(&[&["-i", "inplace"][..]])),
+    ];
+    for (cmd_name, write_signatures) in scans {
+        if let Some(target) = scan_command_with_path_arg(cmd, cmd_name, *write_signatures) {
+            return Some(target);
+        }
+    }
+
+    None
+}
+
+/// Scan a string for Python write patterns : `open('path', 'w')` or
+/// `write_text('path')` or `Path('path').write_text(...)`.
+fn scan_python_write_in(s: &str) -> Option<String> {
+    // open('path', 'w' | 'a' | 'wb') — naïve match
+    let mut idx = 0;
+    while let Some(pos) = s[idx..].find("open(") {
+        let p = idx + pos + "open(".len();
+        // Read the first quoted string (path).
+        let path = read_quoted_after(&s[p..])?;
+        // Look for ", 'w'" or ", 'a'" within ~30 chars after.
+        let after = &s[p..];
+        let lookahead = &after[..after.len().min(60)];
+        if lookahead.contains(",'w") || lookahead.contains(",\"w")
+            || lookahead.contains(", 'w") || lookahead.contains(", \"w")
+            || lookahead.contains(",'a") || lookahead.contains(", 'a")
+            || lookahead.contains(",\"a") || lookahead.contains(", \"a") {
+            if !path.is_empty() && (path.ends_with(".rb") || path.ends_with(".rs")
+                || path.ends_with(".sh") || path.ends_with(".py")) {
+                return Some(path);
+            }
+        }
+        idx = p;
+    }
+    None
+}
+
+fn read_quoted_after(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() && (bytes[i] as char).is_whitespace() { i += 1; }
+    if i >= bytes.len() { return None; }
+    let q = bytes[i] as char;
+    if q != '\'' && q != '"' { return None; }
+    let start = i + 1;
+    let mut j = start;
+    while j < bytes.len() && bytes[j] as char != q {
+        if bytes[j] as char == '\\' && j + 1 < bytes.len() { j += 1; }
+        j += 1;
+    }
+    Some(s[start..j].to_string())
+}
+
+/// Find `needle` in `cmd`, but skip occurrences inside single- or
+/// double-quoted regions (heredoc bodies, here-strings, embedded
+/// scripts that mention paths as documentation). Walks the command
+/// character-by-character ; toggles a quote-state on `'` and `"`
+/// (respecting `\\\"` escapes) and only reports matches outside.
+///
+/// Used by scan_command_with_path_arg so a command like
+/// `gh pr create --body "...tee rust/src/main.rs..."` doesn't
+/// trigger the write classifier on its documentation text.
+fn find_outside_quotes(cmd: &str, needle: &str) -> Option<usize> {
+    if needle.is_empty() { return Some(0); }
+    let bytes = cmd.as_bytes();
+    let mut i = 0usize;
+    let mut in_quote: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match in_quote {
+            Some(q) => {
+                if c == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+                if c == q { in_quote = None; }
+                i += 1;
+            }
+            None => {
+                if c == b'\'' || c == b'"' { in_quote = Some(c); i += 1; continue; }
+                if cmd[i..].starts_with(needle) {
+                    return Some(i);
+                }
+                i += 1;
+            }
+        }
+    }
+    None
+}
+
+/// Scan a bash command for `<cmd_name> [flags] path.{rb,rs,sh,py}` —
+/// catches `tee path.rs`, `sed -i 's/foo/bar/' path.sh`, and similar.
+///
+/// `write_signatures` declares which token sequences mean "this is a
+/// write" :
+///   - `None` — the command is always a write (e.g. tee).
+///   - `Some(&[&["-i"], &["--in-place"]])` — any of the inner sequences
+///     present in the post-command-name token stream activates path
+///     scanning. Each sequence is a list of consecutive tokens (a
+///     bigram like `["-i", "inplace"]` requires both tokens to appear
+///     consecutively).
+///
+/// 2026-05-02 false-positive heal : prior signature was a single
+/// `flag_required: bool` ; "any flag activates" mis-classified
+/// `sed -n '120,200p' foo.rs` (read-only print) as a write. The new
+/// shape lets each cmd_name name the exact tokens that mean write.
+fn scan_command_with_path_arg(
+    cmd: &str,
+    cmd_name: &str,
+    write_signatures: Option<&[&[&str]]>,
+) -> Option<String> {
+    // Find the command name as a word boundary, OUTSIDE any quoted
+    // region. The outer detect_bash_write_target scan already skips
+    // string literals when looking for redirects ; this word-level
+    // scan needs the same discipline. Without it, a Bash command
+    // like `gh pr create --body "...tee rust/src/main.rs..."` (the
+    // tee mention is inside a heredoc body) trips the classifier
+    // even though no actual write is happening. 2026-05-02 false-
+    // positive heal, follow-on to the sed-n fix.
+    let needle = format!("{} ", cmd_name);
+    let pos = match find_outside_quotes(cmd, &needle) {
+        Some(p) => p,
+        None => return None,
+    };
+    let after = &cmd[pos + needle.len()..];
+    let tokens: Vec<&str> = after.split_whitespace()
+        .take_while(|t| *t != "|" && *t != ";" && *t != "&&" && *t != "||")
+        .collect();
+
+    // Decide whether the post-command token stream contains a write
+    // signature. None means "always a write". Some means "scan for one
+    // of the bigrams ; if absent, the command is a read".
+    let is_write = match write_signatures {
+        None => true,
+        Some(sigs) => sigs.iter().any(|sig| {
+            // Bigram match : every token in sig must appear in tokens
+            // consecutively, in order. Empty sig matches always.
+            if sig.is_empty() { return true; }
+            tokens.windows(sig.len()).any(|window| {
+                window.iter().zip(sig.iter()).all(|(t, s)| t == s)
+            })
+        }),
+    };
+    if !is_write {
+        return None;
+    }
+
+    for token in &tokens {
+        if token.starts_with("-") {
+            continue;
+        }
+        // Strip quotes.
+        let path = token.trim_matches(|c| c == '\'' || c == '"');
+        if path.ends_with(".rb") || path.ends_with(".rs")
+            || path.ends_with(".sh") || path.ends_with(".py") {
+            return Some(path.to_string());
+        }
+    }
+    None
 }
 
 /// Scan a shell file for direct heki writes (heki append / upsert /
@@ -2146,16 +2720,22 @@ fn run_loop(args: &[String]) {
     // breath, ultradian, sleep_cycle) firing UnknownCommand silently.
     // load_combined_domain mirrors dispatch_hecksagon's recursive
     // walk so loop sees the full conception including subdirs.
-    let domain = if std::path::Path::new(target).is_dir() {
-        load_combined_domain(target)
+    let (domain, hecksagons) = if std::path::Path::new(target).is_dir() {
+        (load_combined_domain(target), load_all_hecksagons(target))
     } else {
         let source = fs::read_to_string(target).unwrap_or_else(|e| {
             eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
         });
-        parser::parse(&source)
+        (parser::parse(&source), Vec::new())
     };
 
-    let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
+    // gap3 (i220-3) — boot with hecksagons + providers so the LLM
+    // dispatcher's drain_policies hook resolves :llm adapters during the
+    // PM cascade. Without this, run_loop's ProduceImage cascade would
+    // dispatch fine but no :llm adapter would fire and text_fr / text_en
+    // would never populate. Mirrors the dispatch_hecksagon path.
+    let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, target);
     let mut idx: usize = 0;
     loop {
         let gate_open = match &gate {
@@ -2171,6 +2751,223 @@ fn run_loop(args: &[String]) {
         }
         std::thread::sleep(every);
     }
+}
+
+/// `hecks-life run-loop <target> [--every <dur>]
+///   [--emit <EventName:AggregateType:AggregateId>]...
+///   [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]...
+///   [--dispatch <Aggregate.Command>]... [k=v ...]`
+///
+/// Runtime daemon — boots a Runtime once, ticks at the configured
+/// cadence, fires registered actions on each tick. Wires the new
+/// LoopDriver in `runtime/loop_driver.rs` to the CLI ; defaults
+/// produce a 1Hz "BodyPulse" emit, matching mindstream.sh's actual
+/// real cadence.
+///
+/// `--emit X:Y:Z` injects a synthetic event into the runtime's bus
+/// (drives PMs only, no command pipeline). `--dispatch Cmd` runs the
+/// full command path. Multiple of each may be passed ; they fire in
+/// declaration order each tick. Trailing `k=v` pairs become attrs
+/// for `--dispatch` actions (shared across all dispatches in the tick,
+/// matching `hecks-life loop`'s convention).
+///
+/// `--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>`
+/// (i223) is a one-shot first-tick predicate-and-emit. On the first
+/// tick only, if the named aggregate's named field equals the
+/// expected value, the daemon emits a synthetic event keyed by the
+/// trailing triple. After the first tick the bootstrap is drained
+/// (no replay). Closes the mind-pm-bootstrap-on-attentive-restart
+/// gap : a daemon restarting while consciousness is already
+/// `attentive` never sees a fresh `WokenUp`, so PMs that
+/// `starts_on "WokenUp"` are stranded with no instance and the
+/// wake handler is inert. Multiple bootstraps may be declared.
+///
+/// SIGTERM / SIGINT today : the daemon exits at the next tick boundary
+/// (graceful) when the stop flag flips. Per-transition PM persistence
+/// in drain_policies means hard-kill loses no PM state — the worst
+/// case is replaying one tick's policy cascade. Signal-driven shutdown
+/// is a follow-up (needs signal_hook ; the runtime is dep-light today).
+fn run_pm_loop(args: &[String]) {
+    use hecks_life::runtime::loop_driver::{BootstrapEmit, LoopDriver, TickAction};
+
+    let target = match args.get(2).map(|s| s.as_str()) {
+        Some(t) => t,
+        None => {
+            eprintln!(
+                "Usage: hecks-life run-loop <bluebook-or-dir> \
+                 [--every <duration>] \
+                 [--emit <Event:AggType:AggId>]... \
+                 [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]... \
+                 [--dispatch <Aggregate.Command>]... \
+                 [key=val ...]"
+            );
+            std::process::exit(1);
+        }
+    };
+
+    let every_str = args.iter().position(|a| a == "--every")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str())
+        .unwrap_or("1s");
+    let interval = parse_loop_duration(every_str).unwrap_or_else(|| {
+        eprintln!("run-loop : cannot parse --every '{}' (try 1s, 500ms, 2m)", every_str);
+        std::process::exit(1);
+    });
+
+    // Collect emit + dispatch + bootstrap actions in argv order so a
+    // user can declare multiple cadenced events, command dispatches,
+    // and one-shot bootstraps in one run. Multi-value flag pattern :
+    // repeat the flag.
+    let mut emits: Vec<(String, String, String)> = Vec::new();
+    let mut dispatches: Vec<String> = Vec::new();
+    // i223 — predicate-gated first-tick emissions. Each entry :
+    // (predicate_agg_type, predicate_field, expected_value,
+    //  emit_event_name, emit_agg_type, emit_agg_id). The aggregate_id
+    //  the predicate reads is `emit_agg_id` (the bootstrap targets
+    //  one record at a time ; the tuple shape stays small).
+    let mut bootstraps: Vec<(String, String, String, String, String, String)> = Vec::new();
+    let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut i = 3;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--every" => { i += 2; continue; }
+            "--emit" => {
+                if let Some(spec) = args.get(i + 1) {
+                    let parts: Vec<&str> = spec.splitn(3, ':').collect();
+                    if parts.len() == 3 {
+                        emits.push((parts[0].into(), parts[1].into(), parts[2].into()));
+                    } else {
+                        eprintln!("run-loop : --emit needs Event:AggType:AggId, got '{}'", spec);
+                        std::process::exit(1);
+                    }
+                }
+                i += 2;
+            }
+            "--bootstrap-if" => {
+                // i223 — parse <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>.
+                // Two split phases : first split on ':' into 4 parts
+                // (predicate, event_name, emit_agg_type, emit_agg_id),
+                // then split the predicate on '=' (state lhs vs rhs)
+                // and on '.' (aggregate vs field).
+                if let Some(spec) = args.get(i + 1) {
+                    let parts: Vec<&str> = spec.splitn(4, ':').collect();
+                    if parts.len() != 4 {
+                        eprintln!(
+                            "run-loop : --bootstrap-if needs \
+                             <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>, got '{}'",
+                            spec
+                        );
+                        std::process::exit(1);
+                    }
+                    let predicate = parts[0];
+                    let event_name = parts[1].to_string();
+                    let emit_agg_type = parts[2].to_string();
+                    let emit_agg_id = parts[3].to_string();
+                    let (lhs, expected) = match predicate.split_once('=') {
+                        Some(p) => p,
+                        None => {
+                            eprintln!(
+                                "run-loop : --bootstrap-if predicate must contain '=', got '{}'",
+                                predicate
+                            );
+                            std::process::exit(1);
+                        }
+                    };
+                    let (agg_type, field) = match lhs.split_once('.') {
+                        Some(p) => p,
+                        None => {
+                            eprintln!(
+                                "run-loop : --bootstrap-if predicate lhs must be \
+                                 <Aggregate>.<field>, got '{}'",
+                                lhs
+                            );
+                            std::process::exit(1);
+                        }
+                    };
+                    bootstraps.push((
+                        agg_type.into(), field.into(), expected.into(),
+                        event_name, emit_agg_type, emit_agg_id,
+                    ));
+                }
+                i += 2;
+            }
+            "--dispatch" => {
+                if let Some(c) = args.get(i + 1) {
+                    dispatches.push(c.split('.').last().unwrap_or(c).to_string());
+                }
+                i += 2;
+            }
+            s if s.starts_with("--") => { i += 1; }
+            s => {
+                if let Some((k, v)) = s.split_once('=') {
+                    attrs.insert(k.into(), hecks_life::runtime::Value::Str(v.into()));
+                }
+                i += 1;
+            }
+        }
+    }
+
+    // Default action when no --emit / --dispatch given : fire a 1Hz
+    // BodyPulse synthetic event. This matches mindstream's actual
+    // real cadence and lets PMs that subscribe to BodyPulse advance
+    // out of the box. Override by passing explicit flags.
+    if emits.is_empty() && dispatches.is_empty() {
+        emits.push(("BodyPulse".into(), "Pulse".into(), "pulse".into()));
+    }
+
+    let data_dir = find_world_heki_dir(target)
+        .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
+    let (domain, hecksagons) = if std::path::Path::new(target).is_dir() {
+        (load_combined_domain(target), load_all_hecksagons(target))
+    } else {
+        let source = fs::read_to_string(target).unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", target, e); std::process::exit(1);
+        });
+        (parser::parse(&source), Vec::new())
+    };
+
+    // gap3 (i220-3) — boot with hecksagons + providers so the LLM
+    // dispatcher's drain_policies hook resolves :llm adapters during
+    // PM-cascade dispatches. Same wiring as run_loop / dispatch_hecksagon.
+    let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, target);
+    let mut driver = LoopDriver::new(rt, interval);
+    for (ev, ty, id) in emits {
+        driver.add_emit(&ev, &ty, &id, std::collections::HashMap::new());
+    }
+    for cmd in dispatches {
+        driver.add_action(TickAction::Dispatch {
+            command_name: cmd,
+            attrs: attrs.clone(),
+        });
+    }
+    // i223 — register parsed bootstraps. The predicate aggregate_id is
+    // the same as the emit aggregate_id for the canonical
+    // Consciousness.state=attentive case ; if a future caller needs a
+    // cross-aggregate predicate (read X to decide whether to emit on
+    // Y), the CLI surface can grow a second `:` field. For today's
+    // single-aggregate case, sharing keeps the surface terse.
+    let bootstrap_count = bootstraps.len();
+    for (agg_type, field, expected, event_name, emit_agg_type, emit_agg_id) in bootstraps {
+        driver.add_bootstrap(BootstrapEmit {
+            aggregate_type: agg_type,
+            aggregate_id: emit_agg_id.clone(),
+            field,
+            expected,
+            event: TickAction::Emit {
+                event_name,
+                aggregate_type: emit_agg_type,
+                aggregate_id: emit_agg_id,
+                data: std::collections::HashMap::new(),
+            },
+        });
+    }
+    eprintln!(
+        "[hecks-life run-loop] {} actions/tick every {:?} ({} bootstrap{}, Ctrl-C to stop)",
+        driver.runtime().domain.name, interval, bootstrap_count,
+        if bootstrap_count == 1 { "" } else { "s" }
+    );
+    driver.run();
 }
 
 /// Predicate for the --gate flag on `hecks-life loop` (i108). Reads the
@@ -2659,9 +3456,5 @@ fn resolve_home(_being: &str) -> String {
         }
     }
     ".".into()
-}
-
-fn dirs() -> Option<String> {
-    env::var("HOME").ok()
 }
 

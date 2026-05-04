@@ -192,6 +192,17 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
 //!  the rest of the run_enforce_edit family.]
 //!
+//! [antibody-exempt: hecks_life/src/main.rs detect_bash_write_target +
+//!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
+//!  classifier treated `sed -n '...'` (autoprint-suppress, read-only) as a
+//!  write target whenever any flag was present, blocking honest reads of
+//!  .rs files. New shape : each cmd_name names the exact write signatures
+//!  (None for tee/always-write ; Some(&[bigrams]) for sed -i / --in-place
+//!  and awk -i inplace). Same i80 retirement contract as the rest of the
+//!  run_enforce_edit family — retires when the enforcer's command-string
+//!  classification becomes a domain dispatched from
+//!  aggregates/discipline/enforcer/.]
+//!
 //! [antibody-exempt: hecks_life/src/main.rs — i117 Round 4. load_combined_domain
 //!  walks the sibling ../miette repo as an additional bluebook root at depth 1.
 //!  Miette's self/mind/body/library/surface aggregates physically live in

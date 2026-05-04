@@ -46,3 +46,4 @@ pub fn parse_mutation(line: &str) -> Option<Mutation> {
     };
     Some(Mutation { field, operation: op, value })
 }
+
