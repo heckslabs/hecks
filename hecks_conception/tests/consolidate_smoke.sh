@@ -202,7 +202,10 @@ HECKS_BIN="$HECKS" \
   >"$RUN_LOG" 2>&1 &
 RUN_PID=$!
 
-sleep 2
+# 4s gives the PM time for both for_each sweeps (Signal.cold + Synapse.cold)
+# under CI load. Local macOS finishes in ~2s ; CI runners are slower and
+# the synapse compost sweep was missing the second tick at sleep=2s.
+sleep 4
 kill "$RUN_PID" 2>/dev/null || true
 wait "$RUN_PID" 2>/dev/null || true
 
