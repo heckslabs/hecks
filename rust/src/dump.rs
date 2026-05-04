@@ -80,6 +80,7 @@ fn dump_dispatch(d: &DispatchSpec) -> Value {
         .collect();
     let for_each = match &d.for_each {
         Some(fe) => json!({
+            "source_context": fe.source_context,
             "source_aggregate": fe.source_aggregate,
             "query_name": fe.query_name,
         }),

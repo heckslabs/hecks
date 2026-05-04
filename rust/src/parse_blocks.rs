@@ -1124,13 +1124,27 @@ fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let from_pos = body.find("from:")?;
     let value_raw = body[from_pos + "from:".len()..].trim();
     let literal = extract_string(value_raw)?;
-    let dot = literal.find('.')?;
-    if dot == 0 || dot == literal.len() - 1 {
-        return None;
-    }
-    let source_aggregate = literal[..dot].to_string();
-    let query_name = literal[dot + 1..].to_string();
-    Some(ForEachSpec { source_aggregate, query_name })
+    // Two qualified forms accepted :
+    //   "Aggregate.query_name"            (2-part, back-compat)
+    //   "Context.Aggregate.query_name"    (3-part — disambiguates when
+    //                                      multiple bluebooks declare
+    //                                      the same aggregate name ;
+    //                                      i142 Context.Aggregate.Command
+    //                                      resolution applied to query
+    //                                      lookups too)
+    // Splitting on '.' : 2 parts → source_context = None ;
+    // 3 parts → source_context = Some(parts[0]).
+    let parts: Vec<&str> = literal.split('.').collect();
+    let (source_context, source_aggregate, query_name) = match parts.as_slice() {
+        [agg, qry] if !agg.is_empty() && !qry.is_empty() => {
+            (None, agg.to_string(), qry.to_string())
+        }
+        [ctx, agg, qry] if !ctx.is_empty() && !agg.is_empty() && !qry.is_empty() => {
+            (Some(ctx.to_string()), agg.to_string(), qry.to_string())
+        }
+        _ => return None,
+    };
+    Some(ForEachSpec { source_context, source_aggregate, query_name })
 }
 
 /// Given a slice that starts at `{`, return the index of the matching
