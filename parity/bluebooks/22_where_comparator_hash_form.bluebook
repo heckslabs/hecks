@@ -1,0 +1,46 @@
+Hecks.bluebook "WhereComparators", version: "2026.05.03.1" do
+  vision "i226 — where(field: { lt|lte|gt|gte|ne: value }) hash-form comparators round-trip byte-equal between Ruby and Rust parsers"
+
+  aggregate "Synapse", "Cold-fire detector demo" do
+    attribute :id,             String
+    attribute :strength,       Float, default: 0.0
+    attribute :last_fired_at,  String
+
+    command "Fire" do
+      role "Network"
+      attribute :strength, Float
+      attribute :last_fired_at, String
+      emits "Fired"
+    end
+
+    query "Cold" do
+      description "Synapses whose last fire is older than the given cutoff"
+      where(last_fired_at: { lt: "2026-05-01T00:00:00Z" })
+    end
+
+    query "Weak" do
+      description "Synapses whose strength has decayed below threshold"
+      where(strength: { lte: 0.1 })
+    end
+
+    query "Hot" do
+      description "Synapses currently above the warm-fire threshold"
+      where(strength: { gt: 0.5 })
+    end
+
+    query "Mature" do
+      description "Synapses at or above the consolidation threshold"
+      where(strength: { gte: 1.0 })
+    end
+
+    query "Active" do
+      description "Synapses not yet archived"
+      where(status: { ne: "archived" })
+    end
+
+    query "ColdAndWeak" do
+      description "Two-pair comparator form on a single where call"
+      where(last_fired_at: { lt: "2026-05-01T00:00:00Z" }, strength: { lte: 0.1 })
+    end
+  end
+end

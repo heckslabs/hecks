@@ -11,7 +11,7 @@ When invoked with no arguments or a partial search term, act as a command palett
 1. Search the lexicon for matching commands:
 
 ```bash
-hecks_life/target/release/hecks-life lexicon hecks_conception 2>&1 | grep -i "$ARGUMENTS"
+rust/target/release/hecks-life lexicon hecks_conception 2>&1 | grep -i "$ARGUMENTS"
 ```
 
 2. Present matches as a compact numbered list showing:
@@ -28,7 +28,7 @@ When invoked with a full command phrase:
 1. Match against the lexicon:
 
 ```bash
-hecks_life/target/release/hecks-life lexicon hecks_conception "$ARGUMENTS"
+rust/target/release/hecks-life lexicon hecks_conception "$ARGUMENTS"
 ```
 
 2. If match found, look up the command's parameters by finding the bluebook:
@@ -44,7 +44,7 @@ Then read the command definition to find required attributes.
 4. Execute by persisting to heki:
 
 ```bash
-hecks_life/target/release/hecks-life heki append hecks_conception/information/<Domain>.heki domain=<Domain> aggregate=<Aggregate> command=<Command> key=value ...
+rust/target/release/hecks-life heki append hecks_conception/information/<Domain>.heki domain=<Domain> aggregate=<Aggregate> command=<Command> key=value ...
 ```
 
 5. Show the result and offer related commands.
@@ -65,6 +65,6 @@ Always show the Glass dispatch transparently:
 
 ## Browsing
 
-Full surface: `hecks_life/target/release/hecks-life lexicon hecks_conception`
+Full surface: `rust/target/release/hecks-life lexicon hecks_conception`
 By domain: pipe through `grep -i "DomainName"`
 Compositions only: pipe through `grep " then "`

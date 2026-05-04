@@ -9,7 +9,7 @@ This is an interactive navigator for Glass. Walk the user through picking a comm
 Run this to get all domains:
 
 ```bash
-hecks_life/target/release/hecks-life lexicon hecks_conception 2>&1 | grep "→" | awk -F'→' '{print $2}' | awk -F'::' '{print $1}' | sed 's/^ *//' | sort -u
+rust/target/release/hecks-life lexicon hecks_conception 2>&1 | grep "→" | awk -F'→' '{print $2}' | awk -F'::' '{print $1}' | sed 's/^ *//' | sort -u
 ```
 
 Present them as a numbered list grouped by theme:
@@ -29,7 +29,7 @@ Ask the user to pick a domain (by name or number).
 ### Step 2: Show commands in that domain
 
 ```bash
-hecks_life/target/release/hecks-life lexicon hecks_conception 2>&1 | grep "→.*DomainName::" | grep -v " then "
+rust/target/release/hecks-life lexicon hecks_conception 2>&1 | grep "→.*DomainName::" | grep -v " then "
 ```
 
 Show each command with its aggregate. Ask the user to pick one.
@@ -52,7 +52,7 @@ grep -A 20 'command "CommandName"' <bluebook-path>
 Ask the user for each required parameter value, then dispatch:
 
 ```bash
-hecks_life/target/release/hecks-life heki append hecks_conception/information/<Domain>.heki domain=<Domain> aggregate=<Aggregate> command=<Command> param1=value1 param2=value2
+rust/target/release/hecks-life heki append hecks_conception/information/<Domain>.heki domain=<Domain> aggregate=<Aggregate> command=<Command> param1=value1 param2=value2
 ```
 
 Show the persisted record.

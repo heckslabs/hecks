@@ -131,8 +131,8 @@ struct State {
     consciousness: String,
     sleep_summary: String,
     sleep_stage: String,
-    sleep_cycle: String,
-    sleep_total: String,
+    sleep_cycle: i64,
+    sleep_total: i64,
     phase_ticks: i64,
     is_lucid: String,
     dream_pulses: i64,
@@ -171,8 +171,8 @@ fn read_state(info: &Path, public_info: &Path) -> State {
             s.consciousness        = string_field(rec, "state");
             s.sleep_summary        = string_field(rec, "sleep_summary");
             s.sleep_stage          = string_field(rec, "sleep_stage");
-            s.sleep_cycle          = string_field(rec, "sleep_cycle");
-            s.sleep_total          = string_field(rec, "sleep_total");
+            s.sleep_cycle          = int_field(rec, "sleep_cycle");
+            s.sleep_total          = int_field(rec, "sleep_total");
             s.phase_ticks          = int_field(rec, "phase_ticks");
             s.is_lucid             = string_field(rec, "is_lucid");
             s.dream_pulses         = int_field(rec, "dream_pulses");
@@ -378,26 +378,22 @@ fn render_sleep(s: &State, now: &Now) -> String {
         s.sleep_stage.clone()
     };
 
-    // Timer math : REM counts UP (unknown duration) ; other phases
-    // count DOWN from 12-tick floor (2 minutes at 10s/tick).
+    // Timer math : REM counts UP because dreams have real duration —
+    // Claude generates each dream image, the phase holds until the
+    // dream completes. NREM phases (light/deep/final_light) fly through
+    // naturally — they are content-gated, not time-gated, so the bar
+    // shows no timer at all for them.
     let timer = if s.sleep_stage == "rem" {
         let elapsed = s.phase_ticks * 10;
         let mins = elapsed / 60;
         let secs = elapsed % 60;
         format!("+{}:{:02}", mins, secs)
     } else {
-        let remaining = (12 - s.phase_ticks) * 10;
-        if remaining < 0 {
-            format!("+{}s", -remaining)
-        } else {
-            let mins = remaining / 60;
-            let secs = remaining % 60;
-            format!("{}:{:02}", mins, secs)
-        }
+        String::new()
     };
 
     let header = if s.sleep_stage == "rem" {
-        if !s.sleep_cycle.is_empty() && !s.sleep_total.is_empty() {
+        if s.sleep_total > 0 {
             format!(
                 "cycle {}/{} — {} {} · {}/{} dreams",
                 s.sleep_cycle, s.sleep_total, phase_label, timer,
@@ -409,10 +405,10 @@ fn render_sleep(s: &State, now: &Now) -> String {
                 phase_label, timer, s.dream_pulses, s.dream_pulses_needed
             )
         }
-    } else if !s.sleep_cycle.is_empty() && !s.sleep_total.is_empty() {
-        format!("cycle {}/{} — {} ({})", s.sleep_cycle, s.sleep_total, phase_label, timer)
+    } else if s.sleep_total > 0 {
+        format!("cycle {}/{} — {}", s.sleep_cycle, s.sleep_total, phase_label)
     } else {
-        format!("{} ({})", phase_label, timer)
+        phase_label.clone()
     };
 
     // Lucid REM prefers lucid_dream.latest_narrative ; otherwise
@@ -490,6 +486,7 @@ fn mood_icon_for(mood: &str) -> &'static str {
 
 fn fatigue_icon_for(fatigue: &str) -> &'static str {
     match fatigue {
+        "rested"     => "🌿",
         "alert"      => "⚡",
         "focused"    => "🎯",
         "normal"     => "",
@@ -568,7 +565,7 @@ mod tests {
 
     #[test]
     fn fatigue_icon_table_covers_emitters() {
-        for f in ["alert", "focused", "tired", "exhausted", "delirious"] {
+        for f in ["rested", "alert", "focused", "tired", "exhausted", "delirious"] {
             assert!(!fatigue_icon_for(f).is_empty(), "{} should have an icon", f);
         }
         assert_eq!(fatigue_icon_for("normal"), ""); // intentionally empty
@@ -610,8 +607,8 @@ mod tests {
         let s = State {
             consciousness: "sleeping".into(),
             sleep_stage: "rem".into(),
-            sleep_cycle: "3".into(),
-            sleep_total: "8".into(),
+            sleep_cycle: 3,
+            sleep_total: 8,
             phase_ticks: 4,            // 40 seconds elapsed
             dream_pulses: 2,
             dream_pulses_needed: 5,

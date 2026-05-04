@@ -112,6 +112,90 @@ module Hecks
       result
     end
 
+    # Phase 1 of the adapter-family meta-layer activation. Three sibling
+    # entry points for the framework's pure-data declarations :
+    #
+    #   Hecks.adapter_family "tts"            do ... end
+    #   Hecks.provider       "elevenlabs"     do ... end
+    #   Hecks.behavior_kind  "render_text_to_audio" do ... end
+    #
+    # Each declares one row in the kernel's adapter-family registry —
+    # what an adapter family IS, what concrete provider implements it,
+    # what runtime behavior it satisfies. Adding a new family / provider
+    # / behavior is appending one file under
+    # `hecks_conception/aggregates/framework/` ; no kernel edits.
+    #
+    # Phase 1 surface : the parsers recognise the forms, the IR carries
+    # the declared name + framework_kind discriminator, both halves emit
+    # byte-equal canonical IR (see parity/canonical_ir.rb +
+    # rust/src/main.rs :: dump_hecksagon_json). Phase 2 captures the
+    # inner DSL (fields, providers, request_body, ...) into a richer
+    # payload so the runtime registry can drive dispatch.
+    def adapter_family(name = nil, &block)
+      _build_framework_declaration(name, "adapter_family", &block)
+    end
+
+    def provider(name = nil, &block)
+      _build_framework_declaration(name, "provider", &block)
+    end
+
+    def behavior_kind(name = nil, &block)
+      _build_framework_declaration(name, "behavior_kind", &block)
+    end
+
+    # Internal — shared shape across the three entry points.
+    def _build_framework_declaration(name, framework_kind, &block)
+      builder = Hecksagon::DSL::FrameworkDeclarationBuilder.new(
+        name, framework_kind: framework_kind
+      )
+      builder.instance_eval(&block) if block
+      result = builder.build
+      Hecks.last_hecksagon = result
+      result
+    end
+
+    # Phase 1 of the adapter-family meta-layer activation. Three sibling
+    # entry points for the framework's pure-data declarations :
+    #
+    #   Hecks.adapter_family "tts"            do ... end
+    #   Hecks.provider       "elevenlabs"     do ... end
+    #   Hecks.behavior_kind  "render_text_to_audio" do ... end
+    #
+    # Each declares one row in the kernel's adapter-family registry —
+    # what an adapter family IS, what concrete provider implements it,
+    # what runtime behavior it satisfies. Adding a new family / provider
+    # / behavior is appending one file under
+    # `hecks_conception/aggregates/framework/` ; no kernel edits.
+    #
+    # Phase 1 surface : the parsers recognise the forms, the IR carries
+    # the declared name + framework_kind discriminator, both halves emit
+    # byte-equal canonical IR (see parity/canonical_ir.rb +
+    # rust/src/main.rs :: dump_hecksagon_json). Phase 2 captures the
+    # inner DSL (fields, providers, request_body, ...) into a richer
+    # payload so the runtime registry can drive dispatch.
+    def adapter_family(name = nil, &block)
+      _build_framework_declaration(name, "adapter_family", &block)
+    end
+
+    def provider(name = nil, &block)
+      _build_framework_declaration(name, "provider", &block)
+    end
+
+    def behavior_kind(name = nil, &block)
+      _build_framework_declaration(name, "behavior_kind", &block)
+    end
+
+    # Internal — shared shape across the three entry points.
+    def _build_framework_declaration(name, framework_kind, &block)
+      builder = Hecksagon::DSL::FrameworkDeclarationBuilder.new(
+        name, framework_kind: framework_kind
+      )
+      builder.instance_eval(&block) if block
+      result = builder.build
+      Hecks.last_hecksagon = result
+      result
+    end
+
     # Define runtime configuration for extensions and adapters. Evaluates the
     # given block inside a WorldBuilder, which collects per-extension config
     # hashes. The World file sits alongside the Bluebook and Hecksagon files.

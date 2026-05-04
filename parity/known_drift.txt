@@ -43,3 +43,21 @@
 # This is a parser-side escape-sequence bug, not a shape issue. Listed as
 # known drift while the underlying parser quirk is investigated separately.
 codegen/cli_dispatch_shape/cli_dispatch_shape.bluebook  # parser escape-handling drift
+
+# parser_helpers_shape : same escape-handling drift as cli_dispatch_shape —
+# the vision string contains a literal `find('\\"')` reference to parser
+# internals, so the embedded escaped quote triggers the same Ruby-vs-Rust
+# backslash-count divergence. Surfaced 2026-05-02 ; same root cause, same
+# fix path (the underlying parser quirk).
+codegen/parser_helpers_shape/parser_helpers_shape.bluebook  # parser escape-handling drift (same as cli_dispatch_shape)
+
+# synapse.bluebook : pre-existing parser bug. The Rust parse_aggregate
+# treats commented-out lines that end with ` do` (e.g. `#   query "cold" do`)
+# as live block-openers — the `else if ends_with_do_block(line)` arm
+# fires after the if-else chain skips the leading `#` line, so the
+# parser increments depth for a comment and stops seeing subsequent
+# `query "alive"` declarations as top-level. Ruby parser correctly
+# ignores `#` lines. Surfaced 2026-05-03 in the i226 sweep ; filed
+# as separate parser comment-handling gap. Removing the
+# trailing-do comments from synapse.bluebook restores parity locally.
+miette/body/organs/synapse.bluebook  # parser comment-with-trailing-do drift (Rust treats commented `query "cold" do` as a live block-opener)

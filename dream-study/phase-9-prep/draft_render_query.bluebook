@@ -1,0 +1,213 @@
+# Phase 9 prep — draft `Statusline.Render` query
+#
+# Sketch ; bluebook syntax but not validated against the parser. Uses the
+# i101 first-class query primitives (`attributes`, `wheres`, `order_by`,
+# `limit`) shipped in commit 5635ecc3. The query DISPATCHES sub-queries
+# against source aggregates rather than reading heki paths directly.
+#
+# Drop-in for `cli/statusline/statusline.bluebook` — replaces the existing
+# `command "Render"` block (today the renderer fills these attrs from
+# Rust ; tomorrow the query does it).
+
+aggregate "Statusline" do
+  # … existing attribute block stays …
+
+  query "Render" do
+    description "Resolve every statusline field by dispatching named queries against the source aggregates. The runtime walks the section/row IR using these attributes ; the renderer (run_statusline.rs) only loads the domain, calls Render, and prints :rendered."
+
+    # ---- Mode ------------------------------------------------------
+    attributes :body_state, dispatch: "Body.GetState"
+    attributes :coherence,  dispatch: "Body.GetCoherence"
+    attribute  :mode, String,
+      derived_from: :body_state,
+      via: :resolve_mode
+      # resolve_mode :  "sleeping" → "sleeping"
+      #                 coherence.ok != "yes" → "minimal"
+      #                 else → "awake"
+
+    # ---- Awake-mode source rows -----------------------------------
+    attributes :heartbeat, dispatch: "Heartbeat.GetCurrent"
+    attributes :mood_obj,  dispatch: "Mood.GetCurrent"
+    attributes :tick,      dispatch: "Tick.GetCurrent"
+    attributes :musings,   dispatch: "MusingMint.GetCount"
+
+    attributes :inventions, dispatch: "Invention.GetFilteredCount" do
+      where :status, equals: "proposed"
+    end
+
+    attributes :inbox, dispatch: "Inbox.GetFilteredCount" do
+      where :status, equals: "queued"
+      # public-info dir override : the runtime resolves via the
+      # :memory adapter ; bluebook never names a heki path.
+      from_scope :public
+    end
+
+    attributes :provider, dispatch: "ClaudeAssist.GetProvider"
+
+    # ---- Sleep-mode source rows -----------------------------------
+    attribute :is_lucid_rem, Boolean,
+      derived_from: :body_state,
+      via: :is_lucid_and_rem
+
+    attributes :lucid_narrative, dispatch: "LucidDream.GetLatestNarrative",
+      only_when: :is_lucid_rem
+
+    # ---- Animation cursor (clock-driven) --------------------------
+    #
+    # Kernel floor ; the runtime's clock adapter exposes :now ;
+    # bluebook uses it as a query input rather than each renderer
+    # calling SystemTime::now() in its own language.
+    #
+    attributes :clock, dispatch: "Clock.Now"
+      # returns ClockReading { unix_secs:Integer, unix_nanos:Integer }
+
+    # ---- Glyph lookups (value_object enum tables) -----------------
+    attribute :mood_icon, String,
+      derived_from: :mood_obj,
+      via: :icon_of            # Mood VO has :icon attribute
+    attribute :fatigue_icon, String,
+      derived_from: :heartbeat,
+      via: :icon_of_fatigue    # FatigueState VO :icon attribute
+    attribute :provider_badge, String,
+      derived_from: :provider,
+      via: :icon_of_provider   # Provider VO :icon attribute
+
+    # Coherence override : when coherence is failing, mood icon
+    # degrades to ⚠. Same predicate decides the mode → "minimal".
+    attribute :mood_icon, String,
+      override_when: { coherence_ok: "no" },
+      override_to:   "⚠"
+
+    # ---- Time-cycled glyphs ---------------------------------------
+    #
+    # Cycle operator selects from a frame table by (clock attribute %
+    # frame count). Today this is hardcoded in Rust ; future runtime
+    # primitive : a `cycle` operator on the query layer.
+    #
+    attribute :moon_glyph, String,
+      cycle: ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"],
+      by:    :clock_unix_secs,
+      modulo: 8
+
+    attribute :heart_glyph, String,
+      cycle: ["🖤", "❤️"],
+      by:    :clock_phase_333ms,   # nanos / 333_000_000
+      modulo: 2
+
+    # ---- Bulb (minting flag — sentinel store) ---------------------
+    #
+    # Today : Path::new("/tmp/miette_minting").exists()
+    # Future : MintingFlag.IsActive query against a heki sentinel.
+    # Listed as gap until the flag becomes a domain object.
+    #
+    attributes :minting_flag, dispatch: "MintingFlag.IsActive"
+    attribute :bulb, String,
+      cycle_when:    :minting_flag,
+      cycle:         ["💡", "🌟", "✨", "💫"],
+      by:            :clock_unix_secs,
+      modulo:        4,
+      otherwise:     "💡"
+
+    # ---- Beats (formatted) ----------------------------------------
+    #
+    # Format operator on Integer attributes — tier table. New runtime
+    # primitive ; today `format_beats` in Rust.
+    #
+    attribute :beats, String,
+      derived_from: :tick,
+      format: {
+        thresholds: [
+          { at: 1_000_000, suffix: "m", scale: 1_000_000.0, decimals: 2 },
+          { at: 1_000,     suffix: "k", scale: 1_000.0,     decimals: 2 }
+        ],
+        else: :raw_string
+      }
+
+    # ---- Sleep header (composed) ----------------------------------
+    #
+    # Per-mode composition lives in the `section "Sleeping"` block
+    # below. The query exposes the field VALUES ; the section walks
+    # them. Header line forms today (in Rust render_sleep) :
+    #
+    #   "cycle {cycle}/{total} — {phase_label}"                    # NREM, total>0
+    #   "{phase_label}"                                            # NREM, total==0
+    #   "cycle {cycle}/{total} — {phase} {timer} · {p}/{n} dreams" # REM, total>0
+    #   "{phase} {timer} · {p}/{n} dreams"                         # REM, total==0
+    #
+    # → Migrated to row-level conditional visibility ; format string
+    #   tokens are themselves rows.
+    #
+    attribute :sleep_phase_label, String,
+      derived_from: :body_state,
+      via: :phase_label   # "lucid rem" when is_lucid && stage==rem ; else stage
+
+    attribute :sleep_timer_label, String,
+      derived_from: :body_state,
+      visible_when: { sleep_stage: "rem" },
+      format: "+%{mins}:%{secs:02}",
+      mins: :phase_ticks_to_mins,    # phase_ticks * 10 / 60
+      secs: :phase_ticks_to_secs     # phase_ticks * 10 % 60
+
+    attribute :sleep_dream_progress, String,
+      derived_from: :body_state,
+      visible_when: { sleep_stage: "rem" },
+      format: "%{pulses}/%{needed} dreams"
+
+    attribute :sleep_cycle_label, String,
+      derived_from: :body_state,
+      visible_when: ":sleep_total > 0",
+      format: "cycle %{sleep_cycle}/%{sleep_total}"
+
+    attribute :sleep_narrative, String,
+      derived_from: [:body_state, :lucid_narrative],
+      via: :prefer_lucid_else_summary
+      # if is_lucid_rem && lucid_narrative.present? → "✨ #{lucid_narrative}"
+      # else → body_state.sleep_summary
+
+    # ---- Output ---------------------------------------------------
+    #
+    # The runtime's section/row IR walker assembles `:rendered` from
+    # the active mode's section. No format string lives here ;
+    # composition is row-by-row.
+    #
+    returns :rendered, String, composed_from_section: :mode
+  end
+end
+
+
+# ============================================================
+# Source-side query stubs (gap-list ; sketch only)
+# ============================================================
+#
+# Each source aggregate must expose the named query the Render query
+# above dispatches. These are STUBS — listing the queries that need
+# to land on the source side. Some already exist as direct heki reads ;
+# they need to be promoted to first-class queries.
+
+# aggregates/world/body/body.bluebook (or wherever Body lives) :
+#
+#   query "GetState" do
+#     description "Latest consciousness reading."
+#     attributes :state, :sleep_summary, :sleep_stage, :sleep_cycle,
+#                :sleep_total, :phase_ticks, :is_lucid, :dream_pulses,
+#                :dream_pulses_needed
+#     order_by :recorded_at, direction: :desc
+#     limit 1
+#   end
+#
+#   query "GetCoherence" do
+#     description "Whether the body's invariants pass."
+#     attributes :ok           # "yes" | "no"
+#     # populated by status_coherence policy ; see gaps.md
+#   end
+#
+# Heartbeat.GetCurrent       → attributes :fatigue_state ; limit 1 desc
+# Mood.GetCurrent            → attributes :current_state ; limit 1 desc
+# Tick.GetCurrent            → attributes :cycle ; limit 1 desc
+# MusingMint.GetCount        → attributes :total_minted ; limit 1 desc
+# Invention.GetFilteredCount → attributes count(*) ; wheres :status
+# Inbox.GetFilteredCount     → attributes count(*) ; wheres :status ; from public dir
+# ClaudeAssist.GetProvider   → attributes :provider ; limit 1 desc
+# LucidDream.GetLatestNarrative → attributes :latest_narrative ; limit 1 desc
+# Clock.Now (NEW kernel-floor query) → unix_secs, unix_nanos
+# MintingFlag.IsActive (NEW ; replaces /tmp/miette_minting probe)

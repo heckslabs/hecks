@@ -4,11 +4,11 @@
 //! the `runtime_shape` bluebook + ordered `.rs.frag` snippets +
 //! per-method / per-phase rows.
 //!
-//! Design — three-level section / method / phase nesting :
-//!   The shape declares one `Section` row per top-level partition in
-//!   the file, in source order. Each row's `body_kind` picks the
-//!   emission template :
+//! Design — three-level section / method / phase nesting. The shape
+//! declares one `Section` row per top-level partition in the file, in
+//! source order. Each row's `body_kind` picks the emission template :
 //!
+//! ```text
 //!     verbatim_section — read snippet_path raw, emit unchanged.
 //!                        Used for the Runtime struct, the Value enum
 //!                        + impls, the RuntimeError enum + Display
@@ -20,8 +20,11 @@
 //!                        walking RuntimeMethod rows in `order`
 //!                        ascending, wrapped by the impl opener and
 //!                        closing brace.
+//! ```
 //!
-//!   Each RuntimeMethod row's body_kind in turn picks :
+//! Each RuntimeMethod row's body_kind in turn picks :
+//!
+//! ```text
 //!     verbatim_method  — read snippet_path raw, emit unchanged. The
 //!                        snippet is the full method (incl. leading
 //!                        doc comment when present and trailing blank
@@ -34,6 +37,7 @@
 //!                        blank are emitted by the template ; phase
 //!                        snippets carry the inter-phase blank-line
 //!                        separators inline.
+//! ```
 //!
 //! Real compression : adding a boot phase (e.g. wire_adapters when the
 //! adapter wiring lifts out of terminal/io into the boot pipeline) is
@@ -41,8 +45,11 @@
 //! function. Same for adding a Runtime impl method.
 //!
 //! Usage :
+//!
+//! ```ignore
 //!   let rust = runtime::root::emit(repo_root)?;
 //!   print!("{}", rust);
+//! ```
 //!
 //! [antibody-exempt: rust/src/specializer/runtime/root.rs —
 //!  i147 Wave 5-B Rust-native specializer for runtime/mod.rs.
@@ -168,11 +175,22 @@ const HEADER: &str = r#"//! Hecks Runtime — executes domains from IR
 //!
 //! [antibody-exempt: rust/src/runtime/mod.rs — kernel-floor runtime.
 //!  i156 added the AmbiguousCommand variant for strict bare-name
-//!  dispatch ; the rest is pre-i156.]
+//!  dispatch ; the rest is pre-i156. i221-B adds sweep-loop expansion
+//!  in `drain_policies` + an `iter_data` parameter on
+//!  `evaluate_value_spec` so `for_each:` dispatches resolve `from_iter
+//!  (:field)` against per-record state — kernel-surface because the
+//!  PM cascade lives here, no bluebook can describe its own driver.
+//!  i220-1 fires the `:llm` adapter hook after each cascade dispatch
+//!  inside `drain_policies` so PM/policy-driven cascade dispatches
+//!  reach the named-adapter pipeline the same way top-level dispatch
+//!  does — kernel-surface plumbing on the rem_branch.sh retirement
+//!  arc, no bluebook can describe its own driver.]
 
 mod aggregate_state;
 mod command_dispatch;
 mod event_bus;
+pub mod loop_driver;
+pub mod pm_engine;
 mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
@@ -185,15 +203,26 @@ mod policy_engine;
 mod projection;
 mod repository;
 pub mod seed_loader;
+pub mod llm_dispatcher;
+pub mod llm_providers;
+pub mod prompt_scaffolder;
+// i220 sub-gap 5 (compute-adapter-primitive) — sibling of llm_dispatcher
+// for local computation. Adapters declared as `:compute` in a hecksagon
+// route through `compute_dispatcher::call` which resolves
+// `function_name` against the static `compute_functions` registry.
+pub mod compute_dispatcher;
+pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
 pub use event_bus::{Event, EventBus};
 pub use middleware::{CommandContext, MiddlewareStack, Phase};
 pub use policy_engine::{PolicyEngine, PolicyTrigger};
+pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
 
 use crate::ir::Domain;
+use crate::hecksagon_ir::Hecksagon;
 use std::collections::HashMap;
 "#;

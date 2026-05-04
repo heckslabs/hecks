@@ -1,7 +1,7 @@
-// hecks_life/tests/validator_rules_test.rs
+// rust/tests/validator_rules_test.rs
 //
 // Integration tests for the validator rules — moved out of
-// hecks_life/src/validator.rs as part of i51 Phase A commit 4
+// rust/src/validator.rs as part of i51 Phase A commit 4
 // (retirement). validator.rs is now purely generated from the
 // validator_shape.fixtures via `bin/specialize validator`; tests
 // live here so the circular dependency (specializer reading tests
@@ -9,6 +9,11 @@
 //
 // When Phase B models test cases as fixtures (TestCase aggregate),
 // these tests come back under the shape-driven pipeline.
+//
+// [antibody-exempt: rust/tests/validator_rules_test.rs — kernel-
+//  surface test for the generated validator. Builds Domain literals
+//  to exercise individual rules. Test-only kernel surface. Retires
+//  with Phase B (TestCase aggregate models the cases as fixtures).]
 
 use hecks_life::ir::{Aggregate, Command, Domain, Policy};
 use hecks_life::parser;
@@ -75,10 +80,13 @@ fn duplicate_aggregate_names() {
                 queries: vec![],
             },
         ],
+        process_managers: vec![],
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        cadences: vec![],
+        block_grammars: vec![],
     };
     let errors = validate(&domain);
     assert!(errors.iter().any(|e| e.contains("Duplicate aggregate")));
@@ -101,10 +109,13 @@ fn aggregate_without_commands() {
             identified_by: None,
             queries: vec![],
         }],
+        process_managers: vec![],
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        cadences: vec![],
+        block_grammars: vec![],
     };
     let errors = validate(&domain);
     assert!(errors.iter().any(|e| e.contains("has no commands")));
@@ -138,10 +149,13 @@ fn bad_command_naming() {
             identified_by: None,
             queries: vec![],
         }],
+        process_managers: vec![],
         policies: vec![],
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        cadences: vec![],
+        block_grammars: vec![],
     };
     let errors = validate(&domain);
     assert!(errors
@@ -240,6 +254,7 @@ fn unknown_policy_trigger() {
             identified_by: None,
             queries: vec![],
         }],
+        process_managers: vec![],
         policies: vec![Policy {
             name: "NotifyOnOrder".into(),
             on_event: "OrderPlaced".into(),
@@ -249,6 +264,8 @@ fn unknown_policy_trigger() {
         fixtures: vec![],
         entrypoint: None,
         sections: vec![],
+        cadences: vec![],
+        block_grammars: vec![],
     };
     let errors = validate(&domain);
     assert!(errors

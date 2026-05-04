@@ -222,6 +222,13 @@ const HEADER: &str = r#"//! HecksalInterpreter — evaluates givens and applies 
 //!  shell-side into bluebook givens. Lets surface_musing /
 //!  musing_mint / daydream fire end-to-end via bluebook. Same i80
 //!  retirement contract.]
+//!
+//! [antibody-exempt: i229 tick.modulo(N) periodic cadence primitive —
+//!  `<expr>.modulo(N)` resolves the receiver as an integer and returns
+//!  `receiver % N`, lifting `if (tick % N).zero?` shell-side gates into
+//!  declarative bluebook givens. Mirrors the rand_below shape : same
+//!  retirement contract, same Ruby parity mirror in
+//!  ruby/hecks/behaviors/interpreter.rb.]
 
 use super::{AggregateState, RuntimeError, Value};
 use crate::ir::{Command, MutationOp};

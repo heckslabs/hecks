@@ -3,12 +3,18 @@
 //! Just asserts that the shipped bluebook + hecksagon parse to the
 //! expected aggregate / command / adapter set. Execution (actually
 //! running the REPL) is exercised end-to-end in commit 9.
+//!
+//! [antibody-exempt: rust/tests/terminal_capability_test.rs — kernel-
+//!  surface smoke that the terminal capability parses to the expected
+//!  shape. Runtime file read against the shipped fixture. Test-only
+//!  kernel surface. Retires when behaviors framework can drive
+//!  capability shape assertions directly.]
 
 use hecks_life::{hecksagon_parser, parser, run};
 use std::fs;
 
-const BLUEBOOK: &str = "../hecks_conception/capabilities/terminal/terminal.bluebook";
-const HECKSAGON: &str = "../hecks_conception/capabilities/terminal/terminal.hecksagon";
+const BLUEBOOK: &str = "../cli/terminal/terminal.bluebook";
+const HECKSAGON: &str = "../cli/terminal/terminal.hecksagon";
 
 #[test]
 fn terminal_bluebook_parses_with_session_aggregate() {

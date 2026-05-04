@@ -107,6 +107,30 @@ fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Valu
             _ => Value::Int(0),
         };
     }
+    // <expr>.modulo(N) — periodic cadence gate. Resolves the receiver
+    // as an integer (attr / state field / literal) and returns
+    // `receiver % N`. The bluebook intent `given { tick.modulo(60) == 0 }`
+    // expresses an every-Nth-tick gate (Memory.Consolidate per-60-tick,
+    // any heartbeat-counter periodic cadence). Lifts the gate from
+    // shell-side (`if (tick % 60).zero?`) into the bluebook so capabilities
+    // own their periodic cadence as declarative IR. N must be a positive
+    // integer literal or an attr/state field that resolves to one ;
+    // non-positive N short-circuits to 0 so the predicate fires every
+    // call (mirrors rand_below's safer-than-panicking guard).
+    if let Some(modulo_idx) = expr.rfind(".modulo(") {
+        if expr.ends_with(')') {
+            let receiver = &expr[..modulo_idx];
+            let arg = &expr[modulo_idx + ".modulo(".len()..expr.len() - 1];
+            let recv_val = resolve_expr(receiver.trim(), state, attrs);
+            let arg_val = resolve_expr(arg.trim(), state, attrs);
+            let n = numeric_value(&arg_val).map(|f| f as i64).unwrap_or(0);
+            if n <= 0 {
+                return Value::Int(0);
+            }
+            let lhs = numeric_value(&recv_val).map(|f| f as i64).unwrap_or(0);
+            return Value::Int(lhs.rem_euclid(n));
+        }
+    }
     // Command attributes shadow state when they share a name — the
     // `given` clause runs at dispatch time with the inbound input
     // already in scope, mirroring how Ruby's predicate DSL evaluates

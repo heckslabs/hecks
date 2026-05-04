@@ -1,6 +1,6 @@
 //! Phase 4 — GenerateSystemPrompt
 //!
-//! [antibody-exempt: hecks_life/src/run_boot/system_prompt.rs —
+//! [antibody-exempt: rust/src/run_boot/system_prompt.rs —
 //!  Rust implementation of the deferred Phase 4 in run_boot/. Reads
 //!  the markdown template from
 //!  `capabilities/system_prompt_assembly/<being>_prompt.md.template`,

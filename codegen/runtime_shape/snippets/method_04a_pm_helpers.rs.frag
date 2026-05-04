@@ -1,0 +1,317 @@
+    /// Inject a synthetic event into the runtime — drive PMs and
+    /// policies as if a command had emitted it, without going through
+    /// the full command-dispatch path.
+    ///
+    /// This is the substrate the PM loop driver uses to fire cadence
+    /// events (BodyPulse, HeartTick, etc.) at fixed intervals : the
+    /// daemon ticks, calls this with a fresh Event, the PM engine
+    /// reacts, dispatches cascade, persistence happens — same machinery
+    /// as a real command's emit, just with the upstream command stripped.
+    ///
+    /// Bus listeners + history capture the event ; projections are
+    /// not updated (no aggregate state changed). Returns nothing —
+    /// callers wanting cascade results should use `dispatch`.
+    pub fn publish_synthetic_event(&mut self, event: Event) {
+        self.event_bus.publish(event.clone());
+        let result = CommandResult {
+            aggregate_id: event.aggregate_id.clone(),
+            aggregate_type: event.aggregate_type.clone(),
+            event: Some(event),
+        };
+        self.drain_policies(&result);
+    }
+
+    /// i221 — scan every loaded hecksagon for an `adapter :llm`
+    /// declaration whose effective trigger target matches the just-
+    /// dispatched `Aggregate.Command` ; for each match, substitute
+    /// the prompt template from the upstream state + attrs, call the
+    /// resolved provider, and chain the response as a `dispatch_cascade`
+    /// into `response_into_target` carrying `response_into_attr`.
+    ///
+    /// Adapter resolution is by exact target-string match. The IR
+    /// holds `trigger_on` (i228) for the firing target and
+    /// `response_into_target` for the response routing target. When
+    /// `trigger_on` is None the runtime falls back to
+    /// `response_into_target` so the historical self-triggering shape
+    /// (trigger == response) keeps working without per-adapter
+    /// declaration. We compare against `Aggregate.Command`
+    /// reconstructed from `result.aggregate_type` + `command_name`.
+    /// Adapters with no effective trigger (both fields None) are inert
+    /// — just parse-time descriptors — and are skipped silently.
+    fn resolve_llm_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        let mut fired: std::collections::HashSet<String> = std::collections::HashSet::new();
+        self.resolve_llm_adapters_with_excluded(result, command_name, &mut fired);
+    }
+
+    /// gap3 (i220-3) helper — `fired` is the set of adapter NAMES that
+    /// have already run in this dispatch chain. The cascade-of-cascade
+    /// recursion (an :llm response landing on a different command that
+    /// itself triggers another :llm adapter) skips any adapter already
+    /// in the set, which prevents infinite loops when an adapter's
+    /// effective_trigger matches its own response_into_target (the
+    /// historical default trigger=response shape, which the very-first
+    /// :llm wiring relied on).
+    fn resolve_llm_adapters_with_excluded(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        fired: &mut std::collections::HashSet<String>,
+    ) {
+        let debug_llm = std::env::var("HECKS_DEBUG_LLM").is_ok();
+        if debug_llm {
+            eprintln!("[llm:debug] resolve_llm_adapters cmd={} agg_type={} hecksagons={} providers={} fired={}",
+                command_name, result.aggregate_type, self.hecksagons.len(), self.llm_providers.len(), fired.len());
+        }
+        if self.hecksagons.is_empty() {
+            if debug_llm { eprintln!("[llm:debug] no hecksagons — returning"); }
+            return;
+        }
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        if debug_llm { eprintln!("[llm:debug] target={}", target); }
+
+        // Snapshot adapters that match — we need to walk hecksagons
+        // by ref but mutate self.repositories/etc. via dispatch_cascade
+        // afterward, so collect the adapter clones first. i228 — match
+        // on the effective trigger (trigger_on || response_into_target)
+        // so PM-cascade-only adapters fire on a ProduceX command while
+        // routing the LLM reply into a separate RecordX command. gap3
+        // (i220-3) — also exclude adapters in `fired` to break the
+        // cascade-of-cascade loop when trigger == response.
+        let adapters: Vec<crate::hecksagon_ir::LlmAdapter> = self.hecksagons.iter()
+            .flat_map(|h| h.llm_adapters.iter())
+            .filter(|la| la.effective_trigger() == Some(target.as_str()))
+            .filter(|la| !fired.contains(&la.name))
+            .cloned()
+            .collect();
+        if debug_llm {
+            eprintln!("[llm:debug] matched {} adapters (out of {} total in hecksagons)",
+                adapters.len(),
+                self.hecksagons.iter().map(|h| h.llm_adapters.len()).sum::<usize>());
+        }
+        if adapters.is_empty() { return; }
+
+        // Snapshot upstream state for placeholder substitution.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+
+        // Build the attrs map (string-shaped) from the upstream state
+        // PLUS every other aggregate's latest state (i218 cross-aggregate
+        // scaffolder gap). The lucid_dream :lucid_observe template
+        // references {{text_fr}} which lives on Dream, not LucidDream
+        // — without cross-aggregate access the substitution silently
+        // failed and Claude received literal {{text_fr}} markers.
+        //
+        // Resolution order : prefixed forms ({{Dream_text_fr}}) first,
+        // then bare ({{text_fr}}) so prefixed wins on collision. Bare
+        // gets last-write-wins across aggregates, which is fine for
+        // singleton aggregates (each field is unique-ish) and harmless
+        // when callers reach for the prefixed form.
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        // Cross-aggregate fields with prefixed keys, plus bare keys
+        // for cross-aggregate references (last-write-wins across
+        // aggregates). The dispatched aggregate's state then writes
+        // over both — its fields are the most specific source.
+        let agg_names: Vec<String> = self.repositories.keys().cloned().collect();
+        for agg_name in &agg_names {
+            let states: Vec<AggregateState> = self.repositories.get(agg_name)
+                .map(|r| r.all().into_iter().cloned().collect())
+                .unwrap_or_default();
+            if let Some(latest) = states.last() {
+                for (k, v) in &latest.fields {
+                    attrs.insert(format!("{}_{}", agg_name, k), v.to_string());
+                    if agg_name != &result.aggregate_type {
+                        attrs.entry(k.clone()).or_insert_with(|| v.to_string());
+                    }
+                }
+            }
+        }
+        // Upstream (dispatched) aggregate's state wins on bare-name keys.
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+
+        for adapter in &adapters {
+            // Mark this adapter as fired BEFORE the cascade so a
+            // recursive resolve sees it in the exclude set. The
+            // dispatch_cascade can transitively land on the same
+            // target ; without the pre-mark, we'd re-enter for the
+            // historical trigger==response case.
+            fired.insert(adapter.name.clone());
+
+            // Take ownership of the providers map briefly so we can
+            // pass an immutable borrow to the dispatcher without
+            // tripping the multi-borrow rule on self. The runtime
+            // still owns the providers — we just hand them through.
+            let outcome = {
+                let providers = &self.llm_providers;
+                let providers_arg = if providers.is_empty() { None } else { Some(providers) };
+                llm_dispatcher::call(adapter, state_clone.as_ref(), &attrs, providers_arg)
+            };
+
+            let result_data = match outcome {
+                llm_dispatcher::LlmOutcome::Completed(r) => r,
+                llm_dispatcher::LlmOutcome::Skipped(_)   => continue,
+            };
+
+            // Chain the response as a cascade dispatch. The target is
+            // `response_into_target` (Aggregate.Command) ; the kwarg
+            // name is `response_into_attr` ; the value is the
+            // response text.
+            let (target_agg, target_cmd) = match adapter.response_into_target.as_deref()
+                .and_then(llm_dispatcher::split_target) {
+                Some(p) => p,
+                None    => continue,
+            };
+            let attr_name = match adapter.response_into_attr.as_deref() {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+
+            let mut chain_attrs: HashMap<String, Value> = HashMap::new();
+            chain_attrs.insert(attr_name, Value::Str(result_data.response_text.clone()));
+            let cmd_qualified = format!("{}.{}", target_agg, target_cmd);
+            let cascade_outcome = command_dispatch::dispatch_cascade(
+                self,
+                &cmd_qualified,
+                chain_attrs,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+            // gap3 (i220-3) — chain LLM resolution on the response cascade
+            // so a second adapter whose effective_trigger matches the
+            // response-target command fires too. Concretely : the
+            // :dream_image adapter cascades into Dream.RecordImage(text_fr:),
+            // which is exactly the trigger of the :dream_translate adapter
+            // (response_into Dream.RecordImage with attr text_en — its
+            // effective_trigger falls back to the same target). Without
+            // this recursion, text_en stays empty in production. The chain
+            // is finite because the `fired` exclude-set tracks adapter
+            // names across the recursion : an adapter whose trigger ==
+            // response (the historical self-cascading shape) only fires
+            // once per dispatch tree.
+            if let Ok(inner_result) = cascade_outcome {
+                self.resolve_llm_adapters_with_excluded(
+                    &inner_result, &cmd_qualified, fired,
+                );
+            }
+        }
+    }
+
+    /// i220 sub-gap 5 — compute-adapter resolver. Mirror of
+    /// `resolve_llm_adapters` for the `:compute` family. Scans every
+    /// loaded hecksagon for an `adapter :compute` declaration whose
+    /// effective trigger target matches the just-dispatched
+    /// `Aggregate.Command` ; for each match, invokes the named
+    /// function from the `compute_functions` registry and chains the
+    /// returned String as a `dispatch_cascade` into
+    /// `response_into_target` carrying `response_into_attr`.
+    ///
+    /// Same fallback shape as the LLM resolver : adapters with
+    /// neither `trigger_on` nor `response_into_target` are inert
+    /// descriptors and are skipped silently. The `fired` exclude-set
+    /// breaks self-cascade loops (an adapter whose trigger matches
+    /// its own response target only fires once per dispatch tree).
+    fn resolve_compute_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        let mut fired: std::collections::HashSet<String> = std::collections::HashSet::new();
+        self.resolve_compute_adapters_with_excluded(result, command_name, &mut fired);
+    }
+
+    fn resolve_compute_adapters_with_excluded(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        fired: &mut std::collections::HashSet<String>,
+    ) {
+        let debug = std::env::var("HECKS_DEBUG").is_ok();
+        if debug {
+            eprintln!("[compute:debug] resolve_compute_adapters cmd={} agg_type={} hecksagons={} fired={}",
+                command_name, result.aggregate_type, self.hecksagons.len(), fired.len());
+        }
+        if self.hecksagons.is_empty() {
+            return;
+        }
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+
+        // Snapshot adapters that match — same pattern the LLM
+        // resolver uses (walk hecksagons by ref then mutate self
+        // through dispatch_cascade after).
+        let adapters: Vec<crate::hecksagon_ir::ComputeAdapter> = self.hecksagons.iter()
+            .flat_map(|h| h.compute_adapters.iter())
+            .filter(|ca| ca.effective_trigger() == Some(target.as_str()))
+            .filter(|ca| !fired.contains(&ca.name))
+            .cloned()
+            .collect();
+        if debug {
+            eprintln!("[compute:debug] matched {} adapters target={}", adapters.len(), target);
+        }
+        if adapters.is_empty() { return; }
+
+        // Snapshot upstream state for the function call.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+
+        // Build the attrs map (string-shaped) from the upstream
+        // state — same projection the LLM resolver uses, but
+        // limited to the dispatched aggregate (compute functions
+        // generally don't need cross-aggregate scaffolding ; if
+        // they ever do we'll lift the bigger projection).
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+
+        let data_dir = self.data_dir.clone();
+        for adapter in &adapters {
+            fired.insert(adapter.name.clone());
+
+            let outcome = compute_dispatcher::call(
+                adapter,
+                state_clone.as_ref(),
+                &attrs,
+                data_dir.as_deref(),
+            );
+            let result_data = match outcome {
+                compute_dispatcher::ComputeOutcome::Completed(r) => r,
+                compute_dispatcher::ComputeOutcome::Skipped(_)   => continue,
+            };
+
+            let (target_agg, target_cmd) = match adapter.response_into_target.as_deref()
+                .and_then(compute_dispatcher::split_target) {
+                Some(p) => p,
+                None    => continue,
+            };
+            let attr_name = match adapter.response_into_attr.as_deref() {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+
+            let mut chain_attrs: HashMap<String, Value> = HashMap::new();
+            chain_attrs.insert(attr_name, Value::Str(result_data.response_text.clone()));
+            let cmd_qualified = format!("{}.{}", target_agg, target_cmd);
+            let cascade_outcome = command_dispatch::dispatch_cascade(
+                self,
+                &cmd_qualified,
+                chain_attrs,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+            // Recurse through the compute resolver so a chain of
+            // :compute adapters all populating context-fields fires
+            // end-to-end before the LLM hook lands. The `fired`
+            // exclude-set bounds the recursion.
+            if let Ok(inner_result) = cascade_outcome {
+                self.resolve_compute_adapters_with_excluded(
+                    &inner_result, &cmd_qualified, fired,
+                );
+            }
+        }
+    }
+

@@ -52,6 +52,7 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
             "struct" => emit_struct(repo_root, &fixtures, ty)?,
             "enum" => emit_enum(repo_root, &fixtures, ty)?,
             "impl" => emit_impl(repo_root, ty)?,
+            "verbatim_section" => emit_verbatim_section(repo_root, ty)?,
             other => return Err(format!("unknown body_kind: {}", other).into()),
         };
         sections.push(body);
@@ -142,9 +143,30 @@ fn emit_enum(
         if !doc_rel.is_empty() {
             out.push_str(&read_doc(repo_root, doc_rel)?);
         }
-        out.push_str(&format!("    {},\n", util::attr(variant, "name")));
+        // Optional `body` attribute carries struct-variant payload —
+        // e.g. `{ value: String }` — emitted as `Name { ... },` when
+        // present. Bare variants leave `body` empty and emit `Name,`.
+        let body = util::attr(variant, "body");
+        if body.is_empty() {
+            out.push_str(&format!("    {},\n", util::attr(variant, "name")));
+        } else {
+            out.push_str(&format!("    {} {},\n", util::attr(variant, "name"), body));
+        }
     }
     out.push_str("}\n");
+    Ok(out)
+}
+
+/// Emit a free function (or other top-level item) verbatim from a
+/// snippet. Used for items that don't fit struct / enum / impl —
+/// e.g. the `fn entry()` helper that constructs `BlockGrammarEntry`
+/// values for the canonical_bluebook impl. body_kind: "verbatim_section"
+/// with body_snippet pointing at the .rs.frag.
+fn emit_verbatim_section(repo_root: &Path, ty: &Fixture) -> Result<String, Box<dyn Error>> {
+    let body = util::read_snippet_raw(&repo_root.join(util::attr(ty, "body_snippet")))?;
+    let mut out = String::new();
+    out.push_str(&read_doc(repo_root, util::attr(ty, "doc_snippet"))?);
+    out.push_str(&body);
     Ok(out)
 }
 

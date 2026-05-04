@@ -26,6 +26,9 @@ module Hecksagon
     autoload :PortContractBuilder,  "hecksagon/dsl/port_contract_builder"
     autoload :ShellAdapterBuilder,  "hecksagon/dsl/shell_adapter_builder"
     autoload :IoAdapterBuilder,     "hecksagon/dsl/io_adapter_builder"
+    autoload :LlmAdapterBuilder,    "hecksagon/dsl/llm_adapter_builder"
+    autoload :ComputeAdapterBuilder, "hecksagon/dsl/compute_adapter_builder"
+    autoload :FrameworkDeclarationBuilder, "hecksagon/dsl/framework_declaration_builder"
   end
 
   module Structure
@@ -34,6 +37,8 @@ module Hecksagon
     autoload :World,          "hecksagon/structure/world"
     autoload :ShellAdapter,   "hecksagon/structure/shell_adapter"
     autoload :IoAdapter,      "hecksagon/structure/io_adapter"
+    autoload :LlmAdapter,     "hecksagon/structure/llm_adapter"
+    autoload :ComputeAdapter, "hecksagon/structure/compute_adapter"
   end
 
   # Guarded loader for .hecksagon / .world files (retires Kernel.load

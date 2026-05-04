@@ -150,8 +150,21 @@ fn resolve_body_dir(conception: &Path) -> String {
             return v;
         }
     }
-    // Conception lives at <repo_root>/hecks_conception/. The miette/body
-    // sibling lives at <repo_root>/../miette/body.
+    // Preferred path : ask heki::repo_root() which walks from the
+    // hecks-life executable to find the canonical hecks checkout.
+    // Robust against bluebooks that live outside hecks_conception/
+    // (e.g. runtime/boot/boot.bluebook) — the conception-relative
+    // walk below can't find the conception in that case.
+    if let Some(repo) = crate::heki::repo_root() {
+        let sibling = repo.join("../miette/body");
+        if let Ok(canonical) = std::fs::canonicalize(&sibling) {
+            return canonical.to_string_lossy().into_owned();
+        }
+    }
+    // Fallback : conception lives at <repo_root>/hecks_conception/ ;
+    // miette/body sibling lives at <repo_root>/../miette/body. Used
+    // when the bluebook IS inside the conception so conception's
+    // parent IS the repo root.
     if let Some(repo_root) = conception.parent() {
         let sibling = repo_root.join("../miette/body");
         if let Ok(canonical) = std::fs::canonicalize(&sibling) {

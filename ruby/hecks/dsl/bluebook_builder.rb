@@ -65,6 +65,9 @@ module Hecks
         @attributes = []
         @actors = []
         @sagas = []
+        @process_managers = []
+        @cadences = []
+        @block_grammars = []
         @glossary_rules = []
         @fixtures = []
         @modules = []
@@ -165,6 +168,58 @@ module Hecks
         builder = SagaBuilder.new(name)
         builder.instance_eval(&block) if block
         @sagas << builder.build
+      end
+
+      # Process manager for event-driven cross-aggregate state machines.
+      # Mirrors the runtime class +Hecks::EventSourcing::ProcessManager+ exactly,
+      # so the DSL reads as a thin declarative wrapper. Phase 1 of the dream-study
+      # plan ships parser + IR ; runtime instantiation is Phase 2.
+      #
+      #   process_manager "SleepCycle" do
+      #     correlates_by :body_id
+      #     starts_on    "SleepStarted"
+      #     ends_on      "WakeFinished"
+      #     state "light"
+      #     state "rem"
+      #     on "PhaseElapsed", transition: { light: :light } do |event, pm|
+      #       { commands: ["AdvancePhase"] }
+      #     end
+      #   end
+      def process_manager(name, &block)
+        builder = ProcessManagerBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @process_managers << builder.build
+      end
+
+      # Cadence — declarative scheduled dispatch. Replaces imperative
+      # while-true-sleep-1-dispatch loops with `cadence "Name" do every
+      # "1s" ; dispatch "Aggregate.Command" ; end`.
+      #
+      #   cadence "BodyTick" do
+      #     every "1s"
+      #     dispatch "Consciousness.ElapsePhase"
+      #     dispatch "Tick.MindstreamTick"
+      #   end
+      def cadence(name, &block)
+        builder = CadenceBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @cadences << builder.build
+      end
+
+      # Block grammar — declarative keyword routing for the parser
+      # itself (i218). Retires the hardcoded if-chain in
+      # rust/src/parser.rs by lifting it into bluebook.
+      #
+      #   block_grammar "Bluebook" do
+      #     block "aggregate",        parser: :parse_aggregate
+      #     block "policy",           parser: :parse_policy
+      #     block "process_manager",  parser: :parse_process_manager
+      #     block "cadence",          parser: :parse_cadence
+      #   end
+      def block_grammar(name, &block)
+        builder = BlockGrammarBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @block_grammars << builder.build
       end
 
       # Ubiquitous language enforcement.
@@ -447,7 +502,9 @@ module Hecks
           services: @services, views: @views, workflows: @workflows,
           actors: @actors, tenancy: @tenancy,
           event_subscribers: @event_subscribers,
-          sagas: @sagas, glossary_rules: @glossary_rules, modules: @modules,
+          sagas: @sagas, process_managers: @process_managers,
+          cadences: @cadences, block_grammars: @block_grammars,
+          glossary_rules: @glossary_rules, modules: @modules,
           glossary_strict: @glossary_strict || false,
           world_concerns: @world_concerns,
           description: @description,
