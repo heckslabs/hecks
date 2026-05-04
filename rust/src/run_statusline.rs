@@ -56,11 +56,29 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::heki;
 use crate::heki_query::{filter_records, Filter};
 
-/// Drain stdin (Claude Code harness sends JSON we ignore), resolve
+/// Drain stdin (Claude Code harness JSON), parse for the session's
+/// workspace.current_dir and chdir to it so env::current_dir() reflects
+/// the user's terminal cwd (not the harness's launch dir). Resolve
 /// info dirs, read state, run coherence, render, print.
 pub fn run() {
     use std::io::Read;
-    let _ = std::io::stdin().read_to_string(&mut String::new());
+    let mut input = String::new();
+    let _ = std::io::stdin().read_to_string(&mut input);
+
+    // Claude Code's statusline JSON carries the session's cwd at
+    // workspace.current_dir. Without this chdir, env::current_dir()
+    // returns whatever shell the harness was launched from — usually
+    // the project root, never the user's actual `cd`-ed location.
+    // The active-bluebook detection (i241) needs the user's cwd to
+    // know which project context they're in.
+    if !input.is_empty() {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&input) {
+            if let Some(d) = v.pointer("/workspace/current_dir")
+                              .and_then(|x| x.as_str()) {
+                let _ = env::set_current_dir(d);
+            }
+        }
+    }
 
     let info = resolve_info_dir();
     let public_info = resolve_public_info_dir(&info);
