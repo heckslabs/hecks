@@ -1,0 +1,76 @@
+Hecks.bluebook "AdapterFamily", version: "2026.05.03.1" do
+  vision "Meta-aggregate that declares what an adapter family IS — name, fields, trigger field, behavior_kind, providers. Each existing family (:llm, :compute, :fs, :tts) is one record written in hecksagon ; adding a new family means appending a record, not editing code."
+  category "framework"
+
+  # The aggregate is the meta-declaration. Each record represents ONE adapter
+  # family — :llm, :compute, :fs, :tts, etc. The runtime reads all records at
+  # boot and dispatches accordingly. New family = append a record.
+
+  aggregate "AdapterFamily", "A declared adapter family — name, fields, trigger semantics, behavior_kind, providers." do
+    identified_by :family_name
+
+    # The symbolic name used in hecksagons : `adapter :tts, name: ...`
+    # corresponds to family_name == "tts".
+    attribute :family_name, String
+
+    # Field names each instance of this family carries in its hecksagon
+    # declaration. e.g. for :tts this is [:name, :provider, :voice_id,
+    # :model, :speed, :trigger_on, :cache_dir, :auto_play].
+    attribute :fields, list_of(String)
+
+    # Which field holds the dispatch target that fires the adapter
+    # ("Aggregate.Command"). i228 separated this from response_into so
+    # the same adapter can fire on one command and route into another.
+    attribute :trigger_field, String
+
+    # Optional. Which field holds the response routing target. None for
+    # adapters that have no response-chain (e.g. :fs side-effects).
+    attribute :response_field, String
+
+    # The named runtime behavior this family invokes. Maps to one of the
+    # small set of kernel hooks declared in framework/behavior_kinds/.
+    # Existing kinds : render_text_to_audio, complete_text, compute,
+    # write_file, read_file, http_call.
+    attribute :behavior_kind, String
+
+    # Provider implementations — names of Provider records (separate
+    # aggregate) scoped to this family. e.g. :tts has [:elevenlabs,
+    # :openai, :piper] ; :llm has [:claude, :ollama, :fixture].
+    attribute :providers, list_of(String)
+
+    command "Declare" do
+      role "Framework"
+      description "Register a new adapter family from a hecksagon declaration."
+      attribute :family_name, String
+      attribute :fields, list_of(String)
+      attribute :trigger_field, String
+      attribute :response_field, String
+      attribute :behavior_kind, String
+      attribute :providers, list_of(String)
+      then_set :family_name, to: :family_name
+      then_set :fields, to: :fields
+      then_set :trigger_field, to: :trigger_field
+      then_set :response_field, to: :response_field
+      then_set :behavior_kind, to: :behavior_kind
+      then_set :providers, to: :providers
+      emits "AdapterFamilyDeclared"
+    end
+
+    command "AddProvider" do
+      role "Framework"
+      description "Register an additional provider for an existing family. Append-only — runtime appends provider_name to the providers list on the projection side."
+      reference_to(AdapterFamily)
+      attribute :provider_name, String
+      emits "ProviderAdded"
+    end
+
+    query "all" do
+      description "List every declared adapter family. Runtime calls this at boot."
+    end
+
+    query "by_name" do
+      description "Look up a family by family_name at dispatch time."
+      where(family_name: :name)
+    end
+  end
+end

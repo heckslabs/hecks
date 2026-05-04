@@ -57,3 +57,16 @@
 # so they could never trigger. The underlying gap (Ruby DSL doesn't
 # model `domain "name"`) is real but tracked alongside the nursery
 # corpus's training role, not here.
+
+# ── (Added 2026-05-03 — adapter-family-as-hecksagon meta-layer) ──
+# The framework/ hecksagons use NEW top-level forms that the current
+# parsers don't recognize : Hecks.adapter_family, Hecks.provider,
+# Hecks.behavior_kind, plus declarative blocks (fields, providers,
+# request_body, endpoint, behavior, trigger_field, response_field,
+# from_dispatch, from_field, etc.). These files ARE the design spec
+# for the kernel activation work that will teach the parsers to read
+# them. Until activation lands, parser drift is expected ; remove
+# these entries one by one as activation makes each form parseable.
+hecks_conception/aggregates/framework/adapter_families/tts.hecksagon  # forward-syntax (Hecks.adapter_family) pending kernel activation
+hecks_conception/aggregates/framework/providers/elevenlabs.hecksagon  # forward-syntax (Hecks.provider) pending kernel activation
+hecks_conception/aggregates/framework/behavior_kinds/render_text_to_audio.hecksagon  # forward-syntax (Hecks.behavior_kind) pending kernel activation
