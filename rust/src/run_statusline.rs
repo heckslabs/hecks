@@ -139,20 +139,36 @@ fn walk_up_for_repo_root() -> Option<PathBuf> {
     None
 }
 
-/// Find the active bluebook from cwd. Walks up to 10 levels looking
-/// for a directory that has an `inbox/` subdirectory, optionally with
-/// a sibling `<name>.bluebook` file (the i241 per-bluebook convention).
-/// Skips `hecks_conception/` itself : its inbox is the framework
-/// default rendered as `(global)`, not a per-bluebook context.
+/// Find the active bluebook. Two-tier resolution :
 ///
-/// Returns (bluebook_name, inbox_dir). Name preferred from the
+///   1. **cwd walk-up** — explicit context. If the harness's
+///      workspace.current_dir (or env::current_dir() fallback) is
+///      inside a directory with an `inbox/` subdirectory matching
+///      the i241 per-bluebook convention, that bluebook is the
+///      active context. `hecks_conception/` is skipped (its inbox
+///      is the framework default rendered as `(global)`).
+///
+///   2. **most-recent-mtime ambient scan** — fallback. When cwd
+///      gives no per-bluebook context (working from hecks), scan
+///      `$HOME/Projects/*` for sibling repos with the per-bluebook
+///      shape and pick whichever has the freshest `inbox/` mtime.
+///      Detects "the project I've been editing recently" without
+///      requiring an explicit cd or env var.
+///
+/// When neither tier matches (no recent project work), render_awake
+/// falls through to the conception inbox as `✉️ N (global)`.
+///
+/// Returns (bluebook_name, inbox_dir). Name preferred from a
 /// `<name>.bluebook` file stem ; falls back to the directory basename
-/// when the bluebook hasn't been conceived yet (binbuddy's case today).
-///
-/// Pure cwd-based : no cross-project ambient guessing. When cwd offers
-/// no per-bluebook context, render_awake renders the conception inbox
-/// as `✉️ N (global)`.
+/// when the bluebook hasn't been conceived yet.
 fn find_active_bluebook() -> Option<(String, PathBuf)> {
+    if let Some(hit) = active_bluebook_from_cwd() {
+        return Some(hit);
+    }
+    active_bluebook_from_recent_mtime()
+}
+
+fn active_bluebook_from_cwd() -> Option<(String, PathBuf)> {
     let cwd = env::current_dir().ok()?;
     let mut cur: PathBuf = cwd;
     for _ in 0..10 {
@@ -162,6 +178,33 @@ fn find_active_bluebook() -> Option<(String, PathBuf)> {
         cur = cur.parent()?.to_path_buf();
     }
     None
+}
+
+/// Scan `$HOME/Projects/*` for sibling repos matching the per-bluebook
+/// convention ; return the one whose `inbox/` directory has the
+/// freshest mtime. The "ambient" signal — whichever bluebook has been
+/// edited most recently follows the user even when they're working
+/// cross-repo from hecks.
+fn active_bluebook_from_recent_mtime() -> Option<(String, PathBuf)> {
+    let home = env::var_os("HOME")?;
+    let projects = PathBuf::from(home).join("Projects");
+    if !projects.is_dir() { return None; }
+    let mut best: Option<(SystemTime, String, PathBuf)> = None;
+    if let Ok(entries) = std::fs::read_dir(&projects) {
+        for entry in entries.flatten() {
+            let dir = entry.path();
+            if !dir.is_dir() { continue; }
+            if let Some(hit) = bluebook_at(&dir) {
+                let mtime = std::fs::metadata(&hit.1)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(UNIX_EPOCH);
+                if best.as_ref().map_or(true, |(t, _, _)| mtime > *t) {
+                    best = Some((mtime, hit.0, hit.1));
+                }
+            }
+        }
+    }
+    best.map(|(_, name, inbox)| (name, inbox))
 }
 
 /// Returns Some((name, inbox_dir)) if the given directory matches the
