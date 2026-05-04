@@ -2,16 +2,29 @@ Hecks.fixtures "HecksagonParserShape" do
   # Single-line fixtures per i57 parser limitation.
 
   # ── LineParser — the module's outer contract ────────────────────
+  # detector_keyword carries the four top-level forms the parser
+  # recognises : the legacy `Hecks.hecksagon` plus the Phase 1 adapter-
+  # family meta-layer trio (Hecks.adapter_family / Hecks.provider /
+  # Hecks.behavior_kind). Comma-separated ; the specializer emits a
+  # chained `t.starts_with("X") || t.starts_with("Y") || ...` detector
+  # when more than one keyword is declared.
   aggregate "LineParser" do
-    fixture "HecksagonParser", module: "hecksagon_parser", doc_snippet: "codegen/hecksagon_parser_shape/snippets/doc.rs.frag", imports: "crate::hecksagon_helpers::*\ncrate::hecksagon_ir::*", root_fn_name: "parse", root_signature: "pub fn parse(source: &str) -> Hecksagon", detector_fn_name: "is_hecksagon_source", detector_keyword: "Hecks.hecksagon"
+    fixture "HecksagonParser", module: "hecksagon_parser", doc_snippet: "codegen/hecksagon_parser_shape/snippets/doc.rs.frag", imports: "crate::hecksagon_helpers::*\ncrate::hecksagon_ir::*", root_fn_name: "parse", root_signature: "pub fn parse(source: &str) -> Hecksagon", detector_fn_name: "is_hecksagon_source", detector_keyword: "Hecks.hecksagon,Hecks.adapter_family,Hecks.provider,Hecks.behavior_kind"
   end
 
   # ── LineDispatch — one row per line-leading token in the parse() loop ──
+  # Phase 1 of adapter-family activation adds three rows (orders 5/6/7)
+  # for the meta-layer top-level forms. Each uses the new handler_kind
+  # `capture_quoted_with_framework_kind` and carries the kind value in
+  # `framework_kind` so the generated parser stamps it on the IR.
   aggregate "LineDispatch" do
-    fixture "HexName",     parser: "hecksagon_parser", starts_with: "Hecks.hecksagon", handler_kind: "capture_quoted_into", target_field: "name",          helper_fn: "",          order: 1
-    fixture "Subscribe",   parser: "hecksagon_parser", starts_with: "subscribe",       handler_kind: "push_quoted_onto",    target_field: "subscriptions", helper_fn: "",          order: 2
-    fixture "Gate",        parser: "hecksagon_parser", starts_with: "gate ",           handler_kind: "multiline_block",     target_field: "gates",         helper_fn: "parse_gate", order: 3
-    fixture "Adapter",     parser: "hecksagon_parser", starts_with: "adapter ,adapter(", handler_kind: "multiline_adapter", target_field: "",              helper_fn: "absorb_adapter", order: 4
+    fixture "HexName",        parser: "hecksagon_parser", starts_with: "Hecks.hecksagon",      handler_kind: "capture_quoted_into",                target_field: "name",          helper_fn: "",               order: 1
+    fixture "AdapterFamily",  parser: "hecksagon_parser", starts_with: "Hecks.adapter_family", handler_kind: "capture_quoted_with_framework_kind", target_field: "name",          helper_fn: "", framework_kind: "adapter_family", dispatch_comment: "Phase 1 of adapter-family activation : the meta-layer top-level\nforms set both `name` (the family / provider / behavior name)\nand `framework_kind` (the discriminator). Inner DSL is skipped\nhere ; Phase 2 will capture fields / providers / request_body\ninto a richer payload.", order: 2
+    fixture "Provider",       parser: "hecksagon_parser", starts_with: "Hecks.provider",       handler_kind: "capture_quoted_with_framework_kind", target_field: "name",          helper_fn: "", framework_kind: "provider",                                                                                                                                                                                                                                                              order: 3
+    fixture "BehaviorKind",   parser: "hecksagon_parser", starts_with: "Hecks.behavior_kind",  handler_kind: "capture_quoted_with_framework_kind", target_field: "name",          helper_fn: "", framework_kind: "behavior_kind",                                                                                                                                                                                                                                                         order: 4
+    fixture "Subscribe",      parser: "hecksagon_parser", starts_with: "subscribe",            handler_kind: "push_quoted_onto",                   target_field: "subscriptions", helper_fn: "",               order: 5
+    fixture "Gate",           parser: "hecksagon_parser", starts_with: "gate ",                handler_kind: "multiline_block",                    target_field: "gates",         helper_fn: "parse_gate",     order: 6
+    fixture "Adapter",        parser: "hecksagon_parser", starts_with: "adapter ,adapter(",    handler_kind: "multiline_adapter",                  target_field: "",              helper_fn: "absorb_adapter", order: 7
   end
 
   # ── ParserHelper — private helpers emitted verbatim via body_snippet ──
