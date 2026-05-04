@@ -637,6 +637,30 @@ impl Runtime {
         }
     }
 
+    /// Context-qualified record retrieval — bypasses repo_lookup_key's
+    /// HashMap-iter-order non-determinism by going straight to the
+    /// (context, name) repo key. Used by `resolve_query_qualified` so
+    /// 3-part `Context.Aggregate.query` lookups read from the right
+    /// store when same-name aggregates exist across multiple bluebooks
+    /// (e.g. Mind::Musing + Musing::Musing + Musings::Musing — only
+    /// one carries the seeded data ; name-only lookup picks one
+    /// non-deterministically and silently returns the wrong empty
+    /// repo half the time, which is what the dream_content_smoke
+    /// flake exposed).
+    pub fn all_qualified(&self, context: Option<&str>, aggregate_name: &str)
+        -> Vec<&AggregateState>
+    {
+        match context {
+            Some(ctx) if !ctx.is_empty() => {
+                let key = repo_key(Some(ctx), aggregate_name);
+                self.repositories.get(&key)
+                    .map(|repo| repo.all())
+                    .unwrap_or_default()
+            }
+            _ => self.all(aggregate_name),
+        }
+    }
+
     /// Drain policy triggers recursively — each triggered command
     /// can emit events that trigger more policies. This is how
     /// EnterSleep cascades through 8 dream cycles to WakeUp.
@@ -949,14 +973,26 @@ impl Runtime {
     /// as "no records → no dispatches" — same as a `for_each` over an
     /// empty iterable.
     fn sweep_records(&self, spec: &crate::ir::ForEachSpec) -> Vec<HashMap<String, Value>> {
-        // First : try the structured query path.
+        // First : try the structured query path. Filter by aggregate
+        // name AND (when supplied) bluebook context — disambiguates
+        // when the same aggregate name exists in multiple bluebooks
+        // (e.g. mind/state/musing.bluebook + mind/musings/musings.bluebook
+        // both declare "Musing").
         let has_query = self.domain.aggregates.iter()
             .any(|a| a.name == spec.source_aggregate
+                && spec.source_context.as_ref().map_or(true, |ctx| {
+                    a.context.as_ref().map_or(false, |c| c == ctx)
+                })
                 && a.queries.iter().any(|q| q.name == spec.query_name));
 
         if has_query {
             let attrs: HashMap<String, String> = HashMap::new();
-            let json = self.resolve_query(&spec.query_name, &attrs);
+            let json = self.resolve_query_qualified(
+                spec.source_context.as_deref(),
+                &spec.source_aggregate,
+                &spec.query_name,
+                &attrs,
+            );
             let mut out = Vec::new();
             // resolve_query returns either an object (single match)
             // or an array under .state. Normalize.
@@ -1126,10 +1162,48 @@ impl Runtime {
     /// i101 — when the IR Query carries structured wheres / order_by /
     /// limit, the executor walks repo.all() and applies them in order :
     /// filter → sort → truncate. The opaque-Ruby-block era is retired.
+    ///
+    /// Back-compat unqualified entry point. Delegates to
+    /// `resolve_query_qualified` with `(None, "")` so callers that only
+    /// know the query name still work. Sweep dispatches (i221-A) reach
+    /// for the qualified form so same-named queries across bluebooks
+    /// can be disambiguated.
     pub fn resolve_query(&self, query_name: &str, attrs: &std::collections::HashMap<String, String>) -> serde_json::Value {
-        let (agg_name, query_ir) = self.domain.aggregates.iter()
-            .find_map(|a| a.queries.iter().find(|q| q.name == query_name).map(|q| (a.name.clone(), q.clone())))
-            .unwrap_or_else(|| (String::new(), crate::ir::Query {
+        self.resolve_query_qualified(None, "", query_name, attrs)
+    }
+
+    /// Context+aggregate-qualified query resolution. When `context` is
+    /// `Some(name)`, only aggregates whose `context` matches participate.
+    /// When `aggregate` is non-empty, only aggregates with that name
+    /// participate. Both filters together disambiguate name collisions
+    /// across bluebooks (the i142 Context.Aggregate.Command frame
+    /// applied to query lookups).
+    ///
+    /// `resolve_query` delegates here with `(None, "")` for the back-
+    /// compat unqualified path.
+    pub fn resolve_query_qualified(
+        &self,
+        context: Option<&str>,
+        aggregate: &str,
+        query_name: &str,
+        attrs: &std::collections::HashMap<String, String>,
+    ) -> serde_json::Value {
+        // Walk the IR with the same (context, name) filter the qualified
+        // dispatcher uses ; capture the matching aggregate's context so
+        // the record retrieval below targets the SAME repo, not a
+        // name-only lookup that picks one of several same-named
+        // repositories non-deterministically (the dream_content_smoke
+        // flake : Mind::Musing + Musing::Musing + Musings::Musing all
+        // present, only Musings::Musing has the seeded records, but
+        // self.all("Musing") returned an empty repo half the time).
+        let (resolved_context, agg_name, query_ir) = self.domain.aggregates.iter()
+            .filter(|a| context.map_or(true, |ctx| {
+                a.context.as_ref().map_or(false, |c| c == ctx)
+            }))
+            .filter(|a| aggregate.is_empty() || a.name == aggregate)
+            .find_map(|a| a.queries.iter().find(|q| q.name == query_name)
+                .map(|q| (a.context.clone(), a.name.clone(), q.clone())))
+            .unwrap_or_else(|| (None, String::new(), crate::ir::Query {
                 name: query_name.to_string(),
                 description: None,
                 attributes: vec![],
@@ -1169,7 +1243,10 @@ impl Runtime {
         }
 
         // Generic query: walk repo.all(), apply wheres / order_by / limit.
-        let state = self.all(&agg_name);
+        // Reach for `all_qualified` so the (context, name) repo key is
+        // hit directly, bypassing the name-only HashMap-iter-order
+        // pick that drives the dream_content_smoke flake.
+        let state = self.all_qualified(resolved_context.as_deref(), &agg_name);
         let mut filtered: Vec<&AggregateState> = state.into_iter()
             .filter(|s| query_ir.wheres.iter().all(|w| where_matches(s, w, attrs)))
             .collect();

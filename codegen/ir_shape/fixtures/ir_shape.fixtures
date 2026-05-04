@@ -157,10 +157,14 @@ Hecks.fixtures "IrShape" do
     fixture "DispatchSpec_with_spec",    type_name: "DispatchSpec", order: 2, name: "with_spec",    field_type: "Vec<(String, ValueSpec)>",   doc_snippet: ""
     fixture "DispatchSpec_for_each",     type_name: "DispatchSpec", order: 3, name: "for_each",     field_type: "Option<ForEachSpec>",        doc_snippet: ""
 
-    # ForEachSpec — 2 fields (i221-A) ; sweep source halves split from
+    # ForEachSpec — 3 fields (i221-A) ; sweep source halves split from
     # the qualified `for_each: { from: "Aggregate.query_name" }` literal.
-    fixture "ForEachSpec_source_aggregate", type_name: "ForEachSpec", order: 1, name: "source_aggregate", field_type: "String", doc_snippet: ""
-    fixture "ForEachSpec_query_name",       type_name: "ForEachSpec", order: 2, name: "query_name",       field_type: "String", doc_snippet: ""
+    # +source_context+ is +None+ for the 2-part back-compat form and +Some+
+    # for the 3-part `Context.Aggregate.query` disambiguator (i142
+    # qualified resolution applied to query lookups).
+    fixture "ForEachSpec_source_context",   type_name: "ForEachSpec", order: 1, name: "source_context",   field_type: "Option<String>", doc_snippet: ""
+    fixture "ForEachSpec_source_aggregate", type_name: "ForEachSpec", order: 2, name: "source_aggregate", field_type: "String",         doc_snippet: ""
+    fixture "ForEachSpec_query_name",       type_name: "ForEachSpec", order: 3, name: "query_name",       field_type: "String",         doc_snippet: ""
 
     # Section — 2 fields.
     fixture "Section_title", type_name: "Section", order: 1, name: "title", field_type: "String",           doc_snippet: ""

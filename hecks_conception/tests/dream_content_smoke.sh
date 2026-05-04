@@ -86,9 +86,16 @@ TMP=$(mktemp -d -t dream_content_smoke.XXXXXX)
 # spawned during the test can't survive into the next test.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-# Nested heki layout (post-i118 R5).
+# Nested heki layout (post-i118 R5). The Musings.Musing aggregate
+# (mind/musings/musings.bluebook ; context "Musings", aggregate
+# "Musing") persists at `<info>/musings/musing.heki` per i142 Tier 2
+# (context_snake/aggregate_snake.heki). Seeding there feeds the
+# sweep's qualified `Musings.Musing.recent` lookup directly ; with
+# the 3-part qualified resolver landed in this PR, name-only lookups
+# at sibling Musing repos (Mind::Musing, Musing::Musing) no longer
+# satisfy the qualified path — only the (Musings, Musing) store does.
 mkdir -p "$TMP/information/consciousness" "$TMP/information/dream" \
-         "$TMP/information/dream_seed" "$TMP/information/musing" \
+         "$TMP/information/dream_seed" "$TMP/information/musings" \
          "$TMP/aggregates"
 
 # Symlink the body bluebooks the Dream PM dispatches into. Without
@@ -102,12 +109,24 @@ for src in \
   "$BODY_DIR/dream/dream_seed.bluebook" ; do
   [ -f "$src" ] && ln -sf "$src" "$TMP/aggregates/"
 done
-# Mind-side musing.bluebook for the DreamSeed.PlantSeed sweep source.
-MIND_DIR="${HECKS_MIND_DIR:-}"
-[ -z "$MIND_DIR" ] && [ -d "$BODY_DIR/../mind" ] && \
-  MIND_DIR="$(cd "$BODY_DIR/../mind" && pwd)"
-[ -n "$MIND_DIR" ] && [ -f "$MIND_DIR/state/musing.bluebook" ] && \
-  ln -sf "$MIND_DIR/state/musing.bluebook" "$TMP/aggregates/"
+# Mind-side musings.bluebook for the DreamSeed.PlantSeed sweep source.
+# Two `Musing` aggregates exist in miette : mind/state/musing.bluebook
+# (consciousness-loop, no `recent` query) and mind/musings/musings.bluebook
+# (idea-backlog, carries the `recent` query the sweep needs). The
+# parent walk into ../miette finds both ; load order picks one
+# arbitrarily under the unqualified `Musing.recent` dispatch.
+#
+# Hecks PR #613 (this PR) adds 3-part `Context.Aggregate.query`
+# parsing + runtime resolution so the dispatch can write
+# `Musings.Musing.recent` and disambiguate. But miette's
+# `body/dream/dream.bluebook` on main still uses the 2-part form
+# until that PR lands and miette can be updated. Until then : pin
+# the right Musing into $TMP/aggregates explicitly so the test is
+# hermetic and load-order independent. Once miette's dream.bluebook
+# adopts the qualified form, this symlink can drop and the parent
+# walk + 3-part qualified resolver carry the disambiguation.
+[ -f "$BODY_DIR/../mind/musings/musings.bluebook" ] && \
+  ln -sf "$BODY_DIR/../mind/musings/musings.bluebook" "$TMP/aggregates/"
 
 cat > "$TMP/dream_content_smoke.world" <<'EOF'
 Hecks.world "DreamContentSmoke" do
@@ -128,7 +147,7 @@ NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 for i in 1 2 3 4 5; do
   ts=$(iso_offset $((i * 60)))
-  "$HECKS" heki append "$TMP/information/musing/musing.heki" \
+  "$HECKS" heki append "$TMP/information/musings/musing.heki" \
     --reason "test setup : seed Musing.recent for DreamSeed.PlantSeed sweep" \
     idea="dream-source musing $i" source=mindstream thinking_source=wandering \
     conceived=false status=imagined created_at="$ts" >/dev/null 2>&1

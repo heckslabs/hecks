@@ -98,11 +98,19 @@ module Hecks
         # command once per returned record ; +from_iter(:field)+ in the
         # +with:+ hash reads the iteration record's +field+ attribute.
         #
-        # +source_aggregate+ — qualified aggregate name (left half of the
-        # +"Aggregate.query"+ literal in the DSL).
+        # +source_context+   — optional bluebook context (Hecks.bluebook
+        #                      "Name"). Nil for the 2-part
+        #                      +"Aggregate.query"+ form ; set for the
+        #                      3-part +"Context.Aggregate.query"+ form
+        #                      that disambiguates same-named aggregates
+        #                      across multiple bluebooks (i142
+        #                      Context.Aggregate.Command resolution
+        #                      applied to query lookups).
+        # +source_aggregate+ — qualified aggregate name (middle / left
+        #                      half of the literal).
         # +query_name+        — query identifier (right half).
         ForEachSpec = Struct.new(
-          :source_aggregate, :query_name,
+          :source_context, :source_aggregate, :query_name,
           keyword_init: true
         )
 

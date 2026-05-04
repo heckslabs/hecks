@@ -5,9 +5,13 @@
 // identically with the Ruby canonical_ir.
 //
 // i221-A — emits "for_each" key on every DispatchSpec. Some →
-// {source_aggregate, query_name} object ; None → JSON null. Bare
-// dispatches (the common case) keep their byte-identical shape ;
-// the only addition is one new key whose value is null.
+// {source_context, source_aggregate, query_name} object ; None → JSON
+// null. Bare dispatches (the common case) keep their byte-identical
+// shape ; the only addition is one new key whose value is null.
+//
+// source_context disambiguates same-named aggregates across bluebooks
+// (3-part "Context.Aggregate.query" qualified path). Null when the
+// 2-part "Aggregate.query" form was used.
     let with_pairs: Vec<Value> = d
         .with_spec
         .iter()
@@ -15,6 +19,7 @@
         .collect();
     let for_each = match &d.for_each {
         Some(fe) => json!({
+            "source_context": fe.source_context,
             "source_aggregate": fe.source_aggregate,
             "query_name": fe.query_name,
         }),
