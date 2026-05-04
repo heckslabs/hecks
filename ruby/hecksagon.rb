@@ -28,6 +28,7 @@ module Hecksagon
     autoload :IoAdapterBuilder,     "hecksagon/dsl/io_adapter_builder"
     autoload :LlmAdapterBuilder,    "hecksagon/dsl/llm_adapter_builder"
     autoload :ComputeAdapterBuilder, "hecksagon/dsl/compute_adapter_builder"
+    autoload :FrameworkDeclarationBuilder, "hecksagon/dsl/framework_declaration_builder"
   end
 
   module Structure

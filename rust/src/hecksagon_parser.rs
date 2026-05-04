@@ -31,11 +31,20 @@ use crate::hecksagon_ir::*;
 
 /// Lowest-cost source detection. Skips leading blanks and `#` comments
 /// and checks the first non-empty line.
+///
+/// Recognises the legacy `Hecks.hecksagon` form AND the Phase 1 adapter-
+/// family meta-layer forms (`Hecks.adapter_family` / `Hecks.provider` /
+/// `Hecks.behavior_kind`). All four set up a Hecksagon IR ; the meta-
+/// layer forms additionally stamp `framework_kind` so the kernel
+/// registry can index by kind.
 pub fn is_hecksagon_source(source: &str) -> bool {
     for line in source.lines() {
         let t = line.trim();
         if t.is_empty() || t.starts_with('#') { continue; }
-        return t.starts_with("Hecks.hecksagon");
+        return t.starts_with("Hecks.hecksagon")
+            || t.starts_with("Hecks.adapter_family")
+            || t.starts_with("Hecks.provider")
+            || t.starts_with("Hecks.behavior_kind");
     }
     false
 }
@@ -51,6 +60,32 @@ pub fn parse(source: &str) -> Hecksagon {
 
         if line.starts_with("Hecks.hecksagon") {
             if let Some(n) = between_quotes(line) { hex.name = n; }
+            i += 1;
+            continue;
+        }
+
+        // Phase 1 of adapter-family activation : the meta-layer top-level
+        // forms set both `name` (the family / provider / behavior name)
+        // and `framework_kind` (the discriminator). Inner DSL is skipped
+        // here ; Phase 2 will capture fields / providers / request_body
+        // into a richer payload.
+        if line.starts_with("Hecks.adapter_family") {
+            if let Some(n) = between_quotes(line) { hex.name = n; }
+            hex.framework_kind = Some("adapter_family".to_string());
+            i += 1;
+            continue;
+        }
+
+        if line.starts_with("Hecks.provider") {
+            if let Some(n) = between_quotes(line) { hex.name = n; }
+            hex.framework_kind = Some("provider".to_string());
+            i += 1;
+            continue;
+        }
+
+        if line.starts_with("Hecks.behavior_kind") {
+            if let Some(n) = between_quotes(line) { hex.name = n; }
+            hex.framework_kind = Some("behavior_kind".to_string());
             i += 1;
             continue;
         }

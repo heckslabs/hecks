@@ -1133,6 +1133,14 @@ fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json:
     }).collect();
     serde_json::json!({
         "name":             hex.name,
+        // Phase 1 of adapter-family activation : meta-layer files
+        // (Hecks.adapter_family / Hecks.provider / Hecks.behavior_kind)
+        // carry a kind discriminator. Plain Hecks.hecksagon files emit
+        // null. Mirrors parity/canonical_ir.rb :: dump_hecksagon — both
+        // halves emit the field unconditionally so the canonical JSON
+        // shape is byte-equal regardless of whether framework_kind is
+        // populated.
+        "framework_kind":   hex.framework_kind,
         "persistence":      hex.persistence,
         "subscriptions":    hex.subscriptions,
         "io_adapters":      io_adapters,

@@ -58,15 +58,18 @@
 # model `domain "name"`) is real but tracked alongside the nursery
 # corpus's training role, not here.
 
-# ── (Added 2026-05-03 — adapter-family-as-hecksagon meta-layer) ──
-# The framework/ hecksagons use NEW top-level forms that the current
-# parsers don't recognize : Hecks.adapter_family, Hecks.provider,
-# Hecks.behavior_kind, plus declarative blocks (fields, providers,
-# request_body, endpoint, behavior, trigger_field, response_field,
-# from_dispatch, from_field, etc.). These files ARE the design spec
-# for the kernel activation work that will teach the parsers to read
-# them. Until activation lands, parser drift is expected ; remove
-# these entries one by one as activation makes each form parseable.
-hecks_conception/aggregates/framework/adapter_families/tts.hecksagon  # forward-syntax (Hecks.adapter_family) pending kernel activation
-hecks_conception/aggregates/framework/providers/elevenlabs.hecksagon  # forward-syntax (Hecks.provider) pending kernel activation
-hecks_conception/aggregates/framework/behavior_kinds/render_text_to_audio.hecksagon  # forward-syntax (Hecks.behavior_kind) pending kernel activation
+# ── (Retired 2026-05-04 — adapter-family activation Phase 1) ──
+# The framework hecksagons (Hecks.adapter_family / Hecks.provider /
+# Hecks.behavior_kind) now parse byte-equal between Ruby and Rust :
+#   - Ruby half : Hecks.adapter_family / .provider / .behavior_kind
+#     entry methods in builder_methods.rb route to a shared
+#     FrameworkDeclarationBuilder that captures name + framework_kind
+#     and tolerates any inner DSL silently.
+#   - Rust half : is_hecksagon_source + parse() recognise the three
+#     new top-level prefixes and stamp `framework_kind` on the IR.
+#   - Canonical IR : `framework_kind` joins the dump shape on both
+#     halves (Some("adapter_family"|"provider"|"behavior_kind") for
+#     framework files ; null for plain hecksagons).
+# Phase 2 will capture the inner DSL (fields, providers, request_body,
+# endpoint, voice_settings, from_dispatch, from_field, ...) into a
+# richer payload so the runtime registry can drive dispatch.
