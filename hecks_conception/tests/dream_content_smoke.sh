@@ -106,8 +106,8 @@ done
 MIND_DIR="${HECKS_MIND_DIR:-}"
 [ -z "$MIND_DIR" ] && [ -d "$BODY_DIR/../mind" ] && \
   MIND_DIR="$(cd "$BODY_DIR/../mind" && pwd)"
-[ -n "$MIND_DIR" ] && [ -f "$MIND_DIR/memory/musing.bluebook" ] && \
-  ln -sf "$MIND_DIR/memory/musing.bluebook" "$TMP/aggregates/"
+[ -n "$MIND_DIR" ] && [ -f "$MIND_DIR/state/musing.bluebook" ] && \
+  ln -sf "$MIND_DIR/state/musing.bluebook" "$TMP/aggregates/"
 
 cat > "$TMP/dream_content_smoke.world" <<'EOF'
 Hecks.world "DreamContentSmoke" do
