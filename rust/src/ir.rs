@@ -240,17 +240,20 @@ pub struct DispatchSpec {
 }
 
 /// Sweep source on a `DispatchSpec` (i221-A). Splits the qualified
-/// `"Aggregate.query_name"` literal (or the 3-part
-/// `"Context.Aggregate.query_name"` form to disambiguate when the
-/// same aggregate name appears in multiple bluebooks) declared via
-/// `for_each: { from: "..." }` into structured halves. The runtime
-/// reads the named query at dispatch time and re-fires the receiving
-/// command once per returned record.
+/// `"Aggregate.query_name"` literal declared via `for_each: { from:
+/// "..." }` into the structured halves. The runtime reads
+/// `Aggregate.query_name()` at dispatch time and re-fires the
+/// receiving command once per returned record.
 ///
-/// `source_context` is `None` for the 2-part form (back-compat with
-/// every existing for_each) ; `Some(context_name)` for the 3-part
-/// form (i142 Context.Aggregate.Command resolution applied to query
-/// lookups too).
+/// Two qualified forms accepted :
+///   "Aggregate.query_name"            — 2-part (back-compat) ;
+///                                       `source_context` is `None`
+///   "Context.Aggregate.query_name"    — 3-part, disambiguates when
+///                                       multiple bluebooks declare
+///                                       the same aggregate name (i142
+///                                       Context.Aggregate.Command
+///                                       resolution applied to query
+///                                       lookups too)
 #[derive(Debug, Clone)]
 pub struct ForEachSpec {
     pub source_context: Option<String>,

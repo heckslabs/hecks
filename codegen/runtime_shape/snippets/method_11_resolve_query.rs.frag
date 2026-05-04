@@ -3,8 +3,37 @@
     /// i101 — when the IR Query carries structured wheres / order_by /
     /// limit, the executor walks repo.all() and applies them in order :
     /// filter → sort → truncate. The opaque-Ruby-block era is retired.
+    ///
+    /// Back-compat unqualified entry point. Delegates to
+    /// `resolve_query_qualified` with `(None, "")` so callers that only
+    /// know the query name still work. Sweep dispatches (i221-A) reach
+    /// for the qualified form so same-named queries across bluebooks
+    /// can be disambiguated.
     pub fn resolve_query(&self, query_name: &str, attrs: &std::collections::HashMap<String, String>) -> serde_json::Value {
+        self.resolve_query_qualified(None, "", query_name, attrs)
+    }
+
+    /// Context+aggregate-qualified query resolution. When `context` is
+    /// `Some(name)`, only aggregates whose `context` matches participate.
+    /// When `aggregate` is non-empty, only aggregates with that name
+    /// participate. Both filters together disambiguate name collisions
+    /// across bluebooks (the i142 Context.Aggregate.Command frame
+    /// applied to query lookups).
+    ///
+    /// `resolve_query` delegates here with `(None, "")` for the back-
+    /// compat unqualified path.
+    pub fn resolve_query_qualified(
+        &self,
+        context: Option<&str>,
+        aggregate: &str,
+        query_name: &str,
+        attrs: &std::collections::HashMap<String, String>,
+    ) -> serde_json::Value {
         let (agg_name, query_ir) = self.domain.aggregates.iter()
+            .filter(|a| context.map_or(true, |ctx| {
+                a.context.as_ref().map_or(false, |c| c == ctx)
+            }))
+            .filter(|a| aggregate.is_empty() || a.name == aggregate)
             .find_map(|a| a.queries.iter().find(|q| q.name == query_name).map(|q| (a.name.clone(), q.clone())))
             .unwrap_or_else(|| (String::new(), crate::ir::Query {
                 name: query_name.to_string(),

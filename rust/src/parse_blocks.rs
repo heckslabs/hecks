@@ -1111,7 +1111,16 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
 /// i221-A — locate the `for_each: { from: "Aggregate.query_name" }`
 /// clause in a dispatch line and lift it to a `ForEachSpec`. Returns
 /// `None` when the clause is absent (the common back-compat case) or
-/// malformed (no `from:` literal, no qualifying dot, empty halves).
+/// malformed (no `from:` literal, malformed dotted path, empty parts).
+///
+/// Two qualified forms accepted :
+///   "Aggregate.query_name"            — 2-part (back-compat)
+///   "Context.Aggregate.query_name"    — 3-part, disambiguates when
+///                                       multiple bluebooks declare
+///                                       the same aggregate name (i142
+///                                       Context.Aggregate.Command
+///                                       resolution applied to query
+///                                       lookups too)
 fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let pos = tail.find("for_each:")?;
     let after = &tail[pos + "for_each:".len()..];
@@ -1124,16 +1133,6 @@ fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let from_pos = body.find("from:")?;
     let value_raw = body[from_pos + "from:".len()..].trim();
     let literal = extract_string(value_raw)?;
-    // Two qualified forms accepted :
-    //   "Aggregate.query_name"            (2-part, back-compat)
-    //   "Context.Aggregate.query_name"    (3-part — disambiguates when
-    //                                      multiple bluebooks declare
-    //                                      the same aggregate name ;
-    //                                      i142 Context.Aggregate.Command
-    //                                      resolution applied to query
-    //                                      lookups too)
-    // Splitting on '.' : 2 parts → source_context = None ;
-    // 3 parts → source_context = Some(parts[0]).
     let parts: Vec<&str> = literal.split('.').collect();
     let (source_context, source_aggregate, query_name) = match parts.as_slice() {
         [agg, qry] if !agg.is_empty() && !qry.is_empty() => {

@@ -125,14 +125,26 @@
     /// as "no records → no dispatches" — same as a `for_each` over an
     /// empty iterable.
     fn sweep_records(&self, spec: &crate::ir::ForEachSpec) -> Vec<HashMap<String, Value>> {
-        // First : try the structured query path.
+        // First : try the structured query path. Filter by aggregate
+        // name AND (when supplied) bluebook context — disambiguates
+        // when the same aggregate name exists in multiple bluebooks
+        // (e.g. mind/state/musing.bluebook + mind/musings/musings.bluebook
+        // both declare "Musing").
         let has_query = self.domain.aggregates.iter()
             .any(|a| a.name == spec.source_aggregate
+                && spec.source_context.as_ref().map_or(true, |ctx| {
+                    a.context.as_ref().map_or(false, |c| c == ctx)
+                })
                 && a.queries.iter().any(|q| q.name == spec.query_name));
 
         if has_query {
             let attrs: HashMap<String, String> = HashMap::new();
-            let json = self.resolve_query(&spec.query_name, &attrs);
+            let json = self.resolve_query_qualified(
+                spec.source_context.as_deref(),
+                &spec.source_aggregate,
+                &spec.query_name,
+                &attrs,
+            );
             let mut out = Vec::new();
             // resolve_query returns either an object (single match)
             // or an array under .state. Normalize.
