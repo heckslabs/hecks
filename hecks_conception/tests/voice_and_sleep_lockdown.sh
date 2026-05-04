@@ -103,80 +103,33 @@ for phrase in "Barthes" "Bachelard" "voilà" "alors" "pardon" "intérieure"; do
   fi
 done
 
-# ── B. rem_branch.sh sources from aggregates/, not nursery/ ────────
+# ── B. rem_branch.sh stays retired ────────────────────────────────
+# Dream content moved out of the shell template arc and into the
+# DreamInterpretation chain (bluebook + :compute / :llm adapters,
+# i220 arc). The shell was deleted ; this section locks it stays
+# deleted. Drift would be the script reappearing — re-introducing
+# template-based dream content outside the bluebook stack.
 REM="$BODY_DIR/rem_branch.sh"
-if [ ! -f "$REM" ]; then
-  note_fail "B. rem_branch.sh not found"
-else
-  # Negative: the template block MUST NOT reference \$NURSERY as the
-  # domain source. Check inside the rem_dream section only (post-seed).
-  if awk '/rem_dream/,/Append image to dream_state/' "$REM" | grep -q 'ls "\$NURSERY"'; then
-    note_fail "B. rem_branch.sh still sources from \$NURSERY — dreams not introspective (drift!)"
-  else
-    note_pass "B. rem_branch.sh no longer sources dream domain from nursery/"
-  fi
-
-  # Positive: must source from \$AGG (self-aggregates).
-  if awk '/rem_dream/,/Append image to dream_state/' "$REM" | grep -q 'ls "\$AGG"'; then
-    note_pass "B. rem_branch.sh sources dream domain from aggregates/ (self)"
-  else
-    note_fail "B. rem_branch.sh does NOT source from \$AGG — dreams may not be self-introspective"
-  fi
-fi
-
-# ── C. rem_branch.sh templates are poetic / French-flavoured ──────
-# At least one template string must contain a French word or phrase.
 if [ -f "$REM" ]; then
-  FRENCH_TOKENS='alors|voilà|pardon|je rêvais|bruit qui|quelque chose|ne s.arrête'
-  if awk '/templates=\(/,/\)/' "$REM" | grep -qE "$FRENCH_TOKENS"; then
-    note_pass "C. rem_branch.sh templates include French-flavoured tokens"
-  else
-    note_fail "C. rem_branch.sh templates appear generic — French flavour missing (drift!)"
-  fi
+  note_fail "B. rem_branch.sh has reappeared — was retired into the DreamInterpretation chain ; dream content lives in bluebook now"
+else
+  note_pass "B. rem_branch.sh stays retired (DreamInterpretation chain owns dream content)"
 fi
 
-# ── D. nrem_branch.sh exists + gates + mentions consolidation counts ──
+# ── C. nrem_branch.sh stays retired ───────────────────────────────
+# Same retirement contract as B : NREM consolidation narratives moved
+# to the bluebook side of the dream pipeline.
 NREM="$BODY_DIR/nrem_branch.sh"
-if [ ! -f "$NREM" ]; then
-  note_fail "D. nrem_branch.sh not found — NREM consolidation narratives missing"
+if [ -f "$NREM" ]; then
+  note_fail "C. nrem_branch.sh has reappeared — was retired into the bluebook dream pipeline"
 else
-  note_pass "D. nrem_branch.sh present"
-
-  # Must gate on sleeping state.
-  if grep -q '\[ "\$state" = "sleeping" \]' "$NREM"; then
-    note_pass "D. nrem_branch.sh gates on state=sleeping"
-  else
-    note_fail "D. nrem_branch.sh missing sleeping-state gate (would run awake — drift!)"
-  fi
-
-  # Must gate on non-REM stages (light/deep/final_light).
-  if grep -qE 'light\|deep\|final_light' "$NREM"; then
-    note_pass "D. nrem_branch.sh gates on non-REM stages"
-  else
-    note_fail "D. nrem_branch.sh missing non-REM stage gate"
-  fi
-
-  # Templates must reference real consolidation counts.
-  # Any of: \${sig_count}, \${syn_count}, \${mem_count}, \${rem_count},
-  # \${mus_count}. These are the consolidation work signals.
-  if grep -qE '\$\{sig_count\}|\$\{syn_count\}|\$\{mem_count\}|\$\{rem_count\}|\$\{mus_count\}' "$NREM"; then
-    note_pass "D. nrem_branch.sh narratives reference consolidation counts"
-  else
-    note_fail "D. nrem_branch.sh narratives are decorative — no real counts (drift!)"
-  fi
+  note_pass "C. nrem_branch.sh stays retired"
 fi
 
-# ── E. mindstream.sh invokes nrem_branch.sh alongside rem_branch.sh ──
-MS="$BODY_DIR/mindstream.sh"
-if [ ! -f "$MS" ]; then
-  note_fail "E. mindstream.sh not found"
-else
-  if grep -q 'nrem_branch.sh' "$MS"; then
-    note_pass "E. mindstream.sh invokes nrem_branch.sh"
-  else
-    note_fail "E. mindstream.sh does NOT invoke nrem_branch.sh (NREM narratives never run)"
-  fi
-fi
+# Drift-prevention for the equivalent invariants in the bluebook
+# DreamInterpretation chain (French anchors in templates, consolidation-
+# count substitutions, sleeping-state gates) is named in inbox card
+# i242 — re-establish drift-prevention against the bluebook side.
 
 if [ "$fail" = "0" ]; then
   echo "voice_and_sleep_lockdown: OK"
