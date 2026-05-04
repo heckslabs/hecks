@@ -29,13 +29,22 @@
         query_name: &str,
         attrs: &std::collections::HashMap<String, String>,
     ) -> serde_json::Value {
-        let (agg_name, query_ir) = self.domain.aggregates.iter()
+        // Walk the IR with the same (context, name) filter the qualified
+        // dispatcher uses ; capture the matching aggregate's context so
+        // the record retrieval below targets the SAME repo, not a
+        // name-only lookup that picks one of several same-named
+        // repositories non-deterministically (the dream_content_smoke
+        // flake : Mind::Musing + Musing::Musing + Musings::Musing all
+        // present, only Musings::Musing has the seeded records, but
+        // self.all("Musing") returned an empty repo half the time).
+        let (resolved_context, agg_name, query_ir) = self.domain.aggregates.iter()
             .filter(|a| context.map_or(true, |ctx| {
                 a.context.as_ref().map_or(false, |c| c == ctx)
             }))
             .filter(|a| aggregate.is_empty() || a.name == aggregate)
-            .find_map(|a| a.queries.iter().find(|q| q.name == query_name).map(|q| (a.name.clone(), q.clone())))
-            .unwrap_or_else(|| (String::new(), crate::ir::Query {
+            .find_map(|a| a.queries.iter().find(|q| q.name == query_name)
+                .map(|q| (a.context.clone(), a.name.clone(), q.clone())))
+            .unwrap_or_else(|| (None, String::new(), crate::ir::Query {
                 name: query_name.to_string(),
                 description: None,
                 attributes: vec![],
@@ -75,7 +84,10 @@
         }
 
         // Generic query: walk repo.all(), apply wheres / order_by / limit.
-        let state = self.all(&agg_name);
+        // Reach for `all_qualified` so the (context, name) repo key is
+        // hit directly, bypassing the name-only HashMap-iter-order
+        // pick that drives the dream_content_smoke flake.
+        let state = self.all_qualified(resolved_context.as_deref(), &agg_name);
         let mut filtered: Vec<&AggregateState> = state.into_iter()
             .filter(|s| query_ir.wheres.iter().all(|w| where_matches(s, w, attrs)))
             .collect();
