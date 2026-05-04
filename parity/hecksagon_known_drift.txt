@@ -73,3 +73,16 @@
 # Phase 2 will capture the inner DSL (fields, providers, request_body,
 # endpoint, voice_settings, from_dispatch, from_field, ...) into a
 # richer payload so the runtime registry can drive dispatch.
+
+# ── 2026-05-04 — voice.hecksagon needs Phase 2 ──
+# The `adapter :tts, name: :miette_speech do … end` block in voice.hecksagon
+# uses methods (provider, voice_id, model, speed, stability,
+# similarity_boost, style, trigger_on, cache_dir, auto_play) that the
+# Ruby IoAdapterBuilder doesn't implement — its doc-comment forbids
+# method_missing, and the per-family field set should come from the
+# framework registry (i239 frame) once Phase 2 lands. Until then, this
+# fixture parses cleanly on Rust (which captures the body raw) and
+# errors on Ruby. Drift retires when i239's FamilyAdapterBuilder lands
+# and the Ruby side dispatches `adapter :tts` through it instead of
+# IoAdapterBuilder.
+../miette/body/voice/voice.hecksagon  # i239 Phase 2 (FamilyAdapterBuilder) — drift retires when registry-driven builder lands
