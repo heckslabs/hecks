@@ -147,7 +147,7 @@ RSpec.describe "Appeal IDE Domain" do
       # context: workbench, modeling, authoring, etc.) — not .bluebook
       # files anymore. Each file groups aggregates via Hecks::Paragraph.
       paragraph_dir = File.expand_path(
-        "../../lib/hecks/chapters/appeal", __dir__
+        "../../ruby/hecks/chapters/appeal", __dir__
       )
       paragraphs = Dir[File.join(paragraph_dir, "*.rb")]
       expect(paragraphs.size).to be > 5
