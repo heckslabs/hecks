@@ -47,6 +47,16 @@ mod tests {
 
     #[test]
     fn awake_render_includes_required_pieces() {
+        // Hermeticity : `find_active_bluebook` walks cwd up to 10 levels
+        // looking for an `inbox/` sibling, then falls back to scanning
+        // `$HOME/Projects/*/inbox/` by mtime. Either reach can find a
+        // sibling repo (binbuddy/, miette/, …) and flip the inbox row
+        // from `(global)` to `(<bluebook>)`, which makes this test
+        // depend on the developer's filesystem. Pin both : `HOME` to a
+        // non-existent path neutralises the mtime fallback ; the cwd
+        // walk in cargo's working tree happens not to find an `inbox/`
+        // up to root, so it returns `None` on its own.
+        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
         let s = State {
             consciousness: "attentive".into(),
             mood: "focused".into(),
