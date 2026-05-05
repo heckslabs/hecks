@@ -84,6 +84,17 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                     continue;
                 }
                 push_query(line, &mut agg, &mut depth);
+            } else if line.starts_with("rule ") || line.starts_with("rule\t") {
+                // i259 — `rule "..." do ... end` blocks delegate to
+                // consume_rule_block so a multi-statement `requires`
+                // body inside can't decrement the aggregate's depth
+                // (which used to silently truncate every command
+                // declared after the rule from the IR). Rules aren't
+                // first-class IR yet — i246 lifts them — so the
+                // consumer just walks past the block.
+                let consumed = consume_rule_block(&lines[i..]);
+                i += consumed;
+                continue;
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
