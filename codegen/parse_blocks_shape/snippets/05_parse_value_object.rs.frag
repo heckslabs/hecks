@@ -10,6 +10,13 @@ pub fn parse_value_object(lines: &[&str]) -> (ValueObject, usize) {
         if line == "end" {
             depth -= 1;
             if depth == 0 { break; }
+        } else if depth == 1 && (line.starts_with("rule ") || line.starts_with("rule\t")) {
+            // i259 — `rule "..." do ... end` on a value_object delegates
+            // to consume_rule_block so a multi-statement `requires` body
+            // can't decrement the surrounding depth.
+            let consumed = consume_rule_block(&lines[i..]);
+            i += consumed;
+            continue;
         } else if ends_with_do_block(line) {
             depth += 1;
         }

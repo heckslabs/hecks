@@ -86,6 +86,13 @@ pub fn parse_entity(lines: &[&str]) -> (Entity, usize) {
                 }
             } else if is_shorthand_line(line) && !line.starts_with("reference_to(") {
                 if let Some(attr) = parse_shorthand_attribute(line) { ent.attributes.push(attr); }
+            } else if line.starts_with("rule ") || line.starts_with("rule\t") {
+                // i259 — `rule "..." do ... end` on an entity delegates
+                // to consume_rule_block so a multi-statement `requires`
+                // body can't decrement the surrounding depth.
+                let consumed = consume_rule_block(&lines[i..]);
+                i += consumed;
+                continue;
             } else if ends_with_do_block(line) {
                 depth += 1;
             }
