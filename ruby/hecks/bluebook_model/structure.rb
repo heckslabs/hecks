@@ -63,6 +63,7 @@ module Hecks
       autoload :TestSuite,         "hecks/bluebook_model/structure/test_suite"
       autoload :Test,              "hecks/bluebook_model/structure/test"
       autoload :TestSetup,         "hecks/bluebook_model/structure/test"
+      autoload :View,              "hecks/bluebook_model/structure/view"
     end
   end
 end

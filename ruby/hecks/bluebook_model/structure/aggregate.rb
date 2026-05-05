@@ -101,6 +101,13 @@ module Hecks
       #   into the canonical IR JSON so parity stays byte-identical.
       attr_reader :identified_by
 
+      # @return [Array<View>] named role-scoped projections of this aggregate
+      #   (i254). Portals consume views by name (`record.view("for_customer")`)
+      #   so role-scoped renderers all pull from the same single source of
+      #   truth. Empty when no `view "name" do ... end` blocks were declared.
+      #   Mirrors the Rust IR `Aggregate.views: Vec<View>`.
+      attr_reader :views
+
       # Creates a new Aggregate IR node.
       #
       # @param name [String] PascalCase name of the aggregate (e.g., "Pizza")
@@ -129,7 +136,7 @@ module Hecks
                      lifecycle: nil, metadata: {}, origin_domain: nil,
                      identity_fields: nil, description: nil,
                      namespace: nil, superclass: nil, mixins: [],
-                     context: nil)
+                     context: nil, views: [])
         @name = Names.aggregate_name(name)
         @context = context
         @attributes = attributes
@@ -156,6 +163,7 @@ module Hecks
         @namespace = namespace
         @superclass = superclass
         @mixins = mixins
+        @views = views
       end
 
       attr_reader :metadata, :origin_domain, :description

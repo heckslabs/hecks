@@ -26,7 +26,7 @@ use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
     Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
     DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
-    ValueObject, WhereClause, WhereOp,
+    ValueObject, View, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 
@@ -131,6 +131,7 @@ fn dump_aggregate(agg: &Aggregate) -> Value {
         "commands": agg.commands.iter().map(dump_command).collect::<Vec<_>>(),
         "queries": agg.queries.iter().map(dump_query).collect::<Vec<_>>(),
         "lifecycle": agg.lifecycle.as_ref().map(dump_lifecycle),
+        "views": agg.views.iter().map(dump_view).collect::<Vec<_>>(),
     })
 }
 
@@ -321,6 +322,14 @@ fn dump_direction(d: &Direction) -> &'static str {
 fn dump_limit_spec(l: &LimitSpec) -> Value {
     json!({
         "value": l.value,
+    })
+}
+
+fn dump_view(v: &View) -> Value {
+    json!({
+        "name": v.name,
+        "show_all": v.show_all,
+        "fields": v.fields,
     })
 }
 

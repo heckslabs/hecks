@@ -47,9 +47,13 @@ Hecks.fixtures "ParseBlocksShape" do
     fixture "ParseCadenceDispatchLineSection",  name: "parse_cadence_dispatch_line", order: 29, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/28_parse_cadence_dispatch_line.rs.frag", description: "pub fn parse_cadence_dispatch_line — single dispatch line within a cadence block"
     fixture "SplitTopLevelCadenceSection",      name: "split_top_level_cadence",     order: 30, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/29_split_top_level_cadence.rs.frag",      description: "fn split_top_level_cadence — kwarg-aware comma splitter for cadence dispatch lines"
 
+    # i254 — `view "name" do show :a, :b ; show_all ; plus :extras end`
+    # block parser. Aggregate-scope keyword recognized by parse_aggregate.
+    fixture "ParseViewSection",                 name: "parse_view",                  order: 31, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/31_parse_view.rs.frag",                  description: "pub fn parse_view + absorb_view_fields — i254 named view block reader (show / show_all / plus)"
+
     # Phase 2.b/2.c unit tests live alongside the parser they exercise ;
     # block stays at the file's tail so cargo test pulls them with the
     # rest of parse_blocks.
-    fixture "DispatchTestsSection",             name: "dispatch_tests",              order: 31, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/30_dispatch_tests.rs.frag",              description: "#[cfg(test)] mod dispatch_tests — Phase 2.b/2.c parser unit tests"
+    fixture "DispatchTestsSection",             name: "dispatch_tests",              order: 32, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/30_dispatch_tests.rs.frag",              description: "#[cfg(test)] mod dispatch_tests — Phase 2.b/2.c parser unit tests"
   end
 end

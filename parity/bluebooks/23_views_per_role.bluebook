@@ -1,0 +1,35 @@
+Hecks.bluebook "WithViews", version: "2026.05.04.1" do
+  vision "i254 — aggregate with named views per role (customer / driver / admin)"
+
+  aggregate "ServiceTask", "Field-service work order with role-scoped views" do
+    attribute :scheduled_date, String
+    attribute :status, String, default: "pending"
+    attribute :before_photo, String
+    attribute :after_photo, String
+    attribute :completed_at, String
+    attribute :route_id, String
+    attribute :worker_account_email, String
+    attribute :failed_reason, String
+    attribute :internal_notes, String
+
+    view "for_customer" do
+      show :scheduled_date,
+           :status,
+           :before_photo,
+           :after_photo,
+           :completed_at
+    end
+
+    view "for_driver" do
+      show :scheduled_date, :status
+    end
+
+    view "for_admin" do
+      show_all
+      plus :route_id,
+           :worker_account_email,
+           :failed_reason,
+           :internal_notes
+    end
+  end
+end
