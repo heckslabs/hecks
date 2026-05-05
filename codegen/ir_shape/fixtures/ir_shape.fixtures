@@ -96,8 +96,15 @@ Hecks.fixtures "IrShape" do
     fixture "Direction",   name: "Direction",   order: 34, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
     fixture "LimitSpec",   name: "LimitSpec",   order: 35, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
 
+    # i254 — views per role. View carries a name + an ordered list of
+    # field projections ; `show_all` flag means "include every aggregate
+    # attribute, then append the listed extras". Different portals
+    # (customer / driver / admin) read the same aggregate through
+    # different views without per-portal field-list drift.
+    fixture "View", name: "View", order: 36, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/view_type.rs.frag", description: "Named view — ordered field projection of an aggregate, scoped by role"
+
     # Display impl on Domain — pretty-printed aggregate / command tree.
-    fixture "DisplayDomain", name: "DisplayDomain", order: 36, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+    fixture "DisplayDomain", name: "DisplayDomain", order: 37, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -186,6 +193,9 @@ Hecks.fixtures "IrShape" do
     fixture "Aggregate_entities",      type_name: "Aggregate", order: 9,  name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
     fixture "Aggregate_references",    type_name: "Aggregate", order: 10, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
     fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 11, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
+    # i254 — views per role. Ordered Vec ; declaration order survives
+    # JSON round-trip so portal renderers can iterate views deterministically.
+    fixture "Aggregate_views",         type_name: "Aggregate", order: 12, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
 
     # Attribute — 4 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
@@ -271,6 +281,13 @@ Hecks.fixtures "IrShape" do
 
     # LimitSpec — 1 field (i101).
     fixture "LimitSpec_value", type_name: "LimitSpec", order: 1, name: "value", field_type: "String", doc_snippet: ""
+
+    # View — 3 fields (i254). `show_all` true expands to every
+    # aggregate attribute at projection time, then appends `fields`.
+    # `show_all` false projects only the explicit `fields` list.
+    fixture "View_name",     type_name: "View", order: 1, name: "name",     field_type: "String",      doc_snippet: ""
+    fixture "View_show_all", type_name: "View", order: 2, name: "show_all", field_type: "bool",        doc_snippet: ""
+    fixture "View_fields",   type_name: "View", order: 3, name: "fields",   field_type: "Vec<String>", doc_snippet: ""
   end
 
   # ── Variant — variants of every enum row, sorted by `order` ────────────

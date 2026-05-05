@@ -37,6 +37,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
         references: refs,
         lifecycle: None,
         identified_by: None,
+        views: vec![],
     }
 }
 
