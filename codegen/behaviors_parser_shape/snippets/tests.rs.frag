@@ -116,6 +116,36 @@ mod tests {
     }
 
     #[test]
+    fn input_kwargs_split_across_continuation_lines() {
+        // i258 regression — Ruby's `input k: v,\n  k2: v2` natural form
+        // is a single logical call with two kwargs ; the line-based
+        // Rust parser must join continuation lines (line ending with
+        // `,`) before dispatching to interpret_test_line. Without
+        // this, only the first physical line's kwargs reach the IR
+        // and the runtime falls through to apply_defaults (Value::List
+        // empty) rendering as `[0 items]`. The four bin-buddy V1
+        // commands (Subscribe / AddAddress / SetInventory /
+        // RegisterPlan) all hit this path.
+        let src = "Hecks.behaviors \"Subscription\" do\n  \
+          test \"Subscribe lands an active subscription\" do\n    \
+            tests \"Subscribe\", on: \"Subscription\"\n    \
+            input  customer_account_email: \"alice@example.com\",\n           \
+                   plan_code: \"full_in_out\",\n           \
+                   monthly_price: 4500\n    \
+            expect plan_code: \"full_in_out\",\n           \
+                   monthly_price: 4500\n  \
+          end\nend\n";
+        let suite = parse(src);
+        assert_eq!(suite.tests.len(), 1);
+        let t = &suite.tests[0];
+        assert_eq!(t.input.get("customer_account_email").map(|s| s.as_str()), Some("alice@example.com"));
+        assert_eq!(t.input.get("plan_code").map(|s| s.as_str()), Some("full_in_out"));
+        assert_eq!(t.input.get("monthly_price").map(|s| s.as_str()), Some("4500"));
+        assert_eq!(t.expect.get("plan_code").map(|s| s.as_str()), Some("full_in_out"));
+        assert_eq!(t.expect.get("monthly_price").map(|s| s.as_str()), Some("4500"));
+    }
+
+    #[test]
     fn extract_all_strings_handles_multiple_tokens() {
         assert_eq!(
             extract_all_strings("loads \"a\", \"b\", \"c\""),
