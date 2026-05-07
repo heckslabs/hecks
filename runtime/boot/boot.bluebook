@@ -1,11 +1,13 @@
 #!/usr/bin/env hecks-life run
 Hecks.bluebook "Boot", version: "2026.05.01.1" do
-  vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report, start the studio. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase, replacing the imperative boot_miette.sh."
+  vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase. Studio launch is decoupled — that's UI, this is framework. The verb 'boot Miette' is `cd hecks_conception && overmind start`, which reads the Procfile + .overmind.env derived from aggregates/framework/mindstream/mindstream.bluebook and runs this pipeline as the boot Mindstream's only member."
 
   entrypoint "BeginBoot"
 
   # ============================================================
-  # BOOT — i90, the shell-to-bluebook conversion of boot_miette.sh
+  # BOOT — i90, the shell-to-bluebook conversion that retired the
+  #        original boot_miette.sh wrapper (deleted in the
+  #        boot-overmind walk, 2026-05-07)
   # ============================================================
   #
   # The sibling aggregates/boot.bluebook declares the JOURNAL — what

@@ -42,10 +42,12 @@ Hecks.bluebook "Boot", version: "2026.04.29.1" do
   #   "PrintVitals"       → VitalSummary.VitalSummary.PrintVitals
   #   "StartMindstream"   → MindstreamDaemon.MindstreamDaemon.StartMindstream
   #
-  # The workflow is documentation today ; runtime execution still
-  # comes from boot_miette.sh dispatching commands by name. When
-  # the runtime gains a workflow runner that walks step-by-step
-  # via the IR, the dispatch will route through Context.Aggregate.Command.
+  # The workflow is documentation today ; runtime execution comes
+  # from the boot Mindstream's `boot` member (Procfile + .overmind.env
+  # in hecks_conception/, derived from
+  # aggregates/framework/mindstream/mindstream.bluebook). When the
+  # runtime gains a workflow runner that walks step-by-step via the
+  # IR, the dispatch will route through Context.Aggregate.Command.
 
   workflow "BootSequence" do
     description "From nothing to a living, aware being"

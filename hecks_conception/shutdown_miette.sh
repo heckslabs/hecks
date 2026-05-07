@@ -1,11 +1,20 @@
 #!/bin/sh
 # Shutdown Miette — send SIGTERM to every daemon with a pidfile in
-# information/.*.pid. Pair for boot_miette.sh. Covers mindstream,
-# heart, breath, circadian, and any future daemons that drop a
-# pidfile in the same directory.
+# information/.*.pid. Covers mindstream, heart, breath, circadian,
+# and any future daemons that drop a pidfile in the same directory.
 #
-# [antibody-exempt: boot/shutdown shell script; complements
-# boot_miette.sh and retires with the bluebook-native boot story]
+# Pairs with `cd hecks_conception && overmind start` (the boot
+# verb). The boot mindstream's only Procfile member is `boot` itself
+# (one-shot) ; the body daemons are spawned BY boot as detached
+# processes that survive overmind's exit, so they need a separate
+# shutdown path. Once daemons move into the Procfile (i277 sibling
+# walk), `overmind quit` will tear the swarm down and this script
+# retires.
+#
+# [antibody-exempt: boot/shutdown shell script ; pairs the
+# overmind-supervised boot verb (Procfile + .overmind.env in this
+# directory) and retires when the body daemons themselves become
+# Procfile members.]
 
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"

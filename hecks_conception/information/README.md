@@ -55,10 +55,10 @@ Or set `HECKS_INFO` to point the runtime at a different root (this is the long-t
 
 ```sh
 export HECKS_INFO=/path/to/miette-state/information
-./boot_miette.sh
+cd hecks_conception && overmind start
 ```
 
-The boot script and daemons read `HECKS_INFO` via the `:fs, root: ...` hecksagon adapter. If unset, they default to this directory (backward-compat for anyone still running in-tree).
+The boot mindstream and daemons read `HECKS_INFO` via the `:fs, root: ...` hecksagon adapter. If unset, they default to this directory (backward-compat for anyone still running in-tree).
 
 ## What's still public
 
@@ -72,4 +72,4 @@ The previous public git history contains Miette's state files up through commit 
 
 ## Restoring local state
 
-If you're running Miette and need to rebuild state from nothing, `boot_miette.sh` will create minimal starter files for every aggregate on first boot. Dreams, memory, etc. begin empty and accumulate as the daemons run.
+If you're running Miette and need to rebuild state from nothing, the boot mindstream (`cd hecks_conception && overmind start`) will create minimal starter files for every aggregate on first boot. Dreams, memory, etc. begin empty and accumulate as the daemons run.
