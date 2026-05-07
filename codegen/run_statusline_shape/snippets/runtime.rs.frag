@@ -151,13 +151,26 @@ fn active_bluebook_from_recent_mtime() -> Option<(String, PathBuf)> {
 }
 
 /// Returns Some((name, inbox_dir)) if the given directory matches the
-/// per-bluebook convention : has an `inbox/` subdir, isn't
-/// `hecks_conception/` (whose inbox is rendered as `(global)`), and
-/// optionally has a `<name>.bluebook` (stem becomes the name ; dir
-/// basename is the fallback).
+/// per-bluebook convention : has an `inbox/` subdir and optionally a
+/// `<name>.bluebook` (stem becomes the name ; dir basename is the
+/// fallback). `hecks_conception/` is the framework default — its
+/// inbox renders as `(global)` rather than the directory name. We
+/// recognise it two ways : when the cwd walk lands directly on the
+/// `hecks_conception` directory, AND when a parent directory contains
+/// `hecks_conception/` as a subdir (so working from the hecks repo
+/// root, not just from inside the conception, still anchors to the
+/// global inbox instead of falling through to whichever sibling repo
+/// had the freshest mtime).
 fn bluebook_at(dir: &Path) -> Option<(String, PathBuf)> {
     if dir.file_name().map_or(false, |n| n == "hecks_conception") {
-        return None;
+        let inbox_dir = dir.join("inbox");
+        if inbox_dir.is_dir() {
+            return Some(("global".to_string(), inbox_dir));
+        }
+    }
+    let nested_inbox = dir.join("hecks_conception").join("inbox");
+    if nested_inbox.is_dir() {
+        return Some(("global".to_string(), nested_inbox));
     }
     let inbox_dir = dir.join("inbox");
     if !inbox_dir.is_dir() { return None; }
