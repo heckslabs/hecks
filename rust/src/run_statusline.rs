@@ -368,7 +368,15 @@ fn read_state(info: &Path, public_info: &Path) -> State {
     // Filter-count helpers : inventions where status=proposed,
     // inbox where status=queued. heki_query::Filter::parse + filter_records.
     s.inventions_count = filter_count(&heki::path_for_lookup(&info.to_string_lossy(), "invention"), "status=proposed");
-    s.inbox_count      = filter_count(&heki::path_for_lookup(&public_info.to_string_lossy(), "inbox"), "status=queued");
+
+    // Inbox now lives as markdown cards at hecks_conception/inbox/ (peer
+    // to public_info). The .heki store retired 2026-05-07 ; markdown is
+    // canonical. Walk the directory, count cards whose YAML frontmatter
+    // declares status: queued.
+    s.inbox_count = public_info
+        .parent()
+        .map(|repo| count_md_inbox_queued(&repo.join("inbox")))
+        .unwrap_or(0);
 
     if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "claude_assist")) {
         if let Some(rec) = heki::latest(&store) {
@@ -591,22 +599,20 @@ fn render_sleep(s: &State, now: &Now) -> String {
 // ────────────────────────────────────────────────────────────────
 
 fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> String {
-    let mut mood_icon = mood_icon_for(&s.mood);
-    if !coherence_ok {
-        mood_icon = "⚠";
-    }
-
     let beats = format_beats(s.beats_raw);
     let fatigue_icon = fatigue_icon_for(&s.fatigue);
     let provider_badge = provider_badge_for(&s.provider);
     let minting = Path::new("/tmp/miette_minting").exists();
     let bulb = bulb_glyph(now, minting);
 
-    let mut out = format!("{} {} {} {}", heart_glyph(now), beats, mood_icon, s.mood);
+    let mut out = if coherence_ok {
+        format!("{} {}", heart_glyph(now), beats)
+    } else {
+        format!("⚠ {} {}", heart_glyph(now), beats)
+    };
     if !fatigue_icon.is_empty() {
         out.push_str(&format!(" {} {}", fatigue_icon, s.fatigue));
     }
-    out.push_str(&format!(" 💭 {}", s.musings_count));
     if s.inventions_count > 0 {
         out.push_str(&format!(" 🔬 {}", s.inventions_count));
     }
@@ -780,9 +786,9 @@ mod tests {
         };
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now, true, Path::new("/tmp/nope"));
-        assert!(line.contains("focused"));
         assert!(line.contains("1.23k"));
-        assert!(line.contains("💭 7"));
+        assert!(!line.contains("focused"), "mood word is hidden");
+        assert!(!line.contains("💭"), "musings count is hidden");
         assert!(line.contains("✉️ 3"));
         assert!(line.contains("🤖"));
         assert!(!line.contains("🔬"), "no inventions row when count=0");
