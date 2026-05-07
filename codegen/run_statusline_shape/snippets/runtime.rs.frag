@@ -311,7 +311,15 @@ fn read_state(info: &Path, public_info: &Path) -> State {
     // Filter-count helpers : inventions where status=proposed,
     // inbox where status=queued. heki_query::Filter::parse + filter_records.
     s.inventions_count = filter_count(&heki::path_for_lookup(&info.to_string_lossy(), "invention"), "status=proposed");
-    s.inbox_count      = filter_count(&heki::path_for_lookup(&public_info.to_string_lossy(), "inbox"), "status=queued");
+
+    // Inbox now lives as markdown cards at hecks_conception/inbox/ (peer
+    // to public_info). The .heki store retired 2026-05-07 ; markdown is
+    // canonical. Walk the directory, count cards whose YAML frontmatter
+    // declares status: queued.
+    s.inbox_count = public_info
+        .parent()
+        .map(|repo| count_md_inbox_queued(&repo.join("inbox")))
+        .unwrap_or(0);
 
     if let Ok(store) = heki::read(&heki::path_for_lookup(&info.to_string_lossy(), "claude_assist")) {
         if let Some(rec) = heki::latest(&store) {

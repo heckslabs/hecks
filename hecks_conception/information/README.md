@@ -2,10 +2,9 @@
 
 This directory is **mostly empty on a public clone**. It's the storage root for Miette's lived state — signals, dreams, memory, consciousness, moods, heartbeat, and every other .heki file the runtime writes as she operates.
 
-Only two things are tracked in the public repo:
+Only `.gitkeep` is tracked in the public repo here — it preserves the directory in git so the runtime has somewhere to write when daemons spin up.
 
-- `.gitkeep` — preserves the directory in git
-- `inbox.heki` — framework development inbox, referenced by the paper (i1, i2, i4, ..., i60); these are public dev notes
+The framework development inbox (every `i<N>` card the paper and retrospectives reference) used to live in this directory as `inbox.heki`. That store retired on 2026-05-07 ; cards are now markdown at `hecks_conception/inbox/` (active) and `hecks_conception/inbox/archive/` (closed). See i476 for the retirement plan and the migration commits for the data move.
 
 Everything else is Miette's private state, hosted in a separate repo.
 
@@ -62,7 +61,7 @@ The boot mindstream and daemons read `HECKS_INFO` via the `:fs, root: ...` hecks
 
 ## What's still public
 
-**`inbox.heki`** — framework development inbox. Every `i<N>` item the paper and retrospectives reference lives here. Adding an inbox entry is a public act.
+**`hecks_conception/inbox/`** — framework development inbox, now markdown. Every `i<N>` item the paper and retrospectives reference lives here as `iN.md` (active) or in the `archive/` sibling (closed). Adding an inbox entry is a public act ; the file is the receipt.
 
 The framework *capabilities* (`hecks_conception/capabilities/`, `aggregates/`, etc.) — Miette's **shape** — also stay public. What moved is only her **state**.
 
