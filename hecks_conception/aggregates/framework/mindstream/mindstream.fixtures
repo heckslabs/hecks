@@ -1,0 +1,16 @@
+Hecks.fixtures "Mindstream" do
+  aggregate "Mindstream" do
+    fixture "boot",
+            name:        "boot",
+            description: "The Miette boot pipeline as a one-shot supervised mindstream. Runs the bluebook-defined organ wiring (DiscoverOrgans, WriteCensus, ClassifyStores, GenerateSystemPrompt, EnsureDaemons, PrintVitals, SurfaceWakeReport) and exits. The first Mindstream ; future Mindstreams (body cycles, integration tests, ...) drop in alongside it.",
+            directory:   { path: "hecks_conception" }
+  end
+
+  aggregate "MindstreamMember" do
+    fixture "boot",
+            name:       "boot",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/hecks-life run ../runtime/boot/boot.bluebook" },
+            lifespan:   { kind: "one_shot", may_exit: true, restart_on_failure: false }
+  end
+end

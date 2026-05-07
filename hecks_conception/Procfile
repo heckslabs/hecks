@@ -1,0 +1,1 @@
+boot: ../rust/target/release/hecks-life run ../runtime/boot/boot.bluebook

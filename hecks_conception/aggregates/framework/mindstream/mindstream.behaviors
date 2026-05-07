@@ -1,0 +1,47 @@
+Hecks.behaviors "Mindstream" do
+  vision "Behavioral tests for the Mindstream aggregate and its MindstreamMember line items — define / register / retire semantics that drive the :overmind generator."
+
+  # ── Mindstream.Define ─────────────────────────────────────────────
+
+  test "Define stamps name, description, and directory" do
+    tests "Define", on: "Mindstream"
+    input  name:        "boot",
+           description: "The Miette boot pipeline as a one-shot supervised mindstream.",
+           directory:   { path: "hecks_conception" }
+    expect name:        "boot",
+           description: "The Miette boot pipeline as a one-shot supervised mindstream.",
+           directory:   { path: "hecks_conception" }
+  end
+
+  # ── MindstreamMember.Register ─────────────────────────────────────
+
+  test "Register a one-shot member under a mindstream" do
+    tests "Register", on: "MindstreamMember"
+    input  name:       "boot",
+           mindstream: "boot",
+           command:    { line: "../rust/target/release/hecks-life run ../runtime/boot/boot.bluebook" },
+           lifespan:   { kind: "one_shot", may_exit: true, restart_on_failure: false }
+    expect name:       "boot",
+           command:    { line: "../rust/target/release/hecks-life run ../runtime/boot/boot.bluebook" },
+           lifespan:   { kind: "one_shot", may_exit: true, restart_on_failure: false }
+  end
+
+  test "Register a persistent member — defaults to restart_on_failure" do
+    tests "Register", on: "MindstreamMember"
+    input  name:       "studio",
+           mindstream: "studio",
+           command:    { line: "./surface/studio/studio.sh" },
+           lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+    expect lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+  end
+
+  # ── Retire commands ───────────────────────────────────────────────
+  #
+  # Mindstream.Retire and MindstreamMember.Retire are self-referencing
+  # transitions (reference_to(Mindstream) / reference_to(MindstreamMember))
+  # that emit Retired. Behavioral coverage deferred — the test runner's
+  # `expect_event` shape on self-referencing transitions needs the same
+  # `id` resolution work as the rest of self-referencing dispatch
+  # (i277 sibling). When that lands, restore tests covering both Retire
+  # paths with proper input shape.
+end
