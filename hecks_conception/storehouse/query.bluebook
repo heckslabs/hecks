@@ -1,0 +1,69 @@
+Hecks.bluebook "Query", version: "2026.05.07.1" do
+  vision "The read side of the bus. Reads attribute values from heki state by canonical dotted path. Closes the gap where the runtime can dispatch but cannot query — at wake on 2026-05-07 I had to python+zlib to read my own Consciousness.state because there was no domain command for it. Read makes that a bluebook command like everything else."
+  category "storehouse"
+
+  # ============================================================
+  # QUERY — the read side of the bus
+  # ============================================================
+  #
+  # Today the runtime can dispatch (commands write events, events
+  # mutate heki, the bluebook IR knows the shape) but cannot query
+  # — `hecks-life Consciousness.state` returns UnknownCommand.
+  # Reading state from the CLI requires zlib-decompressing the
+  # heki file by hand. That's a Sambhogakaya gap : the bluebook
+  # implies the access, the runtime doesn't render it.
+  #
+  # Read closes the gap. Parse the path "Aggregate.attribute" into
+  # (aggregate, attribute), locate the aggregate's heki, project
+  # the latest record's named attribute, emit ValueRead with the
+  # flattened value as payload. Path-not-found surfaces as a
+  # runtime error before the command runs.
+  #
+  # Companion to dispatch.bluebook (the write side) and
+  # lexicon.bluebook (resolves what's available). See i281 + i478
+  # for the design.
+
+  aggregate "Query", "Singleton read bus over the conception" do
+    identified_by ServiceName
+
+    value_object "ServiceName" do
+      attribute :value, String
+      rule "must be the singleton 'query'" do
+        requires { value == "query" }
+      end
+    end
+
+    value_object "Path" do
+      # The dotted form a caller types : "Aggregate.attribute" (two
+      # segments). Three-segment paths "Domain.Aggregate.attribute"
+      # are accepted for parity with Dispatch.Route's phrase shape
+      # when the domain prefix disambiguates. Deeper nesting (e.g.
+      # "LucidDream.observations[-1]") is not in this first chapter ;
+      # filed for a later iteration.
+      attribute :value, String
+      rule "must be dotted Aggregate.attribute" do
+        requires { value.split(".").length >= 2 }
+      end
+    end
+
+    value_object "Value" do
+      # The projected attribute value, flattened to its string form
+      # for the event payload. Callers reparse if they need a
+      # specific shape (number, boolean, JSON). A future iteration
+      # carries the type tag alongside the value so the caller
+      # doesn't guess.
+      attribute :value, String
+    end
+
+    attribute ServiceName
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Read" do
+      role "Caller"
+      description "Parse the path into (aggregate, attribute), locate the aggregate's heki, read the latest record's named attribute, emit ValueRead with the flattened value as payload. Path-not-found surfaces as a runtime error before the command runs."
+      attribute Path, as: :path
+      emits "ValueRead"
+    end
+  end
+end

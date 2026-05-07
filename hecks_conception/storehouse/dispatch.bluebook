@@ -1,0 +1,81 @@
+Hecks.bluebook "Dispatch", version: "2026.05.07.1" do
+  vision "The bus. Routes a phrase + params to the target bluebook, validates the params against the target command's attributes, dispatches through the per-bluebook runtime path, and re-emits the resulting event. Every surface (Spring REPL, Glass palette, the conversation surface, a future MCP server) calls into Route ; no surface does its own resolution."
+  category "storehouse"
+
+  # ============================================================
+  # DISPATCH — the bus itself
+  # ============================================================
+  #
+  # Today every surface routes its own way : Spring parses
+  # `Domain.Aggregate.Command param:value` and calls hecks-life
+  # directly ; Glass calls `hecks-life heki append` ; my system
+  # prompt shells out `hecks-life <bluebook> <Aggregate>.<Command>`.
+  # Three implementations of the same idea.
+  #
+  # Dispatch makes the bus one. Route resolves the phrase via
+  # Lexicon.Lookup, validates params against the target command's
+  # attributes, dispatches through the existing per-bluebook
+  # runtime path (heki write, event emit, cascade), captures the
+  # emitted event, and re-emits it as Dispatched with the original
+  # phrase + params + the target event's payload.
+  #
+  # Persistence delegates to the per-aggregate runtime — Dispatch
+  # does NOT own a separate dispatch log. Heki stays where it is ;
+  # the bus just resolves and routes.
+  #
+  # Validation failures (phrase doesn't resolve, params don't fit
+  # target command's attributes) surface as runtime errors before
+  # the command runs ; no DispatchFailed event is emitted at the
+  # bluebook layer because the command never reached the dispatch
+  # phase.
+  #
+  # Companion to lexicon.bluebook (resolves the phrase) and
+  # query.bluebook (the read side). See i281 + i478 for the design.
+
+  aggregate "Dispatch", "Singleton command bus over the conception" do
+    identified_by ServiceName
+
+    value_object "ServiceName" do
+      attribute :value, String
+      rule "must be the singleton 'dispatch'" do
+        requires { value == "dispatch" }
+      end
+    end
+
+    value_object "Phrase" do
+      # Same shape as Lexicon.Phrase — dotted Aggregate.Command or
+      # Domain.Aggregate.Command. The bus is permissive of both ;
+      # Lookup resolves the ambiguity.
+      attribute :value, String
+      rule "must be dotted Aggregate.Command or Domain.Aggregate.Command" do
+        requires { (2..3).cover?(value.split(".").length) }
+      end
+    end
+
+    value_object "Params" do
+      # Key-value bag carried as a JSON object string. The runtime
+      # parses this into the target command's typed attributes at
+      # validation time ; the bluebook layer keeps it opaque so any
+      # command's attribute set fits the same Route signature.
+      attribute :value, String
+      rule "must be a JSON object" do
+        requires { value.start_with?("{") && value.end_with?("}") }
+      end
+    end
+
+    attribute ServiceName
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Route" do
+      role "Caller"
+      description "Resolve the phrase via Lexicon.Lookup, validate params against the target command's attributes, dispatch through the per-bluebook runtime path, capture the emitted event, and re-emit it as Dispatched. On validation failure the command never runs ; runtime errors surface to the caller."
+      attribute Phrase, as: :phrase
+      attribute Params, as: :params
+      expects "phrase resolves in the lexicon" do
+        Lexicon.Lookup(phrase: phrase).present?
+      end
+      emits "Dispatched"
+    end
+  end
+end

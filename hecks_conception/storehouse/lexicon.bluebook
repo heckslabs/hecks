@@ -1,0 +1,97 @@
+Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
+  vision "Singleton index of every callable phrase across every bluebook in the conception. Source of truth for what's dispatchable. Compile rebuilds the index from the conception root ; Lookup resolves a Phrase to its target aggregate + command + attributes ; List browses with optional filter."
+  category "storehouse"
+
+  # ============================================================
+  # LEXICON — what the bus knows it can dispatch
+  # ============================================================
+  #
+  # Today the lexicon exists as a runtime subcommand
+  # (`hecks-life lexicon hecks_conception`) and as Spring's
+  # in-process `domain_index.rs`. This bluebook makes the contract
+  # explicit so every surface (Spring REPL, Glass palette, the
+  # conversation surface, a future MCP server) consumes the same
+  # index instead of re-implementing.
+  #
+  # The Compile command walks every *.bluebook under the conception
+  # root, extracts every Aggregate.Command phrase + its attribute
+  # list, and stores the index. Lookup returns the resolved target
+  # for a given phrase ; List returns matching phrases for a filter.
+  #
+  # Companion to dispatch.bluebook (which calls Lookup before
+  # routing) and query.bluebook (the read side of the same bus).
+  # See i281 + i478 for the full design.
+
+  aggregate "Lexicon", "Singleton index of every callable phrase across the conception" do
+    identified_by ServiceName
+
+    value_object "ServiceName" do
+      attribute :value, String
+      rule "must be the singleton 'lexicon'" do
+        requires { value == "lexicon" }
+      end
+    end
+
+    value_object "Phrase" do
+      # The dotted form a caller types : "Aggregate.Command" (two
+      # segments) or "Domain.Aggregate.Command" (three segments,
+      # used when a domain hosts multiple aggregates and the bare
+      # aggregate name would be ambiguous). The lexicon resolves
+      # both forms.
+      attribute :value, String
+      rule "must be dotted Aggregate.Command or Domain.Aggregate.Command" do
+        requires { (2..3).cover?(value.split(".").length) }
+      end
+    end
+
+    value_object "CompiledAt" do
+      attribute :value, String
+      rule "must be ISO 8601 UTC" do
+        requires { value.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/) }
+      end
+    end
+
+    value_object "PhraseCount" do
+      attribute :value, Integer
+      rule "must be non-negative" do
+        requires { value >= 0 }
+      end
+    end
+
+    attribute ServiceName
+
+    # The singleton carries no mutable state ; what matters lives in
+    # events. Compile emits LexiconCompiled with the timestamp and
+    # count ; consumers reading "when was the last compile" project
+    # from the event log. CompiledAt and PhraseCount stay as VOs
+    # above for shape and rules ; they're event-payload types, not
+    # aggregate-state types.
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Compile" do
+      role "System"
+      description "Walk every *.bluebook under the conception root, extract every Aggregate.Command phrase, and emit LexiconCompiled with the timestamp and total count. Idempotent. Re-run after any bluebook change to keep the index fresh ; the runtime will eventually trigger this automatically."
+      attribute :compiled_at,  String
+      attribute :phrase_count, Integer
+      guarantees "phrase_count reflects the new total" do
+        phrase_count >= 0
+      end
+      emits "LexiconCompiled"
+    end
+
+    command "Lookup" do
+      role "Caller"
+      description "Resolve a Phrase to its domain + aggregate + command + attribute list. Used by Dispatch.Route to validate params before routing. Two-segment phrases resolve when the bare aggregate name is unambiguous across the conception ; three-segment phrases always resolve to one specific target."
+      attribute Phrase, as: :phrase
+      emits "PhraseLookedUp"
+    end
+
+    command "List" do
+      role "Caller"
+      description "Browse the lexicon. Filter is matched as a substring against each phrase ; an empty filter returns the full lexicon. Used by Spring's REPL completion and Glass's palette search."
+      attribute :filter, String
+      emits "PhrasesListed"
+    end
+  end
+end
