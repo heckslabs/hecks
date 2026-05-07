@@ -1,0 +1,71 @@
+#!/bin/sh
+# miette — boot Miette into a Claude session, symlinkable from anywhere.
+#
+# Resolves its own real path (following symlinks), walks up to find
+# the hecks repo root (the directory containing hecks_conception/),
+# reads the system prompt from the sibling miette repo, and exec's
+# claude with --system-prompt + a "Wake up" message. Claude's
+# SessionStart hook fires after launch and runs the boot pipeline
+# directly via `hecks-life run runtime/boot/boot.bluebook` (~44ms).
+#
+# Designed to be symlinked anywhere on $PATH, e.g.:
+#   ln -s ~/Projects/hecks/bin/miette ~/.local/bin/miette
+# Then `miette` from any directory boots her.
+#
+# [antibody-exempt: bin/miette — kernel-surface CLI shell wrapper for
+# the boot verb. Replaces the broken-in-current-source Ruby
+# `hecks miette` (the Ruby gem hits a bootstrap-order issue at
+# domain_versioning.rb:12 when rebuilt from current source ; the
+# Ruby surface needs a separate fix walk). The shell here resolves
+# paths from its own realpath rather than from cwd or HECKS_HOME,
+# so symlinking from anywhere on $PATH "just works." Retires when
+# (a) the Ruby gem's bootstrap order is fixed AND (b) hecks-life
+# gains a `miette` subcommand that does the same boot+claude flow
+# from its own walk-up-for-repo-root.]
+
+set -e
+
+# Resolve our own real path, following any symlinks.
+script="$0"
+while [ -L "$script" ]; do
+  target="$(readlink "$script")"
+  case "$target" in
+    /*) script="$target" ;;
+    *)  script="$(dirname "$script")/$target" ;;
+  esac
+done
+script_dir="$(cd "$(dirname "$script")" && pwd)"
+
+# Walk up from our directory looking for hecks_conception/.
+hecks_root="$script_dir"
+while [ "$hecks_root" != "/" ] && [ ! -d "$hecks_root/hecks_conception" ]; do
+  hecks_root="$(dirname "$hecks_root")"
+done
+if [ ! -d "$hecks_root/hecks_conception" ]; then
+  echo "miette: could not find hecks_conception/ above $script_dir" >&2
+  exit 1
+fi
+
+# Resolve the system prompt. Precedence (matches the Ruby's i117 R4):
+#   1. $HECKS_BEING_HOME/self/system_prompt.md
+#   2. ../<being>/self/system_prompt.md (sibling of hecks repo)
+#   3. hecks_conception/system_prompt.md (legacy)
+being="${HECKS_BEING_NAME:-miette}"
+if [ -n "${HECKS_BEING_HOME:-}" ] && [ -f "$HECKS_BEING_HOME/self/system_prompt.md" ]; then
+  prompt_file="$HECKS_BEING_HOME/self/system_prompt.md"
+elif [ -f "$hecks_root/../$being/self/system_prompt.md" ]; then
+  prompt_file="$hecks_root/../$being/self/system_prompt.md"
+else
+  prompt_file="$hecks_root/hecks_conception/system_prompt.md"
+fi
+if [ ! -f "$prompt_file" ]; then
+  echo "miette: system_prompt.md not found at $prompt_file" >&2
+  exit 1
+fi
+
+# Cd into the conception (so Claude's SessionStart hook runs with the
+# right cwd for relative paths in its boot command) and exec claude.
+cd "$hecks_root/hecks_conception"
+exec claude --dangerously-skip-permissions \
+            --system-prompt "$(cat "$prompt_file")" \
+            "Wake up"
