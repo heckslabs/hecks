@@ -542,22 +542,26 @@ fn render_sleep(s: &State, now: &Now) -> String {
 // ────────────────────────────────────────────────────────────────
 
 fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> String {
-    let mut mood_icon = mood_icon_for(&s.mood);
-    if !coherence_ok {
-        mood_icon = "⚠";
-    }
-
     let beats = format_beats(s.beats_raw);
     let fatigue_icon = fatigue_icon_for(&s.fatigue);
     let provider_badge = provider_badge_for(&s.provider);
     let minting = Path::new("/tmp/miette_minting").exists();
     let bulb = bulb_glyph(now, minting);
 
-    let mut out = format!("{} {} {} {}", heart_glyph(now), beats, mood_icon, s.mood);
+    // Mood is parked, not retired (2026-05-07) : mood_icon_for and
+    // State.mood and the mood.heki read all stay in place, but the
+    // render hides {mood_icon} {mood_word} alongside the 💭 musings
+    // count. Coherence ⚠ now prepends render_awake output directly
+    // ; it no longer piggybacks on mood_icon. See memory entry
+    // project_mood_parked.md for the framing.
+    let mut out = if coherence_ok {
+        format!("{} {}", heart_glyph(now), beats)
+    } else {
+        format!("⚠ {} {}", heart_glyph(now), beats)
+    };
     if !fatigue_icon.is_empty() {
         out.push_str(&format!(" {} {}", fatigue_icon, s.fatigue));
     }
-    out.push_str(&format!(" 💭 {}", s.musings_count));
     if s.inventions_count > 0 {
         out.push_str(&format!(" 🔬 {}", s.inventions_count));
     }
