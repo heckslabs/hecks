@@ -108,17 +108,30 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
 
     # ── Commands ───────────────────────────────────────────────
     #
-    # Conceiving an Agent is one act ; binding it to a Role is another.
-    # Bind/Unbind are separate from Conceive so the Role grant/revoke
-    # is its own audited event rather than smuggled into the create.
+    # Bringing an Agent into being is one act ; binding it to a Role
+    # is another. Bind/Unbind are separate from Birth so the Role
+    # grant/revoke is its own audited event rather than smuggled into
+    # the create.
+    #
+    # The verb here is `Birth` (not `Conceive`) — the conception
+    # language is reserved for DomainCell.Conceive, where a new
+    # *domain* enters the nursery. An Agent is a being, not a domain ;
+    # Birth captures the moment of arrival into the framework's
+    # roster of beings. The event is `AgentBorn`.
+    #
+    # Filed during the i483 merge : the runtime today resolves
+    # cascade triggers by bare command name across all loaded
+    # aggregates, so two `Conceive` commands in different aggregates
+    # collide when a policy says `trigger "Conceive"`. Filed as a
+    # cross-aggregate name-uniqueness validator gap (see follow-up).
 
-    command "Conceive" do
+    command "Birth" do
       role "Framework"
-      description "Bring a new Agent into being. Inputs : the agent's name, a one-line description of who they are, and the kind. The role binding happens through Bind once the Agent exists ; a Conceived Agent has no role until Bind runs."
+      description "Bring a new Agent into being. Inputs : the agent's name, a one-line description of who they are, and the kind. The role binding happens through Bind once the Agent exists ; a newly-born Agent has no role until Bind runs."
       attribute :name,        String
       attribute :description, String
       attribute :kind,        Kind
-      emits "Conceived"
+      emits "AgentBorn"
     end
 
     command "Bind" do
