@@ -1,0 +1,132 @@
+Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
+  vision "Audit log of Dispatch.Route emissions, attributed by Agent. The first bluebook to demonstrate the i483 form `role Role, as: Agent` end-to-end : every command declares the Role it runs in and the Agent who fills it. Two aggregates, three commands, no string-roles."
+  category "framework"
+
+  # ============================================================
+  # DISPATCHAUDIT — first bluebook in the i483 form
+  # ============================================================
+  #
+  # Conceived 2026-05-07 as the demonstration step of i483. The point
+  # is to prove the new shape reads cleanly before the parser, the
+  # validator, and the mechanical sweep land in their own cards.
+  #
+  # The domain : a thin audit log over Dispatch.Route emissions.
+  # Every Dispatched event the bus emits flows through here as one
+  # AuditEntry, attributed to the Agent that originated it. A second
+  # aggregate, AuditQuery, captures the read side : "show me every
+  # Dispatched event the System Agent issued in the last hour".
+  #
+  # ── The new DSL form ──────────────────────────────────────────
+  #
+  # Every command below declares :
+  #
+  #   role Role, as: Agent
+  #
+  # Reading : the command runs in the role of Role (the type, the
+  # aggregate carrying the permissions list) ; the role-bearer is
+  # referenced as Agent in the command's attribute scope. Same
+  # type-plus-alias pattern as `attribute Phrase, as: :phrase` from
+  # storehouse/lexicon.bluebook (i255).
+  #
+  # The parser today silently accepts the form ; it doesn't yet lift
+  # it into the IR, so this bluebook parses against `hecks-life
+  # inspect` and `hecks-life check-lifecycle` even before the i483
+  # parser-support card lands. Once the parser lands, the runtime
+  # picks up `dispatched_by: Agent` automatically.
+  #
+  # Some commands narrow the expected agent kind with `kind:` ; this
+  # is the documented direction, filed for parser support in the
+  # same i483 follow-up.
+  #
+  # ── Why this domain ──────────────────────────────────────────
+  #
+  # The audit log is plausibly real (i481 wires Dispatch.Route to
+  # carry `dispatched_by: Agent` in its event payload, and an audit
+  # log is the natural reader of that payload). It also stays out of
+  # the way of the existing storehouse/dispatch.bluebook : DispatchAudit
+  # is downstream of Dispatch, not a replacement.
+  #
+  # The example is small on purpose : two aggregates, three commands,
+  # one cross-aggregate query. Anything richer would gold-plate the
+  # demonstration.
+  #
+  # ── Companions ───────────────────────────────────────────────
+  #
+  # framework/agent/agent.bluebook — Agent is the role-bearer.
+  # framework/agent/role.bluebook — Role is the type.
+  # storehouse/dispatch.bluebook — the bus that emits Dispatched.
+  # i481 — wires Dispatched's payload to carry dispatched_by: Agent.
+
+  # ── Recorder ─────────────────────────────────────────────────
+  #
+  # AuditEntry captures one Dispatched event. The aggregate's identity
+  # is the entry's id ; phrase + dispatched_by + dispatched_at form
+  # the row.
+
+  aggregate "AuditEntry", "One row in the dispatch audit log — phrase, agent attribution, timestamp." do
+    identified_by :id
+
+    # phrase        — dotted Aggregate.Command from Lexicon.
+    # agent_name    — the Agent who originated the dispatch.
+    # role_name     — the Role the Agent filled.
+    # dispatched_at — ISO 8601 UTC timestamp.
+    attribute :id,             String
+    attribute :phrase,         String
+    attribute :agent_name,     String
+    attribute :role_name,      String
+    attribute :dispatched_at,  String
+
+    command "Record" do
+      # The recorder runs as System : the audit log records itself
+      # automatically, never on behalf of a human Agent. The kind:
+      # filter narrows future parser-level enforcement.
+      role Role, as: Agent, kind: "system"
+      description "Record one Dispatched event in the audit log. Inputs : the entry id, the dotted phrase that was dispatched, the Agent who originated it, the Role the Agent filled, and the timestamp. Idempotent on id."
+      attribute :id,             String
+      attribute :phrase,         String
+      attribute :agent_name,     String
+      attribute :role_name,      String
+      attribute :dispatched_at,  String
+      emits "Recorded"
+    end
+
+    command "Annotate" do
+      # Annotation is operator-driven : a human Agent reviewing the
+      # audit log adds context. No kind: filter — any Agent kind may
+      # annotate (a daemon may annotate to flag anomalies).
+      role Role, as: Agent
+      description "Add a free-text note to an existing entry. Used by reviewers to mark anomalies, attach incident links, or flag entries for follow-up. The note is appended ; prior notes are preserved in the event log."
+      reference_to(AuditEntry)
+      attribute :note, String
+      emits "Annotated"
+    end
+  end
+
+  # ── Reader ───────────────────────────────────────────────────
+  #
+  # AuditQuery is a small read-side aggregate that expresses a single
+  # "show me the audit trail for this Agent" intent. It exists to
+  # demonstrate the new DSL form on a read command, where today's
+  # role-string version would say `role "Reader"` or similar.
+
+  aggregate "AuditQuery", "Read-side view over the audit log — answers 'what did this Agent dispatch ?'" do
+    identified_by :id
+
+    # since — ISO 8601 UTC ; entries on or after this timestamp.
+    attribute :id,         String
+    attribute :agent_name, String
+    attribute :since,      String
+
+    command "ForAgent" do
+      # The reader runs in the Caller role, filled by whichever Agent
+      # is asking. Any kind may call ; the audit-read permission is
+      # carried on the Role itself, not constrained at the bluebook.
+      role Role, as: Agent
+      description "Open a query window over the audit log for one Agent. Inputs : the query id (the caller's correlation handle), the agent_name to filter on, and a since timestamp. Emits Opened ; the runtime fans out to read every AuditEntry where agent_name matches and dispatched_at is on or after since."
+      attribute :id,         String
+      attribute :agent_name, String
+      attribute :since,      String
+      emits "Opened"
+    end
+  end
+end

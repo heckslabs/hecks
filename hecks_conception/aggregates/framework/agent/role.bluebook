@@ -1,0 +1,113 @@
+Hecks.bluebook "Role", version: "2026.05.07.1" do
+  vision "The type an Agent fills in a command's scope. A Role carries a name and a list of Phrase permissions. Roles are the canonical replacement for the role-string sprinkled across every command in the conception today."
+  category "framework"
+
+  # ============================================================
+  # ROLE — what an Agent fills
+  # ============================================================
+  #
+  # Conceived 2026-05-07 from i483 alongside agent.bluebook. Role is
+  # the type ; Agent is the role-bearer. The DSL form
+  #
+  #   command "Add" do
+  #     role Role, as: Agent
+  #     ...
+  #   end
+  #
+  # reads as "this command runs in the role of Role, and the role-bearer
+  # is referenced as Agent in the command's attribute scope". Same
+  # type-plus-alias pattern as `attribute Role, as: :role` from i255.
+  #
+  # ── Why an aggregate, not a value object ──────────────────────
+  #
+  # A Role has a lifecycle of its own. Permissions are granted and
+  # revoked ; that's an event chain worth auditing. A VO would force
+  # every Agent to inline its full permission list and lose the audit
+  # trail. An aggregate also lets Roles compose : Owner inherits
+  # Operator's permissions inherits Caller's, with the inheritance
+  # captured as a typed reference rather than three duplicated string
+  # lists.
+  #
+  # The first chapter of Role keeps composition flat — `parent_name`
+  # is a single-step inheritance pointer. Multi-level resolution and
+  # diamond detection are filed as follow-ups.
+  #
+  # ── Permissions ───────────────────────────────────────────────
+  #
+  # Permissions are stored as a single newline-joined string of dotted
+  # phrases (one per line). The first chapter accepts only exact
+  # phrases — "Inbox.Add", "Dispatch.Route", "Mindstream.Define". A
+  # later chapter introduces wildcards ("Inbox.*") and negation
+  # ("!Inbox.Drop") ; the storage shape stays the same.
+  #
+  # Why a string-of-lines instead of a value-object collection ? The
+  # bluebook layer's existing list_of helpers expect children with
+  # identity ; permissions are pure data. A line-delimited string
+  # round-trips cleanly through the runtime's heki storage and stays
+  # diff-friendly in event payloads.
+  #
+  # ── Companion bluebooks ───────────────────────────────────────
+  #
+  # agent.bluebook — Agent is the being that fills the Role. Bind links
+  #                  an Agent to a Role by its name (Role.identified_by
+  #                  :name).
+  # storehouse/lexicon.bluebook — Lexicon's Phrase is the same dotted
+  #                  Aggregate.Command form Role permissions reference.
+  #                  When permission validation lands, it'll resolve
+  #                  every permission through Lexicon.Lookup.
+
+  aggregate "Role", "The type an Agent fills in a command's scope. Carries a name, a description, an optional parent role for composition, and a permissions list of dotted phrases." do
+    identified_by :name
+
+    attribute :name,        String
+    attribute :description, String
+
+    # parent_name : logically optional ; empty string when the role inherits
+    # from no other. Single-step composition for the first chapter ; multi-
+    # level resolution and diamond detection are filed as follow-ups.
+    attribute :parent_name, String
+
+    # permissions : newline-joined dotted phrases (one per line). First
+    # chapter accepts only exact phrases. Wildcards and negation are
+    # filed as follow-up gaps.
+    attribute :permissions, String
+
+    # ── Commands ───────────────────────────────────────────────
+    #
+    # Define brings a Role into being. Permissions are added and revoked
+    # individually so each grant is its own audited event ; bulk grants
+    # are syntactic sugar layered on top once the chapter beds in.
+
+    command "Define" do
+      role "Framework"
+      description "Conceive a new Role. Inputs : a name (the natural key), a one-line description, and an optional parent_name for composition (empty string when the role inherits from no other). Permissions are added through GrantPermission once the Role exists ; a defined Role starts with an empty permissions list."
+      attribute :name,        String
+      attribute :description, String
+      attribute :parent_name, String
+      emits "Defined"
+    end
+
+    command "GrantPermission" do
+      role "Framework"
+      description "Add a Phrase to this Role's permissions. The phrase is the dotted Aggregate.Command form Lexicon already canonicalises. Idempotent : granting an already-granted phrase is a no-op event for the audit trail."
+      reference_to(Role)
+      attribute :phrase, String
+      emits "PermissionGranted"
+    end
+
+    command "RevokePermission" do
+      role "Framework"
+      description "Remove a Phrase from this Role's permissions. Revoking a phrase the Role doesn't hold is recorded but not an error ; the audit trail captures the intent."
+      reference_to(Role)
+      attribute :phrase, String
+      emits "PermissionRevoked"
+    end
+
+    command "Retire" do
+      role "Framework"
+      description "Mark a Role as retired. Bound Agents are unbound on the next Bind ; cascades already in flight complete with the retired Role attribution intact."
+      reference_to(Role)
+      emits "Retired"
+    end
+  end
+end

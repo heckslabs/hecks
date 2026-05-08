@@ -212,6 +212,7 @@ app.events.each { |e| puts e.class.name.split("::").last }
 | `guarded_by` | Guard policy reference | [Policies](domain_level_policies.md) |
 | `sets` | Static field assignments | `sets status: "pending"` |
 | `actor` | Role that can issue command | [Actors](#actors) |
+| `role` | Typed role + agent alias (i483) | [Roles and Agents](#roles-and-agents) |
 | `read_model` | Data dependency | Documentation only |
 | `external` | External system dependency | Documentation only |
 | `precondition` | Pre-execution check | Block with message |
@@ -379,6 +380,64 @@ then_set :items, append: { name: :name, amount: :amount }  # compound
 ```
 
 When `given`/`then_set` are present, the runtime uses `HecksalInterpreter` instead of a handler block. This keeps domain logic pure and projectable.
+
+---
+
+## Roles and Agents
+
+> **Status — locked, parser pending.** This is the form the DSL is moving toward. The shape below is locked ; parser support is filed as a separate follow-up to i483 (the conception step landed first under that card so the bluebooks lead the runtime).
+>
+> Today's parser silently accepts the new form without lifting it into the IR — a bluebook using `role Role, as: Agent` parses cleanly under `hecks-life inspect` and `hecks-life check-lifecycle`, but the IR doesn't yet carry the typed reference. The legacy string form `role "Caller"` continues to work everywhere.
+
+Every command runs in some role, filled by some agent. Today most bluebooks declare the role as a string label :
+
+```ruby
+command "Add" do
+  role "Caller"          # untyped string — accidental consistency
+  ...
+end
+```
+
+Going forward, the role is a typed reference into the framework `Role` aggregate, and the role-bearer is named through the same type-plus-alias pattern as i255's `attribute Role, as: :role` :
+
+```ruby
+command "Add" do
+  role Role, as: Agent   # Role is the type ; Agent is the alias for the role-bearer
+  ...
+end
+```
+
+Read it as : *"this command is dispatched in the role of `Role`, and the role-bearer is referenced as `Agent` in the command's attribute scope."* `Role` is an aggregate (`framework/agent/role.bluebook`) carrying a name and a permissions list ; `Agent` is the typed reference into the framework `Agent` aggregate (`framework/agent/agent.bluebook`).
+
+### Narrowing by agent kind
+
+A command may declare which agent kinds are allowed to dispatch it :
+
+```ruby
+command "Compile" do
+  role Role, as: Agent, kind: "system"   # only system Agents may dispatch
+  ...
+end
+
+command "Add" do
+  role Role, as: Agent                    # any Agent kind may dispatch
+  ...
+end
+```
+
+The `kind:` filter is checked against the dispatching Agent's `kind` attribute (one of `"human"`, `"system"`, `"daemon"`, `"bot"`, `"ai"`). When omitted, any kind is permitted.
+
+### What lands when
+
+The conception step (the bluebooks under `framework/agent/` and the demonstration at `framework/audit/dispatch_audit.bluebook`) ships first. Parser, validator, and the mechanical sweep of existing `role "..."` strings each land in their own follow-up cards filed against i483. During the migration window both forms coexist ; once the sweep completes, the string form is retired.
+
+### Cascade attribution
+
+When a command emits an event that triggers cascading policies (e.g. `EnterSleep` fanning out through ten policies), the originating Agent reference flows automatically through the cascade. Downstream commands inherit the originator's Agent unless a policy explicitly re-attributes (the System Agent overrides for system-initiated cascades like garbage collection). The runtime wiring for this — `Dispatched` event payload carrying `dispatched_by: Agent` — is filed under i481.
+
+### Companion : `actor`
+
+`actor "Customer"` at the domain level (see [Actors](#actors)) is parallel to today's role-string and will converge with `role Role, as: Agent` once the migration completes. The direction of travel : `Agent` is the canonical noun, `Role` is the type, `actor` declarations migrate into Agent declarations at the framework level.
 
 ---
 

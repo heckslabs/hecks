@@ -1,0 +1,147 @@
+Hecks.bluebook "Agent", version: "2026.05.07.1" do
+  vision "A being that dispatches. Humans, systems, daemons, bots, AIs — the named, typed actors whose intent flows through every command. Today every command carries a role string ('Chris', 'System', 'Caller') ; this bluebook lifts the string into a first-class typed reference so provenance, permissions, and audit are computable instead of suggested."
+  category "framework"
+
+  # ============================================================
+  # AGENT — the being that dispatches
+  # ============================================================
+  #
+  # Conceived 2026-05-07 from i483. Surfaced while four StoreHouse
+  # handler agents were running in parallel and Chris noticed that
+  # roles already gesture at being objects ; the framework hadn't
+  # yet reached for the type. This bluebook is where the type comes
+  # into being.
+  #
+  # Agent is the role-bearer : the named "who" of every dispatch.
+  # Role is the type the Agent fills in a particular command's scope.
+  # Today most commands say `role "Chris"` ; the direction of travel
+  # is `role Role, as: Agent`, where Role is the type (a separate
+  # aggregate carrying permissions) and Agent is the alias for the
+  # role-bearer in the command's attribute scope.
+  #
+  # This first chapter conceives Agent as a framework primitive ;
+  # parser, validator, and the mechanical sweep follow in i483's
+  # subsequent items. The DSL form `role Role, as: Agent` is
+  # documented in docs/usage/dsl_reference.md ; the parser today
+  # silently accepts the form (it doesn't lift it into the IR yet),
+  # so this bluebook parses against `hecks-life inspect` even before
+  # parser support lands.
+  #
+  # ── Design decisions (i483) ───────────────────────────────────
+  #
+  # 1. Agent kinds : enum-checked at the bluebook layer with the
+  #    closed set ["human", "system", "daemon", "bot", "ai"]. Closed
+  #    because the kind drives downstream typing — daemon Agents
+  #    should not need an AuthIdentity, AI Agents may need a model
+  #    reference, etc. New kinds enter through this bluebook, not
+  #    through accidental string literals.
+  #
+  # 2. Role is its own aggregate (see role.bluebook in this same
+  #    directory), not a value object on Agent. The reasoning : Role
+  #    carries a permissions list whose grants and revocations are
+  #    domain events in their own right, audited separately from
+  #    Agent's own lifecycle. A VO would force every Agent to inline
+  #    its permission list and would erase the audit trail of "when
+  #    did Owner gain Inbox.Add ?". An aggregate also lets Roles
+  #    compose (Owner is Operator is Caller — roles inherit from
+  #    other roles) without duplicating the permission list.
+  #
+  # 3. Permissions are a list of Phrase patterns — the same dotted
+  #    Aggregate.Command form StoreHouse Lexicon already canonicalises.
+  #    First chapter : exact phrases only. Wildcards ("Inbox.*") and
+  #    negation ("!Inbox.Drop") are filed as follow-up gaps ; they're
+  #    real needs but don't belong in the conception step.
+  #
+  # 4. AuthIdentity link : an optional reference. Human Agents bind
+  #    to an AuthIdentity (the framework primitive filed under i264) ;
+  #    system, daemon, bot, and ai Agents typically don't. The link
+  #    is modeled here as `attribute :auth_identity_id, String` rather
+  #    than `reference_to AuthIdentity` because the AuthIdentity
+  #    bluebook hasn't landed yet (i264 is still queued) ; once it
+  #    lands, the migration upgrades this string to a typed reference
+  #    in the same PR that wires Account = AuthIdentity ↔ Agent.
+  #
+  # 5. Cascade attribution : the Agent reference flows automatically
+  #    through cascading dispatches. When EnterSleep fans out through
+  #    ten policies, every downstream command inherits the originator's
+  #    Agent unless a policy explicitly re-attributes (the System Agent
+  #    overrides for system-initiated cascades like garbage collection).
+  #    First chapter : the convention is documented here ; the runtime
+  #    wiring is filed under i481 (Dispatch's `Dispatched` event picks
+  #    up `dispatched_by: Agent`).
+  #
+  # ── Companion bluebooks ───────────────────────────────────────
+  #
+  # role.bluebook        — Role is a typed aggregate carrying a name
+  #                        and a permissions list. The thing Agent fills.
+  # auth_identity.bluebook — i264, not yet landed. Will host the
+  #                        framework's authentication primitive that
+  #                        human Agents bind to.
+  # storehouse/dispatch.bluebook — the bus. i481 wires the `Dispatched`
+  #                        event payload to carry `dispatched_by: Agent`.
+
+  aggregate "Agent", "A being that dispatches — human, system, daemon, bot, or ai. The typed actor whose intent flows through every command." do
+    identified_by :name
+
+    # Kind — closed set of agent shapes. The enum is enforced at the
+    # bluebook layer ; the validator rejects unrecognised values at
+    # parse time. Typing is downstream-load-bearing : daemon Agents
+    # never bind to AuthIdentity, ai Agents may carry a model reference,
+    # human Agents drive the audit trail visible to compliance.
+    value_object "Kind" do
+      attribute :value, String, enum: ["human", "system", "daemon", "bot", "ai"]
+    end
+
+    attribute :name,             String
+    attribute :description,      String
+    attribute :kind,             Kind
+
+    # auth_identity_id : logically optional ; populated for human kind only.
+    # See i264 — once AuthIdentity lands as a framework aggregate, this
+    # upgrades to `reference_to AuthIdentity` in the same migration.
+    attribute :auth_identity_id, String
+
+    # role_name : the Role aggregate's name (see role.bluebook). Bind /
+    # Unbind events update this attribute ; the audit trail keeps the
+    # full grant history.
+    attribute :role_name,        String
+
+    # ── Commands ───────────────────────────────────────────────
+    #
+    # Conceiving an Agent is one act ; binding it to a Role is another.
+    # Bind/Unbind are separate from Conceive so the Role grant/revoke
+    # is its own audited event rather than smuggled into the create.
+
+    command "Conceive" do
+      role "Framework"
+      description "Bring a new Agent into being. Inputs : the agent's name, a one-line description of who they are, and the kind. The role binding happens through Bind once the Agent exists ; a Conceived Agent has no role until Bind runs."
+      attribute :name,        String
+      attribute :description, String
+      attribute :kind,        Kind
+      emits "Conceived"
+    end
+
+    command "Bind" do
+      role "Framework"
+      description "Bind this Agent to a Role. The Role aggregate must exist (its name is the natural key). Re-running Bind with a different role replaces the binding ; the prior role is released and the audit trail captures both events."
+      reference_to(Agent)
+      attribute :role_name, String
+      emits "Bound"
+    end
+
+    command "LinkAuthIdentity" do
+      role "Framework"
+      description "Connect this Agent to its AuthIdentity (i264). Only human-kind Agents are expected to call this ; other kinds dispatch without authentication. Once linked, every Dispatched event the Agent originates carries the AuthIdentity through the cascade."
+      reference_to(Agent)
+      attribute :auth_identity_id, String
+      emits "AuthIdentityLinked"
+    end
+
+    command "Retire" do
+      role "Framework"
+      description "Mark an Agent as retired. The Agent record stays for audit ; future dispatches under this name are rejected by the bus. Cascades already in flight complete with the retired Agent attribution intact."
+      reference_to(Agent)
+      emits "Retired"
+    end
+  end
+end
