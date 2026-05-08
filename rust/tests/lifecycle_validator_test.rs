@@ -274,6 +274,64 @@ end
 }
 
 #[test]
+fn then_set_referencing_bare_vo_attribute_passes() {
+    // i479 — the i255 bare-VO form `attribute Role, as: :role` declares
+    // the `:role` name in the command's attribute scope, the same way
+    // `attribute :role, String` does. Without the parser branch, the
+    // validator treated `then_set :role, to: :role` as an undefined
+    // symbol reference and emitted a false-positive error.
+    let source = r#"Hecks.bluebook "Account" do
+  aggregate "Account" do
+    value_object "Role" do
+      attribute :value, String
+    end
+
+    attribute Role, as: :role
+
+    command "ChangeRole" do
+      attribute Role, as: :role
+      emits "AccountRoleChanged"
+      then_set :role, to: :role
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert!(!report.findings.iter().any(|f| f.message.contains("then_set :role")),
+        "bare-VO attribute `attribute Role, as: :role` should populate :role in scope: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn then_set_referencing_unaliased_bare_vo_passes() {
+    // The unaliased bare-VO form `attribute Phone` should default the
+    // attribute name to to_snake_case("Phone") = "phone". then_set on
+    // that snake-cased alias resolves cleanly.
+    let source = r#"Hecks.bluebook "Contact" do
+  aggregate "Contact" do
+    value_object "Phone" do
+      attribute :value, String
+    end
+
+    attribute Phone
+
+    command "UpdatePhone" do
+      attribute Phone
+      emits "PhoneUpdated"
+      then_set :phone, to: :phone
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    assert!(!report.findings.iter().any(|f| f.message.contains("then_set :phone")),
+        "unaliased bare-VO `attribute Phone` should populate :phone in scope: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
 fn flags_clock_anti_pattern_now() {
     // Domain shouldn't reach for the clock — time is infrastructure
     // (DDD Clock port). Validator flags `:now` with a Clock-injection hint.
