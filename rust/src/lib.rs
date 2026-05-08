@@ -43,4 +43,5 @@ pub mod run_restructure;
 pub mod run_status;
 pub mod run_statusline;
 pub mod run_stdin_loop;
+pub mod run_wake;
 pub mod specializer;
