@@ -1,0 +1,48 @@
+Hecks.adapter_family "sms" do
+  # The :sms adapter family — outbound SMS via a configured provider
+  # (Twilio today ; Vonage / MessageBird / Plivo would be sibling
+  # provider hecksagons under the same family).
+  #
+  # Sibling to :stripe, :llm, :compute, :tts, :object_store. Same
+  # bluebook-first promise : the family declares the field surface,
+  # providers attach the wire shape, and the kernel runs the adapter
+  # at dispatch time.
+  #
+  # Adding a new SMS operation (e.g. :send_mms, :lookup_number) is
+  # appending it to the `operations` list below + adding the matching
+  # request shape to framework/providers/twilio.hecksagon (and any
+  # sibling provider). No kernel work if the existing call_sms_api
+  # behavior_kind covers the operation shape (one HTTP POST, one
+  # form-encoded body, one JSON response).
+  #
+  # Inbound webhook delivery (status callbacks, replies) is filed for
+  # later — the v1 walking skeleton is fire-and-forget outbound only.
+
+  vision "Send SMS messages through a configured provider — Twilio today.
+          Each instance carries a behavior + trigger_on ; the kernel
+          resolves the provider, makes the HTTP call, and chains the
+          response (the provider's message id) back into the named target.
+          behavior_kind = call_sms_api for outbound send."
+
+  fields  :name,                  # symbolic adapter name in the consumer's hecksagon
+          :behavior,              # which SMS operation : :send_message
+          :trigger_on,            # "Aggregate.Command" — what fires this adapter
+          :response_into,         # "Aggregate.Command" — where the provider's response lands as a follow-up dispatch
+          :attr,                  # symbol — which command attribute carries the provider's response id (e.g. :message_sid)
+          :api_url                # optional override of the world's twilio.api_url (test mock, sandbox, etc.)
+
+  trigger_field :trigger_on
+  response_field :response_into
+
+  # Outbound operations all share one behavior_kind : call_sms_api.
+  behaviors :call_sms_api
+
+  # The set of SMS operations the family knows about. Each name maps
+  # to a request shape declared per-provider (e.g. framework/providers/
+  # twilio.hecksagon). An adapter instance picks ONE operation via the
+  # :behavior field.
+  operations :send_message,         # POST a new outbound SMS
+             :get_message_status    # GET status of a previously-sent SMS by SID
+
+  providers :twilio                 # framework/providers/twilio.hecksagon
+end

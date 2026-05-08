@@ -1,0 +1,106 @@
+Hecks.provider "twilio" do
+  # Twilio as a provider for the :sms adapter family. The provider
+  # declaration says : "when an :sms adapter has provider: :twilio,
+  # here is the HTTP shape per operation, the auth, and the response
+  # handling."
+  #
+  # Adding a NEW Twilio operation (e.g. :send_mms, :lookup_number) =
+  # add it to the endpoints below + add the operation to
+  # framework/adapter_families/sms.hecksagon's operations list. Pure
+  # bluebook ; no kernel work if the existing call_sms_api
+  # behavior_kind covers the shape.
+
+  vision "Twilio Programmable Messaging provider — outbound SMS via the
+          2010-04-01 REST API. HTTP Basic auth (Account SID + Auth
+          Token), application/x-www-form-urlencoded body, structured
+          JSON response with the message SID + delivery status."
+
+  family :sms                          # which adapter family this implements
+
+  # One behavior_kind for outbound SMS. Inbound webhooks (status
+  # callbacks, incoming replies) is filed for later.
+  behavior :call_sms_api
+
+  # ── Auth ──────────────────────────────────────────────────────────
+  #
+  # Twilio uses HTTP Basic auth — the Account SID is the username,
+  # the Auth Token is the password. Both live in environment variables
+  # ; the world file (bin-buddy.world's `twilio { account_sid_env "..."
+  # ; auth_token_env "..." }`) declares which env vars ; the kernel
+  # reads them once at first use, caches in memory, base64-encodes
+  # the combined "{sid}:{token}" string for the Authorization header.
+  #
+  # NOTE — Twilio's auth is BASIC, not Bearer. This is the first place
+  # the :sms family diverges from Stripe's wire shape. Future providers
+  # under this family (Vonage, MessageBird) may use yet other schemes
+  # ; the provider declaration is where each scheme lives.
+  auth_scheme :basic
+  auth_username_env :resolve_from_world  # world's twilio.account_sid_env
+  auth_password_env :resolve_from_world  # world's twilio.auth_token_env
+  auth_header "Authorization"
+  auth_header_format "Basic {base64(username:password)}"
+
+  # ── Outbound endpoints (call_sms_api) ─────────────────────────────
+  #
+  # The :sms family's :behavior field selects which request shape
+  # applies. Placeholders in the URL interpolate :
+  #
+  #   {api_url}     — from world's twilio.api_url
+  #   {account_sid} — from auth_username (Twilio's REST API embeds
+  #                   the Account SID in the path)
+  #
+  # The dispatched command's attributes (To, From, Body) become
+  # form-encoded fields in the request body. The kernel reads
+  # `from_number_env` from the world to populate the From field
+  # so domain code never has to know which number is sending.
+
+  endpoint :send_message,
+           method: :POST,
+           url: "{api_url}/Accounts/{account_sid}/Messages.json",
+           content_type: "application/x-www-form-urlencoded",
+           response_id_field: "sid",
+           response_id_prefix: "SM"
+
+  # GET-status endpoint — read the current delivery state of a
+  # previously-sent message by its SID. Path interpolates {message_sid}
+  # from the dispatched command's attrs (SystemTest.FetchSmsStatus
+  # carries it as :message_sid). Response carries the full message
+  # record ; the kernel returns the `status` field string back through
+  # the response cascade so the consumer's event records what state
+  # the message was in at probe time.
+
+  endpoint :get_message_status,
+           method: :GET,
+           url: "{api_url}/Accounts/{account_sid}/Messages/{message_sid}.json",
+           response_id_field: "status",
+           response_id_prefix: ""
+
+  # Twilio's response includes a status field (queued | sending | sent |
+  # delivered | undelivered | failed) — for fire-and-forget the response
+  # 'queued' or 'sent' is the success signal ; the actual delivery
+  # confirmation requires a status-callback webhook (filed for later).
+  response_status_field "status"
+
+  # ── Idempotency ───────────────────────────────────────────────────
+  #
+  # Twilio does NOT support an idempotency-key header (unlike Stripe).
+  # Server-side dedupe of duplicate sends needs to live in the
+  # consumer aggregate's command (e.g. a Notifications.SendSms guard
+  # on (to_phone, body, recent_window)). For the v1 walking skeleton
+  # this is fire-and-forget — duplicate sends are an acceptable failure
+  # mode (Twilio surfaces them as separate billable messages).
+
+  # ── Error mapping ─────────────────────────────────────────────────
+  #
+  # Twilio returns structured JSON errors. The kernel maps them to
+  # runtime error categories so callers can branch :
+  #
+  #   code 21211           → :invalid_request   (Invalid 'To' phone)
+  #   code 21408 / 21610   → :recipient_blocked (Trial unverified ;
+  #                                              recipient unsubscribed)
+  #   code 20003           → :auth_failure      (Bad SID/Token)
+  #   code 20429           → :rate_limited
+  #   any 5xx              → :provider_unavailable
+  #   anything else        → :unknown_error
+  error_mapping_field "code"
+end
