@@ -1,0 +1,31 @@
+Hecks.hecksagon "Query" do
+  # ============================================================
+  # QUERY — hexagonal wiring for the read bus declared in query.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares Query.Read — given a dotted path
+  # "Aggregate.attribute", project the named attribute from the
+  # aggregate's heki. This hecksagon names how the runtime wires
+  # Read once a :project adapter primitive lands ; today's storehouse
+  # main.rs shim performs the heki::path_for_lookup + heki::read +
+  # field projection inline, then emits ValueRead with the flattened
+  # value as the event payload.
+  #
+  # The aggregate→heki path mapping uses heki::snake_case (the
+  # canonical helper used by every other surface that reads aggregate
+  # heki) so Read works for any aggregate without per-aggregate
+  # registration : Consciousness.state → information/consciousness.heki ;
+  # WakeReview.dream_image → information/wake_review.heki ; etc.
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :fs — root anchors the heki read. Read resolves the heki path
+  # under <root>/<snake_case(aggregate)>.heki and projects the named
+  # attribute from the latest record.
+  adapter :fs, root: "information"
+
+  # :memory — emits ValueRead through the in-process event bus so any
+  # subscriber (Spring REPL, Glass palette) can read values via the
+  # same surface other consumers do.
+  adapter :memory
+end

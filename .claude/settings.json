@@ -7,6 +7,11 @@
             "type": "command",
             "command": "ruby bin/update-codebase-index 2>/dev/null || true",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life storehouse route WakeReview.ComposeWakeReview 2>&1 | tail -1 ; true",
+            "timeout": 20
           }
         ]
       }

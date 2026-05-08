@@ -1,0 +1,36 @@
+Hecks.hecksagon "Wake" do
+  # ============================================================
+  # WAKE — hexagonal wiring for the pipeline declared in wake.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares WakeReview's six pipeline phases
+  # (read consciousness → read dream → render → write → stamp →
+  # complete) and the user-visible ComposeWakeReview entrypoint.
+  # The two outbound ports below are the I/O surface :
+  #
+  #   ReadConsciousness → :fs   (read consciousness.heki)
+  #   ReadLatestDream   → :fs   (read lucid_dream.heki + dream_interpretation.heki)
+  #   RenderMarkdown    → no adapter (pure format)
+  #   WriteSurface      → :fs   (write /tmp/wake_review_latest.md)
+  #   StampReport       → :memory (upsert wake_report.heki)
+  #   CompleteReview    → no adapter (state-only)
+  #
+  # Detection in run.rs : :fs adapter declared with `root:` AND the
+  # bluebook declares aggregate WakeReview + command ComposeWakeReview.
+  # When detected, run_wake takes over from generic dispatch.
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :fs reads .heki files from `<root>` (typically information/) and
+  # writes the surface markdown to its absolute path. The runner
+  # consults this adapter's `root:` option to anchor the .heki reads ;
+  # the surface_path attribute on the WakeReview aggregate is the
+  # write target and is independent of `root:`.
+  adapter :fs, root: "information"
+
+  # :memory dispatches the wake_report.heki upsert via the in-process
+  # runtime. The runner stamps the WakeReview aggregate state via this
+  # path so any consumer reading rt.all("WakeReview") sees the same
+  # payload that landed on the markdown surface.
+  adapter :memory
+end

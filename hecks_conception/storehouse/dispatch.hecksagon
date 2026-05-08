@@ -1,0 +1,59 @@
+Hecks.hecksagon "Dispatch" do
+  # ============================================================
+  # DISPATCH — hexagonal wiring for the bus declared in dispatch.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares Dispatch.Route — given a phrase +
+  # params, resolve via Lexicon.Lookup, validate, dispatch through the
+  # per-bluebook runtime path, capture the emitted event, re-emit as
+  # Dispatched. This hecksagon names how the runtime is supposed to
+  # wire that pipeline once the four-piece runtime growth in i493
+  # lands :
+  #
+  #   1. expression evaluator inside `expects` blocks (Lookup is a real
+  #      sub-dispatch, not opaque rule text)
+  #   2. dispatch context with named bindings (target = Lexicon.Lookup
+  #      result becomes accessible by name in subsequent steps)
+  #   3. dotted-key template substitution in :shell adapters
+  #      ({{target.bluebook_path}} resolves via the binding)
+  #   4. cross-aggregate auto-dispatch when the called command lives
+  #      in a sibling bluebook (Dispatch + Lexicon co-loaded)
+  #
+  # Until i493 lands, the surface invocation route is :
+  #   hecks-life storehouse route <phrase> [k=v ...]
+  # which lives as a shim in rust/src/main.rs (already kernel-surface
+  # exempt) and replicates the pipeline this hecksagon describes —
+  # walking bluebooks, calling Lexicon.Lookup, invoking the resolved
+  # bluebook through the existing run::run_script path.
+  #
+  # The shim retires when the runtime grows the four pieces named
+  # above. At that point this hecksagon becomes self-evidencing : the
+  # runtime reads the adapter declarations below, fires Lexicon.Lookup
+  # via the bound :memory dispatch, then fires :invoke (a templated
+  # :shell call) with target.bluebook_path. No imperative shim needed.
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :memory — fires Lexicon.Lookup as part of Route's pipeline (the
+  # `expects "phrase resolves in the lexicon"` clause). The runtime
+  # binds the resulting PhraseLookedUp event payload as `target`,
+  # making target.bluebook_path / target.aggregate / target.command
+  # available to subsequent expects rules and adapter substitutions.
+  adapter :memory
+
+  # :invoke — out-of-process re-invocation of the resolved bluebook.
+  # Implemented as a templated :shell call (zero new adapter kind ;
+  # uses the existing :shell substitution + process-isolation + timeout
+  # machinery). Fires after Route's expects pass + before the Dispatched
+  # event emits ; the bluebook's role is the contract, the :shell adapter
+  # is the engine.
+  #
+  # The {{target.bluebook_path}} placeholder resolves through dotted-key
+  # template substitution — i493 piece 3 ; today the storehouse main.rs
+  # shim hand-fills it before invoking run::run_script in-process.
+  adapter :shell, name: :invoke,
+    command: "hecks-life",
+    args: ["run", "{{target.bluebook_path}}", "entrypoint={{phrase}}"],
+    output_format: :text,
+    timeout: 60
+end

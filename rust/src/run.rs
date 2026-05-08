@@ -156,6 +156,16 @@ pub fn run_script(args: &[String]) -> i32 {
         return crate::run_boot::run(&mut rt, &registry, &entrypoint, path, extra);
     }
 
+    // Wake capability detection : :fs + WakeReview aggregate with
+    // ComposeWakeReview. Walks the six pipeline phases declared in
+    // runtime/wake/wake.bluebook, reading consciousness/lucid_dream/
+    // dream_interpretation hekis and writing the wake-review markdown
+    // to /tmp/wake_review_latest.md. Retires the prose-in-system-prompt
+    // wake ritual that re-improvised the read sequence on every session.
+    if crate::run_wake::is_wake_capability(&registry, &rt) {
+        return crate::run_wake::run(&mut rt, &registry, &entrypoint, path, extra);
+    }
+
     // Restructure capability detection : :fs + :stdout + Layout aggregate
     // with Apply + Move aggregate. Routes Layout.Plan / Apply / RevertTo
     // to the phase orchestrator that walks the filesystem, dispatches

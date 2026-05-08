@@ -1,0 +1,40 @@
+Hecks.hecksagon "Lexicon" do
+  # ============================================================
+  # LEXICON — hexagonal wiring for the index declared in lexicon.bluebook
+  # ============================================================
+  #
+  # The sibling bluebook declares Lexicon's three commands : Compile
+  # (rebuild index), Lookup (resolve a phrase), List (browse). This
+  # hecksagon names how the runtime wires those commands once the
+  # walk + parse machinery becomes available as bluebook primitives.
+  # Until then the storehouse main.rs shim performs the same walk
+  # using rust/src/run_boot/discover.rs's recursive bluebook walker
+  # and writes the lexicon.heki the contract describes.
+  #
+  # Index layout (lexicon.heki) :
+  #   id              — the phrase, e.g. "WakeReview.ComposeWakeReview"
+  #   bluebook_path   — absolute path to the owning .bluebook
+  #   aggregate       — aggregate name segment of the phrase
+  #   command         — command name segment
+  #   attributes_json — JSON list of attribute names + types
+  #   compiled_at     — ISO 8601 timestamp the row was indexed
+  #
+  # Plus one singleton row id="lexicon" carrying CompiledAt + PhraseCount
+  # so consumers can cheaply check staleness without scanning every
+  # phrase row.
+
+  # ---- I/O wiring --------------------------------------------------
+
+  # :fs — root anchors the conception walk. Compile recurses across
+  # aggregates/, runtime/, codegen/, cli/, integrations/, tools/,
+  # discipline/, and storehouse/ (mirroring run_boot/discover.rs's
+  # bucket list) for *.bluebook files. Today's shim hand-calls this
+  # walk ; once a :walk adapter primitive lands, this :fs declaration
+  # carries the root and the runtime drives the walk.
+  adapter :fs, root: "."
+
+  # :memory — Compile writes the lexicon.heki rows via the in-process
+  # heki upsert path. Lookup reads via heki::read. List filters in
+  # memory.
+  adapter :memory
+end
