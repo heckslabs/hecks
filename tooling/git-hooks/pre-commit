@@ -320,24 +320,18 @@ fi
 # same dir. Mirrors pre-push ROOTS so we catch behavior regressions
 # at commit time, not only at push.
 #
-# Roots match tooling/git-hooks/pre-push : aggregates / adapters
-# under hecks_conception, plus framework dirs at repo root (tools,
-# discipline, runtime, cli, bluebook, codegen, integrations).
+# Roots match tooling/git-hooks/pre-push : aggregates / adapters /
+# catalog under hecks_conception, plus framework dirs at repo root
+# (tools, discipline, runtime, cli, bluebook, codegen, integrations).
 # examples/ is intentionally excluded — some examples are :pending
 # under runner gaps and won't be all-green.
-#
-# catalog/ is excluded today : `hecks-life test` reports 4 errored
-# tests under catalog/appeal.behaviors (PlanFeature + dependents,
-# "missing attribute: self-referencing id"). The per-file `behaviors`
-# walker above doesn't surface those errors the same way, so adding
-# catalog here would break commit on master. Re-add once the appeal
-# self-ref gap is fixed.
 #
 # Set BEHAVIORS_SKIP=1 to bypass (an antibody failure for emergencies).
 if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
     BEHAVIORS_ROOTS=""
     [ -d "$REPO/hecks_conception/aggregates" ] && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/aggregates"
     [ -d "$REPO/hecks_conception/adapters" ]   && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/adapters"
+    [ -d "$REPO/hecks_conception/catalog" ]    && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/catalog"
     [ -d "$REPO/tools" ]                       && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/tools"
     [ -d "$REPO/discipline" ]                  && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/discipline"
     [ -d "$REPO/runtime" ]                     && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/runtime"

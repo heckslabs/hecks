@@ -135,15 +135,15 @@ jobs:
         # migration window ; once the per-file walker retires, this
         # one stays.
         #
-        # catalog/ is excluded today : `hecks-life test` reports 4
-        # errored tests under catalog/appeal.behaviors that the per-
-        # file walker above doesn't surface the same way. Re-add once
-        # the appeal self-ref gap is fixed.
+        # i499 follow-up (2026-05-08) — catalog/ joined the gate after
+        # the :pending scrub + i511 fixes (RegisterDomains + behaviors_runner
+        # singleton lifecycle default). Catalog now reports 1175/0/0.
         run: |
           HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/hecks-life"
           ROOTS=""
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/adapters" ]   && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/adapters"
+          [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/catalog" ]    && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/catalog"
           [ -d "$GITHUB_WORKSPACE/hecks/tools" ]                       && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/tools"
           [ -d "$GITHUB_WORKSPACE/hecks/discipline" ]                  && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/discipline"
           [ -d "$GITHUB_WORKSPACE/hecks/runtime" ]                     && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/runtime"
