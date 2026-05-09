@@ -94,10 +94,13 @@ TMP=$(mktemp -d -t consolidate_smoke.XXXXXX)
 # spawned during the test can't survive into the next test.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-# Nested heki layout (post-i118 R5).
+# Nested heki layout (post-i118 R5). i516 v3 (Musings retirement,
+# 2026-05-08) — musing / musing_archive directories dropped ; the
+# musing-archive sweep gap (group-by primitive) is no longer the
+# blocker since Musings is retired entirely.
 mkdir -p "$TMP/information/signal" "$TMP/information/synapse" \
-         "$TMP/information/musing" "$TMP/information/store" \
-         "$TMP/information/remains" "$TMP/information/musing_archive" \
+         "$TMP/information/store" \
+         "$TMP/information/remains" \
          "$TMP/aggregates"
 
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;

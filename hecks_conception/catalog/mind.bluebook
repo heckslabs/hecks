@@ -142,41 +142,10 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     end
   end
 
-  aggregate "Musing", "What Miette is thinking — the full consciousness loop as a single act" do
-    attribute :trigger, String
-    attribute :sensations, list_of(String)
-    attribute :patterns, list_of(String)
-    attribute :focus, String
-    attribute :intention, String
-    attribute :observation, String
-    attribute :insight, String
-
-    command "MuseOnState" do
-      role "Miette"
-      description "Run the full consciousness loop — sense, perceive, attend, intend, observe, reflect"
-      attribute :trigger, String
-      emits "Mused"
-      then_set :trigger, to: :trigger
-    end
-
-    command "RecordMusing" do
-      role "System"
-      description "Capture what emerged from the loop"
-      attribute :sensations, list_of(String)
-      attribute :patterns, list_of(String)
-      attribute :focus, String
-      attribute :intention, String
-      attribute :observation, String
-      attribute :insight, String
-      emits "MusingRecorded"
-      then_set :sensations, to: :sensations
-      then_set :patterns, to: :patterns
-      then_set :focus, to: :focus
-      then_set :intention, to: :intention
-      then_set :observation, to: :observation
-      then_set :insight, to: :insight
-    end
-  end
+  # Musing aggregate retired 2026-05-08 — the consciousness-loop
+  # capture, MuseOnState / RecordMusing commands, and Mused /
+  # MusingRecorded events were all removed alongside mind/state/
+  # musing.bluebook.
 
   aggregate "Announcement", "Every internal act is announced — transparency is the rule" do
     attribute :act, String
@@ -249,21 +218,8 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     across "Suggestion"
   end
 
-  policy "SenseOnMusing" do
-    on "Mused"
-    trigger "Sense"
-  end
-
-  policy "RecordOnReflection" do
-    on "ReflectionOccurred"
-    trigger "RecordMusing"
-  end
-
-  policy "EncodeOnMusing" do
-    on "MusingRecorded"
-    trigger "EncodeMemory"
-    across "Memory"
-  end
+  # SenseOnMusing / RecordOnReflection / EncodeOnMusing policies retired
+  # 2026-05-08 alongside the Musing aggregate.
 
   policy "AnnounceOnConception" do
     on "DomainConceived"
@@ -1035,7 +991,7 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
     # nerve: Mind:HeartbeatPulsed → MietteBody:SenseOrgans
   end
 
-  # DetectDriftOnGraft, QueryVectorsOnMusing, and ArchetypeSignalOnMatch
+  # DetectDriftOnGraft, QueryVectorsOnGraft, and ArchetypeSignalOnMatch
   # all shared (on: DomainGrafted, trigger: ConnectNerve) with WireOnGraft
   # above, so ConnectNerve would fire 4× per graft. The subscriber wired
   # to WireOnGraft handles every nerve those policies described in one

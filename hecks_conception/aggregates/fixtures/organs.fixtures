@@ -6,7 +6,7 @@ Hecks.fixtures "Organs" do
   end
   aggregate "Signal" do
     fixture "Signal1", kind: "somatic", payload: "heartbeat", strength: 0.6, access_count: 5, created_at: "now"
-    fixture "Signal2", kind: "concept", payload: "musing surfaced", strength: 0.4, access_count: 1, created_at: "earlier"
+    fixture "Signal2", kind: "concept", payload: "thought surfaced", strength: 0.4, access_count: 1, created_at: "earlier"
     fixture "Signal3", kind: "archived", payload: "old hum", strength: 0.1, access_count: 0, created_at: "long ago"
   end
   aggregate "Focus" do

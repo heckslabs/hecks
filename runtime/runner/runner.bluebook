@@ -162,7 +162,7 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
 
     command "StartLoop" do
       role "System"
-      description "Dispatch the user bluebook's entrypoint command (typically StartSession) with argv attrs, format the banner from the live Mood + Heartbeat + Musing + Conversation aggregate states, and write the banner + usage hint through :stdout. Moves status to running."
+      description "Dispatch the user bluebook's entrypoint command (typically StartSession) with argv attrs, format the banner from the live Mood + Heartbeat + Conversation aggregate states, and write the banner + usage hint through :stdout. Moves status to running."
       attribute :being, String
       attribute :entrypoint, String
       then_set :being, to: :being

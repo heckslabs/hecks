@@ -62,7 +62,6 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
     attribute :precision_level,     String, default: "—"
 
     # ---- Memory counts ------------------------------------------
-    attribute :musings_count,       Integer, default: 0
     attribute :conversations_count, Integer, default: 0
     attribute :signals_count,       Integer, default: 0
     attribute :synapses_count,      Integer, default: 0
@@ -281,7 +280,6 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
   end
 
   section "Memory" do
-    row "musings",       :musings_count
     row "conversations", :conversations_count
     row "signals",       :signals_count
     row "synapses",      :synapses_count

@@ -30,12 +30,13 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
   #   word fails is_noun() check
   #     → validator dispatches Morphology::RecordRejection
   #       → VerbException accumulates rejection_count
-  #         → when rejection_count >= 3, MintMusing fires with
-  #           source="vocabulary_pressure"
-  #             → Chris (or future automated pipeline i71) promotes
-  #               the word into validator_shape.fixtures, regenerates
-  #               validator.rs via `hecks-life specialize validator`,
-  #               and the next compile inherits the new exception.
+  #         → when rejection_count >= 3, the consumer surfaces
+  #           the candidate to Chris (or future automated pipeline
+  #           i71). Chris promotes the word into validator_shape.
+  #           fixtures, regenerates validator.rs via `hecks-life
+  #           specialize validator`, and the next compile inherits
+  #           the new exception. (MintMusing trigger retired
+  #           2026-05-08 alongside the Musing system.)
   #
   # The compile-time list stays the source of byte-identity for the
   # validator. The runtime list stays the source of evidence about
@@ -113,21 +114,11 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
 
   # ── Pressure threshold (consumer contract, not policy) ─────────────
   #
-  # The bluebook deliberately does NOT carry a cross-domain policy that
-  # auto-fires Mindstream::MusingMint::MintMusing — cross-bluebook policy
-  # dispatch isn't part of the canonical DSL today (every working example
-  # in the corpus triggers commands within the same bluebook). Instead
-  # the threshold is a consumer contract :
+  # When `rejection_count >= 3` for any VerbException, the consumer
+  # (today : the validator daemon ; tomorrow : the i71 dream pipeline)
+  # surfaces the candidate to Chris for promotion into
+  # validator_shape.fixtures.
   #
-  #   When `rejection_count >= 3` for any VerbException, the consumer
-  #   (today : the validator daemon ; tomorrow : the i71 dream pipeline)
-  #   should dispatch :
-  #     hecks-life aggregates mindstream MusingMint.MintMusing \
-  #       idea="verb-exception candidate: <word>" \
-  #       source="vocabulary_pressure"
-  #
-  # This keeps the bluebook a pure shape ; the wiring is one shell line
-  # in whatever process owns the consumer side. When cross-domain policy
-  # dispatch lands as a first-class DSL feature (or when i71 absorbs the
-  # whole loop), this comment becomes the auto-generated wiring's spec.
+  # This keeps the bluebook a pure shape ; the wiring lives in
+  # whatever process owns the consumer side.
 end

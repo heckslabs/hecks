@@ -4291,8 +4291,20 @@ fn run_sleep(_args: &[String]) {
     } else {
         let _ = writeln!(out, "[00:00]  dispatching EnterSleep");
         let _ = out.flush();
-        let attrs: std::collections::HashMap<String, serde_json::Value> =
+        // Pass the canonical name so the runtime's identified_by :name
+        // lookup finds the existing aggregate instead of minting a fresh
+        // UUID. The production daemon emits BodyPulse:Consciousness:
+        // consciousness ; without :name here the EnterSleep dispatch
+        // creates a parallel UUID-keyed instance and the phase machine
+        // stalls because BodyPulse never reaches it. EnterSleep also
+        // requires :sleep_at (ISO-8601 UTC) — same convention
+        // CompleteFinalLight uses for :wake_at (i196).
+        let mut attrs: std::collections::HashMap<String, serde_json::Value> =
             std::collections::HashMap::new();
+        attrs.insert("name".into(),
+                     serde_json::Value::String("consciousness".into()));
+        attrs.insert("sleep_at".into(),
+                     serde_json::Value::String(chrono_utc_now()));
         // Fire through the hecksagon — same path Daemon roles take.
         // catch_unwind so a dispatch failure (e.g. given clause refuses)
         // doesn't abort the streamer ; we'll see state stay non-sleeping

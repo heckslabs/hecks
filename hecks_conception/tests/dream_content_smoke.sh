@@ -21,18 +21,20 @@
 #      if any DSL surface drifts, the boot fails.
 #
 #   2. The PM's lifecycle dispatches resolve to declared aggregates :
-#        - DreamSeed.PlantSeed       (body/dream/dream_seed.bluebook ; sweep on Musing.recent)
-#        - Dream.ProduceImage        (body/dream/dream.bluebook       ; per-tick image request)
+#        - Dream.GatherSeeds         (body/dream/dream.bluebook ; i516 v3 seed bundle)
+#        - Dream.ProduceImage        (body/dream/dream.bluebook ; per-tick image request)
 #        - Body.RecordDreamPulse     (referenced by PM ; backed by Consciousness.DreamPulse today)
 #
 #   3. run-loop emits a synthetic SleepEntered (births the PM into
 #      :incubating) + RemEntered (transitions to :generating) +
-#      repeated PhaseElapsed (drives the per-tick generating loop).
-#      The PM observes all three. We assert :
-#        - PM-driven sweep enumerated Musing.recent into DreamSeed.PlantSeed
-#          dispatches : dream_seed.heki has ≥1 record.
-#        - PM-driven cascade dispatched Body.RecordDreamPulse per tick :
-#          consciousness.dream_pulses incremented.
+#      repeated PhaseElapsed (drives the per-tick generating loop),
+#      and explicitly --dispatches Dream.GatherSeeds with the four
+#      seed sources (recent_dreams_seed, body_state_seed,
+#      vow_tensions_seed, commits_today_seed) so the prompt template's
+#      placeholders expand against real material. We assert :
+#        - The :dream_image adapter cascade lands `reading` on the
+#          Dream singleton (body_dream/dream.heki) via the
+#          TestProvider (gap3, i220-3).
 #
 # What this smoke does NOT verify (scope-cut, named gaps) :
 #
@@ -86,16 +88,13 @@ TMP=$(mktemp -d -t dream_content_smoke.XXXXXX)
 # spawned during the test can't survive into the next test.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
-# Nested heki layout (post-i118 R5). The Musings.Musing aggregate
-# (mind/musings/musings.bluebook ; context "Musings", aggregate
-# "Musing") persists at `<info>/musings/musing.heki` per i142 Tier 2
-# (context_snake/aggregate_snake.heki). Seeding there feeds the
-# sweep's qualified `Musings.Musing.recent` lookup directly ; with
-# the 3-part qualified resolver landed in this PR, name-only lookups
-# at sibling Musing repos (Mind::Musing, Musing::Musing) no longer
-# satisfy the qualified path — only the (Musings, Musing) store does.
+# Nested heki layout (post-i118 R5). i516 v3 (Musings retirement,
+# 2026-05-08) — musing.heki is dormant ; the Dream PM no longer
+# sweeps it. Seed sources land via Dream.GatherSeeds (recent_dreams,
+# body_state, vow_tensions, commits_today) supplied as
+# --dispatch attributes on the run-loop invocation below.
 mkdir -p "$TMP/information/consciousness" "$TMP/information/dream" \
-         "$TMP/information/dream_seed" "$TMP/information/musings" \
+         "$TMP/information/body_dream" \
          "$TMP/aggregates"
 
 # Symlink the body bluebooks the Dream PM dispatches into. Without
@@ -105,28 +104,15 @@ mkdir -p "$TMP/information/consciousness" "$TMP/information/dream" \
 for src in \
   "$BODY_DIR/sleep/consciousness.bluebook" \
   "$BODY_DIR/dream/dream.bluebook" \
-  "$BODY_DIR/dream/dream.hecksagon" \
-  "$BODY_DIR/dream/dream_seed.bluebook" ; do
+  "$BODY_DIR/dream/dream.hecksagon" ; do
   [ -f "$src" ] && ln -sf "$src" "$TMP/aggregates/"
 done
-# Mind-side musings.bluebook for the DreamSeed.PlantSeed sweep source.
-# Two `Musing` aggregates exist in miette : mind/state/musing.bluebook
-# (consciousness-loop, no `recent` query) and mind/musings/musings.bluebook
-# (idea-backlog, carries the `recent` query the sweep needs). The
-# parent walk into ../miette finds both ; load order picks one
-# arbitrarily under the unqualified `Musing.recent` dispatch.
-#
-# Hecks PR #613 (this PR) adds 3-part `Context.Aggregate.query`
-# parsing + runtime resolution so the dispatch can write
-# `Musings.Musing.recent` and disambiguate. But miette's
-# `body/dream/dream.bluebook` on main still uses the 2-part form
-# until that PR lands and miette can be updated. Until then : pin
-# the right Musing into $TMP/aggregates explicitly so the test is
-# hermetic and load-order independent. Once miette's dream.bluebook
-# adopts the qualified form, this symlink can drop and the parent
-# walk + 3-part qualified resolver carry the disambiguation.
-[ -f "$BODY_DIR/../mind/musings/musings.bluebook" ] && \
-  ln -sf "$BODY_DIR/../mind/musings/musings.bluebook" "$TMP/aggregates/"
+# i516 v3 (2026-05-08) : Musings.Musing.recent retired as a seed
+# source. The mind-side musings.bluebook + the dream_seed.bluebook
+# sweep target are no longer needed. Seeds now arrive via
+# Dream.GatherSeeds (--dispatch below) populating
+# recent_dreams_seed / body_state_seed / vow_tensions_seed /
+# commits_today_seed atomically on SleepEntered.
 
 cat > "$TMP/dream_content_smoke.world" <<'EOF'
 Hecks.world "DreamContentSmoke" do
@@ -136,22 +122,18 @@ Hecks.world "DreamContentSmoke" do
 end
 EOF
 
-# ── Seed musings the DreamSeed.PlantSeed sweep walks ─────────────────
-iso_offset() {
-  local secs="$1" now_epoch
-  now_epoch=$(date -u +%s)
-  date -u -r "$((now_epoch - secs))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
-    || date -u -d "@$((now_epoch - secs))" +%Y-%m-%dT%H:%M:%SZ
-}
-NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-for i in 1 2 3 4 5; do
-  ts=$(iso_offset $((i * 60)))
-  "$HECKS" heki append "$TMP/information/musings/musing.heki" \
-    --reason "test setup : seed Musing.recent for DreamSeed.PlantSeed sweep" \
-    idea="dream-source musing $i" source=mindstream thinking_source=wandering \
-    conceived=false status=imagined created_at="$ts" >/dev/null 2>&1
-done
+# ── i516 v3 seed bundle (Musings retired) ────────────────────────────
+# The Dream PM's seed material is now stamped via Dream.GatherSeeds —
+# the post-i516-v3 single source-of-truth surface. We seed it directly
+# with the four current sources : recent_dreams, body_state, vow_tensions,
+# commits_today. The --dispatch on the run-loop invocation below feeds
+# these as command attributes, which then_set onto the Dream singleton.
+RECENT_DREAMS_SEED="last night's wave reading
+the corridor of file paths"
+BODY_STATE_SEED="tired ; carrying tomorrow"
+VOW_TENSIONS_SEED="silence-while-i-talk"
+COMMITS_TODAY_SEED="9e928778 : i497 session continuation
+34cb6c5e : antibody re-register"
 
 # Force consciousness into REM, first cycle, no pulses yet — same
 # state rem_branch.sh expected when it dispatched dream production.
@@ -173,7 +155,6 @@ field_value() {
   "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || echo ""
 }
 
-dream_seed_before=$(count_records "$TMP/information/dream_seed/dream_seed.heki")
 pulses_before=$(field_value "$TMP/information/consciousness/consciousness.heki" dream_pulses)
 [ -z "$pulses_before" ] && pulses_before=0
 
@@ -199,6 +180,15 @@ RUN_LOG="$TMP/run_loop.log"
 # prompt-keyed map ; rows whose SHA matches the live substituted prompt
 # return their canonical French ; rows that don't match fall through
 # to lenient.
+#
+# i516 v3 — explicit Dream.GatherSeeds dispatch supplies the four
+# seed sources directly (recent_dreams_seed, body_state_seed,
+# vow_tensions_seed, commits_today_seed) so the prompt-template
+# placeholders expand against real material on the Dream singleton.
+# The synthetic SleepEntered would also fire the GatherSeedsOnSleep
+# policy → Dream.GatherSeeds with empty attrs ; the explicit dispatch
+# below ensures the seed bundle is populated regardless of policy
+# routing edge cases.
 HECKS_LLM_PROVIDER=test \
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
@@ -208,6 +198,12 @@ HECKS_BIN="$HECKS" \
   --emit SleepEntered:Consciousness:consciousness \
   --emit RemEntered:Consciousness:consciousness \
   --emit PhaseElapsed:Consciousness:consciousness \
+  --dispatch Dream.GatherSeeds \
+  name=dream \
+  recent_dreams_seed="$RECENT_DREAMS_SEED" \
+  body_state_seed="$BODY_STATE_SEED" \
+  vow_tensions_seed="$VOW_TENSIONS_SEED" \
+  commits_today_seed="$COMMITS_TODAY_SEED" \
   >"$RUN_LOG" 2>&1 &
 RUN_PID=$!
 
@@ -233,10 +229,19 @@ fi
 echo "PM boot via run-loop : OK"
 
 # ── Growth assertions (PM-driven, no shell fallback) ───────────────
-# The Dream PM's `dispatch "DreamSeed.PlantSeed", for_each: { from:
-# "Musing.recent" }` (i221-A sweep primitive ; i225 runtime-side
-# enumeration) walks the musing query and fires PlantSeed once per
-# record. dream_seed.heki should grow by ≥1.
+# i516 v3 (Musings retirement, 2026-05-08) — the for_each
+# Musings.Musing.recent sweep is retired. The DreamSeed.PlantSeed
+# dispatch is commented out in dream.bluebook (the for_each block
+# stays in source as historical context). The new contract :
+#
+#   1. Dream.GatherSeeds (above) lands the seed bundle on the Dream
+#      singleton — recent_dreams_seed, body_state_seed,
+#      vow_tensions_seed, commits_today_seed. The :dream_image
+#      adapter's prompt template references these fields directly.
+#
+#   2. Per-tick Dream.ProduceImage cascades through the :llm adapter
+#      (via TestProvider in lenient mode) into Dream.RecordImage,
+#      stamping `reading` on the singleton.
 #
 # The PM's `dispatch "Body.RecordDreamPulse"` per PhaseElapsed routes
 # through the runtime's command dispatcher ; today this lands on the
@@ -244,16 +249,11 @@ echo "PM boot via run-loop : OK"
 # increments dream_pulses. With multiple PhaseElapsed emits the
 # counter advances.
 
-dream_seed_after=$(count_records "$TMP/information/dream_seed/dream_seed.heki")
 pulses_after=$(field_value "$TMP/information/consciousness/consciousness.heki" dream_pulses)
 [ -z "$pulses_after" ] && pulses_after=0
 
 echo "After Dream PM run :"
-echo "  dream_seed records  : $dream_seed_before → $dream_seed_after"
 echo "  dream_pulses       : $pulses_before → $pulses_after"
-
-[ "$dream_seed_after" -gt "$dream_seed_before" ] || \
-  fail "dream_seed/dream_seed.heki did not grow (expected DreamSeed.PlantSeed via for_each Musing.recent sweep)"
 
 # dream_pulses growth is reported but NOT asserted today. The PM's
 # `dispatch "Body.RecordDreamPulse", with: { name: "body" }` targets
@@ -306,7 +306,7 @@ else
   echo "  text_en            : (not populated — :dream_translate adapter chains on RecordImage ; investigate if needed)"
 fi
 
-echo "PASS — Dream PM boots via run-loop ; dream_seed grew via i221-A for_each Musing.recent sweep ; text_fr lands via :llm cascade through TestProvider (gap3)"
+echo "PASS — Dream PM boots via run-loop ; seed bundle stamped via Dream.GatherSeeds (i516 v3 — Musings retired) ; reading lands on Dream singleton via :llm cascade through TestProvider (gap3)"
 echo ""
 echo "Deferred (named gaps, not blockers for this smoke) :"
 echo "  - lucid path (LucidDream.ObserveDream / SteerDream) : same i228 chain-trigger gap"

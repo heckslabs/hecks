@@ -124,48 +124,12 @@ Hecks.behaviors "Mind" do
     setup  "BecomeLucid"
     setup  "StartLucidMonitor", log_path: "sample"
     setup  "ProposeAction", title: "sample", description: "sample", origin: "sample", kind: "sample"
-    setup  "MuseOnState", trigger: "sample"
-    setup  "Encoding.EncodeMemory", kind: "sample", subject: "sample", content: "sample"
-    setup  "Announce", act: "sample", subject: "sample"
     input  insight: "sample"
-    expect emits: ["ReflectionOccurred", "BecameLucid", "LucidMonitorStarted", "ActionProposed", "MusingRecorded", "MemoryEncoded", "Announced"]
+    expect emits: ["ReflectionOccurred", "BecameLucid", "LucidMonitorStarted", "ActionProposed"]
   end
 
-
-  # ── Musing aggregate ──────────────────────────────────────────
-
-  test "MuseOnState sets trigger" do
-    tests "MuseOnState", on: "Musing"
-    input  trigger: "sample"
-    expect trigger: "sample"
-  end
-
-  test "MuseOnState cascades through policy chain" do
-    tests "MuseOnState", on: "Musing", kind: :cascade
-    setup  "Sense", source: "sample", content: "sample", valence: 1.0
-    setup  "Recognize", sensation: "sample", recognized_as: "sample", confidence: 1.0
-    setup  "AttendTo", target: "sample", intensity: 1.0
-    setup  "FormIntention", goal: "sample", origin: "sample", strength: 1.0
-    setup  "Observe", observing: "sample"
-    setup  "UpdateSelfModel", organs: 1, impulses: 1, fatigue_state: "sample", consciousness_state: "sample", nursery_size: 1, family_size: 1
-    input  trigger: "sample"
-    expect emits: ["Mused", "Sensed", "Recognized", "AttentionDirected", "IntentionFormed", "Observed", "SelfModelUpdated"]
-  end
-
-  test "RecordMusing sets sensations + patterns + focus + intention + observation + insight" do
-    tests "RecordMusing", on: "Musing"
-    input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
-    expect sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
-  end
-
-  test "RecordMusing cascades through policy chain" do
-    tests "RecordMusing", on: "Musing", kind: :cascade
-    setup  "Encoding.EncodeMemory", kind: "sample", subject: "sample", content: "sample"
-    setup  "Announce", act: "sample", subject: "sample"
-    input  sensations: "sample", patterns: "sample", focus: "sample", intention: "sample", observation: "sample", insight: "sample"
-    expect emits: ["MusingRecorded", "MemoryEncoded", "Announced"]
-  end
-
+  # Musing aggregate retired 2026-05-08 — MuseOnState / RecordMusing
+  # tests removed alongside the aggregate.
 
   # ── Announcement aggregate ──────────────────────────────────────────
 

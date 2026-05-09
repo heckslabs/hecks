@@ -38,7 +38,7 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
     #   sleeping → moon + name + cycle counter only ; no narrative
     #              (the agent owns the dream surface during sleep)
     #   awake    → sun + name + heart + beats + mood + fatigue +
-    #              musings + inventions + inbox + provider + bulb
+    #              inventions + inbox + provider + bulb
     #   minimal  → moon + name (degraded surface — coherence violation)
     #
     attribute :mode,                String, default: "awake"
@@ -56,7 +56,6 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
     attribute :fatigue_icon,        String, default: ""
     attribute :heart_glyph,         String, default: "❤️"
     attribute :beats,               String, default: ""
-    attribute :musings_count,       Integer, default: 0
     attribute :inventions_count,    Integer, default: 0
     attribute :inbox_count,         Integer, default: 0
     attribute :provider_badge,      String, default: "🤖"
@@ -94,7 +93,6 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
     # Awake mode :
     #   sun + name + heart_glyph + beats + mood_icon + mood
     #     [+ fatigue_icon + fatigue]
-    #     + 💭 musings_count
     #     [+ 🔬 inventions_count]
     #     [+ ✉️ inbox_count]
     #     + provider_badge
@@ -130,8 +128,6 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
     row "mood",           :mood
     row "fatigue_icon",   :fatigue_icon
     row "fatigue",        :fatigue
-    row "musings_glyph",  :musings_glyph
-    row "musings",        :musings_count
     row "inventions_glyph", :inventions_glyph
     row "inventions",     :inventions_count
     row "inbox_glyph",    :inbox_glyph

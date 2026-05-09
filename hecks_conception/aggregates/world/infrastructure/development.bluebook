@@ -5,8 +5,8 @@ Hecks.bluebook "Development", version: "2026.04.16.1" do
   # Lifted out of conception.bluebook in i112 split. Carries three
   # policies : FindOnVector (Development.ComputeVector →
   # Development.FindArchetype), SyncOnDevelopment (Development.DevelopDomain →
-  # cross to Catalog.SyncFromCannon), and QueryVectorsOnMusing
-  # (DomainGrafted → ConnectNerve, archetype/musing wiring).
+  # cross to Catalog.SyncFromCannon), and QueryVectorsOnGraft
+  # (DomainGrafted → ConnectNerve, archetype wiring).
 
   aggregate "Development", "Develop existing domains using nursery vectors — more domains = faster development" do
     identified_by :domain_name
@@ -92,12 +92,10 @@ Hecks.bluebook "Development", version: "2026.04.16.1" do
     across "Catalog"
   end
 
-  policy "QueryVectorsOnMusing" do
-    on "DomainGrafted"
-    trigger "ConnectNerve"
-    # nerve: MietteBrain:MusingGenerated → NurseryVectors:QueryShape
-    # (ArchetypeSignalOnMatch dropped — it shared this (event, trigger)
-    # pair, so ConnectNerve fired twice per graft. The archetype-signal
-    # nerve is wired by the same subscriber that handles this policy.)
-  end
+  # QueryVectorsOnGraft — on DomainGrafted, triggered ConnectNerve
+  # (which routed to NurseryVectors:QueryShape via the nerve subscriber).
+  # `ConnectNerve` is no longer defined in any sibling aggregate ;
+  # the policy retired with it. The nerve subscription pattern
+  # itself stays valid — re-add when ConnectNerve (or equivalent
+  # query-vector trigger) lands.
 end

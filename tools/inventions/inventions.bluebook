@@ -1,5 +1,5 @@
 Hecks.bluebook "Inventions", version: "2026.04.16.1" do
-  vision "Ideas worth patenting — groomable like musings, but for inventions"
+  vision "Ideas worth patenting — groomable in batches"
   category "capability"
 
   # ============================================================
@@ -11,24 +11,23 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
   # and what prior art exists.
   #
   # Inventions are stored in invention.heki. They can be groomed
-  # the same way as musings — batches of 5, keep/dismiss/develop.
-  # Dismissed inventions are archived to invention_archive.heki.
+  # in batches of 5, keep/dismiss/develop. Dismissed inventions
+  # are archived to invention_archive.heki.
   #
-  # Grooming format (same pattern as musings):
+  # Grooming format:
   #   **N.** title — keep/dismiss
   #   *What it does, why it's novel, what it could protect.*
   #
   #   Sound right? Or adjust?
   #
-  # An invention can be promoted from a musing — when a musing
-  # looks patentable, it becomes an invention with more detail.
+  # The PromoteFromMusing command was retired 2026-05-08 alongside
+  # the Musing system.
 
-  aggregate "Invention", "A patentable idea — more structured than a musing" do
+  aggregate "Invention", "A patentable idea" do
     attribute :title, String
     attribute :description, String
     attribute :novelty, String
     attribute :prior_art, String
-    attribute :source_musing_id, String
     attribute :status, String
     attribute :filed_date, String
 
@@ -42,21 +41,6 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
       then_set :title, to: :title
       then_set :description, to: :description
       then_set :novelty, to: :novelty
-      then_set :status, to: "proposed"
-    end
-
-    command "PromoteFromMusing" do
-      role "Creator"
-      description "Promote a musing to an invention — it's worth patenting"
-      attribute :title, String
-      attribute :description, String
-      attribute :novelty, String
-      attribute :source_musing_id, String
-      emits "MusingPromoted"
-      then_set :title, to: :title
-      then_set :description, to: :description
-      then_set :novelty, to: :novelty
-      then_set :source_musing_id, to: :source_musing_id
       then_set :status, to: "proposed"
     end
 
@@ -90,14 +74,13 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
 
     lifecycle :status, default: "proposed" do
       transition "Propose" => "proposed"
-      transition "PromoteFromMusing" => "proposed"
       transition "Develop" => "developed"
       transition "File" => "filed"
       transition "Dismiss" => "dismissed"
     end
   end
 
-  aggregate "Grooming", "Groom inventions in batches — same pattern as musings" do
+  aggregate "Grooming", "Groom inventions in batches" do
     attribute :batch_size, Integer
     attribute :status, String
 
@@ -118,9 +101,8 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
     end
   end
 
-  # Dismissed inventions get archived
-  policy "ArchiveOnDismiss" do
-    on "InventionDismissed"
-    trigger "Archive"
-  end
+  # Dismissed inventions used to get archived via an `Archive` command
+  # that was never defined / has retired ; the policy retired with it.
+  # Re-add when an `Archive` (or equivalent) command lands on
+  # Inventions or a sibling aggregate.
 end

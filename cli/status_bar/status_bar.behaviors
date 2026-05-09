@@ -8,11 +8,6 @@ Hecks.behaviors "StatusBar" do
     expect current: "attentive"
   end
 
-  test "SetMusing runs" do
-    tests "SetMusing", on: "Mode"
-    expect current: "musing"
-  end
-
   test "SetSleeping runs" do
     tests "SetSleeping", on: "Mode"
     expect current: "sleeping"
@@ -27,19 +22,14 @@ Hecks.behaviors "StatusBar" do
   end
 
 
-  # ── MusingLayout aggregate ──────────────────────────────────────────
-
-  test "Configure runs" do
-    tests "Configure", on: "MusingLayout"
-    expect ok: "true"
-  end
-
-
   # ── SleepLayout aggregate ──────────────────────────────────────────
 
   test "Configure runs" do
     tests "Configure", on: "SleepLayout"
     expect ok: "true"
   end
+
+  # MusingLayout aggregate retired 2026-05-08 alongside the Musing
+  # system.
 
 end

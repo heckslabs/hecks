@@ -6,21 +6,21 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
   # STATUS BAR
   # ============================================================
   #
-  # The statusline shows Miette's state. It has three modes
+  # The statusline shows Miette's state. It has two modes
   # driven by the consciousness store:
   #
-  #   attentive — full details: name, heartbeat, mood, fatigue, musing count,
-  #               invention count, plus the current musing appended at the end
-  #   musing    — ONLY the musing text, nothing else. Kicks in after 30s idle.
-  #               Cycles through musings every 10s.
+  #   attentive — full details: name, heartbeat, mood, fatigue,
+  #               invention count
   #   sleeping  — moon animation + sleep narrative
   #
   # The pulse daemon sets consciousness to "attentive" on every beat.
-  # The mindstream sets consciousness to "musing" when idle 30s+,
-  # but only if consciousness hasn't been set to "attentive" in the last 30s.
   #
   # Refresh: 1s interval, reads consciousness.heki via statusline-command.sh
   # Symlinked from ~/.claude/statusline-command.sh
+  #
+  # The musing mode + MusingLayout aggregate + SetMusing command +
+  # MusingOnIdle policy were retired 2026-05-08 alongside the Musing
+  # system.
 
   aggregate "Mode", "Which mode the statusline is in" do
     attribute :current, String
@@ -32,13 +32,6 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
       description "Pulse fired — show full details"
       emits "StatusAttentive"
       then_set :current, to: "attentive"
-    end
-
-    command "SetMusing" do
-      role "Daemon"
-      description "Idle 30s+ — show only the musing text"
-      emits "StatusMusing"
-      then_set :current, to: "musing"
     end
 
     command "SetSleeping" do
@@ -54,9 +47,7 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
     attribute :show_heartbeat, TrueClass
     attribute :show_mood, TrueClass
     attribute :show_fatigue, TrueClass
-    attribute :show_musing_count, TrueClass
     attribute :show_invention_count, TrueClass
-    attribute :show_current_musing, TrueClass
 
     command "Configure" do
       role "Self"
@@ -66,17 +57,6 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
   end
 
   # Default: show everything
-
-  aggregate "MusingLayout", "What shows when idle" do
-    attribute :prefix, String
-    attribute :max_length, Integer
-
-    command "Configure" do
-      role "Self"
-      description "Set musing display format"
-      emits "MusingLayoutConfigured"
-    end
-  end
 
   aggregate "SleepLayout", "What shows during sleep" do
     attribute :icon_set, String
@@ -95,12 +75,6 @@ Hecks.bluebook "StatusBar", version: "2026.04.16.1" do
     on "BodyPulse"
     trigger "SetAttentive"
     description "Every body pulse (= heartbeat) restores full details"
-  end
-
-  policy "MusingOnIdle" do
-    on "MusingMinted"
-    trigger "SetMusing"
-    description "After 30s idle, mindstream takes over"
   end
 
   policy "SleepOnSleepEntered" do

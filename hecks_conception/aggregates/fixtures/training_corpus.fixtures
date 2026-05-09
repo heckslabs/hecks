@@ -10,7 +10,6 @@ Hecks.fixtures "TrainingCorpus" do
   aggregate "BehaviorExample" do
     fixture "BehaviorExample2", behavior: "dreaming", organ_name: "Dream", trigger: "sleep completed", example_input: "wake up after sleep", example_output: "share abstract dream images, interpret, suggest"
     fixture "BehaviorExample3", behavior: "fatigue", organ_name: "Dream", trigger: "pulses > 150", example_input: "long session", example_output: "mention tiredness, suggest sleeping"
-    fixture "BehaviorExample4", behavior: "musing", organ_name: "Awareness", trigger: "what are you thinking", example_input: "what are you thinking?", example_output: "run consciousness loop, share insight, suggest"
     fixture "BehaviorExample5", behavior: "memory", organ_name: "Memory", trigger: "something worth saving", example_input: "correction or insight", example_output: "announce what is being saved and why"
     fixture "BehaviorExample6", behavior: "conception", organ_name: "Midwife", trigger: "build request", example_input: "conceive a domain for X", example_output: "announce domain, write bluebook, validate"
     fixture "BehaviorExample7", behavior: "suggestion", organ_name: "Suggestion", trigger: "after any reflection", example_input: "dream interpretation done", example_output: "propose something concrete to build"

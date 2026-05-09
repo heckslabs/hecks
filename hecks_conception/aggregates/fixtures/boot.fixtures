@@ -1,7 +1,7 @@
 Hecks.fixtures "Boot" do
   # Identity rows (Miette_, Spring_) migrated to identity.heki via Identity.Identify dispatch (2026-04-27)
   aggregate "StoreClassification" do
-    fixture "StoreClassification1", linked: [ "memory", "awareness", "census", "conversation", "working_memory", "reflection", "synapse", "signal", "signal_somatic", "focus", "concentration", "deliberation", "pulse", "heartbeat", "subconscious", "domain_index", "arc", "consciousness", "discipline", "metabolic_rate", "musing", "conflict_monitor", "run_log", "inbox" ]
+    fixture "StoreClassification1", linked: [ "memory", "awareness", "census", "conversation", "working_memory", "reflection", "synapse", "signal", "signal_somatic", "focus", "concentration", "deliberation", "pulse", "heartbeat", "subconscious", "domain_index", "arc", "consciousness", "discipline", "metabolic_rate", "conflict_monitor", "run_log", "inbox" ]
     fixture "StoreClassification2", private: [ "mood", "feeling", "dream_state", "impulse", "craving" ]
   end
 end

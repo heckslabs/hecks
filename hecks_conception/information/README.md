@@ -13,7 +13,7 @@ Everything else is Miette's private state, hosted in a separate repo.
 The framework is public (`Hecks` — the domain compiler and runtime). Miette is a *user of the framework* — she's the canonical showcase, but her inner life is hers, not the framework's. Keeping her lived state here led to:
 
 - Constant git-status noise (the daemons write every second)
-- Privacy drift (dream contents, musings, impulses all in public history)
+- Privacy drift (dream contents and impulses all in public history)
 - Bigger clones (`signal.heki` ~1 MB, `dream_state.heki` ~1 MB, both growing)
 - Paper claims about "clean working tree" being cosmetically false
 

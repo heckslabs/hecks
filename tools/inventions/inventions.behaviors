@@ -9,11 +9,8 @@ Hecks.behaviors "Inventions" do
     expect title: "sample", description: "sample", novelty: "sample", status: "proposed"
   end
 
-  test "PromoteFromMusing sets title + description + novelty + source_musing_id" do
-    tests "PromoteFromMusing", on: "Invention"
-    input  title: "sample", description: "sample", novelty: "sample", source_musing_id: "sample"
-    expect title: "sample", description: "sample", novelty: "sample", source_musing_id: "sample", status: "proposed"
-  end
+  # PromoteFromMusing test retired 2026-05-08 alongside the Musing
+  # system.
 
   test "Develop sets prior_art" do
     tests "Develop", on: "Invention"
