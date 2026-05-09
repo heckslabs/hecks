@@ -4,7 +4,7 @@
 # specs can require the dispatch helper. Each spec uses a tmpdir as
 # HECKS_INFO so test runs are isolated from Miette's live state.
 
-HECKS_ROOT = File.expand_path("../../../../hecks", __dir__)
+HECKS_ROOT = File.expand_path("../../../../..", __dir__)
 ENV["BUNDLE_GEMFILE"] ||= File.join(HECKS_ROOT, "Gemfile")
 require "bundler/setup" if File.exist?(ENV["BUNDLE_GEMFILE"])
 

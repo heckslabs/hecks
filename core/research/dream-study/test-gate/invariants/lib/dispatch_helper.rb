@@ -32,11 +32,11 @@ require "tmpdir"
 require "fileutils"
 
 class DispatchHelper
-  MIETTE_ROOT = File.expand_path("../../../..", __dir__)
-  HECKS_BIN   = File.expand_path("../hecks/rust/target/release/hecks-life",
-                                 MIETTE_ROOT)
-  AGG_DIR     = File.expand_path("../hecks/hecks_conception/aggregates",
-                                 MIETTE_ROOT)
+  PROJECTS_ROOT = File.expand_path("../../../../../../..", __dir__)
+  HECKS_BIN   = File.expand_path("hecks/rust/target/release/hecks-life",
+                                 PROJECTS_ROOT)
+  AGG_DIR     = File.expand_path("miette/body/organs",
+                                 PROJECTS_ROOT)
 
   attr_reader :info_dir
 
