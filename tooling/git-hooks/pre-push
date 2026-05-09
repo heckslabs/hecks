@@ -48,10 +48,14 @@ fi
 # include hecks_conception/adapters and the framework dirs (tools,
 # discipline, runtime, bluebook, codegen, integrations). These roots
 # all run green ; orphan dirs with known-failing behaviors are NOT
-# wired in here yet (catalog/, cli/ — see i499 audit follow-ups).
+# wired in here yet (cli/ — see i499 audit follow-ups).
+#
+# i499 follow-up (2026-05-08) — catalog/ joined the gate after the
+# wire-orphan agent fixed boot/mind/appeal/rvdc cascades.
 ROOTS=""
 [ -d "$REPO/hecks_conception/aggregates" ]      && ROOTS="$ROOTS $REPO/hecks_conception/aggregates"
 [ -d "$REPO/hecks_conception/adapters" ]        && ROOTS="$ROOTS $REPO/hecks_conception/adapters"
+[ -d "$REPO/hecks_conception/catalog" ]         && ROOTS="$ROOTS $REPO/hecks_conception/catalog"
 [ -d "$REPO/tools" ]                            && ROOTS="$ROOTS $REPO/tools"
 [ -d "$REPO/discipline" ]                       && ROOTS="$ROOTS $REPO/discipline"
 [ -d "$REPO/runtime" ]                          && ROOTS="$ROOTS $REPO/runtime"

@@ -1,0 +1,75 @@
+# Shell Adapter Demo — Behaviors
+#
+# Mirror of spec/integration/shell_adapter_end_to_end_spec.rb. The Ruby
+# spec boots `Hecks.boot(examples/shell_adapter)` and dispatches via
+# `runtime.shell(:name, **attrs)` against the two `:shell` adapters
+# declared in the sibling shell_demo.hecksagon (:echo_args, :list_files).
+#
+# All three scenarios are :pending today — see UNCOVERED block at the
+# foot of the file. The Rust ShellDispatcher exists
+# (rust/src/runtime/shell_dispatcher.rs) and the hecksagon parser reads
+# `adapter :shell, …` (rust/src/hecksagon_parser.rs), but the
+# `.behaviors` runner is pure-memory bluebook dispatch — it never loads
+# the sibling .hecksagon and has no `runtime.shell(:name, …)` test verb.
+# Inbox i510 tracks the runner gap.
+#
+Hecks.behaviors "ShellDemo" do
+  vision "Behavioral mirror of shell_adapter_end_to_end_spec.rb — boots ShellDemo and dispatches the two declared :shell adapters end-to-end through the Rust ShellDispatcher."
+
+  # ── :echo_args ─────────────────────────────────────────────────────
+  # Equivalent to:
+  #   runtime.shell(:echo_args, msg: "hello")
+  #   expect(result.output).to eq("hello\n")
+  #   expect(result.exit_status).to eq(0)
+  test "boots the example and dispatches :echo_args through runtime.shell" do
+    tests "EchoArgs", on: "Message", kind: :pending
+    input  msg: "hello"
+    expect output: "hello\n", exit_status: 0
+  end
+
+  # ── :list_files ─────────────────────────────────────────────────────
+  # Equivalent to:
+  #   result = runtime.shell(:list_files, dir: example_dir)
+  #   expect(result.output).to include("shell_demo.rb")
+  #   expect(result.output).to all(be_a(String))
+  # The hecksagon declares output_format :lines, so the assertion is
+  # against a Vec<String> shape.
+  test "dispatches :list_files with placeholder substitution and :lines parsing" do
+    tests "ListFiles", on: "Message", kind: :pending
+    input  dir: "examples/shell_adapter"
+    expect output_includes: "shell_demo.rb"
+  end
+
+  # ── unregistered name → ConfigurationError ─────────────────────────
+  # Equivalent to:
+  #   expect { runtime.shell(:does_not_exist) }
+  #     .to raise_error(Hecks::ConfigurationError, /no shell adapter/)
+  # The Rust mirror would surface AdapterRegistry::shell returning None
+  # before any process spawn ; needs a `refused: …` style assertion in
+  # the shell-adapter behaviors verb.
+  test "raises ConfigurationError for an unregistered name" do
+    tests "DoesNotExist", on: "Message", kind: :pending
+    expect refused: "no shell adapter named :does_not_exist"
+  end
+
+  # UNCOVERED : runtime.shell(:name, **attrs) test verb in .behaviors.
+  #   The .behaviors runner (rust/src/behaviors_runner.rs) drives only
+  #   bluebook dispatch — `tests "Cmd", on: "Aggregate"` resolves a
+  #   command, not a shell adapter. To exercise these three scenarios
+  #   in-runner, the .behaviors DSL needs a sibling form along the lines
+  #   of `tests :shell, name: "echo_args"` that loads the companion
+  #   .hecksagon and routes through ShellDispatcher::call. Filed as
+  #   inbox/i510.md.
+  #
+  # UNCOVERED : sibling .hecksagon auto-load. The runner finds the
+  #   source bluebook by stem-strip ; it does NOT pick up the sibling
+  #   .hecksagon. The hecksagon is what declares `adapter :shell, …`,
+  #   so without it the AdapterRegistry has no shell adapters to look
+  #   up. Same root cause as the verb gap above ; both close together.
+  #
+  # UNCOVERED : exit_status / output_format assertions. Once the verb
+  #   exists, the expect map needs `output:`, `output_includes:`,
+  #   `exit_status:`, and `refused:` keys understood by the shell path
+  #   (parallel to the existing `emits:` / `refused:` keys for command
+  #   dispatch).
+end

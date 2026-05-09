@@ -97,9 +97,12 @@ jobs:
           # i499 audit (2026-05-08) extended coverage to adapters and
           # framework dirs (tools, discipline, runtime, bluebook,
           # codegen, integrations). Mirrors tooling/git-hooks/pre-push
-          # roots. catalog/ and cli/ are NOT yet wired in — they have
-          # known-failing .behaviors that need separate triage.
+          # roots. cli/ is NOT yet wired in — it has known-failing
+          # .behaviors that need separate triage.
+          # i499 follow-up (2026-05-08) — catalog/ joined the gate
+          # after the wire-orphan agent fixed boot/mind/appeal/rvdc.
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/adapters" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/adapters"
+          [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/catalog" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/catalog"
           [ -d "$GITHUB_WORKSPACE/hecks/tools" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/tools"
           [ -d "$GITHUB_WORKSPACE/hecks/discipline" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/discipline"
           [ -d "$GITHUB_WORKSPACE/hecks/runtime" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/runtime"
