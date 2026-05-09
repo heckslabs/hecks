@@ -12,15 +12,29 @@
 //!
 //! Without identified_by, mints a u64 counter on creation.
 //!
+//! Freshness (i517 dream-and-bug correspondence) :
+//! `last_seen_mtime` tracks the heki file's mtime as of our last
+//! load or save. `refresh_from_heki` stat()s the file and reloads
+//! when disk has advanced — closing the cross-process staleness gap
+//! a long-running daemon hits when a sibling process writes to the
+//! same store. The bluebook contract for this lives in
+//! runtime/storage/storage.bluebook (last_seen_mtime attribute,
+//! RefreshIfStale command, RefreshOnPulse policy).
+//!
 //! Usage:
 //!   let repo = Repository::new("Heartbeat", data_dir, Some("name".into()));
 //!
-//! [antibody-exempt: runtime aggregate store; identified_by dispatch drives natural-key vs counter-mint (i80)]
+//! [antibody-exempt: runtime aggregate store ;
+//!  (a) identified_by dispatch drives natural-key vs counter-mint (i80) ;
+//!  (b) cross-process freshness — load_persisted / save / refresh_from_heki
+//!      track and re-read on mtime advance, honoring the storage.bluebook
+//!      RefreshIfStale + RefreshOnPulse contract (i517 root cause).]
 
 use super::AggregateState;
 use super::Value;
 use crate::heki;
 use std::collections::HashMap;
+use std::time::SystemTime;
 
 pub struct Repository {
     store: HashMap<String, AggregateState>,
@@ -34,6 +48,13 @@ pub struct Repository {
     /// don't collide on storage. None = legacy aggregate with flat
     /// heki path (the pre-i142 default).
     context: Option<String>,
+    /// Last mtime we observed on disk for this repo's heki file. Used
+    /// by `refresh_from_heki` to skip the read when nothing has changed
+    /// since our last load/save. None until the first successful
+    /// load_persisted ; updated on every save and every refresh-driven
+    /// reload. Mirrors the `last_seen_mtime` attribute declared on the
+    /// Repository aggregate in runtime/storage/storage.bluebook.
+    last_seen_mtime: Option<SystemTime>,
 }
 
 impl Repository {
@@ -63,9 +84,43 @@ impl Repository {
             data_dir,
             identified_by,
             context,
+            last_seen_mtime: None,
         };
         repo.load_persisted();
         repo
+    }
+
+    /// File mtime for our heki path, when the file exists. Used by
+    /// load / save / refresh to track whether the in-memory store is
+    /// current with disk. Returns None when data_dir is unset, the
+    /// file doesn't exist yet, or the stat call fails — all of which
+    /// the freshness logic treats as "no recorded mtime, fall through
+    /// to a read."
+    fn current_disk_mtime(&self) -> Option<SystemTime> {
+        let dir = self.data_dir.as_ref()?;
+        let path = self.heki_path_self(dir);
+        std::fs::metadata(&path).and_then(|m| m.modified()).ok()
+    }
+
+    /// Re-read the heki file when disk mtime has advanced past our
+    /// last_seen_mtime — i.e. another process wrote since our last
+    /// load or save. No-op when disk is unchanged (just a stat call).
+    /// Honors the `RefreshIfStale` command declared on the Repository
+    /// aggregate in runtime/storage/storage.bluebook ; the
+    /// `RefreshOnPulse` policy on BodyPulse fans this out across every
+    /// repo via Runtime::refresh_repositories_from_heki on each tick.
+    pub fn refresh_from_heki(&mut self) {
+        let Some(disk_mtime) = self.current_disk_mtime() else { return };
+        let stale = match self.last_seen_mtime {
+            Some(seen) => disk_mtime > seen,
+            None => true,
+        };
+        if !stale { return; }
+        // Drop in-memory store and reload from disk. Counter-mint
+        // state (next_id) is rebuilt by load_persisted's max-id walk.
+        self.store.clear();
+        self.next_id = 1;
+        self.load_persisted();
     }
 
     fn load_persisted(&mut self) {
@@ -117,6 +172,11 @@ impl Repository {
             eprintln!("  loaded {} {} records from disk",
                 self.store.len(), self.aggregate_type);
         }
+        // Stamp the freshness baseline. If the file doesn't exist yet
+        // (an aggregate with no persisted records), we leave
+        // last_seen_mtime as None so the first refresh treats it as
+        // stale — once a sibling process writes, we'll pick it up.
+        self.last_seen_mtime = self.current_disk_mtime();
     }
 
     /// Resolve the id for a command dispatch.
@@ -162,6 +222,11 @@ impl Repository {
                 heki_store.insert(id.clone(), rec);
             }
             let _ = heki::write(&path, &heki_store, ctx);
+            // Stamp last_seen_mtime to the post-write mtime so the next
+            // refresh_from_heki tick sees no advance and skips the
+            // re-read of our own write. Closes the read-our-own-write
+            // round-trip waste a naive mtime gate would create.
+            self.last_seen_mtime = self.current_disk_mtime();
         }
     }
 
@@ -194,6 +259,10 @@ impl Repository {
                 Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
             }
             let _ = heki::delete(&path, id, ctx);
+            // Same freshness-bookkeeping as save : stamp the post-write
+            // mtime so refresh_from_heki skips re-reading our own
+            // delete on the next tick.
+            self.last_seen_mtime = self.current_disk_mtime();
         }
     }
 
