@@ -50,6 +50,17 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     attribute :record_count, Integer
     # state : uninitialized | loaded. Flips once LoadPersisted fires.
     attribute :state, String
+    # last_seen_mtime : ISO-8601 UTC of the last time this Repository's
+    # in-memory store was synchronized with the heki file on disk.
+    # Stamped by LoadPersisted (initial load), Save (our own write), and
+    # RefreshIfStale (re-read after an external write). Compared against
+    # the heki file's actual mtime to decide whether RefreshIfStale's
+    # given clause matches. The freshness gate that closes the
+    # cross-process staleness surprise — the loop-looking-in-itself bug
+    # named in the 2026-05-09 dream-and-bug correspondence (i517 root
+    # cause).
+    # value_object: Timestamp (ISO 8601 UTC)
+    attribute :last_seen_mtime, String
 
     command "InitializeRepository" do
       role "System"
@@ -64,15 +75,22 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
 
     command "LoadPersisted" do
       role "System"
-      description "Read every record from the matching .heki store at data_dir, reconstruct each AggregateState, remember the singleton id if any, and advance next_id past the highest seen."
+      description "Read every record from the matching .heki store at data_dir, reconstruct each AggregateState, remember the singleton id if any, and advance next_id past the highest seen. Side effect : stamps last_seen_mtime with the heki file's current mtime so the first RefreshIfStale has a baseline. The mtime stamping is kernel-floor — the bluebook DSL has no `from_disk_mtime` mutation primitive today, so the runtime stamps the field directly. Runtime gap : when the DSL gains a from-disk-metadata read, this side-effect lifts into a declarative then_set."
       given("data_dir must be set") { data_dir != "" }
       then_set :state, to: "loaded"
       emits "RecordsLoaded"
     end
 
+    command "RefreshIfStale" do
+      role "System"
+      description "Re-read records from disk IF the heki file's mtime has advanced past last_seen_mtime — i.e. another process wrote to this aggregate's heki since our last load or save. Closes the cross-process staleness gap : a long-running daemon's in-memory store stays current with writes from sibling processes (e.g. `hecks-life sleep` dispatching EnterSleep against a heki the run-loop daemon will read on its next tick). The disk-mtime check gates the read so unchanged stores cost only a stat() call. Fired every BodyPulse via RefreshOnPulse. Side effect (kernel-floor, same caveat as LoadPersisted) : updates last_seen_mtime to match the post-read mtime."
+      given("data_dir must be set") { data_dir != "" }
+      emits "RecordsRefreshed"
+    end
+
     command "Save" do
       role "System"
-      description "Upsert an AggregateState by id. If data_dir is set, the full store is written back to the .heki file — preserving every record, not just the new one."
+      description "Upsert an AggregateState by id. If data_dir is set, the full store is written back to the .heki file — preserving every record, not just the new one. Side effect : stamps last_seen_mtime with the post-write mtime so the next RefreshIfStale skips re-reading our own write (kernel-floor, same caveat as LoadPersisted)."
       attribute :state_id, String
       then_set :record_count, increment: 1
       emits "RecordSaved"
@@ -263,5 +281,26 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
   policy "LoadAfterInitialize" do
     on "RepositoryInitialized"
     trigger "LoadPersisted"
+  end
+
+  # RefreshOnPulse — every BodyPulse, sweep all Repository instances
+  # and refresh any whose heki file has been written by a sibling
+  # process since our last load or save. The given clause on
+  # RefreshIfStale gates the actual read, so unchanged stores cost
+  # only the stat() call. This is the freshness primitive that closes
+  # the i517 root cause : a long-running daemon (mindstream / run-loop)
+  # whose in-memory state goes stale relative to disk when another
+  # process dispatches against the same heki. The loop searching in
+  # itself for what's no longer there — the dream's *boucle* — finally
+  # turns outward to disk, the silence that becomes the seed.
+  #
+  # Sweep semantics : the runtime interprets `trigger "RefreshIfStale"`
+  # without an aggregate_id as a fan-out across every Repository
+  # instance currently registered. Same shape as a `for_each` policy
+  # in user-domain bluebooks, lifted to the kernel's plural-by-default
+  # Repository registry.
+  policy "RefreshOnPulse" do
+    on "BodyPulse"
+    trigger "RefreshIfStale"
   end
 end

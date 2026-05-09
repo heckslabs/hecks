@@ -18,18 +18,22 @@
 //!   driver.run();   // blocks until interrupted
 //!
 //! [antibody-exempt: rust/src/runtime/loop_driver.rs — kernel-floor
-//!  scheduler. The cadence bluebook (body_tick / heart_tick / breath_tick)
-//!  is the declarative source of truth ; this file is the Rust runtime
-//!  that drives it. Mirror of policy_engine.rs / pm_engine.rs in scope :
-//!  generic interpreter for declared cadences. Retires alongside
-//!  mindstream.sh once the cadence-bluebook + block_grammar primitives
-//!  land and a future LoopRunner reads cadences declaratively.
+//!  scheduler. Honors the LoopDriver aggregate declared in
+//!  runtime/loop_driver/loop_driver.bluebook (Tick command + lifecycle ;
+//!  RegisterAction / RegisterBootstrap / Stop). The cadence bluebooks
+//!  (body_tick / heart_tick / breath_tick) declare WHICH cadences
+//!  exist ; LoopDriver declares HOW each tick orchestrates. Mirror
+//!  of policy_engine.rs / pm_engine.rs in scope : generic interpreter
+//!  for declared cadences. Retires alongside mindstream.sh once the
+//!  block_grammar primitives land and a future LoopRunner reads
+//!  cadences declaratively.
 //!  i223 (2026-05-02) — adds BootstrapEmit : a one-shot first-tick
 //!  synthetic-event injection gated on an aggregate-state predicate.
-//!  Closes the mind-pm-bootstrap-on-attentive-restart gap. Same
-//!  retirement contract : the predicate-and-emit will move to a
-//!  `bootstrap_on_state` declaration on the PM itself once that
-//!  Bluebook primitive lands. Closes i223.]
+//!  Closes the mind-pm-bootstrap-on-attentive-restart gap.
+//!  i517 (2026-05-09) — adds the freshness sweep at the start of
+//!  each tick (refresh_repositories_from_heki). Honors the
+//!  storage.bluebook RefreshOnPulse policy ; the loop's in-memory
+//!  view of state stays current with disk between processes.]
 //!
 //! Time : `std::thread::sleep`. The runtime is sync ; bringing in tokio
 //! is a much larger choice. Sync sleep gives us 1Hz cadence with
@@ -195,6 +199,15 @@ impl LoopDriver {
     /// can match the engaged_in_wake transition.
     pub fn tick_once(&mut self) {
         self.tick_count = self.tick_count.wrapping_add(1);
+        // Freshness sweep — reload any repo whose heki file has been
+        // written by a sibling process since our last touch. The
+        // kernel-floor implementation of the RefreshOnPulse policy
+        // declared in runtime/storage/storage.bluebook. Runs BEFORE
+        // bootstraps + actions so the predicate-and-emit + cascade
+        // dispatches see the freshest state. Cost when nothing
+        // changed : one stat() per repo per tick. Closes the i517
+        // cross-process staleness root cause.
+        self.runtime.refresh_repositories_from_heki();
         if !self.bootstraps.is_empty() {
             let drained: Vec<BootstrapEmit> = std::mem::take(&mut self.bootstraps);
             for boot in drained {

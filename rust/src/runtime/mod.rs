@@ -309,6 +309,27 @@ impl Runtime {
         self.drain_policies(&result);
     }
 
+    /// Sweep every Repository and reload it from disk if its heki
+    /// file has been written by a sibling process since our last
+    /// load or save. The kernel-floor implementation of the
+    /// `RefreshOnPulse` policy declared in
+    /// runtime/storage/storage.bluebook : LoopDriver calls this at
+    /// the start of every tick so a long-running daemon's in-memory
+    /// store stays current with writes from sibling processes
+    /// (e.g. `hecks-life sleep` dispatching EnterSleep against a
+    /// heki the run-loop daemon will read on its next tick).
+    ///
+    /// Cost is one stat() per repo per tick when nothing changed —
+    /// the per-repo refresh_from_heki gates the actual read on
+    /// mtime advance, so unchanged stores don't pay the read.
+    /// Closes the i517 root cause : the loop searching in itself
+    /// for what's no longer there finally turns outward to disk.
+    pub fn refresh_repositories_from_heki(&mut self) {
+        for repo in self.repositories.values_mut() {
+            repo.refresh_from_heki();
+        }
+    }
+
     /// i221 — scan every loaded hecksagon for an `adapter :llm`
     /// declaration whose effective trigger target matches the just-
     /// dispatched `Aggregate.Command` ; for each match, substitute
