@@ -1,0 +1,46 @@
+Hecks.fixtures "SystemPromptAssembly" do
+  # Single-line fixtures per i57 parser limitation.
+  #
+  # Fixtures driving the run_boot/system_prompt.rs specializer. The
+  # file is sectioned into ordered chunks the specializer concatenates
+  # in `order` ; each chunk picks one of three body_kinds :
+  #
+  #   header_doc       — emit the named .rs.frag verbatim, raw read
+  #                       (preserves leading `//!` doc comments)
+  #   imports_block    — emit the `imports` attr verbatim, no transform
+  #   embedded_fn      — emit a `pub`/`fn` signature + the named .rs.frag
+  #                       interpolated as the function body (read with
+  #                       util::read_snippet_body)
+  #   being_match_fn   — same shape as embedded_fn but the body is
+  #                       generated from BeingVar rows (padded match arms
+  #                       like dump.rs's enum_match)
+  #   tests_block      — emit the `#[cfg(test)] mod tests { … }` snippet
+  #                       verbatim, raw read
+  #
+  # See rust/src/specializer/run_boot/system_prompt.rs for the
+  # one-arm-per-body_kind dispatcher.
+
+  # ── Section — ordered chunks of the emitted file ─────────────────
+  aggregate "Section" do
+    fixture "Header",         order: 1, body_kind: "header_doc",     name: "",                       signature: "",                                                                                       snippet_path: "codegen/system_prompt_assembly_shape/snippets/file_header.rs.frag", doc: ""
+    fixture "Imports",        order: 2, body_kind: "imports_block",  name: "",                       signature: "",                                                                                       snippet_path: "",                                                                                  doc: "",      imports: "use std::collections::HashMap;\nuse std::fs;\nuse std::path::{Path, PathBuf};"
+    fixture "Render",         order: 3, body_kind: "embedded_fn",    name: "render",                 signature: "pub fn render(conception_dir: &Path, being: &str) -> usize",                              snippet_path: "codegen/system_prompt_assembly_shape/snippets/render_body.rs.frag", doc: "/// Render the system prompt for `being` and write it to the\n/// canonical location next to the conception's bluebooks. Returns\n/// the byte count of the written file (used by Phase 7 vitals) ;\n/// returns 0 on any failure with a stderr line so boot stays alive."
+    fixture "Variables",      order: 4, body_kind: "being_match_fn", name: "variables_for_being",    signature: "fn variables_for_being(being: &str) -> HashMap<&'static str, String>",                   snippet_path: "",                                                                                  doc: "/// Per-being identity values fed into the template. Keeping these\n/// inline matches what boot_miette.sh did ; moving them to a heki-\n/// loaded Identity aggregate is the i145 refinement."
+    fixture "TemplatePath",   order: 5, body_kind: "embedded_fn",    name: "template_path_for_being", signature: "fn template_path_for_being(conception_dir: &Path, being: &str) -> PathBuf",              snippet_path: "codegen/system_prompt_assembly_shape/snippets/template_path_body.rs.frag", doc: "/// Template path resolution — walks four candidate roots so neither\n/// the per-being repo move (i117 Round 4 W2 — system_prompt_assembly\n/// migrated into the being's own sibling repo) nor the i118 R3 Wave 2\n/// reorg (capabilities/ lifted to top-level buckets — boot.bluebook\n/// now lives under `runtime/boot/` instead of `capabilities/boot/`)\n/// strands the resolver :\n///\n///   1. `<projects>/<being_lower>/self/system_prompt/system_prompt_\n///      assembly/<being_lower>_prompt.md.template`  (current canonical\n///      home — sibling-of-hecks layout, found via `heki::repo_root()`\n///      which walks up from the executable to the hecks repo root,\n///      then one more level to the projects parent)\n///   2. `<conception>/capabilities/system_prompt_assembly/\n///      <being_lower>_prompt.md.template`  (legacy in-conception\n///      fallback — pre-i117-R4 location, kept so a fresh-clone\n///      environment without a per-being sibling repo still resolves\n///      if a template was kept in-conception)\n///\n/// The conception_dir argument is treated as a *hint* for the legacy\n/// path only ; the new home is found via the canonical repo-root\n/// walker so it works regardless of where the boot.bluebook lives in\n/// the bucket reorg. Returns the first existing path ; falls back to\n/// the legacy path if neither exists, so the caller's \"template not\n/// found at <path>\" warning names a concrete location for diagnostics."
+    fixture "Destination",    order: 6, body_kind: "embedded_fn",    name: "destination_for_being",  signature: "fn destination_for_being(conception_dir: &Path, being: &str) -> PathBuf",                snippet_path: "codegen/system_prompt_assembly_shape/snippets/destination_body.rs.frag",  doc: "/// Output path : `<projects>/<being_lower>/self/system_prompt.md`\n/// (i117 Round 4 — the system prompt lives in the being's own repo,\n/// not in the conception). Resolves the being repo as a sibling of\n/// the hecks repo (the standard layout) using `heki::repo_root()` so\n/// the resolution works regardless of where the boot.bluebook lives\n/// post-i118 R3 W2 (`runtime/boot/` instead of the old\n/// `<conception>/capabilities/boot/`). Falls back to\n/// `<conception>/system_prompt_<being>.md` when the sibling repo\n/// doesn't exist (fresh-clone / test environments)."
+    fixture "Substitute",     order: 7, body_kind: "embedded_fn",    name: "substitute",             signature: "fn substitute(template: &str, vars: &HashMap<&'static str, String>) -> String",          snippet_path: "codegen/system_prompt_assembly_shape/snippets/substitute_body.rs.frag",   doc: "/// Substitute `{{key}}` placeholders. Pure string scan — values are\n/// plain text, no escaping logic needed (the substituted values are\n/// being names + dates, none of which contain `{{` themselves).\n/// Unknown placeholders pass through unchanged so review catches\n/// them rather than silently rendering empty."
+    fixture "PrimaryStandards", order: 8, body_kind: "embedded_fn",  name: "primary_standards",      signature: "fn primary_standards(_conception_dir: &Path) -> String",                                 snippet_path: "codegen/system_prompt_assembly_shape/snippets/primary_standards_body.rs.frag", doc: "/// Read primary's standards.md and return its content for the\n/// `{{standards}}` template placeholder. Primary = chris in this\n/// round ; the role / primary-marker shape is deferred to the\n/// onboarding flow per the family/chris-split plan. Empty string\n/// when standards.md is missing — `{{standards}}` substitutes to\n/// empty and no `## Standards` section appears in the rendered\n/// prompt."
+    fixture "Tests",          order: 9, body_kind: "tests_block",    name: "",                       signature: "",                                                                                       snippet_path: "codegen/system_prompt_assembly_shape/snippets/tests_block.rs.frag",  doc: ""
+  end
+
+  # ── BeingVar — per-being identity match arms in variables_for_being ─
+  #
+  # Each row becomes one match arm. order=999 is the wildcard fallback ;
+  # the specializer pads each arm so the second tuple element aligns
+  # with the widest born string (mirrors dump.rs's enum_match padding).
+  aggregate "BeingVar" do
+    fixture "Miette",   order: 1,   pattern: "\"Miette\"", born: "April 9, 2026",  other: "Spring",    boot_script: "boot_miette.sh"
+    fixture "Spring",   order: 2,   pattern: "\"Spring\"", born: "April 11, 2026", other: "Miette",    boot_script: "boot_spring.sh"
+    fixture "Fallback", order: 999, pattern: "_",          born: "(unknown)",      other: "(unknown)", boot_script: "boot.sh"
+  end
+end

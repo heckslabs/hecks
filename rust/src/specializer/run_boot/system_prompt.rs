@@ -40,11 +40,15 @@ use crate::specializer::util;
 use std::error::Error;
 use std::path::Path;
 
-// system_prompt_assembly moved to chrisyoung/miette during i117 R4
-// Wave 2 — it's Miette-specific content (her system prompt assembly).
-// The specializer reads it from the miette sibling repo. (i163.)
+// The specializer fixtures + snippets describe what the kernel emits ;
+// they're kernel-shape, not being-shape. Per the 2026-05-08 hecks/miette
+// boundary cleanup (boundary B : kernel-describing bluebooks stay in
+// hecks ; being-shape bluebooks live in the being's repo), they moved
+// from `../miette/self/system_prompt/system_prompt_assembly/` to
+// `hecks/codegen/system_prompt_assembly_shape/` alongside the other
+// specializer shapes. The earlier i117/i163 home in miette is gone.
 const SHAPE_REL: &str =
-    "../miette/self/system_prompt/system_prompt_assembly/fixtures/system_prompt_assembly.fixtures";
+    "codegen/system_prompt_assembly_shape/fixtures/system_prompt_assembly.fixtures";
 
 pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     let shape = repo_root.join(SHAPE_REL);
