@@ -1,5 +1,25 @@
 #!/usr/bin/env ruby
 
+# DEPRECATED — the Ruby `hecks` CLI is on the retirement path. The Hecks
+# runtime has moved to Rust (see `hecks-life`). This shim short-circuits
+# unless HECKS_RUBY_OK=1 is set, so users see a clear migration message
+# instead of a load-order NameError from the published gem (i499).
+unless ENV["HECKS_RUBY_OK"] == "1"
+  warn <<~MSG
+    [hecks] The Ruby `hecks` CLI is deprecated.
+
+    The Hecks runtime is now Rust-only — use `hecks-life` for bluebook
+    parsing, .heki storage, and daemons.
+
+      https://github.com/chrisyoung/hecks  (see hecks-life/)
+
+    To run the legacy Ruby CLI anyway (e.g. for local dev), set:
+
+      HECKS_RUBY_OK=1 hecks <command>
+  MSG
+  exit 1
+end
+
 # Resolve HECKS_HOME from this script's real location (not symlink)
 hecks_home = File.dirname(File.dirname(File.realpath(__FILE__)))
 ENV["HECKS_HOME"] = hecks_home
