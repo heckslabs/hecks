@@ -94,6 +94,18 @@ jobs:
         run: |
           HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/hecks-life"
           ROOTS="$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
+          # i499 audit (2026-05-08) extended coverage to adapters and
+          # framework dirs (tools, discipline, runtime, bluebook,
+          # codegen, integrations). Mirrors tooling/git-hooks/pre-push
+          # roots. catalog/ and cli/ are NOT yet wired in — they have
+          # known-failing .behaviors that need separate triage.
+          [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/adapters" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/adapters"
+          [ -d "$GITHUB_WORKSPACE/hecks/tools" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/tools"
+          [ -d "$GITHUB_WORKSPACE/hecks/discipline" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/discipline"
+          [ -d "$GITHUB_WORKSPACE/hecks/runtime" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/runtime"
+          [ -d "$GITHUB_WORKSPACE/hecks/bluebook" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/bluebook"
+          [ -d "$GITHUB_WORKSPACE/hecks/codegen" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/codegen"
+          [ -d "$GITHUB_WORKSPACE/hecks/integrations" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/integrations"
           [ -d "$GITHUB_WORKSPACE/miette" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette"
           [ -d "$GITHUB_WORKSPACE/miette_family" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/miette_family"
           fail=0

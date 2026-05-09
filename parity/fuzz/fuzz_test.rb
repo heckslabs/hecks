@@ -38,12 +38,14 @@ require_relative "generator"
 require_relative "runner"
 require_relative "comparator"
 
-HECKS_LIFE = File.expand_path("../../hecks_life/target/release/hecks-life", __dir__)
+HECKS_LIFE_RELEASE = File.expand_path("../../rust/target/release/hecks-life", __dir__)
+HECKS_LIFE_DEBUG   = File.expand_path("../../rust/target/debug/hecks-life", __dir__)
+HECKS_LIFE = [HECKS_LIFE_RELEASE, HECKS_LIFE_DEBUG].find { |p| File.executable?(p) } || HECKS_LIFE_RELEASE
 FAILURES_DIR = File.expand_path("failures", __dir__)
 KNOWN_DRIFT = File.expand_path("known_drift_fuzz.txt", __dir__)
 
 unless File.executable?(HECKS_LIFE)
-  abort "hecks-life not built — run: (cd hecks_life && cargo build --release)"
+  abort "hecks-life not built — run: (cd rust && cargo build --release --bin hecks-life)"
 end
 
 options = { seed: nil, count: 200, budget_seconds: 80, start: 1, verbose: false }

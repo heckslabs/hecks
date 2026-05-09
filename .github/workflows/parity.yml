@@ -67,6 +67,10 @@ jobs:
         working-directory: hecks
         run: bundle exec ruby -Ilib parity/fixtures_parity_test.rb
 
+      - name: Run fixtures auto-load parity suite (Ruby ↔ Rust)
+        working-directory: hecks
+        run: bundle exec ruby -Ilib parity/fixtures_auto_load_parity_test.rb
+
       - name: Run hecksagon parity suite (Ruby ↔ Rust)
         working-directory: hecks
         run: bundle exec ruby -Ilib parity/hecksagon_parity_test.rb
