@@ -40,7 +40,7 @@ ROOT=$(mktemp -d -t coh.XXXXXX)
 trap 'rm -rf "$ROOT"' EXIT
 
 # Case 0 — clean, awake, mid-day body.
-c0=$(seed "$ROOT/c0" refreshed awake ""      no alert     42 100 "")
+c0=$(seed "$ROOT/c0" refreshed awake ""      no limber    42 100 "")
 assert_exit "clean awake snapshot"                 ok   "$c0"
 
 # Case 1 — invariant 1: refreshed + exhausted (the bug observed today).
@@ -48,12 +48,12 @@ c1=$(seed "$ROOT/c1" refreshed awake ""      no exhausted 1500 100 "")
 assert_exit "inv1: refreshed mood with exhausted fatigue" fail "$c1"
 
 # Case 2 — invariant 2: sleeping + refreshed mood.
-c2=$(seed "$ROOT/c2" refreshed sleeping light no alert    42 100 "")
+c2=$(seed "$ROOT/c2" refreshed sleeping light no limber   42 100 "")
 assert_exit "inv2: sleeping with refreshed mood"   fail "$c2"
 
-# Case 3 — invariant 3: alert at pulses=1500 (off the ladder).
-c3=$(seed "$ROOT/c3" drifting awake ""      no alert     1500 100 "")
-assert_exit "inv3: alert fatigue at 1500 pulses"   fail "$c3"
+# Case 3 — invariant 3: limber at pulses=1500 (off the ladder).
+c3=$(seed "$ROOT/c3" drifting awake ""      no limber    1500 100 "")
+assert_exit "inv3: limber fatigue at 1500 pulses"  fail "$c3"
 
 # Case 4 — invariant 4: tick advanced far faster than wall clock.
 # Seed a baseline claiming we saw cycle=10 just a moment ago, then put a

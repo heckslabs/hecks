@@ -57,12 +57,12 @@ each one has an explicit migration target on the bluebook side.
 | name | glyph |
 |------|-------|
 | rested    | 🌿 |
-| alert     | ⚡ |
-| focused   | 🎯 |
+| limber    | ⚡ |
+| tuned     | 🎯 |
 | normal    | "" (empty — row hidden) |
 | tired     | 🥱 |
 | exhausted | 😩 |
-| delirious | 🫠 |
+| spent     | 🫠 |
 | _ (fallback) | "" (row hidden) |
 
 ### 2.3 — Provider (`provider_badge_for`, lines 500-506)

@@ -688,13 +688,13 @@ Hecks.behaviors "Mind" do
 
   test "AwakenFatigue runs" do
     tests "AwakenFatigue", on: "Fatigue"
-    expect level: 0.0, state: "alert", pulses_since_sleep: 0
+    expect level: 0.0, state: "limber", pulses_since_sleep: 0
   end
 
   test "AccumulateFatigue runs" do
     tests "AccumulateFatigue", on: "Fatigue"
     setup  "AwakenFatigue"
-    expect state: "focused"
+    expect state: "tuned"
   end
 
   test "AccumulateFatigue cascades through policy chain" do
@@ -709,7 +709,7 @@ Hecks.behaviors "Mind" do
   test "DissipateFatigue sets cycles_completed" do
     tests "DissipateFatigue", on: "Fatigue"
     input  cycles_completed: 1
-    expect level: 0, pulses_since_sleep: 0, state: "alert"
+    expect level: 0, pulses_since_sleep: 0, state: "limber"
   end
 
 

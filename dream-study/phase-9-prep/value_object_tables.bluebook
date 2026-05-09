@@ -53,12 +53,12 @@ value_object "FatigueState" do
 
   fixtures do
     row name: "rested",    icon: "🌿"
-    row name: "alert",     icon: "⚡"
-    row name: "focused",   icon: "🎯"
+    row name: "limber",    icon: "⚡"
+    row name: "tuned",     icon: "🎯"
     row name: "normal",    icon: ""    # intentionally empty → hides row
     row name: "tired",     icon: "🥱"
     row name: "exhausted", icon: "😩"
-    row name: "delirious", icon: "🫠"
+    row name: "spent",     icon: "🫠"
   end
 
   fallback :icon, ""   # unknown fatigue → hide row

@@ -1,21 +1,32 @@
 #!/bin/bash
 # status_coherence.sh — validate the body-state heki snapshot is internally coherent.
 #
+# [antibody-exempt: hecks_conception/status_coherence.sh — transitional shell
+#  runner for the Coherence bluebook's six predicate queries. The bluebook
+#  (mind/perception/coherence.bluebook) is the source-of-truth declaration ;
+#  this script is the temporary runner until the runtime hosts predicate-
+#  returning queries first-class (i101). Retires when `hecks-life query
+#  Coherence.<Invariant>` returns bool + reason directly.]
+#
 # Reads mood / heartbeat / consciousness / tick / lucid_dream via hecks-life
-# (pure bash + jq — no Python per inbox i37) and checks five invariants that
+# (pure bash + jq — no Python per inbox i37) and checks six invariants that
 # must hold at render time. Exits 0 if coherent, non-zero otherwise with one
 # "INVARIANT <n>: <reason>" line per violation on stderr.
 #
-# Invariants (numbered as in inbox i35):
-#   1. mood.current_state == "refreshed"     → fatigue_state ∈ {alert, focused}
+# Invariants (numbered as in inbox i35; #6 added 2026-05-08, i498):
+#   1. mood.current_state == "refreshed"     → fatigue_state ∈ {limber, tuned}
 #   2. consciousness.state == "sleeping"     → mood.current_state ∉ {refreshed, focused}
 #   3. heartbeat.pulses_since_sleep matches the fatigue_state rung of the ladder
 #      (thresholds from aggregates/body.bluebook: 250 / 500 / 1000 / 1400 / 1800
-#       → focused / normal / tired / exhausted / delirious; below 250 is alert).
+#       → tuned / normal / tired / exhausted / spent; below 250 is limber).
 #   4. tick.cycle is monotonic at ≤ ~1 Hz — stored baseline (ts, cycle) must not
 #      show cycle advancing faster than wall-clock seconds (with tolerance).
 #   5. consciousness.sleep_stage ∈ {rem, lucid_rem} ↔ lucid_dream.latest_narrative
 #      is present (non-empty). Both directions enforced.
+#   6. fatigue_state == "spent" → consciousness.state ∈ {sleeping, napping}.
+#      The bottom of the fatigue ladder is phenomenologically incompatible with
+#      a wakeful state. Filed after Chris observed "alert and delirious"
+#      simultaneously — the contradiction the rename + this rule together close.
 #
 # Usage: ./status_coherence.sh [INFO_DIR]
 #   Defaults INFO_DIR to <script_dir>/information.
@@ -57,9 +68,9 @@ lucid_narr=$(hget lucid_dream.heki latest_narrative)
 # --- invariant 1 ---
 if [ "$mood" = "refreshed" ]; then
   case "$fatigue_state" in
-    alert|focused) ;;
+    limber|tuned) ;;
     "") ;; # unknown fatigue — skip rather than false-flag
-    *) note 1 "mood=refreshed but fatigue_state=$fatigue_state (expected alert|focused)" ;;
+    *) note 1 "mood=refreshed but fatigue_state=$fatigue_state (expected limber|tuned)" ;;
   esac
 fi
 
@@ -71,28 +82,28 @@ if [ "$consciousness" = "sleeping" ]; then
 fi
 
 # --- invariant 3: ladder rung ---
-# Thresholds: 0..249 alert, 250..499 focused, 500..999 normal,
-#             1000..1399 tired, 1400..1799 exhausted, 1800+ delirious.
+# Thresholds: 0..249 limber, 250..499 tuned, 500..999 normal,
+#             1000..1399 tired, 1400..1799 exhausted, 1800+ spent.
 if [ -n "$pulses" ] && [ -n "$fatigue_state" ]; then
   if ! [[ "$pulses" =~ ^[0-9]+$ ]]; then
     note 3 "pulses_since_sleep=$pulses is not an integer"
   else
     expected=""
-    if   [ "$pulses" -lt 250 ];  then expected="alert"
-    elif [ "$pulses" -lt 500 ];  then expected="focused"
+    if   [ "$pulses" -lt 250 ];  then expected="limber"
+    elif [ "$pulses" -lt 500 ];  then expected="tuned"
     elif [ "$pulses" -lt 1000 ]; then expected="normal"
     elif [ "$pulses" -lt 1400 ]; then expected="tired"
     elif [ "$pulses" -lt 1800 ]; then expected="exhausted"
-    else                              expected="delirious"
+    else                              expected="spent"
     fi
     # The ladder walks one rung at a time per tick, so the lived state may
     # lag the raw pulse count by a tick or two — we flag only when the state
-    # skips rungs or is frankly wrong (e.g., alert at pulses=1500).
+    # skips rungs or is frankly wrong (e.g., limber at pulses=1500).
     rung_of() {
       case "$1" in
-        alert)     echo 0 ;; focused)   echo 1 ;;
+        limber)    echo 0 ;; tuned)     echo 1 ;;
         normal)    echo 2 ;; tired)     echo 3 ;;
-        exhausted) echo 4 ;; delirious) echo 5 ;;
+        exhausted) echo 4 ;; spent)     echo 5 ;;
         *)         echo -1 ;;
       esac
     }
@@ -150,6 +161,18 @@ elif [ "$in_rem" = "no" ] && [ "$has_narr" = "yes" ]; then
   if [ "$consciousness" = "sleeping" ]; then
     note 5 "sleep_stage=$stage_effective (non-REM) yet lucid_dream.latest_narrative is set: $lucid_narr"
   fi
+fi
+
+# --- invariant 6: spent fatigue requires sleeping or napping ---
+# Phenomenologically, the bottom of the fatigue ladder cannot coexist with a
+# wakeful consciousness state. This invariant catches the original "alert and
+# delirious" contradiction structurally — same axis-conflict can't surface again.
+if [ "$fatigue_state" = "spent" ]; then
+  case "$consciousness" in
+    sleeping|napping) ;;
+    "") ;; # unknown consciousness — skip rather than false-flag
+    *) note 6 "fatigue_state=spent but consciousness=$consciousness (expected sleeping or napping — a being cannot be both wakeful and spent)" ;;
+  esac
 fi
 
 if [ "${#violations[@]}" -gt 0 ]; then

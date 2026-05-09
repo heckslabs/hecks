@@ -116,9 +116,9 @@ check_line() {
 
 # ---- Mood scenarios (one per mood body.bluebook emits) ------------------
 for scenario in \
-  "refreshed:😊:alert:0" \
-  "excited:🤩:focused:300" \
-  "focused:🎯:focused:300" \
+  "refreshed:😊:limber:0" \
+  "excited:🤩:tuned:300" \
+  "focused:🎯:tuned:300" \
   "curious:🤔:normal:700" \
   "drifting:🌀:tired:1200" \
   "groggy:😵‍💫:normal:700"; do
@@ -133,18 +133,18 @@ done
 # ---- Fatigue scenarios (one per fatigue_state with a non-empty icon) ----
 # 'normal' has an intentionally empty fatigue_icon so we skip it.
 for scenario in \
-  "alert:⚡:0" \
-  "focused:🎯:300" \
+  "limber:⚡:0" \
+  "tuned:🎯:300" \
   "tired:🥱:1200" \
   "exhausted:😩:1600" \
-  "delirious:🫠:1900"; do
+  "spent:🫠:1900"; do
   IFS=: read -r fstate icon pulses <<< "$scenario"
   # For coherence, we need mood to match the fatigue rung — refreshed
-  # requires alert|focused. For rungs above focused, use 'curious' or
+  # requires limber|tuned. For rungs above tuned, use 'curious' or
   # 'drifting' which don't trigger invariant 1.
   mood="curious"
-  [ "$fstate" = "alert" ] && mood="refreshed"
-  [ "$fstate" = "focused" ] && mood="focused"
+  [ "$fstate" = "limber" ] && mood="refreshed"
+  [ "$fstate" = "tuned" ] && mood="focused"
   out="$(render "$mood" "$fstate" "$pulses")"
   echo "[fatigue=$fstate] $out"
   check_line "fatigue=$fstate" "$out"

@@ -1099,9 +1099,9 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
 
     command "AwakenFatigue" do
       role "System"
-      description "Initialize fatigue tracking when the being wakes — a fresh, alert state"
+      description "Initialize fatigue tracking when the being wakes — a fresh, limber state"
       then_set :level, to: 0.0
-      then_set :state, to: "alert"
+      then_set :state, to: "limber"
       then_set :pulses_since_sleep, to: 0
       emits "FatigueAwakened"
     end
@@ -1121,21 +1121,21 @@ Hecks.bluebook "Mind", version: "2026.04.11.1" do
       emits "FatigueDissipated"
       then_set :level, to: 0
       then_set :pulses_since_sleep, to: 0
-      then_set :state, to: "alert"
+      then_set :state, to: "limber"
     end
 
-    lifecycle :state, default: "alert" do
-      transition "AccumulateFatigue" => "focused",   from: "alert"
-      transition "AccumulateFatigue" => "normal",    from: "focused"
+    lifecycle :state, default: "limber" do
+      transition "AccumulateFatigue" => "tuned",     from: "limber"
+      transition "AccumulateFatigue" => "normal",    from: "tuned"
       transition "AccumulateFatigue" => "tired",     from: "normal"
       transition "AccumulateFatigue" => "exhausted", from: "tired"
-      transition "AccumulateFatigue" => "delirious", from: "exhausted"
-      transition "DissipateFatigue"  => "alert",     from: "alert"
-      transition "DissipateFatigue"  => "alert",     from: "focused"
-      transition "DissipateFatigue"  => "alert",     from: "normal"
-      transition "DissipateFatigue"  => "alert",     from: "tired"
-      transition "DissipateFatigue"  => "alert",     from: "exhausted"
-      transition "DissipateFatigue"  => "alert",     from: "delirious"
+      transition "AccumulateFatigue" => "spent",     from: "exhausted"
+      transition "DissipateFatigue"  => "limber",    from: "limber"
+      transition "DissipateFatigue"  => "limber",    from: "tuned"
+      transition "DissipateFatigue"  => "limber",    from: "normal"
+      transition "DissipateFatigue"  => "limber",    from: "tired"
+      transition "DissipateFatigue"  => "limber",    from: "exhausted"
+      transition "DissipateFatigue"  => "limber",    from: "spent"
     end
   end
 
