@@ -38,18 +38,15 @@
 # returning early when the first line of a command lacks a do-block.
 # All 12 spec aggregates now parse byte-equal between Ruby and Rust.
 
-# cli_dispatch_shape : Ruby and Rust escape `\\\"` differently inside JSON
-# string values (the `vision` attribute carries an embedded escaped quote).
-# This is a parser-side escape-sequence bug, not a shape issue. Listed as
-# known drift while the underlying parser quirk is investigated separately.
-codegen/cli_dispatch_shape/cli_dispatch_shape.bluebook  # parser escape-handling drift
-
-# parser_helpers_shape : same escape-handling drift as cli_dispatch_shape —
-# the vision string contains a literal `find('\\"')` reference to parser
-# internals, so the embedded escaped quote triggers the same Ruby-vs-Rust
-# backslash-count divergence. Surfaced 2026-05-02 ; same root cause, same
-# fix path (the underlying parser quirk).
-codegen/parser_helpers_shape/parser_helpers_shape.bluebook  # parser escape-handling drift (same as cli_dispatch_shape)
+# Escape-handling drift retired 2026-05-09 — fixed in
+# rust/src/parser_helpers.rs : `extract_string` now respects
+# backslash escape sequences inside double-quoted DSL strings,
+# unescaping them the way Ruby's parse semantics do (\\ → \,
+# \" → ", \n → newline, \t → tab, etc.). Iterates by char (not
+# byte) to keep UTF-8 multi-byte sequences intact. Both
+# cli_dispatch_shape.bluebook and parser_helpers_shape.bluebook
+# parse byte-equal again — neither carries truncated vision
+# strings any more.
 
 # synapse.bluebook drift retired 2026-05-09 — fixed in
 # rust/src/parser_helpers.rs : `ends_with_do_block` now returns
