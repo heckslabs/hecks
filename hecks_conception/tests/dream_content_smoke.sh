@@ -283,15 +283,19 @@ echo "  dream_pulses       : $pulses_before → $pulses_after"
 # `body_dream/dream.heki`, not `dream/dream.heki` (the latter is
 # the PM persistence heki — same file basename, different role).
 DREAM_HEKI="$TMP/information/body_dream/dream.heki"
-text_fr=$(field_value "$DREAM_HEKI" text_fr)
-if [ -z "$text_fr" ] || [ "$text_fr" = "null" ]; then
+# i516 single-phase rename : assertion target moved from text_fr to
+# `reading` (the canonical single-phase precise output). text_fr/text_en
+# stay as one-cycle back-compat fields but aren't populated by the
+# cascade today.
+reading=$(field_value "$DREAM_HEKI" reading)
+if [ -z "$reading" ] || [ "$reading" = "null" ]; then
   echo "----- run-loop output -----"
   cat "$RUN_LOG"
   echo "----- dream.heki -----"
   "$HECKS" heki list "$DREAM_HEKI" --format json 2>/dev/null || echo "(no dream.heki yet)"
-  fail "Dream.text_fr empty after PM cascade — :dream_image adapter did not fire through TestProvider (gap3)"
+  fail "Dream.reading empty after PM cascade — :dream_image adapter did not fire through TestProvider (gap3)"
 fi
-echo "  text_fr            : ${text_fr:0:60}..."
+echo "  reading            : ${reading:0:60}..."
 
 # text_en is the second leg : :dream_translate adapter on
 # Dream.RecordImage. Routes through TestProvider too.
