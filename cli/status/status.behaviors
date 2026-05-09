@@ -1,0 +1,116 @@
+Hecks.behaviors "Status" do
+  vision "Behavioral tests for the StatusReport pipeline — mirrors tests/status_golden.sh by walking the six pipeline phases from pending to done."
+
+  # ── StatusReport aggregate ──────────────────────────────────────────
+  # Parallels hecks_conception/tests/status_golden.sh. The shell smoke
+  # seeds five .heki fixtures (identity, consciousness, heartbeat, tick,
+  # mood), runs status.sh, normalizes ANSI + non-deterministic fields,
+  # and diffs against tests/status_golden.expected. This file covers
+  # the in-memory shape of that pipeline ; rendered-output assertions
+  # live in the shell golden until the runtime grows :fs / :stdout
+  # adapter mocks for behaviors (filed under i499 Phase A).
+
+  # Phase walk : pending → resolving → assembling → stamping →
+  # rendering → writing → done. Each transition is one command.
+
+  test "ResolveFsRoot moves phase from pending to resolving" do
+    tests "ResolveFsRoot", on: "StatusReport"
+    input  script_path: "sample", fs_root: "sample"
+    expect phase: "resolving", emits: ["FsRootResolved"]
+  end
+
+  # Pipeline-step transition tests are pending until StatusReport gains
+  # either `identified_by` or per-command `reference_to(StatusReport)`.
+  # Today every command on the aggregate has no self-ref AND the bluebook
+  # has no `identified_by`, so `id_for_command` counter-mints a fresh id
+  # on every dispatch — each setup call lands on a new aggregate at the
+  # default lifecycle (phase=pending), and the lifecycle gate then
+  # refuses any non-pending transition. The cascade test below covers the
+  # same arc end-to-end via `kind: :cascade` because same-type cascade
+  # preserves the upstream id (command_dispatch.rs cascade_hint path).
+  # Filing this as a status.bluebook gap : the singleton needs an
+  # explicit identity hook for setup-driven phase walks to work.
+
+  test "AssembleReport moves phase from resolving to assembling" do
+    tests "AssembleReport", on: "StatusReport", kind: :pending
+    setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
+    expect phase: "assembling", emits: ["ReportAssembled"]
+  end
+
+  test "StampAggregate moves phase from assembling to stamping" do
+    tests "StampAggregate", on: "StatusReport", kind: :pending
+    setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
+    setup  "AssembleReport"
+    expect phase: "stamping", emits: ["AggregateStamped"]
+  end
+
+  test "RenderReport moves phase from stamping to rendering" do
+    tests "RenderReport", on: "StatusReport", kind: :pending
+    setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
+    setup  "AssembleReport"
+    setup  "StampAggregate"
+    expect phase: "rendering", emits: ["ReportRendered"]
+  end
+
+  test "WriteReport moves phase from rendering to writing" do
+    tests "WriteReport", on: "StatusReport", kind: :pending
+    setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
+    setup  "AssembleReport"
+    setup  "StampAggregate"
+    setup  "RenderReport"
+    expect phase: "writing", emits: ["ReportWritten"]
+  end
+
+  test "CompleteReport moves phase from writing to done" do
+    tests "CompleteReport", on: "StatusReport", kind: :pending
+    setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
+    setup  "AssembleReport"
+    setup  "StampAggregate"
+    setup  "RenderReport"
+    setup  "WriteReport"
+    expect phase: "done", emits: ["StatusReported"]
+  end
+
+  test "FailReport records reason and moves phase to failed" do
+    tests "FailReport", on: "StatusReport"
+    input  reason: "sample"
+    expect phase: "failed", emits: ["ReportFailed"]
+  end
+
+  # GenerateReport is the user-visible entrypoint the shell golden
+  # invokes via status.sh. The Rust runner detects the :fs + :stdout
+  # adapters and dispatches the full pipeline imperatively, then fires
+  # StatusReported. In a memory cascade we can confirm the entrypoint
+  # itself emits StatusReported (the user-visible completion signal).
+
+  test "GenerateReport emits StatusReported as completion signal" do
+    tests "GenerateReport", on: "StatusReport"
+    expect emits: ["StatusReported"]
+  end
+
+  test "Pipeline cascade walks every emit from FsRootResolved to StatusReported" do
+    tests "ResolveFsRoot", on: "StatusReport", kind: :cascade
+    input  script_path: "sample", fs_root: "sample"
+    expect emits: ["FsRootResolved", "ReportAssembled", "AggregateStamped", "ReportRendered", "ReportWritten", "StatusReported"]
+  end
+
+  # UNCOVERED : .heki fixture seeding (identity, consciousness, heartbeat,
+  #   tick, mood). Heki upserts are an adapter-shell concern, not an
+  #   aggregate-shape concern. Behaviors run in memory and have no :fs.
+  #
+  # UNCOVERED : rendered output diff against tests/status_golden.expected.
+  #   The golden compares eight labeled sections, ANSI normalization,
+  #   age + last_*_at + count blanking, and recent-commit subject erasure.
+  #   None of that is observable from the aggregate ; it's pure :stdout
+  #   adapter output. The shell smoke remains the canonical check until
+  #   behaviors gain a render-capture form.
+  #
+  # UNCOVERED : --no-color flag, NO_COLOR / HECKS_FORCE_COLOR env honoring.
+  #   Renderer-level concern, not aggregate state.
+  #
+  # UNCOVERED : daemon pidfile probing (mindstream_alive via :shell
+  #   is_pid_alive). Adapter-shell concern.
+  #
+  # UNCOVERED : aggregates_count / capabilities_count walks of the
+  #   on-disk bluebook tree. Filesystem-shaped, blanked in the golden.
+end
