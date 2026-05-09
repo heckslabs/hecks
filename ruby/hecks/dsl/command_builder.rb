@@ -244,10 +244,39 @@ module Hecks
       # command. Used for documentation, event storming visualization, and
       # port-based access control.
       #
-      # @param name [String] the actor/role name (e.g. "Customer", "Admin")
+      # Two forms accepted :
+      #
+      #   role "Customer"
+      #     Legacy string form — name is the literal string.
+      #
+      #   role Role, as: Agent[, kind: "system"]
+      #     i483 typed form — declares both the Role type the command
+      #     runs in AND the Agent type that fills the role. The Rust
+      #     parser silently accepts this form too ; neither parser
+      #     lifts the typed reference into the IR yet (filed as i483
+      #     parser-support follow-up). For today, both extra args
+      #     are accepted-and-ignored — the parsed IR still carries
+      #     `actors: [Actor(name: "Role")]` so parity holds.
+      #
+      # @param name [String, Symbol, Class, Structure::Type] the role
+      #   name. Symbol / Class / Type forms are coerced to their string
+      #   identifier so the IR's `actors` list stays string-only.
+      # @param as [Object, nil] (i483) the Agent type filling the role.
+      #   Accepted-and-ignored until the parser-support follow-up lands.
+      # @param kind [String, nil] (i483) optional role kind tag (e.g.
+      #   "system", "human"). Accepted-and-ignored.
       # @return [void]
-      def role(name)
-        @actors << Structure::Actor.new(name: name)
+      def role(name, _agent_form = nil, as: nil, kind: nil)
+        # rubocop:disable Lint/UnusedMethodArgument — `as:` and `kind:`
+        # are part of the i483 typed surface ; we accept them so the
+        # parser doesn't ArgumentError on `role Role, as: Agent` while
+        # the IR-lift follow-up lands.
+        coerced = case name
+                  when Symbol then name.to_s
+                  when Class  then name.name.to_s.split("::").last
+                  else name.to_s
+                  end
+        @actors << Structure::Actor.new(name: coerced)
       end
 
       # Declare the goal this command fulfills (Cockburn use-case style).

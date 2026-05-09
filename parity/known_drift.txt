@@ -58,13 +58,12 @@ codegen/parser_helpers_shape/parser_helpers_shape.bluebook  # parser escape-hand
 # counter. Ruby's parser already ignored them natively ; both sides
 # now agree. synapse.bluebook parses byte-equal again.
 
-# dispatch_audit.bluebook : the i483 demonstration bluebook — uses the
-# new `role Role, as: Agent` (and `kind: "system"`) form. Today's Ruby
-# `command_builder#role(name)` accepts only one positional arg ; the
-# Rust parser silently accepts the new form (it doesn't lift it into
-# the IR yet either, so neither parser carries the typed reference).
-# The Ruby parser raises ArgumentError, which the parity harness
-# surfaces as `error before diff`. Listed here as known drift while
-# i483's parser-support follow-up card lands ; once the parser lifts
-# the form into the IR on both sides, this entry retires automatically.
-hecks_conception/aggregates/framework/audit/dispatch_audit.bluebook  # i483 — Ruby `role` arity mismatch with `role Role, as: Agent` (parser support filed separately)
+# dispatch_audit.bluebook drift retired 2026-05-09 — fixed in two
+# places : (a) ruby/hecks/dsl/command_builder.rb's `role` method
+# now accepts the i483 typed form (Role + `as:` / `kind:` kwargs,
+# accepted-and-ignored until the IR-lift follow-up lands) ; (b)
+# rust/src/parse_blocks.rs's role parsing now handles the bareword
+# form (`role Role`) without falling back to extract_string —
+# critically, this means a trailing `kind: "system"` argument no
+# longer leaks into the role name. Both parsers extract "Role"
+# byte-equal. dispatch_audit parses byte-equal again.

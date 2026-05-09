@@ -149,7 +149,7 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     ShorthandResult::None => {}
                 }
             } else if line.starts_with("role") {
-                cmd.role = extract_string(line);
+                cmd.role = parse_role_arg(line);
             } else if line.starts_with("goal") || line.starts_with("description") {
                 cmd.description = extract_string(line);
             } else if line.starts_with("emits") {
@@ -195,12 +195,39 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
     (cmd, i + 1)
 }
 
+/// Extract the role/actor name from a `role …` line. Two forms accepted :
+///
+///   role "Customer"
+///     Legacy quoted form — name is the literal string.
+///
+///   role Role[, as: Agent[, kind: "system"]]
+///     i483 typed form — name is the bare identifier immediately after
+///     `role`. The `as:` / `kind:` kwargs are accepted-and-ignored on
+///     both Rust and Ruby sides until the parser-support follow-up
+///     lifts them into the IR. Critically : the bareword form must
+///     NOT fall back to extract_string, which would pick up the
+///     quoted "system" inside a trailing `kind:` clause and silently
+///     misidentify the role name.
+fn parse_role_arg(line: &str) -> Option<String> {
+    let after = line.trim_start_matches("role").trim_start();
+    if after.starts_with('"') {
+        return extract_string(after);
+    }
+    // Bareword form — read up to the first comma, whitespace, or
+    // line end, and return the leading identifier.
+    let end = after
+        .find(|c: char| c == ',' || c.is_whitespace())
+        .unwrap_or(after.len());
+    let token = after[..end].trim();
+    if token.is_empty() { None } else { Some(token.to_string()) }
+}
+
 fn parse_inline_command(line: &str, cmd: &mut Command) {
     if let Some(block) = extract_block(line) {
         for part in block.split(';') {
             let part = part.trim();
             if part.starts_with("role") {
-                cmd.role = extract_string(part);
+                cmd.role = parse_role_arg(part);
             } else if part.starts_with("emits") {
                 cmd.emits = extract_string(part);
             } else if part.starts_with("attribute") {
