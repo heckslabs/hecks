@@ -126,12 +126,16 @@ fn parse_test(lines: &[&str]) -> (Test, usize) {
         } else if depth == 1 {
             // Join continuation lines : keep absorbing the next line
             // while the current ends with `,` (Ruby's natural multi-
-            // line kwargs form). String literals and bracket depth
-            // are honored by the kwargs splitter downstream ; here we
+            // line kwargs form) OR has an unclosed bracket (`[`, `{`,
+            // `(`) — Ruby array / hash / paren literals span lines too
+            // (i497 fix). String literals and bracket depth are
+            // honored by the kwargs splitter downstream ; here we
             // only care that the joined logical line carries every
             // kwarg into interpret_test_line.
             let mut joined = line.to_string();
-            while joined.trim_end().ends_with(',') && i + 1 < lines.len() {
+            while i + 1 < lines.len()
+                && (joined.trim_end().ends_with(',') || bracket_depth(&joined) > 0)
+            {
                 let peek = lines[i + 1].trim();
                 if peek == "end" || peek.is_empty() || peek.starts_with('#') {
                     break;
@@ -232,6 +236,26 @@ fn split_kwarg(part: &str) -> Option<(String, String)> {
         raw.to_string()
     };
     Some((key, val))
+}
+
+/// Net unclosed bracket depth across `s`, ignoring contents of double-
+/// quoted strings (with backslash escapes). Counts `[`, `{`, `(` as opens
+/// and `]`, `}`, `)` as closes. Used by parse_test to decide whether to
+/// keep joining continuation lines for a multi-line literal.
+fn bracket_depth(s: &str) -> i32 {
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut prev = '\0';
+    for c in s.chars() {
+        match c {
+            '"' if prev != '\\' => in_str = !in_str,
+            '[' | '{' | '(' if !in_str => depth += 1,
+            ']' | '}' | ')' if !in_str => depth -= 1,
+            _ => {}
+        }
+        prev = c;
+    }
+    depth
 }
 
 /// Split `s` on top-level commas (outside strings, brackets, parens, braces).
@@ -412,6 +436,91 @@ mod tests {
         assert_eq!(t.input.get("monthly_price").map(|s| s.as_str()), Some("4500"));
         assert_eq!(t.expect.get("plan_code").map(|s| s.as_str()), Some("full_in_out"));
         assert_eq!(t.expect.get("monthly_price").map(|s| s.as_str()), Some("4500"));
+    }
+
+    #[test]
+    fn array_literal_single_line_preserved() {
+        // Sanity : single-line array literal value still works after
+        // adding bracket-aware continuation joining.
+        let src = suite_src(
+            "  test \"Single line array\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect emits: [\"A\", \"B\"]\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        assert_eq!(
+            suite.tests[0].expect.get("emits").map(|s| s.as_str()),
+            Some("[\"A\", \"B\"]")
+        );
+    }
+
+    #[test]
+    fn array_literal_multi_line_with_trailing_comma_joins() {
+        // i497 — opening `[` should trigger continuation joining even
+        // when the opening line doesn't end with `,`.
+        let src = suite_src(
+            "  test \"Multiline array trailing comma\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect emits: [\n      \"A\",\n      \"B\",\n    ]\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        let v = suite.tests[0].expect.get("emits").cloned().unwrap_or_default();
+        assert!(v.contains("\"A\""), "value should retain A : got {}", v);
+        assert!(v.contains("\"B\""), "value should retain B : got {}", v);
+        assert!(v.starts_with('['), "value should start with [ : got {}", v);
+        assert!(v.trim_end().ends_with(']'), "value should end with ] : got {}", v);
+    }
+
+    #[test]
+    fn array_literal_multi_line_no_trailing_comma_joins() {
+        // i497 — same as above but no trailing comma before the `]`.
+        let src = suite_src(
+            "  test \"Multiline array no trailing comma\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect emits: [\n      \"A\",\n      \"B\"\n    ]\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        let v = suite.tests[0].expect.get("emits").cloned().unwrap_or_default();
+        assert!(v.contains("\"A\""), "value should retain A : got {}", v);
+        assert!(v.contains("\"B\""), "value should retain B : got {}", v);
+        assert!(v.starts_with('['), "value should start with [ : got {}", v);
+        assert!(v.trim_end().ends_with(']'), "value should end with ] : got {}", v);
+    }
+
+    #[test]
+    fn nested_hash_with_array_multi_line_joins() {
+        // i497 — nested literals : `{ bar: [1, 2] }` spanning lines.
+        // Both `{` and `[` must keep the join going.
+        let src = suite_src(
+            "  test \"Nested hash array\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect foo: {\n      bar: [1, 2]\n    }\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        let v = suite.tests[0].expect.get("foo").cloned().unwrap_or_default();
+        assert!(v.starts_with('{'), "value should start with {{ : got {}", v);
+        assert!(v.trim_end().ends_with('}'), "value should end with }} : got {}", v);
+        assert!(v.contains("bar"), "value should contain bar : got {}", v);
+        assert!(v.contains("[1, 2]") || v.contains("[1,2]"),
+            "value should contain inner array : got {}", v);
+    }
+
+    #[test]
+    fn bracket_depth_helper_counts_correctly() {
+        assert_eq!(bracket_depth("[]"), 0);
+        assert_eq!(bracket_depth("["), 1);
+        assert_eq!(bracket_depth("[[]"), 1);
+        assert_eq!(bracket_depth("{ a: ["), 2);
+        assert_eq!(bracket_depth("\"[\""), 0); // bracket inside string ignored
+        assert_eq!(bracket_depth("\"\\\"[\""), 0); // escaped quote then bracket inside string
     }
 
     #[test]
