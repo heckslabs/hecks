@@ -18,6 +18,8 @@
 #      commit-msg hook does the actual enforcement, since that's
 #      the only hook that sees the message's exemption marker)
 #   6. Smoke tests must pass
+#   6b. Behaviors corpus — `hecks-life test` over each root
+#       (parallel to Gate 6 during the i500 migration window)
 #
 # Exit 0 = commit allowed. Exit 1 = commit blocked.
 # Set PARITY_SKIP=1 to bypass gate 1 (an antibody failure).
@@ -25,6 +27,7 @@
 # Set VALIDATE_SKIP=1 to bypass gate 2b (also an antibody failure).
 # Set COMPANION_SKIP=1 to bypass gate 4b (also an antibody failure).
 # Set TESTS_SKIP=1 to bypass gate 6 (also an antibody failure).
+# Set BEHAVIORS_SKIP=1 to bypass gate 6b (also an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 HECKS_LIFE="$REPO/rust/target/release/hecks-life"
@@ -306,6 +309,57 @@ if [ -z "$TESTS_SKIP" ] && [ -d "$CONCEPTION_DIR/tests" ]; then
         echo "COMMIT BLOCKED: $failed smoke test(s) failed."
         echo "  Run individually : bash hecks_conception/tests/<name>.sh"
         echo "  Bypass (use only for emergencies) : TESTS_SKIP=1 git commit ..."
+        exit 1
+    fi
+fi
+
+# ── Gate 6b: Behaviors corpus — `hecks-life test` per root ─────────
+# Parallel to Gate 6 during the i500 migration window. Walks each
+# active code-surface root and runs `hecks-life test`, which
+# exercises every .behaviors file with a same-stem .bluebook in the
+# same dir. Mirrors pre-push ROOTS so we catch behavior regressions
+# at commit time, not only at push.
+#
+# Roots match tooling/git-hooks/pre-push : aggregates / adapters
+# under hecks_conception, plus framework dirs at repo root (tools,
+# discipline, runtime, cli, bluebook, codegen, integrations).
+# examples/ is intentionally excluded — some examples are :pending
+# under runner gaps and won't be all-green.
+#
+# catalog/ is excluded today : `hecks-life test` reports 4 errored
+# tests under catalog/appeal.behaviors (PlanFeature + dependents,
+# "missing attribute: self-referencing id"). The per-file `behaviors`
+# walker above doesn't surface those errors the same way, so adding
+# catalog here would break commit on master. Re-add once the appeal
+# self-ref gap is fixed.
+#
+# Set BEHAVIORS_SKIP=1 to bypass (an antibody failure for emergencies).
+if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
+    BEHAVIORS_ROOTS=""
+    [ -d "$REPO/hecks_conception/aggregates" ] && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/aggregates"
+    [ -d "$REPO/hecks_conception/adapters" ]   && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/adapters"
+    [ -d "$REPO/tools" ]                       && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/tools"
+    [ -d "$REPO/discipline" ]                  && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/discipline"
+    [ -d "$REPO/runtime" ]                     && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/runtime"
+    [ -d "$REPO/cli" ]                         && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/cli"
+    [ -d "$REPO/bluebook" ]                    && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/bluebook"
+    [ -d "$REPO/codegen" ]                     && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/codegen"
+    [ -d "$REPO/integrations" ]                && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/integrations"
+
+    behaviors_failed_roots=""
+    for root in $BEHAVIORS_ROOTS; do
+        out_file="/tmp/behaviors_$(basename "$root").out"
+        if ! "$HECKS_LIFE" test "$root" >"$out_file" 2>&1; then
+            behaviors_failed_roots="$behaviors_failed_roots\n  ✗ $root (output: $out_file)"
+        fi
+    done
+    if [ -n "$behaviors_failed_roots" ]; then
+        echo ""
+        echo "COMMIT BLOCKED: behaviors corpus failed."
+        printf "$behaviors_failed_roots\n"
+        echo ""
+        echo "  Re-run individually : hecks-life test <root>"
+        echo "  Bypass (use only for emergencies) : BEHAVIORS_SKIP=1 git commit ..."
         exit 1
     fi
 fi

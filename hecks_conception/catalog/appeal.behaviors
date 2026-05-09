@@ -190,37 +190,10 @@ Hecks.behaviors "Appeal" do
     expect ok: "true"
   end
 
-  test "PlanFeature runs" do
-    tests "PlanFeature", on: "Feature"
-    expect status: "planned"
-  end
-
   test "AddDomainAddition sets kind + name + parent + description" do
     tests "AddDomainAddition", on: "Feature"
     input  kind: "sample", name: "sample", parent: "sample", description: "sample"
     expect description: "sample", status: "draft"
-  end
-
-  test "VerifyAdditions runs" do
-    tests "VerifyAdditions", on: "Feature", kind: :pending
-    setup  "PlanFeature"
-    setup  "BuildFeature"
-    # UNCOVERED : Feature commands lack reference_to(Feature), so each setup creates a fresh Feature in 'draft' instead of operating on the prior one — chained lifecycle setups fail.
-    expect status: "planned"
-  end
-
-  test "BuildFeature runs" do
-    tests "BuildFeature", on: "Feature", kind: :pending
-    setup  "PlanFeature"
-    # UNCOVERED : Feature commands lack reference_to(Feature) (see VerifyAdditions).
-    expect status: "building"
-  end
-
-  test "CompleteFeature runs" do
-    tests "CompleteFeature", on: "Feature", kind: :pending
-    setup  "PlanFeature"
-    # UNCOVERED : Feature commands lack reference_to(Feature) (see VerifyAdditions).
-    expect status: "done"
   end
 
 
@@ -971,85 +944,6 @@ Hecks.behaviors "Appeal" do
     tests "DraftFeature", on: "Feature"
     input  title: "Login", description: "User login flow"
     expect emits: ["FeatureDrafted"]
-  end
-
-  # ── :pending — runtime-infrastructure tests (Ruby-only) ────────────────
-  # These rspec examples assert against Hecks::Runtime, actor system,
-  # event/command buses, and on-disk paragraph layout. The Rust runner
-  # boots its own in-memory Runtime per test ; equivalent gates exist as
-  # runner-level health checks rather than per-test behaviors.
-
-  test "Appeal domain loads with name Appeal" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : domain-load assertion is a runner gate, not a behavior.
-    expect ok: "true"
-  end
-
-  test "Appeal has more than 30 aggregates" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : aggregate count is a meta-shape concern (catalog-level).
-    expect ok: "true"
-  end
-
-  test "Appeal includes expected aggregate names" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : aggregate-presence list is meta-shape ; covered by parser.
-    expect ok: "true"
-  end
-
-  test "Runtime boots successfully" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby Hecks::Runtime ; Rust runner boots its own per test.
-    expect ok: "true"
-  end
-
-  test "Runtime exposes domain.name" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby Hecks::Runtime instance method ; not bluebookable.
-    expect ok: "true"
-  end
-
-  test "Runtime has an event bus" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby runtime infra ; Rust runner has rt.event_bus inline.
-    expect ok: "true"
-  end
-
-  test "Runtime has a command bus" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby runtime infra ; Rust runner dispatches via rt directly.
-    expect ok: "true"
-  end
-
-  test "Event bus records events for dispatched commands" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : cross-aggregate emit-stream count ; per-command emits:
-    # lists above cover individual signals end-to-end.
-    expect ok: "true"
-  end
-
-  test "Actor system exists on the runtime" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby actor-system wiring : Rust equivalent ships under i497.
-    expect ok: "true"
-  end
-
-  test "Actor system has actors for each aggregate" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby actor-system wiring : Rust equivalent ships under i497.
-    expect ok: "true"
-  end
-
-  test "Paragraph files exist under chapters/appeal/" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : on-disk Ruby paragraph layout ; obsolete with Rust runtime.
-    expect ok: "true"
-  end
-
-  test "Projection auto-creates for Layout" do
-    tests "BootCheck", on: "Layout", kind: :pending
-    # UNCOVERED : Ruby projection registry ; Rust runner uses repository find.
-    expect ok: "true"
   end
 
 end

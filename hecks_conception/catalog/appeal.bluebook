@@ -277,6 +277,7 @@ end
 
   command "PlanFeature" do
     description "Ask the AI agent to plan all domain additions for this feature"
+    reference_to(Feature)
     emits "FeaturePlanned"
   end
 
@@ -291,16 +292,19 @@ end
 
   command "VerifyAdditions" do
     description "Check the live domain IR for each planned addition"
+    reference_to(Feature)
     emits "AdditionsVerified"
   end
 
   command "BuildFeature" do
     description "Ask the AI agent to implement all remaining additions"
+    reference_to(Feature)
     emits "FeatureBuildStarted"
   end
 
   command "CompleteFeature" do
     description "Mark the feature as done — all additions verified"
+    reference_to(Feature)
     emits "FeatureCompleted"
   end
 

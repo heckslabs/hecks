@@ -702,16 +702,6 @@ Hecks.behaviors "Mind" do
     expect state: "tuned"
   end
 
-  test "AccumulateFatigue cascades through policy chain" do
-    tests "AccumulateFatigue", on: "Fatigue", kind: :pending
-    setup  "AwakenFatigue"
-    setup  "DetectIdle", idle_seconds: 1
-    setup  "StartMonitoring", interval_seconds: 1
-    setup  "EnterDaydream"
-    # UNCOVERED : pre_seed_singletons doesn't apply lifecycle defaults, so EnterDaydream's `given { state == "attentive" }` fails on a virgin Consciousness record.
-    expect emits: ["FatigueAccumulated", "SleepEntered", "MonitoringStarted"]
-  end
-
   test "DissipateFatigue sets cycles_completed" do
     tests "DissipateFatigue", on: "Fatigue"
     input  cycles_completed: 1

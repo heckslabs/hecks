@@ -125,3 +125,41 @@ jobs:
           done < <(find $ROOTS -name "*.behaviors")
           [ "$fail" -gt 0 ] && exit 1
           echo "behaviors: all pass"
+
+      - name: Behaviors corpus (hecks-life test)
+        # i500 Stage 1 — parallel gate to the per-file `behaviors`
+        # walker above. `hecks-life test <root>` walks each domain
+        # root and runs every .behaviors with a same-stem .bluebook,
+        # mirroring the pre-commit Gate 6b in tooling/git-hooks/pre-commit.
+        # Roots match the pre-push gate. Both blocks gate during the
+        # migration window ; once the per-file walker retires, this
+        # one stays.
+        #
+        # catalog/ is excluded today : `hecks-life test` reports 4
+        # errored tests under catalog/appeal.behaviors that the per-
+        # file walker above doesn't surface the same way. Re-add once
+        # the appeal self-ref gap is fixed.
+        run: |
+          HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/hecks-life"
+          ROOTS=""
+          [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
+          [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/adapters" ]   && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/adapters"
+          [ -d "$GITHUB_WORKSPACE/hecks/tools" ]                       && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/tools"
+          [ -d "$GITHUB_WORKSPACE/hecks/discipline" ]                  && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/discipline"
+          [ -d "$GITHUB_WORKSPACE/hecks/runtime" ]                     && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/runtime"
+          [ -d "$GITHUB_WORKSPACE/hecks/cli" ]                         && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/cli"
+          [ -d "$GITHUB_WORKSPACE/hecks/bluebook" ]                    && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/bluebook"
+          [ -d "$GITHUB_WORKSPACE/hecks/codegen" ]                     && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/codegen"
+          [ -d "$GITHUB_WORKSPACE/hecks/integrations" ]                && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/integrations"
+          fail=0
+          for root in $ROOTS; do
+            name=$(basename "$root")
+            out="/tmp/behaviors_test_${name}.out"
+            if ! "$HECKS" test "$root" >"$out" 2>&1; then
+              fail=$((fail + 1))
+              echo "::error::hecks-life test $root failed"
+              tail -20 "$out"
+            fi
+          done
+          [ "$fail" -gt 0 ] && exit 1
+          echo "behaviors (hecks-life test): all pass"
