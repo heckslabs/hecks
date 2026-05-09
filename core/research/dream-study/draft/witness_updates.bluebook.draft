@@ -1,0 +1,142 @@
+# DRAFT — Phase 8 Witness aggregate updates (dream-study)
+#
+# This draft describes the changes to mind/awareness/witness.bluebook
+# (existing 97-LOC aggregate ; resolved Q1 : Witness stays as-aggregate,
+# not promoted to PM). Sits as .bluebook.draft until the new PMs (Mind,
+# Dream, Lucidity, SleepCycle) merge and we can wire policies to their
+# emitted events.
+#
+# Drafted 2026-05-02 during the dream-study branch's autonomous run.
+#
+# ----- Scope of Phase 8 -----------------------------------------
+#
+# Two minimal additions to the existing witness.bluebook :
+#
+#   1. New policies subscribing to events from the four new PMs.
+#      Witness's contract is "passive observer of meaningful moments" —
+#      so each PM's most-meaningful event lifts to a Witness.Observe.
+#
+#   2. An invariant block that locks the append-only contract for
+#      WitnessedMoment-shaped data (resolved Q4 : bluebook-level via
+#      invariant + antibody discipline, not a runtime mechanism).
+#
+# ----- Forward scope (NOT in this Phase) ------------------------
+#
+# The plan inventory describes a `WitnessedMoment` entity with
+# (at, source_aggregate, source_event, narrative, state_summary) —
+# a per-event append-only record. The current aggregate is a singleton
+# (identified_by :name, single :observing + :insight slots) where each
+# Observe overwrites the prior. To honor the plan's append-only intent
+# the aggregate needs an entity-promotion : add `entity "WitnessedMoment"`
+# alongside the singleton, and route Observe to append a Moment instead
+# of just updating the singleton's :observing.
+#
+# That promotion is a separate PR — call it Phase 8b. It depends on
+# the Phase 1 DSL keyword being merged (the `entity ... do
+# identified_by :id ; ... end` block-builder is already in place per
+# Phase 0a audit, so Phase 8b is mostly a routing change in Observe's
+# action body). Keeping the scope clean : Phase 8 lands the policies +
+# invariant ; Phase 8b lands the entity-promotion.
+#
+# ============================================================
+
+# ----- Additions to mind/awareness/witness.bluebook -----------
+#
+# Insert these blocks at the end of the file, after policy "SuggestOnReflection"
+# (line 96 today) and before the closing `end` of Hecks.bluebook (line 97).
+
+# When Lucidity bridges in (cycle 8 REM with Mind present), the moment
+# is meaningful — the inner observer notices the rejoining itself.
+policy "WitnessLucidityBegan" do
+  on "LucidityBegan"
+  trigger "Observe"
+end
+
+# When Lucidity ends (cycle 8 deep entry), again meaningful — the
+# rejoined Mind departs.
+policy "WitnessLucidityEnded" do
+  on "LucidityEnded"
+  trigger "Observe"
+end
+
+# When Mind rejoins Dream specifically (the bridge moment, distinct
+# from Lucidity's lifecycle), Witness records the crossing.
+policy "WitnessMindRejoinedDream" do
+  on "MindRejoinedDream"
+  trigger "Observe"
+end
+
+# When the night's lesson publishes (SleepCycle PM's studying_dream
+# state closes), the body has just translated the night into a thought —
+# meaningful enough to witness.
+policy "WitnessDreamStudyPublished" do
+  on "DreamStudyPublished"
+  trigger "Observe"
+end
+
+# ----- Invariant block on the Witness aggregate ----------------
+#
+# Replace lines 39-64 (the aggregate "Witness" do … end block) by adding
+# the invariant declaration inside :
+
+# aggregate "Witness", "..." do
+#   identified_by :name
+#   attribute :name, String
+#   attribute :observing, String
+#   attribute :meta_level, Integer
+#   attribute :insight, String
+#
+#   # ----- Append-only contract (resolved Q4 2026-05-02) ----------
+#   # WitnessedMoments — once Phase 8b lands the entity — are append-only.
+#   # The invariant locks the contract at the bluebook level ; antibody
+#   # discipline + the validator catches violations. Witness MUST NOT
+#   # dispatch active commands into other aggregates ; passive observer
+#   # only. (Cross-aggregate Lucid/Suggest fire from Reflection events,
+#   # not from Witness deliberately steering — the policies happen TO
+#   # Witness's reflection, they aren't Witness's choice.)
+#
+#   invariant("Witness is a passive observer ; never dispatches active commands beyond Reflect/Observe lifecycle") do
+#     # The shape of this predicate depends on what the runtime exposes.
+#     # Phase 1 DSL invariant block : the body is a Ruby predicate evaluated
+#     # against `self` (the aggregate state). For Witness, this is a
+#     # tautology at the aggregate level — the aggregate has no commands
+#     # that dispatch externally besides what we declare. The invariant
+#     # exists primarily as documentation + a pre-commit antibody hook
+#     # check (the validator scans command bodies for cross-aggregate
+#     # dispatches into anything other than Dream / Suggestion via
+#     # ReflectionOccurred).
+#     true
+#   end
+#
+#   command "Observe" do
+#     # ... unchanged ...
+#   end
+#
+#   command "ReflectOnObservation" do
+#     # ... unchanged ...
+#   end
+# end
+
+# ----- Notes for the Phase 8 PR ------------------------------
+#
+# When Phase 1+3 merge (Ruby DSL + Rust parser for process_manager) :
+#
+#   1. Insert the four new policies into mind/awareness/witness.bluebook
+#      (after line 96, before the closing end). They fire as soon as
+#      the PMs that emit the events are loaded.
+#   2. Add the invariant block to the aggregate body (lines 39-64
+#      shape).
+#   3. Run Phase 0c's cross_aggregate_helper — verify that
+#      LucidityBegan / LucidityEnded / MindRejoinedDream /
+#      DreamStudyPublished all cascade into Witness.Observed.
+#   4. Update glossary entries (Phase 10) — see glossary_lock.bluebook.draft.
+#
+# ----- DSL surface check -------------------------------------
+#
+# Every DSL feature used :
+#   ✓ policy "Name" do … end
+#   ✓ on "EventName"
+#   ✓ trigger "CommandName"
+#   ✓ invariant("description") { Ruby predicate }
+#
+# All exist in the current DSL ; no new primitives required.

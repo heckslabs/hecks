@@ -1,0 +1,11 @@
+# awake_near_sleep_pressure.fixture — groggy mood + exhausted fatigue, m-suffix
+# beats threshold (1.5M → "1.50m"). Pulses=1500 lands in exhausted rung
+# (1400..1799). The body is asking for sleep.
+heki_seeds:
+  mood:           {current_state: "groggy", creativity_level: 0.4, precision_level: 0.4}
+  heartbeat:      {fatigue_state: "exhausted", fatigue: 0.9, pulse_rate: 1.0, flow_rate: "labored", pulses_since_sleep: 1500}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 1500000}
+  musing_mint:    {total_minted: 50}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 1.50m 😵‍💫 groggy 😩 exhausted 💭 50 ✉️ {{INBOX}} 🤖"

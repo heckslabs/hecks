@@ -1,0 +1,9 @@
+# sleep_deep.fixture — Cycle 4 NREM-deep : no timer, no REM dream count, just
+# moon + cycle/8 — deep. Sleep_stage=deep is non-REM so invariant 5 forbids a
+# fresh lucid narrative ; we leave lucid_dream.heki absent.
+heki_seeds:
+  mood:           {current_state: "sleeping", creativity_level: 0.5, precision_level: 0.5}
+  heartbeat:      {fatigue_state: "alert", fatigue: 0.1, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 0}
+  consciousness:  {state: "sleeping", sleep_stage: "deep", sleep_cycle: 4, sleep_total: 8, phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 5, is_lucid: "no", sleep_summary: ""}
+  tick:           {cycle: 100}
+expected_render: "{{MOON}} cycle 4/8 — deep"

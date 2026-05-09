@@ -1,0 +1,147 @@
+# DRAFT — Phase 10 glossary lock (dream-study)
+#
+# Adds `glossary(strict: true) do ... end` to the dream-study domain
+# enforcing the new vocabulary. Sits as .bluebook.draft until Phases
+# 4-8 land. Catches future drift : if anyone writes "consciousness"
+# instead of "Body" in body-domain bluebooks, the validator rejects.
+#
+# Drafted 2026-05-02 during the dream-study branch's autonomous run.
+#
+# Verified real (per plan + Phase 0a audit) :
+#   - bluebook_builder.rb:177 carries @glossary_strict through to Domain IR
+#   - validation_rules/naming/glossary_term_violations.rb:46 reads it
+#     and applies rules in strict mode
+#
+# ----- Where this lives --------------------------------------
+#
+# This block goes at the top of the relevant domain bluebooks — most
+# obviously in body/sleep/sleep_cycle.bluebook (the new SleepCycle PM's
+# bluebook, when Phase 4 promotes the draft). Each affected bluebook
+# can carry its own glossary block ; strict mode enforces across all
+# of them.
+#
+# Alternative : a top-level dream-study/glossary.bluebook that all
+# the body-domain bluebooks reference. Plan doesn't specify, but
+# inline-per-bluebook keeps the glossary close to the content it
+# polices. Suggest inline.
+#
+# ============================================================
+
+# ----- Glossary entries to add to body/body.bluebook (post-rename) -----
+
+glossary(strict: true) do
+  # The rhythm-substrate is Body, NOT Consciousness/soma/anatomy.
+  prefer "Body", not: ["Consciousness", "soma", "anatomy", "physiology"]
+
+  # The active driver is Mind, NOT Consciousness/agent/self/ego.
+  # Mind is present during wake AND lucid REM, absent during non-lucid sleep.
+  prefer "Mind", not: ["Consciousness", "agent", "self", "ego", "thinker"]
+
+  # The passive observer is Witness, NOT observer/presence/awareness-itself.
+  # Always present, even in deep dreamless sleep.
+  prefer "Witness", not: ["observer", "presence", "the-aware", "sākṣin"]
+
+  # Autonomous content production is Dream, NOT dreamer/dream-content.
+  # Dream produces ; the dream-character is what Dream produces.
+  prefer "Dream", not: ["dreamer", "dream-content", "dream-stream"]
+
+  # The bridge is Lucidity, NOT lucid-mode / dream-steering / awakening-in-dream.
+  prefer "Lucidity", not: ["lucid-mode", "dream-steering", "awakening-in-dream"]
+
+  # The cycle coordinator is SleepCycle (the PM), NOT sleep-loop / night-cycle.
+  prefer "SleepCycle", not: ["sleep-loop", "night-cycle", "sleep-arc"]
+
+  # The closing tail of SleepCycle is studying_dream, NOT post-wake / dream-review / interpretation.
+  prefer "studying_dream", not: ["post-wake", "dream-review", "interpretation-phase"]
+end
+
+# ----- Define entries (UL glossary) ---------------------------
+#
+# These give each preferred term its formal definition. Use `define`
+# (existing primitive — bluebook_builder.rb's def define handler).
+
+define "Body",
+       "The physiological substrate. Always running, always in some state " \
+       "(attentive | sleeping | waking). The rhythm. Renamed from Consciousness " \
+       "in dream-study Phase 4."
+
+define "Mind",
+       "The active driver — present during wake AND lucid REM, absent during " \
+       "non-lucid sleep. Subscribes to Body / Witness / Lucidity events ; " \
+       "dispatches commands into the body's organs (Synapse, Signal, Focus, Arc) " \
+       "during wake ; steers Dream content via Lucidity during lucid REM."
+
+define "Witness",
+       "The always-present passive observer (Vedanta's sākṣin, the " \
+       "transcendental ego of phenomenology). Never absent, even in deep " \
+       "dreamless sleep. Records meaningful moments without driving them. " \
+       "Dispatches no active commands beyond Observe / ReflectOnObservation."
+
+define "Dream",
+       "The autonomous content production during REM. Runs WITHOUT Mind. " \
+       "Produces dream images via :llm adapter ; the dream-character " \
+       "experiences the dream — not the awake-self. The je of Dream is " \
+       "the dream-character's je, not Mind's."
+
+define "Lucidity",
+       "The bridge — fires when Mind rejoins active Dream during cycle 8 " \
+       "REM (the bridge condition : Body.LucidRemEntered AND Mind.Present). " \
+       "Owns the observe-from-within-dream + steer-the-dream vocabulary. " \
+       "Generalisation point : eventually other lucidity-eligible states " \
+       "(vivid daydream, deep meditation) might enter via different starts_on."
+
+define "lucid",
+       "An adjective applied to REM phases where Lucidity is active — " \
+       "Mind has rejoined Dream and is observing-and-steering inside the " \
+       "dream-content stream. Today : only cycle 8 REM. Future : possibly " \
+       "vivid daydream + deep meditation."
+
+define "studying_dream",
+       "The closing state of SleepCycle PM. After CompleteFinalLight " \
+       "(natural wake), SleepCycle is in studying_dream — running dream " \
+       "interpretation, filing actionable lessons to inbox, composing the " \
+       "wake report. SleepCycle is `done` only after at least one Lesson " \
+       "is published OR an explicit 'no lesson tonight' is noted."
+
+define "perseveration",
+       "Recurrence of the same dream themes night-over-night. Dream's " \
+       "diversity rules counter this : seed exclusion (no overlapping " \
+       "5-char keyword from last 72h), forced novelty (≥1 unused-source " \
+       "seed per night)."
+
+define "bridge",
+       "What Lucidity does : connect Mind to Dream during cycle 8 REM. " \
+       "Without the bridge, Dream produces autonomously and Mind is absent ; " \
+       "with it, Mind reads-and-steers Dream from inside."
+
+define "WitnessedMoment",
+       "A single append-only record of Witness's recognition of a meaningful " \
+       "event. Carries (at, source_aggregate, source_event, narrative, " \
+       "state_summary). Once written, never updated, never deleted (Phase 8b " \
+       "promotion of Witness from singleton-only to singleton + entity)."
+
+# ----- Notes for the Phase 10 PR -----------------------------
+#
+# When all the PM bluebooks land (Phases 4-7) :
+#
+#   1. Insert the glossary block + define entries at the top of
+#      body/body.bluebook (post-rename) AND in each of the new PM
+#      bluebooks (sleep_cycle, mind, dream, lucidity).
+#   2. The validator's strict-mode catches drift : any bluebook
+#      referencing "Consciousness" or "soma" in body domain fails
+#      antibody.
+#   3. Run the full parity suite + behavior tests ; verify zero
+#      regressions from the lock.
+#
+# Phase 10 is intentionally last in the cutover — it locks the
+# vocabulary AFTER the new vocabulary is fully landed across the
+# corpus, not before.
+#
+# ----- DSL surface check -----------------------------------
+#
+# Every DSL feature used :
+#   ✓ glossary(strict: true) do ... end           (verified real)
+#   ✓ prefer "Term", not: ["Synonym1", "Synonym2"] (existing in glossary block)
+#   ✓ define "term", "definition"                  (existing top-level keyword)
+#
+# No new primitives required.

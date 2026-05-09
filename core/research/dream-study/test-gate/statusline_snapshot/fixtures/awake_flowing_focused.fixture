@@ -1,0 +1,10 @@
+# awake_flowing_focused.fixture — flowing mood + focused fatigue : creative-flow
+# rung. Pulses=400 still in focused rung (250..499).
+heki_seeds:
+  mood:           {current_state: "flowing", creativity_level: 0.95, precision_level: 0.6}
+  heartbeat:      {fatigue_state: "focused", fatigue: 0.3, pulse_rate: 1.0, flow_rate: "deep", pulses_since_sleep: 400}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 200}
+  musing_mint:    {total_minted: 30}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 200 🌊 flowing 🎯 focused 💭 30 ✉️ {{INBOX}} 🤖"

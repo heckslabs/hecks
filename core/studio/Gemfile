@@ -1,0 +1,18 @@
+# Gemfile — Hecks Studio Sinatra runtime.
+# Pinned to the local Hecks gem so app.rb sees the same Ruby
+# runtime that backs the rest of the project.
+source "https://rubygems.org"
+
+gem "sinatra"
+gem "sinatra-contrib"
+gem "rackup"
+gem "puma"
+gem "webrick"
+gem "thor"
+gem "hecks", path: "../../../hecks"
+
+group :test do
+  gem "rspec"
+  gem "rack-test"
+  gem "nokogiri"
+end

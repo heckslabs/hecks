@@ -1,0 +1,10 @@
+# awake_tired.fixture — drifting mood + tired fatigue, raw beats (under 1k).
+# Pulses=1100 lands in tired rung (1000..1399). Tail of a long stretch.
+heki_seeds:
+  mood:           {current_state: "drifting", creativity_level: 0.7, precision_level: 0.8}
+  heartbeat:      {fatigue_state: "tired", fatigue: 0.6, pulse_rate: 1.0, flow_rate: "slow", pulses_since_sleep: 1100}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 999}
+  musing_mint:    {total_minted: 12}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 999 🌀 drifting 🥱 tired 💭 12 ✉️ {{INBOX}} 🤖"

@@ -1,0 +1,10 @@
+# Gemfile — dream-study Phase 0f regression suite.
+#
+# Drives `hecks-life` against tmpdir-isolated bluebook layouts and
+# asserts heki rows. No production dependencies — rspec only.
+
+source "https://rubygems.org"
+
+group :test do
+  gem "rspec", "~> 3.13"
+end

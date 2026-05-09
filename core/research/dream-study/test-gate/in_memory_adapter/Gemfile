@@ -1,0 +1,9 @@
+# Dream-study test-gate Gemfile (Phase 0h — in_memory_adapter).
+#
+# Reuses Hecks's gem environment via eval_gemfile so `bundle exec rspec`
+# from this directory resolves the same gems Hecks itself depends on.
+# Mirrors the sibling Phase 0 directories (invariants, regression,
+# end_to_end).
+
+HECKS_GEMFILE = File.expand_path("../../../../hecks/Gemfile", __dir__)
+eval_gemfile HECKS_GEMFILE

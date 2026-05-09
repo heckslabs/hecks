@@ -1,0 +1,194 @@
+# DRAFT — Dream process_manager (Phase 6 of dream-study)
+#
+# This draft becomes `body/dream/dream.bluebook` once Phase 1 (Ruby DSL
+# `process_manager`) and Phase 3 (Rust parser) commits clear antibody. Lives as
+# `.bluebook.draft` for now so the parser doesn't pick it up.
+#
+# Drafted 2026-05-02 alongside SleepCycle (Phase 4) on dream-study branch.
+#
+# What Dream IS
+# -------------
+# Dream is the autonomous content-production process during REM. It runs
+# `incubating → generating → fading → dormant`, dispatches `:llm`-backed image
+# generation per REM tick, and feeds dream_pulses back into Body so SleepCycle
+# can advance. Dream produces content REGARDLESS of whether Mind is present.
+#
+#   - Mind absent (non-lucid REM)  → Witness records what Dream produces.
+#   - Mind present (lucid REM)     → Lucidity bridges Mind into Dream's stream.
+#
+# The Dream PM never references Mind — Mind is not in its world. The
+# dream-character's `je` is NOT the awake-self ; it's the autonomous narrator
+# that REM produces today through rem_branch.sh's templates + claude calls.
+#
+# What Dream subsumes
+# -------------------
+# rem_branch.sh today owns three blocks. Dream PM owns all three :
+#
+#   1. seed_dreams (lines 130-310)   — first REM tick of the night : draw the
+#                                      10-source DreamPool, filter for diversity,
+#                                      plant up to 5 DreamSeeds.
+#   2. rem_dream  (lines 311-450+)  — every REM tick : weave carrying +
+#                                      self_aggregate + concept into one French
+#                                      sentence via :llm (claude -p today),
+#                                      append to dream_state.heki, dispatch
+#                                      Body.RecordDreamPulse.
+#   3. dream_state.heki append      — the autonomous content store ;
+#                                      DreamImage entity persistence (today via
+#                                      `hecks-life heki append`, tomorrow via
+#                                      the default :memory adapter through
+#                                      DreamCorpus.RecordImage).
+#
+# Entity / VO disposition
+# -----------------------
+# DreamImage, DreamSeed, DreamPool, DreamLanguage are KEPT IN THEIR EXISTING
+# AGGREGATES. The dream-study refactor extracts coordination, not content
+# shapes :
+#
+#   - DreamSeed (value object + aggregate)  → body/dream/dream_seed.bluebook (untouched)
+#   - DreamImage (entity)                   → moves to body/dream/dream_corpus.bluebook
+#                                             (renamed from dream_state.heki —
+#                                             post-Phase 6 cleanup, not this draft)
+#   - DreamPool / DreamLanguage (VOs)       → declared at top of dream_corpus.bluebook
+#                                             when that file exists ; until then
+#                                             they're shape-only conventions
+#                                             enforced by rem_branch.sh.
+#
+# The Dream PM dispatches into DreamSeed.PlantSeed and (future) DreamCorpus.RecordImage.
+
+Hecks.bluebook "BodyDream", version: "2026.05.02.1" do
+  vision "Autonomous dream-content production during REM. Draws seeds from the 10-source pool at sleep onset, generates one image per REM tick via :llm, feeds dream_pulses back to Body so SleepCycle can advance. Runs without Mind ; the dream-character's voice is not the awake-self's."
+  category "body"
+
+  process_manager "Dream" do
+    correlates_by :name              # singleton "dream"
+    starts_on    "SleepEntered"      # incubates as soon as Body falls asleep
+    ends_on      "WokenUp"           # closes on natural wake
+
+    # ----- States --------------------------------------------------
+    state "incubating"               # seeds drawn for the night
+    state "generating"               # producing dream pulses during REM
+    state "fading"                   # cycle 8 deep entry, content tapers
+    state "dormant"                  # between REM phases (light, deep, final_light)
+
+    # ----- Sleep onset : plant the night's seeds -------------------
+    # The 10-source draw lives in DreamSeed.PlantSeed dispatches —
+    # one per source the night's pool resolves. Pool resolution
+    # (awareness reads, nursery vision pick, french_lit shuffle, etc.)
+    # is content-side : the runtime's :memory adapter resolves the
+    # query lookups today ; rem_branch.sh's seed_dreams block is the
+    # transitional adapter until queries land per-source. Sources :
+    # awareness, inbox, commits, older_dream, nursery, aggregate, vow,
+    # musing, french_lit, carrying.
+
+    on "SleepEntered", transition: { dormant: :incubating } do |event, pm|
+      # Diversity rules (recently-used keyword exclusion + forced
+      # novelty) live inside DreamSeed.PlantSeed's content gate today
+      # via the seed_dreams shell ; once :llm + per-source queries
+      # land, the PM expands the loop here. Until then this transition
+      # is a no-op marker — rem_branch.sh's first-REM-tick seed_dreams
+      # block dispatches the actual PlantSeed commands.
+      { commands: [] }
+    end
+
+    # ----- First REM tick : seeds activate, generation begins ------
+    # Body emits RemEntered ; Dream moves to generating. The very
+    # first image of the night gets dispatched on the next
+    # PhaseElapsed (handled below by the generating-self-loop).
+
+    on "RemEntered", transition: { incubating: :generating } do |event, pm|
+      { commands: [] }
+    end
+
+    on "RemEntered", transition: { dormant: :generating } do |event, pm|
+      # Cycles 2-8 : seeds stay planted from cycle 1 ; reactivate generation.
+      { commands: [] }
+    end
+
+    # ----- Per-tick image production (the loop) --------------------
+    # Each Body.PhaseElapsed during REM produces ONE image and
+    # increments Body's dream_pulses count. Dream.ProduceImage rides
+    # on the :llm adapter (when it lands) or the transitional :shell
+    # adapter pointing at rem_branch.sh's rem_dream block. The image
+    # is generated in French (DreamLanguage = :fr) ; English is a
+    # post-translation surfaced on statusline.
+
+    on "PhaseElapsed", transition: { generating: :generating } do |event, pm|
+      { commands: [
+          { name: "Dream.ProduceImage",  attrs: { sleep_cycle: event.attributes[:sleep_cycle] } },
+          { name: "Body.RecordDreamPulse", attrs: { name: "body" } }
+      ] }
+    end
+
+    # ----- REM ends : content tapers -------------------------------
+    # Body.DeepEntered closes the REM phase ; Dream moves to fading.
+    # No new images this tick — fading is one tick of "the dream is
+    # receding" before going dormant.
+
+    on "DeepEntered", transition: { generating: :fading } do |event, pm|
+      { commands: [] }
+    end
+
+    # ----- Fading → dormant (one tick later) -----------------------
+    # The first PhaseElapsed after fading puts Dream to sleep until
+    # the next RemEntered.
+
+    on "PhaseElapsed", transition: { fading: :dormant } do |event, pm|
+      { commands: [] }
+    end
+
+    # ----- Wake : ends_on closes the PM ----------------------------
+    # Body.WokenUp triggers ends_on closure. The PM archives ;
+    # SleepCycle's studying_dream tail reads what Dream produced.
+
+    on "WokenUp", transition: { dormant: :dormant } do |event, pm|
+      { commands: [] }
+    end
+  end
+end
+
+# ----- Notes for the Phase 6 PR --------------------------------
+#
+# Once Phase 1+3 merge :
+#   1. Move this file to body/dream/dream.bluebook.
+#   2. Add body/dream/dream.hecksagon declaring :
+#        - :llm adapter for Dream.ProduceImage  (when :llm lands)
+#        - :shell adapter for ProduceImage      (transitional ;
+#          points at rem_branch.sh until :llm lands)
+#        - :shell adapter for the seed-pool draw (transitional ;
+#          retires when per-source queries on Awareness / Nursery /
+#          Inbox / Vow / Musing / Memory land first-class)
+#   3. Delete rem_branch.sh's seed_dreams + rem_dream blocks ; the PM
+#      owns the autonomous content loop. The lucid/steer block stays
+#      until Phase 7 (Lucidity PM) lands.
+#   4. Verify in_memory_full_night spec : Dream.ProduceImage fires N
+#      times across 8 cycles ; Body.dream_pulses advances ; SleepCycle
+#      transitions through light → rem → deep correctly.
+#
+# Runtime gaps (filed inbox-worthy)
+# ---------------------------------
+#   - :llm adapter doesn't exist yet ; :shell adapter to rem_branch.sh
+#     bridges until it lands.
+#   - Per-source seed queries (Awareness.recent_concepts, Nursery.random_vision,
+#     Inbox.open_themes, Vow.text, Musing.unused, Memory.older_dream_echo,
+#     FrenchLit.random_quote) don't exist as first-class queries yet —
+#     today they're shell-resolved against heki paths.
+#   - DreamCorpus aggregate (canonical home for DreamImage entity) doesn't
+#     exist yet ; today dream_state.heki is a side-store appended to
+#     directly. Phase 6+1 cleanup : promote dream_state.heki to a real
+#     aggregate so DreamImage is properly entity-shaped.
+#   - DreamPool VO + diversity-rule specifications (PerseverativeSeed?,
+#     DiverseEnough?) haven't been declared as `specification` blocks ;
+#     they live in seed_dreams shell logic today. File as inbox.
+#
+# ----- DSL surface check --------------------------------------
+#
+# Every DSL feature used in this draft :
+#   ✓ process_manager "Name" do … end
+#   ✓ correlates_by :field
+#   ✓ starts_on "EventName"
+#   ✓ ends_on "EventName"
+#   ✓ state "x" (x4)
+#   ✓ on "Event", transition: { from: :to } do |event, pm| ... end
+#
+# Matches Phase 1's spec coverage exactly. No new DSL features required
+# beyond what SleepCycle already exercises.

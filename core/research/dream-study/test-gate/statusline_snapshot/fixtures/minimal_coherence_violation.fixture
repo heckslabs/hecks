@@ -1,0 +1,13 @@
+# minimal_coherence_violation.fixture — incoherent state trips invariant 1
+# (mood=refreshed but fatigue=tired ∉ {alert, focused}) so status_coherence.sh
+# exits non-zero, and the renderer DEGRADES mood_icon to ⚠. The body is still
+# alive — the mood word + fatigue + counts all still render. This is the
+# "warning shape" : nothing is missing, but the shield is up.
+heki_seeds:
+  mood:           {current_state: "refreshed", creativity_level: 0.7, precision_level: 0.8}
+  heartbeat:      {fatigue_state: "tired", fatigue: 0.6, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 1200}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 100}
+  musing_mint:    {total_minted: 0}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 100 ⚠ refreshed 🥱 tired 💭 0 ✉️ {{INBOX}} 🤖"

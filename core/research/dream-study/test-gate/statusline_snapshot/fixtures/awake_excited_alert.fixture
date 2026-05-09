@@ -1,0 +1,10 @@
+# awake_excited_alert.fixture — bursty wake : excited mood + alert fatigue,
+# tiny beats count (7), low musings (1). Pulses=100 in alert rung.
+heki_seeds:
+  mood:           {current_state: "excited", creativity_level: 0.9, precision_level: 0.7}
+  heartbeat:      {fatigue_state: "alert", fatigue: 0.1, pulse_rate: 1.2, flow_rate: "fast", pulses_since_sleep: 100}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 7}
+  musing_mint:    {total_minted: 1}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 7 🤩 excited ⚡ alert 💭 1 ✉️ {{INBOX}} 🤖"

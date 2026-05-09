@@ -1,0 +1,11 @@
+# awake_fresh_wake.fixture — just-woken : refreshed mood, alert fatigue, low
+# pulses. Smallest beats count (raw integer, no k-suffix). Coherence invariant 1
+# satisfied (mood=refreshed → fatigue ∈ {alert, focused}).
+heki_seeds:
+  mood:           {current_state: "refreshed", creativity_level: 0.7, precision_level: 0.8}
+  heartbeat:      {fatigue_state: "alert", fatigue: 0.0, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 0}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 100}
+  musing_mint:    {total_minted: 5}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 100 😊 refreshed ⚡ alert 💭 5 ✉️ {{INBOX}} 🤖"

@@ -56,9 +56,17 @@ Hecks.hecksagon "Boot" do
   # gains a first-class `daemon` keyword (sibling of `aggregate`,
   # `policy`, etc.), each one becomes its own declaration.
 
+  # Mindstream — the body's 1Hz tick driver. Inlines what
+  # body/mindstream.sh used to wrap (the script retired
+  # 2026-05-08 in the miette→hecks boundary cleanup ; its content
+  # was a 5-line shell exec into `hecks-life run-loop`). The
+  # body-cycle dispatch fan-out (Tick.MindstreamTick on attentive,
+  # Consciousness.ElapsePhase on sleeping_*) lives in
+  # body/cycles/body_cycle.bluebook (the BodyCycle PM) ;
+  # run-loop fires BodyPulse, the PM observes and routes.
   adapter :daemon, name: :mindstream,
     pidfile: "{info}/.mindstream.pid",
-    command: "{body}/mindstream.sh"
+    command: "{hecks} run-loop {body}/.. --every 1s --emit BodyPulse:Consciousness:consciousness --bootstrap-if Consciousness.state=attentive:WokenUp:Consciousness:consciousness"
 
   adapter :daemon, name: :heart,
     pidfile: "{info}/.heart.pid",

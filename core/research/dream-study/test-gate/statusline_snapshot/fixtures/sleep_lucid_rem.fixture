@@ -1,0 +1,11 @@
+# sleep_lucid_rem.fixture — Cycle 8 lucid REM (i208 contract) : sleep_total=8 ⇒
+# dream_pulses_needed=8 (not 5) ; is_lucid=yes ⇒ phase_label="lucid rem" ; the
+# narrative comes from lucid_dream.latest_narrative prefixed with ✨, NOT from
+# sleep_summary (which is fallback for non-lucid).
+heki_seeds:
+  mood:           {current_state: "sleeping", creativity_level: 0.5, precision_level: 0.5}
+  heartbeat:      {fatigue_state: "alert", fatigue: 0.1, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 0}
+  consciousness:  {state: "sleeping", sleep_stage: "rem", sleep_cycle: 8, sleep_total: 8, phase_ticks: 4, dream_pulses: 4, dream_pulses_needed: 8, is_lucid: "yes", sleep_summary: "background dream impression"}
+  tick:           {cycle: 100}
+  lucid_dream:    {active: "yes", latest_narrative: "I'd like to fly over the ocean"}
+expected_render: "{{MOON}} cycle 8/8 — lucid rem +0:40 · 4/8 dreams  ✨ I'd like to fly over the ocean"

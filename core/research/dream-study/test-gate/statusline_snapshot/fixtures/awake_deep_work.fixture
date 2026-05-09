@@ -1,0 +1,10 @@
+# awake_deep_work.fixture — flow state : focused mood + focused fatigue, k-suffix
+# beats threshold (5500 → "5.50k"). Pulses=300 lands in focused rung (250..499).
+heki_seeds:
+  mood:           {current_state: "focused", creativity_level: 0.7, precision_level: 0.8}
+  heartbeat:      {fatigue_state: "focused", fatigue: 0.3, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 300}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 5500}
+  musing_mint:    {total_minted: 25}
+  claude_assist:  {provider: "claude"}
+expected_render: "{{HEART}} 5.50k 🎯 focused 🎯 focused 💭 25 ✉️ {{INBOX}} 🤖"

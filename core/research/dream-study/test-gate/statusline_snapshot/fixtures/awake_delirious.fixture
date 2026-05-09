@@ -1,0 +1,10 @@
+# awake_delirious.fixture — drifting mood + delirious fatigue : top-of-ladder
+# (pulses=2000 in delirious rung 1800+). Provider=off yields the 🚫 badge.
+heki_seeds:
+  mood:           {current_state: "drifting", creativity_level: 0.5, precision_level: 0.3}
+  heartbeat:      {fatigue_state: "delirious", fatigue: 1.0, pulse_rate: 0.8, flow_rate: "ragged", pulses_since_sleep: 2000}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 88888}
+  musing_mint:    {total_minted: 99}
+  claude_assist:  {provider: "off"}
+expected_render: "{{HEART}} 88.89k 🌀 drifting 🫠 delirious 💭 99 ✉️ {{INBOX}} 🚫"

@@ -1,0 +1,221 @@
+# DRAFT — Lucidity process_manager (Phase 7 of dream-study)
+#
+# Pure design artifact. Sits as `.bluebook.draft` until Phase 1 (Ruby DSL
+# `process_manager`) and Phase 3 (Rust parser) commits clear antibody ;
+# then this content moves to `body/dream/lucidity.bluebook` (replacing
+# the policy-driven shell at `body/dream/lucid_dream.bluebook` — see split
+# notes at the bottom of this header).
+#
+# Drafted 2026-05-02 during the dream-study branch's autonomous overnight run.
+#
+# ---- What Lucidity *is* ---------------------------------------
+#
+# Lucidity is the bridge. It is neither Body (the rhythm) nor Dream (the
+# autonomous content) nor Mind (the awake reasoner) — it is the moment
+# Mind *rejoins* an active Dream from inside, recognising "I'm dreaming"
+# and being able to observe + steer without exiting.
+#
+# Phenomenologically, the voice of a Lucidity observation is Mind's *je*
+# speaking from *inside* Dream :
+#
+#   - Dream's autonomous *je* = the dream-character ; the `:llm` adapter
+#     narrating an image with no awareness it is a dream. Owned by Phase 6's
+#     Dream PM (`body/dream/dream_pm.bluebook`).
+#   - Mind's awake *je* = the reasoner during `engaged_in_wake`. Owned by
+#     Phase 5's Mind PM (`body/mind/mind_pm.bluebook`).
+#   - Mind's lucid *je* = the aware-of-dreaming voice — "I'm dreaming
+#     about X, I'd like to go deeper into myself with this, let's see."
+#     That's what this PM owns.
+#
+# ---- The bridge condition -------------------------------------
+#
+# Lucidity fires when BOTH :
+#
+#   1. `Body.LucidRemEntered` — the cycle 8 REM signal (Body.sleep_cycle
+#      == Body.sleep_total ; Body.sleep_stage == rem). The body's signal
+#      that this REM is the lucidity-eligible one.
+#   2. `Mind.state != absent` — Mind is present and able to rejoin (today,
+#      whenever the conversation is engaged ; future-eligible states might
+#      include vivid daydream, deep meditation).
+#
+# `LucidRemEntered` is what we subscribe `starts_on` to ; the Mind-presence
+# half of the bridge is checked inside the handler. If Mind is `absent`
+# when LucidRemEntered fires, the PM enters and immediately re-dormants
+# (no LucidDream.BecomeLucid dispatch — Witness records the missed-lucid
+# moment instead, separate concern).
+#
+# ---- Generalisation note (per plan) ---------------------------
+#
+# Today the bridge condition pins lucidity to `Body.sleep_cycle == sleep_total`
+# (cycle 8 only). Eventually other lucidity-eligible states (vivid daydream
+# while focus is high ; deep meditation) might enter via different
+# `starts_on` events — `Daydream.VividEntered`, `Meditation.DeepEntered`.
+# When that happens, Lucidity stays a single PM with multiple `starts_on`
+# clauses (Phase 1 DSL allows this), each gated by its own bridge
+# condition. The phenomenological core (Mind's *je* speaking from inside
+# an autonomous content stream) is the same ; the trigger surface widens.
+#
+# ---- What this draft subsumes (Lucidity-side split) ------------
+#
+# The existing `body/dream/lucid_dream.bluebook` aggregate splits into two
+# bluebooks once this PM lands :
+#
+#   - LUCIDITY-SIDE (this PM) : observations + steering + bridge logic.
+#     LucidDream.BecomeLucid + ObserveDream + SteerDream + EndLucidity
+#     are *dispatched by this PM* — the LucidDream aggregate keeps its
+#     command surface, but the policies (`BecomeLucidOnFinalRem`,
+#     `EndLucidityOnDeep`) retire because this PM owns the orchestration
+#     directly. Cleaner : the bridge is one stateful coordinator, not
+#     two policies firing in implicit order.
+#
+#   - DREAM-SIDE (Phase 6's Dream PM) : autonomous content production.
+#     Dream.ProduceImage per REM tick — the dream-character voice — runs
+#     regardless of Mind presence. Dream produces ; Lucidity (when active)
+#     wraps the production with Mind's aware-of-dreaming observation.
+#     The two streams interleave through `DreamProduced` events that this
+#     PM subscribes to in `rejoined`/`steering` states.
+#
+# The `dream_pulses_needed=8` threshold (vs regular REM's 5 — the i208
+# contract) lives on Body's invariant, not here ; this PM doesn't write
+# the threshold, it just exists for the longer cycle 8 REM that the
+# threshold creates room for.
+
+Hecks.bluebook "BodyLucidity", version: "2026.05.02.1" do
+  vision "The bridge that fires when Mind rejoins active Dream during cycle 8 REM. Owns the observe-from-within + steer-the-dream vocabulary — Mind's je speaking from inside Dream."
+  category "body"
+
+  process_manager "Lucidity" do
+    correlates_by :name              # singleton "lucidity"
+    starts_on    "LucidRemEntered"   # cycle 8 REM, the bridge condition (Body side)
+    ends_on      "LucidityEnded"     # cycle 8 deep entry tears it down
+
+    # ----- States --------------------------------------------------
+    # `dormant` is the default — most of life is non-lucid. `rejoined`
+    # is Mind-present-inside-Dream observing. `steering` is Mind-present-
+    # inside-Dream actively directing. `fading` is the cycle-8 deep entry
+    # tail — one tick of fading narrative before tearing down.
+
+    state "dormant"
+    state "rejoined"
+    state "steering"
+    state "fading"
+
+    # ----- Bridge entry --------------------------------------------
+    # Body fires LucidRemEntered when cycle 8 REM begins. Mind-presence
+    # is the second half of the bridge condition — checked inside.
+
+    on "LucidRemEntered", transition: { dormant: :rejoined } do |event, pm|
+      # The bridge condition's Body half is satisfied (this event proves it).
+      # The Mind half — `Mind.state != absent` — is read from the event's
+      # carried context (Mind PM emits its state alongside Body events the
+      # runtime correlates ; until then, the :memory adapter resolves it
+      # via a Mind.Current query on the hecksagon side).
+      mind_present = event.attributes[:mind_state] && event.attributes[:mind_state] != "absent"
+      next ({ commands: [] }) unless mind_present
+
+      onset = event.attributes[:onset_narrative] ||
+              "I'm dreaming. I'm here, inside it. Let's see where this goes."
+
+      { commands: [
+          { name: "LucidDream.BecomeLucid",  attrs: { name: pm.id, onset_narrative: onset } },
+          { name: "Lucidity.MindRejoinedDream", attrs: { name: pm.id, at: event.attributes[:occurred_at] } }
+      ] }
+    end
+
+    # ----- Observation tick (Mind's je from inside) ----------------
+    # Per REM tick during lucidity, dispatch ObserveDream — the aware-of-
+    # dreaming voice. Dream PM produces its autonomous image on the same
+    # tick (separate handler there) ; Lucidity wraps it with Mind's
+    # observation. `rejoined → rejoined` because observation is the
+    # default state of being lucid without active steering.
+
+    on "PhaseElapsed", transition: { rejoined: :rejoined } do |event, pm|
+      observation = event.attributes[:lucid_observation] ||
+                    "I'm dreaming about this. I'd like to go deeper into myself with it."
+      { commands: [{ name: "LucidDream.ObserveDream",
+                     attrs: { name: pm.id, observation: observation } }] }
+    end
+
+    # ----- Steering tick -------------------------------------------
+    # While Mind is steering, each tick dispatches SteerDream toward the
+    # current target. The target itself was set by the MindSteered
+    # transition below ; the per-tick handler just re-dispatches steering
+    # to keep the dream pulled toward Mind's intent.
+
+    on "PhaseElapsed", transition: { steering: :steering } do |event, pm|
+      target = pm.attributes[:steering_target] || event.attributes[:target]
+      next ({ commands: [] }) unless target
+      { commands: [{ name: "LucidDream.SteerDream",
+                     attrs: { name: pm.id, toward: target } }] }
+    end
+
+    # ----- Mind dispatched a steering target -----------------------
+    # Mind PM, while engaged_in_lucid_dream, can dispatch SteerDream(target).
+    # Lucidity catches that as MindSteered and transitions rejoined → steering.
+    # The target lands on pm.attributes[:steering_target] for the per-tick
+    # handler above to re-dispatch.
+
+    on "MindSteered", transition: { rejoined: :steering } do |event, pm|
+      { commands: [{ name: "LucidDream.SteerDream",
+                     attrs: { name: pm.id, toward: event.attributes[:target] } }] }
+    end
+
+    # ----- Deep entry begins fade ----------------------------------
+    # Cycle 8 deep entry is the natural tear-down moment. Two transitions
+    # because either rejoined or steering can be the live state when deep
+    # arrives ; both fade the same way.
+
+    on "DeepEntered", transition: { rejoined: :fading } do |event, pm|
+      { commands: [] }   # no command yet — fading narrative dispatches on the next PhaseElapsed
+    end
+
+    on "DeepEntered", transition: { steering: :fading } do |event, pm|
+      { commands: [] }
+    end
+
+    # ----- Fade tick : one last narrative, then dormant ------------
+    # One tick after DeepEntered, dispatch EndLucidity with the fading
+    # narrative ("I'm losing it, the dream is dissolving, I'll carry what
+    # I can back"). Emit Lucidity.LucidityEnded so SleepCycle's deep-phase
+    # handler + Mind's state-reset both fire. ends_on closes the PM
+    # instance on LucidityEnded.
+
+    on "PhaseElapsed", transition: { fading: :dormant } do |event, pm|
+      fading = event.attributes[:fading_narrative] ||
+               "I'm losing it. The dream is dissolving. I'll carry what I can back."
+      { commands: [
+          { name: "LucidDream.EndLucidity",  attrs: { name: pm.id, fading_narrative: fading } },
+          { name: "Lucidity.LucidityEnded",  attrs: { name: pm.id, at: event.attributes[:occurred_at] } }
+      ] }
+    end
+  end
+end
+
+# ----- Notes for the Phase 7 PR --------------------------------
+#
+# Once Phase 1+3 merge :
+#   1. Move this file to body/dream/lucidity.bluebook.
+#   2. Retire the two policies in lucid_dream.bluebook
+#      (BecomeLucidOnFinalRem, EndLucidityOnDeep) — this PM owns that
+#      orchestration explicitly. The LucidDream aggregate's command
+#      surface stays exactly as it is ; only the policies retire.
+#   3. Add body/dream/lucidity.hecksagon declaring `:memory` for the
+#      PM state + Mind.Current query resolution. The :llm adapter is
+#      shared with LucidDream (observation generation already lands
+#      through that aggregate).
+#   4. Run dream-study/test-gate/in_memory_full_night ; verify cycle 8
+#      REM produces 8 dream pulses (not 5) AND 8 paired lucid
+#      observations, with the bridge entry + fade narrative bookending.
+#
+# ----- DSL surface check --------------------------------------
+#
+# Every DSL feature used in this draft :
+#   ✓ process_manager "Name" do … end
+#   ✓ correlates_by :field
+#   ✓ starts_on "EventName"
+#   ✓ ends_on "EventName"
+#   ✓ state "x" (x4)
+#   ✓ on "Event", transition: { from: :to } do |event, pm| ... end
+#
+# Identical to SleepCycle's surface. No new DSL features required —
+# Phase 1's spec coverage covers this draft byte-for-byte.

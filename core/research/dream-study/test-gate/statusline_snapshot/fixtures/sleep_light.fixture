@@ -1,0 +1,10 @@
+# sleep_light.fixture — Cycle 1 NREM-light : no timer (NREM is content-gated),
+# just moon + cycle/8 — light. Mood "sleeping" satisfies coherence invariant 2 ;
+# fatigue=alert with pulses=0 satisfies invariant 3 ; sleep_stage=light has no
+# REM narrative requirement (invariant 5).
+heki_seeds:
+  mood:           {current_state: "sleeping", creativity_level: 0.5, precision_level: 0.5}
+  heartbeat:      {fatigue_state: "alert", fatigue: 0.1, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 0}
+  consciousness:  {state: "sleeping", sleep_stage: "light", sleep_cycle: 1, sleep_total: 8, phase_ticks: 0, dream_pulses: 0, dream_pulses_needed: 5, is_lucid: "no", sleep_summary: ""}
+  tick:           {cycle: 100}
+expected_render: "{{MOON}} cycle 1/8 — light"

@@ -1,0 +1,12 @@
+# awake_curious_normal.fixture — curious mood + normal fatigue. Edge case :
+# fatigue_icon_for("normal") returns "" so the renderer SKIPS both the icon AND
+# the word "normal" — the line jumps straight from mood to 💭. Provider=local
+# yields the 🦙 badge.
+heki_seeds:
+  mood:           {current_state: "curious", creativity_level: 0.6, precision_level: 0.6}
+  heartbeat:      {fatigue_state: "normal", fatigue: 0.4, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 600}
+  consciousness:  {state: "attentive", sleep_stage: "", sleep_cycle: 8, sleep_total: 8, sleep_summary: "", is_lucid: "no"}
+  tick:           {cycle: 12345}
+  musing_mint:    {total_minted: 8}
+  claude_assist:  {provider: "local"}
+expected_render: "{{HEART}} 12.35k 🤔 curious 💭 8 ✉️ {{INBOX}} 🦙"

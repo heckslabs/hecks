@@ -1,0 +1,11 @@
+# sleep_rem.fixture — Cycle 3 REM mid-dream : timer counts up (phase_ticks * 10s),
+# dream pulses progress 2/5 (default cycle-1..7 target). Sleep_summary populated
+# for narrative tail. Invariant 5 requires lucid_dream.latest_narrative non-empty
+# even for non-lucid REM (the renderer only shows it for lucid).
+heki_seeds:
+  mood:           {current_state: "sleeping", creativity_level: 0.5, precision_level: 0.5}
+  heartbeat:      {fatigue_state: "alert", fatigue: 0.1, pulse_rate: 1.0, flow_rate: "steady", pulses_since_sleep: 0}
+  consciousness:  {state: "sleeping", sleep_stage: "rem", sleep_cycle: 3, sleep_total: 8, phase_ticks: 4, dream_pulses: 2, dream_pulses_needed: 5, is_lucid: "no", sleep_summary: "a sample dream image"}
+  tick:           {cycle: 100}
+  lucid_dream:    {active: "no", latest_narrative: "(narrative for invariant 5)"}
+expected_render: "{{MOON}} cycle 3/8 — rem +0:40 · 2/5 dreams  a sample dream image"

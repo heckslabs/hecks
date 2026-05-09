@@ -1,0 +1,8 @@
+# Dream-study test-gate Gemfile (Phase 0g — invariants).
+#
+# Reuses Hecks's gem environment via eval_gemfile so `bundle exec rspec`
+# from this directory resolves the same gems Hecks itself depends on
+# (rspec, json, etc.). Mirrors the sibling Phase 0 directories.
+
+HECKS_GEMFILE = File.expand_path("../../../../hecks/Gemfile", __dir__)
+eval_gemfile HECKS_GEMFILE
