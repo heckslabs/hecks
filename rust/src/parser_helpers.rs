@@ -2,6 +2,18 @@
 //!
 //! Utilities for pulling strings, symbols, blocks, and keywords
 //! out of Bluebook DSL lines. Used by the parser module.
+//!
+//! [antibody-exempt: rust/src/parser_helpers.rs — kernel-floor
+//!  parser primitives. The bluebook parser cannot itself be a
+//!  bluebook (chicken-and-egg) ; this file is the Rust kernel
+//!  that turns .bluebook source into IR. Mirror of
+//!  ruby/lib/hecks/dsl in scope ; lockstep parser parity is
+//!  enforced via parity/parity_test.rb and known_drift.txt.
+//!  2026-05-09 — adds comment-aware ends_with_do_block (a `#`
+//!  prefix on a trimmed line means "not a block-opener"), closing
+//!  the synapse.bluebook drift entry where commented `query "cold"
+//!  do` lines silently broke nested block depth-counting on the
+//!  Rust side. Ruby's parser ignores `#` lines natively.]
 
 pub fn extract_string(line: &str) -> Option<String> {
     let start = line.find('"')? + 1;
@@ -68,8 +80,18 @@ pub fn extract_state_token(text: &str) -> Option<String> {
 
 /// Check if line ends with ` do` (with optional block-arg list `|arg, ...|`).
 /// Matches `... do`, `do`, and `... do |x|`, `... do |x, y|`.
+///
+/// Commented lines (those whose trimmed form starts with `#`) are
+/// never block-openers — even if they contain `do` syntactically.
+/// Without this guard, a commented-out `# query "cold" do` would
+/// increment the parser's depth counter and swallow subsequent
+/// top-level declarations as if they were nested inside the
+/// phantom block. Closes the synapse.bluebook drift entry whose
+/// commented `do` lines silently broke `query "alive"` resolution
+/// on the Rust side ; Ruby's parser ignores comments natively.
 pub fn ends_with_do_block(line: &str) -> bool {
     let trimmed = line.trim();
+    if trimmed.starts_with('#') { return false; }
     if trimmed.ends_with(" do") || trimmed == "do" {
         return true;
     }
