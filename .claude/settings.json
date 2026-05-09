@@ -51,6 +51,11 @@
             "type": "command",
             "command": "F=/tmp/wake_review_latest.md; M=/tmp/.miette_last_wake_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then CONTENT=$(cat \"$F\" | jq -Rs .); printf '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":%s}}' \"$CONTENT\"; touch \"$M\"; fi; true",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life statusline 2>/dev/null | jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"current body state : \" + (. | rtrimstr(\"\\n\")))}}' 2>/dev/null || true",
+            "timeout": 5
           }
         ]
       }
