@@ -2,6 +2,13 @@
 # statusline_regression_smoke.sh — catch the regression classes that have
 # bit us twice in the 2026-04-22 arc:
 #
+# [antibody-exempt: hecks_conception/tests/statusline_regression_smoke.sh —
+#  transitional shell smoke until every non-bluebook test file retires to
+#  .behaviors with an executable runner (i499). Today the runtime parses
+#  .behaviors but doesn't execute them as live tests ; the shell gates the
+#  statusline contract in the meantime. Retires under i44 (statusline-as-
+#  bluebook) + i499 (universal test-file bluebook conversion).]
+#
 #   1. SYMLINK RESOLUTION — Claude Code runs the script via a symlink
 #      (~/.claude/statusline-command.sh → hecks_conception/). If $0 is
 #      used without readlink the script can't find status_coherence.sh,
@@ -63,9 +70,15 @@ trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$SYMLINK_DIR"' EXIT
 ln -s "$CONCEPT_DIR/statusline-command.sh" "$SYMLINK_DIR/statusline-command.sh"
 
 # seed <info-dir> <mood> <fatigue_state> <pulses_since_sleep>
-# Writes coherent body state per status_coherence.sh invariants 1 + 3.
+# Writes coherent body state per status_coherence.sh invariants 1, 3, 6.
+# Invariant 6 (added i498, 2026-05-08) : fatigue_state="spent" requires
+# consciousness ∈ {sleeping, napping}. The seed picks the consciousness
+# state to keep the snapshot coherent — `spent` pairs with `napping`,
+# everything else with `attentive`.
 seed() {
   local info="$1" mood="$2" fstate="$3" pulses="$4"
+  local consc_state="attentive"
+  [ "$fstate" = "spent" ] && consc_state="napping"
   "$HECKS" heki upsert "$info/mood.heki" \
     --reason "test setup : statusline regression fixture — seed mood for coherence invariants" \
     current_state="$mood" creativity_level=0.7 precision_level=0.8 >/dev/null
@@ -74,8 +87,8 @@ seed() {
     fatigue=0.3 fatigue_state="$fstate" pulse_rate=1.0 \
     flow_rate="steady" pulses_since_sleep="$pulses" >/dev/null
   "$HECKS" heki upsert "$info/consciousness.heki" \
-    --reason "test setup : statusline regression fixture — seed attentive consciousness" \
-    state="attentive" sleep_stage="" sleep_cycle=8 sleep_total=8 \
+    --reason "test setup : statusline regression fixture — seed consciousness coherent with fatigue rung (invariant 6)" \
+    state="$consc_state" sleep_stage="" sleep_cycle=8 sleep_total=8 \
     sleep_summary="" is_lucid="no" >/dev/null
   "$HECKS" heki upsert "$info/tick.heki" \
     --reason "test setup : statusline regression fixture — seed tick cycle for monotonicity invariant" \
