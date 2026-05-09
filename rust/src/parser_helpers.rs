@@ -15,10 +15,49 @@
 //!  do` lines silently broke nested block depth-counting on the
 //!  Rust side. Ruby's parser ignores `#` lines natively.]
 
+/// Extract a `"..."` string literal from `line`, respecting backslash
+/// escapes inside the quotes.
+///
+/// Two forms accepted, matching Ruby's parse semantics :
+///
+///   "simple"             → simple
+///   "with \"quotes\""    → with "quotes"
+///   "trailing \\"        → trailing \
+///
+/// Returns the UNESCAPED content (the way Ruby's `eval` of the string
+/// literal would). Without the unescape step, Ruby's IR carries
+/// `'with "quotes"'` while Rust would carry `'with \\"quotes\\"'` —
+/// the escape-sequence parity drift that listed both
+/// codegen/cli_dispatch_shape and codegen/parser_helpers_shape under
+/// known_drift.txt. Both retire when this function unescapes correctly.
 pub fn extract_string(line: &str) -> Option<String> {
     let start = line.find('"')? + 1;
-    let end = line[start..].find('"')? + start;
-    Some(line[start..end].to_string())
+    let mut out = String::new();
+    let mut chars = line[start..].chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            // Recognised escape sequences mirror Ruby's basic set ;
+            // anything else passes through with its leading backslash
+            // dropped (so `\X` → `X`), matching Ruby's "ignore unknown
+            // escape" behavior in double-quoted string literals.
+            match chars.next() {
+                Some('"')  => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some('n')  => out.push('\n'),
+                Some('t')  => out.push('\t'),
+                Some('r')  => out.push('\r'),
+                Some('0')  => out.push('\0'),
+                Some(other) => out.push(other),
+                None => return None,
+            }
+            continue;
+        }
+        if c == '"' {
+            return Some(out);
+        }
+        out.push(c);
+    }
+    None
 }
 
 pub fn extract_second_string(line: &str) -> Option<String> {
