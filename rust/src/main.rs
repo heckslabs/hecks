@@ -219,8 +219,17 @@ fn main() {
     }
 
     if command == "behaviors" {
+        // i500 — alias for `test`. Stays one release, then collapses.
         run_behaviors(&args);
         return;
+    }
+
+    if command == "test" {
+        // i500 — universal `.behaviors` runner. CLI glue around the
+        // existing run_suite_with_domain / run_suite_with_fixtures
+        // engine. File OR directory, filter/aggregate/format flags,
+        // structured exit codes (0/1/2/3).
+        std::process::exit(run_test(&args));
     }
 
     if command == "dump-fixtures" {
@@ -845,6 +854,402 @@ fn run_behaviors(args: &[String]) {
     println!("\n{} passed, {} failed, {} errored",
              result.passed(), result.failed(), result.errored());
     if !result.all_passed() { std::process::exit(1); }
+}
+
+// ============================================================
+// i500 — `hecks-life test <path>` subcommand.
+//
+// CLI glue around the behaviors_runner engine. File OR directory,
+// filter/aggregate flags, output formats (compact/tap/rspec/json),
+// structured exit codes :
+//   0  all pass
+//   1  ≥1 fail/error
+//   2  parse error
+//   3  no tests matched filter (suppress via --allow-empty)
+//
+// The legacy `behaviors` subcommand stays as alias for one release.
+// ============================================================
+
+#[derive(Clone, Copy, PartialEq)]
+enum TestFmt { Compact, Tap, Rspec, Json }
+
+struct TestOpts {
+    path: String,
+    filter: Option<String>,
+    aggregate: Option<String>,
+    fmt: TestFmt,
+    fail_fast: bool,
+    list: bool,
+    corpus: Option<String>,
+    allow_empty: bool,
+}
+
+fn parse_test_opts(args: &[String]) -> Result<TestOpts, String> {
+    let mut path: Option<String> = None;
+    let mut filter: Option<String> = None;
+    let mut aggregate: Option<String> = None;
+    let mut fmt = TestFmt::Compact;
+    let mut fail_fast = false;
+    let mut list = false;
+    let mut corpus: Option<String> = None;
+    let mut allow_empty = false;
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        match a {
+            "--filter"      => { i += 1; filter = Some(args.get(i).cloned().ok_or("--filter needs a value")?); }
+            "--aggregate"   => { i += 1; aggregate = Some(args.get(i).cloned().ok_or("--aggregate needs a value")?); }
+            "--format"      => {
+                i += 1;
+                let v = args.get(i).map(|s| s.as_str()).unwrap_or("");
+                fmt = match v {
+                    "compact" => TestFmt::Compact,
+                    "tap"     => TestFmt::Tap,
+                    "rspec"   => TestFmt::Rspec,
+                    "json"    => TestFmt::Json,
+                    other     => return Err(format!("--format expects compact|tap|rspec|json, got `{}`", other)),
+                };
+            }
+            "--fail-fast"   => fail_fast = true,
+            "--list"        => list = true,
+            "--corpus"      => { i += 1; corpus = Some(args.get(i).cloned().ok_or("--corpus needs a value")?); }
+            "--allow-empty" => allow_empty = true,
+            other if other.starts_with("--") => return Err(format!("unknown flag: {}", other)),
+            other => {
+                if path.is_none() { path = Some(other.to_string()); }
+                else { return Err(format!("unexpected positional arg: {}", other)); }
+            }
+        }
+        i += 1;
+    }
+    let path = path.unwrap_or_else(|| {
+        // Default to $PWD/hecks_conception or $PWD per i500.
+        let cwd = std::env::current_dir().ok()
+            .and_then(|p| Some(p.to_string_lossy().into_owned()))
+            .unwrap_or_else(|| ".".into());
+        let candidate = format!("{}/hecks_conception", cwd);
+        if std::path::Path::new(&candidate).is_dir() { candidate } else { cwd }
+    });
+    Ok(TestOpts { path, filter, aggregate, fmt, fail_fast, list, corpus, allow_empty })
+}
+
+fn collect_behavior_files(root: &str) -> Vec<String> {
+    let p = std::path::Path::new(root);
+    if p.is_file() {
+        return vec![root.to_string()];
+    }
+    let mut out: Vec<String> = Vec::new();
+    let mut stack: Vec<std::path::PathBuf> = vec![p.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) { Ok(e) => e, Err(_) => continue };
+        let mut sub: Vec<std::path::PathBuf> = Vec::new();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                // Skip hidden/.git dirs ; conventional vendor / build trees.
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.') || name == "node_modules" || name == "target" { continue; }
+                }
+                sub.push(path);
+            } else if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("behaviors") {
+                out.push(path.to_string_lossy().into_owned());
+            }
+        }
+        // Stable, source order : sort entries lexically.
+        sub.sort();
+        for s in sub.into_iter().rev() { stack.push(s); }
+    }
+    out.sort();
+    out
+}
+
+struct SuiteRunReport {
+    suite_path: String,
+    source_path: String,
+    fixtures_path: Option<String>,
+    parse_error: Option<String>,
+    runs: Vec<hecks_life::behaviors_runner::TestRun>,
+    skipped_by_filter: usize,
+}
+
+fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
+    let source_path = source_for_suite(suite_path);
+    let mut report = SuiteRunReport {
+        suite_path: suite_path.to_string(),
+        source_path: source_path.clone(),
+        fixtures_path: None,
+        parse_error: None,
+        runs: Vec::new(),
+        skipped_by_filter: 0,
+    };
+    let suite_text = match std::fs::read_to_string(suite_path) {
+        Ok(t) => t,
+        Err(e) => { report.parse_error = Some(format!("cannot read {}: {}", suite_path, e)); return report; }
+    };
+    if !hecks_life::behaviors_parser::is_behaviors_source(&suite_text) {
+        report.parse_error = Some(format!("{} is not a Hecks.behaviors file", suite_path));
+        return report;
+    }
+    let source_text = match std::fs::read_to_string(&source_path) {
+        Ok(t) => t,
+        Err(e) => { report.parse_error = Some(format!("cannot read source {}: {}", source_path, e)); return report; }
+    };
+
+    let mut suite = hecks_life::behaviors_parser::parse(&suite_text);
+
+    // Apply --filter / --aggregate post-parse. We mutate suite.tests in
+    // place ; the runner doesn't care that it was filtered.
+    let original_count = suite.tests.len();
+    let filter_lc = opts.filter.as_ref().map(|s| s.to_lowercase());
+    let agg_match = opts.aggregate.as_ref();
+    suite.tests.retain(|t| {
+        if let Some(ref f) = filter_lc {
+            if !t.description.to_lowercase().contains(f) { return false; }
+        }
+        if let Some(a) = agg_match {
+            if &t.on_aggregate != a { return false; }
+        }
+        true
+    });
+    report.skipped_by_filter = original_count - suite.tests.len();
+
+    if suite.tests.is_empty() {
+        return report;
+    }
+
+    let fixtures_path = hecks_life::behaviors_fixtures::locate_path(suite_path);
+    let fixtures = fixtures_path.as_deref()
+        .and_then(hecks_life::behaviors_fixtures::parse_file);
+    report.fixtures_path = fixtures_path;
+
+    // --corpus override falls back to the auto-detect when absent.
+    let combined = match &opts.corpus {
+        Some(root) => Some(load_combined_domain(root)),
+        None => behaviors_aggregates_root(suite_path).map(|root| load_combined_domain(&root)),
+    };
+    let result = match combined.as_ref() {
+        Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
+            &source_text, d, &suite, fixtures.as_ref(),
+        ),
+        None => hecks_life::behaviors_runner::run_suite_with_fixtures(
+            &source_text, &suite, fixtures.as_ref(),
+        ),
+    };
+    report.runs = result.runs;
+    report
+}
+
+fn run_test(args: &[String]) -> i32 {
+    let opts = match parse_test_opts(args) {
+        Ok(o) => o,
+        Err(e) => { eprintln!("test: {}", e); return 2; }
+    };
+
+    let files = collect_behavior_files(&opts.path);
+    if files.is_empty() {
+        if opts.allow_empty { return 0; }
+        eprintln!("test: no .behaviors files found at {}", opts.path);
+        return 3;
+    }
+
+    // --list : print the plan and exit 0. Useful for ratchet counts.
+    if opts.list {
+        let mut total = 0usize;
+        for f in &files {
+            let text = match std::fs::read_to_string(f) {
+                Ok(t) => t, Err(_) => continue,
+            };
+            if !hecks_life::behaviors_parser::is_behaviors_source(&text) { continue; }
+            let suite = hecks_life::behaviors_parser::parse(&text);
+            for t in &suite.tests {
+                let filter_ok = match &opts.filter {
+                    Some(s) => t.description.to_lowercase().contains(&s.to_lowercase()),
+                    None => true,
+                };
+                let agg_ok = match &opts.aggregate {
+                    Some(a) => &t.on_aggregate == a,
+                    None => true,
+                };
+                if filter_ok && agg_ok {
+                    println!("{}\t{}\t{}\t{}", f, t.on_aggregate, t.kind, t.description);
+                    total += 1;
+                }
+            }
+        }
+        println!("# {} test(s) planned", total);
+        return 0;
+    }
+
+    let mut reports: Vec<SuiteRunReport> = Vec::new();
+    let mut had_failure = false;
+    let mut had_parse_error = false;
+
+    for f in &files {
+        let report = run_one_suite(f, &opts);
+        if report.parse_error.is_some() { had_parse_error = true; }
+        let suite_failed = report.runs.iter().any(|r|
+            r.status != hecks_life::behaviors_runner::TestStatus::Pass);
+        if suite_failed { had_failure = true; }
+
+        match opts.fmt {
+            TestFmt::Compact => render_compact_inline(&report),
+            TestFmt::Rspec   => render_rspec_inline(&report),
+            TestFmt::Tap     => {} // emitted in batch below for stable numbering
+            TestFmt::Json    => {} // emitted as a single JSON document below
+        }
+
+        reports.push(report);
+
+        if opts.fail_fast && (had_failure || had_parse_error) { break; }
+    }
+
+    let total_runs: usize = reports.iter().map(|r| r.runs.len()).sum();
+    let total_pass: usize = reports.iter().map(|r| r.runs.iter().filter(|x|
+        x.status == hecks_life::behaviors_runner::TestStatus::Pass).count()).sum();
+    let total_fail: usize = reports.iter().map(|r| r.runs.iter().filter(|x|
+        x.status == hecks_life::behaviors_runner::TestStatus::Fail).count()).sum();
+    let total_err:  usize = reports.iter().map(|r| r.runs.iter().filter(|x|
+        x.status == hecks_life::behaviors_runner::TestStatus::Error).count()).sum();
+    let total_filtered: usize = reports.iter().map(|r| r.skipped_by_filter).sum();
+
+    match opts.fmt {
+        TestFmt::Compact => {
+            println!();
+            println!("{} file(s) ; {} test(s) : {} passed, {} failed, {} errored",
+                     reports.len(), total_runs, total_pass, total_fail, total_err);
+            if total_filtered > 0 {
+                println!("  ({} skipped by filter)", total_filtered);
+            }
+        }
+        TestFmt::Rspec => {
+            println!();
+            for r in &reports {
+                if let Some(err) = &r.parse_error {
+                    println!("PARSE ERROR — {}: {}", r.suite_path, err);
+                }
+                for run in &r.runs {
+                    if run.status != hecks_life::behaviors_runner::TestStatus::Pass {
+                        let kind = match run.status {
+                            hecks_life::behaviors_runner::TestStatus::Fail => "FAILED",
+                            hecks_life::behaviors_runner::TestStatus::Error => "ERROR",
+                            _ => "",
+                        };
+                        println!("  {} — {}", kind, run.description);
+                        if let Some(m) = &run.message { println!("    {}", m); }
+                    }
+                }
+            }
+            println!("\n{} examples, {} failures, {} errors", total_runs, total_fail, total_err);
+        }
+        TestFmt::Tap => {
+            println!("TAP version 13");
+            println!("1..{}", total_runs);
+            let mut n = 0usize;
+            for r in &reports {
+                if let Some(err) = &r.parse_error {
+                    println!("# parse error in {}: {}", r.suite_path, err);
+                    continue;
+                }
+                for run in &r.runs {
+                    n += 1;
+                    let prefix = match run.status {
+                        hecks_life::behaviors_runner::TestStatus::Pass  => "ok",
+                        hecks_life::behaviors_runner::TestStatus::Fail  => "not ok",
+                        hecks_life::behaviors_runner::TestStatus::Error => "not ok",
+                    };
+                    println!("{} {} - {}", prefix, n, run.description);
+                    if let Some(msg) = &run.message {
+                        println!("  ---");
+                        for line in msg.lines() { println!("  {}", line); }
+                        println!("  ---");
+                    }
+                }
+            }
+            println!("# {} passed, {} failed, {} errored", total_pass, total_fail, total_err);
+        }
+        TestFmt::Json => {
+            let payload = serde_json::json!({
+                "files": reports.iter().map(|r| {
+                    serde_json::json!({
+                        "suite": r.suite_path,
+                        "source": r.source_path,
+                        "fixtures": r.fixtures_path,
+                        "parse_error": r.parse_error,
+                        "skipped_by_filter": r.skipped_by_filter,
+                        "runs": r.runs.iter().map(|run| {
+                            let status = match run.status {
+                                hecks_life::behaviors_runner::TestStatus::Pass  => "pass",
+                                hecks_life::behaviors_runner::TestStatus::Fail  => "fail",
+                                hecks_life::behaviors_runner::TestStatus::Error => "error",
+                            };
+                            serde_json::json!({
+                                "description": run.description,
+                                "status": status,
+                                "message": run.message,
+                            })
+                        }).collect::<Vec<_>>(),
+                    })
+                }).collect::<Vec<_>>(),
+                "summary": {
+                    "files": reports.len(),
+                    "total": total_runs,
+                    "passed": total_pass,
+                    "failed": total_fail,
+                    "errored": total_err,
+                    "filtered": total_filtered,
+                }
+            });
+            println!("{}", serde_json::to_string_pretty(&payload).unwrap());
+        }
+    }
+
+    // Empty-match handling : applies after parse + filter. If everything
+    // got filtered out across all suites, that's exit 3 unless allowed.
+    if total_runs == 0 && !had_parse_error {
+        if opts.allow_empty { return 0; }
+        eprintln!("test: no tests matched filter (use --allow-empty to suppress)");
+        return 3;
+    }
+
+    if had_parse_error { return 2; }
+    if had_failure { return 1; }
+    0
+}
+
+fn render_compact_inline(r: &SuiteRunReport) {
+    if let Some(err) = &r.parse_error {
+        println!("PARSE ERROR — {}: {}", r.suite_path, err);
+        return;
+    }
+    println!("Running {} test(s) from {}", r.runs.len(), r.suite_path);
+    println!("  source: {}", r.source_path);
+    if let Some(fp) = &r.fixtures_path { println!("  fixtures: {}", fp); }
+    for run in &r.runs {
+        let icon = match run.status {
+            hecks_life::behaviors_runner::TestStatus::Pass  => "PASS",
+            hecks_life::behaviors_runner::TestStatus::Fail  => "FAIL",
+            hecks_life::behaviors_runner::TestStatus::Error => "ERR ",
+        };
+        println!("  {} {}", icon, run.description);
+        if let Some(msg) = &run.message { println!("       {}", msg); }
+    }
+}
+
+fn render_rspec_inline(r: &SuiteRunReport) {
+    if r.parse_error.is_some() {
+        print!("E"); use std::io::Write; let _ = std::io::stdout().flush();
+        return;
+    }
+    use std::io::Write;
+    for run in &r.runs {
+        let c = match run.status {
+            hecks_life::behaviors_runner::TestStatus::Pass  => '.',
+            hecks_life::behaviors_runner::TestStatus::Fail  => 'F',
+            hecks_life::behaviors_runner::TestStatus::Error => 'E',
+        };
+        print!("{}", c);
+    }
+    let _ = std::io::stdout().flush();
 }
 
 /// `hecks-life check-io <bluebook> [--strict]`
