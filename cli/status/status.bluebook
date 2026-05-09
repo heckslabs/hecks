@@ -30,6 +30,15 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
   aggregate "StatusReport" do
     description "A single printed snapshot of Miette's subsystems. The pipeline resolves the :fs root, reads every .heki store, stamps the aggregate, renders eight labeled sections, and writes them through :stdout."
 
+    # StatusReport is a singleton — one report per process. The :name
+    # attribute defaults to "current" so every dispatch lands on the
+    # same aggregate row, letting the pipeline walk pending → done
+    # without counter-minting fresh ids on each command. Matches the
+    # `identified_by :name` convention used by sibling singletons
+    # (cli/subcommand/subcommand.bluebook).
+    identified_by :name
+    attribute :name, String, default: "current"
+
     # ---- Identity -----------------------------------------------
     attribute :identity_name,       String, default: "—"
 

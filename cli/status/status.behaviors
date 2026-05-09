@@ -19,33 +19,28 @@ Hecks.behaviors "Status" do
     expect phase: "resolving", emits: ["FsRootResolved"]
   end
 
-  # Pipeline-step transition tests are pending until StatusReport gains
-  # either `identified_by` or per-command `reference_to(StatusReport)`.
-  # Today every command on the aggregate has no self-ref AND the bluebook
-  # has no `identified_by`, so `id_for_command` counter-mints a fresh id
-  # on every dispatch — each setup call lands on a new aggregate at the
-  # default lifecycle (phase=pending), and the lifecycle gate then
-  # refuses any non-pending transition. The cascade test below covers the
-  # same arc end-to-end via `kind: :cascade` because same-type cascade
-  # preserves the upstream id (command_dispatch.rs cascade_hint path).
-  # Filing this as a status.bluebook gap : the singleton needs an
-  # explicit identity hook for setup-driven phase walks to work.
+  # Pipeline-step transition tests walk the lifecycle by chaining setups.
+  # StatusReport is a singleton (`identified_by :name`, default "current"),
+  # so every setup + tested command lands on the same aggregate row — the
+  # lifecycle advances pending → resolving → assembling → … → done as the
+  # chain replays. The cascade test below covers the same arc end-to-end
+  # via `kind: :cascade` (command_dispatch.rs cascade_hint path).
 
   test "AssembleReport moves phase from resolving to assembling" do
-    tests "AssembleReport", on: "StatusReport", kind: :pending
+    tests "AssembleReport", on: "StatusReport"
     setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
     expect phase: "assembling", emits: ["ReportAssembled"]
   end
 
   test "StampAggregate moves phase from assembling to stamping" do
-    tests "StampAggregate", on: "StatusReport", kind: :pending
+    tests "StampAggregate", on: "StatusReport"
     setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
     setup  "AssembleReport"
     expect phase: "stamping", emits: ["AggregateStamped"]
   end
 
   test "RenderReport moves phase from stamping to rendering" do
-    tests "RenderReport", on: "StatusReport", kind: :pending
+    tests "RenderReport", on: "StatusReport"
     setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
     setup  "AssembleReport"
     setup  "StampAggregate"
@@ -53,7 +48,7 @@ Hecks.behaviors "Status" do
   end
 
   test "WriteReport moves phase from rendering to writing" do
-    tests "WriteReport", on: "StatusReport", kind: :pending
+    tests "WriteReport", on: "StatusReport"
     setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
     setup  "AssembleReport"
     setup  "StampAggregate"
@@ -62,7 +57,7 @@ Hecks.behaviors "Status" do
   end
 
   test "CompleteReport moves phase from writing to done" do
-    tests "CompleteReport", on: "StatusReport", kind: :pending
+    tests "CompleteReport", on: "StatusReport"
     setup  "ResolveFsRoot", script_path: "sample", fs_root: "sample"
     setup  "AssembleReport"
     setup  "StampAggregate"
