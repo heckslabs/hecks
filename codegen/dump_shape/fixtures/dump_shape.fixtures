@@ -109,15 +109,16 @@ Hecks.fixtures "DumpShape" do
     fixture "Ref_target", serializer: "dump_reference", order: 2, key: "target", source: "target", mapping_kind: "direct", helper_fn: ""
     fixture "Ref_domain", serializer: "dump_reference", order: 3, key: "domain", source: "domain", mapping_kind: "direct", helper_fn: ""
 
-    # dump_command — 8 fields
-    fixture "Cmd_name",        serializer: "dump_command", order: 1, key: "name",        source: "name",        mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_description", serializer: "dump_command", order: 2, key: "description", source: "description", mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_role",        serializer: "dump_command", order: 3, key: "role",        source: "role",        mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_emits",       serializer: "dump_command", order: 4, key: "emits",       source: "emits",       mapping_kind: "direct",       helper_fn: ""
-    fixture "Cmd_attributes",  serializer: "dump_command", order: 5, key: "attributes",  source: "attributes",  mapping_kind: "recurse_list", helper_fn: "dump_attribute"
-    fixture "Cmd_references",  serializer: "dump_command", order: 6, key: "references",  source: "references",  mapping_kind: "recurse_list", helper_fn: "dump_reference"
-    fixture "Cmd_givens",      serializer: "dump_command", order: 7, key: "givens",      source: "givens",      mapping_kind: "recurse_list", helper_fn: "dump_given"
-    fixture "Cmd_mutations",   serializer: "dump_command", order: 8, key: "mutations",   source: "mutations",   mapping_kind: "recurse_list", helper_fn: "dump_mutation"
+    # dump_command — 9 fields (i250 added emits_identified_by)
+    fixture "Cmd_name",                 serializer: "dump_command", order: 1, key: "name",                 source: "name",                 mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_description",          serializer: "dump_command", order: 2, key: "description",          source: "description",          mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_role",                 serializer: "dump_command", order: 3, key: "role",                 source: "role",                 mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_emits",                serializer: "dump_command", order: 4, key: "emits",                source: "emits",                mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_emits_identified_by",  serializer: "dump_command", order: 5, key: "emits_identified_by",  source: "emits_identified_by",  mapping_kind: "direct",       helper_fn: ""
+    fixture "Cmd_attributes",           serializer: "dump_command", order: 6, key: "attributes",           source: "attributes",           mapping_kind: "recurse_list", helper_fn: "dump_attribute"
+    fixture "Cmd_references",           serializer: "dump_command", order: 7, key: "references",           source: "references",           mapping_kind: "recurse_list", helper_fn: "dump_reference"
+    fixture "Cmd_givens",               serializer: "dump_command", order: 8, key: "givens",               source: "givens",               mapping_kind: "recurse_list", helper_fn: "dump_given"
+    fixture "Cmd_mutations",            serializer: "dump_command", order: 9, key: "mutations",            source: "mutations",            mapping_kind: "recurse_list", helper_fn: "dump_mutation"
 
     # dump_query — 6 fields (i101 added attributes / wheres / order_by / limit)
     fixture "Qry_name",        serializer: "dump_query", order: 1, key: "name",        source: "name",        mapping_kind: "direct",           helper_fn: ""

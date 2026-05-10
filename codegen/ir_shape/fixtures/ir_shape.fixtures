@@ -193,15 +193,18 @@ Hecks.fixtures "IrShape" do
     fixture "Attribute_default",   type_name: "Attribute", order: 3, name: "default",   field_type: "Option<String>", doc_snippet: ""
     fixture "Attribute_list",      type_name: "Attribute", order: 4, name: "list",      field_type: "bool",           doc_snippet: ""
 
-    # Command — 8 fields.
+    # Command — 9 fields. i250 — `emits_identified_by` carries the
+    # event-identity attribute when `emits "X", identified_by: :y` is
+    # used. `None` for the back-compat unqualified form.
     fixture "Command_name",        type_name: "Command", order: 1, name: "name",        field_type: "String",          doc_snippet: ""
     fixture "Command_description", type_name: "Command", order: 2, name: "description", field_type: "Option<String>",  doc_snippet: ""
     fixture "Command_role",        type_name: "Command", order: 3, name: "role",        field_type: "Option<String>",  doc_snippet: ""
     fixture "Command_attributes",  type_name: "Command", order: 4, name: "attributes",  field_type: "Vec<Attribute>",  doc_snippet: ""
     fixture "Command_references",  type_name: "Command", order: 5, name: "references",  field_type: "Vec<Reference>",  doc_snippet: ""
     fixture "Command_emits",       type_name: "Command", order: 6, name: "emits",       field_type: "Option<String>",  doc_snippet: ""
-    fixture "Command_givens",      type_name: "Command", order: 7, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
-    fixture "Command_mutations",   type_name: "Command", order: 8, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
+    fixture "Command_emits_identified_by", type_name: "Command", order: 7, name: "emits_identified_by", field_type: "Option<String>", doc_snippet: ""
+    fixture "Command_givens",      type_name: "Command", order: 8, name: "givens",      field_type: "Vec<Given>",      doc_snippet: ""
+    fixture "Command_mutations",   type_name: "Command", order: 9, name: "mutations",   field_type: "Vec<Mutation>",   doc_snippet: ""
 
     # Query — 6 fields ; i101 added attributes, wheres, order_by, limit.
     fixture "Query_name",        type_name: "Query", order: 1, name: "name",        field_type: "String",            doc_snippet: ""

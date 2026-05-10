@@ -1,0 +1,17 @@
+Hecks.bluebook "EventIdentity", version: "2026.05.04.1" do
+  vision "i250 — events have identity ; emits with identified_by carries the dedupe key."
+
+  aggregate "PaymentIntake", "Receives Stripe payment events" do
+    attribute :stripe_event_id, String
+    attribute :amount_cents, Integer
+
+    command "RecordPayment" do
+      role "StripeWebhook"
+      attribute :stripe_event_id, String
+      attribute :amount_cents, Integer
+      then_set :stripe_event_id, from: :stripe_event_id
+      then_set :amount_cents, from: :amount_cents
+      emits "PaymentRecorded", identified_by: :stripe_event_id
+    end
+  end
+end

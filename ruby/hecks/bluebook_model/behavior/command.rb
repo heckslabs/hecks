@@ -1,3 +1,10 @@
+# [antibody-exempt: ruby/hecks/bluebook_model/behavior/command.rb — kernel-
+#  floor IR node for the `command` bluebook keyword. The Ruby IR layer is
+#  necessarily code (bluebook describes the shape ; IR classes hold the
+#  parsed-shape-as-Ruby-objects). Same Trikaya-floor justification as
+#  cadence.rb / query.rb / process_manager.rb. Edit for i250 :
+#  added emits_identified_by attr to mirror Rust IR.]
+
 module Hecks
   module BluebookModel
     module Behavior
@@ -39,7 +46,8 @@ module Hecks
 
       attr_reader :name, :attributes, :references, :handler, :guard_name, :read_models,
                   :external_systems, :actors, :call_body, :sets,
-                  :preconditions, :postconditions, :emits, :description, :goal,
+                  :preconditions, :postconditions, :emits, :emits_identified_by,
+                  :description, :goal,
                   :givens, :mutations
 
       # Creates a new Command IR node.
@@ -60,6 +68,7 @@ module Hecks
       def initialize(name:, attributes: [], references: [], handler: nil, guard_name: nil,
                      read_models: [], external_systems: [], actors: [],
                      call_body: nil, sets: {}, preconditions: [], postconditions: [], emits: nil,
+                     emits_identified_by: nil,
                      description: nil, method_name: nil, goal: nil,
                      givens: [], mutations: [])
         @name = Names.command_name(name)
@@ -75,6 +84,7 @@ module Hecks
         @preconditions = preconditions
         @postconditions = postconditions
         @emits = emits
+        @emits_identified_by = emits_identified_by
         @description = description
         @method_name = method_name
         @goal = goal

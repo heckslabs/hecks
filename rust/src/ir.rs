@@ -363,6 +363,7 @@ pub struct Command {
     pub attributes: Vec<Attribute>,
     pub references: Vec<Reference>,
     pub emits: Option<String>,
+    pub emits_identified_by: Option<String>,
     pub givens: Vec<Given>,
     pub mutations: Vec<Mutation>,
 }

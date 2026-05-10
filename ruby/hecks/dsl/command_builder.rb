@@ -1,3 +1,10 @@
+# [antibody-exempt: ruby/hecks/dsl/command_builder.rb — kernel-floor DSL
+#  builder. Bluebook describes the surface (`command "X" do ... emits "Y",
+#  identified_by: :z end`) ; this file is the Ruby builder that holds
+#  parsed-shape state during the .bluebook eval. Same Trikaya-floor
+#  justification as the rest of ruby/hecks/dsl/. Edit for i250 :
+#  `emits` accepts `identified_by:` kwarg, stored on the built Command IR.]
+
 module Hecks
   module DSL
 
@@ -57,6 +64,7 @@ module Hecks
         @preconditions = []
         @postconditions = []
         @emits = nil
+        @emits_identified_by = nil
         @method_name = nil
         @goal = nil
         @givens = []
@@ -199,8 +207,17 @@ module Hecks
       #
       # @example Multiple events
       #   emits "PizzaCreated", "MenuUpdated"
-      def emits(*names)
+      #
+      # @example With event identity (i250)
+      #   emits "PaymentRecorded", identified_by: :stripe_event_id
+      #
+      # `identified_by:` names the attribute that uniquely identifies an
+      # instance of the emitted event. Two reports of the same event
+      # (same identifier) can be deduped — same word an aggregate uses
+      # for its primary key, reused on the emit side.
+      def emits(*names, identified_by: nil)
         @emits = names.length == 1 ? names.first : names
+        @emits_identified_by = identified_by&.to_s
       end
 
       # Reference a guard policy by name that must pass before execution.
@@ -361,7 +378,8 @@ module Hecks
           read_models: @read_models, external_systems: @external_systems, actors: @actors,
           call_body: @call_body, sets: @sets,
           preconditions: @preconditions, postconditions: @postconditions,
-          emits: @emits, description: @description,
+          emits: @emits, emits_identified_by: @emits_identified_by,
+          description: @description,
           method_name: @method_name, goal: @goal,
           givens: @givens, mutations: @mutations
         )

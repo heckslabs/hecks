@@ -209,14 +209,19 @@ module Hecks
 
       def dump_command(cmd)
         {
-          "name"        => cmd.name,
-          "description" => command_description(cmd),
-          "role"        => primary_role(cmd),
-          "emits"       => emit_string(cmd.emits),
-          "attributes"  => (cmd.attributes || []).map { |a| dump_attribute(a) },
-          "references"  => (cmd.references || []).map { |r| dump_reference(r) },
-          "givens"      => (cmd.respond_to?(:givens) && cmd.givens || []).map { |g| dump_given(g) },
-          "mutations"   => (cmd.respond_to?(:mutations) && cmd.mutations || []).map { |m| dump_mutation(m) },
+          "name"                 => cmd.name,
+          "description"          => command_description(cmd),
+          "role"                 => primary_role(cmd),
+          "emits"                => emit_string(cmd.emits),
+          # i250 — events have identity. `emits "X", identified_by: :y`
+          # carries the event-identity attribute name. Same word
+          # aggregates use for primary keys ; reused on the emit side
+          # to dedupe two reports of the same event.
+          "emits_identified_by"  => (cmd.respond_to?(:emits_identified_by) ? cmd.emits_identified_by : nil),
+          "attributes"           => (cmd.attributes || []).map { |a| dump_attribute(a) },
+          "references"           => (cmd.references || []).map { |r| dump_reference(r) },
+          "givens"               => (cmd.respond_to?(:givens) && cmd.givens || []).map { |g| dump_given(g) },
+          "mutations"            => (cmd.respond_to?(:mutations) && cmd.mutations || []).map { |m| dump_mutation(m) },
         }
       end
 
