@@ -247,8 +247,16 @@ pub fn is_specializer_target(file_path: &str) -> Option<DispatchInfo> {
 ///     it spawns.
 pub fn is_hecksagon_dispatched(file_path: &str, corpus_root: &Path) -> Option<DispatchInfo> {
     let basename = Path::new(file_path).file_name()?.to_str()?;
+    let normalized = file_path.replace('\\', "/");
+    // For :web serializer matching the file must live at
+    // `rust/src/server/<name>.rs` ; pre-compute the stem if so.
+    let server_stem: Option<String> = Path::new(&normalized)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .filter(|_| normalized.contains("rust/src/server/"))
+        .map(|s| s.to_string());
     let mut found: Option<DispatchInfo> = None;
-    walk_hecksagons(corpus_root, &mut |path: &Path| {
+    walk_hecksagons_with_siblings(corpus_root, &mut |path: &Path| {
         if found.is_some() {
             return;
         }
@@ -272,10 +280,9 @@ pub fn is_hecksagon_dispatched(file_path: &str, corpus_root: &Path) -> Option<Di
         // because the kind is unknown to the ShellAdapter family ;
         // the `command:` option still names the runnable file.
         for io in &hex.io_adapters {
-            if !DISPATCH_BEARING_IO_KINDS.contains(&io.kind.as_str()) {
-                continue;
-            }
-            if io_adapter_references(io, basename) {
+            if DISPATCH_BEARING_IO_KINDS.contains(&io.kind.as_str())
+                && io_adapter_references(io, basename)
+            {
                 let adapter_name = io_adapter_name(io).unwrap_or_else(|| io.kind.clone());
                 found = Some(DispatchInfo {
                     source: path.to_string_lossy().into_owned(),
@@ -284,9 +291,46 @@ pub fn is_hecksagon_dispatched(file_path: &str, corpus_root: &Path) -> Option<Di
                 });
                 return;
             }
+
+            // :web adapter serializer-implementation bucket. A
+            // hecksagon `adapter :web, serializer: :user_flows,
+            // …` declares that some rust function in the
+            // server/ module implements that serializer. The
+            // convention is `rust/src/server/<name>.rs` (one
+            // file per serializer family). The declaration IS
+            // the structural claim — the hecksagon names the
+            // serializer, the file IS that serializer.
+            if io.kind == "web" {
+                if let Some(stem) = &server_stem {
+                    if web_adapter_serializer_matches(io, stem) {
+                        found = Some(DispatchInfo {
+                            source: path.to_string_lossy().into_owned(),
+                            kind: format!(":web serializer :{}", stem),
+                            identifier: hex.name.clone(),
+                        });
+                        return;
+                    }
+                }
+            }
         }
     });
     found
+}
+
+/// Does this `:web` adapter declare a `serializer:` whose value
+/// (with optional leading `:` or surrounding quotes stripped)
+/// matches `stem`? `stem` is the file's basename without the .rs
+/// extension — e.g. "user_flows" for rust/src/server/user_flows.rs.
+fn web_adapter_serializer_matches(io: &IoAdapter, stem: &str) -> bool {
+    for (key, val) in &io.options {
+        if key == "serializer" {
+            let trimmed = val.trim_start_matches(':').trim_matches('"');
+            if trimmed == stem {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn shell_adapter_references(sh: &ShellAdapter, basename: &str) -> bool {
@@ -319,6 +363,54 @@ fn io_adapter_name(io: &IoAdapter) -> Option<String> {
             let trimmed = val.trim_start_matches(':').trim_matches('"');
             return Some(trimmed.to_string());
         }
+    }
+    None
+}
+
+/// Walk `corpus_root` plus every known sibling bucket at the repo
+/// root (`runtime/`, `discipline/`, `codegen/`, etc.). Mirrors the
+/// multi-root scan in main.rs::load_all_hecksagons so hecksagons
+/// living outside `hecks_conception/` (like
+/// runtime/living_diagram/living_diagram.hecksagon) participate in
+/// IR-claim queries. When `corpus_root` already IS the repo root,
+/// the buckets are recursed once via the normal walker call below
+/// — no duplication because walk_hecksagons stops at the first
+/// match per visit.
+fn walk_hecksagons_with_siblings(corpus_root: &Path, visit: &mut dyn FnMut(&Path)) {
+    walk_hecksagons(corpus_root, visit);
+    let Some(repo_root) = infer_repo_root(corpus_root) else { return };
+    // If corpus_root IS the repo root, the buckets already got
+    // scanned by the call above (they're subdirs of corpus_root).
+    if repo_root == corpus_root {
+        return;
+    }
+    for bucket in &[
+        "runtime", "discipline", "codegen", "cli",
+        "integrations", "tools", "capabilities", "bluebook",
+    ] {
+        let dir = repo_root.join(bucket);
+        if dir.is_dir() {
+            walk_hecksagons(&dir, visit);
+        }
+    }
+}
+
+/// Find the repo root by either recognising `corpus_root` as
+/// `hecks_conception/` itself, or walking up until we find a dir
+/// that contains `hecks_conception/`. Returns the repo root that
+/// has both `hecks_conception/` and the runtime/discipline/codegen
+/// sibling buckets.
+fn infer_repo_root(start_dir: &Path) -> Option<std::path::PathBuf> {
+    if start_dir.file_name().and_then(|n| n.to_str()) == Some("hecks_conception") {
+        return start_dir.parent().map(|p| p.to_path_buf());
+    }
+    let mut cur = start_dir.to_path_buf();
+    for _ in 0..6 {
+        if cur.join("hecks_conception").is_dir() {
+            return Some(cur);
+        }
+        let Some(parent) = cur.parent() else { return None };
+        cur = parent.to_path_buf();
     }
     None
 }
@@ -445,6 +537,46 @@ end
         assert_eq!(info.kind, "ShellAdapter :marker");
         assert_eq!(info.identifier, "Toy");
         assert!(info.source.ends_with("toy.hecksagon"));
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn hecksagon_walker_finds_web_serializer_implementation() {
+        // A hecksagon that declares a :web adapter with `serializer:
+        // :my_serializer` claims `rust/src/server/my_serializer.rs`
+        // as the implementing file. The declaration IS the structural
+        // claim — the file IS the named serializer.
+        let tmp = tempdir_under("dispatch_query_test_web_");
+        let hex_path = tmp.join("toy.hecksagon");
+        fs::write(
+            &hex_path,
+            r#"Hecks.hecksagon "Toy" do
+  adapter :web,
+    name: :my_serializer,
+    get: "/toy/thing.json",
+    serializer: :my_serializer,
+    content_type: "application/json"
+end
+"#,
+        )
+        .unwrap();
+
+        let info = is_hecksagon_dispatched(
+            "rust/src/server/my_serializer.rs",
+            &tmp,
+        )
+        .expect(":web serializer claims server/my_serializer.rs");
+        assert_eq!(info.kind, ":web serializer :my_serializer");
+        assert_eq!(info.identifier, "Toy");
+
+        // Sibling files in the same dir that don't match the
+        // declared serializer name must NOT be claimed.
+        assert!(is_hecksagon_dispatched("rust/src/server/mod.rs", &tmp).is_none());
+        assert!(is_hecksagon_dispatched("rust/src/server/multi.rs", &tmp).is_none());
+        // A file NOT in rust/src/server/ with the same stem also doesn't
+        // match — the convention requires the server/ path prefix.
+        assert!(is_hecksagon_dispatched("rust/src/my_serializer.rs", &tmp).is_none());
 
         let _ = fs::remove_dir_all(&tmp);
     }
