@@ -64,8 +64,24 @@ Hecks.hecksagon "Boot" do
   # Consciousness.ElapsePhase on sleeping_*) lives in
   # body/cycles/body_cycle.bluebook (the BodyCycle PM) ;
   # run-loop fires BodyPulse, the PM observes and routes.
+  #
+  # `env:` declares environment variables for the spawned daemon —
+  # parsed by run_boot/daemons.rs as KEY=VALUE pairs and applied
+  # via Command::env() rather than smuggled through the command
+  # string as a shell prefix (Command::new doesn't go through a
+  # shell, so prefix-style "HECKS_REFRESH_REPOS=1 cmd ..." breaks).
+  # HECKS_REFRESH_REPOS=1 opts mindstream into the i517 cross-
+  # process freshness sweep declared in storage.bluebook
+  # (RefreshIfStale + RefreshOnPulse). The long-running daemon
+  # picks up disk writes from sibling processes (`hecks-life sleep`
+  # dispatching EnterSleep, etc.) ; without it, the daemon's
+  # in-memory state goes stale relative to disk and ElapsePhase's
+  # given { state == "sleeping" } never matches. Single-process
+  # smokes leave the env unset to avoid the refresh's interaction
+  # with their in-memory cascade state.
   adapter :daemon, name: :mindstream,
     pidfile: "{info}/.mindstream.pid",
+    env: "HECKS_REFRESH_REPOS=1",
     command: "{hecks} run-loop {body}/.. --every 1s --emit BodyPulse:Consciousness:consciousness --bootstrap-if Consciousness.state=attentive:WokenUp:Consciousness:consciousness"
 
   adapter :daemon, name: :heart,

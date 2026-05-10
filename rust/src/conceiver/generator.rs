@@ -13,7 +13,6 @@ const VERSION: &str = "2026.04.11.1";
 /// Generate a scaffold bluebook from an archetype's structure.
 /// Outputs the right shape with placeholder names — you fill in the vocabulary.
 pub fn generate_bluebook(name: &str, vision: &str, archetype: &Domain) -> String {
-    let snake = to_snake(name);
     let mut out = Vec::new();
     out.push(format!("Hecks.bluebook \"{}\", version: \"{}\" do", name, VERSION));
     out.push(format!("  vision \"{}\"", vision));
@@ -85,7 +84,7 @@ pub fn emit_aggregate(out: &mut Vec<String>, agg: &Aggregate, _domain_name: &str
     emit_aggregate_impl(out, agg, _domain_name, false)
 }
 
-pub fn emit_scaffold_aggregate(out: &mut Vec<String>, agg: &Aggregate, domain_name: &str, index: usize) {
+pub fn emit_scaffold_aggregate(out: &mut Vec<String>, agg: &Aggregate, domain_name: &str, _index: usize) {
     emit_aggregate_impl(out, agg, domain_name, true)
 }
 
@@ -167,14 +166,4 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
         out.push(format!("      {}", op));
     }
     out.push("    end".into());
-}
-
-fn to_snake(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { result.push('_'); }
-        if c.is_whitespace() { result.push('_'); }
-        else { result.push(c.to_lowercase().next().unwrap()); }
-    }
-    result
 }

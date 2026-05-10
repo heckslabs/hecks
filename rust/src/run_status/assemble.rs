@@ -7,7 +7,6 @@
 
 use crate::heki;
 use crate::runtime::adapter_registry::AdapterRegistry;
-use crate::runtime::shell_dispatcher;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -369,27 +368,6 @@ fn turn_text(turn: &heki::Record) -> String {
     let speaker = str_field(turn, "speaker", "?");
     let said = first_present(turn, &["said", "text"], "");
     if said.is_empty() { speaker } else { format!("{}: {}", speaker, said) }
-}
-
-/// Read `<info_dir>/.mindstream.pid`; dispatch the `is_pid_alive` shell
-/// adapter (`kill -0 <pid>`). Missing pidfile or missing adapter → false.
-fn mindstream_alive(info_dir: &str, registry: &AdapterRegistry) -> bool {
-    let pidfile = format!("{}/.mindstream.pid", info_dir.trim_end_matches('/'));
-    let pid = match std::fs::read_to_string(&pidfile) {
-        Ok(s) => s.trim().to_string(),
-        Err(_) => return false,
-    };
-    if pid.is_empty() { return false; }
-    let adapter = match registry.shell("is_pid_alive") {
-        Some(a) => a,
-        None => return false,
-    };
-    let mut attrs = HashMap::new();
-    attrs.insert("pid".to_string(), pid);
-    match shell_dispatcher::call(adapter, &attrs) {
-        Ok(result) => matches!(result.output, shell_dispatcher::Output::ExitCode(0)),
-        Err(_) => false,
-    }
 }
 
 /// Count `*.bluebook` files under `dir` recursively.

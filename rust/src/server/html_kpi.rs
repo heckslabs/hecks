@@ -11,11 +11,7 @@ use super::html_shared::{display_name, esc};
 
 /// Render the KPI card strip for one domain
 pub fn kpi_cards(rt: &Runtime) -> String {
-    let modules = rt.domain.aggregates.len();
     let records = rt.domain.fixtures.len();
-    let commands: usize = rt.domain.aggregates.iter()
-        .map(|a| a.commands.len())
-        .sum();
     let mut s = String::from(
         "<div class=\"grid grid-cols-2 md:grid-cols-4 gap-3 mb-6\">"
     );
