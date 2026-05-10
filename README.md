@@ -466,4 +466,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow, branch conventions
 
 ## License
 
-MIT
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+The Apache 2.0 license grants you a perpetual, worldwide, no-charge,
+royalty-free license to use, modify, and redistribute Hecks. You must
+preserve the copyright notice, the NOTICE file, and the license text
+in any redistribution, and mark any modified Hecks files as changed.
+Apache 2.0 also includes an explicit patent grant covering
+contributions made to Hecks.
