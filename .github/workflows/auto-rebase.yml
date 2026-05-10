@@ -1,8 +1,24 @@
+# [antibody-exempt: .github/workflows/auto-rebase.yml — CI surface
+#  for the stacked-PR cascade fix. Rebases open PRs onto main when
+#  main moves, force-pushes the rebased branches so dependent PRs
+#  stay mergeable. Workflow YAML is structural infrastructure, not
+#  a bluebook concept ; retires when GitHub Actions itself becomes
+#  bluebook-driven.]
 name: Auto-rebase PRs
 
 on:
   push:
     branches: [main]
+
+# Required for git push --force-with-lease against feature
+# branches. Without this declaration the default GITHUB_TOKEN is
+# read-only and the push fails with 403. This was the root cause
+# of the 2026-05-10 stacked-PR cascade failure : auto-rebase
+# tried to update β and δ after α merged, succeeded on the
+# rebase, then 403'd on the push and left the PRs broken.
+permissions:
+  contents: write
+  pull-requests: read
 
 jobs:
   rebase:
@@ -24,16 +40,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set +e  # don't let one bad branch fail the whole run
+          fails=0
           for branch in $(gh pr list --state open --json headRefName --jq '.[].headRefName'); do
             echo "--- Rebasing $branch ---"
-            git fetch origin "$branch" 2>/dev/null || continue
-            git checkout "$branch" 2>/dev/null || continue
+            git fetch origin "$branch" 2>/dev/null || { echo "  ✗ fetch failed"; fails=$((fails+1)); continue; }
+            git checkout -B "$branch" "origin/$branch" 2>/dev/null || { echo "  ✗ checkout failed"; fails=$((fails+1)); continue; }
 
             if git rebase origin/main; then
-              git push --force-with-lease origin "$branch"
-              echo "  ✓ $branch rebased"
+              if git push --force-with-lease origin "$branch"; then
+                echo "  ✓ $branch rebased + pushed"
+              else
+                # Push failed — surface but don't abort the loop.
+                # Common cause : missing permissions:contents:write
+                # on the workflow (was the 2026-05-10 root cause).
+                echo "  ✗ $branch rebased but push failed (permissions?)"
+                fails=$((fails+1))
+              fi
             else
               git rebase --abort
               echo "  ✗ $branch has conflicts — skipping"
             fi
           done
+          # Report final state but exit 0 — partial failures are
+          # noisy not fatal ; the developer can rebase manually.
+          if [ "$fails" -gt 0 ]; then
+            echo "::warning::auto-rebase had $fails failures ; see log"
+          fi
