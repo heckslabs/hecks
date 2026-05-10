@@ -10,7 +10,9 @@
 pub mod routes;
 pub mod multi;
 pub mod html;
+pub mod html_diagram;
 pub mod html_domain;
+pub mod web_adapter;
 pub mod html_fixtures;
 pub mod html_help;
 pub mod html_icons;

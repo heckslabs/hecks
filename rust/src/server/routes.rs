@@ -71,14 +71,24 @@ pub fn route(
 pub fn dispatch(body: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
     let (cmd, attrs) = parse_dispatch_body(body);
     let mut rt = rt.borrow_mut();
+    // Snapshot the event log before dispatch ; everything after this
+    // index is the full cascade fired by this command (i527 — the
+    // LivingDiagram needs the trace to animate hop-by-hop).
+    let pre_count = rt.event_bus.events().len();
     match rt.dispatch(&cmd, attrs) {
         Ok(r) => {
             let evt = r.event.as_ref()
                 .map(|e| format!(r#","event":"{}""#, e.name))
                 .unwrap_or_default();
+            let cascade: Vec<String> = rt.event_bus.events()[pre_count..].iter().map(|e| {
+                format!(
+                    r#"{{"event":"{}","aggregate_type":"{}","aggregate_id":"{}"}}"#,
+                    e.name, e.aggregate_type, e.aggregate_id
+                )
+            }).collect();
             ("200 OK", format!(
-                r#"{{"ok":true,"aggregate_type":"{}","aggregate_id":"{}"{}}}"#,
-                r.aggregate_type, r.aggregate_id, evt
+                r#"{{"ok":true,"aggregate_type":"{}","aggregate_id":"{}"{},"cascade":[{}]}}"#,
+                r.aggregate_type, r.aggregate_id, evt, cascade.join(",")
             ))
         }
         Err(e) => ("422 Unprocessable Entity", format!(
