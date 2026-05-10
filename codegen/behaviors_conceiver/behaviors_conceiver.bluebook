@@ -241,7 +241,7 @@ Hecks.bluebook "BehaviorsConceiver", version: "2026.05.09.1" do
 
     # ---- Commands ------------------------------------------------
 
-    command "Conceive" do
+    command "DeriveBehaviors" do
       role "Codegen"
       description "Walk the source Domain IR and derive every Behavior the scaffold should emit. For each aggregate : every command becomes a :state Behavior (skipped when any given is unparseable, or when the planner decides the chain is unsatisfiable) ; every command with a multi-step static cascade becomes a sibling :cascade Behavior ; every query becomes a :query Behavior. The Conceive command also detects dangling gate-flag warnings and pre-computes the lifecycle index used to attach to_state assertions."
       attribute :source_domain, DomainName
@@ -260,7 +260,7 @@ Hecks.bluebook "BehaviorsConceiver", version: "2026.05.09.1" do
     end
 
     lifecycle :phase, default: "pending" do
-      transition "Conceive" => "generated", from: "pending"
+      transition "DeriveBehaviors" => "generated", from: "pending"
       transition "Emit"     => "emitted",   from: "generated"
     end
   end
