@@ -2999,8 +2999,13 @@ fn run_enforce_edit(_args: &[String]) {
     } else {
         None
     };
+    let corpus_root_buf = resolve_aggregates_dir()
+        .and_then(|d| std::path::Path::new(&d).parent().map(|p| p.to_path_buf()));
     let exempted = dispatch_info.is_some()
-        || (matches!(kind, FileKind::Imperative) && file_is_in_exempt_registry(&file_path));
+        || (matches!(kind, FileKind::Imperative)
+            && corpus_root_buf.as_deref()
+                .map(|root| hecks_life::dispatch_query::is_imperative_exempt(&file_path, root))
+                .unwrap_or(false));
 
     let cmd_name = match kind {
         FileKind::Bluebook   => "RecordBluebookEdit",
@@ -3428,38 +3433,6 @@ fn unreasoned_heki_writes(file_path: &str) -> Option<Vec<String>> {
     if violations.is_empty() { None } else { Some(violations) }
 }
 
-/// Check whether `file_path` appears in the central ExemptRegistry in
-/// `hecks_conception/capabilities/antibody/fixtures/antibody.fixtures`.
-/// Matching is suffix-based: a registry entry `path: "hecks_life/src/main.rs"`
-/// matches any edited path that ends with that string. This keeps
-/// repo-relative paths working whether the editor passes absolute or
-/// relative paths.
-///
-/// Returns `false` on any read/parse error — safe default for a hook
-/// that must never panic the editor.
-fn file_is_in_exempt_registry(file_path: &str) -> bool {
-    // ExemptRegistry rows live in `information/exempt_registry.heki`
-    // (per test-purity rule : runtime config goes through .heki, not
-    // .fixtures). Each row carries `path` as the natural-key id and
-    // a `reason` field — the enforcer only needs `path` for the
-    // suffix-match.
-    let registry_path = match find_exempt_registry_heki() {
-        Some(p) => p,
-        None => return false,
-    };
-    let store = match crate::heki::read(&registry_path) {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
-    for (_id, rec) in &store {
-        let Some(path_v) = rec.get("path").and_then(|v| v.as_str()) else { continue };
-        if file_path.ends_with(path_v) {
-            return true;
-        }
-    }
-    false
-}
-
 /// IR-query lookup for an imperative file (i122). Resolves the
 /// corpus root (the `hecks_conception/` dir, parent of aggregates/)
 /// and asks `dispatch_query::is_dispatched_by_corpus` whether
@@ -3474,17 +3447,6 @@ fn dispatch_lookup(file_path: &str) -> Option<hecks_life::dispatch_query::Dispat
     let agg_dir = resolve_aggregates_dir()?;
     let corpus_root = std::path::Path::new(&agg_dir).parent()?;
     hecks_life::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
-}
-
-/// Locate `hecks_conception/information/exempt_registry.heki` by
-/// resolving from `resolve_aggregates_dir()` (which gives
-/// `…/hecks_conception/aggregates`) up one level then into `information`.
-fn find_exempt_registry_heki() -> Option<String> {
-    let agg_dir = resolve_aggregates_dir()?;
-    let p = std::path::Path::new(&agg_dir)
-        .parent()?
-        .join("information/exempt_registry.heki");
-    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
 }
 
 /// Look up a subcommand by name in the Subcommand catalog

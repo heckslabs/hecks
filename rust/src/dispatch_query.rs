@@ -97,6 +97,48 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
     is_hecksagon_dispatched(file_path, corpus_root)
 }
 
+/// Imperative-exemption check : asks both the central
+/// `exempt_registry.heki` AND the in-file `[antibody-exempt: ...]`
+/// marker convention. Either path satisfies the structural
+/// exemption ; the marker IS the audit trail (per enforcer.bluebook
+/// `ExemptedEdited` event). Used by the antibody enforcer after the
+/// IR-claim query (`is_dispatched_by_corpus`) returns None.
+pub fn is_imperative_exempt(file_path: &str, corpus_root: &Path) -> bool {
+    if file_in_exempt_registry(file_path, corpus_root) { return true; }
+    file_has_in_header_marker(file_path)
+}
+
+/// Walk the central `exempt_registry.heki` under the corpus root.
+/// Each row carries `path` as the natural-key id ; the enforcer only
+/// needs `path` for the suffix-match.
+fn file_in_exempt_registry(file_path: &str, corpus_root: &Path) -> bool {
+    let registry = corpus_root.join("information/exempt_registry.heki");
+    if !registry.exists() { return false; }
+    let store = match crate::heki::read(registry.to_string_lossy().as_ref()) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    for (_id, rec) in &store {
+        let Some(path_v) = rec.get("path").and_then(|v| v.as_str()) else { continue };
+        if file_path.ends_with(path_v) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Scan the file's first 30 lines for an `[antibody-exempt: ...]`
+/// marker. The convention puts it in the doc-comment header ; past
+/// 30 lines is body code. Returns false on any read error — safe
+/// default for a hook that must never panic the editor.
+fn file_has_in_header_marker(file_path: &str) -> bool {
+    let text = match fs::read_to_string(file_path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    text.lines().take(30).any(|line| line.contains("[antibody-exempt:"))
+}
+
 // ────────────────────────────────────────────────────────────────
 // 1. Specializer registry — static dispatch table
 // ────────────────────────────────────────────────────────────────
