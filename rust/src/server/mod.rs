@@ -12,6 +12,7 @@ pub mod multi;
 pub mod html;
 pub mod html_diagram;
 pub mod html_domain;
+pub mod user_flows;
 pub mod web_adapter;
 pub mod html_fixtures;
 pub mod html_help;

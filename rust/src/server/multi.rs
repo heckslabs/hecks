@@ -43,7 +43,8 @@ pub fn serve_directory(dir: &str, port: u16) {
         hecksagons.extend(load_all_hecksagons(repo_root.to_str().unwrap_or(".")));
     }
     let repo_root = repo_root_of_binary().unwrap_or_else(|| std::path::PathBuf::from("."));
-    let registry = WebRegistry::scan(&hecksagons, &repo_root);
+    let served_dir = std::fs::canonicalize(dir).unwrap_or_else(|_| std::path::PathBuf::from(dir));
+    let registry = WebRegistry::scan(&hecksagons, &repo_root, &served_dir);
 
     let names: Vec<String> = runtimes.keys().cloned().collect();
     eprintln!("Hecks Life — {} domains, {} :web routes on http://localhost:{}",
@@ -254,7 +255,7 @@ fn handle_multi(
     let mut served = false;
     for (route, params) in registry.resolve_all(&method, &path) {
         if let Some((content_type, body)) =
-            crate::server::web_adapter::render(route, &params, runtimes)
+            crate::server::web_adapter::render(route, &params, runtimes, &registry.served_dir)
         {
             write_response_typed(&mut stream, "200 OK", &content_type, &body);
             served = true;

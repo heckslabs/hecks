@@ -76,12 +76,23 @@ pub struct WebRoute {
 #[derive(Debug, Default)]
 pub struct WebRegistry {
     routes: Vec<WebRoute>,
+    /// The directory passed to `serve <dir>` — used by serializers
+    /// like `user_flows` that read sibling files (inbox cards) from
+    /// the served tree.
+    pub served_dir: std::path::PathBuf,
 }
 
 impl WebRegistry {
     /// Walk every hecksagon's io_adapters, collect every kind=="web"
-    /// entry, build WebRoute records.
-    pub fn scan(hecksagons: &HashMap<String, Hecksagon>, repo_root: &std::path::Path) -> Self {
+    /// entry, build WebRoute records. `served_dir` is the directory
+    /// passed to `serve <dir>` ; serializers that need to read
+    /// sibling files (e.g. `user_flows` reads `<served_dir>/inbox/*.md`)
+    /// resolve relative to it.
+    pub fn scan(
+        hecksagons: &HashMap<String, Hecksagon>,
+        repo_root: &std::path::Path,
+        served_dir: &std::path::Path,
+    ) -> Self {
         let mut routes = Vec::new();
         for (hex_name, hex) in hecksagons {
             for adapter in &hex.io_adapters {
@@ -91,7 +102,7 @@ impl WebRegistry {
                 }
             }
         }
-        WebRegistry { routes }
+        WebRegistry { routes, served_dir: served_dir.to_path_buf() }
     }
 
     /// Try to resolve a request to a registered route. On match,
@@ -228,6 +239,7 @@ pub fn render(
     route: &WebRoute,
     params: &HashMap<String, String>,
     runtimes: &std::collections::HashMap<String, std::cell::RefCell<crate::runtime::Runtime>>,
+    served_dir: &std::path::Path,
 ) -> Option<(String, String)> {
     // Merge declared defaults under matched URL params : URL wins
     // when both name the same key, but a route with no path-params
@@ -253,6 +265,10 @@ pub fn render(
             }
             "all_domains_graph_projection" => {
                 let body = crate::server::html_diagram::all_domains_graph_json(runtimes);
+                return Some((route.content_type.clone(), body));
+            }
+            "user_flows" => {
+                let body = crate::server::user_flows::scan_inbox(served_dir);
                 return Some((route.content_type.clone(), body));
             }
             _ => return None,
