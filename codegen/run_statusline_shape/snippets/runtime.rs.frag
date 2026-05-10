@@ -116,7 +116,14 @@ fn active_bluebook_from_cwd() -> Option<(String, PathBuf)> {
     let mut cur: PathBuf = cwd;
     for _ in 0..10 {
         if let Some(hit) = bluebook_at(&cur) {
-            return Some(hit);
+            // "global" is the absence-of-bluebook sentinel — keep
+            // walking up in case there's a real sibling bluebook
+            // higher in the chain. If we never find one, returning
+            // None here lets the mtime fallback run (and ultimately
+            // render_awake falls through to the (global) default).
+            if hit.0 != "global" {
+                return Some(hit);
+            }
         }
         cur = cur.parent()?.to_path_buf();
     }
@@ -138,6 +145,13 @@ fn active_bluebook_from_recent_mtime() -> Option<(String, PathBuf)> {
             let dir = entry.path();
             if !dir.is_dir() { continue; }
             if let Some(hit) = bluebook_at(&dir) {
+                // The mtime fallback is for sibling projects only —
+                // not for the framework itself. Without this skip,
+                // ~/Projects/hecks resolves to ("global", ...) and
+                // any unrelated touch of hecks_conception/inbox
+                // (watchers, status updates) wins the mtime race
+                // over the project the operator is actually editing.
+                if hit.0 == "global" { continue; }
                 let mtime = std::fs::metadata(&hit.1)
                     .and_then(|m| m.modified())
                     .unwrap_or(UNIX_EPOCH);
