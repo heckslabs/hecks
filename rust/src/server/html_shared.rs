@@ -56,17 +56,9 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
     /* Command forms slide open */
     details[data-domain-command] > div {{ transition: max-height 0.3s ease, opacity 0.25s ease; overflow: hidden; }}
 
-    /* Sidebar items slide in staggered */
-    nav a {{ opacity: 0; animation: sidebarSlide 0.3s ease forwards; }}
-    @keyframes sidebarSlide {{ from {{ opacity: 0; transform: translateX(-12px); }} to {{ opacity: 1; transform: translateX(0); }} }}
-    nav a:nth-child(1) {{ animation-delay: 0.05s; }}
-    nav a:nth-child(2) {{ animation-delay: 0.1s; }}
-    nav a:nth-child(3) {{ animation-delay: 0.15s; }}
-    nav a:nth-child(4) {{ animation-delay: 0.2s; }}
-    nav a:nth-child(5) {{ animation-delay: 0.25s; }}
-    nav a:nth-child(6) {{ animation-delay: 0.3s; }}
-    nav a:nth-child(7) {{ animation-delay: 0.35s; }}
-    nav a:nth-child(8) {{ animation-delay: 0.4s; }}
+    /* Sidebar links — no entrance animation. Re-animating on every
+       nav click is distracting and breaks the steady-state feel of a
+       persistent panel. (Removed per i527 walking-skeleton polish.) */
 
     /* Event cards slide in from right */
     #event-stream > div {{ animation: eventSlide 0.3s ease-out; }}

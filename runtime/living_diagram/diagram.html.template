@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{domain_name}} — Living Diagram</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+  <style>
+    :root {
+      --bg-0: #07080d;
+      --bg-1: #0e1018;
+      --bg-2: #161927;
+      --bg-3: #1f2336;
+      --line: #2a2e44;
+      --text: #e8eaf2;
+      --muted: #7a82a0;
+      --brand: #ffd84d;
+      --brand-dim: #b89a36;
+      --aggregate: #ffd84d;
+      --command: #5db1ff;
+      --event: #c084fc;
+      --policy: #ff8b5e;
+      --ok: #66e9a6;
+      --err: #ff7b8a;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      background: var(--bg-0);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Drifting blobs, emaho-style ──
+       Three radial blobs at fixed corners, blurred 100px, drifting on
+       four-keyframe paths over 24-30s. The blobs paint the room ; the
+       graph reads on top of a slow aurora rather than a flat black. */
+    .page-blobs {
+      position: fixed; inset: 0; z-index: 0;
+      overflow: hidden; pointer-events: none;
+    }
+    .page-blob {
+      position: absolute; border-radius: 50%;
+      filter: blur(100px); opacity: 0.45;
+      will-change: transform;
+    }
+    .page-blob-1 {
+      width: 50vw; height: 50vw; max-width: 700px; max-height: 700px;
+      top: -10%; left: -8%;
+      background: radial-gradient(circle, #4d6cff 0%, transparent 70%);
+      animation: blob-drift-1 24s ease-in-out infinite;
+    }
+    .page-blob-2 {
+      width: 45vw; height: 45vw; max-width: 600px; max-height: 600px;
+      top: 40%; right: -10%;
+      background: radial-gradient(circle, #c084fc 0%, transparent 70%);
+      animation: blob-drift-2 30s ease-in-out infinite;
+    }
+    .page-blob-3 {
+      width: 40vw; height: 40vw; max-width: 550px; max-height: 550px;
+      bottom: -5%; left: 25%;
+      background: radial-gradient(circle, #ffd84d 0%, transparent 70%);
+      opacity: 0.25;
+      animation: blob-drift-3 27s ease-in-out infinite;
+    }
+    @keyframes blob-drift-1 {
+      0%   { transform: translate(0, 0) scale(1); }
+      25%  { transform: translate(8vw, -12vh) scale(1.15); }
+      50%  { transform: translate(-5vw, 8vh) scale(0.9); }
+      75%  { transform: translate(12vw, 5vh) scale(1.08); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+    @keyframes blob-drift-2 {
+      0%   { transform: translate(0, 0) scale(1); }
+      25%  { transform: translate(-10vw, 6vh) scale(1.1); }
+      50%  { transform: translate(7vw, -10vh) scale(0.88); }
+      75%  { transform: translate(-6vw, -8vh) scale(1.14); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+    @keyframes blob-drift-3 {
+      0%   { transform: translate(0, 0) scale(1); }
+      25%  { transform: translate(6vw, 10vh) scale(0.92); }
+      50%  { transform: translate(-12vw, -4vh) scale(1.12); }
+      75%  { transform: translate(4vw, -12vh) scale(1.04); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .page-blob { animation: none !important; }
+    }
+    /* Pulse-ring overlay layer — DOM rings positioned over firing
+       nodes. Canvas-based Cytoscape can't do CSS box-shadow, so the
+       glow lives here. */
+    #ring-layer {
+      position: fixed; inset: 64px 0 0 0;
+      pointer-events: none; z-index: 4;
+      overflow: hidden;
+    }
+    .ring {
+      position: absolute; border-radius: 50%;
+      border: 2px solid var(--brand);
+      animation: ring-expand 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      will-change: transform, opacity;
+    }
+    .ring.event  { border-color: var(--event); }
+    .ring.policy { border-color: var(--policy); }
+    .ring.command, .ring.aggregate { border-color: var(--brand); }
+    @keyframes ring-expand {
+      0%   { width: 30px; height: 30px; margin-left: -15px; margin-top: -15px; opacity: 0.9; border-width: 3px; }
+      100% { width: 220px; height: 220px; margin-left: -110px; margin-top: -110px; opacity: 0; border-width: 0px; }
+    }
+    header {
+      height: 64px;
+      padding: 0 1.5rem;
+      background: rgba(14, 16, 24, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 5;
+    }
+    header h1 {
+      font-family: 'DM Serif Display', 'Recoleta', serif;
+      font-size: 1.35rem; font-weight: 400; margin: 0;
+      background: linear-gradient(135deg, #ffe88c 0%, var(--brand) 50%, #ffac4d 100%);
+      background-clip: text; -webkit-background-clip: text;
+      color: transparent;
+      letter-spacing: -0.01em;
+      line-height: 1;
+    }
+    header .subtitle {
+      font-size: 0.78rem; color: var(--muted); margin-left: 0.65rem;
+      font-family: 'JetBrains Mono', monospace; font-weight: 400;
+    }
+    header a.back {
+      font-size: 0.82rem; color: var(--muted);
+      padding: 6px 14px; border-radius: 8px;
+      border: 1px solid var(--line); text-decoration: none;
+      transition: all 0.2s;
+    }
+    header a.back:hover { color: var(--text); border-color: var(--brand); background: rgba(255, 216, 77, 0.08); }
+    .canvas-controls { display: flex; align-items: center; gap: 0.5rem; }
+    button.replay, button.ctl {
+      background: rgba(22, 25, 39, 0.75);
+      backdrop-filter: blur(12px);
+      color: var(--muted);
+      padding: 6px 14px; border-radius: 8px;
+      border: 1px solid var(--line); cursor: pointer;
+      font-size: 0.82rem; font-family: inherit;
+      transition: all 0.18s;
+    }
+    button.ctl { padding: 6px 11px; }
+    button.replay:hover, button.ctl:hover { color: var(--brand); border-color: var(--brand); background: rgba(255, 216, 77, 0.06); }
+    button.replay:disabled, button.ctl:disabled { opacity: 0.4; cursor: default; }
+    button.replay:disabled:hover, button.ctl:disabled:hover { color: var(--muted); border-color: var(--line); background: rgba(22, 25, 39, 0.75); }
+    .layout-picker { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; backdrop-filter: blur(12px); background: rgba(22, 25, 39, 0.75); }
+    .layout-picker .ctl { border: 0; border-right: 1px solid var(--line); border-radius: 0; padding: 6px 10px; font-size: 0.78rem; }
+    .layout-picker .ctl:last-child { border-right: 0; }
+    .layout-picker .ctl.active { color: #1a1505; background: var(--brand); }
+    .layout-picker .ctl.active:hover { background: var(--brand); }
+
+    #cy {
+      width: 100vw; height: calc(100vh - 64px);
+      position: relative; z-index: 1;
+      cursor: grab;
+    }
+    #cy:active { cursor: grabbing; }
+    /* Rubber-band overlay : Shift+drag draws this box, mouseup
+       fits the viewport to whatever's inside. */
+    #zoom-box {
+      position: fixed; pointer-events: none;
+      border: 1.5px dashed var(--brand);
+      background: rgba(255, 216, 77, 0.08);
+      border-radius: 4px;
+      display: none; z-index: 6;
+      box-shadow: 0 0 0 1px rgba(255, 216, 77, 0.15);
+    }
+    body.zoom-mode #cy { cursor: crosshair; }
+
+    #panel {
+      position: fixed; right: 1.25rem; top: 80px;
+      width: 380px; max-height: calc(100vh - 100px); overflow-y: auto;
+      background: rgba(22, 25, 39, 0.92);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: none;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 216, 77, 0.05);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s;
+      z-index: 10;
+    }
+    #panel.open { display: block; animation: panelIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateX(20px) scale(0.97); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    #panel h2 {
+      font-family: 'DM Serif Display', 'Recoleta', serif;
+      font-size: 1.35rem; font-weight: 400; margin: 0 0 0.4rem;
+      letter-spacing: -0.01em; line-height: 1.15;
+    }
+    #panel h2 .agg { color: var(--muted); font-weight: 500; }
+    #panel h2 .dot { color: var(--muted); margin: 0 0.2rem; }
+    #panel .desc {
+      font-size: 0.85rem; color: var(--muted);
+      margin-bottom: 1.25rem; line-height: 1.55;
+    }
+    #panel input, #panel textarea, #panel button {
+      width: 100%; padding: 9px 12px; margin-bottom: 9px;
+      background: var(--bg-1); border: 1px solid var(--line);
+      color: var(--text); border-radius: 8px; font-size: 0.88rem;
+      font-family: inherit; transition: border-color 0.15s, background 0.15s;
+    }
+    #panel input:focus { outline: none; border-color: var(--brand); background: var(--bg-0); }
+    #panel button.dispatch {
+      background: linear-gradient(135deg, var(--brand) 0%, #ffac4d 100%);
+      color: #1a1505; font-weight: 600; cursor: pointer; border: 0;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 18px rgba(255, 216, 77, 0.25);
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+    #panel button.dispatch:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255, 216, 77, 0.35); }
+    #panel button.dispatch:active { transform: translateY(0); }
+    /* Eyebrow style — emaho convention. Wider tracking, smaller, semi-mute. */
+    #panel .label {
+      font-size: 0.65rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.18em;
+      margin-bottom: 6px; font-weight: 600;
+      opacity: 0.85;
+    }
+    #panel .label .type { color: #4d5570; font-weight: 400; margin-left: 0.4rem; }
+    #panel .result {
+      margin-top: 1rem; padding: 10px 12px; border-radius: 8px;
+      font-size: 0.82rem; font-family: 'JetBrains Mono', monospace;
+    }
+    #panel .result.ok    { background: rgba(102, 233, 166, 0.08); color: var(--ok); border: 1px solid rgba(102, 233, 166, 0.2); }
+    #panel .result.error { background: rgba(255, 123, 138, 0.08); color: var(--err); border: 1px solid rgba(255, 123, 138, 0.2); }
+    #panel .close {
+      float: right; background: transparent; border: 0;
+      color: var(--muted); font-size: 1.5rem; cursor: pointer;
+      padding: 0; width: auto; margin: 0; line-height: 1;
+      transition: color 0.15s;
+    }
+    #panel .close:hover { color: var(--text); }
+    #panel .meta-row {
+      display: flex; gap: 0.75rem; margin-bottom: 0.75rem;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
+    }
+    #panel .pill { padding: 2px 8px; border-radius: 999px; background: var(--bg-3); color: var(--muted); }
+    #panel select { width: 100%; padding: 9px 12px; margin-bottom: 9px; background: var(--bg-1); border: 1px solid var(--line); color: var(--text); border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
+    #panel select:focus { outline: none; border-color: var(--brand); }
+    #panel select:disabled { opacity: 0.5; }
+    #panel .ref-create { width: auto; padding: 5px 12px; margin-top: -4px; margin-bottom: 9px; background: transparent; color: var(--brand); border: 1px dashed var(--brand-dim); cursor: pointer; font-size: 0.78rem; transition: all 0.15s; }
+    #panel .ref-create:hover { background: rgba(255, 216, 77, 0.08); border-color: var(--brand); }
+    #panel .givens-block, #panel .muts-block { margin-bottom: 1rem; padding: 0.6rem 0.75rem; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid var(--line); }
+    #panel .given { font-size: 0.78rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; padding: 2px 0; }
+    #panel .given:before { content: '◆ '; color: var(--brand-dim); }
+    #panel .mut-tag { display: inline-block; padding: 2px 8px; margin: 2px; background: var(--bg-3); border-radius: 6px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+    #panel .mut-tag em { color: var(--brand); font-style: normal; }
+
+    /* ── Guide sidebar — left rail (nav + workflows) ────────────── */
+    #guide {
+      position: fixed; left: 1.25rem; top: 80px;
+      width: 320px; max-height: calc(100vh - 100px); overflow-y: auto;
+      background: rgba(22, 25, 39, 0.92);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1.1rem 1rem 1rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(94, 234, 212, 0.04);
+      z-index: 9; transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .guide-section { margin-bottom: 1.5rem; }
+    .guide-section:last-child { margin-bottom: 0; }
+    .guide-section h3 { margin-bottom: 0.85rem; }
+    /* ── Nav tree ── */
+    #nav-tree details { margin-bottom: 0.25rem; }
+    #nav-tree details > summary {
+      cursor: pointer; padding: 5px 8px; border-radius: 6px;
+      font-size: 0.82rem; font-weight: 500;
+      color: var(--text);
+      display: flex; align-items: center; gap: 0.4rem;
+      list-style: none;
+    }
+    #nav-tree details > summary::-webkit-details-marker { display: none; }
+    #nav-tree details > summary::before {
+      content: '▸'; color: var(--muted); font-size: 0.7rem;
+      transition: transform 0.15s; display: inline-block;
+    }
+    #nav-tree details[open] > summary::before { transform: rotate(90deg); }
+    #nav-tree details > summary:hover { background: rgba(255, 216, 77, 0.06); color: var(--brand); }
+    #nav-tree .nav-domain > summary {
+      font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 0.95rem;
+      color: var(--brand); letter-spacing: -0.005em;
+    }
+    #nav-tree .nav-agg > summary {
+      color: #5db1ff; font-weight: 600; padding-left: 1rem;
+    }
+    #nav-tree .nav-children { padding-left: 2rem; }
+    #nav-tree .nav-item {
+      cursor: pointer; padding: 3px 8px; border-radius: 5px;
+      font-size: 0.78rem; color: var(--muted);
+      display: flex; align-items: center; gap: 0.4rem;
+      transition: background 0.12s, color 0.12s;
+    }
+    #nav-tree .nav-item:hover { background: rgba(255, 216, 77, 0.08); color: var(--text); }
+    #nav-tree .nav-item.cmd::before { content: '◉'; color: #5db1ff; font-size: 0.6rem; }
+    #nav-tree .nav-item.qry::before { content: '◎'; color: #52b8c0; font-size: 0.6rem; }
+    #nav-tree .nav-item.evt::before { content: '◆'; color: #c084fc; font-size: 0.55rem; }
+    #nav-tree .nav-item.pol::before { content: '⬢'; color: #ff8b5e; font-size: 0.6rem; }
+    #nav-tree .nav-item.pm::before  { content: '⬣'; color: #e94e77; font-size: 0.6rem; }
+    #nav-tree .nav-item.vo::before  { content: '⬡'; color: #74d49e; font-size: 0.6rem; }
+    #guide.collapsed { transform: translateX(calc(-100% - 1.5rem)); }
+    #guide-toggle {
+      position: fixed; left: 0; top: 50%;
+      transform: translate(0, -50%);
+      width: 22px; height: 64px;
+      background: rgba(22, 25, 39, 0.85); backdrop-filter: blur(12px);
+      border: 1px solid var(--line); border-left: 0;
+      border-radius: 0 8px 8px 0;
+      color: var(--muted); cursor: pointer; z-index: 9;
+      font-size: 0.7rem; padding: 0; transition: color 0.15s, background 0.15s;
+    }
+    #guide-toggle:hover { color: var(--brand); background: rgba(255, 216, 77, 0.06); }
+    #guide h3 {
+      font-family: 'DM Serif Display', serif; font-size: 1.1rem; font-weight: 400;
+      margin: 0 0 0.3rem; color: var(--text); letter-spacing: -0.01em;
+    }
+    #guide .eyebrow {
+      font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.2em;
+      color: #5eead4; font-weight: 600; margin-bottom: 0.85rem; opacity: 0.85;
+    }
+    #guide .flow {
+      padding: 0.7rem 0.8rem; margin-bottom: 0.55rem;
+      background: rgba(0, 0, 0, 0.18);
+      border: 1px solid var(--line);
+      border-radius: 10px; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    }
+    #guide .flow:hover {
+      border-color: rgba(94, 234, 212, 0.4);
+      background: rgba(94, 234, 212, 0.06);
+      transform: translateY(-1px);
+    }
+    #guide .flow.playing {
+      border-color: var(--brand);
+      background: rgba(255, 216, 77, 0.08);
+    }
+    #guide .flow .name {
+      font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem;
+      color: var(--text);
+    }
+    #guide .flow .name .agg { color: var(--muted); font-weight: 500; }
+    #guide .flow .meta {
+      font-size: 0.7rem; color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    #guide .flow .steps {
+      margin-top: 0.45rem;
+      font-size: 0.72rem; line-height: 1.5; color: var(--muted);
+    }
+    #guide .flow .step-arrow { color: #5eead4; margin: 0 0.25rem; }
+    #guide .flow .step-cmd   { color: #5db1ff; }
+    #guide .flow .step-evt   { color: #c084fc; }
+    #guide .flow .step-pol   { color: #ff8b5e; }
+    #guide .flow .step-pm    { color: #e94e77; }
+    #guide .empty {
+      padding: 1rem; color: var(--muted); font-size: 0.82rem;
+      font-style: italic; text-align: center;
+    }
+    #guide .play-hint {
+      font-size: 0.7rem; color: var(--muted);
+      margin-top: 0.3rem; opacity: 0.7;
+    }
+
+    #legend {
+      position: fixed; left: 1.25rem; bottom: 1.25rem;
+      background: rgba(22, 25, 39, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--line);
+      border-radius: 12px; padding: 10px 14px;
+      font-size: 0.78rem; display: flex; gap: 1rem; align-items: center;
+    }
+    #legend .item { display: flex; align-items: center; gap: 0.4rem; color: var(--muted); }
+    #legend .swatch {
+      width: 14px; height: 14px; border-radius: 50%;
+      box-shadow: 0 0 8px currentColor;
+    }
+    #legend .swatch.aggregate { background: var(--aggregate); color: var(--aggregate); }
+    #legend .swatch.command   { background: var(--command);   color: var(--command); }
+    #legend .swatch.event     { background: var(--event);     color: var(--event); transform: rotate(45deg); border-radius: 2px; }
+    #legend .swatch.policy    { background: var(--policy);    color: var(--policy); border-radius: 2px; }
+
+    #status-line {
+      position: fixed; bottom: 1.25rem; right: 1.25rem;
+      background: rgba(22, 25, 39, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--line);
+      border-radius: 12px; padding: 10px 16px;
+      font-size: 0.82rem; color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      max-width: 360px;
+      transition: opacity 0.3s, color 0.3s;
+    }
+    #status-line.firing { color: var(--brand); border-color: rgba(255, 216, 77, 0.4); }
+    #status-line.ok { color: var(--ok); border-color: rgba(102, 233, 166, 0.3); }
+
+    #loading {
+      position: fixed; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.95rem;
+      pointer-events: none; transition: opacity 0.4s;
+    }
+    #loading.gone { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div class="page-blobs" aria-hidden="true">
+    <div class="page-blob page-blob-1"></div>
+    <div class="page-blob page-blob-2"></div>
+    <div class="page-blob page-blob-3"></div>
+  </div>
+  <div id="ring-layer"></div>
+  <div id="zoom-box"></div>
+  <button id="guide-toggle" title="Toggle navigation panel">‹</button>
+  <aside id="guide">
+    <section class="guide-section">
+      <div class="eyebrow">Navigate</div>
+      <h3>Domains</h3>
+      <div id="nav-tree"></div>
+    </section>
+    <section class="guide-section">
+      <div class="eyebrow">Workflows</div>
+      <h3>Cascading flows</h3>
+      <p class="play-hint">Click a flow to play its cascade.</p>
+      <div id="flows-list"></div>
+    </section>
+  </aside>
+  <header>
+    <div>
+      <h1>📊 {{domain_name}}<span class="subtitle">— living diagram</span></h1>
+    </div>
+    <div class="canvas-controls">
+      <a href="/diagram" class="back" title="See every loaded domain in one canvas">🌌 universe</a>
+      <div class="layout-picker" role="tablist" aria-label="Layout">
+        <button class="ctl layout-pick" data-layout="flow-down"  title="Flow top→bottom">↓ flow</button>
+        <button class="ctl layout-pick" data-layout="flow-right" title="Flow left→right">→ flow</button>
+        <button class="ctl layout-pick" data-layout="organic"    title="Organic blob">◉ organic</button>
+        <button class="ctl layout-pick" data-layout="concentric" title="Concentric rings">◎ rings</button>
+      </div>
+      <button class="ctl" id="fit-btn"     title="Zoom to fit (F)">⤢ fit</button>
+      <button class="ctl" id="layout-btn"  title="Recompute layout (L)">↻</button>
+      <button class="ctl" id="zoom-in-btn" title="Zoom in (+)">＋</button>
+      <button class="ctl" id="zoom-out-btn" title="Zoom out (-)">−</button>
+      <button class="replay" id="replay-btn" disabled>↻ replay cascade</button>
+      <a href="/domains/{{domain_name}}" class="back">← walking skeleton</a>
+    </div>
+  </header>
+  <div id="cy"></div>
+  <div id="loading">⌛ loading graph…</div>
+
+  <div id="legend">
+    <div class="item"><div class="swatch aggregate"></div>aggregate</div>
+    <div class="item"><div class="swatch command"></div>command</div>
+    <div class="item"><div class="swatch event"></div>event</div>
+    <div class="item"><div class="swatch policy"></div>policy</div>
+  </div>
+
+  <div id="status-line">click any node to inspect</div>
+
+  <div id="panel">
+    <button class="close" onclick="closePanel()">×</button>
+    <div id="panel-content"></div>
+  </div>
+
+  <script>
+    const DOMAIN = "{{domain_name}}";
+    const IS_UNIVERSE = DOMAIN === '_all';
+    const GRAPH_URL = `/diagram/${DOMAIN}/graph.json`;
+    const DISPATCH_URL = `/domains/${DOMAIN}/dispatch`;
+
+    // Cosmetic adjustments for the universe view : different title,
+    // hide the walking-skeleton link (it points at a non-existent
+    // "_all" domain), surface the universe-specific status hint.
+    if (IS_UNIVERSE) {
+      const h1 = document.querySelector('header h1');
+      if (h1) h1.innerHTML = `🌌 The Universe<span class="subtitle">— every loaded bluebook</span>`;
+      document.title = 'The Universe — Living Diagram';
+      // Walking skeleton link is not meaningful for _all ; hide it.
+      // It's the last .back link in the canvas-controls bar.
+      const links = document.querySelectorAll('.canvas-controls .back');
+      links.forEach(a => {
+        if (a.getAttribute('href') === '/domains/_all') a.style.display = 'none';
+      });
+      // Hide the universe link itself (we're already there).
+      const universeLink = document.querySelector('.canvas-controls a[href="/diagram"]');
+      if (universeLink) universeLink.style.display = 'none';
+    }
+
+    let cy = null;
+    let lastCascade = null; // for replay
+    const status = msg => {
+      const el = document.getElementById('status-line');
+      el.textContent = msg;
+    };
+    const setStatusClass = cls => {
+      const el = document.getElementById('status-line');
+      el.className = ''; if (cls) el.classList.add(cls);
+    };
+
+    // Register the dagre layout (loaded via the CDN script above).
+    // Dagre lays out a directed graph in flow order — sources up-/
+    // left-stream, sinks down-/right-stream — which makes cascade
+    // direction visible at rest, not just during animation.
+    if (window.cytoscapeDagre) cytoscape.use(window.cytoscapeDagre);
+    else if (window.cytoscape && window.cytoscape.use && typeof window['cytoscape-dagre'] === 'function')
+      cytoscape.use(window['cytoscape-dagre']);
+
+    /// Layout configs the operator can pick between. The universe
+    /// view (15+ aggregates, 200+ nodes) needs MUCH bigger spacing
+    /// so the connecting lines stay legible — dagre defaults
+    /// collapse cross-domain edges into spaghetti at universe scale.
+    /// We multiply node/rank separation by ~3x when IS_UNIVERSE.
+    const SCALE = IS_UNIVERSE ? 3.2 : 1.0;
+    const LAYOUTS = {
+      'flow-down': {
+        name: 'dagre',
+        rankDir: 'TB',
+        nodeSep: 50 * SCALE,
+        edgeSep: 18 * SCALE,
+        rankSep: 95 * SCALE,
+        animate: true, animationDuration: 600,
+        ranker: 'tight-tree',
+      },
+      'flow-right': {
+        name: 'dagre',
+        rankDir: 'LR',
+        nodeSep: 45 * SCALE,
+        edgeSep: 18 * SCALE,
+        rankSep: 110 * SCALE,
+        animate: true, animationDuration: 600,
+        ranker: 'tight-tree',
+      },
+      'organic': {
+        name: 'cose',
+        idealEdgeLength: 110 * SCALE,
+        nodeRepulsion: 8500 * SCALE * SCALE,
+        edgeElasticity: 100, nestingFactor: 1.2, gravity: 0.15,
+        numIter: 1500, coolingFactor: 0.97,
+        animate: true, animationDuration: 700,
+        randomize: false, padding: 60,
+      },
+      'concentric': {
+        name: 'concentric',
+        concentric: n => (n.data('kind') === 'aggregate' ? 5 :
+                          n.data('kind') === 'command' ? 4 :
+                          n.data('kind') === 'event' ? 3 :
+                          n.data('kind') === 'policy' ? 2 : 1),
+        levelWidth: () => 1, animate: true, animationDuration: 600,
+        spacingFactor: 1.4 * SCALE,
+      },
+    };
+    let currentLayout = IS_UNIVERSE ? 'flow-right' : 'flow-down';
+
+    console.log('[living-diagram] booting, fetching', GRAPH_URL);
+    fetch(GRAPH_URL)
+      .then(r => {
+        console.log('[living-diagram] fetch status', r.status);
+        if (!r.ok) throw new Error(`graph endpoint returned ${r.status}`);
+        return r.json();
+      })
+      .then(elements => {
+        console.log('[living-diagram] received', elements.length, 'elements');
+        document.getElementById('loading').classList.add('gone');
+        setTimeout(() => document.getElementById('loading').remove(), 500);
+        try {
+          cy = cytoscape({
+            container: document.getElementById('cy'),
+            elements,
+            style: cytoscapeStyle(),
+          // Drag the empty canvas to pan ; scroll-wheel + pinch to
+          // zoom ; drag a node to reposition it. Min/max zoom give
+          // the canvas room to breathe without losing the world.
+          userPanningEnabled: true,
+          userZoomingEnabled: true,
+          panningEnabled: true,
+          zoomingEnabled: true,
+          boxSelectionEnabled: false,
+          // Zoom range — wide enough that the universe view fits a
+          // 3000+ unit canvas at minimum zoom (with 3.2× scale, ranks
+          // can stretch beyond 5000px), and tight enough to read text
+          // on individual nodes at maximum.
+          minZoom: 0.05,
+          maxZoom: 4.0,
+          wheelSensitivity: 0.25,
+          autoungrabify: false,
+          layout: LAYOUTS[currentLayout],
+        });
+          cy.on('tap', 'node', evt => onNodeTap(evt.target.data()));
+          cy.on('mouseover', 'node', evt => evt.target.addClass('hover'));
+          cy.on('mouseout',  'node', evt => evt.target.removeClass('hover'));
+          startEdgeFlow();
+          renderNavTree();
+          renderFlowsGuide();
+          console.log('[living-diagram] graph rendered');
+        } catch (e) {
+          console.error('[living-diagram] cytoscape boot failed', e);
+          document.getElementById('loading').textContent = 'graph init error: ' + e.message;
+        }
+      })
+      .catch(err => {
+        console.error('[living-diagram] fetch failed', err);
+        document.getElementById('loading').textContent = 'failed to load graph: ' + err.message;
+      });
+
+    function cytoscapeStyle() {
+      return [
+        // base node
+        { selector: 'node', style: {
+          'label': 'data(label)', 'text-valign': 'center', 'text-halign': 'center',
+          'font-size': 11, 'font-family': 'Inter, system-ui, sans-serif',
+          'color': '#fff',
+          'text-outline-width': 3, 'text-outline-color': '#07080d',
+          'border-width': 2, 'border-color': '#07080d',
+          'overlay-padding': 8,
+          'transition-property': 'background-color, border-color, border-width, width, height, opacity',
+          'transition-duration': 220,
+        }},
+        // aggregate — bright yellow rectangle, hub of the domain
+        { selector: 'node[kind="aggregate"]', style: {
+          'background-color': '#ffd84d',
+          'background-gradient-stop-colors': '#ffe88c #ffd84d #ffac4d',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom-right',
+          'background-fill': 'linear-gradient',
+          'color': '#1a1505',
+          'text-outline-color': '#ffd84d', 'text-outline-width': 2,
+          'shape': 'round-rectangle', 'width': 'label', 'height': 38,
+          'padding': 14, 'font-weight': 700, 'font-size': 13,
+          'border-color': '#fff8d4', 'border-width': 2,
+        }},
+        { selector: 'node[kind="command"]', style: {
+          'background-color': '#5db1ff',
+          'background-gradient-stop-colors': '#94d0ff #5db1ff #3d7eb8',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom',
+          'background-fill': 'linear-gradient',
+          'shape': 'ellipse', 'width': 'label', 'height': 30, 'padding': 10,
+          'font-weight': 500, 'font-size': 11,
+          'border-color': '#cce5ff', 'border-width': 1,
+        }},
+        { selector: 'node[kind="event"]', style: {
+          'background-color': '#c084fc',
+          'background-gradient-stop-colors': '#dcb5ff #c084fc #8b5cf6',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom-right',
+          'background-fill': 'linear-gradient',
+          'shape': 'diamond', 'width': 36, 'height': 36,
+          'font-size': 10, 'font-weight': 500,
+          'border-color': '#e9d5ff', 'border-width': 1,
+        }},
+        { selector: 'node[kind="policy"]', style: {
+          'background-color': '#ff8b5e',
+          'background-gradient-stop-colors': '#ffb38e #ff8b5e #d96b3f',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom',
+          'background-fill': 'linear-gradient',
+          'shape': 'tag', 'width': 'label', 'height': 26,
+          'padding': 8, 'font-size': 10, 'font-weight': 500,
+          'border-color': '#ffd0b8', 'border-width': 1,
+        }},
+        // value_object — hex shape, sage green, distinct from the
+        // primary aggregate / command palette. Shown as a child of
+        // its containing aggregate.
+        { selector: 'node[kind="value_object"]', style: {
+          'background-color': '#74d49e',
+          'background-gradient-stop-colors': '#a8e6c1 #74d49e #4ba975',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom-right',
+          'background-fill': 'linear-gradient',
+          'shape': 'hexagon', 'width': 'label', 'height': 26,
+          'padding': 8, 'font-size': 10, 'font-weight': 500,
+          'border-color': '#c8f0d6', 'border-width': 1,
+        }},
+        // entity — heavier outline than VO (entity has identity).
+        // Same green family but rounded-rectangle and bolder border.
+        { selector: 'node[kind="entity"]', style: {
+          'background-color': '#5fc88c',
+          'background-gradient-stop-colors': '#94dab2 #5fc88c #3ea16e',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom-right',
+          'background-fill': 'linear-gradient',
+          'shape': 'round-rectangle', 'width': 'label', 'height': 28,
+          'padding': 9, 'font-size': 10, 'font-weight': 600,
+          'border-color': '#a8e6c1', 'border-width': 2,
+        }},
+        // query — read-only ; muted teal, octagon to read distinctly.
+        { selector: 'node[kind="query"]', style: {
+          'background-color': '#52b8c0',
+          'background-gradient-stop-colors': '#84d3da #52b8c0 #2e8c93',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom',
+          'background-fill': 'linear-gradient',
+          'shape': 'octagon', 'width': 'label', 'height': 26,
+          'padding': 8, 'font-size': 10, 'font-weight': 500,
+          'border-color': '#c0e9ec', 'border-width': 1,
+        }},
+        // state — small pill, slate. Defaults get a thicker stroke.
+        { selector: 'node[kind="state"]', style: {
+          'background-color': '#8a91b8',
+          'background-gradient-stop-colors': '#aab1d4 #8a91b8 #5e6488',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom',
+          'background-fill': 'linear-gradient',
+          'shape': 'round-rectangle', 'width': 'label', 'height': 22,
+          'padding': 7, 'font-size': 9, 'font-weight': 500,
+          'border-color': '#bcc2dd', 'border-width': 1,
+        }},
+        { selector: 'node[kind="state"][?isDefault]', style: {
+          'border-color': '#ffd84d', 'border-width': 2,
+        }},
+        // process_manager — the orchestrator across multiple aggregates.
+        // Bold red so it reads as the conductor of multi-step flows.
+        { selector: 'node[kind="process_manager"]', style: {
+          'background-color': '#e94e77',
+          'background-gradient-stop-colors': '#ff86a3 #e94e77 #b53156',
+          'background-gradient-stop-positions': '0 50 100',
+          'background-gradient-direction': 'to-bottom-right',
+          'background-fill': 'linear-gradient',
+          'shape': 'cut-rectangle', 'width': 'label', 'height': 32,
+          'padding': 11, 'font-size': 11, 'font-weight': 700,
+          'border-color': '#ffc0cf', 'border-width': 2,
+        }},
+        // hover state
+        { selector: 'node.hover', style: {
+          'border-width': 4,
+          'border-color': '#ffd84d',
+        }},
+        // edges
+        { selector: 'edge', style: {
+          'width': 1.5, 'line-color': '#3a3f5a', 'target-arrow-color': '#3a3f5a',
+          'target-arrow-shape': 'triangle',
+          'arrow-scale': 1.4,
+          'curve-style': 'bezier',
+          'opacity': 0.7,
+          'transition-property': 'line-color, target-arrow-color, width, opacity',
+          'transition-duration': 220,
+        }},
+        { selector: 'edge[kind="emits"]', style: {
+          'line-color': '#7c5db8', 'target-arrow-color': '#c084fc',
+          'line-style': 'dashed', 'line-dash-pattern': [10, 5],
+          'width': 2, 'opacity': 0.9, 'arrow-scale': 1.6,
+        }},
+        { selector: 'edge[kind="triggers"]', style: {
+          'line-color': '#d96b3f', 'target-arrow-color': '#ff8b5e',
+          'line-style': 'dashed', 'line-dash-pattern': [8, 4],
+          'width': 2, 'opacity': 0.9, 'arrow-scale': 1.6,
+        }},
+        { selector: 'edge[kind="references"]', style: {
+          'line-color': '#444a64', 'target-arrow-color': '#444a64',
+          'line-style': 'dotted', 'opacity': 0.5,
+        }},
+        { selector: 'edge[kind="contains"]', style: {
+          'line-color': '#252836', 'target-arrow-shape': 'none', 'opacity': 0.4,
+          'curve-style': 'haystack',
+        }},
+        // transition — command → state. Solid sage line, mirrors
+        // the lifecycle's flow direction.
+        { selector: 'edge[kind="transition"]', style: {
+          'line-color': '#5fc88c', 'target-arrow-color': '#5fc88c',
+          'target-arrow-shape': 'triangle', 'opacity': 0.7,
+          'line-style': 'solid', 'width': 1.5,
+        }},
+        // correlates — process_manager listening to event. Magenta.
+        { selector: 'edge[kind="correlates"]', style: {
+          'line-color': '#e94e77', 'target-arrow-color': '#e94e77',
+          'target-arrow-shape': 'tee', 'opacity': 0.6,
+          'line-style': 'dashed', 'line-dash-pattern': [4, 3], 'width': 1.5,
+        }},
+        // cross_domain — aggregate→aggregate that spans two
+        // bluebooks. Bright cyan dashed link, the universe view's
+        // signature. Reads as "this concept reaches over there."
+        { selector: 'edge[kind="cross_domain"]', style: {
+          'line-color': '#5eead4', 'target-arrow-color': '#5eead4',
+          'target-arrow-shape': 'triangle',
+          'line-style': 'dashed', 'line-dash-pattern': [10, 6],
+          'width': 2.5, 'opacity': 0.85,
+          'curve-style': 'bezier',
+        }},
+        // firing — the active hop in a cascade
+        { selector: '.firing', style: {
+          'line-color': '#ffd84d',
+          'target-arrow-color': '#ffd84d',
+          'width': 4, 'opacity': 1,
+        }},
+        { selector: 'node.firing', style: {
+          'border-color': '#ffd84d', 'border-width': 6,
+          'background-blacken': -0.15,
+        }},
+        // pulsing — the originating command on dispatch
+        { selector: 'node.pulse', style: {
+          'border-color': '#ffd84d', 'border-width': 6,
+        }},
+      ];
+    }
+
+    // Continuous slow march on every flow-relevant edge so direction
+    // reads even at rest. Emit-edges (command → event) and trigger-
+    // edges (event → policy → command) get the dash flowing toward
+    // their target, signalling cascade direction without any
+    // dispatch having fired. Cross-domain edges flow too — the eye
+    // immediately picks up "here is what reaches over there."
+    function startEdgeFlow() {
+      let off = 0;
+      setInterval(() => {
+        if (!cy) return;
+        off = (off + 1) % 200;
+        cy.batch(() => {
+          ['emits', 'triggers', 'cross_domain', 'transition', 'correlates'].forEach(k => {
+            cy.style().selector(`edge[kind="${k}"]`)
+              .style({ 'line-dash-offset': -off })
+              .update();
+          });
+        });
+      }, 80);
+    }
+
+    const panel = document.getElementById('panel');
+    const content = document.getElementById('panel-content');
+    function closePanel() { panel.classList.remove('open'); }
+
+    function onNodeTap(data) {
+      // Always smooth-snap the view so the tapped node centers in
+      // the canvas. The animation makes navigation feel intentional
+      // rather than "the viewport just changed."
+      snapToNode(data.id);
+
+      if (data.kind === 'command')   showCommandForm(data);
+      else if (data.kind === 'aggregate') showAggregate(data);
+      else if (data.kind === 'event')     showInfo(data, `Event. Emitted by <strong>${data.emittedBy || 'a command'}</strong>.`);
+      else if (data.kind === 'policy')    showInfo(data, `Policy. On <strong>${data.on}</strong> trigger <strong>${data.trigger}</strong>.`);
+      else if (data.kind === 'value_object') showInfo(data, `Value object. ${data.attrs?.length || 0} field${data.attrs?.length === 1 ? '' : 's'}. ${data.description || ''}`);
+      else if (data.kind === 'entity')       showInfo(data, `Entity. Has identity. ${data.attrs?.length || 0} field${data.attrs?.length === 1 ? '' : 's'}. ${data.description || ''}`);
+      else if (data.kind === 'query')        showInfo(data, `Query. Read-only. ${data.description || ''}`);
+      else if (data.kind === 'state')        showInfo(data, `Lifecycle state${data.isDefault ? ' (default)' : ''} on <strong>${data.aggregate}</strong>.`);
+      else if (data.kind === 'process_manager') showInfo(data, `Process manager. Correlates by <strong>${data.correlatesBy}</strong>, starts on <strong>${data.startsOn}</strong>.`);
+    }
+
+    /// Smooth-zoom-and-pan to center the named node. Used both for
+    /// every node-tap (so navigation always snaps) and when entering
+    /// a domain from the universe view.
+    function snapToNode(id) {
+      if (!cy) return;
+      const n = cy.$id(id);
+      if (n.empty()) return;
+      cy.animate({
+        center: { eles: n },
+        zoom: Math.max(cy.zoom(), 1.2),
+      }, { duration: 480, easing: 'ease-out' });
+    }
+
+    function showAggregate(data) {
+      // In the universe view, clicking an aggregate opens its solo
+      // diagram so the operator can dive in. Otherwise show the
+      // aggregate's own info and zoom to its subtree (the aggregate
+      // and its contained children).
+      if (DOMAIN === '_all' && data.domain) {
+        content.innerHTML = `
+          <h2>${data.label}</h2>
+          <div class="meta-row">
+            <span class="pill">aggregate</span>
+            <span class="pill">${data.domain}</span>
+          </div>
+          <div class="desc">${data.commandCount || 0} command${data.commandCount === 1 ? '' : 's'} live in this aggregate, plus ${data.voCount || 0} value object${data.voCount === 1 ? '' : 's'}, ${data.entityCount || 0} entit${data.entityCount === 1 ? 'y' : 'ies'}, ${data.queryCount || 0} quer${data.queryCount === 1 ? 'y' : 'ies'}.</div>
+          <a href="/diagram/${data.domain}" class="dispatch" style="display:block;text-align:center;text-decoration:none;padding:10px;">↪ open ${data.domain} diagram</a>
+        `;
+        panel.classList.add('open');
+        // Also fit-zoom to the aggregate and its children.
+        const subtree = cy.$id(data.id).union(cy.$id(data.id).outgoers().nodes());
+        if (!subtree.empty()) cy.animate({ fit: { eles: subtree, padding: 80 } }, { duration: 480, easing: 'ease-out' });
+      } else {
+        showInfo(data, `Aggregate. ${data.commandCount || 0} command${data.commandCount === 1 ? '' : 's'}, ${data.voCount || 0} VO${data.voCount === 1 ? '' : 's'}, ${data.entityCount || 0} entit${data.entityCount === 1 ? 'y' : 'ies'}, ${data.queryCount || 0} quer${data.queryCount === 1 ? 'y' : 'ies'}.`);
+        const subtree = cy.$id(data.id).union(cy.$id(data.id).outgoers().nodes());
+        if (!subtree.empty()) cy.animate({ fit: { eles: subtree, padding: 80 } }, { duration: 480, easing: 'ease-out' });
+      }
+    }
+
+    function showInfo(data, desc) {
+      content.innerHTML = `
+        <h2>${data.label}</h2>
+        <div class="meta-row"><span class="pill">${data.kind}</span></div>
+        <div class="desc">${desc}</div>
+      `;
+      panel.classList.add('open');
+    }
+
+    function showCommandForm(data) {
+      // References render as dropdowns of existing records ; attributes
+      // render as text inputs ; if a reference has zero records the
+      // dropdown shows a "+ Create new" button that pivots to the
+      // creator command on the target aggregate.
+      const refFields = (data.references || []).map(r => `
+        <div data-ref="${r.target}">
+          <div class="label">${r.name}<span class="type">→ ${r.target}</span></div>
+          <select name="${r.name}_id" data-ref-target="${r.target}" data-ref-name="${r.name}">
+            <option value="">⌛ loading ${r.target} records…</option>
+          </select>
+          <div class="ref-empty" data-ref-empty="${r.target}" style="display:none">
+            <button type="button" class="ref-create" onclick="openCreator('${r.target}')">+ Create ${r.target}</button>
+          </div>
+        </div>
+      `).join('');
+      const attrFields = (data.attrs || []).map(a => `
+        <div>
+          <div class="label">${a.name}<span class="type">${a.type}${a.list ? ' []' : ''}</span></div>
+          <input name="${a.name}" placeholder="${a.type}" autocomplete="off">
+        </div>
+      `).join('');
+      const givens = (data.givens || []).map(g => `
+        <div class="given">${g.message || g.expression}</div>
+      `).join('');
+      const mutations = (data.mutations || []).map(m => `
+        <span class="mut-tag">${m.field} <em>${m.op}</em></span>
+      `).join('');
+      content.innerHTML = `
+        <h2><span class="agg">${data.aggregate}</span><span class="dot">.</span>${data.command}</h2>
+        <div class="meta-row">
+          <span class="pill">command</span>
+          ${data.role ? `<span class="pill">role: ${data.role}</span>` : ''}
+          <span class="pill">${(data.references?.length || 0) + (data.attrs?.length || 0)} fields</span>
+        </div>
+        <div class="desc">${data.description || 'Dispatch this command. The cascade animates through emitted events and triggered policies.'}</div>
+        ${givens ? `<div class="givens-block"><div class="label">preconditions</div>${givens}</div>` : ''}
+        ${mutations ? `<div class="muts-block"><div class="label">mutates</div><div>${mutations}</div></div>` : ''}
+        <form id="cmd-form" onsubmit="dispatch(event, '${data.command}')">
+          ${refFields}
+          ${attrFields}
+          <button type="submit" class="dispatch">⚡ Dispatch ▶</button>
+        </form>
+        <div id="cmd-result"></div>
+      `;
+      panel.classList.add('open');
+      // Fill the dropdowns asynchronously.
+      (data.references || []).forEach(r => loadReferenceOptions(r.target, r.name));
+    }
+
+    /// Fetch existing records for an aggregate type and populate the
+    /// matching dropdown. If the response is empty, surface the
+    /// "+ Create" button instead.
+    function loadReferenceOptions(target, refName) {
+      fetch(`/domains/${target}/aggregates/${target}`)
+        .then(r => r.ok ? r.json() : { records: [] })
+        .then(payload => {
+          const records = Array.isArray(payload) ? payload : (payload.records || payload.aggregates || []);
+          const sel = document.querySelector(`select[data-ref-target="${target}"][data-ref-name="${refName}"]`);
+          if (!sel) return;
+          if (records.length === 0) {
+            sel.innerHTML = `<option value="">no ${target} records yet</option>`;
+            sel.disabled = true;
+            const empty = document.querySelector(`[data-ref-empty="${target}"]`);
+            if (empty) empty.style.display = 'block';
+            return;
+          }
+          sel.disabled = false;
+          sel.innerHTML = `<option value="">— pick a ${target} —</option>` +
+            records.map(rec => {
+              const id = rec.id || rec[Object.keys(rec)[0]];
+              const summary = recordSummary(rec);
+              return `<option value="${id}">${summary}</option>`;
+            }).join('');
+        })
+        .catch(() => {
+          const sel = document.querySelector(`select[data-ref-target="${target}"][data-ref-name="${refName}"]`);
+          if (sel) sel.innerHTML = `<option value="">⚠ failed to load ${target}</option>`;
+        });
+    }
+
+    function recordSummary(rec) {
+      // Best-effort label : id + first non-id string field.
+      const id = rec.id || '?';
+      const otherKey = Object.keys(rec).find(k => k !== 'id' && typeof rec[k] === 'string');
+      const other = otherKey ? rec[otherKey] : '';
+      return other ? `${id} — ${other}` : id;
+    }
+
+    /// Open the create-style command for a target aggregate. The
+    /// heuristic mirrors behaviors_conceiver : commands whose first
+    /// word is in {Open, Create, Register, Add, Issue, Initiate, New,
+    /// Begin} are creators. Pick the first match found in the graph.
+    function openCreator(target) {
+      if (!cy) return;
+      const CREATE_VERBS = ['Open','Create','Register','Add','Issue','Initiate','New','Begin','Make','Place','Submit','Schedule'];
+      const candidates = cy.nodes(`[kind="command"][aggregate="${target}"]`);
+      let creator = null;
+      candidates.forEach(n => {
+        if (creator) return;
+        const cmd = n.data('command') || n.data('label');
+        for (const v of CREATE_VERBS) {
+          if (cmd && cmd.startsWith(v)) { creator = n; return; }
+        }
+      });
+      if (creator) {
+        cy.center(creator);
+        showCommandForm(creator.data());
+      } else {
+        status(`no creator command found for ${target} — open ${target} domain to create one`);
+      }
+    }
+
+    function dispatch(e, cmd) {
+      e.preventDefault();
+      const form = e.target;
+      const data = {};
+      new FormData(form).forEach((v, k) => { if (v) data[k] = v; });
+      const result = document.getElementById('cmd-result');
+      result.className = '';
+      result.textContent = '⌛ dispatching…';
+      setStatusClass('firing'); status(`dispatching ${cmd} …`);
+      pulseNode(`cmd:${cmd}`);
+      fetch(DISPATCH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: cmd, attrs: data }),
+      })
+      .then(r => r.json())
+      .then(r => {
+        if (r.ok) {
+          result.className = 'result ok';
+          const hopCount = (r.cascade || []).length;
+          result.textContent = `✓ ${r.event || 'success'} on ${r.aggregate_type}#${r.aggregate_id}` +
+            (hopCount > 1 ? ` (${hopCount}-hop cascade)` : '');
+          setStatusClass('ok'); status(`✓ ${cmd} → ${r.event || 'ok'}`);
+          // Prefer the runtime-traced cascade : every event the bus
+          // recorded between pre-dispatch and post-dispatch. Falls
+          // back to the client-side graph walk if no trace returned.
+          if (r.cascade && r.cascade.length) {
+            animateRealCascade(cmd, r.cascade);
+          } else if (r.event) {
+            animateCascade(cmd, r.event);
+          }
+        } else {
+          result.className = 'result error';
+          result.textContent = `✗ ${r.error}`;
+          setStatusClass(''); status(`✗ ${r.error}`);
+        }
+      })
+      .catch(err => {
+        result.className = 'result error';
+        result.textContent = `✗ ${err.message}`;
+        setStatusClass(''); status(`✗ ${err.message}`);
+      });
+    }
+
+    // Pulse a single node briefly.
+    function pulseNode(id) {
+      if (!cy) return;
+      const n = cy.$id(id);
+      if (n.empty()) return;
+      n.addClass('pulse');
+      n.animate({ style: { 'border-width': 12 } }, { duration: 220 })
+       .animate({ style: { 'border-width': 2 } },  { duration: 320 });
+      setTimeout(() => n.removeClass('pulse'), 600);
+    }
+
+    // Drive the animation from the runtime's actual event log
+    // (returned in the dispatch response's `cascade` field). Each
+    // recorded event lights up its node + the emits-edge feeding it,
+    // then the policy edge that fired it, then the next command's
+    // node, in sequence. This is the truthful animation : it shows
+    // exactly what the runtime did, not a client-side guess.
+    function animateRealCascade(originCmd, cascade) {
+      if (!cy) return;
+      // Step list : edge-then-node, edge-then-node, ...
+      const steps = [];
+      let prevEvent = null;
+      const STEP = 380;
+      for (let i = 0; i < cascade.length; i++) {
+        const hop = cascade[i];
+        // For the first event, the edge is origin command → event.
+        // For subsequent events, find the policy that bridges
+        // prevEvent → some command that emits this event.
+        if (i === 0) {
+          const emitsEdge = cy.edges(`[kind="emits"][source="cmd:${originCmd}"][target="evt:${hop.event}"]`);
+          if (emitsEdge.length) steps.push({ kind: 'edge', el: emitsEdge, label: `${originCmd} ▸ ${hop.event}` });
+          const evtNode = cy.$id(`evt:${hop.event}`);
+          if (evtNode.length) steps.push({ kind: 'node', el: evtNode, label: hop.event });
+        } else {
+          // Walk : prev event → policy → command → this event.
+          const policy = cy.nodes(`[kind="policy"][on="${prevEvent}"]`).first();
+          if (policy.length) {
+            const evtToPolicy = cy.edges(`[kind="triggers"][source="evt:${prevEvent}"][target="${policy.id()}"]`);
+            if (evtToPolicy.length) steps.push({ kind: 'edge', el: evtToPolicy, label: `${prevEvent} ▸ ${policy.data('label')}` });
+            steps.push({ kind: 'node', el: policy, label: policy.data('label') });
+            const policyToCmd = cy.edges(`[kind="triggers"][source="${policy.id()}"]`);
+            if (policyToCmd.length) {
+              steps.push({ kind: 'edge', el: policyToCmd, label: `${policy.data('label')} ▸ trigger` });
+              const cmdNode = policyToCmd.first().target();
+              if (cmdNode.length) steps.push({ kind: 'node', el: cmdNode, label: cmdNode.data('label') });
+              const cmdName = cmdNode.data('command') || cmdNode.data('label');
+              const newEmit = cy.edges(`[kind="emits"][source="cmd:${cmdName}"][target="evt:${hop.event}"]`);
+              if (newEmit.length) steps.push({ kind: 'edge', el: newEmit, label: `${cmdName} ▸ ${hop.event}` });
+            }
+          }
+          const evtNode = cy.$id(`evt:${hop.event}`);
+          if (evtNode.length) steps.push({ kind: 'node', el: evtNode, label: hop.event });
+        }
+        prevEvent = hop.event;
+      }
+      lastCascade = { kind: 'real', originCmd, cascade };
+      document.getElementById('replay-btn').disabled = false;
+      runSteps(steps, STEP);
+    }
+
+    function runSteps(steps, stepMs) {
+      // Spotlight mode : everything except active hops fades to a low
+      // opacity for the duration of the cascade. Restored on settle.
+      enterSpotlight();
+      let i = 0;
+      function tick() {
+        if (i >= steps.length) {
+          setTimeout(() => {
+            exitSpotlight();
+            setStatusClass(''); status('cascade settled');
+          }, 700);
+          return;
+        }
+        const step = steps[i++];
+        if (step.kind === 'edge') {
+          step.el.addClass('firing');
+          setTimeout(() => step.el.removeClass('firing'), 1400);
+        } else if (step.kind === 'node') {
+          step.el.addClass('firing');
+          step.el.animate({ style: { 'border-width': 9 } }, { duration: 220 })
+                 .animate({ style: { 'border-width': 2 } }, { duration: 380 });
+          spawnRing(step.el);
+          setTimeout(() => step.el.removeClass('firing'), 1400);
+        }
+        if (step.label) status(step.label);
+        setTimeout(tick, stepMs);
+      }
+      tick();
+    }
+
+    /// Dim every non-firing element so the operator's eye tracks the
+    /// active cascade hop. The 'firing' class on an element exempts
+    /// it from the dim. Animated via Cytoscape's transition system.
+    function enterSpotlight() {
+      if (!cy) return;
+      cy.elements().not('.firing').animate({ style: { 'opacity': 0.18 } }, { duration: 320 });
+    }
+    function exitSpotlight() {
+      if (!cy) return;
+      cy.elements().animate({ style: { 'opacity': 1 } }, { duration: 480 });
+    }
+
+    /// Drop a CSS ring overlay at the rendered position of a firing
+    /// node. The ring expands + fades over 1.4s and removes itself.
+    /// Uses cy.renderedPosition because Cytoscape's canvas can't do
+    /// box-shadow itself.
+    function spawnRing(el) {
+      if (!el || el.empty()) return;
+      const pos = el.renderedPosition();
+      if (!pos) return;
+      const layer = document.getElementById('ring-layer');
+      if (!layer) return;
+      const ring = document.createElement('div');
+      ring.className = 'ring ' + (el.data('kind') || '');
+      ring.style.left = pos.x + 'px';
+      ring.style.top  = pos.y + 'px';
+      layer.appendChild(ring);
+      setTimeout(() => ring.remove(), 1500);
+    }
+
+    // Trace and animate the cascade : starting from the dispatched
+    // command, walk the graph following emits → triggers_on (policy) →
+    // cascades, lighting up each hop in sequence with a step delay.
+    // Step delay is short so a 5-hop cascade settles in ~2.5s.
+    function animateCascade(originCmd, firstEvent) {
+      if (!cy) return;
+      const steps = traceCascade(originCmd, firstEvent);
+      lastCascade = { kind: 'fallback', originCmd, firstEvent };
+      document.getElementById('replay-btn').disabled = false;
+      runSteps(steps, 380);
+    }
+
+    // Build the ordered list of (edge, node, edge, node …) traversals
+    // for one cascade, walking emits → policy.on → policy.trigger →
+    // emits, until no further policy fires. Cycle-guarded.
+    function traceCascade(originCmd, firstEvent) {
+      const steps = [];
+      const visited = new Set();
+      let cmd = originCmd, evt = firstEvent;
+
+      while (cmd && evt && !visited.has(`${cmd}->${evt}`)) {
+        visited.add(`${cmd}->${evt}`);
+
+        const emitsEdge = cy.edges(`[kind="emits"][source="cmd:${cmd}"][target="evt:${evt}"]`);
+        if (emitsEdge.length) steps.push({ kind: 'edge', el: emitsEdge, label: `${cmd} → ${evt}` });
+        const evtNode = cy.$id(`evt:${evt}`);
+        if (evtNode.length) steps.push({ kind: 'node', el: evtNode, label: `${evt}` });
+
+        // find policies listening on this event
+        const policies = cy.nodes(`[kind="policy"][on="${evt}"]`);
+        if (policies.length === 0) break;
+        const policy = policies[0]; // pick first ; multi-listener visualised later
+        const evtToPolicy = cy.edges(`[kind="triggers"][source="evt:${evt}"][target="${policy.id()}"]`);
+        if (evtToPolicy.length) steps.push({ kind: 'edge', el: evtToPolicy, label: `${evt} → ${policy.data('label')}` });
+        steps.push({ kind: 'node', el: policy, label: `${policy.data('label')}` });
+
+        // policy → command
+        const trigger = policy.data('trigger');
+        const policyToCmd = cy.edges(`[kind="triggers"][source="${policy.id()}"][target="cmd:${trigger}"]`);
+        if (policyToCmd.length) steps.push({ kind: 'edge', el: policyToCmd, label: `${policy.data('label')} → ${trigger}` });
+        const nextCmd = cy.$id(`cmd:${trigger}`);
+        if (nextCmd.length) steps.push({ kind: 'node', el: nextCmd, label: `${trigger}` });
+
+        // find what THIS command emits ; continue the cascade
+        const nextEmit = cy.edges(`[kind="emits"][source="cmd:${trigger}"]`);
+        if (nextEmit.length === 0) break;
+        cmd = trigger;
+        evt = nextEmit[0].target().data('label');
+      }
+      return steps;
+    }
+
+    /// Canvas controls — fit to screen, recompute layout, zoom in/out.
+    /// All wired to the cytoscape API ; keyboard shortcuts mirror the
+    /// buttons (F, L, +, -, 0 for fit).
+    function fitToScreen() {
+      if (!cy) return;
+      cy.animate({ fit: { eles: cy.elements(), padding: 60 } }, { duration: 420, easing: 'ease-out' });
+      status('zoomed to fit');
+    }
+    function relayout() {
+      if (!cy) return;
+      cy.layout(LAYOUTS[currentLayout]).run();
+      status(`relayout (${currentLayout})`);
+    }
+    /// Switch the active layout config + re-run.
+    function setLayout(name) {
+      if (!LAYOUTS[name]) return;
+      currentLayout = name;
+      // Update the layout-picker button labels' active class.
+      document.querySelectorAll('.layout-pick').forEach(b => {
+        b.classList.toggle('active', b.dataset.layout === name);
+      });
+      relayout();
+    }
+    function zoomBy(factor) {
+      if (!cy) return;
+      const c = { x: cy.width()/2, y: cy.height()/2 };
+      cy.animate({ zoom: { level: cy.zoom() * factor, renderedPosition: c } }, { duration: 220, easing: 'ease-out' });
+    }
+    document.getElementById('fit-btn').addEventListener('click', fitToScreen);
+    document.getElementById('layout-btn').addEventListener('click', relayout);
+    document.getElementById('zoom-in-btn').addEventListener('click', () => zoomBy(1.3));
+    document.getElementById('zoom-out-btn').addEventListener('click', () => zoomBy(1/1.3));
+    document.querySelectorAll('.layout-pick').forEach(btn => {
+      btn.addEventListener('click', () => setLayout(btn.dataset.layout));
+      if (btn.dataset.layout === currentLayout) btn.classList.add('active');
+    });
+
+    /// Rubber-band zoom : hold Shift, drag a rectangle on the canvas,
+    /// release to fit the viewport to whatever's inside. Cytoscape's
+    /// own pan is suspended while Shift is held so the gesture is
+    /// captured by this handler instead.
+    (function setupZoomBox() {
+      const cyEl = document.getElementById('cy');
+      const box  = document.getElementById('zoom-box');
+      let dragging = false;
+      let startX = 0, startY = 0;
+
+      cyEl.addEventListener('mousedown', e => {
+        if (!e.shiftKey || !cy) return;
+        e.preventDefault();
+        if (cy) cy.userPanningEnabled(false);
+        dragging = true;
+        startX = e.clientX; startY = e.clientY;
+        box.style.left = startX + 'px';
+        box.style.top  = startY + 'px';
+        box.style.width = '0px'; box.style.height = '0px';
+        box.style.display = 'block';
+        document.body.classList.add('zoom-mode');
+      });
+
+      window.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const x1 = Math.min(startX, e.clientX);
+        const y1 = Math.min(startY, e.clientY);
+        const x2 = Math.max(startX, e.clientX);
+        const y2 = Math.max(startY, e.clientY);
+        box.style.left = x1 + 'px';
+        box.style.top  = y1 + 'px';
+        box.style.width  = (x2 - x1) + 'px';
+        box.style.height = (y2 - y1) + 'px';
+      });
+
+      window.addEventListener('mouseup', e => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.classList.remove('zoom-mode');
+        box.style.display = 'none';
+        if (cy) cy.userPanningEnabled(true);
+
+        const cyRect = cyEl.getBoundingClientRect();
+        // Convert window coords → cytoscape rendered coords (subtract offset).
+        const rx1 = Math.min(startX, e.clientX) - cyRect.left;
+        const ry1 = Math.min(startY, e.clientY) - cyRect.top;
+        const rx2 = Math.max(startX, e.clientX) - cyRect.left;
+        const ry2 = Math.max(startY, e.clientY) - cyRect.top;
+        if ((rx2 - rx1) < 24 || (ry2 - ry1) < 24) return;
+        zoomToRect(rx1, ry1, rx2, ry2);
+        status(`zoomed to ${Math.round(rx2-rx1)}×${Math.round(ry2-ry1)} box`);
+      });
+
+      function zoomToRect(x1, y1, x2, y2) {
+        if (!cy) return;
+        // Filter elements whose rendered position falls in the box ;
+        // fit to those. If empty, do a viewport math zoom instead.
+        const inside = cy.elements().filter(el => {
+          if (el.isEdge && el.isEdge()) return false;
+          const p = el.renderedPosition();
+          return p && p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2;
+        });
+        if (inside.length > 0) {
+          cy.animate({ fit: { eles: inside, padding: 50 } }, { duration: 380, easing: 'ease-out' });
+          return;
+        }
+        // Fallback : viewport math. Compute model rect from rendered
+        // and zoom to it directly.
+        const z = cy.zoom();
+        const pan = cy.pan();
+        const mx1 = (x1 - pan.x) / z, my1 = (y1 - pan.y) / z;
+        const mx2 = (x2 - pan.x) / z, my2 = (y2 - pan.y) / z;
+        const w = mx2 - mx1, h = my2 - my1;
+        const newZoom = Math.min(cy.width() / w, cy.height() / h, cy.maxZoom());
+        const newPan = {
+          x: cy.width()/2  - newZoom * (mx1 + w/2),
+          y: cy.height()/2 - newZoom * (my1 + h/2),
+        };
+        cy.animate({ zoom: newZoom, pan: newPan }, { duration: 380, easing: 'ease-out' });
+      }
+    })();
+
+    document.addEventListener('keydown', e => {
+      if (e.target.matches('input, textarea, select')) return;
+      if (e.key === 'f' || e.key === '0') { e.preventDefault(); fitToScreen(); }
+      else if (e.key === 'l')              { e.preventDefault(); relayout(); }
+      else if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomBy(1.3); }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1/1.3); }
+      else if (e.key === 'Escape')         { closePanel(); }
+    });
+
+    /// ── Navigation tree ────────────────────────────────────────
+    ///
+    /// Builds a hierarchical sidebar : Domain → Aggregate →
+    /// (Commands, Queries, Events, Policies, Process Managers,
+    /// Value Objects). Click any leaf snaps the canvas to that node.
+    /// Click an aggregate fits the view to its subtree. Click a
+    /// domain (universe view) opens that domain's solo diagram.
+    function renderNavTree() {
+      if (!cy) return;
+      const tree = buildNavTreeData();
+      const html = tree.map(domain => renderNavDomain(domain)).join('');
+      const root = document.getElementById('nav-tree');
+      root.innerHTML = html;
+      // Wire clicks. Domain summary, aggregate summary, leaf items.
+      root.querySelectorAll('.nav-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = el.dataset.id;
+          if (id) {
+            const node = cy.$id(id);
+            if (!node.empty()) {
+              snapToNode(id);
+              onNodeTap(node.data());
+            }
+          }
+        });
+      });
+      root.querySelectorAll('.nav-agg-jump').forEach(el => {
+        el.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          const id = el.dataset.id;
+          const node = cy.$id(id);
+          if (!node.empty()) {
+            const subtree = node.union(node.outgoers().nodes());
+            cy.animate({ fit: { eles: subtree, padding: 80 } }, { duration: 480, easing: 'ease-out' });
+          }
+        });
+      });
+    }
+
+    function buildNavTreeData() {
+      const byDomain = new Map();
+      // Pre-existing groups : aggregate → its kids by kind.
+      cy.nodes('[kind="aggregate"]').forEach(agg => {
+        const dom = agg.data('domain') || (IS_UNIVERSE ? '?' : DOMAIN);
+        if (!byDomain.has(dom)) byDomain.set(dom, []);
+        byDomain.get(dom).push({ id: agg.id(), name: agg.data('label'), kids: { command: [], query: [], value_object: [], entity: [], state: [] } });
+      });
+      // Walk every contained child via the contains edges.
+      cy.edges('[kind="contains"]').forEach(edge => {
+        const parent = edge.source(), child = edge.target();
+        const parentKind = parent.data('kind');
+        if (parentKind !== 'aggregate') return;
+        const parentDomain = parent.data('domain') || (IS_UNIVERSE ? '?' : DOMAIN);
+        const list = byDomain.get(parentDomain);
+        if (!list) return;
+        const aggEntry = list.find(a => a.id === parent.id());
+        if (!aggEntry) return;
+        const kind = child.data('kind');
+        if (aggEntry.kids[kind]) {
+          aggEntry.kids[kind].push({ id: child.id(), name: child.data('label') });
+        }
+      });
+      // Process managers and policies live at domain level (not under
+      // an aggregate). Group them by their first-seen domain.
+      const domainPolicies = new Map();
+      const domainPMs = new Map();
+      cy.nodes('[kind="policy"]').forEach(p => {
+        // Find domain by tracing its outgoing trigger edge to a command,
+        // and reading that command's aggregate's domain. Fallback to first.
+        const triggerEdge = cy.edges(`[kind="triggers"][source="${p.id()}"]`).first();
+        let dom = IS_UNIVERSE ? '?' : DOMAIN;
+        if (!triggerEdge.empty()) {
+          const targetCmd = triggerEdge.target();
+          const containedBy = cy.edges(`[kind="contains"][target="${targetCmd.id()}"]`).first();
+          if (!containedBy.empty()) {
+            dom = containedBy.source().data('domain') || dom;
+          }
+        }
+        if (!domainPolicies.has(dom)) domainPolicies.set(dom, []);
+        domainPolicies.get(dom).push({ id: p.id(), name: p.data('label') });
+      });
+      cy.nodes('[kind="process_manager"]').forEach(pm => {
+        const correlatesEdge = cy.edges(`[kind="correlates"][target="${pm.id()}"]`).first();
+        let dom = IS_UNIVERSE ? '?' : DOMAIN;
+        // PMs don't strongly belong to one domain ; placeholder.
+        if (!domainPMs.has(dom)) domainPMs.set(dom, []);
+        domainPMs.get(dom).push({ id: pm.id(), name: pm.data('label') });
+      });
+
+      // Build sorted result.
+      const out = [];
+      const domains = [...byDomain.keys()].sort();
+      for (const d of domains) {
+        out.push({
+          name: d, aggregates: byDomain.get(d).sort((a, b) => a.name.localeCompare(b.name)),
+          policies: domainPolicies.get(d) || [],
+          pms: domainPMs.get(d) || [],
+        });
+      }
+      return out;
+    }
+
+    function renderNavDomain(domain) {
+      const aggsHtml = domain.aggregates.map(a => `
+        <details class="nav-agg" open>
+          <summary>
+            ${a.name}
+            <span style="margin-left:auto; font-size:0.65rem; color:var(--muted);">
+              <a href="#" class="nav-agg-jump" data-id="${a.id}" title="Fit aggregate subtree">⤢</a>
+            </span>
+          </summary>
+          <div class="nav-children">
+            ${a.kids.command.map(k => `<div class="nav-item cmd" data-id="${k.id}">${k.name}</div>`).join('')}
+            ${a.kids.query.map(k   => `<div class="nav-item qry" data-id="${k.id}">${k.name}</div>`).join('')}
+            ${a.kids.value_object.map(k => `<div class="nav-item vo" data-id="${k.id}">${k.name}</div>`).join('')}
+            ${a.kids.entity.map(k  => `<div class="nav-item vo" data-id="${k.id}">${k.name} <span style="margin-left:auto;color:var(--muted);font-size:0.6rem">entity</span></div>`).join('')}
+          </div>
+        </details>
+      `).join('');
+      const policiesHtml = (domain.policies || []).map(p =>
+        `<div class="nav-item pol" data-id="${p.id}">${p.name}</div>`).join('');
+      const pmsHtml = (domain.pms || []).map(p =>
+        `<div class="nav-item pm" data-id="${p.id}">${p.name}</div>`).join('');
+      const showDomainLink = IS_UNIVERSE && domain.name !== '?';
+      return `
+        <details class="nav-domain" open>
+          <summary>${domain.name}${showDomainLink ? ` <a href="/diagram/${domain.name}" style="margin-left:auto;font-size:0.7rem;color:var(--muted);text-decoration:none">↗</a>` : ''}</summary>
+          ${aggsHtml}
+          ${policiesHtml ? `<div style="margin-top:0.4rem;padding-left:1rem;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--muted);">Policies</div>${policiesHtml}` : ''}
+          ${pmsHtml ? `<div style="margin-top:0.4rem;padding-left:1rem;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--muted);">Process Managers</div>${pmsHtml}` : ''}
+        </details>
+      `;
+    }
+
+    /// ── Flow detection & rendering ─────────────────────────────
+    ///
+    /// A "flow" is a chain : Command → emits → Event → policies →
+    /// triggered Command → emits → Event → ... Cycle-guarded ;
+    /// stops at the first event with no listening policy.
+    /// Filtered to chains of length ≥ 2 (single-emit commands are
+    /// boring ; we want the cascade stories).
+    function detectFlows() {
+      if (!cy) return [];
+      const flows = [];
+      const seen = new Set();
+      cy.nodes('[kind="command"]').forEach(cmdNode => {
+        const cmdName = cmdNode.data('command') || cmdNode.data('label');
+        if (!cmdName) return;
+        const emitsEdges = cy.edges(`[kind="emits"][source="${cmdNode.id()}"]`);
+        if (emitsEdges.length === 0) return;
+        emitsEdges.forEach(emitEdge => {
+          const eventNode = emitEdge.target();
+          const eventName = eventNode.data('label');
+          const key = cmdName + '→' + eventName;
+          if (seen.has(key)) return;
+          const chain = walkFlow(cmdNode, eventNode, new Set());
+          if (chain.length >= 2) {
+            chain.forEach(s => seen.add(s.cmd + '→' + s.evt));
+            flows.push({
+              originCmd: cmdName,
+              originAggregate: cmdNode.data('aggregate'),
+              originEvent: eventName,
+              chain,
+            });
+          }
+        });
+      });
+      // Sort : longest chains first (most interesting story), then alpha.
+      flows.sort((a, b) => b.chain.length - a.chain.length || a.originCmd.localeCompare(b.originCmd));
+      return flows;
+    }
+
+    /// Recursively walk one flow chain. Each step records the
+    /// (command, event) pair plus the bridging policy when present.
+    function walkFlow(cmdNode, eventNode, visitedKeys) {
+      const cmdName   = cmdNode.data('command') || cmdNode.data('label');
+      const eventName = eventNode.data('label');
+      const key = cmdName + '→' + eventName;
+      if (visitedKeys.has(key)) return [];
+      visitedKeys.add(key);
+
+      const step = { cmd: cmdName, agg: cmdNode.data('aggregate'), evt: eventName };
+
+      // Find a policy listening on this event (graph edge : event → policy).
+      const policy = cy.nodes(`[kind="policy"][on="${eventName}"]`).first();
+      if (policy.empty()) return [step];
+
+      step.policy = policy.data('label');
+
+      // The policy triggers some command. Find it via the policy → command edge.
+      const policyEdge = cy.edges(`[kind="triggers"][source="${policy.id()}"]`).first();
+      if (policyEdge.empty()) return [step];
+      const nextCmdNode = policyEdge.target();
+      if (!nextCmdNode || nextCmdNode.empty()) return [step];
+
+      // What does THAT command emit ? Recurse on the first such emit.
+      const nextEmits = cy.edges(`[kind="emits"][source="${nextCmdNode.id()}"]`);
+      if (nextEmits.length === 0) {
+        // Chain ends here ; record one trailing step for the triggered command.
+        return [step, {
+          cmd: nextCmdNode.data('command') || nextCmdNode.data('label'),
+          agg: nextCmdNode.data('aggregate'),
+          evt: null,
+        }];
+      }
+      const nextEvent = nextEmits.first().target();
+      return [step, ...walkFlow(nextCmdNode, nextEvent, visitedKeys)];
+    }
+
+    function renderFlowsGuide() {
+      const flows = detectFlows();
+      const list = document.getElementById('flows-list');
+      if (flows.length === 0) {
+        list.innerHTML = `<div class="empty">No multi-step cascades detected in this domain. Single-emit commands aren't shown — they fire one event and stop.</div>`;
+        return;
+      }
+      list.innerHTML = flows.map((f, i) => {
+        const stepsHtml = f.chain.map((s, idx) => {
+          const parts = [`<span class="step-cmd">${s.cmd}</span>`];
+          if (s.evt) parts.push(`<span class="step-arrow">▸</span>`, `<span class="step-evt">${s.evt}</span>`);
+          if (s.policy && idx < f.chain.length - 1) parts.push(`<span class="step-arrow">▸</span>`, `<span class="step-pol">${s.policy}</span>`);
+          return parts.join('');
+        }).join(' <span class="step-arrow" style="opacity:0.4">↘</span> ');
+        return `
+          <div class="flow" data-flow-idx="${i}">
+            <div class="name"><span class="agg">${f.originAggregate || ''}</span>${f.originAggregate ? '.' : ''}${f.originCmd}</div>
+            <div class="meta">${f.chain.length}-step cascade</div>
+            <div class="steps">${stepsHtml}</div>
+          </div>
+        `;
+      }).join('');
+      // Wire click handlers
+      list.querySelectorAll('.flow').forEach(el => {
+        const idx = parseInt(el.dataset.flowIdx, 10);
+        el.addEventListener('click', () => playGuidedFlow(flows[idx], el));
+        el.addEventListener('mouseenter', () => previewFlow(flows[idx]));
+        el.addEventListener('mouseleave', clearPreview);
+      });
+    }
+
+    /// Hover preview — dim everything not in the chain, raise the chain's
+    /// nodes/edges to full opacity. Cleared on mouseleave.
+    let previewActive = false;
+    function previewFlow(flow) {
+      if (!cy || previewActive) return;
+      previewActive = true;
+      const ids = collectFlowIds(flow);
+      cy.elements().forEach(el => {
+        if (ids.has(el.id())) el.style('opacity', 1);
+        else el.style('opacity', 0.18);
+      });
+    }
+    function clearPreview() {
+      if (!cy || !previewActive) return;
+      previewActive = false;
+      cy.elements().forEach(el => el.removeStyle('opacity'));
+    }
+
+    function collectFlowIds(flow) {
+      const ids = new Set();
+      flow.chain.forEach((s, i) => {
+        // Find the command node by its name within its aggregate.
+        const cmdNode = cy.nodes(`[kind="command"][command="${s.cmd}"]`).first();
+        if (cmdNode.length) ids.add(cmdNode.id());
+        if (s.evt) {
+          const evtNode = cy.$id('evt:' + s.evt);
+          if (evtNode.length) ids.add(evtNode.id());
+          const emitEdge = cy.edges(`[kind="emits"][source="${cmdNode.id()}"][target="evt:${s.evt}"]`);
+          emitEdge.forEach(e => ids.add(e.id()));
+        }
+        if (s.policy) {
+          const polNode = cy.nodes(`[kind="policy"][label="${s.policy}"]`).first();
+          if (polNode.length) ids.add(polNode.id());
+          // Edges into and out of the policy.
+          if (s.evt) cy.edges(`[kind="triggers"][source="evt:${s.evt}"][target="${polNode.id()}"]`).forEach(e => ids.add(e.id()));
+          // Outgoing trigger to the next command — captured in next step.
+        }
+        // Edge to next step's command via policy (if any).
+        const next = flow.chain[i + 1];
+        if (next && s.policy) {
+          const nextCmd = cy.nodes(`[kind="command"][command="${next.cmd}"]`).first();
+          const polNode = cy.nodes(`[kind="policy"][label="${s.policy}"]`).first();
+          if (nextCmd.length && polNode.length) {
+            cy.edges(`[kind="triggers"][source="${polNode.id()}"][target="${nextCmd.id()}"]`).forEach(e => ids.add(e.id()));
+          }
+        }
+      });
+      return ids;
+    }
+
+    /// Play a flow as an animated guided walkthrough.
+    /// Each step lights up its node + the edge feeding it, like the
+    /// real-cascade animation but driven by the static flow chain
+    /// the operator hovered, not a live dispatch.
+    function playGuidedFlow(flow, el) {
+      if (!cy) return;
+      clearPreview();
+      // Build steps in (edge,node,edge,node,...) order.
+      const steps = [];
+      flow.chain.forEach((s, i) => {
+        const cmdNode = cy.nodes(`[kind="command"][command="${s.cmd}"]`).first();
+        if (i === 0 && cmdNode.length) {
+          steps.push({ kind: 'node', el: cmdNode, label: `${s.agg ? s.agg + '.' : ''}${s.cmd}` });
+        }
+        if (s.evt) {
+          const evtNode = cy.$id('evt:' + s.evt);
+          const emitEdge = cy.edges(`[kind="emits"][source="${cmdNode.id()}"][target="evt:${s.evt}"]`);
+          if (emitEdge.length) steps.push({ kind: 'edge', el: emitEdge, label: `${s.cmd} ▸ ${s.evt}` });
+          if (evtNode.length) steps.push({ kind: 'node', el: evtNode, label: s.evt });
+        }
+        if (s.policy && i < flow.chain.length - 1) {
+          const polNode = cy.nodes(`[kind="policy"][label="${s.policy}"]`).first();
+          if (s.evt) {
+            const evtToPol = cy.edges(`[kind="triggers"][source="evt:${s.evt}"][target="${polNode.id()}"]`);
+            if (evtToPol.length) steps.push({ kind: 'edge', el: evtToPol, label: `${s.evt} ▸ ${s.policy}` });
+          }
+          if (polNode.length) steps.push({ kind: 'node', el: polNode, label: s.policy });
+          const next = flow.chain[i + 1];
+          if (next) {
+            const nextCmd = cy.nodes(`[kind="command"][command="${next.cmd}"]`).first();
+            const polToCmd = cy.edges(`[kind="triggers"][source="${polNode.id()}"][target="${nextCmd.id()}"]`);
+            if (polToCmd.length) steps.push({ kind: 'edge', el: polToCmd, label: `${s.policy} ▸ ${next.cmd}` });
+          }
+        }
+      });
+      // Visual feedback on the guide entry.
+      document.querySelectorAll('#flows-list .flow').forEach(e => e.classList.remove('playing'));
+      if (el) el.classList.add('playing');
+      lastCascade = { kind: 'guide', flow };
+      document.getElementById('replay-btn').disabled = false;
+      runSteps(steps, 420);
+      setTimeout(() => { if (el) el.classList.remove('playing'); }, steps.length * 420 + 1200);
+    }
+
+    /// Toggle the guide panel collapsed/expanded.
+    document.getElementById('guide-toggle').addEventListener('click', () => {
+      const guide = document.getElementById('guide');
+      guide.classList.toggle('collapsed');
+      document.getElementById('guide-toggle').textContent =
+        guide.classList.contains('collapsed') ? '›' : '‹';
+    });
+
+    document.getElementById('replay-btn').addEventListener('click', () => {
+      if (!lastCascade) return;
+      setStatusClass('firing');
+      if (lastCascade.kind === 'guide') {
+        status(`replaying flow …`);
+        playGuidedFlow(lastCascade.flow, null);
+      } else if (lastCascade.kind === 'real') {
+        status(`replaying ${lastCascade.originCmd} cascade …`);
+        animateRealCascade(lastCascade.originCmd, lastCascade.cascade);
+      } else {
+        status(`replaying ${lastCascade.originCmd} cascade …`);
+        animateCascade(lastCascade.originCmd, lastCascade.firstEvent);
+      }
+    });
+  </script>
+</body>
+</html>

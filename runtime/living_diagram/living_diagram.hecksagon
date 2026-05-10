@@ -1,0 +1,81 @@
+Hecks.hecksagon "LivingDiagram" do
+  # ============================================================
+  # LIVING DIAGRAM — adapter wiring for the bluebook surface
+  # ============================================================
+  #
+  # The sibling bluebook (runtime/living_diagram/living_diagram.bluebook)
+  # declares the domain : Diagram + CascadeTrace + FormSubmission, with
+  # 19 commands and 9 policies. This hecksagon declares HOW that domain
+  # reaches the operator's browser : two `:web` routes registered with
+  # the dev server, plus a static template path.
+  #
+  # i527 introduces the `:web` adapter primitive. The hecksagon parser's
+  # fallback arm already routes unrecognised adapter kinds into
+  # `IoAdapter { kind: "web", options: [...] }` — runtime registration
+  # walks every loaded hecksagon for this kind and indexes by route.
+  #
+  # ── Routes ────────────────────────────────────────────────────
+  #
+  #   GET /diagram/:domain_name
+  #     The clickable graph page. The server reads `template_path`
+  #     from this adapter, substitutes `{{domain_name}}` into the
+  #     template, returns it as text/html. The browser then fetches
+  #     /diagram/:domain_name/graph.json (below) for the data.
+  #
+  #   GET /diagram/:domain_name/graph.json
+  #     The graph data — nodes (aggregates / commands / events /
+  #     policies) + edges (emits / triggers_on / cascades / references).
+  #     Today computed by the runtime's IR walker ; future the bluebook
+  #     declares this as a `query "GraphProjection" do …` so the data
+  #     shape is itself bluebook-first.
+
+  adapter :web,
+    name: :diagram_view,
+    get: "/diagram/:domain_name",
+    template_path: "runtime/living_diagram/diagram.html.template",
+    content_type: "text/html"
+
+  adapter :web,
+    name: :diagram_graph,
+    get: "/diagram/:domain_name/graph.json",
+    serializer: :graph_projection,
+    content_type: "application/json"
+
+  # ── The universe view ────────────────────────────────────────
+  #
+  # /diagram (no domain) renders every loaded runtime in one
+  # canvas. Aggregates of one domain become first-class nodes ;
+  # cross-domain references (e.g. ServiceTask referencing a
+  # Customer that lives in the Customer domain) become dashed
+  # edges spanning the two clusters. Click an aggregate in the
+  # universe view → smooth-zoom into its solo diagram.
+
+  adapter :web,
+    name: :diagram_universe,
+    get: "/diagram",
+    template_path: "runtime/living_diagram/diagram.html.template",
+    content_type: "text/html",
+    domain_name: "_all"
+
+  adapter :web,
+    name: :diagram_universe_graph,
+    get: "/diagram/_all/graph.json",
+    serializer: :all_domains_graph_projection,
+    content_type: "application/json"
+
+  # ── Future ────────────────────────────────────────────────────
+  #
+  # When the runtime gains :sse adapter support, two more routes
+  # land here :
+  #
+  #   GET /diagram/:domain_name/events.sse
+  #     Live event stream the diagram subscribes to for cascade
+  #     animation — every EventEmitted from the runtime EventBus
+  #     ships down this channel. The browser highlights the matching
+  #     edge for ~1.5s.
+  #
+  #   POST /diagram/:domain_name/dispatch
+  #     Already exists at /domains/:domain_name/dispatch (single-
+  #     domain routes layer). The diagram form posts there. Future
+  #     :web adapter could move that wiring here.
+end

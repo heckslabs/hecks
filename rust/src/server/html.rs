@@ -80,12 +80,18 @@ fn domain_card(name: &str, _category: &str, description: &str) -> String {
         description.to_string()
     };
     format!(
-        r#"<a href="/domains/{name}" class="bg-surface-2 rounded-lg border border-surface-3 p-6 hover:border-brand/50 hover:shadow-lg hover:shadow-brand/5 transition cursor-pointer block">
-  <div class="mb-2">
-    <h3 class="text-lg font-semibold text-white">{icon} {label}</h3>
+        r#"<div class="bg-surface-2 rounded-lg border border-surface-3 p-6 hover:border-brand/50 hover:shadow-lg hover:shadow-brand/5 transition">
+  <a href="/domains/{name}" class="block cursor-pointer">
+    <div class="mb-2">
+      <h3 class="text-lg font-semibold text-white">{icon} {label}</h3>
+    </div>
+    <p class="text-sm text-gray-400 mb-3">{desc}</p>
+  </a>
+  <div class="flex gap-2 text-xs">
+    <a href="/domains/{name}" class="px-2 py-1 rounded bg-surface-3 text-gray-300 hover:bg-brand hover:text-black transition">📋 Walking</a>
+    <a href="/diagram/{name}" class="px-2 py-1 rounded bg-surface-3 text-gray-300 hover:bg-brand hover:text-black transition">📊 Diagram</a>
   </div>
-  <p class="text-sm text-gray-400">{desc}</p>
-</a>"#,
+</div>"#,
         name = name,
         icon = domain_icon(name),
         label = esc(&display_name(name)),
