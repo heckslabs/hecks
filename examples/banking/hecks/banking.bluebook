@@ -1,16 +1,45 @@
 Hecks.bluebook "Banking" do
   aggregate "Customer" do
-    attribute :name, String
-    attribute :email, String
-    attribute :status, String, default: "active"
+    attribute :name, PersonName
+    attribute :email, EmailAddress
+
+    value_object "PersonName" do
+      attribute :given, String
+      attribute :family, String
+      invariant "given name present" do
+        given && !given.strip.empty?
+      end
+      invariant "family name present" do
+        family && !family.strip.empty?
+      end
+    end
+
+    value_object "EmailAddress" do
+      attribute :address, String
+      invariant "must contain @" do
+        address.include?("@")
+      end
+      invariant "must contain domain dot" do
+        address.split("@", 2).last.to_s.include?(".")
+      end
+    end
+
+    lifecycle :status, default: "active" do
+      transition "SuspendCustomer" => "suspended"
+      transition "ReinstateCustomer" => "active"
+    end
 
     command "RegisterCustomer" do
-      attribute :name, String
-      attribute :email, String
+      attribute :name, PersonName
+      attribute :email, EmailAddress
     end
 
     command "SuspendCustomer" do
-      attribute :customer_id, String
+      reference_to Customer
+    end
+
+    command "ReinstateCustomer" do
+      reference_to Customer
     end
 
     validation :name, presence: true
@@ -19,116 +48,241 @@ Hecks.bluebook "Banking" do
 
   aggregate "Account" do
     reference_to Customer
-    attribute :balance, Float
-    attribute :account_type, String
-    attribute :daily_limit, Float
-    attribute :status, String, default: "open"
+    attribute :balance, Money
+    attribute :account_type, AccountType
+    attribute :daily_limit, Money
     attribute :ledger, list_of(LedgerEntry)
 
+    # Money is currency-aware, integer-cents — never Float.
+    # IEEE 754 rounding has no place in a ledger.
+    value_object "Money" do
+      attribute :cents, Integer
+      attribute :currency, Currency
+      invariant "non-negative for balance contexts" do
+        cents >= 0
+      end
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant "ISO 4217 three-letter code" do
+        code.is_a?(String) && code.length == 3 && code == code.upcase
+      end
+    end
+
+    value_object "AccountType" do
+      attribute :name, String
+      invariant "checking, savings, or money_market" do
+        %w[checking savings money_market].include?(name)
+      end
+    end
+
+    value_object "Description" do
+      attribute :text, String
+      invariant "non-empty, under 200 chars" do
+        text && !text.empty? && text.length <= 200
+      end
+    end
+
+    value_object "EntryType" do
+      attribute :name, String
+      invariant "debit or credit" do
+        %w[debit credit].include?(name)
+      end
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant "looks like ISO-8601" do
+        iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+      end
+    end
+
     entity "LedgerEntry" do
-      attribute :amount, Float
-      attribute :description, String
-      attribute :entry_type, String
-      attribute :posted_at, String
+      attribute :amount, Money
+      attribute :description, Description
+      attribute :entry_type, EntryType
+      attribute :posted_at, Timestamp
+    end
+
+    lifecycle :status, default: "open" do
+      transition "CloseAccount" => "closed"
     end
 
     command "OpenAccount" do
-      attribute :customer_id, String
-      attribute :account_type, String
-      attribute :daily_limit, Float
+      reference_to Customer
+      attribute :account_type, AccountType
+      attribute :daily_limit, Money
     end
 
     command "Deposit" do
-      attribute :account_id, String
-      attribute :amount, Float
+      reference_to Account
+      attribute :amount, Money
     end
 
     command "Withdraw" do
-      attribute :account_id, String
-      attribute :amount, Float
+      reference_to Account
+      attribute :amount, Money
     end
 
     command "CloseAccount" do
-      attribute :account_id, String
+      reference_to Account
     end
 
     validation :account_type, presence: true
 
     specification "LargeWithdrawal" do |withdrawal|
-      withdrawal.amount > 10_000
+      withdrawal.amount.cents > 1_000_000  # $10k
     end
   end
 
   aggregate "Transfer" do
     reference_to Account, as: :source
     reference_to Account, as: :destination
-    attribute :amount, Float
-    attribute :status, String, default: "pending"
-    attribute :memo, String
+    attribute :amount, Money
+    attribute :memo, Memo
+
+    value_object "Money" do
+      attribute :cents, Integer
+      attribute :currency, Currency
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant "ISO 4217 three-letter code" do
+        code.is_a?(String) && code.length == 3 && code == code.upcase
+      end
+    end
+
+    value_object "Memo" do
+      attribute :text, String
+      invariant "under 280 chars" do
+        text.nil? || text.length <= 280
+      end
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "CompleteTransfer" => "completed"
+      transition "RejectTransfer" => "rejected"
+    end
 
     command "InitiateTransfer" do
-      attribute :from_account_id, String
-      attribute :to_account_id, String
-      attribute :amount, Float
-      attribute :memo, String
+      reference_to Account, as: :source
+      reference_to Account, as: :destination
+      attribute :amount, Money
+      attribute :memo, Memo
     end
 
     command "CompleteTransfer" do
-      attribute :transfer_id, String
+      reference_to Transfer
     end
 
     command "RejectTransfer" do
-      attribute :transfer_id, String
+      reference_to Transfer
     end
 
     validation :amount, presence: true
   end
 
   aggregate "Loan" do
-    reference_to Customer
+    # The Customer is reached via loan.account.customer_id.
+    # No redundant `reference_to Customer` ; one path through the
+    # graph means there is nothing to disagree with.
     reference_to Account
-    attribute :principal, Float
-    attribute :rate, Float
-    attribute :term_months, Integer
-    attribute :remaining_balance, Float
-    attribute :status, String, default: "active"
+    attribute :principal, Money
+    attribute :rate, InterestRate
+    attribute :term, Term
+    attribute :remaining_balance, Money
+
+    value_object "Money" do
+      attribute :cents, Integer
+      attribute :currency, Currency
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant "ISO 4217 three-letter code" do
+        code.is_a?(String) && code.length == 3 && code == code.upcase
+      end
+    end
+
+    # Rate as basis points (525 = 5.25%) — Float APRs are a
+    # round-tripping nightmare in interest accrual.
+    value_object "InterestRate" do
+      attribute :basis_points, Integer
+      invariant "between 0 and 10000 bps" do
+        basis_points >= 0 && basis_points <= 10000
+      end
+    end
+
+    # Term as a typed value — "60 months" not a bare integer that
+    # could be days, weeks, or years depending on who reads it.
+    value_object "Term" do
+      attribute :months, Integer
+      invariant "positive duration" do
+        months > 0
+      end
+    end
+
+    lifecycle :status, default: "active" do
+      transition "DefaultLoan" => "defaulted"
+      transition "PayOffLoan" => "paid_off"
+    end
 
     command "IssueLoan" do
-      attribute :customer_id, String
-      attribute :account_id, String
-      attribute :principal, Float
-      attribute :rate, Float
-      attribute :term_months, Integer
+      # account_id only — customer is loan.account.customer_id.
+      # Removes the issue-time ambiguity the previous shape allowed
+      # (loan recorded under one customer, funded into a different
+      # customer's account because both ids were independent strings).
+      reference_to Account
+      attribute :principal, Money
+      attribute :rate, InterestRate
+      attribute :term, Term
     end
 
     command "MakePayment" do
-      attribute :loan_id, String
-      attribute :amount, Float
+      reference_to Loan
+      attribute :amount, Money
     end
 
     command "DefaultLoan" do
-      attribute :loan_id, String
-      attribute :customer_id, String
+      reference_to Loan
+    end
+
+    command "PayOffLoan" do
+      reference_to Loan
     end
 
     validation :principal, presence: true
     validation :rate, presence: true
 
     specification "HighRisk" do |loan|
-      loan.principal > 50_000 && loan.rate > 10
+      loan.principal.cents > 5_000_000 && loan.rate.basis_points > 1000
     end
   end
 
+  # Funds disburse into the loan's referenced account. Because Loan
+  # only references Account (not Customer directly), the cascade
+  # cannot mis-route to a different customer's account — there is
+  # only one account_id in play, derived from the loan's reference
+  # graph at issue time.
   policy "DisburseFunds" do
     on "IssuedLoan"
     trigger "Deposit"
     map account_id: :account_id, principal: :amount
   end
 
-  policy "SuspendOnDefault" do
-    on "DefaultedLoan"
-    trigger "SuspendCustomer"
-    map customer_id: :customer_id
-    condition { |event| event.respond_to?(:customer_id) && event.customer_id }
-  end
+  # SuspendOnDefault retired pending graph-walking `map` syntax.
+  #
+  # The intent : when a loan defaults, suspend its customer. Today
+  # the customer is reached via loan.account.customer_id ; the
+  # DefaultedLoan event carries only the loan's own attributes,
+  # not the customer_id. A graph-walking map like
+  # `map customer_id: :loan.account.customer_id` would let the
+  # policy resolve the loan from the event, walk to its account,
+  # take that account's customer_id, and dispatch SuspendCustomer
+  # with the resolved id. The current `map` is a flat key→key
+  # transfer ; cross-aggregate path resolution is a framework gap.
+  #
+  # See hecks_conception/inbox/i525.md.
 end
