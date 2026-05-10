@@ -35,6 +35,7 @@ pub fn emit_rule(_fixtures: &[Fixture], rule: &Fixture) -> String {
         "reference_valid" => graph::emit_reference_valid(rule),
         "trigger_valid" => graph::emit_trigger_valid(rule),
         "distinct_aliases" => graph::emit_distinct_aliases(rule),
+        "no_primitive_envy" => emit_no_primitive_envy(rule),
         other => panic!("unknown check_kind: {}", other),
     }
 }
@@ -94,6 +95,54 @@ fn {name}(domain: &Domain) -> Vec<String> {{
                     cmd.name, agg.name, word,
                     if NOUN_SUFFIXES.iter().any(|s| word.to_lowercase().ends_with(s)) {{ \"noun\" }} else {{ \"adjective\" }}
                 ));
+            }}
+        }}
+    }}
+    errors
+}}
+
+"
+    )
+}
+
+/// Emit the no_primitive_envy rule body. Walks every Aggregate's
+/// own attributes plus every command's attributes (skipping
+/// value_object and entity inner attributes — those are allowed to
+/// hold primitives because the value_object IS the boundary). Flags
+/// any attribute whose type is a bare primitive.
+///
+/// The discipline : at the aggregate / command surface, every
+/// attribute reads as a typed domain concept, never as a String /
+/// Integer / Float. Wrap primitives in a value_object every time.
+fn emit_no_primitive_envy(rule: &Fixture) -> String {
+    let name = util::attr(rule, "rust_fn_name");
+    format!(
+        "\
+/// Aggregate and command attributes must use typed value objects, not bare primitives.
+/// Primitives belong inside value_object bodies as the storage layer, never at the
+/// aggregate or command surface. No exemptions — write a value object every time.
+fn {name}(domain: &Domain) -> Vec<String> {{
+    const PRIMITIVES: &[&str] = &[
+        \"String\", \"Integer\", \"Float\", \"Boolean\", \"Date\", \"DateTime\", \"JSON\",
+    ];
+    let mut errors = vec![];
+    for agg in &domain.aggregates {{
+        for attr in &agg.attributes {{
+            if PRIMITIVES.contains(&attr.attr_type.as_str()) {{
+                errors.push(format!(
+                    \"{{}}.{{}} uses primitive type {{}} — wrap it in a value_object so the domain reads as itself, not as a {{}}\",
+                    agg.name, attr.name, attr.attr_type, attr.attr_type
+                ));
+            }}
+        }}
+        for cmd in &agg.commands {{
+            for attr in &cmd.attributes {{
+                if PRIMITIVES.contains(&attr.attr_type.as_str()) {{
+                    errors.push(format!(
+                        \"{{}}.{{}}.{{}} uses primitive type {{}} — wrap it in a value_object so the domain reads as itself, not as a {{}}\",
+                        agg.name, cmd.name, attr.name, attr.attr_type, attr.attr_type
+                    ));
+                }}
             }}
         }}
     }}
