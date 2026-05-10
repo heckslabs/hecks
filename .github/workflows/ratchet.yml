@@ -1,5 +1,10 @@
 name: LoC Ratchet
 
+# [antibody-exempt: .github/workflows/ratchet.yml — CI surface
+#  for the LoC ratchet ; pairs with bin/loc-ratchet. Workflow YAML
+#  is structural infrastructure, not a bluebook concept. Retires
+#  when GitHub Actions itself becomes bluebook-driven.]
+#
 # Fails when a PR increases the count of non-bluebook LoC (*.rs under
 # rust/src/, *.sh under hecks_conception/) without a signed
 # [loc-ratchet-override: ...] commit marker. The discipline matches
@@ -23,6 +28,26 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
+
+      # loc-ratchet asks `hecks-life is-dispatched <path>` (i122) to
+      # skip files claimed by some hecksagon adapter / specializer
+      # target / runner. Without the binary available, every file
+      # counts and the ratchet over-reports — IR-claimed surfaces
+      # like specializer targets get counted as plain rust. Build
+      # before the ratchet step so the IR-query is honoured.
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: ${{ runner.os }}-ratchet-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
+
+      - name: Build hecks-life (release)
+        run: cargo build --manifest-path rust/Cargo.toml --release
 
       - name: Run loc-ratchet
         run: bin/loc-ratchet --base "origin/${{ github.base_ref }}" --verbose
