@@ -1,4 +1,10 @@
 #!/usr/bin/env ruby
+# [antibody-exempt: bin/antibody-check — the antibody gate itself.
+#  Kernel-surface CI primitive that consults `dispatch_query`'s IR
+#  claims AND in-file markers to determine which non-bluebook
+#  edits are structurally exempt. Self-marker so future edits to
+#  this script don't bootstrap a chicken-and-egg block.]
+#
 # antibody-check — fail when a commit or PR adds non-Bluebook code.
 #
 # Bluebook is the source of truth AND the thing that runs. The runtime
@@ -94,6 +100,29 @@ def touched_files(base_ref, include_staged)
     touched.concat(out.lines.map(&:strip).reject(&:empty?)) if ok
   end
   touched.uniq
+end
+
+def file_has_in_header_marker(path, sha = nil)
+  # Honors the [antibody-exempt: ...] marker convention specified in
+  # enforcer.bluebook (ExemptedEdited event) : the marker IS the audit
+  # trail. When a file declares why it's kernel-surface in its own
+  # header, no commit-message marker is required.
+  #
+  # In --each-commit mode the file content AT THAT SHA is what matters —
+  # the marker may have been added or removed in subsequent commits.
+  # In single-commit mode read the working-tree content.
+  #
+  # Scans the first 30 lines only — the marker convention puts it in the
+  # file's doc-comment header. Past 30 lines is body code.
+  content =
+    if sha
+      out, ok = run(["git", "show", "#{sha}:#{path}"])
+      ok ? out : nil
+    elsif File.file?(path) && File.readable?(path)
+      File.read(path) rescue nil
+    end
+  return false unless content
+  content.each_line.first(30).any? { |l| l.include?("[antibody-exempt:") }
 end
 
 def exempt_reasons(message_file)
@@ -225,6 +254,10 @@ if options[:each_commit]
     next unless fok
     files = files_out.lines.map(&:strip).reject(&:empty?)
     code  = filter_code_files(files)
+    # Files carrying their own [antibody-exempt: ...] header marker are
+    # structurally exempt — the marker IS the audit trail
+    # (enforcer.bluebook ExemptedEdited event).
+    code  = code.reject { |p| file_has_in_header_marker(p, sha) }
     next if code.empty?
     msg_out, _ = run(["git", "log", "-1", "--format=%B", sha])
     reasons = msg_out.to_s
@@ -280,6 +313,9 @@ touched =
     touched_files(base_ref, base_ref.nil?)
   end
 code    = filter_code_files(touched)
+# Files carrying their own [antibody-exempt: ...] header marker are
+# structurally exempt — no commit-message marker required.
+code    = code.reject { |p| file_has_in_header_marker(p) }
 
 # i7 rule: any new Kernel.load / load(...) targeting a DSL extension is
 # a hard stop. No exemption — this is the "5/5 parsed, not executed"
