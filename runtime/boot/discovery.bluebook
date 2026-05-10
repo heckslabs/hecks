@@ -41,7 +41,7 @@ Hecks.bluebook "Discovery", version: "2026.05.09.1" do
   # DISCOVERY — one walk of the conception tree
   # ============================================================
 
-  aggregate "Discovery", "One walk of the aggregates tree — scans for Hecks source files, groups them into per-aggregate clusters the parser can hand-off as a unit. Singleton per boot phase ; resets on the next pipeline run." do
+  aggregate "BootDiscovery", "One walk of the aggregates tree — scans for Hecks source files, groups them into per-aggregate clusters the parser can hand-off as a unit. Singleton per boot phase ; resets on the next pipeline run." do
     # ---- Typed inputs / outputs ----
     #
     # Every attribute on this aggregate's surface is a value_object —
