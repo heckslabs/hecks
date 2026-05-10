@@ -1,0 +1,37 @@
+Hecks.bluebook "CommandReferenceAs", version: "2026.05.09.1" do
+  vision "Command with two reference_to ..., as: — tests command-level qualifier honouring (i526)"
+
+  aggregate "Account", "A bank account" do
+    attribute :balance, Money
+
+    value_object "Money" do
+      attribute :cents, Integer
+      attribute :currency, String, default: "USD"
+    end
+
+    command "Open" do
+      role "Customer"
+      attribute :balance, Money
+      emits "Opened"
+    end
+  end
+
+  aggregate "Transfer", "Movement of funds between two accounts" do
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+    attribute :amount, Money
+
+    value_object "Money" do
+      attribute :cents, Integer
+      attribute :currency, String, default: "USD"
+    end
+
+    command "Initiate" do
+      role "Customer"
+      reference_to Account, as: :source
+      reference_to Account, as: :destination
+      attribute :amount, Money
+      emits "Initiated"
+    end
+  end
+end
