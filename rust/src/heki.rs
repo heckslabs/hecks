@@ -900,7 +900,6 @@ pub fn print_summary(stores: &HashMap<String, Store>) {
     let pulse = stores.get("heartbeat").and_then(|s| latest(s));
     let census = stores.get("census").and_then(|s| latest(s));
     let heartbeat = stores.get("heartbeat").and_then(|s| latest(s));
-    let being = stores.get("being").and_then(|s| latest(s));
     let conversation = stores.get("conversation").and_then(|s| latest(s));
     let identity = stores.get("identity").and_then(|s| latest(s));
 

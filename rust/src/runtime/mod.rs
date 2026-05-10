@@ -33,7 +33,6 @@ pub mod adapter_llm;
 pub mod adapter_registry;
 pub mod adapter_terminal;
 pub mod shell_dispatcher;
-mod lifecycle;
 mod middleware;
 mod policy_engine;
 mod projection;
@@ -319,12 +318,24 @@ impl Runtime {
     /// (e.g. `hecks-life sleep` dispatching EnterSleep against a
     /// heki the run-loop daemon will read on its next tick).
     ///
-    /// Cost is one stat() per repo per tick when nothing changed —
-    /// the per-repo refresh_from_heki gates the actual read on
-    /// mtime advance, so unchanged stores don't pay the read.
-    /// Closes the i517 root cause : the loop searching in itself
-    /// for what's no longer there finally turns outward to disk.
+    /// **Opt-in via `HECKS_REFRESH_REPOS=1`** — refresh is off by
+    /// default. Production daemons (mindstream / long-running
+    /// run-loops) set the env var to pick up cross-process state.
+    /// Single-process smoke tests and one-shot dispatches leave it
+    /// off so refresh doesn't interact with their in-memory cascade
+    /// state (e.g. by re-reading partially-written counter-minted
+    /// records and mid-cascade breaking singleton fallback ; see
+    /// dream_content_smoke flakiness 2026-05-09).
+    ///
+    /// Cost when on : one stat() per repo per tick when nothing
+    /// changed ; per-repo refresh_from_heki gates the actual read
+    /// on mtime advance.
+    /// Cost when off : zero — the function returns immediately.
+    /// Closes the i517 root cause for the production-daemon path.
     pub fn refresh_repositories_from_heki(&mut self) {
+        if std::env::var("HECKS_REFRESH_REPOS").ok().as_deref() != Some("1") {
+            return;
+        }
         for repo in self.repositories.values_mut() {
             repo.refresh_from_heki();
         }

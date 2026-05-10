@@ -1302,7 +1302,7 @@ fn build_input(
 ///     failure — VCR for the cascade graph.
 /// Falls back to `ok: "true"` when nothing else qualifies.
 fn build_expect(
-    domain: &Domain,
+    _domain: &Domain,
     agg: &Aggregate,
     cmd: &Command,
     _lifecycle_to: Option<(String, String)>,

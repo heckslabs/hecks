@@ -61,6 +61,18 @@ pub fn ensure_all(
         let command = adapter_option(adapter, "command")
             .map(|s| substitute(&s, info_dir, &conception_str, &agg_dir, &hecks_bin, &body_dir))
             .unwrap_or_default();
+        // Collect every `env: "KEY=VALUE"` option on this adapter.
+        // Multiple env: rows are supported : the boot runner applies
+        // each as a Command::env() call before spawning the daemon.
+        // KEY=VALUE prefix-in-command shape doesn't work because
+        // spawn_detached uses Command::new (no shell), so env:
+        // declarations are the right path. Same pattern other adapter
+        // options take (one declaration → one option pair). Per Chris
+        // 2026-05-09 : "this wants to be adapter code."
+        let env_pairs: Vec<(String, String)> = adapter_options_all(adapter, "env")
+            .into_iter()
+            .filter_map(|s| parse_env_pair(&s))
+            .collect();
 
         if pidfile.is_empty() || command.is_empty() {
             out.push(DaemonStatus {
@@ -70,10 +82,32 @@ pub fn ensure_all(
             continue;
         }
 
-        let status = ensure_one(&pidfile, &command, info_dir);
+        let status = ensure_one(&pidfile, &command, info_dir, &env_pairs);
         out.push(DaemonStatus { name, status });
     }
     out
+}
+
+/// Parse a `KEY=VALUE` string into its pair. Returns None when the
+/// `=` is missing or KEY is empty — neither shape is a valid env
+/// declaration.
+fn parse_env_pair(s: &str) -> Option<(String, String)> {
+    let trimmed = s.trim_matches('"').trim();
+    let eq = trimmed.find('=')?;
+    let key = trimmed[..eq].trim().to_string();
+    if key.is_empty() { return None; }
+    let val = trimmed[eq + 1..].to_string();
+    Some((key, val))
+}
+
+/// Collect every option matching `key`. Mirrors `adapter_option`'s
+/// shape but returns all matches instead of only the first — the
+/// `env:` option supports multiple declarations on a single adapter.
+fn adapter_options_all(adapter: &IoAdapter, key: &str) -> Vec<String> {
+    adapter.options.iter()
+        .filter(|(k, _)| k == key)
+        .map(|(_, v)| v.clone())
+        .collect()
 }
 
 /// Spawn one daemon via `hecks-life daemon ensure`. Sets `HECKS_INFO`
@@ -82,7 +116,20 @@ pub fn ensure_all(
 /// canonical info_dir boot already resolved. Without this, every
 /// daemon re-ran its own resolver and could diverge from boot's
 /// view (the i149/i153 incidents).
-fn ensure_one(pidfile: &str, command_line: &str, info_dir: &str) -> String {
+///
+/// `env_pairs` carries the `env: "KEY=VALUE"` declarations from the
+/// hecksagon's `adapter :daemon` row. They are applied to the outer
+/// Command via `.env(K, V)` ; spawn_detached's grandchild inherits
+/// the parent's env by default, so the values land on the actual
+/// daemon process. Closes Chris's "this wants to be adapter code"
+/// observation (2026-05-09 ; replaces the earlier shell-prefix
+/// shape that broke under spawn_detached's no-shell `Command::new`).
+fn ensure_one(
+    pidfile: &str,
+    command_line: &str,
+    info_dir: &str,
+    env_pairs: &[(String, String)],
+) -> String {
     // command_line is "<cmd> [args...]" — split on whitespace.
     let parts: Vec<&str> = command_line.split_whitespace().collect();
     if parts.is_empty() { return "skipped (empty command)".into(); }
@@ -96,12 +143,16 @@ fn ensure_one(pidfile: &str, command_line: &str, info_dir: &str) -> String {
     ];
     for p in &parts { cmd_args.push((*p).to_string()); }
 
-    let output = Command::new(&hecks_bin)
+    let mut command = Command::new(&hecks_bin);
+    command
         .args(&cmd_args)
         .env("HECKS_INFO", info_dir)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output();
+        .stderr(Stdio::piped());
+    for (k, v) in env_pairs {
+        command.env(k, v);
+    }
+    let output = command.output();
 
     match output {
         Ok(out) if out.status.success() => {
