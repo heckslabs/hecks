@@ -10,6 +10,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         commands: vec![], queries: vec![], value_objects: vec![],
         entities: vec![],
         references: vec![], lifecycle: None, identified_by: None,
+        views: vec![],
     };
 
     let mut i = 1;
@@ -69,6 +70,14 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 continue;
             } else if line.starts_with("identified_by") {
                 agg.identified_by = extract_symbol(line);
+            } else if line.starts_with("view") && ends_with_do_block(line) {
+                // i254 — `view "for_customer" do show :a, :b end` declares
+                // a named projection. parse_view returns the View IR + the
+                // line count consumed (block-form only ; no inline form).
+                let (v, consumed) = parse_view(&lines[i..]);
+                agg.views.push(v);
+                i += consumed;
+                continue;
             } else if is_shorthand_line(line) {
                 absorb_shorthand(line, &mut agg);
             } else if line.starts_with("query") {

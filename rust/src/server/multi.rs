@@ -113,18 +113,96 @@ fn repo_root_of_binary() -> Option<std::path::PathBuf> {
     None
 }
 
+/// i241 primary-bluebook convention. When `serve <dir>` finds a
+/// `<dirname>.bluebook` at the top level (the primary), every other
+/// *.bluebook in the tree merges its aggregates / policies / fixtures
+/// / sections / process_managers / cadences / block_grammars into
+/// the primary. The primary owns name + vision + category +
+/// entrypoint. This is the convention bin-buddy and other application
+/// repos follow (one product = one domain, split into per-aggregate
+/// files for tractability).
+///
+/// When NO primary exists at the root, fall back to legacy mode :
+/// each top-level *.bluebook becomes its own domain (catalog-style,
+/// for trees like hecks_conception/catalog where each file is a
+/// self-contained domain).
 fn load_all_domains(dir: &str) -> HashMap<String, RefCell<Runtime>> {
     let mut map = HashMap::new();
     let data_dir = format!("{}/data", dir.trim_end_matches('/'));
-    walk_bluebooks(std::path::Path::new(dir), &data_dir, &mut map);
+
+    let dir_path = std::fs::canonicalize(dir)
+        .unwrap_or_else(|_| std::path::PathBuf::from(dir));
+    let dir_basename = dir_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+    let primary_path = dir_path.join(format!("{}.bluebook", dir_basename));
+
+    if primary_path.exists() {
+        // PRIMARY mode — merge tree into one domain.
+        let merged = merge_tree(&dir_path, &primary_path);
+        if !merged.name.is_empty() {
+            let name = merged.name.clone();
+            let rt = Runtime::boot_with_data_dir(merged, Some(data_dir.clone()));
+            map.insert(name, RefCell::new(rt));
+        }
+    } else {
+        // LEGACY mode — each .bluebook is its own domain.
+        walk_bluebooks(&dir_path, &data_dir, &mut map);
+    }
     map
 }
 
-/// Walk directory tree depth-first, loading every `.bluebook` file
-/// as its own Runtime. Skips hidden + .git directories. The bin-buddy
-/// layout (i241) splits one project across many sibling .bluebook
-/// files under aggregates/<name>/<name>.bluebook ; each is its own
-/// `Hecks.bluebook` domain, so each becomes its own runtime.
+/// Recursively read every *.bluebook under `dir` (other than the
+/// primary itself), parse it, and merge its top-level Vec contents
+/// into the primary Domain. Files that fail to read are silently
+/// skipped — the operator already gets a parse error from `validate`.
+fn merge_tree(dir: &std::path::Path, primary_path: &std::path::Path) -> crate::ir::Domain {
+    let primary_src = std::fs::read_to_string(primary_path)
+        .expect("primary bluebook must be readable");
+    let mut merged = parser::parse(&primary_src);
+
+    let mut child_paths: Vec<std::path::PathBuf> = Vec::new();
+    collect_bluebooks(dir, primary_path, &mut child_paths);
+    child_paths.sort(); // deterministic order — diagrams render the same every boot
+
+    for path in child_paths {
+        if let Ok(source) = std::fs::read_to_string(&path) {
+            let child = parser::parse(&source);
+            merged.aggregates.extend(child.aggregates);
+            merged.policies.extend(child.policies);
+            merged.fixtures.extend(child.fixtures);
+            merged.sections.extend(child.sections);
+            merged.process_managers.extend(child.process_managers);
+            merged.cadences.extend(child.cadences);
+            merged.block_grammars.extend(child.block_grammars);
+        }
+    }
+    merged
+}
+
+fn collect_bluebooks(
+    dir: &std::path::Path,
+    skip: &std::path::Path,
+    out: &mut Vec<std::path::PathBuf>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name_os = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
+        if name_os.starts_with('.') { continue; }
+        if path.is_dir() {
+            if name_os == "data" || name_os == "node_modules" || name_os == "target" {
+                continue;
+            }
+            collect_bluebooks(&path, skip, out);
+        } else if path.extension().map(|e| e == "bluebook").unwrap_or(false) && path != skip {
+            out.push(path);
+        }
+    }
+}
+
+/// Legacy walker (no-primary mode) — each *.bluebook is its own Runtime.
 fn walk_bluebooks(
     root: &std::path::Path,
     data_dir: &str,
