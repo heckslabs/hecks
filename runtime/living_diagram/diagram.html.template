@@ -316,6 +316,81 @@
     #nav-tree .nav-item.pol::before { content: '⬢'; color: #ff8b5e; font-size: 0.6rem; }
     #nav-tree .nav-item.pm::before  { content: '⬣'; color: #e94e77; font-size: 0.6rem; }
     #nav-tree .nav-item.vo::before  { content: '⬡'; color: #74d49e; font-size: 0.6rem; }
+
+    /* ── User flows panel ── */
+    .role-filters {
+      display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.65rem;
+    }
+    .role-chip {
+      padding: 3px 9px; border-radius: 999px;
+      background: var(--bg-1); border: 1px solid var(--line);
+      color: var(--muted); font-size: 0.7rem; font-family: inherit;
+      cursor: pointer; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 0.3rem;
+    }
+    .role-chip span { color: #5a6080; font-size: 0.65rem; }
+    .role-chip:hover { color: var(--text); border-color: var(--brand-dim); }
+    .role-chip.active {
+      background: var(--brand); color: #1a1505; border-color: var(--brand);
+    }
+    .role-chip.active span { color: rgba(26, 21, 5, 0.6); }
+
+    .user-flow {
+      padding: 0.55rem 0.7rem; margin-bottom: 0.45rem;
+      background: rgba(0, 0, 0, 0.18);
+      border: 1px solid var(--line);
+      border-radius: 9px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .user-flow:hover {
+      border-color: rgba(94, 234, 212, 0.35);
+      background: rgba(94, 234, 212, 0.05);
+      transform: translateY(-1px);
+    }
+    .user-flow.playing {
+      border-color: var(--brand); background: rgba(255, 216, 77, 0.08);
+    }
+    .user-flow.pri-high { border-left: 2px solid #ff8b5e; }
+    .user-flow-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.15rem; }
+    .user-flow-ref {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.62rem;
+      color: var(--muted); background: var(--bg-3);
+      padding: 1px 5px; border-radius: 4px;
+    }
+    .user-flow-role {
+      font-size: 0.62rem; padding: 1px 6px; border-radius: 999px;
+      text-transform: lowercase; letter-spacing: 0.04em; font-weight: 600;
+    }
+    .user-flow-role.role-customer  { background: rgba(94, 234, 212, 0.15); color: #5eead4; }
+    .user-flow-role.role-driver    { background: rgba(93, 177, 255, 0.15); color: #5db1ff; }
+    .user-flow-role.role-employee  { background: rgba(255, 216, 77, 0.15); color: var(--brand); }
+    .user-flow-role.role-framework { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+    .user-flow-title {
+      font-size: 0.83rem; font-weight: 600; color: var(--text);
+      margin-bottom: 0.2rem; line-height: 1.3;
+    }
+    .user-flow-value {
+      font-size: 0.72rem; color: var(--muted); line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Right panel additions for user-flow detail */
+    #panel .pill.pri-high { background: rgba(255, 139, 94, 0.15); color: #ff8b5e; }
+    #panel .agg-pill {
+      display: inline-block; padding: 2px 8px; margin: 2px 3px 2px 0;
+      background: rgba(255, 216, 77, 0.12); color: var(--brand);
+      border-radius: 5px; font-size: 0.72rem; font-weight: 500;
+    }
+    #panel .aggs-block { margin-bottom: 0.85rem; padding: 0.55rem 0.65rem; background: rgba(0,0,0,0.18); border-radius: 8px; border: 1px solid var(--line); }
+    #panel .story-body { font-size: 0.83rem; line-height: 1.55; color: #c0c5dc; }
+    #panel .story-body h3 { font-family: 'DM Serif Display', serif; font-size: 0.95rem; font-weight: 400; margin: 0.85rem 0 0.3rem; color: var(--text); }
+    #panel .story-body h4 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 1rem 0 0.4rem; }
+    #panel .story-body p { margin: 0 0 0.55rem; }
+    #panel .story-body ul { margin: 0.3rem 0 0.65rem 1rem; padding: 0; }
+    #panel .story-body li { margin-bottom: 0.25rem; list-style: disc; }
+    #panel .story-body strong { color: var(--text); }
+    #panel .story-body em { color: var(--brand); font-style: italic; }
     #guide.collapsed { transform: translateX(calc(-100% - 1.5rem)); }
     #guide-toggle {
       position: fixed; left: 0; top: 50%;
@@ -436,9 +511,16 @@
       <div id="nav-tree"></div>
     </section>
     <section class="guide-section">
+      <div class="eyebrow">User flows</div>
+      <h3>Stories</h3>
+      <p class="play-hint">Each card is a user story from the inbox. Click to open + spotlight the matching aggregates ; hover to preview the path.</p>
+      <div id="user-flows-filters"></div>
+      <div id="user-flows-list"></div>
+    </section>
+    <section class="guide-section">
       <div class="eyebrow">Workflows</div>
       <h3>Cascading flows</h3>
-      <p class="play-hint">Click a flow to play its cascade.</p>
+      <p class="play-hint">Auto-detected cascades from the graph structure. Click to play.</p>
       <div id="flows-list"></div>
     </section>
   </aside>
@@ -608,6 +690,7 @@
           startEdgeFlow();
           renderNavTree();
           renderFlowsGuide();
+          loadUserFlows();
           console.log('[living-diagram] graph rendered');
         } catch (e) {
           console.error('[living-diagram] cytoscape boot failed', e);
@@ -1356,6 +1439,173 @@
       else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomBy(1/1.3); }
       else if (e.key === 'Escape')         { closePanel(); }
     });
+
+    /// ── User flows ─────────────────────────────────────────────
+    ///
+    /// Inbox cards (one .md per user story) listed in the left rail.
+    /// Click → opens the story detail in the right panel + spotlights
+    /// the aggregates whose names appear in the card body. Hover →
+    /// dims the rest of the graph to the matched subtree. Filter by
+    /// role across the top so the operator can scan customer / driver /
+    /// employee / framework stories independently.
+    let USER_FLOWS = [];
+    let activeRoleFilter = null;
+
+    function loadUserFlows() {
+      fetch('/diagram/flows.json')
+        .then(r => r.ok ? r.json() : [])
+        .then(cards => { USER_FLOWS = cards; renderUserFlows(); })
+        .catch(err => console.warn('[user-flows] load failed', err));
+    }
+
+    function renderUserFlows() {
+      const root = document.getElementById('user-flows-list');
+      const filtersEl = document.getElementById('user-flows-filters');
+      if (!root) return;
+
+      // Role filter chips
+      const roles = [...new Set(USER_FLOWS.map(c => c.role).filter(Boolean))].sort();
+      filtersEl.innerHTML = `
+        <div class="role-filters">
+          <button class="role-chip ${activeRoleFilter === null ? 'active' : ''}" data-role="">all <span>${USER_FLOWS.length}</span></button>
+          ${roles.map(r => {
+            const n = USER_FLOWS.filter(c => c.role === r).length;
+            return `<button class="role-chip ${activeRoleFilter === r ? 'active' : ''}" data-role="${r}">${r} <span>${n}</span></button>`;
+          }).join('')}
+        </div>
+      `;
+      filtersEl.querySelectorAll('.role-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeRoleFilter = btn.dataset.role || null;
+          renderUserFlows();
+        });
+      });
+
+      // Cards
+      const visible = activeRoleFilter
+        ? USER_FLOWS.filter(c => c.role === activeRoleFilter)
+        : USER_FLOWS;
+      if (visible.length === 0) {
+        root.innerHTML = `<div class="empty">No cards under inbox/ for this filter.</div>`;
+        return;
+      }
+      root.innerHTML = visible.map((card, i) => {
+        const idx = USER_FLOWS.indexOf(card);
+        const priorityClass = card.priority === 'high' ? 'pri-high' : '';
+        return `
+          <div class="user-flow ${priorityClass}" data-flow-idx="${idx}">
+            <div class="user-flow-head">
+              <span class="user-flow-ref">${card.ref}</span>
+              <span class="user-flow-role role-${card.role}">${card.role || ''}</span>
+            </div>
+            <div class="user-flow-title">${escapeHtml(card.title)}</div>
+            <div class="user-flow-value">${escapeHtml(card.value || '')}</div>
+          </div>
+        `;
+      }).join('');
+      root.querySelectorAll('.user-flow').forEach(el => {
+        const card = USER_FLOWS[parseInt(el.dataset.flowIdx, 10)];
+        el.addEventListener('click', () => openUserFlow(card, el));
+        el.addEventListener('mouseenter', () => previewUserFlow(card));
+        el.addEventListener('mouseleave', clearPreview);
+      });
+    }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    /// Find aggregates whose name appears in the card's body or value.
+    /// Match is case-sensitive PascalCase substring — domain names like
+    /// `ServiceTask` / `Customer` / `Subscription` are unambiguous in
+    /// English prose.
+    function aggregatesForCard(card) {
+      if (!cy) return [];
+      const haystack = (card.body || '') + ' ' + (card.value || '') + ' ' + (card.title || '');
+      const hits = [];
+      cy.nodes('[kind="aggregate"]').forEach(agg => {
+        const name = agg.data('label');
+        if (!name) return;
+        // Word-boundary match on PascalCase aggregate names.
+        const re = new RegExp(`\\b${name}\\b`);
+        if (re.test(haystack)) hits.push(agg);
+      });
+      return hits;
+    }
+
+    function previewUserFlow(card) {
+      if (!cy || previewActive) return;
+      const aggs = aggregatesForCard(card);
+      if (aggs.length === 0) return;
+      previewActive = true;
+      const spotlight = new Set();
+      aggs.forEach(a => {
+        spotlight.add(a.id());
+        a.outgoers().nodes().forEach(n => spotlight.add(n.id()));
+        cy.edges(`[source="${a.id()}"]`).forEach(e => spotlight.add(e.id()));
+      });
+      cy.elements().forEach(el => {
+        if (spotlight.has(el.id())) el.style('opacity', 1);
+        else el.style('opacity', 0.15);
+      });
+    }
+
+    function openUserFlow(card, el) {
+      // Visual feedback on the card
+      document.querySelectorAll('#user-flows-list .user-flow').forEach(e => e.classList.remove('playing'));
+      if (el) el.classList.add('playing');
+
+      // Find aggregates in the card body, fit-zoom to them, open detail
+      const aggs = aggregatesForCard(card);
+      if (aggs.length > 0) {
+        const subtree = aggs.reduce((acc, a) =>
+          acc.union(a).union(a.outgoers().nodes()), cy.collection());
+        cy.animate({ fit: { eles: subtree, padding: 80 } }, { duration: 520, easing: 'ease-out' });
+      }
+
+      // Open the right panel with the card detail
+      const aggList = aggs.map(a => `<span class="agg-pill">${a.data('label')}</span>`).join(' ');
+      const bodyHtml = renderMarkdown(card.body);
+      content.innerHTML = `
+        <h2>${escapeHtml(card.title)}</h2>
+        <div class="meta-row">
+          <span class="pill">${card.ref}</span>
+          ${card.role ? `<span class="pill">${card.role}</span>` : ''}
+          ${card.priority ? `<span class="pill pri-${card.priority}">${card.priority}</span>` : ''}
+          ${card.status ? `<span class="pill">${card.status}</span>` : ''}
+        </div>
+        ${card.value ? `<div class="desc"><strong>As a ${card.role || 'user'},</strong> ${escapeHtml(card.value)}</div>` : ''}
+        ${aggList ? `<div class="aggs-block"><div class="label">Touches</div><div>${aggList}</div></div>` : ''}
+        <div class="story-body">${bodyHtml}</div>
+      `;
+      panel.classList.add('open');
+      status(`opened ${card.ref}`);
+    }
+
+    /// Tiny markdown renderer — headings, paragraphs, list items, em.
+    /// Keep narrow scope ; the inbox cards are simple enough that we
+    /// don't need a full parser. Escape HTML first, then promote.
+    function renderMarkdown(md) {
+      if (!md) return '';
+      let s = escapeHtml(md);
+      s = s.replace(/^## (.+)$/gm, '<h4>$1</h4>');
+      s = s.replace(/^# (.+)$/gm, '<h3>$1</h3>');
+      s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      // Lists : group consecutive `- ` lines.
+      s = s.replace(/(^|\n)((?:- .+\n?)+)/g, (m, pre, body) => {
+        const items = body.trim().split('\n').map(l => `<li>${l.replace(/^- /, '')}</li>`).join('');
+        return `${pre}<ul>${items}</ul>`;
+      });
+      // Paragraphs : split on blank lines.
+      s = s.split(/\n\n+/).map(block => {
+        if (block.startsWith('<') || block.trim() === '') return block;
+        return `<p>${block.replace(/\n/g, ' ')}</p>`;
+      }).join('\n');
+      return s;
+    }
 
     /// ── Navigation tree ────────────────────────────────────────
     ///

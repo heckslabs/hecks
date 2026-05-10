@@ -63,6 +63,27 @@ Hecks.hecksagon "LivingDiagram" do
     serializer: :all_domains_graph_projection,
     content_type: "application/json"
 
+  # ── User flows ────────────────────────────────────────────────
+  #
+  # Each card under <served-dir>/inbox/*.md is a user-flow / use-
+  # case story (YAML frontmatter + markdown body). The serializer
+  # walks every card, parses (ref, role, value, status, priority,
+  # category, body), returns as a JSON array. The diagram template
+  # renders them in the left sidebar so the operator can pick a
+  # story and the diagram spotlights the aggregates / commands
+  # involved (heuristic match : role + body text → aggregates).
+  #
+  # Future : a card can declare an explicit `dispatch_sequence:`
+  # list in its frontmatter, and the diagram plays that exact
+  # cascade through the runtime. Today the panel surfaces the
+  # story + role-spotlight only.
+
+  adapter :web,
+    name: :user_flows,
+    get: "/diagram/flows.json",
+    serializer: :user_flows,
+    content_type: "application/json"
+
   # ── Future ────────────────────────────────────────────────────
   #
   # When the runtime gains :sse adapter support, two more routes
