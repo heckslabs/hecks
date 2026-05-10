@@ -80,7 +80,7 @@ const IMPORTS: &str = "use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
     Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
     DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
-    ValueObject, WhereClause, WhereOp,
+    ValueObject, View, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
 

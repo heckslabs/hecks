@@ -345,6 +345,12 @@ pub struct Aggregate {
     pub entities: Vec<Entity>,
     pub references: Vec<Reference>,
     pub lifecycle: Option<Lifecycle>,
+    /// i254 — views per role. Each `View` declares a named projection
+    /// of this aggregate's fields ; portals consume views by name
+    /// (`record.view("for_customer")`) so role-scoped renderers all
+    /// pull from the same single source of truth. Empty when no
+    /// `view "name" do ... end` blocks were declared.
+    pub views: Vec<View>,
 }
 
 #[derive(Debug, Clone)]
@@ -553,6 +559,23 @@ pub enum Direction {
 #[derive(Debug, Clone)]
 pub struct LimitSpec {
     pub value: String,
+}
+
+/// One declared view (i254). Mirrors
+/// `Hecks::BluebookModel::Structure::View`. Different portals read the
+/// same aggregate through different views ; the view declaration is the
+/// single source of truth for "which attributes does this role see".
+///
+/// `show_all = true` projects every aggregate attribute, then appends
+/// `fields` as extras (customer view typically lists the explicit subset
+/// with `show_all = false` ; admin view typically uses `show_all = true`
+/// plus a few internal fields). `show_all = false` projects only the
+/// explicit `fields` list.
+#[derive(Debug, Clone)]
+pub struct View {
+    pub name: String,
+    pub show_all: bool,
+    pub fields: Vec<String>,
 }
 
 impl fmt::Display for Domain {

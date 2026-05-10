@@ -56,7 +56,7 @@ module Hecks
       attr_reader :attributes, :commands, :value_objects, :entities,
                   :policies, :validations, :invariants, :scopes,
                   :queries, :subscribers, :specifications,
-                  :references
+                  :references, :views
       # Writer for lifecycle — used by AggregateHandle to update lifecycle
       # without reaching into instance variables. Reader is the DSL method
       # in BehaviorMethods; use current_lifecycle to read.
@@ -80,6 +80,7 @@ module Hecks
         @subscribers = []
         @specifications = []
         @references = []
+        @views = []
         @explicit_events = []
         @projections = []
         @factories = []
@@ -237,6 +238,59 @@ module Hecks
         @entities << builder.build
       end
 
+      # Declare a named view — a role-scoped projection of this
+      # aggregate's fields (i254). Different portals consume the same
+      # aggregate through different views ; the view declaration is the
+      # single source of truth for "which attributes does this role
+      # see". The block accepts `show :a, :b, ...`, `show_all`, and
+      # `plus :extras`.
+      #
+      #   view "for_customer" do
+      #     show :scheduled_date, :status, :before_photo, :after_photo, :completed_at
+      #   end
+      #
+      #   view "for_admin" do
+      #     show_all
+      #     plus :route_id, :worker_account_email, :failed_reason
+      #   end
+      #
+      # @param name [String] the view name (consumed at runtime as
+      #   `record.view("for_customer")`)
+      # @yield block evaluated in ViewDSL context
+      # @return [void]
+      def view(name, &block)
+        dsl = ViewDSL.new
+        dsl.instance_eval(&block) if block
+        @views << Structure::View.new(
+          name: name, show_all: dsl.show_all_flag, fields: dsl.fields
+        )
+      end
+
+      # Inner DSL for `view "name" do ... end` blocks. Captures the
+      # ordered field list and show_all flag so AggregateBuilder#view
+      # can build a Structure::View. Tiny, no-state-leak — one DSL
+      # instance per view block.
+      class ViewDSL
+        attr_reader :fields, :show_all_flag
+
+        def initialize
+          @fields = []
+          @show_all_flag = false
+        end
+
+        def show(*names)
+          @fields.concat(names.map(&:to_sym))
+        end
+
+        def plus(*names)
+          @fields.concat(names.map(&:to_sym))
+        end
+
+        def show_all
+          @show_all_flag = true
+        end
+      end
+
       # Declare CRUD commands for this aggregate. Generates Create, Update,
       # and Delete commands from the aggregate's attributes at build time.
       # Skips any verb whose command already exists.
@@ -283,7 +337,8 @@ module Hecks
           metadata: @metadata, references: @references,
           factories: @factories, identity_fields: @identity_fields,
           description: @description,
-          namespace: @namespace, superclass: @superclass, mixins: @mixins
+          namespace: @namespace, superclass: @superclass, mixins: @mixins,
+          views: @views
         )
       end
 

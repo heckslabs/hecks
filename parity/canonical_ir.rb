@@ -163,6 +163,24 @@ module Hecks
           "commands"      => (agg.commands || []).map { |c| dump_command(c) },
           "queries"       => (agg.queries || []).map { |q| dump_query(q) },
           "lifecycle"     => agg.lifecycle && dump_lifecycle(agg.lifecycle),
+          # i254 — views per role. Mirrors dump.rs's
+          # `views: Vec<View>` projection. Each View serialises as
+          # { name, show_all, fields: [str, ...] } ; declaration order
+          # is preserved so the canonical JSON round-trips
+          # byte-identically with the Rust dumper.
+          "views"         => (agg.respond_to?(:views) ? (agg.views || []) : []).map { |v| dump_view(v) },
+        }
+      end
+
+      # Mirror Rust's dump_view (i254). View has three fields :
+      # name (String), show_all (bool), fields (Vec<String>). Symbols
+      # in the Ruby side stringify through to_s so the canonical shape
+      # matches the Rust JSON byte-for-byte.
+      def dump_view(v)
+        {
+          "name"     => v.name.to_s,
+          "show_all" => !!v.show_all,
+          "fields"   => (v.fields || []).map(&:to_s),
         }
       end
 
