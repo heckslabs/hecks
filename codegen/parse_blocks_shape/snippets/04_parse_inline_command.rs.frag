@@ -6,6 +6,7 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
                 cmd.role = extract_string(part);
             } else if part.starts_with("emits") {
                 cmd.emits = extract_string(part);
+                cmd.emits_identified_by = extract_kwarg_symbol(part, "identified_by");
             } else if part.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(part) { cmd.attributes.push(attr); }
             } else if part.starts_with("reference_to") {

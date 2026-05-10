@@ -78,3 +78,22 @@ pub fn ends_with_do_block(line: &str) -> bool {
     false
 }
 
+/// Extract a `kwarg: :symbol_name` pair from a DSL line. Returns the
+/// symbol name (without the leading `:`) when found ; `None` when the
+/// kwarg is absent or the value isn't a symbol.
+///
+/// Used by i250 to recognize `emits "X", identified_by: :stripe_event_id`
+/// and pull `stripe_event_id` out cleanly. Generalises to other future
+/// kwargs taking symbol values.
+pub fn extract_kwarg_symbol(line: &str, kwarg: &str) -> Option<String> {
+    let needle = format!("{kwarg}:");
+    let start = line.find(&needle)? + needle.len();
+    let rest = line[start..].trim_start();
+    let rest = rest.strip_prefix(':')?;
+    let end = rest
+        .find(|c: char| !c.is_alphanumeric() && c != '_')
+        .unwrap_or(rest.len());
+    let sym = rest[..end].trim().to_string();
+    if sym.is_empty() { None } else { Some(sym) }
+}
+

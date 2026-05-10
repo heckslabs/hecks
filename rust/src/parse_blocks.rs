@@ -97,7 +97,8 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
 
     let mut cmd = Command {
         name, description: None, role: None, attributes: vec![],
-        references: vec![], emits: None, givens: vec![], mutations: vec![],
+        references: vec![], emits: None, emits_identified_by: None,
+        givens: vec![], mutations: vec![],
     };
 
     if first.contains("{") && first.contains("}") {
@@ -154,6 +155,11 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 cmd.description = extract_string(line);
             } else if line.starts_with("emits") {
                 cmd.emits = extract_string(line);
+                // i250 — events have identity. `emits "X", identified_by: :foo`
+                // carries the event-identity attribute name. Same word
+                // aggregates use for primary keys ; reused on the emit
+                // side to dedupe two reports of the same event.
+                cmd.emits_identified_by = extract_kwarg_symbol(line, "identified_by");
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
                     // i526 : honour `, as: :name` and `, role: :name`
@@ -245,6 +251,7 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
                 cmd.role = parse_role_arg(part);
             } else if part.starts_with("emits") {
                 cmd.emits = extract_string(part);
+                cmd.emits_identified_by = extract_kwarg_symbol(part, "identified_by");
             } else if part.starts_with("attribute") {
                 if let Some(attr) = parse_attribute(part) { cmd.attributes.push(attr); }
             } else if part.starts_with("reference_to") {
