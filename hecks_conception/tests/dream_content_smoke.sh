@@ -287,19 +287,34 @@ DREAM_HEKI="$TMP/information/body_dream/dream.heki"
 # `reading` (the canonical single-phase precise output). text_fr/text_en
 # stay as one-cycle back-compat fields but aren't populated by the
 # cascade today.
-reading=$(field_value "$DREAM_HEKI" reading)
+#
+# Dream PM writes TWO record families to this heki :
+#   - The Dream singleton (id="dream") — holds the seed bundle from
+#     Dream.GatherSeeds, but `reading` stays empty (the PM doesn't
+#     restamp the seeds record with the cascade output).
+#   - Per-cycle records (id="1", "2", ...) — each per-tick
+#     Dream.RecordImage stamps `reading` on a new record.
+# `latest-field` returns the LAST-written record's value, which is
+# racy : if GatherSeeds wins, the singleton (with empty reading)
+# wins ; if the cascade wins, a cycle record wins. The cascade
+# firing is the actual invariant — assert "any non-empty reading"
+# rather than "latest reading non-empty".
+reading=$("$HECKS" heki list "$DREAM_HEKI" --format json 2>/dev/null | \
+  jq -r '[.[].reading] | map(select(. != "" and . != null))[0] // ""' 2>/dev/null)
 if [ -z "$reading" ] || [ "$reading" = "null" ]; then
   echo "----- run-loop output -----"
   cat "$RUN_LOG"
   echo "----- dream.heki -----"
   "$HECKS" heki list "$DREAM_HEKI" --format json 2>/dev/null || echo "(no dream.heki yet)"
-  fail "Dream.reading empty after PM cascade — :dream_image adapter did not fire through TestProvider (gap3)"
+  fail "Dream.reading empty across all records after PM cascade — :dream_image adapter did not fire through TestProvider (gap3)"
 fi
 echo "  reading            : ${reading:0:60}..."
 
 # text_en is the second leg : :dream_translate adapter on
-# Dream.RecordImage. Routes through TestProvider too.
-text_en=$(field_value "$DREAM_HEKI" text_en)
+# Dream.RecordImage. Routes through TestProvider too. Same any-record
+# check as reading above.
+text_en=$("$HECKS" heki list "$DREAM_HEKI" --format json 2>/dev/null | \
+  jq -r '[.[].text_en] | map(select(. != "" and . != null))[0] // ""' 2>/dev/null)
 if [ -n "$text_en" ] && [ "$text_en" != "null" ]; then
   echo "  text_en            : ${text_en:0:60}..."
 else
