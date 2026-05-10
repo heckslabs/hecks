@@ -1,6 +1,6 @@
 //! Dispatch Query — the validator IR-query substrate (i122).
 //!
-//! [antibody-exempt: hecks_life/src/dispatch_query.rs — kernel-
+//! [antibody-exempt: rust/src/dispatch_query.rs — kernel-
 //!  surface substrate. This file IS the IR-query that lets future
 //!  antibody decisions be structurally derived from bluebook ; it
 //!  necessarily lands as Rust before it can introspect Rust. Retires
@@ -32,10 +32,10 @@
 //! Two queries are wired :
 //!
 //!   - `is_specializer_target(path)` — match against the static
-//!     dispatch table in `hecks_life/src/specializer/mod.rs`. Each
+//!     dispatch table in `rust/src/specializer/mod.rs`. Each
 //!     known target name `<X>` claims two files :
-//!     `hecks_life/src/<X>.rs` (the emitted target) and
-//!     `hecks_life/src/specializer/<X>.rs` (the specializer module).
+//!     `rust/src/<X>.rs` (the emitted target) and
+//!     `rust/src/specializer/<X>.rs` (the specializer module).
 //!
 //!   - `is_hecksagon_dispatched(path, root)` — for any file (most
 //!     usefully `.sh`), walk every `*.hecksagon` under `root` and
@@ -45,7 +45,7 @@
 //! Future queries (i145, i146, i77, i78) will add :
 //!
 //!   - capability_runner_shape's `CapabilityDetector` rows → claims
-//!     `hecks_life/src/run_<name>/mod.rs` paths.
+//!     `rust/src/run_<name>/mod.rs` paths.
 //!   - bluebook adapters declared in `.hecksagon` files → claims
 //!     `:rust`, `:llm`, `:llm_local` runtime adapters.
 //!   - test_purity_shape's detection patterns → claims `.fixtures`
@@ -75,7 +75,7 @@ const DISPATCH_BEARING_IO_KINDS: &[&str] = &["daemon", "shell"];
 pub struct DispatchInfo {
     /// Where the dispatch declaration lives. Either a `.hecksagon`
     /// file path or a synthetic module identifier like
-    /// `hecks_life/src/specializer/mod.rs` for the specializer
+    /// `rust/src/specializer/mod.rs` for the specializer
     /// registry.
     pub source: String,
     /// What kind of dispatch claims this file. Free-form,
@@ -151,18 +151,18 @@ pub const SPECIALIZER_HELPER_MODULES: &[&str] = &[
 ];
 
 /// Match a path against the specializer registry. Either the
-/// emitted target file (`hecks_life/src/<name>.rs`) or the
+/// emitted target file (`rust/src/<name>.rs`) or the
 /// specializer module that emits it
-/// (`hecks_life/src/specializer/<name>.rs`).
+/// (`rust/src/specializer/<name>.rs`).
 pub fn is_specializer_target(file_path: &str) -> Option<DispatchInfo> {
     let normalized = file_path.replace('\\', "/");
 
     for target in SPECIALIZER_TARGETS {
-        let target_file = format!("hecks_life/src/{}.rs", target);
-        let specializer_file = format!("hecks_life/src/specializer/{}.rs", target);
+        let target_file = format!("rust/src/{}.rs", target);
+        let specializer_file = format!("rust/src/specializer/{}.rs", target);
         if normalized.ends_with(&target_file) || normalized.ends_with(&specializer_file) {
             return Some(DispatchInfo {
-                source: "hecks_life/src/specializer/mod.rs".into(),
+                source: "rust/src/specializer/mod.rs".into(),
                 kind: "specializer target".into(),
                 identifier: (*target).to_string(),
             });
@@ -170,10 +170,10 @@ pub fn is_specializer_target(file_path: &str) -> Option<DispatchInfo> {
     }
 
     for helper in SPECIALIZER_HELPER_MODULES {
-        let path = format!("hecks_life/src/specializer/{}.rs", helper);
+        let path = format!("rust/src/specializer/{}.rs", helper);
         if normalized.ends_with(&path) {
             return Some(DispatchInfo {
-                source: "hecks_life/src/specializer/mod.rs".into(),
+                source: "rust/src/specializer/mod.rs".into(),
                 kind: "specializer helper module".into(),
                 identifier: (*helper).to_string(),
             });
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn specializer_targets_recognized_at_target_path() {
-        let info = is_specializer_target("hecks_life/src/validator_warnings.rs")
+        let info = is_specializer_target("rust/src/validator_warnings.rs")
             .expect("validator_warnings.rs is a specializer target");
         assert_eq!(info.identifier, "validator_warnings");
         assert_eq!(info.kind, "specializer target");
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn specializer_targets_recognized_at_specializer_path() {
-        let info = is_specializer_target("hecks_life/src/specializer/validator.rs")
+        let info = is_specializer_target("rust/src/specializer/validator.rs")
             .expect("specializer/validator.rs is a specializer target");
         assert_eq!(info.identifier, "validator");
     }
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn specializer_targets_recognized_at_absolute_path() {
         let info = is_specializer_target(
-            "/Users/foo/Projects/hecks/hecks_life/src/dump.rs",
+            "/Users/foo/Projects/hecks/rust/src/dump.rs",
         )
         .expect("absolute paths must match by suffix");
         assert_eq!(info.identifier, "dump");
@@ -346,13 +346,13 @@ mod tests {
 
     #[test]
     fn unknown_rs_files_return_none() {
-        assert!(is_specializer_target("hecks_life/src/main.rs").is_none());
-        assert!(is_specializer_target("hecks_life/src/runtime/repository.rs").is_none());
+        assert!(is_specializer_target("rust/src/main.rs").is_none());
+        assert!(is_specializer_target("rust/src/runtime/repository.rs").is_none());
     }
 
     #[test]
     fn specializer_helpers_recognized() {
-        let info = is_specializer_target("hecks_life/src/specializer/util.rs")
+        let info = is_specializer_target("rust/src/specializer/util.rs")
             .expect("util.rs is a recognized specializer helper");
         assert_eq!(info.kind, "specializer helper module");
     }
@@ -450,7 +450,7 @@ end
         .unwrap();
 
         // .rs in specializer table — first arm hits.
-        let info = is_dispatched_by_corpus("hecks_life/src/dump.rs", &tmp)
+        let info = is_dispatched_by_corpus("rust/src/dump.rs", &tmp)
             .expect("specializer arm");
         assert_eq!(info.kind, "specializer target");
 
@@ -460,7 +460,7 @@ end
         assert!(info.kind.starts_with("ShellAdapter"));
 
         // Unknown path — neither arm hits.
-        assert!(is_dispatched_by_corpus("hecks_life/src/main.rs", &tmp).is_none());
+        assert!(is_dispatched_by_corpus("rust/src/main.rs", &tmp).is_none());
 
         let _ = fs::remove_dir_all(&tmp);
     }
