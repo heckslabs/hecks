@@ -1,0 +1,951 @@
+Hecks.bluebook "BehaviorsConceiver", version: "2026.05.09.1" do
+  vision "The test-scaffolder as domain — what a `.behaviors` file IS and the rules that conceive it from a `.bluebook` + `.hecksagon` + `.fixtures` cluster. Closes the bluebook-first gap on rust/src/behaviors_conceiver/generator.rs (1579 LoC) ; the kernel-floor Rust stays as the implementation, this bluebook is the specification."
+  category "codegen"
+
+  # ============================================================
+  # BEHAVIORS CONCEIVER — i524 (the biggest unbluebooked file)
+  # ============================================================
+  #
+  # rust/src/behaviors_conceiver/generator.rs is the BDD-style test
+  # scaffolder. It walks a source domain's IR and emits one behavior
+  # per command, plus a separate cascade-lockdown behavior for any
+  # command whose emit fires a multi-step policy chain, plus one per
+  # query. The scaffolder's authority is high : the auto-generated
+  # suite is supposed to mostly *pass* against the in-memory runner,
+  # so the user iterates from a working baseline rather than typing
+  # the whole BDD from blank.
+  #
+  # That generator, today, is 1579 LoC of imperative Rust spread
+  # across :
+  #
+  #   • generate_behaviors  — top-level walk over aggregates
+  #   • command_test        — per-command scaffold, with setup chain,
+  #                            input, expect
+  #   • emit_cascade_test   — per-cascade scaffold, kind :cascade,
+  #                            with cross-aggregate prerequisite walk
+  #   • query_test          — per-query scaffold, kind :query
+  #   • plan_setup_chain    — recursive precondition planner
+  #   • plan_setup_chain_filtered
+  #                          — same, with exclusions for cascade tests
+  #   • collect_preconditions
+  #                          — pulls from `given` parses + lifecycle
+  #   • Precondition enum   — Equals / GreaterThan / GreaterOrEqual /
+  #                            LessThan / NonEmptyList / MinSizeList /
+  #                            EmptyList
+  #   • find_producer       — mutation-or-lifecycle search per shape
+  #   • build_expect        — three sources merged : create-copy,
+  #                            direct mutations, lifecycle to_state
+  #   • detect_dangling_gate_flags
+  #                          — Boolean default:false attrs with no
+  #                            flipper (suite-level warning)
+  #
+  # What this bluebook captures : every PATTERN above, declaratively.
+  # Reading this file tells you what a `.behaviors` scaffold is, what
+  # rules drive its emission, and where the kernel-floor implementation
+  # lives. A future specializer (i147 wave) can regenerate generator.rs
+  # from this domain ; for now it is the contract.
+  #
+  # What this bluebook does NOT capture (intentional residue) :
+  #
+  #   • The exact byte layout of emitted text. `emit_setup`,
+  #     `join_kvs`, `kwargs_inline`, `quote_string`, `sample_value`,
+  #     and `test_name` are kernel-floor formatting ; the bluebook
+  #     names what each line MEANS, not its bytes.
+  #   • The cascade-graph walk itself — `cascade_emits`,
+  #     `commands_triggered_by_cascade`, `aggregates_touched_by_cascade`
+  #     are pure graph algorithms living in the cascade module ; this
+  #     bluebook references them by their behavioural role (CascadeWalk).
+  #   • The casing helpers (`to_snake_case`, etc.) — sibling primitive
+  #     in parser_helpers.
+  #   • Precondition parsing of free-text given expressions — see
+  #     `parse_equality` / `parse_inequality` / `parse_size_check` ; this
+  #     bluebook names the SHAPES that parse, not the parser bytes.
+  #
+  # Layer map (mirrors specializer.bluebook L0..L7) :
+  #   L0 = this file
+  #   L1 = canonical_ir of this file (parity-checked)
+  #   L7 = rust/src/behaviors_conceiver/generator.rs (current target)
+
+  # ============================================================
+  # BEHAVIORSCAFFOLD — one full `.behaviors` file in flight
+  # ============================================================
+  #
+  # The aggregate carries the whole Conceive→Emit lifecycle. A scaffold
+  # starts pending, becomes generated when every per-command, per-
+  # cascade, and per-query Behavior has been derived, and reaches
+  # emitted when its serialised form has been written to disk. Each
+  # Behavior is a value object held inside the scaffold ; the planner
+  # outputs (preconditions, setup chains, cascade walks) are entities
+  # so the trace is queryable after the fact.
+
+  aggregate "BehaviorScaffold", "One generated `.behaviors` file — the BDD test suite for one source domain" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule
+    # ---- (banking.bluebook style) ; primitives only inside VO bodies.
+    value_object "DomainName" do
+      description "Name of a Hecks domain — keys lexicon / repository / dispatch lookups."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate inside the source domain. PascalCase, no spaces."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command inside an aggregate. PascalCase imperative."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted by a command. PascalCase past-tense."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "FilePath" do
+      description "Repo-relative path to a generated artifact."
+      attribute :path, String
+      invariant "non-empty" do
+        path && !path.strip.empty?
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter. Used for command_count, transition_count, cascade_count, etc."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "VisionLine" do
+      description "The literal `vision \"...\"` text emitted at the top of a generated file. May be empty."
+      attribute :text, String
+    end
+
+    value_object "WarningMessage" do
+      description "One scaffold-time warning (e.g. gate-flag detected) — surfaced as a comment in the generated suite."
+      attribute :text, String
+    end
+
+    # source_domain : the .bluebook the scaffold tests. Carried by
+    # name because the runtime addresses domains by name everywhere
+    # else (lexicon, repository, dispatcher). Path lives on Emit.
+    attribute :source_domain, DomainName
+    # vision_line : the literal `vision "..."` text emitted at the
+    # top of the file. Defaults to "Behavioral tests for the <Name>
+    # domain — exercises every command and query in memory" ;
+    # captured here so the generator's preamble is data, not bytes.
+    attribute :vision_line, VisionLine
+    # command_count : number of commands the scaffold covers across
+    # every aggregate. Useful as a queryable signal (regression in
+    # auto-gen surfaces as a sudden drop).
+    attribute :command_count, Count
+    # transition_count : number of lifecycle transitions covered.
+    # Each transition's `from_state` becomes a precondition on the
+    # transitioning command's behavior.
+    attribute :transition_count, Count
+    # cascade_count : number of separate `kind: :cascade` behaviors
+    # emitted. Equal to the number of commands whose static cascade
+    # has more than one event.
+    attribute :cascade_count, Count
+    # query_count : number of `kind: :query` behaviors emitted.
+    attribute :query_count, Count
+    # gate_flag_warnings : aggregate.attribute pairs surfaced as
+    # suite-level comments — Boolean attrs with `default: false` that
+    # no command flips. Emitted at the top of the file as
+    # `# ⚠ gate-flag :<attr> on <Aggregate>` lines.
+    attribute :gate_flag_warnings, list_of(WarningMessage)
+    # phase : pending | generated | emitted
+    # phase: lifecycle owns it (no explicit attribute).
+    attribute :output_path, FilePath
+
+    # ---- Behavior ------------------------------------------------
+    #
+    # One scaffolded test. Three kinds : :state (one per command,
+    # default), :cascade (per command with multi-step cascade),
+    # :query (one per query). Setup is an ordered list of SetupStep
+    # references ; input is the kwargs the command receives ; expect
+    # is the assertion clause. The runner reads this shape directly
+    # — there is no further lowering.
+
+    value_object "Behavior" do
+      # name : the human-readable test title — `<Command> sets <attrs>`,
+      # `<Command> runs`, `<Command> cascades through policy chain`,
+      # or `<Query> returns matching records`.
+      attribute :name, String
+      # tested_command : the command (or query) under test.
+      attribute :tested_command, String
+      # tested_aggregate : the aggregate the command lives on.
+      attribute :tested_aggregate, String
+      # kind : state | cascade | query. Maps to the `kind:` kwarg in
+      # the emitted DSL : :state has no kwarg (default), :cascade and
+      # :query are explicit.
+      attribute :kind, String, default: "state"
+      # setup : ordered SetupStep names — the setup chain produced
+      # by the planner. Each step is a separate `setup` line in the
+      # emitted DSL.
+      attribute :setup, list_of(String)
+      # input_pairs : the `input` line as `name: value` pairs joined
+      # by ", ". References are NOT included here ; the runner injects
+      # them from in-scope at dispatch.
+      attribute :input_pairs, list_of(String)
+      # expect_pairs : the `expect` line — same shape as input. For
+      # cascade kind this carries `emits: [E1, E2, ...]` ; for query
+      # kind, `count: 1`.
+      attribute :expect_pairs, list_of(WarningMessage)
+    end
+
+    # ---- SetupStep -----------------------------------------------
+    #
+    # One line of setup before the command-under-test runs. SetupStep
+    # is an entity (not a value object) because the chain has identity
+    # — `step_index` distinguishes a chain that runs CreateCart twice
+    # from one that runs it once. The planner's repeat-Append
+    # behaviour for MinSizeList preconditions produces multiple steps
+    # with the same command name and different indices.
+
+    entity "SetupStep" do
+      # step_index : 0-based position in the setup chain. Steps emit
+      # in ascending index order.
+      attribute :step_index, Integer
+      # command : the command name dispatched in this step.
+      attribute :command, String
+      # aggregate : the aggregate the command runs on. May differ
+      # from BehaviorScaffold.source_domain when the step is a
+      # cross-ref bootstrap or a cascade-prerequisite on a foreign
+      # aggregate.
+      attribute :aggregate, String
+      # kwargs_pairs : `attribute: value` pairs the step passes —
+      # only the command's domain attributes ; references are not
+      # serialised, the runner resolves them.
+      attribute :kwargs_pairs, list_of(String)
+      # purpose : satisfy_precondition | bootstrap_self_ref |
+      #           bootstrap_cross_ref | cascade_prerequisite |
+      #           min_size_repeat. Names which planning rule produced
+      # this step ; useful when debugging an unsatisfiable chain.
+      attribute :purpose, String
+    end
+
+    # ---- Commands ------------------------------------------------
+
+    command "Conceive" do
+      role "Codegen"
+      description "Walk the source Domain IR and derive every Behavior the scaffold should emit. For each aggregate : every command becomes a :state Behavior (skipped when any given is unparseable, or when the planner decides the chain is unsatisfiable) ; every command with a multi-step static cascade becomes a sibling :cascade Behavior ; every query becomes a :query Behavior. The Conceive command also detects dangling gate-flag warnings and pre-computes the lifecycle index used to attach to_state assertions."
+      attribute :source_domain, DomainName
+      then_set :source_domain, to: :source_domain
+      then_set :phase, to: "generated"
+      emits "ScaffoldConceived"
+    end
+
+    command "Emit" do
+      role "Codegen"
+      description "Serialise the conceived Behaviors into a `.behaviors` file at output_path. The file shape : `Hecks.behaviors <Name> do` header, the vision line, gate-flag warning comments (one per warning), then for each aggregate a `# ── <Name> aggregate ──` divider followed by every Behavior in source order. The serialiser is byte-stable so a re-Emit on an unchanged Conceive produces identical output. Refused-variant tests (negative cases for given clauses) are NOT auto-generated — those need domain knowledge of what setup makes the given fail."
+      attribute :output_path, FilePath
+      then_set :output_path, to: :output_path
+      then_set :phase, to: "emitted"
+      emits "ScaffoldEmitted"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "Conceive" => "generated", from: "pending"
+      transition "Emit"     => "emitted",   from: "generated"
+    end
+  end
+
+  # ============================================================
+  # SETUPCHAINPLAN — the recursive precondition planner
+  # ============================================================
+  #
+  # plan_setup_chain (Rust ll. 637-700) and its filtered sibling
+  # plan_setup_chain_filtered (ll. 747-802) are the heart of the
+  # scaffolder. Given a target command, return an ordered list of
+  # commands that — run in sequence — leaves the aggregate in a state
+  # where target_cmd's givens and lifecycle from_state are satisfied.
+  #
+  # The plan is its own aggregate so the rules ARE the queryable shape :
+  # which preconditions exist, which producer was chosen for each, and
+  # whether the plan is satisfiable. A chain is unsatisfiable iff at
+  # least one precondition has a producer that cascades past the
+  # required state — in that case, the test is skipped because the
+  # upstream test exercising the cascade already covers it.
+
+  aggregate "SetupChainPlan", "One per-command planner result — the recursive precondition→producer chain that satisfies a target command's givens and lifecycle from_state" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule
+    # ---- (banking.bluebook style) ; primitives only inside VO bodies.
+    value_object "DomainName" do
+      description "Name of a Hecks domain — keys lexicon / repository / dispatch lookups."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate inside the source domain. PascalCase, no spaces."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command inside an aggregate. PascalCase imperative."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted by a command. PascalCase past-tense."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "FilePath" do
+      description "Repo-relative path to a generated artifact."
+      attribute :path, String
+      invariant "non-empty" do
+        path && !path.strip.empty?
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter. Used for command_count, transition_count, cascade_count, etc."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "VisionLine" do
+      description "The literal `vision \"...\"` text emitted at the top of a generated file. May be empty."
+      attribute :text, String
+    end
+
+    value_object "WarningMessage" do
+      description "One scaffold-time warning (e.g. gate-flag detected) — surfaced as a comment in the generated suite."
+      attribute :text, String
+    end
+
+    value_object "FilterMode" do
+      description "How the planner restricts producer search — `full` looks at every command, `cascade_filtered` skips producers that are themselves cascade-triggered + lifecycle-transitioning (i4 gap 6)."
+      attribute :mode, String
+      invariant "full or cascade_filtered" do
+        %w[full cascade_filtered].include?(mode)
+      end
+    end
+
+    value_object "Satisfiability" do
+      description "Outcome of the recursive precondition planner — `satisfiable` (chain found), `unsatisfiable_overshoot` (every producer over-cascades), or `unparseable` (a given did not parse)."
+      attribute :verdict, String
+      invariant "known verdict" do
+        %w[satisfiable unsatisfiable_overshoot unparseable].include?(verdict)
+      end
+    end
+
+
+    # target_command : the command whose preconditions we plan for.
+    attribute :target_command, CommandName
+    # target_aggregate : the aggregate the target lives on. Cross-
+    # aggregate plans run their own SetupChainPlan recursively (one
+    # plan per aggregate in the chain).
+    attribute :target_aggregate, AggregateName
+    # depth_budget : recursion limit (default 5 in generator.rs).
+    # Each recursive call decrements ; when it hits 0 the plan
+    # returns Chain([]) leniently and lets the upstream test fail
+    # loudly if defaults don't cover.
+    attribute :depth_budget, Count, default: 5
+    # satisfiability : satisfied | unsatisfiable_overshoot |
+    #                  satisfied_by_default | empty_no_producer.
+    # Drives the upstream test_emission decision : unsatisfiable_
+    # overshoot skips the test ; the others all proceed with the
+    # chain (possibly empty).
+    attribute :satisfiability, Satisfiability, default: "satisfied"
+    # filter_mode : standard | cascade_filtered. cascade_filtered
+    # excludes producers that are cascade-triggered AND carry a
+    # lifecycle transition on the target aggregate — the filtered
+    # mode is used by emit_cascade_test so pre-running doesn't
+    # advance state past the from_state the cascade expects.
+    attribute :filter_mode, FilterMode, default: "standard"
+    # phase : pending | collected | resolved
+    # phase: lifecycle creates this field — see lifecycle block below.
+
+    # ---- Precondition --------------------------------------------
+    #
+    # The set of precondition shapes the planner can satisfy.
+    # parse_precondition (ll. 1133-1166) tries size-checks first,
+    # then equality, then inequality. Anything outside this set
+    # causes the per-command behavior to be skipped entirely —
+    # see `Conceive`'s skip rule on the BehaviorScaffold aggregate.
+
+    value_object "Precondition" do
+      # shape : equals | greater_than | greater_or_equal | less_than |
+      #         non_empty_list | min_size_list | empty_list
+      attribute :shape, String
+      # field : the attribute name the precondition predicates on.
+      attribute :field, String
+      # value : the literal RHS as carried through from parse_precondition.
+      # For equals : the unquoted string / symbol / boolean / integer.
+      # For inequality / size : the integer N stringified.
+      # Empty for empty_list / non_empty_list (size implicit).
+      attribute :value, String, default: ""
+      # source : givens | lifecycle. Givens come from cmd.givens via
+      # parse_precondition ; lifecycle preconditions are derived
+      # when target_cmd participates in a transition with from_state.
+      attribute :source, String
+    end
+
+    # ---- ProducerPick --------------------------------------------
+    #
+    # find_producer (ll. 1187-1267) returns at most one command per
+    # precondition. ProducerPick records the choice + its rationale
+    # so a future hand-edit of the bluebook can adjust the order or
+    # introduce a hint.
+
+    value_object "ProducerPick" do
+      # for_field : the field the producer satisfies.
+      attribute :for_field, String
+      # producer_command : the command whose direct effects produce
+      # the precondition state. Direct producers only — no cascade
+      # simulation. (Cascades are locked down separately via the
+      # `emits:` assertion in the cascade test.)
+      attribute :producer_command, String
+      # via : set_mutation | increment_mutation | append_mutation |
+      #       lifecycle_transition. Names which producer rule
+      # matched ; for diagnostics when the picked producer turns
+      # out wrong.
+      attribute :via, String
+      # repeats : 1 for everything except MinSizeList(_, n) where it
+      # is n minus already-satisfied appends from the existing chain.
+      # ProducedState.append_count tracks this incrementally as the
+      # chain builds. (i4 gap 7.)
+      attribute :repeats, Integer, default: 1
+    end
+
+    # ---- ProducedState -------------------------------------------
+    #
+    # Tracks what facts the chain-so-far has produced — drives the
+    # short-circuit on already-satisfied preconditions. A field of
+    # the planner's working state, exposed here as an entity so the
+    # trace is inspectable.
+
+    entity "ProducedState" do
+      # set_facts : "field=value" pairs from then_set or transitions.
+      attribute :set_facts, list_of(String)
+      # append_counts : "field=N" pairs counting Append mutations
+      # by field. NonEmptyList satisfied at N>=1, MinSizeList(_,K)
+      # at N>=K.
+      attribute :append_counts, list_of(String)
+      # incremented_fields : fields that received an Increment in
+      # any chain step. Used to satisfy GreaterThan/GreaterOrEqual
+      # when no Set producer landed an explicit value. Also catches
+      # Multiply / Decay / Clamp via the same fallback (i106).
+      attribute :incremented_fields, list_of(String)
+    end
+
+    command "CollectPreconditions" do
+      role "Codegen"
+      description "Pull every Precondition the target command requires : (1) for each given on the command, parse it via the supported shape set — equality (`field == value`), inequality (`field > N` / `>= N` / `< N`), size-check (`field.size > 0` / `>= N` / `.any?` / `.empty?`). Unparseable givens fail the whole emit, not just the precondition — see Conceive's skip rule. (2) for each lifecycle transition the command participates in : when EVERY transition for this command requires a from_state, take the first as Equals(<lc.field>, <from_state>). When at least one transition has no from_state, no lifecycle precondition is needed (the command can fire from default)."
+      then_set :phase, to: "collected"
+      emits "PreconditionsCollected"
+    end
+
+    command "ResolveChain" do
+      role "Codegen"
+      description "For each unsatisfied Precondition (not already produced by an earlier step, not trivially true by aggregate defaults) : (1) call find_producer ; (2) when found, recurse on the producer's own preconditions, splicing them ahead of the producer in the chain ; (3) when no producer exists for a precondition AND any_producer_exists returns true (a producer DOES exist but its cascaded final state lands past the target), mark satisfiability=unsatisfiable_overshoot and stop. The recursive structure is depth-budgeted (default 5) and cycle-guarded (a `visited` set carrying command names ; revisits return Chain([]) to break loops between mutually-dependent commands)."
+      then_set :phase, to: "resolved"
+      emits "ChainResolved"
+    end
+
+    command "MarkUnsatisfiable" do
+      role "Codegen"
+      description "Surface the over-cascade case : every candidate producer for some precondition cascades — via policies — to a state past the precondition value. The upstream test (the one whose cascade reaches this point) already exercises the same code path, so emitting the test here would either fail spuriously or duplicate coverage. The Conceive flow drops the test instead. (i4 gap 6 / 7.)"
+      attribute :satisfiability, Satisfiability
+      then_set :satisfiability, to: :satisfiability
+      emits "ChainUnsatisfiable"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "CollectPreconditions" => "collected", from: "pending"
+      transition "ResolveChain"         => "resolved",  from: "collected"
+    end
+  end
+
+  # ============================================================
+  # CASCADEWALK — bootstrap discovery for cascade behaviors
+  # ============================================================
+  #
+  # emit_cascade_test (ll. 293-417) needs every aggregate the cascade
+  # will hop through to exist before dispatch — direct cross-refs are
+  # not enough. CascadeWalk records the static cascade traversal :
+  # which commands fire, which aggregates they live on, and which of
+  # those need a "safe" bootstrap (one that isn't itself cascade-
+  # triggered AND carrying a lifecycle transition).
+  #
+  # Encapsulated here as its own aggregate because the walk has its
+  # own lifecycle (collected → bootstrapped → augmented) and exposes
+  # the dependency-order list the cascade test consumes. The walk's
+  # graph algorithm itself lives in the cascade module — this aggregate
+  # is the BehaviorsConceiver's view onto its results.
+
+  aggregate "CascadeWalk", "Static cascade traversal — every aggregate touched by a command's emit→policy→trigger chain, and the bootstrap each one needs before the cascade fires" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule
+    # ---- (banking.bluebook style) ; primitives only inside VO bodies.
+    value_object "DomainName" do
+      description "Name of a Hecks domain — keys lexicon / repository / dispatch lookups."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate inside the source domain. PascalCase, no spaces."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command inside an aggregate. PascalCase imperative."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted by a command. PascalCase past-tense."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "FilePath" do
+      description "Repo-relative path to a generated artifact."
+      attribute :path, String
+      invariant "non-empty" do
+        path && !path.strip.empty?
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter. Used for command_count, transition_count, cascade_count, etc."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "VisionLine" do
+      description "The literal `vision \"...\"` text emitted at the top of a generated file. May be empty."
+      attribute :text, String
+    end
+
+    value_object "WarningMessage" do
+      description "One scaffold-time warning (e.g. gate-flag detected) — surfaced as a comment in the generated suite."
+      attribute :text, String
+    end
+
+    # rooted_at_command : the command whose emit roots the cascade.
+    attribute :rooted_at_command, CommandName
+    # rooted_at_aggregate : the aggregate that hosts the rooted
+    # command. Excluded from `touched_aggregates` because its create
+    # is handled by the regular setup chain.
+    attribute :rooted_at_aggregate, AggregateName
+    # event_chain : the ordered list of event names the cascade
+    # emits, as cascade::cascade_emits returns them. Length > 1
+    # is what makes a cascade behavior emit at all.
+    attribute :event_chain, list_of(EventName)
+    # touched_aggregates : aggregate names visited in cascade-
+    # traversal order, deduped. Each one needs a bootstrap (or a
+    # plan_setup_chain_filtered chain) prepended to the cascade
+    # behavior's setup.
+    attribute :touched_aggregates, list_of(AggregateName)
+    # triggered_commands : the union of every command name dispatched
+    # by the cascade. Drives the "is this cascade-triggered?" filter
+    # in plan_setup_chain_filtered.
+    attribute :triggered_commands, list_of(CommandName)
+    # phase : pending | collected | bootstrapped | augmented
+    # phase: lifecycle creates this field — see lifecycle block below.
+
+    # ---- BootstrapPick -------------------------------------------
+    #
+    # pick_safe_bootstrap (ll. 570-594) chooses a setup command for a
+    # cascade-touched aggregate. The "safety" rule : don't pick a
+    # cascade-triggered command that ALSO carries a lifecycle
+    # transition — pre-running it advances the aggregate past the
+    # from_state its cascade-hop expects.
+
+    value_object "BootstrapPick" do
+      # aggregate : the cascade-touched aggregate this bootstrap
+      # serves.
+      attribute :aggregate, String
+      # picked_command : the command chosen as the bootstrap, or
+      # empty when no safe bootstrap exists. When empty, the cascade
+      # itself bootstraps the singleton on first dispatch — correct
+      # default-state semantics.
+      attribute :picked_command, String, default: ""
+      # rationale : prefix_match | first_no_self_ref | no_safe_pick.
+      # prefix_match means a verb-prefixed command was found
+      # (Create / Define / Place / Register / Open / Plan / Spawn /
+      # Boot / Start / Initialize / Seed / Provision / Issue) —
+      # cleanest signal. first_no_self_ref means any reference-free
+      # command was picked (singleton-style). no_safe_pick records
+      # the empty case explicitly.
+      attribute :rationale, String
+    end
+
+    command "CollectCascade" do
+      role "Codegen"
+      description "Walk emit → policy → trigger from the rooted command. Build event_chain via cascade::cascade_emits ; build touched_aggregates by walking each triggered command and its references in cascade-traversal order ; build triggered_commands as the union of every command name reached. The walk is bounded by a visited-commands set to handle cyclic policies safely."
+      then_set :phase, to: "collected"
+      emits "CascadeCollected"
+    end
+
+    command "PickBootstraps" do
+      role "Codegen"
+      description "For each aggregate in touched_aggregates (excluding rooted_at_aggregate, which the regular setup handles) : try pick_safe_bootstrap. The preference order matches pick_create_command — verb-prefixed commands first (Create / Define / Place / Register / Open / Plan / Spawn / Boot / Start / Initialize / Seed / Provision / Issue), then any reference-free command, with the cascade-triggered-AND-lifecycle-transitioning filter applied at every step."
+      then_set :phase, to: "bootstrapped"
+      emits "BootstrapsPicked"
+    end
+
+    command "AugmentWithFilteredChains" do
+      role "Codegen"
+      description "For each cascade-touched aggregate, run plan_setup_chain_filtered against every triggered command on that aggregate, with `triggered_commands` as the exclude set. This satisfies preconditions the cascade WON'T satisfy — e.g. in restaurant_reservations, NotifyParty's `status == waiting` precondition is produced by AddToWaitlist, which IS cascade-triggered but has no lifecycle transition, so it's safe to pre-run. The augmented setup steps are deduped against the BootstrapPick output before being prepended to the cascade behavior's setup chain. (i4 gap 6.)"
+      then_set :phase, to: "augmented"
+      emits "CascadeAugmented"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "CollectCascade"             => "collected",     from: "pending"
+      transition "PickBootstraps"             => "bootstrapped",  from: "collected"
+      transition "AugmentWithFilteredChains"  => "augmented",     from: "bootstrapped"
+    end
+  end
+
+  # ============================================================
+  # EXPECTBUILD — the three-source merge for `expect` lines
+  # ============================================================
+  #
+  # build_expect (ll. 1304-1380) merges three sources of expectation
+  # in deterministic order. The aggregate exposes the merge as a
+  # lifecycle so each source is its own command — drift in any one
+  # rule surfaces as a separate transition rather than a one-line
+  # imperative diff.
+
+  aggregate "ExpectBuild", "The `expect` line for a state behavior, built by merging three sources of expectation in deterministic order" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule
+    # ---- (banking.bluebook style) ; primitives only inside VO bodies.
+    value_object "DomainName" do
+      description "Name of a Hecks domain — keys lexicon / repository / dispatch lookups."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate inside the source domain. PascalCase, no spaces."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command inside an aggregate. PascalCase imperative."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted by a command. PascalCase past-tense."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "FilePath" do
+      description "Repo-relative path to a generated artifact."
+      attribute :path, String
+      invariant "non-empty" do
+        path && !path.strip.empty?
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter. Used for command_count, transition_count, cascade_count, etc."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "VisionLine" do
+      description "The literal `vision \"...\"` text emitted at the top of a generated file. May be empty."
+      attribute :text, String
+    end
+
+    value_object "WarningMessage" do
+      description "One scaffold-time warning (e.g. gate-flag detected) — surfaced as a comment in the generated suite."
+      attribute :text, String
+    end
+
+    value_object "CreateStyleFlag" do
+      description "Whether the target command creates a fresh aggregate instance (yes — copy command kwargs into expect) or modifies an existing one (no — start expect from current state). Detected by `is_create_command` heuristic in the conceiver."
+      attribute :flag, String
+      invariant "yes or no" do
+        %w[yes no].include?(flag)
+      end
+    end
+
+
+    # subject_command : the command the expect line attaches to.
+    attribute :subject_command, CommandName
+    # subject_aggregate : the aggregate the command lives on.
+    attribute :subject_aggregate, AggregateName
+    # is_create_style : is_create_command predicate — true when the
+    # command starts with Create / Add / Place / Register / Open.
+    # Drives whether create-attr-copy contributions are pulled.
+    attribute :is_create_style, CreateStyleFlag, default: "false"
+    # expect_pairs : the merged result, in source-merge order. Each
+    # entry is the literal `name: value` string. When out is empty
+    # after every source contributes, build_expect falls back to
+    # `ok: "true"` — the "ran without erroring" baseline assertion.
+    attribute :expect_pairs, list_of(WarningMessage)
+    # phase : pending | create_copied | mutations_applied | lifecycle_applied
+    # phase: lifecycle creates this field — see lifecycle block below.
+
+    # ---- ExpectContribution --------------------------------------
+    #
+    # One field-level contribution to the expect line. The merge
+    # rule is "later sources override earlier ones on the same
+    # field" — so a Set mutation overrides an attr-copy on the same
+    # field, and a lifecycle transition overrides a Set on
+    # `lc.field`. ExpectContribution carries source so the trace
+    # explains why a field landed where it did.
+
+    value_object "ExpectContribution" do
+      # field : the attribute (or `<list>_size`) the contribution sets.
+      attribute :field, String
+      # value : the sample value as the runtime would store it.
+      # Strings/numbers come through as-is ; `:symbol` references
+      # resolve via resolve_mutation_value (cmd attribute → its
+      # sample value, or cmd reference → "1").
+      attribute :value, String
+      # source : create_copy | direct_mutation | lifecycle_transition
+      #          | fallback_ok. fallback_ok is the `ok: "true"`
+      # baseline emitted only when every other source contributed
+      # nothing.
+      attribute :source, String
+      # mutation_kind : set | append | toggle | none. Append
+      # contributes to `<field>_size` (always 1 from a single
+      # dispatch). Toggle always contributes `true` (the next-state
+      # of a Boolean). Increment / Decrement / Multiply / Clamp /
+      # Decay / Delete contribute none — they depend on prior state
+      # the planner can't predict.
+      attribute :mutation_kind, String, default: "none"
+    end
+
+    command "PullCreateCopy" do
+      role "Codegen"
+      description "When subject_command is create-style (is_create_style == \"true\") : for every command attribute whose name also appears as an aggregate attribute, contribute (attr.name, sample_value(attr.attr_type)). Then, when the aggregate has a lifecycle AND the command itself has no transition, contribute (lc.field, lc.default) so the test asserts the runtime's bootstrap default. When the command DOES have a transition, leave the lifecycle field for PullLifecycleTransition to set — its to_state is more specific."
+      then_set :phase, to: "create_copied"
+      emits "CreateCopyPulled"
+    end
+
+    command "PullDirectMutations" do
+      role "Codegen"
+      description "For every mutation on the subject command : Set contributes (m.field, resolve_mutation_value(m.value)) — `:symbol` RHS is resolved against command attributes (→ that attr's sample value) or command references (→ \"1\", same id the input passes). Append contributes (`<m.field>_size`, \"1\"). Toggle contributes (m.field, \"true\"). Increment / Decrement / Multiply / Clamp / Decay / Delete are skipped — outcomes depend on prior state. Set contributions REPLACE any earlier same-field entry (e.g. an Initial create_copy is overridden by a then_set in the same command)."
+      then_set :phase, to: "mutations_applied"
+      emits "DirectMutationsApplied"
+    end
+
+    command "PullLifecycleTransition" do
+      role "Codegen"
+      description "When subject_command participates in a lifecycle transition on subject_aggregate : contribute (lc.field, transition.to_state), replacing any earlier same-field entry. Cascade lockdown contributions are NOT pulled here — the cascade lives in its own kind: :cascade behavior so the state-test stays single-purpose. Mixing the two causes overshoot : the cascaded final state diverges from the command's direct mutations on per-field assertions."
+      then_set :phase, to: "lifecycle_applied"
+      emits "LifecycleTransitionApplied"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "PullCreateCopy"           => "create_copied",       from: "pending"
+      transition "PullDirectMutations"      => "mutations_applied",   from: "create_copied"
+      transition "PullLifecycleTransition"  => "lifecycle_applied",   from: "mutations_applied"
+    end
+  end
+
+  # ============================================================
+  # GATEFLAGAUDIT — the suite-level dangling-flag warning
+  # ============================================================
+  #
+  # detect_dangling_gate_flags (ll. 446-463) scans the source domain
+  # for Boolean attributes whose explicit `default: false` is never
+  # flipped by any command's Set or Toggle mutation. Such flags are
+  # inert — every given predicated on them is permanently refused —
+  # so the conceiver surfaces a suite-level comment at the top of
+  # the .behaviors file inviting the user to add a flipper or mark
+  # the field read-only. (i4 gap 4.)
+
+  aggregate "GateFlagAudit", "Suite-level scan for inert Boolean gate flags — Boolean attrs with default:false that no command flips" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule
+    # ---- (banking.bluebook style) ; primitives only inside VO bodies.
+    value_object "DomainName" do
+      description "Name of a Hecks domain — keys lexicon / repository / dispatch lookups."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate inside the source domain. PascalCase, no spaces."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command inside an aggregate. PascalCase imperative."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted by a command. PascalCase past-tense."
+      attribute :name, String
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "FilePath" do
+      description "Repo-relative path to a generated artifact."
+      attribute :path, String
+      invariant "non-empty" do
+        path && !path.strip.empty?
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter. Used for command_count, transition_count, cascade_count, etc."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "VisionLine" do
+      description "The literal `vision \"...\"` text emitted at the top of a generated file. May be empty."
+      attribute :text, String
+    end
+
+    value_object "WarningMessage" do
+      description "One scaffold-time warning (e.g. gate-flag detected) — surfaced as a comment in the generated suite."
+      attribute :text, String
+    end
+
+    # source_domain : the .bluebook scanned.
+    attribute :source_domain, DomainName
+    # warnings_count : number of (aggregate, attribute) pairs found.
+    attribute :warnings_count, Count, default: 0
+    # warnings : list of "<Aggregate>.<attribute>" strings, source-
+    # ordered (aggregate order in the bluebook, then attribute order
+    # within each aggregate).
+    attribute :warnings, list_of(WarningMessage)
+    # phase : pending | scanned
+    # phase: lifecycle creates this field — see lifecycle block below.
+
+    command "Scan" do
+      role "Codegen"
+      description "Walk every aggregate.attribute pair where attr_type == \"Boolean\" AND default == \"false\". For each one, check whether ANY command on the same aggregate declares a Set or Toggle mutation on the attribute. When no such writer exists, record the pair as a warning. default:true flags are intentionally NOT flagged — they start open, so a missing writer means \"never closes\", which is a different (and rarer) shape. Non-Boolean attributes are not flagged because they have many legitimate shapes (ids, notes, etc.) that don't need flippers."
+      attribute :warnings_count, Count
+      then_set :warnings_count, to: :warnings_count
+      then_set :phase, to: "scanned"
+      emits "GateFlagsScanned"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "Scan" => "scanned", from: "pending"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — the conceiver chains
+  # ============================================================
+  #
+  # The conceiver runs five conceptually-parallel chains that end at
+  # ScaffoldEmitted. Each chain models one of the rules embedded in
+  # generator.rs ; the policies declare the dependency edges the
+  # imperative code walks today.
+  #
+  #   Conceive flow         : ScaffoldConceived → (each per-aggregate
+  #                            walk runs its sub-chains internally)
+  #                          → ScaffoldEmitted on Emit.
+  #   Setup-chain flow      : PreconditionsCollected → ChainResolved
+  #                            → (used by Conceive when planning a
+  #                            command_test).
+  #   Cascade flow          : CascadeCollected → BootstrapsPicked
+  #                            → CascadeAugmented → (used by Conceive
+  #                            when emit_cascade_test fires).
+  #   Expect flow           : CreateCopyPulled → DirectMutationsApplied
+  #                            → LifecycleTransitionApplied → (used by
+  #                            Conceive when building each :state
+  #                            behavior's expect line).
+  #   Gate-flag flow        : GateFlagsScanned → (used by Conceive for
+  #                            the suite preamble).
+
+  policy "ResolveChainAfterCollect" do
+    on "PreconditionsCollected"
+    trigger "ResolveChain"
+  end
+
+  policy "PickBootstrapsAfterCascadeCollect" do
+    on "CascadeCollected"
+    trigger "PickBootstraps"
+  end
+
+  policy "AugmentAfterBootstraps" do
+    on "BootstrapsPicked"
+    trigger "AugmentWithFilteredChains"
+  end
+
+  policy "ApplyMutationsAfterCreateCopy" do
+    on "CreateCopyPulled"
+    trigger "PullDirectMutations"
+  end
+
+  policy "ApplyLifecycleAfterMutations" do
+    on "DirectMutationsApplied"
+    trigger "PullLifecycleTransition"
+  end
+end

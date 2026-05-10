@@ -26,6 +26,7 @@ pub fn validate(domain: &Domain) -> Vec<String> {
     errors.extend(valid_policy_triggers(domain));
     errors.extend(no_duplicate_commands(domain));
     errors.extend(distinct_reference_aliases(domain));
+    errors.extend(no_primitive_envy(domain));
     errors
 }
 
@@ -265,3 +266,34 @@ fn distinct_reference_aliases(domain: &Domain) -> Vec<String> {
     }
     errors
 }
+/// Aggregate and command attributes must use typed value objects, not bare primitives.
+/// Primitives belong inside value_object bodies as the storage layer, never at the
+/// aggregate or command surface. No exemptions — write a value object every time.
+fn no_primitive_envy(domain: &Domain) -> Vec<String> {
+    const PRIMITIVES: &[&str] = &[
+        "String", "Integer", "Float", "Boolean", "Date", "DateTime", "JSON",
+    ];
+    let mut errors = vec![];
+    for agg in &domain.aggregates {
+        for attr in &agg.attributes {
+            if PRIMITIVES.contains(&attr.attr_type.as_str()) {
+                errors.push(format!(
+                    "{}.{} uses primitive type {} — wrap it in a value_object so the domain reads as itself, not as a {}",
+                    agg.name, attr.name, attr.attr_type, attr.attr_type
+                ));
+            }
+        }
+        for cmd in &agg.commands {
+            for attr in &cmd.attributes {
+                if PRIMITIVES.contains(&attr.attr_type.as_str()) {
+                    errors.push(format!(
+                        "{}.{}.{} uses primitive type {} — wrap it in a value_object so the domain reads as itself, not as a {}",
+                        agg.name, cmd.name, attr.name, attr.attr_type, attr.attr_type
+                    ));
+                }
+            }
+        }
+    }
+    errors
+}
+

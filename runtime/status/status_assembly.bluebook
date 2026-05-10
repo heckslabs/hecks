@@ -1,0 +1,553 @@
+#!/usr/bin/env hecks-life run
+Hecks.bluebook "StatusAssembly", version: "2026.05.09.1" do
+  vision "How `hecks-life status` reads Miette — the assembly step that turns a tree of .heki stores + pidfiles + on-disk bluebook counts + git log into one structured Report value the renderer prints. The sibling cli/status/status.bluebook declares the CLI pipeline (Resolve → Assemble → Stamp → Render → Write → Done) ; this bluebook is what the Assemble phase actually does — every field, every data source, every section in declared order. The Rust runner at rust/src/run_status/assemble.rs is the imperative mirror ; this file is the contract it implements."
+
+  entrypoint "Assemble"
+
+  # ============================================================
+  # STATUS_ASSEMBLY — i523, the bluebook-first close on assemble.rs
+  # ============================================================
+  #
+  # Until 2026-05-09, the assembly step lived in 387 LoC of Rust
+  # (run_status/assemble.rs) with no bluebook spec — a kernel-floor
+  # gap the antibody flagged on every commit. The CLI pipeline was
+  # declarative (cli/status/status.bluebook) but the WHAT — which
+  # fields appear, which heki store feeds which field, which sections
+  # the renderer projects — lived in code only. Adding a section
+  # required editing Rust ; renaming a field required editing Rust ;
+  # changing a data source required editing Rust.
+  #
+  # This bluebook closes that gap. It declares :
+  #
+  #   1. The StatusAssembly aggregate — singleton, lifecycle on
+  #      :phase (idle → reading → assembled | failed), holding the
+  #      assembled Report value as a tree of typed value objects.
+  #      Every attribute at the aggregate level is itself a value
+  #      object (no primitives leak out of the section boundary).
+  #
+  #   2. Twelve section value objects — IdentityFacts, Consciousness-
+  #      Facts, VitalsFacts, BodyCycleFacts, MoodFacts, AwarenessFacts,
+  #      MemoryCounts, WishSummary, RecentActivity, RecentCommits,
+  #      BluebookCounts, Daemons. Each names its field set + the
+  #      .heki / filesystem / git source that feeds it. Adding or
+  #      renaming a field is one row in this file.
+  #
+  #   3. The DataSource value object — names the read kind (heki
+  #      store name, pidfile path, on-disk count, git log) so the
+  #      runner consults a declared binding instead of a hard-coded
+  #      load() call.
+  #
+  #   4. The StatusSection value object — the renderer's table of
+  #      contents : title + display order + which section value
+  #      object it projects. Mirror of cli/status/status.bluebook's
+  #      `section "…"` blocks ; declared here so the assembly knows
+  #      the order it should populate fields in.
+  #
+  #   5. Commands :
+  #        Assemble     — entrypoint ; the user-visible verb the CLI
+  #                       pipeline's AssembleReport phase dispatches.
+  #        ReadIdentity, ReadConsciousness, ReadVitals,
+  #        ReadBodyCycles, ReadMood, ReadAwareness, ReadMemory,
+  #        ReadWishes, ReadRecentActivity, ReadRecentCommits,
+  #        ReadBluebooks, ReadDaemons — one per section.
+  #        MarkReady    — every section read ; the StampAggregate
+  #                       phase from the CLI pipeline can now stamp.
+  #        MarkFailed   — a read could not complete (missing dir,
+  #                       unreadable store, runtime dispatch failure).
+  #        Render       — emit the assembled report in the requested
+  #                       format (text | json). Pure projection ;
+  #                       no I/O. The CLI pipeline's RenderReport
+  #                       phase wraps this with the :stdout adapter.
+  #
+  # The Rust runner in rust/src/run_status/assemble.rs reads the same
+  # data sources in the same order this bluebook declares ; its
+  # `build()` function is the imperative mirror of Assemble's chained
+  # policy walk. Once a self-interpreting runtime can drive this
+  # bluebook directly, assemble.rs retires to a thin adapter or
+  # disappears entirely.
+  #
+  # ── Why a separate file from cli/status/status.bluebook ─────────
+  #
+  # cli/status/status.bluebook describes the CLI pipeline — six
+  # phases (resolve → assemble → stamp → render → write → done)
+  # and an entrypoint command the operator invokes. That file is
+  # already a singleton aggregate with its own lifecycle. The
+  # assembly is one of those phases, not the whole story ; it has
+  # its own internal pipeline (twelve reads, one per section), its
+  # own data-source bindings, and its own value-object shape. A
+  # single file conflating the two would mix concerns and push the
+  # CLI bluebook past its size budget. Trikaya — separate concern,
+  # separate file ; cross-reference via the shared StatusReport
+  # field names.
+
+  # ============================================================
+  # STATUS_ASSEMBLY — singleton, one row per active assembly
+  # ============================================================
+
+  aggregate "StatusAssembly" do
+    description "A single read of every status data source, populating one Report value the CLI's StampAggregate phase reads. Singleton ; resets on every Assemble dispatch. Every field at this level is a typed value object — primitives only live inside the value objects, never on the aggregate surface."
+
+    identified_by :name
+
+    # ---- Inputs ----
+    #
+    # The CLI pipeline's ResolveFsRoot phase resolves these against
+    # the operator's environment ; the Assemble entrypoint receives
+    # them already-resolved.
+    #
+    # Attribute name avoids the trailing "s" so the Ruby DSL's
+    # plural-name → list-attribute convention does not promote a
+    # singleton value object to a list. Same constraint applies to
+    # every singleton value-object attribute on this aggregate.
+    value_object "AssemblyName" do
+      description "The singleton-key value for the StatusAssembly aggregate. Identifies a single in-flight assembly instance ; conventionally `current` for the live assembly, but could be `snapshot-<n>` for archived assemblies."
+      attribute :handle, String
+      invariant "non-empty handle" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "FailureReason" do
+      description "The free-text reason a section read failed. Composed by the runner from the underlying I/O error or dispatch error. Empty string when the assembly is not in :failed phase."
+      attribute :text, String
+    end
+
+    value_object "RenderFormat" do
+      description "Output vocabulary for the Render command — `text` for human-readable bordered tables, `json` for machine-readable serialisation. The pipeline's WriteReport phase chooses based on the operator's --format flag."
+      attribute :name, String
+      invariant "must be text or json" do
+        %w[text json].include?(name)
+      end
+    end
+
+    value_object "AssemblyInputs" do
+      description "Resolved input paths for the assembly read — info_dir for .heki stores, conception_dir for bluebook counts + git log."
+      attribute :info_dir,        String
+      attribute :conception_dir,  String
+    end
+    attribute :resolved_input, AssemblyInputs
+
+    # ---- DataSource — what feeds each section ----
+    #
+    # Every section binds to one or more data sources. The runner
+    # consults the binding instead of hard-coding a load() call,
+    # so a heki store rename or a switch from pidfile to ipc-port
+    # liveness check is one row in the binding table.
+    value_object "DataSource" do
+      description "A named source of facts the assembly reads. :kind is one of heki | pidfile | bluebook_count | git_log — the runner switches on it. :name is the heki store name (for kind=heki), the pidfile path (kind=pidfile), the directory (kind=bluebook_count), or the count limit (kind=git_log)."
+      attribute :kind,            String
+      attribute :name,            String
+    end
+
+    # ============================================================
+    # SECTION VALUE OBJECTS — the assembled Report's typed shape
+    # ============================================================
+    #
+    # Each section is one value object the runner populates from
+    # one or more data sources. The renderer projects the same
+    # sections in the order declared by StatusSection rows below.
+
+    value_object "IdentityFacts" do
+      description "Who Miette is. Source : information/identity.heki latest record."
+      attribute :identity_name,   String, default: "—"
+      attribute :pronouns,        String, default: "—"
+      attribute :linked_to,       String, default: "—"
+      attribute :born_at,         String, default: "—"
+      attribute :age_str,         String, default: "—"
+    end
+
+    value_object "ConsciousnessFacts" do
+      description "Awake / sleeping ; sleep stage and progress ; last wake. Source : information/consciousness.heki latest record."
+      attribute :consciousness_state, String, default: "—"
+      attribute :sleep_stage,         String, default: "—"
+      attribute :sleep_progress,      String, default: "—/—"
+      attribute :is_lucid,            String, default: "—"
+      attribute :last_wake_at,        String, default: "—"
+      attribute :time_since_wake,     String, default: "—"
+      attribute :sleep_summary,       String, default: "—"
+    end
+
+    value_object "VitalsFacts" do
+      description "Heartbeat + pulse cadence. Sources : information/heartbeat.heki latest, information/tick.heki latest (cycle counter)."
+      attribute :fatigue,             String, default: "—"
+      attribute :fatigue_state,       String, default: "—"
+      attribute :pulse_rate,          String, default: "—"
+      attribute :flow_rate,           String, default: "—"
+      attribute :pulses_since_sleep,  String, default: "—"
+      attribute :cycle,               String, default: "0"
+    end
+
+    value_object "BodyCycleFacts" do
+      description "Heart beats, breath count + phase, ultradian phase + cycle, circadian segment. Sources : information/{heart,breath,ultradian,circadian}.heki latest records."
+      attribute :heart_beats,         String, default: "—"
+      attribute :breath_count,        String, default: "—"
+      attribute :breath_phase,        String, default: "—"
+      attribute :ultradian_phase,     String, default: "—"
+      attribute :ultradian_cycle,     String, default: "—"
+      attribute :circadian_segment,   String, default: "—"
+    end
+
+    value_object "MoodFacts" do
+      description "Current mood + creativity + precision. Source : information/mood.heki latest record."
+      attribute :mood_state,          String, default: "—"
+      attribute :creativity_level,    String, default: "—"
+      attribute :precision_level,     String, default: "—"
+    end
+
+    value_object "OpenTheme" do
+      description "One open inbox theme. Awareness's :inbox_open_themes is a '|'-separated string today (i98 follow-up gap) ; the runner splits it into typed rows."
+      attribute :theme,               String
+    end
+
+    value_object "AwarenessFacts" do
+      description "What Miette is carrying right now — current concept, age, inbox count, unfiled wishes, open themes. Source : information/awareness.heki latest record + dream_wish.heki count for unfiled."
+      attribute :awareness_carrying,                String, default: "—"
+      attribute :awareness_concept,                 String, default: "—"
+      attribute :awareness_age_days,                String, default: "—"
+      attribute :awareness_inbox_count,             String, default: "—"
+      attribute :awareness_unfiled_wishes_count,    String, default: "—"
+      attribute :awareness_open_themes,             list_of(OpenTheme)
+    end
+
+    value_object "MemoryCounts" do
+      description "Aggregate counts of remembered things. Sources : information/{musing,conversation,signal,synapse,memory}.heki record counts (whole store, not latest)."
+      attribute :musings_count,       Integer, default: 0
+      attribute :conversations_count, Integer, default: 0
+      attribute :signals_count,       Integer, default: 0
+      attribute :synapses_count,      Integer, default: 0
+      attribute :memories_count,      Integer, default: 0
+    end
+
+    value_object "WishTopic" do
+      description "One unfiled dream wish theme — top three by recorded_at descending."
+      attribute :theme,               String
+    end
+
+    value_object "WishSummary" do
+      description "Dream-wish counts split by status + top three unfiled themes. Source : information/dream_wish.heki — sort by status field, then by recorded_at descending."
+      attribute :wishes_unfiled_count,    Integer, default: 0
+      attribute :wishes_filed_count,      Integer, default: 0
+      attribute :wishes_unfiled_top,      list_of(WishTopic)
+    end
+
+    value_object "RecentActivity" do
+      description "Last dream + last conversation turn. Sources : information/dream_state.heki latest (dream_images first element or text), information/conversation.heki latest (speaker + said|text)."
+      attribute :last_dream_at,       String, default: "—"
+      attribute :last_dream_text,     String, default: "—"
+      attribute :last_turn_at,        String, default: "—"
+      attribute :last_turn_text,      String, default: "—"
+    end
+
+    value_object "RecentCommit" do
+      description "One git log row — short hash + subject."
+      attribute :line,                String
+    end
+
+    value_object "RecentCommits" do
+      description "Last n git log subjects from the conception checkout. Source : `git -C <conception_dir> log -<n> --pretty=format:%h %s` ; default n=5."
+      attribute :commits,             list_of(RecentCommit)
+    end
+
+    value_object "BluebookCounts" do
+      description "Count of *.bluebook files under aggregates/ + capabilities/ in the conception checkout. Recursive ; counted by directory walk, not by parsing."
+      attribute :aggregates_count,    Integer, default: 0
+      attribute :capabilities_count,  Integer, default: 0
+    end
+
+    value_object "DaemonRow" do
+      description "One declared daemon's lifecycle state — pid (if pidfile present + parseable), alive (kill -0 succeeds). Sources : information/.<name>.pid pidfile, kill(2) signal 0 for liveness."
+      attribute :name,                String
+      attribute :pid,                 String, default: "—"
+      attribute :alive,               String, default: "down"
+    end
+
+    value_object "DaemonsFacts" do
+      description "All declared daemons : mindstream, heart, breath, circadian, ultradian, sleep_cycle. Order matches the rendered Daemons section."
+      attribute :daemons,             list_of(DaemonRow)
+    end
+
+    # ---- The assembled Report ----
+    #
+    # Every section is its own typed value object — no primitives
+    # at the aggregate level. The CLI pipeline's StampAggregate
+    # phase reads these by walking the section table below.
+    #
+    # Singleton value-object attribute names avoid trailing-"s" plural
+    # forms (use `body_cycle`, `wish_summary`, `commit_log`, etc.) so
+    # the Ruby DSL's plural-name → list convention does not promote
+    # them to lists. Truly list-shaped attributes (`section_table`)
+    # use `list_of(...)` explicitly.
+    attribute :name,            AssemblyName
+    attribute :identity,        IdentityFacts
+    attribute :consciousness,   ConsciousnessFacts
+    attribute :vital_state,     VitalsFacts
+    attribute :body_cycle,      BodyCycleFacts
+    attribute :mood,            MoodFacts
+    attribute :awareness,       AwarenessFacts
+    attribute :memory,          MemoryCounts
+    attribute :wish_summary,    WishSummary
+    attribute :recent_activity, RecentActivity
+    attribute :commit_log,      RecentCommits
+    attribute :bluebook_count,  BluebookCounts
+    attribute :daemon_table,    DaemonsFacts
+
+    # ---- StatusSection — the renderer's table of contents ----
+    #
+    # One row per declared section. :order is the display order ;
+    # :projection names the value-object attribute on this aggregate
+    # the renderer reads. Adding a section is one row in the
+    # `section_table` block below.
+    value_object "StatusSection" do
+      description "One declared dashboard section. The renderer walks these in :order, projecting :projection (the value-object attribute on StatusAssembly) into a labeled bordered table."
+      attribute :title,           String
+      attribute :order,           Integer
+      attribute :projection,      String
+      attribute :source,          DataSource
+    end
+    attribute :section_table,   list_of(StatusSection)
+
+    # ---- ExitKind — assembly's outcome vocabulary ----
+    value_object "AssemblyExitKind" do
+      description "One of the standard exit codes the assembly may return — clean, missing-info-dir (info_dir does not exist), unreadable-store (one heki store could not be read), git-failed (git log non-zero exit), unknown."
+      attribute :code,            Integer
+      attribute :kind_name,       String
+    end
+    attribute :exit_kind,       AssemblyExitKind
+    attribute :failure_reason,  FailureReason
+
+    # ---- Pipeline phase ----
+    # Note : :phase is created by the `lifecycle :phase` block below ;
+    # no explicit attribute declaration needed (and the lifecycle
+    # itself owns the state-transition vocabulary, which would
+    # otherwise be a String at the surface — primitive envy).
+
+    # ============================================================
+    # ENTRYPOINT
+    # ============================================================
+
+    command "Assemble" do
+      role "System"
+      description "User-visible entrypoint dispatched by the CLI pipeline's AssembleReport phase. The runner detects this command + the :fs / :shell adapters in the sibling hecksagon, walks the per-section read pipeline, and on completion emits Assembled with the populated Report value the StampAggregate phase reads."
+      attribute :resolved_input, AssemblyInputs
+      then_set :resolved_input, to: :resolved_input
+      then_set :phase,          to: "reading"
+      emits "AssemblyBegun"
+    end
+
+    # ============================================================
+    # SECTION READS — one command per section, in order
+    # ============================================================
+    #
+    # Each command reads exactly one data source (the value object
+    # it stamps records the heki store name + the kind of read).
+    # The runner walks them in declared order ; chained policies
+    # below fire the next read on the previous one's completion.
+
+    command "ReadIdentity" do
+      role "System"
+      description "Section 1 of 12 : load identity.heki, pluck the latest record, stamp IdentityFacts with name|first_words, pronouns, linked_to, born + a humanised age string."
+      attribute :identity,      IdentityFacts
+      then_set :identity,       to: :identity
+      emits "IdentityRead"
+    end
+
+    command "ReadConsciousness" do
+      role "System"
+      description "Section 2 of 12 : load consciousness.heki, pluck the latest record, compose sleep_progress from sleep_cycle/sleep_total, humanise time_since_wake from last_wake_at."
+      attribute :consciousness, ConsciousnessFacts
+      then_set :consciousness,  to: :consciousness
+      emits "ConsciousnessRead"
+    end
+
+    command "ReadVitals" do
+      role "System"
+      description "Section 3 of 12 : load heartbeat.heki + tick.heki latest records ; cycle is tick.cycle|tick.beats first-present."
+      attribute :vital_state,   VitalsFacts
+      then_set :vital_state,    to: :vital_state
+      emits "VitalsRead"
+    end
+
+    command "ReadBodyCycles" do
+      role "System"
+      description "Section 4 of 12 : load heart.heki, breath.heki, ultradian.heki, circadian.heki — four heki stores, one latest record each, six fields total."
+      attribute :body_cycle,    BodyCycleFacts
+      then_set :body_cycle,     to: :body_cycle
+      emits "BodyCyclesRead"
+    end
+
+    command "ReadMood" do
+      role "System"
+      description "Section 5 of 12 : load mood.heki latest, stamp MoodFacts with current_state + creativity_level + precision_level."
+      attribute :mood,          MoodFacts
+      then_set :mood,           to: :mood
+      emits "MoodRead"
+    end
+
+    command "ReadAwareness" do
+      role "System"
+      description "Section 6 of 12 : load awareness.heki latest, split inbox_open_themes (a '|'-separated string today, i98 follow-up gap) into a list of OpenTheme rows ; pull awareness_unfiled_wishes_count from the WishSummary read so the section is internally consistent."
+      attribute :awareness,     AwarenessFacts
+      then_set :awareness,      to: :awareness
+      emits "AwarenessRead"
+    end
+
+    command "ReadMemory" do
+      role "System"
+      description "Section 7 of 12 : count records (whole store, not latest) in musing.heki, conversation.heki, signal.heki, synapse.heki, memory.heki."
+      attribute :memory,        MemoryCounts
+      then_set :memory,         to: :memory
+      emits "MemoryRead"
+    end
+
+    command "ReadWishes" do
+      role "System"
+      description "Section 8 of 12 : load dream_wish.heki, partition by status — filed → wishes_filed_count, unfiled → wishes_unfiled_count + top three themes by recorded_at descending."
+      attribute :wish_summary,  WishSummary
+      then_set :wish_summary,   to: :wish_summary
+      emits "WishesRead"
+    end
+
+    command "ReadRecentActivity" do
+      role "System"
+      description "Section 9 of 12 : load dream_state.heki latest (dream_images first element or text → last_dream_text) + conversation.heki latest (speaker + said|text → last_turn_text)."
+      attribute :recent_activity, RecentActivity
+      then_set :recent_activity, to: :recent_activity
+      emits "RecentActivityRead"
+    end
+
+    command "ReadRecentCommits" do
+      role "System"
+      description "Section 10 of 12 : run git -C <conception_dir> log -5 --pretty=format:%h %s ; one RecentCommit row per output line. Empty list on any non-zero git exit (offline, not a git checkout, etc)."
+      attribute :commit_log,    RecentCommits
+      then_set :commit_log,     to: :commit_log
+      emits "RecentCommitsRead"
+    end
+
+    command "ReadBluebooks" do
+      role "System"
+      description "Section 11 of 12 : recursively count *.bluebook files under conception_dir/aggregates and conception_dir/capabilities."
+      attribute :bluebook_count, BluebookCounts
+      then_set :bluebook_count,  to: :bluebook_count
+      emits "BluebooksRead"
+    end
+
+    command "ReadDaemons" do
+      role "System"
+      description "Section 12 of 12 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) read info_dir/.<name>.pid, parse the pid, check liveness via the :shell adapter's is_pid_alive (kill -0). Stamp one DaemonRow per daemon."
+      attribute :daemon_table,  DaemonsFacts
+      then_set :daemon_table,   to: :daemon_table
+      emits "DaemonsRead"
+    end
+
+    # ============================================================
+    # COMPLETION
+    # ============================================================
+
+    command "MarkReady" do
+      role "System"
+      description "Every section read ; the assembly is ready for the CLI pipeline's StampAggregate phase to project into the user-facing StatusReport. Emits Assembled as the user-visible signal."
+      then_set :phase,          to: "assembled"
+      emits "Assembled"
+    end
+
+    command "MarkFailed" do
+      role "System"
+      description "A section read could not complete (info_dir does not exist, a heki store is unreadable, the runtime dispatch failed). Records the reason + ExitKind and moves :phase to failed. The CLI pipeline's FailReport phase observes AssemblyFailed and propagates upstream."
+      attribute :failure_reason, FailureReason
+      attribute :exit_kind,      AssemblyExitKind
+      then_set :failure_reason,  to: :failure_reason
+      then_set :exit_kind,       to: :exit_kind
+      then_set :phase,           to: "failed"
+      emits "AssemblyFailed"
+    end
+
+    command "Render" do
+      role "System"
+      description "Pure projection — emit the assembled Report in the requested format (text walks the section table in order, building bordered labeled rows ; json serialises every value object). No I/O ; the CLI pipeline's WriteReport phase wraps this with the :stdout adapter. Honours NO_COLOR + HECKS_FORCE_COLOR via the runtime's environment lookup."
+      attribute :format,        RenderFormat
+      emits "ReportRendered"
+    end
+
+    # ============================================================
+    # LIFECYCLE — the ordered walk through the section reads
+    # ============================================================
+
+    lifecycle :phase, default: "idle" do
+      transition "Assemble"           => "reading",   from: "idle"
+      transition "MarkReady"          => "assembled", from: "reading"
+      transition "MarkFailed"         => "failed",    from: ["idle", "reading"]
+    end
+  end
+
+  # ============================================================
+  # POLICIES — chain the section reads in declared order
+  # ============================================================
+  #
+  # The runner today walks them imperatively in build() ; a future
+  # self-interpreting runtime walks the chain via these policies.
+
+  policy "ReadIdentityOnBegin" do
+    on "AssemblyBegun"
+    trigger "ReadIdentity"
+  end
+
+  policy "ReadConsciousnessOnIdentity" do
+    on "IdentityRead"
+    trigger "ReadConsciousness"
+  end
+
+  policy "ReadVitalsOnConsciousness" do
+    on "ConsciousnessRead"
+    trigger "ReadVitals"
+  end
+
+  policy "ReadBodyCyclesOnVitals" do
+    on "VitalsRead"
+    trigger "ReadBodyCycles"
+  end
+
+  policy "ReadMoodOnBodyCycles" do
+    on "BodyCyclesRead"
+    trigger "ReadMood"
+  end
+
+  policy "ReadAwarenessOnMood" do
+    on "MoodRead"
+    trigger "ReadAwareness"
+  end
+
+  policy "ReadMemoryOnAwareness" do
+    on "AwarenessRead"
+    trigger "ReadMemory"
+  end
+
+  policy "ReadWishesOnMemory" do
+    on "MemoryRead"
+    trigger "ReadWishes"
+  end
+
+  policy "ReadRecentActivityOnWishes" do
+    on "WishesRead"
+    trigger "ReadRecentActivity"
+  end
+
+  policy "ReadRecentCommitsOnRecentActivity" do
+    on "RecentActivityRead"
+    trigger "ReadRecentCommits"
+  end
+
+  policy "ReadBluebooksOnRecentCommits" do
+    on "RecentCommitsRead"
+    trigger "ReadBluebooks"
+  end
+
+  policy "ReadDaemonsOnBluebooks" do
+    on "BluebooksRead"
+    trigger "ReadDaemons"
+  end
+
+  policy "MarkReadyOnDaemons" do
+    on "DaemonsRead"
+    trigger "MarkReady"
+  end
+end

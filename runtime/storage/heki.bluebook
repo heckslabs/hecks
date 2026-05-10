@@ -1,0 +1,363 @@
+Hecks.bluebook "Heki", version: "2026.05.09.1" do
+  vision "The on-disk record store. A .heki file is a Store — JSON-array of Records keyed by id, framed by a four-byte HEKI magic + zlib-compressed body. This bluebook conceives the file as a typed aggregate so the kernel-floor Rust at rust/src/heki.rs has a domain spec to project from, and the CLI surface (`hecks-life heki ...`) reads as the projection it already is."
+  category "runtime"
+
+  # ============================================================
+  # HEKI — the on-disk file format
+  # ============================================================
+  #
+  # i521. Storage's existing bluebook (storage.bluebook in this same
+  # directory) covers the in-memory layer — Repository's load-cache-save
+  # plus RefreshIfStale's mtime-aware refresh. The on-disk file the
+  # in-memory layer reads from has had no bluebook ; this is the chapter
+  # where it gets one.
+  #
+  # The implementation is hand-written Rust at rust/src/heki.rs (957 LoC,
+  # kernel-floor — the bluebook DSL itself can't yet describe its own
+  # binary format). This bluebook is the **specification** ; the Rust is
+  # the projection. Future work (i147 wave) can specializer-regenerate
+  # heki.rs from this domain ; for now, the bluebook closes the
+  # bluebook-first gap surfaced by the antibody warning sweep.
+  #
+  # ── Why a separate bluebook, not a chapter of storage.bluebook ──
+  #
+  # Trikaya : HekiFile is its own concern. Repository is the in-memory
+  # cache layer ; HekiFile is the disk it caches. They share the word
+  # "store" but cross a discipline boundary — Repository commands are
+  # idempotent in-memory mutations, HekiFile commands are I/O against
+  # the filesystem with snapshot, audit, and concurrent-process
+  # semantics. Splitting them keeps each bluebook coherent : storage.bluebook
+  # stays "where the runtime holds state" ; heki.bluebook stays "the
+  # bytes on disk".
+  #
+  # ── Companion bluebooks ───────────────────────────────────────
+  #
+  # storage.bluebook   — in-memory Repository + Projection + AdapterRegistry.
+  #                      Repository.LoadPersisted invokes Heki.Read ;
+  #                      Repository.Save invokes Heki.Upsert ;
+  #                      Repository.RefreshIfStale stat()s a HekiFile
+  #                      and re-invokes Read when its Mtime advanced.
+  # framework/audit/   — WriteContext (Dispatch vs OutOfBand) is the
+  #                      audit-channel discipline layer. heki.rs implements
+  #                      it directly in the Rust ; out-of-scope here so
+  #                      this bluebook stays focused on the file format.
+
+  # ============================================================
+  # HEKIFILE — one .heki file, one Store on disk
+  # ============================================================
+  #
+  # The aggregate boundary is the file. One HekiFile per .heki on disk.
+  # The path is the natural key (every .heki has exactly one canonical
+  # path under the info_dir). lifecycle tracks the file's relationship
+  # to the runtime : missing (no file yet), loaded (read into memory),
+  # written (we just wrote), empty (read returned no records but the
+  # file exists — the post-bootstrap pre-first-record state).
+  #
+  # ── Why HekiRecord is an entity, not a value_object ───────────
+  #
+  # Records have identity (the `id` field), are mutated in place by
+  # Upsert, and are addressable individually by Delete. That's the
+  # exact contract `entity` describes : a mutable child with its own
+  # identity, owned by the parent aggregate (the file). A value_object
+  # would force every Upsert to replace the whole record by value,
+  # losing the in-place upsert-by-id semantics heki.rs already implements.
+  #
+  # ── The semantic id rule ──────────────────────────────────────
+  #
+  # The RecordId value_object is String, not UUID — and that's a
+  # deliberate domain decision. heki.rs's upsert rule 1 (targeted
+  # update by explicit id) means singleton stores like dream.heki and
+  # consciousness.heki use semantic ids ("dream", "consciousness") so
+  # the upsert always lands on the same row. UUID-typing the id would
+  # force every singleton through a uuid_v4() path on first write and
+  # break the semantic-id contract Chris's daemons rely on. The
+  # value_object enforces "non-empty string" without prescribing UUID
+  # shape ; the runtime preserves whichever form the caller passes.
+
+  aggregate "HekiFile", "One on-disk .heki file. The kernel-floor unit of persistence : a JSON-array-of-records keyed by id, framed by HEKI + record_count + zlib-compressed body. Owns its records, its lifecycle, and the metadata the runtime needs to detect cross-process writes (mtime sidecar)." do
+    identified_by :path
+
+    # ── Value objects (the typed shapes used across this aggregate) ──
+
+    # A filesystem path to a .heki file. Always ends in `.heki`. May be
+    # the i142 nested form (`<dir>/<context>/<name>.heki`) or the legacy
+    # flat form (`<dir>/<name>.heki`) ; the runtime resolves between
+    # them via path_for / path_for_lookup (see ResolveWritePath /
+    # ResolveReadPath commands below).
+    value_object "Path" do
+      attribute :value, String
+    end
+
+    # A record's identity within its file. String not UUID — semantic
+    # ids ("dream", "consciousness", "heartbeat") are first-class so
+    # singleton stores stay singletons across writes. New records
+    # without a caller-supplied id get a uuid_v4 ; the value_object's
+    # job is to be non-empty, not to prescribe shape.
+    value_object "RecordId" do
+      attribute :value, String
+    end
+
+    # ISO-8601 UTC timestamp. Stamped at write-time by the runtime ;
+    # used by both record-level fields (created_at, updated_at) and
+    # the file-level last_write_at. The wire shape is the canonical
+    # `YYYY-MM-DDTHH:MM:SSZ` produced by heki::now_iso8601_internal.
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    # Filesystem mtime of the .heki file, captured as ISO-8601 UTC.
+    # The freshness gate Repository.RefreshIfStale compares against —
+    # cross-process writes advance the mtime ; reads that outpace it
+    # are stale. The .heki.meta sidecar mirrors this when the
+    # filesystem's own mtime granularity (1s on macOS HFS+) coarsens
+    # the signal too far ; both forms round-trip the same Timestamp.
+    value_object "Mtime" do
+      attribute :value, String
+    end
+
+    # Cardinality of the Store. Cached on HekiFile so callers can
+    # answer Count without re-decoding the body ; refreshed on every
+    # write. u32 on disk (the four bytes between HEKI magic and the
+    # zlib-compressed payload) ; modeled here as Integer.
+    value_object "RecordCount" do
+      attribute :value, Integer
+    end
+
+    # The audit-channel justification for an out-of-band write
+    # (test setup, manual migration, bootstrap seed). Required by
+    # heki.rs's WriteContext::OutOfBand variant ; carried through
+    # Upsert / Delete / Archive when the caller is not the runtime
+    # dispatcher. Empty for Dispatch-context writes (the runtime
+    # passes its aggregate + command names there instead).
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    # Lifecycle phase of the file relative to the runtime. Tracks the
+    # state the in-memory Repository observes :
+    #   missing — the file does not exist on disk (Read returns an
+    #             empty Store ; Upsert against missing creates).
+    #   loaded  — Read succeeded ; the Store is in memory.
+    #   written — a write (Upsert / Delete / Archive) just succeeded.
+    #             last_write_at advanced ; Mtime advanced ; the
+    #             RefreshIfStale freshness check on sibling processes
+    #             will trip on this transition.
+    #   empty   — the file exists on disk but the Store is empty
+    #             (the post-bootstrap, pre-first-record state ;
+    #             also the post-last-Delete state).
+    value_object "Phase" do
+      attribute :value, String,
+        enum: ["missing", "loaded", "written", "empty"]
+    end
+
+    # ── Attributes ─────────────────────────────────────────────
+
+    # path : the natural key — full absolute or repo-relative path to
+    # the .heki file. Used by every command as the addressing primitive.
+    attribute :path,            Path
+
+    # record_count : cached count, refreshed by every write. Read
+    # without re-decoding ; used by hecks-life heki count.
+    attribute :record_count,    RecordCount
+
+    # last_write_at : ISO-8601 of the most recent successful write.
+    # Stamped by Upsert / Delete / Archive ; consumed by the audit
+    # channel and by RefreshIfStale's mtime comparison.
+    attribute :last_write_at,   Timestamp
+
+    # mtime : the filesystem mtime captured at the last interaction.
+    # Logically redundant with last_write_at but separately addressable
+    # because cross-process writes advance the filesystem mtime
+    # without our last_write_at noticing — the .heki.meta sidecar
+    # exists precisely to disambiguate.
+    attribute :mtime,           Mtime
+
+    # phase : current lifecycle phase (see Phase value_object).
+    attribute :phase,           Phase
+
+    # ── HekiRecord (entity child) ─────────────────────────────
+    #
+    # The record is mutable, has identity, and is owned by the file.
+    # Upsert mutates it in place by id ; Delete removes it by id ;
+    # Read materialises every record in the Store. The `payload` is
+    # the per-aggregate attribute hash whose shape varies by store
+    # (Heartbeat records carry beats/flow_rate, Dream records carry
+    # imagery, etc.) ; the bluebook layer can't typecheck across
+    # store kinds, so payload is left as the runtime-managed
+    # untyped extension. The framework-stable fields (id, created_at,
+    # updated_at) are the typed contract every record carries.
+
+    entity "HekiRecord" do
+      description "One record within a HekiFile. Identified by RecordId (semantic or uuid). Carries framework-stable timestamps (created_at, updated_at) plus the per-aggregate payload the runtime materialises into an AggregateState."
+      attribute :id,         RecordId
+      attribute :created_at, Timestamp
+      attribute :updated_at, Timestamp
+    end
+
+    # ── Commands ───────────────────────────────────────────────
+    #
+    # The commands map one-to-one to the public surface of rust/src/heki.rs.
+    # Each command's runtime projection is named in its description so
+    # the i147 specializer (and the human reader) can cross-reference.
+
+    command "Read" do
+      role "System"
+      description "Load every record from the .heki file into a Store, returning an empty Store when the file does not exist. Decodes HEKI magic, validates length, zlib-decompresses the body, parses JSON. Projects to heki::read in the Rust runtime. Idempotent and read-only ; never advances the file's lifecycle past `loaded` (or leaves it at `missing` for absent files)."
+      attribute :path, Path
+      then_set :phase, to: "loaded"
+      emits "RecordsRead"
+    end
+
+    command "Upsert" do
+      role "System"
+      description "Insert or update a record by id. Three matching rules — (1) explicit id present and the store already has that id : update in place ; (2) no explicit id and the store has exactly one record : update the singleton ; (3) otherwise : create with the supplied id (or a fresh uuid_v4 if none given). Stamps updated_at, snapshots before destructive replace. Projects to heki::upsert. The discipline gate is the WriteContext — Dispatch (the runtime dispatcher) or OutOfBand (CLI / test / migration) — passed implicitly here as the Reason value_object's emptiness vs. presence."
+      reference_to(HekiFile)
+      attribute :record_id, RecordId
+      attribute :reason,    Reason
+      then_set :phase,         to: "written"
+      then_set :last_write_at, to: :reason
+      emits "RecordUpserted"
+    end
+
+    command "Latest" do
+      role "System"
+      description "Return the record with the most recent updated_at. The framework's primary read for singleton stores (mood, heartbeat, consciousness) where the latest record IS the current state. Projects to heki::latest. Returns null when the Store is empty."
+      reference_to(HekiFile)
+      emits "LatestRecordReturned"
+    end
+
+    command "LatestField" do
+      role "System"
+      description "Convenience accessor : Latest then field_str. Returns the named field from the most recent record as a string, or `—` when absent. Projects to heki::latest + heki::field_str. Used by statusline, status report, and the various vital-signs probes that want one scalar without re-reading the whole Store."
+      reference_to(HekiFile)
+      attribute :field_name, RecordId
+      emits "FieldExtracted"
+    end
+
+    command "Count" do
+      role "System"
+      description "Report the number of records in the Store. Reads the cached record_count when phase is `loaded` or `written` ; otherwise reads the four bytes after HEKI magic without decompressing the body. Projects to heki::read + Store::len."
+      reference_to(HekiFile)
+      emits "RecordCountReported"
+    end
+
+    command "List" do
+      role "System"
+      description "Materialise every record as a list (for callers that want iteration order rather than the Store's hash-keyed access). Projects to heki::read + Store::values. Order is implementation-defined ; callers that need a stable order sort by updated_at or id at the call site."
+      reference_to(HekiFile)
+      emits "RecordsListed"
+    end
+
+    command "Append" do
+      role "System"
+      description "Add a new record with a generated uuid_v4 id, stamping created_at and updated_at to now. Distinct from Upsert : Append never updates an existing record, even if the caller passes an id ; the id is always freshly minted. Used by event-log style stores (audit, history) where every write is a new row. Projects to heki::append."
+      reference_to(HekiFile)
+      attribute :reason, Reason
+      then_set :phase,         to: "written"
+      then_set :last_write_at, to: :reason
+      emits "RecordAppended"
+    end
+
+    command "Delete" do
+      role "System"
+      description "Remove a record by id. Returns true when the record existed and was removed ; false when absent (delete-if-exists semantics). Snapshots the file before the destructive write so the .heki-snapshots/ sibling directory holds a recoverable copy. Projects to heki::delete. Transitions phase to `empty` when the deletion drained the last record ; otherwise stays at `written`."
+      reference_to(HekiFile)
+      attribute :record_id, RecordId
+      attribute :reason,    Reason
+      then_set :phase,         to: "written"
+      then_set :last_write_at, to: :reason
+      emits "RecordDeleted"
+    end
+
+    command "Archive" do
+      role "System"
+      description "Move a record from this HekiFile to a sibling archive HekiFile, stamping archived_at and archived_reason on the moved record. Used by the inbox archive flow (queued → done → archive) and any other curatorial move where the source store should no longer see the record but the audit trail should still find it. Projects to heki::archive."
+      reference_to(HekiFile)
+      attribute :record_id,   RecordId
+      attribute :archive_to,  Path
+      attribute :reason,      Reason
+      then_set :phase,         to: "written"
+      then_set :last_write_at, to: :reason
+      emits "RecordArchived"
+    end
+
+    command "Snapshot" do
+      role "System"
+      description "Copy the file to a timestamped backup under the sibling `.heki-snapshots/` directory before a destructive operation. Idempotent : returns null when the source file doesn't exist. Collision-safe : a `.N` suffix accumulates when two snapshots land within the same RFC3339 second. Projects to heki::snapshot. The snapshots directory is gitignored ; users clean it manually."
+      reference_to(HekiFile)
+      emits "FileSnapshotted"
+    end
+
+    command "ResolveWritePath" do
+      role "System"
+      description "Build the canonical write path for an aggregate that knows its context. With a non-empty context returns the i142 nested form `<dir>/<context_snake>/<aggregate_snake>.heki` ; with an empty / null context returns the legacy flat form `<dir>/<aggregate_snake>.heki`. Projects to heki::path_for. Used by Repository's heki_path_self — the writer side of the writer/reader path-agreement contract."
+      attribute :directory,  Path
+      attribute :aggregate,  RecordId
+      attribute :context,    RecordId
+      emits "WritePathResolved"
+    end
+
+    command "ResolveReadPath" do
+      role "System"
+      description "Resolve a lookup path for a reader that does not know the writer's context. Tries (1) `<dir>/<name>/<name>.heki` (the happy path where bluebook name = aggregate name), (2) a one-deep subdir scan for `<dir>/<context>/<name>.heki` (post-i142 nested writers whose context ≠ name), then (3) `<dir>/<name>.heki` (legacy flat fallback). Always returns a path — when nothing exists, returns the flat form so heki::read fails predictably. Projects to heki::path_for_lookup. The reader side of the writer/reader path-agreement contract that closes the dead-bar class of bug (writer writes nested, reader reads flat)."
+      attribute :directory, Path
+      attribute :name,      RecordId
+      emits "ReadPathResolved"
+    end
+
+    # ── Lifecycle ──────────────────────────────────────────────
+    #
+    # phase walks through the file's relationship to the runtime.
+    # `missing` is the implicit starting state for a path the runtime
+    # has never read. Read transitions to `loaded`. Any write transitions
+    # to `written`. A Delete that drains the last record settles on
+    # `empty`. Append from `empty` returns to `written`.
+
+    lifecycle :phase, default: "missing" do
+      transition "Read"    => "loaded",  from: "missing"
+      transition "Read"    => "loaded",  from: "loaded"
+      transition "Read"    => "loaded",  from: "written"
+      transition "Read"    => "empty",   from: "empty"
+      transition "Upsert"  => "written", from: "missing"
+      transition "Upsert"  => "written", from: "loaded"
+      transition "Upsert"  => "written", from: "written"
+      transition "Upsert"  => "written", from: "empty"
+      transition "Append"  => "written", from: "missing"
+      transition "Append"  => "written", from: "loaded"
+      transition "Append"  => "written", from: "written"
+      transition "Append"  => "written", from: "empty"
+      transition "Delete"  => "written", from: "loaded"
+      transition "Delete"  => "written", from: "written"
+      transition "Delete"  => "empty",   from: "written"
+      transition "Archive" => "written", from: "loaded"
+      transition "Archive" => "written", from: "written"
+    end
+  end
+
+  # ============================================================
+  # POLICIES
+  # ============================================================
+  #
+  # The freshness handshake between Heki (disk) and Repository
+  # (memory). Every successful write to a HekiFile advances the
+  # mtime ; sibling processes whose Repository holds the same path
+  # observe the staleness and re-read. The policy makes the
+  # cross-process freshness contract declarative.
+
+  # ── Cross-domain freshness wiring (deferred) ────────────────────
+  #
+  # The intent : when a HekiFile RecordUpserted/Deleted/Archived/
+  # Appended event fires, route it to Repository.RefreshIfStale (in
+  # the sibling storage.bluebook) so the in-memory cache invalidates
+  # against the disk's new mtime. That's a CROSS-DOMAIN policy
+  # (event in this bluebook, command in another), which the current
+  # validator's trigger_valid rule rejects (it only resolves names
+  # within the same domain).
+  #
+  # The wiring lives implicitly today in the Rust runner via the
+  # opt-in HECKS_REFRESH_REPOS=1 gate. Lifting it back into a policy
+  # requires either : (a) cross-domain trigger_valid validation, or
+  # (b) a hecksagon-side adapter declaration that the runtime
+  # dispatches across domains. Both are framework gaps named in
+  # i525 (graph-walking map).
+end

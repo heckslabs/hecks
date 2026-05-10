@@ -62,6 +62,7 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
         "valid_policy_triggers",
         "no_duplicate_commands",
         "distinct_reference_aliases",
+        "no_primitive_envy",
     ] {
         out.push_str(&validator_checks::emit_rule(
             &fixtures,

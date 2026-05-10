@@ -1,0 +1,205 @@
+Hecks.bluebook "Discovery", version: "2026.05.09.1" do
+  vision "How the boot pipeline finds Hecks source files. Walks the conception tree, recognises a closed vocabulary of extensions (.bluebook .hecksagon .fixtures .behaviors .world), groups matches by parent directory into AggregateClusters the parser can consume. The recognized-extensions list lives here as the one truth — the antibody hook (bin/antibody-check) and the parser dispatch (rust/src/main.rs classify_file) are projections of this vocabulary."
+  category "runtime"
+
+  # ============================================================
+  # DISCOVERY — i522, kernel-floor file walk as bluebook
+  # ============================================================
+  #
+  # Sibling to runtime/boot/boot.bluebook. Boot's DiscoverOrgans
+  # phase reduces the cluster set this domain produces into the
+  # five tally counters (organs / capabilities / aggregates /
+  # nerves / vows) ; the walk itself — what is a Hecks source
+  # file, where does it live, who is it grouped with — is the
+  # Discovery domain's responsibility.
+  #
+  # The Rust runner `rust/src/run_boot/discover.rs` is the kernel-
+  # floor projection of this bluebook :
+  #
+  #   sum_aggregates_and_nerves      ↔ Scan + Group commands
+  #   count_recursive_bluebooks      ↔ Scan command (single-extension
+  #                                     filter form)
+  #   p.extension() == "bluebook"    ↔ RecognizedExtension membership
+  #                                     check (one of five)
+  #
+  # The i118 R5 nested-aggregate convention (`<dir>.bluebook` next
+  # to `<dir>/<dir>.bluebook`) is naturally handled by the Group
+  # command — it keys clusters by the parent directory path, so a
+  # file living one level up from its sibling chapter still groups
+  # under the same aggregate_path.
+  #
+  # ── Why not extend boot.bluebook with a Discovery chapter ────
+  #
+  # Boot is the pipeline ; Discovery is the file-walk vocabulary.
+  # Boot has eight other phases that have nothing to do with file
+  # extensions. Lifting the recognized-extensions list into its own
+  # bluebook means a hypothetical sixth source extension (e.g.
+  # `.recipe`) is a single edit here, and the parser dispatch +
+  # antibody hook update from this one source.
+
+  # ============================================================
+  # DISCOVERY — one walk of the conception tree
+  # ============================================================
+
+  aggregate "Discovery", "One walk of the aggregates tree — scans for Hecks source files, groups them into per-aggregate clusters the parser can hand-off as a unit. Singleton per boot phase ; resets on the next pipeline run." do
+    # ---- Typed inputs / outputs ----
+    #
+    # Every attribute on this aggregate's surface is a value_object —
+    # primitives only live inside the value_object bodies as the
+    # storage layer. A directory path reads as a ScanRoot ; a counter
+    # reads as a FileCount or ClusterCount. The lifecycle :phase block
+    # below owns the phase field (no primitive declaration here).
+
+    value_object "ScanRoot" do
+      description "The repo-relative directory path the walk starts from. Boot walks multiple roots sequentially (the conception root, miette/, miette_family/) — one Discovery instance per root."
+      attribute :path, String
+      invariant "non-empty path" do
+        path && !path.strip.empty?
+      end
+    end
+
+    value_object "FileCount" do
+      description "Non-negative count of recognized-extension matches found by a Discovery walk. Equal to sum(cluster.file_count) over the AggregateClusters this scan produced."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "ClusterCount" do
+      description "Non-negative count of distinct aggregate_path keys the Group reduction produced. Boot's organ tally derives from this for each scanned root."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    attribute :root,          ScanRoot
+    attribute :found_count,   FileCount
+    attribute :cluster_count, ClusterCount
+
+    # ============================================================
+    # RECOGNIZED EXTENSIONS — the closed vocabulary
+    # ============================================================
+    #
+    # The five extensions the runtime treats as Hecks source. Same
+    # list the antibody hook excludes (bin/antibody-check, comment
+    # at line 39-40 : "Not listed: .bluebook, .behaviors, .fixtures,
+    # .hecksagon, .world — source or artifacts outside the self-
+    # hosting path") and the parser dispatch matches on (rust/src/
+    # main.rs classify_file, FileKind::Bluebook arm).
+    #
+    # Adding a sixth extension means : add a value_object instance
+    # below, register the parser arm in main.rs::classify_file, and
+    # update the antibody's CODE_EXTS exclusion comment. Three edits,
+    # but the list lives here as the authoritative source.
+
+    value_object "RecognizedExtension" do
+      # name : the extension string without the leading dot, lower-
+      # case. One of bluebook, hecksagon, fixtures, behaviors, world.
+      attribute :name, String
+      # role : the kind of artifact this extension carries.
+      #   bluebook  → domain definition (aggregates, commands, policies)
+      #   hecksagon → adapter / port wiring for a sibling bluebook
+      #   fixtures  → seed data for a domain
+      #   behaviors → executable scenarios (Given/When/Then)
+      #   world     → multi-domain composition (legacy ; rare today)
+      attribute :role, String
+    end
+
+    # ============================================================
+    # DISCOVERED FILE — one match
+    # ============================================================
+
+    value_object "DiscoveredFile" do
+      # path : repo-relative file path of the matched source file.
+      attribute :path, String
+      # extension : the matched RecognizedExtension's name. Always
+      # one of the five ; never the leading dot.
+      attribute :extension, String
+      # aggregate_path : the parent directory the file groups under.
+      # For the i118 R5 nested layout this is the directory that
+      # carries the sibling .bluebook AND any subdirectory chapter
+      # files — the parser sees them as one cluster.
+      attribute :aggregate_path, String
+    end
+
+    # ============================================================
+    # AGGREGATE CLUSTER — files grouped by parent directory
+    # ============================================================
+
+    value_object "AggregateCluster" do
+      # aggregate_path : the parent directory key. Repo-relative.
+      attribute :aggregate_path, String
+      # file_count : how many DiscoveredFiles live in this cluster.
+      # Sum across clusters equals found_count on the parent
+      # Discovery aggregate.
+      attribute :file_count, Integer
+      # has_bluebook / has_hecksagon / has_fixtures / has_behaviors /
+      # has_world : presence flags the parser uses to decide which
+      # parser arms to invoke for this cluster. "yes" or "no" so the
+      # value object stays string-backed (Boolean isn't a registered
+      # attribute primitive in the DSL today).
+      attribute :has_bluebook,  String
+      attribute :has_hecksagon, String
+      attribute :has_fixtures,  String
+      attribute :has_behaviors, String
+      attribute :has_world,     String
+    end
+
+    # ============================================================
+    # COMMANDS — the walk pipeline
+    # ============================================================
+
+    command "BeginScan" do
+      role "User"
+      description "Entrypoint — start a fresh discovery walk against `root`. Resets found_count and cluster_count, moves phase to scanning. The Rust runner (rust/src/run_boot/discover.rs) implements this as the entry to sum_aggregates_and_nerves on the conception's aggregates dir + each sibling root (miette/, miette_family/)."
+      attribute :root, ScanRoot
+      then_set :root,         to: :root
+      then_set :phase,        to: "scanning"
+      emits "ScanBegun"
+    end
+
+    command "Scan" do
+      role "System"
+      description "Walk `root` recursively. For each file whose extension is one of the five RecognizedExtensions, emit FileDiscovered carrying a DiscoveredFile value object. The walk is depth-first ; symlinks are not followed (matches std::fs::read_dir semantics). The Rust projection is the inner loop in sum_aggregates_and_nerves and count_recursive_bluebooks — same pattern, two specializations (full-vocabulary walk vs single-extension count)."
+      attribute :found_count, FileCount
+      then_set :found_count, to: :found_count
+      then_set :phase,       to: "grouping"
+      emits "ScanCompleted"
+    end
+
+    command "Group" do
+      role "System"
+      description "Reduce the FileDiscovered stream into AggregateClusters keyed by parent directory. For the i118 R5 nested layout, a `<dir>.bluebook` and a `<dir>/<dir>.bluebook` sharing the same aggregate name end up in the same cluster — the key is the directory containing the entry-point .bluebook, and chapter files merge into that key. Emits AggregateClusterFound per distinct key. Sets cluster_count to the number of distinct keys."
+      attribute :cluster_count, ClusterCount
+      then_set :cluster_count, to: :cluster_count
+      then_set :phase,         to: "complete"
+      emits "GroupingCompleted"
+    end
+
+    # ============================================================
+    # LIFECYCLE — phase machine
+    # ============================================================
+
+    lifecycle :phase, default: "idle" do
+      transition "BeginScan" => "scanning", from: "idle"
+      transition "Scan"      => "grouping", from: "scanning"
+      transition "Group"     => "complete", from: "grouping"
+    end
+  end
+
+  # ============================================================
+  # POLICIES — chain the walk into a pipeline
+  # ============================================================
+
+  policy "ScanOnBegin" do
+    on "ScanBegun"
+    trigger "Scan"
+  end
+
+  policy "GroupOnScan" do
+    on "ScanCompleted"
+    trigger "Group"
+  end
+end

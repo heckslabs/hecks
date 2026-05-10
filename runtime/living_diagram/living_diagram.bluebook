@@ -1,0 +1,921 @@
+Hecks.bluebook "LivingDiagram", version: "2026.05.09.1" do
+  vision "The bluebook IS the production dashboard — render the IR as a clickable graph, dispatch any command from a node, watch the cascade flow through the edges in real time"
+  category "runtime"
+
+  # ============================================================
+  # LIVINGDIAGRAM — Dan's i527 — the bluebook as a clickable surface
+  # ============================================================
+  #
+  # Today the bluebook graph is implicit : aggregates → commands →
+  # events → policies → cascades, expressed only in source. This
+  # domain makes the graph *literal* — render it in the browser,
+  # click a command node, fill an auto-derived form, dispatch through
+  # the real runtime, and watch every edge a cascade traverses light
+  # up as EventEmitted streams in.
+  #
+  # The walking-skeleton today shows "a list of commands per
+  # aggregate." The Living Diagram replaces that with the graph
+  # itself — same information, but now the structure teaches as it
+  # operates. The end state : what you build a domain in IS what you
+  # operate it through. Allure + HecksAppeal already point this
+  # direction ; LivingDiagram is the gap that makes the cascade
+  # visible, not just the structure.
+  #
+  # Surface :
+  #
+  #   examples/hecks_appeal/hecks/hecks_appeal.bluebook  → the IDE
+  #   ruby/hecks_cli/allure_renderer.rb                  → terminal renderer
+  #   rust/src/server/html_*.rs                          → existing HTML surface
+  #   rust/src/server/routes.rs                          → /dispatch JSON API
+  #
+  # This bluebook sits ON TOP of those — it does NOT re-invent the
+  # IR walker, the dispatch endpoint, the SSE stream, or the
+  # Tailwind chrome. Three new pieces of code are needed when this
+  # ships : (1) an IR→graph projection that reads a Runtime and
+  # emits Diagram + DiagramNode + DiagramEdge records ; (2) a
+  # browser view that renders the graph (force-directed via
+  # Cytoscape or D3-Force) and posts to /dispatch ; (3) a runtime
+  # subscriber that receives EventEmitted, looks up the matching
+  # DiagramEdge, and appends a CascadeHop to the open CascadeTrace.
+  # Layout-persistence and time-travel are deferred (see i527
+  # out-of-scope).
+  #
+  # Three aggregates — the conception MVP per i527's acceptance :
+  #
+  #   Diagram         — one per domain ; lifecycle idle | rendering | live
+  #   CascadeTrace    — one per dispatched command ; lifecycle pending
+  #                     | flowing | settled
+  #   FormSubmission  — one per OpenForm + Dispatch pair ; the bridge
+  #                     between a clicked node and a real /dispatch POST
+  #
+  # The CommandForm value object is auto-derived from a node's IR ;
+  # no aggregate stores it because the IR is its source of truth.
+  # Sticky-layout (GraphLayout) and SSE subscription (Subscription)
+  # are deferred ; they are listed in i527 out-of-scope.
+
+  # ============================================================
+  # DIAGRAM — the rendered graph for one domain
+  # ============================================================
+
+  aggregate "Diagram", "One rendered graph per domain. Holds the projected nodes and edges, the chosen layout strategy, and the lifecycle that gates rendering vs. live observation" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule.
+
+    value_object "DomainName" do
+      description "Name of the source domain the diagram renders."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate node in the diagram."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command — FQN or bare."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted along a cascade hop."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "DiagramId" do
+      description "Stable identifier of a Diagram aggregate instance."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "TraceId" do
+      description "Stable identifier of a CascadeTrace aggregate."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "NodeId" do
+      description "Stable identifier of a DiagramNode."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "EdgeId" do
+      description "Stable identifier of a DiagramEdge."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "HopId" do
+      description "Identifier of one CascadeHop within a CascadeTrace."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "Timestamp" do
+      description "ISO-8601 UTC timestamp."
+      attribute :iso8601, String
+      invariant "looks like ISO-8601" do
+        iso8601.is_a?(String) && iso8601.length >= 19
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "PayloadJson" do
+      description "Serialised command payload (JSON object) attached to a Dispatch or CascadeHop."
+      attribute :json, String
+    end
+
+    value_object "RejectionReason" do
+      description "Free-text reason a FormSubmission was rejected by validation."
+      attribute :text, String
+    end
+
+    value_object "FailureReason" do
+      description "Free-text reason a CascadeTrace settled to :failed."
+      attribute :text, String
+    end
+
+    value_object "NodeKind" do
+      description "What this DiagramNode represents — aggregate | command | event | policy."
+      attribute :name, AggregateName
+      invariant "known kind" do
+        %w[aggregate command event policy].include?(name)
+      end
+    end
+
+    value_object "EdgeKind" do
+      description "What this DiagramEdge represents — emits | triggers_on | cascades | references."
+      attribute :name, AggregateName
+      invariant "known kind" do
+        %w[emits triggers_on cascades references].include?(name)
+      end
+    end
+
+    value_object "LayoutStrategy" do
+      description "force_directed | hierarchical | circular."
+      attribute :name, AggregateName
+      invariant "known strategy" do
+        %w[force_directed hierarchical circular].include?(name)
+      end
+    end
+
+    # domain_name : the bluebook this diagram is rendering.
+    attribute :domain_name, DomainName
+    # rendered_at : last time Render produced fresh node + edge data.
+    attribute :rendered_at, Timestamp
+    # node_count : nodes projected from the IR (aggregates + commands +
+    # events + policies). Cached for the dashboard counters.
+    attribute :node_count, Count
+    # edge_count : edges projected from the IR.
+    attribute :edge_count, Count
+    # active_trace_id : the CascadeTrace currently animating, or empty
+    # when no dispatch is in flight.
+    attribute :active_trace_id, TraceId
+    # status : idle | rendering | live | stale.
+    # status: lifecycle owns this field
+    # nodes : the projected graph nodes ; one per aggregate, command,
+    # event, or policy in the source domain.
+    attribute :nodes, list_of(DiagramNode)
+    # edges : the projected graph edges ; one per emits / on / trigger
+    # / reference_to / then_dispatch wire in the source domain.
+    attribute :edges, list_of(DiagramEdge)
+    # strategy : ForceDirected | LeftToRight | Radial | Manual.
+    attribute :strategy, LayoutStrategy
+
+    # ---- DiagramNode -----------------------------------------------
+    #
+    # One projected vertex. Position lives here so a re-render can
+    # restore the operator's manual nudges without going through the
+    # GraphLayout aggregate (which is the durable store) — nodes are
+    # the working copy, GraphLayout is the saved copy.
+
+    value_object "DiagramNode" do
+      description "One projected vertex in the rendered graph — an aggregate, a command, an event, or a policy from the source IR"
+      attribute :node_id, NodeId
+      attribute :name, AggregateName
+      attribute :kind, NodeKind
+      attribute :state, String
+      attribute :origin_aggregate, AggregateName
+      attribute :x, Float
+      attribute :y, Float
+      attribute :pinned, String
+    end
+
+    # ---- DiagramEdge -----------------------------------------------
+    #
+    # One projected wire. last_traversal_at is the most recent
+    # CascadeHop that lit this edge — empty until the first trace
+    # flows through. Edges are addressed by the (from_id, to_id, kind)
+    # triple so a (Command, Event, Emits) edge and a (Command, Event,
+    # References) edge between the same pair stay distinct.
+
+    value_object "DiagramEdge" do
+      description "One projected wire in the rendered graph — an emits, a triggers-on, a then-dispatch cascade, or a reference_to between aggregates"
+      attribute :edge_id, EdgeId
+      attribute :kind, NodeKind
+      attribute :from_id, NodeId
+      attribute :to_id, NodeId
+      attribute :last_traversal_at, String
+      attribute :traversal_count, Integer
+    end
+
+    # ---- CommandForm ------------------------------------------------
+    #
+    # The auto-derived form for one Command node. fields are projected
+    # from the command's attributes ; each FormField carries enough
+    # type information for the browser to render the right input
+    # (text / number / select / reference picker). submit_url is the
+    # /dispatch endpoint on the dev server.
+
+    value_object "CommandForm" do
+      description "The form auto-derived from a Command node — every command attribute becomes a FormField, the runtime's /dispatch endpoint becomes submit_url"
+      attribute :command_name, CommandName
+      attribute :aggregate_name, String
+      attribute :submit_url, String
+      attribute :method_verb, String
+      attribute :fields, list_of(FormField)
+    end
+
+    # ---- FormField --------------------------------------------------
+    #
+    # One input in a CommandForm. ref_target is set when the
+    # underlying attribute is a reference_to ; the browser renders a
+    # picker over the referenced aggregate's records.
+
+    value_object "FormField" do
+      description "One input in a CommandForm — derived from a single command attribute"
+      attribute :name, AggregateName
+      attribute :label, String
+      attribute :type, String
+      attribute :required, String
+      attribute :ref_target, String
+      attribute :default_value, String
+    end
+
+    command "Render" do
+      role "System"
+      description "Project the source domain's IR into nodes and edges. Aggregates, commands, events, and policies become nodes ; emits / triggers / then_dispatch / reference_to become edges. Sets status to live when projection succeeds, stale on partial failure."
+      attribute :domain_name, DomainName
+      attribute :strategy, LayoutStrategy
+      then_set :domain_name, to: :domain_name
+      then_set :strategy, to: :strategy
+      then_set :status, to: "rendering"
+      then_set :node_count, to: 0
+      then_set :edge_count, to: 0
+      emits "DiagramRendered"
+    end
+
+    command "AppendNode" do
+      role "System"
+      description "Append one projected node to the diagram. Called once per IR aggregate, command, event, or policy during a Render walk. The (node_id, kind) pair is unique within a Diagram."
+      reference_to(Diagram)
+      attribute :node_id, NodeId
+      attribute :name, AggregateName
+      attribute :kind, NodeKind
+      attribute :origin_aggregate, AggregateName
+      then_set :nodes, append: { node_id: :node_id, name: :name, kind: :kind, state: "idle", origin_aggregate: :origin_aggregate, x: 0.0, y: 0.0, pinned: "no" }
+      then_set :node_count, increment: 1
+      emits "NodeAppended"
+    end
+
+    command "AppendEdge" do
+      role "System"
+      description "Append one projected edge to the diagram. Called once per emits / on / trigger / then_dispatch / reference_to wire during a Render walk. The (from_id, to_id, kind) triple is unique within a Diagram."
+      reference_to(Diagram)
+      attribute :edge_id, EdgeId
+      attribute :kind, NodeKind
+      attribute :from_id, NodeId
+      attribute :to_id, NodeId
+      then_set :edges, append: { edge_id: :edge_id, kind: :kind, from_id: :from_id, to_id: :to_id, last_traversal_at: "", traversal_count: 0 }
+      then_set :edge_count, increment: 1
+      emits "EdgeAppended"
+    end
+
+    command "GoLive" do
+      role "System"
+      description "Switch the diagram from the rendering phase to the live phase — projection is complete, the SSE subscription is open, the operator can dispatch from any command node and see cascades flow through edges."
+      reference_to(Diagram)
+      attribute :rendered_at, Timestamp
+      then_set :rendered_at, to: :rendered_at
+      then_set :status, to: "live"
+      emits "DiagramWentLive"
+    end
+
+    command "MarkStale" do
+      role "System"
+      description "The source bluebook changed — the projected nodes and edges no longer match the IR. The browser shows a 'stale, click to refresh' banner ; a follow-up Render replaces the projection."
+      reference_to(Diagram)
+      then_set :status, to: "stale"
+      emits "DiagramMarkedStale"
+    end
+
+    command "OpenForm" do
+      role "System"
+      description "Operator clicked a command node. Project the node's IR command attributes into a CommandForm and return it to the browser. This is a read-only projection — no state is mutated, no event recorded beyond the open intent."
+      reference_to(Diagram)
+      attribute :node_id, NodeId
+      emits "FormOpened"
+    end
+
+    command "Dispatch" do
+      role "System"
+      description "Operator submitted a CommandForm. Begin a CascadeTrace, then proxy the (command_name, payload) to the runtime's /dispatch endpoint. The active_trace_id is set so the SSE subscriber can route incoming EventEmitted events into the open trace."
+      reference_to(Diagram)
+      attribute :command_name, CommandName
+      attribute :payload, PayloadJson
+      attribute :trace_id, TraceId
+      then_set :active_trace_id, to: :trace_id
+      emits "DispatchProxied"
+    end
+
+    command "ClearActiveTrace" do
+      role "System"
+      description "The CascadeTrace identified by active_trace_id has settled. Clear the marker so the next Dispatch can claim it. Called by the SettleAfterFlow policy."
+      reference_to(Diagram)
+      then_set :active_trace_id, to: ""
+      emits "ActiveTraceCleared"
+    end
+
+    command "MarkEdgeTraversed" do
+      role "System"
+      description "An EventEmitted from the runtime matched one of this diagram's edges. Record the traversal time so the browser can flash the edge in real time. Called by the TraceCascadesIntoDiagram policy."
+      reference_to(Diagram)
+      attribute :edge_id, EdgeId
+      attribute :traversed_at, Timestamp
+      then_set :edge_count, increment: 0
+      emits "EdgeTraversed"
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "Render"      => "rendering", from: ["idle", "live", "stale"]
+      transition "GoLive"      => "live",      from: "rendering"
+      transition "MarkStale"   => "stale",     from: ["live", "rendering"]
+    end
+  end
+
+  # ============================================================
+  # CASCADETRACE — one observed dispatch + its hops
+  # ============================================================
+
+  aggregate "CascadeTrace", "One observed dispatch from the moment Diagram.Dispatch fires until every triggered policy + cascade has emitted its terminal event. Hops are appended in real time as EventEmitted streams from the runtime ; the trace settles when no more cascades fire" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule.
+
+    value_object "DomainName" do
+      description "Name of the source domain the diagram renders."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate node in the diagram."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command — FQN or bare."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted along a cascade hop."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "DiagramId" do
+      description "Stable identifier of a Diagram aggregate instance."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "TraceId" do
+      description "Stable identifier of a CascadeTrace aggregate."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "NodeId" do
+      description "Stable identifier of a DiagramNode."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "EdgeId" do
+      description "Stable identifier of a DiagramEdge."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "HopId" do
+      description "Identifier of one CascadeHop within a CascadeTrace."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "Timestamp" do
+      description "ISO-8601 UTC timestamp."
+      attribute :iso8601, String
+      invariant "looks like ISO-8601" do
+        iso8601.is_a?(String) && iso8601.length >= 19
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "PayloadJson" do
+      description "Serialised command payload (JSON object) attached to a Dispatch or CascadeHop."
+      attribute :json, String
+    end
+
+    value_object "RejectionReason" do
+      description "Free-text reason a FormSubmission was rejected by validation."
+      attribute :text, String
+    end
+
+    value_object "FailureReason" do
+      description "Free-text reason a CascadeTrace settled to :failed."
+      attribute :text, String
+    end
+
+    value_object "NodeKind" do
+      description "What this DiagramNode represents — aggregate | command | event | policy."
+      attribute :name, AggregateName
+      invariant "known kind" do
+        %w[aggregate command event policy].include?(name)
+      end
+    end
+
+    value_object "EdgeKind" do
+      description "What this DiagramEdge represents — emits | triggers_on | cascades | references."
+      attribute :name, AggregateName
+      invariant "known kind" do
+        %w[emits triggers_on cascades references].include?(name)
+      end
+    end
+
+    value_object "LayoutStrategy" do
+      description "force_directed | hierarchical | circular."
+      attribute :name, AggregateName
+      invariant "known strategy" do
+        %w[force_directed hierarchical circular].include?(name)
+      end
+    end
+
+    # diagram_id : the Diagram this trace is animating into.
+    attribute :diagram_id, DiagramId
+    # origin_command : the command name the operator submitted.
+    attribute :origin_command, CommandName
+    # origin_aggregate : the aggregate the origin command lives on.
+    attribute :origin_aggregate, AggregateName
+    # dispatched_at : timestamp of the operator's submit click.
+    attribute :dispatched_at, Timestamp
+    # settled_at : timestamp the runtime stopped emitting events.
+    attribute :settled_at, Timestamp
+    # status : pending | flowing | settled | failed.
+    # status: lifecycle owns this field
+    # depth : maximum cascade depth observed so far. Pure metric ;
+    # the dashboard surfaces it next to hop_count.
+    attribute :depth, Count
+    # hop_count : number of edges traversed so far.
+    attribute :hop_count, Count
+    # hops : the ordered list of CascadeHops observed in this trace.
+    attribute :hops, list_of(CascadeHop)
+
+    # ---- CascadeHop -------------------------------------------------
+    #
+    # One observed traversal. edge_id is the DiagramEdge that lit ;
+    # event_name is the runtime event that caused the lighting ;
+    # depth is how many cascade levels deep this hop was. The browser
+    # animates the edge between hops[i].edge_id and hops[i+1].edge_id
+    # in dispatch order.
+
+    value_object "CascadeHop" do
+      description "One observed traversal of a DiagramEdge — an event that flowed from a source node to a target node during a cascade"
+      attribute :hop_id, HopId
+      attribute :edge_id, EdgeId
+      attribute :event_name, EventName
+      attribute :payload_summary, PayloadJson
+      attribute :depth, Count
+      attribute :resolved_at, Timestamp
+    end
+
+    command "Begin" do
+      role "System"
+      description "Open a CascadeTrace for one operator dispatch. The diagram_id ties this trace to a specific Diagram so cross-domain dispatches do not cross-contaminate each other's traces."
+      attribute :diagram_id, DiagramId
+      attribute :origin_command, CommandName
+      attribute :origin_aggregate, AggregateName
+      attribute :dispatched_at, Timestamp
+      then_set :diagram_id, to: :diagram_id
+      then_set :origin_command, to: :origin_command
+      then_set :origin_aggregate, to: :origin_aggregate
+      then_set :dispatched_at, to: :dispatched_at
+      then_set :status, to: "pending"
+      then_set :hop_count, to: 0
+      then_set :depth, to: 0
+      emits "TraceBegan"
+    end
+
+    command "RecordHop" do
+      role "System"
+      description "Append one observed hop to the trace. Called by the TraceCascadesIntoDiagram policy for every EventEmitted whose aggregate_id matches a node referenced by an open trace."
+      reference_to(CascadeTrace)
+      attribute :hop_id, HopId
+      attribute :edge_id, EdgeId
+      attribute :event_name, EventName
+      attribute :payload_summary, PayloadJson
+      attribute :depth, Count
+      attribute :resolved_at, Timestamp
+      given("must be open") { status == "pending" || status == "flowing" }
+      then_set :hops, append: { hop_id: :hop_id, edge_id: :edge_id, event_name: :event_name, payload_summary: :payload_summary, depth: :depth, resolved_at: :resolved_at }
+      then_set :hop_count, increment: 1
+      then_set :status, to: "flowing"
+      emits "HopRecorded"
+    end
+
+    command "Settle" do
+      role "System"
+      description "The runtime stopped emitting events for this dispatch. The trace closes — no more hops will be appended. The browser keeps the final highlight on every traversed edge for the trace-replay panel."
+      reference_to(CascadeTrace)
+      attribute :settled_at, Timestamp
+      given("must be flowing or pending") { status == "pending" || status == "flowing" }
+      then_set :settled_at, to: :settled_at
+      then_set :status, to: "settled"
+      emits "TraceSettled"
+    end
+
+    command "Fail" do
+      role "System"
+      description "The runtime returned 422 (refused) or 500 (failed) for the proxied dispatch. The trace closes in the failed terminal state ; the browser surfaces the refusal_reason next to the origin node."
+      reference_to(CascadeTrace)
+      attribute :reason, FailureReason
+      then_set :status, to: "failed"
+      emits "TraceFailed"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Begin"      => "pending",  from: "pending"
+      transition "RecordHop"  => "flowing",  from: ["pending", "flowing"]
+      transition "Settle"     => "settled",  from: ["pending", "flowing"]
+      transition "Fail"       => "failed",   from: ["pending", "flowing"]
+    end
+  end
+
+  # ============================================================
+  # FORMSUBMISSION — bridge between an OpenForm and a Dispatch
+  # ============================================================
+
+  aggregate "FormSubmission", "One operator click on a Submit button. Bridges OpenForm (server projects the form) and Dispatch (operator submits the form). Carries the typed payload through validation before the proxy fires" do
+
+    # ---- Common typed terms — applied per the no-primitive-envy rule.
+
+    value_object "DomainName" do
+      description "Name of the source domain the diagram renders."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      description "Name of an aggregate node in the diagram."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      description "Name of a command — FQN or bare."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "EventName" do
+      description "Name of an event emitted along a cascade hop."
+      attribute :name, AggregateName
+      invariant "non-empty" do
+        name && !name.strip.empty?
+      end
+    end
+
+    value_object "DiagramId" do
+      description "Stable identifier of a Diagram aggregate instance."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "TraceId" do
+      description "Stable identifier of a CascadeTrace aggregate."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "NodeId" do
+      description "Stable identifier of a DiagramNode."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "EdgeId" do
+      description "Stable identifier of a DiagramEdge."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "HopId" do
+      description "Identifier of one CascadeHop within a CascadeTrace."
+      attribute :handle, String
+      invariant "non-empty" do
+        handle && !handle.strip.empty?
+      end
+    end
+
+    value_object "Timestamp" do
+      description "ISO-8601 UTC timestamp."
+      attribute :iso8601, String
+      invariant "looks like ISO-8601" do
+        iso8601.is_a?(String) && iso8601.length >= 19
+      end
+    end
+
+    value_object "Count" do
+      description "Non-negative integer counter."
+      attribute :n, Integer
+      invariant "non-negative" do
+        n >= 0
+      end
+    end
+
+    value_object "PayloadJson" do
+      description "Serialised command payload (JSON object) attached to a Dispatch or CascadeHop."
+      attribute :json, String
+    end
+
+    value_object "RejectionReason" do
+      description "Free-text reason a FormSubmission was rejected by validation."
+      attribute :text, String
+    end
+
+    value_object "FailureReason" do
+      description "Free-text reason a CascadeTrace settled to :failed."
+      attribute :text, String
+    end
+
+    value_object "NodeKind" do
+      description "What this DiagramNode represents — aggregate | command | event | policy."
+      attribute :name, AggregateName
+      invariant "known kind" do
+        %w[aggregate command event policy].include?(name)
+      end
+    end
+
+    value_object "EdgeKind" do
+      description "What this DiagramEdge represents — emits | triggers_on | cascades | references."
+      attribute :name, AggregateName
+      invariant "known kind" do
+        %w[emits triggers_on cascades references].include?(name)
+      end
+    end
+
+    value_object "LayoutStrategy" do
+      description "force_directed | hierarchical | circular."
+      attribute :name, AggregateName
+      invariant "known strategy" do
+        %w[force_directed hierarchical circular].include?(name)
+      end
+    end
+
+    # diagram_id : the Diagram this submission targets.
+    attribute :diagram_id, DiagramId
+    # node_id : the command node the form was opened for.
+    attribute :node_id, NodeId
+    # command_name : copied from the node ; the runtime command to dispatch.
+    attribute :command_name, CommandName
+    # payload : the operator-filled values, JSON-encoded for the proxy.
+    attribute :payload, PayloadJson
+    # submitted_at : timestamp of the submit click.
+    attribute :submitted_at, Timestamp
+    # phase : drafting | validating | dispatching | acknowledged | rejected.
+    # phase: lifecycle owns this field
+    # rejection_reason : populated when the runtime returns 422.
+    attribute :rejection_reason, RejectionReason
+
+    command "OpenSubmission" do
+      role "System"
+      description "Operator clicked Open Form on a node. Create a FormSubmission seeded with the node_id ; the browser fills in payload as the operator types."
+      attribute :diagram_id, DiagramId
+      attribute :node_id, NodeId
+      attribute :command_name, CommandName
+      then_set :diagram_id, to: :diagram_id
+      then_set :node_id, to: :node_id
+      then_set :command_name, to: :command_name
+      then_set :phase, to: "drafting"
+      emits "SubmissionOpened"
+    end
+
+    command "FillPayload" do
+      role "System"
+      description "Operator typed into the form. The browser coalesces keystrokes and updates payload as a single FillPayload per submit-blur. No validation runs yet — that waits for ValidatePayload."
+      reference_to(FormSubmission)
+      attribute :payload, PayloadJson
+      then_set :payload, to: :payload
+      emits "PayloadFilled"
+    end
+
+    command "ValidatePayload" do
+      role "System"
+      description "Run the IR's command-attribute validations against the typed payload. Required fields, type coercions, reference_to existence checks. Failures move phase to rejected with rejection_reason set ; success transitions to dispatching."
+      reference_to(FormSubmission)
+      then_set :phase, to: "validating"
+      emits "PayloadValidated"
+    end
+
+    command "ConfirmDispatch" do
+      role "System"
+      description "Validation passed. Clear the form, mark dispatching, and let the DispatchAfterValidation policy proxy the payload through Diagram.Dispatch."
+      reference_to(FormSubmission)
+      attribute :submitted_at, Timestamp
+      then_set :submitted_at, to: :submitted_at
+      then_set :phase, to: "dispatching"
+      emits "DispatchConfirmed"
+    end
+
+    command "AcknowledgeDispatch" do
+      role "System"
+      description "The runtime returned 200 OK — the dispatch landed. The trace will continue animating ; this command just closes the form."
+      reference_to(FormSubmission)
+      then_set :phase, to: "acknowledged"
+      emits "DispatchAcknowledged"
+    end
+
+    command "RejectSubmission" do
+      role "System"
+      description "Validation failed or the runtime returned 422 / 500. Record the reason and surface it in the form ; the operator can edit and resubmit."
+      reference_to(FormSubmission)
+      attribute :rejection_reason, RejectionReason
+      then_set :rejection_reason, to: :rejection_reason
+      then_set :phase, to: "rejected"
+      emits "SubmissionRejected"
+    end
+
+    lifecycle :phase, default: "drafting" do
+      transition "OpenSubmission"     => "drafting",     from: "drafting"
+      transition "FillPayload"        => "drafting",     from: "drafting"
+      transition "ValidatePayload"    => "validating",   from: "drafting"
+      transition "ConfirmDispatch"    => "dispatching",  from: "validating"
+      transition "AcknowledgeDispatch"=> "acknowledged", from: "dispatching"
+      transition "RejectSubmission"   => "rejected",     from: ["validating", "dispatching"]
+    end
+  end
+
+  # GraphLayout (sticky x / y per node) and Subscription (one browser
+  # tab on the SSE stream) are out-of-scope for the first conception
+  # per i527's "deferred" list. When they land they will be their own
+  # tiny aggregates alongside this file ; the policies below carry no
+  # references to them today.
+
+  # ============================================================
+  # POLICIES — the cascade-observation chain
+  # ============================================================
+  #
+  # The runtime emits EventEmitted (see runtime/dispatch/dispatch.bluebook,
+  # CommandDispatch.EmitEvent) for every successful command. The
+  # LivingDiagram subscribes to that event and threads it through two
+  # places : every open Diagram (so the matching DiagramEdge lights
+  # up) and the active CascadeTrace on each Diagram (so the hop is
+  # appended to the trace). Settlement is observed by absence — when
+  # no EventEmitted lands within a debounce window the Settle command
+  # closes the trace.
+  #
+  # Cross-aggregate flow inside the LivingDiagram domain :
+  #
+  #   Diagram.Dispatch ─DispatchProxied──> CascadeTrace.Begin
+  #   <runtime>.EventEmitted ─────────────> CascadeTrace.RecordHop
+  #   <runtime>.EventEmitted ─────────────> Diagram.MarkEdgeTraversed
+  #   FormSubmission.ConfirmDispatch ─DispatchConfirmed──> Diagram.Dispatch
+  #   FormSubmission.ValidatePayload ─PayloadValidated──> ConfirmDispatch
+  #
+  # The two policies that bind to the runtime's EventEmitted are the
+  # observability seam — they run in the LivingDiagram domain but
+  # listen across the bus to the Dispatch domain.
+
+  policy "BeginTraceOnDispatch" do
+    on "DispatchProxied"
+    trigger "Begin"
+    map diagram_id: :diagram_id, origin_command: :command_name, origin_aggregate: :origin_aggregate, dispatched_at: :dispatched_at
+  end
+
+  policy "TraceCascadesIntoDiagram" do
+    on "EventEmitted"
+    trigger "RecordHop"
+  end
+
+  policy "MarkEdgeOnEventEmitted" do
+    on "EventEmitted"
+    trigger "MarkEdgeTraversed"
+  end
+
+  policy "ClearActiveTraceOnSettle" do
+    on "TraceSettled"
+    trigger "ClearActiveTrace"
+  end
+
+  policy "ClearActiveTraceOnFail" do
+    on "TraceFailed"
+    trigger "ClearActiveTrace"
+  end
+
+  # FormSubmission → Dispatch chain. The form's three commands move
+  # the submission through validate → confirm → dispatch in lock-step
+  # with the runtime so the operator sees a single submit click
+  # animate cleanly through the diagram.
+
+  policy "ValidateAfterFill" do
+    on "PayloadFilled"
+    trigger "ValidatePayload"
+  end
+
+  policy "ConfirmAfterValidate" do
+    on "PayloadValidated"
+    trigger "ConfirmDispatch"
+  end
+
+  policy "DispatchAfterConfirm" do
+    on "DispatchConfirmed"
+    trigger "Dispatch"
+    map command_name: :command_name, payload: :payload
+  end
+
+  policy "AcknowledgeAfterProxy" do
+    on "DispatchProxied"
+    trigger "AcknowledgeDispatch"
+  end
+
+end
