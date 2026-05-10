@@ -156,8 +156,23 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 cmd.emits = extract_string(line);
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
-                    let snake = to_snake_case(&target);
-                    cmd.references.push(Reference { name: snake, target, domain: None });
+                    // i526 : honour `, as: :name` and `, role: :name`
+                    // qualifiers at the COMMAND level, the same way the
+                    // aggregate-level `absorb_reference_to` does. Without
+                    // this, transfer-style commands declaring two refs to
+                    // the same aggregate (source + destination) collapse
+                    // both names to the bare aggregate snake_case — making
+                    // the IR ambiguous.
+                    let name = if let Some(pos) = line.find(", as:") {
+                        let after = &line[pos + ", as:".len()..];
+                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                    } else if let Some(pos) = line.find(", role:") {
+                        let after = &line[pos + ", role:".len()..];
+                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                    } else {
+                        to_snake_case(&target)
+                    };
+                    cmd.references.push(Reference { name, target, domain: None });
                 }
             } else if line.starts_with("given") {
                 // Two forms:
