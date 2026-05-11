@@ -1483,7 +1483,18 @@ fn run_specialize(args: &[String]) {
     let target = args.get(2).map(|s| s.as_str()).unwrap_or("");
     if target.is_empty() {
         eprintln!("Usage: storehouse specialize <target> [--output PATH]");
+        eprintln!("       storehouse specialize wasm_worker --app <app> --host <host> --auth-scheme <scheme> --auth-secret-env <env> --storehouse-path <path> [--output-dir <dir>]");
         std::process::exit(2);
+    }
+
+    // wasm_worker takes a different set of flags : the emitter needs
+    // (app, host, auth_scheme, auth_secret_env, storehouse_path) and
+    // produces two files (Cargo.toml + src/lib.rs) under an output
+    // directory rather than one Rust source on stdout. Branch off
+    // before the generic dispatch.
+    if target == "wasm_worker" {
+        run_specialize_wasm_worker(args);
+        return;
     }
 
     let output_path: Option<String> = args
@@ -1517,6 +1528,87 @@ fn run_specialize(args: &[String]) {
         }
         None => print!("{}", rust),
     }
+}
+
+/// `storehouse specialize wasm_worker --app <app> --host <host>
+///   --auth-scheme <scheme> --auth-secret-env <env>
+///   --storehouse-path <path> [--output-dir <dir>]`
+///
+/// Renders one app's WASM Cloudflare-Worker crate via the wasm_worker
+/// specializer. Required flags : `--app`, `--host`, `--auth-scheme`,
+/// `--auth-secret-env`, `--storehouse-path`. The `--auth-secret-env`
+/// flag is allowed to be empty when `--auth-scheme` is `none`.
+///
+/// Output : writes `Cargo.toml` and `src/lib.rs` under `--output-dir`
+/// (defaults to `./worker` relative to cwd). Emits nothing to stdout
+/// on success ; the caller relies on the on-disk files.
+///
+/// Re-runs are idempotent — running the same command with the same
+/// inputs against the same output-dir writes byte-identical files.
+fn run_specialize_wasm_worker(args: &[String]) {
+    fn flag(args: &[String], name: &str) -> Option<String> {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1).cloned())
+    }
+    let app = match flag(args, "--app") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize wasm_worker : missing --app <app>");
+            std::process::exit(2);
+        }
+    };
+    let host = flag(args, "--host").unwrap_or_else(|| "cf_worker".to_string());
+    let auth_scheme = flag(args, "--auth-scheme").unwrap_or_else(|| "none".to_string());
+    let auth_secret_env = flag(args, "--auth-secret-env").unwrap_or_default();
+    let storehouse_path = match flag(args, "--storehouse-path") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize wasm_worker : missing --storehouse-path <relative path to hecks/rust>");
+            std::process::exit(2);
+        }
+    };
+    let output_dir = flag(args, "--output-dir").unwrap_or_else(|| "./worker".to_string());
+
+    // Validate scheme + secret combination — the shape's invariant
+    // rejects empty auth_secret_env when scheme is anything other
+    // than `none`. Surface here so the CLI fails loud rather than
+    // emitting a lib.rs that reads from an empty env name.
+    if auth_scheme != "none" && auth_secret_env.is_empty() {
+        eprintln!(
+            "specialize wasm_worker : --auth-secret-env is required when --auth-scheme is `{}` (only `none` allows it to be empty)",
+            auth_scheme
+        );
+        std::process::exit(2);
+    }
+
+    let cargo = storehouse::specializer::wasm_worker::emit_cargo_toml(&app, &storehouse_path);
+    let lib = storehouse::specializer::wasm_worker::emit_lib_rs(
+        &app,
+        &host,
+        &auth_scheme,
+        &auth_secret_env,
+    );
+
+    let out = std::path::PathBuf::from(&output_dir);
+    let src_dir = out.join("src");
+    if let Err(e) = std::fs::create_dir_all(&src_dir) {
+        eprintln!("cannot create {}: {}", src_dir.display(), e);
+        std::process::exit(1);
+    }
+    let cargo_path = out.join("Cargo.toml");
+    let lib_path = src_dir.join("lib.rs");
+    if let Err(e) = std::fs::write(&cargo_path, &cargo) {
+        eprintln!("cannot write {}: {}", cargo_path.display(), e);
+        std::process::exit(1);
+    }
+    if let Err(e) = std::fs::write(&lib_path, &lib) {
+        eprintln!("cannot write {}: {}", lib_path.display(), e);
+        std::process::exit(1);
+    }
+
+    eprintln!("wrote {} bytes to {}", cargo.len(), cargo_path.display());
+    eprintln!("wrote {} bytes to {}", lib.len(), lib_path.display());
 }
 
 /// Locate the repository root for the `specialize` subcommand.
