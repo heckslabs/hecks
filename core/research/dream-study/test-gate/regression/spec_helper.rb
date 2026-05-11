@@ -1,11 +1,11 @@
 # spec_helper.rb
 #
 # [antibody-exempt: dream-study Phase 0f regression harness — drives
-#  `hecks-life` from rspec ; retires when the same tests can land as
+#  `storehouse` from rspec ; retires when the same tests can land as
 #  .behaviors files inside the corresponding bluebooks (Phase 1+)]
 #
 # Test harness for the dream-study Phase 0f regression suite.
-# Each spec drives `hecks-life` against a tmpdir-isolated bluebook
+# Each spec drives `storehouse` against a tmpdir-isolated bluebook
 # layout and asserts on the resulting heki rows. The harness keeps
 # tests under the 1-second budget by reusing the release binary and
 # pruning each tmpdir on exit.
@@ -27,11 +27,11 @@ require "fileutils"
 REPO_ROOT       = File.expand_path("../../../..", __dir__)
 HECKS_BIN       = ENV.fetch("HECKS_BIN") {
   candidates = [
-    File.join(REPO_ROOT, "hecks", "rust", "target", "release", "hecks-life"),
-    "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life",
+    File.join(REPO_ROOT, "hecks", "rust", "target", "release", "storehouse"),
+    "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse",
   ]
   candidates.find { |p| File.executable?(p) } or
-    raise "hecks-life not found ; build via `cd hecks/rust && cargo build --release`"
+    raise "storehouse not found ; build via `cd hecks/rust && cargo build --release`"
 }
 MIETTE_DIR = ENV.fetch("MIETTE_DIR") {
   ["/Users/christopheryoung/Projects/miette", File.expand_path("../../..", __dir__)]
@@ -43,7 +43,7 @@ module DreamStudy
   # Harness — one isolated dispatch environment.
   #
   # Wraps a tmpdir with `aggregates/` + `information/`. Copies the
-  # bluebooks the test cares about, dispatches commands via hecks-life,
+  # bluebooks the test cares about, dispatches commands via storehouse,
   # reads heki rows back as parsed JSON. Each spec creates a fresh
   # harness so suites are order-independent.
   class Harness

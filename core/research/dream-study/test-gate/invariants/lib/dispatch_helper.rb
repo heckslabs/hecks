@@ -4,17 +4,17 @@
 #  Mind PR (Phase 4) lands a process_manager + first-class queries for
 #  organ math, this driver retires in favour of behavior-runtime tests.]
 #
-# DispatchHelper — drive hecks-life from RSpec, isolated tmpdir per case.
+# DispatchHelper — drive storehouse from RSpec, isolated tmpdir per case.
 #
 # The Ruby behaviors interpreter does NOT implement the i106 math
 # primitives (`multiply` / `clamp`). These tests must drive the real
 # Rust runtime to validate organ math. DispatchHelper :
 #
 #   - mints a fresh HECKS_INFO tmpdir per call (or reusable session)
-#   - seeds a heki row via `hecks-life heki append --reason ...`
-#   - dispatches a command via `hecks-life <agg_dir> Aggregate.Command`
+#   - seeds a heki row via `storehouse heki append --reason ...`
+#   - dispatches a command via `storehouse <agg_dir> Aggregate.Command`
 #   - returns the parsed JSON state after dispatch
-#   - reads field values directly via `hecks-life heki latest-field`
+#   - reads field values directly via `storehouse heki latest-field`
 #
 # Usage :
 #   d = DispatchHelper.new
@@ -33,7 +33,7 @@ require "fileutils"
 
 class DispatchHelper
   PROJECTS_ROOT = File.expand_path("../../../../../../..", __dir__)
-  HECKS_BIN   = File.expand_path("hecks/rust/target/release/hecks-life",
+  HECKS_BIN   = File.expand_path("hecks/rust/target/release/storehouse",
                                  PROJECTS_ROOT)
   AGG_DIR     = File.expand_path("miette/body/organs",
                                  PROJECTS_ROOT)
@@ -74,7 +74,7 @@ class DispatchHelper
   end
 
   # Dispatch a command via the real Rust runtime. Returns the parsed
-  # `state` hash from hecks-life's JSON response. Raises if dispatch
+  # `state` hash from storehouse's JSON response. Raises if dispatch
   # exited non-zero (caller can rescue to assert failures).
   def dispatch(command, **attrs)
     raise "no info_dir — call with_isolated_info" unless @info_dir
@@ -111,7 +111,7 @@ class DispatchHelper
   end
 
   def self.skip_reason
-    return "hecks-life binary not built at #{HECKS_BIN}" unless File.executable?(HECKS_BIN)
+    return "storehouse binary not built at #{HECKS_BIN}" unless File.executable?(HECKS_BIN)
     return "aggregates dir missing at #{AGG_DIR}" unless File.directory?(AGG_DIR)
     nil
   end

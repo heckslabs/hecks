@@ -39,7 +39,7 @@ require "open3"
 require "optparse"
 
 REPO_ROOT = File.expand_path("../..", __dir__)
-HECKS  = ENV["HECKS_BIN"]  || File.join(REPO_ROOT, "rust/target/release/hecks-life")
+HECKS  = ENV["HECKS_BIN"]  || File.join(REPO_ROOT, "rust/target/release/storehouse")
 CLAUDE = ENV["CLAUDE_BIN"] || File.expand_path("~/.local/bin/claude")
 
 # ── Few-shot example : a recently-shipped bluebook of similar shape ──

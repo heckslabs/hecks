@@ -4,7 +4,7 @@
 # `parity/behaviors/loads_parse_smoke.behaviors` via the Ruby
 # DSL and asserts suite.loads + test.events_include contain the
 # same values the Rust side asserts in
-# `hecks_life/tests/behaviors_loads_parity_test.rs`. Together they
+# `storehouse/tests/behaviors_loads_parity_test.rs`. Together they
 # prove both parsers produce equivalent IR for the new i43 DSL
 # forms, commits 3-5 scope.
 #

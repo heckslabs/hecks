@@ -12,7 +12,7 @@
 # Seed 1 is the must-catch gate against generator regressions.
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
-# fuzzer ports to bluebook-dispatched form via hecks-life run]
+# fuzzer ports to bluebook-dispatched form via storehouse run]
 
 module Hecks
   module Parity

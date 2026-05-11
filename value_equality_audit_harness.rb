@@ -3,7 +3,7 @@
 #
 # Runs the SAME test pairs through two reference implementations:
 #   - Ruby: the actual Hecks::Behaviors::Value in lib/hecks/behaviors/value.rb
-#   - Rust: a line-faithful port of hecks_life/src/runtime/interpreter.rs
+#   - Rust: a line-faithful port of storehouse/src/runtime/interpreter.rs
 #           values_equal + numeric_value + Display for Value
 #
 # Emits a markdown table of (left, right, ruby, rust, agree?) rows.
@@ -14,7 +14,7 @@ require "hecks/behaviors/value"
 RubyValue = Hecks::Behaviors::Value
 
 # --------------------------------------------------------------------
-# Rust port — mirrors hecks_life/src/runtime/interpreter.rs exactly
+# Rust port — mirrors storehouse/src/runtime/interpreter.rs exactly
 # --------------------------------------------------------------------
 
 module RustPort

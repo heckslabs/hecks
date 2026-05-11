@@ -1,4 +1,4 @@
-# [antibody-exempt: lib/hecks/dsl/aggregate_builder.rb — kernel-surface Ruby DSL parser; the parity contract requires this side to recognize identified_by, but the bluebook parser cannot be conceived through bluebook. Added to satisfy parity with Rust hecks-life parser (i80 identified_by natural keys).]
+# [antibody-exempt: lib/hecks/dsl/aggregate_builder.rb — kernel-surface Ruby DSL parser; the parity contract requires this side to recognize identified_by, but the bluebook parser cannot be conceived through bluebook. Added to satisfy parity with Rust storehouse parser (i80 identified_by natural keys).]
 #
 # Bootstrap: These modules are included at class-body time, so they must
 # load before AggregateBuilder is defined. Cannot use chapter-driven loading.
@@ -138,7 +138,7 @@ module Hecks
         @identity_fields = fields.map(&:to_sym)
       end
 
-      # Declare the natural-key attribute used by hecks-life to dispatch
+      # Declare the natural-key attribute used by storehouse to dispatch
       # commands to a specific aggregate instance. The Rust runtime
       # reads `attrs[identified_by]` ; if no record matches, the value
       # becomes the new record's id. The Ruby DSL accepts the same

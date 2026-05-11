@@ -1,7 +1,7 @@
 # Parity Suite — known drift list
 #
 # Fixtures listed here are EXPECTED to disagree between the Ruby DSL parser
-# and the Rust hecks-life parser. The pre-commit hook reports them as ⚠
+# and the Rust storehouse parser. The pre-commit hook reports them as ⚠
 # (warning, not error). Adding to this list is an antibody failure — do it
 # only when the divergence is documented and accepted as a real semantic gap.
 #

@@ -9,7 +9,7 @@
 #  framework can read.]
 #
 # Runs every `.hecksagon` file in-tree through both the Ruby DSL
-# builder and the Rust hecks-life parser, normalizes both outputs to
+# builder and the Rust storehouse parser, normalizes both outputs to
 # the canonical JSON shape (see canonical_ir.rb :: dump_hecksagon /
 # main.rs :: dump_hecksagon_json), and diffs.
 #
@@ -31,7 +31,7 @@ require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-HECKS_LIFE = File.expand_path("../rust/target/release/hecks-life", __dir__)
+STOREHOUSE = File.expand_path("../rust/target/release/storehouse", __dir__)
 REPO_ROOT  = File.expand_path("..", __dir__)
 
 HECKSAGON_FILES = (
@@ -54,7 +54,7 @@ HECKSAGON_FILES = (
 
 KNOWN_DRIFT_FILE = File.expand_path("hecksagon_known_drift.txt", __dir__)
 
-abort "hecks-life not built — run: (cd rust && cargo build --release)" unless File.executable?(HECKS_LIFE)
+abort "storehouse not built — run: (cd rust && cargo build --release)" unless File.executable?(STOREHOUSE)
 
 def load_known_drift
   return {} unless File.exist?(KNOWN_DRIFT_FILE)
@@ -75,7 +75,7 @@ def ruby_dump(path)
 end
 
 def rust_dump(path)
-  out, err, status = Open3.capture3(HECKS_LIFE, "dump-hecksagon", path)
+  out, err, status = Open3.capture3(STOREHOUSE, "dump-hecksagon", path)
   raise "rust dump-hecksagon failed for #{path}: #{err}" unless status.success?
   JSON.parse(out)
 end

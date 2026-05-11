@@ -74,7 +74,7 @@ def postprocess(raw: str) -> str:
     return output
 
 def validate(bluebook: str) -> bool:
-    """Run hecks-life validate on the output."""
+    """Run storehouse validate on the output."""
     import subprocess
     import tempfile
 
@@ -84,7 +84,7 @@ def validate(bluebook: str) -> bool:
 
     try:
         result = subprocess.run(
-            ["rust/target/debug/hecks-life", "validate", path],
+            ["rust/target/debug/storehouse", "validate", path],
             capture_output=True, text=True,
             cwd="/Users/christopheryoung/Projects/hecks",
         )

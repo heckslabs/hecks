@@ -2,7 +2,7 @@
 #
 # Runs every .fixtures file through the Ruby DSL builder
 # (Hecks.fixtures → FixturesBuilder) and through the Rust parser
-# (`hecks-life dump <file>` — content-routed via fixtures_parser),
+# (`storehouse dump <file>` — content-routed via fixtures_parser),
 # then diffs the IRs. Drift is a hard contract failure.
 #
 # A .fixtures IR is a (domain_name, [Fixture]) pair. Each Fixture is
@@ -15,8 +15,8 @@
 require "open3"
 require "json"
 
-HECKS_LIFE = File.expand_path("../rust/target/release/hecks-life", __dir__)
-abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
+STOREHOUSE = File.expand_path("../rust/target/release/storehouse", __dir__)
+abort "storehouse not built" unless File.executable?(STOREHOUSE)
 
 require "hecks"
 require "hecks/dsl/fixtures_builder"
@@ -116,7 +116,7 @@ def ruby_ir(path)
 end
 
 def rust_ir(path)
-  out, _err, _st = Open3.capture3(HECKS_LIFE, "dump-fixtures", path)
+  out, _err, _st = Open3.capture3(STOREHOUSE, "dump-fixtures", path)
   return nil if out.strip.empty?
   parsed = JSON.parse(out)
   fixtures = parsed["fixtures"].map do |f|

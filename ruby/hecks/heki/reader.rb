@@ -1,7 +1,7 @@
 # Hecks::Heki::Reader
 #
 # Purpose: Ruby-side reader for .heki files. Parses the binary envelope
-# used by the Rust hecks-life runtime (4-byte "HEKI" magic, big-endian
+# used by the Rust storehouse runtime (4-byte "HEKI" magic, big-endian
 # u32 record count, zlib-deflated JSON payload) and returns the
 # decoded hash of records. Prerequisite for the i30 differential
 # fuzzer, which round-trips .heki files between Ruby and Rust to

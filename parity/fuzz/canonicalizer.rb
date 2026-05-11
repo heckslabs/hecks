@@ -24,7 +24,7 @@
 #                                      ruby_domain)
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
-# fuzzer ports to bluebook-dispatched form via hecks-life run]
+# fuzzer ports to bluebook-dispatched form via storehouse run]
 
 require "json"
 require "hecks/heki/reader"
@@ -110,7 +110,7 @@ module Hecks
           end
         end
 
-        # Counter → counter. Mirrors hecks_life/src/runtime/repository.rs
+        # Counter → counter. Mirrors storehouse/src/runtime/repository.rs
         # heki_path() snake-case rule.
         def snake_case(name)
           out = +""

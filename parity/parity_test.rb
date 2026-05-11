@@ -7,7 +7,7 @@
 #
 # Runs every fixture in parity/bluebooks/ and every real bluebook in
 # hecks_conception/aggregates/ through both the Ruby DSL parser and the
-# Rust hecks-life parser, normalizes both outputs to the canonical JSON
+# Rust storehouse parser, normalizes both outputs to the canonical JSON
 # shape (see canonical_ir.rb and dump.rs), and diffs.
 #
 # Status legend:
@@ -23,7 +23,7 @@ require "open3"
 require "hecks"
 require_relative "canonical_ir"
 
-HECKS_LIFE = File.expand_path("../rust/target/release/hecks-life", __dir__)
+STOREHOUSE = File.expand_path("../rust/target/release/storehouse", __dir__)
 SYNTHETIC  = Dir[File.expand_path("bluebooks/*.bluebook", __dir__)].sort
 REAL       = Dir[File.expand_path("../hecks_conception/aggregates/**/*.bluebook", __dir__)].sort
 # i118 Round 3 — capabilities lifted from hecks_conception/capabilities/
@@ -60,7 +60,7 @@ NURSERY    = Dir[File.expand_path("../hecks_conception/nursery/**/*.bluebook", _
 KNOWN_DRIFT_FILE = File.expand_path("known_drift.txt", __dir__)
 REPO_ROOT  = File.expand_path("..", __dir__)
 
-abort "hecks-life not built — run: (cd rust && cargo build --release)" unless File.executable?(HECKS_LIFE)
+abort "storehouse not built — run: (cd rust && cargo build --release)" unless File.executable?(STOREHOUSE)
 abort "no fixtures in parity/bluebooks/" if SYNTHETIC.empty?
 
 def load_known_drift
@@ -99,7 +99,7 @@ def behaviors_file?(path)
 end
 
 def rust_dump(path)
-  out, err, status = Open3.capture3(HECKS_LIFE, "dump", path)
+  out, err, status = Open3.capture3(STOREHOUSE, "dump", path)
   raise "rust dump failed for #{path}: #{err}" unless status.success?
   @last_stderr = err
   JSON.parse(out)

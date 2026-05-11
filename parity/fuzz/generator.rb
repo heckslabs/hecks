@@ -23,7 +23,7 @@
 #
 # [antibody-exempt: differential fuzzer per i30 plan — closes the
 # cascade-state-propagation parity gap; retires when fuzzer ports
-# to bluebook-dispatched form via hecks-life run]
+# to bluebook-dispatched form via storehouse run]
 
 require_relative "generator/renderer"
 require_relative "generator/seed_1"

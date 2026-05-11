@@ -18,7 +18,7 @@
 #
 # Today's reality (as of 2026-05-02 / Phase 0h) : the production :llm,
 # :cadence, and :daemon adapters DO NOT EXIST yet — those calls are
-# made shell-side via $CLAUDE_BIN, $HECKS_LIFE loop, etc. So the swap
+# made shell-side via $CLAUDE_BIN, $STOREHOUSE loop, etc. So the swap
 # point this module exposes is forward-looking : it's the seam Phase
 # 4-7 specs will hook into, and Phase 0h's job is to land the seam +
 # prove it works against the only adapter that exists today (the
