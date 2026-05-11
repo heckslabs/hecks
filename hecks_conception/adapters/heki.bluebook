@@ -17,20 +17,60 @@ Hecks.bluebook "HekiAdapter", version: "2026.04.16.1" do
   #   - The bluebook never sees IDs — references resolve through the adapter
   #   - reference_to(Heartbeat) means "the heartbeat" not "heartbeat id X"
   #
-  # The runtime kernel has heki::read, heki::upsert, heki::append.
-  # This adapter tells the kernel how to use them for aggregate persistence.
+  # The runtime kernel grows heki::read, heki::upsert, heki::append
+  # against the local filesystem. This adapter tells the kernel how
+  # to use them for aggregate persistence.
 
   aggregate "Binding", "Maps an aggregate to a heki store" do
-    attribute :aggregate_name, String
-    attribute :store_path, String
-    attribute :id_strategy, String
-    attribute :save_strategy, String
+    value_object "AggregateName" do
+      # The aggregate's PascalCase name as declared in its bluebook
+      # (e.g. "Heartbeat", "Consciousness").
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "StorePath" do
+      # The on-disk path for the aggregate's .heki file, rooted at
+      # the world-configured directory (typically "information/...").
+      # PascalCase aggregate name converted to snake_case + ".heki".
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "IdStrategy" do
+      # How records are identified. Heki uses :uuid — the kernel
+      # generates a UUID per record on upsert ; the bluebook never
+      # sees the id.
+      attribute :value, String
+      invariant "must be 'uuid'" do
+        value == "uuid"
+      end
+    end
+
+    value_object "SaveStrategy" do
+      # How writes apply to existing records. Heki uses :upsert —
+      # every aggregate is a singleton, one record per aggregate,
+      # overwrites replace.
+      attribute :value, String
+      invariant "must be 'upsert'" do
+        value == "upsert"
+      end
+    end
+
+    attribute AggregateName
+    attribute StorePath
+    attribute IdStrategy
+    attribute SaveStrategy
 
     command "BindAggregate" do
       role "System"
-      description "Wire an aggregate to its heki store"
-      attribute :aggregate_name, String
-      attribute :store_path, String
+      description "Wire an aggregate to its heki store — store_path is the file path within the world-configured directory (typically information/...)"
+      attribute AggregateName, as: :aggregate_name
+      attribute StorePath,     as: :store_path
       emits "AggregateBound"
       then_set :aggregate_name, to: :aggregate_name
       then_set :store_path, to: :store_path
@@ -40,15 +80,42 @@ Hecks.bluebook "HekiAdapter", version: "2026.04.16.1" do
   end
 
   aggregate "Reference", "How references between aggregates resolve" do
-    attribute :from_aggregate, String
-    attribute :to_aggregate, String
-    attribute :resolution, String
+    value_object "FromAggregate" do
+      # The PascalCase name of the aggregate that holds the
+      # reference_to declaration.
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "ToAggregate" do
+      # The PascalCase name of the referenced aggregate.
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Resolution" do
+      # How the reference resolves. Heki uses :singleton —
+      # reference_to(Heartbeat) means "the heartbeat" (the one
+      # singleton record), not "heartbeat id X".
+      attribute :value, String
+      invariant "must be 'singleton'" do
+        value == "singleton"
+      end
+    end
+
+    attribute FromAggregate
+    attribute ToAggregate
+    attribute Resolution
 
     command "ResolveReference" do
       role "System"
       description "Resolve reference_to by finding the singleton in the target store"
-      attribute :from_aggregate, String
-      attribute :to_aggregate, String
+      attribute FromAggregate, as: :from_aggregate
+      attribute ToAggregate,   as: :to_aggregate
       emits "ReferenceResolved"
       then_set :from_aggregate, to: :from_aggregate
       then_set :to_aggregate, to: :to_aggregate
