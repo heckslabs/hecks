@@ -16,3 +16,8 @@ serde_json = "1"
 # the contract.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 worker = "0.8.3"
+# getrandom with the `js` feature routes through the JS
+# crypto.getRandomValues primitive on wasm32-unknown-unknown, so
+# heki::uuid_v4() gets crypto-grade entropy inside the CF Worker
+# instead of falling back to time-seeded bytes.
+getrandom = { version = "0.2", features = ["js"] }
