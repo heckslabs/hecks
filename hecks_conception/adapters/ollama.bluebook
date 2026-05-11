@@ -1,4 +1,4 @@
-Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
+Hecks.bluebook "OllamaAdapter", version: "2026.05.11.1" do
   vision "LLM inference via Ollama — driven adapter for language production"
   category "adapter"
 
@@ -20,14 +20,41 @@ Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
   # The adapter resolves HOW to speak.
 
   aggregate "Connection", "The ollama server connection" do
-    attribute :url, String
-    attribute :model, String
-    attribute :status, String
+    value_object "Url" do
+      # The ollama HTTP endpoint, e.g. "http://localhost:11434".
+      # The adapter posts inference requests against this base URL.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Model" do
+      # The ollama model tag, e.g. "llama3:8b" or "mistral:latest".
+      # Names the local weights ollama loads to satisfy a request.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Status" do
+      # Connection lifecycle state — "pending" before Connect,
+      # "ready" once the server has been reached.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute Url
+    attribute Model
+    attribute Status
 
     command "Connect" do
       description "Establish connection to ollama"
-      attribute :url, String
-      attribute :model, String
+      attribute Url,   as: :url
+      attribute Model, as: :model
       emits "Connected"
       then_set :url, to: :url
       then_set :model, to: :model
@@ -40,13 +67,41 @@ Hecks.bluebook "OllamaAdapter", version: "2026.04.16.1" do
   end
 
   aggregate "Inference", "One LLM call — prompt in, response out" do
-    attribute :prompt, String
-    attribute :response, String
-    attribute :model, String
+    value_object "Prompt" do
+      # The text sent to ollama. Built upstream from voice
+      # personality + input ; the adapter relays it verbatim.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Response" do
+      # The text ollama returned. Written back into the aggregate
+      # after the HTTP call completes.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Model" do
+      # The ollama model tag used for this inference call —
+      # same shape as Connection.Model, carried per-call so the
+      # response is traceable to weights.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute Prompt
+    attribute Response
+    attribute Model
 
     command "Infer" do
       description "Send a prompt to ollama, get a response"
-      attribute :prompt, String
+      attribute Prompt, as: :prompt
       emits "Inferred"
       then_set :prompt, to: :prompt
     end
