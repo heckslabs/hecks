@@ -15,5 +15,10 @@
                 heki_store.insert(id.clone(), rec);
             }
             let _ = heki::write(&path, &heki_store, ctx);
+            // Stamp last_seen_mtime to the post-write mtime so the next
+            // refresh_from_heki tick sees no advance and skips the
+            // re-read of our own write. Closes the read-our-own-write
+            // round-trip waste a naive mtime gate would create.
+            self.last_seen_mtime = self.current_disk_mtime();
         }
     }

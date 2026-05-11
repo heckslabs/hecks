@@ -77,4 +77,3 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
     }
     out.push("    end".into());
 }
-

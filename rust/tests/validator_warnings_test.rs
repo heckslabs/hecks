@@ -29,6 +29,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
             attributes: vec![],
             references: vec![],
             emits: None,
+            emits_identified_by: None,
             givens: vec![],
             mutations: vec![],
         }],

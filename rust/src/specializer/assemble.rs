@@ -75,7 +75,6 @@ const HEADER: &str = r#"//! Assemble a `Report` from the heki stores + filesyste
 
 use crate::heki;
 use crate::runtime::adapter_registry::AdapterRegistry;
-use crate::runtime::shell_dispatcher;
 
 use std::collections::HashMap;
 use std::path::Path;

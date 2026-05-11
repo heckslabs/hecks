@@ -76,13 +76,11 @@ const HEADER: &str = r#"//! HTML domain page — detail view for a single domain
 //!   let page = generate_domain_page(&rt, &all_domains);
 
 use crate::runtime::Runtime;
-use crate::ir::Fixture;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use super::html_shared::{wrap_page, sidebar_links, display_name, module_icon, esc};
-use super::html_workflow::workflow_pipeline;
-use super::html_fixtures::{module_fixtures, fixtures_section};
-use super::html_kpi::kpi_cards;
+use super::html_shared::{wrap_page, display_name, module_icon, esc};
+use super::html_sidebar::sidebar_tree;
+use super::html_fixtures::fixtures_section;
 use super::html_usage::usage_section;
 
 "#;

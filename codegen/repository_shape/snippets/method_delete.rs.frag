@@ -27,5 +27,9 @@
                 Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
             }
             let _ = heki::delete(&path, id, ctx);
+            // Same freshness-bookkeeping as save : stamp the post-write
+            // mtime so refresh_from_heki skips re-reading our own
+            // delete on the next tick.
+            self.last_seen_mtime = self.current_disk_mtime();
         }
     }

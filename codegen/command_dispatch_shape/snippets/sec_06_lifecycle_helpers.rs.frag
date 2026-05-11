@@ -1,7 +1,7 @@
 /// Verify the command is allowed given the current lifecycle state.
-/// Mirrors lifecycle::check but routes through Resolution so entity
-/// commands consult the entity's lifecycle when present (falls back
-/// to the parent aggregate's lifecycle otherwise).
+/// Routes through Resolution so entity commands consult the entity's
+/// lifecycle when present (falls back to the parent aggregate's
+/// lifecycle otherwise).
 fn check_lifecycle(
     rt: &Runtime, res: Resolution, state: &AggregateState,
 ) -> Result<(), RuntimeError> {
@@ -30,7 +30,8 @@ fn check_lifecycle(
 }
 
 /// Apply the lifecycle transition if one matches the resolved command.
-/// Mirrors lifecycle::apply_transition with entity awareness (i111-J).
+/// Resolution-aware (i111-J) — entity commands consult the entity's
+/// lifecycle when present, otherwise the parent aggregate's.
 fn apply_lifecycle_transition(rt: &Runtime, res: Resolution, state: &mut AggregateState) {
     let lifecycle = match lifecycle_for(rt, res) {
         Some(lc) => lc,

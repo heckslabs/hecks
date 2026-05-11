@@ -60,7 +60,7 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     ShorthandResult::None => {}
                 }
             } else if line.starts_with("role") {
-                cmd.role = extract_string(line);
+                cmd.role = parse_role_arg(line);
             } else if line.starts_with("goal") || line.starts_with("description") {
                 cmd.description = extract_string(line);
             } else if line.starts_with("emits") {
@@ -72,8 +72,23 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                 cmd.emits_identified_by = extract_kwarg_symbol(line, "identified_by");
             } else if line.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(line, "reference_to") {
-                    let snake = to_snake_case(&target);
-                    cmd.references.push(Reference { name: snake, target, domain: None });
+                    // i526 : honour `, as: :name` and `, role: :name`
+                    // qualifiers at the COMMAND level, the same way the
+                    // aggregate-level `absorb_reference_to` does. Without
+                    // this, transfer-style commands declaring two refs to
+                    // the same aggregate (source + destination) collapse
+                    // both names to the bare aggregate snake_case — making
+                    // the IR ambiguous.
+                    let name = if let Some(pos) = line.find(", as:") {
+                        let after = &line[pos + ", as:".len()..];
+                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                    } else if let Some(pos) = line.find(", role:") {
+                        let after = &line[pos + ", role:".len()..];
+                        extract_symbol(after).unwrap_or_else(|| to_snake_case(&target))
+                    } else {
+                        to_snake_case(&target)
+                    };
+                    cmd.references.push(Reference { name, target, domain: None });
                 }
             } else if line.starts_with("given") {
                 // Two forms:
@@ -109,5 +124,32 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
         i += 1;
     }
     (cmd, i + 1)
+}
+
+/// Extract the role/actor name from a `role …` line. Two forms accepted :
+///
+///   role "Customer"
+///     Legacy quoted form — name is the literal string.
+///
+///   role Role[, as: Agent[, kind: "system"]]
+///     i483 typed form — name is the bare identifier immediately after
+///     `role`. The `as:` / `kind:` kwargs are accepted-and-ignored on
+///     both Rust and Ruby sides until the parser-support follow-up
+///     lifts them into the IR. Critically : the bareword form must
+///     NOT fall back to extract_string, which would pick up the
+///     quoted "system" inside a trailing `kind:` clause and silently
+///     misidentify the role name.
+fn parse_role_arg(line: &str) -> Option<String> {
+    let after = line.trim_start_matches("role").trim_start();
+    if after.starts_with('"') {
+        return extract_string(after);
+    }
+    // Bareword form — read up to the first comma, whitespace, or
+    // line end, and return the leading identifier.
+    let end = after
+        .find(|c: char| c == ',' || c.is_whitespace())
+        .unwrap_or(after.len());
+    let token = after[..end].trim();
+    if token.is_empty() { None } else { Some(token.to_string()) }
 }
 
