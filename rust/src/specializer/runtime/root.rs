@@ -214,6 +214,7 @@ pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
+pub(crate) use command_dispatch::apply_lifecycle_default;
 pub use event_bus::{Event, EventBus};
 pub use middleware::{CommandContext, MiddlewareStack, Phase};
 pub use policy_engine::{PolicyEngine, PolicyTrigger};

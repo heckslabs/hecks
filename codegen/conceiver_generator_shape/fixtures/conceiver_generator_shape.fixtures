@@ -9,6 +9,5 @@ Hecks.fixtures "ConceiverGeneratorShape" do
     fixture "GenerateBluebookSection",   name: "generate_bluebook",   order: 1, body_kind: "verbatim_section", snippet_path: "codegen/conceiver_generator_shape/snippets/01_generate_bluebook.rs.frag",   description: "generate_bluebook public entry — assemble bluebook lines from archetype Domain"
     fixture "ScaffoldingSection",        name: "scaffolding",         order: 2, body_kind: "verbatim_section", snippet_path: "codegen/conceiver_generator_shape/snippets/02_scaffolding.rs.frag",        description: "emit_scaffold + emit_aggregate / emit_scaffold_aggregate thin wrappers"
     fixture "AggregateCommandSection",   name: "aggregate_command",   order: 3, body_kind: "verbatim_section", snippet_path: "codegen/conceiver_generator_shape/snippets/03_aggregate_command.rs.frag",   description: "emit_aggregate_impl + emit_command — shared aggregate / command emitters"
-    fixture "ToSnakeSection",            name: "to_snake",            order: 4, body_kind: "verbatim_section", snippet_path: "codegen/conceiver_generator_shape/snippets/04_to_snake.rs.frag",            description: "to_snake casing helper — used by generate_bluebook"
   end
 end

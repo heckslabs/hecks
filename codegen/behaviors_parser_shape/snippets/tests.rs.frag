@@ -146,6 +146,91 @@ mod tests {
     }
 
     #[test]
+    fn array_literal_single_line_preserved() {
+        // Sanity : single-line array literal value still works after
+        // adding bracket-aware continuation joining.
+        let src = suite_src(
+            "  test \"Single line array\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect emits: [\"A\", \"B\"]\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        assert_eq!(
+            suite.tests[0].expect.get("emits").map(|s| s.as_str()),
+            Some("[\"A\", \"B\"]")
+        );
+    }
+
+    #[test]
+    fn array_literal_multi_line_with_trailing_comma_joins() {
+        // i497 — opening `[` should trigger continuation joining even
+        // when the opening line doesn't end with `,`.
+        let src = suite_src(
+            "  test \"Multiline array trailing comma\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect emits: [\n      \"A\",\n      \"B\",\n    ]\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        let v = suite.tests[0].expect.get("emits").cloned().unwrap_or_default();
+        assert!(v.contains("\"A\""), "value should retain A : got {}", v);
+        assert!(v.contains("\"B\""), "value should retain B : got {}", v);
+        assert!(v.starts_with('['), "value should start with [ : got {}", v);
+        assert!(v.trim_end().ends_with(']'), "value should end with ] : got {}", v);
+    }
+
+    #[test]
+    fn array_literal_multi_line_no_trailing_comma_joins() {
+        // i497 — same as above but no trailing comma before the `]`.
+        let src = suite_src(
+            "  test \"Multiline array no trailing comma\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect emits: [\n      \"A\",\n      \"B\"\n    ]\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        let v = suite.tests[0].expect.get("emits").cloned().unwrap_or_default();
+        assert!(v.contains("\"A\""), "value should retain A : got {}", v);
+        assert!(v.contains("\"B\""), "value should retain B : got {}", v);
+        assert!(v.starts_with('['), "value should start with [ : got {}", v);
+        assert!(v.trim_end().ends_with(']'), "value should end with ] : got {}", v);
+    }
+
+    #[test]
+    fn nested_hash_with_array_multi_line_joins() {
+        // i497 — nested literals : `{ bar: [1, 2] }` spanning lines.
+        // Both `{` and `[` must keep the join going.
+        let src = suite_src(
+            "  test \"Nested hash array\" do\n    \
+              tests \"Tick\", on: \"Mindstream\"\n    \
+              input  at: \"T0\"\n    \
+              expect foo: {\n      bar: [1, 2]\n    }\n  end\n",
+        );
+        let suite = parse(&src);
+        assert_eq!(suite.tests.len(), 1);
+        let v = suite.tests[0].expect.get("foo").cloned().unwrap_or_default();
+        assert!(v.starts_with('{'), "value should start with {{ : got {}", v);
+        assert!(v.trim_end().ends_with('}'), "value should end with }} : got {}", v);
+        assert!(v.contains("bar"), "value should contain bar : got {}", v);
+        assert!(v.contains("[1, 2]") || v.contains("[1,2]"),
+            "value should contain inner array : got {}", v);
+    }
+
+    #[test]
+    fn bracket_depth_helper_counts_correctly() {
+        assert_eq!(bracket_depth("[]"), 0);
+        assert_eq!(bracket_depth("["), 1);
+        assert_eq!(bracket_depth("[[]"), 1);
+        assert_eq!(bracket_depth("{ a: ["), 2);
+        assert_eq!(bracket_depth("\"[\""), 0); // bracket inside string ignored
+        assert_eq!(bracket_depth("\"\\\"[\""), 0); // escaped quote then bracket inside string
+    }
+
+    #[test]
     fn extract_all_strings_handles_multiple_tokens() {
         assert_eq!(
             extract_all_strings("loads \"a\", \"b\", \"c\""),

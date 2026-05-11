@@ -1,7 +1,46 @@
+/// Extract a `"..."` string literal from `line`, respecting backslash
+/// escapes inside the quotes.
+///
+/// Two forms accepted, matching Ruby's parse semantics :
+///
+///   "simple"             → simple
+///   "with \"quotes\""    → with "quotes"
+///   "trailing \\"        → trailing \
+///
+/// Returns the UNESCAPED content (the way Ruby's `eval` of the string
+/// literal would). Without the unescape step, Ruby's IR carries
+/// `'with "quotes"'` while Rust would carry `'with \\"quotes\\"'` —
+/// the escape-sequence parity drift that listed both
+/// codegen/cli_dispatch_shape and codegen/parser_helpers_shape under
+/// known_drift.txt. Both retire when this function unescapes correctly.
 pub fn extract_string(line: &str) -> Option<String> {
     let start = line.find('"')? + 1;
-    let end = line[start..].find('"')? + start;
-    Some(line[start..end].to_string())
+    let mut out = String::new();
+    let mut chars = line[start..].chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            // Recognised escape sequences mirror Ruby's basic set ;
+            // anything else passes through with its leading backslash
+            // dropped (so `\X` → `X`), matching Ruby's "ignore unknown
+            // escape" behavior in double-quoted string literals.
+            match chars.next() {
+                Some('"')  => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some('n')  => out.push('\n'),
+                Some('t')  => out.push('\t'),
+                Some('r')  => out.push('\r'),
+                Some('0')  => out.push('\0'),
+                Some(other) => out.push(other),
+                None => return None,
+            }
+            continue;
+        }
+        if c == '"' {
+            return Some(out);
+        }
+        out.push(c);
+    }
+    None
 }
 
 pub fn extract_second_string(line: &str) -> Option<String> {
@@ -63,8 +102,18 @@ pub fn extract_state_token(text: &str) -> Option<String> {
 
 /// Check if line ends with ` do` (with optional block-arg list `|arg, ...|`).
 /// Matches `... do`, `do`, and `... do |x|`, `... do |x, y|`.
+///
+/// Commented lines (those whose trimmed form starts with `#`) are
+/// never block-openers — even if they contain `do` syntactically.
+/// Without this guard, a commented-out `# query "cold" do` would
+/// increment the parser's depth counter and swallow subsequent
+/// top-level declarations as if they were nested inside the
+/// phantom block. Closes the synapse.bluebook drift entry whose
+/// commented `do` lines silently broke `query "alive"` resolution
+/// on the Rust side ; Ruby's parser ignores comments natively.
 pub fn ends_with_do_block(line: &str) -> bool {
     let trimmed = line.trim();
+    if trimmed.starts_with('#') { return false; }
     if trimmed.ends_with(" do") || trimmed == "do" {
         return true;
     }

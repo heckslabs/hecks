@@ -1,4 +1,4 @@
-fn apply_lifecycle_default(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
+pub(crate) fn apply_lifecycle_default(rt: &Runtime, agg_idx: usize, state: &mut AggregateState) {
     let agg = &rt.domain.aggregates[agg_idx];
     if let Some(ref lc) = agg.lifecycle {
         if matches!(state.get(&lc.field), Value::Null) {

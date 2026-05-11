@@ -120,6 +120,7 @@ fn emit_string_match(fixtures: &[Fixture], phase: &Fixture) -> String {
             let pattern = util::attr(a, "pattern");
             let result = util::attr(a, "result");
             let comment = util::attr(a, "comment");
+            let leading_comment = util::attr(a, "leading_comment");
             let emitted = emitted_pattern(pattern);
             let pad = " ".repeat(widest - emitted.len() + min_gap);
             let trailing = if comment.is_empty() {
@@ -127,7 +128,19 @@ fn emit_string_match(fixtures: &[Fixture], phase: &Fixture) -> String {
             } else {
                 format!(" {}", comment)
             };
-            format!("        {}{}=> \"{}\",{}", emitted, pad, result, trailing)
+            let prefix = if leading_comment.is_empty() {
+                String::new()
+            } else {
+                // Each line of leading_comment is prefixed with 8 spaces
+                // (the arm indentation) and joined with \n ; a trailing
+                // \n separates the comment block from the arm itself.
+                let lines: Vec<String> = leading_comment
+                    .split('\n')
+                    .map(|l| format!("        {}", l))
+                    .collect();
+                format!("{}\n", lines.join("\n"))
+            };
+            format!("{}        {}{}=> \"{}\",{}", prefix, emitted, pad, result, trailing)
         })
         .collect();
 

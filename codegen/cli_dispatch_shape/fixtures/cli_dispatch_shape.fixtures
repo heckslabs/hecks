@@ -1,7 +1,7 @@
 Hecks.fixtures "CliDispatchShape" do
-  # i147 Wave 6 — main.rs as data. Six Section rows partition the file
-  # (four verbatim_section + one synthetic dispatch_chain + one synthetic
-  # usage_help). Twenty-six Subcommand rows compose the if-chain.
+  # i147 Wave 6 — main.rs as data. Seven Section rows partition the file
+  # (five verbatim_section + one synthetic dispatch_chain + one synthetic
+  # usage_help). Twenty-eight Subcommand rows compose the if-chain.
   # Nineteen HelpRow rows compose the print_usage Commands: listing.
 
   aggregate "Section" do
@@ -38,15 +38,28 @@ Hecks.fixtures "CliDispatchShape" do
       body_kind: "usage_help",
       description: "fn print_usage() — assembled from HelpRow rows for the Commands: list, with hardcoded prelude, Heki subcommands block, and Options block."
 
+    fixture "StorehouseHelpers",
+      name: "storehouse_helpers",
+      order: 6,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/cli_dispatch_shape/snippets/sec_05_storehouse_helpers.rs.frag",
+      description: "StoreHouse (i484) helper bodies — run_storehouse + per-verb functions + walk/resolve helpers. Lives between print_usage and emit_validator_warnings_to_stderr in source order."
+
     fixture "HelpersTail",
       name: "helpers_tail",
-      order: 6,
+      order: 7,
       body_kind: "verbatim_section",
       snippet_path: "codegen/cli_dispatch_shape/snippets/sec_06_helpers_tail.rs.frag",
       description: "emit_validator_warnings_to_stderr — the four-warning fan-out called by parse/dump/validate/inspect arms in the match block."
   end
 
   aggregate "Subcommand" do
+    fixture "Storehouse",
+      name: "storehouse",
+      order: 0,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_00_storehouse.rs.frag",
+      description: "StoreHouse generic dispatcher (i484) — route/compile/read/list/lookup verbs over the conception's bluebook phrases."
+
     fixture "Lexicon",
       name: "lexicon",
       order: 1,
@@ -93,71 +106,77 @@ Hecks.fixtures "CliDispatchShape" do
       name: "behaviors",
       order: 8,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_08_behaviors.rs.frag",
-      description: "delegate_run pattern — run_behaviors(&args)."
+      description: "delegate_run pattern — run_behaviors(&args). i500 alias for test."
+
+    fixture "Test",
+      name: "test",
+      order: 9,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_08a_test.rs.frag",
+      description: "i500 — universal `.behaviors` runner. CLI glue around run_suite_with_domain / run_suite_with_fixtures."
 
     fixture "DumpFixtures",
       name: "dump_fixtures",
-      order: 9,
+      order: 10,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_09_dump_fixtures.rs.frag",
       description: "Sui-generis arm — parses a .fixtures file and emits canonical JSON with optional catalogs key."
 
     fixture "DumpWorld",
       name: "dump_world",
-      order: 10,
+      order: 11,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_10_dump_world.rs.frag",
       description: "Sui-generis arm — parses a .world file and emits canonical JSON via dump_world_json."
 
     fixture "DumpHecksagon",
       name: "dump_hecksagon",
-      order: 11,
+      order: 12,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_11_dump_hecksagon.rs.frag",
       description: "Sui-generis arm — parses a .hecksagon file and emits canonical JSON via dump_hecksagon_json."
 
     fixture "Specialize",
       name: "specialize",
-      order: 12,
+      order: 13,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_12_specialize.rs.frag",
       description: "delegate_run pattern — run_specialize(&args)."
 
     fixture "Cascade",
       name: "cascade",
-      order: 13,
+      order: 14,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_13_cascade.rs.frag",
       description: "Sui-generis arm — prints cascade_emits chains for every aggregate command in a bluebook."
 
     fixture "CheckIo",
       name: "check_io",
-      order: 14,
+      order: 15,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_14_check_io.rs.frag",
       description: "delegate_run pattern — run_check_io(&args)."
 
     fixture "CheckLifecycle",
       name: "check_lifecycle",
-      order: 15,
+      order: 16,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_15_check_lifecycle.rs.frag",
       description: "delegate_run pattern — run_check_lifecycle(&args)."
 
     fixture "CheckDuplicatePolicies",
       name: "check_duplicate_policies",
-      order: 16,
+      order: 17,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_16_check_duplicate_policies.rs.frag",
       description: "delegate_run pattern — run_check_duplicate_policies(&args)."
 
     fixture "CheckAll",
       name: "check_all",
-      order: 17,
+      order: 18,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_17_check_all.rs.frag",
       description: "delegate_run pattern — run_check_all(&args)."
 
     fixture "Run",
       name: "run",
-      order: 18,
+      order: 19,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_18_run.rs.frag",
       description: "Script-mode execution — std::process::exit(hecks_life::run::run_script(&args))."
 
     fixture "Loop",
       name: "loop",
-      order: 19,
+      order: 20,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_19_loop.rs.frag",
       description: "delegate_run pattern — run_loop(&args). Cadence-loop primitive."
 
@@ -167,49 +186,49 @@ Hecks.fixtures "CliDispatchShape" do
     # for retiring mindstream.sh.
     fixture "RunLoop",
       name: "run_loop",
-      order: 20,
+      order: 21,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_19a_run_loop.rs.frag",
       description: "delegate_run pattern — run_pm_loop(&args). PM-loop daemon."
 
     fixture "Daemon",
       name: "daemon",
-      order: 21,
+      order: 22,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_20_daemon.rs.frag",
       description: "delegate_run pattern — run_daemon(&args). Process-lifecycle primitive."
 
     fixture "EnforceEdit",
       name: "enforce_edit",
-      order: 22,
+      order: 23,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_21_enforce_edit.rs.frag",
       description: "delegate_run pattern — run_enforce_edit(&args). PostToolUse listener primitive."
 
     fixture "Statusline",
       name: "statusline",
-      order: 23,
+      order: 24,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_22_statusline.rs.frag",
       description: "delegate_run pattern — hecks_life::run_statusline::run(). Statusline capability runner."
 
     fixture "IsDispatched",
       name: "is_dispatched",
-      order: 24,
+      order: 25,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_23_is_dispatched.rs.frag",
       description: "Sui-generis arm — IR-query subcommand. Exit 0 + stdout if dispatched, exit 1 silently if not."
 
     fixture "Clock",
       name: "clock",
-      order: 25,
+      order: 26,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_24_clock.rs.frag",
       description: "delegate_run pattern — run_clock(&args). Wall-clock segment trigger primitive."
 
     fixture "Sleep",
       name: "sleep",
-      order: 26,
+      order: 27,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_25_sleep.rs.frag",
       description: "delegate_run pattern — run_sleep(&args). Blocking streaming-sleep CLI."
 
     fixture "Repl",
       name: "repl",
-      order: 27,
+      order: 28,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_26_repl.rs.frag",
       description: "Sui-generis arm — interactive REPL. Boots Runtime, loads seeds, runs interactive loop."
   end

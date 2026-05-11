@@ -47,4 +47,9 @@
             eprintln!("  loaded {} {} records from disk",
                 self.store.len(), self.aggregate_type);
         }
+        // Stamp the freshness baseline. If the file doesn't exist yet
+        // (an aggregate with no persisted records), we leave
+        // last_seen_mtime as None so the first refresh treats it as
+        // stale — once a sibling process writes, we'll pick it up.
+        self.last_seen_mtime = self.current_disk_mtime();
     }
