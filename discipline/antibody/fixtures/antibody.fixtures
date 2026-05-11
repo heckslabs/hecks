@@ -57,7 +57,7 @@ Hecks.fixtures "Antibody" do
   # module on every PostToolUse fire. Add new exemptions through the
   # runtime :
   #
-  #   hecks-life aggregates/ Antibody.RegisterExemption \
+  #   storehouse aggregates/ Antibody.RegisterExemption \
   #     path="lib/foo.rb" reason="kernel-surface — ..."
   #
   # The dispatch goes through capability auto-load (i108) — the

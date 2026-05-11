@@ -1,11 +1,11 @@
 //! Conceiver CLI commands — conceive and develop entry points
 //!
 //! Handles argument parsing and orchestration for the `conceive`
-//! and `develop` subcommands of hecks-life.
+//! and `develop` subcommands of storehouse.
 //!
 //! Usage:
-//!   hecks-life conceive "Geology" "science of rocks" --corpus nursery catalog
-//!   hecks-life develop target.bluebook --add "audit logging"
+//!   storehouse conceive "Geology" "science of rocks" --corpus nursery catalog
+//!   storehouse develop target.bluebook --add "audit logging"
 
 use crate::conceiver;
 use crate::parser;
@@ -14,11 +14,11 @@ use std::path::PathBuf;
 /// Run the `conceive` command: generate a new domain from corpus archetypes.
 pub fn run_conceive(args: &[String]) {
     let name = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life conceive <name> \"<vision>\" [--corpus <dir>...]");
+        eprintln!("Usage: storehouse conceive <name> \"<vision>\" [--corpus <dir>...]");
         std::process::exit(1);
     });
     let vision = args.get(3).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life conceive <name> \"<vision>\" [--corpus <dir>...]");
+        eprintln!("Usage: storehouse conceive <name> \"<vision>\" [--corpus <dir>...]");
         std::process::exit(1);
     });
 
@@ -65,7 +65,7 @@ pub fn run_conceive(args: &[String]) {
 /// Run the `develop` command: graft features onto an existing domain.
 pub fn run_develop(args: &[String]) {
     let bluebook_path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life develop <path> --add <feature> [--from <path>]");
+        eprintln!("Usage: storehouse develop <path> --add <feature> [--from <path>]");
         std::process::exit(1);
     });
     let feature = args.iter().position(|a| a == "--add")

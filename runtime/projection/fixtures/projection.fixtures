@@ -1,7 +1,7 @@
 Hecks.fixtures "Projection" do
   aggregate "Target" do
     fixture "ruby_", name: "ruby", language: "Ruby", output_path: "lib/"
-    fixture "rust_", name: "rust", language: "Rust", output_path: "hecks_life/src/"
+    fixture "rust_", name: "rust", language: "Rust", output_path: "storehouse/src/"
     fixture "shell_", name: "shell", language: "Bash", output_path: "hecks_conception/"
     fixture "statusline_", name: "statusline", language: "Bash", output_path: "~/.claude/"
   end

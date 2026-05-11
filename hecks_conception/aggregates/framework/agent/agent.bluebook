@@ -24,7 +24,7 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
   # subsequent items. The DSL form `role Role, as: Agent` is
   # documented in docs/usage/dsl_reference.md ; the parser today
   # silently accepts the form (it doesn't lift it into the IR yet),
-  # so this bluebook parses against `hecks-life inspect` even before
+  # so this bluebook parses against `storehouse inspect` even before
   # parser support lands.
   #
   # ── Design decisions (i483) ───────────────────────────────────

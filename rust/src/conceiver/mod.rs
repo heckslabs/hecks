@@ -10,8 +10,8 @@
 //! `tests/conceiver_parity.rs`.
 //!
 //! Usage:
-//!   hecks-life conceive "Geology" "science of earth materials"
-//!   hecks-life develop target.bluebook --add "audit logging"
+//!   storehouse conceive "Geology" "science of earth materials"
+//!   storehouse develop target.bluebook --add "audit logging"
 
 pub mod vector;
 pub mod generator;

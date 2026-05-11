@@ -1,5 +1,5 @@
 Hecks.bluebook "Heki", version: "2026.05.09.1" do
-  vision "The on-disk record store. A .heki file is a Store — JSON-array of Records keyed by id, framed by a four-byte HEKI magic + zlib-compressed body. This bluebook conceives the file as a typed aggregate so the kernel-floor Rust at rust/src/heki.rs has a domain spec to project from, and the CLI surface (`hecks-life heki ...`) reads as the projection it already is."
+  vision "The on-disk record store. A .heki file is a Store — JSON-array of Records keyed by id, framed by a four-byte HEKI magic + zlib-compressed body. This bluebook conceives the file as a typed aggregate so the kernel-floor Rust at rust/src/heki.rs has a domain spec to project from, and the CLI surface (`storehouse heki ...`) reads as the projection it already is."
   category "runtime"
 
   # ============================================================
@@ -157,7 +157,7 @@ Hecks.bluebook "Heki", version: "2026.05.09.1" do
     attribute :path,            Path
 
     # record_count : cached count, refreshed by every write. Read
-    # without re-decoding ; used by hecks-life heki count.
+    # without re-decoding ; used by storehouse heki count.
     attribute :record_count,    RecordCount
 
     # last_write_at : ISO-8601 of the most recent successful write.

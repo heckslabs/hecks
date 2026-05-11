@@ -3,7 +3,7 @@ Hecks.fixtures "AutophagyTrackerShape" do
   # line per `fixture` directive today (i57 tracks multi-line support).
   #
   # Measurements at main after Phase E merged (2026-04-24). Every Ruby
-  # specializer and the Ruby driver have been deleted — `hecks-life
+  # specializer and the Ruby driver have been deleted — `storehouse
   # specialize` is now the sole codegen path. `ship_status: "deleted"`
   # means the file was a regenerable target that has been removed now
   # that its shape is read by a Rust-native specializer (or isn't
@@ -34,15 +34,15 @@ Hecks.fixtures "AutophagyTrackerShape" do
     fixture "RubyValidator",                   name: "validator",                    source_path: "lib/hecks_specializer/validator.rb",                    kind: "ruby", loc: 393, ship_status: "deleted", source_shape_capability: "validator_shape",                 phase: "c"
 
     # ---- Rust SpecializerTarget rows ---------------------------------
-    # All byte-identical via `hecks-life specialize <target>` (Phase D D1-D3 ports).
-    fixture "RustValidator",                   name: "validator",                    source_path: "hecks_life/src/validator.rs",                           kind: "rust", loc: 248, ship_status: "byte_identical", source_shape_capability: "validator_shape",                 phase: "a"
-    fixture "RustValidatorWarnings",           name: "validator_warnings",           source_path: "hecks_life/src/validator_warnings.rs",                  kind: "rust", loc: 145, ship_status: "byte_identical", source_shape_capability: "validator_warnings_shape",        phase: "b"
-    fixture "RustFixturesParser",              name: "fixtures_parser",              source_path: "hecks_life/src/fixtures_parser.rs",                     kind: "rust", loc: 440, ship_status: "byte_identical", source_shape_capability: "fixtures_parser_shape",           phase: "b"
-    fixture "RustBehaviorsParser",             name: "behaviors_parser",             source_path: "hecks_life/src/behaviors_parser.rs",                    kind: "rust", loc: 384, ship_status: "byte_identical", source_shape_capability: "behaviors_parser_shape",          phase: "b"
-    fixture "RustHecksagonParser",             name: "hecksagon_parser",             source_path: "hecks_life/src/hecksagon_parser.rs",                    kind: "rust", loc: 195, ship_status: "byte_identical", source_shape_capability: "hecksagon_parser_shape",          phase: "b"
-    fixture "RustDump",                        name: "dump",                         source_path: "hecks_life/src/dump.rs",                                kind: "rust", loc: 185, ship_status: "byte_identical", source_shape_capability: "dump_shape",                      phase: "b"
-    fixture "RustDuplicatePolicy",             name: "duplicate_policy",             source_path: "hecks_life/src/duplicate_policy_validator.rs",          kind: "rust", loc: 86,  ship_status: "byte_identical", source_shape_capability: "duplicate_policy_validator_shape", phase: "b"
-    fixture "RustLifecycle",                   name: "lifecycle",                    source_path: "hecks_life/src/lifecycle_validator.rs",                 kind: "rust", loc: 288, ship_status: "byte_identical", source_shape_capability: "lifecycle_validator_shape",       phase: "b"
+    # All byte-identical via `storehouse specialize <target>` (Phase D D1-D3 ports).
+    fixture "RustValidator",                   name: "validator",                    source_path: "storehouse/src/validator.rs",                           kind: "rust", loc: 248, ship_status: "byte_identical", source_shape_capability: "validator_shape",                 phase: "a"
+    fixture "RustValidatorWarnings",           name: "validator_warnings",           source_path: "storehouse/src/validator_warnings.rs",                  kind: "rust", loc: 145, ship_status: "byte_identical", source_shape_capability: "validator_warnings_shape",        phase: "b"
+    fixture "RustFixturesParser",              name: "fixtures_parser",              source_path: "storehouse/src/fixtures_parser.rs",                     kind: "rust", loc: 440, ship_status: "byte_identical", source_shape_capability: "fixtures_parser_shape",           phase: "b"
+    fixture "RustBehaviorsParser",             name: "behaviors_parser",             source_path: "storehouse/src/behaviors_parser.rs",                    kind: "rust", loc: 384, ship_status: "byte_identical", source_shape_capability: "behaviors_parser_shape",          phase: "b"
+    fixture "RustHecksagonParser",             name: "hecksagon_parser",             source_path: "storehouse/src/hecksagon_parser.rs",                    kind: "rust", loc: 195, ship_status: "byte_identical", source_shape_capability: "hecksagon_parser_shape",          phase: "b"
+    fixture "RustDump",                        name: "dump",                         source_path: "storehouse/src/dump.rs",                                kind: "rust", loc: 185, ship_status: "byte_identical", source_shape_capability: "dump_shape",                      phase: "b"
+    fixture "RustDuplicatePolicy",             name: "duplicate_policy",             source_path: "storehouse/src/duplicate_policy_validator.rs",          kind: "rust", loc: 86,  ship_status: "byte_identical", source_shape_capability: "duplicate_policy_validator_shape", phase: "b"
+    fixture "RustLifecycle",                   name: "lifecycle",                    source_path: "storehouse/src/lifecycle_validator.rs",                 kind: "rust", loc: 288, ship_status: "byte_identical", source_shape_capability: "lifecycle_validator_shape",       phase: "b"
   end
 
   # ── RetirementSummary — one row per phase, rolled-up narrative ─────
@@ -60,7 +60,7 @@ Hecks.fixtures "AutophagyTrackerShape" do
     fixture "PhaseA", phase: "a", files_count: 1,  loc_total: 248,  byte_identical_count: 1,  byte_identical_loc: 248,  gap_loc: 0,    description: "First Futamura proof — validator.rs regenerated byte-identical from validator_shape."
     fixture "PhaseB", phase: "b", files_count: 7,  loc_total: 1723, byte_identical_count: 7,  byte_identical_loc: 1723, gap_loc: 0,    description: "FULLY SHIPPED. validator_warnings, dump, duplicate_policy, lifecycle, fixtures_parser, behaviors_parser, hecksagon_parser — all byte-identical from their shape capabilities."
     fixture "PhaseC", phase: "c", files_count: 18, loc_total: 2211, byte_identical_count: 10, byte_identical_loc: 753,  gap_loc: 1458, description: "Ruby specializer retirements (historical — now all deleted in Phase E). PC-1 through PC-5 established the meta-shape vocabulary that Phase D then ported to Rust."
-    fixture "PhaseD", phase: "d", files_count: 6,  loc_total: 1697, byte_identical_count: 6,  byte_identical_loc: 1697, gap_loc: 0,    description: "FULLY SHIPPED. Cross-language migration of every Ruby specializer to a Rust-native sibling under hecks_life/src/specializer/. Both runtimes produced byte-identical output through the Phase D period; Phase E then deleted the Ruby side."
-    fixture "PhaseE", phase: "e", files_count: 18, loc_total: 0,    byte_identical_count: 0,  byte_identical_loc: 0,    gap_loc: 0,    description: "DELETION PHASE. Deleted bin/specialize (57 LoC), lib/hecks_specializer.rb (108 LoC), 16 Ruby specializer modules (~2000 LoC), and 5 Rust meta-specializers (~900 LoC) that emitted Ruby. Meta-shapes + fixtures + snippets survive as historical data. hecks-life specialize is now the sole codegen path; Hecks runtime is Rust-only; the Ruby gem remains as host-language binding for Rails integration."
+    fixture "PhaseD", phase: "d", files_count: 6,  loc_total: 1697, byte_identical_count: 6,  byte_identical_loc: 1697, gap_loc: 0,    description: "FULLY SHIPPED. Cross-language migration of every Ruby specializer to a Rust-native sibling under storehouse/src/specializer/. Both runtimes produced byte-identical output through the Phase D period; Phase E then deleted the Ruby side."
+    fixture "PhaseE", phase: "e", files_count: 18, loc_total: 0,    byte_identical_count: 0,  byte_identical_loc: 0,    gap_loc: 0,    description: "DELETION PHASE. Deleted bin/specialize (57 LoC), lib/hecks_specializer.rb (108 LoC), 16 Ruby specializer modules (~2000 LoC), and 5 Rust meta-specializers (~900 LoC) that emitted Ruby. Meta-shapes + fixtures + snippets survive as historical data. storehouse specialize is now the sole codegen path; Hecks runtime is Rust-only; the Ruby gem remains as host-language binding for Rails integration."
   end
 end

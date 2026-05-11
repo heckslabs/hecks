@@ -29,7 +29,7 @@ jobs:
         with:
           ruby-version: "3.3"
 
-      # loc-ratchet asks `hecks-life is-dispatched <path>` (i122) to
+      # loc-ratchet asks `storehouse is-dispatched <path>` (i122) to
       # skip files claimed by some hecksagon adapter / specializer
       # target / runner. Without the binary available, every file
       # counts and the ratchet over-reports — IR-claimed surfaces
@@ -46,7 +46,7 @@ jobs:
             rust/target
           key: ${{ runner.os }}-ratchet-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
 
-      - name: Build hecks-life (release)
+      - name: Build storehouse (release)
         run: cargo build --manifest-path rust/Cargo.toml --release
 
       - name: Run loc-ratchet

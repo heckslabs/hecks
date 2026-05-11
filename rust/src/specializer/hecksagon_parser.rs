@@ -1,6 +1,6 @@
 //! Rust port of `lib/hecks_specializer/hecksagon_parser.rb`.
 //!
-//! Emits `hecks_life/src/hecksagon_parser.rs` byte-identical to the
+//! Emits `storehouse/src/hecksagon_parser.rs` byte-identical to the
 //! Ruby specializer's output. Reads the hecksagon_parser_shape fixtures
 //! (LineParser singleton + LineDispatch rows + ParserHelper rows),
 //! assembles header + imports + detector + parse() body + helpers in
@@ -15,7 +15,7 @@
 //!   let rust = hecksagon_parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/hecksagon_parser.rs —
+//! [antibody-exempt: storehouse/src/specializer/hecksagon_parser.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

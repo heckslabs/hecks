@@ -4,7 +4,7 @@
 >
 > 1. The main body below lists features that have an identifier (class name,
 >    method, CLI flag, keyword) appearing in at least one test artifact —
->    `spec/`, `hecks_life/tests/`, `hecks_conception/tests/`, `.behaviors`,
+>    `spec/`, `storehouse/tests/`, `hecks_conception/tests/`, `.behaviors`,
 >    or `.fixtures`. Presence of an identifier in a test is a weak signal of
 >    coverage, not proof — it means the name is exercised, not necessarily
 >    that every nuance of the bullet is asserted.
@@ -40,7 +40,7 @@
 - **Bluebook glossary** — `bluebook.glossary` prints the Ubiquitous Language for the entire composed system, walking binding + all chapters and listing every aggregate and command with descriptions.
 - Workshop chapter mode — define and play multiple chapters interactively with `workshop.chapter("Name") { ... }`
 - Domain version pinning and local path loading in configuration
-- **Domain-named source files** — every Hecks source file is named after its declared domain: `<domain>.bluebook` (DSL), `<domain>.hecksagon` (runtime/adapter IR), `<domain>.world` (world concerns + ethics). Discovery is glob-based — `find_hecksagon_files` / `find_world_files` in `lib/hecks/runtime/boot.rb` and `find_world_file` in `hecks_life/src/main.rs` scan for `*.hecksagon` / `*.world` rather than hardcoded filenames. Generators emit `<name>.bluebook` / `<name>.hecksagon`, and `WATCH_EXTENSIONS` in `lib/hecks/capabilities/live_reload/watcher.rb` tracks `.bluebook .hecksagon .world` for hot reload.
+- **Domain-named source files** — every Hecks source file is named after its declared domain: `<domain>.bluebook` (DSL), `<domain>.hecksagon` (runtime/adapter IR), `<domain>.world` (world concerns + ethics). Discovery is glob-based — `find_hecksagon_files` / `find_world_files` in `lib/hecks/runtime/boot.rb` and `find_world_file` in `storehouse/src/main.rs` scan for `*.hecksagon` / `*.world` rather than hardcoded filenames. Generators emit `<name>.bluebook` / `<name>.hecksagon`, and `WATCH_EXTENSIONS` in `lib/hecks/capabilities/live_reload/watcher.rb` tracks `.bluebook .hecksagon .world` for hot reload.
 
 ### Attributes & Types
 - Define typed attributes with String, Integer, Float, Boolean, JSON, Date, DateTime, etc.
@@ -169,7 +169,7 @@
 - See: `docs/usage/entity_primitive.md`
 
 ### CLI Subcommand Catalog
-- **Subcommand catalog** — every `hecks-life` subcommand declared as a row in `information/subcommand.heki`, not a hardcoded match arm in `main.rs`. Shape lives in `capabilities/subcommand/subcommand.bluebook` (`Subcommand` aggregate with name, handler, ArgvShape, description, deprecated).
+- **Subcommand catalog** — every `storehouse` subcommand declared as a row in `information/subcommand.heki`, not a hardcoded match arm in `main.rs`. Shape lives in `capabilities/subcommand/subcommand.bluebook` (`Subcommand` aggregate with name, handler, ArgvShape, description, deprecated).
 - **`lookup_subcommand` gate** — `main.rs` consults the catalog before dispatch, without booting the runtime; resolves the handler, honors `deprecated=true`. `help` / `--help` migrated as the first token through the gate (PR #482).
 - **Multi-domain split** — `cli/`, `argv/`, `subcommand/` as sibling capabilities; `cli.bluebook` declares a `Phase` entity for parse / resolve / dispatch / emit phases.
 - **Bulk register (Many-form)** — `Antibody.RegisterExemptions` takes `list_of(ExemptionSpec)`; the runtime detects the bulk shape (one `list_of(VO)` attr where the VO carries the aggregate's identity field) and iterates, emitting one event per row. The pattern generalises to any Register* command. Retires the seed shell-loop reach-past pattern. (PR #483)
@@ -191,18 +191,18 @@
 - See: inbox `i112` (the meta-story), PR #491 (recursive discovery), PRs #492 / #493 / #494 / #495 / #496 / #497 / #498 / #499 / #500–508 (the moves and splits)
 
 ### Parity Suite
-- **Ruby ↔ Rust IR conformance** — `parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + hecks-life), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
-- **Canonical shape contract** — hand-written on both sides (`hecks_life/src/dump.rs` + `parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
-- **`hecks-life dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
+- **Ruby ↔ Rust IR conformance** — `parity/parity_test.rb` runs every fixture through both parsers (Ruby DSL + storehouse), converts each output to a canonical JSON shape, and diffs. 43/43 baseline (13 synthetic fixtures + 30 real bluebooks).
+- **Canonical shape contract** — hand-written on both sides (`storehouse/src/dump.rs` + `parity/canonical_ir.rb`). The JSON shape IS the contract, not auto-derived.
+- **`storehouse dump <file.bluebook>`** — emits canonical JSON IR. Same shape the Ruby canonicalizer produces.
 - **Known-drift list** — `parity/known_drift.txt` documents expected disagreements (currently empty). Fixtures listed here report ⚠ instead of blocking; if a known-drift file starts passing, the suite reports ⚑ and tells you to remove the line.
 - **Pre-commit gate** — `tooling/git-hooks/pre-commit` blocks unexpected drift in ~1 second. Install with `tooling/install-hooks`.
 - **Self-description** — `aggregates/bluebook.bluebook` declares the IR shape both parsers must produce (13 aggregates, one per IR concept: Domain, Aggregate, Attribute, ValueObject, Reference, Command, Query, Given, Mutation, Lifecycle, Transition, Policy, Fixture).
 - **Nursery soft coverage** — `parity/parity_test.rb` adds `hecks_conception/nursery/**/*.bluebook` as a `soft: true` section; every nursery fixture runs on every parity run, drift is reported and counted, but soft failures do not contribute to the CI exit code. Hard sections (synthetic + real + capability + catalog + misc) stay at 115/115. Promotion to a hard section happens once the systemic Ruby parser bugs (inbox i1/i2) land.
 
-## Shebang Scripts (hecks-life run)
+## Shebang Scripts (storehouse run)
 
 ### Bluebooks as executables
-- `#!/usr/bin/env hecks-life run` at the top of a `.bluebook` file + `chmod +x` makes it directly executable
+- `#!/usr/bin/env storehouse run` at the top of a `.bluebook` file + `chmod +x` makes it directly executable
 - `entrypoint "CommandName"` inside `Hecks.bluebook "…" do … end` declares the default command to dispatch
 - Argv `key=value` pairs bind as attributes on the entrypoint command
 - Exit codes: 0 clean, 1 parse failure, 2 guard failure (no entrypoint), 3 adapter failure, 4 command not found
@@ -212,9 +212,9 @@
 - Shell adapters execute via std::process::Command with parity to `lib/hecks/runtime/shell_dispatcher.rb` (env_clear, timeout with SIGKILL, `{{placeholder}}` substitution, `:text / :lines / :json / :json_lines / :exit_code` output formats)
 
 ### Interactive capability
-- When a hecksagon declares both `:stdin` and `:stdout` and the bluebook exposes `ReadLine` + `RespondWith`, `hecks-life run` drives the full REPL through the declared adapters — no Rust-specific I/O code
+- When a hecksagon declares both `:stdin` and `:stdout` and the bluebook exposes `ReadLine` + `RespondWith`, `storehouse run` drives the full REPL through the declared adapters — no Rust-specific I/O code
 - Terminal REPL lives as `hecks_conception/capabilities/terminal/terminal.bluebook` + `terminal.hecksagon`, not Rust
-- Legacy interactive REPL (old `hecks-life run`) preserved as `hecks-life repl <file>`
+- Legacy interactive REPL (old `storehouse run`) preserved as `storehouse repl <file>`
 
 ## Runtime API
 - `Hecks.boot(__dir__)` — find domain file, validate, build, load, and wire in one call
@@ -388,28 +388,28 @@
 - Every validation error includes a structured `hint` field with a fix suggestion -- rendered as colored "Fix:" lines in the CLI, included in `ValidationError` exception messages, and accessible via `error.hint` / `error.to_h`
 - Implicit foreign key detection: warns when `_id String` should be `reference_to("Aggregate")`
 - Validator collects non-blocking warnings alongside blocking errors
-- **Fat bluebook warning** — if a domain has more than 7 aggregates, `hecks-life validate` emits a soft WARNING suggesting bounded context splitting (domain still passes as VALID)
-- **Mixed concerns warning** — if a domain with 5+ aggregates has disconnected aggregate clusters (no references or policies connecting them), `hecks-life validate` warns they may belong in separate bounded contexts
+- **Fat bluebook warning** — if a domain has more than 7 aggregates, `storehouse validate` emits a soft WARNING suggesting bounded context splitting (domain still passes as VALID)
+- **Mixed concerns warning** — if a domain with 5+ aggregates has disconnected aggregate clusters (no references or policies connecting them), `storehouse validate` warns they may belong in separate bounded contexts
 
-### Lifecycle Validator (`hecks-life check-lifecycle`)
+### Lifecycle Validator (`storehouse check-lifecycle`)
 - **Unreachable from_state** — flags transitions whose `from:` value is neither the lifecycle default nor any other transition's to_state (dead transition)
 - **Stuck default** — warns when no transition can fire from the default state (aggregate stuck forever)
 - **Unreachable given** — flags `given { field == "X" }` predicates where no command sets `field` to `X` (the gate can never open)
 - **Mutation reference check** — flags `then_set :event, to: :event` where `:event` matches no command attribute or reference (field stays null at runtime)
 - **Clock anti-pattern check** — flags `then_set :ts, to: :now` and `seconds_since(:field)` patterns where the domain reaches into the system clock. Hint: inject time as a command attribute (DDD Clock port) so the caller (test, hecksagon adapter, app) supplies the timestamp.
 
-### Duplicate Policy Validator (`hecks-life check-duplicate-policies`)
+### Duplicate Policy Validator (`storehouse check-duplicate-policies`)
 - Refuses bluebooks that declare two or more reactive policies wired to the same `(on_event, trigger_command)` pair. The runtime fires every matching policy in declaration order, so the trigger runs once per duplicate — a silent cascade bug
 - Flat IR walk: groups every reactive policy (aggregate-scoped and domain-level) by `(event, trigger[, target_domain])`, reports one error per group of size ≥ 2, naming every colliding policy and the exact duplicate count
 - Target-domain keyed: cross-domain wiring (`@target`) does not collide with same-domain policies
-- Parity: Ruby rule `Hecks::ValidationRules::Structure::DuplicatePolicies` runs inside `Hecks.validate`; Rust subcommand `hecks-life check-duplicate-policies <bluebook>` exits non-zero on any duplicate pair
+- Parity: Ruby rule `Hecks::ValidationRules::Structure::DuplicatePolicies` runs inside `Hecks.validate`; Rust subcommand `storehouse check-duplicate-policies <bluebook>` exits non-zero on any duplicate pair
 
-### IO Validator (`hecks-life check-io`)
+### IO Validator (`storehouse check-io`)
 - Asserts the bluebook is pure-memory by default — no IO leaks above the hecksagon adapter layer
 - **Static IR scan**: flags IO-suggestive command names (`Deploy`, `Send`, `Push`, `Publish`, `Fetch`, `Sync`), past-tense external event names (`Deployed`, `Sent`), and pure-side-effect commands (emits but no state change, not Create or lifecycle)
 - **Runtime smoke**: boots `Runtime::boot(domain)` (pure-memory, no `data_dir`, no hecksagon) and dispatches every dispatchable command — anything that panics or attempts IO is a hard error
 
-### Behavioral Tests (`hecks-life conceive-behaviors` + `behaviors`)
+### Behavioral Tests (`storehouse conceive-behaviors` + `behaviors`)
 - New first-class DSL: `Hecks.behaviors "Pizzas" do ... end` — sibling to `Hecks.bluebook`, separate IR, separate parser, separate parity contract
 - Test surface: `tests`, `setup`, `input`, `expect` — no IDs in the test bluebook (runner translates references↔ids internally)
 - `conceive-behaviors` auto-generates `_behavioral_tests.bluebook` from any source bluebook by walking IR (every command, query, lifecycle transition, given clause)
@@ -417,7 +417,7 @@
 - Cascade-aware test generation: detects policy chains (emit→trigger), asserts on cascaded final state, skips redundant mid-chain tests
 - Conceiver parity test (`tests/conceiver_parity_test.rs`) keeps the bluebook conceiver and behaviors conceiver from drifting (shared `Conceiver` trait + shared `conceiver_common.rs` infrastructure)
 - **VCR-style cascade lockdown** — for every command whose emit fires a policy chain, the conceiver emits a `kind: :cascade` test asserting the exact ordered list of events the runtime will publish (`expect emits: [E1, E2, ...]`). Drift in the policy graph (added or removed policy, retargeted trigger) breaks the test immediately.
-- **Static cascade walker** (`hecks_life/src/cascade.rs`) — extracts the predicted event list from emit→policy→trigger graph; mirrors runtime `PolicyEngine` cycle detection (a policy is blocked while on the recursion stack, allowing diamond fan-in)
+- **Static cascade walker** (`storehouse/src/cascade.rs`) — extracts the predicted event list from emit→policy→trigger graph; mirrors runtime `PolicyEngine` cycle detection (a policy is blocked while on the recursion stack, allowing diamond fan-in)
 - **Cross-aggregate cascade setups** — generator walks `aggregates_touched_by_cascade` and emits a `Create` setup for every aggregate the cascade hops through, so triggered cross-aggregate commands find their target records
 - **Two dispatch modes in the runner** — `dispatch` cascades policies (used by `kind: :cascade` tests), `dispatch_isolated` skips policy drain (used by setups so they don't overshoot the precondition state being tested)
 - **`as:` reference alias kwarg** — canonical: `reference_to(Order, as: :recent_purchase)`. Five forms accepted: bare, `as:`, `role:` (legacy), `.as(:foo)` suffix, trailing-symbol shorthand
@@ -429,7 +429,7 @@
 ## Self-Governance
 
 ### Antibody — Five-DSL Vocabulary Enforcement
-- **Five canonical source DSLs** — Hecks source is `.bluebook`, `.hecksagon`, `.fixtures`, `.behaviors`, `.world`. Bluebook is Turing-complete and dispatched directly by `hecks-life` (no compile step, no generated artifacts); every non-DSL file is a gap to be closed, rewritten as one of the five, or justified with a concrete per-commit exemption.
+- **Five canonical source DSLs** — Hecks source is `.bluebook`, `.hecksagon`, `.fixtures`, `.behaviors`, `.world`. Bluebook is Turing-complete and dispatched directly by `storehouse` (no compile step, no generated artifacts); every non-DSL file is a gap to be closed, rewritten as one of the five, or justified with a concrete per-commit exemption.
 - **`bin/antibody-check`** — scans a commit's staged (or HEAD) diff for files outside the five-DSL extension set and reports them with reasons; exit code non-zero when unexempt flagged files are present
 - **Per-commit exemptions, not permanent carve-outs** — `[antibody-exempt: <reason>]` marker must appear on its own line in the commit message (regex anchored to line start so prose examples don't match) and justifies one specific change; no allowlist file, no pre-approved categories, thin reasons (`runtime`, `temporary`, `bootstrap`) are the smell the antibody is designed to prevent
 - **Scan semantics are per-commit** — `commit-msg` reads only the in-flight commit message and its staged files; earlier commits' exemption markers cannot leak into later commits on the same branch
@@ -791,7 +791,7 @@
 
 ### FEATURES.md Audit (`tooling/features_audit.rb`)
 - Cross-references every bullet in `FEATURES.md` against the codebase so the claim-list cannot drift silently
-- Parses one claim per bullet, extracts backticked code, PascalCase tokens, `Namespaced::Names`, dotted calls (`Hecks.configure`), and `:symbols`, then greps across `lib/`, `hecks_life/src/`, `hecks_conception/aggregates/`, `hecks_conception/capabilities/`, `spec/`, `examples/`, `bin/`, `.claude/` (docs are excluded to avoid circular evidence)
+- Parses one claim per bullet, extracts backticked code, PascalCase tokens, `Namespaced::Names`, dotted calls (`Hecks.configure`), and `:symbols`, then greps across `lib/`, `storehouse/src/`, `hecks_conception/aggregates/`, `hecks_conception/capabilities/`, `spec/`, `examples/`, `bin/`, `.claude/` (docs are excluded to avoid circular evidence)
 - Three buckets per claim: **verified** (at least one identifier resolves), **missing** (identifiers present but none found — real drift), **unverifiable** (pure prose)
 - Fallbacks: `Foo.bar` tokens check for `def self.bar` in files containing `Foo`; lowercase-head tokens check for `def <method>`; placeholder patterns (`<Some>Domain`, `model.foo?`, `.md` links) are stripped
 - CLI flags: `--missing` lists every drift with its searched identifiers, `--section "Name"` scopes to one heading, `--json` for machine-readable output
@@ -859,7 +859,7 @@
 ## Aspirational (not yet tested)
 
 > Features below were claimed in earlier revisions but have no discoverable
-> backing test or behavior in `spec/`, `hecks_life/tests/`,
+> backing test or behavior in `spec/`, `storehouse/tests/`,
 > `hecks_conception/tests/`, `.behaviors`, or `.fixtures`. They may still
 > work — they just aren't locked down by a test today. As tests land,
 > move the line back up into the main body above.
@@ -941,7 +941,7 @@
 
 - **CI gate** — `.github/workflows/parity.yml` runs the suite on every PR.
 
-### Shebang Scripts (hecks-life run)
+### Shebang Scripts (storehouse run)
 
 **Companion hecksagon**
 
@@ -1047,15 +1047,15 @@
 - Command names must be verb phrases (WordNet + custom verbs)
 - Reactive policy events and triggers must reference existing elements
 
-**Lifecycle Validator (`hecks-life check-lifecycle`)**
+**Lifecycle Validator (`storehouse check-lifecycle`)**
 
 - `--strict` promotes warnings to errors; pre-commit hook blocks on errors
 
-**IO Validator (`hecks-life check-io`)**
+**IO Validator (`storehouse check-io`)**
 
-- `hecks-life check-all` runs lifecycle + IO together
+- `storehouse check-all` runs lifecycle + IO together
 
-**Behavioral Tests (`hecks-life conceive-behaviors` + `behaviors`)**
+**Behavioral Tests (`storehouse conceive-behaviors` + `behaviors`)**
 
 - Skips tests for non-equality givens that the chain planner can't auto-satisfy
 
@@ -1327,7 +1327,7 @@
 
 ### Domain-Driven Web Applications
 
-- **hecks-life serve generates full Tailwind web app** — `hecks-life serve path/to/hecks/ 3100` serves both JSON API and HTML UI from the same port
+- **storehouse serve generates full Tailwind web app** — `storehouse serve path/to/hecks/ 3100` serves both JSON API and HTML UI from the same port
 - **Contextual help icons** — every module card and command has a ? button that opens a help popup built from domain tags (aggregate name, description, field list, record/action counts)
 
 ### Examples

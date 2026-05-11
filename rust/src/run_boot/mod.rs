@@ -24,14 +24,14 @@
 //!                              isn't loaded by this runner today
 //!                              (see runtime gaps note).
 //!   6. EnsureDaemons        — `:daemon` shells out to
-//!                              `hecks-life daemon ensure` per declared
+//!                              `storehouse daemon ensure` per declared
 //!                              daemon row in the hecksagon.
 //!   7. PrintVitals          — `:stdout` renders the boot summary.
 //!   8. SurfaceWakeReport    — `:fs` reads the wake-report heki, prints
 //!                              if `phase == "filed"`.
 //!
 //! Once GenerateSystemPrompt + RecordBootJournal land, `boot_miette.sh`
-//! becomes `exec hecks-life run capabilities/boot/boot.bluebook` —
+//! becomes `exec storehouse run capabilities/boot/boot.bluebook` —
 //! one line. Until then, it's the wrapper for those two phases.
 
 mod classify;

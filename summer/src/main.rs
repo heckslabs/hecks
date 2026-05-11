@@ -10,7 +10,7 @@
 
 mod domain_index;
 
-use hecks_life::{heki, boot};
+use storehouse::{heki, boot};
 use std::env;
 use std::io::{self, Read, Write};
 use std::path::Path;

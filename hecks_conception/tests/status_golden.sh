@@ -8,16 +8,16 @@ set -m  # enable job control (process groups) for daemon isolation
 
 here="$(cd "$(dirname "$0")" && pwd)"
 conception="$(cd "$here/.." && pwd)"
-hecks="${HECKS_LIFE:-}"
+hecks="${STOREHOUSE:-}"
 if [ -z "$hecks" ]; then
   for cand in \
-    "$conception/../rust/target/release/hecks-life" \
-    "$conception/../rust/target/debug/hecks-life" \
-    "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"; do
+    "$conception/../rust/target/release/storehouse" \
+    "$conception/../rust/target/debug/storehouse" \
+    "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"; do
     if [ -x "$cand" ]; then hecks="$cand"; break; fi
   done
 fi
-export HECKS_LIFE="$hecks"
+export STOREHOUSE="$hecks"
 
 tmp="$(mktemp -d -t status_golden.XXXXXX)"
 ## Process-group cleanup : kill the entire group on EXIT so any daemon

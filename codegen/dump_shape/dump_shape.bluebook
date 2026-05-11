@@ -1,5 +1,5 @@
 Hecks.bluebook "DumpShape", version: "2026.05.01.1" do
-  vision "The shape of hecks_life/src/dump.rs as a bluebook — third Futamura target (Phase B commit 3). The canonical-IR serializer that both Ruby and Rust must agree on."
+  vision "The shape of storehouse/src/dump.rs as a bluebook — third Futamura target (Phase B commit 3). The canonical-IR serializer that both Ruby and Rust must agree on."
   category "autophagy"
 
   # ============================================================
@@ -19,7 +19,7 @@ Hecks.bluebook "DumpShape", version: "2026.05.01.1" do
   # Layer mapping (per docs/plans/i51_futamura_projections.md §3):
   #   L0 = this file + fixtures/dump_shape.fixtures
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/dump.rs (generated target)
+  #   L7 = storehouse/src/dump.rs (generated target)
   #
   # i111-F : the three Serializer / JsonField / EnumCase blocks
   # carry zero commands ; they're catalog rows. Collapsed under one

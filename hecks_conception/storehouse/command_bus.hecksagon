@@ -60,7 +60,7 @@ Hecks.hecksagon "CommandBus" do
   # dispatch.hecksagon's :invoke binding. Substitution placeholders
   # interpolate the caller's phrase + params.
   adapter :shell, name: :delegate,
-    command: "hecks-life",
+    command: "storehouse",
     args: ["storehouse", "route", "{{phrase}}", "{{params_kv}}"],
     output_format: :text,
     timeout: 60

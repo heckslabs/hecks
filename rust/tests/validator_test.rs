@@ -8,10 +8,10 @@
 //!  Test-only kernel surface. Retires when behaviors framework can
 //!  drive validator-output assertions directly.]
 
-use hecks_life::parser;
-use hecks_life::validator;
+use storehouse::parser;
+use storehouse::validator;
 
-fn parse_file(rel_path: &str) -> hecks_life::ir::Domain {
+fn parse_file(rel_path: &str) -> storehouse::ir::Domain {
     let path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), rel_path);
     let source = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Cannot read {}: {}", path, e));

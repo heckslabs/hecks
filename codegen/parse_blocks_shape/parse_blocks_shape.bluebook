@@ -1,5 +1,5 @@
 Hecks.bluebook "ParseBlocksShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/parse_blocks.rs as a bluebook — kernel-surface block parsers (recursive descent into command / value_object / entity / lifecycle / attribute / fixture / mutation bodies) regenerated from ordered .rs.frag snippets."
+  vision "Shape of storehouse/src/parse_blocks.rs as a bluebook — kernel-surface block parsers (recursive descent into command / value_object / entity / lifecycle / attribute / fixture / mutation bodies) regenerated from ordered .rs.frag snippets."
   category "autophagy"
 
   # ============================================================
@@ -20,7 +20,7 @@ Hecks.bluebook "ParseBlocksShape", version: "2026.05.01.1" do
   # Layer mapping :
   #   L0 = this file + fixtures/parse_blocks_shape.fixtures + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/parse_blocks.rs (generated target)
+  #   L7 = storehouse/src/parse_blocks.rs (generated target)
   #
   # The specializer concatenates HEADER (doc + use lines) + each
   # snippet's raw body in `order` ascending. Each snippet ends with

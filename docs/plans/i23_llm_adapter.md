@@ -11,7 +11,7 @@ provider prefers CLI subprocess (`claude -p …`, subscription auth) and
 only falls back to Anthropic API when `ANTHROPIC_API_KEY` is set.
 Accounting model matches i11 PR 1: call/token caps, USD as telemetry only.
 
-Existing `hecks_life/src/runtime/adapter_llm.rs` (56 LoC, Ollama-only,
+Existing `storehouse/src/runtime/adapter_llm.rs` (56 LoC, Ollama-only,
 hardcoded prompt) stays as parallel infra until Rust parity (Stage B).
 
 ## §1 — Current state
@@ -216,4 +216,4 @@ replaces `adapter_llm.rs` resolve hook.
 - `hecks_conception/aggregates/spend.bluebook` — accounting
 - `hecks_conception/aggregates/body/organs/circuit_breaker.bluebook` — gating
 - `hecks_conception/mint_musing.sh` — first retirement target
-- `hecks_life/src/runtime/adapter_llm.rs` — parallel Rust (until Stage B)
+- `storehouse/src/runtime/adapter_llm.rs` — parallel Rust (until Stage B)

@@ -17,4 +17,4 @@ Mindstream is defined in
 
 ## Rules
 
-- **Always use Rust runtime** — `hecks-life` for all bluebook parsing, .heki storage, daemons. No Ruby.
+- **Always use Rust runtime** — `storehouse` for all bluebook parsing, .heki storage, daemons. No Ruby.

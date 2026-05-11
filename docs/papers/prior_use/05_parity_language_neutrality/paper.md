@@ -144,7 +144,7 @@ language's parsed representation of a source file and emits the
 canonical IR. The canonicalisers are hand-written, not generated; they
 are owned by engineers working in each language.
 
-In Hecks: `hecks_life/src/dump.rs` (Rust, 180 lines of code) and
+In Hecks: `storehouse/src/dump.rs` (Rust, 180 lines of code) and
 `spec/parity/canonical_ir.rb` (Ruby, comparable size). Both emit keys in
 the same order, normalise nullables the same way, and stringify types
 the same way. Parity is defined as byte-equal output from the two
@@ -520,5 +520,5 @@ language-neutrality pressure on the IR, which keeps options open for
 cross-language specialisation, additional target languages, and
 runtime deletion. The methodology is portable. We place it in the
 public record as prior art at commit `c4a903f3`. Reference
-implementation: `spec/parity/`, `hecks_life/src/dump.rs`,
+implementation: `spec/parity/`, `storehouse/src/dump.rs`,
 `spec/parity/canonical_ir.rb`, `spec/parity/known_drift.txt`.

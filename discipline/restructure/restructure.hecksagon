@@ -12,7 +12,7 @@ Hecks.hecksagon "Restructure" do
   # Layer mapping :
   #   L0 = restructure.bluebook (sibling) — the domain
   #   L0 = this file — the adapter wiring
-  #   L7 = hecks_life/src/run_restructure/mod.rs — the emitted runner
+  #   L7 = storehouse/src/run_restructure/mod.rs — the emitted runner
   #        (regenerates from capability_runner_shape after the
   #        walk_filesystem body_kind lands)
 

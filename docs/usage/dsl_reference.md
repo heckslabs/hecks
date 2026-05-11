@@ -387,7 +387,7 @@ When `given`/`then_set` are present, the runtime uses `HecksalInterpreter` inste
 
 > **Status — locked, parser pending.** This is the form the DSL is moving toward. The shape below is locked ; parser support is filed as a separate follow-up to i483 (the conception step landed first under that card so the bluebooks lead the runtime).
 >
-> Today's parser silently accepts the new form without lifting it into the IR — a bluebook using `role Role, as: Agent` parses cleanly under `hecks-life inspect` and `hecks-life check-lifecycle`, but the IR doesn't yet carry the typed reference. The legacy string form `role "Caller"` continues to work everywhere.
+> Today's parser silently accepts the new form without lifting it into the IR — a bluebook using `role Role, as: Agent` parses cleanly under `storehouse inspect` and `storehouse check-lifecycle`, but the IR doesn't yet carry the typed reference. The legacy string form `role "Caller"` continues to work everywhere.
 
 Every command runs in some role, filled by some agent. Today most bluebooks declare the role as a string label :
 

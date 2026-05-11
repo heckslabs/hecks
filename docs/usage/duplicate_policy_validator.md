@@ -40,12 +40,12 @@ ValidationError:
          is intentional, give each policy a distinct trigger command.
 ```
 
-## Rust — `hecks-life check-duplicate-policies`
+## Rust — `storehouse check-duplicate-policies`
 
-The `hecks-life` binary exposes a standalone subcommand that walks the IR and exits non-zero on any duplicated pair:
+The `storehouse` binary exposes a standalone subcommand that walks the IR and exits non-zero on any duplicated pair:
 
 ```
-$ hecks-life check-duplicate-policies heart.bluebook
+$ storehouse check-duplicate-policies heart.bluebook
 Checking Heart (heart.bluebook)
 
 Duplicate policies:

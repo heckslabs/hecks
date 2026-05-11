@@ -160,7 +160,7 @@ fn record_timestamp(record: &heki::Record) -> String {
 
 /// Pull `dream_images` out of a record. Tolerates both the array
 /// shape (canonical JSON form) and the comma-joined string shape
-/// (what `hecks-life heki append … dream_images=foo` writes for a
+/// (what `storehouse heki append … dream_images=foo` writes for a
 /// single-string attribute).
 fn extract_dream_images(record: &heki::Record) -> Vec<String> {
     let v = match record.get("dream_images") {

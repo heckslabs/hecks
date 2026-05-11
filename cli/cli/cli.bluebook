@@ -1,5 +1,5 @@
 Hecks.bluebook "Cli", version: "2026.04.24.1" do
-  vision "The hecks-life invocation as a domain — being detection, argv parsing, subcommand routing, handler dispatch, exit reporting, all expressed as one aggregate walking a five-phase lifecycle"
+  vision "The storehouse invocation as a domain — being detection, argv parsing, subcommand routing, handler dispatch, exit reporting, all expressed as one aggregate walking a five-phase lifecycle"
   category "runtime"
 
   # ============================================================
@@ -8,7 +8,7 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
   #
   # Eleventh file of the Phase F arc. The partial-extraction target :
   #
-  #   hecks_life/src/main.rs  — 1,566 LOC total ; ~500 LOC of
+  #   storehouse/src/main.rs  — 1,566 LOC total ; ~500 LOC of
   #                             subcommand dispatch is natural-fit.
   #
   # main.rs walks a big if/else-if chain on argv[1] : help, lexicon,
@@ -37,7 +37,7 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
   #                           capability already declares.
 
   # ============================================================
-  # INVOCATION — one run of hecks-life / miette / summer
+  # INVOCATION — one run of storehouse / miette / summer
   # ============================================================
 
   aggregate "Invocation", "One invocation of the binary — detects the being name from argv[0], parses the subcommand from argv[1], routes to the matching handler, reports an exit code back to the OS" do
@@ -47,7 +47,7 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     # collisions across concurrent invocations (rare but possible).
     attribute :pid_started_at, String
 
-    # argv0 : the binary name as invoked. "hecks-life", "miette",
+    # argv0 : the binary name as invoked. "storehouse", "miette",
     # "summer" all land here ; the being detector reads this.
     attribute :argv0, String
     # being : the detected being name. miette → "Miette", summer →
@@ -135,7 +135,7 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
 
     command "ParseArgv" do
       role "System"
-      description "Decide the subcommand from argv[1] and the path arg from argv[2]. Backwards-compat shim : when argv has exactly 2 elements and argv[1] contains a dot, treat it as a parse invocation — lets `hecks-life pizzas.bluebook` work without the `parse` subcommand. When argv has only 1 element and is_named_being is yes, the subcommand resolves to 'terminal' ; otherwise 'help' with exit code 1."
+      description "Decide the subcommand from argv[1] and the path arg from argv[2]. Backwards-compat shim : when argv has exactly 2 elements and argv[1] contains a dot, treat it as a parse invocation — lets `storehouse pizzas.bluebook` work without the `parse` subcommand. When argv has only 1 element and is_named_being is yes, the subcommand resolves to 'terminal' ; otherwise 'help' with exit code 1."
       attribute :subcommand, String
       attribute :path_arg, String
       then_set :subcommand, to: :subcommand

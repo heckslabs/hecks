@@ -19,10 +19,10 @@ Hecks.behaviors "Mindstream" do
     tests "Register", on: "MindstreamMember"
     input  name:       "boot",
            mindstream: "boot",
-           command:    { line: "../rust/target/release/hecks-life run ../runtime/boot/boot.bluebook" },
+           command:    { line: "../rust/target/release/storehouse run ../runtime/boot/boot.bluebook" },
            lifespan:   { kind: "one_shot", may_exit: true, restart_on_failure: false }
     expect name:       "boot",
-           command:    { line: "../rust/target/release/hecks-life run ../runtime/boot/boot.bluebook" },
+           command:    { line: "../rust/target/release/storehouse run ../runtime/boot/boot.bluebook" },
            lifespan:   { kind: "one_shot", may_exit: true, restart_on_failure: false }
   end
 

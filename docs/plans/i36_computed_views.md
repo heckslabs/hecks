@@ -60,7 +60,7 @@ Invariants 1/2/3 from `status_coherence.sh` become unreachable: the function can
 
 **Recommended: a Rust projection exposed through the existing `query` DSL surface, plus a thin bluebook-declared alias.** Rationale:
 
-- The `Query` IR node already exists (`hecks_life/src/ir.rs:55`) with `ReadVitals` on `Heartbeat` and similar queries on `Corpus`, `Terminal`, `TrainingExtraction`. Today queries just echo heki state; extending them to compute is the smallest conceptual leap.
+- The `Query` IR node already exists (`storehouse/src/ir.rs:55`) with `ReadVitals` on `Heartbeat` and similar queries on `Corpus`, `Terminal`, `TrainingExtraction`. Today queries just echo heki state; extending them to compute is the smallest conceptual leap.
 - No new DSL keyword is strictly needed — we add a `computes` block inside `query` so the bluebook still *declares* the derivation in DSL (the intent is visible, not buried in Rust). Example:
   ```
   query "ReadBodyState" do
@@ -70,7 +70,7 @@ Invariants 1/2/3 from `status_coherence.sh` become unreachable: the function can
   end
   ```
   The *implementation* is a Rust function keyed on query name (`runtime::projections::read_body_state`). This follows the pattern where the runtime knows "what to compute" per named query.
-- Rust over Ruby because the statusline calls `hecks-life heki read` 10+ times per render already; keeping the computation in the same binary avoids a second shell-out and keeps the coherence check trivially fast.
+- Rust over Ruby because the statusline calls `storehouse heki read` 10+ times per render already; keeping the computation in the same binary avoids a second shell-out and keeps the coherence check trivially fast.
 - A full DSL `computed :fatigue_state, expression: "..."` surface is tempting but premature — we'd need to generalize an expression evaluator. **Defer.** The named-projection approach covers 100% of i36 without new evaluation machinery.
 
 ## 4. Removing the persisted fields — consumer audit
@@ -81,7 +81,7 @@ Invariants 1/2/3 from `status_coherence.sh` become unreachable: the function can
 - `aggregates/body.bluebook`: `attribute :fatigue_state` + 5 `BecomeX` commands + 10 policies + lifecycle block + `Mood.current_state` + all mutating Mood commands' `then_set :current_state`.
 
 **Consumers that read (migrate to projection)**
-- `statusline-command.sh:8-9` — swap `grep fatigue_state` for `hecks-life query Heartbeat.ReadBodyState`.
+- `statusline-command.sh:8-9` — swap `grep fatigue_state` for `storehouse query Heartbeat.ReadBodyState`.
 - `status_coherence.sh:44,48` — delete invariants 1/2/3 (tautologies); keep 4/5.
 - `status_format.py:116,123` — query, not file read.
 - `mindstream.sh:51` — same (this is what feeds the awareness snapshot; see §6).
@@ -173,7 +173,7 @@ Total: **~400 LoC net change, ~250 LoC deleted.**
 ### Critical Files for Implementation
 
 - `hecks_conception/aggregates/body.bluebook`
-- `hecks_life/src/ir.rs`
+- `storehouse/src/ir.rs`
 - `hecks_conception/statusline-command.sh`
 - `hecks_conception/status_coherence.sh`
 - `hecks_conception/aggregates/body.behaviors`

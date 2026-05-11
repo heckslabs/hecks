@@ -6,11 +6,11 @@
 # Gates in order:
 #   1. Parity suite (Ruby/Rust parser IR agreement) — block on drift
 #   2. Lifecycle validator — block on any unreachable transitions
-#   2b. Validator gate — `hecks-life validate` on every staged .bluebook
+#   2b. Validator gate — `storehouse validate` on every staged .bluebook
 #       (catches duplicate command names, unknown policy targets,
 #        structural shape bugs)
 #   3. Conceiver parity test — block if either conceiver drifts
-#   4. Miette enforce (hecks-life governance) — advisory, never blocks
+#   4. Miette enforce (storehouse governance) — advisory, never blocks
 #   4b. Companion-file ratchet — bluebook moves bring .behaviors +
 #       .fixtures with them ; new aggregates and commands need test
 #       coverage in their .behaviors companion
@@ -18,7 +18,7 @@
 #      commit-msg hook does the actual enforcement, since that's
 #      the only hook that sees the message's exemption marker)
 #   6. Smoke tests must pass
-#   6b. Behaviors corpus — `hecks-life test` over each root
+#   6b. Behaviors corpus — `storehouse test` over each root
 #       (parallel to Gate 6 during the i500 migration window)
 #
 # Exit 0 = commit allowed. Exit 1 = commit blocked.
@@ -30,14 +30,14 @@
 # Set BEHAVIORS_SKIP=1 to bypass gate 6b (also an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-HECKS_LIFE="$REPO/rust/target/release/hecks-life"
+STOREHOUSE="$REPO/rust/target/release/storehouse"
 CONCEPTION_DIR="$REPO/hecks_conception"
 PARITY_TEST="$REPO/parity/parity_test.rb"
 HECKSAGON_PARITY_TEST="$REPO/parity/hecksagon_parity_test.rb"
 WORLD_PARITY_TEST="$REPO/parity/world_parity_test.rb"
 
 # ── Gate 1: parity ────────────────────────────────────────────────
-# Ruby DSL parser and Rust hecks-life parser must agree on every
+# Ruby DSL parser and Rust storehouse parser must agree on every
 # fixture not listed in parity/known_drift.txt.
 if [ -z "$PARITY_SKIP" ] && [ -f "$PARITY_TEST" ]; then
     if ! (cd "$REPO" && ruby -Iruby "$PARITY_TEST" >/tmp/parity.out 2>&1); then
@@ -81,11 +81,11 @@ fi
 # Every bluebook's lifecycle must be internally consistent —
 # transitions can't have unreachable from_states. Catches the
 # "default = 'active', transition from: 'none'" bug class.
-if [ -z "$LIFECYCLE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
+if [ -z "$LIFECYCLE_SKIP" ] && [ -x "$STOREHOUSE" ]; then
     BAD=""
     for f in $(find "$CONCEPTION_DIR" -name "*.bluebook" \
                   ! -name "*_behavioral_tests.bluebook" 2>/dev/null); do
-        if ! "$HECKS_LIFE" check-lifecycle "$f" >/dev/null 2>&1; then
+        if ! "$STOREHOUSE" check-lifecycle "$f" >/dev/null 2>&1; then
             BAD="$BAD\n  $f"
         fi
     done
@@ -95,7 +95,7 @@ if [ -z "$LIFECYCLE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
         echo "Bluebooks with errors:"
         printf "$BAD\n"
         echo ""
-        echo "Run for details: hecks-life check-lifecycle <file>"
+        echo "Run for details: storehouse check-lifecycle <file>"
         echo ""
         echo "The transition's from: value is unreachable — either fix the"
         echo "lifecycle default, or change/remove the from: requirement."
@@ -104,14 +104,14 @@ if [ -z "$LIFECYCLE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
 fi
 
 # ── Gate 2b: validator gate on staged .bluebook files ─────────────
-# Runs `hecks-life validate` on every staged .bluebook. Catches
+# Runs `storehouse validate` on every staged .bluebook. Catches
 # duplicate command names, unknown commands in policies, structural
 # shape bugs — the class of error that the lifecycle validator (Gate
 # 2) doesn't cover. Focuses on STAGED files only (not the whole
 # corpus) so it stays fast on small commits.
 #
 # Set VALIDATE_SKIP=1 to bypass (an antibody failure for emergencies).
-if [ -z "$VALIDATE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
+if [ -z "$VALIDATE_SKIP" ] && [ -x "$STOREHOUSE" ]; then
     staged_bluebooks=$(git diff --cached --name-only --diff-filter=ACM | grep '\.bluebook$' || true)
     invalid=""
     for bb in $staged_bluebooks; do
@@ -120,7 +120,7 @@ if [ -z "$VALIDATE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
             *_behavioral_tests.bluebook) continue ;;
         esac
         [ -f "$REPO/$bb" ] || continue
-        out=$("$HECKS_LIFE" validate "$REPO/$bb" 2>&1)
+        out=$("$STOREHOUSE" validate "$REPO/$bb" 2>&1)
         if printf '%s' "$out" | grep -q "^INVALID"; then
             invalid="${invalid}\n  ✗ $bb\n$(printf '%s' "$out" | sed 's/^/      /')"
         fi
@@ -129,7 +129,7 @@ if [ -z "$VALIDATE_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
         echo "COMMIT BLOCKED: validator gate — staged .bluebook(s) failed validate."
         printf "$invalid\n"
         echo ""
-        echo "  Re-run individually : hecks-life validate <path>"
+        echo "  Re-run individually : storehouse validate <path>"
         echo "  Bypass (use only for emergencies) : VALIDATE_SKIP=1 git commit ..."
         exit 1
     fi
@@ -153,7 +153,7 @@ fi
 
 # ── Gate 4: Miette enforce ─────────────────────────────────────────
 # Governance advisory. Never blocks (yet).
-if [ -x "$HECKS_LIFE" ] && "$HECKS_LIFE" enforce "$CONCEPTION_DIR" 2>/dev/null; then
+if [ -x "$STOREHOUSE" ] && "$STOREHOUSE" enforce "$CONCEPTION_DIR" 2>/dev/null; then
     :
 fi
 
@@ -161,7 +161,7 @@ fi
 # its .behaviors and .fixtures too. ───────────────────────────────────
 # The i112 anatomy reorg silently broke 44 .behaviors files because
 # bluebooks were moved to clusters but their test companions stayed
-# at root, where the `hecks-life behaviors` runner's same-stem-in-
+# at root, where the `storehouse behaviors` runner's same-stem-in-
 # same-dir lookup quietly failed. This gate refuses that exact mistake
 # going forward : if a bluebook moves and its same-stem .behaviors /
 # .fixtures sit at the old path, the commit blocks until they move
@@ -313,9 +313,9 @@ if [ -z "$TESTS_SKIP" ] && [ -d "$CONCEPTION_DIR/tests" ]; then
     fi
 fi
 
-# ── Gate 6b: Behaviors corpus — `hecks-life test` per root ─────────
+# ── Gate 6b: Behaviors corpus — `storehouse test` per root ─────────
 # Parallel to Gate 6 during the i500 migration window. Walks each
-# active code-surface root and runs `hecks-life test`, which
+# active code-surface root and runs `storehouse test`, which
 # exercises every .behaviors file with a same-stem .bluebook in the
 # same dir. Mirrors pre-push ROOTS so we catch behavior regressions
 # at commit time, not only at push.
@@ -327,7 +327,7 @@ fi
 # under runner gaps and won't be all-green.
 #
 # Set BEHAVIORS_SKIP=1 to bypass (an antibody failure for emergencies).
-if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
+if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$STOREHOUSE" ]; then
     BEHAVIORS_ROOTS=""
     [ -d "$REPO/hecks_conception/aggregates" ] && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/aggregates"
     [ -d "$REPO/hecks_conception/adapters" ]   && BEHAVIORS_ROOTS="$BEHAVIORS_ROOTS $REPO/hecks_conception/adapters"
@@ -343,7 +343,7 @@ if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
     behaviors_failed_roots=""
     for root in $BEHAVIORS_ROOTS; do
         out_file="/tmp/behaviors_$(basename "$root").out"
-        if ! "$HECKS_LIFE" test "$root" >"$out_file" 2>&1; then
+        if ! "$STOREHOUSE" test "$root" >"$out_file" 2>&1; then
             behaviors_failed_roots="$behaviors_failed_roots\n  ✗ $root (output: $out_file)"
         fi
     done
@@ -352,7 +352,7 @@ if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$HECKS_LIFE" ]; then
         echo "COMMIT BLOCKED: behaviors corpus failed."
         printf "$behaviors_failed_roots\n"
         echo ""
-        echo "  Re-run individually : hecks-life test <root>"
+        echo "  Re-run individually : storehouse test <root>"
         echo "  Bypass (use only for emergencies) : BEHAVIORS_SKIP=1 git commit ..."
         exit 1
     fi

@@ -1,5 +1,5 @@
 Hecks.bluebook "BehaviorsFixturesShape", version: "2026.04.30.1" do
-  vision "The shape of hecks_life/src/behaviors_fixtures.rs as a bluebook — the .fixtures auto-loader (locate / parse / apply) made IR-derivable via ordered embedded snippets."
+  vision "The shape of storehouse/src/behaviors_fixtures.rs as a bluebook — the .fixtures auto-loader (locate / parse / apply) made IR-derivable via ordered embedded snippets."
   category "autophagy"
 
   # ============================================================
@@ -21,7 +21,7 @@ Hecks.bluebook "BehaviorsFixturesShape", version: "2026.04.30.1" do
   # Layer mapping (mirrors heki_query_shape) :
   #   L0 = this file + fixtures/behaviors_fixtures_shape.fixtures + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/behaviors_fixtures.rs (generated target)
+  #   L7 = storehouse/src/behaviors_fixtures.rs (generated target)
   #
   # The single `verbatim_section` body_kind in this shape is the
   # "embedded_helper for whole files" pattern — useful when each

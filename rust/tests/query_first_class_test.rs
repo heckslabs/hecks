@@ -11,13 +11,13 @@
 // The opaque-Ruby-block era is retired ; the runtime never executes a
 // Ruby Proc at query time. Author intent is data, not code.
 
-use hecks_life::ir::{Direction, WhereOp};
-use hecks_life::parse_blocks::parse_query;
-use hecks_life::parser;
-use hecks_life::runtime::{Runtime, Value};
+use storehouse::ir::{Direction, WhereOp};
+use storehouse::parse_blocks::parse_query;
+use storehouse::parser;
+use storehouse::runtime::{Runtime, Value};
 use std::collections::HashMap;
 
-fn parse_one(source: &str) -> hecks_life::ir::Domain {
+fn parse_one(source: &str) -> storehouse::ir::Domain {
     parser::parse(source)
 }
 

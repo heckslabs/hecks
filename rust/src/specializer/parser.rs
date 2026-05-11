@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/parser.rs`.
+//! Rust-native specializer for `storehouse/src/parser.rs`.
 //!
 //! i147 Wave 3-C target — kernel-surface bluebook parser (top-level
 //! Domain assembly + line-by-line state machine dispatch) regenerated
@@ -30,7 +30,7 @@
 //!   let rust = parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/parser.rs —
+//! [antibody-exempt: storehouse/src/specializer/parser.rs —
 //!  i147 Wave 3-C — Rust-native specializer for parser.rs]
 
 use crate::specializer::util;
@@ -69,7 +69,7 @@ const HEADER: &str = r#"//! Bluebook parser — reads .bluebook files into IR
 //! Block parsers live in parse_blocks.rs.
 //!
 //! [antibody-exempt: parser.rs — kernel-surface bluebook parser;
-//!  hecks-life specialize parser regenerates this file byte-for-byte from
+//!  storehouse specialize parser regenerates this file byte-for-byte from
 //!  parser_shape fixtures. Edit here seeds the golden fixture; update
 //!  parser_shape to match. Subsumes unique:true singleton pattern via
 //!  identified_by natural-key dispatch.]

@@ -7,7 +7,7 @@ Hecks.hecksagon "Storage" do
   # Projection, AdapterRegistry) that together form the runtime's
   # state-holding core. This file declares the outbound ports those
   # aggregates consume. The Rust implementation files —
-  # hecks_life/src/runtime/repository.rs, projection.rs,
+  # storehouse/src/runtime/repository.rs, projection.rs,
   # adapter_registry.rs — are the adapters.
   #
   # Adapters :

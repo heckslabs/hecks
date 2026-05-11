@@ -1,6 +1,6 @@
 #!/bin/bash
 # [antibody-exempt: i37 Phase C — porting legacy python to shell +
-#  hecks-life subcommands; retires when shell ports to bluebook shebang
+#  storehouse subcommands; retires when shell ports to bluebook shebang
 #  form.]
 #
 # pulse_fanout_smoke.sh — Stage-A shadow for the across "Pulse" fanout.
@@ -30,16 +30,16 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
-# Find the hecks-life binary. Prefer HECKS_BIN override; otherwise the
+# Find the storehouse binary. Prefer HECKS_BIN override; otherwise the
 # worktree's own build, then the main checkout's build.
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
 else
-  echo "FAIL — can't find hecks-life binary"
+  echo "FAIL — can't find storehouse binary"
   exit 2
 fi
 

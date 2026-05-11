@@ -1,4 +1,4 @@
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "Status", version: "2026.04.24.1" do
   vision "Miette's multi-system status report — reads .heki stores + daemon pids, prints a labeled summary"
 
@@ -9,7 +9,7 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
   # ============================================================
   #
   # This bluebook was the first runtime capability to ship with a
-  # shape-based adapter check (hecks_life/src/run_status/mod.rs walks
+  # shape-based adapter check (storehouse/src/run_status/mod.rs walks
   # this aggregate + the sibling hecksagon to decide whether to fire).
   # Phase F-2 enriches it from a single-command declaration into the
   # full pipeline : one entrypoint command that the user invokes, plus
@@ -216,7 +216,7 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
   # Each `section` block declares one bordered table on the rendered
   # dashboard. `row` lines map a label (left column) to an attribute
   # name on the StatusReport aggregate (right column). The Rust
-  # renderer (hecks_life/src/run_status/render.rs) walks this list at
+  # renderer (storehouse/src/run_status/render.rs) walks this list at
   # runtime instead of hard-coding section composition. Adding a
   # section is one bluebook edit — no Rust touch.
   #

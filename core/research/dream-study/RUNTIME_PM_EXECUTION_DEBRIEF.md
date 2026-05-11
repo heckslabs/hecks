@@ -55,7 +55,7 @@ to heki) which is its own follow-on branch.
 
 ## Phase D — PM state persistence to heki ✓ LANDED
 
-Closed the production-activation gap. Each `hecks-life` subprocess
+Closed the production-activation gap. Each `storehouse` subprocess
 fork now loads existing PM instances from heki on Runtime boot,
 persists transitions after each react. State accumulates across forks ;
 PMs declared in bluebook drive the cycle in production.

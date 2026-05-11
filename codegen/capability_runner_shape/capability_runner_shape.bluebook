@@ -1,5 +1,5 @@
 Hecks.bluebook "CapabilityRunnerShape", version: "2026.05.01.1" do
-  vision "The shape of an I/O-pipeline capability runner (run_X.rs) as a bluebook — the specializer reads a row of these and emits the runner module. Generalises the hand-written pattern in hecks_life/src/run_status/ and hecks_life/src/run_boot/."
+  vision "The shape of an I/O-pipeline capability runner (run_X.rs) as a bluebook — the specializer reads a row of these and emits the runner module. Generalises the hand-written pattern in storehouse/src/run_status/ and storehouse/src/run_boot/."
   category "autophagy"
 
   # ============================================================
@@ -10,7 +10,7 @@ Hecks.bluebook "CapabilityRunnerShape", version: "2026.05.01.1" do
   # (validator, validator_warnings, dump). I/O pipeline capabilities
   # — the things that read .heki stores, walk filesystems, shell out
   # to daemons, and stream lines through :stdout — are still hand
-  # written under hecks_life/src/run_status/ and run_boot/.
+  # written under storehouse/src/run_status/ and run_boot/.
   #
   # This shape generalises that pattern. One row in CapabilityDetector
   # plus N ordered Phase rows is enough to describe a run_X.rs at the
@@ -21,7 +21,7 @@ Hecks.bluebook "CapabilityRunnerShape", version: "2026.05.01.1" do
   # Layer mapping (mirrors validator_shape / dump_shape) :
   #   L0 = this file
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/run_<name>/mod.rs (and its internal phase
+  #   L7 = storehouse/src/run_<name>/mod.rs (and its internal phase
   #        modules — discover.rs, classify.rs, vitals.rs, etc.)
   #
   # The first instance shipping against this shape is
@@ -98,7 +98,7 @@ Hecks.bluebook "CapabilityRunnerShape", version: "2026.05.01.1" do
       attribute :name,             String
       # description: what this body_kind emits at L7
       attribute :description,      String
-      # template_module: the Rust module under hecks_life/src/specializer/
+      # template_module: the Rust module under storehouse/src/specializer/
       # that holds the codegen template (planned location ; emitters are
       # added per-kind as instances ship).
       attribute :template_module,  String, default: ""

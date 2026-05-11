@@ -1,5 +1,5 @@
 Hecks.bluebook "DispatchQueryShape", version: "2026.04.30.1" do
-  vision "The shape of hecks_life/src/dispatch_query.rs as a bluebook — the IR-query substrate (i122) closes the loop on itself. dispatch_query.rs is the file every other antibody decision routes through ; once it regenerates from this shape, hand-edits to it become structurally impossible (the byte-identity test refuses them) and the substrate self-claims (its own filename appears in its own SPECIALIZER_TARGETS table)."
+  vision "The shape of storehouse/src/dispatch_query.rs as a bluebook — the IR-query substrate (i122) closes the loop on itself. dispatch_query.rs is the file every other antibody decision routes through ; once it regenerates from this shape, hand-edits to it become structurally impossible (the byte-identity test refuses them) and the substrate self-claims (its own filename appears in its own SPECIALIZER_TARGETS table)."
   category "autophagy"
 
   # ============================================================
@@ -33,7 +33,7 @@ Hecks.bluebook "DispatchQueryShape", version: "2026.04.30.1" do
   # Layer mapping (mirrors validator_shape / dump_shape) :
   #   L0 = this file + fixtures/dispatch_query_shape.fixtures + snippets/*
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/dispatch_query.rs (generated target)
+  #   L7 = storehouse/src/dispatch_query.rs (generated target)
 
   # ---- Section -----------------------------------------------------
   #

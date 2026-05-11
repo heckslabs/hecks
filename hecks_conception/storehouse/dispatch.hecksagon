@@ -20,7 +20,7 @@ Hecks.hecksagon "Dispatch" do
   #      in a sibling bluebook (Dispatch + Lexicon co-loaded)
   #
   # Until i493 lands, the surface invocation route is :
-  #   hecks-life storehouse route <phrase> [k=v ...]
+  #   storehouse storehouse route <phrase> [k=v ...]
   # which lives as a shim in rust/src/main.rs (already kernel-surface
   # exempt) and replicates the pipeline this hecksagon describes —
   # walking bluebooks, calling Lexicon.Lookup, invoking the resolved
@@ -52,7 +52,7 @@ Hecks.hecksagon "Dispatch" do
   # template substitution — i493 piece 3 ; today the storehouse main.rs
   # shim hand-fills it before invoking run::run_script in-process.
   adapter :shell, name: :invoke,
-    command: "hecks-life",
+    command: "storehouse",
     args: ["run", "{{target.bluebook_path}}", "entrypoint={{phrase}}"],
     output_format: :text,
     timeout: 60

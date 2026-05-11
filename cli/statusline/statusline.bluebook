@@ -1,4 +1,4 @@
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "Statusline", version: "2026.04.26.1" do
   vision "Miette's one-line body status — read declarative state, render a single string. The dream stream lives in the agent's notification surface ; the statusline stays clean."
 

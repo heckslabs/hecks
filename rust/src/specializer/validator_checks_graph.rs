@@ -22,7 +22,7 @@
 //! Usage:
 //!   let text = emit_reference_valid(rule);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/validator_checks_graph.rs —
+//! [antibody-exempt: storehouse/src/specializer/validator_checks_graph.rs —
 //!  Phase D — Rust-native specializer implementation]
 
 use crate::ir::Fixture;

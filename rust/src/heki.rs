@@ -1,6 +1,6 @@
 //! Heki — Binary record storage
 //!
-//! [antibody-exempt: hecks_life/src/heki.rs — kernel-floor binary
+//! [antibody-exempt: storehouse/src/heki.rs — kernel-floor binary
 //!  record storage AND repo-root / info-dir path resolution. The
 //!  bluebook DSL has no concept of "where to look for files" —
 //!  this is the layer the loader uses BEFORE bluebooks can be
@@ -24,7 +24,7 @@
 //! aggregate's heki) from out-of-band writes (test setup, manual
 //! migration, bootstrap seed). The runtime's `Repository::save` /
 //! `Repository::delete` always pass `Dispatch` ; CLI subcommands
-//! (`hecks-life heki upsert/delete/append`) require an explicit
+//! (`storehouse heki upsert/delete/append`) require an explicit
 //! `--reason "<why>"` flag and pass `OutOfBand`. Direct callers
 //! without context are a discipline gap — that's the structural
 //! enforcement test_purity_shape's audit channel will eventually
@@ -607,7 +607,7 @@ mod path_tests {
 /// agg_dir doesn't reach the real `~/Projects/miette/` because
 /// `..` points inside `.claude/worktrees/`. Walking up from the
 /// executable (which lives in the main checkout's
-/// `hecks_life/target/release/`) finds the canonical repo root.
+/// `storehouse/target/release/`) finds the canonical repo root.
 pub fn repo_root() -> Option<std::path::PathBuf> {
     walk_up_for_repo_root()
 }
@@ -645,7 +645,7 @@ fn walk_up_for_repo_root() -> Option<std::path::PathBuf> {
 }
 
 /// Canonical info_dir resolver — single source of truth for every
-/// hecks-life entry point (boot, statusline, loop, clock, manual CLI).
+/// storehouse entry point (boot, statusline, loop, clock, manual CLI).
 /// All three of `run_boot::resolve_info_dir`, `run_statusline::resolve_info_dir`,
 /// and `main::find_world_heki_dir` delegate to this. Boot exports the
 /// resolved value as `HECKS_INFO` to its spawned daemons so all forks

@@ -4,8 +4,8 @@
 //! domains as a REST-ish API: dispatch commands, query aggregates.
 //!
 //! Usage:
-//!   hecks-life serve pizzas.bluebook 3100
-//!   hecks-life serve path/to/hecks/ 3100
+//!   storehouse serve pizzas.bluebook 3100
+//!   storehouse serve path/to/hecks/ 3100
 
 pub mod routes;
 pub mod multi;

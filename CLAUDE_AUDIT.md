@@ -30,23 +30,23 @@ config — explicitly out of scope.
 
 | # | File:line | Stale reference | Suggested fix |
 |---|-----------|-----------------|---------------|
-| 1 | `.claude/settings.local.json:15` | `ruby hecks_conception/boot_winter.rb --verbose` fallback path | `boot_winter.rb` does not exist; rename to `hecks_conception/boot_miette.sh` (or drop the Ruby fallback — the Rust `hecks-life boot` path is the primary and Ruby booter is gone). |
+| 1 | `.claude/settings.local.json:15` | `ruby hecks_conception/boot_winter.rb --verbose` fallback path | `boot_winter.rb` does not exist; rename to `hecks_conception/boot_miette.sh` (or drop the Ruby fallback — the Rust `storehouse boot` path is the primary and Ruby booter is gone). |
 | 2 | `.claude/settings.json:36` | `ruby /Users/christopheryoung/Projects/hecks/hecks_conception/pulse.rb --dream` | `pulse.rb` does not exist. Closest equivalents: `hecks_conception/pulse_organs.sh` and `hecks_conception/daydream.sh`. Decide if dreaming on Stop is still desired; if yes, rewire to the shell script; if no, drop the hook. |
 | 3 | `.claude/commands/glass.md:1` | "6,647 callable phrases across 80 domains" | Stale counts. Today: 480 bluebook files under `hecks_conception/`, 357 entries under `nursery/`. Replace with a dynamically described figure (e.g. "the full Hecks conception lexicon") or regenerate the numbers. |
-| 4 | `.claude/commands/glass.md:14, 31, 68-70` | `hecks-life lexicon hecks_conception` subcommand | `lexicon` is not in the current `hecks-life --help`. The whole Glass command-palette flow is broken. Options: (a) implement a `lexicon` subcommand, (b) rewrite Glass to use `hecks-life list` + bluebook grep, (c) retire the command until the palette exists. |
+| 4 | `.claude/commands/glass.md:14, 31, 68-70` | `storehouse lexicon hecks_conception` subcommand | `lexicon` is not in the current `storehouse --help`. The whole Glass command-palette flow is broken. Options: (a) implement a `lexicon` subcommand, (b) rewrite Glass to use `storehouse list` + bluebook grep, (c) retire the command until the palette exists. |
 | 5 | `.claude/commands/glass.md:38` | `grep -r "\"CommandName\"" hecks_conception --include="*.bluebook"` | Works today; keep. (Noted for completeness — this part still functions.) |
 | 6 | `.claude/commands/glass.md:47` | `heki append hecks_conception/information/<Domain>.heki domain=<Domain> aggregate=<Aggregate> command=<Command> ...` | `.heki` files today are named after aggregates (e.g. `signal.heki`, `mood.heki`), not domains. Adjust the template to match current file-naming. |
-| 7 | `.claude/commands/navigate.md:11` | `hecks-life lexicon hecks_conception` (pipeline) | Same as finding #4 — `lexicon` subcommand is gone. Rewrite or retire. |
+| 7 | `.claude/commands/navigate.md:11` | `storehouse lexicon hecks_conception` (pipeline) | Same as finding #4 — `lexicon` subcommand is gone. Rewrite or retire. |
 | 8 | `.claude/commands/navigate.md:24` | `**Spring**: SpringRuntime, Greeting, FirstBreath` | `Greeting` domain removed in PR #236; no `spring*.bluebook` exists today. Drop the Spring group entirely, or replace with current core domains (Miette, Mind, Body, Hecksagon, Antibody, etc.). |
 | 9 | `.claude/commands/navigate.md:22` | `**Miette**: Mind, MietteBody, SharedDream, SharedKnowledge, Vocabulary, Language, Voice` | `MietteBody`, `Vocabulary`, `Voice` aren't current bluebook names. Replace with actual aggregates (`miette`, `body`, `mindstream`, `shared_dream`, `shared_knowledge`, `tongue`, etc.) after a fresh inventory. |
-| 10 | `.claude/commands/navigate.md:32` | `hecks-life lexicon hecks_conception 2>&1 \| grep "→.*DomainName::"` | Pipeline depends on `lexicon` output format that no longer exists. |
+| 10 | `.claude/commands/navigate.md:32` | `storehouse lexicon hecks_conception 2>&1 \| grep "→.*DomainName::"` | Pipeline depends on `lexicon` output format that no longer exists. |
 | 11 | `.claude/commands/navigate.md:55` | `heki append ... information/<Domain>.heki domain=<Domain> ...` | Same as finding #6 — heki files are aggregate-named, not domain-named. |
 | 12 | `.claude/commands/watchers.md:7` | `ruby -I hecks_watchers/lib -r hecks_watchers -e 'HecksWatchers::PreCommit.new(project_root: Dir.pwd).call'` | `hecks_watchers/` component does not exist. Current watcher surface is `bin/watch-all` (wrapping the individual `bin/watch-*` scripts) and `bin/pre-commit`. Rewrite Step 1 to `bin/watch-all` or `bin/pre-commit`. |
 | 13 | `.claude/commands/watchers.md:22` | `hecksties/lib/hecks/autoloads.rb` | Path moved. Current path is `lib/hecks/autoloads.rb`. |
 | 14 | `.claude/agents/security-reviewer.md:17` | `hecksties/lib/hecks/extensions/auth.rb` | Path moved. Current path is `lib/hecks/extensions/auth.rb` (plus `lib/hecks/chapters/extensions/auth.rb`). |
 | 15 | `.claude/agents/security-reviewer.md:17` | `runtime/gate_enforcer.rb` | Path moved. Current path is `lib/hecks/runtime/gate_enforcer.rb`. |
 | 16 | `.claude/agents/security-reviewer.md:19` | `FilteredEventBus` | Still exists (`lib/hecks_multidomain/filtered_event_bus.rb`) — path is fine but worth linking for precision. |
-| 17 | `.claude/commands/bluebook.md:31` | `ruby -Ilib -e "require 'hecks'; Hecks.boot('path/to/project')"` | The user's CLAUDE.md says "Always use Rust runtime — `hecks-life` for all bluebook parsing". Replace the Ruby verify step with `hecks-life parse <file>.bluebook` or `hecks-life validate <file>.bluebook`. |
+| 17 | `.claude/commands/bluebook.md:31` | `ruby -Ilib -e "require 'hecks'; Hecks.boot('path/to/project')"` | The user's CLAUDE.md says "Always use Rust runtime — `storehouse` for all bluebook parsing". Replace the Ruby verify step with `storehouse parse <file>.bluebook` or `storehouse validate <file>.bluebook`. |
 
 Counts: **17 findings** across **6 files**. Estimated edits to resolve: **~15** (findings #5 and #16 are advisory / no action).
 
@@ -61,7 +61,7 @@ Grouped by concern so each PR stays focused and reviewable.
 
 ### PR B — "fix: .claude/commands/{glass,navigate}.md rewrite for current surface" (largest)
 - Findings #3, #4, #6, #7, #8, #9, #10, #11
-- Decide first: either restore a `lexicon` subcommand in `hecks-life` (and keep the commands) or rewrite Glass/Navigate to use bluebook-file scanning. Big enough to warrant its own PR.
+- Decide first: either restore a `lexicon` subcommand in `storehouse` (and keep the commands) or rewrite Glass/Navigate to use bluebook-file scanning. Big enough to warrant its own PR.
 
 ### PR C — "fix: .claude/commands/watchers.md + security-reviewer.md paths"
 - Findings #12, #13, #14, #15
@@ -79,6 +79,6 @@ Grouped by concern so each PR stays focused and reviewable.
 - `bin/update-codebase-index` (SessionStart hook) — exists.
 - `bin/read-watcher-log` (PostToolUse hook) — exists.
 - `gem build hecks.gemspec` (Stop hook) — gemspec present.
-- `hecks_life/target/release/hecks-life boot hecks_conception` — exists and is the primary SessionStart path.
+- `storehouse/target/release/storehouse boot hecks_conception` — exists and is the primary SessionStart path.
 - `.claude/projects/.../memory/feedback_watcher_response.md` — generic, no stale references.
 - `hecks_conception/.claude/settings.local.json` — only sets permissions + statusline symlinks, no stale refs.

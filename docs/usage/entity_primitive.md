@@ -90,6 +90,6 @@ value objects don't.
   the parent). The runtime doesn't currently require a top-level
   `identified_by` on an entity declaration; the parent aggregate's
   identity scopes the entity.
-- Tests under `hecks_life/tests/` exercise the `entities: vec![]`
+- Tests under `storehouse/tests/` exercise the `entities: vec![]`
   default for aggregates without entity declarations — keeping the
   IR struct consistent across both paths.

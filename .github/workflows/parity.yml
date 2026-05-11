@@ -8,7 +8,7 @@ on:
 
 jobs:
   parity:
-    name: Ruby DSL ↔ Rust hecks-life
+    name: Ruby DSL ↔ Rust storehouse
     runs-on: ubuntu-latest
 
     # Multi-repo layout — same shape as test.yml. The Rust specializer
@@ -47,7 +47,7 @@ jobs:
             hecks/rust/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('hecks/rust/Cargo.lock', 'hecks/rust/Cargo.toml') }}
 
-      - name: Build hecks-life (release)
+      - name: Build storehouse (release)
         working-directory: hecks/rust
         run: cargo build --release --quiet
 
@@ -85,7 +85,7 @@ jobs:
           BAD=""
           for f in $(find hecks_conception -name "*.bluebook" \
                         ! -name "*_behavioral_tests.bluebook"); do
-            if ! rust/target/release/hecks-life check-lifecycle "$f" >/dev/null 2>&1; then
+            if ! rust/target/release/storehouse check-lifecycle "$f" >/dev/null 2>&1; then
               BAD="$BAD\n  $f"
             fi
           done
@@ -99,7 +99,7 @@ jobs:
       - name: Behavioral test corpus sweep (must be 100%)
         working-directory: hecks
         run: |
-          BIN=rust/target/release/hecks-life
+          BIN=rust/target/release/storehouse
           tot_pass=0; tot_fail=0; tot_err=0
           for tf in $(find hecks_conception -name "*_behavioral_tests.bluebook"); do
             out=$($BIN behaviors "$tf" 2>&1 | tail -1)
@@ -112,6 +112,6 @@ jobs:
           done
           echo "TOTAL: $tot_pass passed, $tot_fail failed, $tot_err errored"
           if [ "$tot_fail" -ne 0 ] || [ "$tot_err" -ne 0 ]; then
-            echo "::error::Behavioral test corpus regressed — run hecks-life behaviors locally"
+            echo "::error::Behavioral test corpus regressed — run storehouse behaviors locally"
             exit 1
           fi

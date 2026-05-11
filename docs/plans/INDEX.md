@@ -49,7 +49,7 @@ Commits on `main` landed today (~40 PRs); notable ones referenced by these plans
 - **PR #263** — shebang runtime + terminal adapter port (foundational)
 - **PR #265** — i24 DSL collapse (resolves i1 + i2)
 - **PR #271** — i3 PR-a (Heart + Breath + Circadian)
-- **PR #272** — i37 Phase A (hecks-life heki subcommands)
+- **PR #272** — i37 Phase A (storehouse heki subcommands)
 - **PR #273** — first shebang migration (`status.sh` → `capabilities/status/`)
 - **PR #274** — fix tick-during-sleep bug (i40 filed for proper fix)
 

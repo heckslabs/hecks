@@ -12,9 +12,9 @@ Hecks.hecksagon "Antibody" do
   # translated into a ScanUnresolvable / reject verdict upstream.
   #
   # NOTE: `adapter :shell, name:, command:, ok_exit:` ships in PR B
-  # (parallel, not yet merged on main). Until PR B lands, `hecks-life
+  # (parallel, not yet merged on main). Until PR B lands, `storehouse
   # parse` will ignore these lines (hecksagon files are not strictly
-  # parsed today) and `hecks-life validate` reports 0 aggregates — that
+  # parsed today) and `storehouse validate` reports 0 aggregates — that
   # is expected for a pure-infrastructure file. When PR B merges, these
   # adapters become first-class and the Rust shim (follow-up PR) binds
   # them to the CommitCheck / BranchScan / StagedCheck commands.

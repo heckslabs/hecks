@@ -20,7 +20,7 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
   # the array byte-identical, so it is shape-driven at compile time —
   # but the runtime can't query it. I cannot ask "what exceptions do
   # I hold? was this word recently rejected? is X in my list?"
-  # without recompiling hecks-life.
+  # without recompiling storehouse.
   #
   # This bluebook adds the runtime layer the dream demanded. It is
   # NOT a mirror of the compile-time list. It tracks a different
@@ -33,7 +33,7 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
   #         → when rejection_count >= 3, the consumer surfaces
   #           the candidate to Chris (or future automated pipeline
   #           i71). Chris promotes the word into validator_shape.
-  #           fixtures, regenerates validator.rs via `hecks-life
+  #           fixtures, regenerates validator.rs via `storehouse
   #           specialize validator`, and the next compile inherits
   #           the new exception. (MintMusing trigger retired
   #           2026-05-08 alongside the Musing system.)

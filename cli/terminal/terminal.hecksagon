@@ -5,7 +5,7 @@ Hecks.hecksagon "Terminal" do
 
   # ---- I/O wiring --------------------------------------------------
   #
-  # :stdout — banner + every reply. The hecks-life runtime invokes
+  # :stdout — banner + every reply. The storehouse runtime invokes
   #           write_stdout(adapter, text, attrs) when RespondWith
   #           fires.
   # :stdin  — blocking readline. ReadLine dispatches a line; the

@@ -5,10 +5,10 @@
 #  runner for the Coherence bluebook's six predicate queries. The bluebook
 #  (mind/perception/coherence.bluebook) is the source-of-truth declaration ;
 #  this script is the temporary runner until the runtime hosts predicate-
-#  returning queries first-class (i101). Retires when `hecks-life query
+#  returning queries first-class (i101). Retires when `storehouse query
 #  Coherence.<Invariant>` returns bool + reason directly.]
 #
-# Reads mood / heartbeat / consciousness / tick / lucid_dream via hecks-life
+# Reads mood / heartbeat / consciousness / tick / lucid_dream via storehouse
 # (pure bash + jq — no Python per inbox i37) and checks six invariants that
 # must hold at render time. Exits 0 if coherent, non-zero otherwise with one
 # "INVARIANT <n>: <reason>" line per violation on stderr.
@@ -31,13 +31,13 @@
 # Usage: ./status_coherence.sh [INFO_DIR]
 #   Defaults INFO_DIR to <script_dir>/information.
 #
-# Retirement: once `hecks-life run <bluebook>` hosts a StatusCoherence capability
+# Retirement: once `storehouse run <bluebook>` hosts a StatusCoherence capability
 # natively, this shim retires (same as the rest of the bash control plane).
 
 set -u
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-HECKS="$DIR/../rust/target/release/hecks-life"
+HECKS="$DIR/../rust/target/release/storehouse"
 INFO="${1:-$DIR/information}"
 
 violations=()

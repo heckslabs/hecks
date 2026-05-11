@@ -11,7 +11,7 @@ hecks_conception/capabilities/project_management/project_management.bluebook
 ## Validate
 
 ```bash
-hecks-life validate capabilities/project_management/project_management.bluebook
+storehouse validate capabilities/project_management/project_management.bluebook
 ```
 
 ## Aggregates

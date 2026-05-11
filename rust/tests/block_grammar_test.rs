@@ -21,8 +21,8 @@
 //  shapes). Mirrors the established kernel-floor test pattern from
 //  validator_rules_test.rs etc.]
 
-use hecks_life::ir::{BlockParser, BlockGrammar};
-use hecks_life::parser;
+use storehouse::ir::{BlockParser, BlockGrammar};
+use storehouse::parser;
 
 #[test]
 fn canonical_grammar_lists_six_keywords_in_priority_order() {

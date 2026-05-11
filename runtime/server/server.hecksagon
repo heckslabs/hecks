@@ -35,7 +35,7 @@ Hecks.hecksagon "Server" do
   #
   # Residue (not part of this PR) :
   #
-  #   The fifteen html_* modules under hecks_life/src/server/ are
+  #   The fifteen html_* modules under storehouse/src/server/ are
   #   pure IR→text transforms that render dashboard HTML. They remain
   #   hand-written ; see docs/phase-f-0-survey.md "expected residue"
   #   — templates would want a `template` DSL keyword this arc

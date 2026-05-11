@@ -1,15 +1,15 @@
 #!/bin/bash
 # test_status_coherence.sh — fixture tests for status_coherence.sh.
 #
-# Builds 6 temporary information/ dirs via `hecks-life heki append` — one
+# Builds 6 temporary information/ dirs via `storehouse heki append` — one
 # clean snapshot and one deliberately breaking each invariant — then asserts
 # the checker exits 0 on clean and non-zero on each broken case.
 #
-# No Python / no external deps beyond bash + jq + hecks-life.
+# No Python / no external deps beyond bash + jq + storehouse.
 
 set -u
 DIR="$(cd "$(dirname "$0")" && pwd)"
-HECKS="$DIR/../rust/target/release/hecks-life"
+HECKS="$DIR/../rust/target/release/storehouse"
 CHECK="$DIR/status_coherence.sh"
 
 pass=0; fail=0

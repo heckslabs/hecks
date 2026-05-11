@@ -1,5 +1,5 @@
 Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
-  vision "The subcommand catalog as a domain — one row per known hecks-life subcommand, queried by Cli's RouteSubcommand to resolve a parsed name to a handler. Earns its keep precisely because handlers walk it ; without that operation it would be inert declaration, which is the rejected shape earlier drafts of cli.bluebook called out."
+  vision "The subcommand catalog as a domain — one row per known storehouse subcommand, queried by Cli's RouteSubcommand to resolve a parsed name to a handler. Earns its keep precisely because handlers walk it ; without that operation it would be inert declaration, which is the rejected shape earlier drafts of cli.bluebook called out."
   category "runtime"
 
   # ============================================================
@@ -46,7 +46,7 @@ Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
   # SUBCOMMAND — the catalog row
   # ============================================================
 
-  aggregate "Subcommand", "One known hecks-life subcommand — name, handler symbol, expected argv shape, exit-mapping policy. Catalog rows are added via Register and resolved via Find by parse-time RouteSubcommand." do
+  aggregate "Subcommand", "One known storehouse subcommand — name, handler symbol, expected argv shape, exit-mapping policy. Catalog rows are added via Register and resolved via Find by parse-time RouteSubcommand." do
     identified_by :name
     # name : the subcommand string ("heki", "specialize", "behaviors",
     # "conceive", "develop", "run", "serve", "loop", "daemon", …).
@@ -122,7 +122,7 @@ Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
     end
 
     query "ListAll" do
-      description "Every Subcommand row, ordered alphabetically by name. The print_usage path walks this to render `hecks-life --help` ; future help capability composes per-row help from name + handler description."
+      description "Every Subcommand row, ordered alphabetically by name. The print_usage path walks this to render `storehouse --help` ; future help capability composes per-row help from name + handler description."
     end
   end
 end

@@ -107,8 +107,8 @@ fn emit_usage_help(fixtures: &[Fixture]) -> String {
 
     let mut out = String::new();
     out.push_str("fn print_usage() {\n");
-    out.push_str("    eprintln!(\"hecks-life — the Bluebook compiler and runtime\\n\");\n");
-    out.push_str("    eprintln!(\"Usage: hecks-life <command> <bluebook-file> [options]\\n\");\n");
+    out.push_str("    eprintln!(\"storehouse — the Bluebook compiler and runtime\\n\");\n");
+    out.push_str("    eprintln!(\"Usage: storehouse <command> <bluebook-file> [options]\\n\");\n");
     out.push_str("    eprintln!(\"Commands:\");\n");
     for row in &rows {
         let command = util::attr(row, "command");
@@ -154,45 +154,45 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //! Reads .bluebook files, parses them into IR, and executes them.
 //! The Bluebook is DNA. This is the ribosome. The runtime is life.
 //!
-//! [antibody-exempt: hecks_life/src/main.rs — wires the :llm hecksagon
+//! [antibody-exempt: storehouse/src/main.rs — wires the :llm hecksagon
 //!  adapter into dispatch_hecksagon. This IS the structural rewrite
 //!  that lets wake_review and interpret_dream fire end-to-end via
 //!  bluebook. Same i80 retirement contract ; closes the i109 :llm
 //!  runtime gap that PR #455 explicitly named. Rewriting IS the work.]
 //!
 //! Usage:
-//!   hecks-life parse     pizzas.bluebook
-//!   hecks-life validate  pizzas.bluebook
-//!   hecks-life inspect   pizzas.bluebook
-//!   hecks-life tree      pizzas.bluebook
-//!   hecks-life list      pizzas.bluebook
-//!   hecks-life run       pizzas.bluebook [--seed seeds.txt]
-//!   hecks-life serve     pizzas.bluebook [--seed seeds.txt] [port]
-//!   hecks-life serve     path/to/hecks/ [port]
-//!   hecks-life conceive  "Name" "vision" --corpus dir1 dir2
-//!   hecks-life develop   target.bluebook --add "feature"
+//!   storehouse parse     pizzas.bluebook
+//!   storehouse validate  pizzas.bluebook
+//!   storehouse inspect   pizzas.bluebook
+//!   storehouse tree      pizzas.bluebook
+//!   storehouse list      pizzas.bluebook
+//!   storehouse run       pizzas.bluebook [--seed seeds.txt]
+//!   storehouse serve     pizzas.bluebook [--seed seeds.txt] [port]
+//!   storehouse serve     path/to/hecks/ [port]
+//!   storehouse conceive  "Name" "vision" --corpus dir1 dir2
+//!   storehouse develop   target.bluebook --add "feature"
 //!
-//! [antibody-exempt: hecks_life/src/main.rs — wires validator_warnings into
+//! [antibody-exempt: storehouse/src/main.rs — wires validator_warnings into
 //!  dispatch arms. This IS the structural rewrite that closes the gap
 //!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
 //!  and runtime enforcement. Same i80 retirement contract as run_loop /
 //!  run_daemon / run_enforce_edit. Net ~12 LoC.]
 //!
-//! [antibody-exempt: hecks_life/src/main.rs — closes i113 (sleep-as-blocking-
+//! [antibody-exempt: storehouse/src/main.rs — closes i113 (sleep-as-blocking-
 //!  streaming-command). Wires Consciousness.EnterSleep dispatch + heki polling
 //!  + dream stream + wake-report read into a single blocking CLI. Same kernel-
 //!  surface family as run_loop / run_daemon / run_enforce_edit ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
 //!
-//! [antibody-exempt: hecks_life/src/main.rs — closes i118 (enforcer-honors-
+//! [antibody-exempt: storehouse/src/main.rs — closes i118 (enforcer-honors-
 //!  in-file-antibody-exempt-markers). run_enforce_edit now reads the touched
 //!  file's first 200 lines and dispatches Enforcer.RecordExemptedEdit (silent
 //!  exit 0) instead of Enforcer.Complain when the file already carries a
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
 //!  the rest of the run_enforce_edit family.]
 //!
-//! [antibody-exempt: hecks_life/src/main.rs detect_bash_write_target +
+//! [antibody-exempt: storehouse/src/main.rs detect_bash_write_target +
 //!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
 //!  classifier treated `sed -n '...'` (autoprint-suppress, read-only) as a
 //!  write target whenever any flag was present, blocking honest reads of
@@ -203,7 +203,7 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!  classification becomes a domain dispatched from
 //!  aggregates/discipline/enforcer/.]
 //!
-//! [antibody-exempt: hecks_life/src/main.rs — i117 Round 4. load_combined_domain
+//! [antibody-exempt: storehouse/src/main.rs — i117 Round 4. load_combined_domain
 //!  walks the sibling ../miette repo as an additional bluebook root at depth 1.
 //!  Miette's self/mind/body/library/surface aggregates physically live in
 //!  chrisyoung/miette post-split ; the runtime needs to find them for the same
@@ -213,9 +213,9 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!  isn't checked out (CI running on hecks alone keeps working). Retires
 //!  alongside the broader i118 hecks/miette reshape.]
 
-use hecks_life::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
+use storehouse::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
-use hecks_life::runtime::Runtime;
+use storehouse::runtime::Runtime;
 
 use std::env;
 use std::fs;

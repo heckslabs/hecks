@@ -2,7 +2,7 @@
 # dream_content_smoke.sh — smoke test for the Dream PM (i220 / rem_branch retirement).
 #
 # [antibody-exempt: i220 retirement of rem_branch.sh — smoke now drives
-#  the Dream PM via `hecks-life run-loop` instead of forking the legacy
+#  the Dream PM via `storehouse run-loop` instead of forking the legacy
 #  shell. Mirrors the consolidate_smoke pattern (PR #592) ; retires
 #  entirely when smoke tests port to a bluebook-shebang form.]
 #
@@ -12,7 +12,7 @@
 # / HECKS_LLM_PROVIDER=test wiring for deterministic dream-content
 # fixtures in this smoke). With those landed the Dream PM produces
 # images declaratively from PM cascades through the runtime ; this
-# smoke drives the PM directly via `hecks-life run-loop`.
+# smoke drives the PM directly via `storehouse run-loop`.
 #
 # What this smoke verifies (today, post-i220-1) :
 #
@@ -74,12 +74,12 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
 else
-  echo "FAIL — can't find hecks-life binary"
+  echo "FAIL — can't find storehouse binary"
   exit 2
 fi
 
@@ -158,7 +158,7 @@ field_value() {
 pulses_before=$(field_value "$TMP/information/consciousness/consciousness.heki" dream_pulses)
 [ -z "$pulses_before" ] && pulses_before=0
 
-# ── Drive the PM via `hecks-life run-loop` ─────────────────────────
+# ── Drive the PM via `storehouse run-loop` ─────────────────────────
 # The run-loop boots the Runtime, parses the dream bluebook + its
 # hecksagon, and ticks at the configured cadence. We emit synthetic
 # SleepEntered (births the Dream PM into :incubating, fires the
@@ -213,7 +213,7 @@ wait "$RUN_PID" 2>/dev/null || true
 
 # Boot-failure guard : run-loop's startup banner names the loaded
 # domain. Absence means the bluebook didn't parse.
-if ! grep -q 'hecks-life run-loop' "$RUN_LOG"; then
+if ! grep -q 'storehouse run-loop' "$RUN_LOG"; then
   echo "----- run-loop output -----"
   cat "$RUN_LOG"
   fail "run-loop did not boot the Dream PM (parse / load failure)"

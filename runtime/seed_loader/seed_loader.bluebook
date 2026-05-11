@@ -7,7 +7,7 @@ Hecks.bluebook "SeedLoader", version: "2026.04.24.1" do
   # ============================================================
   #
   # First file in the Phase F arc (docs/phase-f-0-survey.md). The
-  # existing implementation (hecks_life/src/runtime/seed_loader.rs, 57
+  # existing implementation (storehouse/src/runtime/seed_loader.rs, 57
   # LOC) is a simple boot-time helper : read a text file, walk each
   # line, and for every `dispatch CommandName k=v ...` line fire a
   # runtime command. This bluebook declares that behavior as a domain

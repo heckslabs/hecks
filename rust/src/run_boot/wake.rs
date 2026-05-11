@@ -40,7 +40,7 @@ pub fn surface(info_dir: &str) {
     }
     println!();
     println!(
-        "  (mark consumed with: hecks-life heki upsert {} id=latest phase=consumed)",
+        "  (mark consumed with: storehouse heki upsert {} id=latest phase=consumed)",
         path,
     );
 }

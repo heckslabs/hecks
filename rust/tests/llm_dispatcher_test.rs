@@ -12,12 +12,12 @@
 //! TestProvider with the substituted prompt, and chains the response
 //! back into the same target with `response_into_attr` populated.
 
-use hecks_life::hecksagon_ir::{Hecksagon, LlmAdapter};
-use hecks_life::ir::Domain;
-use hecks_life::parser;
-use hecks_life::runtime::{AggregateState, Runtime, Value};
-use hecks_life::runtime::llm_dispatcher::{self, LlmOutcome};
-use hecks_life::runtime::llm_providers::{LlmProvider, TestProvider};
+use storehouse::hecksagon_ir::{Hecksagon, LlmAdapter};
+use storehouse::ir::Domain;
+use storehouse::parser;
+use storehouse::runtime::{AggregateState, Runtime, Value};
+use storehouse::runtime::llm_dispatcher::{self, LlmOutcome};
+use storehouse::runtime::llm_providers::{LlmProvider, TestProvider};
 use std::collections::HashMap;
 
 fn dream_adapter() -> LlmAdapter {
@@ -37,7 +37,7 @@ fn dream_adapter() -> LlmAdapter {
 fn substitute_replaces_placeholders_from_attrs() {
     let mut attrs = HashMap::new();
     attrs.insert("seed_image".into(), "snow falling".into());
-    let out = hecks_life::runtime::prompt_scaffolder::substitute(
+    let out = storehouse::runtime::prompt_scaffolder::substitute(
         "Imagine {{seed_image}}", &attrs, None,
     );
     assert_eq!(out, "Imagine snow falling");
@@ -49,7 +49,7 @@ fn dispatcher_returns_completed_with_fixture_provider() {
     // Pre-compute SHA-256 of substituted prompt and register fixture.
     let mut attrs = HashMap::new();
     attrs.insert("seed_image".into(), "blue".into());
-    let prompt = hecks_life::runtime::prompt_scaffolder::substitute(
+    let prompt = storehouse::runtime::prompt_scaffolder::substitute(
         &adapter.prompt_template, &attrs, None,
     );
     let digest = TestProvider::hash_for(&prompt);
@@ -107,7 +107,7 @@ fn substitute_falls_back_to_state_when_attr_absent() {
     let mut state = AggregateState::new("d1");
     state.set("seed_image", Value::Str("from-state".into()));
 
-    let prompt = hecks_life::runtime::prompt_scaffolder::substitute(
+    let prompt = storehouse::runtime::prompt_scaffolder::substitute(
         &adapter.prompt_template, &HashMap::new(), Some(&state),
     );
     assert_eq!(prompt, "Imagine from-state");
@@ -223,7 +223,7 @@ fn env_override_routes_to_test_provider_regardless_of_backend() {
 // instead of pre-hashed TSV.
 #[test]
 fn test_provider_loads_ruby_dsl_fixtures_file() {
-    use hecks_life::runtime::llm_providers::{LlmProvider, TestProvider};
+    use storehouse::runtime::llm_providers::{LlmProvider, TestProvider};
 
     let tmp = std::env::temp_dir().join("gap3_dsl_fixtures.fixtures");
     let dsl = r#"Hecks.fixtures "DreamSmoke" do

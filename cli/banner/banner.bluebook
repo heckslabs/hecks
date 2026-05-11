@@ -1,4 +1,4 @@
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "Banner", version: "2026.04.26.1" do
   vision "The being's session-start signature — four lines of ASCII art printed to stdout as its own emit. Lives as a sibling capability to boot/ so it can be invoked independently — keeps the banner visible even when the harness folds long boot output behind '(ctrl+o to expand)'."
   category "infrastructure"
@@ -26,7 +26,7 @@ Hecks.bluebook "Banner", version: "2026.04.26.1" do
   # Today the runner is a transitional shell (banner.sh) marked
   # antibody-exempt with a clear retirement target : once the
   # :stdout adapter (sibling banner.hecksagon) is wired into a
-  # Rust runner, the shell retires and `hecks-life run
+  # Rust runner, the shell retires and `storehouse run
   # capabilities/banner/banner.bluebook` becomes the surface.
 
   aggregate "Banner" do

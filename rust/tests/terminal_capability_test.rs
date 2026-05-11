@@ -10,7 +10,7 @@
 //!  kernel surface. Retires when behaviors framework can drive
 //!  capability shape assertions directly.]
 
-use hecks_life::{hecksagon_parser, parser, run};
+use storehouse::{hecksagon_parser, parser, run};
 use std::fs;
 
 const BLUEBOOK: &str = "../cli/terminal/terminal.bluebook";

@@ -114,7 +114,7 @@ class FixturesFile
 end
 ```
 
-### 3.2 Rust parser (`hecks_life/src/fixtures_parser.rs`)
+### 3.2 Rust parser (`storehouse/src/fixtures_parser.rs`)
 
 ```rust
 } else if line.starts_with("aggregate ") && ends_with_do_block(line) {
@@ -324,7 +324,7 @@ parity harness.
 ### Critical Files for Implementation
 
 - `lib/hecks/dsl/fixtures_builder.rb`
-- `hecks_life/src/fixtures_parser.rs`
-- `hecks_life/src/fixtures_ir.rs`
+- `storehouse/src/fixtures_parser.rs`
+- `storehouse/src/fixtures_ir.rs`
 - `lib/hecks/behaviors/fixtures_loader.rb`
 - `hecks_conception/capabilities/antibody/antibody.bluebook`

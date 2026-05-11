@@ -9,9 +9,9 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
   # Ninth file of the Phase F arc. Three hand-written Rust files
   # form the conceiver subsystem :
   #
-  #   hecks_life/src/conceiver/mod.rs             (95 LOC)   → BluebookConception
-  #   hecks_life/src/conceiver/develop.rs          (72 LOC)  → Development
-  #   hecks_life/src/behaviors_conceiver/mod.rs    (52 LOC)  → BehaviorsConception
+  #   storehouse/src/conceiver/mod.rs             (95 LOC)   → BluebookConception
+  #   storehouse/src/conceiver/develop.rs          (72 LOC)  → Development
+  #   storehouse/src/behaviors_conceiver/mod.rs    (52 LOC)  → BehaviorsConception
   #
   # The conceiver's job is to read a corpus of existing bluebooks (or
   # behaviour suites), extract a structural vector per archetype,
@@ -38,7 +38,7 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
   # BLUEBOOKCONCEPTION — corpus-driven new-domain generation
   # ============================================================
 
-  aggregate "BluebookConception", "One invocation of `hecks-life conceive <Name> <vision>` — scans the corpus of existing .bluebook files, seeds a vector from the user's vision string, finds the k nearest archetypes, generates a fresh bluebook fitted to their shape" do
+  aggregate "BluebookConception", "One invocation of `storehouse conceive <Name> <vision>` — scans the corpus of existing .bluebook files, seeds a vector from the user's vision string, finds the k nearest archetypes, generates a fresh bluebook fitted to their shape" do
     # name : the new domain's name (argv[3] on the CLI).
     attribute :name, String
     # vision : the free-text description the user supplied. Seeds the

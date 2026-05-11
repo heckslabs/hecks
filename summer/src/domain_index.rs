@@ -11,9 +11,9 @@
 //!   let completions = idx.complete("Book");
 //!   let result = idx.execute("Bookshelf.Book.AddBook title:Dune", project_dir);
 
-use hecks_life::parser;
-use hecks_life::ir::{Domain, Aggregate, Command, Attribute};
-use hecks_life::runtime::{Runtime, Value};
+use storehouse::parser;
+use storehouse::ir::{Domain, Aggregate, Command, Attribute};
+use storehouse::runtime::{Runtime, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;

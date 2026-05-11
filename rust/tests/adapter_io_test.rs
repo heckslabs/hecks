@@ -1,11 +1,11 @@
 //! Pin substitution + option parsing for the tiny I/O adapters.
 //!
 //! The actual stdout/stderr/stdin writes are exercised by integration
-//! tests on `hecks-life run`; these unit tests nail down the parts
+//! tests on `storehouse run`; these unit tests nail down the parts
 //! that don't touch real I/O.
 
-use hecks_life::hecksagon_ir::IoAdapter;
-use hecks_life::runtime::adapter_io::{substitute, read_env};
+use storehouse::hecksagon_ir::IoAdapter;
+use storehouse::runtime::adapter_io::{substitute, read_env};
 use std::collections::HashMap;
 
 #[test]

@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-24
 **Branch:** `miette/phase-f-0-survey`
-**Discipline:** classify each hand-written `.rs` file in `hecks_life/src/` as *natural-fit*, *partial*, *doesn't-fit*, *kernel-floor*, or *already-shape-backed* for expression as bluebook + hecksagon, **without extending the DSL.** What fits, fits ; what doesn't is data about where Hecks's natural domain ends.
+**Discipline:** classify each hand-written `.rs` file in `storehouse/src/` as *natural-fit*, *partial*, *doesn't-fit*, *kernel-floor*, or *already-shape-backed* for expression as bluebook + hecksagon, **without extending the DSL.** What fits, fits ; what doesn't is data about where Hecks's natural domain ends.
 
 ## Classification rubric
 

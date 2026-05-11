@@ -89,5 +89,5 @@ runtime). The L_b lifts (`runtime_engine`, `block_grammar`,
 
 The cadence DSL is a *promesse* — declarative on the Ruby side, waiting
 for the Rust side to be lifted out of imperative drift before it can
-parse + execute production-side. Until then the legacy `hecks-life loop`
+parse + execute production-side. Until then the legacy `storehouse loop`
 + mindstream.sh do the cadence work directly.

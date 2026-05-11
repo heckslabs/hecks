@@ -14,7 +14,7 @@
 //!   read_bluebook — parse and inspect a bluebook
 //!   list_nursery  — list domains in the nursery
 
-use hecks_life::heki;
+use storehouse::heki;
 use std::process::Command;
 
 pub struct Tool {
@@ -226,7 +226,7 @@ pub fn execute(tool_set: &ToolSet, name: &str, args: &serde_json::Value) -> Stri
             let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
             match std::fs::read_to_string(path) {
                 Ok(source) => {
-                    let domain = hecks_life::parser::parse(&source);
+                    let domain = storehouse::parser::parse(&source);
                     format!("Domain: {}\nAggregates: {}\nPolicies: {}",
                         domain.name, domain.aggregates.len(), domain.policies.len())
                 }

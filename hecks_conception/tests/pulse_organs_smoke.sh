@@ -2,12 +2,12 @@
 # pulse_organs_smoke.sh — smoke test for the Pulse process_manager that
 # replaced body/pulse_organs.sh in i75.
 #
-# The retirement moves from imperative shell (per-tick fork hecks-life
+# The retirement moves from imperative shell (per-tick fork storehouse
 # N times) to declarative bluebook : a Pulse PM observes BodyPulse
 # events and fans out the four organ-step dispatches (Synapse / Signal
 # / Focus / Remains). The runtime walks the bluebook, no shell.
 #
-# This test boots `hecks-life run-loop` against an isolated tmpdir,
+# This test boots `storehouse run-loop` against an isolated tmpdir,
 # emitting BodyPulse:Pulse:pulse at 1s cadence for ~10 ticks. The PM
 # (declared in body/pulse_organs/pulse_organs.bluebook) reacts to each
 # BodyPulse and dispatches into Synapse / Signal / Focus / Remains.
@@ -26,7 +26,7 @@
 # Exit 0 on pass, non-zero on fail.
 #
 # [antibody-exempt: smoke-test shell harness for the Pulse PM that
-#  retired pulse_organs.sh. Drives `hecks-life run-loop` and proves
+#  retired pulse_organs.sh. Drives `storehouse run-loop` and proves
 #  the four organ heki stores populate via the bluebook path. Same
 #  retirement contract as the runtime primitives it tests.]
 
@@ -43,16 +43,16 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
   BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
 [ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
 
-# Find the hecks-life binary. Prefer HECKS_BIN override; otherwise the
+# Find the storehouse binary. Prefer HECKS_BIN override; otherwise the
 # worktree's own build, then the main checkout's build.
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
 else
-  echo "FAIL — can't find hecks-life binary"
+  echo "FAIL — can't find storehouse binary"
   exit 2
 fi
 
