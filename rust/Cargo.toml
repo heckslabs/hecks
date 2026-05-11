@@ -7,3 +7,12 @@ description = "Bluebook compiler — reads domain declarations, emits any target
 [dependencies]
 flate2 = "1"
 serde_json = "1"
+
+# wasm32-only : the Cloudflare Worker R2 binding. Used by
+# rust/src/heki_r2.rs (cfg-gated to target_arch = "wasm32") for the
+# i528 R2 storage adapter. The host CLI never compiles this dep —
+# inside bin-buddy-worker's wasm32 build, the path-dep on storehouse
+# resolves it and heki_r2 becomes reachable. See heki_r2.rs for
+# the contract.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+worker = "0.8.3"
