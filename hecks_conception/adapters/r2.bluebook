@@ -1,0 +1,176 @@
+Hecks.bluebook "R2Adapter", version: "2026.05.10.1" do
+  vision "R2 persistence — aggregate state lives in Cloudflare R2 objects, addressed by bucket + key"
+  category "adapter"
+
+  # ============================================================
+  # R2 PERSISTENCE ADAPTER
+  # ============================================================
+  #
+  # Sibling to the heki adapter — implements the same Repository
+  # port (read, upsert, append per aggregate) but against
+  # Cloudflare R2 instead of the local filesystem. Selected at
+  # deployment time by the world file's `command_bus { storage_backend
+  # :r2 }` block ; credentials supplied by the world's `r2 do … end`
+  # block.
+  #
+  # Declared in a project's *.world file as :
+  #
+  #   command_bus do
+  #     storage_backend :r2
+  #   end
+  #
+  #   r2 do
+  #     bucket_env       "BIN_BUDDY_R2_BUCKET"
+  #     account_env      "BIN_BUDDY_R2_ACCOUNT"
+  #     access_key_env   "BIN_BUDDY_R2_ACCESS_KEY"
+  #     secret_key_env   "BIN_BUDDY_R2_SECRET_KEY"
+  #   end
+  #
+  # Behavior — mirrors heki :
+  #
+  #   - Each aggregate maps to an R2 object (PascalCase →
+  #     snake_case + ".heki" extension preserved for portability ;
+  #     Heartbeat → "heartbeat.heki")
+  #   - The R2 bucket is named in the world block ; one bucket
+  #     per deployment carries all aggregates' objects
+  #   - Stores are singletons — one object per aggregate, upserted
+  #   - IDs are UUIDs ; same id_strategy as heki
+  #   - The bluebook never sees keys / buckets — references resolve
+  #     through the adapter
+  #   - reference_to(Heartbeat) means "the heartbeat" not "heartbeat
+  #     object at key X"
+  #
+  # The runtime kernel grows r2::read, r2::upsert, r2::append (the
+  # R2 counterparts to heki::read / heki::upsert / heki::append).
+  # Wire shape : S3 V4 signature auth against
+  # https://{account}.r2.cloudflarestorage.com/{bucket}/{key}.
+  # This adapter tells the kernel how to use them for aggregate
+  # persistence — same Binding + Reference shape as heki, different
+  # bytes-on-the-wire.
+  #
+  # The CommandBus aggregate is the first consumer : its events
+  # persist in R2 when deployed as a CF Worker (host :cf_worker +
+  # storage_backend :r2). Future CommandBus deployments may pick
+  # different storage backends (in_memory for tests, fs for local
+  # CLI) without the bluebook layer noticing — the adapter does
+  # the swap.
+
+  aggregate "Binding", "Maps an aggregate to an R2 object" do
+    value_object "AggregateName" do
+      # The aggregate's PascalCase name as declared in its bluebook
+      # (e.g. "Heartbeat", "Consciousness"). Same shape as the
+      # third segment of a four-segment phrase.
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "StorePath" do
+      # The R2 object key within the world-configured bucket. Today
+      # the convention mirrors heki : PascalCase aggregate name
+      # converted to snake_case + ".heki" extension preserved for
+      # portability across storage backends (a heki-format binary
+      # blob in R2 looks the same as one on the filesystem).
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "IdStrategy" do
+      # How records are identified. R2 inherits heki's :uuid
+      # strategy — the kernel generates a UUID per record when it
+      # upserts ; the bluebook never sees the id.
+      attribute :value, String
+      rule "must be 'uuid'" do
+        requires { value == "uuid" }
+      end
+    end
+
+    value_object "SaveStrategy" do
+      # How writes apply to existing objects. R2 inherits heki's
+      # :upsert strategy — every aggregate is a singleton, one
+      # object per aggregate, overwrites replace.
+      attribute :value, String
+      rule "must be 'upsert'" do
+        requires { value == "upsert" }
+      end
+    end
+
+    attribute AggregateName
+    attribute StorePath
+    attribute IdStrategy
+    attribute SaveStrategy
+
+    command "BindAggregate" do
+      role "System"
+      description "Wire an aggregate to its R2 object — store_path is the object key within the world-configured bucket"
+      attribute AggregateName, as: :aggregate_name
+      attribute StorePath,     as: :store_path
+      emits "AggregateBound"
+      then_set :aggregate_name, to: :aggregate_name
+      then_set :store_path, to: :store_path
+      then_set :id_strategy, to: "uuid"
+      then_set :save_strategy, to: "upsert"
+    end
+  end
+
+  aggregate "Reference", "How references between aggregates resolve" do
+    value_object "FromAggregate" do
+      # The PascalCase name of the aggregate that holds the
+      # reference_to declaration (e.g. "Notification" referencing
+      # a "Plan").
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "ToAggregate" do
+      # The PascalCase name of the referenced aggregate (e.g.
+      # "Plan" in a reference_to(Plan) declaration on "Notification").
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "Resolution" do
+      # How the reference resolves. R2 inherits heki's :singleton
+      # resolution — reference_to(Plan) means "the plan" (the one
+      # singleton object), not "plan id X".
+      attribute :value, String
+      rule "must be 'singleton'" do
+        requires { value == "singleton" }
+      end
+    end
+
+    attribute FromAggregate
+    attribute ToAggregate
+    attribute Resolution
+
+    command "ResolveReference" do
+      role "System"
+      description "Resolve reference_to by finding the singleton object in the target aggregate's R2 location"
+      attribute FromAggregate, as: :from_aggregate
+      attribute ToAggregate,   as: :to_aggregate
+      emits "ReferenceResolved"
+      then_set :from_aggregate, to: :from_aggregate
+      then_set :to_aggregate, to: :to_aggregate
+      then_set :resolution, to: "singleton"
+    end
+  end
+
+  # Every aggregate gets bound on boot — same lifecycle hook as heki
+  policy "BindOnBoot" do
+    on "InterpreterBooted"
+    trigger "BindAggregate"
+  end
+
+  # References resolve as singletons — no object keys in the bluebook
+  policy "ResolveOnDispatch" do
+    on "CommandExecuted"
+    trigger "ResolveReference"
+  end
+end

@@ -1,0 +1,21 @@
+Hecks.behaviors "R2Adapter" do
+  vision "Behavioral tests for the R2Adapter domain — exercises every command and query in memory, mirrors heki.behaviors so the Repository port stays uniform across backends"
+
+  # ── Binding aggregate ──────────────────────────────────────────
+
+  test "BindAggregate sets aggregate_name + store_path with R2-default strategies" do
+    tests "BindAggregate", on: "Binding"
+    input  aggregate_name: "sample", store_path: "sample.heki"
+    expect aggregate_name: "sample", store_path: "sample.heki", id_strategy: "uuid", save_strategy: "upsert"
+  end
+
+
+  # ── Reference aggregate ──────────────────────────────────────────
+
+  test "ResolveReference sets from_aggregate + to_aggregate with singleton resolution" do
+    tests "ResolveReference", on: "Reference"
+    input  from_aggregate: "sample", to_aggregate: "sample"
+    expect from_aggregate: "sample", to_aggregate: "sample", resolution: "singleton"
+  end
+
+end
