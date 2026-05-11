@@ -1,0 +1,122 @@
+Hecks.bluebook "RubyCommandClassShape", version: "2026.05.11.1" do
+  vision "Shape of generated Ruby command-class files — one class per bluebook command, with .new(**params) constructor and .call dispatching through Storehouse.route to the four-segment bus phrase. The Ruby-target realization of the :codegen adapter family declared in i528's CommandBus hecksagon. Different from existing self-specialized shapes (assemble_shape, dispatch_query_shape, etc.) — those reproduce byte-identical tracked .rs files ; this shape EMITS new Ruby files for whichever bluebook a caller targets."
+  category "autophagy"
+
+  # ============================================================
+  # RUBY_COMMAND_CLASS SHAPE — i528 step 7
+  # ============================================================
+  #
+  # i528's :codegen adapter family in command_bus.hecksagon declares
+  # per-target-language emitters. This is the first member :
+  # :ruby_command_class. It produces idiomatic Ruby for callers that
+  # want to invoke bluebook commands from Ruby code as :
+  #
+  #   BinBuddy::Notifications::SendEmail.new(
+  #     to_email: "x@y.com",
+  #     subject: "hi",
+  #     body: "hello"
+  #   ).call
+  #
+  # The emitted .call delegates to Storehouse.route with the canonical
+  # four-segment phrase (i528) :
+  #
+  #   bin-buddy::notifications::Notifications::SendEmail
+  #
+  # so the in-process Ruby call lands on the same bus the HTTP / CLI
+  # / WASM realizations land on.
+  #
+  # Shape — one aggregate :
+  #
+  #   RubyCommandClass (one row per command in the input bluebook) :
+  #     app          — first phrase segment (e.g. "bin-buddy"),
+  #                    derived from the bluebook's containing
+  #                    repo / app folder name at compile time
+  #     domain       — second phrase segment (folder under app)
+  #     aggregate    — third phrase segment (Aggregate name from
+  #                    bluebook source)
+  #     command      — fourth phrase segment (Command name from
+  #                    bluebook source, PascalCase end-to-end)
+  #     attributes   — ordered list of attribute names (snake_case)
+  #                    that become kwargs on .new
+  #     phrase       — the four-segment bus phrase, pre-rendered
+  #                    so the emitter can drop it verbatim into
+  #                    Storehouse.route(...)
+  #
+  # The Rust emitter (rust/src/specializer/ruby_command_class.rs)
+  # walks the input Domain IR, produces one RubyCommandClass row
+  # per command, and renders one module-nested Ruby class per row.
+  # Multiple aggregates in one bluebook fold into one output file
+  # with sibling classes under the same module nesting.
+  #
+  # Future members of the :codegen family (per i528) :
+  #   :rust_struct        — equivalent for Rust call sites
+  #   :typescript_function — equivalent for TS / JS clients
+  #   :python_dataclass   — equivalent for Python
+  # Each shares this shape pattern : one row per command, one class
+  # per row, .call dispatches through the bus.
+
+  aggregate "RubyCommandClass", "Generated Ruby command-class file (one per bluebook)" do
+    identified_by :phrase
+
+    value_object "App" do
+      # First segment of the bus phrase ; the project / repo folder
+      # the bluebook lives in.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "DomainName" do
+      # Second segment ; the sub-folder under the app that groups
+      # related bluebooks. (Not Ruby's `Domain` since that's a class
+      # name elsewhere in the IR — using DomainName here.)
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "AggregateName" do
+      # Third segment ; the aggregate the command lives on.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "CommandName" do
+      # Fourth segment ; the PascalCase command name.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Phrase" do
+      # The four-segment bus phrase rendered as one string :
+      # "app::domain::Aggregate::Command".
+      attribute :value, String
+      invariant "must be four `::`-separated non-empty segments" do
+        parts = value.split("::")
+        parts.length == 4 && parts.all? { |s| !s.empty? }
+      end
+    end
+
+    attribute :app,        App
+    attribute :domain_name, DomainName
+    attribute :aggregate,  AggregateName
+    attribute :command,    CommandName
+    attribute :phrase,     Phrase
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Emit" do
+      role "System"
+      description "Render one Ruby command class for this (app, domain, aggregate, command) tuple. The emitter renders the class header (module nesting, class name), the initialize block (kwarg params), and the call block (Storehouse.route dispatch with the four-segment phrase). Multiple Emits for the same bluebook are concatenated into one output file with shared module nesting."
+      attribute :phrase, Phrase
+      emits "RubyEmitted"
+      then_set :phrase, to: :phrase
+    end
+  end
+end
