@@ -12,8 +12,8 @@
 //!  Retires when validators are bluebook-driven via meta-shape (the
 //!  same path that retired meta_diagnostic_validator).]
 
-use hecks_life::ir::{Aggregate, Command, Domain, Reference};
-use hecks_life::validator_warnings::{
+use storehouse::ir::{Aggregate, Command, Domain, Reference};
+use storehouse::validator_warnings::{
     aggregate_count_warning, mixed_concerns_warning, multi_domain_split_warning,
 };
 

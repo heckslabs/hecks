@@ -1,5 +1,5 @@
 Hecks.bluebook "HekiQueryShape", version: "2026.04.30.1" do
-  vision "The shape of hecks_life/src/heki_query.rs as a bluebook — kernel-surface heki query primitives (Filter / OrderSpec / field_to_string) made IR-derivable via ordered embedded snippets."
+  vision "The shape of storehouse/src/heki_query.rs as a bluebook — kernel-surface heki query primitives (Filter / OrderSpec / field_to_string) made IR-derivable via ordered embedded snippets."
   category "autophagy"
 
   # ============================================================
@@ -7,7 +7,7 @@ Hecks.bluebook "HekiQueryShape", version: "2026.04.30.1" do
   # ============================================================
   #
   # heki_query.rs is the pure-function engine room behind every
-  # `hecks-life heki list / count / mark / next-ref / ...` subcommand.
+  # `storehouse heki list / count / mark / next-ref / ...` subcommand.
   # It is small (~321 LoC), self-contained (one external use line),
   # and naturally partitions into ordered code sections — Filter,
   # filter_records, OrderSpec, OrderKey + impls, order_records,
@@ -21,7 +21,7 @@ Hecks.bluebook "HekiQueryShape", version: "2026.04.30.1" do
   # Layer mapping (mirrors dump_shape) :
   #   L0 = this file + fixtures/heki_query_shape.fixtures + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/heki_query.rs (generated target)
+  #   L7 = storehouse/src/heki_query.rs (generated target)
   #
   # The single `verbatim_section` body_kind in this shape is the
   # "embedded_helper for whole files" pattern — useful when a file's

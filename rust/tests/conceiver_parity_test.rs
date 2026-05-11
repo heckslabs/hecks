@@ -16,11 +16,11 @@
 //! add the equivalent to the other (or update this test to accept
 //! the asymmetry deliberately).
 
-use hecks_life::behaviors_conceiver::BehaviorsConceiver;
-use hecks_life::behaviors_ir::TestSuite;
-use hecks_life::conceiver::BluebookConceiver;
-use hecks_life::conceiver_common::Conceiver;
-use hecks_life::ir::Domain;
+use storehouse::behaviors_conceiver::BehaviorsConceiver;
+use storehouse::behaviors_ir::TestSuite;
+use storehouse::conceiver::BluebookConceiver;
+use storehouse::conceiver_common::Conceiver;
+use storehouse::ir::Domain;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
@@ -91,12 +91,12 @@ fn both_conceivers_implement_conceiver_trait() {
 #[test]
 fn vector_extractors_produce_non_empty_vectors() {
     let domain = small_domain();
-    let bb_vec = hecks_life::conceiver::vector::extract_vector(&domain);
+    let bb_vec = storehouse::conceiver::vector::extract_vector(&domain);
     assert!(!bb_vec.is_empty(), "bluebook vector is empty");
     assert_eq!(bb_vec.len(), 9, "bluebook vector length should be 9 (drift if changed)");
 
     let suite = small_suite();
-    let bh_vec = hecks_life::behaviors_conceiver::vector::extract_vector(&suite);
+    let bh_vec = storehouse::behaviors_conceiver::vector::extract_vector(&suite);
     assert!(!bh_vec.is_empty(), "behaviors vector is empty");
     assert_eq!(bh_vec.len(), 7, "behaviors vector length should be 7 (drift if changed)");
 }
@@ -136,7 +136,7 @@ fn small_domain() -> Domain {
   end
 end
 "#;
-    hecks_life::parser::parse(source)
+    storehouse::parser::parse(source)
 }
 
 fn small_suite() -> TestSuite {
@@ -149,5 +149,5 @@ fn small_suite() -> TestSuite {
   end
 end
 "#;
-    hecks_life::behaviors_parser::parse(source)
+    storehouse::behaviors_parser::parse(source)
 }

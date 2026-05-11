@@ -7,7 +7,7 @@ Hecks.fixtures "RubyModuleShape" do
 
   aggregate "ModuleConstant" do
     fixture "HsRepoRoot", module_name: "Hecks::Specializer", name: "REPO_ROOT", value_expr: "Pathname.new(File.expand_path(\"..\", __dir__))", order: 1
-    fixture "HsHecksLife", module_name: "Hecks::Specializer", name: "HECKS_LIFE", value_expr: "REPO_ROOT.join(\"hecks_life/target/release/hecks-life\")", order: 2
+    fixture "HsStorehouse", module_name: "Hecks::Specializer", name: "STOREHOUSE", value_expr: "REPO_ROOT.join(\"storehouse/target/release/storehouse\")", order: 2
     fixture "HsTargets", module_name: "Hecks::Specializer", name: "@targets", value_expr: "{}", order: 3, doc_snippet: "codegen/ruby_module_shape/snippets/hs_targets_ivar_doc.rb.frag"
   end
 

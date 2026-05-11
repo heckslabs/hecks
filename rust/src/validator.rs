@@ -2,9 +2,9 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/validator_shape/
-//! Regenerate: hecks-life specialize validator --output hecks_life/src/validator.rs
-//! Contract:  hecks_life/src/specializer/validator.rs (Rust-native)
-//! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
+//! Regenerate: storehouse specialize validator --output storehouse/src/validator.rs
+//! Contract:  storehouse/src/specializer/validator.rs (Rust-native)
+//! Tests:     storehouse/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
 //!
 //! Ports the Ruby Hecks::Validator rules to Rust. Each rule inspects
 //! the Domain IR and returns error strings. An empty vec means valid.

@@ -2,10 +2,10 @@
 //!
 //! Prior to the shebang-runtime port this file held the stdin/stdout
 //! loop directly in Rust. That logic now lives in
-//! `hecks_life::run_stdin_loop` and is driven by the terminal
+//! `storehouse::run_stdin_loop` and is driven by the terminal
 //! capability's .bluebook + .hecksagon pair (see
 //! hecks_conception/capabilities/terminal/). This file exists only
-//! so legacy callers (`hecks-life terminal` + `run_interactive`) keep
+//! so legacy callers (`storehouse terminal` + `run_interactive`) keep
 //! working — they synthesize an ambient hecksagon (:memory, :stdout,
 //! :stdin, :stderr) and hand off to the run-loop runner.
 
@@ -17,10 +17,10 @@ use std::collections::HashMap;
 /// Boot an ambient Hecksagon with :memory + :stdout + :stdin + :stderr
 /// adapters and drive the interactive loop against the given runtime.
 /// Callers come from:
-///   * `hecks-life terminal <dir>` — the legacy CLI entry point
+///   * `storehouse terminal <dir>` — the legacy CLI entry point
 ///   * `Runtime::run_interactive()` — the in-process REPL
 ///
-/// New callers should use `hecks-life run path/to/terminal.bluebook`
+/// New callers should use `storehouse run path/to/terminal.bluebook`
 /// instead so the capability shape stays declared in the bluebook.
 pub fn run(rt: &mut Runtime, being: &str) {
     let hex = ambient_hecksagon();

@@ -1,5 +1,5 @@
 Hecks.bluebook "ValidatorShape", version: "2026.05.01.1" do
-  vision "The shape of hecks_life/src/validator.rs as a bluebook — first-Futamura source. The specializer reads this and produces the Rust."
+  vision "The shape of storehouse/src/validator.rs as a bluebook — first-Futamura source. The specializer reads this and produces the Rust."
   category "autophagy"
 
   # ============================================================
@@ -17,7 +17,7 @@ Hecks.bluebook "ValidatorShape", version: "2026.05.01.1" do
   #   L1 = canonical_ir representation of this file
   #   L2-L6 = the specializer's internal IR (not shipped yet — Phase A
   #           commit 2 onward)
-  #   L7 = hecks_life/src/validator.rs (generated; byte-identical to
+  #   L7 = storehouse/src/validator.rs (generated; byte-identical to
   #        the hand-written source at Phase A commit 5)
   #
   # i111-F : ValidationRule / SuffixTable / ExceptionWord /

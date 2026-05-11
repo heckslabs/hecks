@@ -12,9 +12,9 @@
 //!  when behaviors framework gains a :fs tempdir fixture covering
 //!  Layout.Plan/Apply/RevertTo end-to-end (filed as follow-up).]
 
-use hecks_life::run_restructure::run;
-use hecks_life::runtime::Runtime;
-use hecks_life::runtime::adapter_registry::AdapterRegistry;
+use storehouse::run_restructure::run;
+use storehouse::runtime::Runtime;
+use storehouse::runtime::adapter_registry::AdapterRegistry;
 use std::path::Path;
 
 const RESTRUCTURE_BLUEBOOK: &str =
@@ -23,8 +23,8 @@ const RESTRUCTURE_HECKSAGON: &str =
     include_str!("../../discipline/restructure/restructure.hecksagon");
 
 fn make_runtime() -> (Runtime, AdapterRegistry) {
-    let domain = hecks_life::parser::parse(RESTRUCTURE_BLUEBOOK);
-    let hecksagon = hecks_life::hecksagon_parser::parse(RESTRUCTURE_HECKSAGON);
+    let domain = storehouse::parser::parse(RESTRUCTURE_BLUEBOOK);
+    let hecksagon = storehouse::hecksagon_parser::parse(RESTRUCTURE_HECKSAGON);
     let rt = Runtime::boot(domain);
     let registry = AdapterRegistry::from_hecksagon(hecksagon);
     (rt, registry)
@@ -64,16 +64,16 @@ fn plan_apply_revert_full_lifecycle_via_runner() {
 
     // Define the layout.
     let mut a = std::collections::HashMap::new();
-    a.insert("name".into(), hecks_life::runtime::Value::Str("v1".into()));
-    a.insert("version".into(), hecks_life::runtime::Value::Str("2026.04.30.1".into()));
-    a.insert("description".into(), hecks_life::runtime::Value::Str("test".into()));
+    a.insert("name".into(), storehouse::runtime::Value::Str("v1".into()));
+    a.insert("version".into(), storehouse::runtime::Value::Str("2026.04.30.1".into()));
+    a.insert("description".into(), storehouse::runtime::Value::Str("test".into()));
     rt.dispatch("Define", a).expect("Define");
 
     // Attach a placement : every .bluebook under old_home/ goes to new_home/.
     let mut p = std::collections::HashMap::new();
-    p.insert("pattern".into(), hecks_life::runtime::Value::Str("old_home/*.bluebook".into()));
-    p.insert("destination".into(), hecks_life::runtime::Value::Str("new_home".into()));
-    p.insert("reason".into(), hecks_life::runtime::Value::Str("test".into()));
+    p.insert("pattern".into(), storehouse::runtime::Value::Str("old_home/*.bluebook".into()));
+    p.insert("destination".into(), storehouse::runtime::Value::Str("new_home".into()));
+    p.insert("reason".into(), storehouse::runtime::Value::Str("test".into()));
     rt.dispatch("Add", p).expect("Add");
 
     // Plan via the runner — walks fs, dispatches PlanMove per match.

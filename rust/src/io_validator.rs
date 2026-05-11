@@ -20,8 +20,8 @@
 //!
 //! Surface:
 //!
-//!   hecks-life check-io path/to/bluebook.bluebook            # advisory
-//!   hecks-life check-io path/to/bluebook.bluebook --strict   # warnings → errors
+//!   storehouse check-io path/to/bluebook.bluebook            # advisory
+//!   storehouse check-io path/to/bluebook.bluebook --strict   # warnings → errors
 //!
 //! Exit code:
 //!   0 — runtime smoke passes (always, when the runtime can dispatch

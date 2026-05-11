@@ -1,5 +1,5 @@
 Hecks.bluebook "IrShape", version: "2026.05.01.1" do
-  vision "The shape of hecks_life/src/ir.rs as a bluebook — i147 Wave 4-C target. The canonical IR struct vocabulary that every downstream specializer (parser, dump, behaviors_parser, hecksagon_parser, fixtures_parser) reads to bind against field names and types. Making this declarative closes the stale-coupling risk : adding a struct field is a fixture-row edit, not a Rust hand-edit + cascading specializer chase."
+  vision "The shape of storehouse/src/ir.rs as a bluebook — i147 Wave 4-C target. The canonical IR struct vocabulary that every downstream specializer (parser, dump, behaviors_parser, hecksagon_parser, fixtures_parser) reads to bind against field names and types. Making this declarative closes the stale-coupling risk : adding a struct field is a fixture-row edit, not a Rust hand-edit + cascading specializer chase."
   category "autophagy"
 
   # ============================================================
@@ -8,7 +8,7 @@ Hecks.bluebook "IrShape", version: "2026.05.01.1" do
   #
   # ir.rs defines the Domain IR — 16 structs + 1 enum + 1 impl that
   # form the canonical vocabulary of a parsed bluebook. Every other
-  # Rust file in hecks_life ultimately reads or writes one of these
+  # Rust file in storehouse ultimately reads or writes one of these
   # structs : the parser builds them, dump.rs serializes them, the
   # validators inspect them, the runtime mutates them.
   #
@@ -22,7 +22,7 @@ Hecks.bluebook "IrShape", version: "2026.05.01.1" do
   # Layer mapping (mirrors dump_shape / driven_adapter_shape) :
   #   L0 = this file + fixtures/ir_shape.fixtures + snippets/**/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/ir.rs (generated target)
+  #   L7 = storehouse/src/ir.rs (generated target)
   #
   # Body_kind vocabulary :
   #

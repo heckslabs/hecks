@@ -2,8 +2,8 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/dump_shape/
-//! Regenerate: hecks-life specialize dump --output hecks_life/src/dump.rs
-//! Contract:  hecks_life/src/specializer/dump.rs (Rust-native)
+//! Regenerate: storehouse specialize dump --output storehouse/src/dump.rs
+//! Contract:  storehouse/src/specializer/dump.rs (Rust-native)
 //!
 //! This is the parity contract. Hand-written so the JSON shape is chosen
 //! explicitly, not accidentally derived from Rust struct field names or
@@ -19,7 +19,7 @@
 //! `references[*].target`, etc. — so the contract reads naturally.
 //!
 //! Usage:
-//!   hecks-life dump path/to/foo.bluebook
+//!   storehouse dump path/to/foo.bluebook
 //!   # → JSON to stdout, exit 0
 
 use crate::ir::{

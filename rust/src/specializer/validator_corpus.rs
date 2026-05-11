@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/validator_corpus.rs`.
+//! Rust-native specializer for `storehouse/src/validator_corpus.rs`.
 //!
 //! Emits the three corpus-aware lint extensions
 //! (`corpus_phantom_trigger_errors`, `identified_by_warnings`,
@@ -17,7 +17,7 @@
 //!   let rust = validator_corpus::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/validator_corpus.rs —
+//! [antibody-exempt: storehouse/src/specializer/validator_corpus.rs —
 //!  i146 piece 2 — Rust-native specializer implementation]
 
 use crate::specializer::util;
@@ -51,13 +51,13 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //! `load_combined_domain`). Live here rather than in `validator.rs`
 //! or `validator_warnings.rs` because those two files are
 //! specializer targets — byte-identical with what
-//! `hecks-life specialize <name>` emits — and adding hand-written
+//! `storehouse specialize <name>` emits — and adding hand-written
 //! functions to them breaks the 2nd Futamura proof.
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/validator_corpus_shape/
-//! Regenerate: hecks-life specialize validator_corpus --output hecks_life/src/validator_corpus.rs
-//! Contract:  hecks_life/src/specializer/validator_corpus.rs (Rust-native)
+//! Regenerate: storehouse specialize validator_corpus --output storehouse/src/validator_corpus.rs
+//! Contract:  storehouse/src/specializer/validator_corpus.rs (Rust-native)
 //!
 //! Four rules :
 //!

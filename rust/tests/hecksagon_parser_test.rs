@@ -4,7 +4,7 @@
 //! PR the Rust parser produced an empty domain; after, it returns seven
 //! shell adapters + three gates + memory persistence.
 
-use hecks_life::hecksagon_parser;
+use storehouse::hecksagon_parser;
 
 const ANTIBODY: &str = r#"Hecks.hecksagon "Antibody" do
   adapter :memory

@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/heki_query.rs`.
+//! Rust-native specializer for `storehouse/src/heki_query.rs`.
 //!
 //! i147 Part B target — kernel-surface heki query primitives
 //! (Filter / OrderSpec / OrderKey / field_to_string) regenerated from
@@ -60,7 +60,7 @@ const HEADER: &str = r#"//! HekiQuery — filter / order / project logic for .he
 //! engine room the new `heki list / count / mark / next-ref / ...`
 //! subcommands share.
 //!
-//! [antibody-exempt: hecks-life heki subcommand expansion; prerequisite
+//! [antibody-exempt: storehouse heki subcommand expansion; prerequisite
 //!  for i37 Phase B (replace python3 -c invocations in shell scripts).
 //!  Retires when heki dispatch moves to a bluebook + hecksagon.]
 //!

@@ -1,5 +1,5 @@
 Hecks.bluebook "ParserShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/parser.rs as a bluebook — kernel-surface bluebook parser (top-level Domain assembly, line-by-line state machine dispatch) regenerated from ordered .rs.frag snippets."
+  vision "Shape of storehouse/src/parser.rs as a bluebook — kernel-surface bluebook parser (top-level Domain assembly, line-by-line state machine dispatch) regenerated from ordered .rs.frag snippets."
   category "autophagy"
 
   # ============================================================
@@ -25,7 +25,7 @@ Hecks.bluebook "ParserShape", version: "2026.05.01.1" do
   # Layer mapping :
   #   L0 = this file + fixtures/parser_shape.fixtures + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/parser.rs (generated target)
+  #   L7 = storehouse/src/parser.rs (generated target)
   #
   # The specializer concatenates HEADER (doc + use lines) + each
   # snippet's raw body in `order` ascending. Each snippet ends with

@@ -85,7 +85,7 @@ pub fn run(
     let bytes_written = match write_surface(&surface_path, &markdown) {
         Ok(n) => n,
         Err(e) => {
-            eprintln!("hecks-life run wake: write {} failed: {}", surface_path, e);
+            eprintln!("storehouse run wake: write {} failed: {}", surface_path, e);
             return ExitKind::AdapterFailure.code();
         }
     };

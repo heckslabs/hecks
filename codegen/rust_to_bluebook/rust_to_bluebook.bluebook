@@ -16,7 +16,7 @@ Hecks.bluebook "RustToBluebook", version: "2026.04.16.1" do
   #    Most behavior is ALREADY in the bluebooks (body.bluebook,
   #    mind.bluebook, etc.). The Rust was redundant.
   #
-  # 3. VERIFY — hecks-life run aggregates/ --dispatch CommandName
+  # 3. VERIFY — storehouse run aggregates/ --dispatch CommandName
   #    The runtime merges all bluebooks in the directory into one
   #    combined domain. Events cascade across domain boundaries.
   #    The *.world file declares persistence (heki dir), no flags needed.

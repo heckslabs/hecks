@@ -1,5 +1,5 @@
 Hecks.bluebook "ConceiverGeneratorShape", version: "2026.04.30.1" do
-  vision "The shape of hecks_life/src/conceiver/generator.rs as a bluebook — produce .bluebook DSL text from archetypes — made IR-derivable via ordered embedded snippets, mirroring heki_query_shape's verbatim_section pattern."
+  vision "The shape of storehouse/src/conceiver/generator.rs as a bluebook — produce .bluebook DSL text from archetypes — made IR-derivable via ordered embedded snippets, mirroring heki_query_shape's verbatim_section pattern."
   category "autophagy"
 
   # ============================================================
@@ -22,7 +22,7 @@ Hecks.bluebook "ConceiverGeneratorShape", version: "2026.04.30.1" do
   #   L0 = this file + fixtures/conceiver_generator_shape.fixtures
   #        + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/conceiver/generator.rs (generated target)
+  #   L7 = storehouse/src/conceiver/generator.rs (generated target)
   #
   # The single `verbatim_section` body_kind here matches heki_query
   # — useful when each section as a whole is stable enough to live

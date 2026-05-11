@@ -1,5 +1,5 @@
 Hecks.fixtures "DiscoverShape" do
-  # One row per ordered code section in hecks_life/src/run_boot/discover.rs.
+  # One row per ordered code section in storehouse/src/run_boot/discover.rs.
   # Specializer concatenates HEADER (doc + imports, in the .rs source) +
   # each snippet's raw body in `order` ascending. read_snippet_raw is
   # used (not read_snippet_body) so the trailing blank line at each

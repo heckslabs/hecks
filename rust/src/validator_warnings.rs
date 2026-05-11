@@ -2,9 +2,9 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/validator_warnings_shape/
-//! Regenerate: hecks-life specialize validator_warnings --output hecks_life/src/validator_warnings.rs
-//! Contract:  hecks_life/src/specializer/validator_warnings.rs (Rust-native)
-//! Tests:     hecks_life/tests/validator_warnings_test.rs
+//! Regenerate: storehouse specialize validator_warnings --output storehouse/src/validator_warnings.rs
+//! Contract:  storehouse/src/specializer/validator_warnings.rs (Rust-native)
+//! Tests:     storehouse/tests/validator_warnings_test.rs
 //!
 //! These rules emit advisory warnings but never cause validation to fail.
 //! They help domain modelers spot bounded-context smell early.

@@ -2,7 +2,7 @@
 //
 // Golden tests for the i51 Futamura specializers. Phase E deleted the
 // Ruby `bin/specialize` driver + Ruby specializer modules; the Rust-
-// native `hecks-life specialize <target>` subcommand is now the only
+// native `storehouse specialize <target>` subcommand is now the only
 // path. These tests invoke it and assert byte-identity against the
 // tracked, generated `.rs` sources under `rust/src/`.
 //
@@ -13,7 +13,7 @@
 // If a tracked .rs is edited by hand, this test fails until the
 // shape + specializer are updated to match.
 
-use hecks_life::hecksagon_parser;
+use storehouse::hecksagon_parser;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -36,7 +36,7 @@ fn specializer_hecksagon_wiring_is_present() {
 
     assert_eq!(hex.name, "Specializer");
     assert_eq!(hex.persistence.as_deref(), Some("memory"));
-    // Phase E removed all shell adapters — `hecks-life specialize`
+    // Phase E removed all shell adapters — `storehouse specialize`
     // (a Rust subcommand) is now the sole codegen path. The hecksagon
     // file keeps the `:memory` + `:fs` adapters + the SpecializeRun
     // gate as declarative metadata.
@@ -47,28 +47,28 @@ fn specializer_hecksagon_wiring_is_present() {
 }
 
 // Ruby-path tests deleted in Phase E PR 1 — `bin/specialize` no longer
-// exists; the Rust-native `hecks-life specialize` path (below) is the
+// exists; the Rust-native `storehouse specialize` path (below) is the
 // sole gate for every target now.
 
 #[test]
 fn rust_specializer_produces_byte_identical_validator_warnings_rs() {
-    // Phase D pilot — hecks-life specialize (Rust-native) produces
+    // Phase D pilot — storehouse specialize (Rust-native) produces
     // output byte-identical to the tracked .rs file. First proof that
     // the specializer itself could migrate from Ruby to Rust while
     // keeping byte-identity; Phase E subsequently deleted the Ruby
     // side. Every subsequent Phase D port added another test with the
     // same shape.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "validator_warnings"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize failed");
+        .expect("storehouse specialize failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -90,16 +90,16 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
     // padded enum_match emitter. Every subsequent Rust-emitting
     // specializer (validator, the parsers) reuses this vocabulary.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "dump"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize dump failed");
+        .expect("storehouse specialize dump failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -124,16 +124,16 @@ fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     // multiline_block, and multiline_adapter handler kinds against the
     // simplest single-parse-loop shape.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "hecksagon_parser"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize hecksagon_parser failed");
+        .expect("storehouse specialize hecksagon_parser failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -159,16 +159,16 @@ fn rust_specializer_produces_byte_identical_validator_rs() {
     // tables, verb-exception list, and verb-suffix list. No .rs.frag
     // snippets — all emission is inline Rust format! strings.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "validator"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize validator failed");
+        .expect("storehouse specialize validator failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -191,16 +191,16 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     // capture_quoted_into_option / push_all_quoted_onto /
     // multiline_block_direct handler kinds.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "behaviors_parser"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize behaviors_parser failed");
+        .expect("storehouse specialize behaviors_parser failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -226,16 +226,16 @@ fn rust_specializer_produces_byte_identical_validator_corpus_rs() {
     // .rs.frag bodies (doc + signature + body + closing brace) with
     // a blank line between each rule.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "validator_corpus"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize validator_corpus failed");
+        .expect("storehouse specialize validator_corpus failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -261,16 +261,16 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
     // top-level comma …`), so the port uses a bare file read instead
     // of util::read_snippet_body's leading-comment strip.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
+    let bin = root.join("rust/target/release/storehouse");
     assert!(
         bin.exists(),
-        "hecks-life binary missing — build release first",
+        "storehouse binary missing — build release first",
     );
     let output = Command::new(&bin)
         .args(["specialize", "fixtures_parser"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize fixtures_parser failed");
+        .expect("storehouse specialize fixtures_parser failed");
     assert!(
         output.status.success(),
         "stderr: {}",
@@ -296,7 +296,7 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
 // ────────────────────────────────────────────────────────────────────
 //
 // Each new specializer target gets a golden test that mirrors the
-// shape above : invoke `hecks-life specialize <target>` from the
+// shape above : invoke `storehouse specialize <target>` from the
 // repo root, compare its stdout to the tracked source. When any
 // hand-edit drifts the tracked file from what the meta-shape would
 // emit, the test fails — same byte-identity invariant the existing
@@ -306,13 +306,13 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
 #[test]
 fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "dispatch_query"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize dispatch_query failed");
+        .expect("storehouse specialize dispatch_query failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/dispatch_query.rs"))
@@ -324,13 +324,13 @@ fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
 #[test]
 fn rust_specializer_produces_byte_identical_repository_rs() {
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "repository"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize repository failed");
+        .expect("storehouse specialize repository failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/repository.rs"))
@@ -342,13 +342,13 @@ fn rust_specializer_produces_byte_identical_repository_rs() {
 #[test]
 fn rust_specializer_produces_byte_identical_run_statusline_rs() {
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "run_statusline"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize run_statusline failed");
+        .expect("storehouse specialize run_statusline failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/run_statusline.rs"))
@@ -360,13 +360,13 @@ fn rust_specializer_produces_byte_identical_run_statusline_rs() {
 #[test]
 fn rust_specializer_produces_byte_identical_system_prompt_rs() {
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "system_prompt"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize system_prompt failed");
+        .expect("storehouse specialize system_prompt failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/run_boot/system_prompt.rs"))
@@ -383,13 +383,13 @@ fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
     // apply / parse_fixture_value, concatenated under a HEADER const
     // that carries the doc comment + use lines.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "behaviors_fixtures"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize behaviors_fixtures failed");
+        .expect("storehouse specialize behaviors_fixtures failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/behaviors_fixtures.rs"))
@@ -401,13 +401,13 @@ fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
 #[test]
 fn rust_specializer_produces_byte_identical_heki_query_rs() {
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "heki_query"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize heki_query failed");
+        .expect("storehouse specialize heki_query failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/heki_query.rs"))
@@ -425,13 +425,13 @@ fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
     // count_recursive_bluebooks ; concatenated under a HEADER const
     // that carries the doc comment + use lines.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "discover"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize discover failed");
+        .expect("storehouse specialize discover failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/run_boot/discover.rs"))
@@ -450,13 +450,13 @@ fn rust_specializer_produces_byte_identical_aggregate_state_rs() {
     // mutator method family. One shape, two consumers, byte-identity
     // preserved across the re-target.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "aggregate_state"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize aggregate_state failed");
+        .expect("storehouse specialize aggregate_state failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/aggregate_state.rs"))
@@ -483,13 +483,13 @@ fn rust_specializer_produces_byte_identical_interpreter_rs() {
     // arm in interpreter.rs and (2) typically a new mutator method
     // in aggregate_state.rs, both from the one shape.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "interpreter"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize interpreter failed");
+        .expect("storehouse specialize interpreter failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/interpreter.rs"))
@@ -506,13 +506,13 @@ fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
     // aggregate + command emitters, and to_snake helper ; concatenated
     // under a HEADER const that carries the doc comment + use + VERSION.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "conceiver_generator"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize conceiver_generator failed");
+        .expect("storehouse specialize conceiver_generator failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/conceiver/generator.rs"))
@@ -532,13 +532,13 @@ fn rust_specializer_produces_byte_identical_adapter_llm_rs() {
     // input → Option<String> signature family, which is what lets the
     // dispatcher route to either by config triple.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "adapter_llm"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize adapter_llm failed");
+        .expect("storehouse specialize adapter_llm failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/adapter_llm.rs"))
@@ -562,13 +562,13 @@ fn rust_specializer_produces_byte_identical_parser_rs() {
     // in the corpus passes through these two files, so byte-identity
     // here is load-bearing for every parity test downstream.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "parser"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize parser failed");
+        .expect("storehouse specialize parser failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/parser.rs"))
@@ -592,13 +592,13 @@ fn rust_specializer_produces_byte_identical_behaviors_runner_rs() {
     // Load-bearing : 117 corpus .behaviors files pass through this file,
     // so byte-identity here gates every downstream parity test.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "behaviors_runner"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize behaviors_runner failed");
+        .expect("storehouse specialize behaviors_runner failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/behaviors_runner.rs"))
@@ -611,7 +611,7 @@ fn rust_specializer_produces_byte_identical_behaviors_runner_rs() {
 fn rust_specializer_produces_byte_identical_ir_rs() {
     // i147 Wave 4-C — Rust-native specializer for ir.rs (the canonical
     // IR struct vocabulary : 16 structs + 1 enum + 1 impl that every
-    // other Rust file in hecks_life ultimately reads or writes). Real
+    // other Rust file in storehouse ultimately reads or writes). Real
     // compression : every struct field is a Field row, every enum
     // variant is a Variant row, every top-level item is a Type row.
     // Adding a struct field is now a fixture-row edit, not a Rust
@@ -624,13 +624,13 @@ fn rust_specializer_produces_byte_identical_ir_rs() {
     // for canonical field knowledge — that refactor is a follow-on,
     // but the door is open.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "ir"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize ir failed");
+        .expect("storehouse specialize ir failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/ir.rs"))
@@ -656,13 +656,13 @@ fn rust_specializer_produces_byte_identical_command_dispatch_rs() {
     // .heki write goes through this file. byte-identity is critical —
     // a regenerated drift would break every command in the corpus.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "command_dispatch"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize command_dispatch failed");
+        .expect("storehouse specialize command_dispatch failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/command_dispatch.rs"))
@@ -684,13 +684,13 @@ fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
     // Sister to parser_rs. Path B — separate shape from parser_shape
     // for clean separation ; same `verbatim_section` body_kind.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "parse_blocks"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize parse_blocks failed");
+        .expect("storehouse specialize parse_blocks failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/parse_blocks.rs"))
@@ -702,7 +702,7 @@ fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
 #[test]
 fn rust_specializer_produces_byte_identical_main_rs() {
     // i147 Wave 6 — Rust-native specializer for rust/src/main.rs (the
-    // CLI entry-point — every `hecks-life X` invocation lands in fn
+    // CLI entry-point — every `storehouse X` invocation lands in fn
     // main()'s if-chain on argv[1]). REAL compression : the new
     // cli_dispatch_shape declares one Subcommand row per arm in the
     // dispatch chain (lexicon, terminal, transitional_print, heki,
@@ -715,7 +715,7 @@ fn rust_specializer_produces_byte_identical_main_rs() {
     // is now data, not Rust code. Adding a new CLI subcommand is a
     // single fixture row + per-arm snippet.
     //
-    // Load-bearing : every `hecks-life X` invocation passes through
+    // Load-bearing : every `storehouse X` invocation passes through
     // this file. byte-identity is critical — a regenerated drift
     // would break every CLI invocation in the corpus.
     //
@@ -723,13 +723,13 @@ fn rust_specializer_produces_byte_identical_main_rs() {
     // helper function bodies (run_heki, run_specialize, run_loop, etc.)
     // stay verbatim ; per-family sub-shapes are filed as a follow-on.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "cli_dispatch"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize cli_dispatch failed");
+        .expect("storehouse specialize cli_dispatch failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/main.rs"))
@@ -757,13 +757,13 @@ fn rust_specializer_produces_byte_identical_runtime_rs() {
     // goldens guard the runtime kernel's dispatch + wiring surface ;
     // every behavior test downstream passes through these files.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "runtime"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize runtime failed");
+        .expect("storehouse specialize runtime failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/runtime/mod.rs"))
@@ -793,13 +793,13 @@ fn rust_specializer_produces_byte_identical_html_domain_rs() {
     // defers it ; promote when two siblings actually share a real
     // template.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "html_domain"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize html_domain failed");
+        .expect("storehouse specialize html_domain failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/server/html_domain.rs"))
@@ -819,13 +819,13 @@ fn rust_specializer_produces_byte_identical_parser_helpers_rs() {
     // shorthand_tables / shorthand_parsers ; concatenated under a
     // HEADER const that carries the 4-line doc comment.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "parser_helpers"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize parser_helpers failed");
+        .expect("storehouse specialize parser_helpers failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/parser_helpers.rs"))
@@ -852,13 +852,13 @@ fn rust_specializer_produces_byte_identical_assemble_rs() {
     // shared snippet pool when a second consumer (run_statusline.rs
     // has the same idiom) wants to share these bodies.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "assemble"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize assemble failed");
+        .expect("storehouse specialize assemble failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/run_status/assemble.rs"))
@@ -884,13 +884,13 @@ fn rust_specializer_produces_byte_identical_lifecycle_validator_rs() {
     // collapses to `fn x() {}` on the signature line — handled inline
     // in the emitter rather than as a new body_kind.
     let root = repo_root();
-    let bin = root.join("rust/target/release/hecks-life");
-    assert!(bin.exists(), "hecks-life binary missing — build release first");
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
     let output = Command::new(&bin)
         .args(["specialize", "lifecycle_validator"])
         .current_dir(&root)
         .output()
-        .expect("hecks-life specialize lifecycle_validator failed");
+        .expect("storehouse specialize lifecycle_validator failed");
     assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
     let generated = String::from_utf8(output.stdout).expect("non-UTF-8 output");
     let tracked = fs::read_to_string(root.join("rust/src/lifecycle_validator.rs"))

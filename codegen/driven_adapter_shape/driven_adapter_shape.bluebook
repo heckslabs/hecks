@@ -1,5 +1,5 @@
 Hecks.bluebook "DrivenAdapterShape", version: "2026.05.01.1" do
-  vision "The shape of hecks_life/src/runtime/adapter_llm.rs as a bluebook — driven LLM adapter (ollama HTTP-POST + claude shell-invoke + dispatcher) made IR-derivable via per-backend body_kind vocabulary."
+  vision "The shape of storehouse/src/runtime/adapter_llm.rs as a bluebook — driven LLM adapter (ollama HTTP-POST + claude shell-invoke + dispatcher) made IR-derivable via per-backend body_kind vocabulary."
   category "autophagy"
 
   # ============================================================
@@ -20,7 +20,7 @@ Hecks.bluebook "DrivenAdapterShape", version: "2026.05.01.1" do
   # Layer mapping (mirrors heki_query_shape) :
   #   L0 = this file + fixtures/driven_adapter_shape.fixtures + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/runtime/adapter_llm.rs (generated target)
+  #   L7 = storehouse/src/runtime/adapter_llm.rs (generated target)
   #
   # Body_kind vocabulary :
   #

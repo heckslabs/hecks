@@ -1,4 +1,4 @@
-//! Specializer for `hecks_life/src/dispatch_query.rs` — i146 piece 1.
+//! Specializer for `storehouse/src/dispatch_query.rs` — i146 piece 1.
 //!
 //! Emits dispatch_query.rs byte-identical to the tracked file. Reads
 //! the `Section` rows from dispatch_query_shape, sorts by `order`, and
@@ -23,7 +23,7 @@
 //!   let rust = dispatch_query::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/dispatch_query.rs —
+//! [antibody-exempt: storehouse/src/specializer/dispatch_query.rs —
 //!  i146 Rust-native specializer implementation]
 
 use crate::ir::Fixture;

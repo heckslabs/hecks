@@ -5,7 +5,7 @@ Hecks.hecksagon "Specializer" do
   #
   # The specializer's *shape* lives in specializer.bluebook (IRLayer,
   # Projection, SpecializerTarget — the L0..L8 factoring). After Phase E
-  # the specializer runs entirely inside `hecks-life specialize <target>`
+  # the specializer runs entirely inside `storehouse specialize <target>`
   # (a Rust subcommand); no shell adapters are needed. The Ruby driver
   # (`bin/specialize`) and Ruby specializer modules (`lib/hecks_specializer/`)
   # have been deleted.
@@ -13,18 +13,18 @@ Hecks.hecksagon "Specializer" do
   # Adapters that remain:
   #   :memory   — no persistence (each projection is a fresh one-shot)
   #   :fs       — reads shape bluebooks + fixtures under hecks_conception/
-  #               and writes emitted .rs under hecks_life/src/
+  #               and writes emitted .rs under storehouse/src/
 
 
   # Read the shape (L0 bluebook + L0 fixtures) and write the
-  # generated Rust (L7) into hecks_life/src/. `root:` anchors the
+  # generated Rust (L7) into storehouse/src/. `root:` anchors the
   # path so {{source}} / {{output}} resolve cleanly.
   adapter :fs, root: "."
 
   # ---- Gate ----------------------------------------------------
   #
   # :autophagy — the gate for all i51 work. After Phase E the gate is
-  # declarative only; dispatch happens through the `hecks-life specialize`
+  # declarative only; dispatch happens through the `storehouse specialize`
   # subcommand directly rather than through a shell adapter.
 
   gate "SpecializeRun", :autophagy do

@@ -27,7 +27,7 @@ Hecks.bluebook "AutophagyTrackerShape", version: "2026.04.24.1" do
   # ---- RetirementTarget --------------------------------------------
   #
   # One row per file in the autophagy scope. source_path is relative
-  # to repo root. kind is "rust" for hecks_life/src/*.rs, "ruby" for
+  # to repo root. kind is "rust" for storehouse/src/*.rs, "ruby" for
   # lib/hecks_specializer/*.rb, "script" reserved for future shell /
   # python candidates. ship_status mirrors the SpecializerTarget
   # vocabulary: byte_identical means the specializer reproduces it

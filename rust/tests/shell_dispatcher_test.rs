@@ -4,8 +4,8 @@
 //! substitution against real binaries available on macOS/Linux (echo,
 //! printf, sh, sleep, false).
 
-use hecks_life::hecksagon_ir::ShellAdapter;
-use hecks_life::runtime::shell_dispatcher::{self, Output, DispatchError};
+use storehouse::hecksagon_ir::ShellAdapter;
+use storehouse::runtime::shell_dispatcher::{self, Output, DispatchError};
 use std::collections::HashMap;
 
 fn adapter(name: &str, command: &str, args: Vec<&str>) -> ShellAdapter {

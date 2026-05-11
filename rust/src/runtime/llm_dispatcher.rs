@@ -18,7 +18,7 @@
 //!
 //!   - The Ruby dispatcher carries Spend / CircuitBreaker / Logger
 //!     ports (i23 §4 gating). The Rust port omits them — the runtime
-//!     budget surface lives in Ruby until the Rust caller (hecks-life)
+//!     budget surface lives in Ruby until the Rust caller (storehouse)
 //!     grows a budget store.
 //!   - Provider resolution mirrors the Ruby form : an explicit
 //!     `providers` map wins ; otherwise the default `:test` provider

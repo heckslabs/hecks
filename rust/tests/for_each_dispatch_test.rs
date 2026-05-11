@@ -11,8 +11,8 @@
 //! after the synthetic event, three Compostable rows should exist,
 //! each carrying the iter id.
 
-use hecks_life::parser;
-use hecks_life::runtime::{Event, Runtime, Value};
+use storehouse::parser;
+use storehouse::runtime::{Event, Runtime, Value};
 use std::collections::HashMap;
 
 fn s(val: &str) -> Value { Value::Str(val.to_string()) }

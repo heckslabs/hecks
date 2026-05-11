@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/behaviors_runner.rs`.
+//! Rust-native specializer for `storehouse/src/behaviors_runner.rs`.
 //!
 //! i147 Wave 4-B target — pure-memory test-suite executor regenerated
 //! from the `behaviors_runner_shape` bluebook + ordered `.rs.frag`
@@ -41,7 +41,7 @@
 //!   print!("{}", rust);
 //! ```
 //!
-//! [antibody-exempt: hecks_life/src/specializer/behaviors_runner.rs —
+//! [antibody-exempt: storehouse/src/specializer/behaviors_runner.rs —
 //!  i147 Wave 4-B Rust-native specializer for behaviors_runner.rs.
 //!  Retires when the specializer itself is regenerated from a
 //!  meta-shape (i78).]
@@ -167,7 +167,7 @@ const HEADER: &str = r#"//! Behaviors test runner — executes a TestSuite again
 //! the test.
 //!
 //! Usage:
-//!   hecks-life behaviors path/to/X_behavioral_tests.bluebook
+//!   storehouse behaviors path/to/X_behavioral_tests.bluebook
 //!
 //! The runner finds the source bluebook by stripping the
 //! `_behavioral_tests` suffix (e.g. `pizzas_behavioral_tests.bluebook`

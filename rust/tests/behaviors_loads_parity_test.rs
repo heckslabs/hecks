@@ -15,7 +15,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn fixture_path() -> PathBuf {
-    // Cargo runs tests from the hecks_life crate root.
+    // Cargo runs tests from the storehouse crate root.
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     p.pop();
     p.push("parity/behaviors/loads_parse_smoke.behaviors");
@@ -26,7 +26,7 @@ fn fixture_path() -> PathBuf {
 fn rust_parser_records_loads_and_then_events_include() {
     let src = fs::read_to_string(fixture_path())
         .expect("read loads_parse_smoke.behaviors");
-    let suite = hecks_life::behaviors_parser::parse(&src);
+    let suite = storehouse::behaviors_parser::parse(&src);
 
     assert_eq!(suite.name, "LoadsParseSmoke");
     assert_eq!(suite.loads, vec!["foo".to_string()]);

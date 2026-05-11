@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/run_boot/discover.rs`.
+//! Rust-native specializer for `storehouse/src/run_boot/discover.rs`.
 //!
 //! i147 Wave 2 target — boot pipeline Phase 1+2 (DiscoverOrgans +
 //! WriteCensus) regenerated from the `discover_shape` bluebook +
@@ -24,7 +24,7 @@
 //!   let rust = run_boot::discover::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/run_boot/discover.rs —
+//! [antibody-exempt: storehouse/src/specializer/run_boot/discover.rs —
 //!  i147 Wave 2 — Rust-native specializer for run_boot/discover.rs]
 
 use crate::specializer::util;
