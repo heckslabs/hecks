@@ -1484,16 +1484,20 @@ fn run_specialize(args: &[String]) {
     if target.is_empty() {
         eprintln!("Usage: storehouse specialize <target> [--output PATH]");
         eprintln!("       storehouse specialize wasm_worker --app <app> --host <host> --auth-scheme <scheme> --auth-secret-env <env> --storehouse-path <path> [--output-dir <dir>]");
+        eprintln!("       storehouse specialize cf_function_proxy --app <app> --worker-url-env <env> --auth-secret-env <env> [--allow-methods <json>] [--output <path>]");
         std::process::exit(2);
     }
 
-    // wasm_worker takes a different set of flags : the emitter needs
-    // (app, host, auth_scheme, auth_secret_env, storehouse_path) and
-    // produces two files (Cargo.toml + src/lib.rs) under an output
-    // directory rather than one Rust source on stdout. Branch off
-    // before the generic dispatch.
+    // wasm_worker + cf_function_proxy take their own flag shapes :
+    // each emits files at app-relative paths derived from per-deployment
+    // inputs (world-file values) rather than a single tracked Rust file.
+    // Branch off before the generic emit-target dispatch.
     if target == "wasm_worker" {
         run_specialize_wasm_worker(args);
+        return;
+    }
+    if target == "cf_function_proxy" {
+        run_specialize_cf_function_proxy(args);
         return;
     }
 
@@ -1609,6 +1613,71 @@ fn run_specialize_wasm_worker(args: &[String]) {
 
     eprintln!("wrote {} bytes to {}", cargo.len(), cargo_path.display());
     eprintln!("wrote {} bytes to {}", lib.len(), lib_path.display());
+}
+
+/// `storehouse specialize cf_function_proxy --app <app>
+///   --worker-url-env <env> --auth-secret-env <env>
+///   [--allow-methods <json>] [--output <path>]`
+///
+/// Renders one app's catch-all Cloudflare-Pages Function via the
+/// cf_function_proxy specializer. Required flags : `--app`,
+/// `--worker-url-env`, `--auth-secret-env`. Optional `--allow-methods`
+/// is a JSON-array string (default `["GET","POST"]`) ; `--output`
+/// is the file path to write (default `./functions/api/[[route]].js`).
+///
+/// Re-runs are idempotent — same inputs against the same output
+/// path write byte-identical bytes.
+fn run_specialize_cf_function_proxy(args: &[String]) {
+    fn flag(args: &[String], name: &str) -> Option<String> {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1).cloned())
+    }
+    let app = match flag(args, "--app") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize cf_function_proxy : missing --app <app>");
+            std::process::exit(2);
+        }
+    };
+    let worker_url_env = match flag(args, "--worker-url-env") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize cf_function_proxy : missing --worker-url-env <env-var name>");
+            std::process::exit(2);
+        }
+    };
+    let auth_secret_env = match flag(args, "--auth-secret-env") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize cf_function_proxy : missing --auth-secret-env <env-var name>");
+            std::process::exit(2);
+        }
+    };
+    let allow_methods = flag(args, "--allow-methods")
+        .unwrap_or_else(|| "[\"GET\",\"POST\"]".to_string());
+    let output = flag(args, "--output")
+        .unwrap_or_else(|| "./functions/api/[[route]].js".to_string());
+
+    let js = storehouse::specializer::cf_function_proxy::emit_proxy(
+        &app,
+        &worker_url_env,
+        &auth_secret_env,
+        &allow_methods,
+    );
+
+    let out_path = std::path::PathBuf::from(&output);
+    if let Some(parent) = out_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("cannot create {}: {}", parent.display(), e);
+            std::process::exit(1);
+        }
+    }
+    if let Err(e) = std::fs::write(&out_path, &js) {
+        eprintln!("cannot write {}: {}", out_path.display(), e);
+        std::process::exit(1);
+    }
+    eprintln!("wrote {} bytes to {}", js.len(), out_path.display());
 }
 
 /// Locate the repository root for the `specialize` subcommand.
