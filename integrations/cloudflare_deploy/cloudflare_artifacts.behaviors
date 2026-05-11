@@ -1,0 +1,74 @@
+Hecks.behaviors "CloudflareArtifacts" do
+  vision "Behavioral tests for the CloudflareArtifacts domain — codegen pipeline in memory (Compile → Worker/Pages/Migration/WranglerConfig)"
+
+  # ── Compilation aggregate ──────────────────────────────────────────
+
+  test "Compile sets source_path" do
+    tests "Compile", on: "Compilation"
+    input  source_path: "sample"
+    expect source_path: "sample"
+  end
+
+  test "Compile cascades through policy chain" do
+    tests "Compile", on: "Compilation", kind: :cascade
+    input  source_path: "sample"
+    expect emits: ["DomainCompiled", "WorkerGenerated", "ConfigGenerated", "SiteGenerated", "ApiWired", "MigrationsGenerated"]
+  end
+
+
+  # ── WorkerScript aggregate ──────────────────────────────────────────
+
+  test "GenerateWorker runs" do
+    tests "GenerateWorker", on: "WorkerScript"
+    expect ok: "true"
+  end
+
+  test "GenerateWorker cascades through policy chain" do
+    tests "GenerateWorker", on: "WorkerScript", kind: :cascade
+    expect emits: ["WorkerGenerated", "ConfigGenerated"]
+  end
+
+
+  # ── PagesSite aggregate ──────────────────────────────────────────
+
+  test "GenerateSite runs" do
+    tests "GenerateSite", on: "PagesSite"
+    expect ok: "true"
+  end
+
+  test "GenerateSite cascades through policy chain" do
+    tests "GenerateSite", on: "PagesSite", kind: :cascade
+    expect emits: ["SiteGenerated", "ApiWired"]
+  end
+
+  test "WireApiCalls sets api_base_url" do
+    tests "WireApiCalls", on: "PagesSite"
+    setup  "GenerateSite"
+    input  api_base_url: "sample"
+    expect api_base_url: "sample"
+  end
+
+
+  # ── Migration aggregate ──────────────────────────────────────────
+
+  test "GenerateMigrations runs" do
+    tests "GenerateMigrations", on: "Migration"
+    expect ok: "true"
+  end
+
+
+  # ── WranglerConfig aggregate ──────────────────────────────────────────
+
+  test "GenerateConfig sets project_name" do
+    tests "GenerateConfig", on: "WranglerConfig"
+    input  project_name: "sample"
+    expect project_name: "sample"
+  end
+
+  test "GenerateConfig cascades through policy chain" do
+    tests "GenerateConfig", on: "WranglerConfig", kind: :cascade
+    input  project_name: "sample"
+    expect emits: ["ConfigGenerated"]
+  end
+
+end
