@@ -1,5 +1,5 @@
 Hecks.bluebook "Query", version: "2026.05.10.1" do
-  vision "The read side of the bus. Reads attribute values from the configured storage adapter by canonical four-segment path. Closes the gap where the runtime can dispatch but cannot query — Read makes attribute access a bluebook command like everything else. Companion to Run (future), which invokes named queries declared inside aggregates."
+  vision "The read side of the bus. Two primitives : Read projects a single attribute from storage by canonical four-segment path ; Run invokes a named query (declared inside an aggregate's bluebook as a `query \"Name\" do … end` block) by four-segment phrase. Closes the gap where the runtime could dispatch but couldn't query — read access becomes a bluebook command like everything else."
   category "storehouse"
 
   # ============================================================
@@ -14,24 +14,42 @@ Hecks.bluebook "Query", version: "2026.05.10.1" do
   # was a Sambhogakaya gap : the bluebook implied the access, the
   # runtime didn't render it.
   #
-  # Read closes the gap for raw attribute access. Parse the
-  # four-segment path "app::domain::Aggregate::attribute" into
-  # its components, locate the aggregate's record in the
-  # configured storage adapter, project the latest record's
-  # named attribute, emit ValueRead with the flattened value as
-  # payload. Path-not-found surfaces as a runtime error before
-  # the command runs.
+  # Two read primitives close the gap :
   #
-  # Named queries (computed views declared inside an aggregate's
-  # bluebook alongside its commands) share the same four-segment
-  # phrase shape and dispatch through Lexicon like everything
-  # else. The convention : fourth segment is PascalCase for
-  # commands, lowercase for queries — so
-  # "bin-buddy::notifications::Notifications::SendEmail" is a
-  # command and "bin-buddy::notifications::Notifications::recent_sends"
-  # is a query. A Run command (filed for the next iteration of
-  # this bluebook) invokes named queries by phrase the way
-  # Dispatch.Route invokes commands.
+  # Read — raw attribute projection. Parse the four-segment path
+  # "app::domain::Aggregate::attribute", locate the aggregate's
+  # record in the configured storage adapter, project the latest
+  # record's named attribute, emit ValueRead with the flattened
+  # value as payload. Path-not-found surfaces as a runtime error
+  # before the command runs.
+  #
+  # Run — named query invocation. Aggregates declare named queries
+  # in their bluebooks the same way they declare commands :
+  #
+  #   query "ListUnresolved" do
+  #     where(resolved: false)
+  #   end
+  #
+  #   query "ByKind" do |kind|
+  #     where(kind: kind)
+  #   end
+  #
+  # The existing query DSL supports where-clauses, block parameters
+  # for filters, and (by extension) order / limit / project. Run
+  # takes a four-segment Phrase, resolves it through Lexicon,
+  # evaluates the query's clauses against the configured storage
+  # adapter's index, and emits Queried with the result rows.
+  #
+  # Disambiguation between commands and queries is by case at the
+  # phrase level. PascalCase fourth segment ⇒ command (routed via
+  # Dispatch.Route, may write state) ; snake_case fourth segment ⇒
+  # query (routed via Query.Run, never writes state). The bluebook
+  # source keeps PascalCase for both (`command "SendEmail"`,
+  # `query "ListAll"`) ; Lexicon Compile converts query names to
+  # snake_case at phrase-build time. So `query "ListAll"` declared
+  # inside Inbox is invoked as
+  # "hecks-conception::library::Inbox::list_all" on the wire.
+  # Same dual-form pattern as Ruby's `MyClass` ↔ `my_class.rb`.
   #
   # Companion to dispatch.bluebook (the write side) and
   # lexicon.bluebook (resolves what's available — and indexes
@@ -49,17 +67,38 @@ Hecks.bluebook "Query", version: "2026.05.10.1" do
     end
 
     value_object "Path" do
-      # The four-segment form a caller types :
+      # The four-segment form Read takes :
       # "app::domain::Aggregate::attribute". Same shape as
       # Dispatch.Phrase, but the fourth segment names an attribute
-      # rather than a command. The same shape also serves named
-      # queries (Run, future) where the fourth segment is a query
-      # name. Deeper nesting for sub-attribute access (e.g.
-      # positional indexing like LucidDream::observations[-1]) is
-      # not in this first chapter ; filed for a later iteration.
+      # rather than a command. Deeper nesting for sub-attribute
+      # access (e.g. positional indexing like
+      # LucidDream::observations[-1]) is not in this first
+      # chapter ; filed for a later iteration.
       attribute :value, String
       rule "must be app::domain::Aggregate::attribute (4 non-empty segments)" do
         requires { value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 } }
+      end
+    end
+
+    value_object "Phrase" do
+      # The four-segment form Run takes :
+      # "app::domain::Aggregate::query_name". Same four-segment
+      # shape as Dispatch.Phrase, but the fourth segment is
+      # snake_case — the snake_case marks it as a query (vs a
+      # command, which keeps PascalCase). At Lexicon Compile time
+      # the PascalCase query name from the bluebook source
+      # (`query "ListAll"`) is converted to snake_case for the
+      # phrase form (`...::list_all`). Run rejects PascalCase
+      # fourth segments ; Dispatch.Route rejects snake_case
+      # fourth segments. The convention is the type system.
+      attribute :value, String
+      rule "must be app::domain::Aggregate::query_name (4 non-empty segments, fourth is snake_case)" do
+        requires {
+          parts = value.split("::")
+          parts.length == 4 \
+            && parts.all? { |s| s.length > 0 } \
+            && parts.last.match?(/\A[a-z][a-z0-9_]*\z/)
+        }
       end
     end
 
@@ -72,15 +111,39 @@ Hecks.bluebook "Query", version: "2026.05.10.1" do
       attribute :value, String
     end
 
+    value_object "Params" do
+      # Key-value bag carried as a JSON object string. The runtime
+      # parses this into the target query's block parameters
+      # (`query "ByKind" do |kind|`) at evaluation time ; the
+      # bluebook layer keeps it opaque so any query's parameter
+      # set fits the same Run signature. Same shape as
+      # Dispatch.Params.
+      attribute :value, String
+      rule "must be a JSON object" do
+        requires { value.start_with?("{") && value.end_with?("}") }
+      end
+    end
+
     attribute ServiceName
 
     # ── Commands ───────────────────────────────────────────────
 
     command "Read" do
       role "Caller"
-      description "Parse the four-segment path (app::domain::Aggregate::attribute), locate the aggregate's record in the configured storage adapter, read the latest record's named attribute, emit ValueRead with the flattened value as payload. Path-not-found surfaces as a runtime error before the command runs. For named queries (computed views), see Run (next iteration of this bluebook)."
+      description "Parse the four-segment Path (app::domain::Aggregate::attribute), locate the aggregate's record in the configured storage adapter, read the latest record's named attribute, emit ValueRead with the flattened value as payload. Path-not-found surfaces as a runtime error before the command runs. For named queries (computed views with where-clauses and parameters), see Run."
       attribute Path, as: :path
       emits "ValueRead"
+    end
+
+    command "Run" do
+      role "Caller"
+      description "Resolve the four-segment Phrase via Lexicon.Lookup, parse params into the target query's block parameters, evaluate the query's where/order/limit clauses against the configured storage adapter's index, and emit Queried with the result rows as payload. The fourth segment of the Phrase must be snake_case (the converted form of the bluebook-source PascalCase query name) ; PascalCase fourth segments are rejected — those go through Dispatch.Route."
+      attribute Phrase, as: :phrase
+      attribute Params, as: :params
+      expects "phrase resolves to a query in the lexicon" do
+        Lexicon.Lookup(phrase: phrase).present?
+      end
+      emits "Queried"
     end
   end
 end

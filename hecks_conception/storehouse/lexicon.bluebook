@@ -22,6 +22,16 @@ Hecks.bluebook "Lexicon", version: "2026.05.10.1" do
   # (a fixture set). The hecksagon's source adapter family
   # resolves the SourceSet handle to bytes.
   #
+  # Both `command "Name"` and `query "Name"` blocks are indexed.
+  # Commands keep PascalCase end-to-end (the phrase form is
+  # "app::domain::Aggregate::Name"). Query names are converted
+  # PascalCase → snake_case at Compile time, so a source-level
+  # `query "ListAll"` becomes the phrase
+  # "app::domain::Aggregate::list_all". Dispatch.Route and
+  # Query.Run each accept exactly one case for their fourth
+  # segment ; the convention is the type system, no `kind`
+  # field needed on the index.
+  #
   # Every entry carries `app` as a first-class field so a
   # CommandBus can materialize its filtered view by selecting
   # entries where `app == self.app`. Lookup returns the resolved
