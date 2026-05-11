@@ -1,0 +1,67 @@
+Hecks.hecksagon "CommandBus" do
+  # ============================================================
+  # COMMAND_BUS — hexagonal wiring for the app-scoped bus
+  # ============================================================
+  #
+  # The sibling bluebook (command_bus.bluebook) declares CommandBus's
+  # six commands : Configure (read world values, validate, emit
+  # Configured), Scope (materialize the filtered phrase set from
+  # Lexicon), ListPhrases (read the materialized set), Route
+  # (filtered Dispatch.Route — rejects out-of-scope phrases),
+  # Expose (register the bus's HTTP routes), HealthCheck (status
+  # probe). This hecksagon names how the runtime wires those
+  # commands' I/O.
+  #
+  # The bus's infrastructure choices live in two places :
+  #
+  #   command_bus.bluebook : the MODEL — StorageBackend, Host, and
+  #     AuthScheme value-objects with their valid enum values, plus
+  #     attributes on the aggregate carrying which value is selected.
+  #     The bluebook is the contract.
+  #
+  #   bin-buddy.world (or any consumer's world file) : the CHOICE —
+  #     the `command_bus do storage_backend :r2 ; host :cf_worker ;
+  #     auth_scheme :bearer end` block picks one value per attribute.
+  #     The world is the deployment.
+  #
+  # This hecksagon names the I/O for *each named value* — :fs and
+  # :memory work today (the local-CLI realization that the laptop
+  # uses) ; :r2 is contracted in adapters/r2.bluebook for the WASM
+  # CommandBus deployment ; :cf_worker is the host-side fetch handler
+  # the WASM exposes. The runtime substitutes the adapter based on
+  # the world block's value at boot time.
+  #
+  # ---- I/O wiring --------------------------------------------------
+  #
+  # Today's storehouse aggregates (Lexicon, Query, Dispatch) all
+  # declare :fs + :memory bindings for their persistence. CommandBus
+  # follows the same pattern — :fs for events and the materialized
+  # phrase set ; :memory for in-process state ; :shell for the
+  # delegated Dispatch.Route call. When storage_backend :r2 is set
+  # in the world, the runtime swaps :fs → :r2 against the contract
+  # in adapters/r2.bluebook ; the bluebook layer doesn't notice.
+
+  # :fs — Configure writes Configured to information/command_bus.heki ;
+  # Scope writes Scoped + the materialized phrase set ; Route reads
+  # the configured state on every dispatch ; HealthCheck projects
+  # from the latest record. Same root as the other storehouse
+  # aggregates ; the world's heki.dir resolves the literal path.
+  adapter :fs, root: "information"
+
+  # :memory — Scope walks Lexicon's in-process index to build the
+  # filtered phrase set ; ListPhrases reads the materialized set ;
+  # Route's `expects "phrase is in this bus's scope"` clause checks
+  # in-memory before delegating.
+  adapter :memory
+
+  # :shell — Route delegates to Dispatch.Route once the scope
+  # check passes. The :shell adapter re-invokes the storehouse
+  # binary with the resolved phrase ; same pattern as
+  # dispatch.hecksagon's :invoke binding. Substitution placeholders
+  # interpolate the caller's phrase + params.
+  adapter :shell, name: :delegate,
+    command: "hecks-life",
+    args: ["storehouse", "route", "{{phrase}}", "{{params_kv}}"],
+    output_format: :text,
+    timeout: 60
+end
