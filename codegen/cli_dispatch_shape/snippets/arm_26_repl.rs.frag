@@ -1,10 +1,10 @@
 
-    // `hecks-life repl <file.bluebook>` — interactive REPL. Same shape
+    // `storehouse repl <file.bluebook>` — interactive REPL. Same shape
     // as the pre-PR `run` command so any script that relied on that
     // behavior moves to `repl`.
     if command == "repl" {
         let repl_path = args.get(2).unwrap_or_else(|| {
-            eprintln!("Usage: hecks-life repl <file.bluebook>");
+            eprintln!("Usage: storehouse repl <file.bluebook>");
             std::process::exit(1);
         });
         let source = fs::read_to_string(repl_path).unwrap_or_else(|e| {

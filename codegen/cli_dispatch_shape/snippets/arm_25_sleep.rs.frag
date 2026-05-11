@@ -1,5 +1,5 @@
 
-    // `hecks-life sleep` — blocking streaming-sleep CLI (i113).
+    // `storehouse sleep` — blocking streaming-sleep CLI (i113).
     //
     // Dispatches Consciousness.EnterSleep (skipping if state is already
     // "sleeping" — mid-flight join), then polls consciousness.heki /

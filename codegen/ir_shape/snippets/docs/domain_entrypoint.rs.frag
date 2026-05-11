@@ -1,3 +1,3 @@
     /// Optional top-level `entrypoint "CommandName"` — the command that
-    /// `hecks-life run <file>` dispatches when invoked as an executable.
+    /// `storehouse run <file>` dispatches when invoked as an executable.
     /// None for library-style bluebooks with no default command.

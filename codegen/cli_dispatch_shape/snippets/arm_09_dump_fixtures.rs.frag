@@ -1,8 +1,8 @@
 
     if command == "dump-fixtures" {
-        let path = args.get(2).expect("usage: hecks-life dump-fixtures <file.fixtures>");
+        let path = args.get(2).expect("usage: storehouse dump-fixtures <file.fixtures>");
         let source = std::fs::read_to_string(path).expect("cannot read");
-        let file = hecks_life::fixtures_parser::parse(&source);
+        let file = storehouse::fixtures_parser::parse(&source);
         let mut payload = serde_json::json!({
             "domain": file.domain_name,
             "fixtures": file.fixtures.iter().map(|f| {

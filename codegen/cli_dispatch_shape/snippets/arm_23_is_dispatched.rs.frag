@@ -1,5 +1,5 @@
 
-    // `hecks-life is-dispatched <path>` — IR-query subcommand
+    // `storehouse is-dispatched <path>` — IR-query subcommand
     // (i122). Exit 0 + stdout line "<kind> in <source>" if the file
     // is claimed by some adapter / specializer ; exit 1 silently if
     // not. The LoC ratchet calls this per-file so growth in IR-
@@ -9,7 +9,7 @@
         let path = match args.get(2) {
             Some(p) => p.clone(),
             None => {
-                eprintln!("usage: hecks-life is-dispatched <path>");
+                eprintln!("usage: storehouse is-dispatched <path>");
                 std::process::exit(2);
             }
         };
