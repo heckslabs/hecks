@@ -29,6 +29,7 @@ pub mod cli_dispatch;
 pub mod conceiver;
 pub mod dispatch_query;
 pub mod dump;
+pub mod embedded_bluebooks;
 pub mod fixtures_parser;
 pub mod hecksagon_parser;
 pub mod heki_query;

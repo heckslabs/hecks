@@ -798,19 +798,25 @@ fn run_specialize(args: &[String]) {
         eprintln!("Usage: storehouse specialize <target> [--output PATH]");
         eprintln!("       storehouse specialize wasm_worker --app <app> --host <host> --auth-scheme <scheme> --auth-secret-env <env> --storehouse-path <path> [--output-dir <dir>]");
         eprintln!("       storehouse specialize cf_function_proxy --app <app> --worker-url-env <env> --auth-secret-env <env> [--allow-methods <json>] [--output <path>]");
+        eprintln!("       storehouse specialize embedded_bluebooks --app <app> --root <path> --primary <basename> [--extensions <csv>] --output <path>");
         std::process::exit(2);
     }
 
-    // wasm_worker + cf_function_proxy take their own flag shapes :
-    // each emits files at app-relative paths derived from per-deployment
-    // inputs (world-file values) rather than a single tracked Rust file.
-    // Branch off before the generic emit-target dispatch.
+    // wasm_worker + cf_function_proxy + embedded_bluebooks take their
+    // own flag shapes : each emits files at app-relative paths derived
+    // from per-deployment inputs (world-file values, project-root
+    // walks) rather than a single tracked Rust file. Branch off before
+    // the generic emit-target dispatch.
     if target == "wasm_worker" {
         run_specialize_wasm_worker(args);
         return;
     }
     if target == "cf_function_proxy" {
         run_specialize_cf_function_proxy(args);
+        return;
+    }
+    if target == "embedded_bluebooks" {
+        run_specialize_embedded_bluebooks(args);
         return;
     }
 
@@ -991,6 +997,84 @@ fn run_specialize_cf_function_proxy(args: &[String]) {
         std::process::exit(1);
     }
     eprintln!("wrote {} bytes to {}", js.len(), out_path.display());
+}
+
+/// `storehouse specialize embedded_bluebooks --app <app>
+///   --root <path> --primary <basename> [--extensions <csv>]
+///   --output <path>`
+///
+/// Renders the WASM Worker's embedded.rs — the static
+/// `&[(&str, &str)]` slice that compiles a project's bluebook tree
+/// into the Worker binary so cold starts hit RAM, not R2. Required
+/// flags : `--app`, `--root`, `--primary`, `--output`. Optional
+/// `--extensions` is a comma-joined list of extensions (no dot ;
+/// default `bluebook,hecksagon,world,fixtures`).
+///
+/// Re-runs are idempotent — same tree + flags → byte-identical
+/// output. The bluebook_count is reported on stderr.
+fn run_specialize_embedded_bluebooks(args: &[String]) {
+    fn flag(args: &[String], name: &str) -> Option<String> {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1).cloned())
+    }
+    let app = match flag(args, "--app") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize embedded_bluebooks : missing --app <app>");
+            std::process::exit(2);
+        }
+    };
+    let root = match flag(args, "--root") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize embedded_bluebooks : missing --root <path>");
+            std::process::exit(2);
+        }
+    };
+    let primary = match flag(args, "--primary") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize embedded_bluebooks : missing --primary <basename>");
+            std::process::exit(2);
+        }
+    };
+    let extensions_csv = flag(args, "--extensions")
+        .unwrap_or_else(|| "bluebook,hecksagon,world,fixtures".to_string());
+    let output = match flag(args, "--output") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize embedded_bluebooks : missing --output <path>");
+            std::process::exit(2);
+        }
+    };
+
+    let extensions: Vec<&str> = extensions_csv.split(',').filter(|s| !s.is_empty()).collect();
+    let rs = storehouse::specializer::embedded_bluebooks::emit_embedded_rs(
+        std::path::Path::new(&root),
+        &app,
+        &primary,
+        &extensions,
+    );
+
+    let out_path = std::path::PathBuf::from(&output);
+    if let Some(parent) = out_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("cannot create {}: {}", parent.display(), e);
+            std::process::exit(1);
+        }
+    }
+    if let Err(e) = std::fs::write(&out_path, &rs) {
+        eprintln!("cannot write {}: {}", out_path.display(), e);
+        std::process::exit(1);
+    }
+    let tuple_count = rs.matches("\n    (\"").count();
+    eprintln!(
+        "wrote {} bytes ({} embedded files) to {}",
+        rs.len(),
+        tuple_count,
+        out_path.display()
+    );
 }
 
 /// Locate the repository root for the `specialize` subcommand.
