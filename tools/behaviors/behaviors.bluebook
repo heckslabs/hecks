@@ -1,0 +1,130 @@
+Hecks.bluebook "Behaviors", version: "2026.05.11.1" do
+  vision "Behavioral test runner for bluebook source. Each command takes a target (corpus root, single bluebook path, or batch operation kind) and emits a typed event with run counts. The bus dispatches these like any other bluebook command — `storehouse test tools/`, `storehouse behaviors foo.behaviors`, and `storehouse batch validate` become bluebook-native phrases routed through Lexicon.Lookup → Dispatch.Route → handler. Companion to discipline/validator/validator.bluebook ; where Validator gates bluebook source shape, Behaviors exercises bluebook semantics by running the .behaviors suites."
+  category "tools"
+
+  # ============================================================
+  # BEHAVIORS — bluebook test runner
+  # ============================================================
+  #
+  # Before this bluebook the runner existed only as CLI
+  # subcommands : `storehouse test <root>`, `storehouse behaviors
+  # <bluebook>`, `storehouse batch <command>`. Their contract lived
+  # in rust/src/main.rs (run_test, run_behaviors, run_batch) ;
+  # callers (pre-commit hook, CI, ratchets) invoked each by CLI
+  # name ; there was no bluebook-layer name for the operations.
+  #
+  # This bluebook expresses each runner-entry as a command on the
+  # Behaviors aggregate. The bus dispatches them through the same
+  # pipeline that handles every other bluebook command — phrase
+  # → Lexicon.Lookup → Dispatch.Route → handler. Calls eventually
+  # become :
+  #
+  #   storehouse route tools::behaviors::Behaviors::Test \
+  #     corpus_root:tools/
+  #
+  # The imperative implementations (rust/src/main.rs : run_test,
+  # run_behaviors, run_batch) stay in the runtime as the substrate
+  # that fires when each command dispatches. They're not "tooling
+  # outside the bus" — they're the runtime's implementation of
+  # these bluebook commands. Already kernel-floor exempt.
+
+  aggregate "Behaviors", "Bluebook-layer test runner for .behaviors suites" do
+    identified_by :corpus_root
+
+    value_object "CorpusRoot" do
+      # Filesystem directory walked recursively for *.behaviors
+      # files. Non-empty by invariant ; the runtime resolves the
+      # path against cwd. Used by Test to plan the suite ; the
+      # corpus root is also the identifier of a Behaviors instance,
+      # so `storehouse test tools/` and `storehouse test runtime/`
+      # are distinct aggregates from the bus's perspective.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "TestCount" do
+      # Number of tests in the suite (Test) or run against the
+      # bluebook (Run) or processed in the batch (Batch). Non-
+      # negative ; zero means an empty corpus (Test exits 0 with
+      # --allow-empty, non-zero otherwise — that is a runtime
+      # concern, not a bluebook one).
+      attribute :value, Integer
+      invariant "must be non-negative" do
+        value >= 0
+      end
+    end
+
+    value_object "PassCount" do
+      # Number of tests that passed. Always <= test_count ; the
+      # invariant here is just non-negativity. Used by callers to
+      # decide block vs pass without reparsing the runner output.
+      attribute :value, Integer
+      invariant "must be non-negative" do
+        value >= 0
+      end
+    end
+
+    value_object "FailCount" do
+      # Number of tests that failed. Always <= test_count ; the
+      # invariant here is just non-negativity. Together with
+      # PassCount these decide the runner exit code in the
+      # imperative substrate.
+      attribute :value, Integer
+      invariant "must be non-negative" do
+        value >= 0
+      end
+    end
+
+    value_object "BluebookPath" do
+      # Filesystem path to a single *.behaviors or *.bluebook file
+      # passed to Run. Non-empty by invariant ; the runtime resolves
+      # the path and the source-suffix mapping (foo_behavioral_tests
+      # → foo) when the command fires.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "BatchCommand" do
+      # The batch operation kind passed to Batch — currently
+      # "validate" or "counts" in the imperative substrate. Non-
+      # empty by invariant ; unknown values surface as a runtime
+      # error inside run_batch, not as a bluebook validation error.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :corpus_root, CorpusRoot
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Test" do
+      role "System"
+      description "Walk corpus_root recursively for *.behaviors files, run every test in pure-memory mode through Runtime::boot, aggregate the results. Emits Tested with the test/pass/fail counts. The bluebook-layer form of `storehouse test <root>` — used by the pre-commit hook, CI, and the ratchet."
+      attribute :corpus_root, CorpusRoot
+      emits "Tested"
+      then_set :corpus_root, to: :corpus_root
+    end
+
+    command "Run" do
+      role "System"
+      description "Run a single .behaviors suite against its source bluebook. Loads the source by suffix-strip, boots Runtime in pure-memory mode, runs each test, prints PASS/FAIL per test plus a summary. Emits Ran with the test/pass/fail counts. The bluebook-layer form of `storehouse behaviors <bluebook>` — used when developing a single suite locally."
+      attribute :bluebook_path, BluebookPath
+      emits "Ran"
+      then_set :corpus_root, to: :bluebook_path
+    end
+
+    command "Batch" do
+      role "System"
+      description "Stdin-driven multi-file mode : reads one path per line, applies the given batch command (validate or counts) to each, prints VALID/INVALID per line plus a tally. Emits BatchRan with the test/pass/fail counts (where pass = VALID lines, fail = INVALID lines). The bluebook-layer form of `storehouse batch <command>` — used by CI sweeps and the bulk-validate cron."
+      attribute :command, BatchCommand
+      emits "BatchRan"
+      then_set :corpus_root, to: :command
+    end
+  end
+end
