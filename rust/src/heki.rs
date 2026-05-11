@@ -35,6 +35,7 @@ use std::fs;
 use std::io::Read as IoRead;
 use std::io::Write as IoWrite;
 use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
 
 use flate2::Compression;
@@ -791,20 +792,60 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
     attrs
 }
 
+/// Wasm32-portable "now since epoch" — host uses std::time, the
+/// CF-Worker WASM target uses worker::Date so the WASM build doesn't
+/// trip std's "time not implemented on this platform" panic.
+fn now_duration() -> std::time::Duration {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        // worker::Date::now().as_millis() returns u64 milliseconds
+        // since the JS epoch (1970-01-01 UTC) inside the Worker
+        // runtime. Convert to Duration so the calling sites stay
+        // identical to the host path.
+        let ms = worker::Date::now().as_millis();
+        std::time::Duration::from_millis(ms)
+    }
+}
+
 /// Generate a UUID v4 (random) without external dependencies.
 pub fn uuid_v4() -> String {
-    // Use system entropy via /dev/urandom or SystemTime fallback
     let mut bytes = [0u8; 16];
-    if let Ok(mut f) = fs::File::open("/dev/urandom") {
-        let _ = f.read_exact(&mut bytes);
-    } else {
-        // Fallback: hash system time
-        let t = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default();
-        let seed = t.as_nanos();
-        for (i, b) in bytes.iter_mut().enumerate() {
-            *b = ((seed >> (i * 4)) & 0xff) as u8;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Host : pull system entropy via /dev/urandom ; fall back
+        // to hashing the current time if that fails (e.g. on
+        // hardened sandboxes).
+        if let Ok(mut f) = fs::File::open("/dev/urandom") {
+            let _ = f.read_exact(&mut bytes);
+        } else {
+            let seed = now_duration().as_nanos();
+            for (i, b) in bytes.iter_mut().enumerate() {
+                *b = ((seed >> (i * 4)) & 0xff) as u8;
+            }
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        // WASM : no /dev/urandom in the CF Worker runtime. Route
+        // through getrandom::getrandom which, with the `js` feature
+        // enabled in Cargo.toml, calls JS crypto.getRandomValues —
+        // the same CSPRNG the Worker runtime exposes to the JS side.
+        // Crypto-grade entropy without /dev/urandom. Fall back to
+        // time-seeded bytes only if the getrandom call itself
+        // fails (it shouldn't, on CF Workers).
+        if getrandom::getrandom(&mut bytes).is_err() {
+            let seed = now_duration().as_nanos();
+            for (i, b) in bytes.iter_mut().enumerate() {
+                let chunk = (seed >> ((i * 13) % 128)) ^ (seed >> ((i * 7) % 128));
+                *b = (chunk & 0xff) as u8;
+            }
         }
     }
     // Set version 4 and variant bits
@@ -821,9 +862,7 @@ pub fn uuid_v4() -> String {
 
 /// ISO 8601 timestamp without external dependencies.
 pub fn now_iso8601_internal() -> String {
-    let dur = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default();
+    let dur = now_duration();
     let secs = dur.as_secs();
 
     // Days since epoch
@@ -855,10 +894,7 @@ pub fn now_iso() -> String {
 
 /// Seconds elapsed since an ISO 8601 timestamp.
 pub fn seconds_since_iso(ts: &str) -> f64 {
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs_f64();
+    let now = now_duration().as_secs_f64();
     let epoch = parse_iso_to_epoch(ts);
     if epoch > 0.0 { now - epoch } else { 0.0 }
 }
