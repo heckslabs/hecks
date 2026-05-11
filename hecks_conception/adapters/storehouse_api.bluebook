@@ -1,0 +1,120 @@
+Hecks.bluebook "StorehouseApiAdapter", version: "2026.05.11.1" do
+  vision "The :storehouse_api driven adapter — calls a deployed StoreHouse WASM Worker over HTTP. Any app that wants to route commands and queries through a remote bus uses this adapter. Wire shape : POST {base_url}/route with `Authorization: Bearer ${bearer}` and a JSON body of `{ phrase, params }`. Sibling to r2.bluebook — both are infrastructure ports that apps bind to via their world files."
+  category "adapter"
+
+  # ============================================================
+  # STOREHOUSE_API ADAPTER
+  # ============================================================
+  #
+  # Wraps the deployed StoreHouse Worker (i528 step 8) as a port.
+  # Apps that bind this adapter in their hecksagon call bus
+  # commands and queries through HTTPS instead of dispatching
+  # in-process. The first consumer is bin-buddy's homeowner
+  # portal — its commands route through this adapter to the
+  # deployed bin-buddy-worker.
+  #
+  # Declared in an app's *.world file as :
+  #
+  #   storehouse_api do
+  #     base_url_env "BIN_BUDDY_WORKER_URL"
+  #     bearer_env   "BIN_BUDDY_API_KEY"
+  #   end
+  #
+  # The hecksagon binds it :
+  #
+  #   adapter :storehouse_api,
+  #     base_url: "{{base_url}}",
+  #     bearer:   "{{bearer}}",
+  #     route_path: "/route",
+  #     timeout: 10
+  #
+  # Behaviour — mirrors the wire surface of CommandBus.bluebook :
+  #
+  #   - On a command call (PascalCase fourth phrase segment) :
+  #       POST {base_url}{route_path}
+  #         Authorization: Bearer {bearer}
+  #         Content-Type:  application/json
+  #         { "phrase": "...", "params": {...} }
+  #     Response body is the bus's event payload ; status 200 is
+  #     success, 401 is auth failure, 4xx is validation failure,
+  #     5xx is bus error. The adapter surfaces 401/5xx as runtime
+  #     errors ; the calling command's `expects` clauses pick up
+  #     4xx validation failures.
+  #
+  #   - On a query call (snake_case fourth phrase segment) :
+  #       GET {base_url}/query?phrase=...&...
+  #     Same auth header. Returns rows as JSON.
+  #
+  # The bluebook layer never sees URLs or HTTP — references
+  # resolve through the adapter. `command "Greet"` calls the bus
+  # via this port the same way an in-process call would, just
+  # with HTTP under the hood.
+
+  aggregate "Binding", "Wires a remote StoreHouse Worker into an app" do
+    value_object "BaseUrl" do
+      # The deployed worker URL, e.g.
+      # "https://bin-buddy-worker.chris.workers.dev". Read at
+      # boot from the env-var named in the world file's
+      # base_url_env.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Bearer" do
+      # The shared secret. Sent in the Authorization header on
+      # every call. Read at boot from the env-var named in the
+      # world file's bearer_env. Same value the Worker reads on
+      # the other side.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "RoutePath" do
+      # The HTTP path the bus's Route command listens on.
+      # Default "/route" matches the CommandBus.bluebook surface.
+      attribute :value, String
+      invariant "must start with /" do
+        value.start_with?("/")
+      end
+    end
+
+    value_object "TimeoutSeconds" do
+      # HTTP timeout in seconds. Default 10. The adapter cancels
+      # the request and surfaces a runtime error if the bus
+      # doesn't respond within this window.
+      attribute :value, Integer
+      invariant "must be positive" do
+        value > 0
+      end
+    end
+
+    attribute BaseUrl
+    attribute Bearer
+    attribute RoutePath
+    attribute TimeoutSeconds
+
+    command "BindWorker" do
+      role "System"
+      description "Wire the adapter to a deployed Worker — base_url + bearer are resolved from env-vars at boot ; route_path + timeout come from the hecksagon binding."
+      attribute BaseUrl,        as: :base_url
+      attribute Bearer,         as: :bearer
+      attribute RoutePath,      as: :route_path
+      attribute TimeoutSeconds, as: :timeout_seconds
+      emits "WorkerBound"
+      then_set :base_url,        to: :base_url
+      then_set :bearer,          to: :bearer
+      then_set :route_path,      to: :route_path
+      then_set :timeout_seconds, to: :timeout_seconds
+    end
+  end
+
+  # The adapter is bound at boot — same lifecycle hook as r2
+  policy "BindOnBoot" do
+    on "InterpreterBooted"
+    trigger "BindWorker"
+  end
+end
