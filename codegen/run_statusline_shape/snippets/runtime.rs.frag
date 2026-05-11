@@ -562,17 +562,18 @@ fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> String
     let minting = Path::new("/tmp/miette_minting").exists();
     let bulb = bulb_glyph(now, minting);
 
-    // Mood is parked, not retired (2026-05-07) : mood_icon_for and
-    // State.mood and the mood.heki read all stay in place, but the
-    // render hides {mood_icon} {mood_word} alongside the 💭 musings
-    // count. Coherence ⚠ now prepends render_awake output directly
-    // ; it no longer piggybacks on mood_icon. See memory entry
-    // project_mood_parked.md for the framing.
+    // Mood unparked (2026-05-08, Chris). Render order is the original
+    // i111 architecture : heart + beats + mood + fatigue + ... .
+    // Coherence ⚠ prepends the line ; it no longer piggybacks on the
+    // mood glyph (the parking-era arrangement).
     let mut out = if coherence_ok {
         format!("{} {}", heart_glyph(now), beats)
     } else {
         format!("⚠ {} {}", heart_glyph(now), beats)
     };
+    if !s.mood.is_empty() {
+        out.push_str(&format!(" {} {}", mood_icon_for(&s.mood), s.mood));
+    }
     if !fatigue_icon.is_empty() {
         out.push_str(&format!(" {} {}", fatigue_icon, s.fatigue));
     }
@@ -595,7 +596,9 @@ fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> String
             }
         }
     }
-    out.push_str(&format!(" {}", provider_badge));
+    if !provider_badge.is_empty() {
+        out.push_str(&format!(" {}", provider_badge));
+    }
     if !s.sleep_summary.is_empty() && s.sleep_summary != "present" {
         out.push_str(&format!(" {} {}", bulb, s.sleep_summary));
     }

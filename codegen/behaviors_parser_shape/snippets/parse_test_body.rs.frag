@@ -38,12 +38,16 @@
         } else if depth == 1 {
             // Join continuation lines : keep absorbing the next line
             // while the current ends with `,` (Ruby's natural multi-
-            // line kwargs form). String literals and bracket depth
-            // are honored by the kwargs splitter downstream ; here we
+            // line kwargs form) OR has an unclosed bracket (`[`, `{`,
+            // `(`) — Ruby array / hash / paren literals span lines too
+            // (i497 fix). String literals and bracket depth are
+            // honored by the kwargs splitter downstream ; here we
             // only care that the joined logical line carries every
             // kwarg into interpret_test_line.
             let mut joined = line.to_string();
-            while joined.trim_end().ends_with(',') && i + 1 < lines.len() {
+            while i + 1 < lines.len()
+                && (joined.trim_end().ends_with(',') || bracket_depth(&joined) > 0)
+            {
                 let peek = lines[i + 1].trim();
                 if peek == "end" || peek.is_empty() || peek.starts_with('#') {
                     break;

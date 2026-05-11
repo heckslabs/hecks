@@ -16,6 +16,7 @@
             data_dir,
             identified_by,
             context,
+            last_seen_mtime: None,
         };
         repo.load_persisted();
         repo

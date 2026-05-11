@@ -1,7 +1,6 @@
 /// Generate a scaffold bluebook from an archetype's structure.
 /// Outputs the right shape with placeholder names — you fill in the vocabulary.
 pub fn generate_bluebook(name: &str, vision: &str, archetype: &Domain) -> String {
-    let snake = to_snake(name);
     let mut out = Vec::new();
     out.push(format!("Hecks.bluebook \"{}\", version: \"{}\" do", name, VERSION));
     out.push(format!("  vision \"{}\"", vision));

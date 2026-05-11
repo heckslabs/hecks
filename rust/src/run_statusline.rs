@@ -780,7 +780,11 @@ mod tests {
     fn provider_badge_covers_three_states() {
         assert_eq!(provider_badge_for("claude"), "🤖");
         assert_eq!(provider_badge_for("local"),  "🦙");
-        assert_eq!(provider_badge_for("off"),    "🚫");
+        // "off" deliberately returns empty — see provider_badge_for's
+        // doc comment. The render code gates on !is_empty(), so off
+        // shows nothing rather than a 🚫 emoji that would be visual
+        // noise on a working statusline.
+        assert_eq!(provider_badge_for("off"),    "");
         assert_eq!(provider_badge_for(""),       "🤖"); // default
     }
 

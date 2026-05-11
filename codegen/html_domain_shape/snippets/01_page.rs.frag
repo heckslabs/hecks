@@ -11,14 +11,16 @@ pub fn generate_domain_page(
         d.sort_by(|a, b| a.0.cmp(&b.0));
         d
     };
-    let sidebar = sidebar_links(&domains, Some(name));
     let rt = rt.borrow();
+    let sidebar = sidebar_tree(&domains, name, &rt.domain);
     let mut main = String::new();
     main.push_str(&format!(
-        r#"<div class="mb-8">
+        r#"<div class="mb-8 flex items-baseline justify-between">
   <h1 class="text-3xl font-bold text-brand">{label}</h1>
+  <a href="/diagram/{name}" class="text-sm px-3 py-1.5 rounded-lg bg-surface-2 border border-surface-3 text-gray-300 hover:bg-brand hover:text-black hover:border-brand transition">📊 View as Living Diagram →</a>
 </div>
 "#,
+        name = name,
         label = esc(&display_name(name)),
     ));
 
@@ -71,11 +73,12 @@ fn creation_cards(domain: &str, rt: &Runtime) -> String {
         let desc = agg.description.as_deref().unwrap_or("");
 
         s.push_str(&format!(
-            r#"<div class="bg-surface-2 rounded-xl border border-surface-3 p-5 hover:border-brand/30 transition">
+            r#"<div id="agg-{anchor}" class="bg-surface-2 rounded-xl border border-surface-3 p-5 hover:border-brand/30 transition scroll-mt-24">
   <div class="mb-3">
     <h3 class="font-semibold text-white">{icon} {label}</h3>
     <p class="text-xs text-gray-500 mt-1">{desc}</p>
   </div>"#,
+            anchor = esc(&agg.name),
             icon = icon,
             label = esc(&display_name(&agg.name)),
             desc = esc(desc),
