@@ -1,0 +1,48 @@
+Hecks.bluebook "DomainTag", version: "2026.05.11.1" do
+  vision "HTML accessibility tagging conventions — every generated element maps back to a domain concept"
+  category "infrastructure"
+
+  # === Domain Mapping ===
+
+  aggregate "DomainTag", "HTML accessibility attributes that map every element to the domain" do
+    attribute :tag_prefix, String
+    attribute :conventions, list_of(TagConvention)
+
+    value_object "TagConvention" do
+      attribute :element_type, String
+      attribute :attribute_name, String
+      attribute :maps_to, String
+      attribute :example, String
+    end
+
+    command "DefineTagPrefix" do
+      role "System"
+      description "Set the data attribute prefix — e.g. data-domain, data-bluebook"
+      attribute :tag_prefix, String
+      emits "TagPrefixDefined"
+      then_set :tag_prefix, to: :tag_prefix
+    end
+
+    command "RegisterConvention" do
+      role "System"
+      description "Map an HTML element type to a domain concept"
+      reference_to(DomainTag)
+      attribute :element_type, String
+      attribute :attribute_name, String
+      attribute :maps_to, String
+      emits "ConventionRegistered"
+    end
+  end
+
+  # Tag conventions:
+  #   <section data-domain-aggregate="Formula">        → aggregate
+  #   <form data-domain-command="CreateFormula">        → command
+  #   <input data-domain-attribute="name">              → attribute
+  #   <select data-domain-lifecycle="status">           → lifecycle field
+  #   <div data-domain-value-object="Ingredient">       → value object
+  #   <button data-domain-emit="FormulaCreated">        → event emitted
+  #   <nav data-domain-policy="ReorderOnLowStock">      → policy
+  #   <span data-domain-role="Formulator">              → role/actor
+  #
+  # aria-label derives from aggregate/command descriptions in the bluebook
+end

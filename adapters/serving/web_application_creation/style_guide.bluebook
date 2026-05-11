@@ -1,0 +1,70 @@
+Hecks.bluebook "StyleGuide", version: "2026.05.11.1" do
+  vision "Design system — colors, typography, spacing. Distinctly yours, not AI-generic."
+  category "infrastructure"
+
+  # === Style Guide ===
+
+  aggregate "StyleGuide", "Design system — colors, typography, spacing, components. Yours to customize." do
+    attribute :name, String
+    attribute :palette, list_of(Color)
+    attribute :typography, list_of(TypeScale)
+    attribute :spacing_unit, Integer
+    attribute :border_radius, String
+    attribute :shadow_style, String
+    attribute :animation_style, String
+    attribute :density, String
+
+    value_object "Color" do
+      attribute :name, String
+      attribute :hex, String
+      attribute :role, String
+      attribute :usage, String
+    end
+
+    value_object "TypeScale" do
+      attribute :name, String
+      attribute :font_family, String
+      attribute :size, String
+      attribute :weight, String
+      attribute :line_height, String
+      attribute :usage, String
+    end
+
+    command "DraftStyleGuide" do
+      role "Designer"
+      description "Draft the visual language — not AI-generic, distinctly yours"
+      attribute :name, String
+      attribute :spacing_unit, Integer
+      attribute :border_radius, String
+      attribute :density, String
+      emits "StyleGuideDrafted"
+      then_set :name, to: :name
+      then_set :spacing_unit, to: :spacing_unit
+      then_set :border_radius, to: :border_radius
+      then_set :density, to: :density
+    end
+
+    command "SetPalette" do
+      role "Designer"
+      description "Define the color palette — primary, secondary, accent, surface, error"
+      reference_to(StyleGuide)
+      emits "PaletteSet"
+    end
+
+    command "SetTypography" do
+      role "Designer"
+      description "Define the type scale — display, heading, body, caption, code"
+      reference_to(StyleGuide)
+      emits "TypographySet"
+    end
+
+    command "TweakStyle" do
+      role "Designer"
+      description "Override any style token — make it extraordinary"
+      reference_to(StyleGuide)
+      attribute :token_name, String
+      attribute :token_value, String
+      emits "StyleTweaked"
+    end
+  end
+end

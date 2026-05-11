@@ -1,0 +1,18 @@
+Hecks.behaviors "DomainTag" do
+  vision "Behavioral tests for the DomainTag domain — exercises every command in memory"
+
+  # ── DomainTag aggregate ──────────────────────────────────────────
+
+  test "DefineTagPrefix sets tag_prefix" do
+    tests "DefineTagPrefix", on: "DomainTag"
+    input  tag_prefix: "sample"
+    expect tag_prefix: "sample"
+  end
+
+  test "RegisterConvention sets element_type + attribute_name + maps_to" do
+    tests "RegisterConvention", on: "DomainTag"
+    setup  "DefineTagPrefix", tag_prefix: "sample"
+    input  element_type: "sample", attribute_name: "sample", maps_to: "sample"
+    expect ok: "true"
+  end
+end

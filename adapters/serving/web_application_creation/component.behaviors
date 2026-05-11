@@ -1,0 +1,17 @@
+Hecks.behaviors "Component" do
+  vision "Behavioral tests for the Component domain — exercises every command in memory"
+
+  # ── Component aggregate ──────────────────────────────────────────
+
+  test "DefineComponent sets name + component_type + maps_to" do
+    tests "DefineComponent", on: "Component"
+    input  name: "sample", component_type: "sample", maps_to: "sample"
+    expect name: "sample", component_type: "sample", maps_to: "sample", accessible: "true"
+  end
+
+  test "CustomizeComponent runs" do
+    tests "CustomizeComponent", on: "Component"
+    setup  "DefineComponent", name: "sample", component_type: "sample", maps_to: "sample"
+    expect ok: "true"
+  end
+end

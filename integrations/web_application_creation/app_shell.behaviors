@@ -1,0 +1,30 @@
+Hecks.behaviors "AppShell" do
+  vision "Behavioral tests for the AppShell domain — exercises every command in memory"
+
+  # ── AppShell aggregate ──────────────────────────────────────────
+
+  test "GenerateShell sets app_name + layout_type" do
+    tests "GenerateShell", on: "AppShell"
+    input  app_name: "sample", layout_type: "sample"
+    expect app_name: "sample", layout_type: "sample"
+  end
+
+  test "GenerateShell cascades through policy chain" do
+    tests "GenerateShell", on: "AppShell", kind: :cascade
+    input  app_name: "sample", layout_type: "sample"
+    expect emits: ["ShellGenerated", "NavigationBuilt"]
+  end
+
+  test "BuildNavigation runs" do
+    tests "BuildNavigation", on: "AppShell"
+    setup  "GenerateShell", app_name: "sample", layout_type: "sample"
+    expect ok: "true"
+  end
+
+  test "ApplyTheme sets theme" do
+    tests "ApplyTheme", on: "AppShell"
+    setup  "GenerateShell", app_name: "sample", layout_type: "sample"
+    input  theme: "sample"
+    expect theme: "sample"
+  end
+end

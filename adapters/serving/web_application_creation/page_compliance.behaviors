@@ -1,0 +1,65 @@
+Hecks.behaviors "PageCompliance" do
+  vision "Behavioral tests for the PageCompliance domain — exercises every command in memory"
+
+  # ── DomainCompliance aggregate ──────────────────────────────────────────
+
+  test "ScanApp sets app_path + bluebook_path" do
+    tests "ScanApp", on: "DomainCompliance"
+    input  app_path: "sample", bluebook_path: "sample"
+    expect app_path: "sample", bluebook_path: "sample"
+  end
+
+  test "ScanApp cascades through policy chain" do
+    tests "ScanApp", on: "DomainCompliance", kind: :cascade
+    input  app_path: "sample", bluebook_path: "sample"
+    expect emits: ["AppScanned", "ComplianceReported"]
+  end
+
+  test "ReportCompliance sets total_elements + tagged_elements + orphan_elements + missing_commands" do
+    tests "ReportCompliance", on: "DomainCompliance"
+    setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
+    input  total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
+    expect total_elements: 1, tagged_elements: 1, orphan_elements: 1, missing_commands: "sample"
+  end
+
+  test "FlagOrphan sets element + location" do
+    tests "FlagOrphan", on: "DomainCompliance"
+    setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
+    input  element: "sample", location: "sample"
+    expect ok: "true"
+  end
+
+  test "FlagMissingCommand sets command_name" do
+    tests "FlagMissingCommand", on: "DomainCompliance"
+    setup  "ScanApp", app_path: "sample", bluebook_path: "sample"
+    input  command_name: "sample"
+    expect ok: "true"
+  end
+
+
+  # ── Page aggregate ──────────────────────────────────────────
+
+  test "GeneratePage sets name + page_type + aggregate_name + route" do
+    tests "GeneratePage", on: "Page"
+    input  name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample", status: "generated"
+  end
+
+  test "GeneratePage cascades through policy chain" do
+    tests "GeneratePage", on: "Page", kind: :cascade
+    input  name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect emits: ["PageGenerated", "AppScanned", "ComplianceReported"]
+  end
+
+  test "CustomizePage runs" do
+    tests "CustomizePage", on: "Page"
+    setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect status: "customized"
+  end
+
+  test "ValidatePage runs" do
+    tests "ValidatePage", on: "Page"
+    setup  "GeneratePage", name: "sample", page_type: "sample", aggregate_name: "sample", route: "sample"
+    expect status: "validated"
+  end
+end

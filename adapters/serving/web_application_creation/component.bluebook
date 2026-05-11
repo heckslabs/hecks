@@ -1,0 +1,41 @@
+Hecks.bluebook "Component", version: "2026.05.11.1" do
+  vision "Reusable UI components — domain-tagged, accessible, stylable"
+  category "infrastructure"
+
+  # === Component Library ===
+
+  aggregate "Component", "A reusable UI component — domain-tagged, accessible, stylable" do
+    attribute :name, String
+    attribute :component_type, String
+    attribute :maps_to, String
+    attribute :props, list_of(Prop)
+    attribute :accessible, String
+
+    value_object "Prop" do
+      attribute :name, String
+      attribute :prop_type, String
+      attribute :domain_attribute, String
+      attribute :required, String
+    end
+
+    command "DefineComponent" do
+      role "System"
+      description "Create a component — form field, data table, card, lifecycle badge, action button"
+      attribute :name, String
+      attribute :component_type, String
+      attribute :maps_to, String
+      emits "ComponentDefined"
+      then_set :name, to: :name
+      then_set :component_type, to: :component_type
+      then_set :maps_to, to: :maps_to
+      then_set :accessible, to: "true"
+    end
+
+    command "CustomizeComponent" do
+      role "Designer"
+      description "Override a component's appearance — your design, not AI default"
+      reference_to(Component)
+      emits "ComponentCustomized"
+    end
+  end
+end

@@ -1,0 +1,53 @@
+Hecks.bluebook "AppShell", version: "2026.05.11.1" do
+  vision "The overall application frame — navigation, layout, theme"
+  category "infrastructure"
+
+  # === Application Shell ===
+
+  aggregate "AppShell", "The overall application frame — navigation, layout, theme" do
+    attribute :app_name, String
+    attribute :navigation, list_of(NavItem)
+    attribute :layout_type, String
+    attribute :theme, String
+
+    value_object "NavItem" do
+      attribute :label, String
+      attribute :route, String
+      attribute :icon, String
+      attribute :aggregate_name, String
+    end
+
+    command "GenerateShell" do
+      role "System"
+      description "Create the app shell — nav from aggregates, layout from domain structure"
+      attribute :app_name, String
+      attribute :layout_type, String
+      emits "ShellGenerated"
+      then_set :app_name, to: :app_name
+      then_set :layout_type, to: :layout_type
+    end
+
+    command "BuildNavigation" do
+      role "System"
+      description "Generate navigation from aggregates — each aggregate gets a nav item"
+      reference_to(AppShell)
+      emits "NavigationBuilt"
+    end
+
+    command "ApplyTheme" do
+      role "Designer"
+      description "Apply the style guide to the shell — colors, fonts, spacing"
+      reference_to(AppShell)
+      attribute :theme, String
+      emits "ThemeApplied"
+      then_set :theme, to: :theme
+    end
+  end
+
+  # === Policies ===
+
+  policy "NavOnShell" do
+    on "ShellGenerated"
+    trigger "BuildNavigation"
+  end
+end

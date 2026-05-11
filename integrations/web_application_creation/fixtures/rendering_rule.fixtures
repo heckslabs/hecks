@@ -1,7 +1,4 @@
-Hecks.fixtures "WebApplicationCreation" do
-  aggregate "DomainTag" do
-    fixture "DomainTag1", tag_prefix: "data-domain", conventions: []
-  end
+Hecks.fixtures "RenderingRule" do
   aggregate "RenderingRule" do
     fixture "tailwind_only_", name: "tailwind_only", scope: "document", check: "no <link rel=stylesheet> except tailwind CDN", violation: "custom CSS file detected", origin: "miette"
     fixture "single_process_", name: "single_process", scope: "server", check: "HTML and API served from one port", violation: "separate frontend process detected", origin: "miette"

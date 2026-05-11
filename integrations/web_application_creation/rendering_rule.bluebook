@@ -1,0 +1,54 @@
+Hecks.bluebook "RenderingRule", version: "2026.05.11.1" do
+  vision "Deterministic checks the generator must pass — not guidance, gates"
+  category "infrastructure"
+
+  # === Rendering Rules ===
+  # Each rule is checkable: scope says WHAT to check, check says HOW, violation says WHAT FAILED.
+  # A validator walks the generated HTML and applies every rule. No interpretation needed.
+
+  aggregate "RenderingRule", "A deterministic check the generator must pass — not guidance, a gate" do
+    attribute :name, String
+    attribute :scope, String
+    attribute :check, String
+    attribute :violation, String
+    attribute :origin, String
+
+    command "AddRule" do
+      role "System"
+      description "Register a rendering rule that the generator must satisfy"
+      attribute :name, String
+      attribute :scope, String
+      attribute :check, String
+      attribute :violation, String
+      attribute :origin, String
+      emits "RuleAdded"
+      then_set :name, to: :name
+      then_set :scope, to: :scope
+      then_set :check, to: :check
+      then_set :violation, to: :violation
+      then_set :origin, to: :origin
+    end
+  end
+
+  # ============================================================
+  # RENDERING RULES
+  # scope:     what element or pattern to check
+  # check:     the deterministic assertion
+  # violation: what to report when it fails
+  # origin:    who contributed this rule
+  # ============================================================
+
+  # --- CSS & Framework ---
+  # --- Color System ---
+  # --- Typography ---
+  # --- Layout ---
+  # --- Tables ---
+  # --- Commands ---
+  # --- Fields ---
+  # --- Lifecycle ---
+  # --- Events ---
+  # --- Terminology ---
+  # --- Panels ---
+  # --- Touch & Accessibility ---
+  # --- Data ---
+end

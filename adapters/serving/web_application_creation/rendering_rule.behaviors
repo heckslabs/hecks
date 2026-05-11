@@ -1,0 +1,11 @@
+Hecks.behaviors "RenderingRule" do
+  vision "Behavioral tests for the RenderingRule domain — exercises every command in memory"
+
+  # ── RenderingRule aggregate ──────────────────────────────────────────
+
+  test "AddRule sets name + scope + check + violation + origin" do
+    tests "AddRule", on: "RenderingRule"
+    input  name: "sample", scope: "sample", check: "sample", violation: "sample", origin: "sample"
+    expect name: "sample", scope: "sample", check: "sample", violation: "sample", origin: "sample"
+  end
+end
