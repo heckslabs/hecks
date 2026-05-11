@@ -15,6 +15,12 @@ pub mod validator_warnings;
 pub mod validator_corpus;
 pub mod conceiver;
 pub mod heki;
+// heki_r2 — R2-backed sibling of heki, used inside Cloudflare
+// Workers. Cfg-gated to wasm32 because the `worker::Bucket` it
+// depends on only exists at that target. See rust/src/heki_r2.rs
+// for the i528 R2 storage adapter contract.
+#[cfg(target_arch = "wasm32")]
+pub mod heki_r2;
 pub mod heki_query;
 pub mod dispatch_query;
 pub mod dump;

@@ -1,0 +1,209 @@
+Hecks.bluebook "HekiR2", version: "2026.05.11.1" do
+  vision "The R2-backed record store. Sibling of HekiFile : same Store-of-Records shape (id-keyed JSON object framed by HEKI magic + record_count + zlib-compressed body), but persisted to a Cloudflare R2 object instead of a local filesystem path. The on-the-wire bytes are identical to the .heki file format so the projection stays portable ; the kernel-floor Rust at rust/src/heki_r2.rs is the wasm32-gated projection that fetches/puts those bytes through a worker::Bucket binding."
+  category "runtime"
+
+  # ============================================================
+  # HEKI_R2 — the on-wire record store, R2 edition
+  # ============================================================
+  #
+  # i528 / R2 storage adapter. heki.bluebook (sibling) describes the
+  # local-filesystem projection used by the standalone CLI ; this
+  # bluebook describes the R2 projection used inside a Cloudflare
+  # Worker. The world file's `command_bus { storage_backend :r2 }`
+  # picks which projection a deployment runs ; the bluebook layer
+  # never sees that choice — every consumer addresses records
+  # through the same Read / Upsert / Append surface.
+  #
+  # ── Companion bluebooks ──────────────────────────────────────
+  #
+  # heki.bluebook (runtime/storage/) — local-fs projection, same
+  #   command surface (Read, Upsert, Append, Delete, …). The two
+  #   bluebooks describe two backends for one logical persistence
+  #   contract ; future "in_memory" bluebook would be a third.
+  #
+  # adapters/r2.bluebook (hecks_conception/adapters/) — the adapter
+  #   port that maps an aggregate name to its R2 object key
+  #   (Binding) and resolves singleton references through R2
+  #   (Reference). This bluebook is the kernel projection : the
+  #   actual GETs and PUTs against the bucket. The adapter calls
+  #   into Heki.R2's commands ; this bluebook never sees aggregate
+  #   names.
+  #
+  # ── Why a Worker-only bluebook ──────────────────────────────
+  #
+  # R2 access inside a Cloudflare Worker is a binding pattern :
+  # `env.BUCKET_NAME.get(key)` and `env.BUCKET_NAME.put(key, body)`.
+  # No S3 signing — the Worker runtime handles auth. That's only
+  # available when the runtime IS the Worker. The kernel projection
+  # at rust/src/heki_r2.rs is cfg-gated to wasm32 ; the standalone
+  # storehouse CLI never compiles or links it. Two backends, one
+  # contract, one Worker-only fork in the kernel.
+
+  # ============================================================
+  # HEKIR2OBJECT — one R2 object, one Store on the wire
+  # ============================================================
+  #
+  # The aggregate boundary is the R2 object. One HekiR2Object per
+  # (bucket, key) pair. The pair is the natural key ; the bluebook
+  # never sees bucket credentials or accounts (those live in the
+  # world file and the Worker's binding env). Lifecycle tracks
+  # the object's relationship to the runtime — missing (no object
+  # at that key), loaded (we GOT it into memory), written (we just
+  # PUT), empty (object exists but the Store decoded to zero records).
+
+  aggregate "HekiR2Object", "One R2 object holding a Store. Same Store-of-Records shape as HekiFile : id-keyed JSON object framed by HEKI magic + record_count + zlib-compressed body. Identified by the (bucket, key) pair ; the bluebook layer never sees R2 credentials." do
+    identified_by :key
+
+    # ── Value objects (the typed shapes used across this aggregate) ──
+
+    # The R2 bucket binding name as declared in wrangler.toml and
+    # exposed on `env` to the Worker. The world file supplies the
+    # binding name via `r2 do bucket_env "BIN_BUDDY_R2_BUCKET" end` ;
+    # the kernel reads `env.bucket(<binding>)` to get a worker::Bucket.
+    value_object "Binding" do
+      attribute :value, String
+    end
+
+    # The R2 object key within the bucket. By convention mirrors the
+    # heki path : PascalCase aggregate name converted to snake_case
+    # + ".heki" extension preserved for portability. A heki-format
+    # blob in R2 looks identical to one on the filesystem.
+    value_object "Key" do
+      attribute :value, String
+    end
+
+    # A record's identity within its R2 object. Same rules as
+    # HekiFile.RecordId — String not UUID, so semantic ids
+    # ("heartbeat", "consciousness") stay first-class on R2 the
+    # same way they do on disk.
+    value_object "RecordId" do
+      attribute :value, String
+    end
+
+    # ISO-8601 UTC timestamp. Stamped at write-time by the runtime ;
+    # same canonical `YYYY-MM-DDTHH:MM:SSZ` shape as HekiFile.
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    # Cardinality of the Store carried on the R2 object. Cached on
+    # HekiR2Object so callers can answer Count without re-fetching
+    # the body ; refreshed on every PUT. u32 on the wire (the four
+    # bytes between HEKI magic and the zlib-compressed payload).
+    value_object "RecordCount" do
+      attribute :value, Integer
+    end
+
+    # The audit-channel justification for an out-of-band write
+    # (test setup, manual migration, bootstrap seed). Same role as
+    # HekiFile.Reason — required when the caller is not the runtime
+    # dispatcher, empty for Dispatch-context writes.
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    # Lifecycle phase of the R2 object relative to the runtime :
+    #   missing — no object at this (binding, key). GET returns None.
+    #   loaded  — GET succeeded ; the Store is in memory.
+    #   written — a PUT just succeeded ; the bucket now holds the
+    #             new bytes.
+    #   empty   — the object exists but its Store decoded to zero
+    #             records (post-bootstrap pre-first-record, or
+    #             post-last-Delete).
+    value_object "Phase" do
+      attribute :value, String,
+        enum: ["missing", "loaded", "written", "empty"]
+    end
+
+    # ── Attributes ─────────────────────────────────────────────
+
+    # binding : the wrangler-declared bucket binding name. The
+    # kernel resolves it to a worker::Bucket at command-execute
+    # time via env.bucket(binding).
+    attribute :binding,        Binding
+
+    # key : the R2 object key — the natural identifying half of
+    # the (binding, key) pair.
+    attribute :key,            Key
+
+    # record_count : cached count, refreshed by every PUT.
+    attribute :record_count,   RecordCount
+
+    # last_write_at : ISO-8601 of the most recent successful PUT.
+    attribute :last_write_at,  Timestamp
+
+    # phase : current lifecycle phase (see Phase value_object).
+    attribute :phase,          Phase
+
+    # ── HekiR2Record (entity child) ───────────────────────────
+    #
+    # Same shape as HekiFile.HekiRecord : the record is mutable,
+    # has identity, is owned by the object. Upsert mutates it in
+    # place by id ; Delete removes it ; Read materialises the
+    # whole Store. The framework-stable fields (id, created_at,
+    # updated_at) are the typed contract every record carries.
+
+    entity "HekiR2Record" do
+      description "One record within a HekiR2Object. Identified by RecordId (semantic or uuid). Carries framework-stable timestamps plus the per-aggregate payload the runtime materialises into an AggregateState."
+      attribute :id,         RecordId
+      attribute :created_at, Timestamp
+      attribute :updated_at, Timestamp
+    end
+
+    # ── Commands ───────────────────────────────────────────────
+    #
+    # Commands map one-to-one to the public surface of
+    # rust/src/heki_r2.rs. Read / Upsert / Append are the V1
+    # surface ; Delete / Latest / Count / List ride along so the
+    # bluebook's commands map cleanly to the heki.bluebook
+    # baseline ; their kernel projection lands as the consumers
+    # need them.
+
+    command "Read" do
+      role "System"
+      description "GET the R2 object at (binding, key), decode HEKI magic + zlib body into a Store, return an empty Store when the object does not exist. Projects to heki_r2::read_record in the Rust runtime. Idempotent and read-only."
+      attribute :binding, Binding
+      attribute :key,     Key
+      then_set :phase, to: "loaded"
+      emits "RecordsRead"
+    end
+
+    command "Upsert" do
+      role "System"
+      description "Insert or update a record by id, then PUT the full Store back to R2. Same three matching rules as HekiFile.Upsert : explicit id matches existing → in-place update ; no id and singleton store → update the sole record ; otherwise create. Projects to heki_r2::upsert_record."
+      reference_to(HekiR2Object)
+      attribute :record_id, RecordId
+      attribute :reason,    Reason
+      then_set :phase,         to: "written"
+      then_set :last_write_at, to: :reason
+      emits "RecordUpserted"
+    end
+
+    command "Append" do
+      role "System"
+      description "Add a new record with a freshly generated uuid_v4 id, stamp created_at/updated_at, PUT the full Store back to R2. Never updates an existing record. Projects to heki_r2::append_record."
+      reference_to(HekiR2Object)
+      attribute :reason, Reason
+      then_set :phase,         to: "written"
+      then_set :last_write_at, to: :reason
+      emits "RecordAppended"
+    end
+
+    # ── Lifecycle ──────────────────────────────────────────────
+
+    lifecycle :phase, default: "missing" do
+      transition "Read"   => "loaded",  from: "missing"
+      transition "Read"   => "loaded",  from: "loaded"
+      transition "Read"   => "loaded",  from: "written"
+      transition "Read"   => "empty",   from: "empty"
+      transition "Upsert" => "written", from: "missing"
+      transition "Upsert" => "written", from: "loaded"
+      transition "Upsert" => "written", from: "written"
+      transition "Upsert" => "written", from: "empty"
+      transition "Append" => "written", from: "missing"
+      transition "Append" => "written", from: "loaded"
+      transition "Append" => "written", from: "written"
+      transition "Append" => "written", from: "empty"
+    end
+  end
+end
