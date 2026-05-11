@@ -1,5 +1,5 @@
 Hecks.bluebook "CommandBus", version: "2026.05.10.1" do
-  vision "An app-scoped slice of the universal bus. CommandBus filters StoreHouse to the phrases whose app segment matches self.app, exposes them via HTTP routes (POST /route, GET /lexicon, GET /query, GET /health), and rejects any phrase outside its scope. Realized today as a WASM artifact hosted on a Cloudflare Worker — the realization details (artifact shape, storage backend, host, transport, auth, codegen) live in command_bus.hecksagon, not here. See i528 for the full storehouse arc."
+  vision "An app-scoped slice of the universal bus. CommandBus filters StoreHouse to the phrases whose app segment matches self.app, exposes them via HTTP routes (POST /route, GET /lexicon, GET /query, GET /health), and rejects any phrase outside its scope. The bus's UL is infrastructure : its model declares storage backends, hosts, and auth schemes as first-class domain concepts ; its commands include Configure (read world-file values at boot) alongside Scope, Route, and Expose. The I/O for each named backend / host / scheme lives in command_bus.hecksagon ; the per-deployment choice + credentials live in the world file. See i528 for the full storehouse arc."
   category "storehouse"
 
   # ============================================================
@@ -18,15 +18,29 @@ Hecks.bluebook "CommandBus", version: "2026.05.10.1" do
   # aggregates. The bus IS the API. StoreHouse stays the universal
   # bluebook contract ; CommandBus is the per-app surface.
   #
-  # The bluebook describes the contract. The hecksagon binds the
-  # adapter families :
+  # ── Infrastructure as UL ──
   #
-  #   :wasm     — the artifact shape (cdylib targeting wasm32)
-  #   :storage  — the heki backend (fs / r2 / in_memory)
-  #   :host     — where the WASM runs (cf_worker / aws_lambda / cli)
-  #   :http     — the HTTP transport for the routes
-  #   :auth     — the authentication scheme for the routes
-  #   :codegen  — per-target-language class / type / function generation
+  # Customer aggregates (Notifications, Plan, Subscription) hold
+  # infrastructure at arm's length via adapter families — `:sms`
+  # binds Twilio to SendSms without Twilio's wire shape leaking into
+  # the business language. CommandBus is different. Its UL *is*
+  # infrastructure : storage, host, auth scheme are part of what
+  # the bus is, not external concerns it abstracts away. So the
+  # bluebook carries the model of those infrastructure concepts —
+  # StorageBackend, Host, AuthScheme value-objects with their
+  # known values — as first-class domain.
+  #
+  # The bluebook describes the model (what concepts exist, what
+  # their valid values are, what attributes the bus carries).
+  # The hecksagon describes the I/O (how :r2 actually does HTTP
+  # PUTs, how :cf_worker actually receives fetch events). The
+  # world file picks one of each for this deployment and supplies
+  # the credentials. Three layers, one concept per layer :
+  #
+  #   bluebook  : "StorageBackend is :fs, :r2, or :in_memory"
+  #   hecksagon : "Here is how :r2 talks to Cloudflare's S3 API"
+  #   world     : "For bin-buddy, the storage_backend is :r2 ;
+  #                its credentials live at $BIN_BUDDY_R2_*"
   #
   # Companion to dispatch.bluebook, lexicon.bluebook, query.bluebook
   # (the underlying StoreHouse the bus filters from). See i528 for
@@ -81,9 +95,54 @@ Hecks.bluebook "CommandBus", version: "2026.05.10.1" do
       end
     end
 
+    # ── Infrastructure model — the bus's UL ─────────────────────
+
+    value_object "StorageBackend" do
+      # Which heki backend persists this bus's events. The hecksagon
+      # declares the I/O for each value ; the world file picks one
+      # and supplies its credentials.
+      attribute :value, String
+      rule "must be one of :fs, :r2, :in_memory" do
+        requires { %w[fs r2 in_memory].include?(value) }
+      end
+    end
+
+    value_object "Host" do
+      # Where the bus's WASM runs. cf_worker is the bin-buddy
+      # target ; cli is the laptop ; aws_lambda + axum_local are
+      # filed for later iterations.
+      attribute :value, String
+      rule "must be one of :cf_worker, :aws_lambda, :cli, :axum_local" do
+        requires { %w[cf_worker aws_lambda cli axum_local].include?(value) }
+      end
+    end
+
+    value_object "AuthScheme" do
+      # How incoming HTTP requests prove they're allowed. :bearer
+      # is service-to-service (worker secret) ; :jwt + :oauth are
+      # tenant / user scopes for portal-originated traffic ; :none
+      # for local CLI hosts that don't authenticate.
+      attribute :value, String
+      rule "must be one of :bearer, :jwt, :oauth, :none" do
+        requires { %w[bearer jwt oauth none].include?(value) }
+      end
+    end
+
     attribute App
+    attribute StorageBackend
+    attribute Host
+    attribute AuthScheme
 
     # ── Commands ───────────────────────────────────────────────
+
+    command "Configure" do
+      role "System"
+      description "Read this deployment's storage backend, host, and auth scheme from the world file's command_bus block, validate the values against the known enums, and emit Configured. Fired once at bus boot before Scope ; the hecksagon's :host adapter binding triggers it with the world-file values."
+      attribute StorageBackend, as: :storage_backend
+      attribute Host,           as: :host
+      attribute AuthScheme,     as: :auth_scheme
+      emits "Configured"
+    end
 
     command "Scope" do
       role "System"
