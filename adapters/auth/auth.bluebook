@@ -1,0 +1,241 @@
+Hecks.bluebook "Auth", version: "2026.05.11.1" do
+  vision "The ubiquitous language for the :auth adapter — who's acting, what role they hold, which commands they're permitted to dispatch. Auth is a command-bus middleware : every dispatch is intercepted, the current actor's role is looked up against the command's required roles, and the dispatch is either allowed, rejected as unauthenticated (no actor set), or rejected as unauthorized (wrong role). This bluebook is the language ; the sibling auth.hecksagon names the wiring ; the Ruby extension at ruby/hecks/extensions/auth.rb is the current realization, retiring under i80 once both files become the source of truth."
+  category "discipline"
+
+  # ============================================================
+  # AUTH — UL for the :auth driven adapter
+  # ============================================================
+  #
+  # Three concepts and one decision :
+  #
+  #   Actor   — who's running this command right now. Carries a Role.
+  #   Role    — a named permission tier the actor holds.
+  #   Session — the duration over which an Actor is bound to a
+  #             caller (HTTP request, CLI invocation, Worker call).
+  #             Persisted per-cookie in web contexts ; per-process
+  #             on a CLI ; per-request on a Worker.
+  #
+  # On every command dispatch the runtime asks one question :
+  #
+  #   AuthDecision : is THIS Actor allowed to issue THIS command ?
+  #
+  # The answer comes from the command's declared `role "…"` (the
+  # bluebook tells the runtime "this command requires Actor whose
+  # role is one of …") matched against the live Actor's role.
+  # Three outcomes : Allowed, Unauthenticated (no Actor in scope),
+  # Unauthorized (Actor's role isn't on the command's allowed list).
+  #
+  # The adapter is :driven — it doesn't initiate, it intercepts.
+  # The bus is the driver ; auth is the gate. The hecksagon
+  # declares wires_to :command_bus so the runtime injects the
+  # middleware on bus boot.
+  #
+  # What's NOT in this bluebook (filed for sibling capabilities) :
+  #
+  #   Login / Signup / Logout SCREENS  → :auth_screens capability
+  #     (ScreenRoutes, TemplateBinding for ERB views — webapp surface)
+  #
+  #   Credential STORAGE               → discipline/security
+  #     (HashedSecret already lives there ; auth verifies against it,
+  #      it doesn't store secrets itself)
+  #
+  #   Audit log of dispatches          → :audit capability
+  #     (sibling to auth ; records who dispatched what, separate
+  #      adapter on the same bus)
+  #
+  #   Rate limiting + idempotency      → :rate_limit, :idempotency
+  #     (sibling adapters, same middleware shape)
+  #
+  # The auth chapter at ruby/hecks/chapters/extensions/auth.rb
+  # bundled ScreenRoutes + SessionStore + TemplateBinding into one
+  # sketch. The lift splits them : core auth (this file) holds the
+  # decision UL ; auth_screens (next bluebook) holds the login-page
+  # surface. Each lands as its own driven adapter on the bus, both
+  # depending on this one.
+
+  aggregate "Actor", "Whoever is running this command right now" do
+    identified_by :identifier
+
+    value_object "Identifier" do
+      # Stable, unique handle for the actor across sessions. An
+      # email for a homeowner ; a username for an admin ; a service
+      # name for a server-to-server caller. The adapter doesn't
+      # interpret the shape — just compares.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "RoleName" do
+      # The named role this actor holds for THIS session. A single
+      # actor can hold different roles in different sessions
+      # (Chris-as-Admin in the back office, Chris-as-Homeowner in
+      # the portal he uses for his own house) ; the runtime treats
+      # each session's role as the truth-of-the-moment, not a
+      # property of the underlying person.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :identifier, Identifier
+    attribute :role_name,  RoleName
+
+    command "Authenticate" do
+      role "System"
+      description "Establish that the given identifier + role pair is the actor on the current call. Typically fired by the :auth_screens adapter at sign-in time, or by a service-to-service caller at boot. Doesn't store credentials — the bus assumes the credentials were already verified upstream (by HashedSecret + AccessGate, or by a bearer-secret check at the adapter edge)."
+      attribute :identifier, Identifier
+      attribute :role_name,  RoleName
+      emits "Authenticated"
+      then_set :identifier, to: :identifier
+      then_set :role_name,  to: :role_name
+    end
+  end
+
+  aggregate "Session", "An Actor bound to a caller for a stretch of time" do
+    identified_by :token
+
+    value_object "Token" do
+      # Opaque session identifier — the cookie value in a web
+      # context, the process scope on a CLI, the request id on a
+      # Worker. The adapter generates fresh tokens at sign-in via
+      # the runtime's crypto-grade entropy (heki::uuid_v4 — same
+      # primitive that landed in the i528 wasm32 fix).
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "ActorIdentifier" do
+      # Foreign key to Actor — which actor this session belongs to.
+      # Carried separately from Actor.identifier so a session can
+      # outlive a single Actor record without re-issuing the token.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "OpenedAt" do
+      # ISO-8601 timestamp of sign-in. The middleware uses this
+      # to decide whether to require a re-authentication step for
+      # high-sensitivity commands ("you signed in 8 hours ago ;
+      # please re-enter your password").
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "ExpiresAt" do
+      # ISO-8601 timestamp. The middleware checks this on every
+      # dispatch ; expired sessions produce Unauthenticated before
+      # the role check runs.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :token,             Token
+    attribute :actor_identifier,  ActorIdentifier
+    attribute :opened_at,         OpenedAt
+    attribute :expires_at,        ExpiresAt
+
+    command "Open" do
+      role "System"
+      description "Start a session for the named actor. The runtime generates a fresh token (heki::uuid_v4) and stamps opened_at + expires_at according to the deployment's session-window setting (declared in the hecksagon). Returns the token to the caller — the :auth_screens adapter puts it in the cookie, a CLI binds it to its process, a Worker returns it in the response."
+      attribute :actor_identifier, ActorIdentifier
+      attribute :opened_at,        OpenedAt
+      attribute :expires_at,       ExpiresAt
+      emits "Opened"
+      then_set :actor_identifier, to: :actor_identifier
+      then_set :opened_at,        to: :opened_at
+      then_set :expires_at,       to: :expires_at
+    end
+
+    command "Close" do
+      role "System"
+      description "End the session. Idempotent — closing a closed session is a no-op. After Close the token cannot reopen ; a new session requires a fresh Authenticate. The runtime may invalidate the token immediately or let it expire on its own clock — both are valid realizations."
+      reference_to(Session)
+      emits "Closed"
+    end
+  end
+
+  aggregate "AuthDecision", "The runtime's answer on whether a dispatch is allowed" do
+    identified_by :phrase
+
+    value_object "Phrase" do
+      # The four-segment command phrase being evaluated. Same shape
+      # as Dispatch.Phrase from i528. The middleware looks up the
+      # phrase's required roles in the bluebook's compiled
+      # actor-map and matches against the current Actor's role.
+      attribute :value, String
+      invariant "must be four `::`-separated non-empty segments" do
+        parts = value.split("::")
+        parts.length == 4 && parts.all? { |s| !s.empty? }
+      end
+    end
+
+    value_object "ActorRoleName" do
+      # The role the current Actor holds — read from the live
+      # Session, not from the Actor aggregate (sessions are the
+      # truth-of-the-moment ; see Actor.RoleName for why).
+      attribute :value, String
+    end
+
+    value_object "RequiredRoles" do
+      # JSON-array string of role names this command accepts. Empty
+      # array means "no auth required" ; one entry means a single
+      # gate ; many entries mean any-of (an Owner OR a Driver can
+      # log a service issue).
+      attribute :value, String
+      invariant "must be a JSON array of role-name strings" do
+        value.start_with?("[") && value.end_with?("]")
+      end
+    end
+
+    value_object "Outcome" do
+      # One of three : "allowed", "unauthenticated", "unauthorized".
+      # The runtime raises the matching exception on the bus side
+      # for the two negative outcomes ; "allowed" lets the
+      # dispatch through to the next middleware.
+      attribute :value, String
+      invariant "must be one of 'allowed', 'unauthenticated', 'unauthorized'" do
+        %w[allowed unauthenticated unauthorized].include?(value)
+      end
+    end
+
+    attribute :phrase,           Phrase
+    attribute :actor_role_name,  ActorRoleName
+    attribute :required_roles,   RequiredRoles
+    attribute :outcome,          Outcome
+
+    command "Evaluate" do
+      role "System"
+      description "Decide whether the current Actor may dispatch this Phrase. Fired by the auth middleware on every command bus call. The runtime looks up required_roles from the bluebook IR's actor-map (built at boot from every command's declared `role` tag) ; reads actor_role_name from the live Session ; produces outcome. The middleware raises Unauthenticated or Unauthorized on negative outcomes, lets the dispatch through on 'allowed'."
+      attribute :phrase,          Phrase
+      attribute :actor_role_name, ActorRoleName
+      attribute :required_roles,  RequiredRoles
+      emits "Evaluated"
+      then_set :phrase,          to: :phrase
+      then_set :actor_role_name, to: :actor_role_name
+      then_set :required_roles,  to: :required_roles
+    end
+  end
+
+  # ── Policies ─────────────────────────────────────────────────
+
+  # Every command dispatched fires Evaluate first — that's what
+  # makes auth a middleware rather than a one-shot login flow.
+  # The bus's Dispatch.Route emits Routed ; the auth policy hooks
+  # Routed and fires Evaluate. Outcome != "allowed" aborts the
+  # dispatch chain ; outcome == "allowed" continues.
+  policy "EvaluateOnRoute" do
+    on "Routed"
+    trigger "Evaluate"
+  end
+end

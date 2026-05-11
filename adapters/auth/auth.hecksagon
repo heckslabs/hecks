@@ -1,0 +1,69 @@
+Hecks.hecksagon "Auth" do
+  # ============================================================
+  # AUTH — hexagonal wiring for the :auth adapter
+  # ============================================================
+  #
+  # Auth is a driven adapter wired to the command bus. It doesn't
+  # initiate calls ; it intercepts them. On every dispatch through
+  # Dispatch.Route, the auth middleware fires AuthDecision.Evaluate
+  # against the live Session's actor and the command's required
+  # roles, then allows or rejects.
+  #
+  # The bluebook (auth.bluebook) declares the UL ; this hecksagon
+  # names the I/O for each runtime concern. Three storage paths,
+  # one transport, one binding back to the bus :
+  #
+  #   :fs        — Session records persist under information/auth/
+  #                so a fresh process can rehydrate live sessions
+  #                across restarts. Token is the filename.
+  #
+  #   :memory    — the compiled actor-map (command-phrase →
+  #                allowed-roles) lives in-process. Built once at
+  #                boot from the IR's `role "…"` tags ; never written.
+  #
+  #   :middleware — the binding back to the bus. The runtime
+  #                 installs the middleware on bus boot via
+  #                 wires_to :command_bus ; every Dispatch.Route
+  #                 fires AuthDecision.Evaluate through this path.
+  #
+  # The Ruby extension at ruby/hecks/extensions/auth.rb is the
+  # current realization. Retires under i80 once a Rust-side runtime
+  # picks up this hecksagon and the bluebook IR's role tags drive
+  # the in-process actor-map without Ruby.
+
+  adapter_type :driven
+  wires_to :command_bus
+
+  # :fs — Session.Open writes Opened to information/auth/sessions/
+  # ; Session.Close writes Closed. Token is the natural key —
+  # filename is "<token>.heki". Same heki conventions as the rest
+  # of the framework's persisted aggregates.
+  adapter :fs, root: "information/auth/sessions"
+
+  # :memory — the compiled actor-map. Built at boot from the
+  # bluebook IR : every command's `role "…"` tag becomes an entry
+  # in a phrase → [allowed_role, …] index. The middleware reads
+  # this on every Evaluate ; cache invalidated on bluebook reload.
+  adapter :memory, name: :actor_map
+
+  # :middleware — the binding back to Dispatch.Route. The runtime
+  # injects this on bus boot ; the chain runs as :
+  #
+  #   Dispatch.Route → AuthDecision.Evaluate → [next middleware] → handler
+  #
+  # `mode` switches the realization :
+  #
+  #   :enforce — the default. Raises Unauthenticated / Unauthorized
+  #              on negative outcomes. Production default.
+  #
+  #   :advisory — emits Evaluated with the outcome but always
+  #               allows the dispatch through. Used in dev or in
+  #               coverage-only smoke tests where you want the
+  #               metadata without blocking calls.
+  #
+  #   :off     — registers a no-op sentinel. Documents an intentional
+  #              decision to skip authorization (used in pure
+  #              service-to-service contexts where the bearer at the
+  #              edge already covers identity).
+  adapter :middleware, mode: :enforce
+end
