@@ -3637,11 +3637,19 @@ fn write_pidfile(path: &str, pid: u32) -> std::io::Result<()> {
     std::fs::write(path, format!("{}\n", pid))
 }
 
+#[cfg(target_family = "unix")]
 fn pid_alive(pid: u32) -> bool {
     extern "C" { fn kill(pid: i32, sig: i32) -> i32; }
     unsafe { kill(pid as i32, 0) == 0 }
 }
 
+#[cfg(not(target_family = "unix"))]
+fn pid_alive(_pid: u32) -> bool {
+    // On non-unix targets (e.g. wasm32) there's no process model.
+    false
+}
+
+#[cfg(target_family = "unix")]
 fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
     use std::os::unix::process::CommandExt;
     use std::process::{Command, Stdio};
@@ -3661,6 +3669,16 @@ fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
     }
     let child = command.spawn()?;
     Ok(child.id())
+}
+
+#[cfg(not(target_family = "unix"))]
+fn spawn_detached(_cmd: &str, _args: &[String]) -> std::io::Result<u32> {
+    // On non-unix targets (e.g. wasm32) there's no process model ;
+    // any caller that reaches here gets an Unsupported error.
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "spawn_detached not available on this target (no process model)",
+    ))
 }
 
 fn run_loop(args: &[String]) {
