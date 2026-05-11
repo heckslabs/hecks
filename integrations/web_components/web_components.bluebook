@@ -30,8 +30,59 @@ Hecks.bluebook "WebComponents", version: "2026.05.01.1" do
   #   <script src="https://cdn.tailwindcss.com"></script>
 
   aggregate "WebComponents", "DaisyUI component library — every UI component is a value_object under this single root" do
-    attribute :theme, String
-    attribute :daisy_theme, String
+    value_object "ActiveTheme" do
+      # The currently-selected theme name for the running app.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "DaisyThemeName" do
+      # A DaisyUI theme identifier — one of the built-in daisy
+      # themes (light, dark, cupcake, …) or a custom theme name.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "ComponentKind" do
+      # The discriminator naming which component shape to render —
+      # Shell, Sidebar, Navbar, Page, AggregateCard, etc.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "AggregateRef" do
+      # The PascalCase name of the aggregate this component binds to.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "CommandRef" do
+      # The PascalCase name of the command this component invokes.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "ComponentVariant" do
+      # The variant flavour of a component (e.g. compact, detailed,
+      # primary, ghost) — interpreted per kind by the builder.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :theme,       ActiveTheme
+    attribute :daisy_theme, DaisyThemeName
 
     # ============================================================
     # LAYOUT — Shell, Sidebar, Pages
@@ -547,11 +598,11 @@ Hecks.bluebook "WebComponents", version: "2026.05.01.1" do
     command "RenderComponent" do
       role "Builder"
       description "Render any component by kind — kind is one of Shell, Sidebar, Navbar, Page, Tabs, Breadcrumbs, Steps, AggregateCard, DataTable, StatCard, ListItem, Badge, Avatar, Timeline, Accordion, Board, CommandForm, QuickAdd, FilterBar, SearchBox, Rating, ActionButton, Dropdown, Modal, LifecycleBar, Fab, Swap, Toast, Alert, Loading, Progress, Skeleton, Tooltip, EmptyState, EventStream, Theme, ThemeToggle"
-      attribute :kind, String
-      attribute :aggregate, String
-      attribute :command, String
-      attribute :variant, String
-      attribute :daisy_theme, String
+      attribute :kind,        ComponentKind
+      attribute :aggregate,   AggregateRef
+      attribute :command,     CommandRef
+      attribute :variant,     ComponentVariant
+      attribute :daisy_theme, DaisyThemeName
       emits "ComponentRendered"
     end
   end
