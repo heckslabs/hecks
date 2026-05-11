@@ -1,0 +1,15 @@
+Hecks.behaviors "CfFunctionProxyShape" do
+  vision "Shape-layer happy-path for the Pages-Function proxy emitter — confirms the EmitProxy tuple plumbs through. The rendering logic is exercised by rust/tests/cf_function_proxy_test.rs against bin-buddy's params ; this file proves the bluebook-layer contract."
+
+  test "EmitProxy accepts the (app, worker_url_env, auth_secret_env, method_policy) tuple" do
+    tests "EmitProxy", on: "CfFunctionProxy"
+    input  app: "bin-buddy",
+           worker_url_env: "BIN_BUDDY_WORKER_URL",
+           auth_secret_env: "BIN_BUDDY_API_KEY",
+           method_policy: "[\"GET\",\"POST\"]"
+    expect app: "bin-buddy",
+           worker_url_env: "BIN_BUDDY_WORKER_URL",
+           auth_secret_env: "BIN_BUDDY_API_KEY",
+           method_policy: "[\"GET\",\"POST\"]"
+  end
+end

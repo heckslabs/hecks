@@ -24,6 +24,7 @@ pub mod behaviors_fixtures;
 pub mod behaviors_parser;
 pub mod behaviors_parser_dispatch;
 pub mod behaviors_runner;
+pub mod cf_function_proxy;
 pub mod cli_dispatch;
 pub mod conceiver;
 pub mod dispatch_query;
