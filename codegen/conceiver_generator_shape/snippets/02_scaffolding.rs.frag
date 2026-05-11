@@ -43,7 +43,7 @@ pub fn emit_aggregate(out: &mut Vec<String>, agg: &Aggregate, _domain_name: &str
     emit_aggregate_impl(out, agg, _domain_name, false)
 }
 
-pub fn emit_scaffold_aggregate(out: &mut Vec<String>, agg: &Aggregate, domain_name: &str, index: usize) {
+pub fn emit_scaffold_aggregate(out: &mut Vec<String>, agg: &Aggregate, domain_name: &str, _index: usize) {
     emit_aggregate_impl(out, agg, domain_name, true)
 }
 

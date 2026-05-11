@@ -3,7 +3,7 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
         for part in block.split(';') {
             let part = part.trim();
             if part.starts_with("role") {
-                cmd.role = extract_string(part);
+                cmd.role = parse_role_arg(part);
             } else if part.starts_with("emits") {
                 cmd.emits = extract_string(part);
                 cmd.emits_identified_by = extract_kwarg_symbol(part, "identified_by");

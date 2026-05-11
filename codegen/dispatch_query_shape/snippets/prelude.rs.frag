@@ -1,6 +1,6 @@
 //! Dispatch Query — the validator IR-query substrate (i122).
 //!
-//! [antibody-exempt: hecks_life/src/dispatch_query.rs — kernel-
+//! [antibody-exempt: rust/src/dispatch_query.rs — kernel-
 //!  surface substrate. This file IS the IR-query that lets future
 //!  antibody decisions be structurally derived from bluebook ; it
 //!  necessarily lands as Rust before it can introspect Rust. Retires
@@ -32,10 +32,10 @@
 //! Two queries are wired :
 //!
 //!   - `is_specializer_target(path)` — match against the static
-//!     dispatch table in `hecks_life/src/specializer/mod.rs`. Each
+//!     dispatch table in `rust/src/specializer/mod.rs`. Each
 //!     known target name `<X>` claims two files :
-//!     `hecks_life/src/<X>.rs` (the emitted target) and
-//!     `hecks_life/src/specializer/<X>.rs` (the specializer module).
+//!     `rust/src/<X>.rs` (the emitted target) and
+//!     `rust/src/specializer/<X>.rs` (the specializer module).
 //!
 //!   - `is_hecksagon_dispatched(path, root)` — for any file (most
 //!     usefully `.sh`), walk every `*.hecksagon` under `root` and
@@ -45,7 +45,7 @@
 //! Future queries (i145, i146, i77, i78) will add :
 //!
 //!   - capability_runner_shape's `CapabilityDetector` rows → claims
-//!     `hecks_life/src/run_<name>/mod.rs` paths.
+//!     `rust/src/run_<name>/mod.rs` paths.
 //!   - bluebook adapters declared in `.hecksagon` files → claims
 //!     `:rust`, `:llm`, `:llm_local` runtime adapters.
 //!   - test_purity_shape's detection patterns → claims `.fixtures`
@@ -75,7 +75,7 @@ const DISPATCH_BEARING_IO_KINDS: &[&str] = &["daemon", "shell"];
 pub struct DispatchInfo {
     /// Where the dispatch declaration lives. Either a `.hecksagon`
     /// file path or a synthetic module identifier like
-    /// `hecks_life/src/specializer/mod.rs` for the specializer
+    /// `rust/src/specializer/mod.rs` for the specializer
     /// registry.
     pub source: String,
     /// What kind of dispatch claims this file. Free-form,
@@ -95,6 +95,48 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
         return Some(info);
     }
     is_hecksagon_dispatched(file_path, corpus_root)
+}
+
+/// Imperative-exemption check : asks both the central
+/// `exempt_registry.heki` AND the in-file `[antibody-exempt: ...]`
+/// marker convention. Either path satisfies the structural
+/// exemption ; the marker IS the audit trail (per enforcer.bluebook
+/// `ExemptedEdited` event). Used by the antibody enforcer after the
+/// IR-claim query (`is_dispatched_by_corpus`) returns None.
+pub fn is_imperative_exempt(file_path: &str, corpus_root: &Path) -> bool {
+    if file_in_exempt_registry(file_path, corpus_root) { return true; }
+    file_has_in_header_marker(file_path)
+}
+
+/// Walk the central `exempt_registry.heki` under the corpus root.
+/// Each row carries `path` as the natural-key id ; the enforcer only
+/// needs `path` for the suffix-match.
+fn file_in_exempt_registry(file_path: &str, corpus_root: &Path) -> bool {
+    let registry = corpus_root.join("information/exempt_registry.heki");
+    if !registry.exists() { return false; }
+    let store = match crate::heki::read(registry.to_string_lossy().as_ref()) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    for (_id, rec) in &store {
+        let Some(path_v) = rec.get("path").and_then(|v| v.as_str()) else { continue };
+        if file_path.ends_with(path_v) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Scan the file's first 30 lines for an `[antibody-exempt: ...]`
+/// marker. The convention puts it in the doc-comment header ; past
+/// 30 lines is body code. Returns false on any read error — safe
+/// default for a hook that must never panic the editor.
+fn file_has_in_header_marker(file_path: &str) -> bool {
+    let text = match fs::read_to_string(file_path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    text.lines().take(30).any(|line| line.contains("[antibody-exempt:"))
 }
 
 // ────────────────────────────────────────────────────────────────

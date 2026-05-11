@@ -10,5 +10,12 @@ pub struct Repository {
     /// don't collide on storage. None = legacy aggregate with flat
     /// heki path (the pre-i142 default).
     context: Option<String>,
+    /// Last mtime we observed on disk for this repo's heki file. Used
+    /// by `refresh_from_heki` to skip the read when nothing has changed
+    /// since our last load/save. None until the first successful
+    /// load_persisted ; updated on every save and every refresh-driven
+    /// reload. Mirrors the `last_seen_mtime` attribute declared on the
+    /// Repository aggregate in runtime/storage/storage.bluebook.
+    last_seen_mtime: Option<SystemTime>,
 }
 

@@ -12,13 +12,27 @@
 //!
 //! Without identified_by, mints a u64 counter on creation.
 //!
+//! Freshness (i517 dream-and-bug correspondence) :
+//! `last_seen_mtime` tracks the heki file's mtime as of our last
+//! load or save. `refresh_from_heki` stat()s the file and reloads
+//! when disk has advanced — closing the cross-process staleness gap
+//! a long-running daemon hits when a sibling process writes to the
+//! same store. The bluebook contract for this lives in
+//! runtime/storage/storage.bluebook (last_seen_mtime attribute,
+//! RefreshIfStale command, RefreshOnPulse policy).
+//!
 //! Usage:
 //!   let repo = Repository::new("Heartbeat", data_dir, Some("name".into()));
 //!
-//! [antibody-exempt: runtime aggregate store; identified_by dispatch drives natural-key vs counter-mint (i80)]
+//! [antibody-exempt: runtime aggregate store ;
+//!  (a) identified_by dispatch drives natural-key vs counter-mint (i80) ;
+//!  (b) cross-process freshness — load_persisted / save / refresh_from_heki
+//!      track and re-read on mtime advance, honoring the storage.bluebook
+//!      RefreshIfStale + RefreshOnPulse contract (i517 root cause).]
 
 use super::AggregateState;
 use super::Value;
 use crate::heki;
 use std::collections::HashMap;
+use std::time::SystemTime;
 

@@ -31,7 +31,7 @@ mod tests {
 
     #[test]
     fn fatigue_icon_table_covers_emitters() {
-        for f in ["rested", "alert", "focused", "tired", "exhausted", "delirious"] {
+        for f in ["rested", "limber", "tuned", "tired", "exhausted", "spent"] {
             assert!(!fatigue_icon_for(f).is_empty(), "{} should have an icon", f);
         }
         assert_eq!(fatigue_icon_for("normal"), ""); // intentionally empty
@@ -41,7 +41,11 @@ mod tests {
     fn provider_badge_covers_three_states() {
         assert_eq!(provider_badge_for("claude"), "🤖");
         assert_eq!(provider_badge_for("local"),  "🦙");
-        assert_eq!(provider_badge_for("off"),    "🚫");
+        // "off" deliberately returns empty — see provider_badge_for's
+        // doc comment. The render code gates on !is_empty(), so off
+        // shows nothing rather than a 🚫 emoji that would be visual
+        // noise on a working statusline.
+        assert_eq!(provider_badge_for("off"),    "");
         assert_eq!(provider_badge_for(""),       "🤖"); // default
     }
 
@@ -74,7 +78,12 @@ mod tests {
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now, true, Path::new("/tmp/nope"));
         assert!(line.contains("1.23k"));
-        assert!(!line.contains("focused"), "mood word is hidden");
+        // Mood was unparked 2026-05-08 (Chris) — the awake line now
+        // surfaces both the mood icon AND the mood word. The earlier
+        // assertion that "focused" was hidden reflected the parked
+        // arrangement ; updated to assert the unparked behavior.
+        assert!(line.contains("focused"), "mood word should be shown post-unpark");
+        assert!(line.contains("🎯"), "mood icon should be shown post-unpark");
         assert!(!line.contains("💭"), "musings count is hidden");
         assert!(line.contains("✉️ 3"));
         assert!(line.contains("🤖"));

@@ -69,5 +69,17 @@ const HEADER: &str = r#"//! Parser helpers — string extraction and DSL pattern
 //!
 //! Utilities for pulling strings, symbols, blocks, and keywords
 //! out of Bluebook DSL lines. Used by the parser module.
+//!
+//! [antibody-exempt: rust/src/parser_helpers.rs — kernel-floor
+//!  parser primitives. The bluebook parser cannot itself be a
+//!  bluebook (chicken-and-egg) ; this file is the Rust kernel
+//!  that turns .bluebook source into IR. Mirror of
+//!  ruby/lib/hecks/dsl in scope ; lockstep parser parity is
+//!  enforced via parity/parity_test.rb and known_drift.txt.
+//!  2026-05-09 — adds comment-aware ends_with_do_block (a `#`
+//!  prefix on a trimmed line means "not a block-opener"), closing
+//!  the synapse.bluebook drift entry where commented `query "cold"
+//!  do` lines silently broke nested block depth-counting on the
+//!  Rust side. Ruby's parser ignores `#` lines natively.]
 
 "#;
