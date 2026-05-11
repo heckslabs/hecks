@@ -3,8 +3,8 @@
 //! Tests the full dispatch pipeline: create, mutate, givens, events, policies.
 //! Each test boots a domain from a Bluebook string and exercises the runtime.
 
-use hecks_life::parser;
-use hecks_life::runtime::{Runtime, Value};
+use storehouse::parser;
+use storehouse::runtime::{Runtime, Value};
 use std::collections::HashMap;
 
 fn boot(source: &str) -> Runtime {
@@ -119,7 +119,7 @@ end"#);
 
 // --- i106 dsl-mutation-primitives : multiply / clamp / decay ---
 
-fn assert_field_close(state: &hecks_life::runtime::AggregateState, field: &str, expected: f64) {
+fn assert_field_close(state: &storehouse::runtime::AggregateState, field: &str, expected: f64) {
     let got = match state.get(field) {
         Value::Str(s) => s.parse::<f64>().unwrap_or(0.0),
         Value::Int(n) => *n as f64,
@@ -881,7 +881,7 @@ fn seed_loader_dispatches() {
   end
 end"#);
 
-    let count = hecks_life::runtime::seed_loader::load_from_string(&mut rt,
+    let count = storehouse::runtime::seed_loader::load_from_string(&mut rt,
         "dispatch CreatePizza name=Margherita\ndispatch CreatePizza name=Pepperoni\n# comment\n\n"
     ).unwrap();
 
@@ -951,7 +951,7 @@ fn parse_pizzas() {
     let source = std::fs::read_to_string(
         concat!(env!("CARGO_MANIFEST_DIR"), "/../hecks_conception/catalog/pizzas.bluebook")
     ).unwrap();
-    let domain = hecks_life::parser::parse(&source);
+    let domain = storehouse::parser::parse(&source);
     assert_eq!(domain.name, "Pizzas");
     assert_eq!(domain.aggregates.len(), 2);
     // Pizza aggregate has CreatePizza, AddTopping, RemoveTopping.
@@ -1055,7 +1055,7 @@ fn bulk_register_is_idempotent_on_overlapping_specs() {
 #[test]
 fn bulk_register_accepts_json_string_for_cli_path() {
     // CLI passes attrs as Str — the runtime parses a JSON array of
-    // objects into specs. This keeps `hecks-life agg/ Antibody.RegisterExemptions
+    // objects into specs. This keeps `storehouse agg/ Antibody.RegisterExemptions
     // specs='[{...},{...}]'` working without a separate codepath.
     let mut rt = boot(registry_source());
     let json = r#"[{"path":"x.rs","reason":"r1"},{"path":"y.rs","reason":"r2"}]"#;

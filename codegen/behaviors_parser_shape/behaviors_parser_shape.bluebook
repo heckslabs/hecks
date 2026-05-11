@@ -1,5 +1,5 @@
 Hecks.bluebook "BehaviorsParserShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/behaviors_parser.rs — i51 Phase B target. Fourth parser retirement after validator.rs, dump.rs, and hecksagon_parser.rs. Extends the hecksagon parser-shape template with an else-if loop style and a tests_snippet attribute carrying the inline #[cfg(test)] module."
+  vision "Shape of storehouse/src/behaviors_parser.rs — i51 Phase B target. Fourth parser retirement after validator.rs, dump.rs, and hecksagon_parser.rs. Extends the hecksagon parser-shape template with an else-if loop style and a tests_snippet attribute carrying the inline #[cfg(test)] module."
   category "autophagy"
 
   # ============================================================

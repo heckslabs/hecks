@@ -7,7 +7,7 @@
 //! the test.
 //!
 //! Usage:
-//!   hecks-life behaviors path/to/X_behavioral_tests.bluebook
+//!   storehouse behaviors path/to/X_behavioral_tests.bluebook
 //!
 //! The runner finds the source bluebook by stripping the
 //! `_behavioral_tests` suffix (e.g. `pizzas_behavioral_tests.bluebook`

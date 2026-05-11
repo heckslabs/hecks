@@ -5,7 +5,7 @@
 //! engine room the new `heki list / count / mark / next-ref / ...`
 //! subcommands share.
 //!
-//! [antibody-exempt: hecks-life heki subcommand expansion; prerequisite
+//! [antibody-exempt: storehouse heki subcommand expansion; prerequisite
 //!  for i37 Phase B (replace python3 -c invocations in shell scripts).
 //!  Retires when heki dispatch moves to a bluebook + hecksagon.]
 //!

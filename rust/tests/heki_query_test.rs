@@ -1,4 +1,4 @@
-//! Integration tests for the new `hecks-life heki` query subcommands.
+//! Integration tests for the new `storehouse heki` query subcommands.
 //!
 //! Each test shells to the built binary against a tmp fixture .heki file,
 //! so the exit-code / output contract is exercised end-to-end. Plus
@@ -7,7 +7,7 @@
 //!
 //! [antibody-exempt: test coverage for the new subcommands]
 
-use hecks_life::heki;
+use storehouse::heki;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -21,7 +21,7 @@ fn binary() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     p.push("target");
     p.push(if cfg!(debug_assertions) { "debug" } else { "release" });
-    p.push("hecks-life");
+    p.push("storehouse");
     p
 }
 
@@ -42,7 +42,7 @@ fn write_store(path: &Path, records: &[(&str, serde_json::Value)]) {
         for (k, v) in obj { r.insert(k.clone(), v.clone()); }
         store.insert(id.to_string(), r);
     }
-    heki::write(path.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
+    heki::write(path.to_str().unwrap(), &store, storehouse::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 }
 
 fn run(args: &[&str]) -> (i32, String, String) {
@@ -260,7 +260,7 @@ fn latest_field_picks_latest_updated_at() {
     r2.insert("state".into(), json!("awake"));
     r2.insert("updated_at".into(), json!("2026-04-01T01:00:00Z"));
     store.insert("2".into(), r2);
-    heki::write(f.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
+    heki::write(f.to_str().unwrap(), &store, storehouse::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 
     let (rc, out, _) = run(&["heki", "latest-field", f.to_str().unwrap(), "state"]);
     assert_eq!(rc, 0);
@@ -416,7 +416,7 @@ fn parity_latest_field_matches_python_get() {
     r.insert("fatigue_state".into(), json!("alert"));
     r.insert("updated_at".into(), json!("2026-04-21T00:00:00Z"));
     store.insert("1".into(), r);
-    heki::write(f.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
+    heki::write(f.to_str().unwrap(), &store, storehouse::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 
     let (rc, rust_out, _) = run(&["heki", "latest-field", f.to_str().unwrap(), "fatigue_state"]);
     assert_eq!(rc, 0);
@@ -451,7 +451,7 @@ fn parity_seconds_since_matches_python_datetime() {
     r.insert("id".into(), json!("1"));
     r.insert("updated_at".into(), json!("2020-01-01T00:00:00Z"));
     store.insert("1".into(), r);
-    heki::write(f.to_str().unwrap(), &store, hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
+    heki::write(f.to_str().unwrap(), &store, storehouse::heki::WriteContext::OutOfBand { reason: "test setup" }).unwrap();
 
     let (rc, rust_out, _) = run(&["heki", "seconds-since", f.to_str().unwrap(), "updated_at"]);
     assert_eq!(rc, 0);

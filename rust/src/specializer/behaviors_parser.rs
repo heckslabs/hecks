@@ -1,6 +1,6 @@
 //! Rust port of `lib/hecks_specializer/behaviors_parser.rb`.
 //!
-//! Emits `hecks_life/src/behaviors_parser.rs` byte-identical to the
+//! Emits `storehouse/src/behaviors_parser.rs` byte-identical to the
 //! Ruby specializer's output. Reads the behaviors_parser_shape fixtures
 //! (LineParser singleton + LineDispatch rows + ParserHelper rows),
 //! assembles header + imports + parse() body + helpers + detector +
@@ -16,7 +16,7 @@
 //!   let rust = behaviors_parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/behaviors_parser.rs —
+//! [antibody-exempt: storehouse/src/specializer/behaviors_parser.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

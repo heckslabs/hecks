@@ -11,7 +11,7 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
   # projection logic will consume. No logic here yet; just the shape
   # of each IR layer and the projections that connect them.
   #
-  # Per §3 of the plan, the hecks_life interpreter already has these
+  # Per §3 of the plan, the storehouse interpreter already has these
   # internal stages. Naming them as shape-only aggregates lets us
   # partial-evaluate one layer at a time rather than all at once.
   #
@@ -60,7 +60,7 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
     # returns: short description of the data shape this layer produces
     attribute :returns,     String
     # ship_status: shipped | partial | not_started — tracks which
-    # layers already exist in hecks_life vs which are Phase B+ work
+    # layers already exist in storehouse vs which are Phase B+ work
     attribute :ship_status, String
   end
 

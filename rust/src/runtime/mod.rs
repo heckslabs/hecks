@@ -145,7 +145,7 @@ impl Runtime {
             pm_engine.register(pm);
         }
         // Phase D — load persisted PM instances from heki so transitions
-        // resume across hecks-life subprocess forks (production daemons
+        // resume across storehouse subprocess forks (production daemons
         // fork per dispatch ; without this, in-memory state evaporates
         // and PMs effectively don't accumulate).
         pm_engine.load_persisted(data_dir.as_deref());
@@ -315,7 +315,7 @@ impl Runtime {
     /// runtime/storage/storage.bluebook : LoopDriver calls this at
     /// the start of every tick so a long-running daemon's in-memory
     /// store stays current with writes from sibling processes
-    /// (e.g. `hecks-life sleep` dispatching EnterSleep against a
+    /// (e.g. `storehouse sleep` dispatching EnterSleep against a
     /// heki the run-loop daemon will read on its next tick).
     ///
     /// **Opt-in via `HECKS_REFRESH_REPOS=1`** — refresh is off by

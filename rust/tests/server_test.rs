@@ -3,9 +3,9 @@
 //! Tests the HTTP routing logic directly without starting a TCP server.
 //! Each test boots a domain, wraps the runtime in RefCell, and calls route().
 
-use hecks_life::parser;
-use hecks_life::runtime::Runtime;
-use hecks_life::server;
+use storehouse::parser;
+use storehouse::runtime::Runtime;
+use storehouse::server;
 use std::cell::RefCell;
 
 fn boot(source: &str) -> RefCell<Runtime> {

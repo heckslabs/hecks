@@ -18,7 +18,7 @@
 //! Usage:
 //!   let text = emit_rule(&fixtures, rule);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/validator_checks.rs —
+//! [antibody-exempt: storehouse/src/specializer/validator_checks.rs —
 //!  Phase D — Rust-native specializer implementation]
 
 use crate::ir::Fixture;

@@ -100,7 +100,7 @@ Hecks.fixtures "CliDispatchShape" do
       name: "conceive_behaviors",
       order: 7,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_07_conceive_behaviors.rs.frag",
-      description: "delegate_run pattern — hecks_life::behaviors_conceiver::commands::run_conceive_behaviors(&args)."
+      description: "delegate_run pattern — storehouse::behaviors_conceiver::commands::run_conceive_behaviors(&args)."
 
     fixture "Behaviors",
       name: "behaviors",
@@ -172,7 +172,7 @@ Hecks.fixtures "CliDispatchShape" do
       name: "run",
       order: 19,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_18_run.rs.frag",
-      description: "Script-mode execution — std::process::exit(hecks_life::run::run_script(&args))."
+      description: "Script-mode execution — std::process::exit(storehouse::run::run_script(&args))."
 
     fixture "Loop",
       name: "loop",
@@ -206,7 +206,7 @@ Hecks.fixtures "CliDispatchShape" do
       name: "statusline",
       order: 24,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_22_statusline.rs.frag",
-      description: "delegate_run pattern — hecks_life::run_statusline::run(). Statusline capability runner."
+      description: "delegate_run pattern — storehouse::run_statusline::run(). Statusline capability runner."
 
     fixture "IsDispatched",
       name: "is_dispatched",

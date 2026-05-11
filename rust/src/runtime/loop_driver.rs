@@ -3,7 +3,7 @@
 //! The runtime daemon. Boots once, holds a Runtime, ticks at a
 //! configured cadence, fires events / dispatches commands that drive
 //! process_managers + policies forward without the per-tick boot cost
-//! the shell `while true ; do hecks-life ... ; sleep 1 ; done` pattern
+//! the shell `while true ; do storehouse ... ; sleep 1 ; done` pattern
 //! pays.
 //!
 //! Substrate for retiring `mindstream.sh` : that shell exists because

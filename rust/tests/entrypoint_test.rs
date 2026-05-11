@@ -1,10 +1,10 @@
 //! Parser recognizes `entrypoint "CommandName"` as a top-level declaration
 //! inside `Hecks.bluebook "…" do … end`.
 //!
-//! This is the command `hecks-life run <file>` dispatches when the
+//! This is the command `storehouse run <file>` dispatches when the
 //! bluebook is invoked as an executable via its shebang line.
 
-use hecks_life::parser;
+use storehouse::parser;
 
 const WITH_ENTRYPOINT: &str = r#"
 Hecks.bluebook "Greeter" do

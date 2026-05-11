@@ -3,7 +3,7 @@
 //! Covers both families: runtime/extension config (heki, ollama, …) and
 //! strategic descriptors (purpose, vision, audience, concern).
 
-use hecks_life::world_parser;
+use storehouse::world_parser;
 
 const MIETTE: &str = r#"Hecks.world "Miette" do
   heki do

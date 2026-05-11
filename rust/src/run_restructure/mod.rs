@@ -41,7 +41,7 @@
 //! must produce ; byte-identity becomes enforceable the moment the
 //! emitter lands.
 //!
-//! [antibody-exempt: hecks_life/src/run_restructure/mod.rs —
+//! [antibody-exempt: storehouse/src/run_restructure/mod.rs —
 //!  hand-written MVP runner for the Restructure capability ; retires
 //!  under capability_runner_shape's specializer (i147 sibling). The
 //!  three phases (plan/apply/revert) are the blueprint for what
@@ -98,7 +98,7 @@ pub fn run(
         "Layout.Show" => phase_show(rt, &attrs),
         _ => match rt.dispatch(entrypoint, attrs) {
             Ok(_) => ExitKind::Ok.code(),
-            Err(e) => { eprintln!("hecks-life restructure: {}", e); ExitKind::AdapterFailure.code() }
+            Err(e) => { eprintln!("storehouse restructure: {}", e); ExitKind::AdapterFailure.code() }
         }
     }
 }

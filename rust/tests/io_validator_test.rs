@@ -4,8 +4,8 @@
 //! runtime-smoke layer must always pass for a pure bluebook; the
 //! static-scan layer must reliably warn on IO-suggestive patterns.
 
-use hecks_life::io_validator::{check, Severity};
-use hecks_life::parser;
+use storehouse::io_validator::{check, Severity};
+use storehouse::parser;
 
 #[test]
 fn pure_bluebook_passes_runtime_smoke() {

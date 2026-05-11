@@ -1,4 +1,4 @@
-//! Script-mode runner — `hecks-life run <file.bluebook> [key=val ...]`
+//! Script-mode runner — `storehouse run <file.bluebook> [key=val ...]`
 //!
 //! Reads a .bluebook, strips its shebang, finds the companion
 //! .hecksagon (sibling file with the same stem), parses both, wires
@@ -13,7 +13,7 @@
 //!   4 command not found
 //!
 //! Shebang form:
-//!   #!/usr/bin/env hecks-life run
+//!   #!/usr/bin/env storehouse run
 //!   Hecks.bluebook "Whatever" do
 //!     entrypoint "MainCommand"
 //!     ...
@@ -57,12 +57,12 @@ impl ExitKind {
 /// return the wired runtime + adapter registry. Caller dispatches.
 pub fn load_script(path: &str) -> Result<(Domain, Hecksagon), ExitKind> {
     let source = std::fs::read_to_string(path).map_err(|e| {
-        eprintln!("hecks-life run: cannot read {}: {}", path, e);
+        eprintln!("storehouse run: cannot read {}: {}", path, e);
         ExitKind::ParseFailure
     })?;
     let domain = parser::parse(&source);
     if domain.name.is_empty() {
-        eprintln!("hecks-life run: {} is not a bluebook (Hecks.bluebook header missing)", path);
+        eprintln!("storehouse run: {} is not a bluebook (Hecks.bluebook header missing)", path);
         return Err(ExitKind::ParseFailure);
     }
     let hex = companion_hecksagon(path);
@@ -87,11 +87,11 @@ pub fn companion_hecksagon(bluebook_path: &str) -> Hecksagon {
     }
 }
 
-/// Full entry point: argv is `["hecks-life", "run", path, ...attrs]`.
+/// Full entry point: argv is `["storehouse", "run", path, ...attrs]`.
 /// Returns the exit code the caller should propagate to the OS.
 pub fn run_script(args: &[String]) -> i32 {
     if args.len() < 3 {
-        eprintln!("Usage: hecks-life run <file.bluebook> [key=val ...]");
+        eprintln!("Usage: storehouse run <file.bluebook> [key=val ...]");
         return ExitKind::ParseFailure.code();
     }
     let path = &args[2];
@@ -112,7 +112,7 @@ pub fn run_script(args: &[String]) -> i32 {
         (Some(e), _) => e,
         (None, Some(e)) => e,
         (None, None) => {
-            eprintln!("hecks-life run: {} declares no `entrypoint \"…\"` (pass entrypoint=<Aggregate.Command> to override)", path);
+            eprintln!("storehouse run: {} declares no `entrypoint \"…\"` (pass entrypoint=<Aggregate.Command> to override)", path);
             return ExitKind::GuardFailure.code();
         }
     };
@@ -179,11 +179,11 @@ pub fn run_script(args: &[String]) -> i32 {
     match rt.dispatch(&entrypoint, attrs) {
         Ok(_) => ExitKind::Ok.code(),
         Err(crate::runtime::RuntimeError::UnknownCommand(_)) => {
-            eprintln!("hecks-life run: entrypoint {} not found in {}", entrypoint, path);
+            eprintln!("storehouse run: entrypoint {} not found in {}", entrypoint, path);
             ExitKind::CommandNotFound.code()
         }
         Err(e) => {
-            eprintln!("hecks-life run: {}", e);
+            eprintln!("storehouse run: {}", e);
             ExitKind::AdapterFailure.code()
         }
     }

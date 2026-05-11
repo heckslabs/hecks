@@ -1,5 +1,5 @@
 
-    // `hecks-life loop <agg-dir-or-bluebook> <Aggregate.Command> --every <duration> [key=val ...]`
+    // `storehouse loop <agg-dir-or-bluebook> <Aggregate.Command> --every <duration> [key=val ...]`
     //
     // Cadence-loop primitive (i76). Boots the runtime once and dispatches
     // the named command at the given cadence in a tight loop, no shell

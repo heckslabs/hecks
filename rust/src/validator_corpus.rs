@@ -3,13 +3,13 @@
 //! `load_combined_domain`). Live here rather than in `validator.rs`
 //! or `validator_warnings.rs` because those two files are
 //! specializer targets — byte-identical with what
-//! `hecks-life specialize <name>` emits — and adding hand-written
+//! `storehouse specialize <name>` emits — and adding hand-written
 //! functions to them breaks the 2nd Futamura proof.
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/validator_corpus_shape/
-//! Regenerate: hecks-life specialize validator_corpus --output hecks_life/src/validator_corpus.rs
-//! Contract:  hecks_life/src/specializer/validator_corpus.rs (Rust-native)
+//! Regenerate: storehouse specialize validator_corpus --output storehouse/src/validator_corpus.rs
+//! Contract:  storehouse/src/specializer/validator_corpus.rs (Rust-native)
 //!
 //! Four rules :
 //!

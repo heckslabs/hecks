@@ -97,7 +97,7 @@ pub fn generate_behaviors(source: &Domain, _archetype: Option<&TestSuite>) -> St
     // `Boolean` attribute with `default: false` that no command ever
     // flips is an inert gate — no reachable state ever turns it true,
     // so every given predicated on it is permanently refused. Surface
-    // this as a suite-level comment so `hecks-life conceive-behaviors`
+    // this as a suite-level comment so `storehouse conceive-behaviors`
     // (which prints the file) makes the problem visible on regeneration.
     // [antibody-exempt: conceiver fix per i4 gap 4; retires when conceivers port to a bluebook-dispatched form]
     let gate_flag_warnings = detect_dangling_gate_flags(source);

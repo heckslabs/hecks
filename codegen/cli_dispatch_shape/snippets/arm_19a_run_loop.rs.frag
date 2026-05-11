@@ -1,5 +1,5 @@
 
-    // `hecks-life run-loop <bluebook-tree> [--every <dur>] [--emit <Event:Type:Id>]
+    // `storehouse run-loop <bluebook-tree> [--every <dur>] [--emit <Event:Type:Id>]
     //   [--dispatch <Aggregate.Command> [--with k=v ...]]`
     //
     // PM loop driver — long-running runtime daemon. Boots once, ticks

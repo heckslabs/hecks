@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/runtime/adapter_llm.rs`.
+//! Rust-native specializer for `storehouse/src/runtime/adapter_llm.rs`.
 //!
 //! i147 Wave 3-B target — driven LLM adapter (ollama HTTP-POST +
 //! claude shell-invoke + dispatcher) regenerated from the
@@ -44,7 +44,7 @@
 //!   print!("{}", rust);
 //! ```
 //!
-//! [antibody-exempt: hecks_life/src/specializer/adapter_llm.rs —
+//! [antibody-exempt: storehouse/src/specializer/adapter_llm.rs —
 //!  i147 Wave 3-B Rust-native specializer for runtime/adapter_llm.rs.
 //!  Retires when the specializer itself is regenerated from a
 //!  meta-shape (i78).]

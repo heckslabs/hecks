@@ -224,7 +224,7 @@ impl PMEngine {
 
     // ---- Phase D : heki persistence -----------------------------------
     //
-    // Production daemons fork hecks-life per dispatch. Without persistence,
+    // Production daemons fork storehouse per dispatch. Without persistence,
     // each subprocess builds an empty PMEngine and transitions don't
     // accumulate across ticks. Persistence routes each PM's instances
     // through `<data_dir>/process_managers/<pm_snake>.heki`. Records are

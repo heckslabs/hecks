@@ -1,6 +1,6 @@
 //! Rust port of `lib/hecks_specializer/validator.rb`.
 //!
-//! Emits `hecks_life/src/validator.rs` byte-identical to the Ruby
+//! Emits `storehouse/src/validator.rs` byte-identical to the Ruby
 //! specializer's output. Reads `ValidatorEntryPoint`, `ValidationRule`,
 //! `SuffixTable`, and `ExceptionWord` rows from validator_shape and
 //! assembles: header → imports → entry point → rule → rule →
@@ -26,7 +26,7 @@
 //!   let rust = validator::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/validator.rs —
+//! [antibody-exempt: storehouse/src/specializer/validator.rs —
 //!  Phase D — Rust-native specializer implementation]
 
 use crate::ir::Fixture;
@@ -119,9 +119,9 @@ const HEADER: &str = "\
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/validator_shape/
-//! Regenerate: hecks-life specialize validator --output hecks_life/src/validator.rs
-//! Contract:  hecks_life/src/specializer/validator.rs (Rust-native)
-//! Tests:     hecks_life/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
+//! Regenerate: storehouse specialize validator --output storehouse/src/validator.rs
+//! Contract:  storehouse/src/specializer/validator.rs (Rust-native)
+//! Tests:     storehouse/tests/validator_rules_test.rs (moved out for i51 Phase A commit 4)
 //!
 //! Ports the Ruby Hecks::Validator rules to Rust. Each rule inspects
 //! the Domain IR and returns error strings. An empty vec means valid.

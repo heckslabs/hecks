@@ -1,5 +1,5 @@
 [package]
-name = "hecks-life"
+name = "storehouse"
 version = "0.1.0"
 edition = "2021"
 description = "Bluebook compiler — reads domain declarations, emits any target"

@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/behaviors_fixtures.rs`.
+//! Rust-native specializer for `storehouse/src/behaviors_fixtures.rs`.
 //!
 //! i147 wave 2 target — the test-runner-side .fixtures auto-loader
 //! (locate / parse / apply) regenerated from the
@@ -21,7 +21,7 @@
 //!   let rust = behaviors_fixtures::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/behaviors_fixtures.rs —
+//! [antibody-exempt: storehouse/src/specializer/behaviors_fixtures.rs —
 //!  Rust-native specializer module ; one match arm in
 //!  `specializer/mod.rs` claims it. Retires when the specializer
 //!  itself is regenerated from a meta-shape (i78).]

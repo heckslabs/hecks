@@ -72,7 +72,7 @@ pub fn print(v: &Vitals) {
         "  feeling: {} · {} · pulses since sleep: {} · state: {} · last wake: {}",
         mood, fatigue, pulses, state, last_wake,
     );
-    println!("  full status report: hecks-life run capabilities/status/status.bluebook");
+    println!("  full status report: storehouse run capabilities/status/status.bluebook");
 
     if !v.classification.unclassified.is_empty() {
         println!("  ⚠ unclassified stores: {}", v.classification.unclassified.join(" "));

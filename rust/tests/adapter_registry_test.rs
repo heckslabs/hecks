@@ -1,7 +1,7 @@
 //! Registry surface — tiny but pins the wiring the runtime expects.
 
-use hecks_life::hecksagon_parser;
-use hecks_life::runtime::adapter_registry::AdapterRegistry;
+use storehouse::hecksagon_parser;
+use storehouse::runtime::adapter_registry::AdapterRegistry;
 
 const SRC: &str = r#"Hecks.hecksagon "Tiny" do
   adapter :memory

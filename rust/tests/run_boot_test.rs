@@ -11,11 +11,11 @@
 //!  surface). Retires when behaviors framework gains capability-
 //!  detection coverage end-to-end.]
 
-use hecks_life::hecksagon_parser;
-use hecks_life::parser;
-use hecks_life::run_boot;
-use hecks_life::runtime::Runtime;
-use hecks_life::runtime::adapter_registry::AdapterRegistry;
+use storehouse::hecksagon_parser;
+use storehouse::parser;
+use storehouse::run_boot;
+use storehouse::runtime::Runtime;
+use storehouse::runtime::adapter_registry::AdapterRegistry;
 
 const BOOT_BLUEBOOK: &str = include_str!(
     "../../runtime/boot/boot.bluebook"

@@ -5,8 +5,8 @@
 //! The validator must flag them at check time, before the runtime quietly
 //! doubles up.
 
-use hecks_life::duplicate_policy_validator::check;
-use hecks_life::parser;
+use storehouse::duplicate_policy_validator::check;
+use storehouse::parser;
 use std::process::Command;
 
 #[test]
@@ -117,14 +117,14 @@ end
 
 // ─── Subcommand integration test ───────────────────────────────────
 //
-// Boots the built hecks-life binary against the negative fixture and
+// Boots the built storehouse binary against the negative fixture and
 // confirms exit code 1 plus a clear "duplicate" listing on stdout.
-// Uses CARGO_BIN_EXE_hecks-life — Cargo sets this when running
+// Uses CARGO_BIN_EXE_storehouse — Cargo sets this when running
 // `cargo test` for integration tests.
 
 #[test]
 fn subcommand_exits_nonzero_on_duplicate_fixture() {
-    let bin = env!("CARGO_BIN_EXE_hecks-life");
+    let bin = env!("CARGO_BIN_EXE_storehouse");
     let fixture = concat!(env!("CARGO_MANIFEST_DIR"),
                           "/tests/fixtures/duplicate_policy.bluebook");
 
@@ -132,7 +132,7 @@ fn subcommand_exits_nonzero_on_duplicate_fixture() {
         .arg("check-duplicate-policies")
         .arg(fixture)
         .output()
-        .expect("failed to invoke hecks-life");
+        .expect("failed to invoke storehouse");
 
     assert!(!output.status.success(),
         "expected non-zero exit on duplicate fixture; stdout: {}\nstderr: {}",

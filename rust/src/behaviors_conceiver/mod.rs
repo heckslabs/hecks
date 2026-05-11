@@ -6,7 +6,7 @@
 //! Drift between them is enforced against by `tests/conceiver_parity.rs`.
 //!
 //! Usage:
-//!   hecks-life conceive-behaviors path/to/source.bluebook [--corpus dir1 dir2]
+//!   storehouse conceive-behaviors path/to/source.bluebook [--corpus dir1 dir2]
 
 pub mod vector;
 pub mod generator;

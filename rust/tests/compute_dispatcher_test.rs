@@ -13,11 +13,11 @@
 //! function via the static registry, and chains the response back
 //! into the response_into target with response_into_attr populated.
 
-use hecks_life::hecksagon_ir::{ComputeAdapter, Hecksagon};
-use hecks_life::ir::Domain;
-use hecks_life::parser;
-use hecks_life::runtime::{Runtime, Value};
-use hecks_life::runtime::compute_dispatcher::{self, ComputeOutcome};
+use storehouse::hecksagon_ir::{ComputeAdapter, Hecksagon};
+use storehouse::ir::Domain;
+use storehouse::parser;
+use storehouse::runtime::{Runtime, Value};
+use storehouse::runtime::compute_dispatcher::{self, ComputeOutcome};
 use std::collections::HashMap;
 
 fn summary_adapter() -> ComputeAdapter {
@@ -80,7 +80,7 @@ fn split_target_parses_aggregate_command() {
 
 #[test]
 fn registry_invoke_for_unregistered_returns_none() {
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "totally_made_up_name", None, &HashMap::new(), None,
     );
     assert!(result.is_none());
@@ -165,7 +165,7 @@ fn dispatcher_skips_silently_when_no_hecksagon_loaded() {
 
 #[test]
 fn aggregate_corpus_window_returns_empty_without_data_dir() {
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "aggregate_corpus_window", None, &HashMap::new(), None,
     );
     assert_eq!(result, Some("".to_string()));
@@ -177,7 +177,7 @@ fn aggregate_corpus_window_returns_empty_when_bounds_missing() {
     // attrs (or sleep_entered_at/woke_at fallbacks) the function
     // returns empty.
     let attrs: HashMap<String, String> = HashMap::new();
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "aggregate_corpus_window", None, &attrs, Some("/tmp"),
     );
     assert_eq!(result, Some("".to_string()),
@@ -195,17 +195,17 @@ fn aggregate_corpus_window_falls_back_to_wake_review_state_attrs() {
     let _ = fs::remove_dir_all(&tmpdir);
     fs::create_dir_all(&tmpdir).expect("mkdir tmpdir");
 
-    let mut store = hecks_life::heki::Store::new();
-    let mut r1 = hecks_life::heki::Record::new();
+    let mut store = storehouse::heki::Store::new();
+    let mut r1 = storehouse::heki::Record::new();
     r1.insert("updated_at".into(), json!("2026-05-03T10:00:00Z"));
     r1.insert("dream_images".into(), json!("le poisson dort"));
     store.insert("k1".into(), r1);
 
     let path = tmpdir.join("dream_state.heki");
     let path_str = path.to_str().unwrap().to_string();
-    hecks_life::heki::write(
+    storehouse::heki::write(
         &path_str, &store,
-        hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" },
+        storehouse::heki::WriteContext::OutOfBand { reason: "test setup" },
     ).expect("write store");
 
     // No `heki:`, `field:`, `lower_bound:`, `upper_bound:` — purely
@@ -216,7 +216,7 @@ fn aggregate_corpus_window_falls_back_to_wake_review_state_attrs() {
     attrs.insert("sleep_entered_at".into(), "2026-05-03T09:00:00Z".into());
     attrs.insert("woke_at".into(), "2026-05-03T12:00:00Z".into());
 
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "aggregate_corpus_window", None, &attrs,
         Some(tmpdir.to_str().unwrap()),
     ).expect("function should return Some");
@@ -234,7 +234,7 @@ fn aggregate_corpus_window_returns_empty_when_heki_missing() {
     attrs.insert("field".into(), "dream_images".into());
     attrs.insert("lower_bound".into(), "2026-01-01T00:00:00Z".into());
     attrs.insert("upper_bound".into(), "2026-12-31T23:59:59Z".into());
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "aggregate_corpus_window", None, &attrs, Some("/tmp"),
     );
     assert_eq!(result, Some("".to_string()),
@@ -254,25 +254,25 @@ fn aggregate_corpus_window_filters_by_window_and_joins_field() {
     fs::create_dir_all(&tmpdir).expect("mkdir tmpdir");
 
     // Build a Store with three records — two inside the window, one outside.
-    let mut store = hecks_life::heki::Store::new();
-    let mut r1 = hecks_life::heki::Record::new();
+    let mut store = storehouse::heki::Store::new();
+    let mut r1 = storehouse::heki::Record::new();
     r1.insert("updated_at".into(), json!("2026-05-03T10:00:00Z"));
     r1.insert("dream_images".into(), json!("first dream image"));
     store.insert("k1".into(), r1);
-    let mut r2 = hecks_life::heki::Record::new();
+    let mut r2 = storehouse::heki::Record::new();
     r2.insert("updated_at".into(), json!("2026-05-03T11:00:00Z"));
     r2.insert("dream_images".into(), json!("second dream image"));
     store.insert("k2".into(), r2);
-    let mut r3 = hecks_life::heki::Record::new();
+    let mut r3 = storehouse::heki::Record::new();
     r3.insert("updated_at".into(), json!("2026-05-03T20:00:00Z"));
     r3.insert("dream_images".into(), json!("OUT-OF-WINDOW image"));
     store.insert("k3".into(), r3);
 
     let path = tmpdir.join("dream_state.heki");
     let path_str = path.to_str().unwrap().to_string();
-    hecks_life::heki::write(
+    storehouse::heki::write(
         &path_str, &store,
-        hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" },
+        storehouse::heki::WriteContext::OutOfBand { reason: "test setup" },
     ).expect("write store");
 
     let mut attrs: HashMap<String, String> = HashMap::new();
@@ -281,7 +281,7 @@ fn aggregate_corpus_window_filters_by_window_and_joins_field() {
     attrs.insert("lower_bound".into(), "2026-05-03T09:00:00Z".into());
     attrs.insert("upper_bound".into(), "2026-05-03T12:00:00Z".into());
 
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "aggregate_corpus_window", None, &attrs,
         Some(tmpdir.to_str().unwrap()),
     ).expect("function should return Some");
@@ -304,8 +304,8 @@ fn aggregate_corpus_window_honors_custom_timestamp_field() {
     let _ = fs::remove_dir_all(&tmpdir);
     fs::create_dir_all(&tmpdir).expect("mkdir tmpdir");
 
-    let mut store = hecks_life::heki::Store::new();
-    let mut r1 = hecks_life::heki::Record::new();
+    let mut store = storehouse::heki::Store::new();
+    let mut r1 = storehouse::heki::Record::new();
     // Use `created_at` as the timestamp field (default would be `updated_at`).
     r1.insert("created_at".into(), json!("2026-05-03T10:00:00Z"));
     r1.insert("dream_images".into(), json!("only image"));
@@ -313,9 +313,9 @@ fn aggregate_corpus_window_honors_custom_timestamp_field() {
 
     let path = tmpdir.join("dream_state.heki");
     let path_str = path.to_str().unwrap().to_string();
-    hecks_life::heki::write(
+    storehouse::heki::write(
         &path_str, &store,
-        hecks_life::heki::WriteContext::OutOfBand { reason: "test setup" },
+        storehouse::heki::WriteContext::OutOfBand { reason: "test setup" },
     ).expect("write store");
 
     let mut attrs: HashMap<String, String> = HashMap::new();
@@ -325,7 +325,7 @@ fn aggregate_corpus_window_honors_custom_timestamp_field() {
     attrs.insert("lower_bound".into(), "2026-05-03T09:00:00Z".into());
     attrs.insert("upper_bound".into(), "2026-05-03T12:00:00Z".into());
 
-    let result = hecks_life::runtime::compute_functions::invoke(
+    let result = storehouse::runtime::compute_functions::invoke(
         "aggregate_corpus_window", None, &attrs,
         Some(tmpdir.to_str().unwrap()),
     ).expect("function should return Some");

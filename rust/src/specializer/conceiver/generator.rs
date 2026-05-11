@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/conceiver/generator.rs`.
+//! Rust-native specializer for `storehouse/src/conceiver/generator.rs`.
 //!
 //! i147 wave 2 target — produce .bluebook DSL text from archetypes,
 //! regenerated from the `conceiver_generator_shape` bluebook + ordered
@@ -25,7 +25,7 @@
 //!   let rust = conceiver::generator::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/conceiver/generator.rs —
+//! [antibody-exempt: storehouse/src/specializer/conceiver/generator.rs —
 //!  i147 wave 2 — Rust-native specializer for conceiver/generator.rs]
 
 use crate::specializer::util;

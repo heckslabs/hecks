@@ -1,5 +1,5 @@
 Hecks.bluebook "LifecycleValidatorShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/lifecycle_validator.rs — second DiagnosticValidator retirement (post-i59, flat_with_strict report_kind)."
+  vision "Shape of storehouse/src/lifecycle_validator.rs — second DiagnosticValidator retirement (post-i59, flat_with_strict report_kind)."
   category "autophagy"
 
   # ============================================================

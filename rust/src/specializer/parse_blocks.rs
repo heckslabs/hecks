@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/parse_blocks.rs`.
+//! Rust-native specializer for `storehouse/src/parse_blocks.rs`.
 //!
 //! i147 Wave 3-C target (sister to parser.rs) — kernel-surface
 //! recursive-descent block parsers (section / command / value_object /
@@ -28,7 +28,7 @@
 //!   let rust = parse_blocks::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/parse_blocks.rs —
+//! [antibody-exempt: storehouse/src/specializer/parse_blocks.rs —
 //!  i147 Wave 3-C — Rust-native specializer for parse_blocks.rs]
 
 use crate::specializer::util;

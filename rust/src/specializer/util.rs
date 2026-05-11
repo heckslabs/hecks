@@ -20,7 +20,7 @@ use std::path::Path;
 
 /// Parse a `.fixtures` file and return its flat `Fixture` list.
 ///
-/// Ruby path shells out to `hecks-life dump-fixtures` + `JSON.parse`;
+/// Ruby path shells out to `storehouse dump-fixtures` + `JSON.parse`;
 /// in Rust we skip the JSON round-trip and call `fixtures_parser::parse`
 /// directly — same parser the `dump-fixtures` subcommand already uses.
 pub fn load_fixtures(shape_path: &Path) -> Result<Vec<Fixture>, Box<dyn Error>> {

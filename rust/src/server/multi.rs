@@ -4,7 +4,7 @@
 //! and serves them all with domain-namespaced routes.
 //!
 //! Usage:
-//!   hecks-life serve path/to/hecks/ 3100
+//!   storehouse serve path/to/hecks/ 3100
 //!
 //! Routes:
 //!   GET  /                         HTML index of all domains

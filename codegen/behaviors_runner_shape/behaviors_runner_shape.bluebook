@@ -1,5 +1,5 @@
 Hecks.bluebook "BehaviorsRunnerShape", version: "2026.05.01.1" do
-  vision "The shape of hecks_life/src/behaviors_runner.rs as a bluebook — pure-memory test-suite executor (3-overload entry-point family + per-test run_one + helpers) made IR-derivable via per-overload body_kind compression."
+  vision "The shape of storehouse/src/behaviors_runner.rs as a bluebook — pure-memory test-suite executor (3-overload entry-point family + per-test run_one + helpers) made IR-derivable via per-overload body_kind compression."
   category "autophagy"
 
   # ============================================================
@@ -27,7 +27,7 @@ Hecks.bluebook "BehaviorsRunnerShape", version: "2026.05.01.1" do
   #   L0 = this file + fixtures/behaviors_runner_shape.fixtures
   #        + snippets/*.rs.frag + docs/*.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/behaviors_runner.rs (generated target)
+  #   L7 = storehouse/src/behaviors_runner.rs (generated target)
   #
   # Body_kind vocabulary :
   #

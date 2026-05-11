@@ -6,7 +6,7 @@ Hecks.bluebook "CliDispatchShape", version: "2026.05.01.1" do
   # CLI DISPATCH SHAPE — i147 Wave 6 target
   # ============================================================
   #
-  # rust/src/main.rs is THE CLI entry-point. Every `hecks-life X`
+  # rust/src/main.rs is THE CLI entry-point. Every `storehouse X`
   # invocation lands in fn main(), threads through the if-chain on
   # argv[1], and either dispatches to a handler (run_X) or runs a
   # short inline body. Wave 6 retires the dispatch ROUTING — the

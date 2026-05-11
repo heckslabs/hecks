@@ -2,9 +2,9 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/lifecycle_validator_shape/
-//! Regenerate: hecks-life specialize lifecycle --output hecks_life/src/lifecycle_validator.rs
-//! Contract:  hecks_life/src/specializer/lifecycle_validator.rs (Rust-native)
-//! Tests:     hecks_life/tests/lifecycle_validator_test.rs
+//! Regenerate: storehouse specialize lifecycle --output storehouse/src/lifecycle_validator.rs
+//! Contract:  storehouse/src/specializer/lifecycle_validator.rs (Rust-native)
+//! Tests:     storehouse/tests/lifecycle_validator_test.rs
 //!
 //! Catches contradictions in lifecycle declarations — patterns where
 //! a transition is structurally unreachable from any state the
@@ -33,8 +33,8 @@
 //!
 //! Surface:
 //!
-//!   hecks-life check-lifecycle path/to/bluebook.bluebook
-//!   hecks-life check-lifecycle path/to/bluebook.bluebook --strict
+//!   storehouse check-lifecycle path/to/bluebook.bluebook
+//!   storehouse check-lifecycle path/to/bluebook.bluebook --strict
 //!
 //! Exit code:
 //!   0 — no errors (and no warnings if --strict isn't set)

@@ -5,7 +5,7 @@
 //! Block parsers live in parse_blocks.rs.
 //!
 //! [antibody-exempt: parser.rs — kernel-surface bluebook parser;
-//!  hecks-life specialize parser regenerates this file byte-for-byte from
+//!  storehouse specialize parser regenerates this file byte-for-byte from
 //!  parser_shape fixtures. Edit here seeds the golden fixture; update
 //!  parser_shape to match. Subsumes unique:true singleton pattern via
 //!  identified_by natural-key dispatch.]
@@ -249,7 +249,7 @@ fn parse_block_grammar_line(line: &str) -> Option<BlockGrammarEntry> {
 
 /// Strip a leading `#!...\n` shebang line if present.
 ///
-/// Bluebooks carrying `#!/usr/bin/env hecks-life run` at the top should
+/// Bluebooks carrying `#!/usr/bin/env storehouse run` at the top should
 /// parse identically to the same file without that line. Everything
 /// after the first newline passes through untouched.
 pub fn strip_shebang(source: &str) -> &str {

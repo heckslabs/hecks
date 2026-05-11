@@ -1,5 +1,5 @@
 Hecks.bluebook "ValidatorCorpusShape", version: "2026.04.30.1" do
-  vision "The shape of hecks_life/src/validator_corpus.rs as a bluebook — i146 piece 2 substrate. Three corpus-aware lint extensions (corpus_phantom_trigger_errors, identified_by_warnings, policy_event_warnings) that the i122 substrate depends on for `validate --corpus`."
+  vision "The shape of storehouse/src/validator_corpus.rs as a bluebook — i146 piece 2 substrate. Three corpus-aware lint extensions (corpus_phantom_trigger_errors, identified_by_warnings, policy_event_warnings) that the i122 substrate depends on for `validate --corpus`."
   category "autophagy"
 
   # ============================================================
@@ -25,7 +25,7 @@ Hecks.bluebook "ValidatorCorpusShape", version: "2026.04.30.1" do
   # Layer mapping (per docs/plans/i51_futamura_projections.md §3):
   #   L0 = this file + fixtures/validator_corpus_shape.fixtures
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/validator_corpus.rs (generated target)
+  #   L7 = storehouse/src/validator_corpus.rs (generated target)
   #
   # Shape-only aggregate per the transitional pattern documented in
   # validator_warnings_shape.bluebook. Same retirement path: when i42
