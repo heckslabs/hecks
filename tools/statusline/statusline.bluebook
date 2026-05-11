@@ -1,0 +1,68 @@
+Hecks.bluebook "Statusline", version: "2026.05.11.1" do
+  vision "Dispatchable form of the statusline CLI — `storehouse statusline` reads body heki state (heartbeat, mood, consciousness, fatigue, inbox, etc.) and renders a single-line status string to stdout. The imperative implementation lives in rust/src/run_statusline.rs ; the `statusline` arm in main.rs invokes it. This bluebook is the dispatchable Render command's bluebook-layer contract — sibling to discipline/validator/validator.bluebook (Check* commands) and to cli/statusline/statusline.bluebook (the *capability* — section/row layout). Where the capability bluebook describes WHAT the statusline shows, this bluebook describes the dispatchable command that renders it."
+  category "tools"
+
+  # ============================================================
+  # STATUSLINE — the dispatchable Render command as a bluebook
+  # ============================================================
+  #
+  # The Statusline capability bluebook (cli/statusline/statusline.bluebook)
+  # already declares the line's layout — which fields show in which
+  # mode, the section/row composition. That's the WHAT.
+  #
+  # This file is the dispatchable form — the bluebook-layer contract
+  # for the Render command the CLI invokes. The bus dispatches it
+  # through the same pipeline that handles every other bluebook
+  # command — phrase → Lexicon.Lookup → Dispatch.Route → handler.
+  # The `statusline` arm in main.rs eventually becomes :
+  #
+  #   storehouse route tools::statusline::Statusline::Render
+  #
+  # The imperative implementation (storehouse::run_statusline) stays
+  # in the runtime as the substrate that fires when Render dispatches.
+  # It's not "tooling outside the bus" — it's the runtime's
+  # implementation of this bluebook command.
+  #
+  # Companion to discipline/validator/validator.bluebook (which
+  # lifts the pre-commit validators into the bus). Same shape :
+  # singleton aggregate identified_by :name, one command per
+  # dispatchable verb, the imperative impl lifts.
+
+  aggregate "Statusline", "Dispatchable Render command for the single-line body status" do
+    identified_by :name
+
+    value_object "Name" do
+      # The singleton-key value for the Statusline aggregate. There's
+      # one statusline per session ; the canonical instance is named
+      # "statusline". A different name would be a programming error,
+      # not a domain variation.
+      attribute :value, String
+      invariant "must be 'statusline'" do
+        value == "statusline"
+      end
+    end
+
+    value_object "Line" do
+      # The rendered output — a single line of UTF-8 with glyphs,
+      # mood, fatigue, heart, inbox, etc. The runtime composes it
+      # from body heki state ; the bluebook command stamps the
+      # final string into the event payload so observers (e.g. a
+      # future history of statusline frames) can replay every
+      # rendered line without re-reading heki state.
+      attribute :value, String
+      invariant "must be non-empty" do
+        value && !value.strip.empty?
+      end
+    end
+
+    attribute :name, Name
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Render" do
+      role "System"
+      description "Read body heki state — heartbeat, mood, consciousness, fatigue, inbox, etc. — and render a single-line status string to stdout. The imperative implementation lives in rust/src/run_statusline.rs (kernel-floor exempt) ; the `statusline` arm in main.rs invokes it. Emits Rendered carrying the rendered Line payload so observers can replay the frame without re-reading heki."
+      emits "Rendered"
+    end
+  end
+end

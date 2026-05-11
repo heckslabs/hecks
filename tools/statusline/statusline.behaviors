@@ -1,0 +1,13 @@
+Hecks.behaviors "Statusline" do
+  vision "Behavioral tests for the Statusline aggregate — one happy-path test exercising the bluebook-layer contract for Render. The actual rendering logic (reading heki state, composing the line) lives in the runtime (storehouse::run_statusline) and is exercised by integration tests in rust/tests/, not here."
+
+  # Render is a no-input command — it dispatches, the runtime reads
+  # heki, the imperative impl composes and prints. The bluebook-layer
+  # acceptance is that dispatching Render emits Rendered.
+
+  test "Render emits a Rendered event" do
+    tests "Render", on: "Statusline"
+    input  {}
+    expect_event "Rendered"
+  end
+end
