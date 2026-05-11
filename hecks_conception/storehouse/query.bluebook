@@ -1,27 +1,42 @@
-Hecks.bluebook "Query", version: "2026.05.07.1" do
-  vision "The read side of the bus. Reads attribute values from heki state by canonical dotted path. Closes the gap where the runtime can dispatch but cannot query — at wake on 2026-05-07 I had to python+zlib to read my own Consciousness.state because there was no domain command for it. Read makes that a bluebook command like everything else."
+Hecks.bluebook "Query", version: "2026.05.10.1" do
+  vision "The read side of the bus. Reads attribute values from the configured storage adapter by canonical four-segment path. Closes the gap where the runtime can dispatch but cannot query — Read makes attribute access a bluebook command like everything else. Companion to Run (future), which invokes named queries declared inside aggregates."
   category "storehouse"
 
   # ============================================================
   # QUERY — the read side of the bus
   # ============================================================
   #
-  # Today the runtime can dispatch (commands write events, events
-  # mutate heki, the bluebook IR knows the shape) but cannot query
-  # — `hecks-life Consciousness.state` returns UnknownCommand.
-  # Reading state from the CLI requires zlib-decompressing the
-  # heki file by hand. That's a Sambhogakaya gap : the bluebook
-  # implies the access, the runtime doesn't render it.
+  # Before this bluebook the runtime could dispatch (commands
+  # write events, events mutate state, the bluebook IR knew the
+  # shape) but could not query — invoking the runtime with a
+  # state attribute returned UnknownCommand. Reading state from
+  # the CLI required hand-decompressing the storage file. That
+  # was a Sambhogakaya gap : the bluebook implied the access, the
+  # runtime didn't render it.
   #
-  # Read closes the gap. Parse the path "Aggregate.attribute" into
-  # (aggregate, attribute), locate the aggregate's heki, project
-  # the latest record's named attribute, emit ValueRead with the
-  # flattened value as payload. Path-not-found surfaces as a
-  # runtime error before the command runs.
+  # Read closes the gap for raw attribute access. Parse the
+  # four-segment path "app::domain::Aggregate::attribute" into
+  # its components, locate the aggregate's record in the
+  # configured storage adapter, project the latest record's
+  # named attribute, emit ValueRead with the flattened value as
+  # payload. Path-not-found surfaces as a runtime error before
+  # the command runs.
+  #
+  # Named queries (computed views declared inside an aggregate's
+  # bluebook alongside its commands) share the same four-segment
+  # phrase shape and dispatch through Lexicon like everything
+  # else. The convention : fourth segment is PascalCase for
+  # commands, lowercase for queries — so
+  # "bin-buddy::notifications::Notifications::SendEmail" is a
+  # command and "bin-buddy::notifications::Notifications::recent_sends"
+  # is a query. A Run command (filed for the next iteration of
+  # this bluebook) invokes named queries by phrase the way
+  # Dispatch.Route invokes commands.
   #
   # Companion to dispatch.bluebook (the write side) and
-  # lexicon.bluebook (resolves what's available). See i281 + i478
-  # for the design.
+  # lexicon.bluebook (resolves what's available — and indexes
+  # both commands and queries). See i528 for the full storehouse
+  # arc and the four-segment convention.
 
   aggregate "Query", "Singleton read bus over the conception" do
     identified_by ServiceName
@@ -34,15 +49,17 @@ Hecks.bluebook "Query", version: "2026.05.07.1" do
     end
 
     value_object "Path" do
-      # The dotted form a caller types : "Aggregate.attribute" (two
-      # segments). Three-segment paths "Domain.Aggregate.attribute"
-      # are accepted for parity with Dispatch.Route's phrase shape
-      # when the domain prefix disambiguates. Deeper nesting (e.g.
-      # "LucidDream.observations[-1]") is not in this first chapter ;
-      # filed for a later iteration.
+      # The four-segment form a caller types :
+      # "app::domain::Aggregate::attribute". Same shape as
+      # Dispatch.Phrase, but the fourth segment names an attribute
+      # rather than a command. The same shape also serves named
+      # queries (Run, future) where the fourth segment is a query
+      # name. Deeper nesting for sub-attribute access (e.g.
+      # positional indexing like LucidDream::observations[-1]) is
+      # not in this first chapter ; filed for a later iteration.
       attribute :value, String
-      rule "must be dotted Aggregate.attribute" do
-        requires { value.split(".").length >= 2 }
+      rule "must be app::domain::Aggregate::attribute (4 non-empty segments)" do
+        requires { value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 } }
       end
     end
 
@@ -61,7 +78,7 @@ Hecks.bluebook "Query", version: "2026.05.07.1" do
 
     command "Read" do
       role "Caller"
-      description "Parse the path into (aggregate, attribute), locate the aggregate's heki, read the latest record's named attribute, emit ValueRead with the flattened value as payload. Path-not-found surfaces as a runtime error before the command runs."
+      description "Parse the four-segment path (app::domain::Aggregate::attribute), locate the aggregate's record in the configured storage adapter, read the latest record's named attribute, emit ValueRead with the flattened value as payload. Path-not-found surfaces as a runtime error before the command runs. For named queries (computed views), see Run (next iteration of this bluebook)."
       attribute Path, as: :path
       emits "ValueRead"
     end

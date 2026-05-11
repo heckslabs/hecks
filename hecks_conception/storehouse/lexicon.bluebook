@@ -1,26 +1,38 @@
-Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
-  vision "Singleton index of every callable phrase across every bluebook in the conception. Source of truth for what's dispatchable. Compile rebuilds the index from the conception root ; Lookup resolves a Phrase to its target aggregate + command + attributes ; List browses with optional filter."
+Hecks.bluebook "Lexicon", version: "2026.05.10.1" do
+  vision "Singleton index of every callable phrase across every bluebook in the conception. Source of truth for what's dispatchable. Compile rebuilds the index from a SourceSet (filesystem, embedded blob, fixture set — the adapter binds the source) ; Lookup resolves a Phrase to its target aggregate + command + attributes ; List browses with optional filter. Every entry carries `app` as a first-class field so a CommandBus can filter to its own slice."
   category "storehouse"
 
   # ============================================================
   # LEXICON — what the bus knows it can dispatch
   # ============================================================
   #
-  # Today the lexicon exists as a runtime subcommand
-  # (`hecks-life lexicon hecks_conception`) and as Spring's
-  # in-process `domain_index.rs`. This bluebook makes the contract
-  # explicit so every surface (Spring REPL, Glass palette, the
-  # conversation surface, a future MCP server) consumes the same
-  # index instead of re-implementing.
+  # Before this bluebook the lexicon existed as ad-hoc runtime
+  # subcommands and as in-process indexes inside each surface.
+  # Every surface (Spring REPL, Glass palette, the conversation
+  # surface, a future MCP server) carried its own re-implementation.
+  # This bluebook makes the contract explicit so every surface
+  # consumes the same index.
   #
-  # The Compile command walks every *.bluebook under the conception
-  # root, extracts every Aggregate.Command phrase + its attribute
-  # list, and stores the index. Lookup returns the resolved target
-  # for a given phrase ; List returns matching phrases for a filter.
+  # The Compile command walks every *.bluebook in the given
+  # SourceSet, extracts every callable phrase + its attribute
+  # list + its app/domain context, and stores the index. The
+  # SourceSet abstraction lets the same Compile contract serve
+  # the laptop (filesystem path), a deployed CommandBus (an
+  # embedded blob baked into the WASM at build time), and tests
+  # (a fixture set). The hecksagon's source adapter family
+  # resolves the SourceSet handle to bytes.
+  #
+  # Every entry carries `app` as a first-class field so a
+  # CommandBus can materialize its filtered view by selecting
+  # entries where `app == self.app`. Lookup returns the resolved
+  # target for a given phrase ; List returns matching phrases for
+  # a filter.
   #
   # Companion to dispatch.bluebook (which calls Lookup before
-  # routing) and query.bluebook (the read side of the same bus).
-  # See i281 + i478 for the full design.
+  # routing), query.bluebook (the read side of the same bus), and
+  # command_bus.bluebook (a scoped, app-filtered view). See i528
+  # for the full storehouse arc and the four-segment phrase
+  # convention.
 
   aggregate "Lexicon", "Singleton index of every callable phrase across the conception" do
     identified_by ServiceName
@@ -33,14 +45,35 @@ Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
     end
 
     value_object "Phrase" do
-      # The dotted form a caller types : "Aggregate.Command" (two
-      # segments) or "Domain.Aggregate.Command" (three segments,
-      # used when a domain hosts multiple aggregates and the bare
-      # aggregate name would be ambiguous). The lexicon resolves
-      # both forms.
+      # The four-segment form a caller types :
+      # "app::domain::Aggregate::Command". Each segment carries one
+      # level of namespace context — `app` is the project name
+      # (inferred from the bluebook's containing folder at compile
+      # time, not declared in the source) ; `domain` is the
+      # sub-folder grouping ; `Aggregate` and `Command` come from
+      # the bluebook itself. Same shape as Dispatch.Phrase.
       attribute :value, String
-      rule "must be dotted Aggregate.Command or Domain.Aggregate.Command" do
-        requires { (2..3).cover?(value.split(".").length) }
+      rule "must be app::domain::Aggregate::Command (4 non-empty segments)" do
+        requires { value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 } }
+      end
+    end
+
+    value_object "SourceSet" do
+      # The set of bluebooks Compile walks. The bluebook layer
+      # treats SourceSet as an opaque identifier — the hecksagon's
+      # source adapter family resolves the handle to bytes. Today
+      # the resolution targets are :
+      #
+      #   :filesystem  — a path on disk (laptop CLI invocation)
+      #   :embedded    — a blob baked into the binary at build time
+      #                  (CommandBus WASM artifact)
+      #   :fixture     — a programmatic set (tests)
+      #
+      # Adding a new source target is one adapter member, not a
+      # bluebook change.
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
       end
     end
 
@@ -58,6 +91,13 @@ Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
       end
     end
 
+    value_object "Filter" do
+      # A substring matched against each phrase by List. Empty
+      # filter returns the full lexicon — that's a legitimate
+      # input shape, so the only rule is the type itself.
+      attribute :value, String
+    end
+
     attribute ServiceName
 
     # The singleton carries no mutable state ; what matters lives in
@@ -71,9 +111,10 @@ Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
 
     command "Compile" do
       role "System"
-      description "Walk every *.bluebook under the conception root, extract every Aggregate.Command phrase, and emit LexiconCompiled with the timestamp and total count. Idempotent. Re-run after any bluebook change to keep the index fresh ; the runtime will eventually trigger this automatically."
-      attribute :compiled_at,  String
-      attribute :phrase_count, Integer
+      description "Walk every *.bluebook in the given SourceSet, extract every callable phrase + its app/domain/aggregate/command context + its attribute list, and emit LexiconCompiled with the timestamp and total count. Idempotent. Re-run after any bluebook change to keep the index fresh ; the runtime triggers this automatically when sources change."
+      attribute SourceSet,   as: :source_set
+      attribute CompiledAt,  as: :compiled_at
+      attribute PhraseCount, as: :phrase_count
       guarantees "phrase_count reflects the new total" do
         phrase_count >= 0
       end
@@ -82,7 +123,7 @@ Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
 
     command "Lookup" do
       role "Caller"
-      description "Resolve a Phrase to its domain + aggregate + command + attribute list. Used by Dispatch.Route to validate params before routing. Two-segment phrases resolve when the bare aggregate name is unambiguous across the conception ; three-segment phrases always resolve to one specific target."
+      description "Resolve a four-segment Phrase (app::domain::Aggregate::Command) to its target aggregate + command + attribute list. Used by Dispatch.Route to validate params before routing. Resolution is exact — no ambiguity to disambiguate because every segment is required."
       attribute Phrase, as: :phrase
       emits "PhraseLookedUp"
     end
@@ -90,7 +131,7 @@ Hecks.bluebook "Lexicon", version: "2026.05.07.1" do
     command "List" do
       role "Caller"
       description "Browse the lexicon. Filter is matched as a substring against each phrase ; an empty filter returns the full lexicon. Used by Spring's REPL completion and Glass's palette search."
-      attribute :filter, String
+      attribute Filter, as: :filter
       emits "PhrasesListed"
     end
   end

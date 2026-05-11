@@ -1,27 +1,26 @@
-Hecks.bluebook "Dispatch", version: "2026.05.07.1" do
-  vision "The bus. Routes a phrase + params to the target bluebook, validates the params against the target command's attributes, dispatches through the per-bluebook runtime path, and re-emits the resulting event. Every surface (Spring REPL, Glass palette, the conversation surface, a future MCP server) calls into Route ; no surface does its own resolution."
+Hecks.bluebook "Dispatch", version: "2026.05.10.1" do
+  vision "The bus. Routes a phrase + params to the target bluebook, validates the params against the target command's attributes, dispatches through the configured storage adapter, and re-emits the resulting event. Every surface (Spring REPL, Glass palette, the conversation surface, the bin-buddy command bus, future hosts) calls into Route ; no surface does its own resolution."
   category "storehouse"
 
   # ============================================================
   # DISPATCH — the bus itself
   # ============================================================
   #
-  # Today every surface routes its own way : Spring parses
-  # `Domain.Aggregate.Command param:value` and calls hecks-life
-  # directly ; Glass calls `hecks-life heki append` ; my system
-  # prompt shells out `hecks-life <bluebook> <Aggregate>.<Command>`.
-  # Three implementations of the same idea.
+  # Before this bluebook every surface routed its own way — each
+  # one parsed phrases and reached for the runtime directly.
+  # Several implementations of the same idea, each subtly different.
+  # Dispatch makes the bus one.
   #
-  # Dispatch makes the bus one. Route resolves the phrase via
-  # Lexicon.Lookup, validates params against the target command's
-  # attributes, dispatches through the existing per-bluebook
-  # runtime path (heki write, event emit, cascade), captures the
-  # emitted event, and re-emits it as Dispatched with the original
-  # phrase + params + the target event's payload.
+  # Route resolves the phrase via Lexicon.Lookup, validates params
+  # against the target command's attributes, dispatches through
+  # the configured storage adapter (named in the hecksagon, not
+  # here), captures the emitted event, and re-emits it as
+  # Dispatched with the original phrase + params + the target
+  # event's payload.
   #
-  # Persistence delegates to the per-aggregate runtime — Dispatch
-  # does NOT own a separate dispatch log. Heki stays where it is ;
-  # the bus just resolves and routes.
+  # Persistence delegates to the per-aggregate storage adapter —
+  # Dispatch does NOT own a separate dispatch log. The bus
+  # resolves and routes ; storage writes are the adapter's job.
   #
   # Validation failures (phrase doesn't resolve, params don't fit
   # target command's attributes) surface as runtime errors before
@@ -29,8 +28,10 @@ Hecks.bluebook "Dispatch", version: "2026.05.07.1" do
   # bluebook layer because the command never reached the dispatch
   # phase.
   #
-  # Companion to lexicon.bluebook (resolves the phrase) and
-  # query.bluebook (the read side). See i281 + i478 for the design.
+  # Companion to lexicon.bluebook (resolves the phrase),
+  # query.bluebook (the read side), and command_bus.bluebook
+  # (a scoped, app-filtered view of this bus). See i528 for the
+  # full storehouse arc and the four-segment phrase convention.
 
   aggregate "Dispatch", "Singleton command bus over the conception" do
     identified_by ServiceName
@@ -43,12 +44,16 @@ Hecks.bluebook "Dispatch", version: "2026.05.07.1" do
     end
 
     value_object "Phrase" do
-      # Same shape as Lexicon.Phrase — dotted Aggregate.Command or
-      # Domain.Aggregate.Command. The bus is permissive of both ;
-      # Lookup resolves the ambiguity.
+      # The four-segment form a caller types :
+      # "app::domain::Aggregate::Command". Each segment carries one
+      # level of namespace context — `app` is the project name
+      # (inferred from the bluebook's containing folder at compile
+      # time, not declared in the source) ; `domain` is the
+      # sub-folder grouping ; `Aggregate` and `Command` come from
+      # the bluebook itself. Same shape as Lexicon.Phrase.
       attribute :value, String
-      rule "must be dotted Aggregate.Command or Domain.Aggregate.Command" do
-        requires { (2..3).cover?(value.split(".").length) }
+      rule "must be app::domain::Aggregate::Command (4 non-empty segments)" do
+        requires { value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 } }
       end
     end
 
