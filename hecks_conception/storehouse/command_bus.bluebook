@@ -1,0 +1,128 @@
+Hecks.bluebook "CommandBus", version: "2026.05.10.1" do
+  vision "An app-scoped slice of the universal bus. CommandBus filters StoreHouse to the phrases whose app segment matches self.app, exposes them via HTTP routes (POST /route, GET /lexicon, GET /query, GET /health), and rejects any phrase outside its scope. Realized today as a WASM artifact hosted on a Cloudflare Worker — the realization details (artifact shape, storage backend, host, transport, auth, codegen) live in command_bus.hecksagon, not here. See i528 for the full storehouse arc."
+  category "storehouse"
+
+  # ============================================================
+  # COMMAND_BUS — the app-scoped bus
+  # ============================================================
+  #
+  # CommandBus is what a deployed surface — a Cloudflare Worker, an
+  # AWS Lambda, a local CLI — IS. It carries the App identity (the
+  # project folder name), the filtered phrase set (the slice of
+  # Lexicon where every entry's app matches), and the HTTP route
+  # declarations.
+  #
+  # Every consumer (a Pages Function proxy, an in-portal fetch,
+  # a smoke test, a curl against the deployed Worker) addresses the
+  # CommandBus by its routes, not by the underlying StoreHouse
+  # aggregates. The bus IS the API. StoreHouse stays the universal
+  # bluebook contract ; CommandBus is the per-app surface.
+  #
+  # The bluebook describes the contract. The hecksagon binds the
+  # adapter families :
+  #
+  #   :wasm     — the artifact shape (cdylib targeting wasm32)
+  #   :storage  — the heki backend (fs / r2 / in_memory)
+  #   :host     — where the WASM runs (cf_worker / aws_lambda / cli)
+  #   :http     — the HTTP transport for the routes
+  #   :auth     — the authentication scheme for the routes
+  #   :codegen  — per-target-language class / type / function generation
+  #
+  # Companion to dispatch.bluebook, lexicon.bluebook, query.bluebook
+  # (the underlying StoreHouse the bus filters from). See i528 for
+  # the full arc and the four-segment phrase convention.
+
+  aggregate "CommandBus", "An app-scoped slice of the universal bus" do
+    identified_by App
+
+    value_object "App" do
+      # The project folder name — the first segment of every phrase
+      # this bus accepts. Inferred at compile time from where the
+      # bluebooks live ; never declared in source.
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "Phrase" do
+      # Same shape as Dispatch.Phrase. Redeclared here because the
+      # bus enforces its own scope rule (the first segment must
+      # match self.app) before delegating downstream.
+      attribute :value, String
+      rule "must be app::domain::Aggregate::Command_or_query (4 non-empty segments)" do
+        requires { value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 } }
+      end
+    end
+
+    value_object "Params" do
+      # Key-value bag carried as a JSON object string. Same shape
+      # as Dispatch.Params ; the runtime parses into the target's
+      # typed attributes (or query parameters) at validation time.
+      attribute :value, String
+      rule "must be a JSON object" do
+        requires { value.start_with?("{") && value.end_with?("}") }
+      end
+    end
+
+    value_object "PhraseSet" do
+      # The filtered slice of the Lexicon — every phrase whose
+      # first segment matches self.app. Stored as a JSON array
+      # string for the event payload ; consumers reparse for
+      # iteration. Re-materialized on every Scope ; replaced
+      # wholesale (no incremental updates).
+      attribute :value, String
+    end
+
+    value_object "RouteCount" do
+      attribute :value, Integer
+      rule "must be non-negative" do
+        requires { value >= 0 }
+      end
+    end
+
+    attribute App
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Scope" do
+      role "System"
+      description "Materialize the filtered phrase set for this bus by walking Lexicon's index and selecting entries where app == self.app. Emits Scoped with the phrase count. Re-run after any Lexicon.Compile to refresh ; the runtime triggers this automatically when the lexicon changes."
+      attribute App, as: :app
+      emits "Scoped"
+    end
+
+    command "ListPhrases" do
+      role "Caller"
+      description "Read the currently materialized PhraseSet. Returns the JSON-encoded list of phrases this bus serves. Binds to the HTTP route GET /lexicon via the :http adapter."
+      emits "PhrasesListed"
+    end
+
+    command "Route" do
+      role "Caller"
+      description "Filtered Dispatch.Route. Asserts the phrase's first segment matches self.app ; out-of-scope phrases surface as a runtime error before any dispatch. On accept, delegates to Dispatch.Route and re-emits the resulting Dispatched event as Routed. Binds to the HTTP route POST /route. Only PascalCase fourth segments accepted here — snake_case phrases (queries) route through Query.Run via the same HTTP surface but a different handler."
+      attribute Phrase, as: :phrase
+      attribute Params, as: :params
+      expects "phrase is in this bus's scope" do
+        phrase.start_with?(app.value + "::")
+      end
+      expects "phrase fourth segment is PascalCase (a command, not a query)" do
+        phrase.split("::").last.match?(/\A[A-Z]/)
+      end
+      emits "Routed"
+    end
+
+    command "Expose" do
+      role "System"
+      description "Declares the bus's HTTP routes — POST /route → Route, GET /lexicon → ListPhrases, GET /query → Query.Read or Query.Run depending on the path's fourth segment case, GET /health → HealthCheck. The :http adapter binding in the hecksagon resolves these abstract route paths to its transport's idiom (CF Worker fetch handler, Lambda API Gateway proxy integration, axum router). Emitted once at bus boot."
+      attribute RouteCount, as: :route_count
+      emits "Exposed"
+    end
+
+    command "HealthCheck" do
+      role "Caller"
+      description "Reports the bus's status — the app it serves, the materialized phrase count, the storage adapter binding, the auth binding. Binds to the HTTP route GET /health. Used by deploy smoke tests, monitoring probes, and portal readiness checks."
+      emits "HealthChecked"
+    end
+  end
+end
