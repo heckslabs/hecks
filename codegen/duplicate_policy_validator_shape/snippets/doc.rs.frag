@@ -2,9 +2,9 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/duplicate_policy_validator_shape/
-//! Regenerate: hecks-life specialize duplicate_policy --output hecks_life/src/duplicate_policy_validator.rs
-//! Contract:  hecks_life/src/specializer/duplicate_policy_validator.rs (Rust-native)
-//! Tests:     hecks_life/tests/duplicate_policy_validator_test.rs
+//! Regenerate: storehouse specialize duplicate_policy --output storehouse/src/duplicate_policy_validator.rs
+//! Contract:  storehouse/src/specializer/duplicate_policy_validator.rs (Rust-native)
+//! Tests:     storehouse/tests/duplicate_policy_validator_test.rs
 //!
 //! Catches bluebooks that declare two or more policies wired to the
 //! same `(on_event, trigger_command)` pair. Today this silently
@@ -23,7 +23,7 @@
 //!
 //! Surface:
 //!
-//!   hecks-life check-duplicate-policies path/to/bluebook.bluebook
+//!   storehouse check-duplicate-policies path/to/bluebook.bluebook
 //!
 //! Exit code:
 //!   0 — no duplicate (event, trigger) pairs

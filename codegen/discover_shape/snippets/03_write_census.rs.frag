@@ -1,5 +1,5 @@
 /// Upsert the discovered counts into `<info_dir>/census.heki`. Mirrors
-/// the shell's `hecks-life heki upsert census.heki id=1 ...` line.
+/// the shell's `storehouse heki upsert census.heki id=1 ...` line.
 pub fn write_census(info_dir: &str, counts: &OrganCounts) -> Result<(), String> {
     let path = heki::path_for_lookup(info_dir.trim_end_matches("/"), "census");
     let mut rec = heki::Record::new();

@@ -12,7 +12,7 @@
 //! consulting any whitelist registry. Three consumers share the
 //! substrate :
 //!
-//!   1. The antibody enforcer (`hecks-life enforce-edit`) — when it
+//!   1. The antibody enforcer (`storehouse enforce-edit`) — when it
 //!      sees an imperative-language edit, it asks here BEFORE the
 //!      `exempt_registry.heki` lookup. If the IR claims the file,
 //!      the edit is exempt structurally, no marker required.

@@ -41,14 +41,14 @@ fn run_batch(command: &str) {
 
 fn load_seeds(rt: &mut Runtime, seed_path: Option<&str>) {
     if let Some(path) = seed_path {
-        match hecks_life::runtime::seed_loader::load(rt, path) {
+        match storehouse::runtime::seed_loader::load(rt, path) {
             Ok(count) => eprintln!("  loaded {} seed commands from {}", count, path),
             Err(e) => eprintln!("  seed error: {}", e),
         }
     }
 }
 
-/// `hecks-life behaviors path/to/X_behavioral_tests.bluebook`
+/// `storehouse behaviors path/to/X_behavioral_tests.bluebook`
 ///
 /// Loads the matching source bluebook (suffix-stripped: pizzas_behavioral_tests
 /// → pizzas), runs every test through Runtime::boot in pure-memory mode,
@@ -106,7 +106,7 @@ fn behaviors_aggregates_root(suite_path: &str) -> Option<String> {
 
 fn run_behaviors(args: &[String]) {
     let suite_path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life behaviors <X_behavioral_tests.bluebook>");
+        eprintln!("Usage: storehouse behaviors <X_behavioral_tests.bluebook>");
         std::process::exit(1);
     });
     let source_path = source_for_suite(suite_path);
@@ -116,18 +116,18 @@ fn run_behaviors(args: &[String]) {
     let source_text = std::fs::read_to_string(&source_path).unwrap_or_else(|e| {
         eprintln!("Cannot read source {}: {}", source_path, e); std::process::exit(1);
     });
-    if !hecks_life::behaviors_parser::is_behaviors_source(&suite_text) {
+    if !storehouse::behaviors_parser::is_behaviors_source(&suite_text) {
         eprintln!("{} is not a Hecks.behaviors file", suite_path);
         std::process::exit(1);
     }
-    let suite = hecks_life::behaviors_parser::parse(&suite_text);
+    let suite = storehouse::behaviors_parser::parse(&suite_text);
 
     // Auto-load sibling .fixtures if present (i4 gap 8). Cross-aggregate
     // cascades that read state seeded by another aggregate's fixtures no
     // longer need explicit setup chains in every test.
-    let fixtures_path = hecks_life::behaviors_fixtures::locate_path(suite_path);
+    let fixtures_path = storehouse::behaviors_fixtures::locate_path(suite_path);
     let fixtures = fixtures_path.as_deref()
-        .and_then(hecks_life::behaviors_fixtures::parse_file);
+        .and_then(storehouse::behaviors_fixtures::parse_file);
 
     println!("Running {} test(s) from {}", suite.tests.len(), suite_path);
     println!("  source: {}", source_path);
@@ -146,18 +146,18 @@ fn run_behaviors(args: &[String]) {
     let combined = behaviors_aggregates_root(suite_path)
         .map(|root| load_combined_domain(&root));
     let result = match combined.as_ref() {
-        Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
+        Some(d) => storehouse::behaviors_runner::run_suite_with_domain(
             &source_text, d, &suite, fixtures.as_ref(),
         ),
-        None    => hecks_life::behaviors_runner::run_suite_with_fixtures(
+        None    => storehouse::behaviors_runner::run_suite_with_fixtures(
             &source_text, &suite, fixtures.as_ref(),
         ),
     };
     for run in &result.runs {
         let icon = match run.status {
-            hecks_life::behaviors_runner::TestStatus::Pass  => "✓",
-            hecks_life::behaviors_runner::TestStatus::Fail  => "✗",
-            hecks_life::behaviors_runner::TestStatus::Error => "⚠",
+            storehouse::behaviors_runner::TestStatus::Pass  => "✓",
+            storehouse::behaviors_runner::TestStatus::Fail  => "✗",
+            storehouse::behaviors_runner::TestStatus::Error => "⚠",
         };
         println!("{} {}", icon, run.description);
         if let Some(msg) = &run.message {
@@ -170,7 +170,7 @@ fn run_behaviors(args: &[String]) {
 }
 
 // ============================================================
-// i500 — `hecks-life test <path>` subcommand.
+// i500 — `storehouse test <path>` subcommand.
 //
 // CLI glue around the behaviors_runner engine. File OR directory,
 // filter/aggregate flags, output formats (compact/tap/rspec/json),
@@ -281,7 +281,7 @@ struct SuiteRunReport {
     source_path: String,
     fixtures_path: Option<String>,
     parse_error: Option<String>,
-    runs: Vec<hecks_life::behaviors_runner::TestRun>,
+    runs: Vec<storehouse::behaviors_runner::TestRun>,
     skipped_by_filter: usize,
 }
 
@@ -299,7 +299,7 @@ fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
         Ok(t) => t,
         Err(e) => { report.parse_error = Some(format!("cannot read {}: {}", suite_path, e)); return report; }
     };
-    if !hecks_life::behaviors_parser::is_behaviors_source(&suite_text) {
+    if !storehouse::behaviors_parser::is_behaviors_source(&suite_text) {
         report.parse_error = Some(format!("{} is not a Hecks.behaviors file", suite_path));
         return report;
     }
@@ -308,7 +308,7 @@ fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
         Err(e) => { report.parse_error = Some(format!("cannot read source {}: {}", source_path, e)); return report; }
     };
 
-    let mut suite = hecks_life::behaviors_parser::parse(&suite_text);
+    let mut suite = storehouse::behaviors_parser::parse(&suite_text);
 
     // Apply --filter / --aggregate post-parse. We mutate suite.tests in
     // place ; the runner doesn't care that it was filtered.
@@ -330,9 +330,9 @@ fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
         return report;
     }
 
-    let fixtures_path = hecks_life::behaviors_fixtures::locate_path(suite_path);
+    let fixtures_path = storehouse::behaviors_fixtures::locate_path(suite_path);
     let fixtures = fixtures_path.as_deref()
-        .and_then(hecks_life::behaviors_fixtures::parse_file);
+        .and_then(storehouse::behaviors_fixtures::parse_file);
     report.fixtures_path = fixtures_path;
 
     // --corpus override falls back to the auto-detect when absent.
@@ -341,10 +341,10 @@ fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
         None => behaviors_aggregates_root(suite_path).map(|root| load_combined_domain(&root)),
     };
     let result = match combined.as_ref() {
-        Some(d) => hecks_life::behaviors_runner::run_suite_with_domain(
+        Some(d) => storehouse::behaviors_runner::run_suite_with_domain(
             &source_text, d, &suite, fixtures.as_ref(),
         ),
-        None => hecks_life::behaviors_runner::run_suite_with_fixtures(
+        None => storehouse::behaviors_runner::run_suite_with_fixtures(
             &source_text, &suite, fixtures.as_ref(),
         ),
     };
@@ -372,8 +372,8 @@ fn run_test(args: &[String]) -> i32 {
             let text = match std::fs::read_to_string(f) {
                 Ok(t) => t, Err(_) => continue,
             };
-            if !hecks_life::behaviors_parser::is_behaviors_source(&text) { continue; }
-            let suite = hecks_life::behaviors_parser::parse(&text);
+            if !storehouse::behaviors_parser::is_behaviors_source(&text) { continue; }
+            let suite = storehouse::behaviors_parser::parse(&text);
             for t in &suite.tests {
                 let filter_ok = match &opts.filter {
                     Some(s) => t.description.to_lowercase().contains(&s.to_lowercase()),
@@ -401,7 +401,7 @@ fn run_test(args: &[String]) -> i32 {
         let report = run_one_suite(f, &opts);
         if report.parse_error.is_some() { had_parse_error = true; }
         let suite_failed = report.runs.iter().any(|r|
-            r.status != hecks_life::behaviors_runner::TestStatus::Pass);
+            r.status != storehouse::behaviors_runner::TestStatus::Pass);
         if suite_failed { had_failure = true; }
 
         match opts.fmt {
@@ -418,11 +418,11 @@ fn run_test(args: &[String]) -> i32 {
 
     let total_runs: usize = reports.iter().map(|r| r.runs.len()).sum();
     let total_pass: usize = reports.iter().map(|r| r.runs.iter().filter(|x|
-        x.status == hecks_life::behaviors_runner::TestStatus::Pass).count()).sum();
+        x.status == storehouse::behaviors_runner::TestStatus::Pass).count()).sum();
     let total_fail: usize = reports.iter().map(|r| r.runs.iter().filter(|x|
-        x.status == hecks_life::behaviors_runner::TestStatus::Fail).count()).sum();
+        x.status == storehouse::behaviors_runner::TestStatus::Fail).count()).sum();
     let total_err:  usize = reports.iter().map(|r| r.runs.iter().filter(|x|
-        x.status == hecks_life::behaviors_runner::TestStatus::Error).count()).sum();
+        x.status == storehouse::behaviors_runner::TestStatus::Error).count()).sum();
     let total_filtered: usize = reports.iter().map(|r| r.skipped_by_filter).sum();
 
     match opts.fmt {
@@ -441,10 +441,10 @@ fn run_test(args: &[String]) -> i32 {
                     println!("PARSE ERROR — {}: {}", r.suite_path, err);
                 }
                 for run in &r.runs {
-                    if run.status != hecks_life::behaviors_runner::TestStatus::Pass {
+                    if run.status != storehouse::behaviors_runner::TestStatus::Pass {
                         let kind = match run.status {
-                            hecks_life::behaviors_runner::TestStatus::Fail => "FAILED",
-                            hecks_life::behaviors_runner::TestStatus::Error => "ERROR",
+                            storehouse::behaviors_runner::TestStatus::Fail => "FAILED",
+                            storehouse::behaviors_runner::TestStatus::Error => "ERROR",
                             _ => "",
                         };
                         println!("  {} — {}", kind, run.description);
@@ -466,9 +466,9 @@ fn run_test(args: &[String]) -> i32 {
                 for run in &r.runs {
                     n += 1;
                     let prefix = match run.status {
-                        hecks_life::behaviors_runner::TestStatus::Pass  => "ok",
-                        hecks_life::behaviors_runner::TestStatus::Fail  => "not ok",
-                        hecks_life::behaviors_runner::TestStatus::Error => "not ok",
+                        storehouse::behaviors_runner::TestStatus::Pass  => "ok",
+                        storehouse::behaviors_runner::TestStatus::Fail  => "not ok",
+                        storehouse::behaviors_runner::TestStatus::Error => "not ok",
                     };
                     println!("{} {} - {}", prefix, n, run.description);
                     if let Some(msg) = &run.message {
@@ -491,9 +491,9 @@ fn run_test(args: &[String]) -> i32 {
                         "skipped_by_filter": r.skipped_by_filter,
                         "runs": r.runs.iter().map(|run| {
                             let status = match run.status {
-                                hecks_life::behaviors_runner::TestStatus::Pass  => "pass",
-                                hecks_life::behaviors_runner::TestStatus::Fail  => "fail",
-                                hecks_life::behaviors_runner::TestStatus::Error => "error",
+                                storehouse::behaviors_runner::TestStatus::Pass  => "pass",
+                                storehouse::behaviors_runner::TestStatus::Fail  => "fail",
+                                storehouse::behaviors_runner::TestStatus::Error => "error",
                             };
                             serde_json::json!({
                                 "description": run.description,
@@ -539,9 +539,9 @@ fn render_compact_inline(r: &SuiteRunReport) {
     if let Some(fp) = &r.fixtures_path { println!("  fixtures: {}", fp); }
     for run in &r.runs {
         let icon = match run.status {
-            hecks_life::behaviors_runner::TestStatus::Pass  => "PASS",
-            hecks_life::behaviors_runner::TestStatus::Fail  => "FAIL",
-            hecks_life::behaviors_runner::TestStatus::Error => "ERR ",
+            storehouse::behaviors_runner::TestStatus::Pass  => "PASS",
+            storehouse::behaviors_runner::TestStatus::Fail  => "FAIL",
+            storehouse::behaviors_runner::TestStatus::Error => "ERR ",
         };
         println!("  {} {}", icon, run.description);
         if let Some(msg) = &run.message { println!("       {}", msg); }
@@ -556,16 +556,16 @@ fn render_rspec_inline(r: &SuiteRunReport) {
     use std::io::Write;
     for run in &r.runs {
         let c = match run.status {
-            hecks_life::behaviors_runner::TestStatus::Pass  => '.',
-            hecks_life::behaviors_runner::TestStatus::Fail  => 'F',
-            hecks_life::behaviors_runner::TestStatus::Error => 'E',
+            storehouse::behaviors_runner::TestStatus::Pass  => '.',
+            storehouse::behaviors_runner::TestStatus::Fail  => 'F',
+            storehouse::behaviors_runner::TestStatus::Error => 'E',
         };
         print!("{}", c);
     }
     let _ = std::io::stdout().flush();
 }
 
-/// `hecks-life check-io <bluebook> [--strict]`
+/// `storehouse check-io <bluebook> [--strict]`
 ///
 /// Asserts a bluebook is pure-memory-runnable. Two layers: static IR
 /// scan for IO-suggestive patterns (advisory by default), and a
@@ -574,7 +574,7 @@ fn render_rspec_inline(r: &SuiteRunReport) {
 /// (--strict promotes warnings to errors).
 fn run_check_io(args: &[String]) {
     let path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life check-io <bluebook> [--strict]");
+        eprintln!("Usage: storehouse check-io <bluebook> [--strict]");
         std::process::exit(1);
     });
     let strict = args.iter().any(|a| a == "--strict");
@@ -582,7 +582,7 @@ fn run_check_io(args: &[String]) {
     let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
     });
-    let domain = hecks_life::parser::parse(&source);
+    let domain = storehouse::parser::parse(&source);
     if domain.aggregates.is_empty() {
         eprintln!("{} has no aggregates — nothing to validate", path);
         std::process::exit(1);
@@ -590,7 +590,7 @@ fn run_check_io(args: &[String]) {
 
     println!("Checking {} ({})", domain.name, path);
 
-    let report = hecks_life::io_validator::check(domain);
+    let report = storehouse::io_validator::check(domain);
 
     if !report.static_findings.is_empty() {
         println!("\nStatic IR scan:");
@@ -621,14 +621,14 @@ fn run_check_io(args: &[String]) {
     }
 }
 
-/// `hecks-life check-lifecycle <bluebook> [--strict]`
+/// `storehouse check-lifecycle <bluebook> [--strict]`
 ///
 /// Catches contradictory lifecycle declarations — transitions whose
 /// `from:` state is unreachable, defaults that no transition can
 /// exit, etc. Static IR walk; no runtime needed.
 fn run_check_lifecycle(args: &[String]) {
     let path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life check-lifecycle <bluebook> [--strict]");
+        eprintln!("Usage: storehouse check-lifecycle <bluebook> [--strict]");
         std::process::exit(1);
     });
     let strict = args.iter().any(|a| a == "--strict");
@@ -636,7 +636,7 @@ fn run_check_lifecycle(args: &[String]) {
     let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
     });
-    let domain = hecks_life::parser::parse(&source);
+    let domain = storehouse::parser::parse(&source);
     if domain.aggregates.is_empty() {
         // i112 final — umbrella bluebooks (workflow + glossary, no
         // aggregates of their own) are valid : they orchestrate sibling
@@ -650,7 +650,7 @@ fn run_check_lifecycle(args: &[String]) {
 
     println!("Checking {} ({})", domain.name, path);
 
-    let report = hecks_life::lifecycle_validator::check(&domain);
+    let report = storehouse::lifecycle_validator::check(&domain);
     if report.findings.is_empty() {
         println!("\nLifecycle: clean");
     } else {
@@ -671,7 +671,7 @@ fn run_check_lifecycle(args: &[String]) {
     }
 }
 
-/// `hecks-life check-duplicate-policies <bluebook>`
+/// `storehouse check-duplicate-policies <bluebook>`
 ///
 /// Refuses bluebooks that declare two or more policies sharing the
 /// same `(on_event, trigger_command)` pair. Today those silently
@@ -679,18 +679,18 @@ fn run_check_lifecycle(args: &[String]) {
 /// command runs once per duplicate. Flat IR walk; no runtime needed.
 fn run_check_duplicate_policies(args: &[String]) {
     let path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life check-duplicate-policies <bluebook>");
+        eprintln!("Usage: storehouse check-duplicate-policies <bluebook>");
         std::process::exit(1);
     });
 
     let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
     });
-    let domain = hecks_life::parser::parse(&source);
+    let domain = storehouse::parser::parse(&source);
 
     println!("Checking {} ({})", domain.name, path);
 
-    let report = hecks_life::duplicate_policy_validator::check(&domain);
+    let report = storehouse::duplicate_policy_validator::check(&domain);
     if report.findings.is_empty() {
         println!("\nPolicies: clean ({} policies, no duplicates)", domain.policies.len());
     } else {
@@ -709,14 +709,14 @@ fn run_check_duplicate_policies(args: &[String]) {
     }
 }
 
-/// `hecks-life check-all <bluebook> [--strict]`
+/// `storehouse check-all <bluebook> [--strict]`
 ///
 /// Run every validator in one go: lifecycle (unreachable transitions
 /// + givens + mutation refs) and IO (declarative IO smells + pure-
 /// memory dispatch smoke). Exits 0 only if both pass.
 fn run_check_all(args: &[String]) {
     let path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life check-all <bluebook> [--strict]");
+        eprintln!("Usage: storehouse check-all <bluebook> [--strict]");
         std::process::exit(1);
     });
     let strict = args.iter().any(|a| a == "--strict");
@@ -724,7 +724,7 @@ fn run_check_all(args: &[String]) {
     let source = std::fs::read_to_string(path).unwrap_or_else(|e| {
         eprintln!("Cannot read {}: {}", path, e); std::process::exit(1);
     });
-    let domain = hecks_life::parser::parse(&source);
+    let domain = storehouse::parser::parse(&source);
     if domain.aggregates.is_empty() {
         // i112 final — umbrella bluebooks (workflow + glossary, no
         // aggregates of their own) are valid : they orchestrate sibling
@@ -740,7 +740,7 @@ fn run_check_all(args: &[String]) {
     let mut overall_ok = true;
 
     // Lifecycle (borrows the domain — runs first).
-    let lc = hecks_life::lifecycle_validator::check(&domain);
+    let lc = storehouse::lifecycle_validator::check(&domain);
     if !lc.findings.is_empty() {
         println!("\nLifecycle:");
         for f in &lc.findings {
@@ -752,7 +752,7 @@ fn run_check_all(args: &[String]) {
     if !lc.passes(strict) { overall_ok = false; }
 
     // IO (consumes the domain — runs second).
-    let io = hecks_life::io_validator::check(domain);
+    let io = storehouse::io_validator::check(domain);
     if !io.static_findings.is_empty() {
         println!("\nIO static scan:");
         for f in &io.static_findings {
@@ -782,7 +782,7 @@ fn run_check_all(args: &[String]) {
     }
 }
 
-/// `hecks-life specialize <target> [--output PATH]`
+/// `storehouse specialize <target> [--output PATH]`
 ///
 /// i51 Phase D pilot — Rust-native specializer driver. Mirrors
 /// `bin/specialize <target>` on the Ruby side; both runtimes must
@@ -790,12 +790,12 @@ fn run_check_all(args: &[String]) {
 /// migration completes.
 ///
 /// Target name (the first positional arg) dispatches to the matching
-/// module under `hecks_life::specializer::`. Writes to `--output
+/// module under `storehouse::specializer::`. Writes to `--output
 /// PATH` when provided, otherwise prints to stdout.
 fn run_specialize(args: &[String]) {
     let target = args.get(2).map(|s| s.as_str()).unwrap_or("");
     if target.is_empty() {
-        eprintln!("Usage: hecks-life specialize <target> [--output PATH]");
+        eprintln!("Usage: storehouse specialize <target> [--output PATH]");
         std::process::exit(2);
     }
 
@@ -812,7 +812,7 @@ fn run_specialize(args: &[String]) {
         }
     };
 
-    let rust = match hecks_life::specializer::emit(target, &repo_root) {
+    let rust = match storehouse::specializer::emit(target, &repo_root) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("specialize {} failed: {}", target, e);
@@ -838,7 +838,7 @@ fn run_specialize(args: &[String]) {
 /// skips `.claude/worktrees/agent-XXX/` matches and finds the real
 /// hecks checkout). Falls back to `env::current_dir()` when the
 /// executable-walk returns None — invocation convention from a
-/// non-test terminal is `hecks-life specialize …` run from the repo
+/// non-test terminal is `storehouse specialize …` run from the repo
 /// root (same as `bin/specialize` on the Ruby side).
 ///
 /// The test harness in rust/tests/specializer_golden_test.rs sets
@@ -850,7 +850,7 @@ fn run_specialize(args: &[String]) {
 /// the projects root that holds sibling miette/. Going through
 /// heki::repo_root() finds the canonical checkout regardless.
 fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
-    if let Some(root) = hecks_life::heki::repo_root() {
+    if let Some(root) = storehouse::heki::repo_root() {
         return Ok(root);
     }
     let cwd = env::current_dir()?;
@@ -880,22 +880,22 @@ fn source_for_suite(suite_path: &str) -> String {
 /// heki subcommands — read/write + query shapes the shell scripts need.
 ///
 /// Write/read (original):
-///   hecks-life heki read   <file.heki>
-///   hecks-life heki append <file.heki> key=val key2=val2
-///   hecks-life heki upsert <file.heki> key=val key2=val2
-///   hecks-life heki delete <file.heki> <id>
-///   hecks-life heki latest <file.heki>
+///   storehouse heki read   <file.heki>
+///   storehouse heki append <file.heki> key=val key2=val2
+///   storehouse heki upsert <file.heki> key=val key2=val2
+///   storehouse heki delete <file.heki> <id>
+///   storehouse heki latest <file.heki>
 ///
 /// Query shapes (i37 Phase A — replace python3 -c invocations):
-///   hecks-life heki get           <file.heki> <id> [<field>]
-///   hecks-life heki list          <file.heki> [--where k=v]... [--order f[:asc|desc|enum=a,b,c]]
+///   storehouse heki get           <file.heki> <id> [<field>]
+///   storehouse heki list          <file.heki> [--where k=v]... [--order f[:asc|desc|enum=a,b,c]]
 ///                                             [--fields a,b,c] [--format json|tsv|kv]
-///   hecks-life heki count         <file.heki> [--where k=v]...
-///   hecks-life heki next-ref      <file.heki> [--prefix i] [--field ref]
-///   hecks-life heki latest-field  <file.heki> <field>
-///   hecks-life heki values        <file.heki> <field>
-///   hecks-life heki mark          <file.heki> --where k=v [--where k=v]... --set k=v [--set k=v]...
-///   hecks-life heki seconds-since <file.heki> <field>
+///   storehouse heki count         <file.heki> [--where k=v]...
+///   storehouse heki next-ref      <file.heki> [--prefix i] [--field ref]
+///   storehouse heki latest-field  <file.heki> <field>
+///   storehouse heki values        <file.heki> <field>
+///   storehouse heki mark          <file.heki> --where k=v [--where k=v]... --set k=v [--set k=v]...
+///   storehouse heki seconds-since <file.heki> <field>
 ///
 /// Exit codes:
 ///   0 success
@@ -907,7 +907,7 @@ fn source_for_suite(suite_path: &str) -> String {
 ///  shape as existing run_heki arms]
 fn run_heki(args: &[String]) {
     if args.len() < 4 {
-        eprintln!("Usage: hecks-life heki <cmd> <file.heki> [args...]");
+        eprintln!("Usage: storehouse heki <cmd> <file.heki> [args...]");
         eprintln!("Commands: read latest append upsert delete snapshot");
         eprintln!("          get list count next-ref latest-field values mark seconds-since");
         std::process::exit(1);
@@ -978,7 +978,7 @@ fn heki_cmd_latest(file: &str) {
 /// Extract `--reason "<text>"` from a CLI arg list. Returns the reason
 /// and the remaining args. The reason is REQUIRED for write subcommands
 /// (append / upsert / delete) — without it, the write is a discipline
-/// gap. Use a domain command (`hecks-life $AGG <Aggregate>.<Command>`)
+/// gap. Use a domain command (`storehouse $AGG <Aggregate>.<Command>`)
 /// instead, or pass --reason to acknowledge the out-of-band nature.
 fn extract_reason<'a>(rest: &'a [String]) -> Option<(String, Vec<&'a String>)> {
     let mut iter = rest.iter().peekable();
@@ -1006,7 +1006,7 @@ fn require_reason(op: &str, rest: &[String]) -> (String, Vec<String>) {
     match extract_reason(rest) {
         Some((reason, rem)) => (reason, rem.into_iter().cloned().collect()),
         None => {
-            eprintln!("hecks-life heki {} requires --reason \"<why>\" — direct heki", op);
+            eprintln!("storehouse heki {} requires --reason \"<why>\" — direct heki", op);
             eprintln!("writes bypass the dispatch path. Use a domain command instead, or");
             eprintln!("pass --reason to mark this as an out-of-band write (test setup,");
             eprintln!("migration, bootstrap seed). The reason is recorded in the audit log.");
@@ -1038,7 +1038,7 @@ fn heki_cmd_delete(file: &str, rest: &[String]) {
     let id = match remaining.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki delete <file.heki> <id> --reason \"<why>\"");
+            eprintln!("Usage: storehouse heki delete <file.heki> <id> --reason \"<why>\"");
             std::process::exit(1);
         }
     };
@@ -1067,7 +1067,7 @@ fn heki_cmd_retain(file: &str, rest: &[String]) {
     let id = match remaining.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki retain <file.heki> <id> --reason \"<why>\"");
+            eprintln!("Usage: storehouse heki retain <file.heki> <id> --reason \"<why>\"");
             std::process::exit(1);
         }
     };
@@ -1103,7 +1103,7 @@ fn heki_cmd_get(file: &str, rest: &[String]) {
     let id = match rest.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki get <file.heki> <id> [<field>]");
+            eprintln!("Usage: storehouse heki get <file.heki> <id> [<field>]");
             std::process::exit(1);
         }
     };
@@ -1206,7 +1206,7 @@ fn heki_cmd_latest_field(file: &str, rest: &[String]) {
     let field = match rest.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki latest-field <file.heki> <field>");
+            eprintln!("Usage: storehouse heki latest-field <file.heki> <field>");
             std::process::exit(1);
         }
     };
@@ -1227,7 +1227,7 @@ fn heki_cmd_values(file: &str, rest: &[String]) {
     let field = match rest.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki values <file.heki> <field>");
+            eprintln!("Usage: storehouse heki values <file.heki> <field>");
             std::process::exit(1);
         }
     };
@@ -1320,7 +1320,7 @@ fn heki_cmd_seconds_since(file: &str, rest: &[String]) {
     let field = match rest.first() {
         Some(s) => s.as_str(),
         None => {
-            eprintln!("Usage: hecks-life heki seconds-since <file.heki> <field>");
+            eprintln!("Usage: storehouse heki seconds-since <file.heki> <field>");
             std::process::exit(1);
         }
     };
@@ -1468,7 +1468,7 @@ fn print_kv(recs: &[&heki::Record], fields: &[String]) {
 /// outside that set (capabilities, concerns, annotations, context_map,
 /// etc.) are intentionally NOT in the canonical shape — files that
 /// depend on them go in hecksagon_known_drift.txt.
-fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json::Value {
+fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json::Value {
     let gates: Vec<serde_json::Value> = hex.gates.iter().map(|g| {
         serde_json::json!({
             "aggregate": g.aggregate,
@@ -1549,7 +1549,7 @@ fn dump_hecksagon_json(hex: &hecks_life::hecksagon_ir::Hecksagon) -> serde_json:
 
 /// Canonical JSON for a `.world` file — matches the shape the Ruby
 /// parity harness emits for `Hecksagon::Structure::World#to_canonical_h`.
-fn dump_world_json(world: &hecks_life::world_ir::World) -> serde_json::Value {
+fn dump_world_json(world: &storehouse::world_ir::World) -> serde_json::Value {
     let concerns: Vec<serde_json::Value> = world.concerns.iter().map(|c| {
         serde_json::json!({
             "name": c.name,
@@ -1577,7 +1577,7 @@ fn dump_world_json(world: &hecks_life::world_ir::World) -> serde_json::Value {
 /// Derive the being name from argv[0].
 /// "miette" or "/path/to/miette" -> "Miette"
 /// "summer" or "/path/to/summer" -> "Summer"
-/// Anything else (hecks-life, etc) -> "Miette" (default)
+/// Anything else (storehouse, etc) -> "Miette" (default)
 fn being_from_argv0(argv0: &str) -> String {
     let bin = std::path::Path::new(argv0)
         .file_name()
@@ -1609,7 +1609,7 @@ fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
     let parent = std::path::Path::new(agg_path).parent()?;
     let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
-    let world = hecks_life::world_parser::parse(&content);
+    let world = storehouse::world_parser::parse(&content);
     let cfg = world.config_for("ollama")?;
     let model = cfg.get("model")?.to_string();
     let url   = cfg.get("url")?.to_string();
@@ -1639,7 +1639,7 @@ fn find_hecksagon_llm_config(agg_dir: &str) -> Option<(String, String, String)> 
         let p = entry.path();
         if !p.extension().map(|e| e == "hecksagon").unwrap_or(false) { continue; }
         let Ok(source) = fs::read_to_string(&p) else { continue };
-        let hex = hecks_life::hecksagon_parser::parse(&source);
+        let hex = storehouse::hecksagon_parser::parse(&source);
         let Some(io) = hex.io_adapter("llm") else { continue };
         let backend = io.options.iter()
             .find(|(k, _)| k == "backend")
@@ -1671,7 +1671,7 @@ fn run_terminal(project_dir: &str, being: &str) {
         .unwrap_or_else(|| format!("{}/information", project_dir));
     let combined = load_combined_domain(&agg_dir);
     let mut rt = Runtime::boot_with_data_dir(combined, Some(data_dir));
-    hecks_life::runtime::adapter_terminal::run(&mut rt, being);
+    storehouse::runtime::adapter_terminal::run(&mut rt, being);
 }
 
 /// Load every `.bluebook` under `<agg_dir>/` (organs) and under sibling
@@ -1689,8 +1689,8 @@ fn run_terminal(project_dir: &str, being: &str) {
 /// overwrote body.bluebook's canonical one), the organ definition wins
 /// and the capability copy is dropped. Capabilities can REFERENCE organ
 /// aggregates ; redeclaration is a name conflict, not an extension.
-fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
-    let mut combined = hecks_life::ir::Domain {
+fn load_combined_domain(agg_dir: &str) -> storehouse::ir::Domain {
+    let mut combined = storehouse::ir::Domain {
         name: "Hecksagon".into(),
         category: None, vision: None,
         aggregates: vec![], policies: vec![],
@@ -1706,7 +1706,7 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     // walk (i126) collects bluebooks with their depth ; we sort
     // shallowest-first and merge in that order so the deeper duplicate
     // is dropped by the existing any(existing.name == agg.name) check.
-    let merge = |dom: hecks_life::ir::Domain, c: &mut hecks_life::ir::Domain| {
+    let merge = |dom: storehouse::ir::Domain, c: &mut storehouse::ir::Domain| {
         for agg in dom.aggregates {
             // i143 — dedupe by (context, name), not name alone. i142
             // Tier 1 added Context.Aggregate.Command resolution but
@@ -1732,7 +1732,7 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         // every subsequent bluebook's process_manager declarations. The
         // Pulse / SleepCycle / Dream / Mind / Lucidity PMs that the
         // dream-study branch declares all hit this — registered in Ruby
-        // specs (which load files individually), inert in `hecks-life
+        // specs (which load files individually), inert in `storehouse
         // run-loop` (which load_combined_domain's the directory). i75
         // closes this so the PMs reach PMEngine when run-loop boots.
         c.process_managers.extend(dom.process_managers);
@@ -1774,7 +1774,7 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
     // capabilities/. The recursive walk above already finds children
     // of agg_dir ; we extend it to the sibling capabilities/ directory
     // when agg_dir's parent has one, so existing
-    // `hecks-life aggregates/ Cmd ...` invocations keep working.
+    // `storehouse aggregates/ Cmd ...` invocations keep working.
     // Capability bluebooks land at depth 1 (a level below organs) so
     // the organ-wins dedupe rule is preserved.
     if let Some(parent) = std::path::Path::new(agg_dir).parent() {
@@ -1799,11 +1799,11 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         // not the repo's parent. From a worktree under
         // `.claude/worktrees/agent-XXX/` that breaks reach to the real
         // `~/Projects/miette/`. The executable lives in the main
-        // checkout's `hecks_life/target/release/`, so walk-up from
+        // checkout's `storehouse/target/release/`, so walk-up from
         // current_exe finds the canonical hecks/ root. (i117 Round 4
         // follow-on : Chris's "no inbox row, just fix it" call after
         // the Wave 2 agent's worktree-path-resolution false-failure.)
-        let canonical_miette = hecks_life::heki::repo_root()
+        let canonical_miette = storehouse::heki::repo_root()
             .map(|r| r.join("../miette"))
             .filter(|p| p.is_dir())
             .and_then(|p| std::fs::canonicalize(&p).ok());
@@ -1822,7 +1822,7 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
         // depth 1 so the dispatch domain still resolves them. The legacy
         // hecks_conception/capabilities/ walk above keeps working for caps
         // that haven't been lifted yet (the deferred codegen + statusline).
-        if let Some(repo_root) = hecks_life::heki::repo_root() {
+        if let Some(repo_root) = storehouse::heki::repo_root() {
             // Runtime buckets only — chapters/ and bluebook/ are
             // descriptive (the framework's self-description and
             // language definition) and intentionally excluded from
@@ -1867,16 +1867,16 @@ fn load_combined_domain(agg_dir: &str) -> hecks_life::ir::Domain {
 /// reads it (closes i149/i153 class of bugs where boot wrote one place
 /// while daemons read another).
 fn find_world_heki_dir(_aggregates_path: &str) -> Option<String> {
-    Some(hecks_life::heki::resolve_info_dir().to_string_lossy().into_owned())
+    Some(storehouse::heki::resolve_info_dir().to_string_lossy().into_owned())
 }
 
 /// i221 — load every `*.hecksagon` reachable from agg_dir (the agg_dir
 /// itself + sibling hecksagon roots discovered the same way bluebooks
 /// are). Used by `Runtime::boot_with_hecksagons` so the LLM dispatcher
 /// hook can resolve named `:llm` adapters at runtime.
-fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon> {
+fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon> {
     let mut out = Vec::new();
-    fn walk(dir: &std::path::Path, out: &mut Vec<hecks_life::hecksagon_ir::Hecksagon>) {
+    fn walk(dir: &std::path::Path, out: &mut Vec<storehouse::hecksagon_ir::Hecksagon>) {
         let Ok(entries) = fs::read_dir(dir) else { return };
         for entry in entries.flatten() {
             let p = entry.path();
@@ -1889,7 +1889,7 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon
                 walk(&p, out);
             } else if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
                 if let Ok(source) = fs::read_to_string(&p) {
-                    out.push(hecks_life::hecksagon_parser::parse(&source));
+                    out.push(storehouse::hecksagon_parser::parse(&source));
                 }
             }
         }
@@ -1903,7 +1903,7 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon
     // Same skip-when-missing semantics as the bluebook walk : sibling
     // repos that aren't checked out (CI on hecks alone) are silently
     // absent.
-    if let Some(repo_root) = hecks_life::heki::repo_root() {
+    if let Some(repo_root) = storehouse::heki::repo_root() {
         // Sibling repos via canonical repo_root — mirrors
         // load_combined_domain's miette/miette_family walk (line ~2006).
         // Use heki::repo_root() because agg_dir can be relative ; from
@@ -1956,10 +1956,10 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<hecks_life::hecksagon_ir::Hecksagon
 /// which is what makes the smoke deterministic without editing the
 /// production hecksagon.
 fn register_llm_providers(rt: &mut Runtime, agg_dir: &str) {
-    use hecks_life::runtime::llm_providers::{TestProvider, ClaudeProvider, OllamaProvider};
+    use storehouse::runtime::llm_providers::{TestProvider, ClaudeProvider, OllamaProvider};
     // Test provider — always present. Loading order : explicit env
     // path > auto-discovered sibling files > lenient empty.
-    let test_provider: Box<dyn hecks_life::runtime::llm_providers::LlmProvider> =
+    let test_provider: Box<dyn storehouse::runtime::llm_providers::LlmProvider> =
         if let Ok(path) = std::env::var("HECKS_LLM_FIXTURES") {
             Box::new(TestProvider::from_fixtures_file(path))
         } else {
@@ -2007,7 +2007,7 @@ fn register_llm_providers(rt: &mut Runtime, agg_dir: &str) {
 fn collect_sibling_fixtures(
     agg_dir: &str,
 ) -> std::collections::HashMap<String, String> {
-    use hecks_life::runtime::llm_providers::TestProvider;
+    use storehouse::runtime::llm_providers::TestProvider;
     let mut merged: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
     fn walk_for_fixtures(dir: &std::path::Path, out: &mut std::collections::HashMap<String, String>) {
@@ -2046,7 +2046,7 @@ fn collect_sibling_fixtures(
             .find(|l| !l.trim().is_empty() && !l.trim().starts_with('#'))
             .unwrap_or("").trim();
         if trimmed.starts_with("Hecks.fixtures") {
-            let parsed = hecks_life::fixtures_parser::parse(contents);
+            let parsed = storehouse::fixtures_parser::parse(contents);
             for fx in &parsed.fixtures {
                 let mut input: Option<&str> = None;
                 let mut response: Option<&str> = None;
@@ -2076,7 +2076,7 @@ fn collect_sibling_fixtures(
     }
 
     walk_for_fixtures(std::path::Path::new(agg_dir), &mut merged);
-    if let Some(repo_root) = hecks_life::heki::repo_root() {
+    if let Some(repo_root) = storehouse::heki::repo_root() {
         for sibling in &["miette", "miette_family"] {
             if let Ok(canonical) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
                 if canonical.is_dir() && canonical != std::path::Path::new(agg_dir) {
@@ -2126,26 +2126,26 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         //      hecksagon :llm declaration.
         let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
         let ollama_config = find_world_ollama_config(agg_dir);
-        let rt_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = attrs.iter()
+        let rt_attrs: std::collections::HashMap<String, storehouse::runtime::Value> = attrs.iter()
             .map(|(k, v)| (k.clone(), match v {
-                serde_json::Value::String(s) => hecks_life::runtime::Value::Str(s.clone()),
-                _ => hecks_life::runtime::Value::Str(v.to_string()),
+                serde_json::Value::String(s) => storehouse::runtime::Value::Str(s.clone()),
+                _ => storehouse::runtime::Value::Str(v.to_string()),
             }))
             .collect();
         match rt.dispatch(command, rt_attrs) {
             Ok(result) => {
                 // Run LLM adapter if configured
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
-                    let repo_key = hecks_life::runtime::repo_lookup_key(&rt.repositories, &result.aggregate_type);
+                    let repo_key = storehouse::runtime::repo_lookup_key(&rt.repositories, &result.aggregate_type);
                     if let Some(repo) = repo_key.as_ref().and_then(|k| rt.repositories.get_mut(k)) {
                         if let Some((backend, model, url)) = hecksagon_llm.as_ref() {
                             let triple = (backend.as_str(), model.as_str(), url.as_str());
-                            hecks_life::runtime::adapter_llm::resolve(
+                            storehouse::runtime::adapter_llm::resolve(
                                 repo, &state, Some(triple),
                                 &result.aggregate_type, command);
                         } else {
                             let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
-                            hecks_life::runtime::adapter_llm::resolve_ollama(
+                            storehouse::runtime::adapter_llm::resolve_ollama(
                                 repo, &state, config,
                                 &result.aggregate_type, command);
                         }
@@ -2156,9 +2156,9 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                     let mut map = serde_json::Map::new();
                     for (k, v) in &s.fields {
                         map.insert(k.clone(), match v {
-                            hecks_life::runtime::Value::Str(s) => serde_json::json!(s),
-                            hecks_life::runtime::Value::Int(n) => serde_json::json!(n),
-                            hecks_life::runtime::Value::Bool(b) => serde_json::json!(b),
+                            storehouse::runtime::Value::Str(s) => serde_json::json!(s),
+                            storehouse::runtime::Value::Int(n) => serde_json::json!(n),
+                            storehouse::runtime::Value::Bool(b) => serde_json::json!(b),
                             _ => serde_json::json!(v.to_string()),
                         });
                     }
@@ -2206,7 +2206,7 @@ fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
 /// Run the loop subcommand. Boots the runtime once, dispatches the named
 /// command at the given cadence, exits cleanly on SIGINT / SIGTERM.
 ///
-/// Args layout : hecks-life loop <target> <Aggregate.Command> --every <dur> [k=v ...]
+/// Args layout : storehouse loop <target> <Aggregate.Command> --every <dur> [k=v ...]
 ///   args[0] = binary
 ///   args[1] = "loop"
 ///   args[2] = target (agg dir or .bluebook)
@@ -2230,7 +2230,7 @@ fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
 //     today produces PPID=1 orphans on macOS because the wrapper bash
 //     shell doesn't always exit cleanly after backgrounding. Spawning
 //     directly via Command + pre_exec(setsid) puts the daemon in its
-//     own session/process-group and the parent (this hecks-life process)
+//     own session/process-group and the parent (this storehouse process)
 //     exits immediately — no wrapping shell to leak.
 //
 //   status <pidfile>
@@ -2317,7 +2317,7 @@ fn run_enforce_edit(_args: &[String]) {
     let exempted = dispatch_info.is_some()
         || (matches!(kind, FileKind::Imperative)
             && corpus_root_buf.as_deref()
-                .map(|root| hecks_life::dispatch_query::is_imperative_exempt(&file_path, root))
+                .map(|root| storehouse::dispatch_query::is_imperative_exempt(&file_path, root))
                 .unwrap_or(false));
 
     let cmd_name = match kind {
@@ -2756,10 +2756,10 @@ fn unreasoned_heki_writes(file_path: &str) -> Option<Vec<String>> {
 /// Cheap-ish: the specializer-target arm is a static array match ;
 /// the hecksagon arm walks `*.hecksagon` files under the corpus root
 /// (parses each on first match). Scoped to one process invocation.
-fn dispatch_lookup(file_path: &str) -> Option<hecks_life::dispatch_query::DispatchInfo> {
+fn dispatch_lookup(file_path: &str) -> Option<storehouse::dispatch_query::DispatchInfo> {
     let agg_dir = resolve_aggregates_dir()?;
     let corpus_root = std::path::Path::new(&agg_dir).parent()?;
-    hecks_life::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
+    storehouse::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
 }
 
 /// Look up a subcommand by name in the Subcommand catalog
@@ -2801,16 +2801,16 @@ fn classify_file(path: &str) -> FileKind {
 
 fn resolve_aggregates_dir() -> Option<String> {
     // HECKS_HOME points at the repo root (sibling of hecks_conception
-    // and hecks_life), not at hecks_conception itself.
+    // and storehouse), not at hecks_conception itself.
     if let Ok(home) = env::var("HECKS_HOME") {
         let p = format!("{}/hecks_conception/aggregates", home);
         if std::path::Path::new(&p).is_dir() { return Some(p); }
     }
     // Walk up from the binary :
-    //   /…/hecks/hecks_life/target/release/hecks-life
+    //   /…/hecks/storehouse/target/release/storehouse
     //   .parent() = release
     //   .parent() = target
-    //   .parent() = hecks_life
+    //   .parent() = storehouse
     //   .parent() = hecks (repo root)
     if let Ok(exe) = env::current_exe() {
         if let Ok(real) = exe.canonicalize() {
@@ -2860,7 +2860,7 @@ fn ymdhms_from_unix(secs: i64) -> (i64, i64, i64, i64, i64, i64) {
 
 fn run_daemon(args: &[String]) {
     let action = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life daemon <ensure|status|stop> <pidfile> [command...]");
+        eprintln!("Usage: storehouse daemon <ensure|status|stop> <pidfile> [command...]");
         std::process::exit(1);
     });
     match action {
@@ -2869,7 +2869,7 @@ fn run_daemon(args: &[String]) {
         "stop"   => daemon_stop(&args[3..]),
         _ => {
             eprintln!("Unknown daemon action: {}", action);
-            eprintln!("Usage: hecks-life daemon <ensure|status|stop> <pidfile> [command...]");
+            eprintln!("Usage: storehouse daemon <ensure|status|stop> <pidfile> [command...]");
             std::process::exit(1);
         }
     }
@@ -2877,7 +2877,7 @@ fn run_daemon(args: &[String]) {
 
 fn daemon_ensure(rest: &[String]) {
     let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life daemon ensure <pidfile> <command> [args...]");
+        eprintln!("Usage: storehouse daemon ensure <pidfile> <command> [args...]");
         std::process::exit(1);
     });
     if let Some(pid) = read_pidfile(pidfile) {
@@ -2908,7 +2908,7 @@ fn daemon_ensure(rest: &[String]) {
 
 fn daemon_status(rest: &[String]) {
     let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life daemon status <pidfile>");
+        eprintln!("Usage: storehouse daemon status <pidfile>");
         std::process::exit(1);
     });
     match read_pidfile(pidfile) {
@@ -2920,7 +2920,7 @@ fn daemon_status(rest: &[String]) {
 
 fn daemon_stop(rest: &[String]) {
     let pidfile = rest.first().map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life daemon stop <pidfile>");
+        eprintln!("Usage: storehouse daemon stop <pidfile>");
         std::process::exit(1);
     });
     match read_pidfile(pidfile) {
@@ -2950,11 +2950,19 @@ fn write_pidfile(path: &str, pid: u32) -> std::io::Result<()> {
     std::fs::write(path, format!("{}\n", pid))
 }
 
+#[cfg(target_family = "unix")]
 fn pid_alive(pid: u32) -> bool {
     extern "C" { fn kill(pid: i32, sig: i32) -> i32; }
     unsafe { kill(pid as i32, 0) == 0 }
 }
 
+#[cfg(not(target_family = "unix"))]
+fn pid_alive(_pid: u32) -> bool {
+    // On non-unix targets (e.g. wasm32) there's no process model.
+    false
+}
+
+#[cfg(target_family = "unix")]
 fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
     use std::os::unix::process::CommandExt;
     use std::process::{Command, Stdio};
@@ -2976,14 +2984,24 @@ fn spawn_detached(cmd: &str, args: &[String]) -> std::io::Result<u32> {
     Ok(child.id())
 }
 
+#[cfg(not(target_family = "unix"))]
+fn spawn_detached(_cmd: &str, _args: &[String]) -> std::io::Result<u32> {
+    // On non-unix targets (e.g. wasm32) there's no process model ;
+    // any caller that reaches here gets an Unsupported error.
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "spawn_detached not available on this target (no process model)",
+    ))
+}
+
 fn run_loop(args: &[String]) {
-    // [antibody-exempt: hecks_life/src/main.rs run_loop — extends the cadence
+    // [antibody-exempt: storehouse/src/main.rs run_loop — extends the cadence
     //  primitive with multi-command rotation (i106) and gated cadence (i108).
     //  This IS the structural rewrite that lets breath / ultradian / sleep_cycle
     //  retire. Same i80 retirement contract as the rest of the loop / daemon /
     //  enforce-edit family. Net ~30 LoC.]
     //
-    // Args layout : hecks-life loop <target> <Cmd1[,Cmd2,...]> --every <dur>
+    // Args layout : storehouse loop <target> <Cmd1[,Cmd2,...]> --every <dur>
     //               [--gate <heki-file>:<field>=<value>] [k=v ...]
     //
     // Multi-command rotation (i106) : if <Aggregate.Command> contains commas,
@@ -2995,7 +3013,7 @@ fn run_loop(args: &[String]) {
     // by sleep_cycle to advance NREM/REM only while consciousness.state ==
     // sleeping.
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life loop <bluebook-or-dir> <Aggregate.Command[,Aggregate.Command2,...]> --every <duration> [--gate <file.heki>:<field>=<value>] [key=val ...]");
+        eprintln!("Usage: storehouse loop <bluebook-or-dir> <Aggregate.Command[,Aggregate.Command2,...]> --every <duration> [--gate <file.heki>:<field>=<value>] [key=val ...]");
         std::process::exit(1);
     });
     let cmd_full = args.get(3).map(|s| s.as_str()).unwrap_or_else(|| {
@@ -3041,7 +3059,7 @@ fn run_loop(args: &[String]) {
 
     // Parse trailing key=val attrs, skipping the --every / --gate flags
     // and their values.
-    let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut attrs: std::collections::HashMap<String, storehouse::runtime::Value> = Default::default();
     let mut i = 4;
     while i < args.len() {
         if args[i] == "--every" { i += 2; continue; }
@@ -3049,26 +3067,26 @@ fn run_loop(args: &[String]) {
         if args[i].starts_with("--") { i += 1; continue; }
         let mut parts = args[i].splitn(2, '=');
         if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
-            attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+            attrs.insert(k.to_string(), storehouse::runtime::Value::Str(v.to_string()));
         }
         i += 1;
     }
 
     if let Some((p, f, v)) = &gate {
         eprintln!(
-            "[hecks-life loop] {} every {:?} gated on {}:{}={} (Ctrl-C to stop)",
+            "[storehouse loop] {} every {:?} gated on {}:{}={} (Ctrl-C to stop)",
             cmd_full, every, p, f, v
         );
     } else {
         eprintln!(
-            "[hecks-life loop] {} every {:?} (Ctrl-C to stop)",
+            "[storehouse loop] {} every {:?} (Ctrl-C to stop)",
             cmd_full, every
         );
     }
 
     // Build the combined domain ONCE (parse all bluebooks in the target),
     // boot the runtime ONCE, then loop dispatching. This is the speedup
-    // over the shell `while true ; do hecks-life agg/ Cmd ; sleep N ; done`
+    // over the shell `while true ; do storehouse agg/ Cmd ; sleep N ; done`
     // pattern, which paid full parse + boot per iteration.
     let data_dir = find_world_heki_dir(target)
         .unwrap_or_else(|| format!("{}/data", target.trim_end_matches('/')));
@@ -3103,7 +3121,7 @@ fn run_loop(args: &[String]) {
         if gate_open {
             let cmd_name = &cmd_names[idx % cmd_names.len()];
             if let Err(e) = rt.dispatch(cmd_name, attrs.clone()) {
-                eprintln!("[hecks-life loop] dispatch error: {:?}", e);
+                eprintln!("[storehouse loop] dispatch error: {:?}", e);
             }
             idx = idx.wrapping_add(1);
         }
@@ -3111,7 +3129,7 @@ fn run_loop(args: &[String]) {
     }
 }
 
-/// `hecks-life run-loop <target> [--every <dur>]
+/// `storehouse run-loop <target> [--every <dur>]
 ///   [--emit <EventName:AggregateType:AggregateId>]...
 ///   [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]...
 ///   [--dispatch <Aggregate.Command>]... [k=v ...]`
@@ -3127,7 +3145,7 @@ fn run_loop(args: &[String]) {
 /// full command path. Multiple of each may be passed ; they fire in
 /// declaration order each tick. Trailing `k=v` pairs become attrs
 /// for `--dispatch` actions (shared across all dispatches in the tick,
-/// matching `hecks-life loop`'s convention).
+/// matching `storehouse loop`'s convention).
 ///
 /// `--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>`
 /// (i223) is a one-shot first-tick predicate-and-emit. On the first
@@ -3146,13 +3164,13 @@ fn run_loop(args: &[String]) {
 /// case is replaying one tick's policy cascade. Signal-driven shutdown
 /// is a follow-up (needs signal_hook ; the runtime is dep-light today).
 fn run_pm_loop(args: &[String]) {
-    use hecks_life::runtime::loop_driver::{BootstrapEmit, LoopDriver, TickAction};
+    use storehouse::runtime::loop_driver::{BootstrapEmit, LoopDriver, TickAction};
 
     let target = match args.get(2).map(|s| s.as_str()) {
         Some(t) => t,
         None => {
             eprintln!(
-                "Usage: hecks-life run-loop <bluebook-or-dir> \
+                "Usage: storehouse run-loop <bluebook-or-dir> \
                  [--every <duration>] \
                  [--emit <Event:AggType:AggId>]... \
                  [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]... \
@@ -3184,7 +3202,7 @@ fn run_pm_loop(args: &[String]) {
     //  the predicate reads is `emit_agg_id` (the bootstrap targets
     //  one record at a time ; the tuple shape stays small).
     let mut bootstraps: Vec<(String, String, String, String, String, String)> = Vec::new();
-    let mut attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut attrs: std::collections::HashMap<String, storehouse::runtime::Value> = Default::default();
     let mut i = 3;
     while i < args.len() {
         match args[i].as_str() {
@@ -3258,7 +3276,7 @@ fn run_pm_loop(args: &[String]) {
             s if s.starts_with("--") => { i += 1; }
             s => {
                 if let Some((k, v)) = s.split_once('=') {
-                    attrs.insert(k.into(), hecks_life::runtime::Value::Str(v.into()));
+                    attrs.insert(k.into(), storehouse::runtime::Value::Str(v.into()));
                 }
                 i += 1;
             }
@@ -3321,14 +3339,14 @@ fn run_pm_loop(args: &[String]) {
         });
     }
     eprintln!(
-        "[hecks-life run-loop] {} actions/tick every {:?} ({} bootstrap{}, Ctrl-C to stop)",
+        "[storehouse run-loop] {} actions/tick every {:?} ({} bootstrap{}, Ctrl-C to stop)",
         driver.runtime().domain.name, interval, bootstrap_count,
         if bootstrap_count == 1 { "" } else { "s" }
     );
     driver.run();
 }
 
-/// Predicate for the --gate flag on `hecks-life loop` (i108). Reads the
+/// Predicate for the --gate flag on `storehouse loop` (i108). Reads the
 /// latest record from the named .heki store, looks up `field`, and
 /// returns true iff its string form equals `expected`. Missing file,
 /// missing field, or read errors all evaluate to false (gate closed) so
@@ -3354,7 +3372,7 @@ fn gate_predicate_holds(file: &str, field: &str, expected: &str) -> bool {
 /// .heki state catches up if the daemon was down across a transition.
 ///
 /// Args layout :
-///   hecks-life clock <target>
+///   storehouse clock <target>
 ///     --segment <lo>-<hi>:<Aggregate.Command>   (one or more)
 ///     [--poll <duration>]                       (default 60s)
 ///
@@ -3362,7 +3380,7 @@ fn gate_predicate_holds(file: &str, field: &str, expected: &str) -> bool {
 /// (`20-4` covers 20:00 through 04:59). First matching segment wins.
 fn run_clock(args: &[String]) {
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life clock <bluebook-or-dir> --segment <lo>-<hi>:<Aggregate.Command> [--segment ...] [--poll <dur>]");
+        eprintln!("Usage: storehouse clock <bluebook-or-dir> --segment <lo>-<hi>:<Aggregate.Command> [--segment ...] [--poll <dur>]");
         std::process::exit(1);
     });
 
@@ -3417,7 +3435,7 @@ fn run_clock(args: &[String]) {
     }
 
     eprintln!(
-        "[hecks-life clock] {} segments, polling every {:?} (Ctrl-C to stop)",
+        "[storehouse clock] {} segments, polling every {:?} (Ctrl-C to stop)",
         segments.len(), poll
     );
 
@@ -3439,12 +3457,12 @@ fn run_clock(args: &[String]) {
     let mut rt = Runtime::boot_with_data_dir(domain, Some(data_dir));
 
     // Parse trailing key=val attrs (same pattern as run_loop)
-    let mut clock_attrs: std::collections::HashMap<String, hecks_life::runtime::Value> = Default::default();
+    let mut clock_attrs: std::collections::HashMap<String, storehouse::runtime::Value> = Default::default();
     for arg in &args[3..] {
         if arg.starts_with("--") { continue; }
         let mut parts = arg.splitn(2, '=');
         if let (Some(k), Some(v)) = (parts.next(), parts.next()) {
-            clock_attrs.insert(k.to_string(), hecks_life::runtime::Value::Str(v.to_string()));
+            clock_attrs.insert(k.to_string(), storehouse::runtime::Value::Str(v.to_string()));
         }
     }
 
@@ -3454,7 +3472,7 @@ fn run_clock(args: &[String]) {
         if let Some(cmd_name) = match_segment(&segments, hour) {
             if last_cmd.as_deref() != Some(cmd_name) {
                 if let Err(e) = rt.dispatch(cmd_name, clock_attrs.clone()) {
-                    eprintln!("[hecks-life clock] dispatch error: {:?}", e);
+                    eprintln!("[storehouse clock] dispatch error: {:?}", e);
                 }
                 last_cmd = Some(cmd_name.to_string());
             }
@@ -3609,8 +3627,8 @@ fn run_sleep(_args: &[String]) {
         }
 
         // -- consciousness.heki : state, sleep_stage, sleep_cycle, is_lucid
-        let cons = hecks_life::heki::read(&consciousness_path).ok()
-            .and_then(|store| hecks_life::heki::latest(&store).cloned());
+        let cons = storehouse::heki::read(&consciousness_path).ok()
+            .and_then(|store| storehouse::heki::latest(&store).cloned());
 
         if let Some(rec) = &cons {
             let state = rec.get("state").and_then(|v| v.as_str())
@@ -3679,8 +3697,8 @@ fn run_sleep(_args: &[String]) {
         }
 
         // -- dream_state.heki : latest impression text ---------------
-        if let Ok(store) = hecks_life::heki::read(&dream_state_path) {
-            if let Some(rec) = hecks_life::heki::latest(&store) {
+        if let Ok(store) = storehouse::heki::read(&dream_state_path) {
+            if let Some(rec) = storehouse::heki::latest(&store) {
                 let id = rec.get("id").and_then(|v| v.as_str())
                     .unwrap_or("").to_string();
                 if !id.is_empty() && last_dream_id.as_deref() != Some(id.as_str()) {
@@ -3697,8 +3715,8 @@ fn run_sleep(_args: &[String]) {
         }
 
         // -- lucid_dream.heki : latest narrative + observations ------
-        if let Ok(store) = hecks_life::heki::read(&lucid_dream_path) {
-            if let Some(rec) = hecks_life::heki::latest(&store) {
+        if let Ok(store) = storehouse::heki::read(&lucid_dream_path) {
+            if let Some(rec) = storehouse::heki::latest(&store) {
                 let id = rec.get("id").and_then(|v| v.as_str())
                     .unwrap_or("").to_string();
                 if !id.is_empty() && last_lucid_id.as_deref() != Some(id.as_str()) {
@@ -3745,15 +3763,15 @@ fn run_sleep(_args: &[String]) {
 
 /// Read the latest `state` field from consciousness.heki, if any.
 fn sleep_read_state(path: &str) -> Option<String> {
-    let store = hecks_life::heki::read(path).ok()?;
-    let rec = hecks_life::heki::latest(&store)?;
+    let store = storehouse::heki::read(path).ok()?;
+    let rec = storehouse::heki::latest(&store)?;
     rec.get("state").and_then(|v| v.as_str()).map(|s| s.to_string())
 }
 
 /// Pick the human-readable dream text from a dream_state record.
 /// Records may carry `english_translation`, `impression`, `text`, or
 /// `french_image` (raw) — prefer the English variants if present.
-fn sleep_pick_dream_text(rec: &hecks_life::heki::Record) -> String {
+fn sleep_pick_dream_text(rec: &storehouse::heki::Record) -> String {
     for key in ["english_translation", "english", "impression", "text",
                 "translation", "french_image", "image"] {
         if let Some(s) = rec.get(key).and_then(|v| v.as_str()) {
@@ -3787,7 +3805,7 @@ fn sleep_file_mtime(path: &str) -> Option<std::time::SystemTime> {
 /// Resolve the project home directory for a named being.
 /// 1. HECKS_HOME env var
 /// 2. ~/.hecks_home file (single line: path to hecks_conception)
-/// 3. Follow symlink from the binary to hecks_life/../hecks_conception
+/// 3. Follow symlink from the binary to storehouse/../hecks_conception
 /// 4. Fall back to "."
 fn resolve_home(_being: &str) -> String {
     // Check env var first
@@ -3813,8 +3831,8 @@ fn resolve_home(_being: &str) -> String {
         eprintln!("  resolve_home: HOME not set");
     }
     // Try to resolve from the binary's real location
-    // binary lives at hecks_life/target/release/hecks-life
-    // project lives at hecks_conception (sibling of hecks_life)
+    // binary lives at storehouse/target/release/storehouse
+    // project lives at hecks_conception (sibling of storehouse)
     if let Ok(exe) = env::current_exe() {
         if let Ok(real) = exe.canonicalize() {
             if let Some(hecks2) = real.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
