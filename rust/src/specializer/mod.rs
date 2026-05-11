@@ -38,6 +38,7 @@ pub mod parse_blocks;
 pub mod parser;
 pub mod parser_helpers;
 pub mod repository;
+pub mod ruby_command_class;
 pub mod run_boot;
 pub mod run_statusline;
 pub mod runtime;
