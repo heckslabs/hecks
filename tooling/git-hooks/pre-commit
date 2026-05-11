@@ -358,4 +358,55 @@ if [ -z "$BEHAVIORS_SKIP" ] && [ -x "$STOREHOUSE" ]; then
     fi
 fi
 
+# ── Gate 7: LoC ratchet — non-bluebook LoC may not increase ───────
+# Mirrors the CI ratchet (`.github/workflows/ratchet.yml`). When a
+# CI gate fires that local didn't, that's an antibody failure for
+# the hook — the hook should keep growing until local = CI. Catches
+# Rust / shell / YAML growth before push, not at PR time.
+#
+# The ratchet compares HEAD against origin/main, reports per-tree
+# deltas, and blocks if any non-bluebook LoC grew without a
+# [loc-ratchet-override: <reason>] marker on a branch commit.
+#
+# Set RATCHET_SKIP=1 to bypass (an antibody failure for emergencies).
+if [ -z "$RATCHET_SKIP" ] && [ -x "$REPO/bin/loc-ratchet" ]; then
+    if ! "$REPO/bin/loc-ratchet" --base "origin/main" >/tmp/loc_ratchet.out 2>&1; then
+        cat /tmp/loc_ratchet.out
+        echo ""
+        echo "COMMIT BLOCKED: non-bluebook LoC increased."
+        echo "  Re-run : bin/loc-ratchet --base origin/main --verbose"
+        echo "  Authorise with a branch commit whose message carries"
+        echo "    [loc-ratchet-override: <concrete reason>]"
+        echo "  Bypass (use only for emergencies) : RATCHET_SKIP=1 git commit ..."
+        exit 1
+    fi
+fi
+
+# ── Gate 8: cargo check --tests — all integration tests compile ───
+# The smoke gate (Gate 6) runs only the smoke_test binary ; other
+# integration tests aren't built locally. Result : a Rust struct
+# can grow a field and one of 30+ test files can lag behind for
+# months without anything noticing — until a CI parity job tries
+# the full cargo test build and fails. validator_rules_test.rs +
+# validator_warnings_test.rs each carried this gap on origin/main
+# until 2026-05-11.
+#
+# This gate builds every test target without running them. ~10-30s
+# warm cache, ~60s cold. Catches missing struct fields, type
+# mismatches, renamed exports — anything the compiler sees but the
+# smoke binary doesn't reach.
+#
+# Set CARGO_CHECK_SKIP=1 to bypass (an antibody failure for
+# emergencies).
+if [ -z "$CARGO_CHECK_SKIP" ] && [ -f "$REPO/rust/Cargo.toml" ]; then
+    if ! ( cd "$REPO/rust" && cargo check --tests --quiet ) >/tmp/cargo_check_tests.out 2>&1; then
+        cat /tmp/cargo_check_tests.out
+        echo ""
+        echo "COMMIT BLOCKED: cargo check --tests failed."
+        echo "  Re-run : cd rust && cargo check --tests"
+        echo "  Bypass (use only for emergencies) : CARGO_CHECK_SKIP=1 git commit ..."
+        exit 1
+    fi
+fi
+
 exit 0
