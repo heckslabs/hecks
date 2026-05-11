@@ -1,0 +1,49 @@
+Hecks.behaviors "Cadence" do
+  vision "Behavioral tests for the Cadence aggregate — one happy-path test per cadence command, exercising the bluebook-layer contract without the runtime substrate"
+
+  # The five cadence commands cover the rhythm CLI family. These
+  # tests exercise the bluebook-layer acceptance — that each
+  # command's input attributes are plumbed and the event name
+  # matches. The actual cadence logic (run_loop, run_pm_loop,
+  # run_daemon, run_clock, run_sleep) lives in the runtime
+  # (rust/src/main.rs, kernel-floor exempt) and is exercised by
+  # integration tests in rust/tests/, not here.
+
+  test "Loop accepts a tree, duration, and phrase" do
+    tests "Loop", on: "Cadence"
+    input  bluebook_tree: "hecks_conception/aggregates/breath",
+           duration:      "1s",
+           phrase:        "hecks::body::Breath::Inhale"
+    expect bluebook_tree: "hecks_conception/aggregates/breath",
+           duration:      "1s",
+           phrase:        "hecks::body::Breath::Inhale"
+  end
+
+  test "PmLoop accepts a tree and duration" do
+    tests "PmLoop", on: "Cadence"
+    input  bluebook_tree: "hecks_conception/aggregates",
+           duration:      "1s"
+    expect bluebook_tree: "hecks_conception/aggregates",
+           duration:      "1s"
+  end
+
+  test "Daemon accepts a mode and pidfile" do
+    tests "Daemon", on: "Cadence"
+    input  mode:     "ensure",
+           pid_file: "/tmp/cadence.pid"
+    expect mode:     "ensure",
+           pid_file: "/tmp/cadence.pid"
+  end
+
+  test "Clock emits a ClockTicked event" do
+    tests "Clock", on: "Cadence"
+    input  {}
+    expect_event "ClockTicked"
+  end
+
+  test "Sleep emits a SleepDispatched event" do
+    tests "Sleep", on: "Cadence"
+    input  {}
+    expect_event "SleepDispatched"
+  end
+end

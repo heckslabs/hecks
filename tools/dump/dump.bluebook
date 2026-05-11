@@ -1,0 +1,92 @@
+Hecks.bluebook "Dump", version: "2026.05.11.1" do
+  vision "Canonical-JSON dumpers for the three parser surfaces (.fixtures, .world, .hecksagon). Each command takes a SourcePath, reads the file, runs the corresponding parser (storehouse::fixtures_parser, world_parser, hecksagon_parser), and emits a *Dumped event carrying the path. The CLI subcommands `storehouse dump-fixtures|dump-world|dump-hecksagon` route into these commands ; the imperative implementations in rust/src/main.rs become the runtime substrate that fires on dispatch."
+  category "tools"
+
+  # ============================================================
+  # DUMP — canonical-JSON parser surfaces
+  # ============================================================
+  #
+  # Before this bluebook the three dumpers existed only as CLI
+  # subcommands : `storehouse dump-fixtures <file.fixtures>`,
+  # `storehouse dump-world <file.world>`, `storehouse dump-hecksagon
+  # <file.hecksagon>`. Each one reads a file, parses it with the
+  # matching parser, and pretty-prints canonical JSON to stdout.
+  # The contract lived in Rust ; the bluebook layer had no name
+  # for the operations themselves.
+  #
+  # This bluebook expresses each dumper as a command on the Dump
+  # aggregate. The bus dispatches them through the same pipeline
+  # that handles every other bluebook command — phrase → Lexicon
+  # → Dispatch → handler. Eventually the CLI subcommands become
+  # thin shims that route :
+  #
+  #   storehouse route tools::dump::Dump::Fixtures \
+  #     source_path:hecks_conception/aggregates/foo/foo.fixtures
+  #
+  # The imperative implementations (fixtures_parser + serde_json
+  # rendering, world_parser + dump_world_json, hecksagon_parser +
+  # dump_hecksagon_json) stay in the runtime as the substrate that
+  # fires when each command dispatches. They're already kernel-floor
+  # exempt — they ARE the runtime's implementation of these
+  # bluebook commands.
+  #
+  # Sibling to discipline/validator/validator.bluebook (the first
+  # tool-as-bluebook rewrite). Where Validator gates bluebook
+  # source, Dump renders parser-surface contents — both are
+  # bluebook-layer names for operations the runtime already
+  # performs.
+
+  aggregate "Dump", "Canonical-JSON dumpers for parser surfaces" do
+    identified_by :source_path
+
+    value_object "SourcePath" do
+      # Filesystem path to a *.fixtures, *.world, or *.hecksagon
+      # file. The dumper reads, parses, prints. Path-not-found
+      # surfaces as a runtime error before the parser runs ; the
+      # bluebook layer doesn't constrain the extension because each
+      # command is type-specific (Dump.Fixtures expects .fixtures,
+      # Dump.World expects .world, Dump.Hecksagon expects
+      # .hecksagon — the parser blows up if the extension lies).
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "JsonPayload" do
+      # The rendered canonical JSON, pretty-printed via serde_json.
+      # Stored in the event payload so downstream consumers (e.g.
+      # the smoke-test framework, parity goldens) can read what
+      # was dumped without re-running the parser.
+      attribute :value, String
+    end
+
+    attribute :source_path, SourcePath
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Fixtures" do
+      role "System"
+      description "Parse the .fixtures file at source_path with storehouse::fixtures_parser, emit FixturesDumped carrying the path. The runtime substrate renders canonical JSON (with optional catalogs key when the file declares catalog schemas, per i42) and writes to stdout. Used by the CLI's `storehouse dump-fixtures` shim and by parity goldens."
+      attribute :source_path, SourcePath
+      emits "FixturesDumped"
+      then_set :source_path, to: :source_path
+    end
+
+    command "World" do
+      role "System"
+      description "Parse the .world file at source_path with storehouse::world_parser, emit WorldDumped carrying the path. The runtime substrate renders canonical JSON via dump_world_json and writes to stdout. Used by the CLI's `storehouse dump-world` shim and by world parity goldens."
+      attribute :source_path, SourcePath
+      emits "WorldDumped"
+      then_set :source_path, to: :source_path
+    end
+
+    command "Hecksagon" do
+      role "System"
+      description "Parse the .hecksagon file at source_path with storehouse::hecksagon_parser, emit HecksagonDumped carrying the path. The runtime substrate renders canonical JSON via dump_hecksagon_json and writes to stdout. Used by the CLI's `storehouse dump-hecksagon` shim and by hecksagon parity goldens."
+      attribute :source_path, SourcePath
+      emits "HecksagonDumped"
+      then_set :source_path, to: :source_path
+    end
+  end
+end

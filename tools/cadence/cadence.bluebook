@@ -1,0 +1,211 @@
+Hecks.bluebook "Cadence", version: "2026.05.11.1" do
+  vision "Dispatchable form of the cadence CLI family — `storehouse loop`, `storehouse run-loop`, `storehouse daemon`, `storehouse clock`, `storehouse sleep`. Each subcommand is a bluebook command on the Cadence aggregate, dispatched through the same bus that handles every other bluebook command. The imperative implementations (run_loop, run_pm_loop, run_daemon, run_clock, run_sleep in rust/src/main.rs — kernel-floor exempt) stay as the runtime substrate that fires on dispatch. Sibling to discipline/validator/validator.bluebook and tools/dump/dump.bluebook : same shape, this is the biggest tool family lifting at once."
+  category "tools"
+
+  # ============================================================
+  # CADENCE — the dispatchable form of the rhythm CLI family
+  # ============================================================
+  #
+  # Before this bluebook the five cadence subcommands existed
+  # only as CLI arms : `storehouse loop`, `storehouse run-loop`,
+  # `storehouse daemon`, `storehouse clock`, `storehouse sleep`.
+  # Their contract lived in Rust ; the bluebook layer had no
+  # name for the operations themselves.
+  #
+  # This bluebook expresses each subcommand as a command on the
+  # Cadence aggregate. The bus dispatches them through the same
+  # pipeline that handles every other bluebook command — phrase
+  # → Lexicon.Lookup → Dispatch.Route → handler. Eventually the
+  # CLI arms become thin shims that route :
+  #
+  #   storehouse route tools::cadence::Cadence::Loop \
+  #     bluebook_tree:hecks_conception/aggregates/breath \
+  #     duration:1s phrase:Breath::Inhale
+  #
+  # ── Cadence semantics ─────────────────────────────────────────
+  #
+  # The five commands cover four flavors of "do this rhythmically" :
+  #
+  #   Loop    — multi-command rotation cadence. Breath inhale/exhale,
+  #             ultradian phase rotation, sleep_cycle NREM/REM. Each
+  #             tick dispatches one Phrase from a rotation list (the
+  #             imperative arm parses comma-separated phrases ; the
+  #             bluebook command takes one Phrase per dispatch).
+  #
+  #   PmLoop  — the runtime daemon. Boots a Runtime once, ticks at
+  #             the configured Duration, fires registered actions on
+  #             each tick. Drives the long-running mindstream PM
+  #             cascade. No Phrase here — actions are wired through
+  #             the runtime's LoopDriver, not declared on the command.
+  #
+  #   Daemon  — process supervisor. ensure (spawn if not running),
+  #             status (alive | dead | none), stop (SIGTERM the pid).
+  #             The DaemonMode value-object enumerates the three
+  #             modes ; the imperative arm reads the pidfile path
+  #             positionally (kept as a runtime arg, not a bluebook
+  #             attribute, until i218 block_grammar lands).
+  #
+  #   Clock   — wall-clock segment trigger. Dispatches on local-hour
+  #             transitions. The imperative arm parses --segment flags
+  #             positionally (lo-hi:Phrase mappings) ; the bluebook
+  #             command is the bare ClockTicked emit — the segment
+  #             table is runtime-side configuration.
+  #
+  #   Sleep   — dispatches EnterSleep, streams stage/dream changes,
+  #             prints the wake report. A one-shot driver, not a
+  #             ticking loop — it polls consciousness.heki + dream_
+  #             state.heki until WokenUp fires.
+  #
+  # The Cadence aggregate is a singleton per process — there's one
+  # rhythm driver at a time. The Name value-object holds the canonical
+  # singleton key "cadence". A different name would be a programming
+  # error, not a domain variation.
+  #
+  # ── Daemon mode enum ──────────────────────────────────────────
+  #
+  # DaemonMode is the only enum-shaped value-object in the family.
+  # Three modes — ensure | status | stop — covers the entire daemon
+  # surface. The invariant rejects anything else ; the imperative
+  # arm in main.rs exits 1 on unknown action. This is the canonical
+  # pattern for CLI sub-actions that lift into a bluebook attribute
+  # (cf. living_diagram's NodeKind, EdgeKind, LayoutStrategy).
+  #
+  # ── Why imperative shims stay ─────────────────────────────────
+  #
+  # The cadence + daemon code in main.rs stays for now ; it retires
+  # later when this bluebook AND the runtime's cadence dispatcher
+  # both ship. This bluebook is the contract ; the imperative shim
+  # fulfills it pending i218 block_grammar. Same retirement contract
+  # as Validator, Dump, Statusline : the runtime is the substrate,
+  # the bluebook is the name.
+
+  aggregate "Cadence", "Dispatchable rhythm driver — Loop, PmLoop, Daemon, Clock, Sleep" do
+    identified_by :name
+
+    value_object "Name" do
+      # The singleton-key value for the Cadence aggregate. There's
+      # one rhythm driver per process ; the canonical instance is
+      # named "cadence". A different name would be a programming
+      # error, not a domain variation.
+      attribute :value, String
+      invariant "must be 'cadence'" do
+        value == "cadence"
+      end
+    end
+
+    value_object "BluebookTree" do
+      # Filesystem path to a conception root — the directory the
+      # cadence command walks to load the combined domain (every
+      # *.bluebook under the tree). For single-file targets the
+      # path points at the bluebook directly ; the runtime detects
+      # file-vs-dir at dispatch time. Empty paths are a programming
+      # error — every cadence command needs a domain to dispatch
+      # against.
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.strip.empty?
+      end
+    end
+
+    value_object "Duration" do
+      # Cadence interval as a human-readable string : "1s", "500ms",
+      # "2m", "1h". The runtime's parse_loop_duration helper turns
+      # this into a std::time::Duration. The bluebook layer doesn't
+      # constrain the unit (the parser blows up on garbage) but does
+      # reject empty strings — a tick interval of nothing is a
+      # programming error.
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.strip.empty?
+      end
+    end
+
+    value_object "Phrase" do
+      # The four-segment dispatchable phrase (i528) :
+      # "app::domain::Aggregate::Command". Loop dispatches one
+      # Phrase per tick ; the rotation form ("Cmd1,Cmd2") is the
+      # imperative arm's sugar over multiple Loop commands. The
+      # invariant enforces the four-segment shape so a malformed
+      # phrase fails at the bluebook layer instead of inside the
+      # runtime's lexicon lookup.
+      attribute :value, String
+      invariant "must be a four-segment phrase" do
+        value.is_a?(String) && value.split("::").length == 4
+      end
+    end
+
+    value_object "PidFile" do
+      # Filesystem path to the daemon's pidfile. The supervisor
+      # reads it to decide ensure-vs-skip, writes it on spawn,
+      # checks it on status, removes it on stop. Empty paths are
+      # a programming error — every daemon mode needs a pidfile
+      # to coordinate on.
+      attribute :value, String
+      invariant "must not be empty" do
+        !value.strip.empty?
+      end
+    end
+
+    value_object "DaemonMode" do
+      # The three daemon actions — ensure | status | stop. ensure
+      # spawns the daemon if not already running ; status reports
+      # alive | dead | none ; stop SIGTERMs the pid. The invariant
+      # rejects anything else ; the imperative arm in main.rs
+      # exits 1 on unknown action with a usage message. This is
+      # the canonical enum-shaped value-object pattern (cf.
+      # living_diagram's NodeKind, EdgeKind, LayoutStrategy).
+      attribute :value, String
+      invariant "must be ensure | status | stop" do
+        %w[ensure status stop].include?(value)
+      end
+    end
+
+    attribute :name, Name
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Loop" do
+      role "System"
+      description "Multi-command rotation cadence. Each tick dispatches one Phrase from a rotation list — breath inhale/exhale, ultradian phase, sleep_cycle NREM/REM. Takes a BluebookTree (the conception root to walk), a Duration (tick interval like '1s'), and a Phrase (the four-segment dispatchable phrase). The imperative implementation lives in run_loop (rust/src/main.rs ~3684, kernel-floor exempt) ; it boots the runtime ONCE and dispatches per tick, the speedup over `while true ; do storehouse ... ; sleep N ; done`. Emits LoopStarted carrying the tree, duration, and phrase so observers can replay every rotation start."
+      attribute :bluebook_tree, BluebookTree
+      attribute :duration,      Duration
+      attribute :phrase,        Phrase
+      emits "LoopStarted"
+      then_set :bluebook_tree, to: :bluebook_tree
+      then_set :duration,      to: :duration
+      then_set :phrase,        to: :phrase
+    end
+
+    command "PmLoop" do
+      role "System"
+      description "PM-loop driver — the long-running runtime daemon. Boots a Runtime once against the BluebookTree, ticks at the configured Duration, fires registered actions on each tick (emit, dispatch, bootstrap-if). Drives the mindstream PM cascade. Takes a BluebookTree (the conception root) and a Duration (tick interval, defaulting to '1s' in the imperative arm). The imperative implementation lives in run_pm_loop (rust/src/main.rs ~3853, kernel-floor exempt). Emits PmLoopStarted carrying the tree and duration."
+      attribute :bluebook_tree, BluebookTree
+      attribute :duration,      Duration
+      emits "PmLoopStarted"
+      then_set :bluebook_tree, to: :bluebook_tree
+      then_set :duration,      to: :duration
+    end
+
+    command "Daemon" do
+      role "System"
+      description "Process supervisor. ensure spawns the daemon if not already running ; status reports alive | dead | none and exits non-zero on missing/dead ; stop SIGTERMs the pid and removes the pidfile. Takes a DaemonMode (the enum-shaped mode) and a PidFile (the supervisor's coordination file). The imperative implementation lives in run_daemon (rust/src/main.rs ~3548, kernel-floor exempt) — it dispatches to daemon_ensure / daemon_status / daemon_stop on the mode. Emits DaemonAction carrying the mode and pidfile so observers can replay every supervisor decision."
+      attribute :mode,     DaemonMode
+      attribute :pid_file, PidFile
+      emits "DaemonAction"
+      then_set :mode,     to: :mode
+      then_set :pid_file, to: :pid_file
+    end
+
+    command "Clock" do
+      role "System"
+      description "Wall-clock segment trigger. Polls the local hour and dispatches the matching segment's Phrase on every hour-boundary transition (first match wins on overlap). The segment table (lo-hi:Phrase mappings) and the poll cadence are runtime-side configuration today ; the bluebook command is the bare ClockTicked emit so observers can replay every hour-boundary fire. The imperative implementation lives in run_clock (rust/src/main.rs ~4068, kernel-floor exempt). Emits ClockTicked."
+      emits "ClockTicked"
+    end
+
+    command "Sleep" do
+      role "System"
+      description "One-shot sleep driver. Dispatches EnterSleep on the consciousness aggregate, then polls consciousness.heki + dream_state.heki + lucid_dream.heki until WokenUp fires, emitting a streamed line on every stage/cycle/dream/lucid change and printing the wake report at the end. 30-min timeout. The imperative implementation lives in run_sleep (rust/src/main.rs ~4238, kernel-floor exempt). Emits SleepDispatched at start so observers see when the driver took over ; the streamed stage changes and the final wake report are runtime-side output, not events on this aggregate."
+      emits "SleepDispatched"
+    end
+  end
+end

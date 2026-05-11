@@ -1,0 +1,28 @@
+Hecks.behaviors "Behaviors" do
+  vision "Behavioral tests for the Behaviors aggregate — one happy-path test per command, exercising the bluebook-layer contract without the runtime substrate"
+
+  # The three commands (Test, Run, Batch) take an input attribute
+  # and emit a typed event. These tests exercise the bluebook-layer
+  # acceptance — that the attribute is plumbed and propagates to
+  # corpus_root via then_set. The actual test-running logic
+  # (run_test, run_behaviors, run_batch in rust/src/main.rs) is
+  # exercised by integration tests, not here.
+
+  test "Test accepts a corpus root" do
+    tests "Test", on: "Behaviors"
+    input  corpus_root: "tools/"
+    expect corpus_root: "tools/"
+  end
+
+  test "Run accepts a bluebook path" do
+    tests "Run", on: "Behaviors"
+    input  bluebook_path: "tools/behaviors/behaviors.bluebook"
+    expect corpus_root: "tools/behaviors/behaviors.bluebook"
+  end
+
+  test "Batch accepts a command" do
+    tests "Batch", on: "Behaviors"
+    input  command: "validate"
+    expect corpus_root: "validate"
+  end
+end

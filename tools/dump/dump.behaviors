@@ -1,0 +1,30 @@
+Hecks.behaviors "Dump" do
+  vision "Behavioral tests for the Dump aggregate — one happy-path test per dumper command, exercising the bluebook-layer contract without the runtime substrate"
+
+  # The three dumper commands (Fixtures, World, Hecksagon) each
+  # take a source_path attribute and emit a typed *Dumped event.
+  # These tests exercise the bluebook-layer acceptance — that the
+  # attribute is plumbed and the event name matches. The actual
+  # parsing + JSON rendering (fixtures_parser, world_parser,
+  # hecksagon_parser + their dump_*_json helpers) lives in the
+  # runtime and is exercised by parity goldens in parity/, not
+  # here.
+
+  test "Fixtures accepts a .fixtures path" do
+    tests "Fixtures", on: "Dump"
+    input  source_path: "sample.fixtures"
+    expect source_path: "sample.fixtures"
+  end
+
+  test "World accepts a .world path" do
+    tests "World", on: "Dump"
+    input  source_path: "sample.world"
+    expect source_path: "sample.world"
+  end
+
+  test "Hecksagon accepts a .hecksagon path" do
+    tests "Hecksagon", on: "Dump"
+    input  source_path: "sample.hecksagon"
+    expect source_path: "sample.hecksagon"
+  end
+end
