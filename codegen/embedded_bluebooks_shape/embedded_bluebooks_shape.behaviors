@@ -1,0 +1,15 @@
+Hecks.behaviors "EmbeddedBluebooksShape" do
+  vision "Shape-layer happy-path for the embedded.rs emitter — confirms the EmitEmbeddedRs tuple plumbs through. The actual rendering logic (walk, sort, hash-count selection) is exercised by rust/src/specializer/embedded_bluebooks.rs unit tests against bin-buddy's tree ; this file proves the bluebook-layer contract."
+
+  test "EmitEmbeddedRs accepts the (app, root, primary_basename, include_extension_list) tuple" do
+    tests "EmitEmbeddedRs", on: "EmbeddedBluebooks"
+    input  app: "bin-buddy",
+           root: "/Users/christopheryoung/Projects/bin-buddy",
+           primary_basename: "bin-buddy.bluebook",
+           include_extension_list: "bluebook,hecksagon,world,fixtures"
+    expect app: "bin-buddy",
+           root: "/Users/christopheryoung/Projects/bin-buddy",
+           primary_basename: "bin-buddy.bluebook",
+           include_extension_list: "bluebook,hecksagon,world,fixtures"
+  end
+end

@@ -1,0 +1,159 @@
+Hecks.bluebook "EmbeddedBluebooksShape", version: "2026.05.11.1" do
+  vision "Shape of an emitted embedded.rs module — the WASM Worker's compiled-in copy of a project's bluebook tree, so the bus runs offline (no R2 fetch on cold start). The fourth member of the :codegen adapter family declared in i528's command_bus.hecksagon — sibling to ruby_command_class (Ruby callers), wasm_worker (the bus itself), and cf_function_proxy (the deployment surface in front of it). Step 10 of the storehouse arc. Retires the orphaned worker/scripts/regenerate-embedded.py the existing bin-buddy embedded.rs's header still points at."
+  category "autophagy"
+
+  # ============================================================
+  # EMBEDDED_BLUEBOOKS SHAPE — i528 step 10
+  # ============================================================
+  #
+  # When a project's world file declares `command_bus { host
+  # :cf_worker }`, the bus runs as a WASM Cloudflare Worker (i528
+  # step 8). The Worker's fetch handler — POST /route, GET /lexicon,
+  # GET /query, GET /health — needs the project's bluebooks at
+  # request time to dispatch phrases, list the lexicon, and answer
+  # queries.
+  #
+  # We do NOT want the Worker fetching bluebooks from R2 on every
+  # cold start. Two reasons :
+  #
+  #   1. Cold-start latency. CF Workers cold-start in tens of ms ;
+  #      an R2 round-trip per request undoes that.
+  #   2. Offline determinism. The bluebook tree at deploy time IS
+  #      the contract. Drift between deploy-time bytes and runtime
+  #      bytes is a class of bug we refuse to allow.
+  #
+  # So we compile the bluebooks INTO the Worker WASM as a static
+  # `&[(&str, &str)]` slice. The Worker reads from the slice on
+  # boot ; cold start sees nothing but RAM. Updates ship via a new
+  # WASM, not a new R2 object.
+  #
+  # The emitted file is <app>/worker/src/embedded.rs, structured :
+  #
+  #   pub const PRIMARY_BASENAME: &str = "<primary>";
+  #   pub const BLUEBOOK_COUNT:   usize = N;
+  #
+  #   pub static EMBEDDED_BLUEBOOKS: &[(&str, &str)] = &[
+  #     ("<path>", r#####"<raw contents>"#####),
+  #     ...
+  #   ];
+  #
+  # Each tuple's second member is a Rust raw-string. We use five
+  # hashes by default — empirically large enough that no bluebook
+  # content collides — and bump if any single file's contents would
+  # close a five-hash raw-string early.
+  #
+  # The shape carries the per-deployment inputs as one row :
+  #
+  #   EmbeddedBluebooks (one row per app being compiled) :
+  #     app                  — kebab-case project folder ;
+  #                            informs the generated file's header.
+  #     root                 — absolute path to walk for bluebook
+  #                            files. Always the app's project
+  #                            root (sibling of <app>/worker).
+  #     primary_basename     — basename of the project's primary
+  #                            bluebook (e.g. "bin-buddy.bluebook")
+  #                            — what `Worker::primary()` returns.
+  #     include_extension_list
+  #                          — list of extensions (no dot) to
+  #                            embed. Default :
+  #                            ["bluebook", "hecksagon", "world",
+  #                             "fixtures"]. Behaviors are not
+  #                            embedded — they're a test-time
+  #                            concern.
+  #     bluebook_count       — number of embedded files (derived
+  #                            at emit time ; recorded so callers
+  #                            can assert against expectation).
+  #
+  # The Rust emitter (rust/src/specializer/embedded_bluebooks.rs)
+  # walks `root` recursively (skipping target/, node_modules/,
+  # .git/, build/, .wrangler/), filters by extension, sorts paths
+  # alphabetically, picks the smallest hash count that doesn't
+  # collide, and renders the file. The caller (storehouse
+  # specialize embedded_bluebooks) writes the bytes to
+  # <app>/worker/src/embedded.rs.
+
+  aggregate "EmbeddedBluebooks", "Emitted Worker-WASM-embedded bluebook tree for one app" do
+    identified_by :app
+
+    value_object "App" do
+      # First segment of every phrase the proxied worker accepts ;
+      # kebab-case project folder name. Used in the .rs file's
+      # header comment.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Root" do
+      # Absolute path of the project root to walk for bluebook
+      # files. Conventional layout has <root>/worker/src/embedded.rs
+      # as the emit target ; the emitter doesn't enforce that — it
+      # just walks the path you hand it.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "PrimaryBasename" do
+      # Basename of the app's primary bluebook (e.g.
+      # "bin-buddy.bluebook"). Embedded as the
+      # `PRIMARY_BASENAME` const so the Worker can look up the
+      # entry-point row from the slice.
+      attribute :value, String
+      invariant "must end in .bluebook" do
+        value.end_with?(".bluebook")
+      end
+    end
+
+    value_object "IncludeExtensionList" do
+      # Comma-joined list of extensions (no dot) to embed. Stored
+      # as one string for plural-name parity (Ruby parser treats
+      # `s`-ending attribute names as `list: true` ; Rust does
+      # not). Default : "bluebook,hecksagon,world,fixtures".
+      attribute :value, String
+      invariant "must be non-empty, lowercase ASCII + comma" do
+        value.match?(/\A[a-z]+(,[a-z]+)*\z/)
+      end
+    end
+
+    value_object "BluebookCount" do
+      # Number of embedded files in the rendered slice. Recorded
+      # so the caller can assert against expectation (the
+      # generator prints it ; bin-buddy today expects 27).
+      attribute :value, Integer
+      invariant "must be non-negative" do
+        value >= 0
+      end
+    end
+
+    value_object "EmbeddedRs" do
+      # The rendered Rust source. ES-static slice of (path,
+      # contents) tuples ; the caller writes it to
+      # <app>/worker/src/embedded.rs.
+      attribute :value, String
+    end
+
+    attribute :app,                    App
+    attribute :root,                   Root
+    attribute :primary_basename,       PrimaryBasename
+    attribute :include_extension_list, IncludeExtensionList
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitEmbeddedRs" do
+      role "System"
+      description "Walk `root` recursively (skipping target/, node_modules/, .git/, build/, .wrangler/), collect files whose extension appears in include_extension_list, sort by relative path, and render a Rust source string of the form :\n\n  pub const PRIMARY_BASENAME: &str = \"<primary>\";\n  pub const BLUEBOOK_COUNT:   usize = N;\n  pub static EMBEDDED_BLUEBOOKS: &[(&str, &str)] = &[\n    (\"<path>\", r#####\"<contents>\"#####),\n    ...\n  ];\n\nThe raw-string hash count starts at five and bumps if any file's contents would close a five-hash raw-string early. Paths are forward-slash relative to root. Re-runs against the same tree produce byte-identical bytes."
+      attribute :app,                    App
+      attribute :root,                   Root
+      attribute :primary_basename,       PrimaryBasename
+      attribute :include_extension_list, IncludeExtensionList
+      emits "EmbeddedRsEmitted"
+      then_set :app,                    to: :app
+      then_set :root,                   to: :root
+      then_set :primary_basename,       to: :primary_basename
+      then_set :include_extension_list, to: :include_extension_list
+    end
+  end
+end
