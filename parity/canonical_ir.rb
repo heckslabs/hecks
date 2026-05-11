@@ -4,12 +4,12 @@
 # Hecks::Parity::CanonicalIR
 #
 # Walks a Hecks::BluebookModel::Structure::Domain and emits canonical JSON
-# matching the shape that hecks-life dump produces. This is the parity
+# matching the shape that storehouse dump produces. This is the parity
 # contract — both parsers must produce equivalent JSON for the same .bluebook.
 #
 # When the JSONs disagree, that is drift.
 #
-# The canonical shape is documented in hecks_life/src/dump.rs. Field naming
+# The canonical shape is documented in storehouse/src/dump.rs. Field naming
 # is normalized: Ruby's Reference#type → "target", Attribute#type → "type"
 # (string), Lifecycle transitions Hash → ordered Vec of {command,
 # to_state, from_state}, Fixture attributes Hash → ordered [[k, v], ...].
@@ -459,7 +459,7 @@ module Hecks
 
       # ── Hecksagon DSL canonical dump ──────────────────────────
       #
-      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json. Only the
+      # Mirrors storehouse/src/main.rs :: dump_hecksagon_json. Only the
       # fields the Rust IR models are included — Ruby-only fields
       # (capabilities, concerns, annotations, context_map, ...) are
       # intentionally outside the canonical shape. Files that depend on
@@ -491,7 +491,7 @@ module Hecks
       end
 
       # i220 sub-gap 5 — compute adapter family parity dump.
-      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json's
+      # Mirrors storehouse/src/main.rs :: dump_hecksagon_json's
       # compute_adapters projection. The shape carries `function_name`
       # in place of llm's `prompt_template` / `model` / `max_tokens` /
       # `backend` (no prompt + no provider for compute adapters).
@@ -505,7 +505,7 @@ module Hecks
         }
       end
 
-      # Mirrors hecks_life/src/main.rs :: dump_hecksagon_json's
+      # Mirrors storehouse/src/main.rs :: dump_hecksagon_json's
       # llm_adapters projection. Ruby holds the response routing as
       # two attributes (target + attr) ; the canonical shape mirrors
       # both fields so the parity diff is byte-equal.
@@ -543,7 +543,7 @@ module Hecks
 
       def hecksagon_persistence(hex)
         # Rust defaults unspecified persistence to "memory" in a post-parse
-        # normalization step (hecks_life/src/hecksagon_parser.rs). The canonical
+        # normalization step (storehouse/src/hecksagon_parser.rs). The canonical
         # IR matches that default: absent `persistence` means memory. Ruby's
         # DomainContext stores the persistence hash on the block form and
         # leaves it nil on the shorthand / absent form — both canonicalize to
@@ -581,14 +581,14 @@ module Hecks
       # ── World DSL canonical dump ──────────────────────────────
       #
       # Delegates to `Hecksagon::Structure::World#to_canonical_h`, which
-      # mirrors `hecks_life/src/main.rs :: dump_world_json`.
+      # mirrors `storehouse/src/main.rs :: dump_world_json`.
       def dump_world(world)
         world.to_canonical_h
       end
 
       # ── Behaviors DSL canonical dump ──────────────────────────
       #
-      # Mirrors hecks_life/src/behaviors_dump.rs. The Ruby and Rust
+      # Mirrors storehouse/src/behaviors_dump.rs. The Ruby and Rust
       # parsers both produce this shape from a `_behavioral_tests.bluebook`
       # file (top-level `Hecks.behaviors`).
       def dump_test_suite(suite)

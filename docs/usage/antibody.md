@@ -15,7 +15,7 @@ Five file types. That's all.
 | `.behaviors` | behavioral tests |
 | `.world` | world / environment declarations |
 
-`hecks-life` parses and dispatches all five natively. There is no
+`storehouse` parses and dispatches all five natively. There is no
 compile step and there are no generated artifacts.
 
 ## Why
@@ -28,7 +28,7 @@ Every file *not* in the five DSLs is a gap — either the concept should
 be re-expressed in one of them, or the runtime needs to grow so it can.
 
 The terminal state: `bin/` contains `.bluebook` files with
-`#!/usr/bin/env hecks-life run` shebangs. `lib/` shrinks toward zero.
+`#!/usr/bin/env storehouse run` shebangs. `lib/` shrinks toward zero.
 Shell-out, git calls, filesystem, network — all `.hecksagon` adapters.
 
 ## What the check does
@@ -95,9 +95,9 @@ signal the change should wait for a bluebook instead.
 
 The antibody is transitional. The real win is:
 
-1. ✓ `hecks-life run <file.bluebook>` as a stable entry point.
+1. ✓ `storehouse run <file.bluebook>` as a stable entry point.
    See [shebang_scripts.md](shebang_scripts.md).
-2. ✓ `#!/usr/bin/env hecks-life run` shebang so bluebooks are directly
+2. ✓ `#!/usr/bin/env storehouse run` shebang so bluebooks are directly
    executable scripts. Parser tolerates the `#!` line; the runtime
    dispatches the declared `entrypoint "…"`.
 3. ✓ `.hecksagon` adapters declare shell-out / git / fs / network / DB
@@ -112,7 +112,7 @@ The antibody is transitional. The real win is:
 5. `bin/*.bluebook` files replace every existing `bin/*` wrapper.
 6. `lib/` shrinks toward zero as capabilities move into `.bluebook`
    and `.hecksagon`.
-7. Eventually `hecks_life/` too — the runtime describes itself in the
+7. Eventually `storehouse/` too — the runtime describes itself in the
    same five DSLs.
 
 Once that's in place, the antibody stops counting exemptions and starts
@@ -122,7 +122,7 @@ target. No Ruby, no Rust, no Python, no shell.
 ### The antibody itself is a gap
 
 `bin/antibody-check` is Ruby — itself covered by `runtime:ruby` /
-`bootstrap:git-hooks`. The proper shape is a `hecks-life check-antibody`
+`bootstrap:git-hooks`. The proper shape is a `storehouse check-antibody`
 subcommand alongside `check-lifecycle` and `check-io`, driven by a
 `.bluebook` + `.hecksagon` pair. That port is tracked separately; until
 it lands, the Ruby script is the working form.

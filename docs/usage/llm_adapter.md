@@ -319,7 +319,7 @@ the same provider switch + spend + breaker for free.
 |---|---|---|
 | **Phase 1** | shipped (`b4257c21`) | DSL keyword + IR value object + Rust parser + canonical-IR parity fixture. Declarations parse and round-trip. |
 | **Phase 2** | in flight (steps 4–9, parallel) | Runtime dispatcher + `:claude`/`:ollama`/`:test` providers + `Spend` / `CircuitBreaker` integration + `PromptScaffolder` + boot wiring (`Runtime#llm`). |
-| **Stage B** (deferred) | not yet planned in detail | Rust runtime parity — `hecks-life` dispatcher mirroring the Ruby pipeline. The existing `hecks_life/src/runtime/adapter_llm.rs` (Ollama-only, 56 LoC) lives in parallel until Stage B replaces it. |
+| **Stage B** (deferred) | not yet planned in detail | Rust runtime parity — `storehouse` dispatcher mirroring the Ruby pipeline. The existing `storehouse/src/runtime/adapter_llm.rs` (Ollama-only, 56 LoC) lives in parallel until Stage B replaces it. |
 
 ## Out of scope (per i23 §12)
 

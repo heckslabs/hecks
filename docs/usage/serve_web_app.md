@@ -1,12 +1,12 @@
 # Serve Web App
 
-`hecks-life serve` generates a full Tailwind-styled web application from Bluebook domains. One command, one port — both JSON API and HTML UI.
+`storehouse serve` generates a full Tailwind-styled web application from Bluebook domains. One command, one port — both JSON API and HTML UI.
 
 ## Usage
 
 ```bash
 # Serve all bluebooks in a directory
-hecks-life serve path/to/hecks/ 3100
+storehouse serve path/to/hecks/ 3100
 
 # Open in browser
 open http://localhost:3100
@@ -27,7 +27,7 @@ open http://localhost:3100
 
 ```bash
 # Serve Alan's engine additive business (16 domains)
-hecks-life serve nursery/alans_engine_additive_business/hecks/ 3100
+storehouse serve nursery/alans_engine_additive_business/hecks/ 3100
 ```
 
 The dashboard shows domain count, module count, command count, and policy count. Click any domain to see its modules, lifecycle states, and command forms. Command forms submit via fetch and show inline results.

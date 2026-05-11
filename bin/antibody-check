@@ -155,24 +155,24 @@ def exempt_reasons(message_file)
   reasons
 end
 
-# Locate the hecks-life binary so the antibody can ask the IR-query
+# Locate the storehouse binary so the antibody can ask the IR-query
 # substrate (i122) whether each touched file is structurally claimed
 # by some adapter / specializer / runner. Files claimed by the corpus
 # don't need exemption markers — the dispatch declaration IS the
 # justification.
-HECKS_LIFE_BIN = [
+STOREHOUSE_BIN = [
   ENV["HECKS_BIN"],
-  File.expand_path("../rust/target/release/hecks-life", __dir__),
-  File.expand_path("../rust/target/debug/hecks-life",   __dir__),
+  File.expand_path("../rust/target/release/storehouse", __dir__),
+  File.expand_path("../rust/target/debug/storehouse",   __dir__),
 ].compact.find { |p| File.executable?(p) }
 
 # Memo cache : path → bool. Same call shape the LoC ratchet uses.
 $dispatch_cache = {}
 
 def ir_claimed?(path)
-  return false unless HECKS_LIFE_BIN
+  return false unless STOREHOUSE_BIN
   return $dispatch_cache[path] if $dispatch_cache.key?(path)
-  _out, _err, status = Open3.capture3(HECKS_LIFE_BIN, "is-dispatched", path)
+  _out, _err, status = Open3.capture3(STOREHOUSE_BIN, "is-dispatched", path)
   $dispatch_cache[path] = status.exitstatus == 0
 end
 

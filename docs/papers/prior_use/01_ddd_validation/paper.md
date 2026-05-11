@@ -67,13 +67,13 @@ The contributions are:
    `.../lifecycle_validator_shape/`, `.../validator_warnings_shape/`, and
    `.../duplicate_policy_validator_shape/`.
 2. A build-time validator generated from those rows
-   (`hecks_life/src/validator.rs`, etc.) with a GENERATED FILE header
+   (`storehouse/src/validator.rs`, etc.) with a GENERATED FILE header
    citing its regenerator.
 3. A remediation-first error format:
    `{parent} has {count} references to {target} with duplicate alias {name:?} — add \`as: :<alias>\` to each so they have distinct names`.
    Every error template carries the fix.
 4. A byte-identical golden test
-   (`hecks_life/tests/specializer_golden_test.rs`) asserting the generated
+   (`storehouse/tests/specializer_golden_test.rs`) asserting the generated
    validator does not drift from the approved artifact.
 5. A CLI surface: `hecks verify` runs the full validator suite in under
    0.3 s against the in-repository chapter bluebooks, returning a
@@ -279,17 +279,17 @@ reviewer looking at the file knows where to edit upstream:
 //! Source:    hecks_conception/capabilities/validator_shape/
 //! Regenerate: bin/specialize validator
 //! Contract:  specializer.hecksagon :specialize_validator shell adapter
-//! Tests:     hecks_life/tests/validator_rules_test.rs
+//! Tests:     storehouse/tests/validator_rules_test.rs
 ```
 
 The integration tests that exercise the rules
-(`hecks_life/tests/validator_rules_test.rs`) live in a separate file from the
+(`storehouse/tests/validator_rules_test.rs`) live in a separate file from the
 generated module, so the test/validator relationship is not circular: tests
 consume the module as a black box.
 
 ### §5.1 Byte-identical regeneration
 
-A golden test at `hecks_life/tests/specializer_golden_test.rs` asserts that
+A golden test at `storehouse/tests/specializer_golden_test.rs` asserts that
 regenerating the validator from its shape produces a byte-identical file to
 the one checked into the tree. This is stronger than functional equivalence.
 It means the shape-as-data declaration is the single source of truth, and
@@ -426,7 +426,7 @@ validator embedded in the workbench).
    The distinction is declared at the shape layer, so a later change of a
    warning to an error is a one-field edit.
 8. **Separated test file to break circular dependency between validator and
-   its tests.** `hecks_life/tests/validator_rules_test.rs` lives outside
+   its tests.** `storehouse/tests/validator_rules_test.rs` lives outside
    the generated module; the validator is a black box to its suite.
 9. **Under-a-third-of-a-second validator suite at corpus scale.** The full
    twelve-rule suite runs against the chapter bluebooks (620+ aggregates
@@ -445,5 +445,5 @@ byte-identically from their shapes, are enough to catch the design errors
 that code review catches inconsistently. The technique is reproducible from
 the public repository at commit `c4a903f3` and the artefacts under
 `hecks_conception/capabilities/*validator*_shape/` and
-`hecks_life/src/*validator*.rs`. We place the technique in the public record
+`storehouse/src/*validator*.rs`. We place the technique in the public record
 as prior art.

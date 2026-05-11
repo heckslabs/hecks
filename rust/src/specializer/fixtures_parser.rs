@@ -1,6 +1,6 @@
 //! Rust port of `lib/hecks_specializer/fixtures_parser.rb`.
 //!
-//! Emits `hecks_life/src/fixtures_parser.rs` byte-identical to the
+//! Emits `storehouse/src/fixtures_parser.rs` byte-identical to the
 //! Ruby specializer's output. Reads the fixtures_parser_shape fixtures
 //! (LineParser singleton + ParserHelper rows — LineDispatch rows are
 //! documentation-only; `parse_body_snippet` is authoritative) and
@@ -21,7 +21,7 @@
 //!   let rust = fixtures_parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/fixtures_parser.rs —
+//! [antibody-exempt: storehouse/src/specializer/fixtures_parser.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

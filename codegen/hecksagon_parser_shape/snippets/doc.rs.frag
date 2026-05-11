@@ -2,9 +2,9 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/hecksagon_parser_shape/
-//! Regenerate: hecks-life specialize hecksagon_parser --output hecks_life/src/hecksagon_parser.rs
-//! Contract:  hecks_life/src/specializer/hecksagon_parser.rs (Rust-native)
-//! Tests:     hecks_life/tests/hecksagon_parser_test.rs
+//! Regenerate: storehouse specialize hecksagon_parser --output storehouse/src/hecksagon_parser.rs
+//! Contract:  storehouse/src/specializer/hecksagon_parser.rs (Rust-native)
+//! Tests:     storehouse/tests/hecksagon_parser_test.rs
 //!
 //! Line-oriented, pattern-match style just like the bluebook parser. Not
 //! a full Ruby parser — it recognizes the canonical shapes used by the

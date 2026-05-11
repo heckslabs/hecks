@@ -117,11 +117,11 @@ These were named in the plan's "After this branch" section and held :
 
 1. **`:llm` adapter** — production `:llm` hecksagon adapter. Today the test seam is DI-at-call-site (Phase 0h). When `:llm` adapter ships, hecksagon-flip becomes the clean swap point.
 
-2. **`:cadence` hecksagon adapter** — recurring rhythmic dispatch as adapter, not bluebook keyword (Chris's clarification). `hecks-life loop` retires when it lands.
+2. **`:cadence` hecksagon adapter** — recurring rhythmic dispatch as adapter, not bluebook keyword (Chris's clarification). `storehouse loop` retires when it lands.
 
 3. **Cross-aggregate query primitive** — bluebooks dispatch named queries against other aggregates as the legitimate cross-aggregate read mechanism. Awareness's 13-attr snapshot retires from shell-side workaround when this lands.
 
-4. **Rust runtime PM execution** — production daemons fork hecks-life subprocess per dispatch ; Rust parses `process_manager` (Phase 3) but doesn't execute it. PMs are live in Ruby specs but no-op in production daemons. Until this lands, mindstream.sh's sleep branch + pulse_organs.sh + the awake shells stay live.
+4. **Rust runtime PM execution** — production daemons fork storehouse subprocess per dispatch ; Rust parses `process_manager` (Phase 3) but doesn't execute it. PMs are live in Ruby specs but no-op in production daemons. Until this lands, mindstream.sh's sleep branch + pulse_organs.sh + the awake shells stay live.
 
 5. **i205 storage_policy primitive** — your correction during the run : audit policy is bluebookable, not a Rust if/else. Drafted as `dream-study/draft/i205_analysis.md` (commit `0c7c51a`). Same Phase 1+2+3 trio shape ; its own branch.
 
@@ -147,7 +147,7 @@ If any exemption shouldn't have been granted, those commits are easy to revert/s
 - i215 — 5-shell wrapper boilerplate drift (functions byte-identical, surrounding env-export drifts)
 - i219ish — Ruby behaviors interpreter missing multiply/clamp (Rust has them, parity gap)
 - i220ish — opaque dispatcher error message for Update commands' reference-attr name
-- i221ish — `hecks-life heki upsert` requires `--reason` but CLI help doesn't mention it
+- i221ish — `storehouse heki upsert` requires `--reason` but CLI help doesn't mention it
 - i222ish — WakeMood vestigial (no policy targeting it ; production wake-mood routes through Mood)
 - i223ish — status_coherence.sh missing "rested" rung
 - i224ish — statusline time-injection seam (frozen-clock for moon/heart phase tests)

@@ -33,7 +33,7 @@
 //! when new runtime consumers come online, these tests catch the
 //! "writer/reader divergence" class of bug before it reaches the bar.
 //!
-//! [antibody-exempt: hecks_life/tests/heki_path_coherence_test.rs —
+//! [antibody-exempt: storehouse/tests/heki_path_coherence_test.rs —
 //!  runtime integration test that catches level-5 self-validation
 //!  drift (i145 companion). Same kernel-surface family as the
 //!  existing tests/ entries already in the registry. Retires under
@@ -41,9 +41,9 @@
 //!  then it lives as authored Rust with the same retirement contract
 //!  as the substrate it tests.]
 
-use hecks_life::heki;
-use hecks_life::parser;
-use hecks_life::runtime::{Runtime, Value};
+use storehouse::heki;
+use storehouse::parser;
+use storehouse::runtime::{Runtime, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;

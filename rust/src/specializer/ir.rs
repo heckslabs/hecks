@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/ir.rs`.
+//! Rust-native specializer for `storehouse/src/ir.rs`.
 //!
 //! i147 Wave 4-C target — REAL compression of the IR struct definitions.
 //! Reads `Type`, `Field`, and `Variant` rows from the ir_shape fixture and
@@ -31,7 +31,7 @@
 //!   let rust = ir::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/ir.rs —
+//! [antibody-exempt: storehouse/src/specializer/ir.rs —
 //!  i147 Wave 4-C — Rust-native specializer for ir.rs]
 
 use crate::ir::Fixture;

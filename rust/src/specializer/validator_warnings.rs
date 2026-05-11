@@ -1,6 +1,6 @@
 //! Rust port of `lib/hecks_specializer/validator_warnings.rb`.
 //!
-//! Emits `hecks_life/src/validator_warnings.rs` byte-identical to the
+//! Emits `storehouse/src/validator_warnings.rs` byte-identical to the
 //! Ruby specializer's output. Reads the `WarningRule` fixture rows
 //! from the validator_warnings shape, dispatches each row by
 //! `body_strategy` (templated | embedded) and `check_kind`
@@ -38,9 +38,9 @@ fn emit_header() -> String {
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/validator_warnings_shape/
-//! Regenerate: hecks-life specialize validator_warnings --output hecks_life/src/validator_warnings.rs
-//! Contract:  hecks_life/src/specializer/validator_warnings.rs (Rust-native)
-//! Tests:     hecks_life/tests/validator_warnings_test.rs
+//! Regenerate: storehouse specialize validator_warnings --output storehouse/src/validator_warnings.rs
+//! Contract:  storehouse/src/specializer/validator_warnings.rs (Rust-native)
+//! Tests:     storehouse/tests/validator_warnings_test.rs
 //!
 //! These rules emit advisory warnings but never cause validation to fail.
 //! They help domain modelers spot bounded-context smell early.

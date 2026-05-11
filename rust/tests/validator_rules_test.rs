@@ -15,9 +15,9 @@
 //  to exercise individual rules. Test-only kernel surface. Retires
 //  with Phase B (TestCase aggregate models the cases as fixtures).]
 
-use hecks_life::ir::{Aggregate, Command, Domain, Policy};
-use hecks_life::parser;
-use hecks_life::validator::validate;
+use storehouse::ir::{Aggregate, Command, Domain, Policy};
+use storehouse::parser;
+use storehouse::validator::validate;
 
 #[test]
 fn valid_domain_passes() {

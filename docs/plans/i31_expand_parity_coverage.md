@@ -200,7 +200,7 @@ Rough shape — two to three feature PRs, plus the flip:
 
 4. **`parity: investigate + fix the remaining real drift`** — address the
    4 true drift cases (abbreviation handling, etc.). Small diff, mostly
-   in `canonical_ir.rb` or `hecks_life/src/dump.rs` or targeted nursery
+   in `canonical_ir.rb` or `storehouse/src/dump.rs` or targeted nursery
    edits.
 
 5. **`parity: flip nursery from soft to hard gate`** — one-line edit to
@@ -252,7 +252,7 @@ Steps 1 + 2 can be one commit if the sweep tool handles both. Steps 3 +
 - `spec/parity/parity_test.rb` — the suite; one-line flip at the end.
 - `spec/parity/known_drift.txt` — escape hatch list.
 - `spec/parity/canonical_ir.rb` — Ruby side of the IR normalizer.
-- `hecks_life/src/dump.rs` — Rust side.
+- `storehouse/src/dump.rs` — Rust side.
 - `lib/hecks/dsl/aggregate_builder.rb` — gets `fixture`, `lifecycle`,
   `event` DSL methods (step 3).
 - `lib/hecks/dsl/bluebook_builder.rb` — gets top-level `lifecycle` (step 3).

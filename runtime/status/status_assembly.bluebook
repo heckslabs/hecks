@@ -1,6 +1,6 @@
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "StatusAssembly", version: "2026.05.09.1" do
-  vision "How `hecks-life status` reads Miette — the assembly step that turns a tree of .heki stores + pidfiles + on-disk bluebook counts + git log into one structured Report value the renderer prints. The sibling cli/status/status.bluebook declares the CLI pipeline (Resolve → Assemble → Stamp → Render → Write → Done) ; this bluebook is what the Assemble phase actually does — every field, every data source, every section in declared order. The Rust runner at rust/src/run_status/assemble.rs is the imperative mirror ; this file is the contract it implements."
+  vision "How `storehouse status` reads Miette — the assembly step that turns a tree of .heki stores + pidfiles + on-disk bluebook counts + git log into one structured Report value the renderer prints. The sibling cli/status/status.bluebook declares the CLI pipeline (Resolve → Assemble → Stamp → Render → Write → Done) ; this bluebook is what the Assemble phase actually does — every field, every data source, every section in declared order. The Rust runner at rust/src/run_status/assemble.rs is the imperative mirror ; this file is the contract it implements."
 
   entrypoint "Assemble"
 

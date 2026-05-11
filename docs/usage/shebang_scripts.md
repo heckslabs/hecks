@@ -1,12 +1,12 @@
-# Shebang scripts — `hecks-life run`
+# Shebang scripts — `storehouse run`
 
 `.bluebook` files can be marked executable and run directly from the
-shell. `hecks-life` is the ribosome; the bluebook is the script.
+shell. `storehouse` is the ribosome; the bluebook is the script.
 
 ## Minimum form
 
 ```bluebook
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "Greeter" do
   entrypoint "SayHello"
 
@@ -27,7 +27,7 @@ $ ./greet.bluebook who=Miette
 ```
 
 The parser strips the `#!` line. `entrypoint "CommandName"` is the
-command `hecks-life run` dispatches. Extra argv entries of the form
+command `storehouse run` dispatches. Extra argv entries of the form
 `key=value` bind as attributes.
 
 ## Companion hecksagon
@@ -71,12 +71,12 @@ Supported adapters today:
 
 When the companion hecksagon declares both `:stdin` and `:stdout` and
 the bluebook exposes `ReadLine` + `RespondWith` commands,
-`hecks-life run` runs an interactive loop. The
+`storehouse run` runs an interactive loop. The
 [terminal capability](../../hecks_conception/capabilities/terminal/)
 is the canonical example.
 
 ```
-$ hecks-life run capabilities/terminal/terminal.bluebook
+$ storehouse run capabilities/terminal/terminal.bluebook
 ❄ Miette · waking · — · 0 musings · 0 turns
 type to talk. ctrl-d to leave.
 
@@ -85,7 +85,7 @@ type to talk. ctrl-d to leave.
 
 ## Legacy REPL
 
-The old `hecks-life run <file>` meaning (interactive REPL, no script
-mode) lives on as `hecks-life repl <file>`. Everything else in the CLI
+The old `storehouse run <file>` meaning (interactive REPL, no script
+mode) lives on as `storehouse repl <file>`. Everything else in the CLI
 surface — `parse`, `validate`, `inspect`, `dump`, `heki`, `behaviors`,
 `check-*`, `serve` — is unchanged.

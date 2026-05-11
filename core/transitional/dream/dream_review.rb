@@ -83,7 +83,7 @@ class DreamReview
 
   # ── Step 2 : synthesize edits per real gap, then validate ──────
   #
-  # Each non-phantom edit is piped through `hecks-life validate`
+  # Each non-phantom edit is piped through `storehouse validate`
   # before being added to the apply queue. Bluebooks that fail
   # validation surface as `failed_validation` skip-edits with the
   # validator's error in the rationale ; they appear in the
@@ -129,8 +129,8 @@ class DreamReview
   end
 
   # Write the proposed `content` to a temp file and check it both
-  # parses (`hecks-life validate`) AND carries real structure
-  # (`hecks-life dump` returns ≥1 aggregate, name set). Garbage
+  # parses (`storehouse validate`) AND carries real structure
+  # (`storehouse dump` returns ≥1 aggregate, name set). Garbage
   # parses to "VALID — (0 aggregates)" because the bluebook DSL
   # tolerates empty source — we need the structural-presence check
   # to catch the LLM's worst-case "couldn't synthesise anything
@@ -168,7 +168,7 @@ class DreamReview
     tmp&.unlink
   end
 
-  HECKS = ENV["HECKS_BIN"] || File.join(REPO_ROOT, "rust/target/release/hecks-life")
+  HECKS = ENV["HECKS_BIN"] || File.join(REPO_ROOT, "rust/target/release/storehouse")
 
   def skip_edit(gap, reason)
     {
@@ -348,7 +348,7 @@ class DreamReview
 
       - Read the diff. Does the proposed shape match what the dream
         actually pointed at, or does it overshoot / undershoot ?
-      - Does the bluebook validate ? `hecks-life validate <path>`
+      - Does the bluebook validate ? `storehouse validate <path>`
       - Does anything in the existing surface make this redundant ?
         (i71 has a phantom_symptom check but it's not infallible.)
 

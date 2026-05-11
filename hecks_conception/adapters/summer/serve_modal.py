@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Autumn's body on Modal — hecks-life running in the cloud.
+"""Autumn's body on Modal — storehouse running in the cloud.
 
 Same binary, same project structure, same behavior as Miette.
-The hecks repo is cloned to the volume. hecks-life runs against it.
+The hecks repo is cloned to the volume. storehouse runs against it.
 Cloudflare Workers is just the face.
 
 Usage:
@@ -21,7 +21,7 @@ app = modal.App("summer-serve")
 
 vol = modal.Volume.from_name("summer-data", create_if_missing=True)
 
-# Image: the full hecks project with hecks-life compiled
+# Image: the full hecks project with storehouse compiled
 body_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("curl", "build-essential", "git")
@@ -37,7 +37,7 @@ body_image = (
     )
     .run_commands(
         "export PATH=$HOME/.cargo/bin:$PATH && cd /build/rust && cargo build --release",
-        "cp /build/rust/target/release/hecks-life /usr/local/bin/hecks-life",
+        "cp /build/rust/target/release/storehouse /usr/local/bin/storehouse",
     )
     .pip_install("fastapi[standard]")
 )
@@ -53,11 +53,11 @@ summer_image = (
 
 # === Constants ===
 PROJECT = "/data/hecks/hecks_conception"
-HL = "hecks-life"
+HL = "storehouse"
 
 
 def run_hl(*args, timeout=10):
-    """Run hecks-life and return stdout."""
+    """Run storehouse and return stdout."""
     result = subprocess.run(
         [HL, *args], capture_output=True, text=True, timeout=timeout,
     )
@@ -65,7 +65,7 @@ def run_hl(*args, timeout=10):
 
 
 def run_hl_json(*args):
-    """Run hecks-life and parse JSON output."""
+    """Run storehouse and parse JSON output."""
     raw = run_hl(*args)
     try:
         return json.loads(raw)
@@ -88,13 +88,13 @@ def seed(item: dict):
 
 
 # ===================================================================
-# Brain: .heki read/write via hecks-life
+# Brain: .heki read/write via storehouse
 # ===================================================================
 
 @app.function(image=body_image, volumes={"/data": vol}, timeout=30 * MINUTES, scaledown_window=300)
 @modal.fastapi_endpoint(method="POST", label="brain-write")
 def brain_write(item: dict):
-    """Write to .heki, trigger sleep, or modify self — all via hecks-life."""
+    """Write to .heki, trigger sleep, or modify self — all via storehouse."""
     vol.reload()
     store = item.get("store", "")
     info = os.path.join(PROJECT, "information")
@@ -103,7 +103,7 @@ def brain_write(item: dict):
     if store == "sleep_command":
         dream = item.get("dream", "")
         cycles = item.get("cycles", 8)
-        # Run hecks-life daemon sleep
+        # Run storehouse daemon sleep
         result = subprocess.run(
             [HL, "daemon", "sleep", PROJECT, "--nap" if cycles <= 2 else "--now"],
             capture_output=True, text=True, timeout=600,
@@ -156,7 +156,7 @@ def brain_write(item: dict):
 @app.function(image=body_image, volumes={"/data": vol}, timeout=1 * MINUTES, scaledown_window=300)
 @modal.fastapi_endpoint(method="POST", label="brain-read")
 def brain_read(item: dict):
-    """Read from .heki via hecks-life."""
+    """Read from .heki via storehouse."""
     vol.reload()
     store = item.get("store", "")
     info = os.path.join(PROJECT, "information")
@@ -179,7 +179,7 @@ def brain_read(item: dict):
 @app.function(image=body_image, volumes={"/data": vol}, timeout=1 * MINUTES, scaledown_window=300)
 @modal.fastapi_endpoint(method="POST", label="brain-append")
 def brain_append(item: dict):
-    """Append to .heki via hecks-life."""
+    """Append to .heki via storehouse."""
     vol.reload()
     store = item.get("store", "")
     fields = item.get("fields", {})
@@ -196,7 +196,7 @@ def brain_append(item: dict):
 @app.function(image=body_image, volumes={"/data": vol}, timeout=1 * MINUTES, scaledown_window=300)
 @modal.fastapi_endpoint(method="GET", label="brain-vitals")
 def brain_vitals():
-    """Read all vitals via hecks-life hydrate."""
+    """Read all vitals via storehouse hydrate."""
     vol.reload()
     info = os.path.join(PROJECT, "information")
 

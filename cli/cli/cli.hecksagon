@@ -47,7 +47,7 @@ Hecks.hecksagon "Cli" do
   #                            finds them) but not modelled as
   #                            domains.
   #
-  #   Backwards-compat shim  — the `hecks-life pizzas.bluebook`
+  #   Backwards-compat shim  — the `storehouse pizzas.bluebook`
   #                            (no subcommand, file-as-argv[1]) →
   #                            parse routing is explicit handling in
   #                            ParseArgv. Declared in the command

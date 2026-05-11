@@ -8,7 +8,7 @@ Hecks.bluebook "BatchOperation", version: "2026.04.28.1" do
   #
   # Lifted out of aggregates/scale.bluebook in i112 (scale-split).
   # The batch dispatch layer : send a list of bluebook paths to
-  # hecks-life in a single invocation rather than one process per
+  # storehouse in a single invocation rather than one process per
   # file. The ValidateOnChange policy lives here because its
   # trigger (RunBatch) fires on this aggregate when the
   # ChangeTracker reports a delta.
@@ -22,7 +22,7 @@ Hecks.bluebook "BatchOperation", version: "2026.04.28.1" do
 
     command "RunBatch" do
       role "System"
-      description "Send a list of bluebook paths to hecks-life for batch processing"
+      description "Send a list of bluebook paths to storehouse for batch processing"
       attribute :operation, String
       attribute :file_count, Integer
       emits "BatchCompleted"

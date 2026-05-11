@@ -9,7 +9,7 @@ Hecks.bluebook "Query", version: "2026.04.24.1" do
   # Tenth file of the Phase F arc. One hand-written Rust file folds
   # into one Query aggregate :
   #
-  #   hecks_life/src/heki_query.rs   (321 LOC)   → Query
+  #   storehouse/src/heki_query.rs   (321 LOC)   → Query
   #
   # heki_query holds the engine room the heki-family subcommands
   # share : parse a filter spec (k=v, k!=v, k~=v, k*=v), parse an

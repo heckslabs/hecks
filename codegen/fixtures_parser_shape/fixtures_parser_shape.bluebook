@@ -1,5 +1,5 @@
 Hecks.bluebook "FixturesParserShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/fixtures_parser.rs — i51 Phase B closing target. Fifth and final non-specializer parser/validator/dump retirement; closes the Phase B Rust retirement arc. Liberal escape-hatching (per-fn verbatim snippets, verbatim test block) — byte-identity is the gate, clean shape is aspirational."
+  vision "Shape of storehouse/src/fixtures_parser.rs — i51 Phase B closing target. Fifth and final non-specializer parser/validator/dump retirement; closes the Phase B Rust retirement arc. Liberal escape-hatching (per-fn verbatim snippets, verbatim test block) — byte-identity is the gate, clean shape is aspirational."
   category "autophagy"
 
   # ============================================================

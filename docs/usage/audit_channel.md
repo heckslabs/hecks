@@ -27,10 +27,10 @@ The CLI mirrors this:
 
 ```sh
 # dispatched (preferred):
-hecks-life aggregates/ Item.Add ref=i112 priority=high body="..."
+storehouse aggregates/ Item.Add ref=i112 priority=high body="..."
 
 # out-of-band (requires --reason):
-hecks-life heki append information/inbox.heki --reason "test setup" \
+storehouse heki append information/inbox.heki --reason "test setup" \
   ref=i112 priority=high body="..."
 ```
 
@@ -38,7 +38,7 @@ If you try to use `heki append` / `upsert` / `delete` / `mark` without a
 `--reason`, the CLI rejects the call:
 
 ```
-hecks-life heki append requires --reason "<why>" — direct heki
+storehouse heki append requires --reason "<why>" — direct heki
 writes bypass the dispatch path. Use a domain command instead, or
 pass --reason to mark this as an out-of-band write.
 ```
@@ -55,7 +55,7 @@ pass --reason to mark this as an out-of-band write.
 ```
 
 Greppable by op (`append` / `upsert` / `delete`) or by tag prefix
-(`dispatch:` / `out-of-band:`). The dashboard in `hecks-life status`
+(`dispatch:` / `out-of-band:`). The dashboard in `storehouse status`
 can surface direct-write rates as a discipline metric.
 
 ## The breadcrumb
@@ -114,7 +114,7 @@ i114 / i116 all began as audit-channel observations.
 
 ## See also
 
-- `hecks_life/src/heki.rs` — `WriteContext` definition + `audit_write`
-- `hecks_life/src/runtime/mod.rs` — breadcrumb write
+- `storehouse/src/heki.rs` — `WriteContext` definition + `audit_write`
+- `storehouse/src/runtime/mod.rs` — breadcrumb write
 - `docs/usage/cli_subcommand_catalog.md` — the catalog gate that the
   audit channel exposed

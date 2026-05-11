@@ -34,7 +34,7 @@
 #                                      Body.RecordDreamPulse.
 #   3. dream_state.heki append      — the autonomous content store ;
 #                                      DreamImage entity persistence (today via
-#                                      `hecks-life heki append`, tomorrow via
+#                                      `storehouse heki append`, tomorrow via
 #                                      the default :memory adapter through
 #                                      DreamCorpus.RecordImage).
 #

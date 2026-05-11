@@ -21,7 +21,7 @@ plan closes the gap.
   (`lib/hecks/runtime/boot.rb:42`); builder at `lib/hecksagon/dsl/hecksagon_builder.rb`
 - Ruby: `Hecks.world "Name" do … end` same (`boot.rb:43`)
 - Rust: **no `world_parser.rs` / `world_ir.rs` exists.** `.world` is
-  read ad-hoc by two line-scanners in `hecks_life/src/main.rs`
+  read ad-hoc by two line-scanners in `storehouse/src/main.rs`
   (`find_world_heki_dir` L1219-1239, `find_world_ollama_config` L1157-1186)
 - No parity contract for either file type
 
@@ -112,7 +112,7 @@ World {
 - `lib/hecksagon/structure/world.rb` gains 4 attributes + `to_h`
 - `lib/hecksagon/dsl/world_builder.rb` gains `purpose`, `vision`,
   `audience`, `concern(name) { description "…" }`
-- Rust: NEW `hecks_life/src/world_parser.rs` + `world_ir.rs`
+- Rust: NEW `storehouse/src/world_parser.rs` + `world_ir.rs`
 
 ### Grammar
 
@@ -131,14 +131,14 @@ No method calls, no interpolation, no `ENV[]`, no `File.join`.
 
 ### New test files
 - `spec/parity/hecksagon_parity_test.rb` — globs every `.hecksagon`,
-  Ruby IR via `Loader.load` → JSON; Rust IR via `hecks-life dump-hecksagon` → JSON; diff.
+  Ruby IR via `Loader.load` → JSON; Rust IR via `storehouse dump-hecksagon` → JSON; diff.
 - `spec/parity/world_parity_test.rb` — same for `.world`.
 - `spec/parity/hecksagon_known_drift.txt` / `world_known_drift.txt` — start empty.
 
 ### New Rust dump subcommands
-- `hecks-life dump-hecksagon <path>` — calls `hecksagon_parser::parse`,
+- `storehouse dump-hecksagon <path>` — calls `hecksagon_parser::parse`,
   emits canonical JSON matching Ruby side
-- `hecks-life dump-world <path>` — same for `.world`
+- `storehouse dump-world <path>` — same for `.world`
 
 ### CI gate
 - `bin/antibody-check`: add `ruby spec/parity/hecksagon_parity_test.rb`
@@ -233,6 +233,6 @@ C4 (Ruby WorldBuilder)─┘
 - `lib/hecks/runtime/boot.rb`
 - `lib/hecksagon/dsl/hecksagon_builder.rb`
 - `lib/hecksagon/dsl/world_builder.rb`
-- `hecks_life/src/main.rs`
-- `hecks_life/src/hecksagon_parser.rs`
+- `storehouse/src/main.rs`
+- `storehouse/src/hecksagon_parser.rs`
 - `hecks_conception/miette.hecksagon` (R1 fix)

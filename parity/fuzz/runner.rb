@@ -18,21 +18,21 @@
 # binary envelope (HEKI magic + zlib JSON) as the Rust runtime
 # so the comparator reads them through one path.
 #
-# Rust dispatch is one `hecks-life aggregates/ Agg.Command k=v`
+# Rust dispatch is one `storehouse aggregates/ Agg.Command k=v`
 # shell invocation per command — each invocation loads/persists
 # the heki tree, so the cascade crosses dispatch boundaries
 # exactly the way production Miette does. Slow per-command (~100ms
 # process startup) but accurate.
 #
 # Usage:
-#   result = Runner.run(program, hecks_life_bin: HECKS_LIFE)
+#   result = Runner.run(program, storehouse_bin: STOREHOUSE)
 #   result.ruby_dir    # path to ruby-side information/
 #   result.rust_dir    # path to rust-side information/
 #   result.ruby_error  # nil or String (ruby dispatch crashed)
 #   result.rust_error  # nil or String (rust dispatch crashed)
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
-# fuzzer ports to bluebook-dispatched form via hecks-life run]
+# fuzzer ports to bluebook-dispatched form via storehouse run]
 
 require "fileutils"
 require "open3"
@@ -50,7 +50,7 @@ module Hecks
 
         module_function
 
-        def run(program, hecks_life_bin:, root: nil)
+        def run(program, storehouse_bin:, root: nil)
           root ||= File.join(Dir.tmpdir, "fuzz-#{program.seed}-#{Process.pid}")
           FileUtils.rm_rf(root)
           ruby_root = File.join(root, "ruby")
@@ -58,7 +58,7 @@ module Hecks
           ruby_info = setup_tree(ruby_root, program)
           rust_info = setup_tree(rust_root, program)
           ruby_error = RubyDispatcher.run(program, ruby_root, ruby_info)
-          rust_error = run_rust(program, rust_root, hecks_life_bin)
+          rust_error = run_rust(program, rust_root, storehouse_bin)
           Result.new(ruby_dir: ruby_info, rust_dir: rust_info, root: root,
                      ruby_error: ruby_error, rust_error: rust_error)
         end
@@ -79,13 +79,13 @@ module Hecks
           info_dir
         end
 
-        def run_rust(program, rust_root, hecks_life_bin)
+        def run_rust(program, rust_root, storehouse_bin)
           agg_dir = File.join(rust_root, "aggregates") + "/"
           errors = []
           program.commands.each_with_index do |step, i|
             command_arg = "#{step[:aggregate]}.#{step[:command]}"
             kv = step[:attrs].map { |k, v| "#{k}=#{rust_value_repr(v)}" }
-            stdout, status = Open3.capture2e(hecks_life_bin, agg_dir, command_arg, *kv)
+            stdout, status = Open3.capture2e(storehouse_bin, agg_dir, command_arg, *kv)
             unless status.success?
               errors << "step #{i} #{command_arg}: exit=#{status.exitstatus}"
             end

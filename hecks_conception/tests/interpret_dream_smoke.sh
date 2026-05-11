@@ -2,7 +2,7 @@
 # interpret_dream_smoke.sh — smoke test for the DreamInterpretation chain.
 #
 # [antibody-exempt: i220 sub-gap 6 retirement of interpret_dream.sh —
-#  smoke now drives the DreamInterpretation chain via `hecks-life
+#  smoke now drives the DreamInterpretation chain via `storehouse
 #  run-loop` instead of forking the legacy shell. Mirrors the
 #  dream_content_smoke pattern (PR #593) ; retires entirely when
 #  smoke tests port to a bluebook-shebang form.]
@@ -67,12 +67,12 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
 else
-  echo "FAIL — can't find hecks-life binary"
+  echo "FAIL — can't find storehouse binary"
   exit 2
 fi
 
@@ -135,7 +135,7 @@ field_value() {
   "$HECKS" heki latest-field "$1" "$2" 2>/dev/null || echo ""
 }
 
-# ── Drive the chain via `hecks-life run-loop` ───────────────────────
+# ── Drive the chain via `storehouse run-loop` ───────────────────────
 # Two phases land the chain :
 #   1. --emit WokenUp fires the GatherOnWake policy → GatherDreamCorpus
 #      dispatch (the runtime treats the synthetic event the same as a
@@ -146,7 +146,7 @@ field_value() {
 #      way (its trigger is the dispatched command, not the policy event).
 #
 # The `name=dream` trailing arg is shared across all --dispatch actions
-# in the tick (matches `hecks-life loop`'s convention).
+# in the tick (matches `storehouse loop`'s convention).
 RUN_LOG="$TMP/run_loop.log"
 HECKS_INFO="$TMP/information" \
 HECKS_AGG="$TMP/aggregates" \
@@ -164,7 +164,7 @@ kill "$RUN_PID" 2>/dev/null || true
 wait "$RUN_PID" 2>/dev/null || true
 
 # Boot-failure guard
-if ! grep -q 'hecks-life run-loop' "$RUN_LOG"; then
+if ! grep -q 'storehouse run-loop' "$RUN_LOG"; then
   echo "----- run-loop output -----"
   cat "$RUN_LOG"
   fail "run-loop did not boot the DreamInterpretation chain (parse / load failure)"

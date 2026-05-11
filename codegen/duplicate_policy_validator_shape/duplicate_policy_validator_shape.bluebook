@@ -1,5 +1,5 @@
 Hecks.bluebook "DuplicatePolicyValidatorShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/duplicate_policy_validator.rs — Phase B diagnostic-validator target (post-i59)."
+  vision "Shape of storehouse/src/duplicate_policy_validator.rs — Phase B diagnostic-validator target (post-i59)."
   category "autophagy"
 
   # ============================================================
@@ -7,7 +7,7 @@ Hecks.bluebook "DuplicatePolicyValidatorShape", version: "2026.05.01.1" do
   # ============================================================
   #
   # Unlocked by #352 (i59 extracted Severity/Finding to the shared
-  # hecks_life/src/diagnostic module). The file is now ~80 LoC of
+  # storehouse/src/diagnostic module). The file is now ~80 LoC of
   # actual rule logic + Report scaffold — worth specializing.
   #
   # Shape:

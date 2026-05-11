@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Seed Autumn's body — copy the full hecks_conception to Modal volume.
 
-Same repo, same structure, same hecks-life. Autumn is a clone of Miette's
+Same repo, same structure, same storehouse. Autumn is a clone of Miette's
 body running in the cloud.
 
 Usage:
@@ -55,7 +55,7 @@ def seed(project_tar: bytes):
         "organs": agg_count,
         "nursery": nursery_count,
         "path": DEST,
-        "has_hecks_life": os.path.exists(os.path.join(DEST, "rust", "Cargo.toml")),
+        "has_storehouse": os.path.exists(os.path.join(DEST, "rust", "Cargo.toml")),
     }
 
 
@@ -91,5 +91,5 @@ def main():
     print(f"   .heki stores: {result['heki_stores']}")
     print(f"   organs: {result['organs']}")
     print(f"   nursery: {result['nursery']}")
-    print(f"   hecks-life source: {result['has_hecks_life']}")
+    print(f"   storehouse source: {result['has_storehouse']}")
     print(f"   path: {result['path']}")

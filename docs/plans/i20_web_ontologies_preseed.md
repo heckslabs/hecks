@@ -46,12 +46,12 @@ Customer, Review, Shipment, Return as bluebooks before writing a line.
 
 - **357 nursery domains**, all hand-authored. Quality ranges from
   full-workflow (bakery_production) to one-aggregate sketches.
-- **`hecks-life conceive "Name" "vision"`** (621 LoC, `src/conceiver/`)
+- **`storehouse conceive "Name" "vision"`** (621 LoC, `src/conceiver/`)
   — structural archetype interpolation. Scans the nursery corpus,
   extracts feature vectors, picks the nearest match, swaps names. It
   does NOT consult any external ontology; output semantics are random
   relative to the requested name.
-- **`hecks-life heki`** subcommands (PR #272) — persistence CLI.
+- **`storehouse heki`** subcommands (PR #272) — persistence CLI.
 - **`heki_query.rs`** — shared query layer for .heki stores.
 - **`rust_to_bluebook` capability** — autophagy pattern: one-way map
   from external artifact (Rust file) to bluebook. Shape reused here.
@@ -291,7 +291,7 @@ end
 ```
 
 **ImportRun** — one sweep (one invocation of
-`hecks-life import-schema …`). Tracks totals, duration, errors.
+`storehouse import-schema …`). Tracks totals, duration, errors.
 
 ```ruby
 aggregate "ImportRun" do
@@ -387,23 +387,23 @@ that must not consume LLM spend.
 
 ## §5 — Runtime
 
-New `hecks_life/src/run_ontology_import.rs`, registered as a subcommand
+New `storehouse/src/run_ontology_import.rs`, registered as a subcommand
 in `main.rs`:
 
 ```
-hecks-life import-schema <TypeName> [--source schema_org]
+storehouse import-schema <TypeName> [--source schema_org]
                                      [--version 28.0]
                                      [--enrich wikidata]
                                      [--flatten-ancestors 2]
                                      [--out hecks_conception/nursery/<slug>/]
 
-hecks-life import-schema --bundle retail_starter
+storehouse import-schema --bundle retail_starter
                           [--source schema_org]
                           [--out hecks_conception/nursery/]
 
-hecks-life ontology-import status     # list ImportRun rows
-hecks-life ontology-import report     # aggregate stats
-hecks-life ontology-import sync       # refresh imports whose source version bumped
+storehouse ontology-import status     # list ImportRun rows
+storehouse ontology-import report     # aggregate stats
+storehouse ontology-import sync       # refresh imports whose source version bumped
 ```
 
 ### `import-schema <TypeName>` algorithm
@@ -474,9 +474,9 @@ Lifecycle from here:
      your `sourcing.origin_country`.
    - Adds business-specific commands/policies schema.org can't know.
    - Marks `status = curated` via
-     `hecks-life heki mark … --where type_name=Product --set status=curated`.
+     `storehouse heki mark … --where type_name=Product --set status=curated`.
 
-3. **Viability gate** — run `hecks-life nursery-health scan`
+3. **Viability gate** — run `storehouse nursery-health scan`
    (i27). Classifier assigns Viable/Partial/Stub. Only Viable is
    eligible for graduation.
 
@@ -522,7 +522,7 @@ distinguishes "honest stub" from "abandoned hand-sketch".
      checked-in fixtures for Product, Person, MedicalCondition,
      Recipe, Event. ~180 LoC + ~80 spec.
 
-5. `feat(ontology_import): hecks-life import-schema <TypeName> subcommand`
+5. `feat(ontology_import): storehouse import-schema <TypeName> subcommand`
    — `src/run_ontology_import.rs`: wire parser + mapping + template +
      lifecycle-transition dispatch. Shell-adapter fetch, disk cache.
      ~200 LoC + smoke spec.
@@ -624,23 +624,23 @@ LoC) — no dispatcher, no streaming, no provider abstraction.
 - `hecks_conception/capabilities/ontology_import/ontology_import.behaviors`
 - `hecks_conception/capabilities/ontology_import/ontology_import.hecksagon`
 - `hecks_conception/capabilities/ontology_import/fixtures/ontology_import.fixtures`
-- `hecks_life/src/run_ontology_import.rs`
-- `hecks_life/src/run_ontology_import/schema_org.rs`
-- `hecks_life/src/run_ontology_import/mapping.rs`
-- `hecks_life/src/run_ontology_import/template.rs`
-- `hecks_life/tests/ontology_import_smoke.rs`
-- `hecks_life/tests/fixtures/schema_org_mini.jsonld` (curated subset for tests)
-- `hecks_life/tests/golden/product.bluebook` + `person.bluebook` + etc.
+- `storehouse/src/run_ontology_import.rs`
+- `storehouse/src/run_ontology_import/schema_org.rs`
+- `storehouse/src/run_ontology_import/mapping.rs`
+- `storehouse/src/run_ontology_import/template.rs`
+- `storehouse/tests/ontology_import_smoke.rs`
+- `storehouse/tests/fixtures/schema_org_mini.jsonld` (curated subset for tests)
+- `storehouse/tests/golden/product.bluebook` + `person.bluebook` + etc.
 - `docs/usage/ontology_import.md`
 
 ### Modified
-- `hecks_life/src/main.rs` — register `import-schema` / `ontology-import` subcommands
+- `storehouse/src/main.rs` — register `import-schema` / `ontology-import` subcommands
 - `FEATURES.md` — new capability entry
 - `docs/plans/INDEX.md` — add i20 row
 
 ### Reused
-- `hecks_life/src/heki.rs`, `heki_query.rs` — persistence + query
-- `hecks_life/src/parser.rs` — parse emitted bluebook to validate
+- `storehouse/src/heki.rs`, `heki_query.rs` — persistence + query
+- `storehouse/src/parser.rs` — parse emitted bluebook to validate
 - `hecks_conception/capabilities/nursery_health/` — downstream viability gate (i27)
 - `hecks_conception/capabilities/antibody/antibody.hecksagon` — shape reference for hecksagon file
 - `hecks_conception/capabilities/rust_to_bluebook/` — shape reference for autophagy-style lifecycle
@@ -675,7 +675,7 @@ After plan merges, update inbox.heki i20 body to reference this plan
 path:
 
 ```
-hecks-life heki mark hecks_conception/information/inbox.heki \
+storehouse heki mark hecks_conception/information/inbox.heki \
   --where ref=i20 \
   --set body="<updated body with plan link to docs/plans/i20_web_ontologies_preseed.md>" \
   --set updated_at=<iso>

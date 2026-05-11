@@ -5,6 +5,6 @@ edition = "2021"
 description = "Spring — the universal domain command line"
 
 [dependencies]
-hecks-life = { path = "../rust" }
+storehouse = { path = "../rust" }
 serde_json = "1"
 libc = "0.2"

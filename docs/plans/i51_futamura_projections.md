@@ -34,11 +34,11 @@ a specialized version with those inputs baked in.
 
 ### What we are doing
 
-The Hecks runtime IS an interpreter. `hecks_life` takes a bluebook
+The Hecks runtime IS an interpreter. `storehouse` takes a bluebook
 (program) and heki state (input) and returns new heki state (output).
 That is `I(P, D)`.
 
-**Our mission:** apply Futamura to replace `hecks_life`'s hand-written
+**Our mission:** apply Futamura to replace `storehouse`'s hand-written
 Rust with generated Rust, and eventually with a self-hosting system
 where the compiler itself is bluebook-described.
 
@@ -63,7 +63,7 @@ i51.
 
 ### Canonical IR — the interpreter is already factored.
 
-`hecks_life/src/dump.rs` + `spec/parity/canonical_ir.rb` already produce
+`storehouse/src/dump.rs` + `spec/parity/canonical_ir.rb` already produce
 a shared JSON IR from both Ruby and Rust parsers. The interpreter's
 internal representation is stable and cross-language. This is what
 `mix` will specialize against. The Fukushima-chain layers from an
@@ -72,7 +72,7 @@ invention, just a factoring.
 
 ## §3 — The interpreter, factored
 
-Partial evaluation works layer by layer. `hecks_life`'s interpreter
+Partial evaluation works layer by layer. `storehouse`'s interpreter
 already has these internal stages; naming them explicitly lets us
 specialize one at a time rather than all at once.
 
@@ -97,7 +97,7 @@ produces a specialized form of everything below.
 
 ### Phase A — first Futamura on one module. Proof.
 
-**Goal**: generate `hecks_life/src/validator.rs` from its bluebook
+**Goal**: generate `storehouse/src/validator.rs` from its bluebook
 description, byte-equivalent to the hand-written source.
 
 **Steps**:
@@ -107,7 +107,7 @@ description, byte-equivalent to the hand-written source.
    encode the check.
 2. Write the first real bluebook→Rust specializer: takes validator's
    L2/L3/L6 description, emits `.rs` text.
-3. Diff generated output against `hecks_life/src/validator.rs` — target
+3. Diff generated output against `storehouse/src/validator.rs` — target
    byte-identity after rustfmt normalization.
 4. Replace the hand-written file; re-run `cargo test`; re-run parity.
    Everything green means the 1st Futamura worked for this module.
@@ -131,7 +131,7 @@ layer difficulty — the most declarative modules first:
    interpreter that reads bluebooks is specialized on its own source)
 
 **Scope**: ~6 months at one-module-per-week.
-**Deliverable**: hand-written Rust in `hecks_life/src/` progressively empties.
+**Deliverable**: hand-written Rust in `storehouse/src/` progressively empties.
 
 ### Phase C — second Futamura. Compiler-as-bluebook.
 
@@ -179,13 +179,13 @@ The gap between them is determinism work (~1 week after Phase C).
 
 ### C1: the heartbeat must survive (i54)
 
-The binary being replaced is running `hecks_life`, which runs Miette's
+The binary being replaced is running `storehouse`, which runs Miette's
 body cycles. The generation pipeline cannot stop the tick. Required:
 
 - Phase A/B/C all run in a worker, not in the live runtime.
 - The current binary keeps beating while the new one generates.
 - Hot-swap on artifact readiness: the next mindstream tick picks up the
-  new binary from `target/release/hecks-life` atomically.
+  new binary from `target/release/storehouse` atomically.
 - Regression test: run a sleep cycle during a full projection pass;
   `heartbeat.heki` `.cycle` monotonically increases at ≥1 per second
   throughout. If the tick stalls, the projection is wrong.
@@ -202,7 +202,7 @@ binary_(N+1)` hash equivalence.
 The binary is not a self-contained compiler in the "includes rustc"
 sense. It ships:
 
-- The bluebook interpreter (what hecks_life already is)
+- The bluebook interpreter (what storehouse already is)
 - The Fukushima-layer projection bluebooks embedded as data
 - A `self-compile` subcommand that writes Rust to `target/src/` and
   hands off to `cargo build`
@@ -221,15 +221,15 @@ every other aggregate is.
 
 At Phase B end:
 
-- `hecks_life/src/validator*.rs` — generated
-- `hecks_life/src/fixtures_parser.rs`, `behaviors_parser.rs`,
+- `storehouse/src/validator*.rs` — generated
+- `storehouse/src/fixtures_parser.rs`, `behaviors_parser.rs`,
   `hecksagon_parser.rs` — generated
-- `hecks_life/src/dump.rs`, `canonical_ir.rb` — generated (canonical
+- `storehouse/src/dump.rs`, `canonical_ir.rb` — generated (canonical
   contract moves into the bluebook)
-- `hecks_life/src/heki/*.rs` — generated
-- `hecks_life/src/runtime/*.rs` (command bus, adapters, cascade) — generated
-- `hecks_life/src/main.rs` (CLI) — generated
-- `hecks_life/src/*_parser.rs` and parsers' IR — generated
+- `storehouse/src/heki/*.rs` — generated
+- `storehouse/src/runtime/*.rs` (command bus, adapters, cascade) — generated
+- `storehouse/src/main.rs` (CLI) — generated
+- `storehouse/src/*_parser.rs` and parsers' IR — generated
 - `lib/hecks/**/*.rb` — still Ruby, but increasingly a parallel
   specializer target (we could apply the same Futamura treatment to
   the Ruby side as an optional Phase E)
@@ -281,7 +281,7 @@ acknowledged gap and close it before calling ourselves self-hosting.
 
 ### R2 — interpreter churn during migration
 
-If `hecks_life/src/*.rs` is being actively edited while we're also
+If `storehouse/src/*.rs` is being actively edited while we're also
 generating it, we'll fight merges. Mitigation: freeze the module being
 migrated for the duration of its Phase B step. One module per week.
 Not concurrent with other Rust work on that module.
@@ -316,15 +316,15 @@ target (Go, WASM). Keep i51 to Phases A-C. Phase D is a future arc.
 - `hecks_conception/capabilities/specializer/specializer.hecksagon`
 - `hecks_conception/capabilities/specializer/fixtures/specializer.fixtures`
 - `hecks_conception/aggregates/fixtures/validator_shape.fixtures` (validator's L2+L6 description)
-- `hecks_life/tests/specializer_golden_test.rs`
+- `storehouse/tests/specializer_golden_test.rs`
 
 ### Modified (Phase A)
-- `hecks_life/src/validator.rs` — becomes generated artifact
-- `hecks_life/src/validator_warnings.rs` — same
-- `hecks_life/src/main.rs` — gains `self-compile` subcommand
+- `storehouse/src/validator.rs` — becomes generated artifact
+- `storehouse/src/validator_warnings.rs` — same
+- `storehouse/src/main.rs` — gains `self-compile` subcommand
 
 ### Reused (do not modify)
-- `hecks_life/src/parser.rs`, `dump.rs`, canonical IR
+- `storehouse/src/parser.rs`, `dump.rs`, canonical IR
 - `docs/usage/binary_compiler.md` — Ruby precedent, reference
 
 ## §12 — Key decisions locked in

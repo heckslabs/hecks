@@ -1,0 +1,107 @@
+Hecks.bluebook "Validator", version: "2026.05.11.1" do
+  vision "Pre-commit validation gates for bluebook source. Each Check command takes a BluebookPath, parses the file, runs a specific validator over the parsed IR, and emits findings. CheckAll runs every validator in sequence and aggregates the findings. The bus dispatches these like any other bluebook command — the pre-commit hook calls `storehouse route Validator.CheckIo path:...` instead of `storehouse check-io ...` ; same effect, bluebook-native form."
+  category "discipline"
+
+  # ============================================================
+  # VALIDATOR — bluebook source gates
+  # ============================================================
+  #
+  # Before this bluebook the validators existed only as CLI
+  # subcommands : `storehouse check-io`, `storehouse check-lifecycle`,
+  # `storehouse check-duplicate-policies`, `storehouse check-all`.
+  # Their contract lived in Rust ; the pre-commit hook invoked
+  # each one by CLI name ; the user only knew them by their flag
+  # strings. There was no bluebook-layer name for the operations
+  # themselves.
+  #
+  # This bluebook expresses each validator as a command on the
+  # Validator aggregate. The bus dispatches them through the same
+  # pipeline that handles every other bluebook command — phrase
+  # → Lexicon.Lookup → Dispatch.Route → handler. The pre-commit
+  # hook eventually becomes :
+  #
+  #   storehouse route discipline::validator::Validator::CheckAll \
+  #     bluebook_path:hecks_conception/aggregates/foo/foo.bluebook
+  #
+  # The imperative implementations (storehouse::io_validator,
+  # lifecycle_validator, duplicate_policy_validator) stay in the
+  # runtime as the substrate that fires when each Check* command
+  # dispatches. They're not "tooling outside the bus" — they're
+  # the runtime's implementation of these bluebook commands.
+  #
+  # Companion to discipline/antibody/antibody.bluebook (which
+  # gates non-bluebook file additions). Where antibody catches
+  # "this isn't a bluebook at all", Validator catches "this is a
+  # malformed bluebook".
+
+  aggregate "Validator", "Pre-commit gates for bluebook source" do
+    identified_by :bluebook_path
+
+    value_object "BluebookPath" do
+      # Filesystem path to a *.bluebook file. The validator reads,
+      # parses, checks. Path-not-found surfaces as a runtime error
+      # before validation runs ; the file must end in `.bluebook`
+      # so the validator can be invoked safely against staged paths
+      # in the pre-commit hook (`git diff --cached --name-only`
+      # filtered by extension).
+      attribute :value, String
+      invariant "must end with .bluebook" do
+        value.end_with?(".bluebook")
+      end
+    end
+
+    value_object "FindingsCount" do
+      # Number of findings (errors + warnings combined). Zero means
+      # the bluebook passed the check. Used in the event payload so
+      # the pre-commit hook can decide block vs pass without
+      # reparsing the report.
+      attribute :value, Integer
+      invariant "must be non-negative" do
+        value >= 0
+      end
+    end
+
+    value_object "Report" do
+      # Human-readable summary of the findings, suitable for
+      # printing to stderr in the pre-commit hook. Empty string
+      # when count is zero.
+      attribute :value, String
+    end
+
+    attribute :bluebook_path, BluebookPath
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "CheckIo" do
+      role "System"
+      description "Parse the bluebook at bluebook_path, run the IO-shape validator (the runtime's storehouse::io_validator). Emits IoChecked with the findings count and human-readable report. Used by the pre-commit hook's IO gate."
+      attribute :bluebook_path, BluebookPath
+      emits "IoChecked"
+      then_set :bluebook_path, to: :bluebook_path
+    end
+
+    command "CheckLifecycle" do
+      role "System"
+      description "Parse the bluebook at bluebook_path, run the lifecycle-reachability validator (storehouse::lifecycle_validator). Catches dead-end state transitions. Used by the pre-commit hook's lifecycle gate."
+      attribute :bluebook_path, BluebookPath
+      emits "LifecycleChecked"
+      then_set :bluebook_path, to: :bluebook_path
+    end
+
+    command "CheckDuplicatePolicies" do
+      role "System"
+      description "Parse the bluebook at bluebook_path, run the duplicate-policy-target validator (storehouse::duplicate_policy_validator). Catches policies that fire the same target command multiple times."
+      attribute :bluebook_path, BluebookPath
+      emits "DuplicatePoliciesChecked"
+      then_set :bluebook_path, to: :bluebook_path
+    end
+
+    command "CheckAll" do
+      role "System"
+      description "Run every Validator.Check* command in sequence against the same bluebook_path and aggregate the findings counts. The pre-commit hook's main entry — one phrase covers every validator the bluebook layer knows about. As new validators land (e.g. CheckValueObjectHygiene for the primitive-wrap rule), CheckAll picks them up automatically."
+      attribute :bluebook_path, BluebookPath
+      emits "AllChecked"
+      then_set :bluebook_path, to: :bluebook_path
+    end
+  end
+end

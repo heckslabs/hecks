@@ -38,9 +38,9 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
   BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
 [ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
 
-HECKS="${HECKS_BIN:-$REPO_ROOT/rust/target/release/hecks-life}"
-[ -x "$HECKS" ] || HECKS="$REPO_ROOT/rust/target/debug/hecks-life"
-[ -x "$HECKS" ] || { echo "hecks-life binary not found" >&2; exit 1; }
+HECKS="${HECKS_BIN:-$REPO_ROOT/rust/target/release/storehouse}"
+[ -x "$HECKS" ] || HECKS="$REPO_ROOT/rust/target/debug/storehouse"
+[ -x "$HECKS" ] || { echo "storehouse binary not found" >&2; exit 1; }
 export HECKS
 
 fail=0

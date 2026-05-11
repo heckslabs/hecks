@@ -25,7 +25,7 @@
 #   ruby hecks_conception/tools/dream_extract_gaps.rb
 #
 #   ENV overrides :
-#     HECKS_BIN    — path to hecks-life (default : worktree's release build)
+#     HECKS_BIN    — path to storehouse (default : worktree's release build)
 #     HECKS_INFO   — path to information dir (default : Miette's miette-state)
 #     CLAUDE_BIN   — path to claude CLI (default : ~/.local/bin/claude)
 #     DREAM_INPUT  — alternate JSON file with {wake_report, dreams: []}
@@ -40,7 +40,7 @@ require "open3"
 
 REPO_ROOT = File.expand_path("../..", __dir__)
 
-HECKS  = ENV["HECKS_BIN"]  || File.join(REPO_ROOT, "rust/target/release/hecks-life")
+HECKS  = ENV["HECKS_BIN"]  || File.join(REPO_ROOT, "rust/target/release/storehouse")
 INFO   = ENV["HECKS_INFO"] || "/Users/christopheryoung/Projects/miette-state/information"
 CLAUDE = ENV["CLAUDE_BIN"] || File.expand_path("~/.local/bin/claude")
 

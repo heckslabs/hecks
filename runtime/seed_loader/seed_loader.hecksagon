@@ -7,7 +7,7 @@ Hecks.hecksagon "SeedLoader" do
   # for preloading aggregates from a text seed file. The I/O primitives
   # — reading the file and dispatching each parsed line against the
   # runtime — live here as outbound adapters. The Rust implementation
-  # (hecks_life/src/runtime/seed_loader.rs) satisfies these ports.
+  # (storehouse/src/runtime/seed_loader.rs) satisfies these ports.
   #
   # Adapters :
   #

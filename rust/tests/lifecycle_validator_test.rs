@@ -4,8 +4,8 @@
 //! from the lifecycle default; otherwise it's dead and the validator
 //! flags it. Stuck-default warns.
 
-use hecks_life::lifecycle_validator::{check, Severity};
-use hecks_life::parser;
+use storehouse::lifecycle_validator::{check, Severity};
+use storehouse::parser;
 
 #[test]
 fn flags_unreachable_from_state() {

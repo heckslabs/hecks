@@ -47,15 +47,15 @@ REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "$REPO_ROOT/rust/target/debug/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/debug/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "$REPO_ROOT/rust/target/debug/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/debug/storehouse"
 else
-  echo "hecks-life binary not found" >&2
+  echo "storehouse binary not found" >&2
   exit 1
 fi
-export HECKS_LIFE="$HECKS"
+export STOREHOUSE="$HECKS"
 
 fail=0
 note_fail() { echo "  ✗ $*" >&2; fail=1; }

@@ -17,7 +17,7 @@ Five modules retired. ~34 KB of hand-written Rust now regenerable from shape. Ev
 
 Plus two infrastructure PRs:
 - **#350** — consolidated `bin/specialize-*` into one driver + `lib/hecks_specializer/*.rb`. −203 LoC.
-- **#352 (i59)** — extracted `Severity`/`Finding` to `hecks_life/src/diagnostic.rs`. −56 LoC duplicated boilerplate.
+- **#352 (i59)** — extracted `Severity`/`Finding` to `storehouse/src/diagnostic.rs`. −56 LoC duplicated boilerplate.
 
 Plus one deferral:
 - **#355 (i60)** — `io_validator` filed as pending on L3/L4 runtime IR primitives. Not a retirement, not a retreat — a named follow-up.

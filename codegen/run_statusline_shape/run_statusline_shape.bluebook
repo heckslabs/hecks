@@ -7,7 +7,7 @@ Hecks.bluebook "RunStatuslineShape", version: "2026.05.01.1" do
   # ============================================================
   #
   # rust/src/run_statusline.rs is THE statusline runner. Every
-  # `hecks-life statusline` invocation reads body heki via :fs,
+  # `storehouse statusline` invocation reads body heki via :fs,
   # branches on consciousness state (sleep / awake / coherence-
   # degraded), composes a single line, and prints to :stdout.
   # Wave 7 retires the AUTHORED Rust file — the runtime stays at

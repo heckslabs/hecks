@@ -1,7 +1,7 @@
 # Hecks behaviors inventory — 2026-04-21
 
 Scope: `origin/main`, 454 `.behaviors` files across `hecks_conception/`.
-Runners: Rust `hecks_life/target/release/hecks-life behaviors <path>`, Ruby `bin/hecks-behaviors <path>`.
+Runners: Rust `storehouse/target/release/storehouse behaviors <path>`, Ruby `bin/hecks-behaviors <path>`.
 Method: every file run through both runners; classified by exit code and summary line.
 
 Total: 454 files

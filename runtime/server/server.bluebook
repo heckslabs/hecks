@@ -9,9 +9,9 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
   # Fifth file of the Phase F arc (docs/phase-f-0-survey.md). Three
   # hand-written Rust files become three aggregates in one domain :
   #
-  #   hecks_life/src/server/mod.rs      (109 LOC)  → Server
-  #   hecks_life/src/server/routes.rs   (132 LOC)  → Route
-  #   hecks_life/src/server/multi.rs    (141 LOC)  → MultiDomainServer
+  #   storehouse/src/server/mod.rs      (109 LOC)  → Server
+  #   storehouse/src/server/routes.rs   (132 LOC)  → Route
+  #   storehouse/src/server/multi.rs    (141 LOC)  → MultiDomainServer
   #
   # The `html_*` family (fifteen files, ~2,000 LOC) stays hand-written
   # by design — those are pure IR→text transforms and are the largest

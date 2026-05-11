@@ -1,5 +1,5 @@
 Hecks.bluebook "HecksagonParserShape", version: "2026.05.01.1" do
-  vision "Shape of hecks_life/src/hecksagon_parser.rs — i51 Phase B target. Third parser retirement after validator.rs and dump.rs; establishes the parser-shape template for behaviors_parser + fixtures_parser follow-ups."
+  vision "Shape of storehouse/src/hecksagon_parser.rs — i51 Phase B target. Third parser retirement after validator.rs and dump.rs; establishes the parser-shape template for behaviors_parser + fixtures_parser follow-ups."
   category "autophagy"
 
   # ============================================================

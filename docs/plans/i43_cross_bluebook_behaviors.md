@@ -2,7 +2,7 @@
 
 ## 1. Current state + why the gap hurts
 
-The `.behaviors` runner (Ruby `bin/hecks-behaviors` + Rust `hecks-life behaviors`)
+The `.behaviors` runner (Ruby `bin/hecks-behaviors` + Rust `storehouse behaviors`)
 boots ONE `Domain` per test from a single `.bluebook` source. Its cascade
 engine (`PolicyDrain` / `drain_policies`) will follow policies to any
 aggregate **inside that domain**, but `across "Pulse"` hops to a policy
@@ -94,7 +94,7 @@ is a hard error.
 
 ~40 LoC + ~15 LoC helper in `lib/hecks/behaviors/domain_merger.rb`.
 
-### 3.2 Rust — `hecks_life/src/behaviors_runner.rs`
+### 3.2 Rust — `storehouse/src/behaviors_runner.rs`
 
 Mirror: `extra_sources: &[&str]` parameter. In `run_one`:
 
@@ -115,7 +115,7 @@ for extra in extra_sources {
 - `bin/hecks-behaviors`: after loading the test file, resolve each name
   in `Hecks.last_test_suite.loads` via `DomainMerger.resolve_path`,
   pass loader callbacks to `Runner.run`.
-- `hecks_life/src/main.rs`: same resolution, pass `&[String]` source
+- `storehouse/src/main.rs`: same resolution, pass `&[String]` source
   texts to `run_suite_with_fixtures_and_loads`.
 
 ### 3.4 Event-bus behavior
@@ -139,7 +139,7 @@ end
 Add `loads` field to `lib/hecks/bluebook_model/structure/test_suite.rb`.
 Add `then_events_include` DSL method to `lib/hecks/dsl/test_builder.rb`.
 
-### 4.2 Rust — `hecks_life/src/behaviors_parser.rs`
+### 4.2 Rust — `storehouse/src/behaviors_parser.rs`
 
 Extend top-level parser:
 
@@ -300,7 +300,7 @@ pre- and post-change for zero-`loads` files.
 ### Critical Files for Implementation
 
 - `lib/hecks/behaviors/runner.rb`
-- `hecks_life/src/behaviors_runner.rs`
-- `hecks_life/src/behaviors_parser.rs`
+- `storehouse/src/behaviors_runner.rs`
+- `storehouse/src/behaviors_parser.rs`
 - `lib/hecks/dsl/test_suite_builder.rb`
 - `hecks_conception/aggregates/mindstream.behaviors`

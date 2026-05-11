@@ -93,7 +93,7 @@ module Hecks
       #   an infrastructure decision made outside the domain IR.
       attr_reader :identity_fields
 
-      # @return [Symbol, nil] the natural-key attribute that hecks-life dispatch
+      # @return [Symbol, nil] the natural-key attribute that storehouse dispatch
       #   uses to route commands to a specific instance. When set, the runtime
       #   reads `attrs[identified_by]` from each command ; if no record matches,
       #   the value becomes the new record's id (rather than counter-minting).

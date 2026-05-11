@@ -18,8 +18,8 @@ plausibly cascade-dropping in real bluebooks.
 
 1. Read both sides end-to-end:
    - Ruby: `lib/hecks/behaviors/value.rb` (the `Value.equal?` class method).
-   - Rust: `hecks_life/src/runtime/interpreter.rs` (`values_equal` +
-     `numeric_value`), plus `hecks_life/src/runtime/mod.rs`
+   - Rust: `storehouse/src/runtime/interpreter.rs` (`values_equal` +
+     `numeric_value`), plus `storehouse/src/runtime/mod.rs`
      (`enum Value` + `impl Display for Value`).
 2. Diffed the two algorithms pass by pass:
    structural equality → numeric coercion → display-form fallback.
@@ -258,7 +258,7 @@ severity, not by effort.
    green). Latent-bug class (currently masked by `to_display`).
 6. **Consider a shared test harness** — the
    `tmp_audit/harness.rb` pattern (run the same pairs through both
-   runners) is cheap; promote it to `hecks_life/tests/` or
+   runners) is cheap; promote it to `storehouse/tests/` or
    `parity/` and gate CI on it. Would have caught PR #262 before it
    shipped.
 
@@ -274,6 +274,6 @@ ruby value_equality_audit_harness.rb
 
 The harness loads the real `Hecks::Behaviors::Value` from `lib/` and runs
 it alongside a line-faithful port of `values_equal` / `numeric_value` /
-`Display for Value` from `hecks_life/src/runtime/`. The Rust port was
+`Display for Value` from `storehouse/src/runtime/`. The Rust port was
 spot-checked against `rustc` for `f64::parse` whitespace rejection and
 `HashMap == HashMap` order-independence — both behave as ported.

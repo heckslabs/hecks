@@ -21,8 +21,8 @@ Verified:
 - `lib/hecks/dsl/bluebook_builder.rb` has **no** `adapter` method
 - `lib/hecksagon/dsl/hecksagon_builder.rb#adapter` (L74) is the only dispatcher
 - `lib/hecks/runtime/boot.rb#wire_shell_adapters` (L185) — registers at boot
-- `hecks_life/src/runtime/adapter_registry.rs` — Rust mirror
-- `hecks_life/src/hecksagon_parser.rs` L65-95 — `adapter …` is hecksagon-only
+- `storehouse/src/runtime/adapter_registry.rs` — Rust mirror
+- `storehouse/src/hecksagon_parser.rs` L65-95 — `adapter …` is hecksagon-only
 
 A command reaches an adapter **implicitly** via naming — CommandBus
 middleware, named shell lookup (`runtime.shell(:git_resolve_ref, …)`),
@@ -99,7 +99,7 @@ end
 3. **Minimal surface.** One optional kwarg, not a new keyword.
 4. **Answers Ilya's critique.** Command can say "I use `:llm` adapter" structurally.
 5. **Matches runtime semantics.** Adapters resolved by symbol already.
-6. **No Rust churn.** `hecks_life` doesn't parse bluebooks yet; when it does, additive.
+6. **No Rust churn.** `storehouse` doesn't parse bluebooks yet; when it does, additive.
 
 ## §3 — Parser changes (Option D)
 
@@ -125,7 +125,7 @@ any hecksagon's adapters, raise `Hecks::ValidationError` (fail fast).
 
 ### Rust
 
-No change in Stage A — `hecks_life` doesn't parse bluebooks yet. When it
+No change in Stage A — `storehouse` doesn't parse bluebooks yet. When it
 does, lexer's `parse_hash_pairs` helper (L114) handles `:sym, key: val`.
 
 ## §4 — Runtime wiring (Option D)

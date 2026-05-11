@@ -10,11 +10,11 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
   # become five aggregates in one Dispatch domain — the execution
   # primitives the runtime uses to actually run a bluebook :
   #
-  #   hecks_life/src/runtime/command_dispatch.rs  (194 LOC)  → CommandDispatch
-  #   hecks_life/src/runtime/event_bus.rs          (69 LOC)  → EventBus
-  #   hecks_life/src/runtime/policy_engine.rs      (87 LOC)  → PolicyBinding
-  #   hecks_life/src/runtime/lifecycle.rs          (63 LOC)  → LifecycleCheck
-  #   hecks_life/src/runtime/middleware.rs         (60 LOC)  → MiddlewareStack
+  #   storehouse/src/runtime/command_dispatch.rs  (194 LOC)  → CommandDispatch
+  #   storehouse/src/runtime/event_bus.rs          (69 LOC)  → EventBus
+  #   storehouse/src/runtime/policy_engine.rs      (87 LOC)  → PolicyBinding
+  #   storehouse/src/runtime/lifecycle.rs          (63 LOC)  → LifecycleCheck
+  #   storehouse/src/runtime/middleware.rs         (60 LOC)  → MiddlewareStack
   #
   # This is the most foundational F-n declaration to date : the
   # thing that INTERPRETS a bluebook is now itself described as a

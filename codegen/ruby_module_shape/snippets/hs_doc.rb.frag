@@ -3,7 +3,7 @@
 # Hecks::Specializer — i51 Futamura specializer driver
 #
 # Single entry point for every specializer target. Loads the target's
-# shape fixtures via `hecks-life dump-fixtures`, dispatches to the
+# shape fixtures via `storehouse dump-fixtures`, dispatches to the
 # target module's #emit, returns the Rust source.
 #
 # Replaces the Phase A/B per-target bin/specialize-* scripts. The
@@ -24,4 +24,4 @@
 # Usage from CLI (bin/specialize):
 #   bin/specialize validator
 #   bin/specialize validator --diff
-#   bin/specialize dump --output hecks_life/src/dump.rs
+#   bin/specialize dump --output storehouse/src/dump.rs

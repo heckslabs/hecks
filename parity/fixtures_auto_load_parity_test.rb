@@ -2,7 +2,7 @@
 #
 # Locks the i4-gap-8 contract: both the Ruby runner
 # (bin/hecks-behaviors) and the Rust runner
-# (`hecks-life behaviors`) auto-load a sibling `.fixtures` file
+# (`storehouse behaviors`) auto-load a sibling `.fixtures` file
 # and produce identical pass/fail/error output on a fixture-dependent
 # behaviors suite. Drift between runners here is a hard failure.
 #
@@ -21,10 +21,10 @@ require "open3"
 require "tmpdir"
 require "fileutils"
 
-HECKS_LIFE  = File.expand_path("../rust/target/release/hecks-life", __dir__)
+STOREHOUSE  = File.expand_path("../rust/target/release/storehouse", __dir__)
 RUBY_RUNNER = File.expand_path("../bin/hecks-behaviors", __dir__)
 
-abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
+abort "storehouse not built" unless File.executable?(STOREHOUSE)
 abort "ruby runner missing"  unless File.executable?(RUBY_RUNNER)
 
 BLUEBOOK = <<~BLUEBOOK
@@ -104,7 +104,7 @@ Dir.mktmpdir("hecks-fixtures-parity-") do |dir|
   behaviors_path = write_fixture_pack(dir)
 
   ruby_out, = Open3.capture2e(RUBY_RUNNER, behaviors_path)
-  rust_out, = Open3.capture2e(HECKS_LIFE, "behaviors", behaviors_path)
+  rust_out, = Open3.capture2e(STOREHOUSE, "behaviors", behaviors_path)
 
   ruby_sum = parse_summary(ruby_out); rust_sum = parse_summary(rust_out)
   ruby_v   = parse_verdicts(ruby_out); rust_v  = parse_verdicts(rust_out)

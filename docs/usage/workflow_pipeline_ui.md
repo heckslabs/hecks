@@ -1,13 +1,13 @@
 # Workflow Pipeline UI
 
-Aggregates with a `lifecycle` block render as visual step pipelines in the hecks-life web UI.
+Aggregates with a `lifecycle` block render as visual step pipelines in the storehouse web UI.
 
 ## How it works
 
 1. **Start the server** with one or more bluebook domains:
 
 ```bash
-hecks-life serve path/to/hecks/ 3100
+storehouse serve path/to/hecks/ 3100
 ```
 
 2. **Open a domain** in your browser at `http://localhost:3100/domains/your_domain`.

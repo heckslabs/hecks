@@ -63,7 +63,7 @@ jobs:
           token: ${{ secrets.MIETTE_FAMILY_TOKEN }}
           path: miette_family
 
-      - name: Build hecks-life
+      - name: Build storehouse
         run: cd hecks/rust && cargo build --release
 
       - name: Smoke tests
@@ -92,7 +92,7 @@ jobs:
         # the pre-push hook's coverage. miette_family/ is included only
         # when checked out (optional sibling).
         run: |
-          HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/hecks-life"
+          HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/storehouse"
           ROOTS="$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
           # i499 audit (2026-05-08) extended coverage to adapters and
           # framework dirs (tools, discipline, runtime, bluebook,
@@ -126,9 +126,9 @@ jobs:
           [ "$fail" -gt 0 ] && exit 1
           echo "behaviors: all pass"
 
-      - name: Behaviors corpus (hecks-life test)
+      - name: Behaviors corpus (storehouse test)
         # i500 Stage 1 — parallel gate to the per-file `behaviors`
-        # walker above. `hecks-life test <root>` walks each domain
+        # walker above. `storehouse test <root>` walks each domain
         # root and runs every .behaviors with a same-stem .bluebook,
         # mirroring the pre-commit Gate 6b in tooling/git-hooks/pre-commit.
         # Roots match the pre-push gate. Both blocks gate during the
@@ -139,7 +139,7 @@ jobs:
         # the :pending scrub + i511 fixes (RegisterDomains + behaviors_runner
         # singleton lifecycle default). Catalog now reports 1175/0/0.
         run: |
-          HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/hecks-life"
+          HECKS="$GITHUB_WORKSPACE/hecks/rust/target/release/storehouse"
           ROOTS=""
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/aggregates" ] && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/aggregates"
           [ -d "$GITHUB_WORKSPACE/hecks/hecks_conception/adapters" ]   && ROOTS="$ROOTS $GITHUB_WORKSPACE/hecks/hecks_conception/adapters"
@@ -157,9 +157,9 @@ jobs:
             out="/tmp/behaviors_test_${name}.out"
             if ! "$HECKS" test "$root" >"$out" 2>&1; then
               fail=$((fail + 1))
-              echo "::error::hecks-life test $root failed"
+              echo "::error::storehouse test $root failed"
               tail -20 "$out"
             fi
           done
           [ "$fail" -gt 0 ] && exit 1
-          echo "behaviors (hecks-life test): all pass"
+          echo "behaviors (storehouse test): all pass"

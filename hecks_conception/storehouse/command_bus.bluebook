@@ -1,0 +1,187 @@
+Hecks.bluebook "CommandBus", version: "2026.05.10.1" do
+  vision "An app-scoped slice of the universal bus. CommandBus filters StoreHouse to the phrases whose app segment matches self.app, exposes them via HTTP routes (POST /route, GET /lexicon, GET /query, GET /health), and rejects any phrase outside its scope. The bus's UL is infrastructure : its model declares storage backends, hosts, and auth schemes as first-class domain concepts ; its commands include Configure (read world-file values at boot) alongside Scope, Route, and Expose. The I/O for each named backend / host / scheme lives in command_bus.hecksagon ; the per-deployment choice + credentials live in the world file. See i528 for the full storehouse arc."
+  category "storehouse"
+
+  # ============================================================
+  # COMMAND_BUS — the app-scoped bus
+  # ============================================================
+  #
+  # CommandBus is what a deployed surface — a Cloudflare Worker, an
+  # AWS Lambda, a local CLI — IS. It carries the App identity (the
+  # project folder name), the filtered phrase set (the slice of
+  # Lexicon where every entry's app matches), and the HTTP route
+  # declarations.
+  #
+  # Every consumer (a Pages Function proxy, an in-portal fetch,
+  # a smoke test, a curl against the deployed Worker) addresses the
+  # CommandBus by its routes, not by the underlying StoreHouse
+  # aggregates. The bus IS the API. StoreHouse stays the universal
+  # bluebook contract ; CommandBus is the per-app surface.
+  #
+  # ── Infrastructure as UL ──
+  #
+  # Customer aggregates (Notifications, Plan, Subscription) hold
+  # infrastructure at arm's length via adapter families — `:sms`
+  # binds Twilio to SendSms without Twilio's wire shape leaking into
+  # the business language. CommandBus is different. Its UL *is*
+  # infrastructure : storage, host, auth scheme are part of what
+  # the bus is, not external concerns it abstracts away. So the
+  # bluebook carries the model of those infrastructure concepts —
+  # StorageBackend, Host, AuthScheme value-objects with their
+  # known values — as first-class domain.
+  #
+  # The bluebook describes the model (what concepts exist, what
+  # their valid values are, what attributes the bus carries).
+  # The hecksagon describes the I/O (how :r2 actually does HTTP
+  # PUTs, how :cf_worker actually receives fetch events). The
+  # world file picks one of each for this deployment and supplies
+  # the credentials. Three layers, one concept per layer :
+  #
+  #   bluebook  : "StorageBackend is :fs, :r2, or :in_memory"
+  #   hecksagon : "Here is how :r2 talks to Cloudflare's S3 API"
+  #   world     : "For bin-buddy, the storage_backend is :r2 ;
+  #                its credentials live at $BIN_BUDDY_R2_*"
+  #
+  # Companion to dispatch.bluebook, lexicon.bluebook, query.bluebook
+  # (the underlying StoreHouse the bus filters from). See i528 for
+  # the full arc and the four-segment phrase convention.
+
+  aggregate "CommandBus", "An app-scoped slice of the universal bus" do
+    identified_by App
+
+    value_object "App" do
+      # The project folder name — the first segment of every phrase
+      # this bus accepts. Inferred at compile time from where the
+      # bluebooks live ; never declared in source.
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "Phrase" do
+      # Same shape as Dispatch.Phrase. Redeclared here because the
+      # bus enforces its own scope rule (the first segment must
+      # match self.app) before delegating downstream.
+      attribute :value, String
+      rule "must be app::domain::Aggregate::Command_or_query (4 non-empty segments)" do
+        requires { value.split("::").length == 4 && value.split("::").all? { |s| s.length > 0 } }
+      end
+    end
+
+    value_object "Params" do
+      # Key-value bag carried as a JSON object string. Same shape
+      # as Dispatch.Params ; the runtime parses into the target's
+      # typed attributes (or query parameters) at validation time.
+      attribute :value, String
+      rule "must be a JSON object" do
+        requires { value.start_with?("{") && value.end_with?("}") }
+      end
+    end
+
+    value_object "PhraseSet" do
+      # The filtered slice of the Lexicon — every phrase whose
+      # first segment matches self.app. Stored as a JSON array
+      # string for the event payload ; consumers reparse for
+      # iteration. Re-materialized on every Scope ; replaced
+      # wholesale (no incremental updates).
+      attribute :value, String
+    end
+
+    value_object "RouteCount" do
+      attribute :value, Integer
+      rule "must be non-negative" do
+        requires { value >= 0 }
+      end
+    end
+
+    # ── Infrastructure model — the bus's UL ─────────────────────
+
+    value_object "StorageBackend" do
+      # Which heki backend persists this bus's events. The hecksagon
+      # declares the I/O for each value ; the world file picks one
+      # and supplies its credentials.
+      attribute :value, String
+      rule "must be one of :fs, :r2, :in_memory" do
+        requires { %w[fs r2 in_memory].include?(value) }
+      end
+    end
+
+    value_object "Host" do
+      # Where the bus's WASM runs. cf_worker is the bin-buddy
+      # target ; cli is the laptop ; aws_lambda + axum_local are
+      # filed for later iterations.
+      attribute :value, String
+      rule "must be one of :cf_worker, :aws_lambda, :cli, :axum_local" do
+        requires { %w[cf_worker aws_lambda cli axum_local].include?(value) }
+      end
+    end
+
+    value_object "AuthScheme" do
+      # How incoming HTTP requests prove they're allowed. :bearer
+      # is service-to-service (worker secret) ; :jwt + :oauth are
+      # tenant / user scopes for portal-originated traffic ; :none
+      # for local CLI hosts that don't authenticate.
+      attribute :value, String
+      rule "must be one of :bearer, :jwt, :oauth, :none" do
+        requires { %w[bearer jwt oauth none].include?(value) }
+      end
+    end
+
+    attribute App
+    attribute StorageBackend
+    attribute Host
+    attribute AuthScheme
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Configure" do
+      role "System"
+      description "Read this deployment's storage backend, host, and auth scheme from the world file's command_bus block, validate the values against the known enums, and emit Configured. Fired once at bus boot before Scope ; the hecksagon's :host adapter binding triggers it with the world-file values."
+      attribute StorageBackend, as: :storage_backend
+      attribute Host,           as: :host
+      attribute AuthScheme,     as: :auth_scheme
+      emits "Configured"
+    end
+
+    command "Scope" do
+      role "System"
+      description "Materialize the filtered phrase set for this bus by walking Lexicon's index and selecting entries where app == self.app. Emits Scoped with the phrase count. Re-run after any Lexicon.Compile to refresh ; the runtime triggers this automatically when the lexicon changes."
+      attribute App, as: :app
+      emits "Scoped"
+    end
+
+    command "ListPhrases" do
+      role "Caller"
+      description "Read the currently materialized PhraseSet. Returns the JSON-encoded list of phrases this bus serves. Binds to the HTTP route GET /lexicon via the :http adapter."
+      emits "PhrasesListed"
+    end
+
+    command "Route" do
+      role "Caller"
+      description "Filtered Dispatch.Route. Asserts the phrase's first segment matches self.app ; out-of-scope phrases surface as a runtime error before any dispatch. On accept, delegates to Dispatch.Route and re-emits the resulting Dispatched event as Routed. Binds to the HTTP route POST /route. Only PascalCase fourth segments accepted here — snake_case phrases (queries) route through Query.Run via the same HTTP surface but a different handler."
+      attribute Phrase, as: :phrase
+      attribute Params, as: :params
+      expects "phrase is in this bus's scope" do
+        phrase.start_with?(app.value + "::")
+      end
+      expects "phrase fourth segment is PascalCase (a command, not a query)" do
+        phrase.split("::").last.match?(/\A[A-Z]/)
+      end
+      emits "Routed"
+    end
+
+    command "Expose" do
+      role "System"
+      description "Declares the bus's HTTP routes — POST /route → Route, GET /lexicon → ListPhrases, GET /query → Query.Read or Query.Run depending on the path's fourth segment case, GET /health → HealthCheck. The :http adapter binding in the hecksagon resolves these abstract route paths to its transport's idiom (CF Worker fetch handler, Lambda API Gateway proxy integration, axum router). Emitted once at bus boot."
+      attribute RouteCount, as: :route_count
+      emits "Exposed"
+    end
+
+    command "HealthCheck" do
+      role "Caller"
+      description "Reports the bus's status — the app it serves, the materialized phrase count, the storage adapter binding, the auth binding. Binds to the HTTP route GET /health. Used by deploy smoke tests, monitoring probes, and portal readiness checks."
+      emits "HealthChecked"
+    end
+  end
+end

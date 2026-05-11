@@ -1,8 +1,8 @@
-# hecks-life specialize — Futamura projections for hecks_life modules
+# storehouse specialize — Futamura projections for storehouse modules
 
-The `hecks-life specialize` subcommand regenerates Rust source files from
+The `storehouse specialize` subcommand regenerates Rust source files from
 their shape bluebooks + fixtures + snippet fragments. It is the sole code
-generation path for `hecks_life/src/*.rs` after the i51 autophagy arc
+generation path for `storehouse/src/*.rs` after the i51 autophagy arc
 (Phase E, 2026-04-24) deleted the Ruby `bin/specialize` driver and the
 `lib/hecks_specializer/` modules.
 
@@ -10,25 +10,25 @@ generation path for `hecks_life/src/*.rs` after the i51 autophagy arc
 
 ```sh
 # Emit to stdout (for inspection or piping to diff):
-hecks-life specialize validator
+storehouse specialize validator
 
 # Emit to the tracked .rs file:
-hecks-life specialize validator --output hecks_life/src/validator.rs
+storehouse specialize validator --output storehouse/src/validator.rs
 
 # List the known targets:
-hecks-life specialize --list
+storehouse specialize --list
 ```
 
 ## Known targets
 
 | Target               | Output                                    |
 |----------------------|-------------------------------------------|
-| `validator`          | `hecks_life/src/validator.rs`             |
-| `validator_warnings` | `hecks_life/src/validator_warnings.rs`    |
-| `dump`               | `hecks_life/src/dump.rs`                  |
-| `hecksagon_parser`   | `hecks_life/src/hecksagon_parser.rs`      |
-| `behaviors_parser`   | `hecks_life/src/behaviors_parser.rs`      |
-| `fixtures_parser`    | `hecks_life/src/fixtures_parser.rs`       |
+| `validator`          | `storehouse/src/validator.rs`             |
+| `validator_warnings` | `storehouse/src/validator_warnings.rs`    |
+| `dump`               | `storehouse/src/dump.rs`                  |
+| `hecksagon_parser`   | `storehouse/src/hecksagon_parser.rs`      |
+| `behaviors_parser`   | `storehouse/src/behaviors_parser.rs`      |
+| `fixtures_parser`    | `storehouse/src/fixtures_parser.rs`       |
 
 ## How it works
 
@@ -40,22 +40,22 @@ Each target's shape lives under `hecks_conception/capabilities/<target>_shape/`:
   that don't templatize cleanly (helper bodies, per-character automata,
   hand-formatted tables)
 
-The Rust-native specializer at `hecks_life/src/specializer/<target>.rs`
+The Rust-native specializer at `storehouse/src/specializer/<target>.rs`
 owns the emission logic: it reads the fixtures, walks the aggregates,
 and interpolates the snippets into the final `.rs` source. Output is
 byte-identical to the tracked file, enforced by the golden test in
-`hecks_life/tests/specializer_golden_test.rs`.
+`storehouse/tests/specializer_golden_test.rs`.
 
 ## Adding a new rule
 
 1. Add a fixture row under the shape's `.fixtures` file.
 2. Pick a `check_kind` (or body_strategy, or handler_kind — see the shape)
    that matches the rule's structure. If none fit, extend the specializer's
-   emitter in `hecks_life/src/specializer/<target>.rs` to handle a new
+   emitter in `storehouse/src/specializer/<target>.rs` to handle a new
    primitive, then add a matching bluebook attribute if needed.
 3. Regenerate the Rust source:
    ```sh
-   hecks-life specialize <target> --output hecks_life/src/<target>.rs
+   storehouse specialize <target> --output storehouse/src/<target>.rs
    ```
 4. `cargo test --release --test specializer_golden_test` — the new rule's
    row drives a regeneration of the `.rs` that must still be byte-identical

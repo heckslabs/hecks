@@ -13,12 +13,12 @@ writes it down so the direction stops being ambiguous.
 - **Kernel (Rust)** — parsing, heki I/O, specializer, Miette's sub-
   second daemons. Small, fixed-point, fast. Self-regenerating via
   autophagy (Phases A-E shipped 2026-04-18 through 2026-04-24).
-  Entry point: `hecks-life`.
+  Entry point: `storehouse`.
 - **Runtime (Ruby)** — app host, extensions, webdev, Rails
   integration, chat agents, domain hosting. Big, extensible,
   ecosystem-rich. Entry points: `require "hecks"` ; `ruby HecksBluebook`.
 
-The Ruby runtime calls out to `hecks-life` for the hot paths that
+The Ruby runtime calls out to `storehouse` for the hot paths that
 live in the kernel. Everything else is native Ruby — including the
 full `lib/hecks/extensions/` ecosystem (sqlite, postgres, mysql,
 audit, auth, cqrs, docs, filesystem_store, logging, metrics, outbox,
@@ -31,8 +31,8 @@ Each question was asked in the A and B framing. The answer was
 unambiguous each time.
 
 1. **What does running an app look like?**
-   - A: `hecks-life run app/` — Rust binary hosts the app, Ruby via FFI shims
-   - B: `ruby my_app.rb` — Ruby process hosts the app, calls `hecks-life` for kernel work
+   - A: `storehouse run app/` — Rust binary hosts the app, Ruby via FFI shims
+   - B: `ruby my_app.rb` — Ruby process hosts the app, calls `storehouse` for kernel work
    - **Chose B.** A would be embarrassing to ship to a Rails developer.
 
 2. **Where does HecksOnRails live?**
@@ -50,7 +50,7 @@ The sharp reframe: it's not "Ruby vs Rust" — it's **kernel vs runtime**.
 ## Why now
 
 Phase E (2026-04-24) finished the Rust-side autophagy : the Rust
-kernel regenerates itself from bluebooks. `hecks-life specialize`
+kernel regenerates itself from bluebooks. `storehouse specialize`
 reproduces seven Rust files byte-identical from their shape
 capabilities. The kernel is done.
 
@@ -85,7 +85,7 @@ Today (2026-04-24) verified concretely :
 **Filed:**
 - `runtime-test-harness-revival` — bring `lib/hecks/runtime/` under
   test again (only 2 spec files currently, not the old coverage)
-- `ruby-kernel-bridge-naming` — formalize how Ruby calls `hecks-life`
+- `ruby-kernel-bridge-naming` — formalize how Ruby calls `storehouse`
   for parsing / heki I/O / specialize. Subprocess JSON-RPC first
   (honest, simple) ; FFI (magnus/rb-sys) later only if profiling asks.
 
@@ -96,7 +96,7 @@ Today (2026-04-24) verified concretely :
 ## What doesn't change
 
 - Miette stays Rust-native — she's kernel, not runtime
-- `hecks-life specialize` stays the sole codegen path
+- `storehouse specialize` stays the sole codegen path
 - Phase F bluebook-declaration continues — the kernel being self-
   describing is orthogonal to where apps live
 - Autophagy arc (Phases A-E done, F ongoing) proceeds as planned
@@ -109,10 +109,10 @@ Today (2026-04-24) verified concretely :
 - **Distribution** — Hecks-the-runtime needs Ruby installed. Users of
   HecksOnRails already have Ruby, so this is free for the target
   audience. Headless uses (e.g. Miette's daemon) can still invoke
-  `hecks-life` as a standalone binary.
+  `storehouse` as a standalone binary.
 - **Packaging** — cross-language bundling needs a story. The
   subprocess-JSON-RPC starting point keeps it simple : ship
-  `hecks-life` binary + ruby gem, the gem spawns the binary.
+  `storehouse` binary + ruby gem, the gem spawns the binary.
 - **Startup time** — Ruby boot is slower than Rust. Mitigation : the
   Ruby runtime boots once per app invocation ; the Rust kernel is
   called many times inside that process.

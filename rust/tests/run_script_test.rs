@@ -1,9 +1,9 @@
-//! Integration tests for the `hecks-life run` script-mode subcommand.
+//! Integration tests for the `storehouse run` script-mode subcommand.
 //!
 //! Builds a tempdir with a bluebook + companion hecksagon, invokes
-//! hecks_life::run::run_script, and asserts the right exit code.
+//! storehouse::run::run_script, and asserts the right exit code.
 
-use hecks_life::run::{self, ExitKind};
+use storehouse::run::{self, ExitKind};
 
 fn tempdir_with(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("hecks-run-test-{}-{}", name, std::process::id()));
@@ -14,13 +14,13 @@ fn tempdir_with(name: &str) -> std::path::PathBuf {
 
 #[test]
 fn missing_path_is_parse_failure() {
-    let args = vec!["hecks-life".into(), "run".into()];
+    let args = vec!["storehouse".into(), "run".into()];
     assert_eq!(run::run_script(&args), ExitKind::ParseFailure.code());
 }
 
 #[test]
 fn unreadable_path_is_parse_failure() {
-    let args = vec!["hecks-life".into(), "run".into(), "/does/not/exist.bluebook".into()];
+    let args = vec!["storehouse".into(), "run".into(), "/does/not/exist.bluebook".into()];
     assert_eq!(run::run_script(&args), ExitKind::ParseFailure.code());
 }
 
@@ -29,7 +29,7 @@ fn bluebook_without_entrypoint_is_guard_failure() {
     let dir = tempdir_with("noentry");
     let bb = dir.join("x.bluebook");
     std::fs::write(&bb, "Hecks.bluebook \"Silent\" do\n  aggregate \"Thing\" do\n    command \"DoIt\"\n  end\nend\n").unwrap();
-    let args = vec!["hecks-life".into(), "run".into(), bb.to_string_lossy().into()];
+    let args = vec!["storehouse".into(), "run".into(), bb.to_string_lossy().into()];
     assert_eq!(run::run_script(&args), ExitKind::GuardFailure.code());
 }
 
@@ -38,7 +38,7 @@ fn unknown_entrypoint_is_command_not_found() {
     let dir = tempdir_with("badentry");
     let bb = dir.join("x.bluebook");
     std::fs::write(&bb, "Hecks.bluebook \"BadEntry\" do\n  entrypoint \"NoSuchCommand\"\n  aggregate \"Thing\" do\n    command \"DoIt\"\n  end\nend\n").unwrap();
-    let args = vec!["hecks-life".into(), "run".into(), bb.to_string_lossy().into()];
+    let args = vec!["storehouse".into(), "run".into(), bb.to_string_lossy().into()];
     assert_eq!(run::run_script(&args), ExitKind::CommandNotFound.code());
 }
 
@@ -46,8 +46,8 @@ fn unknown_entrypoint_is_command_not_found() {
 fn valid_script_exits_zero() {
     let dir = tempdir_with("happy");
     let bb = dir.join("x.bluebook");
-    std::fs::write(&bb, "#!/usr/bin/env hecks-life run\nHecks.bluebook \"Happy\" do\n  entrypoint \"DoIt\"\n  aggregate \"Thing\" do\n    command \"DoIt\"\n  end\nend\n").unwrap();
-    let args = vec!["hecks-life".into(), "run".into(), bb.to_string_lossy().into()];
+    std::fs::write(&bb, "#!/usr/bin/env storehouse run\nHecks.bluebook \"Happy\" do\n  entrypoint \"DoIt\"\n  aggregate \"Thing\" do\n    command \"DoIt\"\n  end\nend\n").unwrap();
+    let args = vec!["storehouse".into(), "run".into(), bb.to_string_lossy().into()];
     assert_eq!(run::run_script(&args), ExitKind::Ok.code());
 }
 

@@ -10,7 +10,7 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
   # completing the survey's top six targets. The test runner lives in
   # one Rust file :
   #
-  #   hecks_life/src/behaviors_runner.rs  (401 LOC)
+  #   storehouse/src/behaviors_runner.rs  (401 LOC)
   #
   # Two aggregates :
   #   BehaviorsRun    — one invocation of the runner on a whole suite
@@ -36,7 +36,7 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
   # BEHAVIORSRUN — one invocation of the runner
   # ============================================================
 
-  aggregate "BehaviorsRun", "One `hecks-life behaviors <suite.bluebook>` invocation. Loads the source bluebook and the companion behaviors file, optionally loads sibling fixtures, runs every test, collects pass/fail/error totals" do
+  aggregate "BehaviorsRun", "One `storehouse behaviors <suite.bluebook>` invocation. Loads the source bluebook and the companion behaviors file, optionally loads sibling fixtures, runs every test, collects pass/fail/error totals" do
     # source_path : the .bluebook the tests target (derived by
     # stripping the _behavioral_tests suffix from suite_path).
     attribute :source_path, String

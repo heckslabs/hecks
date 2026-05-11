@@ -15,7 +15,7 @@ buckets per claim:
 ## What it searches
 
 - `lib/` (Ruby implementation)
-- `hecks_life/src/` (Rust implementation)
+- `storehouse/src/` (Rust implementation)
 - `hecks_conception/aggregates/` and `hecks_conception/capabilities/` (Bluebook)
 - `spec/` (tests)
 - `examples/` (generated sample apps, often carry real method names)

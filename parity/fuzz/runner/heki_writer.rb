@@ -7,11 +7,11 @@
 # comparator read both trees through one reader and compare on
 # equal footing.
 #
-# Filename mapping mirrors hecks_life/src/runtime/repository.rs's
+# Filename mapping mirrors storehouse/src/runtime/repository.rs's
 # heki_path(): "Counter" → "counter.heki", "Agg1" → "agg1.heki".
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
-# fuzzer ports to bluebook-dispatched form via hecks-life run]
+# fuzzer ports to bluebook-dispatched form via storehouse run]
 
 require "json"
 require "zlib"
@@ -55,7 +55,7 @@ module Hecks
           end
 
           # Translate a Hecks::Behaviors::Value to a JSON-writable
-          # primitive. Mirrors hecks_life/src/runtime/repository.rs
+          # primitive. Mirrors storehouse/src/runtime/repository.rs
           # to_json(): Int → i64, Bool → bool, Str → string, Null →
           # null, List → array, Map → object.
           def value_to_json(value)

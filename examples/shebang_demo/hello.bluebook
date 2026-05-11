@@ -1,4 +1,4 @@
-#!/usr/bin/env hecks-life dump
+#!/usr/bin/env storehouse dump
 Hecks.bluebook "ShebangDemo" do
   vision "Proof that a shebang line is tolerated by the parser"
   category "example"

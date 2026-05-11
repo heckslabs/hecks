@@ -1,5 +1,5 @@
 Hecks.bluebook "DiscoverShape", version: "2026.04.30.1" do
-  vision "The shape of hecks_life/src/run_boot/discover.rs as a bluebook — the boot pipeline's Phase 1+2 (DiscoverOrgans + WriteCensus) made IR-derivable via ordered embedded snippets."
+  vision "The shape of storehouse/src/run_boot/discover.rs as a bluebook — the boot pipeline's Phase 1+2 (DiscoverOrgans + WriteCensus) made IR-derivable via ordered embedded snippets."
   category "autophagy"
 
   # ============================================================
@@ -24,7 +24,7 @@ Hecks.bluebook "DiscoverShape", version: "2026.04.30.1" do
   # Layer mapping (mirrors heki_query_shape) :
   #   L0 = this file + fixtures/discover_shape.fixtures + snippets/*.rs.frag
   #   L1 = canonical_ir representation of this file
-  #   L7 = hecks_life/src/run_boot/discover.rs (generated target)
+  #   L7 = storehouse/src/run_boot/discover.rs (generated target)
   #
   # The `verbatim_section` body_kind is the same one heki_query_shape
   # introduced — the snippet IS already the surrounding Rust code

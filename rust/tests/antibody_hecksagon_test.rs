@@ -6,7 +6,7 @@
 //!  surface. Retires when behaviors framework can drive hecksagon
 //!  smoke tests directly.]
 
-use hecks_life::hecksagon_parser;
+use storehouse::hecksagon_parser;
 use std::fs;
 
 #[test]

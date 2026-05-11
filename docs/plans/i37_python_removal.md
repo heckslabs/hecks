@@ -10,7 +10,7 @@ Source: inbox `i37` + plan by Agent a65a3a6a on 2026-04-22.
 
 ## What shipped (Phase A, PR #272)
 
-**8 heki subcommands landed in `hecks_life/src/heki_query.rs`** (156/156 tests green):
+**8 heki subcommands landed in `storehouse/src/heki_query.rs`** (156/156 tests green):
 
 - `heki get <file> <id> [<field>]` — one record by id, optional field projection
 - `heki list <file> [--where k=v]... [--order <field>:<mod>] [--fields a,b] [--format json|tsv|kv]` — filter + order + project
@@ -59,7 +59,7 @@ Per Chris's direction earlier in session: Summer was premature.
 - `hecks_conception/summer/` tree (5 `.py` + adapter + __pycache__)
 - `summer/` top-level Rust crate
 - `boot_summer.sh` shim
-- Remove `"summer" => "Summer"` arm in `hecks_life/src/main.rs::being_from_argv0`
+- Remove `"summer" => "Summer"` arm in `storehouse/src/main.rs::being_from_argv0`
 
 **Before deletion**: `rg -i summer install.sh deployments/ .github/workflows/` — verify no live consumers. Remove assertions on `being_from_argv0` for "summer".
 
@@ -94,7 +94,7 @@ Total effort: ~2 weeks pipelined / ~6 sequential.
 
 - Output-format drift during Batch 1 (inbox.sh) — `heki next-ref` must match current Python byte-for-byte (validated in Phase A)
 - Filter edge cases for priority enum ordering (use `--order priority:enum=high,medium,normal,low`)
-- `test_miette.sh`'s 53-fork test suite gets FASTER after sweep (hecks-life cold start is ~5× faster than Python); net speedup expected
+- `test_miette.sh`'s 53-fork test suite gets FASTER after sweep (storehouse cold start is ~5× faster than Python); net speedup expected
 - Wall-clock surprise: the `seconds-since` subcommand exists (Phase A). No Python needed for idle computation.
 
 ## Key files
@@ -106,5 +106,5 @@ Total effort: ~2 weeks pipelined / ~6 sequential.
 - DELETE: entire `hecks_conception/summer/` tree
 - DELETE: `summer/` Rust crate
 - DELETE: `boot_summer.sh`
-- MODIFY: `hecks_life/src/main.rs::being_from_argv0` (remove Summer arm)
+- MODIFY: `storehouse/src/main.rs::being_from_argv0` (remove Summer arm)
 - MODIFY: `bin/antibody-check` (forbid Python outright)

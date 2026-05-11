@@ -10,7 +10,7 @@ name: Fuzz (nightly)
 #
 # [antibody-exempt: nightly CI config — no .hecksagon-driven CI
 # adapter exists yet; hardcoded YAML is the pragmatic choice until
-# hecks-life grows a workflow generator.]
+# storehouse grows a workflow generator.]
 
 on:
   schedule:
@@ -51,7 +51,7 @@ jobs:
             rust/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('rust/Cargo.lock', 'rust/Cargo.toml') }}
 
-      - name: Build hecks-life (release)
+      - name: Build storehouse (release)
         working-directory: rust
         run: cargo build --release --quiet
 

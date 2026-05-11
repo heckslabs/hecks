@@ -27,7 +27,7 @@
 # ignored.
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
-# fuzzer ports to bluebook-dispatched form via hecks-life run]
+# fuzzer ports to bluebook-dispatched form via storehouse run]
 
 $LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
 require "fileutils"
@@ -38,14 +38,14 @@ require_relative "generator"
 require_relative "runner"
 require_relative "comparator"
 
-HECKS_LIFE_RELEASE = File.expand_path("../../rust/target/release/hecks-life", __dir__)
-HECKS_LIFE_DEBUG   = File.expand_path("../../rust/target/debug/hecks-life", __dir__)
-HECKS_LIFE = [HECKS_LIFE_RELEASE, HECKS_LIFE_DEBUG].find { |p| File.executable?(p) } || HECKS_LIFE_RELEASE
+STOREHOUSE_RELEASE = File.expand_path("../../rust/target/release/storehouse", __dir__)
+STOREHOUSE_DEBUG   = File.expand_path("../../rust/target/debug/storehouse", __dir__)
+STOREHOUSE = [STOREHOUSE_RELEASE, STOREHOUSE_DEBUG].find { |p| File.executable?(p) } || STOREHOUSE_RELEASE
 FAILURES_DIR = File.expand_path("failures", __dir__)
 KNOWN_DRIFT = File.expand_path("known_drift_fuzz.txt", __dir__)
 
-unless File.executable?(HECKS_LIFE)
-  abort "hecks-life not built — run: (cd rust && cargo build --release --bin hecks-life)"
+unless File.executable?(STOREHOUSE)
+  abort "storehouse not built — run: (cd rust && cargo build --release --bin storehouse)"
 end
 
 options = { seed: nil, count: 200, budget_seconds: 80, start: 1, verbose: false }
@@ -123,7 +123,7 @@ seeds.each do |seed|
   ran += 1
   program = Hecks::Parity::Fuzz::Generator.generate(seed)
   domain = load_domain_for(program)
-  result  = Hecks::Parity::Fuzz::Runner.run(program, hecks_life_bin: HECKS_LIFE)
+  result  = Hecks::Parity::Fuzz::Runner.run(program, storehouse_bin: STOREHOUSE)
   verdict = Hecks::Parity::Fuzz::Comparator.compare(result, domain)
 
   if verdict.status == :agree

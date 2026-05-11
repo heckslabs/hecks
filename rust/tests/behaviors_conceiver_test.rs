@@ -9,8 +9,8 @@
 //!     command's expectations (those land in a different repo).
 //!   - Cyclic policy chains terminate via the visited set.
 
-use hecks_life::behaviors_conceiver::generator::generate_behaviors;
-use hecks_life::parser;
+use storehouse::behaviors_conceiver::generator::generate_behaviors;
+use storehouse::parser;
 
 #[test]
 fn smoke_generates_non_empty_suite() {

@@ -6,7 +6,7 @@
 # PR fails — unless the increase is authorised by a signed commit
 # carrying a [loc-ratchet-override: <reason>] marker.
 #
-# i118 renamed hecks_life/ → rust/ ; the path here was updated 2026-05-01
+# i118 renamed storehouse/ → rust/ ; the path here was updated 2026-05-01
 # to match. Before that, the scan returned 0 trivially because the old
 # path didn't exist post-rename, so the ratchet was a no-op gate.
 #
@@ -70,17 +70,17 @@ def ignored?(path)
   IGNORED_SEGMENTS.any? { |seg| path.include?(seg) }
 end
 
-# Locate the hecks-life binary so the ratchet can ask the IR-query
+# Locate the storehouse binary so the ratchet can ask the IR-query
 # substrate (i122) whether each scanned file is dispatched by some
 # adapter / specializer / runner. Files that ARE dispatched stop
 # counting toward the non-bluebook budget — the inversion in
 # measurement form. Without the binary we fall back to counting
 # every file (preserves pre-i122 behavior on a fresh clone before
 # `cargo build --release` runs).
-HECKS_LIFE_BIN = [
+STOREHOUSE_BIN = [
   ENV["HECKS_BIN"],
-  File.expand_path("../rust/target/release/hecks-life", __dir__),
-  File.expand_path("../rust/target/debug/hecks-life",   __dir__),
+  File.expand_path("../rust/target/release/storehouse", __dir__),
+  File.expand_path("../rust/target/debug/storehouse",   __dir__),
 ].compact.find { |p| File.executable?(p) }
 
 # Memo cache : file path → boolean. The CLI is fast (~5ms per call)
@@ -90,9 +90,9 @@ HECKS_LIFE_BIN = [
 $dispatch_cache = {}
 
 def ir_claimed?(path)
-  return false unless HECKS_LIFE_BIN
+  return false unless STOREHOUSE_BIN
   return $dispatch_cache[path] if $dispatch_cache.key?(path)
-  _out, _err, status = Open3.capture3(HECKS_LIFE_BIN, "is-dispatched", path)
+  _out, _err, status = Open3.capture3(STOREHOUSE_BIN, "is-dispatched", path)
   $dispatch_cache[path] = status.exitstatus == 0
 end
 

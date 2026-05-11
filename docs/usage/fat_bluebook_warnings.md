@@ -7,7 +7,7 @@ Soft validation warnings that help you spot domains that may need splitting into
 Fires when a domain has more than 7 aggregates.
 
 ```bash
-$ hecks-life validate my_fat_domain.bluebook
+$ storehouse validate my_fat_domain.bluebook
   WARNING: Domain MyFatDomain has 11 aggregates — consider splitting into bounded contexts
 VALID — MyFatDomain (11 aggregates)
 ```
@@ -19,7 +19,7 @@ The domain still passes as VALID -- this is advisory only.
 Fires when a domain with 5+ aggregates has disconnected clusters -- aggregates with no references or policy wiring between them.
 
 ```bash
-$ hecks-life validate mixed_domain.bluebook
+$ storehouse validate mixed_domain.bluebook
   WARNING: Aggregates Order and Formula have no references between them — they may belong in separate bounded contexts
 VALID — MixedDomain (6 aggregates)
 ```

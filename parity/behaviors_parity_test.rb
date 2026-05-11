@@ -1,7 +1,7 @@
 # Hecks::Parity::BehaviorsParityTest
 #
 # Runs the same `_behavioral_tests.bluebook` files through both the
-# Rust runner (`hecks-life behaviors`) and the Ruby runner
+# Rust runner (`storehouse behaviors`) and the Ruby runner
 # (`bin/hecks-behaviors`), then diffs the per-test pass/fail/error
 # verdicts. Drift between runners is a hard contract failure.
 #
@@ -13,7 +13,7 @@
 #
 require "open3"
 
-HECKS_LIFE   = File.expand_path("../rust/target/release/hecks-life", __dir__)
+STOREHOUSE   = File.expand_path("../rust/target/release/storehouse", __dir__)
 RUBY_RUNNER  = File.expand_path("../bin/hecks-behaviors", __dir__)
 KNOWN_DRIFT  = File.expand_path("behaviors_known_drift.txt", __dir__)
 
@@ -25,7 +25,7 @@ DEFAULT_SAMPLE = %w[
   hecks_conception/family/king_mango.behaviors
 ].select { |p| File.exist?(File.expand_path("../#{p}", __dir__)) }
 
-abort "hecks-life not built" unless File.executable?(HECKS_LIFE)
+abort "storehouse not built" unless File.executable?(STOREHOUSE)
 abort "ruby runner missing"  unless File.executable?(RUBY_RUNNER)
 
 # Parse "X passed, Y failed, Z errored" from a runner's tail output.
@@ -63,7 +63,7 @@ agreed    = 0
 
 target_files.sort.each do |tf|
   ruby_out, _ = Open3.capture2e(RUBY_RUNNER, tf)
-  rust_out, _ = Open3.capture2e(HECKS_LIFE, "behaviors", tf)
+  rust_out, _ = Open3.capture2e(STOREHOUSE, "behaviors", tf)
 
   ruby_sum = parse_summary(ruby_out)
   rust_sum = parse_summary(rust_out)

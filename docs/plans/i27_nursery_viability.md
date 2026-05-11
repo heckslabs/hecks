@@ -5,7 +5,7 @@ Source: inbox `i27` + plan by Agent a31587a2 (v1) + Agent aa764fc9 (refined 2026
 > **Supersedes v1**: reshapes the audit from a shell/Ruby scanner into a
 > first-class `Hecks.bluebook "NurseryHealth"` capability per the
 > "audit-as-hecksagon" pattern. Python-ban (i37) concern is moot because
-> audit runs from Rust shim via `hecks-life nursery-health` subcommand.
+> audit runs from Rust shim via `storehouse nursery-health` subcommand.
 
 ## Summary
 
@@ -68,12 +68,12 @@ Thresholds as seeded rows so tuning = fixture change, not code change.
 
 ## §4 — Runtime
 
-New `hecks_life/src/run_nursery_health.rs`, registered as subcommand:
+New `storehouse/src/run_nursery_health.rs`, registered as subcommand:
 
 ```
-hecks-life nursery-health scan   [--root <path>] [--policy <name>]
-hecks-life nursery-health report [--format json|text|badge]
-hecks-life nursery-health weekly [--week-of YYYY-WW]
+storehouse nursery-health scan   [--root <path>] [--policy <name>]
+storehouse nursery-health report [--format json|text|badge]
+storehouse nursery-health weekly [--week-of YYYY-WW]
 ```
 
 ### `scan` algorithm
@@ -121,16 +121,16 @@ for structural-only.
 
 ### New
 - `hecks_conception/capabilities/nursery_health/{nursery_health.bluebook, .behaviors, .hecksagon, fixtures/nursery_health.fixtures, weekly.sh}`
-- `hecks_life/src/run_nursery_health.rs`
+- `storehouse/src/run_nursery_health.rs`
 - `tests/nursery_health_smoke.sh` + `tests/fixtures/mini_nursery/`
 
 ### Modified
-- `hecks_life/src/main.rs` — register subcommand
+- `storehouse/src/main.rs` — register subcommand
 - `hecks_conception/capabilities/status_bar/status_bar.bluebook` — `show_nursery_viability`
 - `FEATURES.md`, `CLAUDE.md`, `docs/plans/INDEX.md`
 
 ### Reused
-- `hecks_life/src/{parser.rs, ir.rs, cascade.rs, behaviors_runner.rs}`
+- `storehouse/src/{parser.rs, ir.rs, cascade.rs, behaviors_runner.rs}`
 - `spec/parity/fixtures_known_drift.txt`, `NURSERY_BLUEBOOK_INVENTORY.md`
 
 ## Dependencies

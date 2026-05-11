@@ -9,7 +9,7 @@
 //!  i78 (specializer-files-as-bluebook) when the specializer itself
 //!  is regenerated from a meta-shape.]
 //!
-//! Fired by `hecks-life statusline` (CLI subcommand). Claude Code's
+//! Fired by `storehouse statusline` (CLI subcommand). Claude Code's
 //! statusline-command.sh becomes a 3-line wrapper that exec's this.
 //!
 //! ## Inputs (heki + filesystem under HECKS_INFO)

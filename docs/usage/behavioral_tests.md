@@ -7,8 +7,8 @@ the same DSL discipline as the source bluebooks.
 ## The pipeline
 
 ```
-hecks-life conceive-behaviors path/to/source.bluebook       # generate
-hecks-life behaviors          path/to/source_behavioral_tests.bluebook  # run
+storehouse conceive-behaviors path/to/source.bluebook       # generate
+storehouse behaviors          path/to/source_behavioral_tests.bluebook  # run
 ```
 
 The generator walks the source IR and emits one test per command + one
@@ -55,9 +55,9 @@ when injecting reference kwargs to dispatch. Test authors never type
 Three commands gate bluebook health:
 
 ```bash
-hecks-life check-lifecycle <bluebook>          # transitions, givens, mutation refs
-hecks-life check-io        <bluebook>          # bluebook stays in-memory
-hecks-life check-all       <bluebook>          # both at once
+storehouse check-lifecycle <bluebook>          # transitions, givens, mutation refs
+storehouse check-io        <bluebook>          # bluebook stays in-memory
+storehouse check-all       <bluebook>          # both at once
 ```
 
 Add `--strict` to promote warnings to errors.
@@ -111,7 +111,7 @@ end
 ```
 
 The expected list is computed by the **static cascade walker**
-(`hecks_life/src/cascade.rs`), which mirrors the runtime's policy
+(`storehouse/src/cascade.rs`), which mirrors the runtime's policy
 engine: a policy is blocked while on the recursion stack (allowing
 diamond fan-in but blocking self-recursion).
 

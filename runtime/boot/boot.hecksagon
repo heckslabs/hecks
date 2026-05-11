@@ -39,9 +39,9 @@ Hecks.hecksagon "Boot" do
   adapter :memory
 
   # :daemon is the new process-lifecycle primitive (added 2026-04-26
-  # in hecks_life/src/main.rs run_daemon). The adapter takes a
+  # in storehouse/src/main.rs run_daemon). The adapter takes a
   # pidfile path + a command + args ; the runner invokes
-  # `hecks-life daemon ensure <pidfile> <command>` per declared
+  # `storehouse daemon ensure <pidfile> <command>` per declared
   # daemon during the EnsureDaemons phase.
   adapter :daemon
 
@@ -59,7 +59,7 @@ Hecks.hecksagon "Boot" do
   # Mindstream — the body's 1Hz tick driver. Inlines what
   # body/mindstream.sh used to wrap (the script retired
   # 2026-05-08 in the miette→hecks boundary cleanup ; its content
-  # was a 5-line shell exec into `hecks-life run-loop`). The
+  # was a 5-line shell exec into `storehouse run-loop`). The
   # body-cycle dispatch fan-out (Tick.MindstreamTick on attentive,
   # Consciousness.ElapsePhase on sleeping_*) lives in
   # body/cycles/body_cycle.bluebook (the BodyCycle PM) ;
@@ -73,7 +73,7 @@ Hecks.hecksagon "Boot" do
   # HECKS_REFRESH_REPOS=1 opts mindstream into the i517 cross-
   # process freshness sweep declared in storage.bluebook
   # (RefreshIfStale + RefreshOnPulse). The long-running daemon
-  # picks up disk writes from sibling processes (`hecks-life sleep`
+  # picks up disk writes from sibling processes (`storehouse sleep`
   # dispatching EnterSleep, etc.) ; without it, the daemon's
   # in-memory state goes stale relative to disk and ElapsePhase's
   # given { state == "sleeping" } never matches. Single-process

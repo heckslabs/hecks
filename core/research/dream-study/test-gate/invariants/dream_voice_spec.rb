@@ -37,7 +37,7 @@ require "open3"
 RSpec.describe "Dream language + voice invariants" do
   STATE_ROOT = File.expand_path("../../../../miette-state/information",
                                 __dir__)
-  HECKS_BIN  = File.expand_path("../../../../hecks/rust/target/release/hecks-life",
+  HECKS_BIN  = File.expand_path("../../../../hecks/rust/target/release/storehouse",
                                 __dir__)
 
   # French marker set : characters + words distinctive to French.

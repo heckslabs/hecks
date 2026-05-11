@@ -6,7 +6,7 @@ substitutes `{{placeholder}}` tokens, runs the command through
 `Open3.capture3` (no shell), parses stdout into a declared format, and
 returns a `Result` struct.
 
-> Status: Ruby-only. The Rust `hecks-life` parser does not read
+> Status: Ruby-only. The Rust `storehouse` parser does not read
 > `.hecksagon` files yet; parity is a separately-tracked follow-up.
 
 ## Declaring

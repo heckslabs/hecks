@@ -29,8 +29,8 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
   # storehouse/lexicon.bluebook (i255).
   #
   # The parser today silently accepts the form ; it doesn't yet lift
-  # it into the IR, so this bluebook parses against `hecks-life
-  # inspect` and `hecks-life check-lifecycle` even before the i483
+  # it into the IR, so this bluebook parses against `storehouse
+  # inspect` and `storehouse check-lifecycle` even before the i483
   # parser-support card lands. Once the parser lands, the runtime
   # picks up `dispatched_by: Agent` automatically.
   #

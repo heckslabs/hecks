@@ -5,10 +5,10 @@
         return;
     }
 
-    // Bluebook dispatch: hecks-life <dir-or-file> <CommandName>
+    // Bluebook dispatch: storehouse <dir-or-file> <CommandName>
     // If first arg is a directory/bluebook and second is a PascalCase command, dispatch it
-    // Bluebook dispatch: hecks-life <dir-or-file> Aggregate.Command
-    // e.g. hecks-life aggregates/ Heartbeat.Beat
+    // Bluebook dispatch: storehouse <dir-or-file> Aggregate.Command
+    // e.g. storehouse aggregates/ Heartbeat.Beat
     if !path.is_empty()
         && path.contains('.')
         && path.chars().next().map_or(false, |c| c.is_uppercase())
@@ -56,7 +56,7 @@
     }
 
     if path.is_empty() {
-        eprintln!("Usage: hecks-life {} <bluebook-file-or-dir>", command);
+        eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
     }
 
@@ -124,11 +124,11 @@
                 // Corpus-wide rules live in validator_corpus (not in
                 // validator.rs / validator_warnings.rs) so those two
                 // files keep byte-identity with their specializers.
-                errors.extend(hecks_life::validator_corpus::corpus_phantom_trigger_errors(&corpus));
-                for w in hecks_life::validator_corpus::policy_event_warnings(&corpus) {
+                errors.extend(storehouse::validator_corpus::corpus_phantom_trigger_errors(&corpus));
+                for w in storehouse::validator_corpus::policy_event_warnings(&corpus) {
                     eprintln!("{}", w);
                 }
-                for w in hecks_life::validator_corpus::bare_name_collisions(&corpus) {
+                for w in storehouse::validator_corpus::bare_name_collisions(&corpus) {
                     eprintln!("{}", w);
                 }
             }
@@ -151,7 +151,7 @@
                 domain.aggregates.iter().map(|a| a.commands.len()).sum::<usize>(),
                 domain.policies.len());
         }
-        "project" => eprintln!("project is now: hecks-life serve <dir-or-file>"),
+        "project" => eprintln!("project is now: storehouse serve <dir-or-file>"),
         "counts" => {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
             println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());

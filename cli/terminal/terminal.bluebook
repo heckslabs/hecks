@@ -1,6 +1,6 @@
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "Terminal" do
-  vision "Interactive REPL — stdin/stdout wired to a hecks-life runtime"
+  vision "Interactive REPL — stdin/stdout wired to a storehouse runtime"
 
   entrypoint "StartSession"
 

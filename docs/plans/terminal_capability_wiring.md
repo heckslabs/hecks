@@ -4,9 +4,9 @@ Source: plan by Agent a65afbf3 on 2026-04-22.
 
 ## Problem shape
 
-PR #263 shipped `hecks-life run <file.bluebook>` + the terminal bluebook/hecksagon + the stdin-loop runner. But `hecks-life run capabilities/terminal/terminal.bluebook` today prints a banner and exits — because the terminal's REPL needs Speech, Mood, Heartbeat, Conversation, Musing state that lives in OTHER bluebooks. The run-loop dispatches `ReceiveInput` but those aggregates aren't in the composed Domain, so responses come back as `*silence*`.
+PR #263 shipped `storehouse run <file.bluebook>` + the terminal bluebook/hecksagon + the stdin-loop runner. But `storehouse run capabilities/terminal/terminal.bluebook` today prints a banner and exits — because the terminal's REPL needs Speech, Mood, Heartbeat, Conversation, Musing state that lives in OTHER bluebooks. The run-loop dispatches `ReceiveInput` but those aggregates aren't in the composed Domain, so responses come back as `*silence*`.
 
-Meanwhile `hecks-life terminal` (legacy path) still works via `run_terminal()` in `main.rs:803-828` which globs every `.bluebook` in `aggregates/` and merges them — "ambient shim."
+Meanwhile `storehouse terminal` (legacy path) still works via `run_terminal()` in `main.rs:803-828` which globs every `.bluebook` in `aggregates/` and merges them — "ambient shim."
 
 ## Decision: domain composition at LOAD time
 
@@ -71,7 +71,7 @@ Currently Ctrl-C kills the process without `EndSession`. Install a `signal_hook`
 
 ## What breaks
 
-- `hecks-life terminal <dir>` subcommand stays untouched (escape hatch)
+- `storehouse terminal <dir>` subcommand stays untouched (escape hatch)
 - `adapter_terminal.rs` (45-line shim) stays untouched this PR; marked `DEPRECATED`
 - Both die together in a follow-up after a week of dogfooding the shebang path
 
@@ -90,9 +90,9 @@ Currently Ctrl-C kills the process without `EndSession`. Install a `signal_hook`
 
 ## Key files
 
-- MODIFY: `hecks_life/src/hecksagon_ir.rs` (add `includes: Vec<String>`)
-- MODIFY: `hecks_life/src/hecksagon_parser.rs` (parse `includes "..."`)
-- NEW: `hecks_life/src/run_resolve.rs`
-- MODIFY: `hecks_life/src/run.rs` (call resolver before boot)
-- MODIFY: `hecks_life/src/run_stdin_loop.rs` (adapter_llm hook + SIGINT)
+- MODIFY: `storehouse/src/hecksagon_ir.rs` (add `includes: Vec<String>`)
+- MODIFY: `storehouse/src/hecksagon_parser.rs` (parse `includes "..."`)
+- NEW: `storehouse/src/run_resolve.rs`
+- MODIFY: `storehouse/src/run.rs` (call resolver before boot)
+- MODIFY: `storehouse/src/run_stdin_loop.rs` (adapter_llm hook + SIGINT)
 - MODIFY: `hecks_conception/capabilities/terminal/terminal.hecksagon` (add includes)

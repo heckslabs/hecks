@@ -23,15 +23,15 @@
 # Set BEHAVIORS_SKIP=1 to bypass for emergencies (an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-HECKS_LIFE="$REPO/rust/target/release/hecks-life"
+STOREHOUSE="$REPO/rust/target/release/storehouse"
 
 if [ -n "$BEHAVIORS_SKIP" ]; then
     echo "pre-push: BEHAVIORS_SKIP=1 — skipping behaviors gate (antibody failure)."
     exit 0
 fi
 
-if [ ! -x "$HECKS_LIFE" ]; then
-    echo "pre-push: hecks-life binary not found at $HECKS_LIFE — skipping."
+if [ ! -x "$STOREHOUSE" ]; then
+    echo "pre-push: storehouse binary not found at $STOREHOUSE — skipping."
     echo "  Build with: (cd rust && cargo build --release)"
     exit 0
 fi
@@ -84,7 +84,7 @@ for b in $(find $ROOTS -name "*.behaviors" 2>/dev/null); do
     # owned by the pre-commit companion-file ratchet.
     [ ! -f "$parent/$stem.bluebook" ] && continue
     total=$((total + 1))
-    if ! "$HECKS_LIFE" behaviors "$b" >/dev/null 2>&1; then
+    if ! "$STOREHOUSE" behaviors "$b" >/dev/null 2>&1; then
         fail=$((fail + 1))
         failed_list="$failed_list\n  ✗ $b"
     fi
@@ -95,7 +95,7 @@ if [ "$fail" -gt 0 ]; then
     echo "PUSH BLOCKED: $fail of $total .behaviors file(s) failed."
     printf "$failed_list\n"
     echo ""
-    echo "  Run individually : hecks-life behaviors <path-to-.behaviors>"
+    echo "  Run individually : storehouse behaviors <path-to-.behaviors>"
     echo "  Bypass (use only for emergencies) : BEHAVIORS_SKIP=1 git push ..."
     exit 1
 fi

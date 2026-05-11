@@ -13,13 +13,13 @@ module Hecks
     module ParityVerifier
       Result = Struct.new(:pass_count, :errors)
 
-      HECKS_LIFE = File.expand_path("../../../rust/target/debug/hecks-life", __dir__)
+      STOREHOUSE = File.expand_path("../../../rust/target/debug/storehouse", __dir__)
 
       def self.run(format: :progress)
         result = Result.new(0, [])
 
-        unless File.exist?(HECKS_LIFE)
-          result.errors << { context: "Parity", message: "hecks-life binary not found at #{HECKS_LIFE}" }
+        unless File.exist?(STOREHOUSE)
+          result.errors << { context: "Parity", message: "storehouse binary not found at #{STOREHOUSE}" }
           return result
         end
 
@@ -37,7 +37,7 @@ module Hecks
           next unless path && File.exist?(path)
 
           check(result, format, domain.name) do
-            rust_out = `#{HECKS_LIFE} counts "#{path}" 2>&1`.strip
+            rust_out = `#{STOREHOUSE} counts "#{path}" 2>&1`.strip
             raise "Rust parse failed: #{rust_out}" if rust_out.empty? || rust_out.include?("Cannot read")
 
             rust = rust_out.split("|")

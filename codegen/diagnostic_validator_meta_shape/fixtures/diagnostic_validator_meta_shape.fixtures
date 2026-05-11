@@ -10,7 +10,7 @@ Hecks.fixtures "DiagnosticValidatorMetaShape" do
 
   aggregate "RubyConstant" do
     fixture "VwShape", class_name: "ValidatorWarnings", name: "SHAPE", value_expr: "REPO_ROOT.join(\"codegen/validator_warnings_shape/fixtures/validator_warnings_shape.fixtures\")", order: 1
-    fixture "VwTargetRs", class_name: "ValidatorWarnings", name: "TARGET_RS", value_expr: "REPO_ROOT.join(\"hecks_life/src/validator_warnings.rs\")", order: 2
+    fixture "VwTargetRs", class_name: "ValidatorWarnings", name: "TARGET_RS", value_expr: "REPO_ROOT.join(\"storehouse/src/validator_warnings.rs\")", order: 2
     fixture "MdvShape", class_name: "MetaDiagnosticValidator", name: "SHAPE", value_expr: "REPO_ROOT.join(\"codegen/diagnostic_validator_meta_shape/fixtures/diagnostic_validator_meta_shape.fixtures\")", order: 1
     fixture "MdvTargetRs", class_name: "MetaDiagnosticValidator", name: "TARGET_RS", value_expr: "REPO_ROOT.join(\"lib/hecks_specializer/diagnostic_validator.rb\")", order: 2
     fixture "MvwTargetRs", class_name: "MetaValidatorWarnings", name: "TARGET_RS", value_expr: "REPO_ROOT.join(\"lib/hecks_specializer/validator_warnings.rb\")", order: 1

@@ -1,6 +1,6 @@
-#!/usr/bin/env hecks-life run
+#!/usr/bin/env storehouse run
 Hecks.bluebook "Wake", version: "2026.05.07.1" do
-  vision "How a being returns to presence — read consciousness state, pull the latest dream imagery and night-reading, compose a wake-review markdown, write it to a known surface so the Claude UserPromptSubmit hook can land it in the next session turn. The bluebook is descriptive AND executable : a Rust runner mirroring run_boot walks this pipeline phase by phase. Wake is decoupled from boot — boot wires daemons, wake reads the heart. The verb 'wake Miette' is `hecks-life run runtime/wake/wake.bluebook`, fired by the SessionStart hook after `overmind start`."
+  vision "How a being returns to presence — read consciousness state, pull the latest dream imagery and night-reading, compose a wake-review markdown, write it to a known surface so the Claude UserPromptSubmit hook can land it in the next session turn. The bluebook is descriptive AND executable : a Rust runner mirroring run_boot walks this pipeline phase by phase. Wake is decoupled from boot — boot wires daemons, wake reads the heart. The verb 'wake Miette' is `storehouse run runtime/wake/wake.bluebook`, fired by the SessionStart hook after `overmind start`."
 
   entrypoint "ComposeWakeReview"
 

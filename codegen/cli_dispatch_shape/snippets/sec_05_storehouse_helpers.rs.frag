@@ -27,7 +27,7 @@ fn run_storehouse(args: &[String]) -> i32 {
         "list"    => storehouse_list(rest),
         "lookup"  => storehouse_lookup(rest),
         "" | "--help" | "-h" => {
-            eprintln!("Usage: hecks-life storehouse <verb> [args]\n");
+            eprintln!("Usage: storehouse storehouse <verb> [args]\n");
             eprintln!("Verbs:");
             eprintln!("  route   <phrase> [k=v ...]   Dispatch.Route — invoke the bluebook owning <phrase>");
             eprintln!("  compile [conception_root]    Lexicon.Compile — rebuild lexicon.heki");
@@ -37,7 +37,7 @@ fn run_storehouse(args: &[String]) -> i32 {
             1
         }
         other => {
-            eprintln!("hecks-life storehouse: unknown verb '{}' (try --help)", other);
+            eprintln!("storehouse storehouse: unknown verb '{}' (try --help)", other);
             1
         }
     }
@@ -55,17 +55,17 @@ struct StorehousePhrase {
 fn storehouse_route(args: &[String]) -> i32 {
     let phrase = match args.first() {
         Some(p) => p.clone(),
-        None => { eprintln!("hecks-life storehouse route: missing phrase"); return 1; }
+        None => { eprintln!("storehouse storehouse route: missing phrase"); return 1; }
     };
     let conception = storehouse_conception_root();
     let target = match storehouse_resolve(&phrase, &conception) {
         Some(t) => t,
         None => {
-            eprintln!("hecks-life storehouse route: phrase '{}' not found in lexicon", phrase);
+            eprintln!("storehouse storehouse route: phrase '{}' not found in lexicon", phrase);
             return 4;
         }
     };
-    // Synthesize the run::run_script argv : [hecks-life, run, <bluebook>,
+    // Synthesize the run::run_script argv : [storehouse, run, <bluebook>,
     // entrypoint=<command>, ...passthrough_args]. We pass the BARE command
     // name (not Aggregate.Command) because runtime/mod.rs's breadcrumb
     // writer prepends aggregate_type. Passing dotted produced doubled
@@ -74,7 +74,7 @@ fn storehouse_route(args: &[String]) -> i32 {
     // (same command on multiple aggregates within one bluebook) doesn't
     // arise here because Lookup already pinned one specific aggregate.
     let mut run_args: Vec<String> = vec![
-        "hecks-life".to_string(),
+        "storehouse".to_string(),
         "run".to_string(),
         target.bluebook_path.clone(),
         format!("entrypoint={}", target.command),
@@ -91,7 +91,7 @@ fn storehouse_route(args: &[String]) -> i32 {
     if verbose {
         eprintln!("[storehouse] Dispatch.Route → {} ({})", target.phrase, target.bluebook_path);
     }
-    let exit = hecks_life::run::run_script(&run_args);
+    let exit = storehouse::run::run_script(&run_args);
     if exit == 0 && verbose {
         eprintln!("[storehouse] Dispatched");
     }
@@ -103,23 +103,23 @@ fn storehouse_compile(args: &[String]) -> i32 {
     let phrases = storehouse_walk_phrases(&conception);
     let info_dir = match resolve_storehouse_info_dir() {
         Some(p) => p,
-        None => { eprintln!("hecks-life storehouse compile: cannot resolve info dir"); return 3; }
+        None => { eprintln!("storehouse storehouse compile: cannot resolve info dir"); return 3; }
     };
-    let lexicon_path = hecks_life::heki::path_for_lookup(&info_dir, "lexicon");
-    let now = hecks_life::heki::now_iso();
+    let lexicon_path = storehouse::heki::path_for_lookup(&info_dir, "lexicon");
+    let now = storehouse::heki::now_iso();
     // Singleton row : lexicon (CompiledAt + PhraseCount).
-    let mut singleton = hecks_life::heki::Record::new();
+    let mut singleton = storehouse::heki::Record::new();
     singleton.insert("id".into(), serde_json::Value::String("lexicon".into()));
     singleton.insert("compiled_at".into(), serde_json::Value::String(now.clone()));
     singleton.insert("phrase_count".into(),
         serde_json::Value::Number(serde_json::Number::from(phrases.len() as u64)));
-    let _ = hecks_life::heki::upsert(&lexicon_path, &singleton, hecks_life::heki::WriteContext::OutOfBand {
+    let _ = storehouse::heki::upsert(&lexicon_path, &singleton, storehouse::heki::WriteContext::OutOfBand {
         reason: "Lexicon.Compile singleton — CompiledAt + PhraseCount",
     });
     // One row per phrase. Idempotent on phrase id ; bluebook moves
     // overwrite the path field on the next compile.
     for p in &phrases {
-        let mut rec = hecks_life::heki::Record::new();
+        let mut rec = storehouse::heki::Record::new();
         rec.insert("id".into(), serde_json::Value::String(p.phrase.clone()));
         rec.insert("phrase".into(), serde_json::Value::String(p.phrase.clone()));
         rec.insert("domain_phrase".into(), serde_json::Value::String(p.domain_phrase.clone()));
@@ -127,7 +127,7 @@ fn storehouse_compile(args: &[String]) -> i32 {
         rec.insert("aggregate".into(), serde_json::Value::String(p.aggregate.clone()));
         rec.insert("command".into(), serde_json::Value::String(p.command.clone()));
         rec.insert("compiled_at".into(), serde_json::Value::String(now.clone()));
-        let _ = hecks_life::heki::upsert(&lexicon_path, &rec, hecks_life::heki::WriteContext::OutOfBand {
+        let _ = storehouse::heki::upsert(&lexicon_path, &rec, storehouse::heki::WriteContext::OutOfBand {
             reason: "Lexicon.Compile phrase row",
         });
     }
@@ -139,35 +139,35 @@ fn storehouse_compile(args: &[String]) -> i32 {
 fn storehouse_read(args: &[String]) -> i32 {
     let path = match args.first() {
         Some(p) => p.clone(),
-        None => { eprintln!("hecks-life storehouse read: missing path"); return 1; }
+        None => { eprintln!("storehouse storehouse read: missing path"); return 1; }
     };
     let parts: Vec<&str> = path.split('.').collect();
     if parts.len() < 2 {
-        eprintln!("hecks-life storehouse read: path must be Aggregate.attribute");
+        eprintln!("storehouse storehouse read: path must be Aggregate.attribute");
         return 1;
     }
     let aggregate = parts[parts.len() - 2];
     let attribute = parts[parts.len() - 1];
     let info_dir = match resolve_storehouse_info_dir() {
         Some(p) => p,
-        None => { eprintln!("hecks-life storehouse read: cannot resolve info dir"); return 3; }
+        None => { eprintln!("storehouse storehouse read: cannot resolve info dir"); return 3; }
     };
-    let snake = hecks_life::heki::snake_case(aggregate);
-    let heki_path = hecks_life::heki::path_for_lookup(&info_dir, &snake);
-    let store = match hecks_life::heki::read(&heki_path) {
+    let snake = storehouse::heki::snake_case(aggregate);
+    let heki_path = storehouse::heki::path_for_lookup(&info_dir, &snake);
+    let store = match storehouse::heki::read(&heki_path) {
         Ok(s) => s,
-        Err(e) => { eprintln!("hecks-life storehouse read: {}", e); return 3; }
+        Err(e) => { eprintln!("storehouse storehouse read: {}", e); return 3; }
     };
-    let latest = match hecks_life::heki::latest(&store) {
+    let latest = match storehouse::heki::latest(&store) {
         Some(r) => r,
-        None => { eprintln!("hecks-life storehouse read: no records in {}", heki_path); return 4; }
+        None => { eprintln!("storehouse storehouse read: no records in {}", heki_path); return 4; }
     };
     let value = match latest.get(attribute) {
         Some(serde_json::Value::String(s)) => s.clone(),
         Some(serde_json::Value::Number(n)) => n.to_string(),
         Some(serde_json::Value::Bool(b)) => b.to_string(),
         Some(other) => other.to_string(),
-        None => { eprintln!("hecks-life storehouse read: attribute '{}' not in {}", attribute, heki_path); return 4; }
+        None => { eprintln!("storehouse storehouse read: attribute '{}' not in {}", attribute, heki_path); return 4; }
     };
     println!("{}", value);
     0
@@ -193,13 +193,13 @@ fn storehouse_list(args: &[String]) -> i32 {
 fn storehouse_lookup(args: &[String]) -> i32 {
     let phrase = match args.first() {
         Some(p) => p.clone(),
-        None => { eprintln!("hecks-life storehouse lookup: missing phrase"); return 1; }
+        None => { eprintln!("storehouse storehouse lookup: missing phrase"); return 1; }
     };
     let conception = storehouse_conception_root();
     let target = match storehouse_resolve(&phrase, &conception) {
         Some(t) => t,
         None => {
-            eprintln!("hecks-life storehouse lookup: phrase '{}' not found", phrase);
+            eprintln!("storehouse storehouse lookup: phrase '{}' not found", phrase);
             return 4;
         }
     };
@@ -236,7 +236,7 @@ fn storehouse_resolve(phrase: &str, conception: &str) -> Option<StorehousePhrase
 /// codegen/, cli/, integrations/, tools/, discipline/, storehouse/.
 fn storehouse_walk_phrases(conception: &str) -> Vec<StorehousePhrase> {
     let root = std::path::Path::new(conception);
-    let hecks_root = hecks_life::heki::repo_root();
+    let hecks_root = storehouse::heki::repo_root();
     let mut out = Vec::new();
     // hecks_conception/aggregates and hecks_conception/storehouse :
     storehouse_collect_recursive(&root.join("aggregates"), &mut out);
@@ -259,7 +259,7 @@ fn storehouse_collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehouseP
                 storehouse_collect_recursive(&p, out);
             } else if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
                 if let Ok(src) = std::fs::read_to_string(&p) {
-                    let domain = hecks_life::parser::parse(&src);
+                    let domain = storehouse::parser::parse(&src);
                     if domain.name.is_empty() { continue; }
                     let path_str = p.to_string_lossy().into_owned();
                     for agg in &domain.aggregates {
@@ -280,7 +280,7 @@ fn storehouse_collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehouseP
 }
 
 fn storehouse_conception_root() -> String {
-    if let Some(root) = hecks_life::heki::repo_root() {
+    if let Some(root) = storehouse::heki::repo_root() {
         let conception = root.join("hecks_conception");
         if conception.is_dir() {
             return conception.to_string_lossy().into_owned();
@@ -291,7 +291,7 @@ fn storehouse_conception_root() -> String {
 }
 
 fn resolve_storehouse_info_dir() -> Option<String> {
-    let canonical = hecks_life::heki::resolve_info_dir();
+    let canonical = storehouse::heki::resolve_info_dir();
     let s = canonical.to_string_lossy().into_owned();
     if canonical.exists() || s != "hecks_conception/information" {
         return Some(s);

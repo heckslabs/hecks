@@ -1,6 +1,6 @@
 # CLI subcommand catalog — declared, not hardcoded
 
-The `hecks-life` CLI used to resolve subcommands through a hardcoded
+The `storehouse` CLI used to resolve subcommands through a hardcoded
 match in `main.rs`:
 
 ```rust
@@ -81,7 +81,7 @@ wire the handler dispatch, delete the hardcoded route. No mega-PR.
 Today (with the i116 Many-form from PR #483 landed):
 
 ```sh
-hecks-life aggregates/ Subcommand.Register \
+storehouse aggregates/ Subcommand.Register \
   name=verify \
   handler=run_verify \
   description="Run hecks verify against the project bluebook" \
@@ -91,7 +91,7 @@ hecks-life aggregates/ Subcommand.Register \
 Or in bulk, via the Many-form:
 
 ```sh
-hecks-life aggregates/ Subcommand.RegisterMany specs='[
+storehouse aggregates/ Subcommand.RegisterMany specs='[
   {"name":"verify","handler":"run_verify","description":"…","deprecated":false},
   {"name":"clean","handler":"run_clean","description":"…","deprecated":false}
 ]'

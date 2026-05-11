@@ -1,0 +1,35 @@
+Hecks.behaviors "Validator" do
+  vision "Behavioral tests for the Validator aggregate — one happy-path test per Check command, exercising the bluebook-layer contract without the runtime substrate"
+
+  # The four Check* commands take a bluebook_path attribute and
+  # emit a typed event. These tests exercise the bluebook-layer
+  # acceptance — that the attribute is plumbed and the event
+  # name matches. The actual validator logic (IO shape, lifecycle
+  # reachability, duplicate policies) lives in the runtime
+  # (storehouse::io_validator etc.) and is exercised by integration
+  # tests in rust/tests/, not here.
+
+  test "CheckIo accepts a .bluebook path" do
+    tests "CheckIo", on: "Validator"
+    input  bluebook_path: "sample.bluebook"
+    expect bluebook_path: "sample.bluebook"
+  end
+
+  test "CheckLifecycle accepts a .bluebook path" do
+    tests "CheckLifecycle", on: "Validator"
+    input  bluebook_path: "sample.bluebook"
+    expect bluebook_path: "sample.bluebook"
+  end
+
+  test "CheckDuplicatePolicies accepts a .bluebook path" do
+    tests "CheckDuplicatePolicies", on: "Validator"
+    input  bluebook_path: "sample.bluebook"
+    expect bluebook_path: "sample.bluebook"
+  end
+
+  test "CheckAll accepts a .bluebook path" do
+    tests "CheckAll", on: "Validator"
+    input  bluebook_path: "sample.bluebook"
+    expect bluebook_path: "sample.bluebook"
+  end
+end

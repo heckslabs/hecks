@@ -7,13 +7,13 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
   # ============================================================
   #
   # Fourth file of the Phase F arc (docs/phase-f-0-survey.md). Declares
-  # two aggregates that describe how hecks-life turns a command-line
+  # two aggregates that describe how storehouse turns a command-line
   # invocation into dispatched commands against a user bluebook :
   #
-  #   hecks_life/src/run.rs             (184 LOC)  → ScriptRun
-  #   hecks_life/src/run_stdin_loop.rs  (113 LOC)  → InteractiveSession
+  #   storehouse/src/run.rs             (184 LOC)  → ScriptRun
+  #   storehouse/src/run_stdin_loop.rs  (113 LOC)  → InteractiveSession
   #
-  # ScriptRun handles the one-shot path (`hecks-life run file.bluebook
+  # ScriptRun handles the one-shot path (`storehouse run file.bluebook
   # [k=v ...]`). It parses the bluebook, discovers any companion
   # hecksagon, boots the runtime, and routes the invocation to the
   # right runner based on the declared capability shape.
@@ -32,7 +32,7 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
   # SCRIPTRUN — the one-shot script-mode runner
   # ============================================================
 
-  aggregate "ScriptRun", "One invocation of `hecks-life run <file.bluebook> [key=val ...]` — parse the user bluebook, discover the companion hecksagon, boot the runtime, route to the matching capability runner, and return an ExitKind to the OS" do
+  aggregate "ScriptRun", "One invocation of `storehouse run <file.bluebook> [key=val ...]` — parse the user bluebook, discover the companion hecksagon, boot the runtime, route to the matching capability runner, and return an ExitKind to the OS" do
     # script_path : the bluebook file argv passed in.
     attribute :script_path, String
     # entrypoint : the command name declared by `entrypoint "…"` in

@@ -2,8 +2,8 @@
 //!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/behaviors_parser_shape/
-//! Regenerate: hecks-life specialize behaviors_parser --output hecks_life/src/behaviors_parser.rs
-//! Contract:  hecks_life/src/specializer/behaviors_parser.rs (Rust-native)
+//! Regenerate: storehouse specialize behaviors_parser --output storehouse/src/behaviors_parser.rs
+//! Contract:  storehouse/src/specializer/behaviors_parser.rs (Rust-native)
 //! Tests:     in-file #[cfg(test)] mod tests
 //!
 //! Fourth parser retirement after validator.rs, dump.rs, and

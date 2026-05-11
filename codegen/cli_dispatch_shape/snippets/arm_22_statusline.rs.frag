@@ -1,5 +1,5 @@
 
-    // `hecks-life statusline` — Statusline capability runner (i97
+    // `storehouse statusline` — Statusline capability runner (i97
     // → i145). Fires the bluebook-declared rendering of Miette's
     // one-line body status. Replaces statusline-command.sh's 273-
     // line shell with a Rust mirror of run_status/ : reads body
@@ -8,6 +8,6 @@
     // surface CLI primitive a bluebook capability dispatches into.
     // Bluebook brain stays in capabilities/statusline/.
     if command == "statusline" {
-        hecks_life::run_statusline::run();
+        storehouse::run_statusline::run();
         return;
     }

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # Hecks behaviors runner — Ruby
 #
-# Mirrors `hecks-life behaviors`: load a _behavioral_tests.bluebook,
+# Mirrors `storehouse behaviors`: load a _behavioral_tests.bluebook,
 # infer its source bluebook, run each test in pure memory against a
 # fresh BehaviorRuntime, print pass/fail/error counts.
 #

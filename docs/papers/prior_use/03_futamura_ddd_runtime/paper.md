@@ -89,7 +89,7 @@ The contributions are:
    codegen is dispatched through the framework's command bus rather than
    invoked as a build script.
 3. A shipped first-projection result: byte-identical regeneration of
-   `hecks_life/src/validator.rs` from a shape-only declaration, with a
+   `storehouse/src/validator.rs` from a shape-only declaration, with a
    golden test.
 4. A shipped second-projection fixed point (restricted form): a
    meta-specialiser regenerates its own generator, producing a
@@ -278,7 +278,7 @@ not carry the capability.
 ### §5.1 The consequence: codegen is dispatchable
 
 A Hecks CLI session can issue
-`Specialize(target: "validator", output: "hecks_life/src/validator.rs")`
+`Specialize(target: "validator", output: "storehouse/src/validator.rs")`
 from the command bus, not from a shell script. The same authentication,
 logging, and event-sourcing infrastructure that wraps every other
 command also wraps the specialiser. Every specialisation run emits a
@@ -310,7 +310,7 @@ phase is a distinct architectural step with its own success criterion.
 
 ### §6.1 Phase A — First projection, byte-identical
 
-Phase A retires `hecks_life/src/validator.rs`: the hand-written
+Phase A retires `storehouse/src/validator.rs`: the hand-written
 validator is replaced by a byte-identical generated file. Commit
 sequence:
 
@@ -321,11 +321,11 @@ sequence:
   `hecks_conception/capabilities/specializer/specializer.bluebook`.
 - `a2913cc2` — first-Futamura proof: byte-identical `validator.rs`
   generated via the hecksagon-wired shell adapter. Golden test at
-  `hecks_life/tests/specializer_golden_test.rs`.
+  `storehouse/tests/specializer_golden_test.rs`.
 - `e33c6672` — retire hand-written `validator.rs`; the file carries a
   GENERATED FILE header citing `bin/specialize-validator --output
-  hecks_life/src/validator.rs`. Integration tests move to
-  `hecks_life/tests/validator_rules_test.rs` to break the circular
+  storehouse/src/validator.rs`. Integration tests move to
+  `storehouse/tests/validator_rules_test.rs` to break the circular
   dependency between validator and its own tests.
 
 The generated header reads:
@@ -333,9 +333,9 @@ The generated header reads:
 ```text
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/validator_shape/
-//! Regenerate: bin/specialize-validator --output hecks_life/src/validator.rs
+//! Regenerate: bin/specialize-validator --output storehouse/src/validator.rs
 //! Contract:  specializer.hecksagon :specialize_validator shell adapter
-//! Tests:     hecks_life/tests/validator_rules_test.rs
+//! Tests:     storehouse/tests/validator_rules_test.rs
 ```
 
 ### §6.2 Phase B — Additional module retirement
@@ -381,7 +381,7 @@ regression of deterministic codegen.
 Phase D ports the specialiser from Ruby to Rust. The Ruby specialiser at
 `bin/specialize` and `lib/hecks_specializer/` produced the shipped Phase
 A artifact. Phase D introduces a Rust equivalent at
-`hecks_life/src/specializer/` and asserts byte-identity between the two.
+`storehouse/src/specializer/` and asserts byte-identity between the two.
 
 The test passes on first run. This is the empirical claim made in
 Paper 5 of this collection (parity as language-neutrality pressure):
@@ -400,7 +400,7 @@ been emitting Ruby files are all removed. Net deletion is approximately
 At commit `c4a903f3` the autophagy tracker reports **100% autophagy
 completeness over 2,095 in-scope lines of code**. Every in-scope Rust
 module regenerates byte-identically from its shape. The
-`hecks-life specialize <target>` subcommand is the sole
+`storehouse specialize <target>` subcommand is the sole
 code-generation path; the Ruby gem at `lib/hecks/` survives as
 host-language binding for Rails integration.
 
@@ -599,7 +599,7 @@ sufficiently expressive host can reproduce.
    event with target, source shape, and output hash. The event log is
    the generator's audit trail.
 6. **Byte-identical first-projection retirement of `validator.rs`** with
-   a golden test. `hecks_life/tests/specializer_golden_test.rs`;
+   a golden test. `storehouse/tests/specializer_golden_test.rs`;
    GENERATED FILE header citing the regeneration command.
 7. **Byte-identical second-projection fixed point (restricted form)** via
    a meta-specialiser regenerating its own checkers.

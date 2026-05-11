@@ -1,4 +1,4 @@
-//! Rust-native specializer for `hecks_life/src/run_boot/system_prompt.rs`.
+//! Rust-native specializer for `storehouse/src/run_boot/system_prompt.rs`.
 //!
 //! Emits the Phase 4 GenerateSystemPrompt runner byte-identical to the
 //! tracked source. Reads `Section` rows (order, body_kind, name,
@@ -32,7 +32,7 @@
 //!   let rust = run_boot_system_prompt::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: hecks_life/src/specializer/run_boot/system_prompt.rs —
+//! [antibody-exempt: storehouse/src/specializer/run_boot/system_prompt.rs —
 //!  i146 piece 4 — Rust-native specializer for run_boot/system_prompt.rs]
 
 use crate::ir::Fixture;

@@ -1,6 +1,6 @@
 # Contextual Help Icons
 
-Every module card and command in the hecks-life web UI includes a small **?** button
+Every module card and command in the storehouse web UI includes a small **?** button
 that opens a context-aware help popup.
 
 ## How it works
@@ -23,7 +23,7 @@ For **commands**, the popup shows:
 
 1. Start the server:
    ```
-   hecks-life serve path/to/hecks/ 3100
+   storehouse serve path/to/hecks/ 3100
    ```
 
 2. Open any domain page in the browser

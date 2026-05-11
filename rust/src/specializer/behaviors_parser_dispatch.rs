@@ -11,7 +11,7 @@
 //!   let block = emit_chain(&dispatches, "suite", "lines");
 //!   // → "        if line.starts_with(...) {\n            ...\n        }\n"
 //!
-//! [antibody-exempt: hecks_life/src/specializer/behaviors_parser_dispatch.rs —
+//! [antibody-exempt: storehouse/src/specializer/behaviors_parser_dispatch.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

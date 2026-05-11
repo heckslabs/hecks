@@ -2,14 +2,14 @@
 # body_cycles_smoke.sh — smoke test for the body-cycle cadence
 # primitives that replaced the ultradian.sh / sleep_cycle.sh shells :
 #
-#   • i106 multi-command rotation : `hecks-life loop A,B,C --every <dur>`
-#   • i108 gated cadence loop     : `hecks-life loop ... --gate <store>:<field>=<value>`
+#   • i106 multi-command rotation : `storehouse loop A,B,C --every <dur>`
+#   • i108 gated cadence loop     : `storehouse loop ... --gate <store>:<field>=<value>`
 #
 # The 90-minute cadence of the body cycles makes real-time testing
 # impractical. The runtime accepts sub-second `--every`, so this test
 # drives the loops at 1s and verifies the phase transitions land.
 #
-# ultradian (i106): hecks-life loop AGG Ultradian.EnterPeak,Ultradian.EnterTrough
+# ultradian (i106): storehouse loop AGG Ultradian.EnterPeak,Ultradian.EnterTrough
 #                   --every 1s rotates and we expect peak+trough in ~2.5s.
 # sleep_cycle (i108): seeds consciousness.state=sleeping, runs the gated
 #                     loop EnterNREMLight,EnterNREMDeep,EnterREM
@@ -20,7 +20,7 @@
 # Exit 0 on pass, non-zero on fail.
 #
 # [antibody-exempt: smoke-test shell harness for the i106/i107/i108
-#  body-cycle primitives. Drives `hecks-life loop --gate` and verifies
+#  body-cycle primitives. Drives `storehouse loop --gate` and verifies
 #  cycle_count advances under gate=open and holds under gate=closed.
 #  Same retirement contract as the runtime primitives it tests.]
 
@@ -33,12 +33,12 @@ REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
 else
-  echo "FAIL — can't find hecks-life binary"
+  echo "FAIL — can't find storehouse binary"
   exit 2
 fi
 
@@ -50,7 +50,7 @@ trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/hecks_conception/information" "$TMP/hecks_conception/aggregates"
 mkdir -p "$TMP/rust/target/release"
-ln -sf "$HECKS" "$TMP/rust/target/release/hecks-life"
+ln -sf "$HECKS" "$TMP/rust/target/release/storehouse"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
 # Body cycles (Ultradian, SleepCycle, Pulse, etc.) live in the miette
 # sibling repo at ../miette/body/. The test dispatches Ultradian.* and
@@ -64,7 +64,7 @@ fi
 INFO="$TMP/hecks_conception/information"
 AGG="$TMP/hecks_conception/aggregates"
 
-# Force every hecks-life invocation in this test to use our isolated
+# Force every storehouse invocation in this test to use our isolated
 # information dir — keeps the smoke test from touching real Miette state.
 export HECKS_INFO="$INFO"
 

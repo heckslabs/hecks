@@ -1,11 +1,11 @@
 //! Phase 6 — EnsureDaemons
 //!
 //! For each `adapter :daemon, name:, pidfile:, command:` row declared
-//! in the boot.hecksagon, shells out to `hecks-life daemon ensure
+//! in the boot.hecksagon, shells out to `storehouse daemon ensure
 //! <pidfile> <command>` (the kernel-surface primitive added 2026-04-26
 //! in `main.rs run_daemon`). The shell-out is the transitional shape ;
 //! the deeper move is to call `daemon_ensure` directly from the
-//! runtime so the runner doesn't fork a sibling hecks-life. File the
+//! runtime so the runner doesn't fork a sibling storehouse. File the
 //! gap : "boot runner should call daemon ensure in-process — pull
 //! daemon_ensure / spawn_detached out of main.rs into a runtime
 //! adapter module."
@@ -14,7 +14,7 @@
 //!   {info}  → resolved info_dir
 //!   {dir}   → conception dir (sibling of info_dir)
 //!   {agg}   → conception/aggregates
-//!   {hecks} → path to the running hecks-life binary
+//!   {hecks} → path to the running storehouse binary
 //!   {body}  → ../miette/body sibling (i117 Round 4 ; closes i148).
 //!             Resolves env HECKS_BODY_DIR first, then the standard
 //!             sibling layout. Empty when neither resolves so the
@@ -42,7 +42,7 @@ pub fn ensure_all(
     let agg_dir = conception.join("aggregates").to_string_lossy().to_string();
     let hecks_bin = std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "hecks-life".to_string());
+        .unwrap_or_else(|_| "storehouse".to_string());
     let body_dir = resolve_body_dir(&conception);
 
     let mut out = Vec::new();
@@ -110,7 +110,7 @@ fn adapter_options_all(adapter: &IoAdapter, key: &str) -> Vec<String> {
         .collect()
 }
 
-/// Spawn one daemon via `hecks-life daemon ensure`. Sets `HECKS_INFO`
+/// Spawn one daemon via `storehouse daemon ensure`. Sets `HECKS_INFO`
 /// in the child process env (i154) so the inner `daemon ensure`
 /// subcommand and its spawn_detached'd grandchild both see the
 /// canonical info_dir boot already resolved. Without this, every
@@ -135,7 +135,7 @@ fn ensure_one(
     if parts.is_empty() { return "skipped (empty command)".into(); }
     let hecks_bin = std::env::current_exe()
         .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|_| "hecks-life".to_string());
+        .unwrap_or_else(|_| "storehouse".to_string());
 
     let mut cmd_args: Vec<String> = vec![
         "daemon".into(), "ensure".into(),
@@ -202,7 +202,7 @@ fn resolve_body_dir(conception: &Path) -> String {
         }
     }
     // Preferred path : ask heki::repo_root() which walks from the
-    // hecks-life executable to find the canonical hecks checkout.
+    // storehouse executable to find the canonical hecks checkout.
     // Robust against bluebooks that live outside hecks_conception/
     // (e.g. runtime/boot/boot.bluebook) — the conception-relative
     // walk below can't find the conception in that case.

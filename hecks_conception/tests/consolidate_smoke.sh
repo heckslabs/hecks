@@ -2,7 +2,7 @@
 # consolidate_smoke.sh — smoke test for the Consolidation PM (i75 / i225).
 #
 # [antibody-exempt: i75 retirement of nrem_branch.sh + consolidate.sh —
-#  smoke now drives the bluebook PM via `hecks-life run-loop` instead
+#  smoke now drives the bluebook PM via `storehouse run-loop` instead
 #  of forking the legacy shell ; i225 close lets the assertion path
 #  read store.heki / remains.heki growth produced by the runtime sweep
 #  (`for_each: { from: "Aggregate.cold" }`) directly. Retires entirely
@@ -19,7 +19,7 @@
 #
 # and the runtime walks the named query, fires the receiving command
 # once per record. The body/consolidate.sh transitional adapter is
-# retired ; this smoke now drives the PM directly via `hecks-life
+# retired ; this smoke now drives the PM directly via `storehouse
 # run-loop` and reads store.heki / remains.heki to verify growth.
 #
 # What this smoke verifies :
@@ -80,12 +80,12 @@ BODY_DIR="${HECKS_BODY_DIR:-}"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
-elif [ -x "$REPO_ROOT/rust/target/release/hecks-life" ]; then
-  HECKS="$REPO_ROOT/rust/target/release/hecks-life"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life"
+elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
+  HECKS="$REPO_ROOT/rust/target/release/storehouse"
+elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
+  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
 else
-  echo "FAIL — can't find hecks-life binary"
+  echo "FAIL — can't find storehouse binary"
   exit 2
 fi
 
@@ -186,7 +186,7 @@ store_before=$(count_records "$TMP/information/store/store.heki")
 remains_before=$(count_records "$TMP/information/remains/remains.heki")
 musing_archive_before=$(count_records "$TMP/information/musing_archive/musing_archive.heki")
 
-# ── Drive the PM via `hecks-life run-loop` ─────────────────────────
+# ── Drive the PM via `storehouse run-loop` ─────────────────────────
 # The run-loop boots the Runtime, parses the consolidation bluebook +
 # its hecksagon, and ticks at the configured cadence. We emit synthetic
 # SleepEntered (births the PM) followed by a PhaseElapsed (drives the
@@ -214,7 +214,7 @@ wait "$RUN_PID" 2>/dev/null || true
 
 # Boot-failure guard : run-loop's startup banner names the loaded
 # domain. Absence means the bluebook didn't parse.
-if ! grep -q 'hecks-life run-loop' "$RUN_LOG"; then
+if ! grep -q 'storehouse run-loop' "$RUN_LOG"; then
   echo "----- run-loop output -----"
   cat "$RUN_LOG"
   fail "run-loop did not boot the Consolidation PM (parse / load failure)"

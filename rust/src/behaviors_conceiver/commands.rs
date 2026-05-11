@@ -1,4 +1,4 @@
-//! `hecks-life conceive-behaviors` CLI subcommand.
+//! `storehouse conceive-behaviors` CLI subcommand.
 //!
 //! Mirrors `conceiver/commands.rs` in style. Reads a source bluebook,
 //! optionally scans a corpus of existing `_behavioral_tests.bluebook`
@@ -6,8 +6,8 @@
 //! next to the source.
 //!
 //! Usage:
-//!   hecks-life conceive-behaviors path/to/source.bluebook [--corpus dir1 dir2]
-//!   hecks-life conceive-behaviors path/to/source.bluebook --force   # overwrite
+//!   storehouse conceive-behaviors path/to/source.bluebook [--corpus dir1 dir2]
+//!   storehouse conceive-behaviors path/to/source.bluebook --force   # overwrite
 
 use crate::behaviors_conceiver::{self, BehaviorsConceiver, MatchSuiteExt};
 use crate::conceiver::commands::parse_corpus_dirs;
@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 pub fn run_conceive_behaviors(args: &[String]) {
     let source_path = args.get(2).unwrap_or_else(|| {
-        eprintln!("Usage: hecks-life conceive-behaviors <source.bluebook> [--corpus <dir>...]");
+        eprintln!("Usage: storehouse conceive-behaviors <source.bluebook> [--corpus <dir>...]");
         std::process::exit(1);
     });
 
@@ -69,7 +69,7 @@ pub fn run_conceive_behaviors(args: &[String]) {
         eprintln!("\n{} already exists.", target);
         eprintln!("To overwrite, re-run with --force.");
         eprintln!("To preview the diff:");
-        eprintln!("  diff -u {} <(hecks-life conceive-behaviors {} --print)", target, source_path);
+        eprintln!("  diff -u {} <(storehouse conceive-behaviors {} --print)", target, source_path);
         std::process::exit(1);
     }
 

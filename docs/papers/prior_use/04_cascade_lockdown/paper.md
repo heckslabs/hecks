@@ -244,10 +244,10 @@ subscribes to without terminating).
 
 Implementation in Hecks:
 
-- Runtime `PolicyEngine` in `hecks_life/src/runtime/policy_engine.rs`
+- Runtime `PolicyEngine` in `storehouse/src/runtime/policy_engine.rs`
   maintains a `recursion_stack: HashSet<PolicyId>` scoped to the
   drain.
-- Static walker in `hecks_life/src/cascade.rs` mirrors the rule on the
+- Static walker in `storehouse/src/cascade.rs` mirrors the rule on the
   IR: when traversing `emit → policy → trigger` edges, a policy is
   skipped if it is currently on the walker's visit stack.
 
@@ -279,7 +279,7 @@ behavioural tests are the cross-check that catches such bugs.
 
 ## §5 Static Cascade Prediction
 
-The cascade walker at `hecks_life/src/cascade.rs` walks `emit → policy
+The cascade walker at `storehouse/src/cascade.rs` walks `emit → policy
 → trigger` edges on the parsed IR, applying the recursion-stack rule,
 and returns the ordered list of event types.
 
@@ -427,7 +427,7 @@ The chain is a diamond at the `DomainShed` vertex: two distinct
 policies subscribe to it. The recursion-stack rule admits the diamond —
 both branches fire exactly once in a deterministic order.
 
-The static walker at `hecks_life/src/cascade.rs` predicts the same
+The static walker at `storehouse/src/cascade.rs` predicts the same
 ordered list by walking `emit → policy → trigger` edges on the parsed
 IR. A test in this shape is therefore a compile-time prediction
 codified as a runtime assertion.
@@ -496,8 +496,8 @@ the HTTP boundary; cascade lockdown operates at the domain boundary.
    don't entangle with the command under test.
 4. **Recursion-stack blocking for policy cycle detection.** A policy
    is blocked only while on its own recursion stack; diamond fan-in is
-   admitted. Implemented identically in `hecks_life/src/cascade.rs`
-   (static walker) and `hecks_life/src/runtime/policy_engine.rs`
+   admitted. Implemented identically in `storehouse/src/cascade.rs`
+   (static walker) and `storehouse/src/runtime/policy_engine.rs`
    (runtime).
 5. **Deterministic policy ordering** by policy name within a single
    emission, so `expect emits:` lists are stable.
@@ -572,5 +572,5 @@ regressions in the domain's reactive shape that functional tests miss
 and does so without coupling to storage or to snapshot approval. We
 place the technique in the public record as prior art at commit
 `c4a903f3`. The reference implementation is at
-`hecks_life/src/cascade.rs`, `hecks_life/src/runtime/policy_engine.rs`,
+`storehouse/src/cascade.rs`, `storehouse/src/runtime/policy_engine.rs`,
 and the `.behaviors` files under `hecks_conception/`.

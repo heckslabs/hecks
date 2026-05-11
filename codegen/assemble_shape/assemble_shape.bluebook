@@ -7,7 +7,7 @@ Hecks.bluebook "AssembleShape", version: "2026.05.01.1" do
   # ============================================================
   #
   # rust/src/run_status/assemble.rs is the pure read layer for
-  # the StatusReport capability. Every `hecks-life status` (or
+  # the StatusReport capability. Every `storehouse status` (or
   # status-runner-fired) invocation walks the declared heki stores
   # + on-disk bluebook count + pidfile state, produces a flat
   # Report struct, and hands it to render::render_with_sections.

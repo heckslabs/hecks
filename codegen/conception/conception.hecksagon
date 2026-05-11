@@ -21,7 +21,7 @@ Hecks.hecksagon "Conception" do
   #   :stdout      — Generate / GenerateBehaviors / EmitMergedBluebook
   #                  write the generated source text to stdout so the
   #                  operator can redirect it to a file :
-  #                    hecks-life conceive "Geology" "…" > geology.bluebook
+  #                    storehouse conceive "Geology" "…" > geology.bluebook
   #
   #   :memory      — persistence for the Conception aggregates
   #                  themselves. Each invocation is a one-shot ; no

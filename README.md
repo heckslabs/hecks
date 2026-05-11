@@ -52,7 +52,7 @@ cd hecks
 bundle install
 ```
 
-Hecks ships two parsers — a Ruby DSL (`ruby/`) and a Rust runtime (`rust/`) — held to byte-identical IR by a parity suite. Most workflows only use the gem; the `hecks-life` binary becomes useful when you start authoring behavioral tests or running validators outside Ruby.
+Hecks ships two parsers — a Ruby DSL (`ruby/`) and a Rust runtime (`rust/`) — held to byte-identical IR by a parity suite. Most workflows only use the gem; the `storehouse` binary becomes useful when you start authoring behavioral tests or running validators outside Ruby.
 
 **[Getting Started — zero to a running domain in 10 minutes](docs/getting_started.md)**
 
@@ -260,10 +260,10 @@ When you `export`, the extensions are captured in the Bluebook so the next boot 
 Every Bluebook gets a behavioral-tests companion generated from its IR. Run them in pure memory — no database, no I/O:
 
 ```bash
-$ hecks-life conceive-behaviors path/to/source.bluebook
+$ storehouse conceive-behaviors path/to/source.bluebook
 # writes path/to/source_behavioral_tests.bluebook
 
-$ hecks-life behaviors path/to/source_behavioral_tests.bluebook
+$ storehouse behaviors path/to/source_behavioral_tests.bluebook
 # 12 tests · 12 passed · 0 failed
 ```
 
@@ -282,9 +282,9 @@ end
 References resolve from in-scope — no IDs in test source. The cascade-aware planner follows policy chains so tests assert on the final state. Three validators stack on top:
 
 ```bash
-hecks-life check-lifecycle <bluebook>   # unreachable transitions, undefined refs
-hecks-life check-io        <bluebook>   # confirms the bluebook stays in-memory
-hecks-life check-all       <bluebook>   # both at once
+storehouse check-lifecycle <bluebook>   # unreachable transitions, undefined refs
+storehouse check-io        <bluebook>   # confirms the bluebook stays in-memory
+storehouse check-all       <bluebook>   # both at once
 ```
 
 See [`docs/usage/behavioral_tests.md`](docs/usage/behavioral_tests.md).

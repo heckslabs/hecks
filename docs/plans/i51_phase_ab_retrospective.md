@@ -68,7 +68,7 @@ Two `embedded` rules shipped. Both for a reason:
 
 Every retirement has its own `bin/specialize-X` script. They share ~80 LoC of boilerplate:
 
-- Load `hecks-life dump-fixtures` JSON
+- Load `storehouse dump-fixtures` JSON
 - Group by aggregate name
 - CLI with `--output` / `--diff` / stdout fallback
 - Tempfile-based diff mode

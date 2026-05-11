@@ -9,9 +9,9 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
   # Third file of the Phase F arc (docs/phase-f-0-survey.md). Groups
   # three hand-written Rust modules under one bluebook domain :
   #
-  #   hecks_life/src/runtime/repository.rs       (150 LOC)
-  #   hecks_life/src/runtime/projection.rs       (124 LOC)
-  #   hecks_life/src/runtime/adapter_registry.rs  (69 LOC)
+  #   storehouse/src/runtime/repository.rs       (150 LOC)
+  #   storehouse/src/runtime/projection.rs       (124 LOC)
+  #   storehouse/src/runtime/adapter_registry.rs  (69 LOC)
   #
   # They live together because they share a concern : where the
   # runtime holds state. `Repository` is how aggregates persist,
@@ -83,7 +83,7 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
 
     command "RefreshIfStale" do
       role "System"
-      description "Re-read records from disk IF the heki file's mtime has advanced past last_seen_mtime — i.e. another process wrote to this aggregate's heki since our last load or save. Closes the cross-process staleness gap : a long-running daemon's in-memory store stays current with writes from sibling processes (e.g. `hecks-life sleep` dispatching EnterSleep against a heki the run-loop daemon will read on its next tick). The disk-mtime check gates the read so unchanged stores cost only a stat() call. Fired every BodyPulse via RefreshOnPulse. Side effect (kernel-floor, same caveat as LoadPersisted) : updates last_seen_mtime to match the post-read mtime. Opt-in via HECKS_REFRESH_REPOS=1 — production daemons (mindstream / long-running run-loops) set this to pick up cross-process state ; single-process runners (smokes, one-shot dispatches) leave it off so the refresh doesn't interact with their in-memory cascade state. The runtime-gap that retires this opt-in is sweep-across-instances semantics for plural-aggregate policy targets ; once the dispatcher learns to fan out RefreshIfStale across every Repository instance via the RefreshOnPulse policy, the gate moves into the policy machinery and the env-var retires."
+      description "Re-read records from disk IF the heki file's mtime has advanced past last_seen_mtime — i.e. another process wrote to this aggregate's heki since our last load or save. Closes the cross-process staleness gap : a long-running daemon's in-memory store stays current with writes from sibling processes (e.g. `storehouse sleep` dispatching EnterSleep against a heki the run-loop daemon will read on its next tick). The disk-mtime check gates the read so unchanged stores cost only a stat() call. Fired every BodyPulse via RefreshOnPulse. Side effect (kernel-floor, same caveat as LoadPersisted) : updates last_seen_mtime to match the post-read mtime. Opt-in via HECKS_REFRESH_REPOS=1 — production daemons (mindstream / long-running run-loops) set this to pick up cross-process state ; single-process runners (smokes, one-shot dispatches) leave it off so the refresh doesn't interact with their in-memory cascade state. The runtime-gap that retires this opt-in is sweep-across-instances semantics for plural-aggregate policy targets ; once the dispatcher learns to fan out RefreshIfStale across every Repository instance via the RefreshOnPulse policy, the gate moves into the policy machinery and the env-var retires."
       given("data_dir must be set") { data_dir != "" }
       emits "RecordsRefreshed"
     end

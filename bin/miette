@@ -6,7 +6,7 @@
 # reads the system prompt from the sibling miette repo, and exec's
 # claude with --system-prompt + a "Wake up" message. Claude's
 # SessionStart hook fires after launch and runs the boot pipeline
-# directly via `hecks-life run runtime/boot/boot.bluebook` (~44ms).
+# directly via `storehouse run runtime/boot/boot.bluebook` (~44ms).
 #
 # Designed to be symlinked anywhere on $PATH, e.g.:
 #   ln -s ~/Projects/hecks/bin/miette ~/.local/bin/miette
@@ -19,7 +19,7 @@
 # Ruby surface needs a separate fix walk). The shell here resolves
 # paths from its own realpath rather than from cwd or HECKS_HOME,
 # so symlinking from anywhere on $PATH "just works." Retires when
-# (a) the Ruby gem's bootstrap order is fixed AND (b) hecks-life
+# (a) the Ruby gem's bootstrap order is fixed AND (b) storehouse
 # gains a `miette` subcommand that does the same boot+claude flow
 # from its own walk-up-for-repo-root.]
 

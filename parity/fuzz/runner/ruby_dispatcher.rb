@@ -3,13 +3,13 @@
 # Purpose: run a fuzzer Program through the Ruby BehaviorRuntime
 # in-process, then persist the final in-memory repositories to
 # .heki files in the same binary envelope the Rust runtime uses.
-# This is the Ruby-side analogue of `hecks-life aggregates/
+# This is the Ruby-side analogue of `storehouse aggregates/
 # Agg.Cmd` — but all commands share one BehaviorRuntime, so state
 # carries across the program the same way Rust's per-invocation
 # persist/re-load does.
 #
 # [antibody-exempt: differential fuzzer per i30 plan — retires when
-# fuzzer ports to bluebook-dispatched form via hecks-life run]
+# fuzzer ports to bluebook-dispatched form via storehouse run]
 
 require "hecks"
 require "hecks/behaviors/behavior_runtime"

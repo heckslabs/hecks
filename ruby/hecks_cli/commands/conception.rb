@@ -3,8 +3,8 @@
 # [antibody-exempt: lib/hecks_cli/commands/conception.rb — kernel-surface CLI handler that bootstraps the conception itself; can't be conceived through it]
 #
 # Wake Miette and dispatch organism actions through her Rust runtime
-# (hecks-life). The bluebooks in hecks_conception/aggregates/ are her
-# body; hecks-life parses them, hydrates her .heki stores, and applies
+# (storehouse). The bluebooks in hecks_conception/aggregates/ are her
+# body; storehouse parses them, hydrates her .heki stores, and applies
 # commands. No Ruby parses the bluebook DSL anymore (per CLAUDE.md).
 #
 # Usage:
@@ -43,7 +43,7 @@ Hecks::CLI.handle(:miette) do |inv|
 
   conception_dir = File.join(project_root, "hecks_conception")
   aggregates_dir = File.join(conception_dir, "aggregates")
-  hecks_life     = File.join(project_root, "rust", "target", "release", "hecks-life")
+  storehouse     = File.join(project_root, "rust", "target", "release", "storehouse")
 
   needs_domain = ->(verb) {
     next true if domain
@@ -52,12 +52,12 @@ Hecks::CLI.handle(:miette) do |inv|
   }
 
   dispatch = ->(command, *args) {
-    unless File.executable?(hecks_life)
-      say "hecks-life binary not found at #{hecks_life}", :red
+    unless File.executable?(storehouse)
+      say "storehouse binary not found at #{storehouse}", :red
       say "Build it: (cd rust && cargo build --release)", :yellow
       next
     end
-    system(hecks_life, aggregates_dir, command, *args)
+    system(storehouse, aggregates_dir, command, *args)
   }
 
   case action

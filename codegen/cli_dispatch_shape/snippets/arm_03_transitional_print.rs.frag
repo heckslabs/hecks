@@ -8,6 +8,6 @@
     if command == "speak" || command == "status" || command == "musings"
         || command == "boot" {
         eprintln!("'{}' now dispatches through the hecksagon:", command);
-        eprintln!("  hecks-life aggregates/ Aggregate.Command");
+        eprintln!("  storehouse aggregates/ Aggregate.Command");
         return;
     }

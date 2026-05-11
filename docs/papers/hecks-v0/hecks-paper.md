@@ -14,7 +14,7 @@ date: 2026-04-24
 
 ## Abstract
 
-Hecks is an open-source domain compiler that treats a software domain as a first-class artifact described by five Domain-Specific Languages (DSLs): `.bluebook` for the domain model, `.hecksagon` for hexagonal ports and adapters, `.fixtures` for seed data and catalog schemas, `.behaviors` for behavioural tests, and `.world` for runtime and extension configuration. The runtime is a Rust binary (`hecks_life/`) — formerly one of two peer runtimes, now the sole one after the i51 arc (below); a Ruby gem (`lib/hecks/`) survives as host-language binding for Rails integration. During the years when Ruby and Rust were maintained as peer runtimes, a hand-written canonical Intermediate Representation (IR) and a multi-thousand-fixture parser parity corpus kept them byte-identical — that parity work is what made cross-language migration tractable (§13.5.1). Hecks ships sixteen data contracts (`lib/hecks/conventions/`) that drive multi-target code generation to Go, Node/TypeScript, and a zero-dependency Ruby static target. The framework also describes itself: chapter bluebooks enumerate every Ruby class in `lib/`, a coverage verifier asserts they match, and a parity verifier confirms the Ruby and Rust interpreters agree on aggregate and command counts per chapter. Two self-hosting arcs are reported. First, `hecks compile` produces a single-file zero-dependency Ruby binary of the framework by composing an Abstract Syntax Tree (AST) analysis with a Bluebook-IR method-call graph — an instance of Futamura's first projection (Futamura, 1971) applied to the Ruby interpreter. Second, the i51 arc applies partial evaluation to the Rust runtime through five shipped phases (A–E): every Rust module under `hecks_life/src/` regenerates byte-identical from a shape bluebook lowered through an L0–L8 IR factoring; the meta-specializer regenerates its own source byte-identical (Phase C PC-4 fixed point); Phase D ported the specializer itself from Ruby to Rust, byte-identically; Phase E deleted the Ruby specializer orbit. The runtime has collapsed from two peers into one (Rust) plus a host-language binding (Ruby gem). We enumerate twenty-plus techniques with direct file references as the defensive-publication payload. The paper's claims are reproducible from the public repository at the tag above.
+Hecks is an open-source domain compiler that treats a software domain as a first-class artifact described by five Domain-Specific Languages (DSLs): `.bluebook` for the domain model, `.hecksagon` for hexagonal ports and adapters, `.fixtures` for seed data and catalog schemas, `.behaviors` for behavioural tests, and `.world` for runtime and extension configuration. The runtime is a Rust binary (`storehouse/`) — formerly one of two peer runtimes, now the sole one after the i51 arc (below); a Ruby gem (`lib/hecks/`) survives as host-language binding for Rails integration. During the years when Ruby and Rust were maintained as peer runtimes, a hand-written canonical Intermediate Representation (IR) and a multi-thousand-fixture parser parity corpus kept them byte-identical — that parity work is what made cross-language migration tractable (§13.5.1). Hecks ships sixteen data contracts (`lib/hecks/conventions/`) that drive multi-target code generation to Go, Node/TypeScript, and a zero-dependency Ruby static target. The framework also describes itself: chapter bluebooks enumerate every Ruby class in `lib/`, a coverage verifier asserts they match, and a parity verifier confirms the Ruby and Rust interpreters agree on aggregate and command counts per chapter. Two self-hosting arcs are reported. First, `hecks compile` produces a single-file zero-dependency Ruby binary of the framework by composing an Abstract Syntax Tree (AST) analysis with a Bluebook-IR method-call graph — an instance of Futamura's first projection (Futamura, 1971) applied to the Ruby interpreter. Second, the i51 arc applies partial evaluation to the Rust runtime through five shipped phases (A–E): every Rust module under `storehouse/src/` regenerates byte-identical from a shape bluebook lowered through an L0–L8 IR factoring; the meta-specializer regenerates its own source byte-identical (Phase C PC-4 fixed point); Phase D ported the specializer itself from Ruby to Rust, byte-identically; Phase E deleted the Ruby specializer orbit. The runtime has collapsed from two peers into one (Rust) plus a host-language binding (Ruby gem). We enumerate twenty-plus techniques with direct file references as the defensive-publication payload. The paper's claims are reproducible from the public repository at the tag above.
 
 ---
 
@@ -24,7 +24,7 @@ Enterprise software developers work under two mutually reinforcing pressures. Fi
 
 Hecks addresses both pressures by collapsing the distinction between "the model" and "the code": a domain is declared once in a family of five DSLs; every runtime, generator, and verifier then reads from the same parsed Intermediate Representation (IR). Agreement between runtimes is no longer a matter of discipline but a property enforced by a parser-parity test suite and sixteen data contracts that each code generator must consume.
 
-The paper has two audiences. For the enterprise developer, we describe the DSL vocabulary, the hexagonal-adapter declaration mechanism, and the behavioural-test cascade lockdown with the intent that they be immediately recognisable and adoptable. For the programming-language and compiler-research audience, we describe the framework's self-hosting properties — particularly the factoring of the Rust interpreter into eight IR layers (L0–L8) and the module-by-module retirement of hand-written Rust via partial evaluation. The i51 arc has since completed: every Rust module under `hecks_life/src/` regenerates byte-identical from a shape, the meta-specializer holds byte-identity against its own source (Phase C PC-4 — the second Futamura fixed point proved at the per-file level), and what had been the Ruby `bin/specialize` driver is now `hecks-life specialize <target>` — a Rust subcommand. §9 gives the formal treatment.
+The paper has two audiences. For the enterprise developer, we describe the DSL vocabulary, the hexagonal-adapter declaration mechanism, and the behavioural-test cascade lockdown with the intent that they be immediately recognisable and adoptable. For the programming-language and compiler-research audience, we describe the framework's self-hosting properties — particularly the factoring of the Rust interpreter into eight IR layers (L0–L8) and the module-by-module retirement of hand-written Rust via partial evaluation. The i51 arc has since completed: every Rust module under `storehouse/src/` regenerates byte-identical from a shape, the meta-specializer holds byte-identity against its own source (Phase C PC-4 — the second Futamura fixed point proved at the per-file level), and what had been the Ruby `bin/specialize` driver is now `storehouse specialize <target>` — a Rust subcommand. §9 gives the formal treatment.
 
 We publish this as a defensive-publication document so the techniques described here, whether or not they are pursued commercially elsewhere, remain available as prior art.
 
@@ -55,11 +55,11 @@ Hecks expresses a domain through five file extensions. Each extension has an aut
 
 | Extension    | Purpose                                                                 | Rust IR parser                    | Ruby builder                          |
 |--------------|-------------------------------------------------------------------------|-----------------------------------|---------------------------------------|
-| `.bluebook`  | Domain model: aggregates, commands, events, policies, lifecycles, value-objects, references, queries, mutations, givens, invariants | `hecks_life/src/ir.rs`, `parser.rs` | `lib/hecks/dsl/` via `Hecks.bluebook` |
-| `.hecksagon` | Port/adapter wiring: `adapter`, `gate`, `subscribe`                     | `hecks_life/src/hecksagon_ir.rs`, `hecksagon_parser.rs` | `lib/hecksagon/dsl/` via `Hecks.hecksagon` |
-| `.fixtures`  | Seed rows and catalog schemas, sibling to a `.bluebook`                 | `hecks_life/src/fixtures_ir.rs`, `fixtures_parser.rs`  | `Hecks.fixtures`                      |
-| `.behaviors` | Behavioural tests: `tests { setup / input / expect }`                   | `hecks_life/src/behaviors_ir.rs`, `behaviors_parser.rs` | `Hecks.behaviors`                     |
-| `.world`     | Runtime and extension configuration                                     | `hecks_life/src/world_ir.rs`       | `lib/hecksagon/dsl/world_builder.rb`  |
+| `.bluebook`  | Domain model: aggregates, commands, events, policies, lifecycles, value-objects, references, queries, mutations, givens, invariants | `storehouse/src/ir.rs`, `parser.rs` | `lib/hecks/dsl/` via `Hecks.bluebook` |
+| `.hecksagon` | Port/adapter wiring: `adapter`, `gate`, `subscribe`                     | `storehouse/src/hecksagon_ir.rs`, `hecksagon_parser.rs` | `lib/hecksagon/dsl/` via `Hecks.hecksagon` |
+| `.fixtures`  | Seed rows and catalog schemas, sibling to a `.bluebook`                 | `storehouse/src/fixtures_ir.rs`, `fixtures_parser.rs`  | `Hecks.fixtures`                      |
+| `.behaviors` | Behavioural tests: `tests { setup / input / expect }`                   | `storehouse/src/behaviors_ir.rs`, `behaviors_parser.rs` | `Hecks.behaviors`                     |
+| `.world`     | Runtime and extension configuration                                     | `storehouse/src/world_ir.rs`       | `lib/hecksagon/dsl/world_builder.rb`  |
 
 A minimal `.bluebook` declares aggregates with commands, value-objects, queries, and optional lifecycle transitions:
 
@@ -135,7 +135,7 @@ The Bluebook canonical JSON has the shape:
 }
 ```
 
-The canonicalizer in Rust is `hecks_life/src/dump.rs` (180 lines of code, hand-written). The canonicalizer in Ruby is `spec/parity/canonical_ir.rb` (hand-written). Both emit keys in the same order, normalise nullables the same way, and stringify types the same way. Parity is defined as byte-equal output from the two canonicalizers for the same input file.
+The canonicalizer in Rust is `storehouse/src/dump.rs` (180 lines of code, hand-written). The canonicalizer in Ruby is `spec/parity/canonical_ir.rb` (hand-written). Both emit keys in the same order, normalise nullables the same way, and stringify types the same way. Parity is defined as byte-equal output from the two canonicalizers for the same input file.
 
 ### §3.2 Parity corpus
 
@@ -257,7 +257,7 @@ end
 
 ### §5.2 Shell adapter security contract
 
-The `:shell` adapter is the largest security surface in any framework that shells out, so Hecks bakes a contract into both its dispatchers. The Ruby dispatcher is `lib/hecks/runtime/shell_dispatcher.rb` (163 LoC); the Rust dispatcher is `hecks_life/src/runtime/shell_dispatcher.rs` (190 LoC). Both implement the same security contract:
+The `:shell` adapter is the largest security surface in any framework that shells out, so Hecks bakes a contract into both its dispatchers. The Ruby dispatcher is `lib/hecks/runtime/shell_dispatcher.rb` (163 LoC); the Rust dispatcher is `storehouse/src/runtime/shell_dispatcher.rs` (190 LoC). Both implement the same security contract:
 
 1. **No shell interpretation.** Execution goes through `Open3.capture3`/`Open3.popen3` in Ruby and `std::process::Command` in Rust, never through `sh -c` or its equivalents. Meta-characters in arguments are never interpreted.
 2. **Env-clear baseline.** The child inherits the empty environment (`unsetenv_others: true` in Ruby; explicit `env_clear` in Rust). Only entries declared on the adapter cross.
@@ -296,7 +296,7 @@ A `conceive-behaviors` CLI subcommand walks any source bluebook's IR and emits a
 
 The distinctive property of the `.behaviors` DSL is *cascade lockdown*. A command rarely emits only one event; policies subscribe to its events, trigger follow-up commands, and those commands emit further events. The `expect emits: [...]` clause locks down the exact ordered list. If a developer adds a policy that changes the emission order or inserts a new event, every behavioural test that exercises that cascade will fail at once and point to the change.
 
-Prediction of the emission list is done by a cascade walker at `hecks_life/src/cascade.rs`. It walks `emit → policy → trigger` edges, mirroring the runtime `PolicyEngine` cycle detection: a policy is blocked while on the recursion stack, allowing diamond fan-in patterns without infinite recursion.
+Prediction of the emission list is done by a cascade walker at `storehouse/src/cascade.rs`. It walks `emit → policy → trigger` edges, mirroring the runtime `PolicyEngine` cycle detection: a policy is blocked while on the recursion stack, allowing diamond fan-in patterns without infinite recursion.
 
 ### §6.3 Two dispatch modes
 
@@ -353,7 +353,7 @@ Each chapter bluebook declares one aggregate per Ruby class in its corresponding
 
 ### §7.4 Parity verification
 
-`lib/hecks/chapters/verify_parity.rb` contains `ParityVerifier`. For each chapter bluebook it invokes `hecks_life/target/debug/hecks-life counts <path>` (the Rust binary's `counts` subcommand) and compares aggregate and command totals against the Ruby parser's output. A mismatch fails the phase.
+`lib/hecks/chapters/verify_parity.rb` contains `ParityVerifier`. For each chapter bluebook it invokes `storehouse/target/debug/storehouse counts <path>` (the Rust binary's `counts` subcommand) and compares aggregate and command totals against the Ruby parser's output. A mismatch fails the phase.
 
 ### §7.5 In-memory domain loading
 
@@ -480,26 +480,26 @@ For `validator.rs`, most of L2–L5 is irrelevant (validator is purely declarati
 
 ### §9.5 Phase A — Shipped
 
-Phase A retires `hecks_life/src/validator.rs`: the hand-written validator is replaced by a byte-identical generated file. The sequence of commits, each a distinct architectural step, is:
+Phase A retires `storehouse/src/validator.rs`: the hand-written validator is replaced by a byte-identical generated file. The sequence of commits, each a distinct architectural step, is:
 
 - `1c0a7339` — describe `validator.rs` as a shape-only bluebook (`hecks_conception/capabilities/validator_shape/validator_shape.bluebook`) with rule bodies in a sibling `.fixtures`.
 - `5b7660f2` — declare the L1–L6 IR as value-objects in `hecks_conception/capabilities/specializer/specializer.bluebook`.
-- `a2913cc2` — first-Futamura proof: byte-identical `validator.rs` generated via the hecksagon-wired shell adapter. Golden test at `hecks_life/tests/specializer_golden_test.rs`.
-- `e33c6672` — retire hand-written `validator.rs`; the file now carries a GENERATED FILE header citing `hecks-life specialize validator --output hecks_life/src/validator.rs`. Integration tests move to `hecks_life/tests/validator_rules_test.rs` to break the circular dependency between validator and its own tests.
+- `a2913cc2` — first-Futamura proof: byte-identical `validator.rs` generated via the hecksagon-wired shell adapter. Golden test at `storehouse/tests/specializer_golden_test.rs`.
+- `e33c6672` — retire hand-written `validator.rs`; the file now carries a GENERATED FILE header citing `storehouse specialize validator --output storehouse/src/validator.rs`. Integration tests move to `storehouse/tests/validator_rules_test.rs` to break the circular dependency between validator and its own tests.
 
 The generated header reads:
 
 ```text
 //! GENERATED FILE — do not edit.
 //! Source:    hecks_conception/capabilities/validator_shape/
-//! Regenerate: hecks-life specialize validator --output hecks_life/src/validator.rs
-//! Contract:  hecks_life/src/specializer/validator.rs (Rust-native)
-//! Tests:     hecks_life/tests/validator_rules_test.rs
+//! Regenerate: storehouse specialize validator --output storehouse/src/validator.rs
+//! Contract:  storehouse/src/specializer/validator.rs (Rust-native)
+//! Tests:     storehouse/tests/validator_rules_test.rs
 ```
 
 ### §9.6 The specialiser is itself a capability
 
-A novel aspect of Hecks's Futamura arc: the specialiser was originally wired as a hexagonal shell adapter rather than invoked as a build script — `specializer.hecksagon` (quoted in §5.1) declared `adapter :shell, name: :specialize_validator, command: "bin/specialize", args: ["validator", "--output", "{{output}}"]` and gated the resulting `Specialize` command behind an `:autophagy` gate. The implementation behind the shell adapter was Ruby through Phase A and B; Phase D ported it to Rust-native (`hecks_life/src/specializer/`), and Phase E deleted the shell adapter entirely since `hecks-life specialize` is now a subcommand, not a shelled-out script. The command is still dispatchable (the `SpecializeRun` gate remains as declarative metadata), but the wrapping layer is gone.
+A novel aspect of Hecks's Futamura arc: the specialiser was originally wired as a hexagonal shell adapter rather than invoked as a build script — `specializer.hecksagon` (quoted in §5.1) declared `adapter :shell, name: :specialize_validator, command: "bin/specialize", args: ["validator", "--output", "{{output}}"]` and gated the resulting `Specialize` command behind an `:autophagy` gate. The implementation behind the shell adapter was Ruby through Phase A and B; Phase D ported it to Rust-native (`storehouse/src/specializer/`), and Phase E deleted the shell adapter entirely since `storehouse specialize` is now a subcommand, not a shelled-out script. The command is still dispatchable (the `SpecializeRun` gate remains as declarative metadata), but the wrapping layer is gone.
 
 ### §9.7 Phase B — Module-by-module retirement (shipped)
 
@@ -513,7 +513,7 @@ Phase B retired the remaining Rust modules (after Phase A's `validator.rs`), eac
 6. `behaviors_parser.rs` — `behaviors_parser_shape`, extends the parser shape with an `else_if` loop style and three new handler_kinds plus an inline `#[cfg(test)]` block via `tests_snippet`.
 7. `fixtures_parser.rs` — `fixtures_parser_shape`, the most hostile target: 18 verbatim snippets covering `expand_ruby_escapes`, `matching_close_brace`, `extract_schema_kwarg`, `extract_string_escape_aware`, `first_top_level_comma`. Liberal escape-hatching produced byte-identity on the first specialise run.
 
-All seven byte-identical. Golden tests under `hecks_life/tests/specializer_golden_test.rs` enforce per-file drift detection.
+All seven byte-identical. Golden tests under `storehouse/tests/specializer_golden_test.rs` enforce per-file drift detection.
 
 ### §9.8 Phase C — Second Futamura projection (shipped)
 
@@ -525,13 +525,13 @@ Phase C lifted the specialiser into its own bluebooks and applied it to itself. 
 - **PC-4** — the fixed point: `meta_diagnostic_validator.rb` (the meta-specializer itself) regenerates byte-identical from its own fixture rows, using the same shape it reads. Closed-form 2nd-Futamura projection at the per-file level: a specialized interpreter reproducing itself from its own shape.
 - **PC-5** — loader retirement: `lib/hecks_specializer.rb` (the module + `class << self` + inner Target mixin + `Dir[].each { require }` auto-load loop) regenerates from a new `ruby_module_shape`.
 
-At the close of Phase C, every Ruby specializer file had a meta-specializer that regenerated it byte-identical. The loop had closed once at the per-file level ($\text{file}_N \equiv \text{file}_{N+1}$); extending to the full `hecks-life` binary ($\text{binary}_N \equiv \text{binary}_{N+1}$ per §9.12) remains future work (§14.2).
+At the close of Phase C, every Ruby specializer file had a meta-specializer that regenerated it byte-identical. The loop had closed once at the per-file level ($\text{file}_N \equiv \text{file}_{N+1}$); extending to the full `storehouse` binary ($\text{binary}_N \equiv \text{binary}_{N+1}$ per §9.12) remains future work (§14.2).
 
 ### §9.9 Phase D — Cross-language migration (shipped)
 
-Phase D migrated the specializer itself from Ruby to Rust, one target at a time, preserving byte-identity at every step. For each ported target, both `bin/specialize <target>` (Ruby) and `hecks-life specialize <target>` (Rust-native) produced identical output against the tracked `.rs` / `.rb` file — a byte-level conservation proof across interpreters:
+Phase D migrated the specializer itself from Ruby to Rust, one target at a time, preserving byte-identity at every step. For each ported target, both `bin/specialize <target>` (Ruby) and `storehouse specialize <target>` (Rust-native) produced identical output against the tracked `.rs` / `.rb` file — a byte-level conservation proof across interpreters:
 
-- **D1 pilot** — `validator_warnings` (smallest standalone Rust-emitter) established the infrastructure: `hecks_life/src/specializer/mod.rs` (dispatcher), `util.rs` (`load_fixtures`, `by_aggregate`, `read_snippet_body`), and a new `hecks-life specialize <target>` subcommand.
+- **D1 pilot** — `validator_warnings` (smallest standalone Rust-emitter) established the infrastructure: `storehouse/src/specializer/mod.rs` (dispatcher), `util.rs` (`load_fixtures`, `by_aggregate`, `read_snippet_body`), and a new `storehouse specialize <target>` subcommand.
 - **D2** — the remaining Rust-emitting specializers ported in succession: `dump`, `validator` (the biggest at 393 LoC Ruby → 4 Rust files), `hecksagon_parser`, `behaviors_parser`, `fixtures_parser`.
 - **D3** — the Ruby-emitting meta-specializers (`meta_subclass`, `meta_diagnostic_validator`, `meta_ruby_script`, `meta_ruby_module`). Introduced `util::read_snippet_raw` for `.rb.frag` files, which (unlike `.rs.frag`) carry no leading-comment header.
 
@@ -542,7 +542,7 @@ After Phase D, every Ruby specializer had a Rust twin producing byte-identical o
 With Phase D providing byte-identity across both implementations, Phase E removed the Ruby side. The deletions, in three PRs:
 
 1. `bin/specialize` (57 LoC) + `lib/hecks_specializer.rb` (108 LoC).
-2. `lib/hecks_specializer/` — 16 Ruby specializer modules (~2,000 LoC total), plus five Rust meta-specializers under `hecks_life/src/specializer/` that had existed only to emit Ruby (meta_subclass, meta_diagnostic_validator, meta_ruby_script, meta_ruby_module, meta_ruby_module_sections).
+2. `lib/hecks_specializer/` — 16 Ruby specializer modules (~2,000 LoC total), plus five Rust meta-specializers under `storehouse/src/specializer/` that had existed only to emit Ruby (meta_subclass, meta_diagnostic_validator, meta_ruby_script, meta_ruby_module, meta_ruby_module_sections).
 3. Docs + tracker refresh; the 16 shell adapters in `specializer.hecksagon` were removed (only the `:memory` + `:fs` adapters and the `SpecializeRun` gate remain).
 
 Net deletion was approximately 3,000 lines of Ruby and 900 lines of Rust. The `autophagy_tracker_shape` fixtures report 100 percent autophagy completeness (2,095 of 2,095 in-scope lines regenerate byte-identical from a shape). The meta-shape bluebooks, their fixtures, and their snippets remain under `hecks_conception/capabilities/` as historical data — they describe Ruby classes that were regenerable until this phase. Two Rust files are orphaned by the deletion (`duplicate_policy_validator.rs`, `lifecycle_validator.rs`) because they were produced by a thin-subclass pattern whose base class (Ruby's `DiagnosticValidator`) was not ported in Phase D; porting a Rust `diagnostic_validator` specializer to close this gap is tracked in the inbox.
@@ -558,15 +558,15 @@ We distinguish carefully between two properties that are often conflated in the 
 - **Bootstrapping.** $\text{binary}_N$ compiles its sources to produce $\text{binary}_{N+1}$ that runs correctly — that is, $\text{binary}_{N+1}$ is functionally equivalent to $\text{binary}_N$. Timestamps, symbol order, and non-determinism in code generation may differ.
 - **Strict self-hosting.** $\text{binary}_N \equiv \text{binary}_{N+1}$ byte-identically. This requires deterministic codegen — stable sort orders, fixed timestamps, reproducible build.
 
-`rustc` and GHC (Jones *et al.*) are bootstrapped in the first sense. Phase A demonstrated byte-identical regeneration at the file level for `validator.rs`; Phases B through E extended this per-file byte-identity to every Rust target under `hecks_life/src/` and to the specializer itself (Phase C PC-4's fixed point). Extending the per-file property to the full `hecks-life` binary — the definition of strict self-hosting in the sense above — is future work.
+`rustc` and GHC (Jones *et al.*) are bootstrapped in the first sense. Phase A demonstrated byte-identical regeneration at the file level for `validator.rs`; Phases B through E extended this per-file byte-identity to every Rust target under `storehouse/src/` and to the specializer itself (Phase C PC-4's fixed point). Extending the per-file property to the full `storehouse` binary — the definition of strict self-hosting in the sense above — is future work.
 
 ### §9.11 Phase F — Runtime as domain (in flight)
 
-Phases A–E digested the *specializer orbit* — the subsystem of Hecks whose job is emitting code. Phase F turns the same lens on the other half of the codebase : the runtime itself. The conjecture is that every subsystem under `hecks_life/src/` that can be naturally expressed as aggregate / command / event / lifecycle should live as a bluebook domain rather than as imperative Rust. Under full Phase F the runtime becomes another Hecks domain, readable in the same DSL that pizza-shop users read — no bimodality between "framework code" and "application code."
+Phases A–E digested the *specializer orbit* — the subsystem of Hecks whose job is emitting code. Phase F turns the same lens on the other half of the codebase : the runtime itself. The conjecture is that every subsystem under `storehouse/src/` that can be naturally expressed as aggregate / command / event / lifecycle should live as a bluebook domain rather than as imperative Rust. Under full Phase F the runtime becomes another Hecks domain, readable in the same DSL that pizza-shop users read — no bimodality between "framework code" and "application code."
 
 **Discipline : no DSL extension.** The explicit test is whether each subsystem expresses naturally using only the existing bluebook vocabulary (`aggregate`, `attribute`, `command`, `event`, `policy`, `lifecycle`, `value_object`, `reference_to`, `given`, `then_set`, `emits`). Subsystems that require new DSL keywords — templates, pure transforms, kernel primitives — are *not* force-fitted. They are catalogued as residue, which is itself a publishable finding : an evidence-based inventory of where the DDD ontology actually reaches and where it stops.
 
-**F-0 survey.** The inventory lives at `docs/phase-f-0-survey.md`. Of the ~90 `.rs` files in `hecks_life/src/`, the ~30 shape-backed by i51 Phases A–E are excluded. Of the remaining ~60, the classification is :
+**F-0 survey.** The inventory lives at `docs/phase-f-0-survey.md`. Of the ~90 `.rs` files in `storehouse/src/`, the ~30 shape-backed by i51 Phases A–E are excluded. Of the remaining ~60, the classification is :
 
 | class | files | LOC |
 |---|---|---|
@@ -651,7 +651,7 @@ Cross-context wiring is first-class. In `model_registry.bluebook`, the `SuspendO
 
 `GovernancePolicy` in compliance.bluebook shows the lifecycle pattern expressed via commands and a `status` attribute: `CreatePolicy` enters `"draft"`, `ActivatePolicy` advances to `"active"`, `SuspendPolicy` transitions to `"suspended"`, and `RetirePolicy` moves to `"retired"`. Each command is authorised to both `governance_board` and `admin` roles. The aggregate reports via `scope :active_policies, status: "active"` and `scope :draft_policies, status: "draft"`. For defensive publication, Governance demonstrates that five bounded contexts can coordinate via declared cross-context policies — a pattern the Hecks runtime supports as first-class wiring rather than application-level glue code.
 
-**Miette.** A long-running software agent whose source is a tree of `.bluebook`, `.hecksagon`, and `.fixtures` files at `hecks_conception/`. Thirteen aggregate *organs* interact via *nerves* and *moods* on a circadian cycle described entirely in the DSLs. Miette runs on the Rust `hecks-life` runtime with a persistent `.heki` store. She acts as a production-strength stress test of the five-DSL vocabulary: 41 aggregate bluebooks, 35 capability bluebooks, and hundreds of behavioural tests, all running without the Ruby runtime. This evidences the claim that the five-DSL vocabulary scales beyond toy CRUD.
+**Miette.** A long-running software agent whose source is a tree of `.bluebook`, `.hecksagon`, and `.fixtures` files at `hecks_conception/`. Thirteen aggregate *organs* interact via *nerves* and *moods* on a circadian cycle described entirely in the DSLs. Miette runs on the Rust `storehouse` runtime with a persistent `.heki` store. She acts as a production-strength stress test of the five-DSL vocabulary: 41 aggregate bluebooks, 35 capability bluebooks, and hundreds of behavioural tests, all running without the Ruby runtime. This evidences the claim that the five-DSL vocabulary scales beyond toy CRUD.
 
 ### §10.4 An end-to-end cascade-lockdown test
 
@@ -668,11 +668,11 @@ test "ShedDomain cascades through policy chain" do
 end
 ```
 
-The runner executes this test in five steps. First, it calls `Runtime::boot(domain)` (see `hecks_life/src/runtime/mod.rs`) from the parsed `Being` bluebook. Boot is pure-memory: repositories, event bus, policy engine, and projections are all constructed in-process with no hexagonal adapters required. Second, the two `setup` commands (`ConceiveBeing` and `ConnectNerve`) are dispatched via `dispatch_isolated`, a dispatch mode declared on the runtime that skips the `drain_policies` phase so that setup does not cascade further than its own aggregate. Third, the `input` command (`ShedDomain`) is dispatched via the regular `dispatch` method, which emits its direct event and then drains policy triggers recursively. Fourth, the event bus records the ordered emission list. Fifth, the runner asserts that list equals `["DomainShed", "NerveSevered", "NerveConnected"]`.
+The runner executes this test in five steps. First, it calls `Runtime::boot(domain)` (see `storehouse/src/runtime/mod.rs`) from the parsed `Being` bluebook. Boot is pure-memory: repositories, event bus, policy engine, and projections are all constructed in-process with no hexagonal adapters required. Second, the two `setup` commands (`ConceiveBeing` and `ConnectNerve`) are dispatched via `dispatch_isolated`, a dispatch mode declared on the runtime that skips the `drain_policies` phase so that setup does not cascade further than its own aggregate. Third, the `input` command (`ShedDomain`) is dispatched via the regular `dispatch` method, which emits its direct event and then drains policy triggers recursively. Fourth, the event bus records the ordered emission list. Fifth, the runner asserts that list equals `["DomainShed", "NerveSevered", "NerveConnected"]`.
 
 The three events in order correspond to distinct stages of the cascade. `DomainShed` is the direct emission from the `ShedDomain` command on the `Being` aggregate. `NerveSevered` is produced by the `SeverNerve` command, triggered by the `SeverOnShed` policy (`on "DomainShed"; trigger "SeverNerve"`) declared in the same bluebook. `NerveConnected` is produced by the `ConnectNerve` command, triggered by the `DetectDriftOnShed` policy (`on "DomainShed"; trigger "ConnectNerve"`), which is a second policy fanning out from the same upstream event. The chain is a diamond at the `DomainShed` vertex: two distinct policies subscribe to it, and the runtime's cycle-detection rule (§6) blocks a policy only while it is on its own recursion stack, so both branches fire exactly once.
 
-The static cascade walker at `hecks_life/src/cascade.rs` predicts the same ordered list by walking `emit → policy → trigger` edges on the parsed IR. This walker mirrors the runtime's `PolicyEngine` ordering — identical recursion-stack semantics — and is what the `conceive-behaviors` tool uses to auto-generate cascade tests from the IR. A test in the shape above is therefore a compile-time prediction codified as a run-time assertion.
+The static cascade walker at `storehouse/src/cascade.rs` predicts the same ordered list by walking `emit → policy → trigger` edges on the parsed IR. This walker mirrors the runtime's `PolicyEngine` ordering — identical recursion-stack semantics — and is what the `conceive-behaviors` tool uses to auto-generate cascade tests from the IR. A test in the shape above is therefore a compile-time prediction codified as a run-time assertion.
 
 The defensive-publication claim of cascade lockdown follows directly. If any policy between this test's codification and its next run is added, removed, or retargeted — a new subscriber to `DomainShed`, a change from `trigger "SeverNerve"` to `trigger "SeverNerveAndLog"`, a policy moving out of the Being bluebook — the ordered-list assertion fails. The test does not merely check that `ShedDomain` succeeded; it locks down the reactive structure of the domain as declared. This is the VCR-style property referenced in §6.2.
 
@@ -706,7 +706,7 @@ This section enumerates the techniques used in Hecks that we document as prior a
 
 1. **Five-DSL vocabulary with antibody enforcement.** A closed vocabulary of exactly five DSL extensions (`.bluebook`, `.hecksagon`, `.fixtures`, `.behaviors`, `.world`) enforced by `bin/antibody-check`, the commit-msg hook at `bin/git-hooks/commit-msg`, the pre-commit hook at `bin/git-hooks/pre-commit`, and `.github/workflows/antibody.yml`, with per-commit `[antibody-exempt: <reason>]` exemption markers.
 
-2. **Canonical JSON IR with hand-written dumpers in two host languages.** `hecks_life/src/dump.rs` (Rust, 180 LoC) and `spec/parity/canonical_ir.rb` (Ruby). Byte-equality of their outputs is the parity invariant.
+2. **Canonical JSON IR with hand-written dumpers in two host languages.** `storehouse/src/dump.rs` (Rust, 180 LoC) and `spec/parity/canonical_ir.rb` (Ruby). Byte-equality of their outputs is the parity invariant.
 
 3. **Cross-language parser parity gated on a fixture corpus with soft/hard sections and celebrate-and-remove semantics for known drift.** `spec/parity/parity_test.rb`, companion tests for the other four DSLs (`hecksagon_parity_test.rb`, `fixtures_parity_test.rb`, `behaviors_parity_test.rb`, `world_parity_test.rb`), fuzz tests under `spec/parity/fuzz/`, and `spec/parity/known_drift.txt`.
 
@@ -714,11 +714,11 @@ This section enumerates the techniques used in Hecks that we document as prior a
 
 5. **ERB-as-source-of-truth with build-time transpilation to Go `html/template`.** The Go server generator translates ERB directives to Go template directives at build time; a single template tree drives both Ruby and Go output.
 
-6. **Hexagonal adapters declared in a separate DSL (`.hecksagon`) with parity-implemented runtimes.** Ruby at `lib/hecks/runtime/shell_dispatcher.rb` and Rust at `hecks_life/src/runtime/shell_dispatcher.rs` — same security contract.
+6. **Hexagonal adapters declared in a separate DSL (`.hecksagon`) with parity-implemented runtimes.** Ruby at `lib/hecks/runtime/shell_dispatcher.rb` and Rust at `storehouse/src/runtime/shell_dispatcher.rs` — same security contract.
 
 7. **Declared security contract for shell adapters.** Env-clear baseline, sealed empty stdin, pgroup SIGKILL on timeout, no shell interpretation, per-argument placeholder substitution. Implemented identically in the two dispatchers above and declared on the `adapter :shell` builder.
 
-8. **Behavioural-test DSL with cascade lockdown.** `Hecks.behaviors` with `expect emits: [E1, E2, ...]` asserting the exact ordered emission sequence, including downstream policies. Cascade walker at `hecks_life/src/cascade.rs`; `dispatch` vs `dispatch_isolated` modes in the runner.
+8. **Behavioural-test DSL with cascade lockdown.** `Hecks.behaviors` with `expect emits: [E1, E2, ...]` asserting the exact ordered emission sequence, including downstream policies. Cascade walker at `storehouse/src/cascade.rs`; `dispatch` vs `dispatch_isolated` modes in the runner.
 
 9. **Two-layer dependency graph combining AST analysis and domain-model method-call resolution.** Prism AST (Ruby 3.3 standard library) plus Bluebook IR method-call index in `lib/hecks/compiler/source_analyzer.rb`.
 
@@ -728,7 +728,7 @@ This section enumerates the techniques used in Hecks that we document as prior a
 
 12. **Ruby binary compiler producing zero-dependency single-file output with a `self-test` subcommand.** `Hecks::Compiler::BinaryCompiler`, the ten files in `lib/hecks/compiler/`, the `hecks compile` CLI with `--plan`/`--output`/`--trace` flags.
 
-13. **Futamura projection applied to a DDD compiler's runtime, module-by-module retirement plan, byte-identical generated artifact with a GENERATED FILE header.** Plan document `docs/plans/i51_futamura_projections.md`; value-object bluebooks at `hecks_conception/capabilities/specializer/`; Phase A implementation `bin/specialize-validator`; resulting file `hecks_life/src/validator.rs` with its regeneration-instruction header.
+13. **Futamura projection applied to a DDD compiler's runtime, module-by-module retirement plan, byte-identical generated artifact with a GENERATED FILE header.** Plan document `docs/plans/i51_futamura_projections.md`; value-object bluebooks at `hecks_conception/capabilities/specializer/`; Phase A implementation `bin/specialize-validator`; resulting file `storehouse/src/validator.rs` with its regeneration-instruction header.
 
 14. **Specialiser as capability — partial evaluator wired as a shell adapter.** `hecks_conception/capabilities/specializer/specializer.hecksagon` wires `:memory`, `:fs root: "."`, `:shell name: :specialize_validator`, and `gate "SpecializeRun", :autophagy`; the codegen pipeline is thereby dispatchable as a domain command rather than invoked as a build script.
 
@@ -744,7 +744,7 @@ This section enumerates the techniques used in Hecks that we document as prior a
 
 20. **Ruby method-call-to-registry-file edge addition.** `Hecks.<method>` calls add dependency edges from the caller to the registry file that defines `<method>`, enabling framework-level dependency resolution that AST analysis alone cannot recover.
 
-21. **Cascade cycle detection with recursion-stack blocking.** A policy is blocked while on the recursion stack but re-entrant on diamond fan-in; implemented identically in `hecks_life/src/cascade.rs` and the Ruby `PolicyEngine`.
+21. **Cascade cycle detection with recursion-stack blocking.** A policy is blocked while on the recursion stack but re-entrant on diamond fan-in; implemented identically in `storehouse/src/cascade.rs` and the Ruby `PolicyEngine`.
 
 22. **Gate syntax for capability-scoped command allowances.** `gate "<aggregate>", :<capability> do allow :<command> end` in `.hecksagon`; the autophagy gate in `specializer.hecksagon` is a worked example.
 
@@ -764,7 +764,7 @@ The chapter self-description (§7) has a practical cost: adding a Ruby class req
 
 ### §13.2 When the specialiser is a capability
 
-Wiring the specialiser as a hexagonal shell adapter (§9.6) has an unusual consequence: codegen is dispatchable. This means a Hecks CLI session can issue `Specialize(target: "validator", output: "hecks_life/src/validator.rs")` from the command bus, not from a shell script. The same authentication, logging, and event-sourcing infrastructure that wraps every other command also wraps the specialiser. We consider this a productive lens on self-hosting — the framework's own code-generation pipeline is a participant in the framework, not an outside actor.
+Wiring the specialiser as a hexagonal shell adapter (§9.6) has an unusual consequence: codegen is dispatchable. This means a Hecks CLI session can issue `Specialize(target: "validator", output: "storehouse/src/validator.rs")` from the command bus, not from a shell script. The same authentication, logging, and event-sourcing infrastructure that wraps every other command also wraps the specialiser. We consider this a productive lens on self-hosting — the framework's own code-generation pipeline is a participant in the framework, not an outside actor.
 
 ### §13.3 Soft versus hard parity
 
@@ -782,7 +782,7 @@ The chapter self-description is therefore accurate by discipline, not by constru
 
 ### §13.5 Two-runtime maintenance cost
 
-Maintaining parallel Ruby and Rust runtimes is the framework's largest recurring cost. Every new IR feature must land in three sites: the Ruby parser/builder (`lib/hecks/dsl/` plus the relevant domain-model files), the Rust parser (`hecks_life/src/parser.rs` and its siblings `hecksagon_parser.rs`, `fixtures_parser.rs`, `behaviors_parser.rs`, `world_ir.rs`), and both canonicalisers (`hecks_life/src/dump.rs` and `spec/parity/canonical_ir.rb`). A fixture under `spec/parity/bluebooks/` exercises the feature; the pre-commit parity suite blocks the commit if any of the three implementations drift.
+Maintaining parallel Ruby and Rust runtimes is the framework's largest recurring cost. Every new IR feature must land in three sites: the Ruby parser/builder (`lib/hecks/dsl/` plus the relevant domain-model files), the Rust parser (`storehouse/src/parser.rs` and its siblings `hecksagon_parser.rs`, `fixtures_parser.rs`, `behaviors_parser.rs`, `world_ir.rs`), and both canonicalisers (`storehouse/src/dump.rs` and `spec/parity/canonical_ir.rb`). A fixture under `spec/parity/bluebooks/` exercises the feature; the pre-commit parity suite blocks the commit if any of the three implementations drift.
 
 Drift history in the parity suite documents the shape of this cost. Past incidents caught at the fixture level include: `list_of(X)` being captured into the type field of an attribute rather than into its container shape (Rust parser); `parse_fixture` in Rust reading only one physical line of a multi-line fixture row; the Bluebook `category` clause being captured by the builder but never passed to `Domain.new` (Ruby); and `Lifecycle.transitions` in the Ruby builder collapsing multiple transitions declared for the same attribute into a last-wins `Hash` rather than preserving their order. Each of these was discovered by a fixture diff and fixed in one to three commits. The commit message `parity: 113/113 — fix 4 Rust parser bugs, drain known_drift` is a representative instance from the project's history; four independent Rust-parser bugs were landed and `known_drift.txt` was drained in the same pass.
 
@@ -794,7 +794,7 @@ A design alternative exists: a single source-of-truth parser with a serialisatio
 
 The drift-catching benefit described above is real but secondary. The deeper benefit, visible only in retrospect after Phase D began shipping, is that parity forced the canonical IR and the specialiser shapes to be language-neutral from the start. Because the Ruby loader and the Rust parser had to produce byte-identical IR, neither implementation was permitted to encode idioms specific to its host language. The IR became an honest contract rather than a convenient intermediate representation biased toward one runtime.
 
-This pressure compounded when the specialiser (§9) lifted its own targets into `.bluebook` shapes. The shapes, fixtures, and `.rs.frag` / `.rb.frag` snippets are language-neutral precisely because they had to satisfy two different interpreters at parity. When `hecks-life specialize validator_warnings` produced byte-identical output to `bin/specialize validator_warnings` on its first run (Phase D, §9.9), the result was not a lucky coincidence; it was structurally guaranteed by years of parity work that had already forbidden any Ruby-specific or Rust-specific assumption from entering the specialised cache.
+This pressure compounded when the specialiser (§9) lifted its own targets into `.bluebook` shapes. The shapes, fixtures, and `.rs.frag` / `.rb.frag` snippets are language-neutral precisely because they had to satisfy two different interpreters at parity. When `storehouse specialize validator_warnings` produced byte-identical output to `bin/specialize validator_warnings` on its first run (Phase D, §9.9), the result was not a lucky coincidence; it was structurally guaranteed by years of parity work that had already forbidden any Ruby-specific or Rust-specific assumption from entering the specialised cache.
 
 Two counterfactuals make the claim concrete. In a Ruby-only project, the shapes would have silently accreted Ruby idioms — symbol keys, `send`-style dispatch, implicit hash coercion — and a later cross-language port would have surfaced those idioms as bugs at port time rather than at parity time. The antibody (§2.1) would also have had no teeth in a single-runtime project: Ruby code is easy to smuggle into a Ruby project when there is no second interpreter to fail on it. In a Rust-only project, the host-language integration story disappears — there is no Rails `Hecks.configure`, no Ruby agent ecosystem around the daemons, and no diversity pressure keeping the IR honest.
 
@@ -836,7 +836,7 @@ A regret is unavoidable given that third attribution. The Phase D and Phase E pr
 
 A counter-direction exists in principle. Futamura's projections do not privilege a target language. A specialiser that takes Ruby as its *host* and produces performant equivalents — a *Ruby-to-fast-Ruby* compiler in the partial-evaluation sense — would collapse Ruby's runtime overhead without touching the language's expressiveness at authoring time. Mainstream Ruby has had performance work of many shapes (YJIT, TruffleRuby, typed-optimisation paths) but not, to our knowledge, a domain-aware partial evaluator that starts from the kind of declared-shape IR Hecks maintains. We flag this explicitly as future work for any intrepid programmer or agent: Futamura applied to Ruby itself, with a hand-written L0 shape describing the target IR, yielding a generated Ruby runtime that is both authorable in Ruby *and* fast. The techniques in §9 are not specific to Rust; they are about factoring a runtime through an L0–L8 IR, which any language with a sufficiently expressive host can reproduce. We would welcome seeing someone walk that direction. The debt to Matz would then be repaid in the only currency that matters — another working system, in his language, running fast.
 
-As a point of record: Phase E shipped on 2026-04-24, deleting `bin/specialize`, `lib/hecks_specializer.rb`, the 16 Ruby specializer modules under `lib/hecks_specializer/`, and the five Rust meta-specializers that had been emitting Ruby files. Net deletion was approximately 3,000 lines of code. The `autophagy_tracker_shape` fixtures at the time of this writing report 100 percent autophagy completeness (2,095 of 2,095 in-scope lines of code regenerate byte-identical from a shape). The `hecks-life specialize <target>` Rust subcommand is the sole code-generation path; the Ruby gem at `lib/hecks/` survives as host-language binding for Rails integration. The two-runtime framing described in earlier sections has, as of Phase E, collapsed into one-runtime-plus-one-binding.
+As a point of record: Phase E shipped on 2026-04-24, deleting `bin/specialize`, `lib/hecks_specializer.rb`, the 16 Ruby specializer modules under `lib/hecks_specializer/`, and the five Rust meta-specializers that had been emitting Ruby files. Net deletion was approximately 3,000 lines of code. The `autophagy_tracker_shape` fixtures at the time of this writing report 100 percent autophagy completeness (2,095 of 2,095 in-scope lines of code regenerate byte-identical from a shape). The `storehouse specialize <target>` Rust subcommand is the sole code-generation path; the Ruby gem at `lib/hecks/` survives as host-language binding for Rails integration. The two-runtime framing described in earlier sections has, as of Phase E, collapsed into one-runtime-plus-one-binding.
 
 A fourth attribution, less usual. The ideas Evans, Cockburn, and Matz put into the world have had long careers but uneven adoption. Domain-Driven Design is well-known in enterprise-software circles but rarely practised in its strong form; Hexagonal Architecture is widely cited but often softened into "clean architecture" variants that lose the symmetry of the original; Ruby's DSL-hosting affordances are admired at conferences and then set aside by teams who choose less reflective languages for operational reasons. Hecks exists partly because these inheritances were available — but also, we think, partly because they were not fully absorbed. If the strong DDD + Hexagonal + Ruby-DSL combination had become mainstream engineering practice, a framework like Hecks would now be *a tool*, not a research programme. It would apply established patterns in a polished way. The recursive structure described in this paper — the self-hosting, the autophagy, the Futamura fixed points — would likely not have been necessary to notice, because the mainstream would already have noticed them. So we close with a qualified gratitude to the engineers who, over the past two decades, dismissed or softened these ideas. Had they not, the space for this work would have been smaller; the dismissal is what kept the territory open long enough for the deeper structure to become visible. The paper is addressed to them too, without irony: the unaccepted inheritance is what made the recursion worth chasing.
 
@@ -1061,7 +1061,7 @@ The grammars below are EBNF-style skeletons covering the outer block and top-lev
 
 ### C.1 `.bluebook`
 
-Authoritative parsers: Rust `hecks_life/src/parser.rs` + `hecks_life/src/ir.rs`; Ruby `lib/hecks/dsl/` via `Hecks.bluebook`.
+Authoritative parsers: Rust `storehouse/src/parser.rs` + `storehouse/src/ir.rs`; Ruby `lib/hecks/dsl/` via `Hecks.bluebook`.
 
 ```
 Bluebook      ::= "Hecks.bluebook" String "do" BluebookBody "end"
@@ -1081,7 +1081,7 @@ QueryBlock    ::= "query" String [ BlockArgs ] "do" Expr "end"
 
 ### C.2 `.hecksagon`
 
-Authoritative parsers: Rust `hecks_life/src/hecksagon_parser.rs` + `hecksagon_ir.rs`; Ruby `lib/hecksagon/dsl/`.
+Authoritative parsers: Rust `storehouse/src/hecksagon_parser.rs` + `hecksagon_ir.rs`; Ruby `lib/hecksagon/dsl/`.
 
 ```
 Hecksagon   ::= "Hecks.hecksagon" String "do" HecksagonBody "end"
@@ -1095,7 +1095,7 @@ CapabilitiesLine ::= "capabilities" Symbol { "," Symbol }
 
 ### C.3 `.fixtures`
 
-Authoritative parsers: Rust `hecks_life/src/fixtures_parser.rs` + `fixtures_ir.rs`; Ruby `Hecks.fixtures`.
+Authoritative parsers: Rust `storehouse/src/fixtures_parser.rs` + `fixtures_ir.rs`; Ruby `Hecks.fixtures`.
 
 ```
 Fixtures   ::= "Hecks.fixtures" String "do" FixturesBody "end"
@@ -1107,7 +1107,7 @@ CatalogBlock ::= "catalog" Symbol "do" { AttributeLine } "end"
 
 ### C.4 `.behaviors`
 
-Authoritative parsers: Rust `hecks_life/src/behaviors_parser.rs` + `behaviors_ir.rs`; Ruby `Hecks.behaviors`.
+Authoritative parsers: Rust `storehouse/src/behaviors_parser.rs` + `behaviors_ir.rs`; Ruby `Hecks.behaviors`.
 
 ```
 Behaviors   ::= "Hecks.behaviors" String "do" { TestBlock } "end"
@@ -1121,7 +1121,7 @@ ExpectBody  ::= "emits:" "[" Symbol { "," Symbol } "]" [ "," KeyValues ]
 
 ### C.5 `.world`
 
-Authoritative parsers: Rust `hecks_life/src/world_ir.rs` (parser in same file); Ruby `lib/hecksagon/dsl/world_builder.rb` via `Hecks.world`.
+Authoritative parsers: Rust `storehouse/src/world_ir.rs` (parser in same file); Ruby `lib/hecksagon/dsl/world_builder.rb` via `Hecks.world`.
 
 ```
 World    ::= "Hecks.world" String "do" WorldBody "end"
