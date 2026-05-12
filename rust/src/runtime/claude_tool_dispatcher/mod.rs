@@ -311,6 +311,45 @@ pub(super) fn err(tool: &str, msg: &str) -> ClaudeToolResult {
     }
 }
 
+// ── FrameworkRegistry-compatible wrapper (i557 part 1) ──
+//
+// `dispatch` takes a positional `tool` arg and returns a
+// `ClaudeToolResult`. The Phase-2 framework registry calls every
+// kernel hook through one uniform signature :
+//   fn(&HashMap<String,String>, &HashMap<String,String>) -> KernelResult
+// so families compose interchangeably.
+//
+// This wrapper adapts : it reads the adapter's `tool` field from the
+// first map (the adapter's declared fields), forwards the second map
+// (the dispatched command's attrs) to the underlying dispatch, and
+// folds the ClaudeToolResult into a KernelResult. Lives here next to
+// the dispatcher so the two stay in sync — registry doesn't reach
+// across crates to translate.
+
+/// Adapt `dispatch(tool, attrs)` to the `KernelHook` signature the
+/// framework registry expects. `adapter_fields` carries the adapter's
+/// declared fields (`tool`, `command`, `result_into`, ...) ;
+/// `command_attrs` carries the dispatched command's attributes
+/// (`shell_command`, `file_path`, ...). Reads `tool` from
+/// `adapter_fields` and dispatches with `command_attrs`.
+pub fn dispatch_via_registry(
+    adapter_fields: &HashMap<String, String>,
+    command_attrs: &HashMap<String, String>,
+) -> super::framework_registry::KernelResult {
+    let tool = adapter_fields
+        .get("tool")
+        .cloned()
+        .unwrap_or_default();
+    let r = dispatch(&tool, command_attrs);
+    super::framework_registry::KernelResult {
+        kind: r.tool,
+        ok: r.ok,
+        output: r.output,
+        exit_code: r.exit_code,
+        error: r.error,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
