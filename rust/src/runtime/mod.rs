@@ -49,14 +49,6 @@ pub mod compute_dispatcher;
 pub mod claude_tool_dispatcher;
 pub mod sms_dispatcher;
 pub mod tts_dispatcher;
-// i569 — :web_tool adapter family kernel hook. Two behaviors :
-// perform_web_fetch (curl HTTP GET, URL-safety gated) and
-// perform_web_search (DuckDuckGo HTML-lite). Sibling to
-// claude_tool_dispatcher ; registered into i557's framework registry
-// once that lands. This module exposes `lookup_hook` +
-// `WEB_TOOL_BEHAVIOR_NAMES` for the registry to consume — `Runtime::
-// dispatch` is deliberately NOT modified to call into it.
-pub mod web_tool_dispatcher;
 pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
@@ -278,11 +270,20 @@ impl Runtime {
         // settles, scan loaded hecksagons for any `:claude_tool` io
         // adapter whose `command` option matches the just-dispatched
         // `Aggregate.Command` target. Build the attrs from the just-
-        // dispatched aggregate's state and call into the kernel-floor
-        // dispatcher (claude_tool_dispatcher::dispatch). The native
-        // primitive (shell exec, file edit, etc.) runs. v1 only logs
-        // the outcome ; chaining back into `result_into` is follow-on.
-        self.resolve_claude_tool_adapters(&result, command_name);
+        // dispatched aggregate's state UNION the original dispatch
+        // attrs (the latter wins on key collision) and call into the
+        // kernel-floor dispatcher (claude_tool_dispatcher::dispatch).
+        // The native primitive (shell exec, file edit, etc.) runs.
+        //
+        // The dispatch-attrs overlay matters for tools whose inputs
+        // are deliberately event-only payloads (Tools.Edit's
+        // old_string/new_string, Tools.Update's content). Those
+        // attributes never land on aggregate state by design (the
+        // bluebook keeps the heki small), so without the overlay the
+        // kernel hook sees `attrs.get("old_string") == None` and
+        // returns "missing required attr" — silently, because the
+        // log line below didn't surface error messages until i559.
+        self.resolve_claude_tool_adapters(&result, command_name, &ctx.attrs);
 
         Ok(result)
     }
@@ -560,7 +561,12 @@ impl Runtime {
     /// a first-class event (ResultRecorded) the runtime can react to
     /// instead of just a stderr line. The stderr log is preserved for
     /// debug visibility.
-    fn resolve_claude_tool_adapters(&mut self, result: &CommandResult, command_name: &str) {
+    fn resolve_claude_tool_adapters(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        dispatch_attrs: &HashMap<String, Value>,
+    ) {
         if self.hecksagons.is_empty() { return; }
         let debug = std::env::var("HECKS_DEBUG_CLAUDE_TOOL").is_ok();
         let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
@@ -616,6 +622,17 @@ impl Runtime {
                 attrs.insert(k.clone(), v.to_string());
             }
         }
+        // i559 — overlay the original dispatch attrs on top of the
+        // state-derived ones. Tools.Edit's old_string/new_string and
+        // Tools.Update's content are event-only payloads (never
+        // persisted onto aggregate state per the Tools bluebook), so
+        // the state snapshot above is missing them. The dispatch
+        // attrs are the only place they exist at this point in the
+        // pipeline. Overlay-after-state means the user-supplied
+        // values win over any state echo.
+        for (k, v) in dispatch_attrs {
+            attrs.insert(k.clone(), v.to_string());
+        }
         // The aggregate id is authoritative — fall back to the
         // dispatch result if state didn't carry it explicitly.
         let invocation_id = attrs
@@ -627,9 +644,17 @@ impl Runtime {
             let tool_result = claude_tool_dispatcher::dispatch(tool, &attrs);
             // Preserve the existing debug-visibility log — useful when
             // a cascade fails or the result_into target is missing.
+            // i559 — surface the error message inline when ok=false ;
+            // previously the message lived only in `tool_result.error`
+            // and never made it to stderr, so silent failures showed
+            // as `ok=false exit=1 output=""` with no diagnostic.
+            let err_tail = match (&tool_result.ok, &tool_result.error) {
+                (false, Some(msg)) => format!(" error={:?}", msg),
+                _ => String::new(),
+            };
             eprintln!(
-                "[claude_tool:{}] ok={} exit={} output={:?}",
-                tool, tool_result.ok, tool_result.exit_code, tool_result.output
+                "[claude_tool:{}] ok={} exit={} output={:?}{}",
+                tool, tool_result.ok, tool_result.exit_code, tool_result.output, err_tail
             );
 
             // Chain the result back into the aggregate via the
