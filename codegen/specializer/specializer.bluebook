@@ -1,4 +1,4 @@
-Hecks.bluebook "Specializer", version: "2026.04.23.1" do
+Hecks.bluebook "Specializer", version: "2026.05.12.1" do
   vision "The Futamura specializer — value-object shape for the L1-L6 interpreter IR layers + the projections that lower between them. First-Futamura target: given any bluebook, produce Rust byte-equivalent to hand-written source."
   category "autophagy"
 
@@ -50,18 +50,37 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
   # contract — each layer is a function of the one above.
 
   aggregate "IRLayer", "One layer in the L0..L8 interpreter factoring" do
-    attribute :name,        String
+    attribute :name,        LayerName
     # number: L0..L8 — 0..8
-    attribute :number,      Integer
-    attribute :description, String
+    attribute :number,      LayerNumber
+    attribute :description, Description
     # reads_from: the layer this one is a pure function of (or 'source'
     # for L0, which reads raw file text)
-    attribute :reads_from,  String
+    attribute :reads_from,  ReadsFrom
     # returns: short description of the data shape this layer produces
-    attribute :returns,     String
+    attribute :returns,     Returns
     # ship_status: shipped | partial | not_started — tracks which
     # layers already exist in storehouse vs which are Phase B+ work
-    attribute :ship_status, String
+    attribute :ship_status, ShipStatus
+
+    value_object "LayerName" do
+      attribute :value, String
+    end
+    value_object "LayerNumber" do
+      attribute :value, Integer
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
+    value_object "ReadsFrom" do
+      attribute :value, String
+    end
+    value_object "Returns" do
+      attribute :value, String
+    end
+    value_object "ShipStatus" do
+      attribute :value, String
+    end
   end
 
   # ---- Projection ---------------------------------------------------
@@ -72,18 +91,40 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
   # layers by their IRLayer.name so the projection chain composes.
 
   aggregate "Projection", "One L_n → L_(n+1) lowering step — the specializer's unit of work" do
-    attribute :name,           String
-    attribute :from_layer,     String
-    attribute :to_layer,       String
+    attribute :name,           ProjectionName
+    attribute :from_layer,     FromLayer
+    attribute :to_layer,       ToLayer
     # transform_kind: parse | normalize | graph | lower | emit | compile
-    attribute :transform_kind, String
-    attribute :description,    String
+    attribute :transform_kind, TransformKind
+    attribute :description,    Description
     # impl_module: the Rust module (or Ruby file) that holds the logic
     # for this projection once it's written. Points at hand-written
     # source during Phase A; points at generated source at Phase B end.
-    attribute :impl_module,    String
+    attribute :impl_module,    ImplModule
     # ship_status: shipped | partial | not_started | phase_a | phase_b
-    attribute :ship_status,    String
+    attribute :ship_status,    ShipStatus
+
+    value_object "ProjectionName" do
+      attribute :value, String
+    end
+    value_object "FromLayer" do
+      attribute :value, String
+    end
+    value_object "ToLayer" do
+      attribute :value, String
+    end
+    value_object "TransformKind" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
+    value_object "ImplModule" do
+      attribute :value, String
+    end
+    value_object "ShipStatus" do
+      attribute :value, String
+    end
   end
 
   # ---- SpecializerTarget --------------------------------------------
@@ -94,16 +135,35 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
   # autophagy arc's progress.
 
   aggregate "SpecializerTarget", "One module being specialized — source bluebook, output Rust path, current phase" do
-    attribute :name,               String
+    attribute :name,               TargetName
     # source_bluebook: relative path to the L0 shape bluebook
-    attribute :source_bluebook,    String
+    attribute :source_bluebook,    SourceBluebook
     # output_rs: relative path the emitted .rs lands at
-    attribute :output_rs,          String
+    attribute :output_rs,          OutputRs
     # phase: a | b | c — which Futamura phase this target ships in
-    attribute :phase,              String
+    attribute :phase,              Phase
     # ship_status: not_started | in_progress | byte_identical | retired
-    attribute :ship_status,        String
-    attribute :description,        String
+    attribute :ship_status,        ShipStatus
+    attribute :description,        Description
+
+    value_object "TargetName" do
+      attribute :value, String
+    end
+    value_object "SourceBluebook" do
+      attribute :value, String
+    end
+    value_object "OutputRs" do
+      attribute :value, String
+    end
+    value_object "Phase" do
+      attribute :value, String
+    end
+    value_object "ShipStatus" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 
   # ---- SpecializerSubclass -----------------------------------------
@@ -124,23 +184,45 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
 
   aggregate "SpecializerSubclass", "One Ruby subclass module under lib/hecks_specializer/" do
     # target_name: the CLI / register key (e.g. "duplicate_policy")
-    attribute :target_name,    String
+    attribute :target_name,    TargetName
     # class_name: the Ruby class name (e.g. "DuplicatePolicy")
-    attribute :class_name,     String
+    attribute :class_name,     ClassName
     # base_class: parent Ruby class. "DiagnosticValidator" for the
     # post-i59 diagnostic retirements; subclasses directly extending
     # Target (validator, validator_warnings, dump) leave this empty
     # — those still carry their own emit() and stay hand-written
     # under PC-1's scope.
-    attribute :base_class,     String
+    attribute :base_class,     BaseClass
     # shape_path: relative path to the target's fixtures file
-    attribute :shape_path,     String
+    attribute :shape_path,     ShapePath
     # target_rs_path: relative path to the emitted .rs file
-    attribute :target_rs_path, String
+    attribute :target_rs_path, TargetRsPath
     # module_doc: short doc comment at top of the Ruby file
-    attribute :module_doc,     String
+    attribute :module_doc,     ModuleDoc
     # output_rb: relative path to the generated Ruby file
-    attribute :output_rb,      String
+    attribute :output_rb,      OutputRb
+
+    value_object "TargetName" do
+      attribute :value, String
+    end
+    value_object "ClassName" do
+      attribute :value, String
+    end
+    value_object "BaseClass" do
+      attribute :value, String
+    end
+    value_object "ShapePath" do
+      attribute :value, String
+    end
+    value_object "TargetRsPath" do
+      attribute :value, String
+    end
+    value_object "ModuleDoc" do
+      attribute :value, String
+    end
+    value_object "OutputRb" do
+      attribute :value, String
+    end
   end
 
   # ---- SpecializeRun ------------------------------------------------
@@ -151,15 +233,25 @@ Hecks.bluebook "Specializer", version: "2026.04.23.1" do
   # Byte-identity is enforced by a sibling test, not by this command.
 
   aggregate "SpecializeRun", "Runs the specializer for a named target — thin dispatch wrapper" do
-    attribute :target, String
-    attribute :output, String
-    attribute :status, String, default: "queued"
+    attribute :target, Target
+    attribute :output, Output
+    attribute :status, Status, default: "queued"
+
+    value_object "Target" do
+      attribute :value, String
+    end
+    value_object "Output" do
+      attribute :value, String
+    end
+    value_object "Status" do
+      attribute :value, String
+    end
 
     command "Specialize" do
       role "Autophagy"
       description "Runs the specializer for <target>, writes Rust to <output>"
-      attribute :target, String
-      attribute :output, String
+      attribute :target, Target
+      attribute :output, Output
     end
   end
 end

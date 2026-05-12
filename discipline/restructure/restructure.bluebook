@@ -1,4 +1,4 @@
-Hecks.bluebook "Restructure", version: "2026.04.30.1" do
+Hecks.bluebook "Restructure", version: "2026.05.12.1" do
   vision "Declare a target file layout, plan the moves, apply with post-move validation, rewind any move via the event log. Restructuring becomes one Layout.Define + Layout.Apply ; future shape-changes cost the same. Lives entirely in conception ; no new runtime code."
   category "autophagy"
 
@@ -35,17 +35,30 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
 
   aggregate "Layout", "A named target file structure for the conception" do
     identified_by :name
-    attribute :name, String
-    attribute :version, String
-    attribute :description, String
-    attribute :status, String
+    attribute :name, LayoutName
+    attribute :version, LayoutVersion
+    attribute :description, LayoutDescription
+    attribute :status, LayoutStatus
+
+    value_object "LayoutName" do
+      attribute :value, String
+    end
+    value_object "LayoutVersion" do
+      attribute :value, String
+    end
+    value_object "LayoutDescription" do
+      attribute :value, String
+    end
+    value_object "LayoutStatus" do
+      attribute :value, String
+    end
 
     command "Define" do
       role "Miette"
       description "Declare a new target layout. Status starts at draft ; placements attach via Placement.Add."
-      attribute :name, String
-      attribute :version, String
-      attribute :description, String
+      attribute :name, LayoutName
+      attribute :version, LayoutVersion
+      attribute :description, LayoutDescription
       emits "LayoutDefined"
       then_set :name, to: :name
       then_set :version, to: :version
@@ -97,17 +110,27 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
   # surfaced in the diff report.
 
   aggregate "Placement", "A single placement rule attached to a Layout" do
-    attribute :pattern, String
-    attribute :destination, String
-    attribute :reason, String
+    attribute :pattern, Pattern
+    attribute :destination, Destination
+    attribute :reason, Reason
+
+    value_object "Pattern" do
+      attribute :value, String
+    end
+    value_object "Destination" do
+      attribute :value, String
+    end
+    value_object "Reason" do
+      attribute :value, String
+    end
 
     command "Add" do
       role "Miette"
       description "Attach a placement rule to a Layout. The Layout must be in draft status."
       reference_to(Layout)
-      attribute :pattern, String
-      attribute :destination, String
-      attribute :reason, String
+      attribute :pattern, Pattern
+      attribute :destination, Destination
+      attribute :reason, Reason
       emits "PlacementAdded"
       then_set :pattern, to: :pattern
       then_set :destination, to: :destination
@@ -128,15 +151,34 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
 
   aggregate "Move", "A single planned, applied, verified, or reverted file relocation" do
     identified_by :move_id
-    attribute :move_id, String
-    attribute :from, String
-    attribute :to, String
-    attribute :status, String
-    attribute :applied_at, String
+    attribute :move_id, MoveId
+    attribute :from, FromPath
+    attribute :to, ToPath
+    attribute :status, MoveStatus
+    attribute :applied_at, AppliedAt
     # Layout-Move linkage : every Move carries the name of the Layout
     # it was planned under. RevertTo filters by this so multi-layout
     # event logs don't conflate moves across layout versions.
-    attribute :layout, String
+    attribute :layout, LayoutRef
+
+    value_object "MoveId" do
+      attribute :value, String
+    end
+    value_object "FromPath" do
+      attribute :value, String
+    end
+    value_object "ToPath" do
+      attribute :value, String
+    end
+    value_object "MoveStatus" do
+      attribute :value, String
+    end
+    value_object "AppliedAt" do
+      attribute :value, String
+    end
+    value_object "LayoutRef" do
+      attribute :value, String
+    end
 
     # Per-aggregate command names (i155). Plan / Apply / Revert echo
     # Layout's lifecycle verbs ; the names coexist now that bare-name
@@ -147,10 +189,10 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
       role "Miette"
       description "Queue a move from src to dest. Status starts at planned. Layout.Plan dispatches one Move.Plan per matched file ; the layout attribute records which Layout this Move belongs to."
       reference_to(Layout)
-      attribute :move_id, String
-      attribute :from, String
-      attribute :to, String
-      attribute :layout, String
+      attribute :move_id, MoveId
+      attribute :from, FromPath
+      attribute :to, ToPath
+      attribute :layout, LayoutRef
       emits "MovePlanned"
       then_set :move_id, to: :move_id
       then_set :from, to: :from
@@ -163,7 +205,7 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
       role "Miette"
       description "Execute the planned move via the :fs adapter. Status advances to applied. The VerifyOnApplied policy auto-fires Move.Verify next."
       reference_to(Move)
-      attribute :applied_at, String
+      attribute :applied_at, AppliedAt
       given { status == "planned" }
       emits "MoveApplied"
       then_set :status, to: "applied"
@@ -210,18 +252,31 @@ Hecks.bluebook "Restructure", version: "2026.04.30.1" do
 
   aggregate "Convention", "A declarative loading rule the runtime should honor" do
     identified_by :name
-    attribute :name, String
-    attribute :from_position, String
-    attribute :look_for, String
-    attribute :recursive, String
+    attribute :name, ConventionName
+    attribute :from_position, FromPosition
+    attribute :look_for, LookFor
+    attribute :recursive, Recursive
+
+    value_object "ConventionName" do
+      attribute :value, String
+    end
+    value_object "FromPosition" do
+      attribute :value, String
+    end
+    value_object "LookFor" do
+      attribute :value, String
+    end
+    value_object "Recursive" do
+      attribute :value, String
+    end
 
     command "Declare" do
       role "Miette"
       description "Declare a loading convention — from a tree position, what siblings or subdirs the runtime should pick up."
-      attribute :name, String
-      attribute :from_position, String
-      attribute :look_for, String
-      attribute :recursive, String
+      attribute :name, ConventionName
+      attribute :from_position, FromPosition
+      attribute :look_for, LookFor
+      attribute :recursive, Recursive
       emits "ConventionDeclared"
       then_set :name, to: :name
       then_set :from_position, to: :from_position

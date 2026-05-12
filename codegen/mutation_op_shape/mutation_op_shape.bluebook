@@ -1,4 +1,4 @@
-Hecks.bluebook "MutationOpShape", version: "2026.05.01.1" do
+Hecks.bluebook "MutationOpShape", version: "2026.05.12.1" do
   vision "The shape of MutationOp dispatch as a bluebook — interpreter.rs's apply_mutations match arms AND aggregate_state.rs's mutator method family regenerated from one declarative row set, closing i171."
   category "autophagy"
 
@@ -111,49 +111,93 @@ Hecks.bluebook "MutationOpShape", version: "2026.05.01.1" do
     # Variant name as it appears in `MutationOp::<name>` — Set,
     # Append, Increment, Decrement, Toggle, Delete, Multiply, Decay,
     # Clamp. The specializer emits `MutationOp::<name> => { … }`.
-    attribute :op_name,            String
+    attribute :op_name,            OpName
     # order: ascending integer ; specializer sorts before emitting so
     # the arm order stays stable across edits to row text.
-    attribute :order,              Integer
+    attribute :order,              Order
     # dispatch_kind: resolve_call | numeric_with_float_branch |
     # nullary_method | state_flag | field_factor | clamp_bounds.
-    attribute :dispatch_kind,      String
+    attribute :dispatch_kind,      DispatchKind
     # doc_snippet: path to a .rs.frag carrying the leading `// …` doc
     # comment for this arm. Optional ; empty when the arm has no doc.
-    attribute :doc_snippet,        String, default: ""
+    attribute :doc_snippet,        DocSnippet, default: ""
     # state_method: AggregateState method name to call inside the arm.
     # Used by resolve_call and nullary_method ; for the int-branch of
     # numeric_with_float_branch see state_method_int.
-    attribute :state_method,       String, default: ""
+    attribute :state_method,       StateMethod, default: ""
     # state_method_int / state_method_float: numeric_with_float_branch
     # only ; pair of method names for the integer fallback and the
     # fractional fast path.
-    attribute :state_method_int,   String, default: ""
-    attribute :state_method_float, String, default: ""
+    attribute :state_method_int,   StateMethodInt, default: ""
+    attribute :state_method_float, StateMethodFloat, default: ""
     # arg_local: field_factor only ; the local f64 variable name in
     # `if let Some(<arg_local>) = numeric_value(&val)`. "factor" for
     # Multiply, "rate" for Decay — readability only, not semantics.
-    attribute :arg_local,          String, default: ""
+    attribute :arg_local,          ArgLocal, default: ""
     # factor_expr: field_factor only ; the right-hand expression
     # passed to set_float. Uses the local variable bound by `let cur`
     # plus arg_local. Multiply: "cur * factor". Decay: "cur * (1.0 - rate)".
-    attribute :factor_expr,        String, default: ""
+    attribute :factor_expr,        FactorExpr, default: ""
     # flag_name: state_flag only ; the bool field on AggregateState
     # this arm flips to true. Today: "deleted".
-    attribute :flag_name,          String, default: ""
+    attribute :flag_name,          FlagName, default: ""
+
+    value_object "OpName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "DispatchKind" do
+      attribute :value, String
+    end
+    value_object "DocSnippet" do
+      attribute :value, String
+    end
+    value_object "StateMethod" do
+      attribute :value, String
+    end
+    value_object "StateMethodInt" do
+      attribute :value, String
+    end
+    value_object "StateMethodFloat" do
+      attribute :value, String
+    end
+    value_object "ArgLocal" do
+      attribute :value, String
+    end
+    value_object "FactorExpr" do
+      attribute :value, String
+    end
+    value_object "FlagName" do
+      attribute :value, String
+    end
   end
 
   aggregate "MutatorMethod", "One method on impl AggregateState ; emitted verbatim from a per-method snippet" do
-    attribute :name,         String
+    attribute :name,         MethodName
     # order: ascending integer ; specializer sorts before
     # concatenating method bodies so the impl block is stable.
-    attribute :order,        Integer
+    attribute :order,        Order
     # snippet_path: relative to repo root. The .rs.frag file
     # containing the method body (incl. its leading `///` doc
     # comment, the `pub fn …` signature, and the closing `}`).
-    attribute :snippet_path, String
+    attribute :snippet_path, SnippetPath
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  String, default: ""
+    attribute :description,  Description, default: ""
+
+    value_object "MethodName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "SnippetPath" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 
   aggregate "Section", "One ordered code section in interpreter.rs or aggregate_state.rs" do
@@ -161,18 +205,37 @@ Hecks.bluebook "MutationOpShape", version: "2026.05.01.1" do
     # emits one consumer at a time, filtered by this knob.
     #   "interpreter"     → rust/src/runtime/interpreter.rs
     #   "aggregate_state" → rust/src/runtime/aggregate_state.rs
-    attribute :target,       String
-    attribute :name,         String
+    attribute :target,       Target
+    attribute :name,         SectionName
     # order: ascending integer (per target) ; specializer sorts
     # before concatenating.
-    attribute :order,        Integer
+    attribute :order,        Order
     # body_kind: verbatim_section | mutation_op_dispatch | mutator_impl
-    attribute :body_kind,    String
+    attribute :body_kind,    BodyKind
     # snippet_path: required for verbatim_section ; ignored for the
     # synthetic kinds (mutation_op_dispatch, mutator_impl) which
     # build their bodies from MutationOp / MutatorMethod rows.
-    attribute :snippet_path, String, default: ""
+    attribute :snippet_path, SnippetPath, default: ""
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  String, default: ""
+    attribute :description,  Description, default: ""
+
+    value_object "Target" do
+      attribute :value, String
+    end
+    value_object "SectionName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "BodyKind" do
+      attribute :value, String
+    end
+    value_object "SnippetPath" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 end

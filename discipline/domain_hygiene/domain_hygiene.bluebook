@@ -1,4 +1,4 @@
-Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
+Hecks.bluebook "DomainHygiene", version: "2026.05.12.1" do
   vision "Miette keeps her domains healthy — finds gaps, enriches weak domains, tracks training data quality"
   category "capability"
 
@@ -12,41 +12,41 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
 
   aggregate "DomainHygiene", "One pass through the hygiene pipeline — health check, quality assessment, harvest, growth report" do
     identified_by :domain_name
-    attribute :domain_name, String
+    attribute :domain_name, DomainName
 
     # ── HealthCheck phase ──
-    attribute :total_domains, Integer
-    attribute :valid_count, Integer
-    attribute :invalid_count, Integer
+    attribute :total_domains, TotalDomains
+    attribute :valid_count, ValidCount
+    attribute :invalid_count, InvalidCount
     attribute :failures, list_of(ValidationFailure)
-    attribute :scanned_at, String
+    attribute :scanned_at, ScannedAt
 
     # ── QualityReport phase ──
-    attribute :total_pairs, Integer
-    attribute :unique_domains, Integer
-    attribute :with_policies, Integer
-    attribute :with_references, Integer
-    attribute :duplicates, Integer
+    attribute :total_pairs, TotalPairs
+    attribute :unique_domains, UniqueDomains
+    attribute :with_policies, WithPolicies
+    attribute :with_references, WithReferences
+    attribute :duplicates, Duplicates
     attribute :distribution, list_of(CategoryCount)
-    attribute :gaps, list_of(String)
+    attribute :gaps, list_of(Gap)
 
     # ── TrainingHarvest phase ──
-    attribute :output_path, String
-    attribute :pair_count, Integer
-    attribute :strong_pairs, Integer
-    attribute :harvested_at, String
+    attribute :output_path, OutputPath
+    attribute :pair_count, PairCount
+    attribute :strong_pairs, StrongPairs
+    attribute :harvested_at, HarvestedAt
 
     # ── CorpusGrowth phase ──
-    attribute :target_count, Integer
-    attribute :conceived, Integer
-    attribute :valid, Integer
-    attribute :repaired, Integer
-    attribute :enriched, Integer
-    attribute :harvested, Integer
+    attribute :target_count, TargetCount
+    attribute :conceived, Conceived
+    attribute :valid, Valid
+    attribute :repaired, Repaired
+    attribute :enriched, Enriched
+    attribute :harvested, Harvested
     attribute :waves, list_of(GrowthWave)
     # Flipped true once RepairFailures finishes — at that point the wave's
     # remaining domains are valid and ready for enrichment.
-    attribute :wave_valid, Boolean, default: false
+    attribute :wave_valid, WaveValid, default: false
 
     value_object "ValidationFailure" do
       attribute :domain_name, String
@@ -68,11 +68,93 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
       attribute :phase, String
     end
 
+    value_object "DomainName" do
+      attribute :value, String
+    end
+    value_object "TotalDomains" do
+      attribute :value, Integer
+    end
+    value_object "ValidCount" do
+      attribute :value, Integer
+    end
+    value_object "InvalidCount" do
+      attribute :value, Integer
+    end
+    value_object "ScannedAt" do
+      attribute :value, String
+    end
+    value_object "TotalPairs" do
+      attribute :value, Integer
+    end
+    value_object "UniqueDomains" do
+      attribute :value, Integer
+    end
+    value_object "WithPolicies" do
+      attribute :value, Integer
+    end
+    value_object "WithReferences" do
+      attribute :value, Integer
+    end
+    value_object "Duplicates" do
+      attribute :value, Integer
+    end
+    value_object "Gap" do
+      attribute :value, String
+    end
+    value_object "OutputPath" do
+      attribute :value, String
+    end
+    value_object "PairCount" do
+      attribute :value, Integer
+    end
+    value_object "StrongPairs" do
+      attribute :value, Integer
+    end
+    value_object "HarvestedAt" do
+      attribute :value, String
+    end
+    value_object "TargetCount" do
+      attribute :value, Integer
+    end
+    value_object "Conceived" do
+      attribute :value, Integer
+    end
+    value_object "Valid" do
+      attribute :value, Integer
+    end
+    value_object "Repaired" do
+      attribute :value, Integer
+    end
+    value_object "Enriched" do
+      attribute :value, Integer
+    end
+    value_object "Harvested" do
+      attribute :value, Integer
+    end
+    value_object "WaveValid" do
+      attribute :value, Boolean
+    end
+    value_object "RootPath" do
+      attribute :value, String
+    end
+    value_object "JsonlPath" do
+      attribute :value, String
+    end
+    value_object "PreviousPath" do
+      attribute :value, String
+    end
+    value_object "BatchSize" do
+      attribute :value, Integer
+    end
+    value_object "Topic" do
+      attribute :value, String
+    end
+
     # ── HealthCheck commands ──
 
     command "ScanCorpus" do
       description "Parse and validate every bluebook — report what boots and what breaks"
-      attribute :root_path, String
+      attribute :root_path, RootPath
       emits "CorpusScanned"
     end
 
@@ -80,7 +162,7 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
 
     command "AssessQuality" do
       description "Analyze the training JSONL for bias, missing features, and category balance"
-      attribute :jsonl_path, String
+      attribute :jsonl_path, JsonlPath
       emits "QualityAssessed"
     end
 
@@ -93,14 +175,14 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
 
     command "HarvestTrainingData" do
       description "Walk all valid bluebooks, extract prompt/completion pairs as JSONL"
-      attribute :root_path, String
-      attribute :output_path, String
+      attribute :root_path, RootPath
+      attribute :output_path, OutputPath
       emits "DataHarvested"
     end
 
     command "CompareVersions" do
       description "Diff two training JSONL files to see what improved"
-      attribute :previous_path, String
+      attribute :previous_path, PreviousPath
       emits "VersionsCompared"
     end
 
@@ -108,14 +190,14 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
 
     command "GrowCorpus" do
       description "Launch a growth cycle — conceive N domains across diverse topics"
-      attribute :target_count, Integer
+      attribute :target_count, TargetCount
       emits "GrowthStarted"
     end
 
     command "ConceiveBatch" do
       description "Conceive a batch of domains from visions — fan out to parallel agents"
-      attribute :batch_size, Integer
-      attribute :topics, list_of(String)
+      attribute :batch_size, BatchSize
+      attribute :topics, list_of(Topic)
       emits "BatchConceived"
     end
 
@@ -141,26 +223,39 @@ Hecks.bluebook "DomainHygiene", version: "2026.04.13.1" do
   # and represents per-domain enrichment identity, not pipeline state.
   aggregate "Enrichment", "A targeted fix to a weak domain — add policies, events, descriptions, or givens" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :enrichment_type, String
-    attribute :before_state, String
-    attribute :after_state, String
+    attribute :domain_name, DomainName
+    attribute :enrichment_type, EnrichmentType
+    attribute :before_state, BeforeState
+    attribute :after_state, AfterState
     attribute :revalidated, TrueClass
     # Flipped true by ConfirmBoots; EnrichDomain gates on it. Planner picks
     # ConfirmBoots as the producer.
     attribute :boots, TrueClass, default: false
 
+    value_object "DomainName" do
+      attribute :value, String
+    end
+    value_object "EnrichmentType" do
+      attribute :value, String
+    end
+    value_object "BeforeState" do
+      attribute :value, String
+    end
+    value_object "AfterState" do
+      attribute :value, String
+    end
+
     command "ConfirmBoots" do
       description "Parse the target domain and confirm it boots — required before enrichment"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       emits "BootConfirmed"
       then_set :boots, to: true
     end
 
     command "EnrichDomain" do
       description "Add missing policies, events, or descriptions to a domain that lacks them"
-      attribute :domain_name, String
-      attribute :enrichment_type, String
+      attribute :domain_name, DomainName
+      attribute :enrichment_type, EnrichmentType
       given { boots == true }
       emits "DomainEnriched"
     end

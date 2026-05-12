@@ -1,14 +1,14 @@
-Hecks.bluebook "Summer", version: "2026.04.13.1" do
+Hecks.bluebook "Summer", version: "2026.05.12.1" do
   vision "Miette's local mind — a fine-tuned model that drafts domains, reviews structure, and runs on the laptop — a fine-tuned model that drafts domains, reviews structure, and runs offline"
   category "organ"
 
   aggregate "Model", "The fine-tuned model with adapter weights — what Autumn knows" do
-    attribute :base_model, String
-    attribute :adapter_path, String
-    attribute :training_pairs, Integer
-    attribute :training_iterations, Integer
-    attribute :trained_at, String
-    attribute :final_loss, Float
+    attribute :base_model, BaseModel
+    attribute :adapter_path, AdapterPath
+    attribute :training_pairs, TrainingPairs
+    attribute :training_iterations, TrainingIterations
+    attribute :trained_at, TrainedAt
+    attribute :final_loss, FinalLoss
     attribute :layers, list_of(TrainingLayer)
 
     value_object "TrainingLayer" do
@@ -16,19 +16,44 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
       attribute :pair_count, Integer
     end
 
+    value_object "BaseModel" do
+      attribute :value, String
+    end
+    value_object "AdapterPath" do
+      attribute :value, String
+    end
+    value_object "TrainingPairs" do
+      attribute :value, Integer
+    end
+    value_object "TrainingIterations" do
+      attribute :value, Integer
+    end
+    value_object "TrainedAt" do
+      attribute :value, String
+    end
+    value_object "FinalLoss" do
+      attribute :value, Float
+    end
+    value_object "DataPath" do
+      attribute :value, String
+    end
+    value_object "Iterations" do
+      attribute :value, Integer
+    end
+
     command "CountTrainingPairs" do
       description "Read the training data and record how many pairs are available — required before training"
-      attribute :data_path, String
-      attribute :training_pairs, Integer
+      attribute :data_path, DataPath
+      attribute :training_pairs, TrainingPairs
       emits "TrainingPairsCounted"
       then_set :training_pairs, to: :training_pairs
     end
 
     command "TrainModel" do
       description "Fine-tune the base model on the current corpus — produces a new adapter"
-      attribute :base_model, String
-      attribute :data_path, String
-      attribute :iterations, Integer
+      attribute :base_model, BaseModel
+      attribute :data_path, DataPath
+      attribute :iterations, Iterations
       emits "ModelTrained"
     end
 
@@ -40,20 +65,39 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
   end
 
   aggregate "Draft", "A domain structure drafted by Autumn — fast, cheap, needs review" do
-    attribute :vision, String
-    attribute :bluebook_output, String
-    attribute :generation_seconds, Float
+    attribute :vision, Vision
+    attribute :bluebook_output, BluebookOutput
+    attribute :generation_seconds, GenerationSeconds
     attribute :valid, TrueClass
     attribute :reviewed, TrueClass
-    attribute :review_notes, String
+    attribute :review_notes, ReviewNotes
     # Booleans the planner gates on. validated flips when ValidateDraft
     # finishes; review_done flips when ReviewDraft finishes.
-    attribute :validated, Boolean, default: false
-    attribute :review_done, Boolean, default: false
+    attribute :validated, Validated, default: false
+    attribute :review_done, ReviewDone, default: false
+
+    value_object "Vision" do
+      attribute :value, String
+    end
+    value_object "BluebookOutput" do
+      attribute :value, String
+    end
+    value_object "GenerationSeconds" do
+      attribute :value, Float
+    end
+    value_object "ReviewNotes" do
+      attribute :value, String
+    end
+    value_object "Validated" do
+      attribute :value, Boolean
+    end
+    value_object "ReviewDone" do
+      attribute :value, Boolean
+    end
 
     command "GenerateDraft" do
       description "Feed a vision to Autumn, get back a bluebook structure in seconds"
-      attribute :vision, String
+      attribute :vision, Vision
       emits "DraftGenerated"
     end
 
@@ -81,9 +125,9 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
   end
 
   aggregate "Critique", "Autumn reviews an existing domain and suggests improvements" do
-    attribute :domain_name, String
+    attribute :domain_name, DomainName
     attribute :issues, list_of(Issue)
-    attribute :suggestions, list_of(String)
+    attribute :suggestions, list_of(Suggestion)
 
     value_object "Issue" do
       attribute :issue_type, String
@@ -91,9 +135,16 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
       attribute :severity, String
     end
 
+    value_object "DomainName" do
+      attribute :value, String
+    end
+    value_object "Suggestion" do
+      attribute :value, String
+    end
+
     command "CritiqueDomain" do
       description "Analyze a domain for structural weaknesses — missing policies, shallow workflows, generic names"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       emits "DomainCritiqued"
     end
 
@@ -105,14 +156,27 @@ Hecks.bluebook "Summer", version: "2026.04.13.1" do
   end
 
   aggregate "Daemon", "Autumn running as a background process — always available for drafts" do
-    attribute :status, String
-    attribute :port, Integer
-    attribute :drafts_served, Integer
-    attribute :avg_generation_seconds, Float
+    attribute :status, Status
+    attribute :port, Port
+    attribute :drafts_served, DraftsServed
+    attribute :avg_generation_seconds, AvgGenerationSeconds
+
+    value_object "Status" do
+      attribute :value, String
+    end
+    value_object "Port" do
+      attribute :value, Integer
+    end
+    value_object "DraftsServed" do
+      attribute :value, Integer
+    end
+    value_object "AvgGenerationSeconds" do
+      attribute :value, Float
+    end
 
     command "StartDaemon" do
       description "Launch Autumn as a local HTTP service for draft generation"
-      attribute :port, Integer
+      attribute :port, Port
       emits "DaemonStarted"
     end
 

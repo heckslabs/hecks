@@ -1,4 +1,4 @@
-Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
+Hecks.bluebook "DomainCrossover", version: "2026.05.12.1" do
   vision "Breed new domains from existing ones — take aggregates from two parents, cross-wire policies, validate the child"
   category "capability"
 
@@ -11,41 +11,99 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
   aggregate "Crossover", "One full breeding cycle — select parents, breed, validate, enrich, assess generation" do
     identified_by :name
     # ── ParentPair phase ──
-    attribute :parent_a, String
-    attribute :parent_b, String
-    attribute :similarity, Float
-    attribute :complementarity, Float
-    attribute :shared_concepts, list_of(String)
+    attribute :parent_a, ParentA
+    attribute :parent_b, ParentB
+    attribute :similarity, Similarity
+    attribute :complementarity, Complementarity
+    attribute :shared_concepts, list_of(SharedConcept)
 
     # ── Offspring phase ──
-    attribute :name, String
-    attribute :vision, String
-    attribute :aggregates_from_a, list_of(String)
-    attribute :aggregates_from_b, list_of(String)
-    attribute :cross_policies, list_of(String)
+    attribute :name, OffspringName
+    attribute :vision, Vision
+    attribute :aggregates_from_a, list_of(AggregateName)
+    attribute :aggregates_from_b, list_of(AggregateName)
+    attribute :cross_policies, list_of(CrossPolicy)
     attribute :valid, TrueClass
     # Flipped true by ValidateOffspring; EnrichOffspring gates on it.
-    attribute :validated, Boolean, default: false
+    attribute :validated, Validated, default: false
 
     # ── Generation phase ──
-    attribute :generation_number, Integer
-    attribute :pairs_attempted, Integer
-    attribute :offspring_valid, Integer
-    attribute :offspring_strong, Integer
-    attribute :yield_rate, Float
+    attribute :generation_number, GenerationNumber
+    attribute :pairs_attempted, PairsAttempted
+    attribute :offspring_valid, OffspringValid
+    attribute :offspring_strong, OffspringStrong
+    attribute :yield_rate, YieldRate
+
+    value_object "ParentA" do
+      attribute :value, String
+    end
+    value_object "ParentB" do
+      attribute :value, String
+    end
+    value_object "Similarity" do
+      attribute :value, Float
+    end
+    value_object "Complementarity" do
+      attribute :value, Float
+    end
+    value_object "SharedConcept" do
+      attribute :value, String
+    end
+    value_object "OffspringName" do
+      attribute :value, String
+    end
+    value_object "Vision" do
+      attribute :value, String
+    end
+    value_object "AggregateName" do
+      attribute :value, String
+    end
+    value_object "CrossPolicy" do
+      attribute :value, String
+    end
+    value_object "Validated" do
+      attribute :value, Boolean
+    end
+    value_object "GenerationNumber" do
+      attribute :value, Integer
+    end
+    value_object "PairsAttempted" do
+      attribute :value, Integer
+    end
+    value_object "OffspringValid" do
+      attribute :value, Integer
+    end
+    value_object "OffspringStrong" do
+      attribute :value, Integer
+    end
+    value_object "YieldRate" do
+      attribute :value, Float
+    end
+    value_object "MinSimilarity" do
+      attribute :value, Float
+    end
+    value_object "MaxSimilarity" do
+      attribute :value, Float
+    end
+    value_object "AggregatesFromEach" do
+      attribute :value, Integer
+    end
+    value_object "PairCount" do
+      attribute :value, Integer
+    end
 
     command "SelectPair" do
       description "Find two domains whose vectors are similar enough to combine but different enough to be interesting"
-      attribute :min_similarity, Float
-      attribute :max_similarity, Float
+      attribute :min_similarity, MinSimilarity
+      attribute :max_similarity, MaxSimilarity
       emits "PairSelected"
     end
 
     command "BreedDomain" do
       description "Combine aggregates from two parents and wire cross-domain policies between them"
-      attribute :name, String
-      attribute :vision, String
-      attribute :aggregates_from_each, Integer
+      attribute :name, OffspringName
+      attribute :vision, Vision
+      attribute :aggregates_from_each, AggregatesFromEach
       emits "DomainBred"
     end
 
@@ -63,7 +121,7 @@ Hecks.bluebook "DomainCrossover", version: "2026.04.13.1" do
 
     command "RunGeneration" do
       description "Select N parent pairs, breed each one, validate and assess"
-      attribute :pair_count, Integer
+      attribute :pair_count, PairCount
       emits "GenerationComplete"
     end
 
