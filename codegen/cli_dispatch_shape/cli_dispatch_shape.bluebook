@@ -1,4 +1,4 @@
-Hecks.bluebook "CliDispatchShape", version: "2026.05.01.1" do
+Hecks.bluebook "CliDispatchShape", version: "2026.05.12.1" do
   vision "The shape of rust/src/main.rs as a bluebook — the CLI dispatch chain and usage help made declarative. Each `if command == \"X\"` arm is a Subcommand row ; the help-text Commands: list is HelpRow rows. Adding or reordering a subcommand becomes a fixture-row edit, not a hand-edit to main.rs."
   category "autophagy"
 
@@ -86,50 +86,98 @@ Hecks.bluebook "CliDispatchShape", version: "2026.05.01.1" do
   # snippet + (3) optional HelpRow for the usage listing.
 
   aggregate "Section", "One ordered top-level partition in main.rs ; body_kind picks emission" do
-    attribute :name,         String
+    attribute :name,         SectionName
     # order: ascending integer ; specializer sorts before concatenating.
-    attribute :order,        Integer
+    attribute :order,        Order
     # body_kind: verbatim_section | dispatch_chain | usage_help
-    attribute :body_kind,    String
+    attribute :body_kind,    BodyKind
     # snippet_path: required for verbatim_section ; ignored for the
     # synthetic dispatch_chain and usage_help kinds.
-    attribute :snippet_path, String, default: ""
+    attribute :snippet_path, SnippetPath, default: ""
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  String, default: ""
+    attribute :description,  Description, default: ""
+
+    value_object "SectionName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "BodyKind" do
+      attribute :value, String
+    end
+    value_object "SnippetPath" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 
   aggregate "Subcommand", "One arm in main.rs's CLI dispatch if-chain" do
-    attribute :name,         String
+    attribute :name,         SubcommandName
     # order: ascending integer ; specializer sorts before concatenating
     # arm snippets so the if-chain order is stable across edits to row text.
-    attribute :order,        Integer
+    attribute :order,        Order
     # snippet_path: relative to repo root. The .rs.frag file containing
     # this arm's body — leading blank line + leading comment block (when
     # present) + `if command == "X" { ... return; }`. Read raw.
-    attribute :snippet_path, String
+    attribute :snippet_path, SnippetPath
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  String, default: ""
+    attribute :description,  Description, default: ""
+
+    value_object "SubcommandName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "SnippetPath" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 
   aggregate "HelpRow", "One row in print_usage's Commands: listing" do
-    attribute :name,         String
+    attribute :name,         HelpRowName
     # order: ascending integer ; specializer sorts before emitting the
     # eprintln lines so help-listing order is stable.
-    attribute :order,        Integer
+    attribute :order,        Order
     # command: the literal subcommand name as shown in help (e.g. "parse",
     # "dump-hecksagon").
-    attribute :command,      String
+    attribute :command,      CommandLabel
     # description: the help-text description shown after the command name.
-    attribute :description,  String
+    attribute :description,  Description
     # padded_width: the column width the command name is padded to in the
     # help output. The pre-i147-W6 main.rs uses 11 for most rows but 16
     # for "dump-hecksagon" because it's longer ; we capture the column
     # width per-row to preserve byte-identity without hard-coding logic.
-    attribute :padded_width, Integer, default: 11
+    attribute :padded_width, PaddedWidth, default: 11
     # trailing_newline: whether to append a literal "\n" inside the
     # eprintln string (used by the last command in a logical group :
     # "dump-hecksagon" gets one, the visual cluster separator before
     # "Heki subcommands:"). "yes" | "no".
-    attribute :trailing_newline, String, default: "no"
+    attribute :trailing_newline, TrailingNewline, default: "no"
+
+    value_object "HelpRowName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "CommandLabel" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
+    value_object "PaddedWidth" do
+      attribute :value, Integer
+    end
+    value_object "TrailingNewline" do
+      attribute :value, String
+    end
   end
 end
