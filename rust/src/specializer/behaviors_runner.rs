@@ -41,7 +41,7 @@
 //!   print!("{}", rust);
 //! ```
 //!
-//! [antibody-exempt: storehouse/src/specializer/behaviors_runner.rs —
+//! [antibody-exempt: rust/src/specializer/behaviors_runner.rs —
 //!  i147 Wave 4-B Rust-native specializer for behaviors_runner.rs.
 //!  Retires when the specializer itself is regenerated from a
 //!  meta-shape (i78).]

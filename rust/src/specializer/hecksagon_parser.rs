@@ -15,7 +15,7 @@
 //!   let rust = hecksagon_parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/hecksagon_parser.rs —
+//! [antibody-exempt: rust/src/specializer/hecksagon_parser.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

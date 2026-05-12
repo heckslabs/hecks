@@ -23,7 +23,7 @@
 //!   let rust = dispatch_query::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/dispatch_query.rs —
+//! [antibody-exempt: rust/src/specializer/dispatch_query.rs —
 //!  i146 Rust-native specializer implementation]
 
 use crate::ir::Fixture;

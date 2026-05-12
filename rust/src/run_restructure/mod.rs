@@ -41,7 +41,7 @@
 //! must produce ; byte-identity becomes enforceable the moment the
 //! emitter lands.
 //!
-//! [antibody-exempt: storehouse/src/run_restructure/mod.rs —
+//! [antibody-exempt: rust/src/run_restructure/mod.rs —
 //!  hand-written MVP runner for the Restructure capability ; retires
 //!  under capability_runner_shape's specializer (i147 sibling). The
 //!  three phases (plan/apply/revert) are the blueprint for what

@@ -21,7 +21,7 @@
 //!   let rust = behaviors_fixtures::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/behaviors_fixtures.rs —
+//! [antibody-exempt: rust/src/specializer/behaviors_fixtures.rs —
 //!  Rust-native specializer module ; one match arm in
 //!  `specializer/mod.rs` claims it. Retires when the specializer
 //!  itself is regenerated from a meta-shape (i78).]
