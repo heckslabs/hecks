@@ -112,6 +112,42 @@
       0%   { width: 30px; height: 30px; margin-left: -15px; margin-top: -15px; opacity: 0.9; border-width: 3px; }
       100% { width: 220px; height: 220px; margin-left: -110px; margin-top: -110px; opacity: 0; border-width: 0px; }
     }
+    /* Cascade traveler — a glowing dot that traces along an edge from
+       source-node to target-node as a cascade hop fires. Cytoscape
+       renders edges into <canvas>, so we can't apply SVG <animateMotion>
+       directly ; instead the JS interpolates source→target rendered
+       positions (linear with a perpendicular bow for bezier edges) and
+       moves this DOM dot frame-by-frame in the ring-layer overlay. */
+    .edge-traveler {
+      position: absolute;
+      width: 14px; height: 14px;
+      margin-left: -7px; margin-top: -7px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ffffff 0%, var(--brand) 35%, rgba(255, 216, 77, 0.4) 60%, rgba(255, 216, 77, 0) 100%);
+      box-shadow: 0 0 18px 6px rgba(255, 216, 77, 0.55),
+                  0 0 36px 12px rgba(255, 216, 77, 0.25);
+      pointer-events: none;
+      will-change: transform, opacity;
+      opacity: 0.95;
+    }
+    .edge-traveler.emits {
+      background: radial-gradient(circle, #ffffff 0%, var(--event) 35%, rgba(192, 132, 252, 0.4) 60%, rgba(192, 132, 252, 0) 100%);
+      box-shadow: 0 0 18px 6px rgba(192, 132, 252, 0.55),
+                  0 0 36px 12px rgba(192, 132, 252, 0.25);
+    }
+    .edge-traveler.triggers {
+      background: radial-gradient(circle, #ffffff 0%, var(--policy) 35%, rgba(255, 139, 94, 0.4) 60%, rgba(255, 139, 94, 0) 100%);
+      box-shadow: 0 0 18px 6px rgba(255, 139, 94, 0.55),
+                  0 0 36px 12px rgba(255, 139, 94, 0.25);
+    }
+    .edge-traveler.cross_domain {
+      background: radial-gradient(circle, #ffffff 0%, #5eead4 35%, rgba(94, 234, 212, 0.4) 60%, rgba(94, 234, 212, 0) 100%);
+      box-shadow: 0 0 18px 6px rgba(94, 234, 212, 0.55),
+                  0 0 36px 12px rgba(94, 234, 212, 0.25);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .edge-traveler { display: none !important; }
+    }
     header {
       height: 64px;
       padding: 0 1.5rem;
@@ -1248,6 +1284,12 @@
         const step = steps[i++];
         if (step.kind === 'edge') {
           step.el.addClass('firing');
+          // i527 — fire the SVG-path-style traveler dot along the edge.
+          // This is the visual cascade ripple : a glowing point traces
+          // source → target while the edge stays lit in the firing
+          // color. Step ms = stepMs ; the traveler matches the stagger
+          // so each hop reads as a discrete pulse along its edge.
+          spawnEdgeTraveler(step.el, Math.max(stepMs + 220, 600));
           setTimeout(() => step.el.removeClass('firing'), 1400);
         } else if (step.kind === 'node') {
           step.el.addClass('firing');
@@ -1290,6 +1332,94 @@
       ring.style.top  = pos.y + 'px';
       layer.appendChild(ring);
       setTimeout(() => ring.remove(), 1500);
+    }
+
+    /// Cascade traveler — spawn a glowing dot that races along the
+    /// edge from source to target over `durationMs`, then removes
+    /// itself. This is the SVG-path-style cascade animation : the
+    /// visible cascade ripple through the graph, one dot per fired
+    /// edge, in the edge's own kind-color (emits = event-purple,
+    /// triggers = policy-orange, cross_domain = teal, else brand-gold).
+    ///
+    /// Cytoscape renders edges into a canvas, so an SVG <animateMotion>
+    /// is out of reach. The motion path is reconstructed in JS :
+    ///
+    ///   - sourceEndpoint / targetEndpoint are the edge's actual
+    ///     attachment points on each node (already account for node
+    ///     borders and edge curve).
+    ///   - For bezier edges we bow the path through the rendered
+    ///     midpoint via a quadratic Bezier ; for straight edges we
+    ///     linearly interpolate.
+    ///   - The dot's position is recomputed every frame so the
+    ///     animation tracks viewport pan/zoom while in flight.
+    function spawnEdgeTraveler(edge, durationMs) {
+      if (!edge || edge.empty()) return;
+      const layer = document.getElementById('ring-layer');
+      if (!layer) return;
+      const dot = document.createElement('div');
+      const kind = edge.data('kind') || '';
+      dot.className = 'edge-traveler ' + kind;
+      layer.appendChild(dot);
+
+      const start = performance.now();
+      const duration = Math.max(200, durationMs || 800);
+
+      // Capture endpoints once at the start ; if cytoscape is unable
+      // to resolve endpoints (e.g. an unrendered edge), fall back to
+      // the source / target rendered positions.
+      function endpoints() {
+        let s = null, t = null;
+        try { s = edge.sourceEndpoint(); } catch (e) {}
+        try { t = edge.targetEndpoint(); } catch (e) {}
+        if (!s || s.x === undefined) s = edge.source().renderedPosition();
+        if (!t || t.x === undefined) t = edge.target().renderedPosition();
+        return [s, t];
+      }
+
+      // Midpoint with a perpendicular bow so the path arcs to mimic
+      // the bezier Cytoscape draws. For haystack / linear edges this
+      // collapses to a straight line via the small offset.
+      function controlPoint(s, t) {
+        let mid = null;
+        try {
+          const m = edge.midpoint();
+          if (m && m.x !== undefined) {
+            // Convert model midpoint to rendered coords (model→rendered
+            // is pan + zoom). cy.zoom() / cy.pan() are the transform.
+            const pan = cy.pan(); const zoom = cy.zoom();
+            mid = { x: m.x * zoom + pan.x, y: m.y * zoom + pan.y };
+          }
+        } catch (e) {}
+        if (!mid) {
+          mid = { x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
+        }
+        return mid;
+      }
+
+      function tick(now) {
+        if (!dot.isConnected) return;
+        const elapsed = now - start;
+        const u = Math.min(1, elapsed / duration);
+        // ease-out cubic for a "shot from the source" feel
+        const eased = 1 - Math.pow(1 - u, 3);
+        const [s, t] = endpoints();
+        if (!s || !t) { dot.remove(); return; }
+        const c = controlPoint(s, t);
+        // Quadratic Bezier : B(u) = (1-u)²·s + 2(1-u)u·c + u²·t
+        const oneMinus = 1 - eased;
+        const x = oneMinus * oneMinus * s.x + 2 * oneMinus * eased * c.x + eased * eased * t.x;
+        const y = oneMinus * oneMinus * s.y + 2 * oneMinus * eased * c.y + eased * eased * t.y;
+        dot.style.left = x + 'px';
+        dot.style.top  = y + 'px';
+        // Fade in over first 15%, out over last 25%.
+        let alpha = 1;
+        if (u < 0.15) alpha = u / 0.15;
+        else if (u > 0.75) alpha = (1 - u) / 0.25;
+        dot.style.opacity = String(Math.max(0, Math.min(1, alpha)));
+        if (u >= 1) { dot.remove(); return; }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
     }
 
     // Trace and animate the cascade : starting from the dispatched
