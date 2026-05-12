@@ -1,4 +1,4 @@
-Hecks.bluebook "Bluebook", version: "2026.05.01.1" do
+Hecks.bluebook "Bluebook", version: "2026.05.12.1" do
   vision "Bluebook describing itself — the IR shape every parser must produce"
   category "meta"
 
@@ -24,12 +24,48 @@ Hecks.bluebook "Bluebook", version: "2026.05.01.1" do
   #
   # This domain is not booted as a runtime organ — it carries no live
   # state. It documents shape.
+  #
+  # 2026-05-12 : Domain's own surface attributes (name, category,
+  # vision) wrapped in typed value-objects per the no-primitive-envy
+  # rule, mirroring the macrophage / antibody / mindstream sweeps.
+  # Per-aggregate VO sets — no bluebook-level VOs. Entity inner
+  # attributes (Aggregate.name, Attribute.type, etc.) are
+  # intentionally left as primitives : the no_primitive_envy
+  # validator only scans aggregate-root and command surfaces, and
+  # those inner attrs describe the SHAPE of the IR — they ARE the
+  # primitive contract every parser must produce.
 
   aggregate "Domain", "The top of the IR tree — name + all aggregates + cross-cutting policies/fixtures" do
     identified_by :name
-    attribute :name, String
-    attribute :category, String
-    attribute :vision, String
+
+    attribute :name,     Name
+    attribute :category, Category
+    attribute :vision,   Vision
+
+    # ── Value-objects : the meta-bluebook's own language ──
+
+    value_object "Name" do
+      # The Domain's identifier — the string passed to
+      # `Hecks.bluebook "<Name>"`. Used as the identified_by key
+      # in the IR and as the canonical name every parser must
+      # round-trip unchanged.
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # The Domain's category label (e.g. 'framework', 'language',
+      # 'meta', 'capability'). A coarse classifier the workshop UI
+      # uses to group aggregates ; not enforced as an enum here
+      # because new categories are added freely.
+      attribute :value, String
+    end
+
+    value_object "Vision" do
+      # Free-form prose stating what the domain is for. Surfaces
+      # in dashboards and the conceive flow so a reader knows the
+      # purpose of the bluebook before reading its structure.
+      attribute :value, String
+    end
 
     entity "Aggregate" do
       description "A DDD aggregate root — attributes, value objects, commands, queries, lifecycle"
