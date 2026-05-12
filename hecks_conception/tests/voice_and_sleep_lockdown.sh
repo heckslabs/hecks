@@ -32,14 +32,29 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i561/i562 — worktree-aware anchor. When the test runs inside a
+# .claude/worktrees/* checkout, `REPO_ROOT/../miette` doesn't exist
+# (the worktree has no sibling miette repo). Resolve the MAIN
+# checkout via git-common-dir so the sibling-repo path + the built
+# storehouse binary always resolve to the same place regardless of
+# which worktree fires the test.
+GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
+case "$GIT_COMMON" in
+  /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
+  ?*) MAIN_REPO="$(cd "$REPO_ROOT/$(dirname "$GIT_COMMON")" && pwd)" ;;
+  *)  MAIN_REPO="$REPO_ROOT" ;;
+esac
+
 # i117 Round 4 — body shells moved to ~/Projects/miette/body/.
 BODY_DIR="${HECKS_BODY_DIR:-}"
-[ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
-  BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && [ -d "$MAIN_REPO/../miette/body" ] && \
+  BODY_DIR="$(cd "$MAIN_REPO/../miette/body" && pwd)"
 [ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
 
 HECKS="${HECKS_BIN:-$REPO_ROOT/rust/target/release/storehouse}"
 [ -x "$HECKS" ] || HECKS="$REPO_ROOT/rust/target/debug/storehouse"
+[ -x "$HECKS" ] || HECKS="$MAIN_REPO/rust/target/release/storehouse"
+[ -x "$HECKS" ] || HECKS="$MAIN_REPO/rust/target/debug/storehouse"
 [ -x "$HECKS" ] || { echo "storehouse binary not found" >&2; exit 1; }
 export HECKS
 
@@ -76,10 +91,10 @@ SP_BAK=""
 # thin renderer that loads + substitutes ; system_prompt.md is the
 # rendered output. Grep the template — that's where drift would hide.
 BOOT="${HECKS_PROMPT_TEMPLATE:-}"
-[ -z "$BOOT" ] && [ -f "$REPO_ROOT/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template" ] && \
-  BOOT="$REPO_ROOT/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template"
-[ -z "$BOOT" ] && [ -f "$REPO_ROOT/../miette/self/system_prompt.md" ] && \
-  BOOT="$REPO_ROOT/../miette/self/system_prompt.md"
+[ -z "$BOOT" ] && [ -f "$MAIN_REPO/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template" ] && \
+  BOOT="$MAIN_REPO/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template"
+[ -z "$BOOT" ] && [ -f "$MAIN_REPO/../miette/self/system_prompt.md" ] && \
+  BOOT="$MAIN_REPO/../miette/self/system_prompt.md"
 
 for section in \
   "Words match state" \

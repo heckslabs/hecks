@@ -30,14 +30,27 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i561 — worktree-aware anchor. When the test runs inside a
+# .claude/worktrees/* checkout, `REPO_ROOT/../miette` doesn't exist
+# (the worktree has no sibling miette repo, and no rust/target/).
+# Resolve the MAIN checkout via git-common-dir so both the sibling-
+# repo body link and the storehouse binary resolve to the same place
+# regardless of which worktree fires the test.
+GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
+case "$GIT_COMMON" in
+  /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
+  ?*) MAIN_REPO="$(cd "$REPO_ROOT/$(dirname "$GIT_COMMON")" && pwd)" ;;
+  *)  MAIN_REPO="$REPO_ROOT" ;;
+esac
+
 # Find the storehouse binary. Prefer HECKS_BIN override; otherwise the
 # worktree's own build, then the main checkout's build.
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
 else
   echo "FAIL — can't find storehouse binary"
   exit 2
@@ -59,7 +72,8 @@ find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregat
 # Body / mind / being aggregates live in the miette sibling repo (Heart,
 # Nerve, SignalConsolidation, Pulse, etc.). Link them so cross-bluebook
 # dispatch — the across "Pulse" hop in mindstream — resolves at boot.
-MIETTE_BODY="$REPO_ROOT/../miette/body"
+# i561 — MAIN_REPO resolves the main checkout when running from a worktree.
+MIETTE_BODY="$MAIN_REPO/../miette/body"
 if [ -d "$MIETTE_BODY" ]; then
   find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/aggregates/" \;
 fi
