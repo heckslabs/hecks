@@ -100,7 +100,7 @@ before any adapter wires in real side-effects."
 
 Two pieces meet in this direction :
 
-1. **The dispatch path** — `storehouse <root> Tools.Bash …` already
+1. **The dispatch path** — `storehouse <root> Tools::Tools.Bash …` already
    works (verified 2026-05-12). The aggregate exists, the command
    exists, the runtime accepts the call. Default-to-memory is live
    today, which means `Tools.Bash` is a logged intent right now even
