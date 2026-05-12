@@ -1,4 +1,4 @@
-Hecks.bluebook "Language", version: "2026.04.12.1" do
+Hecks.bluebook "Language", version: "2026.05.12.1" do
   vision "Grammar as a domain — determine if a word is a verb, noun, adjective without a static list"
   category "capability"
 
@@ -24,15 +24,52 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # This replaces verbs.txt entirely.
 
   aggregate "WordClassifier", "Determines if a word is a verb, noun, adjective, or other" do
-    attribute :word, String
-    attribute :classification, String
-    attribute :confidence, Float
-    attribute :reason, String
+    value_object "Word" do
+      # The word being classified. Surface form — a single token,
+      # any case ; the classifier inspects suffix/prefix/structure.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Classification" do
+      # Word class label produced by the classifier — typically
+      # "verb", "noun", "adjective", or "other". Free-form string ;
+      # the meta-bluebook does not enumerate the closed set so the
+      # runtime can grow new classes without a bluebook revision.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Confidence" do
+      # Likelihood that the classification is correct, 0.0 to 1.0.
+      # Morphological matches with multiple corroborating signals
+      # score high ; lone suffix matches score low.
+      attribute :value, Float
+      invariant "must be between 0 and 1" do
+        value >= 0.0 && value <= 1.0
+      end
+    end
+
+    value_object "Reason" do
+      # Human-readable explanation of why the word was classified
+      # this way — typically the pattern that matched, e.g. "ends
+      # in -ate (verb suffix)" or "ends in -tion (nominalization)".
+      attribute :value, String
+    end
+
+    attribute :word, Word
+    attribute :classification, Classification
+    attribute :confidence, Confidence
+    attribute :reason, Reason
 
     command "ClassifyWord" do
       role "System"
       description "Determine word class from morphological patterns"
-      attribute :word, String
+      attribute :word, Word
       emits "WordClassified"
       then_set :word, to: :word
     end
@@ -41,17 +78,55 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # === Morphological Rules ===
 
   aggregate "VerbPattern", "A pattern that identifies verbs by structure" do
-    attribute :pattern_type, String
-    attribute :pattern, String
-    attribute :confidence, Float
-    attribute :examples, list_of(String)
+    value_object "PatternType" do
+      # The kind of morphological signal — "suffix", "prefix",
+      # "exact", "compound". Free-form string ; the runtime
+      # branches on the kind when matching a candidate word.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Pattern" do
+      # The pattern body — the suffix, prefix, or literal word.
+      # For "-ate" the value is "ate" ; for "Re-" the value is
+      # "Re" ; for "Create" the value is "Create".
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Confidence" do
+      # How much weight this pattern carries when computing the
+      # classifier's overall confidence. Higher means more decisive.
+      attribute :value, Float
+      invariant "must be between 0 and 1" do
+        value >= 0.0 && value <= 1.0
+      end
+    end
+
+    value_object "Example" do
+      # A sample word that matches this pattern, kept for docs and
+      # for sanity-checking pattern regressions.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :pattern_type, PatternType
+    attribute :pattern, Pattern
+    attribute :confidence, Confidence
+    attribute :examples, list_of(Example)
 
     command "RegisterPattern" do
       role "System"
       description "Add a morphological pattern for verb detection"
-      attribute :pattern_type, String
-      attribute :pattern, String
-      attribute :confidence, Float
+      attribute :pattern_type, PatternType
+      attribute :pattern, Pattern
+      attribute :confidence, Confidence
       emits "PatternRegistered"
       then_set :pattern_type, to: :pattern_type
       then_set :pattern, to: :pattern
@@ -70,16 +145,46 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # === Non-verb patterns — things that look like verbs but aren't ===
 
   aggregate "NonVerbPattern", "Patterns that indicate a word is NOT a verb" do
-    attribute :pattern_type, String
-    attribute :pattern, String
-    attribute :indicates, String
+    value_object "PatternType" do
+      # The kind of morphological signal — "suffix", "prefix",
+      # "exact". Free-form ; the runtime branches on the kind
+      # when matching a candidate word.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Pattern" do
+      # The pattern body — the suffix, prefix, or literal word
+      # that rules out verb classification. e.g. "tion", "ment",
+      # "ness".
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Indicates" do
+      # What part of speech the pattern indicates instead of verb
+      # — typically "noun" or "adjective". Used so the classifier
+      # can hand back a useful classification, not just "not a verb".
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :pattern_type, PatternType
+    attribute :pattern, Pattern
+    attribute :indicates, Indicates
 
     command "RegisterNonVerb" do
       role "System"
       description "Add a pattern that rules out verb classification"
-      attribute :pattern_type, String
-      attribute :pattern, String
-      attribute :indicates, String
+      attribute :pattern_type, PatternType
+      attribute :pattern, Pattern
+      attribute :indicates, Indicates
       emits "NonVerbRegistered"
       then_set :pattern_type, to: :pattern_type
       then_set :pattern, to: :pattern
@@ -90,15 +195,54 @@ Hecks.bluebook "Language", version: "2026.04.12.1" do
   # === Command name validation ===
 
   aggregate "CommandValidator", "Validates that a command name starts with a verb" do
-    attribute :command_name, String
-    attribute :is_verb, String
-    attribute :confidence, Float
-    attribute :first_word, String
+    value_object "CommandName" do
+      # The candidate command name being validated — usually a
+      # PascalCase phrase like "CreatePizza" or "AddTopping".
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "IsVerb" do
+      # Verdict label — "yes", "no", "ambiguous". Free-form so
+      # callers can branch on it without a bluebook revision when
+      # new verdicts emerge.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "Confidence" do
+      # Confidence in the verdict, 0.0 to 1.0. Composed from the
+      # patterns that fired plus the non-verb patterns that ruled
+      # out alternatives.
+      attribute :value, Float
+      invariant "must be between 0 and 1" do
+        value >= 0.0 && value <= 1.0
+      end
+    end
+
+    value_object "FirstWord" do
+      # The first PascalCase chunk of the command name — the
+      # candidate verb. "CreatePizza" → "Create", "AddTopping"
+      # → "Add".
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    attribute :command_name, CommandName
+    attribute :is_verb, IsVerb
+    attribute :confidence, Confidence
+    attribute :first_word, FirstWord
 
     command "ValidateCommandName" do
       role "System"
       description "Check if a command name starts with a verb — using patterns, not a list"
-      attribute :command_name, String
+      attribute :command_name, CommandName
       emits "CommandNameValidated"
       then_set :command_name, to: :command_name
     end
