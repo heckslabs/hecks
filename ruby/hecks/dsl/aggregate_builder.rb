@@ -1,4 +1,10 @@
-# [antibody-exempt: lib/hecks/dsl/aggregate_builder.rb — kernel-surface Ruby DSL parser; the parity contract requires this side to recognize identified_by, but the bluebook parser cannot be conceived through bluebook. Added to satisfy parity with Rust storehouse parser (i80 identified_by natural keys).]
+# [antibody-exempt: ruby/hecks/dsl/aggregate_builder.rb — kernel-surface
+#  Ruby DSL parser ; parity-pair sibling of rust/src/specializer/parser.rs.
+#  The bluebook parser cannot be conceived through bluebook (Trikaya floor).
+#  Same i147 long-arc retirement contract as the rest of ruby/hecks/dsl/ :
+#  retires when the Ruby parser is fully described by
+#  hecks_conception/aggregates/language/grammar/*.bluebook plus a generated
+#  artifact.]
 #
 # Bootstrap: These modules are included at class-body time, so they must
 # load before AggregateBuilder is defined. Cannot use chapter-driven loading.

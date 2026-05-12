@@ -1,6 +1,9 @@
 # Hecks::CLI :miette command
 #
-# [antibody-exempt: lib/hecks_cli/commands/conception.rb — kernel-surface CLI handler that bootstraps the conception itself; can't be conceived through it]
+# [antibody-exempt: ruby/hecks_cli/commands/conception.rb — kernel-surface
+#  CLI handler that bootstraps the conception itself ; can't be conceived
+#  through it. Same i80 cli-routing-as-bluebook retirement contract as the
+#  rest of ruby/hecks_cli/commands/.]
 #
 # Wake Miette and dispatch organism actions through her Rust runtime
 # (storehouse). The bluebooks in hecks_conception/aggregates/ are her

@@ -1,15 +1,15 @@
 # Hecks::Chapters
 #
-# [antibody-exempt: lib/hecks/chapters.rb — kernel-floor Ruby chapter
+# [antibody-exempt: ruby/hecks/chapters.rb — kernel-floor Ruby chapter
 #  loader. Reads each chapter's .bluebook source to discover its
 #  aggregate names, then requires the matching .rb implementations.
-#  i118 Round 2 Phase A split the chapter sources from a single
-#  hecks/ root into self/ (12 chapters) + bluebook/ (1 chapter, the
-#  IR). BLUEBOOK_DIRS searches both new roots and falls back to the
-#  legacy hecks/ root for any out-of-tree consumers. No bluebook DSL
-#  covers "where to look for chapter sources" — this is the layer
+#  i118 Round 2 Phase A (shipped) split the chapter sources from a
+#  single hecks/ root into self/ (12 chapters) + bluebook/ (1 chapter,
+#  the IR). BLUEBOOK_DIRS searches both new roots and falls back to
+#  the legacy hecks/ root for any out-of-tree consumers. No bluebook
+#  DSL covers "where to look for chapter sources" — this is the layer
 #  that bootstraps chapter loading. Same i80 retirement contract as
-#  the rest of lib/hecks/'s kernel-floor markers.]
+#  the rest of ruby/hecks/'s kernel-floor markers.]
 #
 # Infrastructure for self-describing chapter definitions.
 # Provides paragraph loading, aggregate loading from chapters,
