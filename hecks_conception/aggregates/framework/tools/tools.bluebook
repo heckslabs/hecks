@@ -1,0 +1,109 @@
+Hecks.bluebook "Tools", version: "2026.05.12.1" do
+  vision "First-class tool invocations as dispatched commands. Today Miette calls Bash / Edit / Read / Write / Grep as opaque tool calls — the harness runs them, returns a string, and the runtime sees nothing. This bluebook lifts each invocation into a domain command so every tool use emits an event the runtime can react to. Bash is the first command ; the other tools follow with the same shape."
+  category "framework"
+
+  # ============================================================
+  # TOOLS — agent-level tool invocations as first-class dispatches
+  # ============================================================
+  #
+  # Conceived 2026-05-12. Until today Miette's tool calls were
+  # black-box invocations : the harness ran the tool, returned a
+  # result string, and the runtime saw nothing. Mood didn't shift,
+  # body didn't move, no event fired, no policy could react.
+  #
+  # Tools makes each invocation a dispatch on the Tools aggregate.
+  # Bash is the first command — given a shell command + a one-line
+  # description, it records the dispatch and emits BashRan. A
+  # policy on BashRan can record into the mindstream, surface in
+  # the statusline, or trigger an awareness shift — same machinery
+  # that handles every other domain event.
+  #
+  # ── Per-invocation aggregate ──
+  #
+  # Each Bash call mints a new Tools record, identified by a stable
+  # invocation id. The accumulated history is the set of Tools
+  # records, not a list inside one record. This matches Dump's
+  # shape (one record per dump) and Cadence's shape (one record per
+  # loop start) — every tool-family bluebook in the codebase uses
+  # the same pattern.
+  #
+  # ── The runtime substrate ──
+  #
+  # The bluebook is the contract. Two pieces of substrate wire it :
+  #
+  #   1. A runtime path that ACTUALLY runs the shell command.
+  #      Either a generic-command :shell adapter (the existing
+  #      :shell adapter is template-based and won't work for arbi-
+  #      trary commands), or a kernel-floor shim in main.rs that
+  #      executes the command and captures stdout + exit code.
+  #
+  #   2. The Claude harness intercepts every Bash tool call and
+  #      dispatches `framework::tools::Tools::Bash` instead of
+  #      invoking Bash directly. The harness then surfaces the
+  #      resulting BashRan event back into the conversation as
+  #      additional context, so Miette can react to her own
+  #      invocations the same way she reacts to any other domain
+  #      event.
+  #
+  # Both pieces are runtime work, not bluebook work. Filed as
+  # follow-on cards alongside this bluebook.
+  #
+  # ── The family pattern, after Bash ──
+  #
+  # Bash is the proof. Once it's wired, the same shape extends to :
+  #
+  #   * Edit  — file path + old / new substrings ; emits EditApplied
+  #   * Read  — file path + range ; emits FileRead
+  #   * Write — file path + content ; emits FileWritten
+  #   * Grep  — pattern + path ; emits GrepRan
+  #   * WebFetch — url + prompt ; emits WebFetched
+  #
+  # Each becomes a command, each emits a matching event, each
+  # carries the input + description so the runtime can react.
+
+  aggregate "Tools", "Tool invocations as first-class dispatched commands" do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :shell_command, ShellCommand
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller (the harness)
+      # before dispatch. The caller chooses the id form ; for the
+      # Claude harness it's a ULID. The aggregate persists by id
+      # so the BashRan event carries an identifier that downstream
+      # listeners can join against.
+      attribute :value, String
+    end
+
+    value_object "ShellCommand" do
+      # The shell command line passed to Bash, verbatim — what the
+      # operator would type at a terminal. The runtime substrate
+      # is what actually executes it ; the bluebook just records
+      # what was asked. No quoting / escaping rules here ; the
+      # value is the source string.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice, captioning what the
+      # invocation is trying to do. Stays under 80 characters
+      # by convention so it reads cleanly in the statusline and
+      # event-stream surfaces.
+      attribute :value, String
+    end
+
+    # ── Bash : the first tool command ──
+    command "Bash" do
+      role "Miette"
+      description "Run a shell command. Records the dispatch as a Tools record and emits BashRan carrying the command, description, and invocation id so downstream policies can react to the call. The runtime substrate (a generic-command :shell adapter or kernel-floor shim) is what actually executes the shell — this bluebook names the contract, not the execution."
+      attribute :id, Id
+      attribute :shell_command, ShellCommand
+      attribute :description, Description
+      emits "BashRan"
+      then_set :shell_command, to: :shell_command
+      then_set :description,   to: :description
+    end
+  end
+end
