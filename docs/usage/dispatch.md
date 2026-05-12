@@ -39,21 +39,27 @@ From `dispatch.bluebook` :
 ## Dispatching from the CLI
 
 The `storehouse` binary takes an aggregates directory (or single bluebook
-file) and a `Aggregate.Command` shorthand. Attributes follow as `key=value`
-pairs :
+file) and a fully-qualified address. Attributes follow as `key=value` pairs :
 
 ```bash
-storehouse <aggregates_dir> <Aggregate>.<Command> attr1=value1 attr2=value2
+storehouse <aggregates_dir> <Domain>::<Aggregate>.<Command> attr1=value1 attr2=value2
 ```
 
-The CLI accepts the dotted shorthand (`Aggregate.Command`, or
-`Context.Aggregate.Command` for cross-context disambiguation) because typing
-`::` at the shell is awkward. The bus resolves the shorthand against the
-loaded lexicon ; the four-segment phrase is what travels on the wire once
-resolution succeeds.
+**i560 v2 (2026-05-12)** — the CLI accepts ONLY the canonical
+fully-qualified form `Domain::Aggregate.Command` (commands, PascalCase
+trailing token) or `Domain::Aggregate.query_name` (queries, snake_case
+trailing token). The short forms (`Aggregate.Command`, bare `Command`)
+are rejected with a helpful error naming the new form. Internal
+cascade dispatch through `Runtime::drain_policies` still resolves the
+legacy forms — bluebook `trigger_command` declarations keep working.
 
-PascalCase fourth segment routes as a command ; snake_case fourth segment
-routes as a query (read-only, returns JSON).
+The `Domain` segment matches an aggregate's `context` (bluebook
+namespace, e.g. `Tools`, `Macrophage`, `Boot`) OR the bluebook's
+`category` (the directory under `aggregates/`, e.g. `discipline`,
+`framework`, `world`). Case-insensitive.
+
+PascalCase trailing token routes as a command ; snake_case routes as
+a query (read-only, returns JSON).
 
 ## Self-ref convention
 
@@ -63,10 +69,10 @@ to pass the id at the CLI :
 
 ```bash
 # Named — the reference's snake_case form of the aggregate name :
-storehouse aggregates/ Notifications.MarkSent notifications=01HXYZ...
+storehouse aggregates/ BinBuddy::Notifications.MarkSent notifications=01HXYZ...
 
 # Universal — the bare `id=` fallback works for every aggregate :
-storehouse aggregates/ Notifications.MarkSent id=01HXYZ...
+storehouse aggregates/ BinBuddy::Notifications.MarkSent id=01HXYZ...
 ```
 
 The runtime computes `to_snake_case(aggregate_name)` and looks for that key
@@ -104,7 +110,7 @@ Cascade) ; the old `Tools.Bash` form is no longer accepted.
 
 ```bash
 storehouse hecks_conception/aggregates/framework/tools \
-  ShellTool.Bash shell_command='echo hello' description='greet' id='ulid-1'
+  Framework::ShellTool.Bash shell_command='echo hello' description='greet' id='ulid-1'
 ```
 
 Output (trimmed) :
@@ -122,7 +128,7 @@ the invocation id) emitting `ResultRecorded` with the captured `tool`,
 ### 2. Read a query
 
 ```bash
-storehouse hecks_conception/storehouse Lexicon.compiled_at
+storehouse hecks_conception/storehouse Storehouse::Lexicon.compiled_at
 ```
 
 Snake_case fourth segment ⇒ the dispatcher routes via
@@ -132,7 +138,7 @@ persistence).
 ### 3. Re-dispatch into an existing record
 
 ```bash
-storehouse aggregates/ Notifications.MarkSent id=01HXYZ_CUSTOMER_NOTIF
+storehouse aggregates/ BinBuddy::Notifications.MarkSent id=01HXYZ_CUSTOMER_NOTIF
 ```
 
 The runtime locates the `Notifications` record at that id (universal `id=`

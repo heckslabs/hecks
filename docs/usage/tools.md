@@ -191,11 +191,11 @@ before any adapter wires in real side-effects."
 Two pieces meet in this direction :
 
 1. **The dispatch path** — `storehouse ShellTool.Bash …` (PATH form,
-   default conception) and `storehouse <root> ShellTool.Bash …`
-   (positional form, explicit conception) both work. The aggregate
-   exists, the command exists, the runtime accepts the call. Default-
-   to-memory is live today, which means `ShellTool.Bash` is a logged
-   intent right now even before any real shell wires in.
+   default conception) and `storehouse <root> Framework::ShellTool.Bash …`
+   (positional fully-qualified form) both work. The aggregate exists,
+   the command exists, the runtime accepts the call. Default-to-memory
+   is live today, which means `ShellTool.Bash` is a logged intent right
+   now even before any real shell wires in.
 2. **The side-effect adapter** — when `ShellTool.Bash` dispatches, the
    `:claude_tool` adapter actually runs the shell via
    `claude_tool_dispatcher::run_bash`. Without it, `ShellTool.Bash` is
