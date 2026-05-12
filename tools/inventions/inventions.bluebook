@@ -1,4 +1,4 @@
-Hecks.bluebook "Inventions", version: "2026.04.16.1" do
+Hecks.bluebook "Inventions", version: "2026.05.12.1" do
   vision "Ideas worth patenting — groomable in batches"
   category "capability"
 
@@ -22,46 +22,91 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
   #
   # The PromoteFromMusing command was retired 2026-05-08 alongside
   # the Musing system.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VO sets — Invention and
+  # Grooming each carry their own typed vocabulary so the domain
+  # reads as itself, not as raw String / Integer.
 
   aggregate "Invention", "A patentable idea" do
-    attribute :title, String
-    attribute :description, String
-    attribute :novelty, String
-    attribute :prior_art, String
-    attribute :status, String
-    attribute :filed_date, String
+    # ── Value-objects : the invention's vocabulary ──
+
+    value_object "Title" do
+      # One-line headline naming what the invention is — surfaces
+      # in grooming batches and the patentable-ideas list.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Free-form prose explaining what the invention does and how
+      # it works. The "what it does" half of the grooming caption.
+      attribute :value, String
+    end
+
+    value_object "Novelty" do
+      # Why this idea is patentable — what's new about it versus
+      # what already exists. The "why it's novel" half of the
+      # grooming caption.
+      attribute :value, String
+    end
+
+    value_object "PriorArt" do
+      # Notes on existing approaches, references, related work the
+      # invention has to be distinguished from. Populated by the
+      # Develop command after deeper research.
+      attribute :value, String
+    end
+
+    value_object "InventionStatus" do
+      # Lifecycle position — proposed | developed | filed | dismissed.
+      # The lifecycle declaration below constrains transitions.
+      attribute :value, String
+    end
+
+    value_object "FiledDate" do
+      # ISO date the patent application was submitted. Stamped by
+      # the File command ; empty until then.
+      attribute :value, String
+    end
+
+    attribute :title,       Title
+    attribute :description, Description
+    attribute :novelty,     Novelty
+    attribute :prior_art,   PriorArt
+    attribute :status,      InventionStatus
+    attribute :filed_date,  FiledDate
 
     command "Propose" do
       role "Creator"
       description "Propose a new invention — describe what it does and why it's novel"
-      attribute :title, String
-      attribute :description, String
-      attribute :novelty, String
+      attribute :title,       Title
+      attribute :description, Description
+      attribute :novelty,     Novelty
       emits "InventionProposed"
-      then_set :title, to: :title
+      then_set :title,       to: :title
       then_set :description, to: :description
-      then_set :novelty, to: :novelty
-      then_set :status, to: "proposed"
+      then_set :novelty,     to: :novelty
+      then_set :status,      to: "proposed"
     end
 
     command "Develop" do
       role "Creator"
       description "Add detail — prior art, implementation notes, claims"
       reference_to(Invention)
-      attribute :prior_art, String
+      attribute :prior_art, PriorArt
       emits "InventionDeveloped"
       then_set :prior_art, to: :prior_art
-      then_set :status, to: "developed"
+      then_set :status,    to: "developed"
     end
 
     command "File" do
       role "Creator"
       description "Mark as filed — patent application submitted"
       reference_to(Invention)
-      attribute :filed_date, String
+      attribute :filed_date, FiledDate
       emits "InventionFiled"
       then_set :filed_date, to: :filed_date
-      then_set :status, to: "filed"
+      then_set :status,     to: "filed"
     end
 
     command "Dismiss" do
@@ -81,15 +126,30 @@ Hecks.bluebook "Inventions", version: "2026.04.16.1" do
   end
 
   aggregate "Grooming", "Groom inventions in batches" do
-    attribute :batch_size, Integer
-    attribute :status, String
+    # ── Value-objects : grooming's vocabulary ──
+
+    value_object "BatchSize" do
+      # How many inventions a grooming round surfaces at once.
+      # Defaults to 5 — a comfortable batch a human can decide on
+      # in one sitting.
+      attribute :value, Integer
+    end
+
+    value_object "GroomingStatus" do
+      # Lifecycle position — active while batches are flowing,
+      # complete once the round wraps up.
+      attribute :value, String
+    end
+
+    attribute :batch_size, BatchSize
+    attribute :status,     GroomingStatus
 
     command "StartGrooming" do
       role "Creator"
       description "Begin grooming inventions — show batches of 5 with descriptions"
       emits "GroomingStarted"
       then_set :batch_size, to: 5
-      then_set :status, to: "active"
+      then_set :status,     to: "active"
     end
 
     command "FinishGrooming" do
