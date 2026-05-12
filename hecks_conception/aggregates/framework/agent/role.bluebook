@@ -1,4 +1,4 @@
-Hecks.bluebook "Role", version: "2026.05.07.1" do
+Hecks.bluebook "Role", version: "2026.05.12.1" do
   vision "The type an Agent fills in a command's scope. A Role carries a name and a list of Phrase permissions. Roles are the canonical replacement for the role-string sprinkled across every command in the conception today."
   category "framework"
 
@@ -59,18 +59,61 @@ Hecks.bluebook "Role", version: "2026.05.07.1" do
   aggregate "Role", "The type an Agent fills in a command's scope. Carries a name, a description, an optional parent role for composition, and a permissions list of dotted phrases." do
     identified_by :name
 
-    attribute :name,        String
-    attribute :description, String
+    # ── Value-objects : the domain's language ──
+    #
+    # 2026-05-12 : every primitive wrapped in a typed value-object per
+    # the no-primitive-envy discipline. Mirrors macrophage / immunity.
+    # Per the 2026-05-12 discipline — duplication of VO names across
+    # aggregates (Name appears in Agent too) is fine ; no bluebook-level
+    # shared VOs.
+
+    # Name — the Role's natural-key identifier (e.g. "Owner",
+    # "Operator", "Caller"). Same shape as Agent.Name, different concept.
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    # Description — one-line prose : what this Role means in the domain.
+    value_object "Description" do
+      attribute :value, String
+    end
+
+    # ParentName — single-step composition pointer to another Role's
+    # name. Empty string when the role inherits from no other. Multi-
+    # level resolution and diamond detection are filed as follow-ups.
+    value_object "ParentName" do
+      attribute :value, String
+    end
+
+    # Permissions — newline-joined dotted phrases, one per line. First
+    # chapter accepts only exact phrases ; wildcards ("Inbox.*") and
+    # negation ("!Inbox.Drop") are filed as follow-up gaps. Stored as
+    # a single string rather than a child collection because permissions
+    # are pure data, not identified entities.
+    value_object "Permissions" do
+      attribute :value, String
+    end
+
+    # Phrase — one dotted Aggregate.Command form (the unit of grant /
+    # revoke). Same canonical form Lexicon's Phrase canonicalises ; once
+    # permission resolution lands, every Phrase resolves through
+    # Lexicon.Lookup.
+    value_object "Phrase" do
+      attribute :value, String
+    end
+
+    attribute :name,        Name
+    attribute :description, Description
 
     # parent_name : logically optional ; empty string when the role inherits
     # from no other. Single-step composition for the first chapter ; multi-
     # level resolution and diamond detection are filed as follow-ups.
-    attribute :parent_name, String
+    attribute :parent_name, ParentName
 
     # permissions : newline-joined dotted phrases (one per line). First
     # chapter accepts only exact phrases. Wildcards and negation are
     # filed as follow-up gaps.
-    attribute :permissions, String
+    attribute :permissions, Permissions
 
     # ── Commands ───────────────────────────────────────────────
     #
@@ -81,9 +124,9 @@ Hecks.bluebook "Role", version: "2026.05.07.1" do
     command "Define" do
       role "Framework"
       description "Conceive a new Role. Inputs : a name (the natural key), a one-line description, and an optional parent_name for composition (empty string when the role inherits from no other). Permissions are added through GrantPermission once the Role exists ; a defined Role starts with an empty permissions list."
-      attribute :name,        String
-      attribute :description, String
-      attribute :parent_name, String
+      attribute :name,        Name
+      attribute :description, Description
+      attribute :parent_name, ParentName
       emits "Defined"
     end
 
@@ -91,7 +134,7 @@ Hecks.bluebook "Role", version: "2026.05.07.1" do
       role "Framework"
       description "Add a Phrase to this Role's permissions. The phrase is the dotted Aggregate.Command form Lexicon already canonicalises. Idempotent : granting an already-granted phrase is a no-op event for the audit trail."
       reference_to(Role)
-      attribute :phrase, String
+      attribute :phrase, Phrase
       emits "PermissionGranted"
     end
 
@@ -99,7 +142,7 @@ Hecks.bluebook "Role", version: "2026.05.07.1" do
       role "Framework"
       description "Remove a Phrase from this Role's permissions. Revoking a phrase the Role doesn't hold is recorded but not an error ; the audit trail captures the intent."
       reference_to(Role)
-      attribute :phrase, String
+      attribute :phrase, Phrase
       emits "PermissionRevoked"
     end
 
