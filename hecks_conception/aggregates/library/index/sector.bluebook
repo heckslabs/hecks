@@ -13,16 +13,26 @@ Hecks.bluebook "Sector", version: "2026.04.28.1" do
 
   aggregate "Sector", "A grouping of domains by industry" do
     identified_by :name
-    attribute :name, String
-    attribute :domain_count, Integer
+    attribute :name,         Name
+    attribute :domain_count, DomainCount
+
+    value_object "Name" do
+      # Sector identifier (e.g. 'finance', 'commerce', 'gaming').
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Number of domains classified into this sector.
+      attribute :value, Integer
+    end
 
     command "ClassifySector" do
       role "System"
       description "Assign a domain to a sector based on keywords"
-      attribute :name, String
-      attribute :domain_count, Integer
+      attribute :name,         Name
+      attribute :domain_count, DomainCount
       emits "SectorClassified"
-      then_set :name, to: :name
+      then_set :name,         to: :name
       then_set :domain_count, to: :domain_count
     end
   end

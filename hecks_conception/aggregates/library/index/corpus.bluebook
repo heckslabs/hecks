@@ -15,27 +15,62 @@ Hecks.bluebook "Corpus", version: "2026.04.17.1" do
 
   aggregate "Search", "Search the loaded vocabulary" do
     identified_by :name
-    attribute :name, String
-    attribute :input, String
-    attribute :matched_phrase, String
-    attribute :domain, String
-    attribute :aggregate, String
-    attribute :command, String
-    attribute :confidence, Float
+    attribute :name,           Name
+    attribute :input,          Input
+    attribute :matched_phrase, MatchedPhrase
+    attribute :domain,         DomainName
+    attribute :aggregate,      AggregateName
+    attribute :command,        CommandName
+    attribute :confidence,     Confidence
+
+    value_object "Name" do
+      # Stable slug for this Search entry.
+      attribute :value, String
+    end
+
+    value_object "Input" do
+      # The raw input being matched against the corpus.
+      attribute :value, String
+    end
+
+    value_object "MatchedPhrase" do
+      # The phrase from the corpus that matched the input.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # The bluebook domain that contains the matched command.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The aggregate within the domain that owns the matched command.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # The command (PascalCase) the matched phrase resolves to.
+      attribute :value, String
+    end
+
+    value_object "Confidence" do
+      # Fuzzy-match confidence score in [0.0, 1.0].
+      attribute :value, Float
+    end
 
     command "IndexPhrase" do
       description "Add a phrase to the searchable corpus"
-      attribute :input, String
-      attribute :matched_phrase, String
-      attribute :domain, String
-      attribute :aggregate, String
-      attribute :command, String
+      attribute :input,          Input
+      attribute :matched_phrase, MatchedPhrase
+      attribute :domain,         DomainName
+      attribute :aggregate,      AggregateName
+      attribute :command,        CommandName
       emits "PhraseIndexed"
-      then_set :input, to: :input
+      then_set :input,          to: :input
       then_set :matched_phrase, to: :matched_phrase
-      then_set :domain, to: :domain
-      then_set :aggregate, to: :aggregate
-      then_set :command, to: :command
+      then_set :domain,         to: :domain
+      then_set :aggregate,      to: :aggregate
+      then_set :command,        to: :command
     end
 
     query MatchInput do

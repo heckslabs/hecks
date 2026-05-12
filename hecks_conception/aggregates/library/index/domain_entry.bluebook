@@ -11,29 +11,54 @@ Hecks.bluebook "DomainEntry", version: "2026.04.28.1" do
 
   aggregate "DomainEntry", "A single domain's metadata in the index" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :version, String
-    attribute :sector, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :path, String
+    attribute :domain_name,     DomainName
+    attribute :version,         Version
+    attribute :sector,          SectorName
+    attribute :aggregate_count, ElementCount
+    attribute :command_count,   ElementCount
+    attribute :path,            Path
+
+    value_object "DomainName" do
+      # Hecks.bluebook "<Name>" — the domain's canonical identifier.
+      attribute :value, String
+    end
+
+    value_object "Version" do
+      # CalVer string for the indexed bluebook revision.
+      attribute :value, String
+    end
+
+    value_object "SectorName" do
+      # The nursery sector label this entry belongs to.
+      attribute :value, String
+    end
+
+    value_object "ElementCount" do
+      # A count of aggregates or commands inside the domain.
+      attribute :value, Integer
+    end
+
+    value_object "Path" do
+      # Filesystem path to the indexed bluebook.
+      attribute :value, String
+    end
 
     command "IndexDomain" do
       role "System"
       description "Add or update a domain in the index"
-      attribute :domain_name, String
-      attribute :version, String
-      attribute :sector, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :path, String
+      attribute :domain_name,     DomainName
+      attribute :version,         Version
+      attribute :sector,          SectorName
+      attribute :aggregate_count, ElementCount
+      attribute :command_count,   ElementCount
+      attribute :path,            Path
       emits "DomainIndexed"
-      then_set :domain_name, to: :domain_name
-      then_set :version, to: :version
-      then_set :sector, to: :sector
+      then_set :domain_name,     to: :domain_name
+      then_set :version,         to: :version
+      then_set :sector,          to: :sector
       then_set :aggregate_count, to: :aggregate_count
-      then_set :command_count, to: :command_count
-      then_set :path, to: :path
+      then_set :command_count,   to: :command_count
+      then_set :path,            to: :path
     end
   end
 end
