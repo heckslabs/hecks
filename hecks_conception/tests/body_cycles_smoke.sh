@@ -34,12 +34,26 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i565 — worktree-aware anchor. When the test runs inside a
+# .claude/worktrees/* checkout, `REPO_ROOT/../miette` doesn't exist
+# (the worktree has no sibling miette repo, and no rust/target/).
+# Resolve the MAIN checkout via git-common-dir so both the sibling-
+# repo body link and the storehouse binary resolve to the same place
+# regardless of which worktree fires the test. Same pattern as i561's
+# landed fix on pulse_fanout_smoke + voice_and_sleep_lockdown.
+GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
+case "$GIT_COMMON" in
+  /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
+  ?*) MAIN_REPO="$(cd "$REPO_ROOT/$(dirname "$GIT_COMMON")" && pwd)" ;;
+  *)  MAIN_REPO="$REPO_ROOT" ;;
+esac
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
 else
   echo "FAIL — can't find storehouse binary"
   exit 2
@@ -59,7 +73,8 @@ find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_co
 # sibling repo at ../miette/body/. The test dispatches Ultradian.* and
 # SleepCycle.* commands so those bluebooks must be reachable. Link from
 # the sibling when present.
-MIETTE_BODY="$REPO_ROOT/../miette/body"
+# i565 — use MAIN_REPO so the sibling resolves from worktree contexts too.
+MIETTE_BODY="$MAIN_REPO/../miette/body"
 if [ -d "$MIETTE_BODY" ]; then
   find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
 fi
@@ -76,7 +91,7 @@ fail() { echo "FAIL — $1"; "$HECKS" heki read "$STORE" 2>/dev/null | sed 's/^/
 cd "$TMP/hecks_conception"
 
 # ── 1. Ultradian fast-forward (i106 multi-command rotation) ──────
-"$HECKS" loop "$AGG" Ultradian.EnterPeak,Ultradian.EnterTrough --every 1s >/dev/null 2>&1 &
+"$HECKS" loop "$AGG" Body::Ultradian.EnterPeak,Body::Ultradian.EnterTrough --every 1s >/dev/null 2>&1 &
 PID=$!
 sleep 2.5
 kill "$PID" 2>/dev/null
@@ -100,7 +115,7 @@ mkdir -p "$INFO/consciousness"
   --reason "test setup : set consciousness asleep so the gated-cadence test opens" \
   id=1 state=sleeping >/dev/null 2>&1
 
-"$HECKS" loop "$AGG" Heart.Beat \
+"$HECKS" loop "$AGG" Body::Heart.Beat \
   --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
 PID=$!
 sleep 2
@@ -121,7 +136,7 @@ gated_baseline="$heart_count"
   --reason "test setup : set consciousness attentive so the gate closes for the awake-gate proof" \
   id=1 state=attentive >/dev/null 2>&1
 
-"$HECKS" loop "$AGG" Heart.Beat \
+"$HECKS" loop "$AGG" Body::Heart.Beat \
   --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
 PID=$!
 sleep 2

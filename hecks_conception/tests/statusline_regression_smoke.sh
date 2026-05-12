@@ -48,12 +48,27 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i565 — worktree-aware MAIN_REPO anchor. From a .claude/worktrees/*
+# checkout, REPO_ROOT/rust/target doesn't exist. Resolve the canonical
+# main checkout via git-common-dir so the storehouse binary lookup
+# falls through to MAIN_REPO. Same pattern as i561's landed fix.
+GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
+case "$GIT_COMMON" in
+  /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
+  ?*) MAIN_REPO="$(cd "$REPO_ROOT/$(dirname "$GIT_COMMON")" && pwd)" ;;
+  *)  MAIN_REPO="$REPO_ROOT" ;;
+esac
+
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
 elif [ -x "$REPO_ROOT/rust/target/debug/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/debug/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/debug/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/debug/storehouse"
 else
   echo "storehouse binary not found" >&2
   exit 1
