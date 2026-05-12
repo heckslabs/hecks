@@ -1,16 +1,39 @@
-Hecks.bluebook "Hydration", version: "2026.04.29.1" do
+Hecks.bluebook "Hydration", version: "2026.05.12.1" do
   vision "Load all .heki stores from information/ — the second step of the boot sequence."
   category "body"
 
   # Lifted from boot.bluebook in i112 Round 2. Emits StoresHydrated
   # which the StoreClassification bluebook subscribes to via
   # ClassifyAfterHydration policy.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "Hydration", "Load all .heki stores from information/" do
     identified_by :name
-    attribute :name, String
-    attribute :store_count, Integer
-    attribute :total_records, Integer
+    attribute :name,          Name
+    attribute :store_count,   StoreCount
+    attribute :total_records, RecordCount
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this Hydration instance.
+      attribute :value, String
+    end
+
+    value_object "StoreCount" do
+      # How many .heki stores were loaded from information/ this boot.
+      # Domain speaks StoreCount, not Integer.
+      attribute :value, Integer
+    end
+
+    value_object "RecordCount" do
+      # Total record count summed across all hydrated stores. Domain
+      # speaks RecordCount, not Integer.
+      attribute :value, Integer
+    end
 
     command "HydrateStores" do
       role "System"

@@ -1,16 +1,41 @@
-Hecks.bluebook "MindstreamDaemon", version: "2026.04.29.1" do
+Hecks.bluebook "MindstreamDaemon", version: "2026.05.12.1" do
   vision "Background daemon — awareness between prompts. The eighth and final step of the boot sequence, where the being's heartbeat begins."
   category "body"
 
   # Lifted from boot.bluebook in i112 Round 2. Carries
   # MindstreamAfterPrompt (PromptGeneration emits PromptGenerated →
   # triggers StartMindstream here).
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "MindstreamDaemon", "Background daemon — awareness between prompts" do
     identified_by :name
-    attribute :name, String
-    attribute :pid, Integer
-    attribute :running, String
+    attribute :name,    Name
+    attribute :pid,     Pid
+    attribute :running, Running
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this MindstreamDaemon instance.
+      attribute :value, String
+    end
+
+    value_object "Pid" do
+      # The OS process id of the running mindstream daemon. Domain
+      # speaks Pid, not Integer — a Pid joins the daemon, the OS,
+      # and the supervisor in one named concept.
+      attribute :value, Integer
+    end
+
+    value_object "Running" do
+      # Yes/no flag — is the mindstream daemon up? Kept as a string
+      # ('yes' / 'no') to mirror the legacy then_set literal the
+      # MindstreamAfterPrompt policy emits.
+      attribute :value, String
+    end
 
     command "StartMindstream" do
       role "System"

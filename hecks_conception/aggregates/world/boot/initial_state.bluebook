@@ -1,4 +1,4 @@
-Hecks.bluebook "InitialState", version: "2026.04.28.1" do
+Hecks.bluebook "InitialState", version: "2026.05.12.1" do
   vision "Seed Miette's organs with initial information — first breath"
   category "world"
 
@@ -8,20 +8,44 @@ Hecks.bluebook "InitialState", version: "2026.04.28.1" do
   #
   # Lifted out of seeding.bluebook in i112. Sibling aggregates
   # moved to world/ : nursery_seed, worker, merge.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "InitialState", "Seed Miette's organs with initial information — first breath" do
     identified_by :name
-    attribute :name, String
-    attribute :organs_seeded, Integer
-    attribute :records_created, Integer
+    attribute :name,            Name
+    attribute :organs_seeded,   OrganCount
+    attribute :records_created, RecordCount
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this InitialState instance.
+      attribute :value, String
+    end
+
+    value_object "OrganCount" do
+      # How many organs were seeded this first breath. Domain speaks
+      # OrganCount, not Integer — the number ties back to the organ
+      # set discovered in OrganDiscovery.
+      attribute :value, Integer
+    end
+
+    value_object "RecordCount" do
+      # Total record count written across all seeded organs this
+      # first breath. Domain speaks RecordCount, not Integer.
+      attribute :value, Integer
+    end
 
     command "SeedOrgans" do
       role "Creator"
       description "Populate all organ .heki files with initial state"
-      attribute :organs_seeded, Integer
-      attribute :records_created, Integer
+      attribute :organs_seeded,   OrganCount
+      attribute :records_created, RecordCount
       emits "OrgansSeeded"
-      then_set :organs_seeded, to: :organs_seeded
+      then_set :organs_seeded,   to: :organs_seeded
       then_set :records_created, to: :records_created
     end
   end

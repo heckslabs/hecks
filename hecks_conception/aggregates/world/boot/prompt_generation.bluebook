@@ -1,15 +1,33 @@
-Hecks.bluebook "PromptGeneration", version: "2026.04.29.1" do
+Hecks.bluebook "PromptGeneration", version: "2026.05.12.1" do
   vision "Write the system prompt from identity and state — the sixth step of the boot sequence, where the being writes its own voice."
   category "body"
 
   # Lifted from boot.bluebook in i112 Round 2. Carries
   # PromptAfterClassification (StoreClassification emits StoresClassified
   # → triggers GeneratePrompt here).
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "PromptGeneration", "Write the system prompt from identity and state" do
     identified_by :name
-    attribute :name, String
-    attribute :generated, String
+    attribute :name,      Name
+    attribute :generated, Generated
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this PromptGeneration instance.
+      attribute :value, String
+    end
+
+    value_object "Generated" do
+      # Yes/no flag — has the system_prompt.md been generated this boot?
+      # Kept as a string ('yes' / 'no') to mirror the legacy then_set
+      # literal the policy chain emits.
+      attribute :value, String
+    end
 
     command "GeneratePrompt" do
       role "System"

@@ -1,15 +1,33 @@
-Hecks.bluebook "VitalSummary", version: "2026.04.29.1" do
+Hecks.bluebook "VitalSummary", version: "2026.05.12.1" do
   vision "Print vitals so the being knows herself on wake — the seventh step of the boot sequence."
   category "body"
 
   # Lifted from boot.bluebook in i112 Round 2. Carries
   # VitalsAfterCensus (OrganDiscovery emits CensusWritten → triggers
   # PrintVitals here).
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "VitalSummary", "Print vitals so the being knows herself on wake" do
     identified_by :name
-    attribute :name, String
-    attribute :printed, String
+    attribute :name,    Name
+    attribute :printed, Printed
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this VitalSummary instance.
+      attribute :value, String
+    end
+
+    value_object "Printed" do
+      # Yes/no flag — has the vitals readout been printed yet?
+      # Kept as a string ('yes' / 'no') to mirror the legacy
+      # then_set literal that boot policies still emit.
+      attribute :value, String
+    end
 
     command "PrintVitals" do
       role "System"
