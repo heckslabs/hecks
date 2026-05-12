@@ -50,6 +50,13 @@ pub mod claude_tool_dispatcher;
 pub mod sms_dispatcher;
 pub mod tts_dispatcher;
 pub mod compute_functions;
+// i557 — Phase-2 framework runtime. Walks
+// `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
+// at boot and builds a typed registry of adapter families + behavior
+// kinds + native kernel hooks. Part 1 lands the registry surface +
+// boot wiring + kernel-hook seed for `invoke_claude_tool` ; part 2
+// retires the hardcoded `:claude_tool` shortcut in `Runtime::dispatch`.
+pub mod framework_registry;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
@@ -89,6 +96,17 @@ pub struct Runtime {
     /// explicit `register_llm_provider` call so unit tests can never
     /// silently shell out to a real model.
     pub llm_providers: HashMap<String, Box<dyn llm_providers::LlmProvider>>,
+    /// i557 part 1 — Phase-2 framework registry. Populated at boot by
+    /// `boot_with_framework_dir` (walks
+    /// `<framework_dir>/adapter_families/*.hecksagon` +
+    /// `<framework_dir>/behavior_kinds/*.hecksagon`) and seeded with
+    /// the kernel hooks the runtime knows natively (today : just
+    /// `invoke_claude_tool`). Default-constructed (empty + seeded
+    /// hooks) when the runtime boots without a framework path —
+    /// preserves backward compat with every caller that doesn't
+    /// supply one. Read only by part 2 ; `Runtime::dispatch` still
+    /// uses the hardcoded `:claude_tool` path in part 1.
+    pub framework_registry: framework_registry::FrameworkRegistry,
 }
 
 impl Runtime {
@@ -170,7 +188,38 @@ impl Runtime {
             data_dir,
             hecksagons: Vec::new(),
             llm_providers: HashMap::new(),
+            // i557 part 1 — boot without a framework dir leaves the
+            // family + behavior maps empty but still seeds the native
+            // kernel hooks. Discovery-aware callers use
+            // `boot_with_framework_dir` (or set the field directly).
+            framework_registry: framework_registry::FrameworkRegistry::build_from_dir(
+                std::path::Path::new("/nonexistent")
+            ),
         }
+    }
+
+    /// i557 part 1 — boot with hecksagons AND a framework directory so
+    /// the registry can discover adapter families + behavior kinds at
+    /// boot. The framework dir is typically
+    /// `<aggregates_dir>/framework` (e.g.
+    /// `hecks_conception/aggregates/framework`). Falls back to the
+    /// kernel-hook-only registry if the dir doesn't exist — safe for
+    /// callers that don't ship a framework conception.
+    ///
+    /// `Runtime::dispatch` itself doesn't consult the registry yet
+    /// (part 2 retires the hardcoded `:claude_tool` path) ; this
+    /// constructor just lands the substrate.
+    pub fn boot_with_framework_dir(
+        domain: Domain,
+        data_dir: Option<String>,
+        hecksagons: Vec<Hecksagon>,
+        framework_dir: &std::path::Path,
+    ) -> Self {
+        let mut rt = Self::boot_with_data_dir(domain, data_dir);
+        rt.hecksagons = hecksagons;
+        rt.framework_registry =
+            framework_registry::FrameworkRegistry::build_from_dir(framework_dir);
+        rt
     }
 
     pub fn dispatch(
