@@ -46,7 +46,7 @@
 - Define typed attributes with String, Integer, Float, Boolean, JSON, Date, DateTime, etc.
 - Symbol type shorthand: `:string`, `:integer`, `:float`, `:boolean`, `:date`, `:datetime`
 - Default attribute type is String when omitted
-- Define collection attributes with `list_of("Type")` syntax
+- Define collection attributes with `list_of("Type")` syntax — explicit; the plural-name auto-list heuristic was retired 2026-05-12 in both parsers (`ruby/hecks/dsl/attribute_collector.rb` and `rust/src/parse_blocks.rs`), see i550 and `docs/design/principles-2026-05-12.md`
 - Define cross-aggregate references with standalone `reference_to "Aggregate"` — first-class domain concept
 - Optional role naming: `reference_to "Team", role: "home_team"`
 - Cross-domain qualified references: `reference_to "Billing::Invoice"` — exempt from compile-time validation, verified at boot (target domain must be loaded), IDOR reference validation resolves from foreign domain module
@@ -181,7 +181,7 @@
   - **`aggregates/body/`** — anatomy : `cycles/` (heartbeat, breath, circadian, ultradian, pulse, tick), `organs/` (heart, gut, gene, proprioception, circuit_breaker), `sleep/` (sleep_cycle, sleep_session, consciousness, daydream, monitor, night, wake_mood, nrem_consolidation, consolidation), `dream/` (dream_seed, dream_wish, lucid_dream, lucid_monitor, dream_review fan-out, shared_dream fan-out), `wake/` (wake_report, wake_review). Plus `display`, `musing_mint`, `claude_assist`, `signal_consolidation` at the body root.
   - **`aggregates/mind/`** — inner life : memory cluster (encoding, recall, forgetting), mood, awareness_moment, musing_archive, coherence, daemon_chorus.
   - **`aggregates/library/`** — what's kept : store, corpus, inbox, training_extraction, knowledge_store, inner_life.
-  - **`aggregates/discipline/`** — immune system : enforcer, enforcer_check, immunity, rule, violation.
+  - **`aggregates/discipline/`** — immune system : macrophage (renamed from enforcer 2026-05-12, see i553), immunity, antibody, rule, violation. Macrophage folds the former `enforcer_check` aggregate in as a child `Check` entity per the dense-domain principle.
   - **`aggregates/self/`** — who I am : vows, disposition, psychic_link, wake_ritual, section_template, persona, conversation, miette_memory, nursery_awareness, plus the system_prompt fan-out.
   - **`aggregates/surface/`** — face to the world : terminal, speech, voice.
   - **`aggregates/world/`** — what I'm pointed at : domain_cell, conception cluster (gestation, labor, delivery, postpartum, development, nursery_corpus), boot cluster (the 8 boot aggregates), call, budget.
@@ -436,6 +436,15 @@
 - **Pre-commit hook Gate 5** (`tooling/git-hooks/pre-commit`) — informational, prints the flagged file list before the author writes a commit message, never blocks
 - **Commit-msg hook Gate B** (`tooling/git-hooks/commit-msg`) — blocking; reads the in-flight commit message from git's `$1`, rejects with a COMMIT BLOCKED banner when non-DSL files are staged without a matching exemption
 - **CI workflow** (`.github/workflows/antibody.yml`) — blocking second layer; runs `bin/antibody-check --each-commit` which walks every commit in `base..HEAD` and validates each one in isolation; emits GitHub `::warning::` annotations on flagged files so they appear inline on the PR diff
+- **Antibody is the commit-time + CI gate** — its write-time companion is the Macrophage (below); together they cover all three gates (write / commit / CI)
+
+### Macrophage — Innate Write-Time Gate
+- **`aggregates/discipline/macrophage/macrophage.bluebook`** — one dense aggregate carries session counters, a registered-check entity (`Check`, was its own `MacrophageCheck` aggregate before the 2026-05-12 fold), and `Violation` / `Complaint` / `FixturesViolation` history as child entities
+- **Renamed from `Enforcer` 2026-05-12** (see i553) — the immune-system metaphor sharpened: macrophage fires AS files are written; antibody fires AT commit time; CI is the third layer
+- **PostToolUse hook on Edit/Write/MultiEdit** — every tool call dispatches `Macrophage.RecordEdit` (one variant per file kind: declarative, imperative, support, other). For imperative files (`.rs .sh .rb .js .py .go .ts`) the hook also dispatches `Macrophage.Complain` and prints the complaint to stderr, so Claude Code surfaces it as a system reminder on the next turn
+- **Three-gate role** — Macrophage owns the write-time gate; the antibody pre-commit + commit-msg hooks own the commit-time gate; the antibody CI workflow owns the merge-time gate. All three feed history into the same Macrophage aggregate
+- **No-primitive-envy hygiene** — every primitive wrapped in a typed value-object (`Name`, `Timestamp`, `FilePath`, `ComplaintText`, `EditCount`, `ViolationCount`, etc.) so the domain's language stays load-bearing; same sweep also wrapped primitives in `Immunity`, `Antibody`, `dispatch_audit`, and `mindstream`
+- **Companion-file ratchet fix** — `.git/hooks/pre-commit` now subtracts `-aggregate` matches from `+aggregate` matches in the diff so description-text edits stop false-flagging pre-existing aggregates as new (see i553)
 
 ## Domain Interface Versioning
 - Breaking change classification: removed commands, removed attributes, removed aggregates marked as BREAKING
@@ -599,6 +608,13 @@
 - Watcher scripts in `bin/`: `watch-all`, `watch-autoloads`, `watch-cli`, `watch-cross-require`, `watch-file-size`, `watch-spec-coverage` — poll every second and append to `tmp/watcher.log`
 - `PostToolUse` hook (configured in `.claude/settings.json`) reads `tmp/watcher.log` after every Edit/Write/Bash so Claude sees watcher output inline
 - Watcher processes are cleaned up automatically when Claude exits
+
+### Tool Dispatch — `Tools` bluebook + `:claude_tool` adapter family (2026-05-12)
+- **`Tools` bluebook** (`hecks_conception/aggregates/framework/tools/tools.bluebook`) — lifts agent tool invocations into first-class dispatched commands. Six commands ship in v1: `Bash`, `Edit`, `Read`, `Update` (renamed from Write to avoid the Bluebook keyword), `Grep`, `Glob`. Each command mints a per-invocation aggregate identified by a stable invocation id, emits an event the runtime can react to, and is wired by a sibling `tools.hecksagon`. See i551
+- **`:claude_tool` adapter family** (`framework/adapter_families/claude_tool.hecksagon`) — sibling to `:sms`, `:tts`, `:llm`, `:compute`. Each instance binds one `Tools.X` command to one tool kind (`:bash`, `:edit`, `:read`, `:write`, `:grep`, `:glob`) and names a `result_into` follow-on dispatch. The kernel resolves the matching adapter at dispatch time, fires the `invoke_claude_tool` behavior, captures the result, and routes it back as a follow-on dispatch
+- **`invoke_claude_tool` behavior kind** (`framework/behavior_kinds/invoke_claude_tool.hecksagon`) — declares the contract: `requires_field :tool`, `requires_field :result_into`, `trigger_attribute :description`. Documents the six native primitives the kernel branches to
+- **`claude_tool_dispatcher.rs` kernel hook** (`rust/src/runtime/claude_tool_dispatcher.rs`) — 346 lines, six native primitives. End-to-end `Tools.Bash` dispatch actually runs the shell via `std::process::Command`; `Tools.Edit / Read / Update` go through `std::fs`; `Grep` / `Glob` walk the filesystem. The contract stays unchanged if/when the runtime upgrades to call THROUGH a Claude API rather than execute natively. See i556
+- **Domain composes, adapter runs** — the bluebook is pure composition, the `:claude_tool` adapter is the only impure layer. One of the four design principles locked 2026-05-12 (see `docs/design/principles-2026-05-12.md`)
 
 ### Watcher Agent (hecks_watcher_agent)
 - Post-commit hook auto-launches agent when watchers report issues
