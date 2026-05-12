@@ -1,4 +1,4 @@
-Hecks.bluebook "Agent", version: "2026.05.07.1" do
+Hecks.bluebook "Agent", version: "2026.05.12.1" do
   vision "A being that dispatches. Humans, systems, daemons, bots, AIs — the named, typed actors whose intent flows through every command. Today every command carries a role string ('Chris', 'System', 'Caller') ; this bluebook lifts the string into a first-class typed reference so provenance, permissions, and audit are computable instead of suggested."
   category "framework"
 
@@ -83,6 +83,24 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
   aggregate "Agent", "A being that dispatches — human, system, daemon, bot, or ai. The typed actor whose intent flows through every command." do
     identified_by :name
 
+    # ── Value-objects : the domain's language ──
+    #
+    # 2026-05-12 : every primitive wrapped in a typed value-object per
+    # the no-primitive-envy discipline. Mirrors macrophage / immunity.
+    # Per the 2026-05-12 discipline — duplication of VO names across
+    # aggregates is fine ; no bluebook-level shared VOs.
+
+    # Name — the Agent's natural-key identifier. Same shape as Role.Name,
+    # different concept ; the duplication is intentional.
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    # Description — one-line prose : who this Agent is.
+    value_object "Description" do
+      attribute :value, String
+    end
+
     # Kind — closed set of agent shapes. The enum is enforced at the
     # bluebook layer ; the validator rejects unrecognised values at
     # parse time. Typing is downstream-load-bearing : daemon Agents
@@ -92,19 +110,34 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
       attribute :value, String, enum: ["human", "system", "daemon", "bot", "ai"]
     end
 
-    attribute :name,             String
-    attribute :description,      String
+    # AuthIdentityId — the natural key of the AuthIdentity (i264) this
+    # Agent binds to. Logically optional ; empty string when unbound.
+    # Once i264 lands, this VO retires in favor of a typed reference_to
+    # AuthIdentity in the same migration.
+    value_object "AuthIdentityId" do
+      attribute :value, String
+    end
+
+    # RoleName — the natural key of the Role aggregate (see
+    # role.bluebook) this Agent is currently bound to. Empty string
+    # before the first Bind.
+    value_object "RoleName" do
+      attribute :value, String
+    end
+
+    attribute :name,             Name
+    attribute :description,      Description
     attribute :kind,             Kind
 
     # auth_identity_id : logically optional ; populated for human kind only.
     # See i264 — once AuthIdentity lands as a framework aggregate, this
     # upgrades to `reference_to AuthIdentity` in the same migration.
-    attribute :auth_identity_id, String
+    attribute :auth_identity_id, AuthIdentityId
 
     # role_name : the Role aggregate's name (see role.bluebook). Bind /
     # Unbind events update this attribute ; the audit trail keeps the
     # full grant history.
-    attribute :role_name,        String
+    attribute :role_name,        RoleName
 
     # ── Commands ───────────────────────────────────────────────
     #
@@ -128,8 +161,8 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
     command "Birth" do
       role "Framework"
       description "Bring a new Agent into being. Inputs : the agent's name, a one-line description of who they are, and the kind. The role binding happens through Bind once the Agent exists ; a newly-born Agent has no role until Bind runs."
-      attribute :name,        String
-      attribute :description, String
+      attribute :name,        Name
+      attribute :description, Description
       attribute :kind,        Kind
       emits "AgentBorn"
     end
@@ -138,7 +171,7 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
       role "Framework"
       description "Bind this Agent to a Role. The Role aggregate must exist (its name is the natural key). Re-running Bind with a different role replaces the binding ; the prior role is released and the audit trail captures both events."
       reference_to(Agent)
-      attribute :role_name, String
+      attribute :role_name, RoleName
       emits "Bound"
     end
 
@@ -146,7 +179,7 @@ Hecks.bluebook "Agent", version: "2026.05.07.1" do
       role "Framework"
       description "Connect this Agent to its AuthIdentity (i264). Only human-kind Agents are expected to call this ; other kinds dispatch without authentication. Once linked, every Dispatched event the Agent originates carries the AuthIdentity through the cascade."
       reference_to(Agent)
-      attribute :auth_identity_id, String
+      attribute :auth_identity_id, AuthIdentityId
       emits "AuthIdentityLinked"
     end
 
