@@ -1,4 +1,4 @@
-Hecks.bluebook "Tools", version: "2026.05.12.4" do
+Hecks.bluebook "Tools", version: "2026.05.12.5" do
   vision "First-class tool invocations as dispatched commands. Today Miette calls Bash / Edit / Read / Write / Grep as opaque tool calls — the harness runs them, returns a string, and the runtime sees nothing. This bluebook lifts each invocation into a domain command so every tool use emits an event the runtime can react to. Bash is the first command ; the other tools follow with the same shape."
   category "framework"
 
@@ -88,6 +88,9 @@ Hecks.bluebook "Tools", version: "2026.05.12.4" do
     attribute :pattern, Pattern
     attribute :glob_pattern, GlobPattern
     attribute :search_path, SearchPath
+    attribute :url, Url
+    attribute :prompt, FetchPrompt
+    attribute :query, SearchQuery
     attribute :description, Description
     attribute :tool_kind, ToolKind
     attribute :output, Output
@@ -172,6 +175,32 @@ Hecks.bluebook "Tools", version: "2026.05.12.4" do
       # The directory or path Grep / Glob is rooted at. When
       # absent the runtime defaults to cwd ; otherwise it's a
       # filesystem path that scopes the search.
+      attribute :value, String
+    end
+
+    value_object "Url" do
+      # The URL passed to WebFetch — verbatim, including scheme.
+      # The runtime substrate is what actually fetches it ; the
+      # bluebook records what was asked for so downstream policies
+      # can correlate fetches with the URLs they targeted.
+      attribute :value, String
+    end
+
+    value_object "FetchPrompt" do
+      # The instruction passed to WebFetch alongside the URL,
+      # telling the model how to process the fetched content
+      # (extract a value, summarize, answer a question, etc.).
+      # Lives in the WebFetched event payload and on the
+      # aggregate so policies can reason over what we asked for.
+      attribute :value, String
+    end
+
+    value_object "SearchQuery" do
+      # The query string passed to WebSearch — the text the
+      # search engine receives. Recorded both on the aggregate
+      # and in the WebSearched event so awareness can surface
+      # "Miette searched for X" the same way it surfaces other
+      # tool invocations.
       attribute :value, String
     end
 
@@ -321,7 +350,43 @@ Hecks.bluebook "Tools", version: "2026.05.12.4" do
       then_set :description,  to: :description
     end
 
-    # ── RecordResult : the seventh tool command ──
+    # ── WebFetch : the seventh tool command ──
+    #
+    # WebFetch retrieves a URL and processes its content with a
+    # prompt. The fetched content can be large ; per the same
+    # discipline applied to Edit / Update, the full content rides
+    # in the WebFetched event payload only — aggregate state stores
+    # the url, prompt, and description so persistence stays small.
+    command "WebFetch" do
+      role "Miette"
+      description "Fetch a URL and process its content with a prompt. Records the dispatch as a Tools record and emits WebFetched carrying the url, prompt, content (truncated), and description."
+      attribute :id, Id
+      attribute :url, Url
+      attribute :prompt, FetchPrompt
+      attribute :description, Description
+      emits "WebFetched"
+      then_set :url,         to: :url
+      then_set :description, to: :description
+    end
+
+    # ── WebSearch : the eighth tool command ──
+    #
+    # WebSearch runs a query against a web search engine. Result
+    # listings ride in the WebSearched event payload ; aggregate
+    # state records what we searched for and the description so a
+    # follow-up dispatch can reason over the most recent query.
+    command "WebSearch" do
+      role "Miette"
+      description "Search the web with a query. Records the dispatch as a Tools record and emits WebSearched carrying the query, allowed/blocked domains, and the result count + summary."
+      attribute :id, Id
+      attribute :query, SearchQuery
+      attribute :description, Description
+      emits "WebSearched"
+      then_set :query,       to: :query
+      then_set :description, to: :description
+    end
+
+    # ── RecordResult : the ninth tool command ──
     #
     # RecordResult chains the kernel-floor :claude_tool hook's
     # output back into the aggregate state. The hook
