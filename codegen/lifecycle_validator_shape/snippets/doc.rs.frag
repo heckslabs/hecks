@@ -21,7 +21,7 @@
 //! `OpenRecord` requires `from: "none"`. Nothing transitions to "none".
 //! Therefore OpenRecord can never fire. The bluebook is contradictory.
 //!
-//! Two checks:
+//! Three checks:
 //!
 //! 1. **Unreachable from_state.** A transition's `from:` value must be
 //!    either the lifecycle default OR the to_state of some other
@@ -30,6 +30,13 @@
 //! 2. **Stuck default.** If the lifecycle has transitions but none of
 //!    them can fire from the default state, the aggregate is stuck
 //!    in default forever. Warning.
+//!
+//! 3. **Lifecycle-tracked VO attr missing default.** Per i563/i568 —
+//!    when a `lifecycle :foo` block tracks an attribute whose declared
+//!    type is a VO (per no_primitive_envy), the attribute MUST carry
+//!    an explicit `default:` clause. Otherwise the dispatcher reads
+//!    the wrapped VO back as `"[0 items]"` and the lifecycle's `from:`
+//!    clauses fail. Error.
 //!
 //! Surface:
 //!

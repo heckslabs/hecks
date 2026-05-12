@@ -422,3 +422,100 @@ end
     let report = check(&domain);
     assert_eq!(report.warnings(), 0, "no from: means fires from default too");
 }
+
+#[test]
+fn flags_lifecycle_vo_attr_missing_default() {
+    // i568 — a lifecycle-tracked attribute wrapped as a VO without an
+    // explicit `default:` clause deserializes as "[0 items]" at runtime
+    // and breaks every `from:` clause. The validator must flag.
+    let source = r#"Hecks.bluebook "Banner" do
+  aggregate "Banner" do
+    attribute :phase, Phase
+
+    value_object "Phase" do
+      attribute :value, String
+    end
+
+    command "PrintBanner" do
+      reference_to(Banner)
+      then_set :phase, to: "printing"
+      emits "BannerPrinted"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "PrintBanner" => "printing", from: "pending"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let vo_default_err = report.findings.iter()
+        .find(|f| f.message.contains("[0 items]") && f.location.contains("Banner.phase"));
+    assert!(vo_default_err.is_some(),
+        "expected wrapped-VO-missing-default error: {:?}",
+        report.findings.iter().map(|f| (&f.location, &f.message)).collect::<Vec<_>>());
+}
+
+#[test]
+fn passes_lifecycle_vo_attr_with_default() {
+    // Same shape, but the attribute carries `default: "pending"` so the
+    // dispatcher reads it back honoring the lifecycle's initial state.
+    let source = r#"Hecks.bluebook "Banner" do
+  aggregate "Banner" do
+    attribute :phase, Phase, default: "pending"
+
+    value_object "Phase" do
+      attribute :value, String
+    end
+
+    command "PrintBanner" do
+      reference_to(Banner)
+      then_set :phase, to: "printing"
+      emits "BannerPrinted"
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "PrintBanner" => "printing", from: "pending"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let vo_default_err = report.findings.iter()
+        .find(|f| f.message.contains("[0 items]"));
+    assert!(vo_default_err.is_none(),
+        "wrapped lifecycle attr with default should pass: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn passes_lifecycle_primitive_attr_without_default() {
+    // The rule only bites the VO-wrap form. A primitive-typed lifecycle
+    // attr (String/Integer) without a default is OK — the runtime gives
+    // it a sensible empty value the lifecycle's `from:` can still match.
+    let source = r#"Hecks.bluebook "Order" do
+  aggregate "Order" do
+    attribute :status, String
+
+    command "Place" do
+      reference_to(Order)
+      then_set :status, to: "placed"
+      emits "OrderPlaced"
+    end
+
+    lifecycle :status, default: "pending" do
+      transition "Place" => "placed", from: "pending"
+    end
+  end
+end
+"#;
+    let domain = parser::parse(source);
+    let report = check(&domain);
+    let vo_default_err = report.findings.iter()
+        .find(|f| f.message.contains("[0 items]"));
+    assert!(vo_default_err.is_none(),
+        "primitive-typed lifecycle attr without default should pass (rule is VO-only): {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
