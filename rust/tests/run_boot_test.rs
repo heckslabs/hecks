@@ -8,8 +8,9 @@
 //! [antibody-exempt: rust/tests/run_boot_test.rs — kernel-surface
 //!  integration test for run_boot capability detection + classifier.
 //!  Same category as restructure_integration_test.rs (test-only kernel
-//!  surface). Retires when behaviors framework gains capability-
-//!  detection coverage end-to-end.]
+//!  surface). Retires when the behaviors framework gains a capability-
+//!  detection vocabulary (filed as i569 ; one of five cluster markers
+//!  retired by that capability landing).]
 
 use storehouse::hecksagon_parser;
 use storehouse::parser;

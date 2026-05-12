@@ -13,7 +13,11 @@
 // [antibody-exempt: rust/tests/validator_rules_test.rs — kernel-
 //  surface test for the generated validator. Builds Domain literals
 //  to exercise individual rules. Test-only kernel surface. Retires
-//  with Phase B (TestCase aggregate models the cases as fixtures).]
+//  in two steps : (1) when the behaviors framework gains a validator-
+//  output-assertion vocabulary (filed as i569 — Domain literals
+//  become `given_bluebook` heredocs ; rule assertions become
+//  `expect_validator_error` directives) ; (2) under Phase B's
+//  TestCase aggregate when the cases themselves move to fixtures.]
 
 use storehouse::ir::{Aggregate, Command, Domain, Policy};
 use storehouse::parser;
