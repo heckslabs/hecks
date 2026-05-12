@@ -22,7 +22,10 @@
 # [antibody-exempt: smoke-test shell harness for the i106/i107/i108
 #  body-cycle primitives. Drives `storehouse loop --gate` and verifies
 #  cycle_count advances under gate=open and holds under gate=closed.
-#  Same retirement contract as the runtime primitives it tests.]
+#  Retires under i499 Phase B once the `.behaviors` runner can drive
+#  the `storehouse loop --gate` invocation declaratively and assert on
+#  cycle_count / beat_count growth ; i499 archived 2026-05-08 enumerates
+#  this shell as a Phase B target.]
 
 set -u
 set -m  # enable job control (process groups) for daemon isolation

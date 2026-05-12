@@ -4,10 +4,13 @@
 #
 # [antibody-exempt: hecks_conception/tests/statusline_regression_smoke.sh —
 #  transitional shell smoke until every non-bluebook test file retires to
-#  .behaviors with an executable runner (i499). Today the runtime parses
-#  .behaviors but doesn't execute them as live tests ; the shell gates the
-#  statusline contract in the meantime. Retires under i44 (statusline-as-
-#  bluebook) + i499 (universal test-file bluebook conversion).]
+#  .behaviors with an executable runner. i499 (archived 2026-05-08) names
+#  this shell as a Phase B target ; Phase A — `hecks-life test` /
+#  `storehouse behaviors run` — is the keystone gap (runtime parses
+#  .behaviors but doesn't execute them as live tests yet). Also retires
+#  under i44 (statusline-as-bluebook) — the renderer is already in Rust
+#  (rust/src/run_statusline.rs) but the catalog-driven mood / fatigue
+#  emission contract still lives outside a `Statusline` bluebook.]
 #
 #   1. SYMLINK RESOLUTION — Claude Code runs the script via a symlink
 #      (~/.claude/statusline-command.sh → hecks_conception/). If $0 is

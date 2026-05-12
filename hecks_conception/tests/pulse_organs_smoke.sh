@@ -27,8 +27,11 @@
 #
 # [antibody-exempt: smoke-test shell harness for the Pulse PM that
 #  retired pulse_organs.sh. Drives `storehouse run-loop` and proves
-#  the four organ heki stores populate via the bluebook path. Same
-#  retirement contract as the runtime primitives it tests.]
+#  the four organ heki stores populate via the bluebook path. Retires
+#  under i499 Phase B once the `.behaviors` runner can dispatch the
+#  --emit BodyPulse fan-out and assert on per-organ heki growth ; the
+#  i499 inbox (archived 2026-05-08) names this shell as a Phase B
+#  target. Phase A (runner) is the keystone gap.]
 
 set -u
 set -m  # enable job control (process groups) for daemon isolation

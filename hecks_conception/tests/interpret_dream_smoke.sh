@@ -4,8 +4,10 @@
 # [antibody-exempt: i220 sub-gap 6 retirement of interpret_dream.sh —
 #  smoke now drives the DreamInterpretation chain via `storehouse
 #  run-loop` instead of forking the legacy shell. Mirrors the
-#  dream_content_smoke pattern (PR #593) ; retires entirely when
-#  smoke tests port to a bluebook-shebang form.]
+#  dream_content_smoke pattern (PR #593). Retires under i499 Phase B
+#  once the `.behaviors` runner can replay the WokenUp + Dream.Gather
+#  cascade and assert on `dream_corpus_json` shape ; i499 archived
+#  2026-05-08 names this shell as a Phase B target.]
 #
 # Closes the interpret_dream.sh retirement loop. With i220 sub-gap 5
 # (compute-adapter-primitive, PR #597) and sub-gap 6 (this PR — the

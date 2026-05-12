@@ -5,8 +5,11 @@
 #  smoke now drives the bluebook PM via `storehouse run-loop` instead
 #  of forking the legacy shell ; i225 close lets the assertion path
 #  read store.heki / remains.heki growth produced by the runtime sweep
-#  (`for_each: { from: "Aggregate.cold" }`) directly. Retires entirely
-#  when smoke tests port to a bluebook-shebang form.]
+#  (`for_each: { from: "Aggregate.cold" }`) directly. Retires when the
+#  i499 Phase B port lands : a `.behaviors`-runner subcommand executes
+#  per-aggregate .behaviors cases that reproduce the run-loop + assertion
+#  contract this shell implements. i499 archived 2026-05-08 with Phase A
+#  (runner) still pending ; this shell holds until that runner ships.]
 #
 # Closes the i75 retirement loop. With i221-A (parser : `for_each:` +
 # `from_iter`), i225 (runtime : `drain_policies` enumerates the named
