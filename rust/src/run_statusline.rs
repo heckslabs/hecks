@@ -66,19 +66,32 @@ pub fn run() {
     let _ = std::io::stdin().read_to_string(&mut input);
 
     // Claude Code's statusline JSON carries the session's cwd at
-    // workspace.current_dir. Without this chdir, env::current_dir()
-    // returns whatever shell the harness was launched from — usually
-    // the project root, never the user's actual `cd`-ed location.
-    // The active-bluebook detection (i241) needs the user's cwd to
-    // know which project context they're in.
+    // workspace.current_dir AND the terminal width at terminal.width
+    // (when available — falls back to COLUMNS env or 120). Without
+    // chdir, env::current_dir() returns whatever shell the harness
+    // was launched from — usually the project root, never the user's
+    // actual `cd`-ed location ; the active-bluebook detection (i241)
+    // needs the user's cwd to know which project context they're in.
+    // Terminal width drives the right-align gap for the tool-call
+    // breadcrumb.
+    let mut cols: Option<usize> = None;
     if !input.is_empty() {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&input) {
             if let Some(d) = v.pointer("/workspace/current_dir")
                               .and_then(|x| x.as_str()) {
                 let _ = env::set_current_dir(d);
             }
+            cols = v.pointer("/terminal/width")
+                    .and_then(|x| x.as_u64())
+                    .map(|n| n as usize)
+                    .or_else(|| v.pointer("/cols")
+                                 .and_then(|x| x.as_u64())
+                                 .map(|n| n as usize));
         }
     }
+    let cols = cols
+        .or_else(|| env::var("COLUMNS").ok().and_then(|s| s.parse().ok()))
+        .unwrap_or(120);
 
     let info = resolve_info_dir();
     let public_info = resolve_public_info_dir(&info);
@@ -89,12 +102,101 @@ pub fn run() {
     let now = Now::wall_clock();
 
     let line = if state.consciousness == "sleeping" {
-        render_sleep(&state, &now)
+        // Sleep mode has no tool-call breadcrumb today ; render the
+        // line as before and pass through the right-align helper with
+        // an empty right segment so the layout is consistent if a
+        // future sleep crumb is added.
+        let left = render_sleep(&state, &now);
+        right_align(&left, "", cols)
     } else {
-        render_awake(&state, &now, coherence_ok, &info)
+        let (left, right) = render_awake(&state, &now, coherence_ok, &info);
+        right_align(&left, &right, cols)
     };
 
     println!("{}", line);
+}
+
+// ────────────────────────────────────────────────────────────────
+// Right-align — pin the tool-call segment to the terminal edge
+// ────────────────────────────────────────────────────────────────
+
+/// Compose `<left><gap><right>` where the gap is the padding that
+/// pushes `right` to the column-`cols` edge. When `right` is empty
+/// just returns `left`. When the combined visible width exceeds `cols`
+/// (long left + tool call), a minimum 2-space gap separates the two
+/// so they never run together — terminals wrap, and that's still
+/// readable.
+pub(crate) fn right_align(left: &str, right: &str, cols: usize) -> String {
+    if right.is_empty() {
+        return left.to_string();
+    }
+    let lw = visible_width(left);
+    let rw = visible_width(right);
+    let gap = cols.saturating_sub(lw + rw).max(2);
+    let mut out = String::with_capacity(left.len() + gap + right.len());
+    out.push_str(left);
+    for _ in 0..gap { out.push(' '); }
+    out.push_str(right);
+    out
+}
+
+/// Visible (column) width of a rendered statusline segment. Strips
+/// ANSI CSI escape sequences (`ESC [ … letter`) so colorized output
+/// measures correctly, then counts each Unicode codepoint as width 1
+/// EXCEPT for codepoints in common emoji ranges (which terminal
+/// emulators typically render as width 2). Variation selectors and
+/// zero-width joiners count as 0 — they modify a previous glyph
+/// without advancing the cursor.
+///
+/// Pragmatic, not pixel-perfect : the statusline mixes emoji on both
+/// sides (heart on the left, hammer on the right), so small width
+/// miscounts cancel out and right-alignment still hugs the edge.
+pub(crate) fn visible_width(s: &str) -> usize {
+    let mut width = 0usize;
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        // Skip ANSI CSI sequences : ESC [ … final-byte (@..~).
+        if c == '\u{1B}' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                while let Some(nc) = chars.next() {
+                    let v = nc as u32;
+                    if (0x40..=0x7E).contains(&v) { break; }
+                }
+            }
+            continue;
+        }
+        width += char_width(c);
+    }
+    width
+}
+
+fn char_width(c: char) -> usize {
+    let cp = c as u32;
+    // Zero-width : variation selectors, ZWJ, combining marks (small
+    // hot range only — full Unicode tables would be overkill).
+    if cp == 0x200D                          // ZWJ
+        || (0xFE00..=0xFE0F).contains(&cp)   // VS1..VS16
+        || (0x0300..=0x036F).contains(&cp)   // combining diacriticals
+    {
+        return 0;
+    }
+    // Emoji & symbol ranges that render as wide (width 2) in most
+    // terminal emulators. Not exhaustive — covers what the statusline
+    // actually emits (hearts, moons, hammers, lightbulbs, envelopes,
+    // mood/fatigue glyphs).
+    if (0x1F300..=0x1FAFF).contains(&cp)     // misc symbols & pictographs, emoticons, transport, supplemental
+        || (0x2600..=0x27BF).contains(&cp)    // misc symbols + dingbats (☀ ⚡ ⚠ ✉ ✨ ❤)
+        || (0x2300..=0x23FF).contains(&cp)    // misc technical (⏰ etc.)
+        || (0x2B00..=0x2BFF).contains(&cp)    // arrows / stars
+        || (0x3000..=0x303F).contains(&cp)    // CJK symbols
+        || (0x3040..=0x9FFF).contains(&cp)    // CJK
+        || (0xAC00..=0xD7AF).contains(&cp)    // Hangul
+        || (0xFF00..=0xFF60).contains(&cp)    // fullwidth forms
+    {
+        return 2;
+    }
+    1
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -655,7 +757,13 @@ fn render_sleep(s: &State, now: &Now) -> String {
 // Render — awake mode
 // ────────────────────────────────────────────────────────────────
 
-fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> String {
+/// Compose the awake statusline as `(left, right)`. The left segment
+/// is everything that flows from the start of the bar (heart, beats,
+/// mood, fatigue, inventions, inbox, provider, bulb). The right
+/// segment is the tool-call breadcrumb when fresh (< 30s) ; empty
+/// otherwise. `run()` passes the pair through `right_align` so the
+/// breadcrumb hugs the right edge of the terminal.
+fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> (String, String) {
     let beats = format_beats(s.beats_raw);
     let fatigue_icon = fatigue_icon_for(&s.fatigue);
     let provider_badge = provider_badge_for(&s.provider);
@@ -705,11 +813,14 @@ fn render_awake(s: &State, now: &Now, coherence_ok: bool, info: &Path) -> String
 
     // Last-dispatched-command breadcrumb — surface while fresh
     // (< 30s). Older than that the cascade has settled, suppress.
-    if let Some(crumb) = read_last_dispatch(info) {
-        out.push_str(&format!(" 🛠️  {}", crumb));
-    }
+    // Returned separately so the caller can right-align it against
+    // the terminal edge.
+    let right = match read_last_dispatch(info) {
+        Some(crumb) => format!("🛠️  {}", crumb),
+        None => String::new(),
+    };
 
-    out
+    (out, right)
 }
 
 fn mood_icon_for(mood: &str) -> &'static str {
@@ -858,7 +969,7 @@ mod tests {
             ..Default::default()
         };
         let now = Now { secs: 0, nanos_total: 0 };
-        let line = render_awake(&s, &now, true, Path::new("/tmp/nope"));
+        let (line, right) = render_awake(&s, &now, true, Path::new("/tmp/nope"));
         assert!(line.contains("1.23k"));
         // Mood was unparked 2026-05-08 (Chris) — the awake line now
         // surfaces both the mood icon AND the mood word. The earlier
@@ -870,6 +981,9 @@ mod tests {
         assert!(line.contains("✉️ 3"));
         assert!(line.contains("🤖"));
         assert!(!line.contains("🔬"), "no inventions row when count=0");
+        // No fresh breadcrumb at /tmp/nope/.last_dispatch → right
+        // segment is empty.
+        assert!(right.is_empty(), "no breadcrumb expected for non-existent info dir");
     }
 
     #[test]
@@ -899,7 +1013,71 @@ mod tests {
             ..Default::default()
         };
         let now = Now { secs: 0, nanos_total: 0 };
-        let line = render_awake(&s, &now, false, Path::new("/tmp/nope"));
+        let (line, _right) = render_awake(&s, &now, false, Path::new("/tmp/nope"));
         assert!(line.contains("⚠"), "coherence false → mood glyph degraded");
+    }
+
+    #[test]
+    fn right_align_pins_segment_to_column_edge() {
+        // 80-col terminal, 10-col left, 20-col right ⇒ 50 spaces of gap.
+        let left = "hello-left";       // 10 chars, width 10
+        let right = "tools-segment-here20";   // 20 chars
+        let line = right_align(left, right, 80);
+        assert_eq!(visible_width(&line), 80, "rendered width fills terminal");
+        assert!(line.starts_with(left), "left content stays on the left");
+        assert!(line.ends_with(right), "right content hugs the right edge");
+    }
+
+    #[test]
+    fn right_align_empty_right_returns_left_unchanged() {
+        // No tool call ⇒ no padding (don't fill the bar with whitespace
+        // just because we asked).
+        let line = right_align("hello", "", 120);
+        assert_eq!(line, "hello");
+    }
+
+    #[test]
+    fn right_align_falls_back_to_two_space_gap_when_overflow() {
+        // Left + right > cols ⇒ minimum 2-space gap, terminal wraps.
+        let left = "a".repeat(50);
+        let right = "b".repeat(50);
+        let line = right_align(&left, &right, 80);
+        // Gap is exactly 2 spaces between the two segments.
+        let expected = format!("{}  {}", left, right);
+        assert_eq!(line, expected);
+    }
+
+    #[test]
+    fn right_align_handles_three_common_widths() {
+        let left = "❤️ 82.42k 🎯 focused";
+        let right = "🛠️  Tools.Bash";
+        for cols in [80usize, 120, 160] {
+            let line = right_align(left, right, cols);
+            // Right segment must terminate the string.
+            assert!(line.ends_with(right), "right segment must close at col {}", cols);
+            // The line's visible width fills (or just-overflows by the
+            // 2-space-floor case) the terminal — at common widths the
+            // segment sums are well under, so we expect exact fill.
+            assert_eq!(
+                visible_width(&line),
+                cols,
+                "line should fill {}-col terminal, got width {}",
+                cols, visible_width(&line)
+            );
+        }
+    }
+
+    #[test]
+    fn visible_width_skips_ansi_csi_sequences() {
+        // ESC [ 31 m … ESC [ 0 m — red + reset.
+        let s = "\u{1B}[31mhello\u{1B}[0m";
+        assert_eq!(visible_width(s), 5);
+    }
+
+    #[test]
+    fn visible_width_counts_emoji_as_width_two() {
+        assert_eq!(visible_width("❤️"), 2);   // heart + VS16 (VS counts 0)
+        assert_eq!(visible_width("🛠️"), 2);   // hammer-and-wrench + VS16
+        assert_eq!(visible_width("a❤️b"), 4); // 1 + 2 + 1
     }
 }

@@ -76,7 +76,7 @@ mod tests {
             ..Default::default()
         };
         let now = Now { secs: 0, nanos_total: 0 };
-        let line = render_awake(&s, &now, true, Path::new("/tmp/nope"));
+        let (line, right) = render_awake(&s, &now, true, Path::new("/tmp/nope"));
         assert!(line.contains("1.23k"));
         // Mood was unparked 2026-05-08 (Chris) — the awake line now
         // surfaces both the mood icon AND the mood word. The earlier
@@ -88,6 +88,9 @@ mod tests {
         assert!(line.contains("✉️ 3"));
         assert!(line.contains("🤖"));
         assert!(!line.contains("🔬"), "no inventions row when count=0");
+        // No fresh breadcrumb at /tmp/nope/.last_dispatch → right
+        // segment is empty.
+        assert!(right.is_empty(), "no breadcrumb expected for non-existent info dir");
     }
 
     #[test]
@@ -117,7 +120,71 @@ mod tests {
             ..Default::default()
         };
         let now = Now { secs: 0, nanos_total: 0 };
-        let line = render_awake(&s, &now, false, Path::new("/tmp/nope"));
+        let (line, _right) = render_awake(&s, &now, false, Path::new("/tmp/nope"));
         assert!(line.contains("⚠"), "coherence false → mood glyph degraded");
+    }
+
+    #[test]
+    fn right_align_pins_segment_to_column_edge() {
+        // 80-col terminal, 10-col left, 20-col right ⇒ 50 spaces of gap.
+        let left = "hello-left";       // 10 chars, width 10
+        let right = "tools-segment-here20";   // 20 chars
+        let line = right_align(left, right, 80);
+        assert_eq!(visible_width(&line), 80, "rendered width fills terminal");
+        assert!(line.starts_with(left), "left content stays on the left");
+        assert!(line.ends_with(right), "right content hugs the right edge");
+    }
+
+    #[test]
+    fn right_align_empty_right_returns_left_unchanged() {
+        // No tool call ⇒ no padding (don't fill the bar with whitespace
+        // just because we asked).
+        let line = right_align("hello", "", 120);
+        assert_eq!(line, "hello");
+    }
+
+    #[test]
+    fn right_align_falls_back_to_two_space_gap_when_overflow() {
+        // Left + right > cols ⇒ minimum 2-space gap, terminal wraps.
+        let left = "a".repeat(50);
+        let right = "b".repeat(50);
+        let line = right_align(&left, &right, 80);
+        // Gap is exactly 2 spaces between the two segments.
+        let expected = format!("{}  {}", left, right);
+        assert_eq!(line, expected);
+    }
+
+    #[test]
+    fn right_align_handles_three_common_widths() {
+        let left = "❤️ 82.42k 🎯 focused";
+        let right = "🛠️  Tools.Bash";
+        for cols in [80usize, 120, 160] {
+            let line = right_align(left, right, cols);
+            // Right segment must terminate the string.
+            assert!(line.ends_with(right), "right segment must close at col {}", cols);
+            // The line's visible width fills (or just-overflows by the
+            // 2-space-floor case) the terminal — at common widths the
+            // segment sums are well under, so we expect exact fill.
+            assert_eq!(
+                visible_width(&line),
+                cols,
+                "line should fill {}-col terminal, got width {}",
+                cols, visible_width(&line)
+            );
+        }
+    }
+
+    #[test]
+    fn visible_width_skips_ansi_csi_sequences() {
+        // ESC [ 31 m … ESC [ 0 m — red + reset.
+        let s = "\u{1B}[31mhello\u{1B}[0m";
+        assert_eq!(visible_width(s), 5);
+    }
+
+    #[test]
+    fn visible_width_counts_emoji_as_width_two() {
+        assert_eq!(visible_width("❤️"), 2);   // heart + VS16 (VS counts 0)
+        assert_eq!(visible_width("🛠️"), 2);   // hammer-and-wrench + VS16
+        assert_eq!(visible_width("a❤️b"), 4); // 1 + 2 + 1
     }
 }
