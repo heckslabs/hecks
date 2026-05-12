@@ -1,0 +1,63 @@
+Hecks.behavior_kind "perform_web_fetch" do
+  # The perform_web_fetch behavior — what the kernel does when a
+  # :web_tool adapter bound to Tools.WebFetch fires. Sibling to
+  # invoke_claude_tool (for :claude_tool) and render_text_to_audio
+  # (for :tts). The kernel hook for this behavior is one of the
+  # small, fixed set of runtime primitives the framework ships.
+  #
+  # The dispatch flow :
+  #
+  #   1. The bus dispatches Tools.WebFetch with a url + prompt +
+  #      description.
+  #   2. The kernel resolves the matching :web_tool adapter
+  #      (one with `command: "Tools.WebFetch"`).
+  #   3. The kernel reads the adapter's `tool:` field (web_fetch)
+  #      and calls the native HTTP-GET primitive (curl shell-out
+  #      in v1 ; reqwest later if we pull the dep).
+  #   4. The kernel caps the response at 100 KB so a single
+  #      dispatch doesn't blow up downstream state.
+  #   5. The kernel rejects dangerous URLs (file://, localhost,
+  #      RFC1918 private ranges) so a tool dispatch can't probe
+  #      the local network or read local files.
+  #   6. The kernel routes the result into `result_into` as a
+  #      follow-on dispatch carrying the fetched content, status,
+  #      exit_code (HTTP code-shaped), and ok flag.
+  #
+  # Provider variants : the v1 kernel hook is `:http_get` (plain
+  # curl). A `:archive_org_wayback` provider could later resolve
+  # historical snapshots ; a `:firecrawl` provider could route
+  # through a managed scraping service. All slot into this
+  # behavior_kind through the family's providers list.
+
+  vision "Fetch a URL and return its body (or a prompt-shaped
+          extract of it) via a configured provider. The kernel
+          hook accepts (url, prompt, instance_fields) and returns
+          (body_text, http_status, ok). Output is capped at 100 KB
+          ; dangerous URL targets (file://, localhost, RFC1918) are
+          rejected before any network call."
+
+  # The contract : every adapter family that picks this behavior_kind
+  # must provide a :result_into field naming the follow-on dispatch
+  # target. The :url field travels with the dispatched command's
+  # attrs, not the adapter instance.
+  requires_field :result_into
+
+  # The dispatched command's attrs carry the fetch input :
+  #   :url    — the URL to fetch (required)
+  #   :prompt — optional natural-language prompt for how to summarize
+  # The kernel reads :description as the always-present captionable
+  # attribute — same convention as invoke_claude_tool.
+  trigger_attribute :description
+
+  # What the kernel does, declaratively :
+  #   1. Validate the URL — reject file://, localhost, 127.0.0.0/8,
+  #      10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, ::1, link-local
+  #   2. Resolve the provider (v1 : :http_get) and call its primitive
+  #   3. Cap captured output at 100 KB ; mark `output += "... [truncated]"`
+  #   4. Dispatch :result_into with output, exit_code (HTTP status),
+  #      ok flag (true for 2xx, false otherwise).
+  #
+  # Cancellation : fetches are synchronous in v1 ; no in-flight
+  # supersession. A follow-up Tools.WebFetch dispatch for the same
+  # id is accepted ; the kernel runs it sequentially.
+end

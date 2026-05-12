@@ -1,0 +1,81 @@
+Hecks.provider "http_get" do
+  # HTTP-GET as a provider for the :web_tool adapter family,
+  # behavior :perform_web_fetch. The provider declaration says :
+  # "when a :web_tool adapter has tool: "web_fetch", use a plain
+  # HTTP GET (curl shell-out in v1) to fetch the URL."
+  #
+  # Sibling provider to :duckduckgo (which handles :perform_web_search).
+  # Adding a richer fetch backend (e.g. :firecrawl, :reader, a managed
+  # scraper) = new framework/providers/<name>.hecksagon listed under
+  # web_tool.providers ; no kernel work if the same response shape
+  # holds (text body + status code).
+  #
+  # ── No API key needed ──
+  #
+  # Plain HTTP GET against publicly-reachable URLs. The kernel hook
+  # enforces URL safety (no file://, no localhost, no RFC1918 ranges)
+  # so consumers can't probe the local network even by mistake.
+
+  vision "Fetch a URL with a plain HTTP GET (curl shell-out in v1 ;
+          a Rust HTTP client if/when the dep gets pulled). Returns
+          the response body capped at 100 KB plus the HTTP status
+          code as exit_code. Dangerous URL targets are rejected at
+          the kernel hook before any network call fires."
+
+  family :web_tool                  # which adapter family this implements
+  behavior :perform_web_fetch       # which kernel behavior_kind we satisfy
+
+  # ── Auth ──────────────────────────────────────────────────────────
+  #
+  # None. HTTP GET against the open web ; if a URL needs auth, a
+  # different provider (or a future :http_get_with_token) handles it.
+  auth_scheme :none
+
+  # ── The request shape ─────────────────────────────────────────────
+  #
+  # Plain HTTP GET. The kernel substitutes the :url attribute from
+  # the dispatched command into the curl call. No body, no headers
+  # beyond a User-Agent (so origin servers see a stable identifier).
+  endpoint method: :GET,
+           url: "{url}",            # placeholder filled from dispatched command's :url
+           content_type: "text/plain",
+           user_agent: "hecks-web-tool/0.1 (+https://github.com/embryonaut/hecks)"
+
+  # ── URL safety ────────────────────────────────────────────────────
+  #
+  # The kernel hook validates every URL before the network call.
+  # Rejected schemes / hosts produce an `:invalid_request` error
+  # mapped to ok=false, exit_code=400, with a descriptive error
+  # string. The list mirrors RFC1918 + loopback + link-local.
+  url_safety do
+    reject_scheme :file
+    reject_host   "localhost"
+    reject_cidr   "127.0.0.0/8"      # loopback
+    reject_cidr   "10.0.0.0/8"       # RFC1918 private
+    reject_cidr   "172.16.0.0/12"    # RFC1918 private
+    reject_cidr   "192.168.0.0/16"   # RFC1918 private
+    reject_cidr   "169.254.0.0/16"   # link-local
+    reject_host   "::1"              # IPv6 loopback
+  end
+
+  # ── Response handling ─────────────────────────────────────────────
+  #
+  # Plain text response. The kernel caps at 100 KB ; the HTTP status
+  # rides through as exit_code so downstream policies can branch on
+  # 2xx / 3xx / 4xx / 5xx the same way they branch on shell exit.
+  response_kind :text_body
+  response_status_field "http_status"
+  response_max_bytes 102_400         # 100 KB cap on captured body
+
+  # ── Error mapping ─────────────────────────────────────────────────
+  #
+  # HTTP status drives the error category :
+  #   2xx                      → :ok
+  #   3xx                      → :ok (curl follows redirects)
+  #   4xx                      → :client_error
+  #   5xx                      → :provider_unavailable
+  #   url validation failure   → :invalid_request
+  #   network failure (DNS,    → :provider_unavailable
+  #     connection refused, etc.)
+  error_mapping_field "http_status"
+end

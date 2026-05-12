@@ -1,0 +1,75 @@
+Hecks.adapter_family "web_tool" do
+  # The :web_tool adapter family — bridge a Tools.WebFetch /
+  # Tools.WebSearch dispatch back to the underlying web call
+  # (HTTP GET for fetch, search-engine HTML / API for search).
+  #
+  # Sibling to :claude_tool (i551/i556), :sms, :tts, :llm.
+  # Same bluebook-first promise : the family declares the field
+  # surface, providers attach the wire shape, and the kernel runs
+  # the adapter at dispatch time. No Rust / Ruby code edits — the
+  # runtime walks framework/adapter_families/ at boot and registers
+  # each family it finds (per i557).
+  #
+  # ── How it composes ──
+  #
+  # The Tools bluebook (framework/tools/tools.bluebook) declares
+  # WebFetch and WebSearch as commands on the Tools aggregate. The
+  # tools.hecksagon (next to tools.bluebook) declares one
+  # :web_tool adapter binding per command, identified by the
+  # `command:` keyword. When the bus dispatches Tools.WebFetch
+  # / Tools.WebSearch, the kernel resolves the matching :web_tool
+  # adapter, fires the matching behavior (perform_web_fetch /
+  # perform_web_search), captures the result, and routes it back
+  # via `result_into` as a follow-on dispatch.
+  #
+  # ── The principle the family sits on ──
+  #
+  #   "the domain composes the tool call ; the adapter runs it"
+  #   — Chris, 2026-05-12
+  #
+  # The bluebook (composition) is pure. The :web_tool adapter
+  # (execution) is the only impure layer. Domain + adapter stay
+  # cleanly split — same as :claude_tool.
+  #
+  # ── Why a separate family from :claude_tool ──
+  #
+  # WebFetch / WebSearch belong to their own adapter family with
+  # swappable providers (DuckDuckGo, SERPAPI, plain HTTP curl,
+  # etc.) — same shape as `:llm` has Anthropic / OpenAI / Ollama
+  # providers. Keeping web tooling in its own family means each
+  # provider can declare its own wire shape, auth, and error
+  # mapping without polluting the local-shell-only :claude_tool
+  # primitives.
+
+  vision "Bridge a Tools.WebFetch / Tools.WebSearch dispatch back
+          to the underlying web call. Each instance binds one
+          Tools.X command to one web operation (fetch URL /
+          search query). The runtime resolves the binding at
+          dispatch time, fires the matching behavior kind
+          (perform_web_fetch / perform_web_search), and chains
+          the result back into the aggregate state. Two behavior
+          kinds today ; providers attach the wire shape per kind."
+
+  fields  :name,         # optional symbolic adapter name in the consumer's hecksagon
+          :command,      # "Tools.WebFetch" — the dispatched aggregate.command this adapter binds to
+          :tool,         # "web_fetch" | "web_search" — which web operation to invoke
+          :result_into   # "Tools.RecordResult" (or per-tool variant) — follow-on dispatch carrying the result
+
+  trigger_field :command
+  response_field :result_into
+
+  # Two behavior kinds today, one per web operation. Each maps to
+  # a fixed kernel hook (perform_web_fetch / perform_web_search).
+  # Adding a new web operation = new behavior_kind + new adapter
+  # binding ; the family contract stays the same.
+  behaviors :perform_web_fetch,
+            :perform_web_search
+
+  # Providers attach the wire shape per behavior. v1 :
+  #   - :http_get  — straight curl shell-out for WebFetch
+  #   - :duckduckgo — DuckDuckGo's HTML-lite search for WebSearch
+  # Future providers (SERPAPI, Brave Search, Bing) get listed
+  # here alongside their framework/providers/<name>.hecksagon.
+  providers :http_get,
+            :duckduckgo
+end

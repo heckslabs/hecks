@@ -49,6 +49,14 @@ pub mod compute_dispatcher;
 pub mod claude_tool_dispatcher;
 pub mod sms_dispatcher;
 pub mod tts_dispatcher;
+// i569 — :web_tool adapter family kernel hook. Two behaviors :
+// perform_web_fetch (curl HTTP GET, URL-safety gated) and
+// perform_web_search (DuckDuckGo HTML-lite). Sibling to
+// claude_tool_dispatcher ; registered into i557's framework registry
+// once that lands. This module exposes `lookup_hook` +
+// `WEB_TOOL_BEHAVIOR_NAMES` for the registry to consume — `Runtime::
+// dispatch` is deliberately NOT modified to call into it.
+pub mod web_tool_dispatcher;
 pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
