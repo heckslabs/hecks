@@ -1,4 +1,4 @@
-Hecks.bluebook "Tools", version: "2026.05.12.2" do
+Hecks.bluebook "Tools", version: "2026.05.12.3" do
   vision "First-class tool invocations as dispatched commands. Today Miette calls Bash / Edit / Read / Write / Grep as opaque tool calls — the harness runs them, returns a string, and the runtime sees nothing. This bluebook lifts each invocation into a domain command so every tool use emits an event the runtime can react to. Bash is the first command ; the other tools follow with the same shape."
   category "framework"
 
@@ -50,8 +50,7 @@ Hecks.bluebook "Tools", version: "2026.05.12.2" do
   #
   # ── The family ──
   #
-  # Bash was the proof. The same shape extends across the file-
-  # touching tools — already declared :
+  # Six standard-CLI-tooling commands, each a first-class dispatch :
   #
   #   * Bash    — shell_command ; emits BashRan
   #   * Edit    — file_path + old_string + new_string + replace_all ;
@@ -60,14 +59,15 @@ Hecks.bluebook "Tools", version: "2026.05.12.2" do
   #   * Update  — file_path + content ; emits FileUpdated
   #               (same semantic as Claude's Write tool — renamed
   #                here to emphasize state-changing dispatch)
-  #
-  # Still to come :
-  #
-  #   * Grep      — pattern + path ; emits GrepRan
-  #   * WebFetch  — url + prompt ; emits WebFetched
+  #   * Grep    — pattern + search_path ; emits GrepRan
+  #   * Glob    — glob_pattern + search_path ; emits GlobMatched
   #
   # Each becomes a command, each emits a matching event, each
   # carries the input + description so the runtime can react.
+  #
+  # Web tooling (WebFetch / WebSearch) and task tooling (TaskCreate
+  # / TodoWrite / TaskList) are future families on this aggregate
+  # or on siblings — they're not "standard CLI" in the same way.
   #
   # ── State versus event payload ──
   #
@@ -85,6 +85,9 @@ Hecks.bluebook "Tools", version: "2026.05.12.2" do
     attribute :id, Id
     attribute :shell_command, ShellCommand
     attribute :file_path, FilePath
+    attribute :pattern, Pattern
+    attribute :glob_pattern, GlobPattern
+    attribute :search_path, SearchPath
     attribute :description, Description
 
     value_object "Id" do
@@ -144,6 +147,27 @@ Hecks.bluebook "Tools", version: "2026.05.12.2" do
       # FileUpdated event payload only ; not persisted to
       # aggregate state, so the heki doesn't grow unbounded with
       # every write's bytes.
+      attribute :value, String
+    end
+
+    value_object "Pattern" do
+      # Regex pattern passed to Grep. Standard ripgrep / PCRE2
+      # syntax. The runtime substrate compiles + executes ; the
+      # bluebook records what we asked for.
+      attribute :value, String
+    end
+
+    value_object "GlobPattern" do
+      # Filesystem-glob pattern passed to Glob (e.g.
+      # "rust/src/**/*.rs", "hecks_conception/aggregates/**.bluebook").
+      # Same shape as the existing Glob tool's `pattern` parameter.
+      attribute :value, String
+    end
+
+    value_object "SearchPath" do
+      # The directory or path Grep / Glob is rooted at. When
+      # absent the runtime defaults to cwd ; otherwise it's a
+      # filesystem path that scopes the search.
       attribute :value, String
     end
 
@@ -220,6 +244,45 @@ Hecks.bluebook "Tools", version: "2026.05.12.2" do
       emits "FileUpdated"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description
+    end
+
+    # ── Grep : the fifth tool command ──
+    #
+    # Grep searches files for a regex pattern. Matches live in the
+    # GrepRan event payload as a list of (path, line_no, line)
+    # tuples ; state records what we searched for and where, not
+    # the matches themselves. A policy on GrepRan could push the
+    # match count into the statusline or surface long searches as
+    # awareness-worthy moments.
+    command "Grep" do
+      role "Miette"
+      description "Search files for a regex pattern. Records the dispatch as a Tools record and emits GrepRan carrying the pattern, search_path, and description. Match results flow through the event payload ; aggregate state stores what was searched and where, not the matches themselves."
+      attribute :id, Id
+      attribute :pattern, Pattern
+      attribute :search_path, SearchPath
+      attribute :description, Description
+      emits "GrepRan"
+      then_set :pattern,     to: :pattern
+      then_set :search_path, to: :search_path
+      then_set :description, to: :description
+    end
+
+    # ── Glob : the sixth tool command ──
+    #
+    # Glob lists files matching a filesystem pattern. The matching
+    # paths live in the GlobMatched event payload ; state records
+    # what we asked for and where we rooted the search.
+    command "Glob" do
+      role "Miette"
+      description "List files matching a glob pattern. Records the dispatch as a Tools record and emits GlobMatched carrying the glob_pattern, search_path, and description. Match results (the file paths) flow through the event payload ; aggregate state stores only what was asked for."
+      attribute :id, Id
+      attribute :glob_pattern, GlobPattern
+      attribute :search_path, SearchPath
+      attribute :description, Description
+      emits "GlobMatched"
+      then_set :glob_pattern, to: :glob_pattern
+      then_set :search_path,  to: :search_path
+      then_set :description,  to: :description
     end
   end
 end
