@@ -41,7 +41,7 @@ fn repo_root() -> PathBuf {
 #[test]
 fn specializer_hecksagon_wiring_is_present() {
     // Confirms the capability wiring exists and declares the memory
-    // adapter, all three shell adapters, and the SpecializeRun gate.
+    // adapter, all three shell adapters, and the Specializer gate.
     let path = repo_root().join("codegen/specializer/specializer.hecksagon");
     let src = fs::read_to_string(&path)
         .expect("specializer.hecksagon not found — capability wiring missing");
@@ -51,11 +51,15 @@ fn specializer_hecksagon_wiring_is_present() {
     assert_eq!(hex.persistence.as_deref(), Some("memory"));
     // Phase E removed all shell adapters — `storehouse specialize`
     // (a Rust subcommand) is now the sole codegen path. The hecksagon
-    // file keeps the `:memory` + `:fs` adapters + the SpecializeRun
-    // gate as declarative metadata.
+    // file keeps the `:memory` + `:fs` adapters + the Specializer
+    // gate as declarative metadata. The 2026-05-12 "no bluebooks
+    // without commands" sweep collapsed SpecializeRun + the four
+    // catalog aggregates (IRLayer, Projection, SpecializerTarget,
+    // SpecializerSubclass) into a single Specializer root with
+    // value_object row-types ; the gate is renamed accordingly.
     assert!(
-        hex.gates.iter().any(|g| g.aggregate == "SpecializeRun"),
-        "SpecializeRun gate not declared",
+        hex.gates.iter().any(|g| g.aggregate == "Specializer"),
+        "Specializer gate not declared",
     );
 }
 
