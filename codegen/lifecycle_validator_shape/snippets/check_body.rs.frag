@@ -5,5 +5,6 @@
         }
         check_given_coverage(agg, &mut findings);
         check_mutation_references(agg, &mut findings);
+        check_lifecycle_attr_missing_default(agg, &mut findings);
     }
     Report { findings }
