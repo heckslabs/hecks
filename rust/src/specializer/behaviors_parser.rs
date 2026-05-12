@@ -16,7 +16,7 @@
 //!   let rust = behaviors_parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/behaviors_parser.rs —
+//! [antibody-exempt: rust/src/specializer/behaviors_parser.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

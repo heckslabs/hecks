@@ -154,7 +154,7 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //! Reads .bluebook files, parses them into IR, and executes them.
 //! The Bluebook is DNA. This is the ribosome. The runtime is life.
 //!
-//! [antibody-exempt: storehouse/src/main.rs — wires the :llm hecksagon
+//! [antibody-exempt: rust/src/main.rs — wires the :llm hecksagon
 //!  adapter into dispatch_hecksagon. This IS the structural rewrite
 //!  that lets wake_review and interpret_dream fire end-to-end via
 //!  bluebook. Same i80 retirement contract ; closes the i109 :llm
@@ -172,27 +172,27 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!   storehouse conceive  "Name" "vision" --corpus dir1 dir2
 //!   storehouse develop   target.bluebook --add "feature"
 //!
-//! [antibody-exempt: storehouse/src/main.rs — wires validator_warnings into
+//! [antibody-exempt: rust/src/main.rs — wires validator_warnings into
 //!  dispatch arms. This IS the structural rewrite that closes the gap
 //!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
 //!  and runtime enforcement. Same i80 retirement contract as run_loop /
 //!  run_daemon / run_macrophage. Net ~12 LoC.]
 //!
-//! [antibody-exempt: storehouse/src/main.rs — closes i113 (sleep-as-blocking-
+//! [antibody-exempt: rust/src/main.rs — closes i113 (sleep-as-blocking-
 //!  streaming-command). Wires Consciousness.EnterSleep dispatch + heki polling
 //!  + dream stream + wake-report read into a single blocking CLI. Same kernel-
 //!  surface family as run_loop / run_daemon / run_macrophage ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
 //!
-//! [antibody-exempt: storehouse/src/main.rs — closes i118 (macrophage-honors-
+//! [antibody-exempt: rust/src/main.rs — closes i118 (macrophage-honors-
 //!  in-file-antibody-exempt-markers). run_macrophage now reads the touched
 //!  file's first 200 lines and dispatches Macrophage.RecordExemptedEdit (silent
 //!  exit 0) instead of Macrophage.Complain when the file already carries a
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
 //!  the rest of the run_macrophage family.]
 //!
-//! [antibody-exempt: storehouse/src/main.rs detect_bash_write_target +
+//! [antibody-exempt: rust/src/main.rs detect_bash_write_target +
 //!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
 //!  classifier treated `sed -n '...'` (autoprint-suppress, read-only) as a
 //!  write target whenever any flag was present, blocking honest reads of
@@ -203,7 +203,7 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!  classification becomes a domain dispatched from
 //!  aggregates/discipline/macrophage/.]
 //!
-//! [antibody-exempt: storehouse/src/main.rs — i117 Round 4. load_combined_domain
+//! [antibody-exempt: rust/src/main.rs — i117 Round 4. load_combined_domain
 //!  walks the sibling ../miette repo as an additional bluebook root at depth 1.
 //!  Miette's self/mind/body/library/surface aggregates physically live in
 //!  chrisyoung/miette post-split ; the runtime needs to find them for the same

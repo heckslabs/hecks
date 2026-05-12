@@ -1,4 +1,4 @@
-//! Rust-native specializer for `storehouse/src/parser.rs`.
+//! Rust-native specializer for `rust/src/parser.rs`.
 //!
 //! i147 Wave 3-C target — kernel-surface bluebook parser (top-level
 //! Domain assembly + line-by-line state machine dispatch) regenerated
@@ -30,7 +30,7 @@
 //!   let rust = parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/parser.rs —
+//! [antibody-exempt: rust/src/specializer/parser.rs —
 //!  i147 Wave 3-C — Rust-native specializer for parser.rs]
 
 use crate::specializer::util;

@@ -1,6 +1,6 @@
 //! Rust port of `lib/hecks_specializer/validator.rb`.
 //!
-//! Emits `storehouse/src/validator.rs` byte-identical to the Ruby
+//! Emits `rust/src/validator.rs` byte-identical to the Ruby
 //! specializer's output. Reads `ValidatorEntryPoint`, `ValidationRule`,
 //! `SuffixTable`, and `ExceptionWord` rows from validator_shape and
 //! assembles: header → imports → entry point → rule → rule →
@@ -26,7 +26,7 @@
 //!   let rust = validator::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/validator.rs —
+//! [antibody-exempt: rust/src/specializer/validator.rs —
 //!  Phase D — Rust-native specializer implementation]
 
 use crate::ir::Fixture;
