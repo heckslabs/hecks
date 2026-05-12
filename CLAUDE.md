@@ -39,4 +39,4 @@
 - **List shape is explicit** — `attribute :foos, Foo` is SCALAR. Lists require `list_of(X)`. The auto-list heuristic is retired in both the Ruby and Rust parsers
 - **VO placement** — `value_object` declarations live INSIDE each aggregate. Duplication across aggregates is fine; bluebook-file-top-level VOs are forbidden (macrophage check `bluebook_top_level_value_object`, i555)
 - **Macrophage rename** — `enforcer` is now `macrophage` (i531/i553). `storehouse enforce-edit` still works as a deprecation-warning alias
-- **Tools.bluebook** — Miette's first-class tool invocations dispatch through the bus as `Tools.Bash` / `Tools.Edit` / `Tools.Read` / `Tools.Update` / `Tools.Grep` / `Tools.Glob`. See `docs/usage/tools.md`
+- **Tools.bluebook** — Miette's first-class tool invocations dispatch through the bus as `ShellTool.Bash`, `FileTool.Read` / `FileTool.Edit` / `FileTool.Update`, `SearchTool.Grep` / `SearchTool.Glob`, `WebTool.WebFetch` / `WebTool.WebSearch` ; outcomes cascade into `Cascade.RecordResult`. Restructured 2026-05-12 from a flat `Tools` aggregate into five category aggregates. See `docs/usage/tools.md`

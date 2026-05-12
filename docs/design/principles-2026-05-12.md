@@ -30,13 +30,15 @@ wire adapters before they can experiment. Bluebook becomes a schema
 language for a separate, code-first execution layer — which is the
 opposite of self-hosting.
 
-**Concrete example from tonight.** `storehouse <root> Tools.Bash
-shell_command="echo hello" description="say hi"` was verified to
-dispatch end-to-end with no adapter wired (i552 §"What needs to
-wire", item 1 — "Default to memory is live today"). The Tools
-aggregate exists, accepts the command, records state, emits the
-event. Wiring the actual shell side-effect (i556) is an
-enhancement, not a prerequisite.
+**Concrete example from tonight.** `storehouse <root> ShellTool.Bash
+shell_command="echo hello" description="say hi" id=ulid-1` was
+verified to dispatch end-to-end (i552 §"What needs to wire", item 1
+— "Default to memory is live today"). The ShellTool aggregate exists,
+accepts the command, records state, emits the event. Wiring the
+actual shell side-effect (i556) is an enhancement, not a
+prerequisite. (The tool family was restructured 2026-05-12 from a
+flat single-`Tools` aggregate into five category aggregates :
+ShellTool / FileTool / SearchTool / WebTool / Cascade.)
 
 ## Principle 2 — Wiring is override, not substrate
 
@@ -83,9 +85,11 @@ language artifact and starts being a serialization manifest.
 
 **Concrete example from tonight.** From i552, Chris's framing :
 "The domain doesn't know it hibernates. It thinks it lives forever."
-The Tools aggregate (`framework/tools/tools.hecksagon`) declares
-six commands (Tools.Bash / Tools.Edit / Tools.Read / Tools.Write /
-Tools.Grep / Tools.Glob) and their state, with zero reference to
+The Tools bluebook (`framework/tools/tools.bluebook` ; adapter
+bindings in the sibling `tools.hecksagon`) declares nine commands
+across five category aggregates (ShellTool.Bash, FileTool.Read /
+Edit / Update, SearchTool.Grep / Glob, WebTool.WebFetch / WebSearch,
+Cascade.RecordResult) and their state, with zero reference to
 persistence, process boundaries, or restart semantics. The
 macrophage (i553 §"What the macrophage enforces", bullet 2) is
 charged with blocking any bluebook that leaks infrastructure into
@@ -121,7 +125,7 @@ result back.
 ### A — Claude calls StoreHouse (not StoreHouse intercepts Claude)
 
 The dispatch direction is Claude-to-bus, not bus-to-Claude. I
-dispatch `storehouse <root> Tools.Bash …` ; the bus wraps the
+dispatch `storehouse <root> ShellTool.Bash …` ; the bus wraps the
 invocation, records it, emits the event, optionally fires the
 side-effect through the adapter. Every tool I run becomes a
 first-class domain event because I went through the bus.

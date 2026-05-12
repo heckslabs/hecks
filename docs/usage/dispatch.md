@@ -93,25 +93,31 @@ safe fallback for callers without a sibling world file.
 
 ## Three concrete dispatches
 
-### 1. Run a shell command through `Tools.Bash`
+### 1. Run a shell command through `ShellTool.Bash`
 
-`miette::framework::Tools::Bash` is wired to a `:claude_tool` adapter that
-shells out via the kernel-floor `claude_tool_dispatcher` (commit `35e88dc2`,
-"wire :claude_tool adapter into dispatch") :
+`ShellTool.Bash` is wired to a `:claude_tool` adapter that shells out via
+the kernel-floor `claude_tool_dispatcher` (commit `35e88dc2`,
+"wire :claude_tool adapter into dispatch"). The tool family was
+restructured 2026-05-12 from one flat `Tools` aggregate into five
+category aggregates (ShellTool / FileTool / SearchTool / WebTool /
+Cascade) ; the old `Tools.Bash` form is no longer accepted.
 
 ```bash
 storehouse hecks_conception/aggregates/framework/tools \
-  Tools.Bash shell_command='echo hello' description='greet'
+  ShellTool.Bash shell_command='echo hello' description='greet' id='ulid-1'
 ```
 
 Output (trimmed) :
 
 ```json
-{"ok":true,"aggregate":"Tools","id":"01H...","state":{"shell_command":"echo hello",...}}
+{"ok":true,"aggregate":"ShellTool","id":"ulid-1","state":{"shell_command":"echo hello",...}}
 ```
 
 Stderr carries the adapter's outcome log. The runtime persists a `BashRan`
-event in the configured heki dir, and the shell actually runs.
+event in the configured heki dir, and the shell actually runs. After the
+shell completes, the result cascades into `Cascade.RecordResult` (sharing
+the invocation id) emitting `ResultRecorded` with the captured `tool`,
+`output`, `exit_code`, and `ok`.
 
 ### 2. Read a query
 

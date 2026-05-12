@@ -1,69 +1,70 @@
 # Tools — Tool Invocations as First-Class Dispatches
 
-The `Tools` aggregate (defined in
+The Tools bluebook (defined in
 `hecks_conception/aggregates/framework/tools/tools.bluebook`) lifts each
 tool invocation into a domain command. Where Miette's tool calls used to
 be opaque black-box invocations — harness runs the tool, returns a
-string, runtime sees nothing — every Bash, Edit, Read, Update, Grep, or
-Glob is now a dispatch on the bus that emits a matching event.
+string, runtime sees nothing — every Bash, Edit, Read, Update, Grep,
+Glob, WebFetch, or WebSearch is now a dispatch on the bus that emits a
+matching event.
 
-Six commands. Six events. One aggregate per invocation (the
-"per-invocation aggregate" shape, same as Dump and Cadence). The bus
-wraps ; the bluebook declares the contract.
+## The five category aggregates (2026-05-12 restructuring)
 
-## What it is
+The tool family was originally conceived as one flat `Tools` aggregate
+carrying every command. That shape piled sibling commands of unrelated
+kinds onto a single record. The 2026-05-12 restructuring split it into
+five category aggregates, each focused on one kind of side-effect :
 
-From the bluebook vision :
+| Aggregate    | Commands                  | What it carries in state                    |
+|--------------|---------------------------|---------------------------------------------|
+| `ShellTool`  | `Bash`                    | `shell_command`, `description`              |
+| `FileTool`   | `Read`, `Edit`, `Update`  | `file_path`, `description`                  |
+| `SearchTool` | `Grep`, `Glob`            | `pattern` / `glob_pattern`, `search_path`, `description` |
+| `WebTool`    | `WebFetch`, `WebSearch`   | `url` / `query`, `description`              |
+| `Cascade`    | `RecordResult`            | `tool_kind`, `output`, `exit_code`, `ok_status` |
 
-> "First-class tool invocations as dispatched commands. […] This
-> bluebook lifts each invocation into a domain command so every tool use
-> emits an event the runtime can react to."
-
-A policy on `BashRan` (or any of the other five events) can record into
-the mindstream, surface in the statusline, shift mood, or fire any
-other downstream effect — exactly the same machinery that handles every
-other domain event.
-
-Each invocation mints a new `Tools` record identified by a stable
-invocation id (a ULID from the Claude harness). The accumulated tool
-history is the set of records, not a list inside one record.
-
-## The six commands
-
-| Command  | Attributes                                                       | Emits         |
-|----------|------------------------------------------------------------------|---------------|
-| `Bash`   | `id`, `shell_command`, `description`                             | `BashRan`     |
-| `Edit`   | `id`, `file_path`, `old_string`, `new_string`, `replace_all`, `description` | `EditApplied` |
-| `Read`   | `id`, `file_path`, `description`                                 | `FileRead`    |
-| `Update` | `id`, `file_path`, `content`, `description`                      | `FileUpdated` |
-| `Grep`   | `id`, `pattern`, `search_path`, `description`                    | `GrepRan`     |
-| `Glob`   | `id`, `glob_pattern`, `search_path`, `description`               | `GlobMatched` |
+Each aggregate is `identified_by :id` ; the harness mints a stable ULID
+before dispatch. A Cascade record uses the SAME id as the originating
+tool record so the outcome is joinable against the invocation by id
+across aggregates.
 
 `Update` is the bluebook name for what the Claude tool family calls
 `Write` — renamed to emphasize state-changing dispatch rather than
 side-effect. The contract is the same : `file_path` + `content`.
 
-`Read` is pure observation : no filesystem mutation, no state mutation
-downstream. Still worth a first-class dispatch so awareness can track
-"Miette is reading X" the same way it tracks "Miette is editing X."
+## The nine commands
 
-Web tooling (`WebFetch`, `WebSearch`) and task tooling (`TaskCreate`,
-`TodoWrite`, `TaskList`) are future families on this aggregate or on
-siblings — they are not "standard CLI" in the same sense.
+| Command         | Aggregate    | Attributes                                       | Emits           |
+|-----------------|--------------|--------------------------------------------------|-----------------|
+| `Bash`          | `ShellTool`  | `id`, `shell_command`, `description`             | `BashRan`       |
+| `Read`          | `FileTool`   | `id`, `file_path`, `description`                 | `FileRead`      |
+| `Edit`          | `FileTool`   | `id`, `file_path`, `old_string`, `new_string`, `replace_all`, `description` | `EditApplied` |
+| `Update`        | `FileTool`   | `id`, `file_path`, `content`, `description`      | `FileUpdated`   |
+| `Grep`          | `SearchTool` | `id`, `pattern`, `search_path`, `description`    | `GrepRan`       |
+| `Glob`          | `SearchTool` | `id`, `glob_pattern`, `search_path`, `description` | `GlobMatched` |
+| `WebFetch`      | `WebTool`    | `id`, `url`, `prompt`, `description`             | `WebFetched`    |
+| `WebSearch`     | `WebTool`    | `id`, `query`, `description`                     | `WebSearched`   |
+| `RecordResult`  | `Cascade`    | `id`, `tool`, `output`, `exit_code`, `ok`        | `ResultRecorded`|
+
+A policy on any of these events can record into the mindstream, surface
+in the statusline, shift mood, or fire any other downstream effect — the
+same machinery that handles every other domain event.
 
 ## State versus event payload
 
 Some tool inputs are small ; others can be thousands of bytes. The
 bluebook splits them deliberately so the `.heki` does not bloat.
 
-| Command  | Lives in aggregate state         | Lives in event payload only         |
-|----------|----------------------------------|-------------------------------------|
-| `Bash`   | `shell_command`, `description`   | (full event mirrors state)          |
+| Command  | Lives in aggregate state         | Lives in event payload only          |
+|----------|----------------------------------|--------------------------------------|
+| `Bash`   | `shell_command`, `description`   | (full event mirrors state)           |
 | `Edit`   | `file_path`, `description`       | `old_string`, `new_string`, `replace_all` |
-| `Read`   | `file_path`, `description`       | file contents (filled by adapter)   |
-| `Update` | `file_path`, `description`       | `content`                           |
-| `Grep`   | `pattern`, `search_path`, `description` | match results                |
-| `Glob`   | `glob_pattern`, `search_path`, `description` | matched paths           |
+| `Read`   | `file_path`, `description`       | file contents (filled by adapter)    |
+| `Update` | `file_path`, `description`       | `content`                            |
+| `Grep`   | `pattern`, `search_path`, `description` | match results                 |
+| `Glob`   | `glob_pattern`, `search_path`, `description` | matched paths            |
+| `WebFetch` | `url`, `description`           | fetched content (truncated)          |
+| `WebSearch`| `query`, `description`         | result listings                      |
 
 For `Bash`, the shell command is small (a few hundred bytes typically),
 so it lives in both the event and the state. For `Edit` and `Update`
@@ -71,8 +72,33 @@ the heavy payloads ride the event only ; replay logic reconstructs them
 from the event log when needed. The aggregate state stays small — id,
 description, and (when present) file_path.
 
-This is what the bluebook means when it says state stores "what
-changed and what we tried," not "the bytes that flowed."
+## Dispatch examples
+
+```bash
+# Shell exec
+$ storehouse hecks_conception ShellTool.Bash \
+    shell_command="echo hello" description="greet" id=ulid-1
+
+# File read
+$ storehouse hecks_conception FileTool.Read \
+    file_path=/etc/hosts description="peek at hosts" id=ulid-2
+
+# Grep
+$ storehouse hecks_conception SearchTool.Grep \
+    pattern=TODO search_path=lib/ description="find TODOs" id=ulid-3
+
+# Web fetch
+$ storehouse hecks_conception WebTool.WebFetch \
+    url=https://example.com prompt="summarize" description="fetch" id=ulid-4
+```
+
+Each dispatch :
+1. Records the invocation as a fresh record on its category aggregate.
+2. Emits the matching event (`BashRan` / `FileRead` / etc.).
+3. Triggers the bound `:claude_tool` or `:web_tool` adapter, which
+   actually runs the side-effect.
+4. Cascades into `Cascade.RecordResult` carrying the same invocation
+   id plus captured outcome — `tool`, `output`, `exit_code`, `ok`.
 
 ## Setup — PATH and conception lookup
 
@@ -97,8 +123,8 @@ can dispatch `Tools.*` , the `storehouse` binary needs two things :
    needed.
 
 2. **Know the conception root.** When `storehouse` is invoked with the
-   `Aggregate.Command` shortcut (`storehouse Tools.Bash …`) it resolves
-   the conception path in this order :
+   `Aggregate.Command` shortcut (`storehouse ShellTool.Bash …`) it
+   resolves the conception path in this order :
 
    1. `HECKS_CONCEPTION_DIR` env var — set this when a sibling project
       ships its own conception.
@@ -111,14 +137,14 @@ can dispatch `Tools.*` , the `storehouse` binary needs two things :
    For a one-off override, prefix the call :
 
    ```bash
-   HECKS_CONCEPTION_DIR=/some/other/conception storehouse Tools.Bash …
+   HECKS_CONCEPTION_DIR=/some/other/conception storehouse ShellTool.Bash …
    ```
 
    For a one-off explicit path, the positional form still works (it
    takes precedence over both env and fallback) :
 
    ```bash
-   storehouse /path/to/hecks_conception/aggregates Tools.Bash …
+   storehouse /path/to/hecks_conception/aggregates ShellTool.Bash …
    ```
 
 ## Invocation
@@ -126,9 +152,9 @@ can dispatch `Tools.*` , the `storehouse` binary needs two things :
 Any shell, any cwd, after the setup above :
 
 ```bash
-storehouse Tools.Bash shell_command="echo hello" id=bash-001 description="hello world"
-storehouse Tools.Read file_path=/etc/hosts id=read-001 description="inspect hosts"
-storehouse Tools.Grep pattern="TODO" search_path=. id=grep-001 description="find todos"
+storehouse ShellTool.Bash shell_command="echo hello" id=bash-001 description="hello world"
+storehouse FileTool.Read file_path=/etc/hosts id=read-001 description="inspect hosts"
+storehouse SearchTool.Grep pattern="TODO" search_path=. id=grep-001 description="find todos"
 ```
 
 Each dispatch records on the matching aggregate (`ShellTool`, `FileTool`,
@@ -142,16 +168,19 @@ StoreHouse-intercepts-Claude. Miette dispatches via StoreHouse for
 every tool ; StoreHouse is the wrapper.
 
 ```
-Miette                          StoreHouse                       Adapter
+Miette                          StoreHouse                      Adapter
    |                                 |                              |
-   |--- Tools.Bash shell_command --->|                              |
+   |--- ShellTool.Bash shell_cmd --->|                              |
    |    description                  |                              |
    |                                 |--- record dispatch --------->|
    |                                 |--- emit BashRan              |
-   |                                 |--- (optional) run shell ---->|
+   |                                 |--- run shell (adapter) ----->|
+   |                                 |<-- captured output ----------|
+   |                                 |--- Cascade.RecordResult ---->|
+   |                                 |--- emit ResultRecorded       |
    |<-- dispatch result -------------|                              |
    |                                                                |
-   |<== policies hook BashRan, update mood/body/statusline ========>|
+   |<== policies hook BashRan / ResultRecorded =====================|
 ```
 
 From i552 : "Every tool I run becomes a first-class domain event
@@ -161,17 +190,16 @@ before any adapter wires in real side-effects."
 
 Two pieces meet in this direction :
 
-1. **The dispatch path** — `storehouse Tools.Bash …` (PATH form,
-   default conception) and `storehouse <root> Tools.Bash …`
+1. **The dispatch path** — `storehouse ShellTool.Bash …` (PATH form,
+   default conception) and `storehouse <root> ShellTool.Bash …`
    (positional form, explicit conception) both work. The aggregate
    exists, the command exists, the runtime accepts the call. Default-
-   to-memory is live today, which means `Tools.Bash` is a logged
+   to-memory is live today, which means `ShellTool.Bash` is a logged
    intent right now even before any real shell wires in.
-2. **The side-effect adapter** — when `Tools.Bash` dispatches, the
-   adapter actually runs the shell. The existing `:shell` adapter is
-   template-based ; a generic-command flavor is the missing piece.
-   Without it, `Tools.Bash` is a logged intent ; with it, `Tools.Bash`
-   is the act.
+2. **The side-effect adapter** — when `ShellTool.Bash` dispatches, the
+   `:claude_tool` adapter actually runs the shell via
+   `claude_tool_dispatcher::run_bash`. Without it, `ShellTool.Bash` is
+   a logged intent ; with it, it is the act.
 
 The principle underneath, from the same inbox note : "Tools is pure
 domain. StoreHouse is the bus. Adapters bridge to side-effects. The
@@ -181,8 +209,8 @@ calling, not the one being intercepted."
 ## What's next — the adapter layer
 
 This doc stops at the bluebook + commands. For the adapter wiring —
-how the Claude tool family resolves to a StoreHouse dispatch, how
-generic-command `:shell` becomes a real `popen`, how the
+how the Claude tool family resolves to a StoreHouse dispatch, how the
+`:claude_tool` adapter runs the underlying primitive, how the
 `FileRead` / `FileUpdated` payloads get filled in by the runtime
 substrate after the side-effect completes — see
 [`docs/usage/claude_tool.md`](claude_tool.md).
@@ -190,6 +218,7 @@ substrate after the side-effect completes — see
 ## Related
 
 - `hecks_conception/aggregates/framework/tools/tools.bluebook` — the contract
+- `hecks_conception/aggregates/framework/tools/tools.hecksagon` — adapter bindings
 - `hecks_conception/inbox/i552.md` — Claude → StoreHouse direction
 - `hecks_conception/inbox/i551.md` — generic-command `:shell` adapter (the optional side-effect wire-in)
 - [`docs/usage/claude_tool.md`](claude_tool.md) — adapter family + dispatch path

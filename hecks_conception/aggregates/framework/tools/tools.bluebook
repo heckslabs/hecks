@@ -1,73 +1,61 @@
-Hecks.bluebook "Tools", version: "2026.05.12.5" do
-  vision "First-class tool invocations as dispatched commands. Today Miette calls Bash / Edit / Read / Write / Grep as opaque tool calls — the harness runs them, returns a string, and the runtime sees nothing. This bluebook lifts each invocation into a domain command so every tool use emits an event the runtime can react to. Bash is the first command ; the other tools follow with the same shape."
+Hecks.bluebook "Tools", version: "2026.05.12.6" do
+  vision "First-class tool invocations as dispatched commands, grouped by category. Each tool family is its own aggregate (ShellTool, FileTool, SearchTool, WebTool) ; the Cascade aggregate carries the kernel-hook's RecordResult chain. Replaces the earlier flat single-Tools aggregate (versions ≤ 2026.05.12.5) — sibling commands of unrelated kinds no longer share a single record. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it ; duplication across aggregates (Id, Description, FilePath, SearchPath) is fine."
   category "framework"
 
   # ============================================================
   # TOOLS — agent-level tool invocations as first-class dispatches
   # ============================================================
   #
-  # Conceived 2026-05-12. Until today Miette's tool calls were
-  # black-box invocations : the harness ran the tool, returned a
-  # result string, and the runtime saw nothing. Mood didn't shift,
-  # body didn't move, no event fired, no policy could react.
+  # Conceived 2026-05-12 as a single flat Tools aggregate ; restructured
+  # the same day into five category-shaped aggregates. The flat shape
+  # piled nine unrelated commands onto one aggregate ("Tools record" had
+  # to mean "any tool invocation, of any kind, possibly with most of its
+  # state empty"). The category split makes each kind of invocation its
+  # own aggregate with focused state — ShellTool records carry
+  # shell_command, FileTool records carry file_path, SearchTool records
+  # carry pattern/glob_pattern + search_path, WebTool records carry url
+  # /prompt/query, Cascade records carry the kernel-hook's outcome
+  # payload.
   #
-  # Tools makes each invocation a dispatch on the Tools aggregate.
-  # Bash is the first command — given a shell command + a one-line
-  # description, it records the dispatch and emits BashRan. A
-  # policy on BashRan can record into the mindstream, surface in
-  # the statusline, or trigger an awareness shift — same machinery
-  # that handles every other domain event.
+  # ── The five categories ──
   #
-  # ── Per-invocation aggregate ──
+  #   * ShellTool   — Bash               (shell exec)
+  #   * FileTool    — Read, Edit, Update (file I/O)
+  #   * SearchTool  — Grep, Glob         (filesystem search)
+  #   * WebTool     — WebFetch, WebSearch (HTTP / search engine)
+  #   * Cascade     — RecordResult       (kernel-hook outcome chain)
   #
-  # Each Bash call mints a new Tools record, identified by a stable
-  # invocation id. The accumulated history is the set of Tools
-  # records, not a list inside one record. This matches Dump's
-  # shape (one record per dump) and Cadence's shape (one record per
-  # loop start) — every tool-family bluebook in the codebase uses
-  # the same pattern.
+  # Each aggregate is identified_by :id ; the harness mints a stable
+  # ULID before dispatch and that's the addressable key. A Cascade
+  # record uses the SAME id as the originating ShellTool/FileTool/
+  # SearchTool/WebTool record so the outcome is joinable against the
+  # invocation event by id.
+  #
+  # ── Why no entities ──
+  #
+  # Entities earn their place when a stateful sub-concept crosses
+  # multiple commands within an aggregate. Here, each invocation is
+  # an independent record keyed by id ; no sub-concept persists
+  # across commands inside a single aggregate. ShellTool.Bash and
+  # ShellTool... (any future shell command) would still each mint a
+  # fresh record. So no entities — flat-by-design within each
+  # category aggregate.
   #
   # ── The runtime substrate ──
   #
   # The bluebook is the contract. Two pieces of substrate wire it :
   #
-  #   1. A runtime path that ACTUALLY runs the shell command.
-  #      Either a generic-command :shell adapter (the existing
-  #      :shell adapter is template-based and won't work for arbi-
-  #      trary commands), or a kernel-floor shim in main.rs that
-  #      executes the command and captures stdout + exit code.
+  #   1. The :claude_tool adapter family (see
+  #      framework/adapter_families/claude_tool.hecksagon) executes
+  #      Bash / Edit / Read / Update / Grep / Glob natively.
   #
-  #   2. The Claude harness intercepts every Bash tool call and
-  #      dispatches `framework::tools::Tools::Bash` instead of
-  #      invoking Bash directly. The harness then surfaces the
-  #      resulting BashRan event back into the conversation as
-  #      additional context, so Miette can react to her own
-  #      invocations the same way she reacts to any other domain
-  #      event.
+  #   2. The :web_tool adapter family (see
+  #      framework/adapter_families/web_tool.hecksagon) handles
+  #      WebFetch / WebSearch.
   #
-  # Both pieces are runtime work, not bluebook work. Filed as
-  # follow-on cards alongside this bluebook.
-  #
-  # ── The family ──
-  #
-  # Six standard-CLI-tooling commands, each a first-class dispatch :
-  #
-  #   * Bash    — shell_command ; emits BashRan
-  #   * Edit    — file_path + old_string + new_string + replace_all ;
-  #               emits EditApplied
-  #   * Read    — file_path ; emits FileRead
-  #   * Update  — file_path + content ; emits FileUpdated
-  #               (same semantic as Claude's Write tool — renamed
-  #                here to emphasize state-changing dispatch)
-  #   * Grep    — pattern + search_path ; emits GrepRan
-  #   * Glob    — glob_pattern + search_path ; emits GlobMatched
-  #
-  # Each becomes a command, each emits a matching event, each
-  # carries the input + description so the runtime can react.
-  #
-  # Web tooling (WebFetch / WebSearch) and task tooling (TaskCreate
-  # / TodoWrite / TaskList) are future families on this aggregate
-  # or on siblings — they're not "standard CLI" in the same way.
+  # Both adapter families chain their captured output through the
+  # `result_into:` cascade — typically Cascade.RecordResult — so the
+  # outcome becomes a first-class event the runtime can react to.
   #
   # ── State versus event payload ──
   #
@@ -75,34 +63,25 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
   # typically), so it lives in both the event payload and the
   # aggregate state. For Edit / Update, the old/new strings and
   # full file content can be thousands of bytes — those live in
-  # the event payload only. The aggregate state stays small : id,
+  # the event payload only. Aggregate state stays small : id,
   # description, and (when present) file_path. Replay logic
   # reconstructs heavy payloads from the event log when needed.
 
-  aggregate "Tools", "Tool invocations as first-class dispatched commands" do
+  # ── ShellTool : Bash (shell exec) ──
+  aggregate "ShellTool", "Shell-command invocations as first-class dispatched commands. Carries the verbatim shell command plus a one-line description ; the :claude_tool kernel hook executes it and chains the outcome into Cascade.RecordResult." do
     identified_by :id
 
     attribute :id, Id
     attribute :shell_command, ShellCommand
-    attribute :file_path, FilePath
-    attribute :pattern, Pattern
-    attribute :glob_pattern, GlobPattern
-    attribute :search_path, SearchPath
-    attribute :url, Url
-    attribute :prompt, FetchPrompt
-    attribute :query, SearchQuery
     attribute :description, Description
-    attribute :tool_kind, ToolKind
-    attribute :output, Output
-    attribute :exit_code, ExitCode
-    attribute :ok_status, Ok
 
     value_object "Id" do
       # Stable invocation id, minted by the caller (the harness)
       # before dispatch. The caller chooses the id form ; for the
-      # Claude harness it's a ULID. The aggregate persists by id
-      # so the BashRan event carries an identifier that downstream
-      # listeners can join against.
+      # Claude harness it's a ULID. The aggregate persists by id so
+      # the BashRan event carries an identifier that downstream
+      # listeners (and the Cascade.RecordResult follow-on) can join
+      # against.
       attribute :value, String
     end
 
@@ -110,30 +89,58 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
       # The shell command line passed to Bash, verbatim — what the
       # operator would type at a terminal. The runtime substrate
       # is what actually executes it ; the bluebook just records
-      # what was asked. No quoting / escaping rules here ; the
-      # value is the source string.
+      # what was asked.
       attribute :value, String
     end
 
     value_object "Description" do
       # One-line caption in active voice, captioning what the
-      # invocation is trying to do. Stays under 80 characters
-      # by convention so it reads cleanly in the statusline and
+      # invocation is trying to do. Stays under 80 characters by
+      # convention so it reads cleanly in the statusline and
       # event-stream surfaces.
       attribute :value, String
     end
 
+    command "Bash" do
+      role "Miette"
+      description "Run a shell command. Records the dispatch as a ShellTool record and emits BashRan carrying the command, description, and invocation id so downstream policies can react to the call. The :claude_tool adapter actually executes the shell — this bluebook names the contract, not the execution."
+      attribute :id, Id
+      attribute :shell_command, ShellCommand
+      attribute :description, Description
+      emits "BashRan"
+      then_set :shell_command, to: :shell_command
+      then_set :description,   to: :description
+    end
+  end
+
+  # ── FileTool : Read, Edit, Update (file I/O) ──
+  aggregate "FileTool", "File-I/O tool invocations as first-class dispatched commands. Read is pure observation ; Edit applies a substring substitution ; Update writes content. State carries the file_path + description ; large payloads (old/new strings, full content) ride in the event payload only so persistence stays small." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :file_path, FilePath
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Same shape as ShellTool/SearchTool/WebTool/Cascade — the
+      # convention is one ULID per dispatched tool call, shared
+      # with the corresponding Cascade.RecordResult so the outcome
+      # is joinable by id.
+      attribute :value, String
+    end
+
     value_object "FilePath" do
-      # The file Edit / Read / Write target. Absolute path
+      # The file Read / Edit / Update target. Absolute path
       # preferred ; relative paths are interpreted by the runtime
       # substrate at dispatch time.
       attribute :value, String
     end
 
     value_object "OldString" do
-      # The substring Edit replaces. Lives in the EditApplied
-      # event payload only ; not persisted to aggregate state, so
-      # the heki doesn't grow unbounded with every edit's bytes.
+      # The substring Edit replaces. Lives in the EditApplied event
+      # payload only ; not persisted to aggregate state, so the
+      # heki doesn't grow unbounded with every edit's bytes.
       attribute :value, String
     end
 
@@ -152,8 +159,71 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
     value_object "Content" do
       # The full content Update writes to a file. Lives in the
       # FileUpdated event payload only ; not persisted to
-      # aggregate state, so the heki doesn't grow unbounded with
-      # every write's bytes.
+      # aggregate state.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice. Same shape as the
+      # Description VO on every other tool aggregate ; duplicated
+      # here per the locked convention (VOs live inside the
+      # aggregate that uses them).
+      attribute :value, String
+    end
+
+    # ── Read ──
+    command "Read" do
+      role "Miette"
+      description "Read a file's contents. Records the dispatch as a FileTool record and emits FileRead carrying the file_path and description. The actual file contents flow through the event payload (filled by the runtime substrate after the read completes) ; aggregate state only records what was looked at and why."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :description, Description
+      emits "FileRead"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+
+    # ── Edit ──
+    command "Edit" do
+      role "Miette"
+      description "Apply a string substitution to a file. Records the dispatch as a FileTool record and emits EditApplied carrying the file_path, old_string, new_string, replace_all flag, and description. The full old/new strings live in the event payload ; aggregate state stores only the file_path + description."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :old_string, OldString
+      attribute :new_string, NewString
+      attribute :replace_all, ReplaceAll
+      attribute :description, Description
+      emits "EditApplied"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+
+    # ── Update ──
+    command "Update" do
+      role "Miette"
+      description "Write content to a file. Records the dispatch as a FileTool record and emits FileUpdated carrying the file_path, content, and description. The full content lives in the event payload ; aggregate state stores only the file_path and description. Same semantic as Claude's existing Write tool — renamed here to emphasize that the runtime treats it as a state-changing dispatch."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :content, Content
+      attribute :description, Description
+      emits "FileUpdated"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+  end
+
+  # ── SearchTool : Grep, Glob (filesystem search) ──
+  aggregate "SearchTool", "Filesystem-search tool invocations as first-class dispatched commands. Grep finds regex matches ; Glob enumerates paths against a filesystem pattern. State carries what was searched for and where ; match results ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :pattern, Pattern
+    attribute :glob_pattern, GlobPattern
+    attribute :search_path, SearchPath
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
       attribute :value, String
     end
 
@@ -167,7 +237,6 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
     value_object "GlobPattern" do
       # Filesystem-glob pattern passed to Glob (e.g.
       # "rust/src/**/*.rs", "hecks_conception/aggregates/**.bluebook").
-      # Same shape as the existing Glob tool's `pattern` parameter.
       attribute :value, String
     end
 
@@ -178,150 +247,16 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
       attribute :value, String
     end
 
-    value_object "Url" do
-      # The URL passed to WebFetch — verbatim, including scheme.
-      # The runtime substrate is what actually fetches it ; the
-      # bluebook records what was asked for so downstream policies
-      # can correlate fetches with the URLs they targeted.
+    value_object "Description" do
+      # One-line caption in active voice. Duplicated per locked
+      # convention (VOs inside each aggregate).
       attribute :value, String
     end
 
-    value_object "FetchPrompt" do
-      # The instruction passed to WebFetch alongside the URL,
-      # telling the model how to process the fetched content
-      # (extract a value, summarize, answer a question, etc.).
-      # Lives in the WebFetched event payload and on the
-      # aggregate so policies can reason over what we asked for.
-      attribute :value, String
-    end
-
-    value_object "SearchQuery" do
-      # The query string passed to WebSearch — the text the
-      # search engine receives. Recorded both on the aggregate
-      # and in the WebSearched event so awareness can surface
-      # "Miette searched for X" the same way it surfaces other
-      # tool invocations.
-      attribute :value, String
-    end
-
-    value_object "ToolKind" do
-      # Which tool produced the result — one of
-      # "bash" / "edit" / "read" / "write" / "grep" / "glob".
-      # Lowercase by convention so the value matches the kernel
-      # hook's `tool` field in ClaudeToolResult verbatim.
-      attribute :value, String
-    end
-
-    value_object "Output" do
-      # Captured stdout / tool output from the underlying runtime
-      # invocation, as the kernel hook returned it. May be long ;
-      # the aggregate state records it so a follow-up dispatch can
-      # reason over the most recent result, but downstream policies
-      # that need long-term audit should hook ResultRecorded.
-      attribute :value, String
-    end
-
-    value_object "ExitCode" do
-      # Process exit code from the underlying runtime invocation,
-      # mirroring ClaudeToolResult.exit_code. 0 conventionally
-      # means success ; non-zero means failure, with the specific
-      # number carrying tool-defined meaning.
-      attribute :value, Integer
-    end
-
-    value_object "Ok" do
-      # Coarse-grained success flag, mirroring ClaudeToolResult.ok.
-      # The kernel hook computes this from exit_code + any error
-      # string ; the bluebook just records what the hook decided.
-      attribute :value, Boolean
-    end
-
-    # ── Bash : the first tool command ──
-    command "Bash" do
-      role "Miette"
-      description "Run a shell command. Records the dispatch as a Tools record and emits BashRan carrying the command, description, and invocation id so downstream policies can react to the call. The runtime substrate (a generic-command :shell adapter or kernel-floor shim) is what actually executes the shell — this bluebook names the contract, not the execution."
-      attribute :id, Id
-      attribute :shell_command, ShellCommand
-      attribute :description, Description
-      emits "BashRan"
-      then_set :shell_command, to: :shell_command
-      then_set :description,   to: :description
-    end
-
-    # ── Edit : the second tool command ──
-    #
-    # Edit mutates a file by substring substitution. Unlike Bash, the
-    # tool's inputs are too large to keep in state forever — old_string
-    # and new_string can be thousands of bytes each. The event payload
-    # carries the full strings for replay / audit ; the aggregate
-    # state only records what changed (file_path) and what we tried
-    # (description). So the heki stays small even after a long
-    # editing session.
-    command "Edit" do
-      role "Miette"
-      description "Apply a string substitution to a file. Records the dispatch as a Tools record and emits EditApplied carrying the file_path, old_string, new_string, replace_all flag, and description. The full old/new strings live in the event payload ; the aggregate state stores only the file_path + description so persistence doesn't bloat. Downstream policies can hook EditApplied to track code changes, refresh open views, surface in the statusline, or trigger awareness updates after substantial edits."
-      attribute :id, Id
-      attribute :file_path, FilePath
-      attribute :old_string, OldString
-      attribute :new_string, NewString
-      attribute :replace_all, ReplaceAll
-      attribute :description, Description
-      emits "EditApplied"
-      then_set :file_path,   to: :file_path
-      then_set :description, to: :description
-    end
-
-    # ── Read : the third tool command ──
-    #
-    # Read returns a file's contents. It's pure observation —
-    # no filesystem mutation, no state mutation downstream. Lighter
-    # event-wise than Edit / Update, but still worth a first-class
-    # dispatch so awareness can track "Miette is reading X" the
-    # same way it tracks "Miette is editing X." The file contents
-    # don't ride in state ; they're returned via the FileRead
-    # event payload and discarded after listeners consume them.
-    command "Read" do
-      role "Miette"
-      description "Read a file's contents. Records the dispatch as a Tools record and emits FileRead carrying the file_path and description. The actual file contents flow through the event payload (filled by the runtime substrate after the read completes) ; aggregate state only records what was looked at and why."
-      attribute :id, Id
-      attribute :file_path, FilePath
-      attribute :description, Description
-      emits "FileRead"
-      then_set :file_path,   to: :file_path
-      then_set :description, to: :description
-    end
-
-    # ── Update : the fourth tool command ──
-    #
-    # Update writes content to a file — creates new files, over-
-    # writes existing ones. Same event-only treatment for the big
-    # data as Edit (Content lives only in FileUpdated, not in
-    # state). The semantic matches Claude's existing Write tool ;
-    # the bluebook calls it Update to emphasize that the runtime
-    # treats it as a state-changing dispatch, not a side-effect.
-    command "Update" do
-      role "Miette"
-      description "Write content to a file. Records the dispatch as a Tools record and emits FileUpdated carrying the file_path, content, and description. The full content lives in the event payload ; aggregate state stores only the file_path and description so persistence doesn't bloat. Downstream policies can hook FileUpdated to track new bluebooks, regenerate downstream artifacts, or surface significant writes in awareness."
-      attribute :id, Id
-      attribute :file_path, FilePath
-      attribute :content, Content
-      attribute :description, Description
-      emits "FileUpdated"
-      then_set :file_path,   to: :file_path
-      then_set :description, to: :description
-    end
-
-    # ── Grep : the fifth tool command ──
-    #
-    # Grep searches files for a regex pattern. Matches live in the
-    # GrepRan event payload as a list of (path, line_no, line)
-    # tuples ; state records what we searched for and where, not
-    # the matches themselves. A policy on GrepRan could push the
-    # match count into the statusline or surface long searches as
-    # awareness-worthy moments.
+    # ── Grep ──
     command "Grep" do
       role "Miette"
-      description "Search files for a regex pattern. Records the dispatch as a Tools record and emits GrepRan carrying the pattern, search_path, and description. Match results flow through the event payload ; aggregate state stores what was searched and where, not the matches themselves."
+      description "Search files for a regex pattern. Records the dispatch as a SearchTool record and emits GrepRan carrying the pattern, search_path, and description. Match results flow through the event payload ; aggregate state stores what was searched and where, not the matches themselves."
       attribute :id, Id
       attribute :pattern, Pattern
       attribute :search_path, SearchPath
@@ -332,14 +267,10 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
       then_set :description, to: :description
     end
 
-    # ── Glob : the sixth tool command ──
-    #
-    # Glob lists files matching a filesystem pattern. The matching
-    # paths live in the GlobMatched event payload ; state records
-    # what we asked for and where we rooted the search.
+    # ── Glob ──
     command "Glob" do
       role "Miette"
-      description "List files matching a glob pattern. Records the dispatch as a Tools record and emits GlobMatched carrying the glob_pattern, search_path, and description. Match results (the file paths) flow through the event payload ; aggregate state stores only what was asked for."
+      description "List files matching a glob pattern. Records the dispatch as a SearchTool record and emits GlobMatched carrying the glob_pattern, search_path, and description. Match results (the file paths) flow through the event payload ; aggregate state stores only what was asked for."
       attribute :id, Id
       attribute :glob_pattern, GlobPattern
       attribute :search_path, SearchPath
@@ -349,17 +280,51 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
       then_set :search_path,  to: :search_path
       then_set :description,  to: :description
     end
+  end
 
-    # ── WebFetch : the seventh tool command ──
-    #
-    # WebFetch retrieves a URL and processes its content with a
-    # prompt. The fetched content can be large ; per the same
-    # discipline applied to Edit / Update, the full content rides
-    # in the WebFetched event payload only — aggregate state stores
-    # the url, prompt, and description so persistence stays small.
+  # ── WebTool : WebFetch, WebSearch (HTTP / search engine) ──
+  aggregate "WebTool", "Web tool invocations as first-class dispatched commands. WebFetch retrieves a URL and processes it with a prompt ; WebSearch runs a query against a search engine. State carries the url/prompt/query + description ; fetched content + result listings ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :url, Url
+    attribute :prompt, FetchPrompt
+    attribute :query, SearchQuery
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "Url" do
+      # The URL passed to WebFetch — verbatim, including scheme.
+      attribute :value, String
+    end
+
+    value_object "FetchPrompt" do
+      # The instruction passed to WebFetch alongside the URL,
+      # telling the model how to process the fetched content
+      # (extract a value, summarize, answer a question, etc.).
+      attribute :value, String
+    end
+
+    value_object "SearchQuery" do
+      # The query string passed to WebSearch — the text the search
+      # engine receives.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice. Duplicated per locked
+      # convention (VOs inside each aggregate).
+      attribute :value, String
+    end
+
+    # ── WebFetch ──
     command "WebFetch" do
       role "Miette"
-      description "Fetch a URL and process its content with a prompt. Records the dispatch as a Tools record and emits WebFetched carrying the url, prompt, content (truncated), and description."
+      description "Fetch a URL and process its content with a prompt. Records the dispatch as a WebTool record and emits WebFetched carrying the url, prompt, content (truncated), and description."
       attribute :id, Id
       attribute :url, Url
       attribute :prompt, FetchPrompt
@@ -369,15 +334,10 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
       then_set :description, to: :description
     end
 
-    # ── WebSearch : the eighth tool command ──
-    #
-    # WebSearch runs a query against a web search engine. Result
-    # listings ride in the WebSearched event payload ; aggregate
-    # state records what we searched for and the description so a
-    # follow-up dispatch can reason over the most recent query.
+    # ── WebSearch ──
     command "WebSearch" do
       role "Miette"
-      description "Search the web with a query. Records the dispatch as a Tools record and emits WebSearched carrying the query, allowed/blocked domains, and the result count + summary."
+      description "Search the web with a query. Records the dispatch as a WebTool record and emits WebSearched carrying the query, allowed/blocked domains, and the result count + summary."
       attribute :id, Id
       attribute :query, SearchQuery
       attribute :description, Description
@@ -385,28 +345,76 @@ Hecks.bluebook "Tools", version: "2026.05.12.5" do
       then_set :query,       to: :query
       then_set :description, to: :description
     end
+  end
 
-    # ── RecordResult : the ninth tool command ──
-    #
-    # RecordResult chains the kernel-floor :claude_tool hook's
-    # output back into the aggregate state. The hook
-    # (rust/src/runtime/claude_tool_dispatcher.rs) returns a
-    # ClaudeToolResult { tool, ok, output, exit_code, error } after
-    # each Tools.X command runs ; a parallel runtime dispatcher
-    # integration fires RecordResult on the same invocation id so
-    # the result becomes a first-class event the runtime can react
-    # to, instead of just stderr-logged noise.
-    #
-    # The id matches the originating dispatch so the result is
-    # joinable against the BashRan / EditApplied / FileRead /
-    # FileUpdated / GrepRan / GlobMatched event that triggered it.
-    # All five payload fields are persisted onto the aggregate
-    # root so the most recent result is queryable as state ; the
-    # ResultRecorded event carries the same data for downstream
-    # listeners and audit.
+  # ── Cascade : RecordResult (kernel-hook outcome chain) ──
+  #
+  # Cascade is the landing pad for the :claude_tool / :web_tool kernel
+  # hook's output. When ShellTool.Bash / FileTool.Read / SearchTool.Grep
+  # / WebTool.WebFetch (etc.) finishes, the adapter fires
+  # Cascade.RecordResult carrying the same invocation id plus the
+  # captured tool kind, output, exit_code, and ok flag.
+  #
+  # The id matches the originating dispatch — a Cascade record and its
+  # originating tool record share the same id, so the join is by id
+  # across aggregates. ResultRecorded events carry the full outcome
+  # payload for downstream policies that need to react to tool
+  # outcomes (success / failure / non-zero exit / interesting output).
+  aggregate "Cascade", "Kernel-hook outcome chain. After a ShellTool / FileTool / SearchTool / WebTool dispatch runs through its adapter, the adapter chains Cascade.RecordResult carrying the captured outcome (tool, output, exit_code, ok). The Cascade record shares the originating invocation id so the join is straightforward." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :tool_kind, ToolKind
+    attribute :output, Output
+    attribute :exit_code, ExitCode
+    attribute :ok_status, Ok
+    attribute :description, Description
+
+    value_object "Id" do
+      # Invocation id — matches the id of the originating
+      # ShellTool/FileTool/SearchTool/WebTool record so the outcome
+      # is joinable against the invocation by id.
+      attribute :value, String
+    end
+
+    value_object "ToolKind" do
+      # Which tool produced the result — one of "bash" / "edit" /
+      # "read" / "write" / "grep" / "glob" / "web_fetch" /
+      # "web_search". Lowercase by convention so the value matches
+      # the kernel hook's `tool` field in the result payload.
+      attribute :value, String
+    end
+
+    value_object "Output" do
+      # Captured stdout / tool output from the underlying runtime
+      # invocation, as the kernel hook returned it. May be long ;
+      # the aggregate state records it so a follow-up dispatch can
+      # reason over the most recent result.
+      attribute :value, String
+    end
+
+    value_object "ExitCode" do
+      # Process exit code from the underlying runtime invocation,
+      # mirroring ClaudeToolResult.exit_code. 0 conventionally
+      # means success ; non-zero means failure with the specific
+      # number carrying tool-defined meaning.
+      attribute :value, Integer
+    end
+
+    value_object "Ok" do
+      # Coarse-grained success flag, mirroring ClaudeToolResult.ok.
+      attribute :value, Boolean
+    end
+
+    value_object "Description" do
+      # One-line caption. Duplicated per locked convention.
+      attribute :value, String
+    end
+
+    # ── RecordResult ──
     command "RecordResult" do
       role "System"
-      description "Record the outcome of a previous tool dispatch back onto the Tools aggregate. The :claude_tool kernel hook calls this after a Tools.X command runs, carrying the same invocation id plus the captured tool, output, exit_code, and ok flag from ClaudeToolResult. Emits ResultRecorded so downstream policies can react to tool outcomes (success / failure / non-zero exit / interesting output) the same way they react to any other domain event."
+      description "Record the outcome of a previous tool dispatch onto a Cascade record. The :claude_tool / :web_tool adapter fires this after the matching tool command runs, carrying the same invocation id plus the captured tool kind, output, exit_code, and ok flag from the kernel hook's result payload. Emits ResultRecorded so downstream policies can react to tool outcomes the same way they react to any other domain event."
       attribute :id, Id
       attribute :tool, ToolKind
       attribute :output, Output

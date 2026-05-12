@@ -1,19 +1,19 @@
 Hecks.hecksagon "Tools" do
   # ============================================================
-  # TOOLS — adapter bindings : Tools.X dispatch → real tool run
+  # TOOLS — adapter bindings : <Category>Tool.X dispatch → real run
   # ============================================================
   #
-  # The Tools bluebook (sibling file tools.bluebook) declares the
-  # six tool commands as first-class dispatches. The default-to-
-  # memory runtime is enough for the dispatch + event-emit loop ;
-  # this hecksagon adds the SIDE-EFFECT layer.
+  # The Tools bluebook (sibling file tools.bluebook) declares five
+  # category aggregates as first-class dispatches : ShellTool, FileTool,
+  # SearchTool, WebTool, Cascade. The default-to-memory runtime is
+  # enough for the dispatch + event-emit loop ; this hecksagon adds the
+  # SIDE-EFFECT layer.
   #
-  # Each `adapter :claude_tool` entry below binds a Tools.X command
-  # to the corresponding Claude tool. When the runtime sees a
-  # matching dispatch, the adapter fires, the underlying tool
-  # actually runs (real shell, real file edit, real read), and the
-  # result routes back into the aggregate state as a follow-on
-  # dispatch.
+  # Each `adapter :claude_tool` / `adapter :web_tool` entry below binds
+  # one command to the corresponding tool kind. When the runtime sees a
+  # matching dispatch, the adapter fires, the underlying tool actually
+  # runs (real shell, real file edit, real read), and the result routes
+  # back into the Cascade aggregate as a follow-on dispatch.
   #
   # ── The principle the binding sits on ──
   #
@@ -24,47 +24,41 @@ Hecks.hecksagon "Tools" do
   # the only impure layer. Same shape as the IO monad — intent and
   # side-effect kept separate.
   #
-  # ── Runtime status (2026-05-12) ──
+  # ── Cascade target ──
   #
-  # The :claude_tool adapter flavor isn't yet a typed IR struct ;
-  # the hecksagon_parser falls back to IoAdapter for unrecognized
-  # kinds, so these entries LAND in the hecksagon IR as IoAdapter
-  # rows with options={command: "Tools.X", tool: :foo}. The runtime
-  # doesn't yet dispatch off them — that's i551's runtime work
-  # (parser + dispatcher mirroring :llm).
-  #
-  # Today this file is the DESIGN SURFACE : the binding is named,
-  # the structure is captured, and any future parser / dispatcher
-  # work has a concrete shape to read against. Default-to-memory
-  # means the bluebook side is already working ; the adapter is the
-  # next layer.
+  # `result_into: "Cascade.RecordResult"` — after the kernel hook runs,
+  # the captured outcome cascades into a Cascade record, joinable
+  # against the originating invocation by id. Previously the cascade
+  # target was the same Tools aggregate ; the category split moves the
+  # outcome chain to its own aggregate, separating "the act" from
+  # "what came back".
 
   adapter :memory
 
-  adapter :claude_tool, command: "Tools.Bash",   tool: :bash,  result_into: "Tools.RecordResult"
-  adapter :claude_tool, command: "Tools.Edit",   tool: :edit,  result_into: "Tools.RecordResult"
-  adapter :claude_tool, command: "Tools.Read",   tool: :read,  result_into: "Tools.RecordResult"
-  adapter :claude_tool, command: "Tools.Update", tool: :write, result_into: "Tools.RecordResult"
-  adapter :claude_tool, command: "Tools.Grep",   tool: :grep,  result_into: "Tools.RecordResult"
-  adapter :claude_tool, command: "Tools.Glob",   tool: :glob,  result_into: "Tools.RecordResult"
+  # ── ShellTool ──
+  adapter :claude_tool, command: "ShellTool.Bash",   tool: :bash,  result_into: "Cascade.RecordResult"
 
-  # ── :web_tool adapter bindings (i569) ──
+  # ── FileTool ──
+  adapter :claude_tool, command: "FileTool.Read",    tool: :read,  result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "FileTool.Edit",    tool: :edit,  result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "FileTool.Update",  tool: :write, result_into: "Cascade.RecordResult"
+
+  # ── SearchTool ──
+  adapter :claude_tool, command: "SearchTool.Grep",  tool: :grep,  result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "SearchTool.Glob",  tool: :glob,  result_into: "Cascade.RecordResult"
+
+  # ── WebTool : :web_tool adapter family (i569) ──
   #
-  # Bind Tools.WebFetch / Tools.WebSearch to the :web_tool adapter
+  # Bind WebTool.WebFetch / WebTool.WebSearch to the :web_tool adapter
   # family declared at framework/adapter_families/web_tool.hecksagon.
   # Same shape as the :claude_tool bindings above : `command` names
   # the dispatch target, `tool` selects the family's behavior
   # (web_fetch → perform_web_fetch hook ; web_search →
   # perform_web_search hook), and `result_into` chains the kernel-
-  # hook output back as a follow-on dispatch.
+  # hook output back into Cascade.RecordResult.
   #
   # Runtime status (2026-05-12) : these bindings are declared NOW
   # but won't auto-dispatch until i557's framework_registry lands.
-  # Their bluebook validity is checkable today via `storehouse
-  # validate` ; live dispatch waits for the registry to walk
-  # framework/adapter_families/ at boot and wire kernel hooks by
-  # behavior name. See hecks_conception/inbox/i569.md for the
-  # dependency notes.
-  adapter :web_tool, command: "Tools.WebFetch",  tool: :web_fetch,  result_into: "Tools.RecordResult"
-  adapter :web_tool, command: "Tools.WebSearch", tool: :web_search, result_into: "Tools.RecordResult"
+  adapter :web_tool, command: "WebTool.WebFetch",  tool: :web_fetch,  result_into: "Cascade.RecordResult"
+  adapter :web_tool, command: "WebTool.WebSearch", tool: :web_search, result_into: "Cascade.RecordResult"
 end

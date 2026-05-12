@@ -213,18 +213,20 @@ Hecks.bluebook "RenameDrift", version: "2026.05.12.1" do
   policy "CatalogBluebooks" do
     on "ScanStarted"
     trigger "Glob"
-    across "Tools"
+    across "SearchTool"
   end
 
-  # ExtractDeclarations : once Tools.Glob returns the .bluebook list,
-  # cascade into Tools.Grep to extract `aggregate "Name"` declarations.
-  # The runtime substrate routes the GlobMatched event into the next
-  # Grep dispatch ; the bluebook just names the wiring.
+  # ExtractDeclarations : once SearchTool.Glob returns the .bluebook
+  # list, cascade into SearchTool.Grep to extract `aggregate "Name"`
+  # declarations. The runtime substrate routes the GlobMatched event
+  # into the next Grep dispatch ; the bluebook just names the wiring.
+  # (tools.bluebook restructured 2026-05-12 from flat Tools into five
+  # category aggregates ; `across` now names the specific category.)
 
   policy "ExtractDeclarations" do
     on "GlobMatched"
     trigger "Grep"
-    across "Tools"
+    across "SearchTool"
   end
 
   # AlertOnFinding : every stale reference is also a threat — the

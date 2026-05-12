@@ -1,19 +1,28 @@
 # Claude Tool Adapter (`adapter :claude_tool`)
 
-A `:claude_tool` adapter binds one `Tools.X` dispatched command (Bash,
-Edit, Read, Update, Grep, Glob) back to the underlying tool execution.
-The bluebook composes the call as a first-class domain event ; the
-adapter is the impure layer that actually runs the shell, edits the
-file, walks the filesystem. Sibling to `:llm`, `:sms`, `:tts` — same
-auto-discovered, bluebook-first shape.
+A `:claude_tool` adapter binds one dispatched command — `ShellTool.Bash`,
+`FileTool.Read` / `FileTool.Edit` / `FileTool.Update`, `SearchTool.Grep`
+/ `SearchTool.Glob` — back to the underlying tool execution. The
+bluebook composes the call as a first-class domain event ; the adapter
+is the impure layer that actually runs the shell, edits the file, walks
+the filesystem. Sibling to `:llm`, `:sms`, `:tts` — same auto-discovered,
+bluebook-first shape.
 
 > "the domain will compose the tool call and the adapter runs them"
 > — Chris, 2026-05-12
 
 Pure intent meets pure side-effect. Without the adapter, a
-`Tools.Bash` dispatch is a logged intent (default-to-memory records it,
-emits `BashRan`, persists state). With the adapter, the same dispatch
-becomes the act.
+`ShellTool.Bash` dispatch is a logged intent (default-to-memory records
+it, emits `BashRan`, persists state). With the adapter, the same
+dispatch becomes the act.
+
+The 2026-05-12 restructuring split the original flat `Tools` aggregate
+into five category aggregates (ShellTool, FileTool, SearchTool, WebTool,
+Cascade) ; the `:claude_tool` adapter bindings in `tools.hecksagon`
+follow each command to its new aggregate home. The cascade target moved
+to `Cascade.RecordResult` so the outcome chain is its own aggregate,
+separating "the act" from "what came back" while sharing the invocation
+id for the join.
 
 ## The four-piece anatomy
 
@@ -29,9 +38,9 @@ clear role :
                            ▼
   ┌──────────────────────────────────────────────────────────┐
   │ 2. tools.hecksagon                                       │
-  │    adapter :claude_tool, command: "Tools.Bash",          │
+  │    adapter :claude_tool, command: "ShellTool.Bash",      │
   │                          tool: :bash,                    │
-  │                          result_into: "..."              │
+  │                          result_into: "Cascade.RecordResult" │
   └────────────────────────┬─────────────────────────────────┘
                            │  (auto-discovered at boot)
                            ▼
@@ -94,7 +103,7 @@ aggregate "MyDomain" do
 end
 ```
 
-(Or, more commonly, dispatch the framework's `Tools.Bash` command
+(Or, more commonly, dispatch the framework's `ShellTool.Bash` command
 directly — see the existing `tools.hecksagon` for the canonical binding
 set. The recipe above is the path when you want a domain-named alias.)
 
@@ -123,7 +132,7 @@ The four fields :
 ### 3. Dispatch (when the runtime dispatcher integration lands)
 
 ```bash
-$ storehouse <root> Tools.Bash \
+$ storehouse <root> ShellTool.Bash \
     id="01HX..." \
     shell_command="ls -la" \
     description="list cwd"
@@ -132,9 +141,11 @@ $ storehouse <root> Tools.Bash \
 The bus records the dispatch, emits `BashRan`, the matching
 `:claude_tool` adapter fires, the kernel runs `/bin/sh -c "ls -la"`,
 captures stdout + exit code, and routes the result into
-`Tools.RecordResult` as a follow-on dispatch. Downstream policies on
-`BashRan` (statusline updates, awareness shifts, mindstream entries)
-react the same way they react to any other domain event.
+`Cascade.RecordResult` as a follow-on dispatch (the Cascade record
+shares the invocation id with the ShellTool record). Downstream
+policies on `BashRan` or `ResultRecorded` (statusline updates,
+awareness shifts, mindstream entries) react the same way they react to
+any other domain event.
 
 ## Runtime status — 2026-05-12
 
@@ -155,7 +166,7 @@ What's pending : the runtime dispatcher arm that walks
 family typed (instead of falling through to `IoAdapter`), and routes
 matching dispatches through the kernel hook. Until that wires through,
 the bindings land in the IR as `IoAdapter` rows with
-`options={command: "Tools.X", tool: :bash}` — design surface today,
+`options={command: "ShellTool.Bash", tool: :bash}` — design surface today,
 execution path soon.
 
 ## Where the substrate lives — retirement contract

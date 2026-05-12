@@ -6,10 +6,10 @@ For the running, test-anchored feature list see `FEATURES.md`.
 ## 2026-05-12 — Macrophage + Tools arc
 
 ### Added
-- **`Tools` bluebook** (`framework/tools/tools.bluebook`) — six first-class tool-invocation commands (`Bash`, `Edit`, `Read`, `Update`, `Grep`, `Glob`) ; each mints a per-invocation aggregate and emits an event the runtime can react to. See i551
-- **`:claude_tool` adapter family** (`framework/adapter_families/claude_tool.hecksagon`) — bluebook-first declaration of the bridge from a `Tools.X` dispatch back to the underlying tool execution. Sibling to `:sms`, `:tts`, `:llm`, `:compute`
+- **Tools bluebook** (`framework/tools/tools.bluebook`) — first-class tool-invocation commands across **five category aggregates** : `ShellTool` (`Bash`), `FileTool` (`Read` / `Edit` / `Update`), `SearchTool` (`Grep` / `Glob`), `WebTool` (`WebFetch` / `WebSearch`), `Cascade` (`RecordResult`). Each invocation mints a per-invocation record on its category aggregate ; the Cascade record shares the originating tool record's id so the outcome is joinable by id across aggregates. Initially conceived as one flat `Tools` aggregate, restructured the same day. See i551
+- **`:claude_tool` adapter family** (`framework/adapter_families/claude_tool.hecksagon`) — bluebook-first declaration of the bridge from a tool-category dispatch back to the underlying tool execution. Sibling to `:sms`, `:tts`, `:llm`, `:compute`
 - **`invoke_claude_tool` behavior kind** (`framework/behavior_kinds/invoke_claude_tool.hecksagon`) — declarative contract for the kernel hook: `:tool`, `:result_into`, `:description` trigger attribute
-- **`claude_tool_dispatcher.rs` kernel hook** (`rust/src/runtime/claude_tool_dispatcher.rs`) — six native primitives ; end-to-end `Tools.Bash` dispatch actually runs the shell via `std::process::Command`. See i556
+- **`claude_tool_dispatcher.rs` kernel hook** (`rust/src/runtime/claude_tool_dispatcher.rs`) — six native primitives ; end-to-end `ShellTool.Bash` dispatch actually runs the shell via `std::process::Command`. See i556
 - **Four design principles** locked in `docs/design/principles-2026-05-12.md` — "it just works · wiring is override · domain doesn't hibernate · domain composes, adapter runs"
 
 ### Changed
