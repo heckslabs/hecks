@@ -76,7 +76,11 @@ pub fn sidebar_tree(
 </a>"#,
     );
 
-    // Active domain header + tree.
+    // Active domain header + tree. The domain-level <details> stays
+    // open by default ; per-aggregate <details> default to closed and
+    // a tiny client-side script (i111) opens the URL-hash target and
+    // any aggregates the operator previously expanded, keyed by
+    // `localStorage['bin-buddy.sidebar.<aggregate>']`.
     out.push_str(&format!(
         r#"<div class="mt-2 mb-1 px-3 text-xs font-bold uppercase tracking-wider text-brand/80">Active Domain</div>
 <details open class="mb-1">
@@ -96,13 +100,14 @@ pub fn sidebar_tree(
         let vo_count  = agg.value_objects.len();
         let vo_suffix = if vo_count > 0 { format!(" · {vo_count}vo") } else { String::new() };
         out.push_str(&format!(
-            r##"<details open class="bg-surface-2 rounded-lg border border-surface-3">
+            r##"<details data-sidebar-agg="{name}" class="bg-surface-2 rounded-lg border border-surface-3">
   <summary class="px-3 py-2 cursor-pointer flex items-center justify-between text-sm font-semibold text-white hover:bg-surface-3 rounded-t-lg">
     <a href="#{anchor}" class="hover:text-brand transition" onclick="event.stopPropagation()">{icon} {label}</a>
     <span class="text-xs text-gray-500">{cn}c · {qn}q{vn}</span>
   </summary>
   <div class="px-2 pb-2 pt-1 space-y-0.5">
 "##,
+            name = esc(&agg.name),
             anchor = agg_anchor,
             icon = super::html_shared::module_icon(&agg.name),
             label = esc(&display_name(&agg.name)),
@@ -178,5 +183,46 @@ pub fn sidebar_tree(
         if name == active { continue; }
         out.push_str(&sidebar_link(name, Some(active)));
     }
+
+    // i111 — per-aggregate <details> default closed (server-rendered).
+    // On DOMContentLoaded :
+    //   * Open the aggregate matching `location.hash` (e.g. #agg-Customer
+    //     → the Customer panel) ; this also handles the case where a
+    //     user lands on a deep link from another page.
+    //   * Restore any aggregate the operator previously expanded, keyed
+    //     by `bin-buddy.sidebar.<AggregateName>` in localStorage. The
+    //     namespace is `bin-buddy.sidebar` per i111 ; the walking
+    //     skeleton's first user is bin-buddy so the namespace is fixed
+    //     here ; renaming for other tenants is a future concern.
+    // Listen for toggle events to persist subsequent open/close.
+    out.push_str(r#"<script>
+(function() {
+  var KEY_PREFIX = 'bin-buddy.sidebar.';
+  function init() {
+    var hash = (location.hash || '').replace(/^#agg-/, '');
+    document.querySelectorAll('details[data-sidebar-agg]').forEach(function(d) {
+      var name = d.getAttribute('data-sidebar-agg');
+      var stored = null;
+      try { stored = localStorage.getItem(KEY_PREFIX + name); } catch (e) {}
+      if (name === hash) {
+        d.open = true;
+      } else if (stored === 'open') {
+        d.open = true;
+      } else if (stored === 'closed') {
+        d.open = false;
+      }
+      d.addEventListener('toggle', function() {
+        try { localStorage.setItem(KEY_PREFIX + name, d.open ? 'open' : 'closed'); } catch (e) {}
+      });
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>"#);
+
     out
 }
