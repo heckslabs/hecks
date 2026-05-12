@@ -48,7 +48,9 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
                     }
                 }
             }
-            Err(RuntimeError::UnknownCommand(command_name.to_string()))
+            Err(RuntimeError::UnknownCommand(
+                unknown_command_message_3part(rt, command_name, a, b, c)
+            ))
         }
         [agg_name, cmd_name] => {
             // First pass — direct aggregate command match.
@@ -76,7 +78,9 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
             if hits.len() == 1 {
                 Ok(Resolution::Entity(hits[0].0, hits[0].1, hits[0].2))
             } else if hits.is_empty() {
-                Err(RuntimeError::UnknownCommand(command_name.to_string()))
+                Err(RuntimeError::UnknownCommand(
+                    unknown_command_message_2part(rt, command_name, agg_name, cmd_name)
+                ))
             } else {
                 // Multiple entities of the same aggregate own a command
                 // by this name. Without entity disambiguation in the
@@ -140,7 +144,9 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
                     }
                 }
                 match hits.len() {
-                    0 => Err(RuntimeError::UnknownCommand(command_name.to_string())),
+                    0 => Err(RuntimeError::UnknownCommand(
+                        unknown_command_message_bare(rt, command_name)
+                    )),
                     1 => Ok(hits[0].0),
                     _ => {
                         let mut candidates: Vec<String> = hits.iter().map(|h| h.1.clone()).collect();
@@ -167,10 +173,15 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
                         }
                     }
                 }
-                Err(RuntimeError::UnknownCommand(command_name.to_string()))
+                Err(RuntimeError::UnknownCommand(
+                    unknown_command_message_bare(rt, command_name)
+                ))
             }
         }
-        _ => Err(RuntimeError::UnknownCommand(command_name.to_string())),
+        _ => Err(RuntimeError::UnknownCommand(format!(
+            "{} — malformed dispatch address (expected one of: 'Command', 'Aggregate.Command', 'Context.Aggregate.Command', or 'Aggregate.Entity.Command')",
+            command_name
+        ))),
     }
 }
 

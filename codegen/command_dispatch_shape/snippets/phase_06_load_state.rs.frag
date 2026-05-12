@@ -3,7 +3,10 @@
             let id = id_val.to_string();
             match repo.find(&id).cloned() {
                 Some(s) => (s, false),
-                None => return Err(RuntimeError::AggregateNotFound(id)),
+                None => return Err(RuntimeError::AggregateNotFound(
+                    format!("no aggregate of type '{}' found with id '{}' — the dispatch expected an existing record but none matched (passed via attr '{}')",
+                        aggregate_name, id, ref_name)
+                )),
             }
         } else if let Some(ref id) = cascade_id {
             // Cascade hint resolved a same-type id — reuse it even
@@ -12,12 +15,17 @@
             // kwarg name).
             match repo.find(id).cloned() {
                 Some(s) => (s, false),
-                None => return Err(RuntimeError::AggregateNotFound(id.clone())),
+                None => return Err(RuntimeError::AggregateNotFound(
+                    format!("no aggregate of type '{}' found with id '{}' — the dispatch expected an existing record but none matched (cascade hint)",
+                        aggregate_name, id)
+                )),
             }
         } else if is_create {
             (AggregateState::new(&repo.id_for_command(&attrs)), true)
         } else {
-            return Err(RuntimeError::MissingAttribute("self-referencing id".into()));
+            return Err(RuntimeError::MissingAttribute(
+                self_ref_missing_message(rt, res, command_name, ref_name)
+            ));
         }
     } else if let Some(ref id) = cascade_id {
         // Same-type cascade with an existing record — reuse it,
