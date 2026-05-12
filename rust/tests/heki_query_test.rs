@@ -1,11 +1,21 @@
-//! Integration tests for the new `storehouse heki` query subcommands.
+//! Integration tests for the `storehouse heki` query subcommands.
 //!
 //! Each test shells to the built binary against a tmp fixture .heki file,
 //! so the exit-code / output contract is exercised end-to-end. Plus
-//! byte-for-byte parity tests against the current `python3 -c` shapes
-//! that Phase B will retire.
+//! byte-for-byte parity tests against the `python3 -c` shapes that Phase
+//! B retired (kept as regression coverage).
 //!
-//! [antibody-exempt: test coverage for the new subcommands]
+//! [antibody-exempt: rust/tests/heki_query_test.rs — kernel-surface
+//!  integration test for the `storehouse heki` query subcommands.
+//!  Spawns the built binary against tmp `.heki` fixtures and asserts
+//!  exit-code + stdout contract end-to-end ; necessarily Rust because
+//!  it owns subprocess invocation + binary path resolution. Same
+//!  retirement contract as `rust/src/heki_query.rs` (the module under
+//!  test) : retires when `heki.hecksagon` ships and the subcommands
+//!  dispatch through a `:fs` adapter binding (i521 shipped
+//!  `heki.bluebook` ; the hecksagon side is still pending). At that
+//!  point the subcommand contract moves into a `.behaviors` companion
+//!  of `heki.bluebook` and this `.rs` retires.]
 
 use storehouse::heki;
 use serde_json::json;

@@ -1,17 +1,30 @@
-// rust/tests/specializer_golden_test.rs
-//
-// Golden tests for the i51 Futamura specializers. Phase E deleted the
-// Ruby `bin/specialize` driver + Ruby specializer modules; the Rust-
-// native `storehouse specialize <target>` subcommand is now the only
-// path. These tests invoke it and assert byte-identity against the
-// tracked, generated `.rs` sources under `rust/src/`.
-//
-// When any test goes green, we have a Futamura proof for that module:
-// a specialized interpreter (bluebook → Rust) that produces the same
-// artifact a human wrote.
-//
-// If a tracked .rs is edited by hand, this test fails until the
-// shape + specializer are updated to match.
+//! Golden tests for the i51 Futamura specializers.
+//!
+//! Phase E deleted the Ruby `bin/specialize` driver + Ruby specializer
+//! modules ; the Rust-native `storehouse specialize <target>` subcommand
+//! is now the only path. These tests invoke it and assert byte-identity
+//! against the tracked, generated `.rs` sources under `rust/src/`.
+//!
+//! When any test goes green, we have a Futamura proof for that module :
+//! a specialized interpreter (bluebook → Rust) that produces the same
+//! artifact a human wrote.
+//!
+//! If a tracked .rs is edited by hand, this test fails until the
+//! shape + specializer are updated to match.
+//!
+//! [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test
+//!  scaffolding for the i51 Futamura specializer pipeline. Each `#[test]`
+//!  shells to `storehouse specialize <target>` and asserts byte-identity
+//!  against the tracked `rust/src/<target>.rs`. Test-only kernel-floor
+//!  surface : the specializers under test ARE the path that retires
+//!  generated `.rs` files, but the byte-identity harness itself is
+//!  necessarily Rust (it asserts on Rust byte sequences). Retires when
+//!  i78 lands and the specializer pipeline regenerates from its own
+//!  meta-shape, at which point byte-identity goldens move under the
+//!  meta-shape's coverage. Previously carried 25 identical per-test
+//!  scaffolding markers ; consolidated to a single file-level header
+//!  on 2026-05-12 (the macrophage / antibody check only inspects the
+//!  first 30 lines, so mid-file markers were decorative).]
 
 use storehouse::hecksagon_parser;
 use std::fs;
@@ -114,7 +127,6 @@ fn rust_specializer_produces_byte_identical_dump_rs() {
     );
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     // Phase D — Rust-native specializer for hecksagon_parser. Third
@@ -148,7 +160,6 @@ fn rust_specializer_produces_byte_identical_hecksagon_parser_rs() {
     );
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_validator_rs() {
     // Phase D — Rust-native specializer for validator.rs. Largest
@@ -215,7 +226,6 @@ fn rust_specializer_produces_byte_identical_behaviors_parser_rs() {
     );
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_validator_corpus_rs() {
     // i146 piece 2 — Rust-native specializer for validator_corpus.rs.
@@ -302,7 +312,6 @@ fn rust_specializer_produces_byte_identical_fixtures_parser_rs() {
 // emit, the test fails — same byte-identity invariant the existing
 // 6 targets enforce.
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
     let root = repo_root();
@@ -320,7 +329,6 @@ fn rust_specializer_produces_byte_identical_dispatch_query_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_repository_rs() {
     let root = repo_root();
@@ -338,7 +346,6 @@ fn rust_specializer_produces_byte_identical_repository_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_run_statusline_rs() {
     let root = repo_root();
@@ -356,7 +363,6 @@ fn rust_specializer_produces_byte_identical_run_statusline_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_system_prompt_rs() {
     let root = repo_root();
@@ -374,7 +380,6 @@ fn rust_specializer_produces_byte_identical_system_prompt_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
     // i147 wave 2 — Rust-native specializer for behaviors_fixtures.
@@ -397,7 +402,6 @@ fn rust_specializer_produces_byte_identical_behaviors_fixtures_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_heki_query_rs() {
     let root = repo_root();
@@ -415,7 +419,6 @@ fn rust_specializer_produces_byte_identical_heki_query_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
     // i147 wave 2 — Rust-native specializer for run_boot/discover.rs.
@@ -439,7 +442,6 @@ fn rust_specializer_produces_byte_identical_run_boot_discover_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_aggregate_state_rs() {
     // i147 Wave 4-A (i171 closure) — re-targeted at mutation_op_shape.
@@ -464,7 +466,6 @@ fn rust_specializer_produces_byte_identical_aggregate_state_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_interpreter_rs() {
     // i147 Wave 4-A (i171 closure) — Rust-native specializer for
@@ -497,7 +498,6 @@ fn rust_specializer_produces_byte_identical_interpreter_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
     // i147 wave 2 — Rust-native specializer for conceiver/generator.rs.
@@ -520,7 +520,6 @@ fn rust_specializer_produces_byte_identical_conceiver_generator_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_adapter_llm_rs() {
     // i147 Wave 3-B — Rust-native specializer for runtime/adapter_llm.rs.
@@ -546,7 +545,6 @@ fn rust_specializer_produces_byte_identical_adapter_llm_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_parser_rs() {
     // i147 Wave 3-C — Rust-native specializer for parser.rs (the
@@ -576,7 +574,6 @@ fn rust_specializer_produces_byte_identical_parser_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_behaviors_runner_rs() {
     // i147 Wave 4-B — Rust-native specializer for behaviors_runner.rs
@@ -606,7 +603,6 @@ fn rust_specializer_produces_byte_identical_behaviors_runner_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_ir_rs() {
     // i147 Wave 4-C — Rust-native specializer for ir.rs (the canonical
@@ -638,7 +634,6 @@ fn rust_specializer_produces_byte_identical_ir_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_command_dispatch_rs() {
     // i147 Wave 5-A — Rust-native specializer for runtime/command_dispatch.rs
@@ -670,7 +665,6 @@ fn rust_specializer_produces_byte_identical_command_dispatch_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
     // i147 Wave 3-C — Rust-native specializer for parse_blocks.rs
@@ -698,7 +692,6 @@ fn rust_specializer_produces_byte_identical_parse_blocks_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_main_rs() {
     // i147 Wave 6 — Rust-native specializer for rust/src/main.rs (the
@@ -737,7 +730,6 @@ fn rust_specializer_produces_byte_identical_main_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_runtime_rs() {
     // i147 Wave 5-B — Rust-native specializer for runtime/mod.rs (the
@@ -771,7 +763,6 @@ fn rust_specializer_produces_byte_identical_runtime_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_html_domain_rs() {
     // i147 Wave 9-A — Rust-native specializer for server/html_domain.rs
@@ -807,7 +798,6 @@ fn rust_specializer_produces_byte_identical_html_domain_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_parser_helpers_rs() {
     // i147 Wave 9-B — Rust-native specializer for parser_helpers.rs
@@ -833,7 +823,6 @@ fn rust_specializer_produces_byte_identical_parser_helpers_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_assemble_rs() {
     // i147 Wave 8 — Rust-native specializer for run_status/assemble.rs
@@ -866,7 +855,6 @@ fn rust_specializer_produces_byte_identical_assemble_rs() {
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
 
-// [antibody-exempt: rust/tests/specializer_golden_test.rs — golden-test scaffolding]
 #[test]
 fn rust_specializer_produces_byte_identical_lifecycle_validator_rs() {
     // i147 Wave 9-C — Rust-native specializer for lifecycle_validator.rs
