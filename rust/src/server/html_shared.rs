@@ -11,6 +11,11 @@
 /// Home / Universe / Walking-Skeleton / Diagram / Customer Portal
 /// without dead-ending on any one surface. `current_domain` lights
 /// up the per-domain links when known ; pass None on the dashboard.
+///
+/// i541 — first child is a hamburger that toggles the off-canvas
+/// sidebar on mobile (md and below). The wrap_page body adds the
+/// matching `-translate-x-full md:translate-x-0` classes on the
+/// sidebar + an overlay div for tap-off dismiss.
 pub fn top_bar(current_domain: Option<&str>) -> String {
     let (walking_link, diagram_link) = match current_domain {
         Some(d) if !d.is_empty() => (
@@ -26,6 +31,7 @@ pub fn top_bar(current_domain: Option<&str>) -> String {
     format!(
         r#"<header id="topbar" class="bg-surface-1 border-b border-surface-3 sticky top-0 z-30">
   <nav class="flex items-center gap-1 px-4 py-2 text-sm">
+    <button type="button" id="hamburger" class="md:hidden px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition" aria-label="Open menu" onclick="document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebar-overlay').classList.toggle('hidden');">☰</button>
     <a href="/" data-topbar="home" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🏠 Home</a>
     <a href="/diagram" data-topbar="diagram-universe" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🌌 Universe</a>
     {walking_link}
@@ -143,8 +149,12 @@ pub fn wrap_page_with_domain(
   <div class="page-blob" style="width:350px;height:350px;top:30%;right:40%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
   <div class="page-blob" style="width:400px;height:400px;bottom:30%;left:10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
   {topbar_html}
+  <!-- i541 mobile-sidebar overlay : dim the rest of the page when
+       the off-canvas sidebar is open. Tap to dismiss. Hidden by
+       default ; the hamburger in topbar toggles it. -->
+  <div id="sidebar-overlay" class="md:hidden fixed inset-0 bg-black/60 z-30 hidden" onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); this.classList.add('hidden');"></div>
   <div class="flex h-full relative z-10">
-    <aside id="sidebar" class="bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto" style="width:240px">
+    <aside id="sidebar" class="bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto z-40 transform transition-transform -translate-x-full md:translate-x-0" style="width:240px">
       <div class="p-6">
         <a href="/" class="text-xl font-bold text-brand hover:text-brand-dim transition">{app_name}</a>
         <p class="text-xs text-gray-500 mt-1">{app_subtitle}</p>
@@ -156,20 +166,20 @@ pub fn wrap_page_with_domain(
         <p class="text-xs text-gray-600 text-center">Empowered by Hecks</p>
       </div>
     </aside>
-    <div id="drag-left" class="fixed h-full cursor-col-resize z-20 flex items-center" style="left:240px;width:6px"
+    <div id="drag-left" class="hidden md:flex fixed h-full cursor-col-resize z-20 items-center" style="left:240px;width:6px"
       onmousedown="startDrag('left')">
       <div class="w-1 h-8 bg-surface-3 rounded-full mx-auto hover:bg-brand transition"></div>
     </div>
-    <main id="main-panel" class="flex-1 overflow-y-auto flex flex-col min-h-full" style="margin-left:240px;margin-right:260px">
+    <main id="main-panel" class="flex-1 overflow-y-auto flex flex-col min-h-full md:ml-[240px] md:mr-[260px]">
       <div class="p-8 flex-1">
         {main_html}
       </div>
     </main>
-    <div id="drag-right" class="fixed h-full cursor-col-resize z-20 flex items-center" style="right:260px;width:6px"
+    <div id="drag-right" class="hidden md:flex fixed h-full cursor-col-resize z-20 items-center" style="right:260px;width:6px"
       onmousedown="startDrag('right')">
       <div class="w-1 h-8 bg-surface-3 rounded-full mx-auto hover:bg-brand transition"></div>
     </div>
-    <aside id="event-panel" class="bg-surface-1 border-l border-surface-3 fixed right-0 h-full overflow-y-auto flex flex-col" style="width:260px">
+    <aside id="event-panel" class="bg-surface-1 border-l border-surface-3 fixed right-0 h-full overflow-y-auto hidden md:flex flex-col" style="width:260px">
       <div class="p-4 border-b border-surface-3">
         <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">⚡ Event Stream</h3>
       </div>
