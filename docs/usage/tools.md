@@ -74,6 +74,67 @@ description, and (when present) file_path.
 This is what the bluebook means when it says state stores "what
 changed and what we tried," not "the bytes that flowed."
 
+## Setup — PATH and conception lookup
+
+Before any cross-repo agent (`embryonaut-site`, `miette_family`, etc.)
+can dispatch `Tools.*` , the `storehouse` binary needs two things :
+
+1. **Be on `PATH`.** The release binary lives at
+   `~/Projects/hecks/rust/target/release/storehouse`. Symlink it into a
+   PATH directory :
+
+   ```bash
+   ln -sf ~/Projects/hecks/rust/target/release/storehouse ~/bin/storehouse
+   # If ~/bin isn't on PATH, add to ~/.zshrc or ~/.bashrc :
+   #   export PATH="$HOME/bin:$PATH"
+   # Alternatives if ~/bin is unavailable :
+   #   /usr/local/bin/storehouse  (needs sudo)
+   #   ~/.local/bin/storehouse   (if that's on PATH)
+   ```
+
+   After rebuilds (`cargo build --release` from `~/Projects/hecks/rust`)
+   the symlink keeps pointing at the freshly-built binary — no resigning
+   needed.
+
+2. **Know the conception root.** When `storehouse` is invoked with the
+   `Aggregate.Command` shortcut (`storehouse Tools.Bash …`) it resolves
+   the conception path in this order :
+
+   1. `HECKS_CONCEPTION_DIR` env var — set this when a sibling project
+      ships its own conception.
+   2. The hecks repo root inferred from the canonicalised binary
+      location (the historical behaviour ; works for builds inside the
+      hecks checkout).
+   3. `~/Projects/hecks/hecks_conception` as a hard fallback for
+      symlinked-on-PATH invocations.
+
+   For a one-off override, prefix the call :
+
+   ```bash
+   HECKS_CONCEPTION_DIR=/some/other/conception storehouse Tools.Bash …
+   ```
+
+   For a one-off explicit path, the positional form still works (it
+   takes precedence over both env and fallback) :
+
+   ```bash
+   storehouse /path/to/hecks_conception/aggregates Tools.Bash …
+   ```
+
+## Invocation
+
+Any shell, any cwd, after the setup above :
+
+```bash
+storehouse Tools.Bash shell_command="echo hello" id=bash-001 description="hello world"
+storehouse Tools.Read file_path=/etc/hosts id=read-001 description="inspect hosts"
+storehouse Tools.Grep pattern="TODO" search_path=. id=grep-001 description="find todos"
+```
+
+Each dispatch records on the matching aggregate (`ShellTool`, `FileTool`,
+`SearchTool`, `WebTool`) and chains `Cascade.RecordResult` with the
+captured outcome. No `cd`, no absolute path, no per-repo build.
+
 ## The Claude-calls-StoreHouse direction (i552)
 
 The wiring direction is **Claude → StoreHouse**, not
@@ -100,11 +161,12 @@ before any adapter wires in real side-effects."
 
 Two pieces meet in this direction :
 
-1. **The dispatch path** — `storehouse <root> Tools.Bash …` already
-   works (verified 2026-05-12). The aggregate exists, the command
-   exists, the runtime accepts the call. Default-to-memory is live
-   today, which means `Tools.Bash` is a logged intent right now even
-   before any real shell wires in.
+1. **The dispatch path** — `storehouse Tools.Bash …` (PATH form,
+   default conception) and `storehouse <root> Tools.Bash …`
+   (positional form, explicit conception) both work. The aggregate
+   exists, the command exists, the runtime accepts the call. Default-
+   to-memory is live today, which means `Tools.Bash` is a logged
+   intent right now even before any real shell wires in.
 2. **The side-effect adapter** — when `Tools.Bash` dispatches, the
    adapter actually runs the shell. The existing `:shell` adapter is
    template-based ; a generic-command flavor is the missing piece.
