@@ -1,4 +1,4 @@
-Hecks.bluebook "Mindstream", version: "2026.05.07.3" do
+Hecks.bluebook "Mindstream", version: "2026.05.12.1" do
   vision "The framework mindstream — the stream of supervised processes that keeps Miette's body running. Sibling to the self/voice/mind_stream consciousness stream : both are streams flowing through her, at different levels (thoughts there, processes here). One Mindstream = one Procfile + one .overmind.env ; the :overmind capability emits both into the mindstream's directory. The verb 'boot Miette' becomes 'overmind start' in that directory."
   category "framework"
 
@@ -12,9 +12,36 @@ Hecks.bluebook "Mindstream", version: "2026.05.07.3" do
   # one supervised unit. Studio is intentionally not a Mindstream
   # member — studio is UI, this is framework, they live as separate
   # concerns and are not launched from the same Procfile.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule, mirroring macrophage / antibody / immunity.
+  # Per-aggregate VO sets — duplication across aggregates is fine ;
+  # no bluebook-level VOs. Each name says its concept : a Name is
+  # not just a String, a Description is not just a String.
 
   aggregate "Mindstream", "A named group of processes overmind supervises together. One Mindstream = one Procfile + one .overmind.env. The :overmind capability emits both files into the mindstream's directory." do
     identified_by :name
+
+    attribute :name,        Name
+    attribute :description, Description
+    attribute :directory,   Directory
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The Mindstream's identifier — names the supervised process
+      # group (e.g. 'miette', 'studio'). Used as the identified_by
+      # key and as the directory name under which overmind drops
+      # its socket.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Free-form prose naming the mindstream's purpose. Surfaces
+      # in dashboards and overmind status output so an operator
+      # knows what this process group is for.
+      attribute :value, String
+    end
 
     # Directory — the filesystem path (relative to the repo root) where
     # the generated Procfile and .overmind.env land. First-class value
@@ -24,15 +51,11 @@ Hecks.bluebook "Mindstream", version: "2026.05.07.3" do
       attribute :path, String
     end
 
-    attribute :name,        String
-    attribute :description, String
-    attribute :directory,   Directory
-
     command "Define" do
       role "Framework"
       description "Declare a new mindstream. The name identifies the supervised group ; description names its purpose ; directory is where the generated Procfile and .overmind.env will land."
-      attribute :name,        String
-      attribute :description, String
+      attribute :name,        Name
+      attribute :description, Description
       attribute :directory,   Directory
       emits "Defined"
     end
@@ -56,6 +79,20 @@ Hecks.bluebook "Mindstream", version: "2026.05.07.3" do
   aggregate "MindstreamMember", "One Procfile entry — a single process flowing in the mindstream. Belongs to one Mindstream via reference_to(Mindstream)." do
     identified_by :name
 
+    attribute :name,     Name
+    attribute :command,  ShellCommand
+    attribute :lifespan, Lifespan
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The member's identifier inside its mindstream — becomes the
+      # Procfile process name (the token before the colon on each
+      # line). Duplicated from Mindstream.Name by design : the
+      # discipline is per-aggregate VO sets, no shared envelope.
+      attribute :value, String
+    end
+
     # ShellCommand — the line overmind invokes from the Mindstream's
     # directory. Value object so the generator can interpolate, validate,
     # or rewrite the command line uniformly.
@@ -75,15 +112,11 @@ Hecks.bluebook "Mindstream", version: "2026.05.07.3" do
       attribute :restart_on_failure, TrueClass, default: true
     end
 
-    attribute :name,     String
-    attribute :command,  ShellCommand
-    attribute :lifespan, Lifespan
-
     command "Register" do
       role "Framework"
       description "Add a member to a mindstream. Inputs : the member name, the mindstream it joins, the shell command overmind invokes, and its lifespan."
       reference_to(Mindstream)
-      attribute :name,     String
+      attribute :name,     Name
       attribute :command,  ShellCommand
       attribute :lifespan, Lifespan
       emits "Registered"
