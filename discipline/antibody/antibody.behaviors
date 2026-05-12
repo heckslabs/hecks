@@ -117,4 +117,32 @@ Hecks.behaviors "Antibody" do
     expect base_ref: "sample", result: "base_unresolvable"
   end
 
+
+  # ── ExemptRegistry aggregate ──────────────────────────────────
+
+  test "RegisterExemption records the path and reason for a new exemption" do
+    tests "RegisterExemption", on: "ExemptRegistry"
+    input  path: "rust/src/sample.rs", reason: "kernel-floor — retires when sample"
+    expect path: "rust/src/sample.rs", reason: "kernel-floor — retires when sample"
+  end
+
+  test "RegisterExemption overwrites the reason for an existing path (idempotent upsert)" do
+    tests "RegisterExemption", on: "ExemptRegistry"
+    setup  "RegisterExemption", path: "rust/src/sample.rs", reason: "old reason"
+    input  path: "rust/src/sample.rs", reason: "new reason — kernel-surface"
+    expect path: "rust/src/sample.rs", reason: "new reason — kernel-surface"
+  end
+
+  test "RegisterExemptions accepts a bulk specs list (one ExemptionRegistered emitted per row)" do
+    tests "RegisterExemptions", on: "ExemptRegistry"
+    input  specs: "[{\"path\":\"rust/src/a.rs\",\"reason\":\"kernel\"},{\"path\":\"rust/src/b.rs\",\"reason\":\"transitional\"}]"
+    expect emits: ["ExemptionRegistered", "ExemptionRegistered"]
+  end
+
+  test "RetireExemption removes the registry entry — deletion-assert is pending runner support" do
+    tests "RetireExemption", on: "ExemptRegistry", kind: :pending
+    setup  "RegisterExemption", path: "rust/src/sample.rs", reason: "sample"
+    expect deleted: "true"
+  end
+
 end
