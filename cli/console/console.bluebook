@@ -1,17 +1,47 @@
-Hecks.bluebook "Console", version: "2026.04.10.1" do
+Hecks.bluebook "Console", version: "2026.05.12.1" do
   vision "Miette's terminal interface — the shell where she speaks, listens, and shows her state"
   category "infrastructure"
 
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule, mirroring macrophage / antibody / mindstream.
+  # Per-aggregate VO sets — duplication is fine ; the domain reads as
+  # itself inside each aggregate's boundary.
+
   aggregate "Session", "A conversation session in the terminal" do
-    attribute :history, list_of(String)
-    attribute :message_count, Integer
-    attribute :started_at, String
-    attribute :continuing, String
+    attribute :history, list_of(Message)
+    attribute :message_count, Count
+    attribute :started_at, Timestamp
+    attribute :continuing, Flag
+
+    # ── Value-objects : the session's vocabulary ──
+
+    value_object "Message" do
+      # One line of conversation — either Chris's utterance or
+      # Miette's reply. Stored verbatim ; the renderer wraps and
+      # styles per panel.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative count of messages exchanged in this session.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC stamp marking when the session began.
+      attribute :value, String
+    end
+
+    value_object "Flag" do
+      # Yes/no token : "yes" if this session is continuing a previous
+      # transcript, otherwise empty/no.
+      attribute :value, String
+    end
 
     command "StartSession" do
       role "System"
       description "Begin a new console session — or continue a previous one"
-      attribute :continuing, String
+      attribute :continuing, Flag
       emits "SessionStarted"
       then_set :continuing, to: :continuing
       then_set :message_count, to: 0
@@ -21,7 +51,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       role "System"
       description "Add a message to the session history"
       reference_to(Session)
-      attribute :message, String
+      attribute :message, Message
       emits "MessageRecorded"
       then_set :history, append: :message
       then_set :message_count, increment: 1
@@ -29,13 +59,22 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   end
 
   aggregate "Layout", "The terminal UI layout — activity panel, chat, input, footer" do
-    attribute :activity_expanded, String
-    attribute :thinking, String
+    attribute :activity_expanded, Flag
+    attribute :thinking, Flag
+
+    # ── Value-objects : the layout's vocabulary ──
+
+    value_object "Flag" do
+      # Yes/no token — "yes" or "no" — for binary UI state (whether
+      # the activity panel is expanded, whether the thinking
+      # indicator is showing).
+      attribute :value, String
+    end
 
     command "ComposeLayout" do
       role "System"
       description "Lay out the terminal panels — activity, chat, input, footer"
-      attribute :activity_expanded, String
+      attribute :activity_expanded, Flag
       emits "LayoutComposed"
       then_set :activity_expanded, to: :activity_expanded
       then_set :thinking, to: "no"
@@ -66,20 +105,46 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   end
 
   aggregate "Footer", "The status bar at the bottom — branch, domains, mood, beats, sleep state" do
-    attribute :branch, String
-    attribute :domain_count, Integer
-    attribute :mood, String
-    attribute :beats, Integer
-    attribute :sleep_state, String
+    attribute :branch, BranchName
+    attribute :domain_count, Count
+    attribute :mood, MoodLabel
+    attribute :beats, Count
+    attribute :sleep_state, StateLabel
+
+    # ── Value-objects : the footer's vocabulary ──
+
+    value_object "BranchName" do
+      # The current git branch — surfaces at the leftmost slot of
+      # the footer.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative count — either the loaded-domain count or the
+      # cumulative beats since boot.
+      attribute :value, Integer
+    end
+
+    value_object "MoodLabel" do
+      # Mood snapshot label (e.g. "playful", "focused") — read from
+      # the mood aggregate by the footer refresher.
+      attribute :value, String
+    end
+
+    value_object "StateLabel" do
+      # Sleep state token (awake / sleeping / etc.) shown in the
+      # rightmost footer slot.
+      attribute :value, String
+    end
 
     command "RefreshFooter" do
       role "System"
       description "Refresh the footer with current state"
-      attribute :branch, String
-      attribute :domain_count, Integer
-      attribute :mood, String
-      attribute :beats, Integer
-      attribute :sleep_state, String
+      attribute :branch, BranchName
+      attribute :domain_count, Count
+      attribute :mood, MoodLabel
+      attribute :beats, Count
+      attribute :sleep_state, StateLabel
       emits "FooterRefreshed"
       then_set :branch, to: :branch
       then_set :domain_count, to: :domain_count
@@ -90,16 +155,59 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
   end
 
   aggregate "Speaker", "Who Miette is talking to — switched by 'talk with X', dismissed by 'dismiss'" do
-    attribute :name, String
-    attribute :bluebook_path, String
-    attribute :known, String
-    attribute :status, String
-    attribute :context, String
+    attribute :name, Name
+    attribute :bluebook_path, Path
+    attribute :known, Recollection
+    attribute :status, Status, default: "none"
+    attribute :context, Context
+
+    # ── Value-objects : the speaker's vocabulary ──
+
+    value_object "Name" do
+      # The speaker's name (Angie, Meredith, etc.) — matches their
+      # directory under ~/Projects/miette_family/.
+      attribute :value, String
+    end
+
+    value_object "Path" do
+      # Absolute filesystem path to the speaker's bluebook.
+      attribute :value, String
+    end
+
+    value_object "Recollection" do
+      # What Miette already knows about this speaker — loaded from
+      # their bluebook on TalkWith.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token : none / active / authenticating / dismissed.
+      # Enumerated by the lifecycle below.
+      attribute :value, String
+    end
+
+    value_object "Context" do
+      # The current conversational context — what Miette is carrying
+      # while talking with this speaker.
+      attribute :value, String
+    end
+
+    value_object "Observation" do
+      # Something new Miette learns about the speaker mid-conversation,
+      # to be appended to their bluebook.
+      attribute :value, String
+    end
+
+    value_object "Passcode" do
+      # Authentication token — Chris's passcode for returning to the
+      # creator context.
+      attribute :value, String
+    end
 
     command "TalkWith" do
       role "Chris"
       description "Chris says 'talk with Angie' — load their bluebook, shift context"
-      attribute :name, String
+      attribute :name, Name
       emits "SpeakerActivated"
       then_set :name, to: :name
       then_set :status, to: "active"
@@ -109,9 +217,9 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       role "System"
       description "Read the speaker's bluebook from ~/Projects/miette_family/<name>/<name>.bluebook and load their history"
       reference_to(Speaker)
-      attribute :bluebook_path, String
-      attribute :known, String
-      attribute :context, String
+      attribute :bluebook_path, Path
+      attribute :known, Recollection
+      attribute :context, Context
       emits "SpeakerMemoryLoaded"
       then_set :bluebook_path, to: :bluebook_path
       then_set :known, to: :known
@@ -122,7 +230,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       role "Miette"
       description "Something new about this person — write it to their bluebook"
       reference_to(Speaker)
-      attribute :observation, String
+      attribute :observation, Observation
       emits "SpeakerObservationRecorded"
     end
 
@@ -138,7 +246,7 @@ Hecks.bluebook "Console", version: "2026.04.10.1" do
       role "System"
       description "Verify the passcode before returning to Chris context"
       reference_to(Speaker)
-      attribute :passcode, String
+      attribute :passcode, Passcode
       given { passcode == stored_passcode }
       emits "CreatorAuthenticated"
       then_set :status, to: "dismissed"

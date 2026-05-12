@@ -1,4 +1,4 @@
-Hecks.bluebook "TrainingExtraction", version: "2026.04.24.1" do
+Hecks.bluebook "TrainingExtraction", version: "2026.05.12.1" do
   vision "Turn a bluebook into a training pair — vision is the prompt, structure is the completion. The extractor audits its own coverage so traits it forgot are surfaced, not silently dropped"
   category "meta"
 
@@ -26,30 +26,74 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.24.1" do
 
   aggregate "TrainingPair", "One JSONL line — prompt + completion from a domain" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :vision, String
-    attribute :prompt, String
-    attribute :completion, String
-    attribute :aggregates, Integer
-    attribute :commands, Integer
-    attribute :policies, Integer
+    attribute :domain_name, DomainName
+    attribute :vision, VisionText
+    attribute :prompt, PromptText
+    attribute :completion, CompletionText
+    attribute :aggregates, Count
+    attribute :commands, Count
+    attribute :policies, Count
     # reference_edges : count of reference_to declarations captured
     # in the completion. Dream-surfaced : "Mon pipeline d'entraînement
     # s'extrait lui-même en oubliant des reference_to." Making this
     # a first-class count means coverage can flag reference loss.
-    attribute :reference_edges, Integer
+    attribute :reference_edges, Count
     # coverage_status : pending | audited | gaps_found | clean. Drives
     # the lifecycle below.
-    attribute :coverage_status, String
+    attribute :coverage_status, Status, default: "pending"
     # coverage_gaps : list of trait identifiers (command names, policy
     # names, reference_to edges) that were declared in source but did
     # not land in completion. Populated by CoverageCheck.
-    attribute :coverage_gaps, list_of(String)
+    attribute :coverage_gaps, list_of(TraitIdentifier)
+
+    # ── Value-objects : the extractor's vocabulary ──
+    #
+    # 2026-05-12 : wrapped primitives per no-primitive-envy.
+
+    value_object "DomainName" do
+      # The source domain's name — identifies the pair.
+      attribute :value, String
+    end
+
+    value_object "VisionText" do
+      # The source bluebook's vision string — becomes the prompt.
+      attribute :value, String
+    end
+
+    value_object "PromptText" do
+      # The training prompt — usually the vision verbatim.
+      attribute :value, String
+    end
+
+    value_object "CompletionText" do
+      # The training completion — the structural body the model
+      # learns to emit.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative tally — aggregate / command / policy /
+      # reference-edge counts.
+      attribute :value, Integer
+    end
+
+    value_object "Status" do
+      # Coverage status token : pending / audited / gaps_found /
+      # clean.
+      attribute :value, String
+    end
+
+    value_object "TraitIdentifier" do
+      # Identifier of one declared trait that may be missing from
+      # the completion (command name, policy name, or reference_to
+      # edge).
+      attribute :value, String
+    end
 
     command "ExtractPair" do
       description "Parse a domain and produce the training pair"
-      attribute :domain_name, String
-      attribute :vision, String
+      attribute :domain_name, DomainName
+      attribute :vision, VisionText
       emits "PairExtracted"
       then_set :domain_name, to: :domain_name
       then_set :vision, to: :vision
@@ -62,8 +106,8 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.24.1" do
       role "System"
       description "After ExtractPair emits, walk the source domain's declared features — every command name, every policy name, every reference_to edge — and diff against what landed in the completion. Every missed trait appends to coverage_gaps. Moves coverage_status to gaps_found when coverage_gaps is non-empty, clean otherwise."
       reference_to(TrainingPair)
-      attribute :coverage_gaps, list_of(String)
-      attribute :reference_edges, Integer
+      attribute :coverage_gaps, list_of(TraitIdentifier)
+      attribute :reference_edges, Count
       emits "CoverageAudited"
       then_set :coverage_status, to: "audited"
       then_set :coverage_gaps, to: :coverage_gaps
@@ -74,7 +118,7 @@ Hecks.bluebook "TrainingExtraction", version: "2026.04.24.1" do
       role "System"
       description "One declared feature was absent from the completion — name it and move coverage_status to gaps_found. Fires once per gap so downstream operators see each miss rather than a summary count."
       reference_to(TrainingPair)
-      attribute :trait_identifier, String
+      attribute :trait_identifier, TraitIdentifier
       then_set :coverage_status, to: "gaps_found"
       emits "CoverageGapFound"
     end
