@@ -63,5 +63,29 @@
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
-  }
+  },
+  "permissions": {
+    "deny": [
+      "Bash",
+      "Read",
+      "Edit",
+      "Write",
+      "Grep",
+      "Glob",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "allow": [
+      "mcp__storehouse__storehouse__bash",
+      "mcp__storehouse__storehouse__read",
+      "mcp__storehouse__storehouse__edit",
+      "mcp__storehouse__storehouse__update",
+      "mcp__storehouse__storehouse__grep",
+      "mcp__storehouse__storehouse__glob",
+      "mcp__storehouse__storehouse__web_fetch",
+      "mcp__storehouse__storehouse__web_search",
+      "mcp__storehouse__storehouse__record_result"
+    ]
+  },
+  "enableAllProjectMcpServers": true
 }
