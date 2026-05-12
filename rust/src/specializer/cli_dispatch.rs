@@ -176,21 +176,21 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!  dispatch arms. This IS the structural rewrite that closes the gap
 //!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
 //!  and runtime enforcement. Same i80 retirement contract as run_loop /
-//!  run_daemon / run_macrophage_edit. Net ~12 LoC.]
+//!  run_daemon / run_macrophage. Net ~12 LoC.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs — closes i113 (sleep-as-blocking-
 //!  streaming-command). Wires Consciousness.EnterSleep dispatch + heki polling
 //!  + dream stream + wake-report read into a single blocking CLI. Same kernel-
-//!  surface family as run_loop / run_daemon / run_macrophage_edit ; same i80
+//!  surface family as run_loop / run_daemon / run_macrophage ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs — closes i118 (macrophage-honors-
-//!  in-file-antibody-exempt-markers). run_macrophage_edit now reads the touched
+//!  in-file-antibody-exempt-markers). run_macrophage now reads the touched
 //!  file's first 200 lines and dispatches Macrophage.RecordExemptedEdit (silent
 //!  exit 0) instead of Macrophage.Complain when the file already carries a
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
-//!  the rest of the run_macrophage_edit family.]
+//!  the rest of the run_macrophage family.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs detect_bash_write_target +
 //!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
@@ -199,7 +199,7 @@ const HEADER: &str = r#"//! Hecks Life — the Bluebook compiler and runtime
 //!  .rs files. New shape : each cmd_name names the exact write signatures
 //!  (None for tee/always-write ; Some(&[bigrams]) for sed -i / --in-place
 //!  and awk -i inplace). Same i80 retirement contract as the rest of the
-//!  run_macrophage_edit family — retires when the macrophage's command-string
+//!  run_macrophage family — retires when the macrophage's command-string
 //!  classification becomes a domain dispatched from
 //!  aggregates/discipline/macrophage/.]
 //!
