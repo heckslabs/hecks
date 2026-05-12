@@ -496,6 +496,38 @@
   </style>
 </head>
 <body>
+  <!-- i547 top-bar nav — mirrors html_shared::top_bar from the
+       walking-skeleton surface so the user can hop between Home /
+       Universe / Walking Skeleton / Diagram / Customer Portal from
+       any surface without dead-ending. -->
+  <header id="topbar" style="background:#1a1a1a;border-bottom:1px solid #333e48;position:sticky;top:0;z-index:30">
+    <nav style="display:flex;align-items:center;gap:4px;padding:8px 16px;font-size:13px;font-family:-apple-system,system-ui,sans-serif">
+      <a href="/" data-topbar="home" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">🏠 Home</a>
+      <a href="/diagram" data-topbar="diagram-universe" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">🌌 Universe</a>
+      <a href="/domains/{{domain_name}}" data-topbar="walking" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">📋 Walking Skeleton</a>
+      <a href="/diagram/{{domain_name}}" data-topbar="diagram-domain" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">📊 Diagram</a>
+      <span style="flex:1"></span>
+      <a href="/portal/" data-topbar="portal" class="topbar-link" style="padding:6px 12px;border-radius:4px;color:#ddd;text-decoration:none">🏬 Customer Portal</a>
+    </nav>
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        document.querySelectorAll('#topbar .topbar-link').forEach(function (a) {
+          var href = a.getAttribute('href');
+          var match = false;
+          if (href === '/' && path === '/') match = true;
+          else if (href === '/diagram' && path === '/diagram') match = true;
+          else if (href !== '/' && href !== '/diagram' && path.startsWith(href.replace(/\/$/, ''))) match = true;
+          if (match) {
+            a.style.background = 'rgba(255,228,0,0.15)';
+            a.style.color = '#ffe400';
+            a.style.borderLeft = '2px solid #ffe400';
+            a.style.fontWeight = '600';
+          }
+        });
+      })();
+    </script>
+  </header>
   <div class="page-blobs" aria-hidden="true">
     <div class="page-blob page-blob-1"></div>
     <div class="page-blob page-blob-2"></div>

@@ -6,13 +6,73 @@
 //! Usage:
 //!   let page = wrap_page("Title", &sidebar, &content);
 
+/// i547 — top-bar nav across surfaces. Rendered above the
+/// sidebar+main+event-panel flex row so the user can hop between
+/// Home / Universe / Walking-Skeleton / Diagram / Customer Portal
+/// without dead-ending on any one surface. `current_domain` lights
+/// up the per-domain links when known ; pass None on the dashboard.
+pub fn top_bar(current_domain: Option<&str>) -> String {
+    let (walking_link, diagram_link) = match current_domain {
+        Some(d) if !d.is_empty() => (
+            format!(
+                r#"<a href="/domains/{d}" data-topbar="walking" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">📋 Walking Skeleton</a>"#
+            ),
+            format!(
+                r#"<a href="/diagram/{d}" data-topbar="diagram-domain" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">📊 Diagram</a>"#
+            ),
+        ),
+        _ => (String::new(), String::new()),
+    };
+    format!(
+        r#"<header id="topbar" class="bg-surface-1 border-b border-surface-3 sticky top-0 z-30">
+  <nav class="flex items-center gap-1 px-4 py-2 text-sm">
+    <a href="/" data-topbar="home" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🏠 Home</a>
+    <a href="/diagram" data-topbar="diagram-universe" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🌌 Universe</a>
+    {walking_link}
+    {diagram_link}
+    <span class="flex-1"></span>
+    <a href="/portal/" data-topbar="portal" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🏬 Customer Portal</a>
+  </nav>
+  <script>
+    // Highlight the active surface based on path.
+    (function () {{
+      var path = window.location.pathname;
+      document.querySelectorAll('#topbar .topbar-link').forEach(function (a) {{
+        var href = a.getAttribute('href');
+        var match = false;
+        if (href === '/' && path === '/') match = true;
+        else if (href === '/diagram' && path === '/diagram') match = true;
+        else if (href !== '/' && href !== '/diagram' && path.startsWith(href.replace(/\/$/, ''))) match = true;
+        if (match) {{
+          a.classList.remove('text-gray-300', 'hover:text-white');
+          a.classList.add('bg-brand/15', 'text-brand', 'border-l-2', 'border-brand', 'font-semibold');
+        }}
+      }});
+    }})();
+  </script>
+</header>"#,
+    )
+}
+
 /// Wrap content in the full app shell with sidebar
 pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
+    wrap_page_with_domain(title, None, sidebar_html, main_html)
+}
+
+/// Same as `wrap_page` but accepts a `current_domain` so the top-bar
+/// can show per-domain links (Walking Skeleton + Diagram).
+pub fn wrap_page_with_domain(
+    title: &str,
+    current_domain: Option<&str>,
+    sidebar_html: &str,
+    main_html: &str,
+) -> String {
     let app_name = title;
     let app_subtitle = "Dashboard";
     let core_script = super::html_scripts::core_script();
     let help_script = super::html_help::help_script();
     let wizard_script = super::html_wizard::wizard_script();
+    let topbar_html = top_bar(current_domain);
     format!(
         r#"<!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -82,6 +142,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
   <div class="page-blob" style="width:450px;height:450px;bottom:10%;left:50%;background:#22c55e;animation:blob-drift-1 35s ease-in-out infinite reverse"></div>
   <div class="page-blob" style="width:350px;height:350px;top:30%;right:40%;background:#3b82f6;animation:blob-drift-2 28s ease-in-out infinite"></div>
   <div class="page-blob" style="width:400px;height:400px;bottom:30%;left:10%;background:#ffffff;animation:blob-drift-1 32s ease-in-out infinite reverse"></div>
+  {topbar_html}
   <div class="flex h-full relative z-10">
     <aside id="sidebar" class="bg-surface-1 border-r border-surface-3 flex flex-col fixed h-full overflow-y-auto" style="width:240px">
       <div class="p-6">
@@ -154,6 +215,7 @@ pub fn wrap_page(title: &str, sidebar_html: &str, main_html: &str) -> String {
         core_script = core_script,
         help_script = help_script,
         wizard_script = wizard_script,
+        topbar_html = topbar_html,
     )
 }
 
