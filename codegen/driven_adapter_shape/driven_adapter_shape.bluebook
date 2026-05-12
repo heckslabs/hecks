@@ -1,4 +1,4 @@
-Hecks.bluebook "DrivenAdapterShape", version: "2026.05.01.1" do
+Hecks.bluebook "DrivenAdapterShape", version: "2026.05.12.1" do
   vision "The shape of storehouse/src/runtime/adapter_llm.rs as a bluebook — driven LLM adapter (ollama HTTP-POST + claude shell-invoke + dispatcher) made IR-derivable via per-backend body_kind vocabulary."
   category "autophagy"
 
@@ -71,49 +71,101 @@ Hecks.bluebook "DrivenAdapterShape", version: "2026.05.01.1" do
   # attributes (url_path, env_var, etc.) drive the templated emission.
 
   aggregate "Section", "One ordered code section emitted from the driven_adapter shape" do
-    attribute :name,             String
+    attribute :name,             SectionName
     # order: ascending integer ; specializer sorts before concatenating.
-    attribute :order,            Integer
+    attribute :order,            Order
     # body_kind: verbatim_section | http_post | shell_invoke
-    attribute :body_kind,        String
+    attribute :body_kind,        BodyKind
     # snippet_path: relative to repo root. Required for verbatim_section
     # (the snippet IS the body) ; ignored for http_post / shell_invoke.
-    attribute :snippet_path,     String, default: ""
+    attribute :snippet_path,     SnippetPath, default: ""
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,      String, default: ""
+    attribute :description,      Description, default: ""
     # doc_snippet: relative path to a .rs.frag holding the per-backend
     # doc comment (`///` lines). Optional ; if blank, no doc emitted.
     # Used by http_post and shell_invoke body_kinds where the prose is
     # bespoke per backend but the function shape is uniform.
-    attribute :doc_snippet,      String, default: ""
+    attribute :doc_snippet,      DocSnippet, default: ""
 
     # ---- http_post knobs ----
     # function name (e.g. "call_ollama") ; specializer emits
     # `fn <fn_name>(url: &str, model: &str, input: &str) -> Option<String>`
-    attribute :fn_name,          String, default: ""
+    attribute :fn_name,          FnName, default: ""
     # url_path: appended to the url arg (e.g. "/api/generate")
-    attribute :url_path,         String, default: ""
+    attribute :url_path,         UrlPath, default: ""
     # prompt_prefix: a literal string concatenated before the input
     # to form the prompt (used as `format!("<prefix>{}", input)`).
     # Use `\n` for newlines.
-    attribute :prompt_prefix,    String, default: ""
+    attribute :prompt_prefix,    PromptPrefix, default: ""
     # response_field: the JSON field path to extract from the response
     # (e.g. "response" for ollama).
-    attribute :response_field,   String, default: ""
+    attribute :response_field,   ResponseField, default: ""
     # timeout_secs: passed as `-m` to curl.
-    attribute :timeout_secs,     Integer, default: 0
+    attribute :timeout_secs,     TimeoutSecs, default: 0
     # num_predict: ollama-specific options.num_predict cap.
-    attribute :num_predict,      Integer, default: 0
+    attribute :num_predict,      NumPredict, default: 0
 
     # ---- shell_invoke knobs ----
     # env_var: env var name holding the binary path (e.g. "CLAUDE_BIN")
-    attribute :env_var,          String, default: ""
+    attribute :env_var,          EnvVar, default: ""
     # default_bin: fallback path when env var unset
-    attribute :default_bin,      String, default: ""
+    attribute :default_bin,      DefaultBin, default: ""
     # flag: CLI flag preceding the input arg (e.g. "-p")
-    attribute :flag,             String, default: ""
+    attribute :flag,             Flag, default: ""
     # min_len / max_len: post-processing length filter on stdout
-    attribute :min_len,          Integer, default: 0
-    attribute :max_len,          Integer, default: 0
+    attribute :min_len,          MinLen, default: 0
+    attribute :max_len,          MaxLen, default: 0
+
+    value_object "SectionName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "BodyKind" do
+      attribute :value, String
+    end
+    value_object "SnippetPath" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
+    value_object "DocSnippet" do
+      attribute :value, String
+    end
+    value_object "FnName" do
+      attribute :value, String
+    end
+    value_object "UrlPath" do
+      attribute :value, String
+    end
+    value_object "PromptPrefix" do
+      attribute :value, String
+    end
+    value_object "ResponseField" do
+      attribute :value, String
+    end
+    value_object "TimeoutSecs" do
+      attribute :value, Integer
+    end
+    value_object "NumPredict" do
+      attribute :value, Integer
+    end
+    value_object "EnvVar" do
+      attribute :value, String
+    end
+    value_object "DefaultBin" do
+      attribute :value, String
+    end
+    value_object "Flag" do
+      attribute :value, String
+    end
+    value_object "MinLen" do
+      attribute :value, Integer
+    end
+    value_object "MaxLen" do
+      attribute :value, Integer
+    end
   end
 end

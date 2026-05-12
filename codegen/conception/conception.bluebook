@@ -1,4 +1,4 @@
-Hecks.bluebook "Conception", version: "2026.04.24.1" do
+Hecks.bluebook "Conception", version: "2026.05.12.1" do
   vision "The thing that conceives capabilities, declared as a capability — corpus-driven generation of new bluebooks, behaviour suites, and grafts onto existing domains, expressed as one domain in its own DSL"
   category "runtime"
 
@@ -40,27 +40,27 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
 
   aggregate "BluebookConception", "One invocation of `storehouse conceive <Name> <vision>` — scans the corpus of existing .bluebook files, seeds a vector from the user's vision string, finds the k nearest archetypes, generates a fresh bluebook fitted to their shape" do
     # name : the new domain's name (argv[3] on the CLI).
-    attribute :name, String
+    attribute :name, DomainName
     # vision : the free-text description the user supplied. Seeds the
     # vector search.
-    attribute :vision, String
+    attribute :vision, Vision
     # category : optional filter ; when set, the nearest search is
     # partitioned so archetypes of that category come first (with a
     # fallback to the full corpus when no match exists).
-    attribute :category, String
+    attribute :category, Category
     # corpus_size : count of parsed archetypes loaded from the corpus
     # directories.
-    attribute :corpus_size, Integer
+    attribute :corpus_size, CorpusSize
     # k : how many nearest matches to consider (typically 1 ; higher
     # when the generator samples across archetypes).
-    attribute :k, Integer
+    attribute :k, K
     # nearest_name : the winning archetype's domain name, surfaced so
     # the operator can trace the generation back to its source.
-    attribute :nearest_name, String
+    attribute :nearest_name, NearestName
     # generated_text : the emitted bluebook source.
-    attribute :generated_text, String
+    attribute :generated_text, GeneratedText
     # phase : pending | scanning | seeded | nearest_found | generated.
-    attribute :phase, String
+    attribute :phase, Phase
 
     # ---- Value objects -------------------------------------------
     #
@@ -79,12 +79,37 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
       attribute :path, String
     end
 
+    value_object "DomainName" do
+      attribute :value, String
+    end
+    value_object "Vision" do
+      attribute :value, String
+    end
+    value_object "Category" do
+      attribute :value, String
+    end
+    value_object "CorpusSize" do
+      attribute :value, Integer
+    end
+    value_object "K" do
+      attribute :value, Integer
+    end
+    value_object "NearestName" do
+      attribute :value, String
+    end
+    value_object "GeneratedText" do
+      attribute :value, String
+    end
+    value_object "Phase" do
+      attribute :value, String
+    end
+
     # ---- Commands ------------------------------------------------
 
     command "ScanCorpus" do
       role "System"
       description "Walk every directory in the corpus arguments, read each *.bluebook, parse to a Domain, extract a 9-dim structural vector (aggregate count, avg commands per aggregate, policy count, lifecycle presence, reference depth, etc.), and stash the entry. Behaviour-suite files are skipped — BehaviorsConception owns those."
-      attribute :corpus_size, Integer
+      attribute :corpus_size, CorpusSize
       then_set :corpus_size, to: :corpus_size
       then_set :phase, to: "scanning"
       emits "CorpusScanned"
@@ -93,7 +118,7 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "SeedVector" do
       role "System"
       description "Turn the user's vision string into a 9-dim vector in the same space as the corpus entries. The seed and corpus live in the same coordinate system so cosine similarity is well-defined."
-      attribute :vision, String
+      attribute :vision, Vision
       then_set :vision, to: :vision
       then_set :phase, to: "seeded"
       emits "VectorSeeded"
@@ -102,9 +127,9 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "FindNearest" do
       role "System"
       description "Return the top-k corpus entries by cosine similarity to the seed vector. When category is set, partition the corpus to that category first ; fall back to the full corpus when the category has no entries, printing a notice to stderr."
-      attribute :category, String
-      attribute :k, Integer
-      attribute :nearest_name, String
+      attribute :category, Category
+      attribute :k, K
+      attribute :nearest_name, NearestName
       then_set :category, to: :category
       then_set :k, to: :k
       then_set :nearest_name, to: :nearest_name
@@ -115,8 +140,8 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "Generate" do
       role "System"
       description "Emit a fresh bluebook from the nearest archetype, fitted to the name and vision. The archetype supplies structural shape (aggregate names pluralised, command patterns, policy sketches) ; name and vision are the user's input. Output is rustfmt-equivalent bluebook source text."
-      attribute :name, String
-      attribute :generated_text, String
+      attribute :name, DomainName
+      attribute :generated_text, GeneratedText
       then_set :name, to: :name
       then_set :generated_text, to: :generated_text
       then_set :phase, to: "generated"
@@ -137,18 +162,37 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
 
   aggregate "BehaviorsConception", "Mirror of BluebookConception for *_behavioral_tests.bluebook files. Takes a source domain as the seed (instead of a vision string) and emits a TestSuite shaped like the nearest existing suite" do
     # source_domain_name : the .bluebook the tests target.
-    attribute :source_domain_name, String
+    attribute :source_domain_name, SourceDomainName
     # corpus_size : behavioural archetypes loaded (from *_behavioral_tests.bluebook).
-    attribute :corpus_size, Integer
-    attribute :k, Integer
-    attribute :nearest_name, String
-    attribute :generated_text, String
-    attribute :phase, String
+    attribute :corpus_size, CorpusSize
+    attribute :k, K
+    attribute :nearest_name, NearestName
+    attribute :generated_text, GeneratedText
+    attribute :phase, Phase
+
+    value_object "SourceDomainName" do
+      attribute :value, String
+    end
+    value_object "CorpusSize" do
+      attribute :value, Integer
+    end
+    value_object "K" do
+      attribute :value, Integer
+    end
+    value_object "NearestName" do
+      attribute :value, String
+    end
+    value_object "GeneratedText" do
+      attribute :value, String
+    end
+    value_object "Phase" do
+      attribute :value, String
+    end
 
     command "ScanBehaviorsCorpus" do
       role "System"
       description "Walk the corpus dirs for *_behavioral_tests.bluebook files, parse each into a TestSuite, extract a 7-dim structural vector. Non-behaviour bluebooks are skipped — BluebookConception owns those."
-      attribute :corpus_size, Integer
+      attribute :corpus_size, CorpusSize
       then_set :corpus_size, to: :corpus_size
       then_set :phase, to: "scanning"
       emits "BehaviorsCorpusScanned"
@@ -157,7 +201,7 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "SeedFromDomain" do
       role "System"
       description "Turn the source domain's IR (aggregate count, command count, lifecycle presence, etc.) into a 7-dim seed vector in the same space as the corpus entries."
-      attribute :source_domain_name, String
+      attribute :source_domain_name, SourceDomainName
       then_set :source_domain_name, to: :source_domain_name
       then_set :phase, to: "seeded"
       emits "BehaviorsVectorSeeded"
@@ -166,8 +210,8 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "FindNearestSuite" do
       role "System"
       description "Return the top-k TestSuite archetypes by Euclidean distance from the seed. Behaviour conception uses Euclidean rather than cosine because the dimensions aren't normalised the same way as bluebook vectors."
-      attribute :k, Integer
-      attribute :nearest_name, String
+      attribute :k, K
+      attribute :nearest_name, NearestName
       then_set :k, to: :k
       then_set :nearest_name, to: :nearest_name
       then_set :phase, to: "nearest_found"
@@ -177,7 +221,7 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "GenerateBehaviors" do
       role "System"
       description "Emit a *_behavioral_tests.bluebook for the source domain, shaped like the nearest archetype suite. Walks every command on the source and emits one starter test per command, plus one per query, reusing the archetype's layout conventions."
-      attribute :generated_text, String
+      attribute :generated_text, GeneratedText
       then_set :generated_text, to: :generated_text
       then_set :phase, to: "generated"
       emits "BehaviorsGenerated"
@@ -197,32 +241,57 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
 
   aggregate "Development", "One invocation of the develop subcommand — reads a target domain, pulls a source domain to graft from, filters source aggregates by keyword match on the feature string (passed via --add), emits the merged bluebook with a version bump" do
     # target_path : the bluebook being extended.
-    attribute :target_path, String
+    attribute :target_path, TargetPath
     # source_domain_name : the donor domain whose aggregates are
     # candidates for grafting.
-    attribute :source_domain_name, String
+    attribute :source_domain_name, SourceDomainName
     # feature : free-text keyword the user passed ("audit logging",
     # "rate limiting", etc.). Splits on whitespace ; each token is
     # searched case-insensitively across aggregate name, description,
     # and command names.
-    attribute :feature, String
+    attribute :feature, Feature
     # existing_names : names of aggregates already in the target —
     # filters out duplicates before grafting.
-    attribute :existing_names, list_of(String)
+    attribute :existing_names, list_of(ExistingName)
     # grafted_count : number of source aggregates that matched the
     # feature AND did not already exist in the target.
-    attribute :grafted_count, Integer
+    attribute :grafted_count, GraftedCount
     # new_version : the version string written into the emitted
     # bluebook header (bump from the target's current version).
-    attribute :new_version, String
-    attribute :generated_text, String
-    attribute :phase, String
+    attribute :new_version, NewVersion
+    attribute :generated_text, GeneratedText
+    attribute :phase, Phase
+
+    value_object "TargetPath" do
+      attribute :value, String
+    end
+    value_object "SourceDomainName" do
+      attribute :value, String
+    end
+    value_object "Feature" do
+      attribute :value, String
+    end
+    value_object "ExistingName" do
+      attribute :value, String
+    end
+    value_object "GraftedCount" do
+      attribute :value, Integer
+    end
+    value_object "NewVersion" do
+      attribute :value, String
+    end
+    value_object "GeneratedText" do
+      attribute :value, String
+    end
+    value_object "Phase" do
+      attribute :value, String
+    end
 
     command "ReadTarget" do
       role "System"
       description "Parse the target bluebook path into a Domain. Records the existing aggregate names so the graft step can skip duplicates."
-      attribute :target_path, String
-      attribute :existing_names, list_of(String)
+      attribute :target_path, TargetPath
+      attribute :existing_names, list_of(ExistingName)
       then_set :target_path, to: :target_path
       then_set :existing_names, to: :existing_names
       then_set :phase, to: "target_loaded"
@@ -232,7 +301,7 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "LoadSourceDomain" do
       role "System"
       description "Parse the source bluebook — the donor domain whose aggregates will be considered for grafting. In practice this is currently any bluebook in the corpus whose name matches the user's source argument."
-      attribute :source_domain_name, String
+      attribute :source_domain_name, SourceDomainName
       then_set :source_domain_name, to: :source_domain_name
       then_set :phase, to: "source_loaded"
       emits "SourceLoaded"
@@ -241,8 +310,8 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "FindMatchingAggregates" do
       role "System"
       description "Walk the source's aggregates. For each one, skip if already in target.existing_names. Otherwise split the feature string on whitespace and check whether any token (case-insensitive) appears in the aggregate's name, description, or any of its command names. Matching aggregates are the graft candidates."
-      attribute :feature, String
-      attribute :grafted_count, Integer
+      attribute :feature, Feature
+      attribute :grafted_count, GraftedCount
       then_set :feature, to: :feature
       then_set :grafted_count, to: :grafted_count
       then_set :phase, to: "matched"
@@ -252,8 +321,8 @@ Hecks.bluebook "Conception", version: "2026.04.24.1" do
     command "EmitMergedBluebook" do
       role "System"
       description "Serialise the result : every target aggregate in its original order, then the matched source aggregates grouped under a `# === Grafted from <source> (<feature>) ===` header, then every target policy, all wrapped in the target's Hecks.bluebook / end with a bumped version string."
-      attribute :new_version, String
-      attribute :generated_text, String
+      attribute :new_version, NewVersion
+      attribute :generated_text, GeneratedText
       then_set :new_version, to: :new_version
       then_set :generated_text, to: :generated_text
       then_set :phase, to: "emitted"

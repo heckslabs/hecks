@@ -1,4 +1,4 @@
-Hecks.bluebook "RunStatuslineShape", version: "2026.05.01.1" do
+Hecks.bluebook "RunStatuslineShape", version: "2026.05.12.1" do
   vision "The shape of rust/src/run_statusline.rs as a bluebook — Miette's one-line body status runner made declarative. Each top-level partition (header / imports / runtime / icon tables / format helpers / tests) is a Phase row ; the three glyph-lookup functions (mood_icon_for / fatigue_icon_for / provider_badge_for) emit from StringMatchArm rows. Adding a new mood glyph or reordering a phase becomes a fixture-row edit, not a hand-edit to run_statusline.rs."
   category "autophagy"
 
@@ -102,68 +102,125 @@ Hecks.bluebook "RunStatuslineShape", version: "2026.05.01.1" do
   # the codegen shape.
 
   aggregate "CapabilityDetector", "One row describing the runner gate ; adapters + capability it satisfies" do
-    attribute :name,                String
+    attribute :name,                DetectorName
     # required_adapters: comma-separated adapter names this runner uses
     # (fs, stdout). Carried for parity with capability_runner_shape's
     # detector contract ; not consulted by the byte-identity emitter.
-    attribute :required_adapters,   String, default: ""
+    attribute :required_adapters,   RequiredAdapters, default: ""
     # required_aggregates: comma-separated aggregate names this runner
     # satisfies (Statusline).
-    attribute :required_aggregates, String, default: ""
+    attribute :required_aggregates, RequiredAggregates, default: ""
     # required_commands: comma-separated command names this runner
     # implements (Render).
-    attribute :required_commands,   String, default: ""
+    attribute :required_commands,   RequiredCommands, default: ""
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,         String, default: ""
+    attribute :description,         Description, default: ""
+
+    value_object "DetectorName" do
+      attribute :value, String
+    end
+    value_object "RequiredAdapters" do
+      attribute :value, String
+    end
+    value_object "RequiredAggregates" do
+      attribute :value, String
+    end
+    value_object "RequiredCommands" do
+      attribute :value, String
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 
   aggregate "Phase", "One ordered top-level partition in run_statusline.rs ; body_kind picks emission" do
-    attribute :name,           String
+    attribute :name,           PhaseName
     # order: ascending integer ; specializer sorts before concatenating.
-    attribute :order,          Integer
+    attribute :order,          Order
     # body_kind: doc_block | imports_block | verbatim_body | string_match | tests_block
-    attribute :body_kind,      String
+    attribute :body_kind,      BodyKind
     # source_command: optional ; the bluebook command this phase
     # implements (today only the runtime phase carries Render). Not
     # consulted by the emitter ; documents the phase's domain
     # responsibility.
-    attribute :source_command, String, default: ""
+    attribute :source_command, SourceCommand, default: ""
     # adapter_used: optional ; the adapter this phase touches at
     # runtime (fs / stdout / none). Not consulted by the emitter ;
     # documents the phase's adapter contract.
-    attribute :adapter_used,   String, default: "none"
+    attribute :adapter_used,   AdapterUsed, default: "none"
     # snippet_path: required for doc_block / imports_block /
     # verbatim_body / tests_block ; ignored for string_match.
-    attribute :snippet_path,   String, default: ""
+    attribute :snippet_path,   SnippetPath, default: ""
     # min_gap: per-fn whitespace gap between widest pattern and `=>`
     # for string_match phases. Hand-formatted source chose 1 for
     # mood/provider, 2 for fatigue ; declared per-row so the layout
     # choice survives codegen.
-    attribute :min_gap,        Integer, default: 1
+    attribute :min_gap,        MinGap, default: 1
     # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,    String, default: ""
+    attribute :description,    Description, default: ""
+
+    value_object "PhaseName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "BodyKind" do
+      attribute :value, String
+    end
+    value_object "SourceCommand" do
+      attribute :value, String
+    end
+    value_object "AdapterUsed" do
+      attribute :value, String
+    end
+    value_object "SnippetPath" do
+      attribute :value, String
+    end
+    value_object "MinGap" do
+      attribute :value, Integer
+    end
+    value_object "Description" do
+      attribute :value, String
+    end
   end
 
   aggregate "StringMatchArm", "One arm in an icon-lookup match block ; function selects fn membership" do
     # function: which fn this arm belongs to (mood_icon_for /
     # fatigue_icon_for / provider_badge_for). Matches the Phase.name
     # of the string_match phase that emits this fn.
-    attribute :function, String
+    attribute :function, FunctionName
     # order: ascending integer ; specializer sorts before emitting
     # so arm order is stable across edits to row text.
-    attribute :order,    Integer
+    attribute :order,    Order
     # pattern: the literal string to match (e.g. "refreshed", "alert")
     # or "_" for the wildcard. Specializer wraps literals in quotes
     # at emit time ; "_" is bare.
-    attribute :pattern,  String
+    attribute :pattern,  Pattern
     # result: the returned `&'static str` content WITHOUT surrounding
     # quotes (specializer wraps them). Note : escape sequences like
     # \u{200d} ZWJ are stored escaped (\\u) so the parser emits a
     # literal backslash + u, which round-trips through Rust string
     # quoting back to the source's \u{200d} form.
-    attribute :result,   String
+    attribute :result,   ArmResult
     # comment: optional trailing `// <comment>` after the arm value.
     # Used today only by provider_badge_for's claude-default arm.
-    attribute :comment,  String, default: ""
+    attribute :comment,  ArmComment, default: ""
+
+    value_object "FunctionName" do
+      attribute :value, String
+    end
+    value_object "Order" do
+      attribute :value, Integer
+    end
+    value_object "Pattern" do
+      attribute :value, String
+    end
+    value_object "ArmResult" do
+      attribute :value, String
+    end
+    value_object "ArmComment" do
+      attribute :value, String
+    end
   end
 end
