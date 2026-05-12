@@ -90,9 +90,13 @@ EOF
 fail() { echo "FAIL — $1"; exit 1; }
 
 # One Tick. Everything downstream rides on this.
+# i577 v2 follow-up : use FQN form Body::Tick.MindstreamTick — the
+# canonical dispatch entry point gates on `::`. Tick lives in
+# /Users/christopheryoung/Projects/miette/body/cycles/tick.bluebook
+# which declares category "body".
 (cd "$TMP" && HECKS_INFO="$TMP/information" HECKS_AGG="$TMP/aggregates" \
-  "$HECKS" "$TMP/aggregates" Tick.MindstreamTick >/dev/null 2>&1) \
-  || fail "Tick.MindstreamTick dispatch failed"
+  "$HECKS" "$TMP/aggregates" Body::Tick.MindstreamTick >/dev/null 2>&1) \
+  || fail "Body::Tick.MindstreamTick dispatch failed"
 
 # Helpers — read one field from a singleton heki store, empty on miss.
 # `heki latest-field` exits 3 on missing field or missing file; swallow

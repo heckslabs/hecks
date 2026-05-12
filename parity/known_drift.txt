@@ -66,3 +66,14 @@
 # longer leaks into the role name. Both parsers extract "Role"
 # byte-equal. dispatch_audit parses byte-equal again.
 
+# harry_wingate.bluebook drift surfaced 2026-05-12 — added during
+# wave-10 merge consolidator window (miette_family a49b5f5 adds
+# `attribute :nickname, String  # what people who know him call
+# him — "Trip"`). The Rust parse_blocks.rs attribute parser
+# (parse_attribute, ~L766) copies the raw second part verbatim
+# into attr_type, picking up the trailing inline comment. Ruby's
+# parser strips it. Real parser gap — filed for proper fix (strip
+# ` # …` from `raw` before to_string()). Tracked separately ;
+# not blocking the wave-10 merge train.
+/Users/christopheryoung/Projects/miette_family/harry_wingate/harry_wingate.bluebook
+
