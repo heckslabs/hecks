@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Miette Governance — pre-push enforcement
 #
 # Tracked hook source. Install with: tooling/install-hooks
@@ -22,8 +22,21 @@
 # Exit 0 = push allowed. Exit 1 = push blocked.
 # Set BEHAVIORS_SKIP=1 to bypass for emergencies (an antibody failure).
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-STOREHOUSE="$REPO/rust/target/release/storehouse"
+# i564 fix : resolve REPO against the worktree that's actually pushing,
+# not the main checkout. When `$0` is the hook script, its path lives
+# under the MAIN repo's .git/hooks/ (worktrees share hooks via the main
+# repo's gitdir by default), so dirname-relative resolution lands in
+# the main tree. `git rev-parse --show-toplevel` returns the top of the
+# working tree that invoked the hook — main for main pushes, the
+# worktree's top for worktree pushes. The behaviors corpus walk needs
+# to read from whichever tree is being pushed (staged + committed
+# bytes live in that tree's working files).
+REPO="$(git rev-parse --show-toplevel)"
+# MAIN_REPO is the main worktree's top, derived from the shared git
+# common dir. Worktrees inherit the built storehouse binary from main
+# (no per-worktree rebuild). On a main-tree push MAIN_REPO == REPO.
+MAIN_REPO="$(dirname "$(git rev-parse --git-common-dir)")"
+STOREHOUSE="$MAIN_REPO/rust/target/release/storehouse"
 
 if [ -n "$BEHAVIORS_SKIP" ]; then
     echo "pre-push: BEHAVIORS_SKIP=1 — skipping behaviors gate (antibody failure)."
@@ -62,8 +75,8 @@ ROOTS=""
 [ -d "$REPO/bluebook" ]                         && ROOTS="$ROOTS $REPO/bluebook"
 [ -d "$REPO/codegen" ]                          && ROOTS="$ROOTS $REPO/codegen"
 [ -d "$REPO/integrations" ]                     && ROOTS="$ROOTS $REPO/integrations"
-[ -d "$REPO/../miette" ]                        && ROOTS="$ROOTS $REPO/../miette"
-[ -d "$REPO/../miette_family" ]                 && ROOTS="$ROOTS $REPO/../miette_family"
+[ -d "$MAIN_REPO/../miette" ]                   && ROOTS="$ROOTS $MAIN_REPO/../miette"
+[ -d "$MAIN_REPO/../miette_family" ]            && ROOTS="$ROOTS $MAIN_REPO/../miette_family"
 
 if [ -z "$ROOTS" ]; then
     echo "pre-push: no behaviors roots found — skipping."
