@@ -9,31 +9,66 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
 
   aggregate "Conception", "The spark — always multi-domain, never a monolith" do
     identified_by :name
-    attribute :name, String
-    attribute :vision, String
-    attribute :requested_by, String
-    attribute :source, String
-    attribute :bounded_contexts, list_of(String)
-    attribute :category, String
-    attribute :status, String
+    attribute :name,             Name
+    attribute :vision,           Vision
+    attribute :requested_by,     RequestedBy
+    attribute :source,           Source
+    attribute :bounded_contexts, list_of(BoundedContextName)
+    attribute :category,         Category
+    attribute :status,           Status
+
+    value_object "Name" do
+      # Identifier of the conceived domain (Hecks.bluebook "<Name>").
+      attribute :value, String
+    end
+
+    value_object "Vision" do
+      # Free-form prose describing what the conceived domain is for.
+      attribute :value, String
+    end
+
+    value_object "RequestedBy" do
+      # Who asked for the conception (user identifier or 'self').
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # Origin of the conception (e.g. 'conversation', 'inbox', 'pitch').
+      attribute :value, String
+    end
+
+    value_object "BoundedContextName" do
+      # One bounded context belonging to the multi-domain project.
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # Coarse classifier (e.g. 'framework', 'discipline', 'world').
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle state ('spark' or 'conceived').
+      attribute :value, String
+    end
 
     command "ConceiveDomain" do
       role "Miette"
       description "Conceive a multi-domain project — identify bounded contexts from the start"
-      attribute :name, String
-      attribute :vision, String
-      attribute :requested_by, String
-      attribute :source, String
-      attribute :category, String
-      attribute :bounded_contexts, list_of(String)
+      attribute :name,             Name
+      attribute :vision,           Vision
+      attribute :requested_by,     RequestedBy
+      attribute :source,           Source
+      attribute :category,         Category
+      attribute :bounded_contexts, list_of(BoundedContextName)
       emits "DomainConceived"
-      then_set :name, to: :name
-      then_set :vision, to: :vision
-      then_set :requested_by, to: :requested_by
-      then_set :source, to: :source
-      then_set :category, to: :category
+      then_set :name,             to: :name
+      then_set :vision,           to: :vision
+      then_set :requested_by,     to: :requested_by
+      then_set :source,           to: :source
+      then_set :category,         to: :category
       then_set :bounded_contexts, to: :bounded_contexts
-      then_set :status, to: "conceived"
+      then_set :status,           to: "conceived"
     end
 
     lifecycle :status, default: "spark" do

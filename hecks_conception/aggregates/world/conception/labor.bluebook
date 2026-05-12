@@ -8,19 +8,44 @@ Hecks.bluebook "Labor", version: "2026.04.16.1" do
 
   aggregate "Labor", "Validation and naming — the domain is ready to be born" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :bluebook_source, String
-    attribute :valid, String
-    attribute :errors, list_of(String)
-    attribute :parity, String
+    attribute :domain_name,     DomainName
+    attribute :bluebook_source, BluebookSource
+    attribute :valid,           Validity
+    attribute :errors,          list_of(ErrorMessage)
+    attribute :parity,          ParityResult
+
+    value_object "DomainName" do
+      # Identifier of the domain in labor (Hecks.bluebook "<Name>").
+      attribute :value, String
+    end
+
+    value_object "BluebookSource" do
+      # Raw bluebook source text being validated.
+      attribute :value, String
+    end
+
+    value_object "Validity" do
+      # Lifecycle marker ('pending' / 'checking' / 'yes' / 'no').
+      attribute :value, String
+    end
+
+    value_object "ErrorMessage" do
+      # One validation error message recorded against the labor.
+      attribute :value, String
+    end
+
+    value_object "ParityResult" do
+      # Either 'pass' or 'fail' for Ruby/Rust read parity.
+      attribute :value, String
+    end
 
     command "ValidateBluebook" do
       role "Midwife"
       description "Check the domain is well-formed — verb naming, references, structure"
-      attribute :domain_name, String
-      attribute :bluebook_source, String
+      attribute :domain_name,     DomainName
+      attribute :bluebook_source, BluebookSource
       emits "BluebookValidated"
-      then_set :domain_name, to: :domain_name
+      then_set :domain_name,     to: :domain_name
       then_set :bluebook_source, to: :bluebook_source
     end
 
@@ -28,7 +53,7 @@ Hecks.bluebook "Labor", version: "2026.04.16.1" do
       role "Midwife"
       description "Verify Ruby and Rust read the domain identically"
       reference_to(Labor)
-      attribute :parity, String
+      attribute :parity, ParityResult
       emits "ParityChecked"
       then_set :parity, to: :parity
     end
@@ -45,7 +70,7 @@ Hecks.bluebook "Labor", version: "2026.04.16.1" do
       role "Midwife"
       description "Domain has errors — needs more gestation"
       reference_to(Labor)
-      attribute :errors, list_of(String)
+      attribute :errors, list_of(ErrorMessage)
       emits "LaborFailed"
       then_set :valid, to: "no"
       then_set :errors, to: :errors

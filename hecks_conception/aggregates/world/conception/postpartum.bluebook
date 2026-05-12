@@ -8,14 +8,34 @@ Hecks.bluebook "Postpartum", version: "2026.04.16.1" do
 
   aggregate "Postpartum", "After birth — the domain's first days in the nursery" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :healthy, String
-    attribute :first_pulse_at, String
+    attribute :domain_name,    DomainName
+    attribute :healthy,        HealthStatus
+    attribute :first_pulse_at, Timestamp
+
+    value_object "DomainName" do
+      # Identifier of the newborn domain (Hecks.bluebook "<Name>").
+      attribute :value, String
+    end
+
+    value_object "HealthStatus" do
+      # Postpartum status ('yes' / 'concern').
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp of the newborn's first pulse.
+      attribute :value, String
+    end
+
+    value_object "Concern" do
+      # Free-form description of a postpartum concern.
+      attribute :value, String
+    end
 
     command "CheckHealth" do
       role "Midwife"
       description "Verify the newborn domain — Rust validation, parity, census updated"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       emits "HealthChecked"
       then_set :domain_name, to: :domain_name
     end
@@ -32,7 +52,7 @@ Hecks.bluebook "Postpartum", version: "2026.04.16.1" do
       role "Midwife"
       description "Something is wrong — needs attention"
       reference_to(Postpartum)
-      attribute :concern, String
+      attribute :concern, Concern
       emits "ConcernFlagged"
       then_set :healthy, to: "concern"
     end

@@ -9,27 +9,47 @@ Hecks.bluebook "Delivery", version: "2026.04.16.1" do
 
   aggregate "Delivery", "The domain leaves the womb and enters the nursery — born, valid, healthy" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :path, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :fixture_count, Integer
-    attribute :indexed, String
+    attribute :domain_name,     DomainName
+    attribute :path,            Path
+    attribute :aggregate_count, ElementCount
+    attribute :command_count,   ElementCount
+    attribute :fixture_count,   ElementCount
+    attribute :indexed,         IndexedFlag
+
+    value_object "DomainName" do
+      # Hecks.bluebook "<Name>" — the delivered domain's identifier.
+      attribute :value, String
+    end
+
+    value_object "Path" do
+      # Filesystem path where the bluebook landed in the nursery.
+      attribute :value, String
+    end
+
+    value_object "ElementCount" do
+      # Count of an IR element category (aggregates / commands / fixtures).
+      attribute :value, Integer
+    end
+
+    value_object "IndexedFlag" do
+      # Whether the delivered domain is registered in the nursery index ('yes' / 'no').
+      attribute :value, String
+    end
 
     command "DeliverDomain" do
       role "Midwife"
       description "Write the bluebook to the nursery — the domain is born"
-      attribute :domain_name, String
-      attribute :path, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :fixture_count, Integer
+      attribute :domain_name,     DomainName
+      attribute :path,            Path
+      attribute :aggregate_count, ElementCount
+      attribute :command_count,   ElementCount
+      attribute :fixture_count,   ElementCount
       emits "DomainDelivered"
-      then_set :domain_name, to: :domain_name
-      then_set :path, to: :path
+      then_set :domain_name,     to: :domain_name
+      then_set :path,            to: :path
       then_set :aggregate_count, to: :aggregate_count
-      then_set :command_count, to: :command_count
-      then_set :fixture_count, to: :fixture_count
+      then_set :command_count,   to: :command_count
+      then_set :fixture_count,   to: :fixture_count
     end
 
     command "RegisterBirth" do

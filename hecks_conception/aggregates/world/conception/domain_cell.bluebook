@@ -20,15 +20,35 @@ Hecks.bluebook "DomainCell", version: "2026.04.28.1" do
 
   aggregate "DomainCell", "A domain's lifecycle from conception through maturity or death" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :maturity, Integer
-    attribute :checkpoints_passed, list_of(String)
-    attribute :alive, default: true
+    attribute :domain_name,        DomainName
+    attribute :maturity,           MaturityLevel
+    attribute :checkpoints_passed, list_of(CheckpointName)
+    attribute :alive,              Alive, default: true
+
+    value_object "DomainName" do
+      # Identifier of the domain whose lifecycle this cell tracks.
+      attribute :value, String
+    end
+
+    value_object "MaturityLevel" do
+      # Cumulative-interaction maturity score for the cell.
+      attribute :value, Integer
+    end
+
+    value_object "CheckpointName" do
+      # A specific validation checkpoint the cell has passed.
+      attribute :value, String
+    end
+
+    value_object "Alive" do
+      # Whether the cell is still in its lifecycle (true) or has undergone apoptosis (false).
+      attribute :value, Boolean
+    end
 
     command "Conceive" do
       role "Miette"
       description "A new domain enters the nursery — the cell begins its cycle"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       then_set :domain_name, to: :domain_name
       then_set :maturity, to: 0
       emits "DomainConceived"
@@ -46,7 +66,7 @@ Hecks.bluebook "DomainCell", version: "2026.04.28.1" do
       role "Miette"
       description "Domain passes validation — structure sound, references resolve, roles assigned"
       reference_to(DomainCell)
-      attribute :checkpoint_name, String
+      attribute :checkpoint_name, CheckpointName
       then_set :checkpoints_passed, append: :checkpoint_name
       emits "CheckpointPassed"
     end

@@ -15,26 +15,61 @@ Hecks.bluebook "NurseryCorpus", version: "2026.04.16.1" do
 
   aggregate "Corpus", "The nursery vector space — every domain's shape, indexed for similarity search" do
     identified_by :name
-    attribute :name, String
-    attribute :domain_count, Integer
-    attribute :total_vectors, Integer
-    attribute :last_indexed_at, String
+    attribute :name,            Name
+    attribute :domain_count,    DomainCount
+    attribute :total_vectors,   VectorCount
+    attribute :last_indexed_at, Timestamp
+
+    value_object "Name" do
+      # Stable slug for this corpus index.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # Identifier of the domain being indexed (Hecks.bluebook "<Name>").
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Number of domains currently indexed in the corpus.
+      attribute :value, Integer
+    end
+
+    value_object "VectorCount" do
+      # Number of vectors stored across all indexed domains.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp of the last index operation.
+      attribute :value, String
+    end
+
+    value_object "VectorComponent" do
+      # One component of an embedding vector — Float so list_of preserves shape.
+      attribute :value, Float
+    end
+
+    value_object "K" do
+      # Number of nearest neighbours to return from a QueryNearest call.
+      attribute :value, Integer
+    end
 
     command "IndexDomain" do
       role "System"
       description "Add a domain's structural vector to the corpus"
-      attribute :domain_name, String
-      attribute :vector, list_of(Float)
+      attribute :domain_name, DomainName
+      attribute :vector,      list_of(VectorComponent)
       emits "DomainIndexed"
-      then_set :domain_count, increment: 1
+      then_set :domain_count,  increment: 1
       then_set :total_vectors, increment: 1
     end
 
     command "QueryNearest" do
       role "System"
       description "Find k nearest domains by cosine similarity to a target vector"
-      attribute :target_vector, list_of(Float)
-      attribute :k, Integer
+      attribute :target_vector, list_of(VectorComponent)
+      attribute :k,             K
       emits "NearestFound"
     end
 
