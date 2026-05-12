@@ -1,0 +1,50 @@
+Hecks.hecksagon "Tools" do
+  # ============================================================
+  # TOOLS — adapter bindings : Tools.X dispatch → real tool run
+  # ============================================================
+  #
+  # The Tools bluebook (sibling file tools.bluebook) declares the
+  # six tool commands as first-class dispatches. The default-to-
+  # memory runtime is enough for the dispatch + event-emit loop ;
+  # this hecksagon adds the SIDE-EFFECT layer.
+  #
+  # Each `adapter :claude_tool` entry below binds a Tools.X command
+  # to the corresponding Claude tool. When the runtime sees a
+  # matching dispatch, the adapter fires, the underlying tool
+  # actually runs (real shell, real file edit, real read), and the
+  # result routes back into the aggregate state as a follow-on
+  # dispatch.
+  #
+  # ── The principle the binding sits on ──
+  #
+  #   "the domain will compose the tool call and the adapter runs
+  #    them" — Chris, 2026-05-12
+  #
+  # The bluebook (composition) is pure ; the adapter (execution) is
+  # the only impure layer. Same shape as the IO monad — intent and
+  # side-effect kept separate.
+  #
+  # ── Runtime status (2026-05-12) ──
+  #
+  # The :claude_tool adapter flavor isn't yet a typed IR struct ;
+  # the hecksagon_parser falls back to IoAdapter for unrecognized
+  # kinds, so these entries LAND in the hecksagon IR as IoAdapter
+  # rows with options={command: "Tools.X", tool: :foo}. The runtime
+  # doesn't yet dispatch off them — that's i551's runtime work
+  # (parser + dispatcher mirroring :llm).
+  #
+  # Today this file is the DESIGN SURFACE : the binding is named,
+  # the structure is captured, and any future parser / dispatcher
+  # work has a concrete shape to read against. Default-to-memory
+  # means the bluebook side is already working ; the adapter is the
+  # next layer.
+
+  adapter :memory
+
+  adapter :claude_tool, command: "Tools.Bash",   tool: :bash,  result_into: "Tools.RecordResult"
+  adapter :claude_tool, command: "Tools.Edit",   tool: :edit,  result_into: "Tools.RecordResult"
+  adapter :claude_tool, command: "Tools.Read",   tool: :read,  result_into: "Tools.RecordResult"
+  adapter :claude_tool, command: "Tools.Update", tool: :write, result_into: "Tools.RecordResult"
+  adapter :claude_tool, command: "Tools.Grep",   tool: :grep,  result_into: "Tools.RecordResult"
+  adapter :claude_tool, command: "Tools.Glob",   tool: :glob,  result_into: "Tools.RecordResult"
+end

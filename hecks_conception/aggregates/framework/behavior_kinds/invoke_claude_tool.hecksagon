@@ -1,0 +1,66 @@
+Hecks.behavior_kind "invoke_claude_tool" do
+  # The invoke_claude_tool behavior — what the kernel does when a
+  # :claude_tool adapter fires. Sibling to render_text_to_audio
+  # (for :tts) and call_sms_api (for :sms). The kernel hook for
+  # this behavior is one of the small, fixed set of runtime
+  # primitives the framework ships.
+  #
+  # The dispatch flow :
+  #
+  #   1. The bus dispatches a Tools.X command (e.g. Tools.Bash with
+  #      shell_command: "ls -la", description: "list files").
+  #   2. The kernel resolves the matching :claude_tool adapter
+  #      (one with `command: "Tools.Bash"`).
+  #   3. The kernel reads the adapter's `tool:` field (e.g. :bash)
+  #      and branches to the corresponding native implementation :
+  #
+  #        :bash   → spawn /bin/sh -c <shell_command>, capture stdout + exit
+  #        :edit   → read file_path, substitute old_string→new_string, write back
+  #        :read   → read file_path, return contents (truncated)
+  #        :write  → write content to file_path
+  #        :grep   → ripgrep pattern in search_path, return matches
+  #        :glob   → walk filesystem with glob_pattern, return matching paths
+  #
+  #   4. The kernel routes the result into `result_into` as a
+  #      follow-on dispatch carrying the output, exit_code, etc.
+  #
+  # When the runtime is sophisticated enough to make tool calls
+  # itself (i.e. a Claude API integration that drives the actual
+  # Claude tools), the kernel hook can upgrade to call THROUGH
+  # Claude rather than execute natively. The adapter contract
+  # stays unchanged across that transition.
+
+  vision "Invoke a Claude-shaped tool (shell exec, file edit, file
+          read, file write, grep, glob) with the dispatched
+          command's attrs and route the result back as a follow-on
+          dispatch. The kernel hook accepts (tool_kind,
+          command_attrs, instance_fields) and returns (output,
+          exit_code, structured_result). Six tool kinds in v1 ;
+          each maps to a fixed native primitive."
+
+  # The contract : every adapter family that picks this behavior_kind
+  # must provide a :tool field naming which tool to invoke + a
+  # :result_into field naming the follow-on dispatch target.
+  requires_field :tool
+  requires_field :result_into
+
+  # The dispatched command's attrs carry the tool input. The exact
+  # attribute names vary by tool — :shell_command for Bash, :file_path
+  # + :old_string + :new_string + :replace_all for Edit, etc. The
+  # kernel reads whatever's present and passes it to the native
+  # implementation matching the :tool field.
+  trigger_attribute :description   # every Tools.X command carries a description ;
+                                   # it's the always-present input the kernel reads first.
+
+  # What the kernel does, declaratively :
+  #   1. Look up the tool kind from the adapter's :tool field
+  #   2. Branch to the matching native implementation
+  #   3. Pass the dispatched command's attrs as input
+  #   4. Capture stdout / exit_code / file contents / match list
+  #      / file list per the tool kind
+  #   5. Dispatch :result_into with the captured result as the payload
+  #
+  # Cancellation : tool calls are synchronous in v1 ; no in-flight
+  # supersession. A follow-up Tools.X dispatch for the same id is
+  # accepted ; the kernel runs it sequentially.
+end

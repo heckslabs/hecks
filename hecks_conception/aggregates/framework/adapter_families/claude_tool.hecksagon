@@ -1,0 +1,57 @@
+Hecks.adapter_family "claude_tool" do
+  # The :claude_tool adapter family — bridge a Tools.X dispatch
+  # back to the underlying tool execution (real shell for Bash,
+  # real file I/O for Edit / Read / Update, real fs traversal
+  # for Grep / Glob).
+  #
+  # Sibling to :sms, :tts, :llm, :compute. Same bluebook-first
+  # promise : the family declares the field surface, providers
+  # attach the wire shape, and the kernel runs the adapter at
+  # dispatch time. No Rust / Ruby code edits — the runtime walks
+  # framework/adapter_families/ at boot and registers each family
+  # it finds.
+  #
+  # ── How it composes ──
+  #
+  # The Tools bluebook (framework/tools/tools.bluebook) declares
+  # the six commands (Bash · Edit · Read · Update · Grep · Glob).
+  # The tools.hecksagon (next to tools.bluebook) declares one
+  # :claude_tool adapter binding per command, identified by the
+  # `command:` keyword. When the bus dispatches Tools.X, the
+  # kernel resolves the matching :claude_tool adapter, fires the
+  # `invoke_claude_tool` behavior, captures the result, and routes
+  # it back via `result_into` as a follow-on dispatch.
+  #
+  # ── The principle the family sits on ──
+  #
+  #   "the domain will compose the tool call and the adapter runs
+  #    them" — Chris, 2026-05-12
+  #
+  # The bluebook (composition) is pure. The :claude_tool adapter
+  # (execution) is the only impure layer. Domain + adapter stay
+  # cleanly split.
+
+  vision "Bridge a Tools.X dispatch back to the underlying tool
+          execution. Each instance binds one Tools.X command to
+          one Claude-tool operation (:bash, :edit, :read, :write,
+          :grep, :glob). The runtime resolves the binding at
+          dispatch time, fires the invoke_claude_tool behavior,
+          and chains the result back into the aggregate state.
+          behavior_kind = invoke_claude_tool."
+
+  fields  :name,         # optional symbolic adapter name in the consumer's hecksagon
+          :command,      # "Tools.Bash" — the dispatched aggregate.command this adapter binds to
+          :tool,         # symbol — which Claude tool to invoke (:bash, :edit, :read, :write, :grep, :glob)
+          :result_into   # "Tools.RecordResult" (or per-tool variant) — follow-on dispatch carrying the result
+
+  trigger_field :command
+  response_field :result_into
+
+  behavior :invoke_claude_tool
+
+  # No providers list yet — the v1 substrate runs tool execution
+  # natively in the kernel hook (shell-out for Bash, std::fs for
+  # Edit/Read/Update, ripgrep / glob for Grep/Glob). When/if we
+  # add provider variants (e.g. a remote-MCP backend, a sandboxed
+  # runner), they get listed here.
+end
