@@ -1,5 +1,5 @@
 #!/usr/bin/env storehouse run
-Hecks.bluebook "Status", version: "2026.04.24.1" do
+Hecks.bluebook "Status", version: "2026.05.12.1" do
   vision "Miette's multi-system status report — reads .heki stores + daemon pids, prints a labeled summary"
 
   entrypoint "GenerateReport"
@@ -37,48 +37,48 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
     # `identified_by :name` convention used by sibling singletons
     # (cli/subcommand/subcommand.bluebook).
     identified_by :name
-    attribute :name, String, default: "current"
+    attribute :name, ReportName, default: "current"
 
     # ---- Identity -----------------------------------------------
-    attribute :identity_name,       String, default: "—"
+    attribute :identity_name,       BeingName,  default: "—"
 
     # ---- Consciousness ------------------------------------------
-    attribute :consciousness_state, String, default: "—"
-    attribute :sleep_stage,         String, default: "—"
-    attribute :sleep_progress,      String, default: "—/—"
-    attribute :sleep_summary,       String, default: "—"
+    attribute :consciousness_state, ConsciousnessState, default: "—"
+    attribute :sleep_stage,         SleepStage,         default: "—"
+    attribute :sleep_progress,      SleepProgress,      default: "—/—"
+    attribute :sleep_summary,       SleepSummary,       default: "—"
 
     # ---- Vitals (Heartbeat + Tick) ------------------------------
-    attribute :fatigue,             String, default: "—"
-    attribute :fatigue_state,       String, default: "—"
-    attribute :pulse_rate,          String, default: "—"
-    attribute :flow_rate,           String, default: "—"
-    attribute :pulses_since_sleep,  String, default: "—"
-    attribute :cycle,               String, default: "0"
+    attribute :fatigue,             FatigueLevel,    default: "—"
+    attribute :fatigue_state,       FatigueState,    default: "—"
+    attribute :pulse_rate,          RateText,        default: "—"
+    attribute :flow_rate,           RateText,        default: "—"
+    attribute :pulses_since_sleep,  PulseSinceSleep, default: "—"
+    attribute :cycle,               CycleText,       default: "0"
 
     # ---- Mood ---------------------------------------------------
-    attribute :mood_state,          String, default: "—"
-    attribute :creativity_level,    String, default: "—"
-    attribute :precision_level,     String, default: "—"
+    attribute :mood_state,          MoodLabel,       default: "—"
+    attribute :creativity_level,    LevelText,       default: "—"
+    attribute :precision_level,     LevelText,       default: "—"
 
     # ---- Memory counts ------------------------------------------
-    attribute :conversations_count, Integer, default: 0
-    attribute :signals_count,       Integer, default: 0
-    attribute :synapses_count,      Integer, default: 0
-    attribute :memories_count,      Integer, default: 0
+    attribute :conversations_count, RecordCount, default: 0
+    attribute :signals_count,       RecordCount, default: 0
+    attribute :synapses_count,      RecordCount, default: 0
+    attribute :memories_count,      RecordCount, default: 0
 
     # ---- Recent activity ----------------------------------------
-    attribute :last_dream_at,       String,  default: "—"
-    attribute :last_dream_text,     String,  default: "—"
-    attribute :last_turn_at,        String,  default: "—"
-    attribute :last_turn_text,      String,  default: "—"
+    attribute :last_dream_at,       Timestamp,    default: "—"
+    attribute :last_dream_text,     ExcerptText,  default: "—"
+    attribute :last_turn_at,        Timestamp,    default: "—"
+    attribute :last_turn_text,      ExcerptText,  default: "—"
 
     # ---- Bluebooks on disk --------------------------------------
-    attribute :aggregates_count,    Integer, default: 0
-    attribute :capabilities_count,  Integer, default: 0
+    attribute :aggregates_count,    RecordCount, default: 0
+    attribute :capabilities_count,  RecordCount, default: 0
 
     # ---- Daemons ------------------------------------------------
-    attribute :mindstream_alive,    String, default: "down"
+    attribute :mindstream_alive,    DaemonAlive, default: "down"
 
     # ---- Pipeline phase -----------------------------------------
     #
@@ -86,8 +86,116 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
     # lifecycle below enumerates the ordered transitions ; the Rust
     # runner updates the aggregate state directly today, but reading
     # this phase is how a watcher (or the future self-interpreting
-    # runtime) knows which step fired last.
-    attribute :phase,               String, default: "pending"
+    # runtime) knows which step fired last. Wrapped + default so
+    # dispatch reads back the initial "pending" state (per i563).
+    attribute :phase,               PhaseName,   default: "pending"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "ReportName" do
+      # Singleton identifier for the StatusReport row — defaults to "current".
+      attribute :value, String
+    end
+
+    value_object "BeingName" do
+      # The being whose status the report describes (Miette, today).
+      attribute :value, String
+    end
+
+    value_object "ConsciousnessState" do
+      # The being's consciousness slot — awake | dreaming | asleep | …
+      attribute :value, String
+    end
+
+    value_object "SleepStage" do
+      # Substage of sleep when consciousness is asleep (rem | deep | …).
+      attribute :value, String
+    end
+
+    value_object "SleepProgress" do
+      # Human-readable progress through the sleep cycle (e.g. "3/5").
+      attribute :value, String
+    end
+
+    value_object "SleepSummary" do
+      # One-line free-text summary of the most recent sleep window.
+      attribute :value, String
+    end
+
+    value_object "FatigueLevel" do
+      # Numeric or symbolic fatigue reading rendered into the Vitals table.
+      attribute :value, String
+    end
+
+    value_object "FatigueState" do
+      # Symbolic fatigue state — fresh | tired | exhausted.
+      attribute :value, String
+    end
+
+    value_object "RateText" do
+      # A per-minute (or per-second) rate rendered as text in Vitals.
+      attribute :value, String
+    end
+
+    value_object "PulseSinceSleep" do
+      # Count of pulses recorded since the last sleep, as text.
+      attribute :value, String
+    end
+
+    value_object "CycleText" do
+      # The current ultradian/circadian cycle index, as text.
+      attribute :value, String
+    end
+
+    value_object "MoodLabel" do
+      # The being's current mood label — calm, curious, focused, …
+      attribute :value, String
+    end
+
+    value_object "LevelText" do
+      # A creativity / precision level reading shown in the Mood table.
+      attribute :value, String
+    end
+
+    value_object "RecordCount" do
+      # Count of records in one of the memory stores (conversations, signals, …).
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp surface for recent-activity rows.
+      attribute :value, String
+    end
+
+    value_object "ExcerptText" do
+      # A short excerpt of a recent dream or turn, shown in Recent activity.
+      attribute :value, String
+    end
+
+    value_object "DaemonAlive" do
+      # Daemon liveness reading — "up" | "down" | other adapter words.
+      attribute :value, String
+    end
+
+    value_object "PhaseName" do
+      # The pipeline phase slot the report walks through while assembling.
+      attribute :value, String
+    end
+
+    value_object "ScriptPath" do
+      # The path of the script invoking the status command.
+      attribute :value, String
+    end
+
+    value_object "FsRoot" do
+      # The resolved root the :fs adapter reads .heki stores under.
+      attribute :value, String
+    end
+
+    value_object "FailureReason" do
+      # Why the pipeline aborted before completing — adapter, store, dispatch.
+      attribute :value, String
+    end
 
     # ============================================================
     # ENTRYPOINT
@@ -110,8 +218,8 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
     command "ResolveFsRoot" do
       role "System"
       description "Resolve the :fs adapter's `root:` option against the script path. HECKS_INFO in the environment wins if non-empty ; absolute roots pass through ; relative roots walk up from the script's directory to find a matching subdir."
-      attribute :script_path, String
-      attribute :fs_root, String
+      attribute :script_path, ScriptPath
+      attribute :fs_root, FsRoot
       then_set :phase, to: "resolving"
       emits "FsRootResolved"
     end
@@ -155,7 +263,7 @@ Hecks.bluebook "Status", version: "2026.04.24.1" do
     command "FailReport" do
       role "System"
       description "Pipeline aborted — one of the phases could not complete (missing adapter, unreadable store, runtime dispatch failure). Records the reason and moves :phase to failed."
-      attribute :reason, String
+      attribute :reason, FailureReason
       then_set :phase, to: "failed"
       emits "ReportFailed"
     end

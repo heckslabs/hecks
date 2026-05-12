@@ -1,23 +1,60 @@
-Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
+Hecks.bluebook "PageCompliance", version: "2026.05.12.1" do
   vision "Generate pages from aggregates and validate them against the bluebook — no orphan elements"
   category "infrastructure"
 
   # === Validation ===
 
   aggregate "DomainCompliance", "Validate that the web app follows its bluebook — no orphan elements" do
-    attribute :app_path, String
-    attribute :bluebook_path, String
-    attribute :total_elements, Integer
-    attribute :tagged_elements, Integer
-    attribute :orphan_elements, Integer
-    attribute :missing_commands, list_of(String)
-    attribute :compliance_score, Float
+    attribute :app_path, AppPath
+    attribute :bluebook_path, BluebookPath
+    attribute :total_elements, ElementCount
+    attribute :tagged_elements, ElementCount
+    attribute :orphan_elements, ElementCount
+    attribute :missing_commands, list_of(CommandName)
+    attribute :compliance_score, ComplianceScore
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "AppPath" do
+      # Filesystem path to the generated web app being scanned.
+      attribute :value, String
+    end
+
+    value_object "BluebookPath" do
+      # Filesystem path to the bluebook the app is being compared against.
+      attribute :value, String
+    end
+
+    value_object "ElementCount" do
+      # Count of HTML elements — total, tagged, or orphaned.
+      attribute :value, Integer
+    end
+
+    value_object "CommandName" do
+      # The name of a command from the bluebook (one entry of missing_commands).
+      attribute :value, String
+    end
+
+    value_object "ComplianceScore" do
+      # Ratio of tagged to total elements — 0.0 to 1.0.
+      attribute :value, Float
+    end
+
+    value_object "ElementSelector" do
+      # The selector (tag + attrs) identifying an orphaned element.
+      attribute :value, String
+    end
+
+    value_object "ElementLocation" do
+      # File path + line where an orphaned element was found.
+      attribute :value, String
+    end
 
     command "ScanApp" do
       role "System"
       description "Parse every HTML element, extract domain tags, compare against bluebook"
-      attribute :app_path, String
-      attribute :bluebook_path, String
+      attribute :app_path, AppPath
+      attribute :bluebook_path, BluebookPath
       emits "AppScanned"
       then_set :app_path, to: :app_path
       then_set :bluebook_path, to: :bluebook_path
@@ -27,10 +64,10 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
       role "System"
       description "Calculate compliance score — tagged elements / total elements"
       reference_to(DomainCompliance)
-      attribute :total_elements, Integer
-      attribute :tagged_elements, Integer
-      attribute :orphan_elements, Integer
-      attribute :missing_commands, list_of(String)
+      attribute :total_elements, ElementCount
+      attribute :tagged_elements, ElementCount
+      attribute :orphan_elements, ElementCount
+      attribute :missing_commands, list_of(CommandName)
       emits "ComplianceReported"
       then_set :total_elements, to: :total_elements
       then_set :tagged_elements, to: :tagged_elements
@@ -42,8 +79,8 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
       role "System"
       description "An HTML element has no domain tag — it's outside the spec"
       reference_to(DomainCompliance)
-      attribute :element, String
-      attribute :location, String
+      attribute :element, ElementSelector
+      attribute :location, ElementLocation
       emits "OrphanFlagged"
     end
 
@@ -51,7 +88,7 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
       role "System"
       description "A command exists in the bluebook but has no form in the app"
       reference_to(DomainCompliance)
-      attribute :command_name, String
+      attribute :command_name, CommandName
       emits "MissingCommandFlagged"
     end
   end
@@ -59,20 +96,53 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
   # === Page Generation ===
 
   aggregate "Page", "A generated page — one per aggregate or dashboard" do
-    attribute :name, String
-    attribute :page_type, String
-    attribute :aggregate_name, String
-    attribute :route, String
-    attribute :components, list_of(String)
-    attribute :status, String
+    attribute :name, PageName
+    attribute :page_type, PageType
+    attribute :aggregate_name, AggregateName
+    attribute :route, Route
+    attribute :components, list_of(ComponentRef)
+    # Lifecycle-tracked field — wrapped + default so dispatch reads back "pending".
+    attribute :status, PageStatus, default: "pending"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "PageName" do
+      # Human-readable name of the generated page.
+      attribute :value, String
+    end
+
+    value_object "PageType" do
+      # Page archetype — index | show | form | dashboard.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Which aggregate this page renders (the bluebook concept).
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      # The URL route the page mounts at (e.g. /formulas, /orders/:id).
+      attribute :value, String
+    end
+
+    value_object "ComponentRef" do
+      # The name of a component the page composes in (one entry of components).
+      attribute :value, String
+    end
+
+    value_object "PageStatus" do
+      # Lifecycle slot : pending | generated | customized | validated.
+      attribute :value, String
+    end
 
     command "GeneratePage" do
       role "System"
       description "Create a page from an aggregate — index, show, form, dashboard"
-      attribute :name, String
-      attribute :page_type, String
-      attribute :aggregate_name, String
-      attribute :route, String
+      attribute :name, PageName
+      attribute :page_type, PageType
+      attribute :aggregate_name, AggregateName
+      attribute :route, Route
       emits "PageGenerated"
       then_set :name, to: :name
       then_set :page_type, to: :page_type

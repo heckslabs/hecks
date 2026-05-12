@@ -1,18 +1,60 @@
-Hecks.bluebook "StyleGuide", version: "2026.05.11.1" do
+Hecks.bluebook "StyleGuide", version: "2026.05.12.1" do
   vision "Design system — colors, typography, spacing. Distinctly yours, not AI-generic."
   category "infrastructure"
 
   # === Style Guide ===
 
   aggregate "StyleGuide", "Design system — colors, typography, spacing, components. Yours to customize." do
-    attribute :name, String
+    attribute :name, GuideName
     attribute :palette, list_of(Color)
     attribute :typography, list_of(TypeScale)
-    attribute :spacing_unit, Integer
-    attribute :border_radius, String
-    attribute :shadow_style, String
-    attribute :animation_style, String
-    attribute :density, String
+    attribute :spacing_unit, SpacingUnit
+    attribute :border_radius, RadiusToken
+    attribute :shadow_style, ShadowToken
+    attribute :animation_style, AnimationToken
+    attribute :density, DensityToken
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "GuideName" do
+      # Human-readable name of the style guide — what designers will reference.
+      attribute :value, String
+    end
+
+    value_object "SpacingUnit" do
+      # The base spacing unit in pixels (4, 8, 16) that the scale multiplies.
+      attribute :value, Integer
+    end
+
+    value_object "RadiusToken" do
+      # The border-radius token applied to surfaces — symbolic or px value.
+      attribute :value, String
+    end
+
+    value_object "ShadowToken" do
+      # The shadow-style token — sharp | soft | layered | none.
+      attribute :value, String
+    end
+
+    value_object "AnimationToken" do
+      # The animation-style token — minimal | playful | reverent | …
+      attribute :value, String
+    end
+
+    value_object "DensityToken" do
+      # The density token — compact | comfortable | spacious.
+      attribute :value, String
+    end
+
+    value_object "TokenName" do
+      # The name of a single style token (one row of the design system).
+      attribute :value, String
+    end
+
+    value_object "TokenValue" do
+      # The value associated with a token — hex, px, ms, label, etc.
+      attribute :value, String
+    end
 
     value_object "Color" do
       attribute :name, String
@@ -33,10 +75,10 @@ Hecks.bluebook "StyleGuide", version: "2026.05.11.1" do
     command "DraftStyleGuide" do
       role "Designer"
       description "Draft the visual language — not AI-generic, distinctly yours"
-      attribute :name, String
-      attribute :spacing_unit, Integer
-      attribute :border_radius, String
-      attribute :density, String
+      attribute :name, GuideName
+      attribute :spacing_unit, SpacingUnit
+      attribute :border_radius, RadiusToken
+      attribute :density, DensityToken
       emits "StyleGuideDrafted"
       then_set :name, to: :name
       then_set :spacing_unit, to: :spacing_unit
@@ -62,8 +104,8 @@ Hecks.bluebook "StyleGuide", version: "2026.05.11.1" do
       role "Designer"
       description "Override any style token — make it extraordinary"
       reference_to(StyleGuide)
-      attribute :token_name, String
-      attribute :token_value, String
+      attribute :token_name, TokenName
+      attribute :token_value, TokenValue
       emits "StyleTweaked"
     end
   end

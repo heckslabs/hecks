@@ -1,15 +1,37 @@
-Hecks.bluebook "Component", version: "2026.05.11.1" do
+Hecks.bluebook "Component", version: "2026.05.12.1" do
   vision "Reusable UI components — domain-tagged, accessible, stylable"
   category "infrastructure"
 
   # === Component Library ===
 
   aggregate "Component", "A reusable UI component — domain-tagged, accessible, stylable" do
-    attribute :name, String
-    attribute :component_type, String
-    attribute :maps_to, String
+    attribute :name, ComponentName
+    attribute :component_type, ComponentType
+    attribute :maps_to, MapsTo
     attribute :props, list_of(Prop)
-    attribute :accessible, String
+    attribute :accessible, YesNo
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "ComponentName" do
+      # The library-facing name of the component (FormField, DataTable, …).
+      attribute :value, String
+    end
+
+    value_object "ComponentType" do
+      # Which kind of component this is — form_field | data_table | card | …
+      attribute :value, String
+    end
+
+    value_object "MapsTo" do
+      # Which domain concept the component renders (aggregate, command, value_object).
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      # "true" | "false" — symbolic boolean ; here, accessibility flag.
+      attribute :value, String
+    end
 
     value_object "Prop" do
       attribute :name, String
@@ -21,9 +43,9 @@ Hecks.bluebook "Component", version: "2026.05.11.1" do
     command "DefineComponent" do
       role "System"
       description "Create a component — form field, data table, card, lifecycle badge, action button"
-      attribute :name, String
-      attribute :component_type, String
-      attribute :maps_to, String
+      attribute :name, ComponentName
+      attribute :component_type, ComponentType
+      attribute :maps_to, MapsTo
       emits "ComponentDefined"
       then_set :name, to: :name
       then_set :component_type, to: :component_type

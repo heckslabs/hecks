@@ -1,4 +1,4 @@
-Hecks.bluebook "Cli", version: "2026.04.24.1" do
+Hecks.bluebook "Cli", version: "2026.05.12.1" do
   vision "The storehouse invocation as a domain — being detection, argv parsing, subcommand routing, handler dispatch, exit reporting, all expressed as one aggregate walking a five-phase lifecycle"
   category "runtime"
 
@@ -45,39 +45,93 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     # pid_started_at : <pid>-<unix_seconds> — natural key per process.
     # Lets the audit channel keep one record per binary fire without
     # collisions across concurrent invocations (rare but possible).
-    attribute :pid_started_at, String
+    attribute :pid_started_at, PidStartedAt
 
     # argv0 : the binary name as invoked. "storehouse", "miette",
     # "summer" all land here ; the being detector reads this.
-    attribute :argv0, String
+    attribute :argv0, Argv0
     # being : the detected being name. miette → "Miette", summer →
     # "Summer", otherwise the default from the binary-name table.
-    attribute :being, String
+    attribute :being, BeingName
     # is_named_being : yes | no. When yes and argv has no subcommand,
     # the default is to drop into the terminal rather than print
     # usage.
-    attribute :is_named_being, String
+    attribute :is_named_being, YesNo
     # subcommand : the dispatched command name. Read from argv[1],
     # or "parse" when argv[1] looks like a filename (has a dot) and
     # there are no further args (backwards-compat shim).
-    attribute :subcommand, String
+    attribute :subcommand, SubcommandName
     # path_arg : argv[2], when present. Many subcommands take a path
     # as their first positional arg (parse, dump-world, specialize,
     # behaviors, run, serve, etc.).
-    attribute :path_arg, String
+    attribute :path_arg, PathArg
     # handler : the resolved handler name — the Subcommand catalog's
     # `handler` column for the matched subcommand. Empty when no
     # subcommand matched (fall-through to print_usage + exit 1).
-    attribute :handler, String
+    attribute :handler, HandlerName
     # exit_code : 0 for clean, non-zero per each handler's code table.
-    attribute :exit_code, Integer
+    attribute :exit_code, ExitCode
     # exit_kind : symbolic form of exit_code (ok | parse_failure |
     # guard_failure | adapter_failure | command_not_found | unknown_
     # subcommand).
-    attribute :exit_kind, String
+    attribute :exit_kind, ExitKindName
     # phase : pending | being_detected | parsed | routed | dispatched
-    #         | complete | failed.
-    attribute :phase, String
+    #         | complete | failed. Lifecycle-tracked ; wrapped + default
+    # so dispatch reads back the initial state.
+    attribute :phase, PhaseName, default: "pending"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "PidStartedAt" do
+      # <pid>-<unix_seconds> ; the natural key for one invocation.
+      attribute :value, String
+    end
+
+    value_object "Argv0" do
+      # The binary name as invoked (argv[0] basename).
+      attribute :value, String
+    end
+
+    value_object "BeingName" do
+      # The being whose binary fired — Miette, Summer, fallback default.
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      # "yes" | "no" — symbolic boolean for is_named_being.
+      attribute :value, String
+    end
+
+    value_object "SubcommandName" do
+      # The dispatched subcommand name (heki, parse, run, serve, …).
+      attribute :value, String
+    end
+
+    value_object "PathArg" do
+      # argv[2] when present — the positional path many handlers consume.
+      attribute :value, String
+    end
+
+    value_object "HandlerName" do
+      # The resolved handler the subcommand catalog mapped to.
+      attribute :value, String
+    end
+
+    value_object "ExitCode" do
+      # The numeric code returned to the OS — 0 ok, non-zero per handler.
+      attribute :value, Integer
+    end
+
+    value_object "ExitKindName" do
+      # Symbolic form of exit_code : ok, parse_failure, guard_failure,
+      # adapter_failure, command_not_found, unknown_subcommand.
+      attribute :value, String
+    end
+
+    value_object "PhaseName" do
+      # The pipeline phase slot the invocation walks while dispatching.
+      attribute :value, String
+    end
 
     # ---- ExitKind -------------------------------------------------
     #
@@ -123,9 +177,9 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     command "DetectBeing" do
       role "System"
       description "Read argv[0]'s basename. 'miette' resolves to being='Miette' ; 'summer' to 'Summer' ; anything else uses the default 'Miette'. The boolean is_named_being is yes when argv[0] is exactly miette or summer — that branch changes the no-subcommand behaviour from print_usage to drop-into-terminal."
-      attribute :argv0, String
-      attribute :being, String
-      attribute :is_named_being, String
+      attribute :argv0, Argv0
+      attribute :being, BeingName
+      attribute :is_named_being, YesNo
       then_set :argv0, to: :argv0
       then_set :being, to: :being
       then_set :is_named_being, to: :is_named_being
@@ -136,8 +190,8 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     command "ParseArgv" do
       role "System"
       description "Decide the subcommand from argv[1] and the path arg from argv[2]. Backwards-compat shim : when argv has exactly 2 elements and argv[1] contains a dot, treat it as a parse invocation — lets `storehouse pizzas.bluebook` work without the `parse` subcommand. When argv has only 1 element and is_named_being is yes, the subcommand resolves to 'terminal' ; otherwise 'help' with exit code 1."
-      attribute :subcommand, String
-      attribute :path_arg, String
+      attribute :subcommand, SubcommandName
+      attribute :path_arg, PathArg
       then_set :subcommand, to: :subcommand
       then_set :path_arg, to: :path_arg
       then_set :phase, to: "parsed"
@@ -147,7 +201,7 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     command "RouteSubcommand" do
       role "System"
       description "Resolve the handler for the parsed subcommand. The concrete registry is main.rs's if / else-if chain ; matches are exact, no fuzzy matching. When the subcommand is not recognized, move to failed with exit_kind=unknown_subcommand ; when it is, record the handler name and move to routed."
-      attribute :handler, String
+      attribute :handler, HandlerName
       then_set :handler, to: :handler
       then_set :phase, to: "routed"
       emits "SubcommandRouted"
@@ -163,8 +217,8 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     command "ReportExit" do
       role "System"
       description "Record the handler's outcome as an ExitKind and propagate the code back to the OS. Zero for clean ; non-zero per the handler's own table (1 for parse failure, 2 for guard failure, 3 for adapter failure, 4 for command not found, etc. — the shared five-kind vocabulary from Runner)."
-      attribute :exit_code, Integer
-      attribute :exit_kind, String
+      attribute :exit_code, ExitCode
+      attribute :exit_kind, ExitKindName
       then_set :exit_code, to: :exit_code
       then_set :exit_kind, to: :exit_kind
       then_set :phase, to: "complete"
@@ -174,8 +228,8 @@ Hecks.bluebook "Cli", version: "2026.04.24.1" do
     command "FailInvocation" do
       role "System"
       description "Unknown subcommand, invalid argv shape, or handler-side failure that did not surface a clean ExitKind. Records the failing kind and moves to failed — the OS sees a non-zero exit and the operator sees the error printed to stderr."
-      attribute :exit_kind, String
-      attribute :exit_code, Integer
+      attribute :exit_kind, ExitKindName
+      attribute :exit_code, ExitCode
       then_set :exit_kind, to: :exit_kind
       then_set :exit_code, to: :exit_code
       then_set :phase, to: "failed"

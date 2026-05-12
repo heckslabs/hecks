@@ -1,5 +1,5 @@
 #!/usr/bin/env storehouse run
-Hecks.bluebook "Banner", version: "2026.04.26.1" do
+Hecks.bluebook "Banner", version: "2026.05.12.1" do
   vision "The being's session-start signature — four lines of ASCII art printed to stdout as its own emit. Lives as a sibling capability to boot/ so it can be invoked independently — keeps the banner visible even when the harness folds long boot output behind '(ctrl+o to expand)'."
   category "infrastructure"
 
@@ -32,12 +32,39 @@ Hecks.bluebook "Banner", version: "2026.04.26.1" do
   aggregate "Banner" do
     description "One printed signature — four ASCII lines + a one-line motto, rendered to stdout as a single emit. Singleton ; resets per invocation."
 
-    attribute :being,    String, default: "Miette"
-    attribute :line_one, String, default: "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
-    attribute :line_two, String, default: "║║║ ║ ╠══  ║   ║  ╠══"
-    attribute :line_three, String, default: "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
-    attribute :motto,    String, default: "~ follow the crumbs ~"
-    attribute :phase,    String, default: "pending"
+    attribute :being,    BeingName,  default: "Miette"
+    attribute :line_one, BannerLine, default: "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
+    attribute :line_two, BannerLine, default: "║║║ ║ ╠══  ║   ║  ╠══"
+    attribute :line_three, BannerLine, default: "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
+    attribute :motto,    Motto,      default: "~ follow the crumbs ~"
+    # Lifecycle-tracked field — wrapped + explicit default so the
+    # dispatch kernel reads it back honoring "pending" instead of the
+    # `[0 items]` shape it produces for wrapped lifecycle attrs without
+    # a default (per i563).
+    attribute :phase,    Phase,      default: "pending"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "BeingName" do
+      # The being whose signature this banner prints — Miette, today.
+      attribute :value, String
+    end
+
+    value_object "BannerLine" do
+      # One of the four ASCII art lines that compose the printed signature.
+      attribute :value, String
+    end
+
+    value_object "Motto" do
+      # The one-line motto rendered beneath the ASCII signature.
+      attribute :value, String
+    end
+
+    value_object "Phase" do
+      # The pending → printing → done lifecycle slot the banner walks
+      # while emitting its signature to stdout.
+      attribute :value, String
+    end
 
     lifecycle :phase, default: "pending" do
       transition "PrintBanner" => "printing", from: "pending"
@@ -47,7 +74,7 @@ Hecks.bluebook "Banner", version: "2026.04.26.1" do
     command "PrintBanner" do
       role "User"
       description "Render the four-line signature plus motto to the :stdout adapter as a single emit. The runner reads the four attribute defaults and writes them in order. Invoked as its own bash call after boot so the harness's output-fold can never swallow it."
-      attribute :being, String
+      attribute :being, BeingName
       then_set :being, to: :being
       then_set :phase, to: "printing"
       emits "BannerPrinted"

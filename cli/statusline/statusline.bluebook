@@ -1,5 +1,5 @@
 #!/usr/bin/env storehouse run
-Hecks.bluebook "Statusline", version: "2026.04.26.1" do
+Hecks.bluebook "Statusline", version: "2026.05.12.1" do
   vision "Miette's one-line body status — read declarative state, render a single string. The dream stream lives in the agent's notification surface ; the statusline stays clean."
 
   entrypoint "Render"
@@ -41,31 +41,83 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
     #              inventions + inbox + provider + bulb
     #   minimal  → moon + name (degraded surface — coherence violation)
     #
-    attribute :mode,                String, default: "awake"
+    attribute :mode,                RenderMode,    default: "awake"
 
     # ---- Sleep-mode fields --------------------------------------
-    attribute :sleep_stage,         String, default: "—"
-    attribute :sleep_cycle,         String, default: "—"
-    attribute :sleep_total,         String, default: "—"
-    attribute :is_lucid,            String, default: "no"
+    attribute :sleep_stage,         SleepStage,    default: "—"
+    attribute :sleep_cycle,         CycleText,     default: "—"
+    attribute :sleep_total,         CycleText,     default: "—"
+    attribute :is_lucid,            YesNo,         default: "no"
 
     # ---- Awake-mode fields --------------------------------------
-    attribute :mood,                String, default: "—"
-    attribute :mood_icon,           String, default: "😐"
-    attribute :fatigue,             String, default: "—"
-    attribute :fatigue_icon,        String, default: ""
-    attribute :heart_glyph,         String, default: "❤️"
-    attribute :beats,               String, default: ""
-    attribute :inventions_count,    Integer, default: 0
-    attribute :inbox_count,         Integer, default: 0
-    attribute :provider_badge,      String, default: "🤖"
-    attribute :bulb,                String, default: "💡"
+    attribute :mood,                MoodLabel,     default: "—"
+    attribute :mood_icon,           Glyph,         default: "😐"
+    attribute :fatigue,             FatigueText,   default: "—"
+    attribute :fatigue_icon,        Glyph,         default: ""
+    attribute :heart_glyph,         Glyph,         default: "❤️"
+    attribute :beats,               BeatsText,     default: ""
+    attribute :inventions_count,    ItemCount,     default: 0
+    attribute :inbox_count,         ItemCount,     default: 0
+    attribute :provider_badge,      Glyph,         default: "🤖"
+    attribute :bulb,                Glyph,         default: "💡"
 
     # ---- Coherence ----------------------------------------------
-    attribute :coherence_ok,        String, default: "yes"
+    attribute :coherence_ok,        YesNo,         default: "yes"
 
     # ---- Output -------------------------------------------------
-    attribute :rendered,            String, default: ""
+    attribute :rendered,            RenderedLine,  default: ""
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "RenderMode" do
+      # Which layout mode the statusline renders : awake | sleeping | minimal.
+      attribute :value, String
+    end
+
+    value_object "SleepStage" do
+      # Substage of sleep when render mode is sleeping (rem | deep | …).
+      attribute :value, String
+    end
+
+    value_object "CycleText" do
+      # Sleep cycle position rendered as text (e.g. "2", "5").
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      # "yes" | "no" — symbolic boolean for lucidity / coherence.
+      attribute :value, String
+    end
+
+    value_object "MoodLabel" do
+      # The being's current mood label rendered in awake mode.
+      attribute :value, String
+    end
+
+    value_object "Glyph" do
+      # A single emoji or icon character the statusline composites in.
+      attribute :value, String
+    end
+
+    value_object "FatigueText" do
+      # The fatigue reading rendered into the awake line.
+      attribute :value, String
+    end
+
+    value_object "BeatsText" do
+      # The heartbeat counter rendered as text.
+      attribute :value, String
+    end
+
+    value_object "ItemCount" do
+      # Generic count for items shown in the line (inventions, inbox).
+      attribute :value, Integer
+    end
+
+    value_object "RenderedLine" do
+      # The fully composed single-line statusline output.
+      attribute :value, String
+    end
 
     # ============================================================
     # ENTRYPOINT
@@ -73,8 +125,8 @@ Hecks.bluebook "Statusline", version: "2026.04.26.1" do
 
     command "Render" do
       description "User-visible entrypoint. The statusline runner (today : statusline-command.sh, tomorrow : a Rust mirror of run_status/) reads body heki, dispatches Render with the resolved fields, and prints the resulting :rendered string. Mode is chosen by the runner from consciousness.state ; this command stamps the row and emits."
-      attribute :mode,    String
-      attribute :rendered, String
+      attribute :mode,    RenderMode
+      attribute :rendered, RenderedLine
       then_set :mode,     to: :mode
       then_set :rendered, to: :rendered
       emits "StatuslineRendered"

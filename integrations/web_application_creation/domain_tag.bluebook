@@ -1,12 +1,34 @@
-Hecks.bluebook "DomainTag", version: "2026.05.11.1" do
+Hecks.bluebook "DomainTag", version: "2026.05.12.1" do
   vision "HTML accessibility tagging conventions — every generated element maps back to a domain concept"
   category "infrastructure"
 
   # === Domain Mapping ===
 
   aggregate "DomainTag", "HTML accessibility attributes that map every element to the domain" do
-    attribute :tag_prefix, String
+    attribute :tag_prefix, TagPrefix
     attribute :conventions, list_of(TagConvention)
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "TagPrefix" do
+      # The data attribute prefix every generated element carries (data-domain, data-bluebook).
+      attribute :value, String
+    end
+
+    value_object "ElementType" do
+      # HTML element name a convention targets (section, form, input, …).
+      attribute :value, String
+    end
+
+    value_object "AttributeName" do
+      # The data-* attribute name the convention uses to tag the element.
+      attribute :value, String
+    end
+
+    value_object "MapsTo" do
+      # Which domain concept this element type maps onto (aggregate, command, …).
+      attribute :value, String
+    end
 
     value_object "TagConvention" do
       attribute :element_type, String
@@ -18,7 +40,7 @@ Hecks.bluebook "DomainTag", version: "2026.05.11.1" do
     command "DefineTagPrefix" do
       role "System"
       description "Set the data attribute prefix — e.g. data-domain, data-bluebook"
-      attribute :tag_prefix, String
+      attribute :tag_prefix, TagPrefix
       emits "TagPrefixDefined"
       then_set :tag_prefix, to: :tag_prefix
     end
@@ -27,9 +49,9 @@ Hecks.bluebook "DomainTag", version: "2026.05.11.1" do
       role "System"
       description "Map an HTML element type to a domain concept"
       reference_to(DomainTag)
-      attribute :element_type, String
-      attribute :attribute_name, String
-      attribute :maps_to, String
+      attribute :element_type, ElementType
+      attribute :attribute_name, AttributeName
+      attribute :maps_to, MapsTo
       emits "ConventionRegistered"
     end
   end
