@@ -1,0 +1,157 @@
+Hecks.behaviors "Tools" do
+  vision "Behavioral tests for the Tools aggregate — six standard-CLI tool invocations as first-class dispatches (Bash / Edit / Read / Update / Grep / Glob). Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
+
+  # ── Bash ──────────────────────────────────────────────────────────
+  #
+  # Bash carries shell_command + description in both event payload and
+  # aggregate state (small values, no bloat risk).
+
+  test "Bash records shell_command + description" do
+    tests "Bash", on: "Tools"
+    input  id:             { value: "bash-1" },
+           shell_command:  { value: "echo hello" },
+           description:    { value: "say hi from the shell" }
+    expect shell_command:  { value: "echo hello" },
+           description:    { value: "say hi from the shell" }
+  end
+
+  test "Bash emits BashRan" do
+    tests "Bash", on: "Tools"
+    input  id:             { value: "bash-2" },
+           shell_command:  { value: "ls -la" },
+           description:    { value: "list working directory" }
+    expect emits: ["BashRan"]
+  end
+
+  test "Bash carries a very long shell_command in state" do
+    tests "Bash", on: "Tools"
+    input  id:             { value: "bash-3" },
+           shell_command:  { value: "echo " + ("x" * 2000) },
+           description:    { value: "stress-test long command line" }
+    expect description:    { value: "stress-test long command line" }
+  end
+
+  # ── Edit ──────────────────────────────────────────────────────────
+  #
+  # Edit's old_string / new_string live in event payload only ; state
+  # only records file_path + description so persistence stays small.
+
+  test "Edit records file_path + description" do
+    tests "Edit", on: "Tools"
+    input  id:           { value: "edit-1" },
+           file_path:    { value: "/tmp/foo.rb" },
+           old_string:   { value: "foo" },
+           new_string:   { value: "bar" },
+           replace_all:  { value: false },
+           description:  { value: "rename foo to bar" }
+    expect file_path:    { value: "/tmp/foo.rb" },
+           description:  { value: "rename foo to bar" }
+  end
+
+  test "Edit emits EditApplied" do
+    tests "Edit", on: "Tools"
+    input  id:           { value: "edit-2" },
+           file_path:    { value: "/tmp/bar.rb" },
+           old_string:   { value: "x" },
+           new_string:   { value: "y" },
+           replace_all:  { value: true },
+           description:  { value: "replace x with y everywhere" }
+    expect emits: ["EditApplied"]
+  end
+
+  # ── Read ──────────────────────────────────────────────────────────
+  #
+  # Read is pure observation — file contents flow only through the
+  # FileRead event payload ; state records what was looked at + why.
+
+  test "Read records file_path + description" do
+    tests "Read", on: "Tools"
+    input  id:           { value: "read-1" },
+           file_path:    { value: "/tmp/example.txt" },
+           description:  { value: "inspect example file" }
+    expect file_path:    { value: "/tmp/example.txt" },
+           description:  { value: "inspect example file" }
+  end
+
+  test "Read emits FileRead" do
+    tests "Read", on: "Tools"
+    input  id:           { value: "read-2" },
+           file_path:    { value: "/etc/hosts" },
+           description:  { value: "peek at hosts" }
+    expect emits: ["FileRead"]
+  end
+
+  # ── Update ────────────────────────────────────────────────────────
+  #
+  # Update's content lives in event payload only ; state records the
+  # file_path + description.
+
+  test "Update records file_path + description" do
+    tests "Update", on: "Tools"
+    input  id:           { value: "update-1" },
+           file_path:    { value: "/tmp/new_file.txt" },
+           content:      { value: "hello world" },
+           description:  { value: "create greeting file" }
+    expect file_path:    { value: "/tmp/new_file.txt" },
+           description:  { value: "create greeting file" }
+  end
+
+  test "Update emits FileUpdated" do
+    tests "Update", on: "Tools"
+    input  id:           { value: "update-2" },
+           file_path:    { value: "/tmp/other.txt" },
+           content:      { value: "x" * 5000 },
+           description:  { value: "write a large file" }
+    expect emits: ["FileUpdated"]
+  end
+
+  # ── Grep ──────────────────────────────────────────────────────────
+  #
+  # Grep records pattern + search_path + description into state.
+  # Match tuples flow through the GrepRan event payload.
+
+  test "Grep records pattern + search_path + description" do
+    tests "Grep", on: "Tools"
+    input  id:           { value: "grep-1" },
+           pattern:      { value: "TODO" },
+           search_path:  { value: "lib/" },
+           description:  { value: "find outstanding TODOs" }
+    expect pattern:      { value: "TODO" },
+           search_path:  { value: "lib/" },
+           description:  { value: "find outstanding TODOs" }
+  end
+
+  test "Grep emits GrepRan" do
+    tests "Grep", on: "Tools"
+    input  id:           { value: "grep-2" },
+           pattern:      { value: "fn main" },
+           search_path:  { value: "rust/src/" },
+           description:  { value: "locate the main entry" }
+    expect emits: ["GrepRan"]
+  end
+
+  # ── Glob ──────────────────────────────────────────────────────────
+  #
+  # Glob records glob_pattern + search_path + description. Match paths
+  # flow through the GlobMatched event payload.
+
+  test "Glob records glob_pattern + search_path + description" do
+    tests "Glob", on: "Tools"
+    input  id:           { value: "glob-1" },
+           glob_pattern: { value: "**/*.rs" },
+           search_path:  { value: "rust/src/" },
+           description:  { value: "list all rust sources" }
+    expect glob_pattern: { value: "**/*.rs" },
+           search_path:  { value: "rust/src/" },
+           description:  { value: "list all rust sources" }
+  end
+
+  test "Glob emits GlobMatched" do
+    tests "Glob", on: "Tools"
+    input  id:           { value: "glob-2" },
+           glob_pattern: { value: "aggregates/**/*.bluebook" },
+           search_path:  { value: "hecks_conception/" },
+           description:  { value: "find every bluebook" }
+    expect emits: ["GlobMatched"]
+  end
+end
