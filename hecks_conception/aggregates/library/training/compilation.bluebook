@@ -11,18 +11,33 @@ Hecks.bluebook "Compilation", version: "2026.04.28.1" do
 
   aggregate "Compilation", "Compile the nursery into a compressed corpus" do
     identified_by :name
-    attribute :name, String
-    attribute :domains_compiled, Integer
-    attribute :output_path, String
+    attribute :name,             Name
+    attribute :domains_compiled, DomainCount
+    attribute :output_path,      OutputPath
+
+    value_object "Name" do
+      # Stable slug naming this compilation run.
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Number of nursery domains included in the compiled corpus.
+      attribute :value, Integer
+    end
+
+    value_object "OutputPath" do
+      # Filesystem path the compiled corpus was written to.
+      attribute :value, String
+    end
 
     command "CompileNursery" do
       role "System"
       description "Compress all nursery domains into a single corpus file"
-      attribute :domains_compiled, Integer
-      attribute :output_path, String
+      attribute :domains_compiled, DomainCount
+      attribute :output_path,      OutputPath
       emits "NurseryCompiled"
       then_set :domains_compiled, to: :domains_compiled
-      then_set :output_path, to: :output_path
+      then_set :output_path,      to: :output_path
     end
   end
 end

@@ -6,25 +6,50 @@ Hecks.bluebook "BehaviorExample", version: "2026.04.28.1" do
 
   aggregate "BehaviorExample", "A specific behavior Miette exhibits — paired with the organ that governs it" do
     identified_by :behavior
-    attribute :behavior, String
-    attribute :organ_name, String
-    attribute :trigger, String
-    attribute :example_input, String
-    attribute :example_output, String
+    attribute :behavior,       Behavior
+    attribute :organ_name,     OrganName
+    attribute :trigger,        Trigger
+    attribute :example_input,  ExampleInput
+    attribute :example_output, ExampleOutput
+
+    value_object "Behavior" do
+      # Short slug naming the behavior (e.g. 'reply_in_french').
+      attribute :value, String
+    end
+
+    value_object "OrganName" do
+      # The organ that governs this behavior.
+      attribute :value, String
+    end
+
+    value_object "Trigger" do
+      # What event / phrase / state triggers this behavior.
+      attribute :value, String
+    end
+
+    value_object "ExampleInput" do
+      # A representative input that would elicit the behavior.
+      attribute :value, String
+    end
+
+    value_object "ExampleOutput" do
+      # The behavior's expected output for the example input.
+      attribute :value, String
+    end
 
     command "RecordBehavior" do
       role "System"
       description "Capture a behavior-to-organ mapping as training data"
-      attribute :behavior, String
-      attribute :organ_name, String
-      attribute :trigger, String
-      attribute :example_input, String
-      attribute :example_output, String
+      attribute :behavior,       Behavior
+      attribute :organ_name,     OrganName
+      attribute :trigger,        Trigger
+      attribute :example_input,  ExampleInput
+      attribute :example_output, ExampleOutput
       emits "BehaviorRecorded"
-      then_set :behavior, to: :behavior
-      then_set :organ_name, to: :organ_name
-      then_set :trigger, to: :trigger
-      then_set :example_input, to: :example_input
+      then_set :behavior,       to: :behavior
+      then_set :organ_name,     to: :organ_name
+      then_set :trigger,        to: :trigger
+      then_set :example_input,  to: :example_input
       then_set :example_output, to: :example_output
     end
   end

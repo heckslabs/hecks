@@ -12,20 +12,45 @@ Hecks.bluebook "TrainingCorpus", version: "2026.04.28.1" do
 
   aggregate "Corpus", "The full training dataset — bluebooks plus parsed IR" do
     identified_by :name
-    attribute :name, String
-    attribute :total_domains, Integer
-    attribute :total_tokens, Integer
-    attribute :quality_tiers, list_of(String)
-    attribute :format, String
+    attribute :name,          Name
+    attribute :total_domains, DomainCount
+    attribute :total_tokens,  TokenCount
+    attribute :quality_tiers, list_of(TierName)
+    attribute :format,        Format
+
+    value_object "Name" do
+      # Stable slug naming this corpus build.
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Total domains included in the corpus.
+      attribute :value, Integer
+    end
+
+    value_object "TokenCount" do
+      # Total tokens across all included bluebooks + IR.
+      attribute :value, Integer
+    end
+
+    value_object "TierName" do
+      # Quality-tier label included in this corpus (see QualityTier.name).
+      attribute :value, String
+    end
+
+    value_object "Format" do
+      # Output format of the corpus (e.g. 'jsonl', 'parquet').
+      attribute :value, String
+    end
 
     command "BuildCorpus" do
       role "Creator"
       description "Assemble all nursery domains into a training dataset"
-      attribute :total_domains, Integer
-      attribute :format, String
+      attribute :total_domains, DomainCount
+      attribute :format,        Format
       emits "CorpusBuilt"
       then_set :total_domains, to: :total_domains
-      then_set :format, to: :format
+      then_set :format,        to: :format
     end
   end
 end

@@ -6,23 +6,44 @@ Hecks.bluebook "ConversationTranscript", version: "2026.04.28.1" do
 
   aggregate "ConversationTranscript", "A recorded session between Miette and a person — teaches voice and behavior" do
     identified_by :ref
-    attribute :ref, String
-    attribute :person, String
-    attribute :turns, Integer
-    attribute :domains_conceived, Integer
-    attribute :dreams_interpreted, Integer
-    attribute :suggestions_made, Integer
-    attribute :memories_saved, Integer
+    attribute :ref,                Ref
+    attribute :person,             PersonName
+    attribute :turns,              TurnCount
+    attribute :domains_conceived,  EventCount
+    attribute :dreams_interpreted, EventCount
+    attribute :suggestions_made,   EventCount
+    attribute :memories_saved,     EventCount
+
+    value_object "Ref" do
+      # Stable identifier for the transcript session.
+      attribute :value, String
+    end
+
+    value_object "PersonName" do
+      # Identifier of the person Miette was talking with.
+      attribute :value, String
+    end
+
+    value_object "TurnCount" do
+      # Number of turns in the conversation.
+      attribute :value, Integer
+    end
+
+    value_object "EventCount" do
+      # Count of one kind of in-session event (domains conceived,
+      # dreams interpreted, suggestions made, memories saved).
+      attribute :value, Integer
+    end
 
     command "RecordTranscript" do
       role "System"
       description "Capture a conversation session as training data"
-      attribute :person, String
-      attribute :turns, Integer
-      attribute :domains_conceived, Integer
+      attribute :person,            PersonName
+      attribute :turns,             TurnCount
+      attribute :domains_conceived, EventCount
       emits "TranscriptRecorded"
-      then_set :person, to: :person
-      then_set :turns, to: :turns
+      then_set :person,            to: :person
+      then_set :turns,             to: :turns
       then_set :domains_conceived, to: :domains_conceived
     end
   end

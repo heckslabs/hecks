@@ -6,20 +6,40 @@ Hecks.bluebook "QualityTier", version: "2026.04.28.1" do
 
   aggregate "QualityTier", "A tier of training data — different sources, different quality" do
     identified_by :name
-    attribute :name, String
-    attribute :source, String
-    attribute :domain_count, Integer
-    attribute :description, String
+    attribute :name,         Name
+    attribute :source,       Source
+    attribute :domain_count, DomainCount
+    attribute :description,  Description
+
+    value_object "Name" do
+      # Tier label (e.g. 'gold', 'silver', 'noise').
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # Where the tier's data comes from (corpus / synthetic / crawl).
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Number of domains in this tier.
+      attribute :value, Integer
+    end
+
+    value_object "Description" do
+      # Human-readable description of what differentiates this tier.
+      attribute :value, String
+    end
 
     command "DefineTier" do
       role "Creator"
       description "Define a quality tier for training data"
-      attribute :name, String
-      attribute :source, String
-      attribute :description, String
+      attribute :name,        Name
+      attribute :source,      Source
+      attribute :description, Description
       emits "TierDefined"
-      then_set :name, to: :name
-      then_set :source, to: :source
+      then_set :name,        to: :name
+      then_set :source,      to: :source
       then_set :description, to: :description
     end
   end

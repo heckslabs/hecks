@@ -9,17 +9,32 @@ Hecks.bluebook "Enrichment", version: "2026.04.28.1" do
 
   aggregate "Enrichment", "Add complexity to template domains — make them training-worthy" do
     identified_by :name
-    attribute :name, String
-    attribute :strategy, String
-    attribute :domains_enriched, Integer
+    attribute :name,             Name
+    attribute :strategy,         Strategy
+    attribute :domains_enriched, DomainCount
+
+    value_object "Name" do
+      # Stable slug naming this enrichment run.
+      attribute :value, String
+    end
+
+    value_object "Strategy" do
+      # The enrichment recipe applied (e.g. 'add_lifecycles', 'add_policies').
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Number of domains touched by the enrichment.
+      attribute :value, Integer
+    end
 
     command "EnrichDomains" do
       role "System"
       description "Add cross-references, lifecycles, fixtures, and policies to flat domains"
-      attribute :strategy, String
-      attribute :domains_enriched, Integer
+      attribute :strategy,         Strategy
+      attribute :domains_enriched, DomainCount
       emits "DomainsEnriched"
-      then_set :strategy, to: :strategy
+      then_set :strategy,         to: :strategy
       then_set :domains_enriched, to: :domains_enriched
     end
   end

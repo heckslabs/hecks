@@ -10,26 +10,56 @@ Hecks.bluebook "TrainingPairCorpus", version: "2026.04.28.1" do
 
   aggregate "TrainingPair", "A single training example — bluebook source + parsed IR + validation result" do
     identified_by :ref
-    attribute :ref, String
-    attribute :bluebook_source, String
-    attribute :ir_json, String
-    attribute :valid, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :tier, String
+    attribute :ref,             Ref
+    attribute :bluebook_source, BluebookSource
+    attribute :ir_json,         IrJson
+    attribute :valid,           Validity
+    attribute :aggregate_count, ElementCount
+    attribute :command_count,   ElementCount
+    attribute :tier,            TierName
+
+    value_object "Ref" do
+      # Stable identifier for this training pair record.
+      attribute :value, String
+    end
+
+    value_object "BluebookSource" do
+      # Raw bluebook text of the example.
+      attribute :value, String
+    end
+
+    value_object "IrJson" do
+      # Serialized parser-output IR for the bluebook.
+      attribute :value, String
+    end
+
+    value_object "Validity" do
+      # Either 'valid' or 'invalid' — whether the parsed IR validates.
+      attribute :value, String
+    end
+
+    value_object "ElementCount" do
+      # Count of an IR element category (aggregates / commands).
+      attribute :value, Integer
+    end
+
+    value_object "TierName" do
+      # Quality-tier label for this pair (see QualityTier.name).
+      attribute :value, String
+    end
 
     command "MintPair" do
       role "System"
       description "Create a training pair from a bluebook"
-      attribute :bluebook_source, String
-      attribute :ir_json, String
-      attribute :valid, String
-      attribute :tier, String
+      attribute :bluebook_source, BluebookSource
+      attribute :ir_json,         IrJson
+      attribute :valid,           Validity
+      attribute :tier,            TierName
       emits "PairCreated"
       then_set :bluebook_source, to: :bluebook_source
-      then_set :ir_json, to: :ir_json
-      then_set :valid, to: :valid
-      then_set :tier, to: :tier
+      then_set :ir_json,         to: :ir_json
+      then_set :valid,           to: :valid
+      then_set :tier,            to: :tier
     end
   end
 end
