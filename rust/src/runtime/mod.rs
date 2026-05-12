@@ -47,6 +47,8 @@ pub mod prompt_scaffolder;
 // `function_name` against the static `compute_functions` registry.
 pub mod compute_dispatcher;
 pub mod claude_tool_dispatcher;
+pub mod sms_dispatcher;
+pub mod tts_dispatcher;
 pub mod compute_functions;
 
 pub use aggregate_state::AggregateState;
