@@ -9,8 +9,10 @@
 //!  integration test scaffolding for the Restructure capability ; same
 //!  antibody-exempt category as specializer_golden_test.rs and
 //!  heki_path_coherence_test.rs (test-only kernel surface). Retires
-//!  when behaviors framework gains a :fs tempdir fixture covering
-//!  Layout.Plan/Apply/RevertTo end-to-end (filed as follow-up).]
+//!  when the behaviors framework gains a `:fs` tempdir fixture
+//!  vocabulary covering Layout.Plan/Apply/RevertTo end-to-end
+//!  (filed as i569 ; one of five cluster markers retired by that
+//!  capability landing).]
 
 use storehouse::run_restructure::run;
 use storehouse::runtime::Runtime;

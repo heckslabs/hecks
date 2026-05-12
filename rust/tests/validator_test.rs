@@ -5,8 +5,10 @@
 //! [antibody-exempt: rust/tests/validator_test.rs — kernel-surface
 //!  smoke that the validator passes on shipped exemplar bluebooks
 //!  (pizzas, mind) and exercises detection on hand-built bad domains.
-//!  Test-only kernel surface. Retires when behaviors framework can
-//!  drive validator-output assertions directly.]
+//!  Test-only kernel surface. Retires when the behaviors framework
+//!  gains a validator-output-assertion vocabulary (filed as i569 —
+//!  the lowest-friction first step in the cluster, since it can
+//!  reuse the existing `.behaviors` Domain-literal parsing).]
 
 use storehouse::parser;
 use storehouse::validator;
