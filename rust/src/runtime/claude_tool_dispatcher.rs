@@ -118,21 +118,53 @@ fn run_bash(attrs: &HashMap<String, String>) -> ClaudeToolResult {
 }
 
 // ── :edit — open file_path, replace old_string → new_string, write ──
+//
+// Diagnostics rule of thumb : every failure mode names the path AND
+// what specifically went wrong. The original implementation returned
+// "old_string not found" with no context ; the i559 sidequest taught
+// us that silent failures here cascade into broken Tools.Edit
+// dispatches with `ok=false exit=1 output=""` and no clue why. So :
+//
+//   * missing path / old_string  → explicit "missing required attr" ;
+//   * file-doesn't-exist          → "file not found: {path}" ;
+//   * old_string not in file      → snippet of the file's first 200 chars ;
+//   * old_string matches > 1 time → name the count, tell the caller how to fix ;
+//   * write failure               → preserve the underlying io::Error.
+//
+// HECKS_DEBUG_CLAUDE_TOOL=1 prints the received old_string length +
+// first 80 chars to stderr so the operator can see what arrived at
+// the kernel hook (mangled newlines or escaped quotes from a shell
+// arg parser would show up here).
 
 fn run_edit(attrs: &HashMap<String, String>) -> ClaudeToolResult {
     let path = match attrs.get("file_path") {
-        Some(p) => p.clone(),
-        None => return err("edit", "missing required attr: file_path"),
+        Some(p) if !p.is_empty() && p != "[0 items]" => p.clone(),
+        _ => return err("edit", "missing required attr: file_path"),
     };
     let old = match attrs.get("old_string") {
-        Some(s) => s.clone(),
-        None => return err("edit", "missing required attr: old_string"),
+        Some(s) if !s.is_empty() && s != "[0 items]" => s.clone(),
+        _ => return err("edit", "missing required attr: old_string"),
     };
     let new = attrs.get("new_string").cloned().unwrap_or_default();
+    // The empty-list sentinel leaks through when the attribute is
+    // unset on aggregate state ; treat it as "not provided" so
+    // new_string defaults to empty rather than literally "[0 items]".
+    let new = if new == "[0 items]" { String::new() } else { new };
     let replace_all = attrs.get("replace_all").map(|s| s == "true").unwrap_or(false);
+
+    if std::env::var("HECKS_DEBUG_CLAUDE_TOOL").is_ok() {
+        let preview: String = old.chars().take(80).collect();
+        eprintln!(
+            "[claude_tool:edit:debug] path={} old_len={} old_preview={:?}",
+            path, old.len(), preview
+        );
+    }
 
     let contents = match std::fs::read_to_string(&path) {
         Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return err("edit", &format!("file not found: {}", path));
+        }
         Err(e) => return err("edit", &format!("read {}: {}", path, e)),
     };
 
@@ -140,11 +172,18 @@ fn run_edit(attrs: &HashMap<String, String>) -> ClaudeToolResult {
     if !replace_all {
         let count = contents.matches(&old).count();
         if count == 0 {
-            return err("edit", &format!("old_string not found in {}", path));
+            // Including a peek of the file's head helps the caller
+            // diagnose "did the value get mangled in transit?" — the
+            // shell arg parser is a frequent culprit for multi-line
+            // strings with quote/newline issues.
+            let head: String = contents.chars().take(200).collect();
+            return err("edit", &format!(
+                "old_string not found in {} ; first 200 chars of file: {:?}",
+                path, head));
         }
         if count > 1 {
             return err("edit", &format!(
-                "old_string appears {} times in {} — pass replace_all=true or extend the match",
+                "old_string appears {} times in {} — make it unique with more context, or pass replace_all=true",
                 count, path));
         }
     }
@@ -342,5 +381,133 @@ mod tests {
         let r = dispatch("nonsense", &attrs(&[]));
         assert!(!r.ok);
         assert!(r.error.unwrap().contains("unknown tool kind"));
+    }
+
+    // ── i559 — Tools.Edit diagnostic + behavior tests ──
+    //
+    // The Tools.Edit kernel hook used to fail silently with
+    // `ok=false exit=1 output=""` whenever attrs were incomplete or
+    // the file content didn't match. These tests pin both the happy
+    // paths (single-line + multi-line) and the four distinct error
+    // surfaces : missing-file, old-string-not-found, ambiguous match,
+    // and (covered upstream) missing required attr.
+
+    #[test]
+    fn edit_single_line_happy_path() {
+        let tmp = format!("/tmp/claude_tool_edit_single_{}.txt", std::process::id());
+        std::fs::write(&tmp, "alpha foo gamma").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", "foo"),
+            ("new_string", "BAR"),
+        ]));
+        assert!(r.ok, "{:?}", r);
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), "alpha BAR gamma");
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn edit_multi_line_happy_path() {
+        // Mirrors the real-world failure case : a multi-line CSS
+        // block where Tools.Edit was returning ok=false exit=1
+        // output="" because the original dispatch attrs never made
+        // it to the kernel hook (they don't live on aggregate state
+        // by design, per the Tools bluebook).
+        let tmp = format!("/tmp/claude_tool_edit_multi_{}.txt", std::process::id());
+        let original = "    .mark-wrap {\n      display: inline-block;\n      position: relative;\n      width: 9rem;\n    }\n";
+        let updated  = "    .mark-wrap {\n      display: inline-block;\n      width: 9rem;\n    }\n";
+        std::fs::write(&tmp, original).unwrap();
+        let old = "    .mark-wrap {\n      display: inline-block;\n      position: relative;\n      width: 9rem;\n    }";
+        let new = "    .mark-wrap {\n      display: inline-block;\n      width: 9rem;\n    }";
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", old),
+            ("new_string", new),
+        ]));
+        assert!(r.ok, "{:?}", r);
+        assert_eq!(std::fs::read_to_string(&tmp).unwrap(), updated);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn edit_old_string_not_found_returns_clear_error() {
+        let tmp = format!("/tmp/claude_tool_edit_missing_{}.txt", std::process::id());
+        std::fs::write(&tmp, "hello world\nsecond line\n").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", "absent_substring"),
+            ("new_string", "irrelevant"),
+        ]));
+        assert!(!r.ok);
+        let msg = r.error.expect("error message present");
+        assert!(msg.contains("old_string not found"), "{}", msg);
+        assert!(msg.contains(&tmp), "path missing from error: {}", msg);
+        assert!(msg.contains("first 200 chars"), "diagnostic preview missing: {}", msg);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn edit_old_string_matches_twice_returns_not_unique_error() {
+        let tmp = format!("/tmp/claude_tool_edit_dup_{}.txt", std::process::id());
+        std::fs::write(&tmp, "dup\nmiddle\ndup\n").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", "dup"),
+            ("new_string", "DUP"),
+        ]));
+        assert!(!r.ok);
+        let msg = r.error.expect("error message present");
+        assert!(msg.contains("2 times") || msg.contains("appears 2"),
+                "expected match-count in error: {}", msg);
+        assert!(msg.contains("unique") || msg.contains("replace_all"),
+                "expected guidance in error: {}", msg);
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn edit_file_does_not_exist_returns_clear_error() {
+        let absent = format!("/tmp/claude_tool_edit_never_{}_nope.txt", std::process::id());
+        // Ensure it really doesn't exist.
+        let _ = std::fs::remove_file(&absent);
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &absent),
+            ("old_string", "anything"),
+            ("new_string", "irrelevant"),
+        ]));
+        assert!(!r.ok);
+        let msg = r.error.expect("error message present");
+        assert!(msg.contains("file not found"), "{}", msg);
+        assert!(msg.contains(&absent), "path missing from error: {}", msg);
+    }
+
+    #[test]
+    fn edit_missing_old_string_attr_returns_clear_error() {
+        let tmp = format!("/tmp/claude_tool_edit_noattr_{}.txt", std::process::id());
+        std::fs::write(&tmp, "anything").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            // old_string omitted on purpose
+        ]));
+        assert!(!r.ok);
+        assert!(r.error.unwrap().contains("missing required attr: old_string"));
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    #[test]
+    fn edit_treats_empty_list_sentinel_as_missing() {
+        // When attrs are snapshotted from aggregate state and the
+        // attribute is unset, the runtime renders Value::List(vec![])
+        // as "[0 items]". The kernel hook must treat that sentinel
+        // as "not provided", not as a literal value to search for.
+        let tmp = format!("/tmp/claude_tool_edit_sentinel_{}.txt", std::process::id());
+        std::fs::write(&tmp, "hello").unwrap();
+        let r = dispatch("edit", &attrs(&[
+            ("file_path", &tmp),
+            ("old_string", "[0 items]"),
+            ("new_string", "x"),
+        ]));
+        assert!(!r.ok);
+        assert!(r.error.unwrap().contains("missing required attr: old_string"));
+        let _ = std::fs::remove_file(&tmp);
     }
 }
