@@ -1,4 +1,4 @@
-Hecks.bluebook "CliDispatchShape", version: "2026.05.12.1" do
+Hecks.bluebook "CliDispatchShape", version: "2026.05.12.2" do
   vision "The shape of rust/src/main.rs as a bluebook — the CLI dispatch chain and usage help made declarative. Each `if command == \"X\"` arm is a Subcommand row ; the help-text Commands: list is HelpRow rows. Adding or reordering a subcommand becomes a fixture-row edit, not a hand-edit to main.rs."
   category "autophagy"
 
@@ -21,7 +21,7 @@ Hecks.bluebook "CliDispatchShape", version: "2026.05.12.1" do
   #   L1 = canonical_ir representation of this file
   #   L7 = rust/src/main.rs (generated)
   #
-  # Three aggregates :
+  # Three row-types (value_objects on the collapsed root) :
   #
   #   Section    — one row per ordered top-level partition in main.rs.
   #                body_kind picks the emitter :
@@ -84,100 +84,107 @@ Hecks.bluebook "CliDispatchShape", version: "2026.05.12.1" do
   # and the ROUTE each one takes — is now data, not code. Adding a new
   # CLI subcommand is a (1) Subcommand fixture row + (2) per-arm .rs.frag
   # snippet + (3) optional HelpRow for the usage listing.
+  #
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The three row-types collapse to
+  # value_objects on the CliDispatchShape root ; the row catalog lives
+  # in the sibling fixtures file. EmitMainRs is the semantic command —
+  # given the row set, emit rust/src/main.rs as a single Rust source
+  # string.
 
-  aggregate "Section", "One ordered top-level partition in main.rs ; body_kind picks emission" do
-    attribute :name,         SectionName
-    # order: ascending integer ; specializer sorts before concatenating.
-    attribute :order,        Order
-    # body_kind: verbatim_section | dispatch_chain | usage_help
-    attribute :body_kind,    BodyKind
-    # snippet_path: required for verbatim_section ; ignored for the
-    # synthetic dispatch_chain and usage_help kinds.
-    attribute :snippet_path, SnippetPath, default: ""
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  Description, default: ""
+  aggregate "CliDispatchShape", "Static schema for the main.rs codegen target — Section + Subcommand + HelpRow rows live in the sibling fixtures file" do
+    identified_by :target_rs
 
-    value_object "SectionName" do
-      attribute :value, String
-    end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "BodyKind" do
-      attribute :value, String
-    end
-    value_object "SnippetPath" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
+    # ---- TargetRs ----------------------------------------------------
 
-  aggregate "Subcommand", "One arm in main.rs's CLI dispatch if-chain" do
-    attribute :name,         SubcommandName
-    # order: ascending integer ; specializer sorts before concatenating
-    # arm snippets so the if-chain order is stable across edits to row text.
-    attribute :order,        Order
-    # snippet_path: relative to repo root. The .rs.frag file containing
-    # this arm's body — leading blank line + leading comment block (when
-    # present) + `if command == "X" { ... return; }`. Read raw.
-    attribute :snippet_path, SnippetPath
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  Description, default: ""
+    value_object "TargetRs" do
+      attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
+    end
 
-    value_object "SubcommandName" do
-      attribute :value, String
-    end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "SnippetPath" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
+    # ---- EmittedRs ---------------------------------------------------
 
-  aggregate "HelpRow", "One row in print_usage's Commands: listing" do
-    attribute :name,         HelpRowName
-    # order: ascending integer ; specializer sorts before emitting the
-    # eprintln lines so help-listing order is stable.
-    attribute :order,        Order
-    # command: the literal subcommand name as shown in help (e.g. "parse",
-    # "dump-hecksagon").
-    attribute :command,      CommandLabel
-    # description: the help-text description shown after the command name.
-    attribute :description,  Description
-    # padded_width: the column width the command name is padded to in the
-    # help output. The pre-i147-W6 main.rs uses 11 for most rows but 16
-    # for "dump-hecksagon" because it's longer ; we capture the column
-    # width per-row to preserve byte-identity without hard-coding logic.
-    attribute :padded_width, PaddedWidth, default: 11
-    # trailing_newline: whether to append a literal "\n" inside the
-    # eprintln string (used by the last command in a logical group :
-    # "dump-hecksagon" gets one, the visual cluster separator before
-    # "Heki subcommands:"). "yes" | "no".
-    attribute :trailing_newline, TrailingNewline, default: "no"
+    value_object "EmittedRs" do
+      attribute :value, String
+    end
 
-    value_object "HelpRowName" do
-      attribute :value, String
+    # ---- Section -----------------------------------------------------
+    #
+    # One ordered top-level partition in main.rs ; body_kind picks
+    # emission.
+
+    value_object "Section" do
+      description "One ordered top-level partition in main.rs ; body_kind picks emission"
+      attribute :name,         String
+      # order: ascending integer ; specializer sorts before concatenating.
+      attribute :order,        Integer
+      # body_kind: verbatim_section | dispatch_chain | usage_help
+      attribute :body_kind,    String
+      # snippet_path: required for verbatim_section ; ignored for the
+      # synthetic dispatch_chain and usage_help kinds.
+      attribute :snippet_path, String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,  String
     end
-    value_object "Order" do
-      attribute :value, Integer
+
+    # ---- Subcommand --------------------------------------------------
+    #
+    # One arm in main.rs's CLI dispatch if-chain.
+
+    value_object "Subcommand" do
+      description "One arm in main.rs's CLI dispatch if-chain"
+      attribute :name,         String
+      # order: ascending integer ; specializer sorts before concatenating
+      # arm snippets so the if-chain order is stable across edits to row text.
+      attribute :order,        Integer
+      # snippet_path: relative to repo root. The .rs.frag file containing
+      # this arm's body — leading blank line + leading comment block (when
+      # present) + `if command == "X" { ... return; }`. Read raw.
+      attribute :snippet_path, String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,  String
     end
-    value_object "CommandLabel" do
-      attribute :value, String
+
+    # ---- HelpRow -----------------------------------------------------
+    #
+    # One row in print_usage's Commands: listing.
+
+    value_object "HelpRow" do
+      description "One row in print_usage's Commands: listing"
+      attribute :name,             String
+      # order: ascending integer ; specializer sorts before emitting the
+      # eprintln lines so help-listing order is stable.
+      attribute :order,            Integer
+      # command: the literal subcommand name as shown in help (e.g. "parse",
+      # "dump-hecksagon").
+      attribute :command,          String
+      # description: the help-text description shown after the command name.
+      attribute :description,      String
+      # padded_width: the column width the command name is padded to in the
+      # help output. The pre-i147-W6 main.rs uses 11 for most rows but 16
+      # for "dump-hecksagon" because it's longer ; we capture the column
+      # width per-row to preserve byte-identity without hard-coding logic.
+      attribute :padded_width,     Integer
+      # trailing_newline: whether to append a literal "\n" inside the
+      # eprintln string (used by the last command in a logical group :
+      # "dump-hecksagon" gets one, the visual cluster separator before
+      # "Heki subcommands:"). "yes" | "no".
+      attribute :trailing_newline, String
     end
-    value_object "Description" do
-      attribute :value, String
-    end
-    value_object "PaddedWidth" do
-      attribute :value, Integer
-    end
-    value_object "TrailingNewline" do
-      attribute :value, String
+
+    attribute :target_rs, TargetRs
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitMainRs" do
+      role "Autophagy"
+      description "Walk Section rows in `order` ascending. For verbatim_section rows, read snippet_path raw. For dispatch_chain rows, fold Subcommand rows in `order` ascending and concatenate each row's snippet_path body (leading blank + optional comment block + `if command == \"X\" { ... return; }` block). For usage_help rows, emit the print_usage fn skeleton with the Commands: list folded from HelpRow rows in `order` ascending, each row rendered as an `eprintln!(\"  <padded-command>  <description>\")` line (using HelpRow.padded_width for the column padding) with an optional trailing `\\n` when HelpRow.trailing_newline == \"yes\". Concatenate the rendered sections and return the bytes the caller writes to TargetRs. Byte-identical against the hand-written rust/src/main.rs at i147 W6."
+      attribute :target_rs, TargetRs
+      emits "MainRsEmitted"
+      then_set :target_rs, to: :target_rs
     end
   end
 end

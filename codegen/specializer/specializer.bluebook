@@ -1,4 +1,4 @@
-Hecks.bluebook "Specializer", version: "2026.05.12.1" do
+Hecks.bluebook "Specializer", version: "2026.05.12.2" do
   vision "The Futamura specializer — value-object shape for the L1-L6 interpreter IR layers + the projections that lower between them. First-Futamura target: given any bluebook, produce Rust byte-equivalent to hand-written source."
   category "autophagy"
 
@@ -38,220 +38,165 @@ Hecks.bluebook "Specializer", version: "2026.05.12.1" do
   # so Phase B can extend it module by module without reshaping the
   # specializer.
   #
-  # Shape-only aggregates per the transitional pattern from PR #267
-  # and documented in validator_shape.bluebook. When i42 (catalog-
-  # dialect) lands, these move to sibling .fixtures catalog tables.
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The four catalog row-types — IRLayer,
+  # Projection, SpecializerTarget, SpecializerSubclass — collapse to
+  # value_objects on the Specializer root ; the row catalogs live in
+  # the sibling fixtures file. Specialize is the semantic command —
+  # given a target name, run the specializer wired to that target and
+  # write Rust to the output path.
 
-  # ---- IRLayer ------------------------------------------------------
-  #
-  # One row per layer L0..L8 in the interpreter factoring. `number` is
-  # the numeric index so projections can reference "the layer below me"
-  # uniformly. `reads_from` / `returns` describe the pure-function
-  # contract — each layer is a function of the one above.
+  aggregate "Specializer", "The Futamura specializer — IRLayer + Projection + SpecializerTarget + SpecializerSubclass catalog rows live in the sibling fixtures file ; Specialize dispatches one target" do
+    identified_by :target
 
-  aggregate "IRLayer", "One layer in the L0..L8 interpreter factoring" do
-    attribute :name,        LayerName
-    # number: L0..L8 — 0..8
-    attribute :number,      LayerNumber
-    attribute :description, Description
-    # reads_from: the layer this one is a pure function of (or 'source'
-    # for L0, which reads raw file text)
-    attribute :reads_from,  ReadsFrom
-    # returns: short description of the data shape this layer produces
-    attribute :returns,     Returns
-    # ship_status: shipped | partial | not_started — tracks which
-    # layers already exist in storehouse vs which are Phase B+ work
-    attribute :ship_status, ShipStatus
-
-    value_object "LayerName" do
-      attribute :value, String
-    end
-    value_object "LayerNumber" do
-      attribute :value, Integer
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-    value_object "ReadsFrom" do
-      attribute :value, String
-    end
-    value_object "Returns" do
-      attribute :value, String
-    end
-    value_object "ShipStatus" do
-      attribute :value, String
-    end
-  end
-
-  # ---- Projection ---------------------------------------------------
-  #
-  # One row per L_n → L_(n+1) lowering. transform_kind describes the
-  # algorithmic shape the specializer uses (parse / normalize / graph
-  # / lower / emit). from_layer / to_layer name the source + target
-  # layers by their IRLayer.name so the projection chain composes.
-
-  aggregate "Projection", "One L_n → L_(n+1) lowering step — the specializer's unit of work" do
-    attribute :name,           ProjectionName
-    attribute :from_layer,     FromLayer
-    attribute :to_layer,       ToLayer
-    # transform_kind: parse | normalize | graph | lower | emit | compile
-    attribute :transform_kind, TransformKind
-    attribute :description,    Description
-    # impl_module: the Rust module (or Ruby file) that holds the logic
-    # for this projection once it's written. Points at hand-written
-    # source during Phase A; points at generated source at Phase B end.
-    attribute :impl_module,    ImplModule
-    # ship_status: shipped | partial | not_started | phase_a | phase_b
-    attribute :ship_status,    ShipStatus
-
-    value_object "ProjectionName" do
-      attribute :value, String
-    end
-    value_object "FromLayer" do
-      attribute :value, String
-    end
-    value_object "ToLayer" do
-      attribute :value, String
-    end
-    value_object "TransformKind" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-    value_object "ImplModule" do
-      attribute :value, String
-    end
-    value_object "ShipStatus" do
-      attribute :value, String
-    end
-  end
-
-  # ---- SpecializerTarget --------------------------------------------
-  #
-  # One row per module the specializer is being applied to. Phase A
-  # has a single row (validator). Phase B will add rows for every
-  # module listed in plan §7. Gives us a queryable manifest of the
-  # autophagy arc's progress.
-
-  aggregate "SpecializerTarget", "One module being specialized — source bluebook, output Rust path, current phase" do
-    attribute :name,               TargetName
-    # source_bluebook: relative path to the L0 shape bluebook
-    attribute :source_bluebook,    SourceBluebook
-    # output_rs: relative path the emitted .rs lands at
-    attribute :output_rs,          OutputRs
-    # phase: a | b | c — which Futamura phase this target ships in
-    attribute :phase,              Phase
-    # ship_status: not_started | in_progress | byte_identical | retired
-    attribute :ship_status,        ShipStatus
-    attribute :description,        Description
-
-    value_object "TargetName" do
-      attribute :value, String
-    end
-    value_object "SourceBluebook" do
-      attribute :value, String
-    end
-    value_object "OutputRs" do
-      attribute :value, String
-    end
-    value_object "Phase" do
-      attribute :value, String
-    end
-    value_object "ShipStatus" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
-
-  # ---- SpecializerSubclass -----------------------------------------
-  #
-  # Phase C PC-1 — bluebook-ifies the per-target Ruby subclass modules
-  # in lib/hecks_specializer/*.rb. Each subclass is a 15-LoC shell:
-  #
-  #   class <ClassName> < <BaseClass>
-  #     SHAPE     = REPO_ROOT.join("<shape_path>")
-  #     TARGET_RS = REPO_ROOT.join("<target_rs_path>")
-  #   end
-  #   register :<target_name>, <ClassName>
-  #
-  # A new row here = a new Ruby module. The meta-specializer
-  # (bin/meta-specialize, PC-1) reads these rows and emits the Ruby.
-  # Byte-identity is gated by the specializer_golden_test (Ruby-side
-  # counterpart coming with PC-1).
-
-  aggregate "SpecializerSubclass", "One Ruby subclass module under lib/hecks_specializer/" do
-    # target_name: the CLI / register key (e.g. "duplicate_policy")
-    attribute :target_name,    TargetName
-    # class_name: the Ruby class name (e.g. "DuplicatePolicy")
-    attribute :class_name,     ClassName
-    # base_class: parent Ruby class. "DiagnosticValidator" for the
-    # post-i59 diagnostic retirements; subclasses directly extending
-    # Target (validator, validator_warnings, dump) leave this empty
-    # — those still carry their own emit() and stay hand-written
-    # under PC-1's scope.
-    attribute :base_class,     BaseClass
-    # shape_path: relative path to the target's fixtures file
-    attribute :shape_path,     ShapePath
-    # target_rs_path: relative path to the emitted .rs file
-    attribute :target_rs_path, TargetRsPath
-    # module_doc: short doc comment at top of the Ruby file
-    attribute :module_doc,     ModuleDoc
-    # output_rb: relative path to the generated Ruby file
-    attribute :output_rb,      OutputRb
-
-    value_object "TargetName" do
-      attribute :value, String
-    end
-    value_object "ClassName" do
-      attribute :value, String
-    end
-    value_object "BaseClass" do
-      attribute :value, String
-    end
-    value_object "ShapePath" do
-      attribute :value, String
-    end
-    value_object "TargetRsPath" do
-      attribute :value, String
-    end
-    value_object "ModuleDoc" do
-      attribute :value, String
-    end
-    value_object "OutputRb" do
-      attribute :value, String
-    end
-  end
-
-  # ---- SpecializeRun ------------------------------------------------
-  #
-  # Dispatchable command surface for the specializer. Specialize takes
-  # a target name + output path and runs the specializer wired to that
-  # target (see specializer.hecksagon for the shell-adapter wiring).
-  # Byte-identity is enforced by a sibling test, not by this command.
-
-  aggregate "SpecializeRun", "Runs the specializer for a named target — thin dispatch wrapper" do
-    attribute :target, Target
-    attribute :output, Output
-    attribute :status, Status, default: "queued"
+    # ---- Target ------------------------------------------------------
+    #
+    # The target name — e.g. "validator", "dump", "ir",
+    # "duplicate_policy". Matches a SpecializerTarget row's name and a
+    # registered subclass in lib/hecks_specializer/.
 
     value_object "Target" do
       attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
     end
+
+    # ---- Output ------------------------------------------------------
+    #
+    # The output path — relative to repo root. The specializer writes
+    # the emitted Rust bytes here. Byte-identity is gated by a sibling
+    # golden test, not by this command.
+
     value_object "Output" do
       attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
     end
+
+    # ---- Status ------------------------------------------------------
+    #
+    # Lifecycle of one Specialize dispatch — queued → running → succeeded
+    # / failed. State machine is enforced by the runtime ; this VO only
+    # records the field shape.
+
     value_object "Status" do
       attribute :value, String
     end
 
+    # ---- IRLayer -----------------------------------------------------
+    #
+    # One row per layer L0..L8 in the interpreter factoring. `number`
+    # is the numeric index so projections can reference "the layer
+    # below me" uniformly. `reads_from` / `returns` describe the pure-
+    # function contract — each layer is a function of the one above.
+
+    value_object "IRLayer" do
+      description "One layer in the L0..L8 interpreter factoring"
+      attribute :name,        String
+      # number: L0..L8 — 0..8
+      attribute :number,      Integer
+      attribute :description, String
+      # reads_from: the layer this one is a pure function of (or 'source'
+      # for L0, which reads raw file text)
+      attribute :reads_from,  String
+      # returns: short description of the data shape this layer produces
+      attribute :returns,     String
+      # ship_status: shipped | partial | not_started — tracks which
+      # layers already exist in storehouse vs which are Phase B+ work
+      attribute :ship_status, String
+    end
+
+    # ---- Projection --------------------------------------------------
+    #
+    # One row per L_n → L_(n+1) lowering. transform_kind describes the
+    # algorithmic shape the specializer uses (parse / normalize / graph
+    # / lower / emit). from_layer / to_layer name the source + target
+    # layers by their IRLayer.name so the projection chain composes.
+
+    value_object "Projection" do
+      description "One L_n → L_(n+1) lowering step — the specializer's unit of work"
+      attribute :name,           String
+      attribute :from_layer,     String
+      attribute :to_layer,       String
+      # transform_kind: parse | normalize | graph | lower | emit | compile
+      attribute :transform_kind, String
+      attribute :description,    String
+      # impl_module: the Rust module (or Ruby file) that holds the logic
+      # for this projection once it's written. Points at hand-written
+      # source during Phase A; points at generated source at Phase B end.
+      attribute :impl_module,    String
+      # ship_status: shipped | partial | not_started | phase_a | phase_b
+      attribute :ship_status,    String
+    end
+
+    # ---- SpecializerTarget -------------------------------------------
+    #
+    # One row per module the specializer is being applied to. Phase A
+    # has a single row (validator). Phase B will add rows for every
+    # module listed in plan §7. Gives us a queryable manifest of the
+    # autophagy arc's progress.
+
+    value_object "SpecializerTarget" do
+      description "One module being specialized — source bluebook, output Rust path, current phase"
+      attribute :name,            String
+      # source_bluebook: relative path to the L0 shape bluebook
+      attribute :source_bluebook, String
+      # output_rs: relative path the emitted .rs lands at
+      attribute :output_rs,       String
+      # phase: a | b | c — which Futamura phase this target ships in
+      attribute :phase,           String
+      # ship_status: not_started | in_progress | byte_identical | retired
+      attribute :ship_status,     String
+      attribute :description,     String
+    end
+
+    # ---- SpecializerSubclass -----------------------------------------
+    #
+    # Phase C PC-1 — bluebook-ifies the per-target Ruby subclass modules
+    # in lib/hecks_specializer/*.rb. Each subclass is a 15-LoC shell.
+    # A new row here = a new Ruby module. The meta-specializer
+    # (bin/meta-specialize, PC-1) reads these rows and emits the Ruby.
+
+    value_object "SpecializerSubclass" do
+      description "One Ruby subclass module under lib/hecks_specializer/"
+      # target_name: the CLI / register key (e.g. "duplicate_policy")
+      attribute :target_name,    String
+      # class_name: the Ruby class name (e.g. "DuplicatePolicy")
+      attribute :class_name,     String
+      # base_class: parent Ruby class. "DiagnosticValidator" for the
+      # post-i59 diagnostic retirements ; subclasses directly extending
+      # Target (validator, validator_warnings, dump) leave this empty
+      # — those still carry their own emit() and stay hand-written
+      # under PC-1's scope.
+      attribute :base_class,     String
+      # shape_path: relative path to the target's fixtures file
+      attribute :shape_path,     String
+      # target_rs_path: relative path to the emitted .rs file
+      attribute :target_rs_path, String
+      # module_doc: short doc comment at top of the Ruby file
+      attribute :module_doc,     String
+      # output_rb: relative path to the generated Ruby file
+      attribute :output_rb,      String
+    end
+
+    attribute :target, Target
+    attribute :output, Output
+    attribute :status, Status, default: "queued"
+
+    # ── Commands ───────────────────────────────────────────────
+
     command "Specialize" do
       role "Autophagy"
-      description "Runs the specializer for <target>, writes Rust to <output>"
+      description "Look up the SpecializerTarget row by `target` name, resolve the registered specializer subclass (validator / dump / ir / etc.), invoke its emit() against its bluebook + fixtures, and write the resulting Rust bytes to `output`. Byte-identity against the previously-shipped hand-written source is asserted by the sibling specializer_golden_test ; this command is the runtime entry-point that the test exercises."
       attribute :target, Target
       attribute :output, Output
+      emits "Specialized"
+      then_set :target, to: :target
+      then_set :output, to: :output
+      then_set :status, to: "succeeded"
     end
   end
 end

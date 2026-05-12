@@ -4,8 +4,10 @@ Hecks.hecksagon "Specializer" do
   # ============================================================
   #
   # The specializer's *shape* lives in specializer.bluebook (IRLayer,
-  # Projection, SpecializerTarget — the L0..L8 factoring). After Phase E
-  # the specializer runs entirely inside `storehouse specialize <target>`
+  # Projection, SpecializerTarget — the L0..L8 factoring, now value_objects
+  # on the collapsed Specializer root aggregate per Chris's 2026-05-12
+  # "no bluebooks without commands" principle). After Phase E the
+  # specializer runs entirely inside `storehouse specialize <target>`
   # (a Rust subcommand); no shell adapters are needed. The Ruby driver
   # (`bin/specialize`) and Ruby specializer modules (`lib/hecks_specializer/`)
   # have been deleted.
@@ -27,7 +29,7 @@ Hecks.hecksagon "Specializer" do
   # declarative only; dispatch happens through the `storehouse specialize`
   # subcommand directly rather than through a shell adapter.
 
-  gate "SpecializeRun", :autophagy do
+  gate "Specializer", :autophagy do
     allow :Specialize
   end
 end
