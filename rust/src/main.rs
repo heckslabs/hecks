@@ -2791,15 +2791,60 @@ fn load_combined_domain(agg_dir: &str) -> storehouse::ir::Domain {
     combined
 }
 
-/// Find the info dir for run_loop / run_clock / dispatch_hecksagon —
-/// delegates to `heki::resolve_info_dir` (canonical i154 helper).
-/// `aggregates_path` is no longer used for resolution ; it's kept in
-/// the signature so existing callers don't change. miette.world's
-/// `heki.dir` is now documentation only — the runtime path no longer
-/// reads it (closes i149/i153 class of bugs where boot wrote one place
-/// while daemons read another).
-fn find_world_heki_dir(_aggregates_path: &str) -> Option<String> {
+/// Find the info dir for run_loop / run_clock / dispatch_hecksagon.
+///
+/// Resolution order, bluebook-first :
+///   1. If a sibling `.world` file declares `heki { dir "..." }`,
+///      use that — the world bluebook IS the source of truth.
+///      Used by the differential fuzzer for per-seed isolation
+///      (each `/tmp/fuzz-<seed>` tree carries its own `information/`
+///      + `fuzz.world`) and by any caller that wires a sibling world.
+///   2. Otherwise fall back to `heki::resolve_info_dir` (the i154
+///      canonical helper — repo-root-anchored, HECKS_INFO-aware).
+///
+/// Earlier this function ignored `aggregates_path` entirely and
+/// always returned the canonical info dir — that closed the i149/i153
+/// class of bugs where boot wrote one place while daemons read
+/// another, but it also broke the fuzzer's per-seed isolation
+/// (every seed wrote to one shared dir, contaminating across seeds).
+/// Reading the .world file restores per-seed isolation without
+/// reopening the boot/daemon split, because the canonical fallback
+/// is unchanged for callers without a sibling .world.
+fn find_world_heki_dir(aggregates_path: &str) -> Option<String> {
+    if let Some(world_dir) = read_world_heki_dir(aggregates_path) {
+        return Some(world_dir);
+    }
     Some(storehouse::heki::resolve_info_dir().to_string_lossy().into_owned())
+}
+
+/// Helper for `find_world_heki_dir` : look for a `.world` file
+/// alongside `aggregates_path`, parse it, and read `heki.dir`.
+/// Returns `None` on any missing piece — safe to fall through.
+fn read_world_heki_dir(aggregates_path: &str) -> Option<String> {
+    use std::path::Path;
+    let agg = Path::new(aggregates_path);
+    // The .world file sits next to the aggregates/ directory :
+    //   - aggregates_path is a dir → world is in its parent.
+    //   - aggregates_path is a file (one bluebook) → world is two
+    //     levels up (e.g. aggregates/foo.bluebook → ../).
+    let world_dir = if agg.is_dir() {
+        agg.parent()?
+    } else {
+        agg.parent()?.parent()?
+    };
+    let world_file = std::fs::read_dir(world_dir).ok()?
+        .filter_map(|e| e.ok())
+        .find(|e| e.path().extension().map_or(false, |ext| ext == "world"))?
+        .path();
+    let source = std::fs::read_to_string(&world_file).ok()?;
+    let world = storehouse::world_parser::parse(&source);
+    let dir_value = world.config_for("heki").and_then(|c| c.get("dir"))?;
+    let resolved = world_dir.join(dir_value);
+    if resolved.exists() {
+        Some(resolved.to_string_lossy().into_owned())
+    } else {
+        None
+    }
 }
 
 /// i221 — load every `*.hecksagon` reachable from agg_dir (the agg_dir

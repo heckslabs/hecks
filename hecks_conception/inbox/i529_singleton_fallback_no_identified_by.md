@@ -1,0 +1,128 @@
+---
+ref: i529-singleton-fallback-no-identified-by
+status: design
+priority: medium
+value: "Resolve the cross-runtime singleton-fallback divergence so the fuzz nightly tests actual behavioral parity, not infrastructure mismatch."
+posted_at: 2026-05-12
+source: internal (fuzz-nightly investigation 2026-05-12)
+category: runtime
+---
+
+# i529 — singleton fallback for aggregates without `identified_by`
+
+## What's broken
+
+The differential fuzz nightly fails every seed because Ruby and Rust
+disagree on aggregate resolution when a command has no `reference_to`
+and the aggregate has no `identified_by`.
+
+Repro (seed 2) :
+
+```
+aggregate "Agg1" do
+  attribute :field2, Integer
+  command "PlaceAgg1Thing1" do
+    role "System"
+    then_set :field2, increment: 1
+    emits "PlaceAgg11Event"
+  end
+end
+```
+
+Program : 4 × `PlaceAgg1Thing1`.
+
+- **Ruby `BehaviorRuntime`** : keeps one `Agg1` in memory, accumulates
+  → final state `{ "agg1": [{ "field2": 4 }] }`.
+- **Rust `Runtime`** : `repo.id_for_command` mints a fresh id each
+  call (no `identified_by` → no singleton fallback)
+  → final state `{ "agg1": [{ "field2": 1 }, { "field2": 1 }, ...] }`.
+
+## Why it matters
+
+The fuzz is supposed to surface behavioral parity bugs. It can't,
+because every fuzz-generated bluebook lacks `identified_by` (the
+generator builds minimal shapes) and so every seed lands on this
+divergence before any deeper behavior is exercised. The fuzz is
+effectively dark.
+
+## What the runtime says today
+
+`rust/src/runtime/repository.rs` (line 191) :
+
+```rust
+pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
+    if let Some(ref key) = self.identified_by {
+        if let Some(Value::Str(s)) = attrs.get(key) { return s.clone(); }
+        if self.store.len() == 1 {
+            if let Some(existing) = self.store.values().next() {
+                return existing.id.clone();
+            }
+        }
+    }
+    let id = self.next_id;
+    self.next_id += 1;
+    id.to_string()
+}
+```
+
+The singleton fallback already exists but is scoped to
+`identified_by`-bearing aggregates. The fuzz exposes the gap.
+
+## Proposed change
+
+Move the singleton fallback out of the `identified_by` branch :
+
+```rust
+pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
+    if let Some(ref key) = self.identified_by {
+        if let Some(Value::Str(s)) = attrs.get(key) { return s.clone(); }
+    }
+    // Singleton fallback (any aggregate) : if there is exactly one
+    // existing record and no caller-supplied id, reuse it. This is
+    // what Ruby BehaviorRuntime does ; matching it closes the
+    // cross-runtime divergence the fuzz surfaces.
+    if self.store.len() == 1 {
+        if let Some(existing) = self.store.values().next() {
+            return existing.id.clone();
+        }
+    }
+    let id = self.next_id;
+    self.next_id += 1;
+    id.to_string()
+}
+```
+
+## Blast radius
+
+Production aggregates are essentially all `identified_by`-bearing
+(72 in `hecks_conception/aggregates/`, only `world/boot/boot.bluebook`
+lacks it). So the change affects almost nothing in production. The
+fuzz-generated bluebooks (no `identified_by`) get the right
+semantics. The one production exception — `boot/boot.bluebook` —
+should be checked : if it's a singleton-by-intent, this is exactly
+the right behavior ; if it relies on counter-minting, it's the
+unique aggregate that needs explicit `identified_by`.
+
+## What landed alongside this card
+
+Two infrastructure fixes that get the fuzz to *run* properly :
+
+- `rust/src/main.rs` — `find_world_heki_dir` now reads the sibling
+  `.world` file's `heki.dir` declaration (bluebook-first), restoring
+  per-seed isolation. Falls back to `resolve_info_dir()` for callers
+  without a sibling world.
+- `parity/fuzz/canonicalizer.rb` — recursive `**/*.heki` glob so the
+  canonicalizer sees Rust's domain-namespaced subdirs as well as
+  Ruby's flat layout.
+
+After both fixes the fuzz still fails on every seed — but now for
+the *right* reason (this card), not because the infrastructure was
+silently broken.
+
+## Acceptance
+
+- Apply the singleton-fallback change.
+- Re-run `bundle exec ruby -Ilib parity/fuzz/fuzz_test.rb --count 30`.
+- Expect : agreement on the simple seeds (no policies, no
+  references) ; remaining divergences expose real cross-runtime
+  semantics gaps worth their own cards.

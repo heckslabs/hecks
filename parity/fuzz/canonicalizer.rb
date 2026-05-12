@@ -43,7 +43,13 @@ module Hecks
         def canonicalize(dir, type_map = {})
           return "{}" unless File.directory?(dir)
           stores = {}
-          Dir.glob(File.join(dir, "*.heki")).sort.each do |path|
+          # Recursive walk : the Rust runtime namespaces records under
+          # the domain name (`<info_dir>/<domain>/<agg>.heki`) per the
+          # heki::path_for layout, while the Ruby HekiWriter writes
+          # flat (`<info_dir>/<agg>.heki`). Both shapes are valid heki
+          # trees ; the canonicalizer reads either by basename so the
+          # comparison stays path-shape-agnostic.
+          Dir.glob(File.join(dir, "**", "*.heki")).sort.each do |path|
             name = File.basename(path, ".heki")
             records = safe_read(path)
             next if records.empty?
