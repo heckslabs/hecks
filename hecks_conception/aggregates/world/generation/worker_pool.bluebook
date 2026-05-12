@@ -13,18 +13,33 @@ Hecks.bluebook "WorkerPool", version: "2026.04.28.1" do
 
   aggregate "WorkerPool", "Scale parallel operations based on available cores" do
     identified_by :name
-    attribute :name, String
-    attribute :core_count, Integer
-    attribute :worker_count, Integer
-    attribute :active_workers, Integer
+    attribute :name,           Name
+    attribute :core_count,     CoreCount
+    attribute :worker_count,   WorkerCount
+    attribute :active_workers, WorkerCount
+
+    value_object "Name" do
+      # Identifier of this worker pool.
+      attribute :value, String
+    end
+
+    value_object "CoreCount" do
+      # Number of CPU cores available to the pool.
+      attribute :value, Integer
+    end
+
+    value_object "WorkerCount" do
+      # A count of workers (sized or currently active).
+      attribute :value, Integer
+    end
 
     command "ScaleWorkers" do
       role "System"
       description "Set worker count based on cores and task size"
-      attribute :core_count, Integer
-      attribute :worker_count, Integer
+      attribute :core_count,   CoreCount
+      attribute :worker_count, WorkerCount
       emits "WorkersScaled"
-      then_set :core_count, to: :core_count
+      then_set :core_count,   to: :core_count
       then_set :worker_count, to: :worker_count
     end
   end

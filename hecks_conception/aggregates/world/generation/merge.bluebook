@@ -17,18 +17,33 @@ Hecks.bluebook "SeedingMerge", version: "2026.04.28.1" do
 
   aggregate "Merge", "Combine results from parallel workers into the nursery" do
     identified_by :name
-    attribute :name, String
-    attribute :workers_merged, Integer
-    attribute :total_domains, Integer
+    attribute :name,            Name
+    attribute :workers_merged,  WorkerCount
+    attribute :total_domains,   DomainCount
+
+    value_object "Name" do
+      # Stable slug for this merge run.
+      attribute :value, String
+    end
+
+    value_object "WorkerCount" do
+      # Number of worker outputs combined.
+      attribute :value, Integer
+    end
+
+    value_object "DomainCount" do
+      # Total number of domains landed in the nursery after merge.
+      attribute :value, Integer
+    end
 
     command "MergeResults" do
       role "System"
       description "Combine all worker outputs into the final nursery"
-      attribute :workers_merged, Integer
-      attribute :total_domains, Integer
+      attribute :workers_merged, WorkerCount
+      attribute :total_domains,  DomainCount
       emits "ResultsMerged"
       then_set :workers_merged, to: :workers_merged
-      then_set :total_domains, to: :total_domains
+      then_set :total_domains,  to: :total_domains
     end
   end
 

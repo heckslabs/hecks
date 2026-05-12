@@ -14,18 +14,33 @@ Hecks.bluebook "Shard", version: "2026.04.28.1" do
 
   aggregate "Shard", "A sector-based partition of the nursery — domains grouped by industry" do
     identified_by :sector
-    attribute :sector, String
-    attribute :domain_count, Integer
-    attribute :path, String
+    attribute :sector,       SectorName
+    attribute :domain_count, DomainCount
+    attribute :path,         Path
+
+    value_object "SectorName" do
+      # Industry / sector label identifying the shard.
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # Number of domains living inside this shard.
+      attribute :value, Integer
+    end
+
+    value_object "Path" do
+      # Filesystem path of the shard directory.
+      attribute :value, String
+    end
 
     command "CarveShard" do
       role "System"
       description "Create a sector directory in the nursery"
-      attribute :sector, String
-      attribute :path, String
+      attribute :sector, SectorName
+      attribute :path,   Path
       emits "ShardCreated"
-      then_set :sector, to: :sector
-      then_set :path, to: :path
+      then_set :sector,       to: :sector
+      then_set :path,         to: :path
       then_set :domain_count, to: 0
     end
 
@@ -33,7 +48,7 @@ Hecks.bluebook "Shard", version: "2026.04.28.1" do
       role "System"
       description "Recount domains in this shard"
       reference_to(Shard)
-      attribute :domain_count, Integer
+      attribute :domain_count, DomainCount
       emits "ShardCountUpdated"
       then_set :domain_count, to: :domain_count
     end

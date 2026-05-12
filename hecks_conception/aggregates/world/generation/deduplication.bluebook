@@ -14,14 +14,24 @@ Hecks.bluebook "Deduplication", version: "2026.04.28.1" do
 
   aggregate "Deduplication", "Skip domains that already exist in the nursery" do
     identified_by :name
-    attribute :name, String
-    attribute :existing, Integer
-    attribute :skipped, Integer
+    attribute :name,     Name
+    attribute :existing, DomainCount
+    attribute :skipped,  DomainCount
+
+    value_object "Name" do
+      # Stable slug for this deduplication run.
+      attribute :value, String
+    end
+
+    value_object "DomainCount" do
+      # A count of domains — existing in the nursery or skipped.
+      attribute :value, Integer
+    end
 
     command "CheckExisting" do
       role "System"
       description "Scan nursery for existing domain names to avoid duplicates"
-      attribute :existing, Integer
+      attribute :existing, DomainCount
       emits "ExistingChecked"
       then_set :existing, to: :existing
     end

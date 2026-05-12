@@ -15,28 +15,43 @@ Hecks.bluebook "SeedingWorker", version: "2026.04.28.1" do
 
   aggregate "Worker", "A single seeding worker — conceives domains in its assigned range" do
     identified_by :worker_id
-    attribute :worker_id, Integer
-    attribute :range_start, Integer
-    attribute :range_end, Integer
-    attribute :domains_produced, Integer
+    attribute :worker_id,        WorkerId
+    attribute :range_start,      RangeIndex
+    attribute :range_end,        RangeIndex
+    attribute :domains_produced, DomainCount
+
+    value_object "WorkerId" do
+      # Unique numeric identifier of this worker within the seed run.
+      attribute :value, Integer
+    end
+
+    value_object "RangeIndex" do
+      # Inclusive index bound (start or end) of the worker's assigned range.
+      attribute :value, Integer
+    end
+
+    value_object "DomainCount" do
+      # Number of domains the worker produced.
+      attribute :value, Integer
+    end
 
     command "SpawnWorker" do
       role "System"
       description "Launch a worker to conceive domains in a range"
-      attribute :worker_id, Integer
-      attribute :range_start, Integer
-      attribute :range_end, Integer
+      attribute :worker_id,   WorkerId
+      attribute :range_start, RangeIndex
+      attribute :range_end,   RangeIndex
       emits "WorkerSpawned"
-      then_set :worker_id, to: :worker_id
+      then_set :worker_id,   to: :worker_id
       then_set :range_start, to: :range_start
-      then_set :range_end, to: :range_end
+      then_set :range_end,   to: :range_end
     end
 
     command "CompleteWorker" do
       role "System"
       description "Worker finished its range"
       reference_to(Worker)
-      attribute :domains_produced, Integer
+      attribute :domains_produced, DomainCount
       emits "WorkerCompleted"
       then_set :domains_produced, to: :domains_produced
     end

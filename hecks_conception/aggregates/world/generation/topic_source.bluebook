@@ -11,22 +11,47 @@ Hecks.bluebook "TopicSource", version: "2026.04.28.1" do
 
   aggregate "TopicSource", "Where domain ideas come from — industry × activity combinations" do
     identified_by :name
-    attribute :name, String
-    attribute :industries, list_of(String)
-    attribute :activities, list_of(String)
-    attribute :modifiers, list_of(String)
-    attribute :total_combinations, Integer
+    attribute :name,               Name
+    attribute :industries,         list_of(Industry)
+    attribute :activities,         list_of(Activity)
+    attribute :modifiers,          list_of(Modifier)
+    attribute :total_combinations, CombinationCount
+
+    value_object "Name" do
+      # Identifier of this topic source.
+      attribute :value, String
+    end
+
+    value_object "Industry" do
+      # One industry term feeding into topic generation.
+      attribute :value, String
+    end
+
+    value_object "Activity" do
+      # One activity term feeding into topic generation.
+      attribute :value, String
+    end
+
+    value_object "Modifier" do
+      # One modifier word feeding into topic generation.
+      attribute :value, String
+    end
+
+    value_object "CombinationCount" do
+      # Total industry × activity × modifier combinations available.
+      attribute :value, Integer
+    end
 
     command "LoadTopics" do
       role "System"
       description "Load industry, activity, and modifier word lists"
-      attribute :industries, list_of(String)
-      attribute :activities, list_of(String)
-      attribute :modifiers, list_of(String)
+      attribute :industries, list_of(Industry)
+      attribute :activities, list_of(Activity)
+      attribute :modifiers,  list_of(Modifier)
       emits "TopicsLoaded"
       then_set :industries, to: :industries
       then_set :activities, to: :activities
-      then_set :modifiers, to: :modifiers
+      then_set :modifiers,  to: :modifiers
     end
   end
 end

@@ -12,15 +12,35 @@ Hecks.bluebook "NurserySeed", version: "2026.04.28.1" do
 
   aggregate "NurserySeed", "Seed the nursery with domains — parallel workers conceive in bulk" do
     identified_by :ref
-    attribute :ref, String
-    attribute :worker_count, Integer
-    attribute :domains_seeded, Integer
-    attribute :status, String
+    attribute :ref,             Ref
+    attribute :worker_count,    WorkerCount
+    attribute :domains_seeded,  DomainCount
+    attribute :status,          Status
+
+    value_object "Ref" do
+      # Stable identifier for this seeding run.
+      attribute :value, String
+    end
+
+    value_object "WorkerCount" do
+      # Number of parallel workers launched by the seeding orchestrator.
+      attribute :value, Integer
+    end
+
+    value_object "DomainCount" do
+      # Number of domains landed in the nursery during this run.
+      attribute :value, Integer
+    end
+
+    value_object "Status" do
+      # Lifecycle marker ('pending' / 'running' / 'complete').
+      attribute :value, String
+    end
 
     command "StartSeeding" do
       role "Creator"
       description "Launch parallel workers to conceive domains into the nursery"
-      attribute :worker_count, Integer
+      attribute :worker_count, WorkerCount
       emits "SeedingStarted"
       then_set :worker_count, to: :worker_count
       then_set :status, to: "running"
@@ -30,7 +50,7 @@ Hecks.bluebook "NurserySeed", version: "2026.04.28.1" do
       role "System"
       description "All workers finished — domains are in the nursery"
       reference_to(NurserySeed)
-      attribute :domains_seeded, Integer
+      attribute :domains_seeded, DomainCount
       emits "SeedingCompleted"
       then_set :domains_seeded, to: :domains_seeded
       then_set :status, to: "complete"

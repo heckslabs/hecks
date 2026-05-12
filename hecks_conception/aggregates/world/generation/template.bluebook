@@ -11,21 +11,31 @@ Hecks.bluebook "Template", version: "2026.04.28.1" do
 
   aggregate "Template", "A bluebook template that generates valid domains from topics" do
     identified_by :name
-    attribute :name, String
-    attribute :aggregate_patterns, list_of(String)
-    attribute :command_patterns, list_of(String)
-    attribute :policy_patterns, list_of(String)
+    attribute :name,               Name
+    attribute :aggregate_patterns, list_of(Pattern)
+    attribute :command_patterns,   list_of(Pattern)
+    attribute :policy_patterns,    list_of(Pattern)
+
+    value_object "Name" do
+      # Template identifier used by the bulk generator.
+      attribute :value, String
+    end
+
+    value_object "Pattern" do
+      # One pattern (aggregate / command / policy) included in the template.
+      attribute :value, String
+    end
 
     command "DefineTemplate" do
       role "System"
       description "Set the patterns used to generate aggregates, commands, and policies"
-      attribute :aggregate_patterns, list_of(String)
-      attribute :command_patterns, list_of(String)
-      attribute :policy_patterns, list_of(String)
+      attribute :aggregate_patterns, list_of(Pattern)
+      attribute :command_patterns,   list_of(Pattern)
+      attribute :policy_patterns,    list_of(Pattern)
       emits "TemplateDefined"
       then_set :aggregate_patterns, to: :aggregate_patterns
-      then_set :command_patterns, to: :command_patterns
-      then_set :policy_patterns, to: :policy_patterns
+      then_set :command_patterns,   to: :command_patterns
+      then_set :policy_patterns,    to: :policy_patterns
     end
   end
 end

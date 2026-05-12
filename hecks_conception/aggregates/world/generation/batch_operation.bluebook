@@ -15,18 +15,38 @@ Hecks.bluebook "BatchOperation", version: "2026.04.28.1" do
 
   aggregate "BatchOperation", "Process many domains in one Rust invocation — no per-file process launch" do
     identified_by :operation
-    attribute :operation, String
-    attribute :file_count, Integer
-    attribute :duration_ms, Integer
-    attribute :results, Integer
+    attribute :operation,   OperationName
+    attribute :file_count,  FileCount
+    attribute :duration_ms, DurationMs
+    attribute :results,     ResultCount
+
+    value_object "OperationName" do
+      # Identifier of the batch op (e.g. 'validate', 'parse', 'dump').
+      attribute :value, String
+    end
+
+    value_object "FileCount" do
+      # Number of files processed in the batch.
+      attribute :value, Integer
+    end
+
+    value_object "DurationMs" do
+      # Wall-clock duration of the batch in milliseconds.
+      attribute :value, Integer
+    end
+
+    value_object "ResultCount" do
+      # Number of result records emitted by the batch run.
+      attribute :value, Integer
+    end
 
     command "RunBatch" do
       role "System"
       description "Send a list of bluebook paths to storehouse for batch processing"
-      attribute :operation, String
-      attribute :file_count, Integer
+      attribute :operation,  OperationName
+      attribute :file_count, FileCount
       emits "BatchCompleted"
-      then_set :operation, to: :operation
+      then_set :operation,  to: :operation
       then_set :file_count, to: :file_count
     end
   end
