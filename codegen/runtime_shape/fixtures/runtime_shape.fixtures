@@ -149,9 +149,21 @@ Hecks.fixtures "RuntimeShape" do
       snippet_path: "codegen/runtime_shape/snippets/method_03_dispatch.rs.frag",
       description: "dispatch — entry point for top-level command dispatch ; runs middleware, calls command_dispatch::dispatch, writes the .last_dispatch breadcrumb (non-daemon only), runs after-middleware, applies projections, drains policy cascades"
 
+    # i577 — breadcrumb phrase helper. Renders the two-segment-plus-
+    # dot statusline format `Domain::Aggregate.Command` from a
+    # CommandResult + the dispatched command name. Lives between
+    # dispatch and dispatch_isolated ; called from dispatch's
+    # .last_dispatch write path.
+    fixture "FormatBreadcrumbPhrase",
+      name: "format_breadcrumb_phrase",
+      order: 5,
+      body_kind: "verbatim_method",
+      snippet_path: "codegen/runtime_shape/snippets/method_03a_format_breadcrumb_phrase.rs.frag",
+      description: "format_breadcrumb_phrase — i577 statusline breadcrumb phrase composer ; renders `Domain::Aggregate.Command` by looking up the aggregate's context (two segments + dot, no entity slot)"
+
     fixture "DispatchIsolated",
       name: "dispatch_isolated",
-      order: 5,
+      order: 6,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_04_dispatch_isolated.rs.frag",
       description: "dispatch_isolated — dispatch without firing policy cascades ; used for SETUP commands in behavior tests"
@@ -160,28 +172,28 @@ Hecks.fixtures "RuntimeShape" do
     # between dispatch_isolated and find.
     fixture "PmHelpers",
       name: "pm_helpers",
-      order: 6,
+      order: 7,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_04a_pm_helpers.rs.frag",
       description: "publish_synthetic_event + resolve_llm_adapters — substrate for the PM loop driver and the i221 LLM dispatcher hook"
 
     fixture "Find",
       name: "find",
-      order: 7,
+      order: 8,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_05_find.rs.frag",
       description: "find — exact-key fast path then context-disambiguation suffix walk ; returns the AggregateState for (aggregate_name, id)"
 
     fixture "All",
       name: "all",
-      order: 8,
+      order: 9,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_06_all.rs.frag",
       description: "all — returns every AggregateState for an aggregate name via repo_lookup_key"
 
     fixture "DrainPolicies",
       name: "drain_policies",
-      order: 9,
+      order: 10,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_07_drain_policies.rs.frag",
       description: "drain_policies — recursive policy-trigger cascade ; injects refs (self-ref + singleton fallback), passes upstream type+id as cascade hint, completes each policy. Phase 2.b/2.c walks PM dispatches with structured ValueSpec resolution."
@@ -190,42 +202,42 @@ Hecks.fixtures "RuntimeShape" do
     # live between drain_policies and inject_refs.
     fixture "PmValueHelpers",
       name: "pm_value_helpers",
-      order: 10,
+      order: 11,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_07a_pm_value_helpers.rs.frag",
       description: "evaluate_value_spec + pm_set_pairs — runtime ValueSpec resolution for PM dispatch"
 
     fixture "InjectRefs",
       name: "inject_refs",
-      order: 11,
+      order: 12,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_08_inject_refs.rs.frag",
       description: "inject_refs — for each reference on the triggered command, inject an id under its kwarg name (upstream-type match → upstream id ; singleton fallback) ; also injects identified_by key for natural-key singletons"
 
     fixture "AddProjection",
       name: "add_projection",
-      order: 12,
+      order: 13,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_09_add_projection.rs.frag",
       description: "add_projection — public API for tests / Rails integration to push a Projection onto the runtime"
 
     fixture "QueryProjection",
       name: "query_projection",
-      order: 13,
+      order: 14,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_10_query_projection.rs.frag",
       description: "query_projection — runs a named query against the named projection ; returns Vec<HashMap<String,Value>>. Note : in source there is NO blank line between query_projection's closing brace and resolve_query's leading doc comment, so this snippet has no trailing blank"
 
     fixture "ResolveQuery",
       name: "resolve_query",
-      order: 14,
+      order: 15,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_11_resolve_query.rs.frag",
       description: "resolve_query — search IR (MatchInput trigram path) or return aggregate state ; the MCP query surface"
 
     fixture "RunInteractive",
       name: "run_interactive",
-      order: 15,
+      order: 16,
       body_kind: "verbatim_method",
       snippet_path: "codegen/runtime_shape/snippets/method_12_run_interactive.rs.frag",
       description: "run_interactive — terminal adapter REPL entry point ; the final method in impl Runtime"
