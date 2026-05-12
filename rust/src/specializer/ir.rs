@@ -31,7 +31,7 @@
 //!   let rust = ir::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/ir.rs —
+//! [antibody-exempt: rust/src/specializer/ir.rs —
 //!  i147 Wave 4-C — Rust-native specializer for ir.rs]
 
 use crate::ir::Fixture;

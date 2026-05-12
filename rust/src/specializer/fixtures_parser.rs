@@ -21,7 +21,7 @@
 //!   let rust = fixtures_parser::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/fixtures_parser.rs —
+//! [antibody-exempt: rust/src/specializer/fixtures_parser.rs —
 //!  Phase D Rust-native specializer implementation]
 
 use crate::ir::Fixture;

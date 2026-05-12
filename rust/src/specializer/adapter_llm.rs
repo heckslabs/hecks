@@ -44,7 +44,7 @@
 //!   print!("{}", rust);
 //! ```
 //!
-//! [antibody-exempt: storehouse/src/specializer/adapter_llm.rs —
+//! [antibody-exempt: rust/src/specializer/adapter_llm.rs —
 //!  i147 Wave 3-B Rust-native specializer for runtime/adapter_llm.rs.
 //!  Retires when the specializer itself is regenerated from a
 //!  meta-shape (i78).]

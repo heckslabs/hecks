@@ -17,7 +17,7 @@
 //!   let rust = validator_corpus::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/validator_corpus.rs —
+//! [antibody-exempt: rust/src/specializer/validator_corpus.rs —
 //!  i146 piece 2 — Rust-native specializer implementation]
 
 use crate::specializer::util;
