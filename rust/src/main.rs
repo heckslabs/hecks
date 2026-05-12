@@ -3235,6 +3235,31 @@ fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
     }
 }
 
+/// i560 v2 FQN gate, extended to the cadence-family entry points
+/// (`storehouse loop`, `storehouse run-loop --dispatch`, `storehouse
+/// clock --segment`). Same contract as the main-dispatch gate :
+/// every dispatch address typed at the CLI must carry `::`, naming
+/// `Domain::Aggregate.Command` (commands, PascalCase) or
+/// `Domain::Aggregate.query_name` (queries, snake_case). Short
+/// forms (`Aggregate.Command`, bare `Command`) are rejected here so
+/// the cadence CLIs stay aligned with the main dispatch entry
+/// point. Internal cascade dispatch (drain_policies, trigger_command)
+/// is unaffected — this validates user-typed addresses only.
+///
+/// `subcommand` names which CLI surface invoked the gate (used in
+/// the error message). Exits 1 on rejection ; returns silently on
+/// pass so callers can keep the existing `.split('.').last()` bare-
+/// command extraction unchanged.
+fn require_fqn_dispatch_address(subcommand: &str, address: &str) {
+    if !address.contains("::") {
+        eprintln!(
+            "{} : dispatch address '{}' is a short-form address. The CLI requires the fully-qualified form Domain::Aggregate.Command (commands, PascalCase) or Domain::Aggregate.query_name (queries, snake_case). Example: 'Tools::Tools.Bash', 'Discipline::Macrophage.Run'.",
+            subcommand, address
+        );
+        std::process::exit(1);
+    }
+}
+
 /// Run the loop subcommand. Boots the runtime once, dispatches the named
 /// command at the given cadence, exits cleanly on SIGINT / SIGTERM.
 ///
@@ -4047,13 +4072,20 @@ fn run_loop(args: &[String]) {
     // by sleep_cycle to advance NREM/REM only while consciousness.state ==
     // sleeping.
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: storehouse loop <bluebook-or-dir> <Aggregate.Command[,Aggregate.Command2,...]> --every <duration> [--gate <file.heki>:<field>=<value>] [key=val ...]");
+        eprintln!("Usage: storehouse loop <bluebook-or-dir> <Domain::Aggregate.Command[,Domain::Aggregate.Command2,...]> --every <duration> [--gate <file.heki>:<field>=<value>] [key=val ...]");
         std::process::exit(1);
     });
     let cmd_full = args.get(3).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("loop : missing <Aggregate.Command>");
+        eprintln!("loop : missing <Domain::Aggregate.Command>");
         std::process::exit(1);
     });
+    // i560 v2 follow-up — strict FQN gate on each comma-separated
+    // entry of the rotation list. Mirrors the main dispatch gate so
+    // `storehouse loop` rejects short forms with the same actionable
+    // error.
+    for entry in cmd_full.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        require_fqn_dispatch_address("loop", entry);
+    }
     let every_str = args.iter().position(|a| a == "--every")
         .and_then(|i| args.get(i + 1))
         .map(|s| s.as_str())
@@ -4208,7 +4240,7 @@ fn run_pm_loop(args: &[String]) {
                  [--every <duration>] \
                  [--emit <Event:AggType:AggId>]... \
                  [--bootstrap-if <Agg>.<field>=<expected>:<Event>:<EmitAggType>:<EmitAggId>]... \
-                 [--dispatch <Aggregate.Command>]... \
+                 [--dispatch <Domain::Aggregate.Command>]... \
                  [key=val ...]"
             );
             std::process::exit(1);
@@ -4303,6 +4335,10 @@ fn run_pm_loop(args: &[String]) {
             }
             "--dispatch" => {
                 if let Some(c) = args.get(i + 1) {
+                    // i560 v2 follow-up — gate each --dispatch
+                    // address to FQN form (Domain::Aggregate.Command)
+                    // so run-loop matches the main dispatch entry point.
+                    require_fqn_dispatch_address("run-loop", c);
                     dispatches.push(c.split('.').last().unwrap_or(c).to_string());
                 }
                 i += 2;
@@ -4414,7 +4450,7 @@ fn gate_predicate_holds(file: &str, field: &str, expected: &str) -> bool {
 /// (`20-4` covers 20:00 through 04:59). First matching segment wins.
 fn run_clock(args: &[String]) {
     let target = args.get(2).map(|s| s.as_str()).unwrap_or_else(|| {
-        eprintln!("Usage: storehouse clock <bluebook-or-dir> --segment <lo>-<hi>:<Aggregate.Command> [--segment ...] [--poll <dur>]");
+        eprintln!("Usage: storehouse clock <bluebook-or-dir> --segment <lo>-<hi>:<Domain::Aggregate.Command> [--segment ...] [--poll <dur>]");
         std::process::exit(1);
     });
 
@@ -4427,13 +4463,21 @@ fn run_clock(args: &[String]) {
         match args[i].as_str() {
             "--segment" => {
                 let spec = args.get(i + 1).map(|s| s.as_str()).unwrap_or_else(|| {
-                    eprintln!("clock : --segment needs <lo>-<hi>:<Aggregate.Command>");
+                    eprintln!("clock : --segment needs <lo>-<hi>:<Domain::Aggregate.Command>");
                     std::process::exit(1);
                 });
-                let (range, cmd_full) = spec.split_once(':').unwrap_or_else(|| {
-                    eprintln!("clock : bad --segment '{}' (expected <lo>-<hi>:<Cmd>)", spec);
-                    std::process::exit(1);
-                });
+                // i560 v2 — `lo-hi:Domain::Aggregate.Command` splits on
+                // the FIRST ':' so the `::` inside the FQN address stays
+                // intact for the trailing command field. splitn(2, ':')
+                // gives `lo-hi` + `Domain::Aggregate.Command` ; without
+                // it, the FQN would be torn at the first `::` colon.
+                let (range, cmd_full) = match spec.splitn(2, ':').collect::<Vec<&str>>().as_slice() {
+                    [r, c] => (*r, *c),
+                    _ => {
+                        eprintln!("clock : bad --segment '{}' (expected <lo>-<hi>:<Cmd>)", spec);
+                        std::process::exit(1);
+                    }
+                };
                 let (lo_s, hi_s) = range.split_once('-').unwrap_or_else(|| {
                     eprintln!("clock : bad hour-range '{}' (expected <lo>-<hi>)", range);
                     std::process::exit(1);
@@ -4448,6 +4492,9 @@ fn run_clock(args: &[String]) {
                     eprintln!("clock : hours must be 0..=23 (got {}-{})", lo, hi);
                     std::process::exit(1);
                 }
+                // i560 v2 follow-up — gate each --segment address to
+                // FQN form (Domain::Aggregate.Command).
+                require_fqn_dispatch_address("clock", cmd_full);
                 let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
                 segments.push((lo, hi, cmd_name));
                 i += 2;
