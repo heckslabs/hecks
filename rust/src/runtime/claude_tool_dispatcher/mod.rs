@@ -1,4 +1,4 @@
-//! [antibody-exempt: rust/src/runtime/claude_tool_dispatcher.rs —
+//! [antibody-exempt: rust/src/runtime/claude_tool_dispatcher/mod.rs —
 //!  kernel-floor handler for the `:claude_tool` hecksagon adapter
 //!  family (i551 / i556). Implements the `invoke_claude_tool`
 //!  behavior_kind declared in
@@ -36,6 +36,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
+mod glob;
+
 /// What a :claude_tool dispatch produced. Fields are populated per
 /// the tool kind that ran — :bash sets `output` + `exit_code`,
 /// :read sets `contents`, :grep sets `matches`, etc.
@@ -67,7 +69,7 @@ pub fn dispatch(tool: &str, attrs: &HashMap<String, String>) -> ClaudeToolResult
         "read"  => run_read(attrs),
         "write" => run_write(attrs),
         "grep"  => run_grep(attrs),
-        "glob"  => run_glob(attrs),
+        "glob"  => glob::run_glob(attrs),
         other   => ClaudeToolResult {
             tool: other.to_string(),
             ok: false,
@@ -81,7 +83,18 @@ pub fn dispatch(tool: &str, attrs: &HashMap<String, String>) -> ClaudeToolResult
 /// downstream state from huge file reads / wide grep matches.
 const OUTPUT_LIMIT_BYTES: usize = 10_240;
 
-fn truncate(s: String) -> String {
+/// Read an attribute, treating the empty-list sentinel `"[0 items]"`
+/// as absent. The caller (`resolve_claude_tool_adapters`) snapshots
+/// the whole aggregate state, so unset list-shaped attrs appear here
+/// as the rendered empty list ; without this they leak into shell args.
+pub(super) fn attr<'a>(attrs: &'a HashMap<String, String>, key: &str) -> Option<&'a str> {
+    match attrs.get(key) {
+        Some(v) if !v.is_empty() && v != "[0 items]" => Some(v.as_str()),
+        _ => None,
+    }
+}
+
+pub(super) fn truncate(s: String) -> String {
     if s.len() <= OUTPUT_LIMIT_BYTES {
         s
     } else {
@@ -96,8 +109,8 @@ fn truncate(s: String) -> String {
 // ── :bash — spawn /bin/sh -c <shell_command>, capture stdout + exit ──
 
 fn run_bash(attrs: &HashMap<String, String>) -> ClaudeToolResult {
-    let cmd = match attrs.get("shell_command") {
-        Some(c) => c.clone(),
+    let cmd = match attr(attrs, "shell_command") {
+        Some(c) => c.to_string(),
         None => return err("bash", "missing required attr: shell_command"),
     };
     match Command::new("sh").arg("-c").arg(&cmd).output() {
@@ -169,8 +182,8 @@ fn run_edit(attrs: &HashMap<String, String>) -> ClaudeToolResult {
 // ── :read — read file_path, return contents (truncated) ──
 
 fn run_read(attrs: &HashMap<String, String>) -> ClaudeToolResult {
-    let path = match attrs.get("file_path") {
-        Some(p) => p.clone(),
+    let path = match attr(attrs, "file_path") {
+        Some(p) => p.to_string(),
         None => return err("read", "missing required attr: file_path"),
     };
     match std::fs::read_to_string(&path) {
@@ -215,11 +228,11 @@ fn run_write(attrs: &HashMap<String, String>) -> ClaudeToolResult {
 // ── :grep — search files for pattern, return matches (uses ripgrep / grep) ──
 
 fn run_grep(attrs: &HashMap<String, String>) -> ClaudeToolResult {
-    let pattern = match attrs.get("pattern") {
-        Some(p) => p.clone(),
+    let pattern = match attr(attrs, "pattern") {
+        Some(p) => p.to_string(),
         None => return err("grep", "missing required attr: pattern"),
     };
-    let search_path = attrs.get("search_path").cloned().unwrap_or_else(|| ".".into());
+    let search_path = attr(attrs, "search_path").map(|s| s.to_string()).unwrap_or_else(|| ".".into());
 
     // Prefer ripgrep if available ; fall back to grep -r.
     let rg_exists = Command::new("rg").arg("--version").output().is_ok();
@@ -245,42 +258,11 @@ fn run_grep(attrs: &HashMap<String, String>) -> ClaudeToolResult {
     }
 }
 
-// ── :glob — walk filesystem with glob_pattern, return matching paths ──
-//
-// Uses `find` for portability — globs in shell would need bash for **
-// double-star expansion ; find -path handles the same shape natively.
-
-fn run_glob(attrs: &HashMap<String, String>) -> ClaudeToolResult {
-    let pattern = match attrs.get("glob_pattern") {
-        Some(p) => p.clone(),
-        None => return err("glob", "missing required attr: glob_pattern"),
-    };
-    let search_path = attrs.get("search_path").cloned().unwrap_or_else(|| ".".into());
-
-    // Translate glob → find -path :  "**/*.rs" → -path "*/*.rs" (find handles ** as glob expansion)
-    // For straight patterns like "*.rs" use -name. Heuristic : if pattern
-    // contains '/', use -path ; otherwise -name.
-    let (flag, val) = if pattern.contains('/') {
-        ("-path", pattern.clone())
-    } else {
-        ("-name", pattern.clone())
-    };
-
-    match Command::new("find").args(&[&search_path, flag, &val]).output() {
-        Ok(out) => ClaudeToolResult {
-            tool: "glob".into(),
-            ok: out.status.success(),
-            output: truncate(String::from_utf8_lossy(&out.stdout).into_owned()),
-            exit_code: out.status.code().unwrap_or(-1),
-            error: None,
-        },
-        Err(e) => err("glob", &format!("spawn find: {}", e)),
-    }
-}
+// ── :glob — see `glob.rs` sibling for translation rules + execution.
 
 // ── helpers ──
 
-fn err(tool: &str, msg: &str) -> ClaudeToolResult {
+pub(super) fn err(tool: &str, msg: &str) -> ClaudeToolResult {
     ClaudeToolResult {
         tool: tool.to_string(),
         ok: false,
@@ -342,5 +324,91 @@ mod tests {
         let r = dispatch("nonsense", &attrs(&[]));
         assert!(!r.ok);
         assert!(r.error.unwrap().contains("unknown tool kind"));
+    }
+
+    // ── glob coverage ── (translation rules tested in glob.rs sibling)
+
+    // Glob tests build a self-contained tempdir tree so they don't
+    // depend on the cargo-test cwd (other tests in the suite mutate
+    // process cwd, e.g. statusline tests chdir to /tmp).
+    fn build_glob_fixture() -> String {
+        let root = format!("/tmp/claude_tool_glob_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+        std::fs::create_dir_all(format!("{}/runtime", root)).unwrap();
+        std::fs::create_dir_all(format!("{}/runtime/nested", root)).unwrap();
+        std::fs::write(format!("{}/runtime/alpha.rs", root), "// alpha\n").unwrap();
+        std::fs::write(format!("{}/runtime/beta.rs",  root), "// beta\n").unwrap();
+        std::fs::write(format!("{}/runtime/gamma.rs", root), "// gamma\n").unwrap();
+        std::fs::write(format!("{}/runtime/nested/deep.rs", root), "// deep\n").unwrap();
+        root
+    }
+
+    #[test]
+    fn glob_directory_pattern_finds_files_in_dir() {
+        let root = build_glob_fixture();
+        let pat = format!("{}/runtime/*.rs", root);
+        let r = dispatch("glob", &attrs(&[("glob_pattern", &pat)]));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(r.ok, "{:?}", r);
+        let lines: Vec<&str> = r.output.lines().collect();
+        assert_eq!(lines.len(), 3, "expected 3 top-level .rs files, got {:?}", lines);
+        assert!(r.output.contains("alpha.rs") && r.output.contains("beta.rs") && r.output.contains("gamma.rs"));
+        // Non-recursive must NOT descend into nested/.
+        assert!(!r.output.contains("deep.rs"), "non-recursive walk should skip nested/, got {:?}", r.output);
+    }
+
+    #[test]
+    fn glob_recursive_pattern_descends() {
+        let root = build_glob_fixture();
+        let pat = format!("{}/runtime/**/*.rs", root);
+        let r = dispatch("glob", &attrs(&[("glob_pattern", &pat)]));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(r.ok, "{:?}", r);
+        assert!(r.output.contains("deep.rs"), "recursive walk should find nested file, got {:?}", r.output);
+        assert!(r.output.contains("alpha.rs"), "recursive walk should also find top-level, got {:?}", r.output);
+    }
+
+    #[test]
+    fn glob_empty_match_is_ok_not_error() {
+        let root = build_glob_fixture();
+        let pat = format!("{}/runtime/*.nonexistent-extension-xyz", root);
+        let r = dispatch("glob", &attrs(&[("glob_pattern", &pat)]));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(r.ok, "no-match must be ok=true, got {:?}", r);
+        assert_eq!(r.output.trim(), "");
+    }
+
+    #[test]
+    fn glob_ignores_empty_list_sentinel_in_search_path() {
+        // The runtime snapshots the whole aggregate state into attrs, so
+        // unset list-shaped attributes arrive as the literal "[0 items]"
+        // rendering. The dispatcher must treat that as absent — not feed
+        // the literal "[0 items]" to find as a directory.
+        let root = build_glob_fixture();
+        let pat = format!("{}/runtime/*.rs", root);
+        let r = dispatch("glob", &attrs(&[
+            ("glob_pattern", &pat),
+            ("search_path",  "[0 items]"),
+        ]));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(r.ok, "sentinel must be ignored, got {:?}", r);
+        assert!(r.output.contains("alpha.rs"), "expected fixture files, got {:?}", r.output);
+    }
+
+    #[test]
+    fn glob_missing_directory_surfaces_stderr() {
+        // Pointing at a directory that doesn't exist — find exits non-zero
+        // and writes to stderr. Verify we capture it in the error message.
+        let missing = format!("/tmp/nonexistent_dir_xyz_{}", std::process::id());
+        let pat = format!("{}/*.rs", missing);
+        let r = dispatch("glob", &attrs(&[("glob_pattern", &pat)]));
+        assert!(!r.ok, "missing dir should fail: {:?}", r);
+        let msg = r.error.unwrap_or_default();
+        assert!(
+            msg.contains("nonexistent_dir_xyz") || msg.to_lowercase().contains("no such"),
+            "error message should mention the missing dir or 'no such', got {}", msg
+        );
     }
 }
