@@ -69,13 +69,62 @@ pub fn wizard_script() -> &'static str {
     }).then(r => r.json()).then(r => {
       const el = form.querySelector('.wizard-result');
       if (r.ok) {
-        el.innerHTML = '<div class="p-3 rounded bg-emerald-900/40 text-emerald-300 text-sm">\u2714 ' + humanize(r.event) + ' \u2014 ' + humanize(r.aggregate_type) + ' #' + r.aggregate_id + '</div>';
+        // Top-level success badge.
+        var html = '<div class="p-3 rounded bg-emerald-900/40 text-emerald-300 text-sm">\u2714 ' + humanize(r.event) + ' \u2014 ' + humanize(r.aggregate_type) + ' #' + r.aggregate_id + '</div>';
+        // Cascade trail \u2014 every downstream event emitted during
+        // this dispatch (i545). Each becomes a chip showing the
+        // event name + aggregate. First entry usually duplicates
+        // the top-level event ; skip it when ids match.
+        if (Array.isArray(r.cascade) && r.cascade.length > 0) {
+          var chips = r.cascade
+            .filter(function(ev) { return !(ev.aggregate_id === r.aggregate_id && ev.name === r.event); })
+            .map(function(ev) {
+              return '<span class="inline-block px-2 py-1 mr-1 mt-2 rounded text-xs bg-brand/10 text-brand border border-brand/30">' +
+                '\u21aa ' + humanize(ev.name || '') +
+                (ev.aggregate_type ? ' \u00b7 ' + humanize(ev.aggregate_type) : '') +
+                (ev.aggregate_id ? ' #' + ev.aggregate_id : '') +
+                '</span>';
+            }).join('');
+          if (chips) {
+            html += '<div class="mt-2 text-xs text-gray-400">cascade :</div><div>' + chips + '</div>';
+            // Log each cascade event to the event stream too.
+            r.cascade.forEach(function(ev) {
+              if (ev.aggregate_id === r.aggregate_id && ev.name === r.event) return;
+              addEvent(ev.name, cmd, ev.aggregate_type, ev.aggregate_id, true);
+            });
+          }
+        }
+        el.innerHTML = html;
         addEvent(r.event, cmd, r.aggregate_type, r.aggregate_id, true);
-        form.querySelectorAll('input').forEach(i => i.value = '');
-        setTimeout(() => form.closest('div.fixed')?.remove(), 1500);
+        form.querySelectorAll('input').forEach(function(i) { i.value = ''; });
+        // Auto-dismiss only when there's no cascade to read.
+        if (!Array.isArray(r.cascade) || r.cascade.length <= 1) {
+          setTimeout(function() { form.closest('div.fixed')?.remove(); }, 1500);
+        }
       } else {
-        el.innerHTML = '<div class="p-3 rounded bg-red-900/40 text-red-300 text-sm">\u2718 ' + r.error + '</div>';
-        addEvent(r.error, cmd, '', '', false);
+        // Humanized error (i540). Worker now returns either a string
+        // OR an object { message, suggestion, field }.
+        var err = r.error;
+        var msg, suggestion, field;
+        if (err && typeof err === 'object') {
+          msg = err.message || JSON.stringify(err);
+          suggestion = err.suggestion;
+          field = err.field;
+        } else {
+          msg = String(err || 'dispatch failed');
+        }
+        var body = '<div class="p-3 rounded bg-red-900/40 text-red-300 text-sm">\u2718 ' + msg;
+        if (suggestion) body += '<div class="text-xs text-red-200 mt-1">' + suggestion + '</div>';
+        body += '</div>';
+        el.innerHTML = body;
+        if (field) {
+          var input = form.querySelector('[name="' + field + '"]');
+          if (input) {
+            input.classList.add('ring-2', 'ring-red-400');
+            input.focus();
+          }
+        }
+        addEvent(msg, cmd, '', '', false);
       }
     });
     return false;
