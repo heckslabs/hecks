@@ -1,11 +1,50 @@
-Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
+Hecks.bluebook "GlassboxTraining", version: "2026.05.12.1" do
   vision "How Miette prepares her bluebook corpus as training data for a GlassBox model"
   category "infrastructure"
 
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VO sets — TrainingCorpus,
+  # TrainingExample, and ModelSpec each carry their own typed
+  # vocabulary so the domain reads as itself.
+
   aggregate "TrainingCorpus", "All bluebooks formatted as training examples" do
+    # ── Value-objects : the corpus's vocabulary ──
+
+    value_object "TokenCount" do
+      # Total token count across all training examples in the corpus.
+      # Reported on every export so downstream training jobs can budget
+      # context-window time.
+      attribute :value, Integer
+    end
+
+    value_object "ExportedAt" do
+      # UTC ISO timestamp the corpus was exported at — stamped on every
+      # CorpusExported event so re-exports are traceable.
+      attribute :value, String
+    end
+
+    value_object "TrainingInput" do
+      # The input half of a training pair — the natural-language prompt
+      # the model learns to respond to with bluebook source.
+      attribute :value, String
+    end
+
+    value_object "TrainingOutput" do
+      # The output half of a training pair — the bluebook source the
+      # model learns to emit for a given input.
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # Corpus filter label — the category bucket (e.g. 'capability',
+      # 'infrastructure', 'tools') that a subset can be filtered down
+      # to via FilterByCategory.
+      attribute :value, String
+    end
+
     attribute :examples, Array
-    attribute :total_tokens, Integer
-    attribute :exported_at, String
+    attribute :total_tokens, TokenCount
+    attribute :exported_at, ExportedAt
 
     command "ExportCorpus" do
       role "System"
@@ -16,39 +55,68 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
     command "FormatAsTrainingPair" do
       role "System"
       description "Format a single bluebook as an input/output training pair — input is the description, output is the bluebook"
-      attribute :input, String
-      attribute :output, String
+      attribute :input, TrainingInput
+      attribute :output, TrainingOutput
       emits "TrainingPairFormatted"
     end
 
     command "FilterByCategory" do
       role "System"
       description "Filter the corpus to only include examples from a given category"
-      attribute :category, String
+      attribute :category, Category
       emits "CorpusFiltered"
     end
 
     command "CalculateTokenCount" do
       role "System"
       description "Calculate total token count across all training examples"
-      attribute :total_tokens, Integer
+      attribute :total_tokens, TokenCount
       emits "TokenCountCalculated"
       then_set :total_tokens, to: :total_tokens
     end
   end
 
   aggregate "TrainingExample", "A single input/output pair for model training" do
-    attribute :input, String
-    attribute :output, String
-    attribute :category, String
-    attribute :quality_score, Float
+    # ── Value-objects : the example's vocabulary ──
+
+    value_object "TrainingInput" do
+      # The input half of the pair — the natural-language prompt the
+      # model learns from. Sibling of TrainingCorpus.TrainingInput ;
+      # per-aggregate sets keep each aggregate's vocabulary self-
+      # contained.
+      attribute :value, String
+    end
+
+    value_object "TrainingOutput" do
+      # The output half — the bluebook source the model emits for the
+      # corresponding input.
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # Categorization label for the example — pairs are bucketed by
+      # category for downstream filtering and balanced sampling.
+      attribute :value, String
+    end
+
+    value_object "QualityScore" do
+      # Numeric quality rating — completeness, correctness, and variety
+      # rolled into one float. Used to weight training samples and to
+      # filter out low-quality examples before fine-tuning.
+      attribute :value, Float
+    end
+
+    attribute :input, TrainingInput
+    attribute :output, TrainingOutput
+    attribute :category, Category
+    attribute :quality_score, QualityScore
 
     command "MintExample" do
       role "System"
       description "Mint a new training example from a bluebook"
-      attribute :input, String
-      attribute :output, String
-      attribute :category, String
+      attribute :input, TrainingInput
+      attribute :output, TrainingOutput
+      attribute :category, Category
       emits "ExampleMinted"
       then_set :input, to: :input
       then_set :output, to: :output
@@ -66,24 +134,45 @@ Hecks.bluebook "GlassboxTraining", version: "2026.04.11.1" do
       role "System"
       description "Score the quality of a training example — completeness, correctness, variety"
       reference_to(TrainingExample)
-      attribute :quality_score, Float
+      attribute :quality_score, QualityScore
       emits "QualityScored"
       then_set :quality_score, to: :quality_score
     end
   end
 
   aggregate "ModelSpec", "What the GlassBox model needs — architecture and hyperparameters" do
-    attribute :context_window, Integer
-    attribute :vocab_size, Integer
-    attribute :architecture, String
+    # ── Value-objects : the spec's vocabulary ──
+
+    value_object "ContextWindow" do
+      # The model's context-window size in tokens — how many tokens of
+      # input the model can attend to in a single forward pass.
+      attribute :value, Integer
+    end
+
+    value_object "VocabSize" do
+      # The size of the model's tokenizer vocabulary — the count of
+      # distinct token ids the embedding layer covers.
+      attribute :value, Integer
+    end
+
+    value_object "Architecture" do
+      # The architecture family name (e.g. 'transformer', 'mamba',
+      # 'mixture-of-experts'). Free-form for now ; the runtime doesn't
+      # constrain the set today.
+      attribute :value, String
+    end
+
+    attribute :context_window, ContextWindow
+    attribute :vocab_size, VocabSize
+    attribute :architecture, Architecture
     attribute :hyperparameters, Hash
 
     command "DefineSpec" do
       role "System"
       description "Define the model specification — context window, vocabulary size, architecture"
-      attribute :context_window, Integer
-      attribute :vocab_size, Integer
-      attribute :architecture, String
+      attribute :context_window, ContextWindow
+      attribute :vocab_size, VocabSize
+      attribute :architecture, Architecture
       emits "SpecDefined"
       then_set :context_window, to: :context_window
       then_set :vocab_size, to: :vocab_size

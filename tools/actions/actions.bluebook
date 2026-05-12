@@ -1,32 +1,80 @@
-Hecks.bluebook "Actions", version: "2026.04.14.1" do
+Hecks.bluebook "Actions", version: "2026.05.12.1" do
   vision "Miette's ability to plan, execute, verify, and reverse structural changes — every action is a Bluebook with before/after state"
   category "capability"
 
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VO sets — ActionPlan and
+  # ActionLog each carry their own typed vocabulary so the domain
+  # reads as itself (a plan has a Rationale and a PlanStatus, not a
+  # String and a String).
+
   aggregate "ActionPlan", "A structural change Miette intends to make — encoded as Bluebook before execution" do
-    attribute :name, String
-    attribute :description, String
-    attribute :rationale, String
-    attribute :action_bluebook_path, String
-    attribute :status, String
-    attribute :steps_total, Integer
-    attribute :steps_completed, Integer
+    # ── Value-objects : the plan's vocabulary ──
+
+    value_object "ActionName" do
+      # Human-readable identifier for the action — what Miette calls
+      # this structural change when she refers to it later.
+      attribute :value, String
+    end
+
+    value_object "ActionDescription" do
+      # Free-form description of the action — what it changes,
+      # surface area touched, observable difference once executed.
+      attribute :value, String
+    end
+
+    value_object "Rationale" do
+      # Why this action is worth taking — the justification that
+      # Court reviews against the active laws before granting
+      # permission to execute.
+      attribute :value, String
+    end
+
+    value_object "ActionBluebookPath" do
+      # Filesystem path to the action Bluebook — the script that
+      # carries the before / after state fixtures and the step
+      # commands the executor walks.
+      attribute :value, String
+    end
+
+    value_object "PlanStatus" do
+      # Lifecycle position of the plan — draft, conceived, reviewed,
+      # executed, reverse_tested, confirmed, verified, reversed.
+      # Free-form string today ; the lifecycle declaration below
+      # constrains transitions.
+      attribute :value, String
+    end
+
+    value_object "StepCount" do
+      # A count of action steps — total or completed. The plan tracks
+      # progress by stepping this counter forward via CompleteStep.
+      attribute :value, Integer
+    end
+
+    attribute :name,                 ActionName
+    attribute :description,          ActionDescription
+    attribute :rationale,            Rationale
+    attribute :action_bluebook_path, ActionBluebookPath
+    attribute :status,               PlanStatus
+    attribute :steps_total,          StepCount
+    attribute :steps_completed,      StepCount
 
     command "Conceive" do
       role "Miette"
       description "Conceive an action — write the action Bluebook with fixtures for before/after state"
-      attribute :name, String
-      attribute :description, String
-      attribute :rationale, String
-      attribute :action_bluebook_path, String
-      attribute :steps_total, Integer
+      attribute :name,                 ActionName
+      attribute :description,          ActionDescription
+      attribute :rationale,            Rationale
+      attribute :action_bluebook_path, ActionBluebookPath
+      attribute :steps_total,          StepCount
       emits "ActionConceived"
-      then_set :name, to: :name
-      then_set :description, to: :description
-      then_set :rationale, to: :rationale
+      then_set :name,                 to: :name
+      then_set :description,          to: :description
+      then_set :rationale,            to: :rationale
       then_set :action_bluebook_path, to: :action_bluebook_path
-      then_set :steps_total, to: :steps_total
-      then_set :steps_completed, to: 0
-      then_set :status, to: "conceived"
+      then_set :steps_total,          to: :steps_total
+      then_set :steps_completed,      to: 0
+      then_set :status,               to: "conceived"
     end
 
     command "ReviewWithCourt" do
@@ -104,29 +152,71 @@ Hecks.bluebook "Actions", version: "2026.04.14.1" do
   end
 
   aggregate "ActionLog", "Permanent record of actions taken — the history of structural decisions" do
-    attribute :action_name, String
-    attribute :executed_at, String
-    attribute :engine_used, String
-    attribute :ruling, String
-    attribute :files_changed, Integer
-    attribute :outcome, String
+    # ── Value-objects : the log's vocabulary ──
+
+    value_object "ActionName" do
+      # The action's name (mirror of ActionPlan.ActionName for log
+      # rows). Per-aggregate set : ActionLog carries its own copy so
+      # the log domain reads self-contained.
+      attribute :value, String
+    end
+
+    value_object "ExecutedAt" do
+      # UTC ISO timestamp the action was executed at — stamped on
+      # every Log event for audit chronology.
+      attribute :value, String
+    end
+
+    value_object "EngineUsed" do
+      # Which brain or runtime carried out the action (e.g.
+      # 'miette', 'claude', 'manual'). The provenance the log row
+      # surfaces.
+      attribute :value, String
+    end
+
+    value_object "Ruling" do
+      # What Court decided when the action was reviewed — the
+      # captured ruling string (e.g. 'approved', 'rejected', 'with
+      # caveats: foo'). Pure provenance, not policy.
+      attribute :value, String
+    end
+
+    value_object "FileCount" do
+      # Number of files the action changed — surfaces in the log row
+      # so the operator can spot disproportionately large actions.
+      attribute :value, Integer
+    end
+
+    value_object "Outcome" do
+      # The action's terminal state from the log's point of view
+      # (e.g. 'success', 'failure', 'reverted'). Free-form today ;
+      # lifecycle on ActionPlan carries the formal vocabulary.
+      attribute :value, String
+    end
+
+    attribute :action_name,   ActionName
+    attribute :executed_at,   ExecutedAt
+    attribute :engine_used,   EngineUsed
+    attribute :ruling,        Ruling
+    attribute :files_changed, FileCount
+    attribute :outcome,       Outcome
 
     command "Log" do
       role "System"
       description "Record that an action was executed — who, when, with what brain, what Court ruled"
-      attribute :action_name, String
-      attribute :executed_at, String
-      attribute :engine_used, String
-      attribute :ruling, String
-      attribute :files_changed, Integer
-      attribute :outcome, String
+      attribute :action_name,   ActionName
+      attribute :executed_at,   ExecutedAt
+      attribute :engine_used,   EngineUsed
+      attribute :ruling,        Ruling
+      attribute :files_changed, FileCount
+      attribute :outcome,       Outcome
       emits "ActionLogged"
-      then_set :action_name, to: :action_name
-      then_set :executed_at, to: :executed_at
-      then_set :engine_used, to: :engine_used
-      then_set :ruling, to: :ruling
+      then_set :action_name,   to: :action_name
+      then_set :executed_at,   to: :executed_at
+      then_set :engine_used,   to: :engine_used
+      then_set :ruling,        to: :ruling
       then_set :files_changed, to: :files_changed
-      then_set :outcome, to: :outcome
+      then_set :outcome,       to: :outcome
     end
   end
 
