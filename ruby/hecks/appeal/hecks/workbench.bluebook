@@ -3,8 +3,8 @@ Hecks.bluebook "Workbench" do
 
     aggregate "Layout", "IDE chrome — panels, tabs, sidebar, shortcuts, persisted geometry." do
       attribute :panel_layout, PanelLayout
-      attribute :panels, PanelState
-      attribute :shortcuts, ShortcutBinding
+      attribute :panels, list_of(PanelState)
+      attribute :shortcuts, list_of(ShortcutBinding)
       attribute :search_query, String
       attribute :active_tab, String
       attribute :sidebar_collapsed, String, default: "false"
@@ -140,7 +140,7 @@ Hecks.bluebook "Workbench" do
     end
 
     aggregate "Agent", "AI chat panel — conversation history, domain review requests." do
-      attribute :messages, AgentMessage
+      attribute :messages, list_of(AgentMessage)
 
       value_object "AgentMessage" do
         attribute :role, String
@@ -154,7 +154,7 @@ Hecks.bluebook "Workbench" do
 
     aggregate "Menu", "IDE menu bar — File, View, Domain dropdowns." do
       attribute :open_menu_label, String
-      attribute :entries, MenuEntry
+      attribute :entries, list_of(MenuEntry)
 
       value_object "MenuEntry" do
         attribute :label, String
@@ -169,7 +169,7 @@ Hecks.bluebook "Workbench" do
     end
 
     aggregate "EventStream", "Live event feed — streams domain events to the IDE console." do
-      attribute :captured_events, CapturedEvent
+      attribute :captured_events, list_of(CapturedEvent)
       attribute :aggregate_filter, String
       attribute :event_filter, String
 
