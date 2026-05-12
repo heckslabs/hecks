@@ -7,8 +7,9 @@
 //! [antibody-exempt: rust/tests/terminal_capability_test.rs — kernel-
 //!  surface smoke that the terminal capability parses to the expected
 //!  shape. Runtime file read against the shipped fixture. Test-only
-//!  kernel surface. Retires when behaviors framework can drive
-//!  capability shape assertions directly.]
+//!  kernel surface. Retires when the behaviors framework gains a
+//!  capability-shape-assertion vocabulary (filed as i569 ; one of
+//!  five cluster markers retired by that capability landing).]
 
 use storehouse::{hecksagon_parser, parser, run};
 use std::fs;

@@ -3,8 +3,9 @@
 //! [antibody-exempt: rust/tests/antibody_hecksagon_test.rs — kernel-
 //!  surface smoke that the antibody capability's hecksagon parses.
 //!  Runtime file read against the shipped fixture. Test-only kernel
-//!  surface. Retires when behaviors framework can drive hecksagon
-//!  smoke tests directly.]
+//!  surface. Retires when the behaviors framework gains a hecksagon-
+//!  smoke vocabulary (filed as i569 ; one of five cluster markers
+//!  retired by that capability landing).]
 
 use storehouse::hecksagon_parser;
 use std::fs;
