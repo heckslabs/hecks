@@ -561,10 +561,19 @@ fn main() {
         return;
     }
 
-    // Bluebook dispatch: storehouse <dir-or-file> <CommandName>
-    // If first arg is a directory/bluebook and second is a PascalCase command, dispatch it
-    // Bluebook dispatch: storehouse <dir-or-file> Aggregate.Command
-    // e.g. storehouse aggregates/ Heartbeat.Beat
+    // Bluebook dispatch: storehouse <dir-or-file> <Domain::Aggregate.Command>
+    // e.g. storehouse aggregates/ Tools::Tools.Bash shell_command="echo hi"
+    //
+    // i560 v2 (2026-05-12) — the CLI surface accepts ONLY the
+    // canonical fully-qualified form `Domain::Aggregate.Command`
+    // (commands, PascalCase) or `Domain::Aggregate.query_name`
+    // (queries, snake_case). The legacy short forms
+    // (`Aggregate.Command`, `Context.Aggregate.Command`, bare
+    // `Command`) are rejected here with a helpful message naming
+    // the new form. Internal cascade dispatch through
+    // `Runtime::drain_policies` bypasses this gate and still
+    // resolves the short forms via command_dispatch::resolve, so
+    // bluebook `trigger_command` declarations keep working.
     if !path.is_empty()
         && path.contains('.')
         && path.chars().next().map_or(false, |c| c.is_uppercase())
@@ -572,14 +581,19 @@ fn main() {
             || command.ends_with(".bluebook"))
     {
         let target = command;
-        // i142 — pass the full Context.Aggregate.Command (or
-        // Aggregate.Command) path to dispatch. Resolution prefers the
-        // most-specific form ; the legacy bare-command form still
-        // resolves for direct runtime callers (tests, programmatic
-        // dispatch) but the CLI now carries the full prefix so cross-
-        // context same-name aggregates (Boot.Identity vs Being.Identity)
-        // disambiguate.
         let cmd_name = path;
+
+        // i560 v2 — strict FQN gate. The canonical form has `::` as
+        // the domain/aggregate separator AND `.` as the
+        // aggregate/command separator. Anything missing the `::` is
+        // a short-form invocation : reject with the new format name.
+        if !cmd_name.contains("::") {
+            eprintln!(
+                "dispatch error: '{}' is a short-form address. The CLI now requires the fully-qualified form Domain::Aggregate.Command (commands, PascalCase) or Domain::Aggregate.query_name (queries, snake_case). Example: 'Tools::Tools.Bash', 'Discipline::Macrophage.Run'.",
+                cmd_name
+            );
+            std::process::exit(1);
+        }
         // Parse key=value attrs from remaining args
         let attrs: std::collections::HashMap<String, serde_json::Value> = args[3..].iter()
             .filter_map(|a| {

@@ -9,12 +9,8 @@
 //! [antibody-exempt: rust/tests/validator_warnings_test.rs — kernel-
 //!  surface test for validator_warnings logic, builds Domain literals
 //!  directly to exercise the warning rules. Test-only kernel surface.
-//!  Production side already meta-shape-driven (validator_warnings_shape
-//!  regenerates validator_warnings.rs byte-identical, i558 audit) ;
-//!  this test retires when the behaviors framework grows a
-//!  validator-output-assertion capability so the warning rules can
-//!  be exercised through a `.behaviors` file inside the validator
-//!  capability bluebook rather than hand-written Rust Domain literals.]
+//!  Retires when validators are bluebook-driven via meta-shape (the
+//!  same path that retired meta_diagnostic_validator).]
 
 use storehouse::ir::{Aggregate, Command, Domain, Reference};
 use storehouse::validator_warnings::{
@@ -38,7 +34,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
             mutations: vec![],
         }],
         queries: vec![],
-        value_objects: vec![], entities: vec![], context: None,
+        value_objects: vec![], entities: vec![], context: None, category: None,
         references: refs,
         lifecycle: None,
         identified_by: None,

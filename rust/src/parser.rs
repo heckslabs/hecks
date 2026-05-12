@@ -138,6 +138,14 @@ fn invoke(parser: BlockParser, slice: &[&str], domain: &mut Domain) -> usize {
             if !domain.name.is_empty() {
                 agg.context = Some(domain.name.clone());
             }
+            // i560 v2 — stamp the bluebook's category onto the
+            // aggregate so the merged corpus (load_combined_domain
+            // wipes the per-Domain category) still resolves the FQN
+            // form `Discipline::Macrophage.Run` against the directory
+            // grouping. None for bluebooks that didn't declare one.
+            if domain.category.is_some() {
+                agg.category = domain.category.clone();
+            }
             domain.aggregates.push(agg);
             consumed
         }
@@ -270,6 +278,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     let mut agg = Aggregate {
         name, description: desc,
         context: None, // populated by parse() after parse_aggregate returns
+        category: None, // i560 v2 — stamped from domain.category by invoke()
         attributes: vec![],
         commands: vec![], queries: vec![], value_objects: vec![],
         entities: vec![],
