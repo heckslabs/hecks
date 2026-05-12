@@ -1,4 +1,4 @@
-Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
+Hecks.bluebook "DispatchAudit", version: "2026.05.12.1" do
   vision "Audit log of Dispatch.Route emissions, attributed by Agent. The first bluebook to demonstrate the i483 form `role Role, as: Agent` end-to-end : every command declares the Role it runs in and the Agent who fills it. Two aggregates, three commands, no string-roles."
   category "framework"
 
@@ -50,6 +50,16 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
   # one cross-aggregate query. Anything richer would gold-plate the
   # demonstration.
   #
+  # ── Primitive envy : per-aggregate VO sets ───────────────────
+  #
+  # 2026-05-12 : wrapped every String per the no-primitive-envy
+  # discipline. Following the macrophage / antibody pattern, each
+  # aggregate declares its OWN value-objects even when names overlap
+  # (AgentName, Timestamp, Id appear in both aggregates). Duplication
+  # is fine ; no bluebook-level VOs. Each aggregate carries its full
+  # vocabulary so the domain reads as itself inside the aggregate's
+  # boundary.
+  #
   # ── Companions ───────────────────────────────────────────────
   #
   # framework/agent/agent.bluebook — Agent is the role-bearer.
@@ -70,11 +80,44 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
     # agent_name    — the Agent who originated the dispatch.
     # role_name     — the Role the Agent filled.
     # dispatched_at — ISO 8601 UTC timestamp.
-    attribute :id,             String
-    attribute :phrase,         String
-    attribute :agent_name,     String
-    attribute :role_name,      String
-    attribute :dispatched_at,  String
+    attribute :id,             Id
+    attribute :phrase,         Phrase
+    attribute :agent_name,     AgentName
+    attribute :role_name,      RoleName
+    attribute :dispatched_at,  Timestamp
+
+    # ── Value-objects : the recorder's vocabulary ──
+
+    value_object "Id" do
+      # AuditEntry identity — the row's stable handle.
+      attribute :value, String
+    end
+
+    value_object "Phrase" do
+      # Dotted Aggregate.Command phrase from the Lexicon — the
+      # name of the dispatched event.
+      attribute :value, String
+    end
+
+    value_object "AgentName" do
+      # The Agent who originated the dispatch.
+      attribute :value, String
+    end
+
+    value_object "RoleName" do
+      # The Role the Agent filled when dispatching.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC timestamp string.
+      attribute :value, String
+    end
+
+    value_object "Note" do
+      # Free-text annotation attached to an entry by a reviewer.
+      attribute :value, String
+    end
 
     command "Record" do
       # The recorder runs as System : the audit log records itself
@@ -82,11 +125,11 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
       # filter narrows future parser-level enforcement.
       role Role, as: Agent, kind: "system"
       description "Record one Dispatched event in the audit log. Inputs : the entry id, the dotted phrase that was dispatched, the Agent who originated it, the Role the Agent filled, and the timestamp. Idempotent on id."
-      attribute :id,             String
-      attribute :phrase,         String
-      attribute :agent_name,     String
-      attribute :role_name,      String
-      attribute :dispatched_at,  String
+      attribute :id,             Id
+      attribute :phrase,         Phrase
+      attribute :agent_name,     AgentName
+      attribute :role_name,      RoleName
+      attribute :dispatched_at,  Timestamp
       emits "Recorded"
     end
 
@@ -97,7 +140,7 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
       role Role, as: Agent
       description "Add a free-text note to an existing entry. Used by reviewers to mark anomalies, attach incident links, or flag entries for follow-up. The note is appended ; prior notes are preserved in the event log."
       reference_to(AuditEntry)
-      attribute :note, String
+      attribute :note, Note
       emits "Annotated"
     end
   end
@@ -113,9 +156,30 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
     identified_by :id
 
     # since — ISO 8601 UTC ; entries on or after this timestamp.
-    attribute :id,         String
-    attribute :agent_name, String
-    attribute :since,      String
+    attribute :id,         Id
+    attribute :agent_name, AgentName
+    attribute :since,      Timestamp
+
+    # ── Value-objects : the reader's vocabulary ──
+    #
+    # Names overlap with AuditEntry on purpose. Per the per-aggregate
+    # VO discipline (macrophage / antibody pattern, 2026-05-12), each
+    # aggregate carries its own VO set ; duplication is fine.
+
+    value_object "Id" do
+      # AuditQuery identity — the caller's correlation handle.
+      attribute :value, String
+    end
+
+    value_object "AgentName" do
+      # The Agent whose dispatch history this query inspects.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC timestamp — the lower bound of the query window.
+      attribute :value, String
+    end
 
     command "ForAgent" do
       # The reader runs in the Caller role, filled by whichever Agent
@@ -123,9 +187,9 @@ Hecks.bluebook "DispatchAudit", version: "2026.05.07.1" do
       # carried on the Role itself, not constrained at the bluebook.
       role Role, as: Agent
       description "Open a query window over the audit log for one Agent. Inputs : the query id (the caller's correlation handle), the agent_name to filter on, and a since timestamp. Emits Opened ; the runtime fans out to read every AuditEntry where agent_name matches and dispatched_at is on or after since."
-      attribute :id,         String
-      attribute :agent_name, String
-      attribute :since,      String
+      attribute :id,         Id
+      attribute :agent_name, AgentName
+      attribute :since,      Timestamp
       emits "Opened"
     end
   end
