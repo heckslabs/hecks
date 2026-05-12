@@ -1,0 +1,126 @@
+Hecks.behaviors "Capabilities" do
+  vision "Behavioral tests for the Capability aggregate — the typed registry of what a being can do. Verifies Register persists the four core attrs, AddProvider appends one entity per dispatch aggregate, Activate/Deactivate walk the lifecycle, and Discover emits CapabilitiesDiscovered. Mirrors the locked 2026-05-12 conventions : VOs per aggregate, lifecycle defaults via the State VO's default value."
+
+  # ── Register ──────────────────────────────────────────────────────
+  #
+  # Register is the substrate verb. Carries name + kind + registered_at +
+  # source as inputs ; state defaults to "nursery" via the State VO.
+  # The four core attrs persist into state via then_set.
+
+  test "Register records name + kind + source + timestamp" do
+    tests "Register", on: "Capability"
+    input  name:          { value: "tools" },
+           kind:          { value: "tools" },
+           registered_at: { value: "2026-05-12T10:00:00Z" },
+           source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    expect name:          { value: "tools" },
+           kind:          { value: "tools" },
+           registered_at: { value: "2026-05-12T10:00:00Z" },
+           source:        { value: "aggregates/framework/tools/tools.bluebook" }
+  end
+
+  test "Register emits CapabilityRegistered" do
+    tests "Register", on: "Capability"
+    input  name:          { value: "chat_agent" },
+           kind:          { value: "chat_agent" },
+           registered_at: { value: "2026-05-12T10:01:00Z" },
+           source:        { value: "ruby/hecks/capabilities/chat_agent.rb" }
+    expect emits: ["CapabilityRegistered"]
+  end
+
+  test "Register a tools-kind capability with bluebook source" do
+    tests "Register", on: "Capability"
+    input  name:          { value: "tools" },
+           kind:          { value: "tools" },
+           registered_at: { value: "2026-05-12T10:02:00Z" },
+           source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    expect kind:          { value: "tools" }
+  end
+
+  test "Register a websocket-kind capability with ruby source" do
+    tests "Register", on: "Capability"
+    input  name:          { value: "websocket" },
+           kind:          { value: "websocket" },
+           registered_at: { value: "2026-05-12T10:03:00Z" },
+           source:        { value: "ruby/hecks/capabilities/websocket.rb" }
+    expect kind:          { value: "websocket" }
+  end
+
+  # ── AddProvider ───────────────────────────────────────────────────
+  #
+  # AddProvider appends one Provider entity per dispatch aggregate.
+  # For tools (multi-aggregate post-depth-pass), one call per
+  # aggregate listed ; for single-aggregate capabilities, one call.
+
+  test "AddProvider emits ProviderAdded" do
+    tests "AddProvider", on: "Capability"
+    setup  "Register", name:          { value: "tools" },
+                       kind:          { value: "tools" },
+                       registered_at: { value: "2026-05-12T10:05:00Z" },
+                       source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    input  capability:     { value: "tools" },
+           aggregate_name: { value: "Tools" }
+    expect emits: ["ProviderAdded"]
+  end
+
+  # ── Activate / Deactivate ─────────────────────────────────────────
+  #
+  # Activate flips nursery → active. Deactivate flips active → dormant.
+  # The lifecycle block enforces transitions ; the State VO's default
+  # ("nursery") is the starting position.
+
+  test "Activate emits CapabilityActivated" do
+    tests "Activate", on: "Capability"
+    setup  "Register", name:          { value: "tools" },
+                       kind:          { value: "tools" },
+                       registered_at: { value: "2026-05-12T10:06:00Z" },
+                       source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    input  capability: { value: "tools" }
+    expect emits: ["CapabilityActivated"]
+  end
+
+  test "Activate walks lifecycle nursery → active" do
+    tests "Activate", on: "Capability"
+    setup  "Register", name:          { value: "tools" },
+                       kind:          { value: "tools" },
+                       registered_at: { value: "2026-05-12T10:07:00Z" },
+                       source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    input  capability: { value: "tools" }
+    expect state: "active"
+  end
+
+  test "Deactivate emits CapabilityDeactivated" do
+    tests "Deactivate", on: "Capability"
+    setup  "Register", name:          { value: "tools" },
+                       kind:          { value: "tools" },
+                       registered_at: { value: "2026-05-12T10:08:00Z" },
+                       source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    setup  "Activate", capability: { value: "tools" }
+    input  capability: { value: "tools" }
+    expect emits: ["CapabilityDeactivated"]
+  end
+
+  test "Deactivate walks lifecycle active → dormant" do
+    tests "Deactivate", on: "Capability"
+    setup  "Register", name:          { value: "tools" },
+                       kind:          { value: "tools" },
+                       registered_at: { value: "2026-05-12T10:09:00Z" },
+                       source:        { value: "aggregates/framework/tools/tools.bluebook" }
+    setup  "Activate", capability: { value: "tools" }
+    input  capability: { value: "tools" }
+    expect state: "dormant"
+  end
+
+  # ── Discover ──────────────────────────────────────────────────────
+  #
+  # Discover sweeps known capability surfaces and Registers what's
+  # found. The runtime substrate composes the underlying Tools.Glob +
+  # per-file Read + Register cascade ; the test checks the dispatch
+  # itself emits.
+
+  test "Discover emits CapabilitiesDiscovered" do
+    tests "Discover", on: "Capability"
+    input  registered_at: { value: "2026-05-12T10:04:00Z" }
+    expect emits: ["CapabilitiesDiscovered"]
+  end
+end

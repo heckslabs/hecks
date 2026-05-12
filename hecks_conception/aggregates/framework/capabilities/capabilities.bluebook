@@ -1,0 +1,221 @@
+Hecks.bluebook "Capabilities", version: "2026.05.12.1" do
+  vision "The typed registry of what a being can do. Every capability — tools, voice, websocket, chat_agent, crud, … — registers here with its kind, source bluebook path, providers, and state. Hecksagons declare which capabilities apply to a being ; the boot sequence walks this registry and applies each one. The registry is the source of truth that retires the partial CapabilityDeclaration aggregate in catalog/hecksagon.bluebook and the directory-scanning CapabilityIndex in world/boot/. Today the capabilities concept is split across five surfaces (Ruby DSL, capability_index scanner, miette.hecksagon symbol lists, the stranded catalog aggregate, the aspirational companion-bluebook pattern) — this bluebook is the single typed home for all five."
+  category "framework"
+
+  # ============================================================
+  # CAPABILITIES — the registry of what a being can do
+  # ============================================================
+  #
+  # Conceived 2026-05-12 from i588's Option-E design. Until today the
+  # "capabilities" concept lived across :
+  #
+  #   1. ruby/hecks/capabilities/dsl.rb            — Hecks.capability :name DSL (18 entries)
+  #   2. world/boot/capability_index.bluebook      — directory scanner aggregate
+  #   3. miette.hecksagon                          — `capabilities :name` symbol lists
+  #   4. catalog/hecksagon.bluebook                — stranded CapabilityDeclaration aggregate
+  #   5. aggregates/library/stores/inbox.bluebook  — aspirational "companion capability" pattern
+  #
+  # None of the five was the source of truth. This bluebook is. The
+  # other four become consumers : the Ruby DSL fires Capabilities.Register
+  # at Ruby load time, the boot scanner becomes a query view over
+  # ListRegistered, miette.hecksagon's `capabilities :name` entries
+  # validate against the registry at parse time, and the stranded
+  # CapabilityDeclaration aggregate retires.
+  #
+  # The merge with tools.bluebook (i588's deep merge) is REGISTRATION,
+  # not structural folding : tools.bluebook keeps its category-aggregate
+  # shape (Tools, or post-depth-pass ShellTool/FileTool/SearchTool/
+  # WebTool/Cascade), and a single Capability record with name="tools"
+  # points at it via :source. Tools becomes the first-class first
+  # registered capability ; voice / chat_agent / crud / … register the
+  # same way alongside it.
+  #
+  # ── Per-aggregate VOs, no primitives outside VOs ──
+  #
+  # Per the locked 2026-05-12 conventions, value_object declarations
+  # live INSIDE the aggregate. The framework-level macrophage check
+  # `bluebook_top_level_value_object` blocks any VO declared at the
+  # bluebook root.
+  #
+  # ── State machine ──
+  #
+  # nursery → active → dormant
+  #         ↘ active ↗
+  #
+  # A freshly Discovered or Registered capability lands in `nursery`
+  # state. Activate flips it to `active`. Deactivate flips an active
+  # capability to `dormant`. The lifecycle block at the bottom of the
+  # aggregate enforces these transitions ; the runtime walks them.
+
+  aggregate "Capability", "A registered ability — what a being can do, how it's wired, and where its dispatch surface lives. Each Capability record names one capability (tools, voice, chat_agent, …) and points at the bluebook that hosts its dispatch surface." do
+    identified_by :name
+
+    # ── Attributes (all wrapped in per-aggregate VOs) ──
+
+    attribute :name,          Name
+    attribute :kind,          CapabilityKind
+    attribute :registered_at, Timestamp
+    attribute :source,        CapabilityProvider
+    attribute :state,         State, default: "nursery"
+    attribute :providers,     list_of(Provider)
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The capability's natural-key identifier — e.g. "tools",
+      # "voice", "chat_agent". Lowercase snake_case by convention so
+      # it matches the symbol form used in hecksagon declarations
+      # (capabilities :tools), but the VO accepts any string so the
+      # 18 existing Ruby capabilities can register verbatim. The
+      # identified_by key for the aggregate ; one record per name.
+      attribute :value, String
+    end
+
+    value_object "CapabilityKind" do
+      # The shape of dispatch the capability exposes. Closed set so
+      # the workshop UI can group capabilities for display and the
+      # boot sequence can dispatch by kind. The enum is enforced at
+      # the bluebook layer ; the validator rejects unrecognised
+      # values at parse time.
+      #
+      #   tools       : dispatched tool calls (Tools.Bash etc.) — the exemplar
+      #   chat_agent  : LLM-backed conversation surfaces
+      #   crud        : generic CRUD scaffolding over an aggregate
+      #   websocket   : driving port — outside connections call in
+      #   ui          : presentation / workbench / visual surfaces
+      #   persistence : storage adapters (event_store, heki backends)
+      #   substrate   : boot-time wiring with no dispatch surface
+      #   framework   : framework-internal plumbing
+      attribute :value, String, enum: [
+        "tools", "chat_agent", "crud", "websocket",
+        "ui", "persistence", "substrate", "framework"
+      ]
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 instant the capability was registered into this
+      # registry — the minted moment the runtime first heard about
+      # this capability. Used by ListRegistered to sort by recency
+      # and by the awareness layer to know when a capability is new
+      # enough to warrant mentioning.
+      attribute :value, String
+    end
+
+    value_object "CapabilityProvider" do
+      # The source location that DEFINES the capability — typically
+      # a bluebook path (e.g. "aggregates/framework/tools/tools.bluebook"
+      # for tools, "aggregates/framework/agents/" for the agent capability,
+      # or "ruby/hecks/capabilities/chat_agent.rb" for Ruby-only
+      # capabilities that haven't been bluebookified yet). Carried
+      # as a string so the registry can point at either bluebook
+      # files (the preferred shape) or Ruby modules (the legacy
+      # shape) without forcing the migration to happen all at once.
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # Lifecycle position : "nursery" (just registered, not yet
+      # activated for any being), "active" (in use by at least one
+      # being's hecksagon), "dormant" (registered but switched off ;
+      # the bluebook stays in the registry, the apply step skips).
+      # The lifecycle block at the bottom of this aggregate enforces
+      # the transitions ; never set this attribute directly.
+      attribute :value, String, enum: ["nursery", "active", "dormant"]
+    end
+
+    value_object "AggregateName" do
+      # The name of one bluebook aggregate that this capability
+      # exposes as a dispatch target. For the tools capability,
+      # this is "Tools" (today) or "ShellTool" / "FileTool" /
+      # "SearchTool" / "WebTool" / "Cascade" (post depth-pass).
+      # For chat_agent : "Chat". Carried verbatim from the bluebook's
+      # aggregate "X" declaration.
+      attribute :value, String
+    end
+
+    # ── Provider : one dispatch aggregate this capability exposes ──
+    #
+    # A capability whose dispatch surface lives in multiple
+    # aggregates (tools has 9 commands across up to 5 aggregates
+    # post depth-pass) accretes one Provider entity per aggregate.
+    # The runtime walks the providers list at boot to know what
+    # aggregates the capability brings online. For single-aggregate
+    # capabilities, one Provider with aggregate_name = the lone
+    # aggregate ; for multi-aggregate, one Provider per aggregate.
+
+    entity "Provider" do
+      description "One bluebook aggregate this capability exposes as a dispatch surface. A capability like 'tools' that spans multiple aggregates (ShellTool, FileTool, …) carries one Provider per aggregate ; a capability like 'chat_agent' that lives in a single aggregate carries exactly one Provider. The boot sequence walks providers to enumerate the dispatch surface a being inherits when the capability is on."
+      attribute :aggregate_name, AggregateName
+    end
+
+    # ── Commands ──
+    #
+    # Register : add a capability to the registry.
+    # Activate : flip nursery → active.
+    # Deactivate : flip active → dormant.
+    # Discover : sweep known surfaces and Register what's found.
+    #
+    # Register is the substrate verb — every other command sits on
+    # top. Discover composes a Tools.Glob + per-file Register cascade
+    # (substrate work, modelled here as a single command that the
+    # runtime decomposes).
+
+    command "Register" do
+      role "Framework"
+      description "Add a capability to the registry. Inputs : the capability name (lowercase snake_case, matches the hecksagon symbol form), the kind (one of the closed set : tools / chat_agent / crud / websocket / ui / persistence / substrate / framework), the registered_at timestamp, and the source (bluebook path or Ruby module path that defines the capability). Emits CapabilityRegistered so downstream policies (boot sequence, workshop UI, awareness) can react. New records land in `nursery` state by default — call Activate to promote."
+      attribute :name,          Name
+      attribute :kind,          CapabilityKind
+      attribute :registered_at, Timestamp
+      attribute :source,        CapabilityProvider
+      emits "CapabilityRegistered"
+      then_set :name,          to: :name
+      then_set :kind,          to: :kind
+      then_set :registered_at, to: :registered_at
+      then_set :source,        to: :source
+    end
+
+    command "AddProvider" do
+      role "Framework"
+      description "Append one Provider entity to a registered capability. Called once per dispatch aggregate the capability exposes. For tools (the merge exemplar), one AddProvider call per aggregate listed in tools.bluebook. For single-aggregate capabilities, one call with the lone aggregate's name."
+      reference_to(Capability)
+      attribute :aggregate_name, AggregateName
+      emits "ProviderAdded"
+      then_set :providers, append: { aggregate_name: :aggregate_name }
+    end
+
+    command "Activate" do
+      role "Framework"
+      description "Promote a capability from nursery (or dormant) to active. Active capabilities participate in the boot sequence — each being's hecksagon `capabilities :name` declarations resolve against active capabilities. Emits CapabilityActivated so the awareness layer can surface 'voice wired in' / 'tools wired in' moments."
+      reference_to(Capability)
+      emits "CapabilityActivated"
+    end
+
+    command "Deactivate" do
+      role "Framework"
+      description "Move an active capability to dormant. The record stays in the registry (the audit trail is preserved), but the boot sequence's apply step skips dormant entries. Future hecksagons referencing a dormant capability raise a parse-time warning rather than failing outright."
+      reference_to(Capability)
+      emits "CapabilityDeactivated"
+    end
+
+    command "Discover" do
+      role "Framework"
+      description "Sweep known capability surfaces (ruby/hecks/capabilities/*.rb for the Ruby DSL ; framework/*/*.bluebook for native capabilities) and Register each one that isn't already in the registry. Emits CapabilitiesDiscovered with the count of new records added. The runtime substrate composes the underlying Tools.Glob + per-file Read + Register cascade ; this command is the dispatch entry point."
+      attribute :registered_at, Timestamp
+      emits "CapabilitiesDiscovered"
+    end
+
+    # ── Lifecycle ──
+    #
+    # A freshly Registered or Discovered capability starts in `nursery`.
+    # Activate moves it to `active`. Deactivate moves it to `dormant`.
+    # An active capability can re-deactivate (no-op transition) and a
+    # dormant capability can reactivate ; the audit trail keeps every
+    # state change.
+
+    lifecycle :state, default: "nursery" do
+      transition "Activate"   => "active",  from: "nursery"
+      transition "Activate"   => "active",  from: "dormant"
+      transition "Deactivate" => "dormant", from: "active"
+    end
+  end
+end
