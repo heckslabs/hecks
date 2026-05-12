@@ -76,7 +76,7 @@ fail() { echo "FAIL — $1"; "$HECKS" heki read "$STORE" 2>/dev/null | sed 's/^/
 cd "$TMP/hecks_conception"
 
 # ── 1. Ultradian fast-forward (i106 multi-command rotation) ──────
-"$HECKS" loop "$AGG" Ultradian.EnterPeak,Ultradian.EnterTrough --every 1s >/dev/null 2>&1 &
+"$HECKS" loop "$AGG" Body::Ultradian.EnterPeak,Body::Ultradian.EnterTrough --every 1s >/dev/null 2>&1 &
 PID=$!
 sleep 2.5
 kill "$PID" 2>/dev/null
@@ -100,7 +100,7 @@ mkdir -p "$INFO/consciousness"
   --reason "test setup : set consciousness asleep so the gated-cadence test opens" \
   id=1 state=sleeping >/dev/null 2>&1
 
-"$HECKS" loop "$AGG" Heart.Beat \
+"$HECKS" loop "$AGG" Body::Heart.Beat \
   --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
 PID=$!
 sleep 2
@@ -121,7 +121,7 @@ gated_baseline="$heart_count"
   --reason "test setup : set consciousness attentive so the gate closes for the awake-gate proof" \
   id=1 state=attentive >/dev/null 2>&1
 
-"$HECKS" loop "$AGG" Heart.Beat \
+"$HECKS" loop "$AGG" Body::Heart.Beat \
   --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
 PID=$!
 sleep 2

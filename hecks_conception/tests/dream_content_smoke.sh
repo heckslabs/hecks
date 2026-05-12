@@ -198,7 +198,7 @@ HECKS_BIN="$HECKS" \
   --emit SleepEntered:Consciousness:consciousness \
   --emit RemEntered:Consciousness:consciousness \
   --emit PhaseElapsed:Consciousness:consciousness \
-  --dispatch Dream.GatherSeeds \
+  --dispatch Body::Dream.GatherSeeds \
   name=dream \
   recent_dreams_seed="$RECENT_DREAMS_SEED" \
   body_state_seed="$BODY_STATE_SEED" \

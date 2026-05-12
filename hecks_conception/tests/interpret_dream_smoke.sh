@@ -156,7 +156,7 @@ HECKS_BIN="$HECKS" \
 "$HECKS" run-loop "$TMP/aggregates" \
   --every 500ms \
   --emit WokenUp:Consciousness:consciousness \
-  --dispatch DreamInterpretation.GatherDreamCorpus \
+  --dispatch Mind::DreamInterpretation.GatherDreamCorpus \
   name=dream \
   >"$RUN_LOG" 2>&1 &
 RUN_PID=$!
