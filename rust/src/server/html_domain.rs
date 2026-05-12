@@ -19,7 +19,7 @@
 use crate::runtime::Runtime;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use super::html_shared::{wrap_page, display_name, module_icon, esc};
+use super::html_shared::{wrap_page_with_domain, display_name, module_icon, esc};
 use super::html_sidebar::sidebar_tree;
 use super::html_fixtures::fixtures_section;
 use super::html_usage::usage_section;
@@ -82,7 +82,7 @@ pub fn generate_domain_page(
     // Records table
     main.push_str(&records_table(&rt));
 
-    wrap_page(&display_name(name), &sidebar, &main)
+    wrap_page_with_domain(&display_name(name), Some(name), &sidebar, &main)
 }
 
 /// Creation cards — one per aggregate, with every command rendered as a
