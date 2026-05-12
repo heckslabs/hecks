@@ -13,7 +13,6 @@ use crate::ir::{Domain, Command, Aggregate};
 use super::html_shared::{display_name, esc};
 use super::html_narration::{event_to_english, command_to_english};
 use super::html_policy_chain::trace_chain;
-use super::html_rules::collect_invariants;
 
 /// Generate the usage/workflow section for a domain page.
 /// Reads the bluebook structure and produces a step-by-step guide.
@@ -25,7 +24,8 @@ pub fn usage_section(domain: &Domain) -> String {
     s.push_str(&render_header(domain));
     s.push_str(&render_steps(&steps));
     s.push_str(&render_policies(domain));
-    s.push_str(&render_rules(domain));
+    // i113 — rules moved to per-aggregate cards in html_domain.rs ;
+    // the global flat dump previously rendered here is gone.
     s.push_str("</div>");
     s
 }
@@ -143,22 +143,11 @@ fn render_policies(domain: &Domain) -> String {
     s
 }
 
-fn render_rules(domain: &Domain) -> String {
-    let invariants = collect_invariants(domain);
-    if invariants.is_empty() { return String::new(); }
-    let mut s = String::new();
-    s.push_str(r#"<div class="mt-4 pt-3 border-t border-surface-3">"#);
-    s.push_str(r#"<p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Rules</p>"#);
-    s.push_str(r#"<ul class="space-y-1">"#);
-    for (cmd_name, rule) in &invariants {
-        s.push_str(&format!(
-            r#"<li class="text-sm text-white">{} requires {}</li>"#,
-            esc(&display_name(cmd_name)), esc(rule),
-        ));
-    }
-    s.push_str("</ul></div>");
-    s
-}
+// i113 — `render_rules` was the global flat dump of every aggregate's
+// invariants. Rules now render per-aggregate inside the creation cards
+// (see html_domain.rs::render_agg_rules) so the operator reads the
+// rule next to the form that triggers it. The collector
+// (`collect_invariants_for`) lives on in html_rules.rs.
 
 struct WorkflowStep {
     command: String,

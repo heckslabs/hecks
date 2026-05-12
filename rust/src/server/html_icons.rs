@@ -28,8 +28,33 @@ pub fn domain_icon(name: &str) -> &'static str {
     "\u{1F4CB}"
 }
 
-/// Return an emoji icon for an aggregate/module based on keyword matching
+/// Return an emoji icon for an aggregate/module based on keyword matching.
+/// Exact-name matches (the bin-buddy fallback table from i112) win first so
+/// the walking skeleton renders distinctive icons per aggregate even when
+/// the bluebook doesn't yet declare `icon "..."`. Keyword matching follows
+/// for general-purpose aggregates.
 pub fn module_icon(name: &str) -> &'static str {
+    // i112 — bin-buddy fallback table (exact-name match, case-insensitive).
+    match name {
+        "Account" => return "👤",
+        "AddOn" => return "➕",
+        "BinInventory" => return "📦",
+        "CityCalendar" => return "🗓️",
+        "CreditCardProcessing" => return "💳",
+        "Customer" => return "🧍",
+        "DriverApplication" => return "📝",
+        "Notifications" => return "📣",
+        "Photo" => return "📷",
+        "Plan" => return "📋",
+        "Route" => return "🚛",
+        "ServiceAddress" => return "🏠",
+        "ServiceTask" => return "✅",
+        "Subscription" => return "💰",
+        "SystemTest" => return "🧪",
+        "WorkerShift" => return "⏱️",
+        _ => {}
+    }
+
     let lower = name.to_lowercase();
     if lower.contains("persona") { return "👤"; }
     if lower.contains("journey") { return "🗺️"; }
