@@ -1,0 +1,275 @@
+Hecks.bluebook "Macrophage", version: "2026.05.12.1" do
+  vision "The bluebook-first discipline made structural — a live watcher that engulfs the bad write the moment it happens and surfaces the complaint into the next conversation turn. One dense aggregate carries the counters, the registered checks, and the history of complaints + violations as child entities. The companion to the antibody : antibody binds at commit-time, macrophage engulfs at write-time."
+  category "discipline"
+
+  # ============================================================
+  # MACROPHAGE — innate write-time gate of the immune system
+  # ============================================================
+  #
+  # The antibody pre-commit hook already blocks unjustified non-
+  # bluebook commits. That fires AFTER I've written the file —
+  # too late to redirect. The macrophage fires WHILE I'm writing,
+  # via a PostToolUse hook on Edit/Write/MultiEdit. Each tool call
+  # dispatches Macrophage.RecordEdit (one variant per file kind) ;
+  # for imperative files the hook also dispatches Macrophage.Complain,
+  # and prints the complaint to stderr so Claude Code surfaces it
+  # as a system reminder in the next turn.
+  #
+  # The complaint isn't a block. Some imperative code IS the right
+  # answer (kernel-surface Rust, transitional shell with retirement
+  # markers). But every complaint forces me to NAME the exemption
+  # in the moment instead of drifting.
+  #
+  # File kinds (extension → kind) :
+  #   .bluebook .hecksagon .fixtures .behaviors .world  → declarative (no complaint)
+  #   .rs .sh .rb .js .py .go .ts                       → imperative (complain)
+  #   .md .heki .json .toml .yaml .txt                  → support (no complaint)
+  #   anything else                                     → other (no complaint)
+  #
+  # ── Density : one aggregate, four entities, ten value-objects ──
+  #
+  # Originally split into two aggregates — Macrophage and
+  # MacrophageCheck. 2026-05-12 : folded into one aggregate per
+  # the "domain is dense" principle. Four child entities :
+  #
+  #   * Check          — a registered enforcement rule (was MacrophageCheck)
+  #   * Violation      — a specific file recorded against a Check
+  #   * Complaint      — the history of imperative-edit complaints
+  #   * FixturesViolation — fixtures-loaded-at-runtime history
+  #
+  # Every primitive wrapped in a typed value-object per the
+  # no-primitive-envy rule. Names give the domain its language :
+  # an EditCount isn't an Integer, a Severity isn't a String, a
+  # Timestamp isn't a String. Each carries its concept.
+
+  aggregate "Macrophage", "Live bluebook-first watcher — engulfs imperative edits as they happen ; holds the registered checks, violation history, and complaint history as child entities" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at,          Timestamp
+
+    # Tally facet — running counts, reset on StartSession
+    attribute :total_edits,                 EditCount
+    attribute :bluebook_edits,              EditCount
+    attribute :imperative_edits,            EditCount
+    attribute :exempted_edits,              EditCount
+    attribute :support_edits,               EditCount
+    attribute :other_edits,                 EditCount
+
+    # Latest-complaint surface — quick read for statusline.
+    attribute :last_complaint_at,           Timestamp
+    attribute :last_complaint,              ComplaintText
+
+    # Latest fixtures-runtime-violation surface
+    attribute :fixtures_runtime_violations, ViolationCount
+    attribute :last_fixtures_violation,     FilePath
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used wherever an event has
+      # a when (session_started_at, complained_at, violated_at).
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path the macrophage records.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      attribute :value, String
+    end
+
+    value_object "EditCount" do
+      # Count of edits (bluebook / imperative / exempted / support / other / total).
+      attribute :value, Integer
+    end
+
+    value_object "ViolationCount" do
+      # Count of structural violations — semantically distinct from
+      # EditCount (a violation is an architectural breach, an edit
+      # is just an action). Same shape, different concept.
+      attribute :value, Integer
+    end
+
+    value_object "TriggeredCount" do
+      # Number of times a registered Check has fired.
+      attribute :value, Integer
+    end
+
+    value_object "CheckId" do
+      # Stable slug identifying a registered enforcement rule
+      # (e.g. 'fixtures_at_runtime').
+      attribute :value, String
+    end
+
+    value_object "PatternKind" do
+      # The detection-strategy name a Check uses — names a Rust-
+      # side matcher the macrophage kernel knows how to apply.
+      attribute :value, String
+    end
+
+    value_object "Severity" do
+      # Either 'block' (treat the match as a hard stop) or 'warn'
+      # (surface the complaint without blocking). The macrophage
+      # kernel reads severity to decide whether to short-circuit.
+      attribute :value, String
+    end
+
+    # ── Entities — child records living inside the macrophage ──
+
+    entity "Check" do
+      description "A registered enforcement rule. The macrophage kernel scans live file operations and triggers a matching check when its pattern_kind matches. Folded into Macrophage in the 2026-05-12 dense-domain pass — was its own MacrophageCheck aggregate."
+      attribute :id,              CheckId
+      attribute :pattern_kind,    PatternKind
+      attribute :severity,        Severity
+      attribute :complaint,       ComplaintText
+      attribute :triggered_count, TriggeredCount
+    end
+
+    entity "Violation" do
+      description "A specific offending file recorded against a Check — the evidence trail. Kept separate from Check so the rule definition stays clean while the activations accrete."
+      attribute :check_id,    CheckId
+      attribute :file_path,   FilePath
+      attribute :violated_at, Timestamp
+    end
+
+    entity "Complaint" do
+      description "One historical complaint event. When the macrophage detected an imperative edit, what file, what the complaint text said. The latest_* scalars on the aggregate root mirror the most recent entry ; this collection holds the audit trail."
+      attribute :complained_at,  Timestamp
+      attribute :file_path,      FilePath
+      attribute :complaint_text, ComplaintText
+    end
+
+    entity "FixturesViolation" do
+      description "One historical fixtures-loaded-at-runtime event. .fixtures files are TEST data only ; any runtime load is an architectural violation that gets logged here so the dashboard can surface the pattern."
+      attribute :file_path,   FilePath
+      attribute :violated_at, Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset counters at session boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. Entity collections (Check / Violation / Complaint / FixturesViolation) are NOT reset — they're audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Edit recording — one command per file kind ──
+
+    command "RecordBluebookEdit" do
+      role "Hook"
+      description "A bluebook-family file (.bluebook | .hecksagon | .fixtures | .behaviors | .world) was written. No complaint."
+      attribute :file_path, FilePath
+      emits "BluebookEdited"
+    end
+
+    command "RecordImperativeEdit" do
+      role "Hook"
+      description "An imperative-language file (.rs | .sh | .rb | .js | .py | .go | .ts) was written. Increments imperative_edits ; the hook chains into Complain since the runtime can't yet gate policies on attribute conditions."
+      attribute :file_path, FilePath
+      emits "ImperativeEdited"
+    end
+
+    command "RecordExemptedEdit" do
+      role "Hook"
+      description "An imperative-language file was written, but the file carries an [antibody-exempt: ...] marker in its header — the discipline is satisfied, no complaint fires. The marker IS the audit trail. Tracked separately from imperative_edits so the dashboard can show 'exempted edits' alongside 'unexempted imperative edits'."
+      attribute :file_path, FilePath
+      emits "ExemptedEdited"
+    end
+
+    command "RecordSupportEdit" do
+      role "Hook"
+      description "A support file was written (.md | .heki | .json | .toml | .yaml | .txt). Surface glue, no complaint."
+      attribute :file_path, FilePath
+      emits "SupportEdited"
+    end
+
+    command "RecordOtherEdit" do
+      role "Hook"
+      description "A file outside the known categories was written. No complaint ; the hook just keeps the tally honest."
+      attribute :file_path, FilePath
+      emits "OtherEdited"
+    end
+
+    # ── Complaint surface — updates the latest_* scalars + emits ──
+
+    command "Complain" do
+      role "Hook"
+      description "The macrophage detected an imperative edit without an exempt marker. Records the latest complaint text + timestamp + file_path so the statusline can surface it. The hook ALSO prints the complaint to stderr so Claude Code surfaces it as a system reminder on the next turn — the loop that closes the discipline mechanism. Without the stderr surface this is just a counter ; with it, the complaint lands in the agent's context and forces an exemption-naming or course-correction."
+      attribute :file_path,         FilePath
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    command "ComplainFixturesAsRuntime" do
+      role "System"
+      description "A .fixtures file was detected being loaded at runtime (outside a test context). Mirrors Complain — records the file path and sets last_fixtures_violation so the dashboard can surface the pattern. The hook ALSO prints to stderr so the complaint lands in the agent's context on the next turn. .fixtures files are TEST data only ; any runtime load is an architectural violation."
+      attribute :file_path, FilePath
+      then_set :last_fixtures_violation, to: :file_path
+      emits "FixturesAsRuntimeComplained"
+    end
+
+    # ── Registered checks — the rule data that drives detection ──
+    #
+    # Was the MacrophageCheck aggregate ; folded in as the Check
+    # entity per the dense-domain pass. Command shapes are the
+    # same so existing fixtures + hooks port over.
+
+    command "RegisterCheck" do
+      role "System"
+      description "Declare a new enforcement rule. id is a stable slug ; pattern_kind names the detection strategy the kernel uses ; severity is 'block' or 'warn' ; complaint is the stderr text the hook emits when the rule matches."
+      attribute :id,           CheckId
+      attribute :pattern_kind, PatternKind
+      attribute :severity,     Severity
+      attribute :complaint,    ComplaintText
+      emits "CheckRegistered"
+    end
+
+    command "TriggerCheck" do
+      role "System"
+      description "The macrophage kernel matched this check's pattern_kind against a live file operation. Triggering records the activation in the matching Check entity ; the kernel is responsible for also dispatching ComplainFixturesAsRuntime (or the appropriate Complain variant) so the complaint surfaces."
+      attribute :id, CheckId
+      emits "CheckTriggered"
+    end
+
+    command "RecordViolation" do
+      role "System"
+      description "Attach a specific offending file to a check's activation log — appends a Violation entity. Called after TriggerCheck when the kernel has resolved the exact file path. The check record carries the rule ; the violation collection carries concrete evidence."
+      attribute :id,        CheckId
+      attribute :file_path, FilePath
+      emits "ViolationRecorded"
+    end
+  end
+
+  # ── Consumer-contract — discipline scoreboard on the dashboard ──
+  #
+  # The status capability's renderer reads macrophage.heki and adds
+  # a Discipline section :
+  #
+  #   ─── Discipline ─────────────────────────────────────────────
+  #     edits this session   23
+  #     bluebook             18  (78%)
+  #     imperative            3  (13%)
+  #     support               2  ( 9%)
+  #     last complaint       (file_path) at <ts>
+  #
+  # Cross-domain policy dispatch isn't first-class today, so the
+  # status renderer reads macrophage.heki directly via :fs ; once
+  # cross-aggregate queries land (i101) this becomes a query on
+  # the Macrophage aggregate that walks the Complaint / Check
+  # entity collections.
+end

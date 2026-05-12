@@ -1,4 +1,4 @@
-Hecks.bluebook "Immunity", version: "2026.04.28.1" do
+Hecks.bluebook "Immunity", version: "2026.05.12.1" do
   vision "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies."
   category "discipline"
 
@@ -13,20 +13,77 @@ Hecks.bluebook "Immunity", version: "2026.04.28.1" do
   # strengthens the response.
   #
   # Lifted out of body.bluebook in i112 Round 2c into the
-  # discipline cluster (sibling to enforcer, enforcer_check —
-  # the immune system as a whole). Carries one policy :
+  # discipline cluster (sibling to macrophage, the macrophage Check
+  # entity — the immune system as a whole). Carries one policy :
   # LearnFromCorrection (ThreatNeutralized → GenerateAntibody).
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. The domain now says its concepts —
+  # Pattern is not String, ThreatCount is not Integer, VerbSuffix
+  # is not String.
 
   aggregate "Immunity", "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies" do
     identified_by :name
-    attribute :name, String
-    attribute :innate_rules, list_of(String)
-    attribute :noun_suffixes, list_of(String)
-    attribute :adjective_suffixes, list_of(String)
-    attribute :dual_words, list_of(String)
-    attribute :antibodies, list_of(Antibody)
-    attribute :threats_neutralized, Integer
+    attribute :name,                 Name
+    attribute :innate_rules,         list_of(InnateRule)
+    attribute :noun_suffixes,        list_of(VerbSuffix)
+    attribute :adjective_suffixes,   list_of(VerbSuffix)
+    attribute :dual_words,           list_of(DualWord)
+    attribute :antibodies,           list_of(Antibody)
+    attribute :threats_neutralized,  ThreatCount
 
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # Singleton key for the Immunity aggregate.
+      attribute :value, String
+    end
+
+    value_object "InnateRule" do
+      # A built-in validation rule — the inborn defenses
+      # (syntax, structure) the macrophage applies before any
+      # learned antibody fires.
+      attribute :value, String
+    end
+
+    value_object "VerbSuffix" do
+      # A morphological suffix that flags a token as noun-shaped
+      # or adjective-shaped. Shared between noun_suffixes and
+      # adjective_suffixes since both carry the same shape.
+      attribute :value, String
+    end
+
+    value_object "DualWord" do
+      # A word that's both noun and verb in English (a 'plant'
+      # versus 'to plant'). Surfaced separately because dual-form
+      # words sometimes fool the suffix-based morphology rules.
+      attribute :value, String
+    end
+
+    value_object "ThreatCount" do
+      # Cumulative count of threats Immunity has successfully
+      # neutralized — the score the dashboard reports.
+      attribute :value, Integer
+    end
+
+    value_object "Pattern" do
+      # The shape of a threat or antibody. Strings carrying
+      # match-pattern semantics (regex-shaped, glob-shaped, or
+      # structural-shape descriptors interpreted by the
+      # immunity kernel).
+      attribute :value, String
+    end
+
+    value_object "LearnedFrom" do
+      # Where an antibody came from — the correction event /
+      # message / commit that taught it. Surfaces as provenance
+      # when the dashboard explains why a given antibody exists.
+      attribute :value, String
+    end
+
+    # Antibody stays a value_object with primitive inner attrs —
+    # value_object inner attrs are the boundary, exempt from
+    # no_primitive_envy.
     value_object "Antibody" do
       attribute :pattern, String
       attribute :learned_from, String
@@ -36,7 +93,7 @@ Hecks.bluebook "Immunity", version: "2026.04.28.1" do
     command "DetectThreat" do
       role "Miette"
       description "Recognize a malformed pattern — missing role, code in handler, broken reference"
-      attribute :threat_pattern, String
+      attribute :threat_pattern, Pattern
       emits "ThreatDetected"
     end
 
@@ -44,20 +101,20 @@ Hecks.bluebook "Immunity", version: "2026.04.28.1" do
       role "Miette"
       description "Graft the Verbs domain morphology into innate immunity — suffix rules become antibodies"
       reference_to(Immunity)
-      attribute :noun_suffixes, list_of(String)
-      attribute :adjective_suffixes, list_of(String)
-      attribute :dual_words, list_of(String)
-      then_set :noun_suffixes, to: :noun_suffixes
+      attribute :noun_suffixes,      list_of(VerbSuffix)
+      attribute :adjective_suffixes, list_of(VerbSuffix)
+      attribute :dual_words,         list_of(DualWord)
+      then_set :noun_suffixes,      to: :noun_suffixes
       then_set :adjective_suffixes, to: :adjective_suffixes
-      then_set :dual_words, to: :dual_words
+      then_set :dual_words,         to: :dual_words
       emits "VerbImmunityGrafted"
     end
 
     command "GenerateAntibody" do
       role "Miette"
       description "Learn a new defense from a correction — encode it as a permanent antibody"
-      attribute :pattern, String
-      attribute :learned_from, String
+      attribute :pattern,      Pattern
+      attribute :learned_from, LearnedFrom
       then_set :antibodies, append: { pattern: :pattern, learned_from: :learned_from, strength: 1 }
       emits "AntibodyGenerated"
     end
@@ -66,7 +123,7 @@ Hecks.bluebook "Immunity", version: "2026.04.28.1" do
       role "Miette"
       description "Repeated exposure to the same mistake — respond faster and more specifically"
       reference_to(Immunity)
-      attribute :pattern, String
+      attribute :pattern, Pattern
       emits "AntibodyStrengthened"
     end
 

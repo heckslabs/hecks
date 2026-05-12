@@ -53,7 +53,7 @@ Hecks.fixtures "Antibody" do
   # ExemptRegistry rows live in `information/exempt_registry.heki`
   # (i80 follow-up : test-purity rule says runtime-read state belongs
   # in .heki, not .fixtures). The aggregate is declared in
-  # antibody.bluebook ; the enforcer reads the heki via the heki
+  # antibody.bluebook ; the macrophage reads the heki via the heki
   # module on every PostToolUse fire. Add new exemptions through the
   # runtime :
   #

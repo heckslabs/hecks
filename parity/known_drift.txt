@@ -13,7 +13,6 @@
 
 # (empty — full parity 113/113 as of 2026-04-18, then drift below as new gaps surface)
 
-/Users/christopheryoung/Projects/miette_family/travis_whitmer/travis_whitmer.bluebook  # list_of(Note) on aggregate-level attributes : Ruby parses list=true, Rust list=false. Pre-existing parser-level drift independent of this card's content ; filed for parser fix.
 
 # nursery/verbs drift retired 2026-04-30 — the failure was inside the
 # Lexicon aggregate (given :verb, not_in: :known_verbs structured form
@@ -66,3 +65,4 @@
 # critically, this means a trailing `kind: "system"` argument no
 # longer leaks into the role name. Both parsers extract "Role"
 # byte-equal. dispatch_audit parses byte-equal again.
+

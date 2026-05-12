@@ -1,3 +1,8 @@
+# [antibody-exempt: ruby/hecks/dsl/attribute_collector.rb — kernel-surface
+#  Ruby DSL parser primitive. Retires when the Ruby parser is fully
+#  described by language/grammar/*.bluebook + a generated artifact (i147
+#  long arc). Same exemption shape as the other parser-family files.]
+#
 require "date"
 
 module Hecks
@@ -62,12 +67,13 @@ module Hecks
           raise ArgumentError, "Use bare constant #{type} instead of string \"#{type}\" for attribute :#{name}"
         end
 
-        # Convention: plural name + non-primitive type → list
-        name_str = name.to_s
-        if !type.is_a?(Hash) && name_str.end_with?("s") && !name_str.end_with?("ss") && type_is_vo?(type)
-          type = { list: type }
-        end
-
+        # Retired 2026-05-12 : the plural-name auto-list heuristic
+        # ("attribute :foos, Foo" → list_of(Foo)) caused Ruby/Rust
+        # parser drift on scalar attributes that happened to end with
+        # 's' (e.g. macrophage's `total_edits`, `fixtures_runtime_
+        # violations`). Rust never did the conversion ; Ruby did.
+        # Now they agree : list-shaped attributes MUST use
+        # `list_of(X)` explicitly.
         type = resolve_type(type)
         list = type.is_a?(Hash) && type[:list]
         actual_type = type.is_a?(Hash) ? type.values.first : type
