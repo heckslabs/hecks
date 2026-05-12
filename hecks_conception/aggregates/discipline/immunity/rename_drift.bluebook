@@ -1,0 +1,241 @@
+Hecks.bluebook "RenameDrift", version: "2026.05.12.1" do
+  vision "Catch stale references left behind after capability or aggregate renames — close the loop the enforcer→macrophage rename opened. Bluebook-driven dispatch through Tools.* — no kernel-surface Rust."
+  category "discipline"
+
+  # ============================================================
+  # RENAME DRIFT — the gate that closes the rename loop
+  # ============================================================
+  #
+  # Sibling of immunity/rule.bluebook + immunity/violation.bluebook.
+  # The drift here is structural : capability and aggregate renames
+  # leave stale references behind in include_str! paths, antibody-
+  # exempt markers, doc-comment headers, and reference_to(...) bodies.
+  # CI catches these late ; this aggregate models the gate that
+  # catches them at validation time.
+  #
+  # Per feedback_rename_drift_wiring : the enforcer→macrophage rename
+  # this week (i531/i553) is the canonical case. The drift-exemptions
+  # agent is mopping the symptoms. This bluebook is the prevention.
+  #
+  # ── Bluebook-first dispatch (no kernel Rust) ─────────────────
+  #
+  # The scan logic is expressible AS bluebook dispatch because Tools.*
+  # already provides the substrate :
+  #
+  #   * Tools.Glob   finds   `.bluebook` files
+  #   * Tools.Grep   extracts `aggregate "Name"`, `reference_to(...)`,
+  #                  `include_str!("...")`, `[antibody-exempt: ...]`
+  #   * Tools.Read   pulls back full file contents when needed
+  #
+  # RenameDriftCheck composes the chain through policy cascades :
+  #
+  #   Scan          → emits ScanStarted     → policy CatalogBluebooks
+  #   CatalogBluebooks (alias: trigger Tools.Glob for *.bluebook)
+  #                 → emits GlobMatched     → policy ExtractDeclarations
+  #   ExtractDeclarations (trigger Tools.Grep for aggregate "...")
+  #                 → emits GrepRan         → policy ScanReferences
+  #   ScanReferences (trigger Tools.Grep for reference_to(...))
+  #                 → emits GrepRan         → policy CompareCatalog
+  #
+  # Each match the runtime resolves dispatches RecordFinding ; once
+  # all references are walked, Pass or Fail finalize the check.
+  #
+  # The composition IS the act. The Tools.* runtime substrate (the
+  # kernel-floor :claude_tool hook from Tools.bluebook) is what
+  # actually executes the Glob / Grep / Read invocations and emits
+  # ResultRecorded back. RenameDriftCheck just composes the
+  # cascade — pure data flow.
+  #
+  # ── State machine ──
+  #
+  # idle → scanning → cataloging → checking → done | violations_found
+  #
+  # Lifecycle walks one direction. Findings accrete as entities on
+  # the check ; the terminal Pass / Fail command snapshots violation
+  # count and freezes the lifecycle.
+  #
+  # Per the no-primitive-envy rule, every attribute is wrapped in a
+  # value_object — the domain reads as itself.
+
+  aggregate "RenameDriftCheck", "One pass of the rename-drift validator over a repo root" do
+    identified_by :ref
+    attribute :ref,             CheckRef
+    attribute :repo_root,       RepoRoot
+    attribute :status,          Status, default: "idle"
+    attribute :violation_count, ViolationCount, default: "0"
+    attribute :findings,        list_of(Finding)
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "CheckRef" do
+      # Stable identifier for one scan invocation — the runner mints
+      # this from a hash of (repo_root + timestamp) so concurrent
+      # scans don't collide. Carried verbatim through every cascade
+      # step so the result join key stays stable.
+      attribute :value, String
+    end
+
+    value_object "RepoRoot" do
+      # Absolute filesystem path the scan walks. Tools.Glob roots
+      # the file enumeration at this path ; Tools.Grep resolves
+      # search_path relative to it.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle position : idle, scanning, checking, done,
+      # violations_found. Walked by the lifecycle block below —
+      # never set directly. Per the no-primitive-envy rule, status
+      # is its own concept ; per the runtime convention, a scalar
+      # VO attribute carries a `default:` so the runtime resolves
+      # initial state correctly (the runtime's auto-list heuristic
+      # for VO attributes is bypassed when a default is present).
+      attribute :value, String
+    end
+
+    value_object "ViolationCount" do
+      # Number of stale references the scan reported. Zero means
+      # the repo passes ; positive means Fail was the terminal
+      # command and the Finding entities carry the evidence.
+      attribute :value, Integer
+    end
+
+    value_object "FilePath" do
+      # The file a finding was discovered in. Absolute path so the
+      # surfaces (statusline, watcher log) can point Chris straight
+      # at the offending line.
+      attribute :value, String
+    end
+
+    value_object "LineNo" do
+      # The 1-based line number where the stale reference sits in
+      # the offending file. Tools.Grep emits these as part of the
+      # match tuple ; RecordFinding pins them here.
+      attribute :value, Integer
+    end
+
+    value_object "ReferenceKind" do
+      # Which reference shape went stale — one of
+      # "include_str" / "reference_to" / "antibody_exempt" /
+      # "doc_comment". The renderer routes by kind so each surface
+      # can phrase the violation in the language of its own
+      # source convention.
+      attribute :value, String
+    end
+
+    value_object "ReferenceTarget" do
+      # What the stale reference was pointing AT — the name, path,
+      # or marker the scan failed to resolve. Carries the
+      # diagnostic verbatim so Chris can grep for it.
+      attribute :value, String
+    end
+
+    # ── Finding : one stale reference detected during a scan ──
+    #
+    # Accretes inside the RenameDriftCheck via RecordFinding. The
+    # check's terminal Pass / Fail reads the collection size to
+    # decide which lifecycle leg to walk.
+
+    entity "Finding" do
+      description "One stale reference detected during a rename-drift scan. Captured by RecordFinding when Tools.Grep + catalog comparison spots a reference whose target no longer resolves. Carries enough context (file_path, line_no, reference_kind, reference_target) for downstream surfaces to point Chris at the exact line."
+      attribute :file_path,        FilePath
+      attribute :line_no,          LineNo
+      attribute :reference_kind,   ReferenceKind
+      attribute :reference_target, ReferenceTarget
+    end
+
+    # ── Commands ──
+
+    command "Scan" do
+      role "Miette"
+      description "Start a rename-drift scan over the given repo root. Emits ScanStarted ; a policy cascade then dispatches Tools.Glob to enumerate .bluebook files and Tools.Grep to extract declarations + references. Findings accrete as entities ; Pass or Fail finalizes the check."
+      attribute :ref,       CheckRef
+      attribute :repo_root, RepoRoot
+      emits "ScanStarted"
+      then_set :ref,       to: :ref
+      then_set :repo_root, to: :repo_root
+    end
+
+    command "RecordFinding" do
+      role "System"
+      description "Append one stale-reference finding to the check. Dispatched by the policy that compares Tools.Grep matches against the bluebook declaration catalog ; one finding per stale reference site. The Finding entity carries the exact file_path + line_no + reference_kind + target so the surface can route the complaint to the right reader."
+      reference_to(RenameDriftCheck)
+      attribute :file_path,        FilePath
+      attribute :line_no,          LineNo
+      attribute :reference_kind,   ReferenceKind
+      attribute :reference_target, ReferenceTarget
+      then_set :findings, append: { file_path: :file_path, line_no: :line_no, reference_kind: :reference_kind, reference_target: :reference_target }
+      emits "FindingRecorded"
+    end
+
+    command "Pass" do
+      role "Miette"
+      description "No drift found — every reference resolved against the catalog. The repo is in a coherent rename state."
+      reference_to(RenameDriftCheck)
+      emits "ScanPassed"
+      then_set :violation_count, to: 0
+    end
+
+    command "Fail" do
+      role "Miette"
+      description "Stale references detected. Records the final violation count ; the Finding entities carry per-reference evidence. Downstream surfaces (watcher log, statusline) read the count + findings to decide what to surface."
+      reference_to(RenameDriftCheck)
+      attribute :violation_count, ViolationCount
+      emits "ScanFailed"
+      then_set :violation_count, to: :violation_count
+    end
+
+    lifecycle :status, default: "idle" do
+      transition "Scan"          => "scanning",         from: "idle"
+      transition "RecordFinding" => "checking",         from: "scanning"
+      transition "RecordFinding" => "checking",         from: "checking"
+      transition "Pass"          => "done",             from: "scanning"
+      transition "Pass"          => "done",             from: "checking"
+      transition "Fail"          => "violations_found", from: "scanning"
+      transition "Fail"          => "violations_found", from: "checking"
+    end
+  end
+
+  # ── Policy cascade : compose the Tools.* dispatch chain ──
+  #
+  # Each policy fires when its trigger event arrives and cascades into
+  # the next step. The runtime substrate (Tools.* kernel hook) handles
+  # the actual filesystem walks ; this bluebook composes the chain.
+  #
+  # CatalogBluebooks : start the scan by enumerating .bluebook files.
+  # Tools.Glob receives the glob_pattern + search_path ; its
+  # GlobMatched event carries the file list back. The Tools aggregate
+  # lives in the framework domain, so the trigger crosses domain
+  # boundaries — `across "Tools"` names the target so the corpus-
+  # wide validator resolves the trigger and the single-file validator
+  # treats it as cross-domain (skipped).
+
+  policy "CatalogBluebooks" do
+    on "ScanStarted"
+    trigger "Glob"
+    across "Tools"
+  end
+
+  # ExtractDeclarations : once Tools.Glob returns the .bluebook list,
+  # cascade into Tools.Grep to extract `aggregate "Name"` declarations.
+  # The runtime substrate routes the GlobMatched event into the next
+  # Grep dispatch ; the bluebook just names the wiring.
+
+  policy "ExtractDeclarations" do
+    on "GlobMatched"
+    trigger "Grep"
+    across "Tools"
+  end
+
+  # AlertOnFinding : every stale reference is also a threat — the
+  # immunity system should know about it. Crosses into the Immunity
+  # aggregate (sibling in the discipline domain) ; antibody generation
+  # follows from there. The cascade closes the loop : rename drift
+  # IS an immune-system signal.
+
+  policy "AlertOnFinding" do
+    on "FindingRecorded"
+    trigger "DetectThreat"
+    across "Immunity"
+  end
+end
