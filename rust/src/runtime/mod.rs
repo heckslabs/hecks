@@ -264,6 +264,16 @@ impl Runtime {
         // re-entry), exactly as the Ruby surface relies on.
         self.resolve_llm_adapters(&result, command_name);
 
+        // i551 — :claude_tool adapter hook. After the LLM cascade
+        // settles, scan loaded hecksagons for any `:claude_tool` io
+        // adapter whose `command` option matches the just-dispatched
+        // `Aggregate.Command` target. Build the attrs from the just-
+        // dispatched aggregate's state and call into the kernel-floor
+        // dispatcher (claude_tool_dispatcher::dispatch). The native
+        // primitive (shell exec, file edit, etc.) runs. v1 only logs
+        // the outcome ; chaining back into `result_into` is follow-on.
+        self.resolve_claude_tool_adapters(&result, command_name);
+
         Ok(result)
     }
 
@@ -519,6 +529,76 @@ impl Runtime {
                     &inner_result, &cmd_qualified, fired,
                 );
             }
+        }
+    }
+
+    /// i551 — `:claude_tool` adapter resolver. Sibling of
+    /// `resolve_llm_adapters` for the io-adapter family that binds
+    /// `Tools.X` dispatches to native primitives (shell, edit, read,
+    /// write, grep, glob). For each adapter declared in a loaded
+    /// hecksagon whose `command` option matches the just-dispatched
+    /// `Aggregate.Command`, the runtime reads the aggregate state,
+    /// stringifies it into `attrs`, and calls
+    /// `claude_tool_dispatcher::dispatch`. v1 logs the result on
+    /// stderr ; the response routing into `result_into` is follow-on.
+    fn resolve_claude_tool_adapters(&mut self, result: &CommandResult, command_name: &str) {
+        if self.hecksagons.is_empty() { return; }
+        let debug = std::env::var("HECKS_DEBUG_CLAUDE_TOOL").is_ok();
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        if debug {
+            eprintln!("[claude_tool:debug] resolve cmd={} target={} hecksagons={}",
+                command_name, target, self.hecksagons.len());
+        }
+
+        // Snapshot every `:claude_tool` io adapter whose `command`
+        // option matches the dispatched target. Values come from
+        // parse_options unprocessed — strings still carry their
+        // surrounding quotes, symbols still carry their leading colon
+        // — so we strip those before matching.
+        let matched: Vec<(String, String)> = self.hecksagons.iter()
+            .flat_map(|h| h.io_adapters.iter())
+            .filter(|a| a.kind == "claude_tool")
+            .filter_map(|a| {
+                let mut cmd: Option<String> = None;
+                let mut tool: Option<String> = None;
+                for (k, v) in &a.options {
+                    match k.as_str() {
+                        "command" => cmd = Some(strip_quotes_or_colon(v)),
+                        "tool"    => tool = Some(strip_quotes_or_colon(v)),
+                        _ => {}
+                    }
+                }
+                match (cmd, tool) {
+                    (Some(c), Some(t)) if c == target => Some((c, t)),
+                    _ => None,
+                }
+            })
+            .collect();
+        if debug {
+            eprintln!("[claude_tool:debug] matched {} adapter(s) for target={}",
+                matched.len(), target);
+        }
+        if matched.is_empty() { return; }
+
+        // Snapshot the just-dispatched aggregate's state so we can
+        // pass its fields to the kernel-floor primitive.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+
+        for (_cmd, tool) in &matched {
+            let tool_result = claude_tool_dispatcher::dispatch(tool, &attrs);
+            eprintln!(
+                "[claude_tool:{}] ok={} exit={} output={:?}",
+                tool, tool_result.ok, tool_result.exit_code, tool_result.output
+            );
         }
     }
 
@@ -1536,6 +1616,24 @@ fn trigram_sim(a: &str, b: &str) -> f64 {
     if a_t.is_empty() || b_t.is_empty() { return 0.0; }
     let matches = a_t.iter().filter(|t| b_t.contains(t)).count();
     (2.0 * matches as f64) / (a_t.len() + b_t.len()) as f64
+}
+
+/// i551 — strip the surrounding shape a hecksagon-options value
+/// carries from `parse_options`. String literals come through as
+/// `"\"Tools.Bash\""` (raw source token, quotes included) ; symbols
+/// come through as `":bash"` (leading colon kept). Both forms need
+/// to be reduced to their bare identifier before matching against
+/// runtime targets / dispatcher tool names. Whitespace is trimmed
+/// because parse_options preserves it from the source.
+fn strip_quotes_or_colon(raw: &str) -> String {
+    let t = raw.trim();
+    if t.len() >= 2 && t.starts_with('"') && t.ends_with('"') {
+        return t[1..t.len() - 1].to_string();
+    }
+    if let Some(rest) = t.strip_prefix(':') {
+        return rest.to_string();
+    }
+    t.to_string()
 }
 
 /// i221-B — convert a serde_json::Map into a HashMap<String, Value>
