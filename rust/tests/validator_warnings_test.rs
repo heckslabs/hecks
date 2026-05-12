@@ -9,8 +9,12 @@
 //! [antibody-exempt: rust/tests/validator_warnings_test.rs — kernel-
 //!  surface test for validator_warnings logic, builds Domain literals
 //!  directly to exercise the warning rules. Test-only kernel surface.
-//!  Retires when validators are bluebook-driven via meta-shape (the
-//!  same path that retired meta_diagnostic_validator).]
+//!  Production side already meta-shape-driven (validator_warnings_shape
+//!  regenerates validator_warnings.rs byte-identical, i558 audit) ;
+//!  this test retires when the behaviors framework grows a
+//!  validator-output-assertion capability so the warning rules can
+//!  be exercised through a `.behaviors` file inside the validator
+//!  capability bluebook rather than hand-written Rust Domain literals.]
 
 use storehouse::ir::{Aggregate, Command, Domain, Reference};
 use storehouse::validator_warnings::{

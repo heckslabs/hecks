@@ -1,13 +1,14 @@
 //! Heki — Binary record storage
 //!
-//! [antibody-exempt: storehouse/src/heki.rs — kernel-floor binary
+//! [antibody-exempt: rust/src/heki.rs — kernel-floor binary
 //!  record storage AND repo-root / info-dir path resolution. The
 //!  bluebook DSL has no concept of "where to look for files" —
 //!  this is the layer the loader uses BEFORE bluebooks can be
-//!  parsed. Made `repo_root()` public for load_combined_domain's
+//!  parsed. `repo_root()` is public for load_combined_domain's
 //!  sibling-walk to find `../miette/` robustly across worktree
-//!  layouts (i117 Round 4 follow-on). Retires alongside the broader
-//!  i118 reshape.]
+//!  layouts. Retires when `heki.hecksagon` ships and storage
+//!  operations dispatch through a `:fs` adapter binding (i521
+//!  shipped heki.bluebook ; hecksagon side still pending).]
 //!
 //! Reads and writes .heki files: HEKI magic (4 bytes) + record count (u32 BE)
 //! + zlib-compressed JSON. The JSON payload is a map of { id: String => record: Object }.
