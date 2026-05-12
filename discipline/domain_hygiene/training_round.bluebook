@@ -1,4 +1,4 @@
-Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
+Hecks.bluebook "TrainingRound", version: "2026.05.12.1" do
   vision "Run a complete training data cycle — grow, enrich, prune, extract, assess, repeat until quality target is met"
   category "capability"
 
@@ -14,48 +14,48 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
 
   aggregate "Round", "One full cycle of corpus improvement — tracks what happened and what to do next" do
     # ── Round metrics ──
-    attribute :round_number, Integer
-    attribute :starting_pairs, Integer
-    attribute :ending_pairs, Integer
-    attribute :strong_pairs, Integer
-    attribute :reference_coverage, Float
-    attribute :policy_coverage, Float
-    attribute :status, String
+    attribute :round_number, RoundNumber
+    attribute :starting_pairs, StartingPairs
+    attribute :ending_pairs, EndingPairs
+    attribute :strong_pairs, StrongPairs
+    attribute :reference_coverage, ReferenceCoverage
+    attribute :policy_coverage, PolicyCoverage
+    attribute :status, Status
     attribute :complete, TrueClass, default: false
     attribute :phases, list_of(Phase)
 
     # ── Growth phase metrics (was GrowthPhase) ──
-    attribute :target_count, Integer
-    attribute :conceived, Integer
-    attribute :validated, Integer
-    attribute :topics, list_of(String)
+    attribute :target_count, TargetCount
+    attribute :conceived, Conceived
+    attribute :validated, Validated
+    attribute :topics, list_of(Topic)
 
     # ── Enrichment phase metrics (was EnrichmentPhase) ──
-    attribute :domains_scanned, Integer
-    attribute :references_added, Integer
-    attribute :collections_added, Integer
-    attribute :givens_added, Integer
-    attribute :revalidated, Integer
+    attribute :domains_scanned, DomainsScanned
+    attribute :references_added, ReferencesAdded
+    attribute :collections_added, CollectionsAdded
+    attribute :givens_added, GivensAdded
+    attribute :revalidated, Revalidated
 
     # ── Pruning phase metrics (was PruningPhase) ──
-    attribute :monsters_split, Integer
-    attribute :duplicates_merged, Integer
-    attribute :categories_capped, Integer
-    attribute :final_pair_count, Integer
+    attribute :monsters_split, MonstersSplit
+    attribute :duplicates_merged, DuplicatesMerged
+    attribute :categories_capped, CategoriesCapped
+    attribute :final_pair_count, FinalPairCount
 
     # ── Extraction phase metrics (was ExtractionPhase) ──
-    attribute :output_path, String
-    attribute :total_pairs, Integer
-    attribute :reference_pct, Float
-    attribute :policy_pct, Float
-    attribute :gaps, list_of(String)
+    attribute :output_path, OutputPath
+    attribute :total_pairs, TotalPairs
+    attribute :reference_pct, ReferencePct
+    attribute :policy_pct, PolicyPct
+    attribute :gaps, list_of(Gap)
 
     # ── Decision metrics (was Decision) ──
     attribute :targets_met, TrueClass
-    attribute :reference_gap, Float
-    attribute :policy_gap, Float
-    attribute :pair_deficit, Integer
-    attribute :recommendation, String
+    attribute :reference_gap, ReferenceGap
+    attribute :policy_gap, PolicyGap
+    attribute :pair_deficit, PairDeficit
+    attribute :recommendation, Recommendation
 
     value_object "Phase" do
       attribute :name, String
@@ -66,12 +66,115 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
       attribute :duration, String
     end
 
+    value_object "RoundNumber" do
+      attribute :value, Integer
+    end
+    value_object "StartingPairs" do
+      attribute :value, Integer
+    end
+    value_object "EndingPairs" do
+      attribute :value, Integer
+    end
+    value_object "StrongPairs" do
+      attribute :value, Integer
+    end
+    value_object "ReferenceCoverage" do
+      attribute :value, Float
+    end
+    value_object "PolicyCoverage" do
+      attribute :value, Float
+    end
+    value_object "Status" do
+      attribute :value, String
+    end
+    value_object "TargetCount" do
+      attribute :value, Integer
+    end
+    value_object "Conceived" do
+      attribute :value, Integer
+    end
+    value_object "Validated" do
+      attribute :value, Integer
+    end
+    value_object "Topic" do
+      attribute :value, String
+    end
+    value_object "DomainsScanned" do
+      attribute :value, Integer
+    end
+    value_object "ReferencesAdded" do
+      attribute :value, Integer
+    end
+    value_object "CollectionsAdded" do
+      attribute :value, Integer
+    end
+    value_object "GivensAdded" do
+      attribute :value, Integer
+    end
+    value_object "Revalidated" do
+      attribute :value, Integer
+    end
+    value_object "MonstersSplit" do
+      attribute :value, Integer
+    end
+    value_object "DuplicatesMerged" do
+      attribute :value, Integer
+    end
+    value_object "CategoriesCapped" do
+      attribute :value, Integer
+    end
+    value_object "FinalPairCount" do
+      attribute :value, Integer
+    end
+    value_object "OutputPath" do
+      attribute :value, String
+    end
+    value_object "TotalPairs" do
+      attribute :value, Integer
+    end
+    value_object "ReferencePct" do
+      attribute :value, Float
+    end
+    value_object "PolicyPct" do
+      attribute :value, Float
+    end
+    value_object "Gap" do
+      attribute :value, String
+    end
+    value_object "ReferenceGap" do
+      attribute :value, Float
+    end
+    value_object "PolicyGap" do
+      attribute :value, Float
+    end
+    value_object "PairDeficit" do
+      attribute :value, Integer
+    end
+    value_object "Recommendation" do
+      attribute :value, String
+    end
+    value_object "GrowthTarget" do
+      attribute :value, Integer
+    end
+    value_object "MinReferencePct" do
+      attribute :value, Float
+    end
+    value_object "MinPolicyPct" do
+      attribute :value, Float
+    end
+    value_object "MaxCompletionSize" do
+      attribute :value, Integer
+    end
+    value_object "SimilarityThreshold" do
+      attribute :value, Float
+    end
+
     command "StartRound" do
       description "Begin a training round — assess current corpus, set targets"
-      attribute :round_number, Integer
-      attribute :growth_target, Integer
-      attribute :min_reference_pct, Float
-      attribute :min_policy_pct, Float
+      attribute :round_number, RoundNumber
+      attribute :growth_target, GrowthTarget
+      attribute :min_reference_pct, MinReferencePct
+      attribute :min_policy_pct, MinPolicyPct
       emits "RoundStarted"
     end
 
@@ -82,8 +185,8 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
 
     command "RunGrowth" do
       description "Conceive domains across diverse topics, validate each one"
-      attribute :target_count, Integer
-      attribute :topics, list_of(String)
+      attribute :target_count, TargetCount
+      attribute :topics, list_of(Topic)
       emits "GrowthComplete"
     end
 
@@ -94,14 +197,14 @@ Hecks.bluebook "TrainingRound", version: "2026.04.13.1" do
 
     command "RunPruning" do
       description "Split monsters, merge duplicates, balance categories"
-      attribute :max_completion_size, Integer
-      attribute :similarity_threshold, Float
+      attribute :max_completion_size, MaxCompletionSize
+      attribute :similarity_threshold, SimilarityThreshold
       emits "PruningComplete"
     end
 
     command "RunExtraction" do
       description "Extract JSONL training pairs from all valid domains and assess quality"
-      attribute :output_path, String
+      attribute :output_path, OutputPath
       emits "ExtractionComplete"
     end
 

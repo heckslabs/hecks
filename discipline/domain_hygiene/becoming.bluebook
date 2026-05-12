@@ -1,4 +1,4 @@
-Hecks.bluebook "Becoming", version: "2026.04.13.1" do
+Hecks.bluebook "Becoming", version: "2026.05.12.1" do
   vision "The pipeline that makes Summer smarter — harvest Miette's knowledge, shape it for training, fine-tune, evaluate, repeat"
   category "capability"
 
@@ -13,77 +13,192 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
 
   aggregate "Harvest", "Gather training signal from Miette's body and shape, enrich, train, and evaluate the corpus through to a new adapter" do
     identified_by :nursery_path
-    attribute :nursery_path, String
+    attribute :nursery_path, NurseryPath
 
     # ── Harvest counts ──
-    attribute :domains_collected, Integer
-    attribute :conversations_collected, Integer
-    attribute :dreams_collected, Integer
-    attribute :identity_pairs, Integer
-    attribute :harvested_at, String
+    attribute :domains_collected, DomainsCollected
+    attribute :conversations_collected, ConversationsCollected
+    attribute :dreams_collected, DreamsCollected
+    attribute :identity_pairs, IdentityPairs
+    attribute :harvested_at, HarvestedAt
     # Set true once ScanNursery confirms the nursery has enough domains to
     # train on. HarvestDomains gates on this — the planner picks ScanNursery
     # as the producer.
-    attribute :nursery_ready, Boolean, default: false
+    attribute :nursery_ready, NurseryReady, default: false
 
     # ── Shape counts (was Shape) ──
-    attribute :positive_pairs, Integer
-    attribute :negative_pairs, Integer
-    attribute :varied_pairs, Integer
-    attribute :chain_of_thought_pairs, Integer
-    attribute :category_balance_score, Float
+    attribute :positive_pairs, PositivePairs
+    attribute :negative_pairs, NegativePairs
+    attribute :varied_pairs, VariedPairs
+    attribute :chain_of_thought_pairs, ChainOfThoughtPairs
+    attribute :category_balance_score, CategoryBalanceScore
     # Set true once CountCategories confirms enough categories are
     # well-populated. BalanceCategories gates on this — planner picks
     # CountCategories as the producer.
-    attribute :categories_counted, Boolean, default: false
+    attribute :categories_counted, CategoriesCounted, default: false
 
     # ── Enrich counts (was Enrich) ──
-    attribute :cross_aggregate_policies_added, Integer
-    attribute :specifications_added, Integer
-    attribute :collections_added, Integer
-    attribute :workflows_deepened, Integer
+    attribute :cross_aggregate_policies_added, CrossAggregatePoliciesAdded
+    attribute :specifications_added, SpecificationsAdded
+    attribute :collections_added, CollectionsAdded
+    attribute :workflows_deepened, WorkflowsDeepened
 
     # ── Conceive counts (was Conceive) ──
-    attribute :new_domains, Integer
-    attribute :crossovers, Integer
-    attribute :fusions, Integer
-    attribute :topics, list_of(String)
+    attribute :new_domains, NewDomains
+    attribute :crossovers, Crossovers
+    attribute :fusions, Fusions
+    attribute :topics, list_of(Topic)
 
     # ── Train state (was Train) ──
-    attribute :base_model, String
-    attribute :adapter_path, String
-    attribute :iterations, Integer
-    attribute :learning_rate, Float
-    attribute :final_train_loss, Float
-    attribute :final_val_loss, Float
+    attribute :base_model, BaseModel
+    attribute :adapter_path, AdapterPath
+    attribute :iterations, Iterations
+    attribute :learning_rate, LearningRate
+    attribute :final_train_loss, FinalTrainLoss
+    attribute :final_val_loss, FinalValLoss
     # Flag flips true when PrepareSplit finishes; RunFineTune gates on it.
     # Planner picks PrepareSplit as the producer.
-    attribute :split_ready, Boolean, default: false
+    attribute :split_ready, SplitReady, default: false
 
     # ── Evaluate state (was Evaluate) ──
-    attribute :domains_tested, Integer
-    attribute :valid_outputs, Integer
-    attribute :with_policies, Integer
-    attribute :with_references, Integer
-    attribute :with_workflow_chains, Integer
-    attribute :structural_accuracy, Float
+    attribute :domains_tested, DomainsTested
+    attribute :valid_outputs, ValidOutputs
+    attribute :with_policies, WithPolicies
+    attribute :with_references, WithReferences
+    attribute :with_workflow_chains, WithWorkflowChains
+    attribute :structural_accuracy, StructuralAccuracy
     attribute :passed, TrueClass
     # Flag flips true when RunEvaluation finishes; DecideNextRound gates
     # on it. The planner picks RunEvaluation as the producer.
-    attribute :evaluation_complete, Boolean, default: false
+    attribute :evaluation_complete, EvaluationComplete, default: false
+
+    value_object "NurseryPath" do
+      attribute :value, String
+    end
+    value_object "DomainsCollected" do
+      attribute :value, Integer
+    end
+    value_object "ConversationsCollected" do
+      attribute :value, Integer
+    end
+    value_object "DreamsCollected" do
+      attribute :value, Integer
+    end
+    value_object "IdentityPairs" do
+      attribute :value, Integer
+    end
+    value_object "HarvestedAt" do
+      attribute :value, String
+    end
+    value_object "NurseryReady" do
+      attribute :value, Boolean
+    end
+    value_object "PositivePairs" do
+      attribute :value, Integer
+    end
+    value_object "NegativePairs" do
+      attribute :value, Integer
+    end
+    value_object "VariedPairs" do
+      attribute :value, Integer
+    end
+    value_object "ChainOfThoughtPairs" do
+      attribute :value, Integer
+    end
+    value_object "CategoryBalanceScore" do
+      attribute :value, Float
+    end
+    value_object "CategoriesCounted" do
+      attribute :value, Boolean
+    end
+    value_object "CrossAggregatePoliciesAdded" do
+      attribute :value, Integer
+    end
+    value_object "SpecificationsAdded" do
+      attribute :value, Integer
+    end
+    value_object "CollectionsAdded" do
+      attribute :value, Integer
+    end
+    value_object "WorkflowsDeepened" do
+      attribute :value, Integer
+    end
+    value_object "NewDomains" do
+      attribute :value, Integer
+    end
+    value_object "Crossovers" do
+      attribute :value, Integer
+    end
+    value_object "Fusions" do
+      attribute :value, Integer
+    end
+    value_object "Topic" do
+      attribute :value, String
+    end
+    value_object "BaseModel" do
+      attribute :value, String
+    end
+    value_object "AdapterPath" do
+      attribute :value, String
+    end
+    value_object "Iterations" do
+      attribute :value, Integer
+    end
+    value_object "LearningRate" do
+      attribute :value, Float
+    end
+    value_object "FinalTrainLoss" do
+      attribute :value, Float
+    end
+    value_object "FinalValLoss" do
+      attribute :value, Float
+    end
+    value_object "SplitReady" do
+      attribute :value, Boolean
+    end
+    value_object "DomainsTested" do
+      attribute :value, Integer
+    end
+    value_object "ValidOutputs" do
+      attribute :value, Integer
+    end
+    value_object "WithPolicies" do
+      attribute :value, Integer
+    end
+    value_object "WithReferences" do
+      attribute :value, Integer
+    end
+    value_object "WithWorkflowChains" do
+      attribute :value, Integer
+    end
+    value_object "StructuralAccuracy" do
+      attribute :value, Float
+    end
+    value_object "EvaluationComplete" do
+      attribute :value, Boolean
+    end
+    value_object "TargetCount" do
+      attribute :value, Integer
+    end
+    value_object "PairCount" do
+      attribute :value, Integer
+    end
+    value_object "FusionCount" do
+      attribute :value, Integer
+    end
 
     # ── Phase 1: Harvest ──
 
     command "ScanNursery" do
       description "Count valid bluebooks in the nursery and confirm the corpus is large enough to harvest"
-      attribute :nursery_path, String
+      attribute :nursery_path, NurseryPath
       emits "NurseryScanned"
       then_set :nursery_ready, to: true
     end
 
     command "HarvestDomains" do
       description "Walk the nursery, validate each bluebook, extract prompt/completion pairs"
-      attribute :nursery_path, String
+      attribute :nursery_path, NurseryPath
       given { nursery_ready == true }
       emits "DomainsHarvested"
     end
@@ -157,20 +272,20 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
 
     command "ConceiveNewDomains" do
       description "Generate genuinely unique domains across diverse topics"
-      attribute :topics, list_of(String)
-      attribute :target_count, Integer
+      attribute :topics, list_of(Topic)
+      attribute :target_count, TargetCount
       emits "NewDomainsConceived"
     end
 
     command "BreedCrossovers" do
       description "Combine pairs of domains — take aggregates from both, wire cross-domain policies"
-      attribute :pair_count, Integer
+      attribute :pair_count, PairCount
       emits "CrossoversBred"
     end
 
     command "FuseGenerations" do
       description "Cross two crossovers — four-domain fusions with deep multi-lineage workflows"
-      attribute :fusion_count, Integer
+      attribute :fusion_count, FusionCount
       emits "GenerationsFused"
     end
 
@@ -184,9 +299,9 @@ Hecks.bluebook "Becoming", version: "2026.04.13.1" do
 
     command "RunFineTune" do
       description "LoRA fine-tune the base model on the prepared data"
-      attribute :base_model, String
-      attribute :iterations, Integer
-      attribute :learning_rate, Float
+      attribute :base_model, BaseModel
+      attribute :iterations, Iterations
+      attribute :learning_rate, LearningRate
       given { split_ready == true }
       emits "FineTuneComplete"
     end

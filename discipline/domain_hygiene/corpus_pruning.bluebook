@@ -1,4 +1,4 @@
-Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
+Hecks.bluebook "CorpusPruning", version: "2026.05.12.1" do
   vision "Shape training data for learning — split monsters, add missing features, deduplicate, balance categories"
   category "capability"
 
@@ -12,29 +12,78 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
   aggregate "CorpusPruning", "One full pruning sweep — split monsters, enrich features, dedupe, balance categories" do
     identified_by :domain_name
     # ── MonsterSplit phase ──
-    attribute :source_domain, String
-    attribute :original_size, Integer
-    attribute :chunk_count, Integer
+    attribute :source_domain, SourceDomain
+    attribute :original_size, OriginalSize
+    attribute :chunk_count, ChunkCount
     attribute :chunks, list_of(Chunk)
     # original_size is set by MeasureDomain so SplitMonster can gate on it.
     # The planner picks MeasureDomain as the producer.
-    attribute :measured, Boolean, default: false
+    attribute :measured, Measured, default: false
 
     # ── FeatureEnrichment phase ──
-    attribute :domain_name, String
-    attribute :feature_type, String
-    attribute :additions_made, Integer
+    attribute :domain_name, DomainName
+    attribute :feature_type, FeatureType
+    attribute :additions_made, AdditionsMade
     attribute :still_valid, TrueClass
 
     # ── Deduplicator phase ──
-    attribute :total_pairs, Integer
-    attribute :duplicates_found, Integer
+    attribute :total_pairs, TotalPairs
+    attribute :duplicates_found, DuplicatesFound
     attribute :matches, list_of(DuplicatePair)
 
     # ── CategoryBalancer phase ──
     attribute :weights, list_of(CategoryWeight)
-    attribute :target_per_category, Integer
-    attribute :rebalanced_count, Integer
+    attribute :target_per_category, TargetPerCategory
+    attribute :rebalanced_count, RebalancedCount
+
+    value_object "SourceDomain" do
+      attribute :value, String
+    end
+    value_object "OriginalSize" do
+      attribute :value, Integer
+    end
+    value_object "ChunkCount" do
+      attribute :value, Integer
+    end
+    value_object "Measured" do
+      attribute :value, Boolean
+    end
+    value_object "DomainName" do
+      attribute :value, String
+    end
+    value_object "FeatureType" do
+      attribute :value, String
+    end
+    value_object "AdditionsMade" do
+      attribute :value, Integer
+    end
+    value_object "TotalPairs" do
+      attribute :value, Integer
+    end
+    value_object "DuplicatesFound" do
+      attribute :value, Integer
+    end
+    value_object "TargetPerCategory" do
+      attribute :value, Integer
+    end
+    value_object "RebalancedCount" do
+      attribute :value, Integer
+    end
+    value_object "MaxAggregatesPerChunk" do
+      attribute :value, Integer
+    end
+    value_object "JsonlPath" do
+      attribute :value, String
+    end
+    value_object "SimilarityThreshold" do
+      attribute :value, Float
+    end
+    value_object "Category" do
+      attribute :value, String
+    end
+    value_object "MaxCount" do
+      attribute :value, Integer
+    end
 
     value_object "Chunk" do
       attribute :sub_domain_name, String
@@ -60,8 +109,8 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "MeasureDomain" do
       description "Count aggregates in the source domain so SplitMonster knows whether it is large enough to chunk"
-      attribute :source_domain, String
-      attribute :original_size, Integer
+      attribute :source_domain, SourceDomain
+      attribute :original_size, OriginalSize
       emits "DomainMeasured"
       then_set :original_size, to: :original_size
       then_set :measured, to: true
@@ -69,8 +118,8 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "SplitMonster" do
       description "Break a domain with 10+ aggregates into 3-4 aggregate chunks"
-      attribute :source_domain, String
-      attribute :max_aggregates_per_chunk, Integer
+      attribute :source_domain, SourceDomain
+      attribute :max_aggregates_per_chunk, MaxAggregatesPerChunk
       given { measured == true }
       given { original_size > 8 }
       emits "MonsterSplit"
@@ -80,19 +129,19 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "AddReferences" do
       description "Add reference_to to action commands that operate on existing aggregates"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       emits "ReferencesAdded"
     end
 
     command "AddCollections" do
       description "Add list_of value objects where an aggregate logically owns many children"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       emits "CollectionsAdded"
     end
 
     command "AddGivens" do
       description "Add preconditions to commands where domain logic requires them"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       emits "GivensAdded"
     end
 
@@ -105,8 +154,8 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
 
     command "FindDuplicates" do
       description "Compare all domain pairs by structural vector similarity — flag near-clones"
-      attribute :jsonl_path, String
-      attribute :similarity_threshold, Float
+      attribute :jsonl_path, JsonlPath
+      attribute :similarity_threshold, SimilarityThreshold
       emits "DuplicatesFound"
     end
 
@@ -126,14 +175,14 @@ Hecks.bluebook "CorpusPruning", version: "2026.04.13.1" do
     # (training-corpus category counts vs. body proprioception).
     command "AssessCategoryBalance" do
       description "Count domains per category, flag over and under-represented groups"
-      attribute :jsonl_path, String
+      attribute :jsonl_path, JsonlPath
       emits "CategoryBalanceAssessed"
     end
 
     command "CapCategory" do
       description "Randomly sample down an over-represented category to the target count"
-      attribute :category, String
-      attribute :max_count, Integer
+      attribute :category, Category
+      attribute :max_count, MaxCount
       emits "CategoryCapped"
     end
   end
