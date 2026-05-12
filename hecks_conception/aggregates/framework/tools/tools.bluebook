@@ -1,4 +1,4 @@
-Hecks.bluebook "Tools", version: "2026.05.12.1" do
+Hecks.bluebook "Tools", version: "2026.05.12.2" do
   vision "First-class tool invocations as dispatched commands. Today Miette calls Bash / Edit / Read / Write / Grep as opaque tool calls — the harness runs them, returns a string, and the runtime sees nothing. This bluebook lifts each invocation into a domain command so every tool use emits an event the runtime can react to. Bash is the first command ; the other tools follow with the same shape."
   category "framework"
 
@@ -48,24 +48,43 @@ Hecks.bluebook "Tools", version: "2026.05.12.1" do
   # Both pieces are runtime work, not bluebook work. Filed as
   # follow-on cards alongside this bluebook.
   #
-  # ── The family pattern, after Bash ──
+  # ── The family ──
   #
-  # Bash is the proof. Once it's wired, the same shape extends to :
+  # Bash was the proof. The same shape extends across the file-
+  # touching tools — already declared :
   #
-  #   * Edit  — file path + old / new substrings ; emits EditApplied
-  #   * Read  — file path + range ; emits FileRead
-  #   * Write — file path + content ; emits FileWritten
-  #   * Grep  — pattern + path ; emits GrepRan
-  #   * WebFetch — url + prompt ; emits WebFetched
+  #   * Bash    — shell_command ; emits BashRan
+  #   * Edit    — file_path + old_string + new_string + replace_all ;
+  #               emits EditApplied
+  #   * Read    — file_path ; emits FileRead
+  #   * Update  — file_path + content ; emits FileUpdated
+  #               (same semantic as Claude's Write tool — renamed
+  #                here to emphasize state-changing dispatch)
+  #
+  # Still to come :
+  #
+  #   * Grep      — pattern + path ; emits GrepRan
+  #   * WebFetch  — url + prompt ; emits WebFetched
   #
   # Each becomes a command, each emits a matching event, each
   # carries the input + description so the runtime can react.
+  #
+  # ── State versus event payload ──
+  #
+  # For Bash, the shell command is small (a few hundred bytes
+  # typically), so it lives in both the event payload and the
+  # aggregate state. For Edit / Update, the old/new strings and
+  # full file content can be thousands of bytes — those live in
+  # the event payload only. The aggregate state stays small : id,
+  # description, and (when present) file_path. Replay logic
+  # reconstructs heavy payloads from the event log when needed.
 
   aggregate "Tools", "Tool invocations as first-class dispatched commands" do
     identified_by :id
 
     attribute :id, Id
     attribute :shell_command, ShellCommand
+    attribute :file_path, FilePath
     attribute :description, Description
 
     value_object "Id" do
@@ -94,6 +113,40 @@ Hecks.bluebook "Tools", version: "2026.05.12.1" do
       attribute :value, String
     end
 
+    value_object "FilePath" do
+      # The file Edit / Read / Write target. Absolute path
+      # preferred ; relative paths are interpreted by the runtime
+      # substrate at dispatch time.
+      attribute :value, String
+    end
+
+    value_object "OldString" do
+      # The substring Edit replaces. Lives in the EditApplied
+      # event payload only ; not persisted to aggregate state, so
+      # the heki doesn't grow unbounded with every edit's bytes.
+      attribute :value, String
+    end
+
+    value_object "NewString" do
+      # The substring Edit substitutes in. Same event-only
+      # treatment as OldString.
+      attribute :value, String
+    end
+
+    value_object "ReplaceAll" do
+      # When true, replace every occurrence ; when false, require
+      # exactly one match. Matches the Edit tool's existing flag.
+      attribute :value, Boolean
+    end
+
+    value_object "Content" do
+      # The full content Update writes to a file. Lives in the
+      # FileUpdated event payload only ; not persisted to
+      # aggregate state, so the heki doesn't grow unbounded with
+      # every write's bytes.
+      attribute :value, String
+    end
+
     # ── Bash : the first tool command ──
     command "Bash" do
       role "Miette"
@@ -104,6 +157,69 @@ Hecks.bluebook "Tools", version: "2026.05.12.1" do
       emits "BashRan"
       then_set :shell_command, to: :shell_command
       then_set :description,   to: :description
+    end
+
+    # ── Edit : the second tool command ──
+    #
+    # Edit mutates a file by substring substitution. Unlike Bash, the
+    # tool's inputs are too large to keep in state forever — old_string
+    # and new_string can be thousands of bytes each. The event payload
+    # carries the full strings for replay / audit ; the aggregate
+    # state only records what changed (file_path) and what we tried
+    # (description). So the heki stays small even after a long
+    # editing session.
+    command "Edit" do
+      role "Miette"
+      description "Apply a string substitution to a file. Records the dispatch as a Tools record and emits EditApplied carrying the file_path, old_string, new_string, replace_all flag, and description. The full old/new strings live in the event payload ; the aggregate state stores only the file_path + description so persistence doesn't bloat. Downstream policies can hook EditApplied to track code changes, refresh open views, surface in the statusline, or trigger awareness updates after substantial edits."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :old_string, OldString
+      attribute :new_string, NewString
+      attribute :replace_all, ReplaceAll
+      attribute :description, Description
+      emits "EditApplied"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+
+    # ── Read : the third tool command ──
+    #
+    # Read returns a file's contents. It's pure observation —
+    # no filesystem mutation, no state mutation downstream. Lighter
+    # event-wise than Edit / Update, but still worth a first-class
+    # dispatch so awareness can track "Miette is reading X" the
+    # same way it tracks "Miette is editing X." The file contents
+    # don't ride in state ; they're returned via the FileRead
+    # event payload and discarded after listeners consume them.
+    command "Read" do
+      role "Miette"
+      description "Read a file's contents. Records the dispatch as a Tools record and emits FileRead carrying the file_path and description. The actual file contents flow through the event payload (filled by the runtime substrate after the read completes) ; aggregate state only records what was looked at and why."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :description, Description
+      emits "FileRead"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+
+    # ── Update : the fourth tool command ──
+    #
+    # Update writes content to a file — creates new files, over-
+    # writes existing ones. Same event-only treatment for the big
+    # data as Edit (Content lives only in FileUpdated, not in
+    # state). The semantic matches Claude's existing Write tool ;
+    # the bluebook calls it Update to emphasize that the runtime
+    # treats it as a state-changing dispatch, not a side-effect.
+    command "Update" do
+      role "Miette"
+      description "Write content to a file. Records the dispatch as a Tools record and emits FileUpdated carrying the file_path, content, and description. The full content lives in the event payload ; aggregate state stores only the file_path and description so persistence doesn't bloat. Downstream policies can hook FileUpdated to track new bluebooks, regenerate downstream artifacts, or surface significant writes in awareness."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :content, Content
+      attribute :description, Description
+      emits "FileUpdated"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
     end
   end
 end
