@@ -1,4 +1,4 @@
-Hecks.bluebook "RenderingRule", version: "2026.05.11.1" do
+Hecks.bluebook "RenderingRule", version: "2026.05.12.1" do
   vision "Deterministic checks the generator must pass — not guidance, gates"
   category "infrastructure"
 
@@ -7,20 +7,47 @@ Hecks.bluebook "RenderingRule", version: "2026.05.11.1" do
   # A validator walks the generated HTML and applies every rule. No interpretation needed.
 
   aggregate "RenderingRule", "A deterministic check the generator must pass — not guidance, a gate" do
-    attribute :name, String
-    attribute :scope, String
-    attribute :check, String
-    attribute :violation, String
-    attribute :origin, String
+    attribute :name, RuleName
+    attribute :scope, Scope
+    attribute :check, Check
+    attribute :violation, Violation
+    attribute :origin, Origin
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "RuleName" do
+      # The rule's stable identifier — humans and the validator both quote this.
+      attribute :value, String
+    end
+
+    value_object "Scope" do
+      # What element or pattern in the generated HTML the rule targets.
+      attribute :value, String
+    end
+
+    value_object "Check" do
+      # The deterministic assertion the validator runs against the scope.
+      attribute :value, String
+    end
+
+    value_object "Violation" do
+      # What gets reported when the check fails — the operator-facing message.
+      attribute :value, String
+    end
+
+    value_object "Origin" do
+      # Who contributed this rule — designer, accessibility audit, style guide, …
+      attribute :value, String
+    end
 
     command "AddRule" do
       role "System"
       description "Register a rendering rule that the generator must satisfy"
-      attribute :name, String
-      attribute :scope, String
-      attribute :check, String
-      attribute :violation, String
-      attribute :origin, String
+      attribute :name, RuleName
+      attribute :scope, Scope
+      attribute :check, Check
+      attribute :violation, Violation
+      attribute :origin, Origin
       emits "RuleAdded"
       then_set :name, to: :name
       then_set :scope, to: :scope

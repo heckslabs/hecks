@@ -1,14 +1,31 @@
-Hecks.bluebook "AppShell", version: "2026.05.11.1" do
+Hecks.bluebook "AppShell", version: "2026.05.12.1" do
   vision "The overall application frame — navigation, layout, theme"
   category "infrastructure"
 
   # === Application Shell ===
 
   aggregate "AppShell", "The overall application frame — navigation, layout, theme" do
-    attribute :app_name, String
+    attribute :app_name, AppName
     attribute :navigation, list_of(NavItem)
-    attribute :layout_type, String
-    attribute :theme, String
+    attribute :layout_type, LayoutType
+    attribute :theme, ThemeName
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "AppName" do
+      # Human-readable name of the generated app (shown in the chrome).
+      attribute :value, String
+    end
+
+    value_object "LayoutType" do
+      # Which layout the shell uses — sidebar | topbar | grid | …
+      attribute :value, String
+    end
+
+    value_object "ThemeName" do
+      # Name of the style-guide theme applied to the shell.
+      attribute :value, String
+    end
 
     value_object "NavItem" do
       attribute :label, String
@@ -20,8 +37,8 @@ Hecks.bluebook "AppShell", version: "2026.05.11.1" do
     command "GenerateShell" do
       role "System"
       description "Create the app shell — nav from aggregates, layout from domain structure"
-      attribute :app_name, String
-      attribute :layout_type, String
+      attribute :app_name, AppName
+      attribute :layout_type, LayoutType
       emits "ShellGenerated"
       then_set :app_name, to: :app_name
       then_set :layout_type, to: :layout_type
@@ -38,7 +55,7 @@ Hecks.bluebook "AppShell", version: "2026.05.11.1" do
       role "Designer"
       description "Apply the style guide to the shell — colors, fonts, spacing"
       reference_to(AppShell)
-      attribute :theme, String
+      attribute :theme, ThemeName
       emits "ThemeApplied"
       then_set :theme, to: :theme
     end

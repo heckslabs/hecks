@@ -1,4 +1,4 @@
-Hecks.bluebook "CloudflareDeploy", version: "2026.05.11.1" do
+Hecks.bluebook "CloudflareDeploy", version: "2026.05.12.1" do
   vision "One bluebook, one deploy — push the artifacts (worker.js, Pages site, D1 migrations, wrangler.toml) to the edge"
   category "capability"
 
@@ -32,17 +32,55 @@ Hecks.bluebook "CloudflareDeploy", version: "2026.05.11.1" do
     # provisioned → migrated → ... lifecycle advances. Defaults to
     # "deploy" so callers don't have to thread the id through every
     # step ; the runtime's singleton fallback finds the row.
-    attribute :name, String, default: "deploy"
-    attribute :status, String
-    attribute :worker_url, String
-    attribute :pages_url, String
-    attribute :d1_database_id, String
-    attribute :deployed_at, String
+    attribute :name, DeploymentName, default: "deploy"
+    # Lifecycle-tracked field — wrapped + default so dispatch reads back "pending".
+    attribute :status, DeploymentStatus, default: "pending"
+    attribute :worker_url, WorkerUrl
+    attribute :pages_url, PagesUrl
+    attribute :d1_database_id, D1DatabaseId
+    attribute :deployed_at, Timestamp
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "DeploymentName" do
+      # Singleton key for the Deployment row — defaults to "deploy".
+      attribute :value, String
+    end
+
+    value_object "DeploymentStatus" do
+      # Lifecycle slot : pending | provisioned | migrated | api_live | ui_live | live.
+      attribute :value, String
+    end
+
+    value_object "WorkerUrl" do
+      # The deployed Cloudflare Worker URL (the API endpoint).
+      attribute :value, String
+    end
+
+    value_object "PagesUrl" do
+      # The deployed Cloudflare Pages URL (the website).
+      attribute :value, String
+    end
+
+    value_object "D1DatabaseId" do
+      # The provisioned D1 database id wrangler returned.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp the deploy finished at.
+      attribute :value, String
+    end
+
+    value_object "DatabaseName" do
+      # The D1 database name to provision (wrangler d1 create <name>).
+      attribute :value, String
+    end
 
     command "ProvisionD1" do
       role "System"
       description "Run wrangler d1 create — provision the database"
-      attribute :database_name, String
+      attribute :database_name, DatabaseName
       emits "D1Provisioned"
     end
 
@@ -68,8 +106,8 @@ Hecks.bluebook "CloudflareDeploy", version: "2026.05.11.1" do
       role "System"
       description "Everything deployed — record the URLs and timestamp"
       reference_to(Deployment)
-      attribute :worker_url, String
-      attribute :pages_url, String
+      attribute :worker_url, WorkerUrl
+      attribute :pages_url, PagesUrl
       emits "AppLive"
       then_set :status, to: "live"
       then_set :worker_url, to: :worker_url
