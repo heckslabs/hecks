@@ -14,11 +14,31 @@ Hecks.bluebook "Lexicon", version: "2026.04.28.1" do
 
   aggregate "Lexicon", "The compiled vocabulary — all sentences, compositions, and ACLs indexed for matching" do
     identified_by :name
-    attribute :name, String
-    attribute :sentence_count, Integer
-    attribute :composition_count, Integer
-    attribute :acl_count, Integer
-    attribute :last_compiled, String
+    attribute :name,              Name
+    attribute :sentence_count,    EntryCount
+    attribute :composition_count, EntryCount
+    attribute :acl_count,         EntryCount
+    attribute :last_compiled,     Timestamp
+
+    value_object "Name" do
+      # Stable slug naming this lexicon snapshot.
+      attribute :value, String
+    end
+
+    value_object "EntryCount" do
+      # Count of entries (sentences, compositions, ACLs) in the compiled lexicon.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp of the last compile.
+      attribute :value, String
+    end
+
+    value_object "Input" do
+      # A natural-language input the lexicon attempts to match.
+      attribute :value, String
+    end
 
     command "Compile" do
       role "System"
@@ -31,7 +51,7 @@ Hecks.bluebook "Lexicon", version: "2026.04.28.1" do
       role "System"
       description "Match natural input against the lexicon — return the command path or nothing"
       reference_to(Lexicon)
-      attribute :input, String
+      attribute :input, Input
       emits "InputMatched"
     end
   end

@@ -13,35 +13,70 @@ Hecks.bluebook "Acl", version: "2026.04.28.1" do
 
   aggregate "Acl", "A phrase book entry — who can say what, and how they say it" do
     identified_by :canonical_phrase
-    attribute :actor, String
-    attribute :canonical_phrase, String
-    attribute :command_path, list_of(String)
-    attribute :natural_phrases, list_of(String)
-    attribute :parameter_map, list_of(ParamBinding)
+    attribute :actor,            Actor
+    attribute :canonical_phrase, CanonicalPhrase
+    attribute :command_path,     list_of(CommandPathSegment)
+    attribute :natural_phrases,  list_of(NaturalPhrase)
+    attribute :parameter_map,    list_of(ParamBinding)
+
+    value_object "Actor" do
+      # The role or principal that has the right to speak a phrase (e.g. 'User', 'System').
+      attribute :value, String
+    end
+
+    value_object "CanonicalPhrase" do
+      # The canonical/normalized phrasing — the one form the grammar matches.
+      attribute :value, String
+    end
+
+    value_object "CommandPathSegment" do
+      # A single segment of the dispatch path (aggregate or command name).
+      attribute :value, String
+    end
+
+    value_object "NaturalPhrase" do
+      # A natural-language alternative wording the linguist registered.
+      attribute :value, String
+    end
+
+    value_object "Word" do
+      # A single word in a phrase — mapped by ParamBinding to a command attribute.
+      attribute :value, String
+    end
+
+    value_object "MapsTo" do
+      # The command attribute a phrase word binds to.
+      attribute :value, String
+    end
+
+    value_object "InCommand" do
+      # The command name within whose attribute set the binding applies.
+      attribute :value, String
+    end
 
     value_object "ParamBinding" do
-      attribute :word, String
-      attribute :maps_to, String
-      attribute :in_command, String
+      attribute :word,       Word
+      attribute :maps_to,    MapsTo
+      attribute :in_command, InCommand
     end
 
     command "Grant" do
       role "System"
       description "Grant an actor the right to speak a phrase"
-      attribute :actor, String
-      attribute :canonical_phrase, String
-      attribute :command_path, list_of(String)
+      attribute :actor,            Actor
+      attribute :canonical_phrase, CanonicalPhrase
+      attribute :command_path,     list_of(CommandPathSegment)
       emits "AccessGranted"
-      then_set :actor, to: :actor
+      then_set :actor,            to: :actor
       then_set :canonical_phrase, to: :canonical_phrase
-      then_set :command_path, to: :command_path
+      then_set :command_path,     to: :command_path
     end
 
     command "AddPhrase" do
       role "Linguist"
       description "Add a natural way to say this — the human version"
       reference_to(Acl)
-      attribute :phrase, String
+      attribute :phrase, NaturalPhrase
       emits "PhraseAdded"
       then_set :natural_phrases, append: :phrase
     end
@@ -50,9 +85,9 @@ Hecks.bluebook "Acl", version: "2026.04.28.1" do
       role "Linguist"
       description "Map a word in the phrase to a command parameter"
       reference_to(Acl)
-      attribute :word, String
-      attribute :maps_to, String
-      attribute :in_command, String
+      attribute :word,       Word
+      attribute :maps_to,    MapsTo
+      attribute :in_command, InCommand
       emits "ParamBound"
       then_set :parameter_map, append: { word: :word, maps_to: :maps_to, in_command: :in_command }
     end
