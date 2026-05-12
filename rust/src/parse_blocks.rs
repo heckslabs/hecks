@@ -744,11 +744,15 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     //   - `default: ...`   (or any kwarg) → no positional type, default to "String"
     //   - bare token       → use it as the type (String, Integer, MyValueObject, …)
     let raw = parts.get(1).map(|s| s.trim()).unwrap_or("");
-    // `list_of(X)` is the explicit collection form. `Array` and `Hash`
-    // as bare types are also collection-shaped (Ruby DSL treats them
-    // as list:true). `:list_ofs` (substring of "list_of") must NOT
-    // register — only `list_of(` with the paren counts.
-    let list = line.contains("list_of(") || (!type_already_known && (raw == "Array" || raw == "Hash"));
+    // Retired 2026-05-12 : Array / Hash bare-types USED to auto-flag
+    // list=true (mirroring an old Ruby heuristic). Both heuristics
+    // retired together so the parsers agree : collection shape MUST
+    // come from `list_of(X)` explicitly. Bluebooks that used bare
+    // Array / Hash and meant "scalar collection-shaped attr" stay
+    // scalar ; if they meant a list, they now must say `list_of(...)`.
+    // `:list_ofs` (substring of "list_of") must NOT register — only
+    // `list_of(` with the paren counts.
+    let list = line.contains("list_of(");
     let attr_type = if let Some(t) = attr_type {
         // Bare-VO form already pinned the type to the value-object name.
         t
