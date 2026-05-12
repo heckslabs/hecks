@@ -1,3 +1,4 @@
+# [antibody-exempt: ruby/hecks/extensions/sqlite.rb — kernel-floor Sequel + sqlite3 bridge wired through Hecks.register_extension(:sqlite). Retires when the :sql_database adapter family ships as a bluebook with provider bindings.]
 # HecksSqlite
 #
 # SQLite persistence extension for Hecks domains. Auto-wires when present
@@ -34,8 +35,15 @@ Hecks.describe_extension(:sqlite,
 # @param domain [Hecks::Domain] the parsed domain definition
 # @param runtime [Hecks::Runtime] the runtime instance whose adapters will be swapped
 Hecks.register_extension(:sqlite) do |domain_mod, domain, runtime|
-  require "sequel"
-  require "sqlite3"
+  begin
+    require "sequel"
+    require "sqlite3"
+  rescue LoadError => e
+    raise LoadError,
+      "Hecks's :sqlite extension requires the `sequel` and `sqlite3` gems. " \
+      "Add to your Gemfile :\n\n    gem \"sequel\"\n    gem \"sqlite3\"\n\n" \
+      "(Original error : #{e.message})"
+  end
   world = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
   config = world&.config_for(:sqlite) || {}
   db_path = config[:database]

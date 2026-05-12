@@ -18,6 +18,20 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = ">= 3.0"
 
-  spec.add_dependency "rwordnet", ">= 1.0", "< 3.0"
-  spec.add_dependency "sequel", ">= 5.0"
+  # Zero runtime dependencies. Hecks ships kernel-only — domains compile
+  # and run on stdlib alone (json, date, ostruct). Persistence, AI,
+  # natural-language assists are opt-in : install the driver you want.
+  #
+  # Optional gems each feature looks for at runtime (begin/rescue LoadError
+  # at the call site, friendly install hint when missing) :
+  #
+  #   sequel     — SQL persistence (HecksPersist + :sqlite / :postgres /
+  #                :mysql extensions). Pulls in `sqlite3`, `pg`, or
+  #                `mysql2` for the driver layer.
+  #   rwordnet   — fuller verb detection in the CommandNaming validator.
+  #                Without it, validator falls back to the custom-verb
+  #                list configured per project.
+  #
+  # If you only use heki/R2 storage (the bin-buddy / StoreHouse arc),
+  # you need none of these.
 end

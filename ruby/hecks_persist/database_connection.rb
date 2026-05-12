@@ -1,3 +1,4 @@
+# [antibody-exempt: ruby/hecks_persist/database_connection.rb — kernel-floor Sequel bridge for SQL connect. Retires when the storage adapter family ships as a bluebook with provider bindings (:sql_database with :sqlite / :postgres / :mysql sub-adapters).]
 module Hecks
   class Configuration
     # Hecks::Configuration::DatabaseConnection
@@ -22,7 +23,14 @@ module Hecks
       #
       # @return [Sequel::Database] the database connection
       def connect_database
-        require "sequel"
+        begin
+          require "sequel"
+        rescue LoadError
+          raise LoadError,
+            "Hecks SQL persistence requires the `sequel` gem. " \
+            "Add to your Gemfile :\n\n    gem \"sequel\"\n\n" \
+            "Plus the driver for your database (`sqlite3`, `pg`, or `mysql2`)."
+        end
 
         if @adapter_options[:url]
           Sequel.connect(@adapter_options[:url])

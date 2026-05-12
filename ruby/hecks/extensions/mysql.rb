@@ -1,3 +1,4 @@
+# [antibody-exempt: ruby/hecks/extensions/mysql.rb — kernel-floor Sequel + mysql2 bridge wired through Hecks.register_extension(:mysql). Retires when the :sql_database adapter family ships as a bluebook with provider bindings.]
 # HecksMysql
 #
 # MySQL persistence extension for Hecks domains. Auto-wires when
@@ -37,7 +38,14 @@ Hecks.describe_extension(:mysql,
 # @param domain [Hecks::Domain] the parsed domain definition
 # @param runtime [Hecks::Runtime] the runtime instance whose adapters will be swapped
 Hecks.register_extension(:mysql) do |domain_mod, domain, runtime|
-  require "sequel"
+  begin
+    require "sequel"
+  rescue LoadError => e
+    raise LoadError,
+      "Hecks's :mysql extension requires the `sequel` and `mysql2` gems. " \
+      "Add to your Gemfile :\n\n    gem \"sequel\"\n    gem \"mysql2\"\n\n" \
+      "(Original error : #{e.message})"
+  end
   db = Sequel.connect(adapter: :mysql2,
     host:     ENV.fetch("HECKS_DB_HOST", "localhost"),
     database: ENV.fetch("HECKS_DB_NAME", domain.gem_name),

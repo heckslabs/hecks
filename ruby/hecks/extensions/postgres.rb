@@ -1,3 +1,4 @@
+# [antibody-exempt: ruby/hecks/extensions/postgres.rb — kernel-floor Sequel + pg bridge wired through Hecks.register_extension(:postgres). Retires when the :sql_database adapter family ships as a bluebook with provider bindings.]
 # HecksPostgres
 #
 # PostgreSQL persistence extension for Hecks domains. Auto-wires when
@@ -37,7 +38,14 @@ Hecks.describe_extension(:postgres,
 # @param domain [Hecks::Domain] the parsed domain definition
 # @param runtime [Hecks::Runtime] the runtime instance whose adapters will be swapped
 Hecks.register_extension(:postgres) do |domain_mod, domain, runtime|
-  require "sequel"
+  begin
+    require "sequel"
+  rescue LoadError => e
+    raise LoadError,
+      "Hecks's :postgres extension requires the `sequel` and `pg` gems. " \
+      "Add to your Gemfile :\n\n    gem \"sequel\"\n    gem \"pg\"\n\n" \
+      "(Original error : #{e.message})"
+  end
   db = Sequel.connect(adapter: :postgres,
     host:     ENV.fetch("HECKS_DB_HOST", "localhost"),
     database: ENV.fetch("HECKS_DB_NAME", domain.gem_name),
