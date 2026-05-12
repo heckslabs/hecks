@@ -27,3 +27,16 @@
 - Module grouping: parent file with `.bind`, children in subdirectory
 - `Hecks.boot(__dir__)` for apps, `Hecks.configure` for Rails
 - Generators show a diff when a target file already exists (never silently overwrite)
+
+## Tonight's locked conventions (2026-05-12)
+
+- **Four bluebook-first principles** — see `docs/design/principles-2026-05-12.md`:
+  1. It just works — bluebook is the contract; runtime defaults to memory; the dispatch IS the act
+  2. Wiring is override, not substrate — adapters change behaviour, they don't fix broken bluebooks
+  3. Domain doesn't know it hibernates — time is continuous from the inside; persistence is the runtime's problem
+  4. Domain composes the tool call; the adapter runs it — pure composition meets pure execution at the bus boundary
+- **Self-ref dispatch** — `reference_to(AggName)` accepts both `snake_case(AggName)=<id>` AND the universal `id=<value>` fallback (added tonight via the universal-id sidequest)
+- **List shape is explicit** — `attribute :foos, Foo` is SCALAR. Lists require `list_of(X)`. The auto-list heuristic is retired in both the Ruby and Rust parsers
+- **VO placement** — `value_object` declarations live INSIDE each aggregate. Duplication across aggregates is fine; bluebook-file-top-level VOs are forbidden (macrophage check `bluebook_top_level_value_object`, i555)
+- **Macrophage rename** — `enforcer` is now `macrophage` (i531/i553). `storehouse enforce-edit` still works as a deprecation-warning alias
+- **Tools.bluebook** — Miette's first-class tool invocations dispatch through the bus as `Tools.Bash` / `Tools.Edit` / `Tools.Read` / `Tools.Update` / `Tools.Grep` / `Tools.Glob`. See `docs/usage/tools.md`
