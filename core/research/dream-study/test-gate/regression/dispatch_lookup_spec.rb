@@ -1,8 +1,11 @@
 # dispatch_lookup_spec.rb
 #
 # [antibody-exempt: dream-study Phase 0f regression — covers named
-#  bugs i189 + i203 + i204 ; retires once .behaviors runner can
-#  drive Update commands by reference attribute]
+#  bugs i189 + i203 + i204. The named trigger (identified_by Update
+#  dispatch in the .behaviors runner) shipped in PR #472 ; i558
+#  audit narrowed the retirement target to porting these regression
+#  cases into per-aggregate `.behaviors` files inside the relevant
+#  bluebooks (TickedFeature, Synapse, Signal).]
 #
 # Regression coverage for i189, i203, i204 — the silent-fail bugs
 # where Update-shape commands could not find their existing row.

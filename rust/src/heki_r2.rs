@@ -1,6 +1,6 @@
 //! Heki R2 — Binary record storage on Cloudflare R2
 //!
-//! [antibody-exempt: storehouse/src/heki_r2.rs — kernel-floor binary
+//! [antibody-exempt: rust/src/heki_r2.rs — kernel-floor binary
 //!  record storage against a Cloudflare R2 bucket, sibling to
 //!  rust/src/heki.rs (local filesystem). The bluebook DSL has no
 //!  concept of "where to put bytes on a network" — this is the

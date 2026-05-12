@@ -7,7 +7,9 @@
 //!
 //! [antibody-exempt: storehouse heki subcommand expansion; prerequisite
 //!  for i37 Phase B (replace python3 -c invocations in shell scripts).
-//!  Retires when heki dispatch moves to a bluebook + hecksagon.]
+//!  i521 shipped `heki.bluebook` ; this module retires when
+//!  `heki.hecksagon` ships and the heki subcommands dispatch through
+//!  a `:fs` adapter binding (i558 audit narrowed this trigger).]
 //!
 //! Usage:
 //!   let filter = Filter::parse("status=queued")?;
