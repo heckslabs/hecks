@@ -1,18 +1,53 @@
-Hecks.bluebook "OrganDiscovery", version: "2026.04.29.1" do
+Hecks.bluebook "OrganDiscovery", version: "2026.05.12.1" do
   vision "Parse all bluebooks — count aggregates, discover nerves and vows. The third step of the boot sequence."
   category "body"
 
   # Lifted from boot.bluebook in i112 Round 2. Carries
   # CensusAfterDiscovery (OrgansDiscovered → WriteCensus) since both
   # ends are local to OrganDiscovery.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "OrganDiscovery", "Parse all bluebooks — count aggregates, discover nerves and vows" do
     identified_by :name
-    attribute :name, String
-    attribute :organ_count, Integer
-    attribute :total_aggregates, Integer
-    attribute :nerve_count, Integer
-    attribute :vow_count, Integer
+    attribute :name,             Name
+    attribute :organ_count,      OrganCount
+    attribute :total_aggregates, AggregateCount
+    attribute :nerve_count,      NerveCount
+    attribute :vow_count,        VowCount
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this OrganDiscovery instance.
+      attribute :value, String
+    end
+
+    value_object "OrganCount" do
+      # How many organ directories were discovered under aggregates/.
+      # Domain speaks OrganCount, not Integer.
+      attribute :value, Integer
+    end
+
+    value_object "AggregateCount" do
+      # Total aggregate count summed across all discovered organs.
+      # Domain speaks AggregateCount, not Integer.
+      attribute :value, Integer
+    end
+
+    value_object "NerveCount" do
+      # Total nerve count summed across all discovered organs.
+      # Domain speaks NerveCount, not Integer.
+      attribute :value, Integer
+    end
+
+    value_object "VowCount" do
+      # Total vow count summed across all discovered organs.
+      # Domain speaks VowCount, not Integer.
+      attribute :value, Integer
+    end
 
     command "DiscoverOrgans" do
       role "System"

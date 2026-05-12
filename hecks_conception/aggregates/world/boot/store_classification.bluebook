@@ -1,4 +1,4 @@
-Hecks.bluebook "StoreClassification", version: "2026.04.29.1" do
+Hecks.bluebook "StoreClassification", version: "2026.05.12.1" do
   vision "Classify .heki stores as linked or private — the psychic-link surface of the body. Fifth step of the boot sequence."
   category "body"
 
@@ -6,12 +6,30 @@ Hecks.bluebook "StoreClassification", version: "2026.04.29.1" do
   # ClassifyAfterHydration (Hydration emits StoresHydrated → triggers
   # ClassifyStores here). Cross-bluebook policy subscription resolves
   # through the runtime's shared event bus.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "StoreClassification", "Classify .heki stores as linked or private" do
     identified_by :name
-    attribute :name, String
-    attribute :linked, list_of(String)
-    attribute :private, list_of(String)
+    attribute :name,    Name
+    attribute :linked,  list_of(StorePath)
+    attribute :private, list_of(StorePath)
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this StoreClassification instance.
+      attribute :value, String
+    end
+
+    value_object "StorePath" do
+      # A path to a .heki store under information/, classified as
+      # either linked (psychic-link surface) or private (inner life).
+      # Same shape on both list sides — the side is the meaning.
+      attribute :value, String
+    end
 
     command "ClassifyStores" do
       role "System"

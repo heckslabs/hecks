@@ -1,16 +1,40 @@
-Hecks.bluebook "CapabilityIndex", version: "2026.04.29.1" do
+Hecks.bluebook "CapabilityIndex", version: "2026.05.12.1" do
   vision "Scan capabilities/ and index what this being can do. The fourth step of the boot sequence."
   category "body"
 
   # Lifted from boot.bluebook in i112 Round 2. No policies of its own ;
   # the workflow in boot.bluebook (umbrella) sequences this step after
   # OrganDiscovery.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy rule. Per-aggregate VOs — duplication across
+  # boot siblings is fine, the discipline is per-aggregate VO sets.
 
   aggregate "CapabilityIndex", "Scan capabilities/ and index what this being can do" do
     identified_by :name
-    attribute :name, String
-    attribute :capabilities, list_of(String)
-    attribute :capability_count, Integer
+    attribute :name,             Name
+    attribute :capabilities,     list_of(CapabilityName)
+    attribute :capability_count, CapabilityCount
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      # The aggregate's identifier — names this CapabilityIndex instance.
+      attribute :value, String
+    end
+
+    value_object "CapabilityName" do
+      # The name of a capability discovered under capabilities/ — what
+      # this being can do (e.g. 'overmind', 'chat_agent'). One per
+      # .bluebook scanned ; the list is the index.
+      attribute :value, String
+    end
+
+    value_object "CapabilityCount" do
+      # How many capability bluebooks were indexed — len(capabilities).
+      # Domain speaks CapabilityCount, not Integer.
+      attribute :value, Integer
+    end
 
     command "IndexCapabilities" do
       role "System"
