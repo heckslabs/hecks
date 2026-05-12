@@ -1,28 +1,76 @@
-Hecks.bluebook "Gestation", version: "2026.04.16.1" do
+Hecks.bluebook "Gestation", version: "2026.05.12.1" do
   vision "Multi-domain project growing — each bounded context gets its own bluebook"
   category "world"
 
   # Lifted out of conception.bluebook in i112 split. Carries one
   # policy : GestateOnConception (Conception.ConceiveDomain →
   # Gestation.StartGestation).
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy discipline.
 
   aggregate "Gestation", "Multi-domain project growing — each bounded context gets its own bluebook" do
     identified_by :project_name
-    attribute :project_name, String
-    attribute :nursery_path, String
-    attribute :bounded_contexts, list_of(String)
-    attribute :aggregates, list_of(String)
-    attribute :commands, list_of(String)
-    attribute :policies, list_of(String)
-    attribute :fixtures, list_of(String)
-    attribute :contractions, Integer
+    attribute :project_name, ProjectName
+    attribute :nursery_path, NurseryPath
+    attribute :bounded_contexts, list_of(BoundedContextName)
+    attribute :aggregates, list_of(AggregateName)
+    attribute :commands, list_of(CommandName)
+    attribute :policies, list_of(PolicyName)
+    attribute :fixtures, list_of(FixtureName)
+    attribute :contractions, ContractionCount
+
+    # ── Value-objects : the gestation's vocabulary ──
+
+    value_object "ProjectName" do
+      # The forming project's name — becomes the nursery folder
+      # name and the identified_by key.
+      attribute :value, String
+    end
+
+    value_object "NurseryPath" do
+      # Filesystem path to the scaffold's hecks/ folder.
+      attribute :value, String
+    end
+
+    value_object "BoundedContextName" do
+      # The name of one bounded context within the project ; one
+      # bluebook per context.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The name of one aggregate that crystallized inside a
+      # bounded context.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # The name of one command that emerged inside an aggregate.
+      attribute :value, String
+    end
+
+    value_object "PolicyName" do
+      # The name of one policy wiring two aggregates.
+      attribute :value, String
+    end
+
+    value_object "FixtureName" do
+      # A test-fixture path or name carried with the gestation.
+      attribute :value, String
+    end
+
+    value_object "ContractionCount" do
+      # Number of refinement cycles ; increments with each Contract.
+      attribute :value, Integer
+    end
 
     command "StartGestation" do
       role "Miette"
       description "Scaffold the hecks/ folder with one bluebook per bounded context"
-      attribute :project_name, String
-      attribute :nursery_path, String
-      attribute :bounded_contexts, list_of(String)
+      attribute :project_name, ProjectName
+      attribute :nursery_path, NurseryPath
+      attribute :bounded_contexts, list_of(BoundedContextName)
       emits "GestationStarted"
       then_set :project_name, to: :project_name
       then_set :nursery_path, to: :nursery_path
@@ -34,7 +82,7 @@ Hecks.bluebook "Gestation", version: "2026.04.16.1" do
       role "Miette"
       description "An aggregate crystallizes within the forming domain"
       reference_to(Gestation)
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
       emits "AggregateFormed"
       then_set :aggregates, append: :aggregate_name
     end
@@ -43,7 +91,7 @@ Hecks.bluebook "Gestation", version: "2026.04.16.1" do
       role "Miette"
       description "A command emerges within an aggregate"
       reference_to(Gestation)
-      attribute :command_name, String
+      attribute :command_name, CommandName
       emits "CommandFormed"
       then_set :commands, append: :command_name
     end
@@ -52,7 +100,7 @@ Hecks.bluebook "Gestation", version: "2026.04.16.1" do
       role "Miette"
       description "A policy wires itself between aggregates"
       reference_to(Gestation)
-      attribute :policy_name, String
+      attribute :policy_name, PolicyName
       emits "PolicyFormed"
       then_set :policies, append: :policy_name
     end

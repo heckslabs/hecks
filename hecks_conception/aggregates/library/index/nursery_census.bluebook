@@ -1,4 +1,4 @@
-Hecks.bluebook "NurseryCensus", version: "2026.04.28.1" do
+Hecks.bluebook "NurseryCensus", version: "2026.05.12.1" do
   vision "The master snapshot of all nursery domains — total counts of domains, aggregates, commands, policies, sectors"
   category "library"
 
@@ -10,26 +10,44 @@ Hecks.bluebook "NurseryCensus", version: "2026.04.28.1" do
   # moved to library/ : domain_entry, sector, compilation. The
   # IndexOnCensus policy follows its trigger target (ClassifySector)
   # into sector.bluebook.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy discipline.
 
   aggregate "NurseryCensus", "The master snapshot of all nursery domains" do
     identified_by :name
-    attribute :name, String
-    attribute :total_domains, Integer
-    attribute :total_aggregates, Integer
-    attribute :total_commands, Integer
-    attribute :total_policies, Integer
-    attribute :sector_count, Integer
-    attribute :errors, Integer
+    attribute :name, CensusName
+    attribute :total_domains, Count
+    attribute :total_aggregates, Count
+    attribute :total_commands, Count
+    attribute :total_policies, Count
+    attribute :sector_count, Count
+    attribute :errors, Count
+
+    # ── Value-objects : the census's vocabulary ──
+
+    value_object "CensusName" do
+      # The census snapshot's identifier — singleton-style "current"
+      # or named historical snapshot.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative tally — every census field is a population
+      # bucket (domains, aggregates, commands, policies, sectors,
+      # parse errors).
+      attribute :value, Integer
+    end
 
     command "TakeCensus" do
       role "System"
       description "Scan the nursery and count everything"
-      attribute :total_domains, Integer
-      attribute :total_aggregates, Integer
-      attribute :total_commands, Integer
-      attribute :total_policies, Integer
-      attribute :sector_count, Integer
-      attribute :errors, Integer
+      attribute :total_domains, Count
+      attribute :total_aggregates, Count
+      attribute :total_commands, Count
+      attribute :total_policies, Count
+      attribute :sector_count, Count
+      attribute :errors, Count
       emits "CensusTaken"
       then_set :total_domains, to: :total_domains
       then_set :total_aggregates, to: :total_aggregates
@@ -43,7 +61,7 @@ Hecks.bluebook "NurseryCensus", version: "2026.04.28.1" do
       role "System"
       description "Quick update — just the domain count, on every beat"
       reference_to(NurseryCensus)
-      attribute :total_domains, Integer
+      attribute :total_domains, Count
       emits "DomainCountUpdated"
       then_set :total_domains, to: :total_domains
     end

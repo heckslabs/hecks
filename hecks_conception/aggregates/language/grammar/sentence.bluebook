@@ -1,4 +1,4 @@
-Hecks.bluebook "Sentence", version: "2026.04.28.1" do
+Hecks.bluebook "Sentence", version: "2026.05.12.1" do
   vision "One thing a being can say that maps to a command — a single executable utterance"
   category "language"
 
@@ -9,26 +9,70 @@ Hecks.bluebook "Sentence", version: "2026.04.28.1" do
   # Lifted out of vocabulary.bluebook in i112. Sibling aggregates
   # moved to language/ : composition, acl, lexicon. The CompileOnDefine
   # policy follows its trigger target (Compile) into lexicon.bluebook.
+  #
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy discipline.
 
   aggregate "Sentence", "One thing a being can say that maps to a command" do
     identified_by :phrase
-    attribute :phrase, String
-    attribute :domain, String
-    attribute :command, String
-    attribute :aggregate, String
-    attribute :actor, String
-    attribute :parameters, list_of(String)
-    attribute :translations, list_of(String)
+    attribute :phrase, Phrase
+    attribute :domain, DomainName
+    attribute :command, CommandName
+    attribute :aggregate, AggregateName
+    attribute :actor, ActorName
+    attribute :parameters, list_of(ParameterName)
+    attribute :translations, list_of(NaturalPhrase)
+
+    # ── Value-objects : the sentence's vocabulary ──
+
+    value_object "Phrase" do
+      # The dotted sayable form — e.g. "Order.Place". The
+      # identified_by key for one Sentence.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # The bluebook domain the sentence originates from.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # The aggregate's command this sentence maps to.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The aggregate the sentence is rooted in.
+      attribute :value, String
+    end
+
+    value_object "ActorName" do
+      # The Role / actor permitted to say this sentence (Chris,
+      # System, Miette, etc.).
+      attribute :value, String
+    end
+
+    value_object "ParameterName" do
+      # The name of one parameter the sentence carries — a member
+      # of the bluebook command's attribute list.
+      attribute :value, String
+    end
+
+    value_object "NaturalPhrase" do
+      # A natural-language way a human might actually utter this
+      # sentence ; one per translation entry.
+      attribute :value, String
+    end
 
     command "Define" do
       role "System"
       description "Register a single valid sentence from a bluebook command"
-      attribute :phrase, String
-      attribute :domain, String
-      attribute :command, String
-      attribute :aggregate, String
-      attribute :actor, String
-      attribute :parameters, list_of(String)
+      attribute :phrase, Phrase
+      attribute :domain, DomainName
+      attribute :command, CommandName
+      attribute :aggregate, AggregateName
+      attribute :actor, ActorName
+      attribute :parameters, list_of(ParameterName)
       emits "SentenceDefined"
       then_set :phrase, to: :phrase
       then_set :domain, to: :domain
@@ -42,7 +86,7 @@ Hecks.bluebook "Sentence", version: "2026.04.28.1" do
       role "Linguist"
       description "Add a natural language translation — how a human would actually say it"
       reference_to(Sentence)
-      attribute :natural_phrase, String
+      attribute :natural_phrase, NaturalPhrase
       emits "TranslationAdded"
       then_set :translations, append: :natural_phrase
     end

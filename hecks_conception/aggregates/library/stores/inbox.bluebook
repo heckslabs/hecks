@@ -1,4 +1,4 @@
-Hecks.bluebook "Inbox", version: "2026.04.26.1" do
+Hecks.bluebook "Inbox", version: "2026.05.12.1" do
   vision "The TODO log Chris writes against the codebase — short refs (iN) humans type, monotonic and stable for the lifetime of a record, status walking queued → done with optional reopen/drop"
   category "memory"
 
@@ -46,12 +46,12 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
     # ref : the short id humans type ("i42"). Monotonic, stable.
     # Assigned by NextRef at Add time and never reassigned, even
     # after Close or Drop, so historical mentions stay valid.
-    attribute :ref,          String
+    attribute :ref,          Ref
 
     # ---- Content ----
-    attribute :body,         String
-    attribute :priority,     String
-    attribute :posted_at,    String
+    attribute :body,         Body
+    attribute :priority,     Priority
+    attribute :posted_at,    Timestamp
 
     # ---- Lifecycle ----
     # status: queued | done | dropped
@@ -60,16 +60,58 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
     # dropped — abandoned (was `archive` in the shell ; renamed
     #           because it's a hard delete in the implementation
     #           and the bluebook should match what actually happens)
-    attribute :status,       String, default: "queued"
-    attribute :completed_at, String
-    attribute :resolution,   String
+    attribute :status,       Status, default: "queued"
+    attribute :completed_at, Timestamp
+    attribute :resolution,   Resolution
 
     # ---- Dream-wish receipt (i98 / 2026-04-26) -----------------
     # wish_id is the DreamWish id this filing satisfies. Empty for
     # plain filings. When set, Add also dispatches DreamWish.MarkFiled
     # so the wish exits the seed pool (the receipt mechanism
     # documented in aggregates/dream_wish.bluebook).
-    attribute :wish_id,      String
+    attribute :wish_id,      WishId
+
+    # ── Value-objects : the inbox's vocabulary ──
+    #
+    # 2026-05-12 : wrapped primitives per no-primitive-envy.
+
+    value_object "Ref" do
+      # The short id humans type ("i42"). Monotonic, stable, never
+      # reassigned.
+      attribute :value, String
+    end
+
+    value_object "Body" do
+      # Free-form prose of the filing — what the TODO actually is.
+      attribute :value, String
+    end
+
+    value_object "Priority" do
+      # Priority bucket : high / medium / normal / low. Bubbles
+      # urgency to the top of ListQueued.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC stamp — used for posted_at and completed_at.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token : queued / done / dropped.
+      attribute :value, String
+    end
+
+    value_object "Resolution" do
+      # One-line closing note attached on Close — commit sha, PR
+      # url, or free-text resolution.
+      attribute :value, String
+    end
+
+    value_object "WishId" do
+      # The DreamWish id this filing satisfies (empty when none).
+      attribute :value, String
+    end
 
     # ============================================================
     # COMMANDS
@@ -78,11 +120,11 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
     command "Add" do
       role "Chris"
       description "File a new TODO. The runtime allocates the next monotonic ref (NextRef query), stamps posted_at, and writes the row with status=queued. When wish_id is supplied, also fires DreamWish.MarkFiled so the wish exits the unfiled seed pool — the filing alone is the receipt, no implementation required."
-      attribute :ref,       String
-      attribute :priority,  String
-      attribute :body,      String
-      attribute :posted_at, String
-      attribute :wish_id,   String
+      attribute :ref,       Ref
+      attribute :priority,  Priority
+      attribute :body,      Body
+      attribute :posted_at, Timestamp
+      attribute :wish_id,   WishId
       then_set :ref,        to: :ref
       then_set :priority,   to: :priority
       then_set :body,       to: :body
@@ -96,8 +138,8 @@ Hecks.bluebook "Inbox", version: "2026.04.26.1" do
       role "Chris"
       description "Mark a queued item as done. Stamps completed_at and records a one-line resolution (commit sha, PR url, or free-text note). Reversible via Reopen."
       reference_to(Inbox)
-      attribute :completed_at, String
-      attribute :resolution,   String
+      attribute :completed_at, Timestamp
+      attribute :resolution,   Resolution
       given("must be queued") { status == "queued" }
       then_set :status,       to: "done"
       then_set :completed_at, to: :completed_at

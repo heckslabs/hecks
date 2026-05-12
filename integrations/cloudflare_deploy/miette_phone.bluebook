@@ -1,4 +1,4 @@
-Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
+Hecks.bluebook "MiettePhone", version: "2026.05.12.1" do
   vision "Talk to Miette from your phone — chat UI on Cloudflare Pages, inference proxied to Summer, password-gated"
   category "capability"
 
@@ -19,14 +19,41 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Authentication — pin gate ===
 
   aggregate "Gate", "Simple password gate — type the pin, get a session" do
-    attribute :pin_hash, String
-    attribute :session_token, String
-    attribute :expires_at, String
+    attribute :pin_hash, PinHash
+    attribute :session_token, SessionToken
+    attribute :expires_at, Timestamp
     attribute :locked, TrueClass
+
+    # ── Value-objects : the gate's vocabulary ──
+    #
+    # 2026-05-12 : wrapped primitives per no-primitive-envy.
+
+    value_object "PinHash" do
+      # The hashed form of the user's pin — stored, never the
+      # plaintext.
+      attribute :value, String
+    end
+
+    value_object "Pin" do
+      # The plaintext pin the user types on the phone keypad ;
+      # compared against pin_hash, never persisted.
+      attribute :value, String
+    end
+
+    value_object "SessionToken" do
+      # Opaque session token issued on successful auth and stored
+      # in KV with a TTL.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC stamp — when the session expires.
+      attribute :value, String
+    end
 
     command "Authenticate" do
       description "Check the pin, issue a session token stored in KV"
-      attribute :pin, String
+      attribute :pin, Pin
       # planner-reasonable: Authenticate is callable only when the gate
       # is locked (default). Successful auth flips locked → false; that
       # transition itself encodes the "pin matched" check by being the
@@ -53,19 +80,49 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
 
   aggregate "Conversation", "A chat thread between the user and Miette" do
     attribute :turns, list_of(Turn)
-    attribute :started_at, String
-    attribute :last_active, String
-    attribute :turn_count, Integer
+    attribute :started_at, Timestamp
+    attribute :last_active, Timestamp
+    attribute :turn_count, Count
     # session_active flips true when the gate is unlocked; both
     # StartConversation and SendMessage gate on it. Default false so
     # tests must walk through ActivateSession first (the planner picks
     # ActivateSession as the producer).
-    attribute :session_active, Boolean, default: false
+    attribute :session_active, ActiveFlag, default: false
+
+    # ── Value-objects : the conversation's vocabulary ──
 
     value_object "Turn" do
       attribute :role, String
       attribute :content, String
       attribute :timestamp, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC stamp — used for both started_at and
+      # last_active.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative count of turns in this thread.
+      attribute :value, Integer
+    end
+
+    value_object "ActiveFlag" do
+      # Boolean — true once the gate is unlocked. Both
+      # StartConversation and SendMessage require ActiveFlag(true).
+      attribute :value, Boolean
+    end
+
+    value_object "MessageContent" do
+      # The body of one turn — user message or Miette reply.
+      attribute :value, String
+    end
+
+    value_object "LatencyMs" do
+      # Round-trip latency in milliseconds from SendMessage to
+      # ReceiveReply ; useful for observability.
+      attribute :value, Integer
     end
 
     command "ActivateSession" do
@@ -84,7 +141,7 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
     command "SendMessage" do
       description "User sends a message — routed to Summer for inference"
       reference_to(Conversation)
-      attribute :content, String
+      attribute :content, MessageContent
       given { session_active == true }
       emits "MessageSent"
     end
@@ -92,8 +149,8 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
     command "ReceiveReply" do
       description "Summer's response arrives — appended to the thread"
       reference_to(Conversation)
-      attribute :content, String
-      attribute :latency_ms, Integer
+      attribute :content, MessageContent
+      attribute :latency_ms, LatencyMs
       emits "ReplyReceived"
     end
   end
@@ -101,14 +158,37 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Inference Proxy — bridges the edge to Summer ===
 
   aggregate "InferenceProxy", "Worker-side proxy that calls Summer's serve.py" do
-    attribute :summer_origin, String
-    attribute :status, String
-    attribute :timeout_ms, Integer
+    attribute :summer_origin, Origin
+    attribute :status, Status
+    attribute :timeout_ms, TimeoutMs
+
+    # ── Value-objects : the proxy's vocabulary ──
+
+    value_object "Origin" do
+      # The Summer endpoint URL — local tunnel or cloud URL.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Proxy health label : up / down / unknown.
+      attribute :value, String
+    end
+
+    value_object "TimeoutMs" do
+      # Outbound request timeout in milliseconds.
+      attribute :value, Integer
+    end
+
+    value_object "MessageContent" do
+      # Forwarded user message — same shape as Conversation's, but
+      # the proxy carries its own vocabulary (per-aggregate VO sets).
+      attribute :value, String
+    end
 
     command "ConfigureProxy" do
       description "Set the Summer endpoint — local tunnel or cloud URL"
-      attribute :summer_origin, String
-      attribute :timeout_ms, Integer
+      attribute :summer_origin, Origin
+      attribute :timeout_ms, TimeoutMs
       emits "ProxyConfigured"
       then_set :summer_origin, to: :summer_origin
       then_set :timeout_ms, to: :timeout_ms
@@ -117,7 +197,7 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
     command "RelayMessage" do
       description "Forward user message to Summer /conceive, stream response back"
       reference_to(Conversation)
-      attribute :content, String
+      attribute :content, MessageContent
       emits "MessageRelayed"
     end
 
@@ -130,9 +210,18 @@ Hecks.bluebook "MiettePhone", version: "2026.04.13.1" do
   # === Phone UI — the chat screen ===
 
   aggregate "ChatScreen", "Responsive mobile-first chat interface on Pages" do
-    attribute :theme, String
+    attribute :theme, Theme
     attribute :dark_mode, TrueClass
     attribute :streaming, TrueClass
+
+    # ── Value-objects : the chat screen's vocabulary ──
+
+    value_object "Theme" do
+      # The active theme name — currently light / dark, but
+      # held as a typed value so additional themes can land
+      # without primitive-bleed.
+      attribute :value, String
+    end
 
     command "RenderChat" do
       description "Build the chat HTML — message bubbles, input bar, send button"

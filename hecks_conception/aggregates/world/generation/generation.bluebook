@@ -1,4 +1,4 @@
-Hecks.bluebook "Generation", version: "2026.04.28.1" do
+Hecks.bluebook "Generation", version: "2026.05.12.1" do
   vision "A batch generation run — produces N domains, verifies each emission, deduplicates against the nursery. Per-emission verification keeps unformed shapes from landing as silent residue."
   category "world"
 
@@ -30,26 +30,63 @@ Hecks.bluebook "Generation", version: "2026.04.28.1" do
 
   aggregate "Generation", "A batch generation run — produces N domains, verifies each emission, deduplicates against the nursery" do
     identified_by :ref
-    attribute :ref, String
-    attribute :target_count, Integer
-    attribute :generated, Integer
-    attribute :valid, Integer
-    attribute :invalid, Integer
+    attribute :ref, Reference
+    attribute :target_count, Count
+    attribute :generated, Count
+    attribute :valid, Count
+    attribute :invalid, Count
     # malformed_count : emissions that passed validation but failed
     # the completeness-of-shape check. Distinct from invalid (valid
     # tracks DSL-syntax rejects ; malformed tracks shape holes).
-    attribute :malformed_count, Integer
+    attribute :malformed_count, Count
     # malformed_ids : identifiers of each unformed emission so the
     # operator can see exactly which ones are residue, not just a
     # summary count.
-    attribute :malformed_ids, list_of(String)
-    attribute :duration_seconds, Integer
-    attribute :status, String
+    attribute :malformed_ids, list_of(FormId)
+    attribute :duration_seconds, Seconds
+    attribute :status, Status, default: "pending"
+
+    # ── Value-objects : the generation's vocabulary ──
+    #
+    # 2026-05-12 : wrapped primitives per no-primitive-envy.
+
+    value_object "Reference" do
+      # The generation run's natural-key reference.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative tally — target_count, generated, valid,
+      # invalid, malformed_count.
+      attribute :value, Integer
+    end
+
+    value_object "FormId" do
+      # The identifier of one emitted form ; appended to
+      # malformed_ids when the form fails shape verification.
+      attribute :value, String
+    end
+
+    value_object "ShapeOk" do
+      # Yes/no token recorded by VerifyEmission ; "yes" when the
+      # form is well-formed, "no" when shape verification flags it.
+      attribute :value, String
+    end
+
+    value_object "Seconds" do
+      # Run duration in whole seconds, recorded on completion.
+      attribute :value, Integer
+    end
+
+    value_object "Status" do
+      # Lifecycle token : pending / running / complete.
+      attribute :value, String
+    end
 
     command "StartGeneration" do
       role "Creator"
       description "Begin generating domains in bulk"
-      attribute :target_count, Integer
+      attribute :target_count, Count
       emits "GenerationStarted"
       then_set :target_count, to: :target_count
       then_set :generated, to: 0
@@ -63,9 +100,9 @@ Hecks.bluebook "Generation", version: "2026.04.28.1" do
       role "System"
       description "Update generation progress"
       reference_to(Generation)
-      attribute :generated, Integer
-      attribute :valid, Integer
-      attribute :invalid, Integer
+      attribute :generated, Count
+      attribute :valid, Count
+      attribute :invalid, Count
       emits "ProgressRecorded"
       then_set :generated, to: :generated
       then_set :valid, to: :valid
@@ -76,8 +113,8 @@ Hecks.bluebook "Generation", version: "2026.04.28.1" do
       role "System"
       description "Walk one emitted form for completeness of shape. Fails when : a required attribute is missing, a description is empty, a reference_to target is not a declared aggregate in the generated domain, an aggregate has zero commands. Each failure appends the form's identifier to malformed_ids and increments malformed_count. The form is not rejected (invalid already tracks that) — it is flagged as unformed residue so the operator can inspect and fix it."
       reference_to(Generation)
-      attribute :form_id, String
-      attribute :form_ok, String
+      attribute :form_id, FormId
+      attribute :form_ok, ShapeOk
       emits "EmissionVerified"
       then_set :malformed_ids, append: :form_id
       then_set :malformed_count, increment: 1
@@ -87,7 +124,7 @@ Hecks.bluebook "Generation", version: "2026.04.28.1" do
       role "System"
       description "All domains generated, verified, and deduplicated"
       reference_to(Generation)
-      attribute :duration_seconds, Integer
+      attribute :duration_seconds, Seconds
       emits "GenerationCompleted"
       then_set :duration_seconds, to: :duration_seconds
       then_set :status, to: "complete"

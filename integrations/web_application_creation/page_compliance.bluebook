@@ -1,23 +1,64 @@
-Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
+Hecks.bluebook "PageCompliance", version: "2026.05.12.1" do
   vision "Generate pages from aggregates and validate them against the bluebook — no orphan elements"
   category "infrastructure"
+
+  # 2026-05-12 : primitives wrapped in typed value-objects per the
+  # no-primitive-envy discipline. Per-aggregate VO sets ; duplication
+  # between DomainCompliance and Page is fine.
 
   # === Validation ===
 
   aggregate "DomainCompliance", "Validate that the web app follows its bluebook — no orphan elements" do
-    attribute :app_path, String
-    attribute :bluebook_path, String
-    attribute :total_elements, Integer
-    attribute :tagged_elements, Integer
-    attribute :orphan_elements, Integer
-    attribute :missing_commands, list_of(String)
-    attribute :compliance_score, Float
+    attribute :app_path, Path
+    attribute :bluebook_path, Path
+    attribute :total_elements, Count
+    attribute :tagged_elements, Count
+    attribute :orphan_elements, Count
+    attribute :missing_commands, list_of(CommandName)
+    attribute :compliance_score, Score
+
+    # ── Value-objects : the compliance scanner's vocabulary ──
+
+    value_object "Path" do
+      # Filesystem path — either to the web app directory or to its
+      # source bluebook.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Non-negative count of HTML elements bucketed by tagging
+      # status (total / tagged / orphan).
+      attribute :value, Integer
+    end
+
+    value_object "CommandName" do
+      # The dotted Aggregate.Command name (e.g. "Order.Place") of a
+      # bluebook command that has no corresponding form in the app.
+      attribute :value, String
+    end
+
+    value_object "Score" do
+      # Compliance score in [0.0, 1.0] — tagged_elements / total.
+      attribute :value, Float
+    end
+
+    value_object "ElementMarkup" do
+      # The raw HTML markup of a flagged element — recorded so the
+      # designer can grep it back to its source.
+      attribute :value, String
+    end
+
+    value_object "Location" do
+      # Source location of a flagged element ; file path + line
+      # number in "<path>:<line>" form.
+      attribute :value, String
+    end
 
     command "ScanApp" do
       role "System"
       description "Parse every HTML element, extract domain tags, compare against bluebook"
-      attribute :app_path, String
-      attribute :bluebook_path, String
+      attribute :app_path, Path
+      attribute :bluebook_path, Path
       emits "AppScanned"
       then_set :app_path, to: :app_path
       then_set :bluebook_path, to: :bluebook_path
@@ -27,10 +68,10 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
       role "System"
       description "Calculate compliance score — tagged elements / total elements"
       reference_to(DomainCompliance)
-      attribute :total_elements, Integer
-      attribute :tagged_elements, Integer
-      attribute :orphan_elements, Integer
-      attribute :missing_commands, list_of(String)
+      attribute :total_elements, Count
+      attribute :tagged_elements, Count
+      attribute :orphan_elements, Count
+      attribute :missing_commands, list_of(CommandName)
       emits "ComplianceReported"
       then_set :total_elements, to: :total_elements
       then_set :tagged_elements, to: :tagged_elements
@@ -42,8 +83,8 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
       role "System"
       description "An HTML element has no domain tag — it's outside the spec"
       reference_to(DomainCompliance)
-      attribute :element, String
-      attribute :location, String
+      attribute :element, ElementMarkup
+      attribute :location, Location
       emits "OrphanFlagged"
     end
 
@@ -51,7 +92,7 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
       role "System"
       description "A command exists in the bluebook but has no form in the app"
       reference_to(DomainCompliance)
-      attribute :command_name, String
+      attribute :command_name, CommandName
       emits "MissingCommandFlagged"
     end
   end
@@ -59,20 +100,54 @@ Hecks.bluebook "PageCompliance", version: "2026.05.11.1" do
   # === Page Generation ===
 
   aggregate "Page", "A generated page — one per aggregate or dashboard" do
-    attribute :name, String
-    attribute :page_type, String
-    attribute :aggregate_name, String
-    attribute :route, String
-    attribute :components, list_of(String)
-    attribute :status, String
+    attribute :name, Name
+    attribute :page_type, PageType
+    attribute :aggregate_name, AggregateName
+    attribute :route, Route
+    attribute :components, list_of(ComponentName)
+    attribute :status, Status, default: "pending"
+
+    # ── Value-objects : the page's vocabulary ──
+
+    value_object "Name" do
+      # Display name of the generated page (e.g. "Orders index").
+      attribute :value, String
+    end
+
+    value_object "PageType" do
+      # The page archetype : index / show / form / dashboard. Picks
+      # the renderer's template.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The bluebook aggregate this page is generated from.
+      attribute :value, String
+    end
+
+    value_object "Route" do
+      # The URL path the page is mounted at (e.g. "/orders/:id").
+      attribute :value, String
+    end
+
+    value_object "ComponentName" do
+      # The name of a UI component slotted into the page (form,
+      # table, banner, etc.). list_of(ComponentName) walks composition.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token : pending / generated / customized / validated.
+      attribute :value, String
+    end
 
     command "GeneratePage" do
       role "System"
       description "Create a page from an aggregate — index, show, form, dashboard"
-      attribute :name, String
-      attribute :page_type, String
-      attribute :aggregate_name, String
-      attribute :route, String
+      attribute :name, Name
+      attribute :page_type, PageType
+      attribute :aggregate_name, AggregateName
+      attribute :route, Route
       emits "PageGenerated"
       then_set :name, to: :name
       then_set :page_type, to: :page_type

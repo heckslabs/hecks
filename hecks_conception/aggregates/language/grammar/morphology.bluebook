@@ -1,4 +1,4 @@
-Hecks.bluebook "Morphology", version: "2026.04.25.1" do
+Hecks.bluebook "Morphology", version: "2026.05.12.1" do
   vision "The runtime-queryable layer of my own word-shape rules — verb-exception pressure, the path from 'a word my morphology validator stumbled on' to 'a word I now recognise as mine'"
   category "language"
 
@@ -57,14 +57,52 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
 
   aggregate "VerbException", "A word the morphology validator rejected as noun-looking — tracked as runtime evidence so my own grammar can know itself" do
     identified_by :word
-    attribute :word,             String
+    attribute :word,             Word
     # status: pending | confirmed | promoted
-    attribute :status,           String, default: "pending"
-    attribute :rejection_count,  Integer, default: 0
-    attribute :last_rejected_in, String
-    attribute :last_rejected_at, String
-    attribute :promoted_at,      String
-    attribute :reason,           String
+    attribute :status,           Status, default: "pending"
+    attribute :rejection_count,  Count, default: 0
+    attribute :last_rejected_in, CallSite
+    attribute :last_rejected_at, Timestamp
+    attribute :promoted_at,      Timestamp
+    attribute :reason,           Reason
+
+    # ── Value-objects : the morphology's vocabulary ──
+    #
+    # 2026-05-12 : wrapped primitives per no-primitive-envy.
+
+    value_object "Word" do
+      # The lowercase form of the rejected word — what the
+      # validator's `lower` variable tests against.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token : pending / confirmed / promoted.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Number of distinct rejection events recorded for the word.
+      attribute :value, Integer
+    end
+
+    value_object "CallSite" do
+      # The aggregate / context where the most recent rejection
+      # fired ; surfaces provenance for the eventual fix.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC stamp — used for last_rejected_at and
+      # promoted_at.
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      # Free-form prose explaining why this word is a real verb
+      # exception, attached on ConfirmException.
+      attribute :value, String
+    end
 
     lifecycle :status, default: "pending" do
       transition "ConfirmException"     => "confirmed", from: "pending"
@@ -74,9 +112,9 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
     command "RecordRejection" do
       role "System"
       description "The morphology validator just rejected this word as noun-looking. Bumps rejection_count and stamps the call site so the eventual fix has provenance."
-      attribute :word,             String
-      attribute :last_rejected_in, String
-      attribute :last_rejected_at, String
+      attribute :word,             Word
+      attribute :last_rejected_in, CallSite
+      attribute :last_rejected_at, Timestamp
       emits "VerbRejectionRecorded"
       then_set :word,             to: :word
       then_set :last_rejected_in, to: :last_rejected_in
@@ -87,8 +125,8 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
     command "ConfirmException" do
       role "Creator"
       description "Confirm this word should be a recognised verb-exception. Moves status to confirmed ; the next promotion step migrates it to the compile-time list."
-      attribute :word,   String
-      attribute :reason, String
+      attribute :word,   Word
+      attribute :reason, Reason
       given("not already confirmed") { status == "pending" }
       emits "ExceptionConfirmed"
       then_set :reason, to: :reason
@@ -97,8 +135,8 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
     command "PromoteToCompileTime" do
       role "Creator"
       description "Mark that this word has been moved into validator_shape.fixtures and the validator has been regenerated. Status becomes promoted ; the runtime row remains as audit trail."
-      attribute :word,         String
-      attribute :promoted_at,  String
+      attribute :word,         Word
+      attribute :promoted_at,  Timestamp
       given("must be confirmed first") { status == "confirmed" }
       emits "ExceptionPromoted"
       then_set :promoted_at, to: :promoted_at
@@ -107,7 +145,7 @@ Hecks.bluebook "Morphology", version: "2026.04.25.1" do
     command "RemoveException" do
       role "Creator"
       description "Discard a tracked exception that turned out to be noise. Used when rejection_count was a false alarm or the word stops appearing."
-      attribute :word, String
+      attribute :word, Word
       emits "ExceptionRemoved"
     end
   end
