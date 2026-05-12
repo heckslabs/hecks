@@ -24,7 +24,7 @@
 //!   let rust = run_boot::discover::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/run_boot/discover.rs —
+//! [antibody-exempt: rust/src/specializer/run_boot/discover.rs —
 //!  i147 Wave 2 — Rust-native specializer for run_boot/discover.rs]
 
 use crate::specializer::util;

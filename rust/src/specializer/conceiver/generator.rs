@@ -25,7 +25,7 @@
 //!   let rust = conceiver::generator::emit(repo_root)?;
 //!   print!("{}", rust);
 //!
-//! [antibody-exempt: storehouse/src/specializer/conceiver/generator.rs —
+//! [antibody-exempt: rust/src/specializer/conceiver/generator.rs —
 //!  i147 wave 2 — Rust-native specializer for conceiver/generator.rs]
 
 use crate::specializer::util;

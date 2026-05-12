@@ -19,7 +19,7 @@
 //! Usage:
 //!   let block = emit_command_naming_support(&fixtures);
 //!
-//! [antibody-exempt: storehouse/src/specializer/validator_morphology.rs —
+//! [antibody-exempt: rust/src/specializer/validator_morphology.rs —
 //!  Phase D — Rust-native specializer implementation]
 
 use crate::ir::Fixture;
