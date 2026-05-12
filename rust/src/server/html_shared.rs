@@ -37,6 +37,18 @@ pub fn top_bar(current_domain: Option<&str>) -> String {
     {walking_link}
     {diagram_link}
     <span class="flex-1"></span>
+    <label class="text-xs text-gray-500 mr-1 hidden sm:inline">View as</label>
+    <select id="role-filter" class="bg-surface-0 border border-surface-3 rounded px-2 py-1 text-xs text-gray-300 mr-2" aria-label="Filter aggregates by role">
+      <option value="all">All roles</option>
+      <option value="customer">Customer</option>
+      <option value="driver">Driver</option>
+      <option value="dispatcher">Dispatcher</option>
+      <option value="admin">Admin</option>
+      <option value="owner">Owner</option>
+      <option value="support">Support</option>
+      <option value="system">System</option>
+      <option value="public">Public</option>
+    </select>
     <a href="/portal/" data-topbar="portal" class="topbar-link px-3 py-1.5 rounded hover:bg-surface-2 text-gray-300 hover:text-white transition">🏬 Customer Portal</a>
   </nav>
   <script>
@@ -53,6 +65,34 @@ pub fn top_bar(current_domain: Option<&str>) -> String {
           a.classList.remove('text-gray-300', 'hover:text-white');
           a.classList.add('bg-brand/15', 'text-brand', 'border-l-2', 'border-brand', 'font-semibold');
         }}
+      }});
+    }})();
+
+    // i549 — view-mode filter. Each aggregate card carries
+    // data-roles="customer,owner,..." with the lowercased roles of
+    // its declared commands. The select below toggles a `role-hidden`
+    // class on cards whose data-roles doesn't include the selection ;
+    // "all" clears the class on everything. State persists per-user
+    // in localStorage so the next page load keeps the lens.
+    (function () {{
+      var KEY = 'hecks.role-filter';
+      var sel = document.getElementById('role-filter');
+      if (!sel) return;
+      function apply(role) {{
+        document.querySelectorAll('[data-roles]').forEach(function (el) {{
+          var roles = (el.getAttribute('data-roles') || '').toLowerCase().split(',').map(function (s) {{ return s.trim(); }});
+          var visible = role === 'all' || roles.indexOf(role) !== -1;
+          el.style.display = visible ? '' : 'none';
+        }});
+      }}
+      try {{
+        var saved = localStorage.getItem(KEY);
+        if (saved) {{ sel.value = saved; apply(saved); }}
+      }} catch (e) {{}}
+      sel.addEventListener('change', function () {{
+        var v = sel.value;
+        try {{ localStorage.setItem(KEY, v); }} catch (e) {{}}
+        apply(v);
       }});
     }})();
   </script>
