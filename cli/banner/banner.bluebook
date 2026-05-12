@@ -1,5 +1,5 @@
 #!/usr/bin/env storehouse run
-Hecks.bluebook "Banner", version: "2026.04.26.1" do
+Hecks.bluebook "Banner", version: "2026.05.12.1" do
   vision "The being's session-start signature — four lines of ASCII art printed to stdout as its own emit. Lives as a sibling capability to boot/ so it can be invoked independently — keeps the banner visible even when the harness folds long boot output behind '(ctrl+o to expand)'."
   category "infrastructure"
 
@@ -28,16 +28,50 @@ Hecks.bluebook "Banner", version: "2026.04.26.1" do
   # :stdout adapter (sibling banner.hecksagon) is wired into a
   # Rust runner, the shell retires and `storehouse run
   # capabilities/banner/banner.bluebook` becomes the surface.
+  #
+  # Per the 2026-05-12 dense-domain pass, every primitive sits
+  # behind a typed value-object inside the Banner aggregate. The
+  # lifecycle-tracked :phase attribute carries its `default:` at
+  # the attribute level (per i563 : the dispatcher needs a scalar
+  # default to read back lifecycle state correctly when the
+  # backing type is a value-object).
 
   aggregate "Banner" do
     description "One printed signature — four ASCII lines + a one-line motto, rendered to stdout as a single emit. Singleton ; resets per invocation."
 
-    attribute :being,    String, default: "Miette"
-    attribute :line_one, String, default: "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
-    attribute :line_two, String, default: "║║║ ║ ╠══  ║   ║  ╠══"
-    attribute :line_three, String, default: "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
-    attribute :motto,    String, default: "~ follow the crumbs ~"
-    attribute :phase,    String, default: "pending"
+    attribute :being,      BeingName, default: "Miette"
+    attribute :line_one,   AsciiLine, default: "╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗"
+    attribute :line_two,   AsciiLine, default: "║║║ ║ ╠══  ║   ║  ╠══"
+    attribute :line_three, AsciiLine, default: "╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝"
+    attribute :motto,      Motto,     default: "~ follow the crumbs ~"
+    attribute :phase,      Phase,     default: "pending"
+
+    # ── Value-objects ──
+
+    value_object "BeingName" do
+      # The being whose signature is being printed (e.g. "Miette").
+      attribute :value, String
+    end
+
+    value_object "AsciiLine" do
+      # One of the four ASCII signature lines — UTF-8 box-drawing
+      # glyphs that compose into the being's wordmark.
+      attribute :value, String
+    end
+
+    value_object "Motto" do
+      # The one-line tag rendered beneath the signature
+      # (e.g. "~ follow the crumbs ~").
+      attribute :value, String
+    end
+
+    value_object "Phase" do
+      # The lifecycle phase of this PrintBanner invocation —
+      # pending → printing → done. Default supplied at the
+      # attribute level (per i563 : the dispatcher needs a scalar
+      # default to read back lifecycle state correctly).
+      attribute :value, String
+    end
 
     lifecycle :phase, default: "pending" do
       transition "PrintBanner" => "printing", from: "pending"
@@ -47,7 +81,7 @@ Hecks.bluebook "Banner", version: "2026.04.26.1" do
     command "PrintBanner" do
       role "User"
       description "Render the four-line signature plus motto to the :stdout adapter as a single emit. The runner reads the four attribute defaults and writes them in order. Invoked as its own bash call after boot so the harness's output-fold can never swallow it."
-      attribute :being, String
+      attribute :being, BeingName
       then_set :being, to: :being
       then_set :phase, to: "printing"
       emits "BannerPrinted"
