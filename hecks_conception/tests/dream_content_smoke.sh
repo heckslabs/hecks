@@ -62,22 +62,34 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i565 — worktree-aware MAIN_REPO anchor. From a .claude/worktrees/*
+# checkout, REPO_ROOT/../miette doesn't exist (worktrees have no
+# sibling miette repo and no rust/target/). Resolve the canonical
+# main checkout via git-common-dir so both the sibling-body link
+# and the storehouse binary find their canonical location. Same
+# pattern as i561's landed fix. The previous $HOME-rooted fallback
+# masked the bug — i565 removes it now that MAIN_REPO is reliable.
+GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
+case "$GIT_COMMON" in
+  /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
+  ?*) MAIN_REPO="$(cd "$REPO_ROOT/$(dirname "$GIT_COMMON")" && pwd)" ;;
+  *)  MAIN_REPO="$REPO_ROOT" ;;
+esac
+
 # i117 Round 4 — body shells moved to ~/Projects/miette/body/.
-# Worktree-aware lookup : sibling-repo, then $HOME-rooted miette,
-# finally conception fallback for legacy paths.
 BODY_DIR="${HECKS_BODY_DIR:-}"
 [ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
   BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
-[ -z "$BODY_DIR" ] && [ -d "$HOME/Projects/miette/body" ] && \
-  BODY_DIR="$(cd "$HOME/Projects/miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && [ -d "$MAIN_REPO/../miette/body" ] && \
+  BODY_DIR="$(cd "$MAIN_REPO/../miette/body" && pwd)"
 [ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
 
 if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
 else
   echo "FAIL — can't find storehouse binary"
   exit 2
@@ -198,7 +210,7 @@ HECKS_BIN="$HECKS" \
   --emit SleepEntered:Consciousness:consciousness \
   --emit RemEntered:Consciousness:consciousness \
   --emit PhaseElapsed:Consciousness:consciousness \
-  --dispatch Dream.GatherSeeds \
+  --dispatch Body::Dream.GatherSeeds \
   name=dream \
   recent_dreams_seed="$RECENT_DREAMS_SEED" \
   body_state_seed="$BODY_STATE_SEED" \

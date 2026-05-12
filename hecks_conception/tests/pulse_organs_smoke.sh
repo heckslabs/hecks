@@ -40,10 +40,26 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
+# i565 — worktree-aware MAIN_REPO anchor. From a .claude/worktrees/*
+# checkout, REPO_ROOT/../miette doesn't exist (worktrees have no
+# sibling miette repo and no rust/target/). Resolve the canonical
+# main checkout via git-common-dir so both the sibling-body link
+# and the storehouse binary find their canonical location. Same
+# pattern as i561's landed fix on pulse_fanout_smoke.
+GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
+case "$GIT_COMMON" in
+  /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
+  ?*) MAIN_REPO="$(cd "$REPO_ROOT/$(dirname "$GIT_COMMON")" && pwd)" ;;
+  *)  MAIN_REPO="$REPO_ROOT" ;;
+esac
+
 # i117 Round 4 — body bluebooks live in ~/Projects/miette/body/.
+# i565 — try MAIN_REPO/../miette before falling back to CONCEPT_DIR.
 BODY_DIR="${HECKS_BODY_DIR:-}"
 [ -z "$BODY_DIR" ] && [ -d "$REPO_ROOT/../miette/body" ] && \
   BODY_DIR="$(cd "$REPO_ROOT/../miette/body" && pwd)"
+[ -z "$BODY_DIR" ] && [ -d "$MAIN_REPO/../miette/body" ] && \
+  BODY_DIR="$(cd "$MAIN_REPO/../miette/body" && pwd)"
 [ -z "$BODY_DIR" ] && BODY_DIR="$CONCEPT_DIR"
 
 # Find the storehouse binary. Prefer HECKS_BIN override; otherwise the
@@ -52,8 +68,8 @@ if [ -n "${HECKS_BIN:-}" ]; then
   HECKS="$HECKS_BIN"
 elif [ -x "$REPO_ROOT/rust/target/release/storehouse" ]; then
   HECKS="$REPO_ROOT/rust/target/release/storehouse"
-elif [ -x "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse" ]; then
-  HECKS="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
+elif [ -x "$MAIN_REPO/rust/target/release/storehouse" ]; then
+  HECKS="$MAIN_REPO/rust/target/release/storehouse"
 else
   echo "FAIL — can't find storehouse binary"
   exit 2
