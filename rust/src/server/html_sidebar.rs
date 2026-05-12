@@ -150,25 +150,35 @@ pub fn sidebar_tree(
         }
 
         // References — local jumps to other aggregates on this page,
-        // cross-domain jumps to a sibling domain.
+        // cross-domain references to an aggregate in a sibling domain.
+        // i548-follow-up : the framework runtime here only sees domain
+        // names, not the aggregate inventory of each one ; cross-domain
+        // aggregates (e.g. AuthIdentity from the framework's auth
+        // adapter) get rendered as TEXT, not a dead link to
+        // `/domains/<target>` that would 404. When the runtime gains a
+        // cross-domain aggregate index, this can be re-elevated to a
+        // navigable jump.
         if !agg.references.is_empty() {
             out.push_str(r#"<div class="px-2 pt-1 text-[0.6rem] font-bold uppercase tracking-widest text-gray-600">References</div>"#);
             for r in &agg.references {
-                let cross = !active_domain.aggregates.iter().any(|a| a.name == r.target);
-                let (href, color, marker) = if cross {
-                    (format!("/domains/{}", r.target), "text-cyan-400", "↗")
-                } else {
-                    (format!("#agg-{}", r.target), "text-gray-300", "→")
-                };
-                out.push_str(&format!(
-                    r#"<a href="{href}" class="flex items-center gap-1.5 px-2 py-1 rounded text-xs {color} hover:bg-brand/10 hover:text-brand transition truncate">
-  <span class="text-[0.55rem]">{marker}</span> {label}
+                let local = active_domain.aggregates.iter().any(|a| a.name == r.target);
+                if local {
+                    let href = format!("#agg-{}", r.target);
+                    out.push_str(&format!(
+                        r#"<a href="{href}" class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-gray-300 hover:bg-brand/10 hover:text-brand transition truncate">
+  <span class="text-[0.55rem]">→</span> {label}
 </a>"#,
-                    href = href,
-                    color = color,
-                    marker = marker,
-                    label = esc(&display_name(&r.target)),
-                ));
+                        href = href,
+                        label = esc(&display_name(&r.target)),
+                    ));
+                } else {
+                    out.push_str(&format!(
+                        r#"<div class="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-cyan-400/60 cursor-default truncate" title="Cross-domain reference — not in any loaded domain">
+  <span class="text-[0.55rem]">↗</span> {label} <span class="text-[0.55rem] text-gray-600 ml-auto">ext</span>
+</div>"#,
+                        label = esc(&display_name(&r.target)),
+                    ));
+                }
             }
         }
 
