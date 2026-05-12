@@ -1,4 +1,4 @@
-Hecks.bluebook "IrShape", version: "2026.05.12.1" do
+Hecks.bluebook "IrShape", version: "2026.05.12.2" do
   vision "The shape of storehouse/src/ir.rs as a bluebook — i147 Wave 4-C target. The canonical IR struct vocabulary that every downstream specializer (parser, dump, behaviors_parser, hecksagon_parser, fixtures_parser) reads to bind against field names and types. Making this declarative closes the stale-coupling risk : adding a struct field is a fixture-row edit, not a Rust hand-edit + cascading specializer chase."
   category "autophagy"
 
@@ -60,120 +60,117 @@ Hecks.bluebook "IrShape", version: "2026.05.12.1" do
   # and "identified_by") could in principle consult ir_shape's Field
   # rows to derive their own field knowledge. That refactor is out of
   # scope for this PR but the IR-as-data IS the prerequisite.
+  #
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The three row-types — Type, Field,
+  # Variant — collapse to value_objects on the IrShape root ; the row
+  # catalog lives in the sibling fixtures file. EmitIr is the
+  # semantic command — given the row set, emit storehouse/src/ir.rs as
+  # a single Rust source string.
 
-  aggregate "Type", "One top-level item in ir.rs — struct / enum / impl" do
-    attribute :name,         TypeName
-    # order: emission order in the .rs file
-    attribute :order,        Order
-    # body_kind: struct | enum | impl
-    attribute :body_kind,    BodyKind
-    # derives: comma-separated list inside `#[derive(...)]` ; empty for impl
-    attribute :derives,      Derives, default: ""
-    # impl_target: for body_kind=impl ; the `impl <X> for <Y>` portion,
-    # written verbatim (e.g. "fmt::Display for Domain"). Empty for
-    # struct / enum rows.
-    attribute :impl_target,  ImplTarget, default: ""
-    # body_snippet: for body_kind=impl only ; relative path (under repo
-    # root) to a .rs.frag holding the impl body — everything between the
-    # opening `{` and closing `}`, indented as it should appear, NOT
-    # including the braces themselves.
-    attribute :body_snippet, BodySnippet, default: ""
-    # doc_snippet: optional ; relative path to a .rs.frag holding the
-    # doc comment that precedes `#[derive(...)]` (or `impl`) for this
-    # Type. Verbatim — including trailing newline. Empty when no doc.
-    attribute :doc_snippet,  DocSnippet, default: ""
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  Description, default: ""
+  aggregate "IrShape", "Static schema for the ir.rs codegen target — Type + Field + Variant rows live in the sibling fixtures file" do
+    identified_by :target_rs
 
-    value_object "TypeName" do
-      attribute :value, String
-    end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "BodyKind" do
-      attribute :value, String
-    end
-    value_object "Derives" do
-      attribute :value, String
-    end
-    value_object "ImplTarget" do
-      attribute :value, String
-    end
-    value_object "BodySnippet" do
-      attribute :value, String
-    end
-    value_object "DocSnippet" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
+    # ---- TargetRs ----------------------------------------------------
 
-  aggregate "Field", "One pub field inside a struct row — order driven by 'order'" do
-    # type_name: foreign-key-like link to Type.name (struct name)
-    attribute :type_name,    TypeName
-    # order: position within the struct's field list (1-based)
-    attribute :order,        Order
-    # name: field name (snake_case)
-    attribute :name,         FieldName
-    # field_type: Rust type written verbatim — e.g. "String",
-    # "Option<String>", "Vec<Aggregate>", "Vec<(String, String)>"
-    attribute :field_type,   FieldType
-    # doc_snippet: optional ; relative path to a .rs.frag holding the
-    # doc comment that precedes this field. Already 4-space indented to
-    # match the field. Verbatim. Empty when no doc.
-    attribute :doc_snippet,  DocSnippet, default: ""
+    value_object "TargetRs" do
+      attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
+    end
 
-    value_object "TypeName" do
-      attribute :value, String
-    end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "FieldName" do
-      attribute :value, String
-    end
-    value_object "FieldType" do
-      attribute :value, String
-    end
-    value_object "DocSnippet" do
-      attribute :value, String
-    end
-  end
+    # ---- EmittedRs ---------------------------------------------------
 
-  aggregate "Variant", "One variant in an enum row" do
-    # type_name: foreign-key-like link to Type.name (enum name)
-    attribute :type_name,    TypeName
-    # order: position within the enum's variant list (1-based)
-    attribute :order,        Order
-    # name: variant identifier
-    attribute :name,         VariantName
-    # body: optional struct-variant payload, written verbatim — e.g.
-    # `{ value: String }`. The specializer emits `Name <body>,` when
-    # body is non-empty, `Name,` otherwise. Empty by default for the
-    # common bare-variant case.
-    attribute :body,         VariantBody, default: ""
-    # doc_snippet: optional ; relative path to a .rs.frag holding the
-    # doc comment that precedes this variant. Already 4-space indented.
-    # Empty when no doc.
-    attribute :doc_snippet,  DocSnippet, default: ""
+    value_object "EmittedRs" do
+      attribute :value, String
+    end
 
-    value_object "TypeName" do
-      attribute :value, String
+    # ---- Type --------------------------------------------------------
+    #
+    # One top-level item in ir.rs — struct / enum / impl.
+
+    value_object "Type" do
+      description "One top-level item in ir.rs — struct / enum / impl"
+      attribute :name,         String
+      # order: emission order in the .rs file
+      attribute :order,        Integer
+      # body_kind: struct | enum | impl
+      attribute :body_kind,    String
+      # derives: comma-separated list inside `#[derive(...)]` ; empty for impl
+      attribute :derives,      String
+      # impl_target: for body_kind=impl ; the `impl <X> for <Y>` portion,
+      # written verbatim (e.g. "fmt::Display for Domain"). Empty for
+      # struct / enum rows.
+      attribute :impl_target,  String
+      # body_snippet: for body_kind=impl only ; relative path (under repo
+      # root) to a .rs.frag holding the impl body — everything between the
+      # opening `{` and closing `}`, indented as it should appear, NOT
+      # including the braces themselves.
+      attribute :body_snippet, String
+      # doc_snippet: optional ; relative path to a .rs.frag holding the
+      # doc comment that precedes `#[derive(...)]` (or `impl`) for this
+      # Type. Verbatim — including trailing newline. Empty when no doc.
+      attribute :doc_snippet,  String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,  String
     end
-    value_object "Order" do
-      attribute :value, Integer
+
+    # ---- Field -------------------------------------------------------
+    #
+    # One pub field inside a struct row — order driven by 'order'.
+
+    value_object "Field" do
+      description "One pub field inside a struct row — order driven by 'order'"
+      # type_name: foreign-key-like link to Type.name (struct name)
+      attribute :type_name,    String
+      # order: position within the struct's field list (1-based)
+      attribute :order,        Integer
+      # name: field name (snake_case)
+      attribute :name,         String
+      # field_type: Rust type written verbatim — e.g. "String",
+      # "Option<String>", "Vec<Aggregate>", "Vec<(String, String)>"
+      attribute :field_type,   String
+      # doc_snippet: optional ; relative path to a .rs.frag holding the
+      # doc comment that precedes this field. Already 4-space indented to
+      # match the field. Verbatim. Empty when no doc.
+      attribute :doc_snippet,  String
     end
-    value_object "VariantName" do
-      attribute :value, String
+
+    # ---- Variant -----------------------------------------------------
+    #
+    # One variant in an enum row.
+
+    value_object "Variant" do
+      description "One variant in an enum row"
+      # type_name: foreign-key-like link to Type.name (enum name)
+      attribute :type_name,    String
+      # order: position within the enum's variant list (1-based)
+      attribute :order,        Integer
+      # name: variant identifier
+      attribute :name,         String
+      # body: optional struct-variant payload, written verbatim — e.g.
+      # `{ value: String }`. The specializer emits `Name <body>,` when
+      # body is non-empty, `Name,` otherwise. Empty by default for the
+      # common bare-variant case.
+      attribute :body,         String
+      # doc_snippet: optional ; relative path to a .rs.frag holding the
+      # doc comment that precedes this variant. Already 4-space indented.
+      # Empty when no doc.
+      attribute :doc_snippet,  String
     end
-    value_object "VariantBody" do
-      attribute :value, String
-    end
-    value_object "DocSnippet" do
-      attribute :value, String
+
+    attribute :target_rs, TargetRs
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitIr" do
+      role "Autophagy"
+      description "Walk Type rows in `order` ascending. For struct rows, emit `#[derive(<derives>)] pub struct <name> { <fields> }` where fields come from Field rows filtered by type_name == this Type.name, sorted by order. For enum rows, emit `#[derive(<derives>)] pub enum <name> { <variants> }` where variants come from Variant rows filtered by type_name. For impl rows, emit `impl <impl_target> { <body_snippet contents> }`. For verbatim_section rows, emit body_snippet contents raw. Prepend each Type/Field/Variant row's doc_snippet when present. Concatenate the rendered types and return the bytes the caller writes to TargetRs. Byte-identical against the hand-written storehouse/src/ir.rs at i147 W4-C."
+      attribute :target_rs, TargetRs
+      emits "IrEmitted"
+      then_set :target_rs, to: :target_rs
     end
   end
 end
