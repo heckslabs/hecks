@@ -1,0 +1,126 @@
+Hecks.behaviors "RenameDrift" do
+  vision "Behavioral tests for the RenameDriftCheck aggregate — the bluebook-driven dispatch that catches stale references after capability or aggregate renames. Tests exercise the lifecycle (idle → scanning → checking → done | violations_found), the Finding accretion shape, and the Tools.* cascade composition via cross-domain trigger emission."
+
+  # ── Scan : the lifecycle entry point ─────────────────────────────
+  #
+  # Scan flips status idle → scanning and pins ref + repo_root. The
+  # cascade into Tools.Glob is bluebook-described as a policy ; here
+  # we only assert the dispatch records the right state.
+
+  test "Scan records ref + repo_root" do
+    tests "Scan", on: "RenameDriftCheck"
+    input  ref:       { value: "scan-1" },
+           repo_root: { value: "/tmp/fake-repo" }
+    expect ref:       { value: "scan-1" },
+           repo_root: { value: "/tmp/fake-repo" }
+  end
+
+  test "Scan emits ScanStarted" do
+    tests "Scan", on: "RenameDriftCheck"
+    input  ref:       { value: "scan-2" },
+           repo_root: { value: "/tmp/another-repo" }
+    expect emits: ["ScanStarted"]
+  end
+
+  test "Scan walks lifecycle idle → scanning" do
+    tests "Scan", on: "RenameDriftCheck"
+    input  ref:       { value: "scan-3" },
+           repo_root: { value: "/tmp/lifecycle" }
+    expect status: "scanning"
+  end
+
+  # ── RecordFinding : the accretion shape ──────────────────────────
+  #
+  # Each stale reference dispatches RecordFinding ; the entity accretes
+  # in the findings collection. The first RecordFinding after Scan
+  # walks status into "checking" (the lifecycle's only branch that
+  # captures partial-scan state).
+
+  test "RecordFinding appends a Finding entity" do
+    tests "RecordFinding", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "find-1" },
+                   repo_root: { value: "/tmp/finds" }
+    input  file_path:        { value: "/tmp/finds/a.rs" },
+           line_no:          { value: 12 },
+           reference_kind:   { value: "include_str" },
+           reference_target: { value: "missing/path.bluebook" }
+    expect findings_size: 1
+  end
+
+  test "RecordFinding emits FindingRecorded" do
+    tests "RecordFinding", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "find-2" },
+                   repo_root: { value: "/tmp/finds" }
+    input  file_path:        { value: "/tmp/finds/b.bluebook" },
+           line_no:          { value: 42 },
+           reference_kind:   { value: "reference_to" },
+           reference_target: { value: "StaleAggregateName" }
+    expect emits: ["FindingRecorded"]
+  end
+
+  test "RecordFinding walks lifecycle scanning → checking" do
+    tests "RecordFinding", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "find-3" },
+                   repo_root: { value: "/tmp/finds" }
+    input  file_path:        { value: "/tmp/finds/c.rs" },
+           line_no:          { value: 7 },
+           reference_kind:   { value: "antibody_exempt" },
+           reference_target: { value: "deleted/file.rb" }
+    expect status: "checking"
+  end
+
+  # ── Pass : the clean-repo terminal ───────────────────────────────
+  #
+  # Pass finalizes the check after Scan with zero findings ; status
+  # walks to "done" and violation_count is zeroed.
+
+  test "Pass finalizes with zero violations" do
+    tests "Pass", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "pass-1" },
+                   repo_root: { value: "/tmp/clean" }
+    expect violation_count: 0
+  end
+
+  test "Pass emits ScanPassed" do
+    tests "Pass", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "pass-2" },
+                   repo_root: { value: "/tmp/clean" }
+    expect emits: ["ScanPassed"]
+  end
+
+  test "Pass walks lifecycle scanning → done" do
+    tests "Pass", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "pass-3" },
+                   repo_root: { value: "/tmp/clean" }
+    expect status: "done"
+  end
+
+  # ── Fail : the drift-detected terminal ───────────────────────────
+  #
+  # Fail records the violation_count and walks status to
+  # "violations_found." Called after one or more RecordFinding cycles.
+
+  test "Fail records violation_count" do
+    tests "Fail", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "fail-1" },
+                   repo_root: { value: "/tmp/dirty" }
+    input  violation_count: { value: 3 }
+    expect violation_count: { value: 3 }
+  end
+
+  test "Fail emits ScanFailed" do
+    tests "Fail", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "fail-2" },
+                   repo_root: { value: "/tmp/dirty" }
+    input  violation_count: { value: 1 }
+    expect emits: ["ScanFailed"]
+  end
+
+  test "Fail walks lifecycle scanning → violations_found" do
+    tests "Fail", on: "RenameDriftCheck"
+    setup  "Scan", ref:       { value: "fail-3" },
+                   repo_root: { value: "/tmp/dirty" }
+    input  violation_count: { value: 5 }
+    expect status: "violations_found"
+  end
+end
