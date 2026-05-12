@@ -13,11 +13,7 @@
 // [antibody-exempt: rust/tests/validator_rules_test.rs — kernel-
 //  surface test for the generated validator. Builds Domain literals
 //  to exercise individual rules. Test-only kernel surface. Retires
-//  in two steps : (1) when the behaviors framework gains a validator-
-//  output-assertion vocabulary (filed as i569 — Domain literals
-//  become `given_bluebook` heredocs ; rule assertions become
-//  `expect_validator_error` directives) ; (2) under Phase B's
-//  TestCase aggregate when the cases themselves move to fixtures.]
+//  with Phase B (TestCase aggregate models the cases as fixtures).]
 
 use storehouse::ir::{Aggregate, Command, Domain, Policy};
 use storehouse::parser;
@@ -58,7 +54,7 @@ fn duplicate_aggregate_names() {
                     givens: vec![],
                     mutations: vec![],
                 }],
-                value_objects: vec![], entities: vec![], context: None,
+                value_objects: vec![], entities: vec![], context: None, category: None,
                 references: vec![],
                 lifecycle: None,
                 identified_by: None,
@@ -80,7 +76,7 @@ fn duplicate_aggregate_names() {
                     givens: vec![],
                     mutations: vec![],
                 }],
-                value_objects: vec![], entities: vec![], context: None,
+                value_objects: vec![], entities: vec![], context: None, category: None,
                 references: vec![],
                 lifecycle: None,
                 identified_by: None,
@@ -111,7 +107,7 @@ fn aggregate_without_commands() {
             description: None,
             attributes: vec![],
             commands: vec![],
-            value_objects: vec![], entities: vec![], context: None,
+            value_objects: vec![], entities: vec![], context: None, category: None,
             references: vec![],
             lifecycle: None,
             identified_by: None,
@@ -153,7 +149,7 @@ fn bad_command_naming() {
                 givens: vec![],
                 mutations: vec![],
             }],
-            value_objects: vec![], entities: vec![], context: None,
+            value_objects: vec![], entities: vec![], context: None, category: None,
             references: vec![],
             lifecycle: None,
             identified_by: None,
@@ -260,7 +256,7 @@ fn unknown_policy_trigger() {
                 givens: vec![],
                 mutations: vec![],
             }],
-            value_objects: vec![], entities: vec![], context: None,
+            value_objects: vec![], entities: vec![], context: None, category: None,
             references: vec![],
             lifecycle: None,
             identified_by: None,
