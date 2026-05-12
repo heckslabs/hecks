@@ -6,20 +6,40 @@ Hecks.bluebook "Deployment", version: "2026.04.28.1" do
 
   aggregate "Deployment", "Replace Claude with Miette's own model" do
     identified_by :name
-    attribute :name, String
-    attribute :model_path, String
-    attribute :serving_method, String
-    attribute :status, String
+    attribute :name,           Name
+    attribute :model_path,     ModelPath
+    attribute :serving_method, ServingMethod
+    attribute :status,         Status
+
+    value_object "Name" do
+      # Identifier of this deployment.
+      attribute :value, String
+    end
+
+    value_object "ModelPath" do
+      # Filesystem or registry path of the trained model.
+      attribute :value, String
+    end
+
+    value_object "ServingMethod" do
+      # How the model is served (e.g. 'ollama', 'vllm', 'llama.cpp').
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Deployment lifecycle status (e.g. 'pending', 'live').
+      attribute :value, String
+    end
 
     command "DeployModel" do
       role "Creator"
       description "Wire the trained model into Miette's shell — she speaks with her own voice"
-      attribute :model_path, String
-      attribute :serving_method, String
+      attribute :model_path,     ModelPath
+      attribute :serving_method, ServingMethod
       emits "ModelDeployed"
-      then_set :model_path, to: :model_path
+      then_set :model_path,     to: :model_path
       then_set :serving_method, to: :serving_method
-      then_set :status, to: "live"
+      then_set :status,         to: "live"
     end
   end
 end

@@ -6,21 +6,41 @@ Hecks.bluebook "InstructionPair", version: "2026.04.28.1" do
 
   aggregate "InstructionPair", "A single training example — instruction + expected response" do
     identified_by :ref
-    attribute :ref, String
-    attribute :instruction, String
-    attribute :response, String
-    attribute :category, String
+    attribute :ref,         Ref
+    attribute :instruction, Instruction
+    attribute :response,    Response
+    attribute :category,    Category
+
+    value_object "Ref" do
+      # Stable identifier for this training pair.
+      attribute :value, String
+    end
+
+    value_object "Instruction" do
+      # The instruction (prompt) side of the pair.
+      attribute :value, String
+    end
+
+    value_object "Response" do
+      # The expected response (completion) side of the pair.
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # Coarse classifier for the pair (e.g. 'bluebook', 'dialog').
+      attribute :value, String
+    end
 
     command "MintInstructionPair" do
       role "System"
       description "Build one training pair"
-      attribute :instruction, String
-      attribute :response, String
-      attribute :category, String
+      attribute :instruction, Instruction
+      attribute :response,    Response
+      attribute :category,    Category
       emits "InstructionPairCreated"
       then_set :instruction, to: :instruction
-      then_set :response, to: :response
-      then_set :category, to: :category
+      then_set :response,    to: :response
+      then_set :category,    to: :category
     end
   end
 end

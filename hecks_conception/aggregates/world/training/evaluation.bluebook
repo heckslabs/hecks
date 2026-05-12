@@ -8,22 +8,37 @@ Hecks.bluebook "Evaluation", version: "2026.04.28.1" do
 
   aggregate "Evaluation", "Test the trained model against known-good outputs" do
     identified_by :name
-    attribute :name, String
-    attribute :bluebook_accuracy, Float
-    attribute :conversation_quality, Float
-    attribute :behavior_adherence, Float
-    attribute :passed, String
+    attribute :name,                 Name
+    attribute :bluebook_accuracy,    Score
+    attribute :conversation_quality, Score
+    attribute :behavior_adherence,   Score
+    attribute :passed,               PassResult
+
+    value_object "Name" do
+      # Identifier of this evaluation run.
+      attribute :value, String
+    end
+
+    value_object "Score" do
+      # A scalar metric score in [0.0, 1.0].
+      attribute :value, Float
+    end
+
+    value_object "PassResult" do
+      # Whether the evaluation passed ('yes' / 'no').
+      attribute :value, String
+    end
 
     command "EvaluateModel" do
       role "System"
       description "Run the trained model against test set — does it produce valid Bluebooks? Does it converse like Miette?"
-      attribute :bluebook_accuracy, Float
-      attribute :conversation_quality, Float
-      attribute :behavior_adherence, Float
+      attribute :bluebook_accuracy,    Score
+      attribute :conversation_quality, Score
+      attribute :behavior_adherence,   Score
       emits "ModelEvaluated"
-      then_set :bluebook_accuracy, to: :bluebook_accuracy
+      then_set :bluebook_accuracy,    to: :bluebook_accuracy
       then_set :conversation_quality, to: :conversation_quality
-      then_set :behavior_adherence, to: :behavior_adherence
+      then_set :behavior_adherence,   to: :behavior_adherence
     end
   end
 

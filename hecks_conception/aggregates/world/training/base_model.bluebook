@@ -8,21 +8,41 @@ Hecks.bluebook "BaseModel", version: "2026.04.28.1" do
 
   aggregate "BaseModel", "The foundation model to fine-tune — provides language, we provide domain thinking" do
     identified_by :name
-    attribute :name, String
-    attribute :parameters, String
-    attribute :source, String
-    attribute :quantization, String
+    attribute :name,         Name
+    attribute :parameters,   Parameters
+    attribute :source,       Source
+    attribute :quantization, Quantization
+
+    value_object "Name" do
+      # Foundation-model identifier (e.g. 'llama3.1:8b-instruct').
+      attribute :value, String
+    end
+
+    value_object "Parameters" do
+      # Parameter-count label (e.g. '8B', '70B').
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # Where the base model came from (hub / repo / local path).
+      attribute :value, String
+    end
+
+    value_object "Quantization" do
+      # Quantization scheme applied (e.g. 'q4_0', 'fp16').
+      attribute :value, String
+    end
 
     command "SelectBaseModel" do
       role "Creator"
       description "Choose the foundation — small enough to run locally, large enough to converse"
-      attribute :name, String
-      attribute :parameters, String
-      attribute :source, String
+      attribute :name,       Name
+      attribute :parameters, Parameters
+      attribute :source,     Source
       emits "BaseModelSelected"
-      then_set :name, to: :name
+      then_set :name,       to: :name
       then_set :parameters, to: :parameters
-      then_set :source, to: :source
+      then_set :source,     to: :source
     end
   end
 end

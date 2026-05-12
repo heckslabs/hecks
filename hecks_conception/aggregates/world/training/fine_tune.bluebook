@@ -6,34 +6,69 @@ Hecks.bluebook "FineTune", version: "2026.04.28.1" do
 
   aggregate "FineTune", "The actual training run" do
     identified_by :ref
-    attribute :ref, String
-    attribute :base_model, String
-    attribute :dataset_size, Integer
-    attribute :epochs, Integer
-    attribute :learning_rate, Float
-    attribute :loss, Float
-    attribute :status, String
+    attribute :ref,           Ref
+    attribute :base_model,    BaseModelName
+    attribute :dataset_size,  PairCount
+    attribute :epochs,        EpochCount
+    attribute :learning_rate, LearningRate
+    attribute :loss,          Loss
+    attribute :status,        Status
+
+    value_object "Ref" do
+      # Stable identifier for this fine-tune run.
+      attribute :value, String
+    end
+
+    value_object "BaseModelName" do
+      # The foundation model selected as the fine-tune base.
+      attribute :value, String
+    end
+
+    value_object "PairCount" do
+      # Number of instruction-response pairs in the dataset.
+      attribute :value, Integer
+    end
+
+    value_object "EpochCount" do
+      # Number of training epochs configured.
+      attribute :value, Integer
+    end
+
+    value_object "LearningRate" do
+      # Learning-rate hyperparameter (e.g. 1e-4).
+      attribute :value, Float
+    end
+
+    value_object "Loss" do
+      # Training loss recorded after an epoch.
+      attribute :value, Float
+    end
+
+    value_object "Status" do
+      # Fine-tune lifecycle state.
+      attribute :value, String
+    end
 
     command "StartFineTune" do
       role "Creator"
       description "Begin training Miette's model"
-      attribute :base_model, String
-      attribute :dataset_size, Integer
-      attribute :epochs, Integer
-      attribute :learning_rate, Float
+      attribute :base_model,    BaseModelName
+      attribute :dataset_size,  PairCount
+      attribute :epochs,        EpochCount
+      attribute :learning_rate, LearningRate
       emits "FineTuneStarted"
-      then_set :base_model, to: :base_model
-      then_set :dataset_size, to: :dataset_size
-      then_set :epochs, to: :epochs
+      then_set :base_model,    to: :base_model
+      then_set :dataset_size,  to: :dataset_size
+      then_set :epochs,        to: :epochs
       then_set :learning_rate, to: :learning_rate
-      then_set :status, to: "training"
+      then_set :status,        to: "training"
     end
 
     command "RecordEpoch" do
       role "System"
       description "Record loss after an epoch"
       reference_to(FineTune)
-      attribute :loss, Float
+      attribute :loss, Loss
       emits "EpochCompleted"
       then_set :loss, to: :loss
     end

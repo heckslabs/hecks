@@ -8,15 +8,35 @@ Hecks.bluebook "DataPrep", version: "2026.04.28.1" do
 
   aggregate "DataPrep", "Transform Bluebooks and transcripts into training format" do
     identified_by :name
-    attribute :name, String
-    attribute :format, String
-    attribute :total_pairs, Integer
-    attribute :status, String
+    attribute :name,        Name
+    attribute :format,      Format
+    attribute :total_pairs, PairCount
+    attribute :status,      Status
+
+    value_object "Name" do
+      # Identifier of this data-prep run.
+      attribute :value, String
+    end
+
+    value_object "Format" do
+      # Output format (e.g. 'jsonl', 'alpaca').
+      attribute :value, String
+    end
+
+    value_object "PairCount" do
+      # Total instruction-response pairs produced.
+      attribute :value, Integer
+    end
+
+    value_object "Status" do
+      # Lifecycle marker ('pending' / 'prepared' / 'split').
+      attribute :value, String
+    end
 
     command "PrepareData" do
       role "System"
       description "Convert bluebooks to instruction-response pairs for fine-tuning"
-      attribute :format, String
+      attribute :format, Format
       emits "DataPrepared"
       then_set :format, to: :format
       then_set :status, to: "prepared"
