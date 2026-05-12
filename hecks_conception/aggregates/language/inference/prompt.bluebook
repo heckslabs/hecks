@@ -13,16 +13,41 @@ Hecks.bluebook "Prompt", version: "2026.04.28.1" do
 
   aggregate "Prompt", "A single inference request — user input + context → bluebook output" do
     identified_by :ref
-    attribute :ref, String
-    attribute :input, String
-    attribute :output, String
-    attribute :valid, String
-    attribute :latency_ms, Integer
+    attribute :ref,        Ref
+    attribute :input,      Input
+    attribute :output,     Output
+    attribute :valid,      Validity
+    attribute :latency_ms, LatencyMs
+
+    value_object "Ref" do
+      # Stable identifier for this inference round-trip.
+      attribute :value, String
+    end
+
+    value_object "Input" do
+      # The user input fed into the model along with the context.
+      attribute :value, String
+    end
+
+    value_object "Output" do
+      # The model's raw output text — should be a parseable bluebook.
+      attribute :value, String
+    end
+
+    value_object "Validity" do
+      # Either 'valid' or 'invalid' — set by the Rust validator on OutputValidated.
+      attribute :value, String
+    end
+
+    value_object "LatencyMs" do
+      # Wall-clock latency of the inference call in milliseconds.
+      attribute :value, Integer
+    end
 
     command "RunInference" do
       role "System"
       description "Send input to the local model with full context, get bluebook output"
-      attribute :input, String
+      attribute :input, Input
       emits "InferenceRan"
       then_set :input, to: :input
     end
@@ -31,7 +56,7 @@ Hecks.bluebook "Prompt", version: "2026.04.28.1" do
       role "System"
       description "Check if the model's output is a valid bluebook — Rust validation"
       reference_to(Prompt)
-      attribute :valid, String
+      attribute :valid, Validity
       emits "OutputValidated"
       then_set :valid, to: :valid
     end

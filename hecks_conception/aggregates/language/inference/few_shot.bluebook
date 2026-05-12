@@ -11,20 +11,35 @@ Hecks.bluebook "FewShot", version: "2026.04.28.1" do
 
   aggregate "FewShot", "Real bluebooks included as examples in the context" do
     identified_by :domain_name
-    attribute :domain_name, String
-    attribute :source, String
-    attribute :purpose, String
+    attribute :domain_name, DomainName
+    attribute :source,      Source
+    attribute :purpose,     Purpose
+
+    value_object "DomainName" do
+      # The bluebook's domain name (Hecks.bluebook "<Name>") this example points at.
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # Where the example bluebook lives — typically a file path within the corpus.
+      attribute :value, String
+    end
+
+    value_object "Purpose" do
+      # Why this example is in the few-shot set — what pattern it demonstrates.
+      attribute :value, String
+    end
 
     command "AddExample" do
       role "System"
       description "Include a real bluebook as a few-shot example"
-      attribute :domain_name, String
-      attribute :source, String
-      attribute :purpose, String
+      attribute :domain_name, DomainName
+      attribute :source,      Source
+      attribute :purpose,     Purpose
       emits "ExampleAdded"
       then_set :domain_name, to: :domain_name
-      then_set :source, to: :source
-      then_set :purpose, to: :purpose
+      then_set :source,      to: :source
+      then_set :purpose,     to: :purpose
     end
   end
 end

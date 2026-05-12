@@ -11,22 +11,42 @@ Hecks.bluebook "LocalModel", version: "2026.04.28.1" do
 
   aggregate "LocalModel", "The locally-running model that receives the context" do
     identified_by :name
-    attribute :name, String
-    attribute :context_length, Integer
-    attribute :serving, String
-    attribute :backend, String
+    attribute :name,           Name
+    attribute :context_length, ContextLength
+    attribute :serving,        ServingState
+    attribute :backend,        Backend
+
+    value_object "Name" do
+      # Model identifier (e.g. 'llama3.1:8b') — the value the backend recognises.
+      attribute :value, String
+    end
+
+    value_object "ContextLength" do
+      # Max number of tokens the model accepts in a single inference call.
+      attribute :value, Integer
+    end
+
+    value_object "ServingState" do
+      # Lifecycle marker ('running' / 'stopped') for the local process.
+      attribute :value, String
+    end
+
+    value_object "Backend" do
+      # Which local serving stack hosts the model — 'ollama', 'llama.cpp', 'vllm'.
+      attribute :value, String
+    end
 
     command "StartModel" do
       role "System"
       description "Launch the local model — ollama, llama.cpp, or vllm"
-      attribute :name, String
-      attribute :context_length, Integer
-      attribute :backend, String
+      attribute :name,           Name
+      attribute :context_length, ContextLength
+      attribute :backend,        Backend
       emits "ModelStarted"
-      then_set :name, to: :name
+      then_set :name,           to: :name
       then_set :context_length, to: :context_length
-      then_set :backend, to: :backend
-      then_set :serving, to: "running"
+      then_set :backend,        to: :backend
+      then_set :serving,        to: "running"
     end
   end
 end

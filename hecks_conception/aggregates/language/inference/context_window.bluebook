@@ -13,23 +13,38 @@ Hecks.bluebook "ContextWindow", version: "2026.04.28.1" do
 
   aggregate "ContextWindow", "Everything stuffed into the prompt — grammar, organs, examples" do
     identified_by :name
-    attribute :name, String
-    attribute :system_prompt, String
-    attribute :grammar_tokens, Integer
-    attribute :example_tokens, Integer
-    attribute :organ_tokens, Integer
-    attribute :total_tokens, Integer
+    attribute :name,            Name
+    attribute :system_prompt,   SystemPrompt
+    attribute :grammar_tokens,  TokenCount
+    attribute :example_tokens,  TokenCount
+    attribute :organ_tokens,    TokenCount
+    attribute :total_tokens,    TokenCount
+
+    value_object "Name" do
+      # Stable slug naming this context-window assembly.
+      attribute :value, String
+    end
+
+    value_object "SystemPrompt" do
+      # The system-level prompt that anchors the assembled context.
+      attribute :value, String
+    end
+
+    value_object "TokenCount" do
+      # A count of tokens consumed by a slice of the assembled context.
+      attribute :value, Integer
+    end
 
     command "BuildContext" do
       role "System"
       description "Assemble the context — system prompt + Bluebook grammar + few-shot examples + organ behaviors"
-      attribute :grammar_tokens, Integer
-      attribute :example_tokens, Integer
-      attribute :organ_tokens, Integer
+      attribute :grammar_tokens, TokenCount
+      attribute :example_tokens, TokenCount
+      attribute :organ_tokens,   TokenCount
       emits "ContextBuilt"
       then_set :grammar_tokens, to: :grammar_tokens
       then_set :example_tokens, to: :example_tokens
-      then_set :organ_tokens, to: :organ_tokens
+      then_set :organ_tokens,   to: :organ_tokens
     end
   end
 end
