@@ -2,235 +2,60 @@
 
 Complete reference for the Bluebook domain definition language.
 
-## Quick Start — A Complete Domain
-
-This example shows every major DSL feature in one domain. Copy it as a starting point.
+## Quick Start
 
 ```ruby
 Hecks.domain "Pizzas" do
-  description "Pizza ordering domain"
-
-  # --- Aggregates ---
-
   aggregate "Pizza" do
-    description "A pizza with toppings on a menu"
-    attribute :name, String
-    attribute :description, String
-    attribute :price, Float
-    attribute :toppings, list_of("Topping")
+    attribute :name, PizzaName               # typed VO — no primitive envy
+    attribute :toppings, list_of(Topping)    # list_of required for collections
 
+    value_object "PizzaName" do              # VO declared inside aggregate
+      attribute :value, String
+    end
     value_object "Topping" do
-      description "A measured ingredient on a pizza"
       attribute :name, String
       attribute :amount, Integer
-      invariant "amount must be positive" do
-        amount > 0
-      end
+      invariant "amount positive" do amount > 0 end
     end
 
-    validation :name, presence: true
-    validation :description, presence: true
-
-    command "CreatePizza" do
-      description "Add a new pizza to the menu"
-      attribute :name, String
-      attribute :description, String
-      attribute :price, Float
+    command "CreatePizza" do                 # no self-ref ⇒ create
+      attribute :name, PizzaName
     end
-
-    command "AddTopping" do
-      description "Add an ingredient to an existing pizza"
-      reference_to "Pizza", validate: :exists
+    command "AddTopping" do                  # self-ref ⇒ update
+      reference_to Pizza, validate: :exists
       attribute :name, String
       attribute :amount, Integer
     end
 
-    query "ByDescription" do |desc|
-      where(description: desc)
+    query "ByName" do |name|
+      where(name: name)
     end
-
-    scope :affordable, price: 15.0
-
-    specification "Premium" do |pizza|
-      pizza.price > 20
-    end
-
-    invariant "price must be positive" do
-      price > 0
-    end
-
-    port :admin do
-      allow :find, :all, :create_pizza
-    end
-  end
-
-  aggregate "Order" do
-    description "A customer order for a pizza"
-    attribute :customer_name, String
-    attribute :items, list_of("OrderItem")
-    reference_to "Pizza"
-
-    attribute :status, String, default: "pending" do
-      transition "CancelOrder" => "cancelled"
-      transition "FulfillOrder" => "fulfilled", from: "pending"
-    end
-
-    value_object "OrderItem" do
-      description "A line item with a quantity"
-      attribute :quantity, Integer
-      invariant "quantity must be positive" do
-        quantity > 0
-      end
-    end
-
-    validation :customer_name, presence: true
-
-    command "PlaceOrder" do
-      description "Place a new order"
-      attribute :customer_name, String
-      reference_to "Pizza", validate: :exists
-      attribute :quantity, Integer
-    end
-
-    command "CancelOrder" do
-      description "Cancel a pending order"
-      reference_to "Order", validate: :exists
-    end
-
-    command "FulfillOrder" do
-      description "Mark an order as fulfilled"
-      reference_to "Order", validate: :exists
-    end
-
-    query "Pending" do
-      where(status: "pending")
-    end
-  end
-
-  # --- Cross-aggregate policy ---
-  policy "NotifyKitchen" do
-    on "PlacedOrder"
-    trigger "PrepareIngredients"
-    map pizza: :pizza, quantity: :servings
-  end
-
-  # --- Domain service ---
-  service "TransferOrder" do
-    attribute :order_id, String
-    attribute :new_pizza_id, String
-    coordinates "Order", "Pizza"
-  end
-
-  # --- Actors ---
-  actor "Customer"
-  actor "Admin", description: "Store manager"
-
-  # --- Glossary ---
-  glossary do
-    prefer "customer", not: ["user", "client"]
-    define "topping", as: "A measured ingredient applied to a pizza"
   end
 end
 ```
 
-Boot and use it:
-
-```ruby
-app = Hecks.boot(__dir__)
-
-pizza = Pizza.create(name: "Margherita", description: "Classic", price: 12.0)
-pizza.toppings.create(name: "Mozzarella", amount: 2)
-
-order = Order.place(pizza: pizza, customer_name: "Alice", quantity: 3)
-Order.pending  # => [order]
-
-app.events.each { |e| puts e.class.name.split("::").last }
-```
+Dispatched as `pizzas::pizza::Pizza::CreatePizza` /
+`pizzas::pizza::Pizza::by_name` (see [Bus Phrase](#bus-phrase)).
 
 ---
 
 ## DSL Keywords
 
-### Domain
-
-| Keyword | Purpose | Details |
-|---------|---------|---------|
-| `Hecks.domain "Name"` | Define a bounded context | [Domain](#domain-1) |
-| `description` | Human-readable text | Available on every block |
-| `version:` | Semver or CalVer | [Domain Versioning](domain_version.md) |
-| `aggregate` | Define an aggregate root | [Aggregates](aggregate_definition.md) |
-| `policy` | Cross-aggregate reactive policy | [Policies](domain_level_policies.md) |
-| `service` | Coordinates multiple aggregates | [Services](domain_services.md) |
-| `view` | Read model projection | [Views](vertical_slices.md) |
-| `workflow` | Multi-step branching process | [Workflows](#workflow) |
-| `saga` | Long-running compensating process | [Sagas](sagas.md) |
-| `actor` | Role declaration | [Actors](#actors) |
-| `glossary` | Ubiquitous language rules | [Glossary](glossary.md) |
-| `world_concerns` | Ethical validation | [World Concerns](world_concerns.md) |
-| `tenancy` | Multi-tenancy mode | `:row` or `:schema` |
-| `domain_module` | Logical grouping | Namespace aggregates |
-| `on_event` | Domain-level subscriber | Event handler block |
-| `entry_point` | Autoload setup file | [Self-hosting](self-hosting.md) |
-
-### Aggregate
-
-| Keyword | Purpose | Details |
-|---------|---------|---------|
-| `attribute` | Data field | [Types](#types) |
-| `list_of` | Collection attribute | `attribute :items, list_of("Item")` |
-| `reference_to` | Relationship to another aggregate | [References](#references) |
-| `value_object` | Immutable child object | [Value Objects](#value-objects) |
-| `entity` | Mutable child with identity | [Entities](#entities) |
-| `command` | Intent to change state | [Commands](#commands) |
-| `query` | Named query with logic block | [Queries](aggregate_definition.md) |
-| `scope` | Named filter (hash or lambda) | [Scopes](aggregate_definition.md) |
-| `specification` | Named boolean predicate | [Specifications](#specifications) |
-| `policy` | Reactive policy on this aggregate | [Policies](domain_level_policies.md) |
-| `validation` | Field-level validation rule | [Validations](#validations) |
-| `invariant` | Aggregate-level business rule | [Invariants](#invariants) |
-| `lifecycle` / `transition` | State machine | [Lifecycle](#lifecycle) |
-| `port` | Access control per role | [Architecture Decisions](architecture_decisions.md) |
-| `on_event` | Event subscriber | Event handler block |
-| `repository` | Repository interface methods | `:find, :all, :save, :delete` |
-| `factory` | Named construction pattern | Alternative to commands |
-| `event` | Explicit event (not inferred) | [Events](emits.md) |
-| `computed` | Derived attribute (not stored) | [Computed](computed_attributes.md) |
-| `identity` | Natural key declaration | [Identity](#identity) |
-| `description` | Human-readable text | Used by generators and docs |
-| `namespace` | Module nesting path | Self-hosting metadata |
-| `inherits` | Superclass declaration | Self-hosting metadata |
-| `includes` | Mixin module | Self-hosting metadata |
-
-### Command
-
-| Keyword | Purpose | Details |
-|---------|---------|---------|
-| `attribute` | Input parameter | [Types](#types) |
-| `reference_to` | Reference input | Self-ref = update command |
-| `description` | Human-readable text | Used by generators and docs |
-| `method_name` | Override generated method name | `method_name "place"` |
-| `guarded_by` | Guard policy reference | [Policies](domain_level_policies.md) |
-| `sets` | Static field assignments | `sets status: "pending"` |
-| `actor` | Role that can issue command | [Actors](#actors) |
-| `role` | Typed role + agent alias (i483) | [Roles and Agents](#roles-and-agents) |
-| `read_model` | Data dependency | Documentation only |
-| `external` | External system dependency | Documentation only |
-| `precondition` | Pre-execution check | Block with message |
-| `postcondition` | Post-execution check | Block with message |
-| `handler` | Custom handler block | Overrides default behavior |
-| `call` | Inline call body | Lightweight logic |
-| `given` | Precondition in UL | [Given/Then](#given--then--declarative-behavior) |
-| `then_set` | Declarative state mutation | [Given/Then](#given--then--declarative-behavior) |
-| `then_toggle` | Toggle boolean field | [Given/Then](#given--then--declarative-behavior) |
-| `emits` | Explicit event name | [Emits](emits.md) |
-
-### Value Object / Entity
-
-| Keyword | Purpose |
-|---------|---------|
-| `attribute` | Data field |
-| `description` | Human-readable text |
-| `invariant` | Business rule |
+- **Domain:** `Hecks.domain`, `description`, `version:`, `aggregate`,
+  `policy`, `service`, `view`, `workflow`, `saga`, `actor`, `glossary`,
+  `world_concerns`, `tenancy`, `domain_module`, `on_event`,
+  `entry_point`.
+- **Aggregate:** `attribute`, `list_of`, `reference_to`, `value_object`,
+  `entity`, `command`, `query`, `scope`, `specification`, `policy`,
+  `validation`, `invariant`, `lifecycle` / `transition`, `port`,
+  `on_event`, `repository`, `factory`, `event`, `computed`, `identity`,
+  `description`, `namespace`, `inherits`, `includes`.
+- **Command:** `attribute`, `reference_to`, `description`,
+  `method_name`, `guarded_by`, `sets`, `actor`, `role` (i483 typed),
+  `read_model`, `external`, `precondition`, `postcondition`, `handler`,
+  `call`, `given`, `then_set`, `then_toggle`, `emits`.
+- **Value object / Entity:** `attribute`, `description`, `invariant`.
 
 ---
 
@@ -241,53 +66,71 @@ A domain is a bounded context with its own language, rules, and data.
 ```ruby
 Hecks.domain "Pizzas" do
   description "Core pizza operations"
-  # ...
 end
 
 Hecks.domain "Banking", version: "2026.04.01.1" do
-  # CalVer versioning
+  # CalVer versioning — see domain_version.md
 end
 ```
 
-See [Domain Versioning](domain_version.md) for version format details.
-
 ---
 
-## Types
-
-| Type | Aliases |
-|------|---------|
-| `String` | `:string`, `:str` |
-| `Integer` | `:integer`, `:int` |
-| `Float` | `:float` |
-| `TrueClass` | `:boolean`, `:bool` |
-| `Symbol` | `:symbol` |
-| `Array` | `:array` |
-| `Hash` | `:hash` |
-| `Date` | `:date` |
-| `DateTime` | `:datetime` |
-
-Attribute options: `default:`, `enum:`, `pii:`.
+## Attributes
 
 ```ruby
-attribute :status, String, default: "draft"
-attribute :role, String, enum: ["admin", "user"]
-attribute :email, String, pii: true
-attribute :toppings, list_of("Topping")
+attribute :name, Type, **options
+```
+
+Type may be a typed VO (`PizzaName`), a primitive (`String`, `Integer`
+— see no-primitive-envy below), a symbol shorthand (`:string`, `:int`,
+`:bool`, `:date`, `:datetime`, `:array`, `:hash`), or a list wrapper
+(`list_of(X)`). Options pass through (`default:`, `enum:`, `pii:`).
+
+### Collections must be explicit (2026-05-12)
+
+`list_of(X)` is the **only** way to declare a list-shaped attribute.
+The plural-name auto-list heuristic (`attribute :foos, Foo` →
+`list_of(Foo)`) was retired in both the Ruby DSL
+(`attribute_collector.rb`) and the Rust line-scanner
+(`parse_blocks.rs`) — the two used to disagree on scalars ending in
+`s` (e.g. `total_edits`). Bare `Array` / `Hash` are also scalar.
+
+```ruby
+attribute :toppings, list_of("Topping")  # list
+attribute :total_edits, Integer          # scalar, plural name notwithstanding
+```
+
+### No primitive envy at the surface
+
+The `no_primitive_envy` validator rule (commit `7a3c66d0`, 2026-05-09)
+fails any aggregate or command attribute whose type is a bare primitive
+(`String`, `Integer`, `Float`, `Boolean`, `Date`, `DateTime`, `JSON`).
+Primitives live **inside** `value_object` bodies ; the aggregate /
+command surface speaks in typed domain concepts.
+
+```ruby
+aggregate "Pizza" do
+  attribute :name, PizzaName         # typed VO — passes
+  # attribute :name, String          # fails no_primitive_envy
+  value_object "PizzaName" do
+    attribute :value, String         # primitive lives here, inside the VO
+  end
+end
 ```
 
 ---
 
 ## Commands
 
-Commands are intents to change state. Each infers a domain event (`CreatePizza` -> `CreatedPizza`). A self-referencing `reference_to` makes it an update; without one, it's a create.
+Commands are intents to change state. Each infers a domain event
+(`CreatePizza` → `CreatedPizza`). A self-referencing `reference_to`
+makes it an update ; without one, it's a create.
 
 ```ruby
 command "PlaceOrder" do
-  description "Place a new order for a pizza"
-  attribute :customer_name, String
-  reference_to "Pizza", validate: :exists
-  attribute :quantity, Integer
+  attribute :customer_name, CustomerName
+  reference_to Pizza, validate: :exists
+  attribute :quantity, Quantity
   guarded_by "MustBeAuthenticated"
   sets status: "pending"
   actor "Customer"
@@ -299,17 +142,18 @@ See [Emits](emits.md) for explicit event names.
 
 ### Given / Then — Declarative Behavior
 
-Commands can declare preconditions (`given`) and state mutations (`then_set`) in pure ubiquitous language. No Ruby handlers — the runtime interprets them, and generators transpile them to any target.
+Commands can declare preconditions (`given`) and state mutations
+(`then_set` / `then_toggle`) in pure ubiquitous language. No Ruby
+handlers — `HecksalInterpreter` runs them at the runtime, and
+generators transpile them to any target.
 
 ```ruby
 command "PlaceOrder" do
-  description "Place a new order for a pizza"
-  attribute :customer_name, String
-  reference_to "Pizza", validate: :exists
-  attribute :quantity, Integer
+  reference_to Pizza, validate: :exists
+  attribute :quantity, Quantity
 
   given { quantity > 0 }
-  given("customer must have name") { customer_name.length > 0 }
+  given("must be pending") { status == "pending" }
 
   then_set :status, to: "placed"
   then_set :items, append: { pizza: :pizza, quantity: :quantity }
@@ -317,127 +161,35 @@ command "PlaceOrder" do
 end
 ```
 
-**`given`** — Precondition checked before execution. The block is captured as source text, not a Proc. Fails the command if false.
+`given` captures block source text (not a Proc). Planner-friendly
+shapes: equality, boolean, numeric inequality, list size
+(`.size` / `.any?` / `.empty?`), cross-attribute. Opaque prose givens
+generate skipped tests — rework as a boolean attr + producing command.
 
-```ruby
-given { toppings.size < 10 }
-given("must be pending") { status == "pending" }
-```
-
-The behavioral test generator's chain planner reasons about a fixed
-set of given shapes — express preconditions in one of these forms so
-auto-generated tests can satisfy them automatically:
-
-| Pattern | Example |
-|---------|---------|
-| Equality | `given { status == "pending" }` |
-| Boolean | `given { active == true }` |
-| Integer ineq. | `given { quantity > 0 }`, `>= N`, `< N` |
-| Float ineq. | `given { moisture_percent < 20.0 }` |
-| List size | `given { items.size > 0 }`, `.any?`, `.empty?` |
-| Cross-attr | `given { current_intake >= recommended_intake }` |
-
-Opaque English-prose givens (`given "must be approved by review board"`)
-generate skipped tests — the planner can't satisfy them. Rework as a
-boolean attr + producing command:
-
-```ruby
-attribute :approved, TrueClass, default: false
-command "Approve" do
-  reference_to(Proposal)
-  then_set :approved, to: true
-end
-command "Publish" do
-  reference_to(Proposal)
-  given { approved == true }     # ← planner can satisfy via Approve
-end
-```
-
-**`then_set`** — Declarative state mutation applied after preconditions pass.
-
-| Operation | Syntax | Effect |
-|-----------|--------|--------|
-| Set | `then_set :field, to: value` | Assign value (literal or `:attribute_ref`) |
-| Set (positional) | `then_set :field, value` | Shorthand for Set; bare literal (bool/number/symbol) |
-| Append | `then_set :field, append: value` | Add to list |
-| Increment | `then_set :field, increment: n` | Add n to numeric field |
-| Decrement | `then_set :field, decrement: n` | Subtract n from numeric field |
-
-The positional form is accepted for parity with the Rust line-scanner (`then_set :online, true` → `{op: set, value: "true"}`). Use the keyword form for string values — strings MUST use `to: "..."` so both runtimes agree on the canonical IR.
-
-**`then_toggle`** — Toggle a boolean string field between `"true"` and `"false"`.
-
-```ruby
-then_toggle :sidebar_collapsed
-```
-
-Values can reference command attributes by symbol:
-
-```ruby
-then_set :name, to: :name          # copies from command input
-then_set :status, to: "active"     # literal value
-then_set :items, append: { name: :name, amount: :amount }  # compound
-```
-
-When `given`/`then_set` are present, the runtime uses `HecksalInterpreter` instead of a handler block. This keeps domain logic pure and projectable.
+`then_set` operations: `to:` (assign), `append:` (push), `increment:` /
+`decrement:`. Strings MUST use `to: "..."` ; positional form is for
+bool / number / symbol literals only (parity with the Rust
+line-scanner). `then_toggle :field` flips between `"true"` and
+`"false"`. Values may reference command attrs by symbol (`to: :name`).
 
 ---
 
 ## Roles and Agents
 
-> **Status — locked, parser pending.** This is the form the DSL is moving toward. The shape below is locked ; parser support is filed as a separate follow-up to i483 (the conception step landed first under that card so the bluebooks lead the runtime).
->
-> Today's parser silently accepts the new form without lifting it into the IR — a bluebook using `role Role, as: Agent` parses cleanly under `storehouse inspect` and `storehouse check-lifecycle`, but the IR doesn't yet carry the typed reference. The legacy string form `role "Caller"` continues to work everywhere.
-
-Every command runs in some role, filled by some agent. Today most bluebooks declare the role as a string label :
+> **Status — shape locked, parser pending (i483).** The typed form
+> parses but isn't lifted into the IR yet ; the legacy string form
+> still drives runtime behavior.
 
 ```ruby
-command "Add" do
-  role "Caller"          # untyped string — accidental consistency
-  ...
-end
+command "Add"     do role "Caller"                       end  # legacy
+command "Add"     do role Role, as: Agent                end  # typed (i483)
+command "Compile" do role Role, as: Agent, kind: "system" end  # narrow
 ```
 
-Going forward, the role is a typed reference into the framework `Role` aggregate, and the role-bearer is named through the same type-plus-alias pattern as i255's `attribute Role, as: :role` :
-
-```ruby
-command "Add" do
-  role Role, as: Agent   # Role is the type ; Agent is the alias for the role-bearer
-  ...
-end
-```
-
-Read it as : *"this command is dispatched in the role of `Role`, and the role-bearer is referenced as `Agent` in the command's attribute scope."* `Role` is an aggregate (`framework/agent/role.bluebook`) carrying a name and a permissions list ; `Agent` is the typed reference into the framework `Agent` aggregate (`framework/agent/agent.bluebook`).
-
-### Narrowing by agent kind
-
-A command may declare which agent kinds are allowed to dispatch it :
-
-```ruby
-command "Compile" do
-  role Role, as: Agent, kind: "system"   # only system Agents may dispatch
-  ...
-end
-
-command "Add" do
-  role Role, as: Agent                    # any Agent kind may dispatch
-  ...
-end
-```
-
-The `kind:` filter is checked against the dispatching Agent's `kind` attribute (one of `"human"`, `"system"`, `"daemon"`, `"bot"`, `"ai"`). When omitted, any kind is permitted.
-
-### What lands when
-
-The conception step (the bluebooks under `framework/agent/` and the demonstration at `framework/audit/dispatch_audit.bluebook`) ships first. Parser, validator, and the mechanical sweep of existing `role "..."` strings each land in their own follow-up cards filed against i483. During the migration window both forms coexist ; once the sweep completes, the string form is retired.
-
-### Cascade attribution
-
-When a command emits an event that triggers cascading policies (e.g. `EnterSleep` fanning out through ten policies), the originating Agent reference flows automatically through the cascade. Downstream commands inherit the originator's Agent unless a policy explicitly re-attributes (the System Agent overrides for system-initiated cascades like garbage collection). The runtime wiring for this — `Dispatched` event payload carrying `dispatched_by: Agent` — is filed under i481.
-
-### Companion : `actor`
-
-`actor "Customer"` at the domain level (see [Actors](#actors)) is parallel to today's role-string and will converge with `role Role, as: Agent` once the migration completes. The direction of travel : `Agent` is the canonical noun, `Role` is the type, `actor` declarations migrate into Agent declarations at the framework level.
+`Role` is the framework `Role` aggregate ; `Agent` is the alias for
+the role-bearer. `kind:` filters by Agent kind (`"human"`, `"system"`,
+`"daemon"`, `"bot"`, `"ai"`). The originating Agent flows through
+policy cascades unless re-attributed (i481).
 
 ---
 
@@ -446,16 +198,76 @@ When a command emits an event that triggers cascading policies (e.g. `EnterSleep
 Aggregates reference each other by identity, not containment.
 
 ```ruby
-reference_to "Pizza"                           # name defaults to :pizza
-reference_to "Team", as: :home_team            # explicit alias (canonical)
-reference_to "Billing::Invoice"                # cross-domain
+reference_to "Pizza"                # name defaults to :pizza
+reference_to "Team", as: :home_team # explicit alias (canonical)
+reference_to "Billing::Invoice"     # cross-domain
 ```
 
-The `as:` kwarg is the canonical alias form. Legacy `role: :name` and
-the trailing-symbol shorthand `reference_to(X) :name` are also accepted
-by both parsers, but `as:` is preferred for new bluebooks.
+`as:` is the canonical alias form. Legacy `role: :name` and the
+trailing-symbol shorthand `reference_to(X) :name` are also accepted,
+but `as:` is preferred.
+
+### Self-reference — the update-command convention
+
+A command's `reference_to` whose target is the enclosing aggregate
+makes the command an **update**. The reference's attribute name
+defaults to `snake_case(AggregateName)` (`to_snake_case(&target)` in
+`parse_blocks.rs`):
+
+```ruby
+aggregate "Pizza" do
+  command "AddTopping" do
+    reference_to Pizza, validate: :exists       # attribute name → :pizza
+    attribute :name, String
+    attribute :amount, Integer
+  end
+end
+
+AddTopping.new(pizza: pizza_id, name: "...", amount: 2).call
+```
+
+For two references to the same aggregate (e.g. transfer source +
+destination), use `as:` to disambiguate; otherwise both collapse to
+the bare snake_case form and the IR is ambiguous (i526):
+
+```ruby
+command "Transfer" do
+  reference_to Account, as: :source
+  reference_to Account, as: :destination
+end
+```
+
+A sidequest is in flight for `id=<value>` to work universally as a
+self-reference kwarg alongside `pizza: pizza_id`.
 
 See [Cross-Domain References](cross_domain_references.md).
+
+---
+
+## Bus Phrase
+
+Every dispatch crosses the bus as a **four-segment phrase** — the
+canonical addressing form from `command_bus.hecksagon`, emitted by the
+`:codegen` adapter family (i528). HTTP, CLI, and WASM realizations all
+dispatch through the same phrase.
+
+```
+app::domain::Aggregate::Command       # commands  — PascalCase end-to-end
+app::domain::Aggregate::query_name    # queries   — snake_case query name
+```
+
+`app` and `domain` are kebab-case (filesystem layout); `Aggregate` and
+`Command` are PascalCase; query names are snake_case on the wire even
+though they're declared PascalCase in the bluebook.
+
+The Ruby command-class emitter renders idiomatic shells (kebab → Pascal
+for module nesting):
+
+```ruby
+BinBuddy::Notifications::WaveGoodbye.new(name: "Alice").call
+# → Storehouse.route("bin-buddy::notifications::Greeter::WaveGoodbye",
+#                    name: "Alice")
+```
 
 ---
 
@@ -465,14 +277,33 @@ Immutable, no identity. Compared by value.
 
 ```ruby
 value_object "Topping" do
-  description "A measured ingredient"
   attribute :name, String
   attribute :amount, Integer
-  invariant "amount must be positive" do
-    amount > 0
-  end
+  invariant "amount positive" do amount > 0 end
 end
 ```
+
+### Placement — inside the aggregate only
+
+`value_object` is declared **inside the aggregate body that owns it**.
+Bluebook-level (domain-level) VOs are forbidden ; every VO belongs to
+exactly one aggregate. Duplication across aggregates is intentional
+and fine — `Pizza::Name` and `Order::Name` are separate types, free
+to diverge later without coupling.
+
+```ruby
+aggregate "Pizza" do
+  value_object "Name" do attribute :value, String end  # Pizza::Name
+end
+
+aggregate "Order" do
+  value_object "Name" do attribute :value, String end  # Order::Name
+end
+```
+
+This pairs with `no_primitive_envy` (see [Attributes](#attributes)) :
+the validator rejects bare primitives on the aggregate surface ; the
+VO is where primitives live.
 
 ---
 
@@ -482,64 +313,81 @@ Mutable children with identity, owned by the aggregate.
 
 ```ruby
 entity "LedgerEntry" do
-  description "A single accounting entry"
-  attribute :amount, Float
-  attribute :description, String
+  attribute :amount, Money
+  attribute :description, EntryDescription
 end
 ```
+
+---
+
+## Queries
+
+Named read-side projections inside an aggregate. Body is one or more
+`where(...)` clauses. Block params (`do |desc|`) become implicit String
+attributes that `where` references by symbol.
+
+```ruby
+query "Pending" do
+  where(status: "pending")
+end
+
+query "ByDescription" do |desc|
+  where(description: desc)
+end
+```
+
+Supported inside the block:
+
+- `where(field: value)` — equality (hash form)
+- `where(field: { gt: 5 })` — comparator hash (`lt`, `lte`, `gt`, `gte`, `ne`)
+- `order_by :field` / `order_by :field, :desc`
+- `limit 10` / `limit :max`
+
+Query names are PascalCase in the bluebook; on the wire they dispatch
+in snake_case form: `app::domain::Aggregate::query_name`
+(see [Bus Phrase](#bus-phrase)).
+
+Cross-aggregate sweeps reference a query via the dotted source path
+in a policy's `dispatch ... for_each:` clause:
+
+```ruby
+dispatch "Sweeper.Tick",
+  for_each: { from: "Aggregate.query_name" }
+```
+
+Both 2-part (`Aggregate.query_name`) and 3-part
+(`Context.Aggregate.query_name`) forms are accepted ; the 3-part form
+disambiguates when multiple bluebooks share an aggregate name.
 
 ---
 
 ## Lifecycle
 
-State machine on a single attribute. The runtime enforces transitions.
+State machine on a single attribute. Runtime enforces transitions.
+Generated predicates: `post.draft?`, `post.published?`.
 
 ```ruby
 attribute :status, String, default: "draft" do
-  transition "Submit" => "pending"
+  transition "Submit"  => "pending"
   transition "Approve" => "published", from: "pending"
-  transition "Archive" => "archived", from: ["draft", "published"]
-end
-```
-
-Generated predicates: `post.draft?`, `post.published?`.
-
----
-
-## Validations
-
-Field-level checks.
-
-```ruby
-validation :name, presence: true
-validation :email, presence: true, type: String, uniqueness: true
-```
-
----
-
-## Invariants
-
-Aggregate-level business rules checked after every state change.
-
-```ruby
-invariant "price must be positive" do
-  price > 0
+  transition "Archive" => "archived",  from: ["draft", "published"]
 end
 ```
 
 ---
 
-## Specifications
+## Validations, Invariants, Specifications
 
-Named boolean predicates for filtering, branching, or validation.
+Field-level checks, aggregate-level rules (run after every state
+change), named predicates (compose into workflows via
+`when_spec("HighRisk") { step "ManualReview" }`).
 
 ```ruby
-specification "HighRisk" do |loan|
-  loan.principal > 50_000
-end
+validation :name,  presence: true
+validation :email, presence: true, uniqueness: true
+invariant "price positive" do price > 0 end
+specification "HighRisk" do |loan| loan.principal > 50_000 end
 ```
-
-Used in workflows: `when_spec("HighRisk") { step "ManualReview" }`.
 
 ---
 
@@ -557,153 +405,79 @@ policy "NotifyKitchen" do
 end
 ```
 
-Guard policies run before commands: `guarded_by "MustBeAdmin"`.
-
-See [Domain-Level Policies](domain_level_policies.md) and [Policy Conditions](policy_conditions.md).
-
----
-
-## Computed Attributes
-
-Derived values — not stored, calculated from other attributes.
-
-```ruby
-computed :lot_size do
-  area / 43560.0
-end
-```
-
-See [Computed Attributes](computed_attributes.md).
+Guard policies run before commands: `guarded_by "MustBeAdmin"`. See
+[Domain-Level Policies](domain_level_policies.md) and
+[Policy Conditions](policy_conditions.md).
 
 ---
 
-## Identity
+## Computed Attributes, Identity, Glossary
 
-Natural key for human-meaningful lookups alongside UUID.
+Derived values, natural keys, ubiquitous-language rules. See
+[Computed Attributes](computed_attributes.md), [Glossary](glossary.md).
 
 ```ruby
+computed :lot_size do area / 43560.0 end
+
 aggregate "TeamCycle" do
-  attribute :team, String
+  attribute :team, TeamName
   attribute :start_date, Date
-  identity :team, :start_date
+  identity :team, :start_date              # natural key alongside UUID
 end
-```
 
----
-
-## Glossary
-
-Enforces ubiquitous language. Warns when banned terms appear.
-
-```ruby
 glossary do
-  define "aggregate", as: "A cluster of domain objects treated as a unit"
   prefer "customer", not: ["user", "client"]
+  define "aggregate", as: "A cluster of domain objects treated as a unit"
 end
 ```
-
-See [Glossary](glossary.md).
 
 ---
 
 ## Sagas
 
-Long-running cross-aggregate coordination with compensation.
+Long-running cross-aggregate coordination with compensation. See [Sagas](sagas.md).
 
 ```ruby
 saga "OrderFulfillment" do
   step "ReserveInventory", on_success: "ChargePayment", on_failure: "CancelOrder"
-  step "ChargePayment",    on_success: "ShipOrder",     on_failure: "RefundReservation"
-  step "ShipOrder"
+  step "ChargePayment",    on_success: "ShipOrder"
   compensation "ReleaseInventory"
-  compensation "RefundPayment"
 end
 ```
 
-See [Sagas](sagas.md).
-
 ---
 
-## Booting
+## Booting and Adapters
 
 ```ruby
-# Standalone
-app = Hecks.boot(__dir__)
+app = Hecks.boot(__dir__)                   # standalone
+app = Hecks.boot(__dir__, adapter: :sqlite) # with SQL
+Hecks.configure { |c| c.domain_path = ... } # Rails
 
-# With SQL
-app = Hecks.boot(__dir__, adapter: :sqlite)
-
-# Rails
-Hecks.configure do |config|
-  config.domain_path = Rails.root.join("app/domain")
-end
+app.adapt("TestHelper", MyAdapter)          # wire real behavior
+app.run("Reset")                            # → MyAdapter.reset(command:, app:)
 ```
 
-See [Rails Integration](hecks_on_rails.md) and [SQL Adapter](sql_adapter.md).
-
----
-
-## Adapters
-
-Adapters wire real behavior into generated command ports.
-
-```ruby
-module MyAdapter
-  def self.reset(command:, app:)
-    app.event_bus.clear
-  end
-end
-
-app.adapt("TestHelper", MyAdapter)
-app.run("Reset")  # calls MyAdapter.reset
-```
-
-Built-in: `Hecks::Adapters::TestHelperAdapter`, `Hecks::Adapters::EventBusAdapter`.
-
----
-
-## Example Generator
-
-Generates a documented example app from domain IR. Comments come from `description` metadata.
-
-```ruby
-require "hecks/generators/docs/example_generator"
-
-domain = Hecks::Chapters::Spec.definition
-gen = Hecks::Generators::ExampleGenerator.new(domain, aggregates: ["Pizza", "Order"])
-files = gen.generate
-# => { "example.rb" => "...", "SpecBluebook" => "...", "SpecHecksagon" => "..." }
-```
+See [Rails Integration](hecks_on_rails.md), [SQL Adapter](sql_adapter.md).
 
 ---
 
 ## Shorthand Syntax
 
-Inside aggregate blocks, bare names become attributes and PascalCase names become value objects:
+Inside aggregate blocks, bare names become attributes ; PascalCase +
+block becomes a value object ; `create do ... end` becomes
+`command "CreateAggregate"`. At domain level, PascalCase + block
+becomes an aggregate.
 
 ```ruby
 aggregate "Pizza" do
-  name String                    # attribute :name, String
-  price Float                    # attribute :price, Float
-
-  Topping do                     # value_object "Topping" do
+  name String                  # attribute :name, String
+  Topping do                   # value_object "Topping"
     name String
     amount Integer
   end
-
-  create do                      # command "CreatePizza" do
+  create do                    # command "CreatePizza"
     name String
-    price Float
-  end
-end
-```
-
-At domain level, PascalCase names with blocks become aggregates:
-
-```ruby
-Hecks.domain "Pizzas" do
-  Pizza do
-    attribute :name, String
   end
 end
 ```
@@ -712,12 +486,12 @@ end
 
 ## Further Reading
 
-- [Aggregate Definition](aggregate_definition.md) — full aggregate DSL
-- [Architecture Tour](architecture_tour.md) — how it all fits together
-- [Connections](connections.md) — persistence and middleware extensions
-- [Self-Hosting](self-hosting.md) — Hecks generates itself
-- [Hecksagon DSL](hecksagon_dsl.md) — capabilities and cross-cutting concerns
-- [CLI Reference](cli_tree.md) — command-line tools
-- [World Concerns](world_concerns.md) — ethical validation
-- [Event Sourcing](event_sourcing.md) — event-sourced aggregates
-- [Bubble Contexts](bubble_contexts.md) — legacy system integration
+[Aggregate Definition](aggregate_definition.md) ·
+[Architecture Tour](architecture_tour.md) ·
+[Connections](connections.md) ·
+[Self-Hosting](self-hosting.md) ·
+[Hecksagon DSL](hecksagon_dsl.md) ·
+[CLI Reference](cli_tree.md) ·
+[World Concerns](world_concerns.md) ·
+[Event Sourcing](event_sourcing.md) ·
+[Bubble Contexts](bubble_contexts.md)
