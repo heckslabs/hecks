@@ -1,0 +1,61 @@
+Hecks.behavior_kind "perform_web_search" do
+  # The perform_web_search behavior — what the kernel does when a
+  # :web_tool adapter bound to Tools.WebSearch fires. Sibling to
+  # perform_web_fetch (also under :web_tool) and invoke_claude_tool
+  # (under :claude_tool).
+  #
+  # The dispatch flow :
+  #
+  #   1. The bus dispatches Tools.WebSearch with a query +
+  #      description.
+  #   2. The kernel resolves the matching :web_tool adapter
+  #      (one with `command: "Tools.WebSearch"`).
+  #   3. The kernel reads the adapter's `tool:` field (web_search)
+  #      and calls the configured provider's primitive.
+  #   4. v1 provider :duckduckgo uses DuckDuckGo's HTML-lite
+  #      endpoint (no API key required). A future :serpapi or
+  #      :brave provider would slot in identically through the
+  #      family's providers list.
+  #   5. The kernel parses out the top-N result listings (title,
+  #      url, snippet), formats them as plain text, caps at 100 KB.
+  #   6. The kernel routes the result into `result_into` as a
+  #      follow-on dispatch carrying the result listing.
+  #
+  # When no provider is configured / reachable, the kernel hook
+  # returns an explicit error naming the missing provider config
+  # — never a silent empty result, since "no results found" and
+  # "no search backend wired" are distinct outcomes the consumer
+  # needs to distinguish.
+
+  vision "Run a query against a web search provider and return the
+          top results as plain text. The kernel hook accepts
+          (query, instance_fields) and returns (results_text,
+          provider_status, ok). v1 provider :duckduckgo needs no
+          key ; future providers (SERPAPI, Brave) plug in via
+          framework/providers/<name>.hecksagon. Missing provider
+          config returns an explicit error, not an empty result."
+
+  # The contract : every adapter family that picks this behavior_kind
+  # must provide a :result_into field naming the follow-on dispatch
+  # target. The :query field travels with the dispatched command's
+  # attrs, not the adapter instance.
+  requires_field :result_into
+
+  # The dispatched command's attrs carry the search input :
+  #   :query — the search query (required)
+  # The kernel reads :description as the always-present captionable
+  # attribute — same convention as invoke_claude_tool.
+  trigger_attribute :description
+
+  # What the kernel does, declaratively :
+  #   1. Resolve the provider (v1 : :duckduckgo) and call its primitive
+  #   2. Parse the response into (title, url, snippet) tuples
+  #   3. Format as plain text — one result per block
+  #   4. Cap captured output at 100 KB
+  #   5. Dispatch :result_into with output, exit_code (provider
+  #      status code or 0), ok flag (true if at least one result)
+  #
+  # Cancellation : searches are synchronous in v1 ; no in-flight
+  # supersession. A follow-up Tools.WebSearch dispatch for the same
+  # id is accepted ; the kernel runs it sequentially.
+end

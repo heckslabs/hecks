@@ -1,0 +1,86 @@
+Hecks.provider "duckduckgo" do
+  # DuckDuckGo as a provider for the :web_tool adapter family,
+  # behavior :perform_web_search. The provider declaration says :
+  # "when a :web_tool adapter has tool: "web_search", use
+  # DuckDuckGo's HTML-lite search endpoint to run the query."
+  #
+  # Sibling provider to :http_get (which handles :perform_web_fetch).
+  # Adding a different search backend (e.g. :serpapi, :brave,
+  # :bing) = new framework/providers/<name>.hecksagon listed under
+  # web_tool.providers + matching kernel-hook parser for the
+  # response shape.
+  #
+  # ── Why DuckDuckGo HTML-lite ──
+  #
+  # Their /html/ endpoint returns plain HTML that's stable enough
+  # to parse without an API key, and DuckDuckGo's TOS permits
+  # individual-user search scraping at human-scale volumes. v1 is
+  # exactly that — Miette typing a query, getting top results.
+  # When/if volume grows past ~one search per few seconds the
+  # provider should swap to :serpapi or :brave (both keyed APIs).
+
+  vision "Run a search query against DuckDuckGo's HTML-lite endpoint
+          and return the top results as plain text (title + url +
+          snippet per result). No API key required. The kernel hook
+          parses the HTML response, formats results, and returns
+          them through the :web_tool family's result_into cascade.
+          If DuckDuckGo's HTML shape changes meaningfully, parser
+          breakage is loud — caller gets ok=false plus the raw HTML
+          truncated to 100 KB."
+
+  family :web_tool                    # which adapter family this implements
+  behavior :perform_web_search        # which kernel behavior_kind we satisfy
+
+  # ── Auth ──────────────────────────────────────────────────────────
+  #
+  # None. DuckDuckGo HTML-lite is publicly reachable ; no key, no
+  # session, no cookies required for basic queries.
+  auth_scheme :none
+
+  # ── The request shape ─────────────────────────────────────────────
+  #
+  # HTTP GET against the HTML-lite endpoint with the query as a URL
+  # parameter. The kernel encodes the query (url-encode spaces, etc.)
+  # before substitution. A User-Agent string is sent so origin sees
+  # a stable identifier — DDG occasionally returns reduced results
+  # when the User-Agent looks scripted.
+  endpoint method: :GET,
+           url: "https://html.duckduckgo.com/html/?q={query}",
+           content_type: "text/html",
+           user_agent: "hecks-web-tool/0.1 (+https://github.com/embryonaut/hecks)"
+
+  # ── Response parsing ──────────────────────────────────────────────
+  #
+  # DuckDuckGo's HTML-lite response has result blocks structured as
+  # <div class="result"> with child anchors <a class="result__a"> for
+  # title + URL and <a class="result__snippet"> for snippet text. The
+  # kernel hook walks the HTML, extracts the top N results, and
+  # formats as plain text :
+  #
+  #   1. Title
+  #      URL
+  #      Snippet
+  #
+  #   2. Title
+  #      URL
+  #      Snippet
+  #
+  # Capped at 100 KB of formatted output ; rarely more than 10 KB in
+  # practice since DDG returns ~30 results per query.
+  response_kind :html_search_results
+  response_status_field "http_status"
+  response_max_bytes 102_400          # 100 KB cap on captured output
+  response_top_n 10                   # take top 10 results by default
+
+  # ── Error mapping ─────────────────────────────────────────────────
+  #
+  # HTTP status + parse outcome drive the error category :
+  #   2xx + results parsed       → :ok
+  #   2xx + zero results          → :no_results
+  #   2xx + parse failure         → :provider_response_shape_changed
+  #   3xx                         → :ok (curl follows redirects)
+  #   4xx                         → :client_error
+  #   5xx                         → :provider_unavailable
+  #   429                         → :rate_limited
+  error_mapping_field "http_status"
+end

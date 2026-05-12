@@ -47,4 +47,24 @@ Hecks.hecksagon "Tools" do
   adapter :claude_tool, command: "Tools.Update", tool: :write, result_into: "Tools.RecordResult"
   adapter :claude_tool, command: "Tools.Grep",   tool: :grep,  result_into: "Tools.RecordResult"
   adapter :claude_tool, command: "Tools.Glob",   tool: :glob,  result_into: "Tools.RecordResult"
+
+  # ── :web_tool adapter bindings (i569) ──
+  #
+  # Bind Tools.WebFetch / Tools.WebSearch to the :web_tool adapter
+  # family declared at framework/adapter_families/web_tool.hecksagon.
+  # Same shape as the :claude_tool bindings above : `command` names
+  # the dispatch target, `tool` selects the family's behavior
+  # (web_fetch → perform_web_fetch hook ; web_search →
+  # perform_web_search hook), and `result_into` chains the kernel-
+  # hook output back as a follow-on dispatch.
+  #
+  # Runtime status (2026-05-12) : these bindings are declared NOW
+  # but won't auto-dispatch until i557's framework_registry lands.
+  # Their bluebook validity is checkable today via `storehouse
+  # validate` ; live dispatch waits for the registry to walk
+  # framework/adapter_families/ at boot and wire kernel hooks by
+  # behavior name. See hecks_conception/inbox/i569.md for the
+  # dependency notes.
+  adapter :web_tool, command: "Tools.WebFetch",  tool: :web_fetch,  result_into: "Tools.RecordResult"
+  adapter :web_tool, command: "Tools.WebSearch", tool: :web_search, result_into: "Tools.RecordResult"
 end
