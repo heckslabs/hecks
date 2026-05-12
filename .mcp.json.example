@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "storehouse": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "tooling/storehouse-mcp/src/server.mjs"
+      ],
+      "env": {}
+    }
+  }
+}
