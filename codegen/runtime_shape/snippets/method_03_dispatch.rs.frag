@@ -42,8 +42,9 @@
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_secs()).unwrap_or(0);
                 let path = format!("{}/.last_dispatch", dir.trim_end_matches('/'));
+                let phrase = self.format_breadcrumb_phrase(command_name, &result);
                 let _ = std::fs::write(&path,
-                    format!("{}.{}\n{}\n", result.aggregate_type, command_name, now));
+                    format!("{}\n{}\n", phrase, now));
             }
         }
 
