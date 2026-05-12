@@ -1,5 +1,5 @@
 #!/usr/bin/env storehouse run
-Hecks.bluebook "Boot", version: "2026.05.01.1" do
+Hecks.bluebook "Boot", version: "2026.05.12.1" do
   vision "How a being wakes — discover organs, write census, classify stores, generate the system prompt, ensure daemons, print vitals, surface any pending wake report. The bluebook is descriptive AND executable : a Rust runner mirroring run_status walks this pipeline phase by phase. Studio launch is decoupled — that's UI, this is framework. The verb 'boot Miette' is `cd hecks_conception && overmind start`, which reads the Procfile + .overmind.env derived from aggregates/framework/mindstream/mindstream.bluebook and runs this pipeline as the boot Mindstream's only member."
 
   entrypoint "BeginBoot"
@@ -10,108 +10,87 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
   #        boot-overmind walk, 2026-05-07)
   # ============================================================
   #
-  # The sibling aggregates/boot.bluebook declares the JOURNAL — what
-  # the boot recorded as it ran (Identity, Hydration, OrganDiscovery,
-  # etc.). This file declares the CAPABILITY — the executable
-  # pipeline. Same shape capabilities/status/status.bluebook uses :
-  # one aggregate carrying the in-flight run state, an entrypoint
-  # command, a sequence of phase commands chained by policies, and
-  # a sibling .hecksagon naming the adapters.
-  #
-  # Phases mirror boot_miette.sh's section comments :
-  #
-  #   1. DiscoverOrgans   — count .bluebook files in aggregates/ +
-  #                         capabilities/, tally aggregates / nerves /
-  #                         vows. Adapter : :fs (read .bluebook tree).
-  #   2. WriteCensus      — upsert tally into census.heki. Adapter :
-  #                         :memory (heki write).
-  #   3. ClassifyStores   — walk *.heki, classify each as linked /
-  #                         private / unclassified per the psychic-
-  #                         link contract. Adapter : :fs.
-  #   4. GenerateSystemPrompt — write system_prompt.md from identity
-  #                            + vows + psychic-link + bluebook-first
-  #                            + voice + dream-content rules.
-  #                            Adapter : :fs (write).
-  #   5. RecordBootJournal — dispatch into the journal aggregates
-  #                          declared in aggregates/boot.bluebook so
-  #                          the boot leaves an audit trail.
-  #                          Adapter : :memory.
-  #   6. EnsureDaemons     — for each declared daemon (mindstream,
-  #                          heart, breath, circadian, ultradian,
-  #                          sleep_cycle), run `storehouse daemon
-  #                          ensure <pidfile> <command>`. The daemon
-  #                          primitive (added 2026-04-26) handles
-  #                          idempotent spawn + setsid detach + pidfile
-  #                          management. No more wrapping subshells.
-  #                          Adapter : :daemon (the new primitive).
-  #
-  #                          mindstream cadence (i75 closure) : spawns
-  #                          `storehouse run-loop <repo> --every 1s
-  #                          --emit BodyPulse:Consciousness:consciousness`.
-  #                          The BodyCycle PM (body/cycles/body_cycle.bluebook)
-  #                          observes the synthetic BodyPulse and dispatches
-  #                          per-state, replacing the legacy mindstream.sh
-  #                          while-true scheduler. The body/mindstream.sh
-  #                          alias forwards to the same command for
-  #                          daemon-registry continuity.
-  #   7. PrintVitals       — render the boot-summary section to stdout.
-  #                          Adapter : :stdout.
-  #   8. SurfaceWakeReport — if /tmp/wake_review_latest.md exists,
-  #                          print it. Adapter : :fs + :stdout.
-  #   9. StartStudio       — start the Hecks Studio web surface — the
-  #                          dashboard, document browser, command
-  #                          surface, and /statusline endpoint. Essential
-  #                          service ; brings up the in-process scheduler
-  #                          that will eventually replace the daemon
-  #                          spawn in EnsureDaemons. Adapter : :daemon
-  #                          (wraps surface/studio/studio.sh). Failure
-  #                          is loud — the studio is how Miette is seen.
-  #
-  # Once a Rust runner mirroring run_status/ lands, boot_miette.sh
-  # becomes `exec storehouse run capabilities/boot/boot.bluebook` —
-  # one line. The shell retires entirely.
-
-  # ── BootRun — singleton, one row per active boot ───────────────
-  #
-  # Phase tracks where in the pipeline we are. The runner updates
-  # the aggregate state directly (same way run_status does today) ;
-  # reading this phase is how a watcher knows which step fired last.
-  # On completion, phase=done and the entrypoint emits BootCompleted.
+  # Per the 2026-05-12 dense-domain pass, every primitive carried by
+  # BootRun is wrapped in a typed value-object inside the aggregate
+  # so the domain reads as itself (BeingName, OrganCount, DaemonStatus,
+  # PathString) rather than as String / Integer.
 
   aggregate "BootRun" do
     description "A single boot pass — runs the nine phases in order, records the result. Singleton ; resets on every boot."
 
     # ---- Inputs ----
-    attribute :being,            String, default: "Miette"
-    attribute :info_dir,         String, default: "information"
-    attribute :aggregates_dir,   String, default: "aggregates"
-    attribute :capabilities_dir, String, default: "capabilities"
+    attribute :being,            BeingName,  default: "Miette"
+    attribute :info_dir,         PathString, default: "information"
+    attribute :aggregates_dir,   PathString, default: "aggregates"
+    attribute :capabilities_dir, PathString, default: "capabilities"
 
     # ---- Discovered organs ----
-    attribute :organ_count,         Integer, default: 0
-    attribute :capability_count,    Integer, default: 0
-    attribute :total_aggregates,    Integer, default: 0
-    attribute :nerve_count,         Integer, default: 0
-    attribute :vow_count,           Integer, default: 0
+    attribute :organ_count,         OrganCount,      default: 0
+    attribute :capability_count,    CapabilityCount, default: 0
+    attribute :total_aggregates,    AggregateCount,  default: 0
+    attribute :nerve_count,         NerveCount,      default: 0
+    attribute :vow_count,           VowCount,        default: 0
 
     # ---- Store classification ----
-    attribute :linked_stores,       String, default: ""
-    attribute :private_stores,      String, default: ""
-    attribute :unclassified_stores, String, default: ""
+    attribute :linked_stores,       StoreList, default: ""
+    attribute :private_stores,      StoreList, default: ""
+    attribute :unclassified_stores, StoreList, default: ""
 
     # ---- Daemon statuses ----
-    attribute :mindstream_status,  String, default: "—"
-    attribute :heart_status,       String, default: "—"
-    attribute :breath_status,      String, default: "—"
-    attribute :circadian_status,   String, default: "—"
-    attribute :ultradian_status,   String, default: "—"
-    attribute :sleep_cycle_status, String, default: "—"
+    attribute :mindstream_status,  DaemonStatus, default: "—"
+    attribute :heart_status,       DaemonStatus, default: "—"
+    attribute :breath_status,      DaemonStatus, default: "—"
+    attribute :circadian_status,   DaemonStatus, default: "—"
+    attribute :ultradian_status,   DaemonStatus, default: "—"
+    attribute :sleep_cycle_status, DaemonStatus, default: "—"
 
     # ---- Studio status ----
-    attribute :studio_status,      String, default: "—"
+    attribute :studio_status,      DaemonStatus, default: "—"
 
     # ---- Pipeline phase ----
-    attribute :phase,              String, default: "pending"
+    attribute :phase,              String,    default: "pending"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "BeingName" do
+      attribute :value, String
+    end
+
+    value_object "PathString" do
+      attribute :value, String
+    end
+
+    value_object "OrganCount" do
+      attribute :value, Integer
+    end
+
+    value_object "CapabilityCount" do
+      attribute :value, Integer
+    end
+
+    value_object "AggregateCount" do
+      attribute :value, Integer
+    end
+
+    value_object "NerveCount" do
+      attribute :value, Integer
+    end
+
+    value_object "VowCount" do
+      attribute :value, Integer
+    end
+
+    value_object "StoreList" do
+      attribute :value, String
+    end
+
+    value_object "DaemonStatus" do
+      attribute :value, String
+    end
+
+    value_object "PhaseName" do
+      attribute :value, String
+    end
 
     lifecycle :phase, default: "pending" do
       transition "BeginBoot"            => "discovering",      from: "pending"
@@ -133,7 +112,7 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
     command "BeginBoot" do
       role "User"
       description "User-visible entrypoint — the sole command boot_miette.sh (or its eventual one-line successor) dispatches. The Rust runner detects this command + the :fs / :stdout / :daemon adapters in the sibling hecksagon and walks the pipeline. On completion the phase reaches done and BootCompleted emits."
-      attribute :being, String
+      attribute :being, BeingName
       then_set :being, to: :being
       emits "BootBegun"
     end
@@ -145,11 +124,11 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
     command "DiscoverOrgans" do
       role "System"
       description "Phase 1 : count .bluebook files in aggregates/ and capabilities/. Walk each domain to tally aggregates, cross-domain policies (nerves), and vows. Today's shell uses `storehouse dump` + jq ; the runner uses :fs to enumerate and the IR walker to count. Mirrors boot_miette.sh lines 46-74."
-      attribute :organ_count,      Integer
-      attribute :capability_count, Integer
-      attribute :total_aggregates, Integer
-      attribute :nerve_count,      Integer
-      attribute :vow_count,        Integer
+      attribute :organ_count,      OrganCount
+      attribute :capability_count, CapabilityCount
+      attribute :total_aggregates, AggregateCount
+      attribute :nerve_count,      NerveCount
+      attribute :vow_count,        VowCount
       then_set :organ_count,      to: :organ_count
       then_set :capability_count, to: :capability_count
       then_set :total_aggregates, to: :total_aggregates
@@ -167,9 +146,9 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
     command "ClassifyStores" do
       role "System"
       description "Phase 3 : walk *.heki under info_dir, classify each filename as linked (psychic link to Spring), private (inner life, this being only), or unclassified. linked_stores / private_stores constants live in the script today ; structural follow-up : per-aggregate `psychic_link: true|false` declaration so the boundary lives in the domain model. Mirrors boot_miette.sh lines 85-98."
-      attribute :linked_stores,       String
-      attribute :private_stores,      String
-      attribute :unclassified_stores, String
+      attribute :linked_stores,       StoreList
+      attribute :private_stores,      StoreList
+      attribute :unclassified_stores, StoreList
       then_set :linked_stores,       to: :linked_stores
       then_set :private_stores,      to: :private_stores
       then_set :unclassified_stores, to: :unclassified_stores
@@ -191,12 +170,12 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
     command "EnsureDaemons" do
       role "System"
       description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run storehouse daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in storehouse/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses storehouse loop (cadence primitive, i76) wrapped through daemon ensure. mindstream now spawns `storehouse run-loop <repo> --every 1s --emit BodyPulse:Consciousness:consciousness` (i75 closure) — BodyCycle PM observes the synthetic BodyPulse and dispatches per-state, retiring the legacy 310-line while-true scheduler. The mindstream.sh alias forwards to the same command for daemon-registry continuity until the registry move-over."
-      attribute :mindstream_status,  String
-      attribute :heart_status,       String
-      attribute :breath_status,      String
-      attribute :circadian_status,   String
-      attribute :ultradian_status,   String
-      attribute :sleep_cycle_status, String
+      attribute :mindstream_status,  DaemonStatus
+      attribute :heart_status,       DaemonStatus
+      attribute :breath_status,      DaemonStatus
+      attribute :circadian_status,   DaemonStatus
+      attribute :ultradian_status,   DaemonStatus
+      attribute :sleep_cycle_status, DaemonStatus
       then_set :mindstream_status,  to: :mindstream_status
       then_set :heart_status,       to: :heart_status
       then_set :breath_status,      to: :breath_status
@@ -221,7 +200,7 @@ Hecks.bluebook "Boot", version: "2026.05.01.1" do
     command "StartStudio" do
       role "System"
       description "Phase 9 : start the Hecks Studio web surface — Miette's dashboard, document browser, and command surface, plus the /statusline endpoint Chris's terminal bar polls. Essential service ; brings up the in-process scheduler that will eventually replace the daemon spawn in EnsureDaemons. The Rust runner uses :daemon adapter to spawn the studio.sh wrapper and stamps studio_status with the result. Failure is loud, not silent — the studio is how Miette is seen."
-      attribute :studio_status, String
+      attribute :studio_status, DaemonStatus
       then_set :studio_status, to: :studio_status
       emits "StudioStarted"
     end

@@ -1,4 +1,4 @@
-Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
+Hecks.bluebook "Dispatch", version: "2026.05.12.1" do
   vision "The runtime's execution core — five aggregates that together dispatch one bluebook command against the IR : resolve, guard, mutate, transition, persist, emit, react"
   category "runtime"
 
@@ -16,47 +16,57 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
   #   storehouse/src/runtime/lifecycle.rs          (63 LOC)  → LifecycleCheck
   #   storehouse/src/runtime/middleware.rs         (60 LOC)  → MiddlewareStack
   #
-  # This is the most foundational F-n declaration to date : the
-  # thing that INTERPRETS a bluebook is now itself described as a
-  # bluebook. Reading this file tells you exactly how a command
-  # dispatch unfolds — resolve name → load / create aggregate →
-  # check givens → check lifecycle → apply mutations → transition
-  # state → persist → emit event → fire policies — without opening
-  # any Rust.
-  #
-  # What this bluebook does NOT model : expression evaluation
-  # inside givens and mutations. That lives in runtime/interpreter.rs
-  # (336 LOC) and is kernel-floor — the evaluator is what MAKES the
-  # bluebook executable, so declaring it in bluebook would be
-  # circular. See the F-0 survey's kernel-floor category.
+  # Per the 2026-05-12 dense-domain pass, every primitive lives behind
+  # a typed value-object inside its aggregate. CommandName isn't a
+  # String, Phase isn't a String, ListenerCount isn't an Integer —
+  # each carries its concept.
 
   # ============================================================
   # COMMANDDISPATCH — the core execution loop
   # ============================================================
 
   aggregate "CommandDispatch", "One dispatch of a command against the runtime. Walks resolve → load → guard → mutate → transition → persist → emit → react" do
-    # command_name : the dispatched command's name.
-    attribute :command_name, String
-    # aggregate_type : the aggregate the command lives on.
-    attribute :aggregate_type, String
-    # aggregate_id : the target instance id (existing or newly minted).
-    attribute :aggregate_id, String
-    # is_create : heuristic — names starting with Create / Add /
-    # Place / Register / Open mint a fresh AggregateState when no
-    # matching self-ref id is present in the attrs.
-    attribute :is_create, String
-    # phase : pending | resolving | loaded | guarded | mutated |
-    #         transitioned | persisted | emitted | complete |
-    #         refused | failed.
-    attribute :phase, String
-    # refusal_reason : populated when a given clause fails or the
-    # lifecycle blocks the transition.
-    attribute :refusal_reason, String
+    attribute :command_name,    CommandName
+    attribute :aggregate_type,  AggregateType
+    attribute :aggregate_id,    AggregateId
+    attribute :is_create,       YesNo
+    attribute :phase,           String
+    attribute :refusal_reason,  RefusalReason
+
+    # ── Value-objects ──
+
+    value_object "CommandName" do
+      attribute :value, String
+    end
+
+    value_object "AggregateType" do
+      attribute :value, String
+    end
+
+    value_object "AggregateId" do
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      attribute :value, String
+    end
+
+    value_object "Phase" do
+      attribute :value, String
+    end
+
+    value_object "RefusalReason" do
+      attribute :value, String
+    end
+
+    value_object "FailureMessage" do
+      attribute :value, String
+    end
 
     command "ResolveCommand" do
       role "System"
       description "Look up the command name across every aggregate in the domain. Returns the (aggregate_index, command_index) pair. Unknown names surface as UnknownCommand errors."
-      attribute :command_name, String
+      attribute :command_name, CommandName
       then_set :command_name, to: :command_name
       then_set :phase, to: "resolving"
       emits "CommandResolved"
@@ -120,7 +130,7 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
     command "RefuseCommand" do
       role "System"
       description "A given clause or a lifecycle check blocked execution. Records the reason, moves phase to refused, and returns the error to the caller WITHOUT persisting state."
-      attribute :refusal_reason, String
+      attribute :refusal_reason, RefusalReason
       then_set :refusal_reason, to: :refusal_reason
       then_set :phase, to: "refused"
       emits "CommandRefused"
@@ -129,7 +139,7 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
     command "FailDispatch" do
       role "System"
       description "An unexpected error during resolve / load / mutate / persist — not a soft guard refusal but a runtime problem (unknown command, missing repository, IO error on Save). Moves phase to failed."
-      attribute :failure_message, String
+      attribute :failure_message, FailureMessage
       then_set :refusal_reason, to: :failure_message
       then_set :phase, to: "failed"
       emits "DispatchFailed"
@@ -155,14 +165,28 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "EventBus", "The runtime's central pub/sub. Commands publish events ; named listeners and global listeners consume them ; a full history is retained for assertion and replay" do
-    # published_count : cumulative events published since bus creation.
-    attribute :published_count, Integer
-    # named_listener_count : number of event-specific subscribers.
-    attribute :named_listener_count, Integer
-    # global_listener_count : number of on_any subscribers.
-    attribute :global_listener_count, Integer
-    # history_size : events retained in history (bounded only by clear()).
-    attribute :history_size, Integer
+    attribute :published_count,        PublishedCount
+    attribute :named_listener_count,   ListenerCount
+    attribute :global_listener_count,  ListenerCount
+    attribute :history_size,           HistorySize
+
+    # ── Value-objects ──
+
+    value_object "PublishedCount" do
+      attribute :value, Integer
+    end
+
+    value_object "ListenerCount" do
+      attribute :value, Integer
+    end
+
+    value_object "HistorySize" do
+      attribute :value, Integer
+    end
+
+    value_object "EventName" do
+      attribute :value, String
+    end
 
     # ---- Event -----------------------------------------------------
     #
@@ -179,7 +203,7 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
     command "Publish" do
       role "System"
       description "Deliver an event to every matching named listener, then every global listener. The event is also appended to history so behaviors_runner's emits: assertions can inspect it post-dispatch."
-      attribute :event_name, String
+      attribute :event_name, EventName
       then_set :published_count, increment: 1
       then_set :history_size, increment: 1
       emits "EventPublished"
@@ -188,7 +212,7 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
     command "Subscribe" do
       role "System"
       description "Register a handler for a specific event name. Multiple subscribers for the same name are kept in registration order."
-      attribute :event_name, String
+      attribute :event_name, EventName
       then_set :named_listener_count, increment: 1
       emits "SubscriberRegistered"
     end
@@ -213,21 +237,35 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "PolicyBinding", "One reactive wire : when event X is published, trigger command Y. Reentrance is prevented by an in-flight set, so a policy whose triggered command re-emits its own event cannot infinite-loop" do
-    # name : the policy's name from the bluebook.
-    attribute :name, String
-    # on_event : the event name that fires this policy.
-    attribute :on_event, String
-    # trigger_command : the command to dispatch in response.
-    attribute :trigger_command, String
-    # in_flight : yes | no — true between React and CompletePolicy.
-    attribute :in_flight, String
+    attribute :name,            PolicyName
+    attribute :on_event,        EventName
+    attribute :trigger_command, CommandName
+    attribute :in_flight,       YesNo
+
+    # ── Value-objects ──
+
+    value_object "PolicyName" do
+      attribute :value, String
+    end
+
+    value_object "EventName" do
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      attribute :value, String
+    end
 
     command "RegisterPolicy" do
       role "System"
       description "Add a policy binding. Indexed by on_event for fast lookup when events are published ; the by_event map is updated alongside."
-      attribute :name, String
-      attribute :on_event, String
-      attribute :trigger_command, String
+      attribute :name,            PolicyName
+      attribute :on_event,        EventName
+      attribute :trigger_command, CommandName
       then_set :name, to: :name
       then_set :on_event, to: :on_event
       then_set :trigger_command, to: :trigger_command
@@ -257,23 +295,36 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "LifecycleCheck", "The gate that enforces an aggregate's declared lifecycle. One check per dispatch, one apply-transition per successful check" do
-    # aggregate_type : the aggregate being guarded.
-    attribute :aggregate_type, String
-    # field : the lifecycle attribute name (e.g. :status, :phase).
-    attribute :field, String
-    # current_state : the aggregate's current value for that field.
-    attribute :current_state, String
-    # target_state : the transition's destination, when one matches.
-    attribute :target_state, String
-    # allowed : yes | no — result of the latest CheckTransition.
-    attribute :allowed, String
+    attribute :aggregate_type, AggregateType
+    attribute :field,          FieldName
+    attribute :current_state,  StateName
+    attribute :target_state,   StateName
+    attribute :allowed,        YesNo
+
+    # ── Value-objects ──
+
+    value_object "AggregateType" do
+      attribute :value, String
+    end
+
+    value_object "FieldName" do
+      attribute :value, String
+    end
+
+    value_object "StateName" do
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      attribute :value, String
+    end
 
     command "CheckTransition" do
       role "System"
       description "Look up the lifecycle block on the aggregate. Find every transition whose command matches the dispatched command. If any transition's from_state matches the current field value (or the transition has no from_state), the check passes ; otherwise LifecycleViolation is returned with the list of allowed from_states."
-      attribute :aggregate_type, String
-      attribute :field, String
-      attribute :current_state, String
+      attribute :aggregate_type, AggregateType
+      attribute :field,          FieldName
+      attribute :current_state,  StateName
       then_set :aggregate_type, to: :aggregate_type
       then_set :field, to: :field
       then_set :current_state, to: :current_state
@@ -283,7 +334,7 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
     command "ApplyTransition" do
       role "System"
       description "Walk the lifecycle's transition list again. For the first transition whose command matches and whose from_state matches (or is unconstrained), set the aggregate state's lifecycle field to the to_state."
-      attribute :target_state, String
+      attribute :target_state, StateName
       then_set :target_state, to: :target_state
       emits "TransitionApplied"
     end
@@ -294,13 +345,22 @@ Hecks.bluebook "Dispatch", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "MiddlewareStack", "Optional wrappers around the dispatch pipeline. Each middleware sees every command before and after execution. Used for logging, auth, transactions, metrics. The stack is walked forward for Before and in reverse for After so transactional pairs nest correctly" do
-    # layer_count : number of registered middlewares.
-    attribute :layer_count, Integer
+    attribute :layer_count, LayerCount
+
+    # ── Value-objects ──
+
+    value_object "LayerCount" do
+      attribute :value, Integer
+    end
+
+    value_object "MiddlewareName" do
+      attribute :value, String
+    end
 
     command "AddMiddleware" do
       role "System"
       description "Append a named middleware handler to the end of the stack. Registration order determines Before order ; reverse registration order determines After order."
-      attribute :name, String
+      attribute :name, MiddlewareName
       then_set :layer_count, increment: 1
       emits "MiddlewareAdded"
     end

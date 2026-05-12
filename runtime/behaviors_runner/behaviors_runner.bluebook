@@ -1,4 +1,4 @@
-Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
+Hecks.bluebook "BehaviorsRunner", version: "2026.05.12.1" do
   vision "The test runner as a domain — one BehaviorsRun per invocation, one TestExecution per test, pure-memory by design"
   category "runtime"
 
@@ -6,60 +6,49 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
   # BEHAVIORSRUNNER — Phase F-6 — test runner as domain
   # ============================================================
   #
-  # Sixth file of the Phase F arc (docs/phase-f-0-survey.md),
-  # completing the survey's top six targets. The test runner lives in
-  # one Rust file :
-  #
-  #   storehouse/src/behaviors_runner.rs  (401 LOC)
-  #
-  # Two aggregates :
-  #   BehaviorsRun    — one invocation of the runner on a whole suite
-  #   TestExecution   — one test inside a suite
-  #
-  # The runner is pure-memory by design : each test gets a fresh
-  # Runtime::boot with no data_dir, no hecksagon, no adapters. If a
-  # test triggers IO, the source bluebook is doing something it
-  # should not — the fix is the bluebook, not the runner. This
-  # invariant is declared in the behavior of the commands below, and
-  # the hecksagon declares only :memory + :fs (reading source) with
-  # no outbound IO port.
-  #
-  # Implementation details the bluebook does NOT try to model :
-  # reference injection from in_scope → command kwargs, snake_case
-  # self-ref detection for bootstrap-less aggregates, the parse_value
-  # coercion of source-token strings into typed Values. Those are
-  # kernel-level helpers in the Rust file — Phase F discipline is to
-  # declare what the subsystem does at the command / event / phase
-  # level, not every internal helper.
+  # Per the 2026-05-12 dense-domain pass, every primitive sits behind
+  # a typed value-object inside its aggregate.
 
   # ============================================================
   # BEHAVIORSRUN — one invocation of the runner
   # ============================================================
 
   aggregate "BehaviorsRun", "One `storehouse behaviors <suite.bluebook>` invocation. Loads the source bluebook and the companion behaviors file, optionally loads sibling fixtures, runs every test, collects pass/fail/error totals" do
-    # source_path : the .bluebook the tests target (derived by
-    # stripping the _behavioral_tests suffix from suite_path).
-    attribute :source_path, String
-    # suite_path : the *_behavioral_tests.bluebook argv passed in.
-    attribute :suite_path, String
-    # tests_total : number of Test records in the parsed TestSuite.
-    attribute :tests_total, Integer
-    # passed / failed / errored : tallies updated as TestExecution
-    # records finish.
-    attribute :passed, Integer
-    attribute :failed, Integer
-    attribute :errored, Integer
-    # all_passed : true when failed + errored both zero. Redundant
-    # with the tallies but kept as an attribute so the lifecycle
-    # guard can read it directly.
-    attribute :all_passed, String
-    # phase : pending | loading | executing | done | failed.
-    attribute :phase, String
+    attribute :source_path, ScriptPath
+    attribute :suite_path,  ScriptPath
+    attribute :tests_total, TestCount
+    attribute :passed,      TestCount
+    attribute :failed,      TestCount
+    attribute :errored,     TestCount
+    attribute :all_passed,  YesNo
+    attribute :phase,       String
+
+    # ── Value-objects ──
+
+    value_object "ScriptPath" do
+      attribute :value, String
+    end
+
+    value_object "TestCount" do
+      attribute :value, Integer
+    end
+
+    value_object "YesNo" do
+      attribute :value, String
+    end
+
+    value_object "RunPhase" do
+      attribute :value, String
+    end
+
+    value_object "FailureReason" do
+      attribute :value, String
+    end
 
     command "LoadSource" do
       role "System"
       description "Read the source bluebook text from source_path. The runner re-parses this text per test so no state leaks across tests (fresh Runtime::boot per TestExecution)."
-      attribute :source_path, String
+      attribute :source_path, ScriptPath
       then_set :source_path, to: :source_path
       then_set :phase, to: "loading"
       emits "SourceLoaded"
@@ -68,8 +57,8 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
     command "LoadSuite" do
       role "System"
       description "Parse the *_behavioral_tests.bluebook at suite_path into a TestSuite IR and count the tests."
-      attribute :suite_path, String
-      attribute :tests_total, Integer
+      attribute :suite_path,  ScriptPath
+      attribute :tests_total, TestCount
       then_set :suite_path, to: :suite_path
       then_set :tests_total, to: :tests_total
       emits "SuiteLoaded"
@@ -123,7 +112,7 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
     command "FailRun" do
       role "System"
       description "Source bluebook could not be parsed, suite file missing, or other pre-execution error. Phase goes to failed ; no individual TestExecution records exist."
-      attribute :reason, String
+      attribute :reason, FailureReason
       then_set :phase, to: "failed"
       emits "RunFailed"
     end
@@ -141,31 +130,45 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "TestExecution", "One Test record from a TestSuite, executed against a fresh Runtime::boot. Walks boot → fixtures → pre-seed singletons → setups → dispatch → assert, landing in pass / fail / error" do
-    # description : the behavioral test's description string, used
-    # for reporting.
-    attribute :description, String
-    # kind : command | cascade | query. Drives dispatch mode — cascade
-    # tests dispatch through the policy chain (so `expect emits: [...]`
-    # asserts the cascade) ; command + query tests dispatch isolated.
-    attribute :kind, String
-    # on_aggregate : the aggregate the expect map asserts against.
-    # Resolves to the dispatch result's aggregate_type when the test's
-    # named aggregate has no post-dispatch record.
-    attribute :on_aggregate, String
-    # tests_command : the command or query name under test.
-    attribute :tests_command, String
-    # status : pass | fail | error. Final outcome.
-    attribute :status, String
-    # message : populated on fail / error with the diagnostic string.
-    attribute :message, String
-    # phase : pending | booted | seeded | setup_done | dispatched |
-    #         asserted | completed.
-    attribute :phase, String
+    attribute :description,   TestDescription
+    attribute :kind,           TestKind
+    attribute :on_aggregate,   AggregateName
+    attribute :tests_command,  CommandName
+    attribute :status,         String
+    attribute :message,        DiagnosticMessage
+    attribute :phase,          String
+
+    # ── Value-objects ──
+
+    value_object "TestDescription" do
+      attribute :value, String
+    end
+
+    value_object "TestKind" do
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      attribute :value, String
+    end
+
+    value_object "TestStatus" do
+      attribute :value, String
+    end
+
+    value_object "DiagnosticMessage" do
+      attribute :value, String
+    end
+
+    value_object "ExecutionPhase" do
+      attribute :value, String
+    end
 
     # ---- TestOutcome -----------------------------------------------
-    #
-    # The reporting value the runner returns per test. Mirrors the
-    # Rust TestRun struct.
 
     value_object "TestOutcome" do
       attribute :description, String
@@ -225,7 +228,7 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
     command "MarkFail" do
       role "System"
       description "An assertion in the expect map did not match. status → fail, message records the mismatch (expected vs got)."
-      attribute :failure_message, String
+      attribute :failure_message, DiagnosticMessage
       then_set :status, to: "fail"
       then_set :message, to: :failure_message
       then_set :phase, to: "completed"
@@ -235,7 +238,7 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
     command "MarkError" do
       role "System"
       description "A setup command failed or the dispatch itself threw a runtime error. status → error, message records the underlying exception."
-      attribute :error_message, String
+      attribute :error_message, DiagnosticMessage
       then_set :status, to: "error"
       then_set :message, to: :error_message
       then_set :phase, to: "completed"
@@ -257,11 +260,6 @@ Hecks.bluebook "BehaviorsRunner", version: "2026.04.24.1" do
   # ============================================================
   # POLICIES — runner orchestration
   # ============================================================
-  #
-  # Source load → suite load → fixture discovery → execution. The
-  # per-test pipeline (Boot → Seed → Setup → Dispatch → Assert) is
-  # tracked inside TestExecution's lifecycle ; the runner-level
-  # policies just chain the suite-scoped phases.
 
   policy "LoadSuiteAfterSource" do
     on "SourceLoaded"

@@ -1,4 +1,4 @@
-Hecks.bluebook "Server", version: "2026.04.24.1" do
+Hecks.bluebook "Server", version: "2026.05.12.1" do
   vision "The HTTP server skeleton — zero-dependency std::net listener, request routing, and multi-domain namespacing — expressed as a domain"
   category "runtime"
 
@@ -6,43 +6,45 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
   # SERVER — Phase F-5 — HTTP skeleton as domain
   # ============================================================
   #
-  # Fifth file of the Phase F arc (docs/phase-f-0-survey.md). Three
-  # hand-written Rust files become three aggregates in one domain :
-  #
-  #   storehouse/src/server/mod.rs      (109 LOC)  → Server
-  #   storehouse/src/server/routes.rs   (132 LOC)  → Route
-  #   storehouse/src/server/multi.rs    (141 LOC)  → MultiDomainServer
-  #
-  # The `html_*` family (fifteen files, ~2,000 LOC) stays hand-written
-  # by design — those are pure IR→text transforms and are the largest
-  # residue category identified in F-0. See docs/phase-f-0-survey.md
-  # for the "expected residue" note ; this PR is what makes that
-  # residue concrete rather than predicted.
-  #
-  # The TCP socket layer (bind, accept loop, read_request,
-  # write_response) is kernel-floor by design — sits behind the
-  # hecksagon's :http_listener port note but is not aggregate-shaped.
+  # Per the 2026-05-12 dense-domain pass, every primitive carried by
+  # an aggregate sits behind a typed value-object inside that aggregate.
+  # Port isn't an Integer, BindAddr isn't a String, RequestCount isn't
+  # an Integer — each carries its concept.
 
   # ============================================================
   # SERVER — single-domain HTTP listener
   # ============================================================
 
   aggregate "Server", "One std::net TcpListener bound to a port, accepting connections for a single domain runtime and routing each request through the Route aggregate" do
-    # port : the TCP port to bind.
-    attribute :port, Integer
-    # bind_addr : full address the listener opened on (e.g. 0.0.0.0:3100).
-    attribute :bind_addr, String
-    # domain_name : the single domain this server exposes.
-    attribute :domain_name, String
-    # request_count : cumulative connections handled since BindPort.
-    attribute :request_count, Integer
-    # status : idle | bound | listening | shutdown.
-    attribute :status, String
+    attribute :port,          Port
+    attribute :bind_addr,     BindAddr
+    attribute :domain_name,   DomainName
+    attribute :request_count, RequestCount
+    attribute :status,        String
+
+    # ── Value-objects ──
+
+    value_object "Port" do
+      attribute :value, Integer
+    end
+
+    value_object "BindAddr" do
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+    end
+
+    value_object "RequestCount" do
+      attribute :value, Integer
+    end
+
+    value_object "ServerStatus" do
+      attribute :value, String
+    end
 
     # ---- HttpRequest ---------------------------------------------
-    #
-    # Parsed out of the raw TCP stream by read_request — method, path
-    # segments, and body. The body is empty for GET/OPTIONS.
 
     value_object "HttpRequest" do
       attribute :method, String
@@ -51,10 +53,6 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     end
 
     # ---- HttpResponse --------------------------------------------
-    #
-    # The response shape write_response produces. content_type is
-    # text/html when body starts with < ; application/json otherwise.
-    # CORS headers are always included.
 
     value_object "HttpResponse" do
       attribute :status, String
@@ -65,8 +63,8 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     command "BindPort" do
       role "System"
       description "Open a TcpListener on 0.0.0.0:port through the :http_listener kernel primitive. Fails with AdapterFailure if the port is already in use."
-      attribute :port, Integer
-      attribute :domain_name, String
+      attribute :port,        Port
+      attribute :domain_name, DomainName
       then_set :port, to: :port
       then_set :domain_name, to: :domain_name
       then_set :bind_addr, to: "0.0.0.0"
@@ -103,26 +101,49 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "Route", "The read-route-write lifecycle for a single HTTP request. One Route record per accepted connection : parse the request off the TCP stream, pattern-match method + path to pick a handler, return status + body" do
-    # method : GET | POST | OPTIONS | ...
-    attribute :method, String
-    # path : the request path, leading slash trimmed by the router.
-    attribute :path, String
-    # handler : resolved handler name (e.g. dispatch, health,
-    # aggregates, events, policies). Empty when no route matched.
-    attribute :handler, String
-    # status_code : 200 / 204 / 404 / 422 — the HTTP status returned.
-    attribute :status_code, String
-    # response_body : the JSON or HTML string written back.
-    attribute :response_body, String
-    # phase : pending | reading | matching | dispatching | written.
-    attribute :phase, String
+    attribute :method,        HttpMethod
+    attribute :path,          UrlPath
+    attribute :handler,       HandlerName
+    attribute :status_code,   StatusCode
+    attribute :response_body, ResponseBody
+    attribute :phase,         String
+
+    # ── Value-objects ──
+
+    value_object "HttpMethod" do
+      attribute :value, String
+    end
+
+    value_object "UrlPath" do
+      attribute :value, String
+    end
+
+    value_object "HandlerName" do
+      attribute :value, String
+    end
+
+    value_object "StatusCode" do
+      attribute :value, String
+    end
+
+    value_object "ResponseBody" do
+      attribute :value, String
+    end
+
+    value_object "RoutePhase" do
+      attribute :value, String
+    end
+
+    value_object "RequestBody" do
+      attribute :value, String
+    end
 
     command "ReadRequest" do
       role "System"
       description "Parse the method, path, headers (just Content-Length), and body out of the raw TCP stream. Rejected (None) requests end the connection without a response."
-      attribute :method, String
-      attribute :path, String
-      attribute :body, String
+      attribute :method, HttpMethod
+      attribute :path,   UrlPath
+      attribute :body,   RequestBody
       then_set :method, to: :method
       then_set :path, to: :path
       then_set :phase, to: "matching"
@@ -132,7 +153,7 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     command "MatchRoute" do
       role "System"
       description "Pattern-match method + path segments to pick a handler. The single-domain router has routes for /health, /domain, /dispatch, /aggregates, /aggregates/:name, /aggregates/:name/:id, /events, /policies. OPTIONS on any path is the CORS preflight and returns 204."
-      attribute :handler, String
+      attribute :handler, HandlerName
       then_set :handler, to: :handler
       then_set :phase, to: "dispatching"
       emits "RouteMatched"
@@ -141,8 +162,8 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     command "DispatchHandler" do
       role "System"
       description "Invoke the matched handler and record its status + body. POST /dispatch routes through the runtime's command dispatch and returns event info on success or the error message on failure (422). Read-only GET handlers serialize runtime state."
-      attribute :status_code, String
-      attribute :response_body, String
+      attribute :status_code,   StatusCode
+      attribute :response_body, ResponseBody
       then_set :status_code, to: :status_code
       then_set :response_body, to: :response_body
       emits "HandlerDispatched"
@@ -177,22 +198,42 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
   # ============================================================
 
   aggregate "MultiDomainServer", "Serves N bluebook domains under one API with domain-namespaced routes. Scans a directory for *.bluebook files at boot, hydrates one Runtime per domain, and routes /domains/:name/... through the single-domain Route aggregate" do
-    # dir : the directory scanned for *.bluebook files.
-    attribute :dir, String
-    # port : the TCP port the multi-domain listener binds.
-    attribute :port, Integer
-    # data_dir : shared data directory across all domains (by
-    # convention <dir>/data).
-    attribute :data_dir, String
-    # domain_count : number of successfully-loaded domains.
-    attribute :domain_count, Integer
-    # phase : scanning | loaded | listening | shutdown.
-    attribute :phase, String
+    attribute :dir,          DirPath
+    attribute :port,         Port
+    attribute :data_dir,     DirPath
+    attribute :domain_count, DomainCount
+    attribute :phase,        String
+
+    # ── Value-objects ──
+
+    value_object "DirPath" do
+      attribute :value, String
+    end
+
+    value_object "Port" do
+      attribute :value, Integer
+    end
+
+    value_object "DomainCount" do
+      attribute :value, Integer
+    end
+
+    value_object "ServerPhase" do
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+    end
+
+    value_object "SubPath" do
+      attribute :value, String
+    end
 
     command "ScanDomainsDir" do
       role "System"
       description "Read every *.bluebook file under dir. Files that fail to read are silently skipped ; files that parse are kept for BootDomainRuntime."
-      attribute :dir, String
+      attribute :dir, DirPath
       then_set :dir, to: :dir
       then_set :phase, to: "scanning"
       emits "DirectoryScanned"
@@ -208,7 +249,7 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     command "ServeAll" do
       role "System"
       description "Bind the listener after all domains are loaded and enter the accept loop. Each accepted connection routes by first path segment : /, /domains, /domains/:name, /domains/:name/<sub> ; the last form delegates to the single-domain Route aggregate."
-      attribute :port, Integer
+      attribute :port, Port
       then_set :port, to: :port
       then_set :phase, to: "listening"
       emits "MultiServing"
@@ -217,8 +258,8 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     command "NamespaceRoute" do
       role "System"
       description "Look up the named domain in the loaded runtimes, trim the /domains/:name prefix, and delegate the remaining path to the single-domain Route aggregate. Unknown domain names return 404."
-      attribute :domain_name, String
-      attribute :sub_path, String
+      attribute :domain_name, DomainName
+      attribute :sub_path,    SubPath
       emits "RouteNamespaced"
     end
 
@@ -238,10 +279,6 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
   # ============================================================
   # POLICIES — the request lifecycle chain
   # ============================================================
-  #
-  # The Route aggregate's Read → Match → Dispatch → Write flow is
-  # synchronous imperative code in Rust today. The policies declare
-  # what a future self-interpreting runtime would chain.
 
   policy "MatchAfterRead" do
     on "RequestRead"
@@ -258,7 +295,6 @@ Hecks.bluebook "Server", version: "2026.04.24.1" do
     trigger "WriteResponse"
   end
 
-  # Multi-domain boot chain : scan then boot each domain.
   policy "BootAfterScan" do
     on "DirectoryScanned"
     trigger "BootDomainRuntime"

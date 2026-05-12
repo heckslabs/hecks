@@ -1,18 +1,33 @@
-Hecks.bluebook "Projection", version: "2026.04.10.1" do
+Hecks.bluebook "Projection", version: "2026.05.12.1" do
   vision "Every script is a projection of a domain — the domain is the truth, the script is the shadow on the wall"
   category "infrastructure"
 
+  # Per the 2026-05-12 dense-domain pass, every primitive sits behind
+  # a typed value-object inside its aggregate.
+
   aggregate "Target", "A runtime that domains project into — Ruby, Rust, shell, status bar" do
-    attribute :name, String
-    attribute :language, String
-    attribute :output_path, String
+    attribute :name,        TargetName
+    attribute :language,    LanguageName
+    attribute :output_path, OutputPath
+
+    value_object "TargetName" do
+      attribute :value, String
+    end
+
+    value_object "LanguageName" do
+      attribute :value, String
+    end
+
+    value_object "OutputPath" do
+      attribute :value, String
+    end
 
     command "RegisterTarget" do
       role "System"
       description "Declare a projection target — a runtime that reads domains"
-      attribute :name, String
-      attribute :language, String
-      attribute :output_path, String
+      attribute :name,        TargetName
+      attribute :language,    LanguageName
+      attribute :output_path, OutputPath
       emits "TargetRegistered"
       then_set :name, to: :name
       then_set :language, to: :language
@@ -21,20 +36,40 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   end
 
   aggregate "ProjectedScript", "A script that exists because a domain declares it" do
-    attribute :domain_name, String
-    attribute :aggregate_name, String
-    attribute :target, String
-    attribute :script_path, String
-    attribute :projects_from, String
-    attribute :stale, String
+    attribute :domain_name,    DomainName
+    attribute :aggregate_name, AggregateName
+    attribute :target,         TargetName
+    attribute :script_path,    ScriptPath
+    attribute :projects_from,  DomainName
+    attribute :stale,          YesNo
+
+    value_object "DomainName" do
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      attribute :value, String
+    end
+
+    value_object "TargetName" do
+      attribute :value, String
+    end
+
+    value_object "ScriptPath" do
+      attribute :value, String
+    end
+
+    value_object "YesNo" do
+      attribute :value, String
+    end
 
     command "RegisterProjection" do
       role "System"
       description "Declare that a script is a projection of a domain aggregate"
-      attribute :domain_name, String
-      attribute :aggregate_name, String
-      attribute :target, String
-      attribute :script_path, String
+      attribute :domain_name,    DomainName
+      attribute :aggregate_name, AggregateName
+      attribute :target,         TargetName
+      attribute :script_path,    ScriptPath
       emits "ProjectionRegistered"
       then_set :domain_name, to: :domain_name
       then_set :aggregate_name, to: :aggregate_name
@@ -62,16 +97,28 @@ Hecks.bluebook "Projection", version: "2026.04.10.1" do
   end
 
   aggregate "Parity", "The contract between a domain and all its projections" do
-    attribute :domain_name, String
-    attribute :targets_checked, Integer
-    attribute :all_match, String
+    attribute :domain_name,     DomainName
+    attribute :targets_checked, CheckedCount
+    attribute :all_match,       YesNo
+
+    value_object "DomainName" do
+      attribute :value, String
+    end
+
+    value_object "CheckedCount" do
+      attribute :value, Integer
+    end
+
+    value_object "YesNo" do
+      attribute :value, String
+    end
 
     command "CheckParity" do
       role "System"
       description "Verify all projections of a domain produce the same IR"
-      attribute :domain_name, String
-      attribute :targets_checked, Integer
-      attribute :all_match, String
+      attribute :domain_name,     DomainName
+      attribute :targets_checked, CheckedCount
+      attribute :all_match,       YesNo
       emits "ParityChecked"
       then_set :domain_name, to: :domain_name
       then_set :targets_checked, to: :targets_checked
