@@ -1,4 +1,4 @@
-Hecks.bluebook "Tools", version: "2026.05.12.3" do
+Hecks.bluebook "Tools", version: "2026.05.12.4" do
   vision "First-class tool invocations as dispatched commands. Today Miette calls Bash / Edit / Read / Write / Grep as opaque tool calls — the harness runs them, returns a string, and the runtime sees nothing. This bluebook lifts each invocation into a domain command so every tool use emits an event the runtime can react to. Bash is the first command ; the other tools follow with the same shape."
   category "framework"
 
@@ -89,6 +89,10 @@ Hecks.bluebook "Tools", version: "2026.05.12.3" do
     attribute :glob_pattern, GlobPattern
     attribute :search_path, SearchPath
     attribute :description, Description
+    attribute :tool_kind, ToolKind
+    attribute :output, Output
+    attribute :exit_code, ExitCode
+    attribute :ok_status, Ok
 
     value_object "Id" do
       # Stable invocation id, minted by the caller (the harness)
@@ -169,6 +173,38 @@ Hecks.bluebook "Tools", version: "2026.05.12.3" do
       # absent the runtime defaults to cwd ; otherwise it's a
       # filesystem path that scopes the search.
       attribute :value, String
+    end
+
+    value_object "ToolKind" do
+      # Which tool produced the result — one of
+      # "bash" / "edit" / "read" / "write" / "grep" / "glob".
+      # Lowercase by convention so the value matches the kernel
+      # hook's `tool` field in ClaudeToolResult verbatim.
+      attribute :value, String
+    end
+
+    value_object "Output" do
+      # Captured stdout / tool output from the underlying runtime
+      # invocation, as the kernel hook returned it. May be long ;
+      # the aggregate state records it so a follow-up dispatch can
+      # reason over the most recent result, but downstream policies
+      # that need long-term audit should hook ResultRecorded.
+      attribute :value, String
+    end
+
+    value_object "ExitCode" do
+      # Process exit code from the underlying runtime invocation,
+      # mirroring ClaudeToolResult.exit_code. 0 conventionally
+      # means success ; non-zero means failure, with the specific
+      # number carrying tool-defined meaning.
+      attribute :value, Integer
+    end
+
+    value_object "Ok" do
+      # Coarse-grained success flag, mirroring ClaudeToolResult.ok.
+      # The kernel hook computes this from exit_code + any error
+      # string ; the bluebook just records what the hook decided.
+      attribute :value, Boolean
     end
 
     # ── Bash : the first tool command ──
@@ -283,6 +319,39 @@ Hecks.bluebook "Tools", version: "2026.05.12.3" do
       then_set :glob_pattern, to: :glob_pattern
       then_set :search_path,  to: :search_path
       then_set :description,  to: :description
+    end
+
+    # ── RecordResult : the seventh tool command ──
+    #
+    # RecordResult chains the kernel-floor :claude_tool hook's
+    # output back into the aggregate state. The hook
+    # (rust/src/runtime/claude_tool_dispatcher.rs) returns a
+    # ClaudeToolResult { tool, ok, output, exit_code, error } after
+    # each Tools.X command runs ; a parallel runtime dispatcher
+    # integration fires RecordResult on the same invocation id so
+    # the result becomes a first-class event the runtime can react
+    # to, instead of just stderr-logged noise.
+    #
+    # The id matches the originating dispatch so the result is
+    # joinable against the BashRan / EditApplied / FileRead /
+    # FileUpdated / GrepRan / GlobMatched event that triggered it.
+    # All five payload fields are persisted onto the aggregate
+    # root so the most recent result is queryable as state ; the
+    # ResultRecorded event carries the same data for downstream
+    # listeners and audit.
+    command "RecordResult" do
+      role "System"
+      description "Record the outcome of a previous tool dispatch back onto the Tools aggregate. The :claude_tool kernel hook calls this after a Tools.X command runs, carrying the same invocation id plus the captured tool, output, exit_code, and ok flag from ClaudeToolResult. Emits ResultRecorded so downstream policies can react to tool outcomes (success / failure / non-zero exit / interesting output) the same way they react to any other domain event."
+      attribute :id, Id
+      attribute :tool, ToolKind
+      attribute :output, Output
+      attribute :exit_code, ExitCode
+      attribute :ok, Ok
+      emits "ResultRecorded"
+      then_set :tool_kind,  to: :tool
+      then_set :output,     to: :output
+      then_set :exit_code,  to: :exit_code
+      then_set :ok_status,  to: :ok
     end
   end
 end
