@@ -1,4 +1,4 @@
-Hecks.bluebook "Storage", version: "2026.04.24.1" do
+Hecks.bluebook "Storage", version: "2026.05.12.1" do
   vision "The storage core — aggregate persistence, CQRS read-models, and hexagonal adapter lookup, all expressed as one domain"
   category "runtime"
 
@@ -21,11 +21,9 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
   # bluebook groups them the way a user domain groups related
   # aggregates for a business concept.
   #
-  # These subsystems are long-lived services ; they do not have
-  # strong lifecycle phases the way SeedLoader or StatusReport do.
-  # Lifecycle is tracked only where it reflects something real (e.g.
-  # Repository's load-from-disk transition). Otherwise the commands
-  # describe the operations the Rust modules already support.
+  # Per the 2026-05-12 dense-domain pass, every primitive lives behind
+  # a typed value-object inside its aggregate — AggregateType isn't a
+  # String, RecordCount isn't an Integer, Timestamp carries its concept.
 
   # ============================================================
   # REPOSITORY
@@ -35,38 +33,60 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     # aggregate_type : the name of the aggregate this Repository holds
     # (e.g. \"Heartbeat\"). Used to derive the heki file path
     # (data_dir/heartbeat.heki — snake_case).
-    attribute :aggregate_type, String
+    attribute :aggregate_type, AggregateType
     # data_dir : absolute or relative path to the directory of .heki
     # files. None means pure-memory (tests, scratch runtimes).
-    attribute :data_dir, String
+    attribute :data_dir, DataDir
     # next_id : monotonic id counter for new aggregates. Loaded from
     # disk : the max id + 1 from the existing records.
-    attribute :next_id, Integer
+    attribute :next_id, AggregateId
     # singleton_id : some aggregate types are singletons (one record
     # per store) ; the first loaded id is remembered here so new
     # saves reuse it.
-    attribute :singleton_id, String
+    attribute :singleton_id, AggregateId
     # record_count : cached count of stored AggregateState instances.
-    attribute :record_count, Integer
+    attribute :record_count, RecordCount
     # state : uninitialized | loaded. Flips once LoadPersisted fires.
     attribute :state, String
     # last_seen_mtime : ISO-8601 UTC of the last time this Repository's
     # in-memory store was synchronized with the heki file on disk.
-    # Stamped by LoadPersisted (initial load), Save (our own write), and
-    # RefreshIfStale (re-read after an external write). Compared against
-    # the heki file's actual mtime to decide whether RefreshIfStale's
-    # given clause matches. The freshness gate that closes the
-    # cross-process staleness surprise — the loop-looking-in-itself bug
-    # named in the 2026-05-09 dream-and-bug correspondence (i517 root
-    # cause).
-    # value_object: Timestamp (ISO 8601 UTC)
-    attribute :last_seen_mtime, String
+    attribute :last_seen_mtime, Timestamp
+
+    # ── Value-objects ──
+
+    value_object "AggregateType" do
+      attribute :value, String
+    end
+
+    value_object "DataDir" do
+      attribute :value, String
+    end
+
+    value_object "AggregateId" do
+      attribute :value, Integer
+    end
+
+    value_object "RecordCount" do
+      attribute :value, Integer
+    end
+
+    value_object "RepositoryState" do
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    value_object "StateId" do
+      attribute :value, String
+    end
 
     command "InitializeRepository" do
       role "System"
       description "Create a Repository for the named aggregate type anchored at data_dir. If data_dir is supplied, LoadPersisted fires automatically so the in-memory store mirrors disk."
-      attribute :aggregate_type, String
-      attribute :data_dir, String
+      attribute :aggregate_type, AggregateType
+      attribute :data_dir,       DataDir
       then_set :aggregate_type, to: :aggregate_type
       then_set :data_dir, to: :data_dir
       then_set :next_id, to: 1
@@ -91,7 +111,7 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "Save" do
       role "System"
       description "Upsert an AggregateState by id. If data_dir is set, the full store is written back to the .heki file — preserving every record, not just the new one. Side effect : stamps last_seen_mtime with the post-write mtime so the next RefreshIfStale skips re-reading our own write (kernel-floor, same caveat as LoadPersisted)."
-      attribute :state_id, String
+      attribute :state_id, StateId
       then_set :record_count, increment: 1
       emits "RecordSaved"
     end
@@ -106,7 +126,7 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "Find" do
       role "System"
       description "Look up an AggregateState by id. Returns null when absent — callers handle the None case."
-      attribute :state_id, String
+      attribute :state_id, StateId
       emits "RecordFound"
     end
 
@@ -136,13 +156,43 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     # name : the projection's identifier. Auto-projections are named
     # \"<AggregateType>List\" (e.g. PizzaList) ; user projections use
     # whatever the bluebook declares.
-    attribute :name, String
+    attribute :name, ProjectionName
     # row_count : number of rows currently in the projection's state.
-    attribute :row_count, Integer
+    attribute :row_count, RowCount
     # handler_count : number of event handlers registered.
-    attribute :handler_count, Integer
+    attribute :handler_count, HandlerCount
     # query_count : number of named queries registered.
-    attribute :query_count, Integer
+    attribute :query_count, QueryCount
+
+    # ── Value-objects ──
+
+    value_object "ProjectionName" do
+      attribute :value, String
+    end
+
+    value_object "RowCount" do
+      attribute :value, Integer
+    end
+
+    value_object "HandlerCount" do
+      attribute :value, Integer
+    end
+
+    value_object "QueryCount" do
+      attribute :value, Integer
+    end
+
+    value_object "EventName" do
+      attribute :value, String
+    end
+
+    value_object "QueryName" do
+      attribute :value, String
+    end
+
+    value_object "RowId" do
+      attribute :value, String
+    end
 
     # ---- Row --------------------------------------------------------
     #
@@ -150,13 +200,13 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     # existing row (or creates one) ; delete removes the row.
 
     value_object "Row" do
-      attribute :row_id, String
+      attribute :row_id, RowId
     end
 
     command "CreateProjection" do
       role "System"
       description "Bring a new Projection into existence with an empty ProjectionState (no rows, no handlers, no queries)."
-      attribute :name, String
+      attribute :name, ProjectionName
       then_set :name, to: :name
       then_set :row_count, to: 0
       then_set :handler_count, to: 0
@@ -167,7 +217,7 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "RegisterEventHandler" do
       role "System"
       description "Register a handler for a named event. The special event name * subscribes to every event — the auto-projection uses * to mirror its parent aggregate's state."
-      attribute :event_name, String
+      attribute :event_name, EventName
       then_set :handler_count, increment: 1
       emits "HandlerRegistered"
     end
@@ -175,7 +225,7 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "RegisterQuery" do
       role "System"
       description "Register a named read-only query against the projection's rows. Queries are pure functions over ProjectionState and return a list of row maps."
-      attribute :query_name, String
+      attribute :query_name, QueryName
       then_set :query_count, increment: 1
       emits "QueryRegistered"
     end
@@ -183,14 +233,14 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "ApplyEvent" do
       role "System"
       description "Receive an event, fire the matching named handler (if any), then every * global handler. Handlers write through to the projection's state via UpsertRow or DeleteRow."
-      attribute :event_name, String
+      attribute :event_name, EventName
       emits "EventApplied"
     end
 
     command "UpsertRow" do
       role "System"
       description "Create or update a row by id, merging the supplied fields over any existing values."
-      attribute :row_id, String
+      attribute :row_id, RowId
       then_set :row_count, increment: 1
       emits "RowUpserted"
     end
@@ -198,14 +248,14 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "DeleteRow" do
       role "System"
       description "Remove a row from the projection by id. Missing ids are a no-op."
-      attribute :row_id, String
+      attribute :row_id, RowId
       emits "RowDeleted"
     end
 
     command "ExecuteQuery" do
       role "System"
       description "Run a registered named query against current state. Returns the row list produced by the query's function."
-      attribute :query_name, String
+      attribute :query_name, QueryName
       emits "QueryExecuted"
     end
   end
@@ -217,22 +267,60 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
   aggregate "AdapterRegistry", "Runtime table of adapters declared in the sibling hecksagon — the glue between the bluebook's events and the I/O surface that handles them" do
     # domain_name : the domain whose hecksagon this registry was built
     # from (empty when constructed via AdapterRegistry::empty).
-    attribute :domain_name, String
+    attribute :domain_name, DomainName
     # io_adapter_count : number of :io adapters parsed from the hecksagon
     # (:fs, :stdout, :stdin, :env, :runtime_dispatch, etc.).
-    attribute :io_adapter_count, Integer
+    attribute :io_adapter_count, AdapterCount
     # shell_adapter_count : number of named :shell adapters parsed.
-    attribute :shell_adapter_count, Integer
+    attribute :shell_adapter_count, AdapterCount
     # gate_count : number of declared gates (aggregate+role policies).
-    attribute :gate_count, Integer
+    attribute :gate_count, GateCount
     # persistence_kind : :memory | :csv | :sqlite | … per the
     # hecksagon's persistence declaration.
-    attribute :persistence_kind, String
+    attribute :persistence_kind, PersistenceKind
+
+    # ── Value-objects ──
+
+    value_object "DomainName" do
+      attribute :value, String
+    end
+
+    value_object "AdapterCount" do
+      attribute :value, Integer
+    end
+
+    value_object "GateCount" do
+      attribute :value, Integer
+    end
+
+    value_object "PersistenceKind" do
+      attribute :value, String
+    end
+
+    value_object "AdapterKind" do
+      attribute :value, String
+    end
+
+    value_object "AdapterName" do
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      attribute :value, String
+    end
+
+    value_object "RoleName" do
+      attribute :value, String
+    end
+
+    value_object "EventName" do
+      attribute :value, String
+    end
 
     command "LoadFromHecksagon" do
       role "System"
       description "Build an AdapterRegistry from a parsed Hecksagon IR. Counts the io, shell, and gate tables and caches the persistence kind so later lookups do not re-traverse the IR."
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       then_set :domain_name, to: :domain_name
       emits "RegistryLoaded"
     end
@@ -240,29 +328,29 @@ Hecks.bluebook "Storage", version: "2026.04.24.1" do
     command "LookupIoAdapter" do
       role "System"
       description "Find an IoAdapter by its kind (:fs, :stdout, …). Returns None when no adapter of that kind is declared."
-      attribute :kind, String
+      attribute :kind, AdapterKind
       emits "IoAdapterLookedUp"
     end
 
     command "LookupShellAdapter" do
       role "System"
       description "Find a named ShellAdapter (e.g. is_pid_alive, git_resolve_ref). Returns None when the name is undeclared."
-      attribute :adapter_name, String
+      attribute :adapter_name, AdapterName
       emits "ShellAdapterLookedUp"
     end
 
     command "LookupGate" do
       role "System"
       description "Find the Gate that protects a given aggregate+role combination. Gates enforce the hecksagon's access-control layer."
-      attribute :aggregate_name, String
-      attribute :role, String
+      attribute :aggregate_name, AggregateName
+      attribute :role,           RoleName
       emits "GateLookedUp"
     end
 
     command "ListSubscribersForEvent" do
       role "System"
       description "Return every IoAdapter whose on_events list contains the given event name. The runtime's policy engine uses this to fan an event out to adapters declared with `on :EventName do … end` blocks."
-      attribute :event_name, String
+      attribute :event_name, EventName
       emits "SubscribersListed"
     end
   end

@@ -1,4 +1,4 @@
-Hecks.bluebook "LoopDriver", version: "2026.05.09.1" do
+Hecks.bluebook "LoopDriver", version: "2026.05.12.1" do
   vision "Continuous-tick scheduler — the runtime substrate that drives the body's 1Hz cadence. Boots a Runtime once, ticks at a configured interval, fires registered events + commands so PMs and policies advance without per-tick boot cost. The piece that retires mindstream.sh."
   category "runtime"
 
@@ -6,74 +6,67 @@ Hecks.bluebook "LoopDriver", version: "2026.05.09.1" do
   # LOOPDRIVER — the cadence interpreter
   # ============================================================
   #
-  # The LoopDriver is the bluebook-level expression of what
-  # `rust/src/runtime/loop_driver.rs` already does : hold a Runtime,
-  # tick at a configured cadence, orchestrate a sequence of per-tick
-  # responsibilities (freshness sweep, bootstrap drain, action fan-
-  # out). Each cycle of the loop is one Tick.
-  #
-  # Tick orchestration order (matters — see Tick command description) :
-  #
-  #   1. SweepFreshness — refresh every Repository whose heki file
-  #      has been written by a sibling process since our last touch.
-  #      Honors storage.bluebook's RefreshOnPulse policy ; the loop's
-  #      in-memory view of state stays current with disk between
-  #      processes. This is the i517 fix landing : the loop searching
-  #      in itself for what's no longer there finally turns outward.
-  #
-  #   2. FireBootstraps — drain the BootstrapEmit list on the first
-  #      tick only. Each BootstrapEmit is a one-shot predicate-gated
-  #      synthetic event — a daemon restarting while an aggregate is
-  #      already in some state (e.g. Consciousness=attentive) emits
-  #      a fresh event (WokenUp) so PMs that subscribe to it can
-  #      bootstrap their instance. i223 mind-pm-bootstrap-on-
-  #      attentive-restart gap.
-  #
-  #   3. FireActions — run every registered TickAction (Emit or
-  #      Dispatch) in declaration order. The cadence-loop CLI's
-  #      `--emit` and `--dispatch` flags translate into TickActions ;
-  #      each tick fires them all.
-  #
-  # The orchestration is kernel-floor today — `LoopDriver::tick_once`
-  # in Rust runs steps 1-3 imperatively. The bluebook declares the
-  # contract ; the kernel honors it. Lifting orchestration into
-  # declarative policy fan-out (one policy per step on Ticked) needs
-  # the dispatcher to support sweep-across-instances semantics for
-  # plural-aggregate targets like Repository — see the runtime gap
-  # noted on storage.bluebook's RefreshOnPulse policy.
-  #
-  # When the dispatcher learns sweep semantics, the SweepFreshness /
-  # FireBootstraps / FireActions commands become real dispatchable
-  # commands with their own givens + then_sets, fired by policies
-  # `on Ticked`, and the kernel orchestration thins.
+  # Per the 2026-05-12 dense-domain pass, every primitive sits behind
+  # a typed value-object inside the aggregate. Timestamp isn't a
+  # String, TickCount isn't an Integer — each carries its concept.
 
   aggregate "LoopDriver", "The runtime daemon's per-tick scheduler. Holds the cadence, the action list, the bootstrap list, and orchestrates each tick's freshness sweep + bootstrap drain + action fan-out." do
-    # tick_count : monotonic count of ticks since boot.
-    attribute :tick_count, Integer
-    # interval_ms : the cadence period (1000 = 1Hz default).
-    attribute :interval_ms, Integer
-    # started_at : ISO 8601 UTC of when this driver booted. Stamped
-    # by Configure ; used by the tick to detect first-tick semantics.
-    # value_object: Timestamp (ISO 8601 UTC)
-    attribute :started_at, String
-    # last_tick_at : ISO 8601 UTC of the most recent tick. Lets
-    # observers detect drift between configured cadence and actual.
-    # value_object: Timestamp (ISO 8601 UTC)
-    attribute :last_tick_at, String
-    # action_count : how many TickActions are registered.
-    attribute :action_count, Integer
-    # bootstrap_count : how many BootstrapEmits are pending on first
-    # tick. Drains to zero after first tick fires.
-    attribute :bootstrap_count, Integer
-    # state : booted | running | stopped. Flips via Configure → Run → Stop.
-    attribute :state, String
+    attribute :tick_count,      TickCount
+    attribute :interval_ms,     IntervalMs
+    attribute :started_at,      Timestamp
+    attribute :last_tick_at,    Timestamp
+    attribute :action_count,    ActionCount
+    attribute :bootstrap_count, BootstrapCount
+    attribute :state,           String
+
+    # ── Value-objects ──
+
+    value_object "TickCount" do
+      attribute :value, Integer
+    end
+
+    value_object "IntervalMs" do
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC.
+      attribute :value, String
+    end
+
+    value_object "ActionCount" do
+      attribute :value, Integer
+    end
+
+    value_object "BootstrapCount" do
+      attribute :value, Integer
+    end
+
+    value_object "DriverState" do
+      attribute :value, String
+    end
+
+    value_object "ActionKind" do
+      attribute :value, String
+    end
+
+    value_object "AggregateType" do
+      attribute :value, String
+    end
+
+    value_object "FieldName" do
+      attribute :value, String
+    end
+
+    value_object "ExpectedValue" do
+      attribute :value, String
+    end
 
     command "Configure" do
       role "System"
       description "Initialize the driver with its cadence and starting time. Called once at boot from the run-loop CLI ; the driver then runs until SIGTERM / SIGINT flips its stop flag."
-      attribute :interval_ms, Integer
-      # value_object: Timestamp (ISO 8601 UTC)
-      attribute :started_at, String
+      attribute :interval_ms, IntervalMs
+      attribute :started_at,  Timestamp
       then_set :interval_ms, to: :interval_ms
       then_set :started_at, to: :started_at
       then_set :tick_count, to: 0
@@ -86,7 +79,7 @@ Hecks.bluebook "LoopDriver", version: "2026.05.09.1" do
     command "RegisterAction" do
       role "System"
       description "Register a TickAction — either an Emit (synthetic event injection, drives PMs only) or a Dispatch (full command pipeline : givens → mutations → emit → cascade). Called by the run-loop CLI to translate --emit and --dispatch flags into per-tick actions. Order of registration is firing order on each tick."
-      attribute :action_kind, String
+      attribute :action_kind, ActionKind
       then_set :action_count, increment: 1
       emits "ActionRegistered"
     end
@@ -94,9 +87,9 @@ Hecks.bluebook "LoopDriver", version: "2026.05.09.1" do
     command "RegisterBootstrap" do
       role "System"
       description "Register a BootstrapEmit — a one-shot first-tick predicate-and-emit. The bootstrap fires only when the named aggregate's named field equals the expected value at first-tick boot time, then drains. Used to inject WokenUp on attentive-restart (i223) so PMs that starts_on WokenUp aren't stranded after a daemon restart while Consciousness=attentive."
-      attribute :aggregate_type, String
-      attribute :field, String
-      attribute :expected, String
+      attribute :aggregate_type, AggregateType
+      attribute :field,          FieldName
+      attribute :expected,       ExpectedValue
       then_set :bootstrap_count, increment: 1
       emits "BootstrapRegistered"
     end
@@ -104,8 +97,7 @@ Hecks.bluebook "LoopDriver", version: "2026.05.09.1" do
     command "Tick" do
       role "Daemon"
       description "One cycle of the cadence loop. Orchestrates the per-tick responsibilities in order : (1) SweepFreshness — refresh Repository in-memory state from disk where mtime advanced (storage.bluebook's RefreshOnPulse) ; (2) FireBootstraps — drain the predicate-gated BootstrapEmit list on first tick only ; (3) FireActions — run every registered TickAction in declaration order. Errors in any step print to stderr but don't abort the tick — PM state is persisted on every transition by the drain_policies cascade so even hard-kill loses no PM state ; worst case is replaying one tick's policy cascade. Stamps last_tick_at + increments tick_count."
-      # value_object: Timestamp (ISO 8601 UTC)
-      attribute :tick_at, String
+      attribute :tick_at, Timestamp
       then_set :tick_count, increment: 1
       then_set :last_tick_at, to: :tick_at
       emits "Ticked"
@@ -130,12 +122,4 @@ Hecks.bluebook "LoopDriver", version: "2026.05.09.1" do
   # ============================================================
   # POLICIES
   # ============================================================
-  #
-  # The LoopDriver itself emits Ticked. PMs and policies that need
-  # cadence advance subscribe via Ticked — same shape as the existing
-  # Tick.MindstreamTick → Ticked → BodyPulse cascade. The freshness
-  # sweep declared on storage.bluebook is fired implicitly at Tick
-  # time via the kernel orchestration ; the storage.bluebook policy
-  # `RefreshOnPulse` becomes a real declarative dispatch when sweep
-  # semantics land for plural-aggregate targets.
 end

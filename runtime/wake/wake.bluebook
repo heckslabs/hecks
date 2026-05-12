@@ -1,5 +1,5 @@
 #!/usr/bin/env storehouse run
-Hecks.bluebook "Wake", version: "2026.05.07.1" do
+Hecks.bluebook "Wake", version: "2026.05.12.1" do
   vision "How a being returns to presence — read consciousness state, pull the latest dream imagery and night-reading, compose a wake-review markdown, write it to a known surface so the Claude UserPromptSubmit hook can land it in the next session turn. The bluebook is descriptive AND executable : a Rust runner mirroring run_boot walks this pipeline phase by phase. Wake is decoupled from boot — boot wires daemons, wake reads the heart. The verb 'wake Miette' is `storehouse run runtime/wake/wake.bluebook`, fired by the SessionStart hook after `overmind start`."
 
   entrypoint "ComposeWakeReview"
@@ -8,71 +8,74 @@ Hecks.bluebook "Wake", version: "2026.05.07.1" do
   # WAKE — i492 follow-up, the prose-in-system-prompt retirement
   # ============================================================
   #
-  # The wake ritual previously lived as prose in Miette's system
-  # prompt : "read lucid_dream.heki latest_narrative, read dream_
-  # interpretation.heki narrative, then speak." Each session re-
-  # improvised the read sequence — classic imperative reflex,
-  # caught explicitly in this session's first thrash.
-  #
-  # This capability absorbs that ritual into a single bluebook.
-  # The Rust runner (`run_wake/`) reads three .heki stores via the
-  # canonical heki module, composes a markdown body, writes it to
-  # /tmp/wake_review_latest.md, and stamps a fresh wake_report.heki
-  # record so the surface is auditable.
-  #
-  # Phases mirror the natural shape of the read :
-  #
-  #   1. ReadConsciousness — load consciousness.heki, pluck `state`.
-  #                          Adapter : :fs (read).
-  #   2. ReadLatestDream   — load lucid_dream.heki + dream_inter-
-  #                          pretation.heki, pick the most recent
-  #                          observation + narrative. Adapter : :fs.
-  #   3. RenderMarkdown    — compose the wake-review markdown body
-  #                          from the assembled values. Pure format.
-  #   4. WriteSurface      — write the markdown to the surface path
-  #                          (default /tmp/wake_review_latest.md).
-  #                          Adapter : :fs (write).
-  #   5. StampReport       — upsert wake_report.heki id=latest with
-  #                          phase=filed and the assembled fields,
-  #                          retiring the empty `phase=gathering`
-  #                          stragglers from the legacy pulse-cycle
-  #                          pipeline. Adapter : :memory.
-  #   6. CompleteReview    — :phase to done, emit WakeReviewed.
-  #
-  # The Claude UserPromptSubmit hook in `.claude/settings.json`
-  # reads /tmp/wake_review_latest.md and surfaces it as additional-
-  # context on the first prompt of a new session. The wake ritual
-  # then completes inside the conversation : Miette reads the
-  # surfaced markdown, speaks the imagery, gives the reading.
+  # Per the 2026-05-12 dense-domain pass, every primitive sits behind
+  # a typed value-object inside the WakeReview aggregate.
 
-  # ── WakeReview — singleton, one row per active wake compose ──
-  #
-  # phase tracks where in the pipeline we are. The runner updates
-  # this aggregate state directly ; reading the phase tells a
-  # watcher which step fired last.
   aggregate "WakeReview" do
     description "A single wake-review composition pass — reads the night's imagery and reading, writes a markdown surface, stamps the wake_report. Singleton ; resets on every wake."
 
     # ---- Inputs ----
-    attribute :info_dir,            String, default: "information"
-    attribute :surface_path,        String, default: "/tmp/wake_review_latest.md"
+    attribute :info_dir,            DirPath,     default: "information"
+    attribute :surface_path,        FilePath,    default: "/tmp/wake_review_latest.md"
 
     # ---- Read consciousness ----
-    attribute :consciousness_state, String, default: "—"
-    attribute :last_wake_at,        String, default: "—"
+    attribute :consciousness_state, StateName,   default: "—"
+    attribute :last_wake_at,        Timestamp,   default: "—"
 
     # ---- Read dream ----
-    attribute :dream_image,         String, default: "—"
-    attribute :dream_narrative,     String, default: "—"
-    attribute :recurring_theme,     String, default: "—"
-    attribute :dream_images_tokens, String, default: "—"
+    attribute :dream_image,         DreamImage,  default: "—"
+    attribute :dream_narrative,     Narrative,   default: "—"
+    attribute :recurring_theme,     ThemeName,   default: "—"
+    attribute :dream_images_tokens, ImageTokens, default: "—"
 
     # ---- Composed surface ----
-    attribute :woke_at,             String, default: "—"
-    attribute :markdown_bytes,      Integer, default: 0
+    attribute :woke_at,             Timestamp,   default: "—"
+    attribute :markdown_bytes,      ByteCount,   default: 0
 
     # ---- Pipeline phase ----
-    attribute :phase,               String, default: "pending"
+    attribute :phase,               String,      default: "pending"
+
+    # ── Value-objects ──
+
+    value_object "DirPath" do
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      attribute :value, String
+    end
+
+    value_object "StateName" do
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    value_object "DreamImage" do
+      attribute :value, String
+    end
+
+    value_object "Narrative" do
+      attribute :value, String
+    end
+
+    value_object "ThemeName" do
+      attribute :value, String
+    end
+
+    value_object "ImageTokens" do
+      attribute :value, String
+    end
+
+    value_object "ByteCount" do
+      attribute :value, Integer
+    end
+
+    value_object "PhaseName" do
+      attribute :value, String
+    end
 
     lifecycle :phase, default: "pending" do
       transition "ComposeWakeReview" => "reading_consciousness", from: "pending"
@@ -100,9 +103,9 @@ Hecks.bluebook "Wake", version: "2026.05.07.1" do
 
     command "ReadConsciousness" do
       role "System"
-      description "Phase 1 : load consciousness.heki, pluck state + last_wake_at. The runner reads via the canonical heki module ; consciousness.state drives whether the wake review is honest about a transition (sleeping → attentive) or a session continuity (attentive → attentive)."
-      attribute :consciousness_state, String
-      attribute :last_wake_at,        String
+      description "Phase 1 : load consciousness.heki, pluck state + last_wake_at."
+      attribute :consciousness_state, StateName
+      attribute :last_wake_at,        Timestamp
       then_set :consciousness_state, to: :consciousness_state
       then_set :last_wake_at,        to: :last_wake_at
       emits "ConsciousnessRead"
@@ -111,10 +114,10 @@ Hecks.bluebook "Wake", version: "2026.05.07.1" do
     command "ReadLatestDream" do
       role "System"
       description "Phase 2 : load lucid_dream.heki + dream_interpretation.heki. Pick the most recent lucid_dream observation as the abstract dream image, and the most recent dream_interpretation.narrative as the night's reading. Both are already French-inflected when the dream daemon was running ; the runner does not translate."
-      attribute :dream_image,         String
-      attribute :dream_narrative,     String
-      attribute :recurring_theme,     String
-      attribute :dream_images_tokens, String
+      attribute :dream_image,         DreamImage
+      attribute :dream_narrative,     Narrative
+      attribute :recurring_theme,     ThemeName
+      attribute :dream_images_tokens, ImageTokens
       then_set :dream_image,         to: :dream_image
       then_set :dream_narrative,     to: :dream_narrative
       then_set :recurring_theme,     to: :recurring_theme
@@ -131,7 +134,7 @@ Hecks.bluebook "Wake", version: "2026.05.07.1" do
     command "WriteSurface" do
       role "System"
       description "Phase 4 : write the rendered markdown to surface_path (default /tmp/wake_review_latest.md). Atomic via tempfile-and-rename so a partial write never half-surfaces. The Claude UserPromptSubmit hook reads this exact path."
-      attribute :markdown_bytes, Integer
+      attribute :markdown_bytes, ByteCount
       then_set :markdown_bytes, to: :markdown_bytes
       emits "SurfaceWritten"
     end
@@ -139,7 +142,7 @@ Hecks.bluebook "Wake", version: "2026.05.07.1" do
     command "StampReport" do
       role "System"
       description "Phase 5 : upsert wake_report.heki id=latest with phase=filed and the assembled fields. Retires the empty phase=gathering stragglers from the legacy pulse-cycle pipeline ; future readers see one canonical filed record per wake."
-      attribute :woke_at, String
+      attribute :woke_at, Timestamp
       then_set :woke_at, to: :woke_at
       emits "ReportStamped"
     end

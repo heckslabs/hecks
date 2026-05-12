@@ -1,4 +1,4 @@
-Hecks.bluebook "Runner", version: "2026.04.24.1" do
+Hecks.bluebook "Runner", version: "2026.05.12.1" do
   vision "The user-facing runner surface — one-shot scripts and interactive sessions that dispatch commands against a user bluebook"
   category "runtime"
 
@@ -6,52 +6,52 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
   # RUNNER — Phase F-4 — script + REPL as domain
   # ============================================================
   #
-  # Fourth file of the Phase F arc (docs/phase-f-0-survey.md). Declares
-  # two aggregates that describe how storehouse turns a command-line
-  # invocation into dispatched commands against a user bluebook :
-  #
-  #   storehouse/src/run.rs             (184 LOC)  → ScriptRun
-  #   storehouse/src/run_stdin_loop.rs  (113 LOC)  → InteractiveSession
-  #
-  # ScriptRun handles the one-shot path (`storehouse run file.bluebook
-  # [k=v ...]`). It parses the bluebook, discovers any companion
-  # hecksagon, boots the runtime, and routes the invocation to the
-  # right runner based on the declared capability shape.
-  # InteractiveSession is one of those capabilities — the REPL that
-  # fires when the user bluebook + hecksagon declare a stdin/stdout
-  # session (ReadLine / RespondWith / EndSession on some aggregate,
-  # :stdin and :stdout adapters in the hecksagon).
-  #
-  # Both aggregates describe the runner's OWN operations, not the
-  # user's aggregate commands that get dispatched. `ReadLine`,
-  # `RespondWith`, `EndSession` are commands on the USER's bluebook
-  # (e.g. conversation.bluebook) that InteractiveSession invokes ;
-  # they are not owned by this domain.
+  # Per the 2026-05-12 dense-domain pass, every primitive sits behind
+  # a typed value-object inside its aggregate. ScriptPath isn't a
+  # String, ExitCode isn't an Integer — each name carries its concept.
 
   # ============================================================
   # SCRIPTRUN — the one-shot script-mode runner
   # ============================================================
 
   aggregate "ScriptRun", "One invocation of `storehouse run <file.bluebook> [key=val ...]` — parse the user bluebook, discover the companion hecksagon, boot the runtime, route to the matching capability runner, and return an ExitKind to the OS" do
-    # script_path : the bluebook file argv passed in.
-    attribute :script_path, String
-    # entrypoint : the command name declared by `entrypoint "…"` in
-    # the user bluebook's top-level header.
-    attribute :entrypoint, String
-    # data_dir : where the runtime's repositories persist. Inferred
-    # from the bluebook's directory — prefer sibling `information/`
-    # (Miette convention), otherwise `<parent>/data`.
-    attribute :data_dir, String
-    # chosen_runner : one of "stdin_loop" | "status_report" | "one_shot"
-    # — determined by RouteByCapability from the declared adapters +
-    # commands on the user's bluebook.
-    attribute :chosen_runner, String
-    # exit_code : 0..4. See ExitKind value object.
-    attribute :exit_code, Integer
-    # exit_kind : symbolic form of exit_code.
-    attribute :exit_kind, String
-    # phase : lifecycle attribute.
-    attribute :phase, String
+    attribute :script_path,   ScriptPath
+    attribute :entrypoint,    CommandName
+    attribute :data_dir,      DirPath
+    attribute :chosen_runner, RunnerKind
+    attribute :exit_code,     ExitCode
+    attribute :exit_kind,     ExitKindName
+    attribute :phase,         String
+
+    # ── Value-objects ──
+
+    value_object "ScriptPath" do
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      attribute :value, String
+    end
+
+    value_object "DirPath" do
+      attribute :value, String
+    end
+
+    value_object "RunnerKind" do
+      attribute :value, String
+    end
+
+    value_object "ExitCode" do
+      attribute :value, Integer
+    end
+
+    value_object "ExitKindName" do
+      attribute :value, String
+    end
+
+    value_object "ScriptPhase" do
+      attribute :value, String
+    end
 
     # ---- ExitKind --------------------------------------------------
     #
@@ -67,7 +67,7 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
     command "LoadScript" do
       role "System"
       description "Read the bluebook text at script_path, parse to a Domain, and confirm the top-level Hecks.bluebook header is present. Any IO or parse failure emits ScriptFailed with exit_kind=ParseFailure."
-      attribute :script_path, String
+      attribute :script_path, ScriptPath
       then_set :script_path, to: :script_path
       then_set :phase, to: "loading"
       emits "ScriptLoaded"
@@ -89,7 +89,7 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
     command "RouteByCapability" do
       role "System"
       description "Inspect the hecksagon's declared adapters and the bluebook's commands to decide which runner handles this invocation : stdin_loop when :stdin + :stdout + ReadLine + RespondWith + EndSession all match ; status_report when :fs + :stdout + StatusReport + GenerateReport match ; otherwise one_shot — dispatch the entrypoint once and exit."
-      attribute :chosen_runner, String
+      attribute :chosen_runner, RunnerKind
       then_set :chosen_runner, to: :chosen_runner
       emits "CapabilityRouted"
     end
@@ -104,8 +104,8 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
     command "ReportExit" do
       role "System"
       description "Record the outcome as an ExitKind and propagate the code back to the OS caller. Zero for clean ; non-zero per the ExitKind table."
-      attribute :exit_code, Integer
-      attribute :exit_kind, String
+      attribute :exit_code, ExitCode
+      attribute :exit_kind, ExitKindName
       then_set :exit_code, to: :exit_code
       then_set :exit_kind, to: :exit_kind
       then_set :phase, to: "done"
@@ -115,8 +115,8 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
     command "FailScript" do
       role "System"
       description "A failure at any phase — record the failing ExitKind and exit non-zero. Distinct from ReportExit because the phase transition is terminal-failed, not terminal-done."
-      attribute :exit_kind, String
-      attribute :exit_code, Integer
+      attribute :exit_kind, ExitKindName
+      attribute :exit_code, ExitCode
       then_set :exit_code, to: :exit_code
       then_set :exit_kind, to: :exit_kind
       then_set :phase, to: "failed"
@@ -135,36 +135,52 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
   # ============================================================
   # INTERACTIVESESSION — the stdin-loop REPL runner
   # ============================================================
-  #
-  # Fires when ScriptRun.RouteByCapability resolves chosen_runner to
-  # "stdin_loop". The session is a terminal loop that reads lines from
-  # :stdin, fires MatchInput + ReceiveInput on the user's domain, reads
-  # back the Speech aggregate's latest response, and writes it through
-  # :stdout. EOF or the literal words "quit" / "exit" close the loop.
 
   aggregate "InteractiveSession", "One interactive REPL invocation — reads lines from :stdin, dispatches user-domain commands (ReceiveInput, RespondWith), writes responses through :stdout" do
-    # being : the identity the banner names — read from argv's
-    # being=<Name> attribute, defaults to "Miette".
-    attribute :being, String
-    # banner_text : the one-line greeting written at loop start.
-    attribute :banner_text, String
-    # last_input : the most recent trimmed stdin line.
-    attribute :last_input, String
-    # last_response : the Speech aggregate's response field at the
-    # most recent turn.
-    attribute :last_response, String
-    # turn_count : how many input/response pairs have elapsed.
-    attribute :turn_count, Integer
-    # status : idle | running | closed. Drives the lifecycle.
-    attribute :status, String
+    attribute :being,         BeingName
+    attribute :banner_text,   BannerText
+    attribute :last_input,    InputText
+    attribute :last_response, ResponseText
+    attribute :turn_count,    TurnCount
+    attribute :status,        String
+
+    # ── Value-objects ──
+
+    value_object "BeingName" do
+      attribute :value, String
+    end
+
+    value_object "BannerText" do
+      attribute :value, String
+    end
+
+    value_object "InputText" do
+      attribute :value, String
+    end
+
+    value_object "ResponseText" do
+      attribute :value, String
+    end
+
+    value_object "TurnCount" do
+      attribute :value, Integer
+    end
+
+    value_object "SessionStatus" do
+      attribute :value, String
+    end
+
+    value_object "EntrypointName" do
+      attribute :value, String
+    end
 
     # ---- Commands --------------------------------------------------
 
     command "StartLoop" do
       role "System"
       description "Dispatch the user bluebook's entrypoint command (typically StartSession) with argv attrs, format the banner from the live Mood + Heartbeat + Conversation aggregate states, and write the banner + usage hint through :stdout. Moves status to running."
-      attribute :being, String
-      attribute :entrypoint, String
+      attribute :being,      BeingName
+      attribute :entrypoint, EntrypointName
       then_set :being, to: :being
       then_set :status, to: "running"
       then_set :turn_count, to: 0
@@ -174,8 +190,8 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
     command "TakeTurn" do
       role "System"
       description "One iteration of the REPL : read a line via :stdin, run MatchInput as a query for hint output, dispatch ReceiveInput on the user's domain with the input text, read the current Speech.response field, write it through :stdout, then dispatch RespondWith with the response text so the user's aggregate can record the turn."
-      attribute :input, String
-      attribute :response, String
+      attribute :input,    InputText
+      attribute :response, ResponseText
       then_set :last_input, to: :input
       then_set :last_response, to: :response
       then_set :turn_count, increment: 1
@@ -199,11 +215,6 @@ Hecks.bluebook "Runner", version: "2026.04.24.1" do
   # ============================================================
   # POLICIES
   # ============================================================
-  #
-  # ScriptRun's phases chain through explicit dispatches in the Rust
-  # today (each step calls the next directly), so the pipeline
-  # policies are declared here for readability and for the future
-  # self-interpreting runtime — mirror of F-1 and F-2's approach.
 
   policy "DiscoverAfterLoad" do
     on "ScriptLoaded"
