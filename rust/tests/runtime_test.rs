@@ -1252,3 +1252,89 @@ fn entity_command_emits_event_under_parent_aggregate_type() {
     assert_eq!(event.aggregate_id, "1");
     assert_eq!(event.name, "EntryAdded");
 }
+
+// --- Universal `id` self-ref dispatch (i519 sidequest) -----------------
+//
+// `reference_to(SomeAgg)` historically demanded the kwarg
+// `to_snake_case(SomeAgg) = <value>` at dispatch time. The convention is
+// invisible to callers — these tests pin the new `id=<value>` fallback
+// while proving the legacy snake-cased form still works byte-identically.
+
+fn universal_id_source() -> &'static str {
+    r#"Hecks.bluebook "T" do
+  aggregate "ExemptRegistry" do
+    description "A registry"
+    attribute :path
+    attribute :reason
+    command "Register" do
+      role "Operator"
+      attribute :path
+    end
+    command "Annotate" do
+      role "Operator"
+      reference_to ExemptRegistry
+      attribute :reason
+      then_set :reason, from: :reason
+    end
+  end
+end"#
+}
+
+#[test]
+fn universal_id_dispatches_via_id_kwarg() {
+    // Callers can pass `id=<value>` instead of the snake_cased
+    // aggregate-name convention — the documented universal form.
+    let mut rt = boot(universal_id_source());
+    rt.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Annotate",
+        attrs(&[("id", s("1")), ("reason", s("kernel-floor"))]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_id, "1");
+    let state = rt.find("ExemptRegistry", "1").unwrap();
+    assert_eq!(state.get("reason"), &s("kernel-floor"));
+}
+
+#[test]
+fn universal_id_legacy_snake_case_form_still_works() {
+    // The historical `<snake_case_agg>=<value>` form must keep working ;
+    // byte-identical with pre-i519 behavior.
+    let mut rt = boot(universal_id_source());
+    rt.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+
+    let result = rt.dispatch(
+        "Annotate",
+        attrs(&[("exempt_registry", s("1")), ("reason", s("legacy"))]),
+    ).unwrap();
+
+    assert_eq!(result.aggregate_id, "1");
+    let state = rt.find("ExemptRegistry", "1").unwrap();
+    assert_eq!(state.get("reason"), &s("legacy"));
+}
+
+#[test]
+fn universal_id_both_forms_produce_identical_state() {
+    // Snake-cased lookup takes precedence over `id` fallback : two runs
+    // of the same dispatch — one via each form — land on the same row
+    // with the same end state.
+    let mut rt_a = boot(universal_id_source());
+    rt_a.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+    rt_a.dispatch(
+        "Annotate",
+        attrs(&[("id", s("1")), ("reason", s("settled"))]),
+    ).unwrap();
+    let state_a = rt_a.find("ExemptRegistry", "1").unwrap().clone();
+
+    let mut rt_b = boot(universal_id_source());
+    rt_b.dispatch("Register", attrs(&[("path", s("/etc"))])).unwrap();
+    rt_b.dispatch(
+        "Annotate",
+        attrs(&[("exempt_registry", s("1")), ("reason", s("settled"))]),
+    ).unwrap();
+    let state_b = rt_b.find("ExemptRegistry", "1").unwrap().clone();
+
+    assert_eq!(state_a.get("reason"), state_b.get("reason"));
+    assert_eq!(state_a.id, state_b.id);
+}
