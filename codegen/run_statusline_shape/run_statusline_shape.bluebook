@@ -1,4 +1,4 @@
-Hecks.bluebook "RunStatuslineShape", version: "2026.05.12.1" do
+Hecks.bluebook "RunStatuslineShape", version: "2026.05.12.2" do
   vision "The shape of rust/src/run_statusline.rs as a bluebook — Miette's one-line body status runner made declarative. Each top-level partition (header / imports / runtime / icon tables / format helpers / tests) is a Phase row ; the three glyph-lookup functions (mood_icon_for / fatigue_icon_for / provider_badge_for) emit from StringMatchArm rows. Adding a new mood glyph or reordering a phase becomes a fixture-row edit, not a hand-edit to run_statusline.rs."
   category "autophagy"
 
@@ -20,7 +20,7 @@ Hecks.bluebook "RunStatuslineShape", version: "2026.05.12.1" do
   #   L1 = canonical_ir representation of this file
   #   L7 = rust/src/run_statusline.rs (generated)
   #
-  # Three aggregates :
+  # Three row-types (value_objects on the collapsed root) :
   #
   #   CapabilityDetector — single row describing the runner gate :
   #                        which adapters this runner uses (fs +
@@ -100,127 +100,128 @@ Hecks.bluebook "RunStatuslineShape", version: "2026.05.12.1" do
   # (cli/statusline/statusline.bluebook + statusline.hecksagon)
   # stays where it is — that describes the runtime capability, not
   # the codegen shape.
+  #
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The three row-types collapse to
+  # value_objects on the RunStatuslineShape root ; the row catalog
+  # lives in the sibling fixtures file. EmitRunStatusline is the
+  # semantic command — given the row set, emit
+  # rust/src/run_statusline.rs as a single Rust source string.
 
-  aggregate "CapabilityDetector", "One row describing the runner gate ; adapters + capability it satisfies" do
-    attribute :name,                DetectorName
-    # required_adapters: comma-separated adapter names this runner uses
-    # (fs, stdout). Carried for parity with capability_runner_shape's
+  aggregate "RunStatuslineShape", "Static schema for the run_statusline.rs codegen target — CapabilityDetector + Phase + StringMatchArm rows live in the sibling fixtures file" do
+    identified_by :target_rs
+
+    # ---- TargetRs ----------------------------------------------------
+
+    value_object "TargetRs" do
+      attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
+    end
+
+    # ---- EmittedRs ---------------------------------------------------
+
+    value_object "EmittedRs" do
+      attribute :value, String
+    end
+
+    # ---- CapabilityDetector ------------------------------------------
+    #
+    # One row describing the runner gate ; adapters + capability it
+    # satisfies. Carried for parity with capability_runner_shape's
     # detector contract ; not consulted by the byte-identity emitter.
-    attribute :required_adapters,   RequiredAdapters, default: ""
-    # required_aggregates: comma-separated aggregate names this runner
-    # satisfies (Statusline).
-    attribute :required_aggregates, RequiredAggregates, default: ""
-    # required_commands: comma-separated command names this runner
-    # implements (Render).
-    attribute :required_commands,   RequiredCommands, default: ""
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,         Description, default: ""
 
-    value_object "DetectorName" do
-      attribute :value, String
+    value_object "CapabilityDetector" do
+      description "One row describing the runner gate ; adapters + capability it satisfies"
+      attribute :name,                String
+      # required_adapters: comma-separated adapter names this runner uses
+      # (fs, stdout). Carried for parity with capability_runner_shape's
+      # detector contract ; not consulted by the byte-identity emitter.
+      attribute :required_adapters,   String
+      # required_aggregates: comma-separated aggregate names this runner
+      # satisfies (Statusline).
+      attribute :required_aggregates, String
+      # required_commands: comma-separated command names this runner
+      # implements (Render).
+      attribute :required_commands,   String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,         String
     end
-    value_object "RequiredAdapters" do
-      attribute :value, String
-    end
-    value_object "RequiredAggregates" do
-      attribute :value, String
-    end
-    value_object "RequiredCommands" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
 
-  aggregate "Phase", "One ordered top-level partition in run_statusline.rs ; body_kind picks emission" do
-    attribute :name,           PhaseName
-    # order: ascending integer ; specializer sorts before concatenating.
-    attribute :order,          Order
-    # body_kind: doc_block | imports_block | verbatim_body | string_match | tests_block
-    attribute :body_kind,      BodyKind
-    # source_command: optional ; the bluebook command this phase
-    # implements (today only the runtime phase carries Render). Not
-    # consulted by the emitter ; documents the phase's domain
-    # responsibility.
-    attribute :source_command, SourceCommand, default: ""
-    # adapter_used: optional ; the adapter this phase touches at
-    # runtime (fs / stdout / none). Not consulted by the emitter ;
-    # documents the phase's adapter contract.
-    attribute :adapter_used,   AdapterUsed, default: "none"
-    # snippet_path: required for doc_block / imports_block /
-    # verbatim_body / tests_block ; ignored for string_match.
-    attribute :snippet_path,   SnippetPath, default: ""
-    # min_gap: per-fn whitespace gap between widest pattern and `=>`
-    # for string_match phases. Hand-formatted source chose 1 for
-    # mood/provider, 2 for fatigue ; declared per-row so the layout
-    # choice survives codegen.
-    attribute :min_gap,        MinGap, default: 1
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,    Description, default: ""
+    # ---- Phase -------------------------------------------------------
+    #
+    # One ordered top-level partition in run_statusline.rs ; body_kind
+    # picks emission.
 
-    value_object "PhaseName" do
-      attribute :value, String
+    value_object "Phase" do
+      description "One ordered top-level partition in run_statusline.rs ; body_kind picks emission"
+      attribute :name,           String
+      # order: ascending integer ; specializer sorts before concatenating.
+      attribute :order,          Integer
+      # body_kind: doc_block | imports_block | verbatim_body | string_match | tests_block
+      attribute :body_kind,      String
+      # source_command: optional ; the bluebook command this phase
+      # implements (today only the runtime phase carries Render). Not
+      # consulted by the emitter ; documents the phase's domain
+      # responsibility.
+      attribute :source_command, String
+      # adapter_used: optional ; the adapter this phase touches at
+      # runtime (fs / stdout / none). Not consulted by the emitter ;
+      # documents the phase's adapter contract.
+      attribute :adapter_used,   String
+      # snippet_path: required for doc_block / imports_block /
+      # verbatim_body / tests_block ; ignored for string_match.
+      attribute :snippet_path,   String
+      # min_gap: per-fn whitespace gap between widest pattern and `=>`
+      # for string_match phases. Hand-formatted source chose 1 for
+      # mood/provider, 2 for fatigue ; declared per-row so the layout
+      # choice survives codegen.
+      attribute :min_gap,        Integer
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,    String
     end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "BodyKind" do
-      attribute :value, String
-    end
-    value_object "SourceCommand" do
-      attribute :value, String
-    end
-    value_object "AdapterUsed" do
-      attribute :value, String
-    end
-    value_object "SnippetPath" do
-      attribute :value, String
-    end
-    value_object "MinGap" do
-      attribute :value, Integer
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
 
-  aggregate "StringMatchArm", "One arm in an icon-lookup match block ; function selects fn membership" do
-    # function: which fn this arm belongs to (mood_icon_for /
-    # fatigue_icon_for / provider_badge_for). Matches the Phase.name
-    # of the string_match phase that emits this fn.
-    attribute :function, FunctionName
-    # order: ascending integer ; specializer sorts before emitting
-    # so arm order is stable across edits to row text.
-    attribute :order,    Order
-    # pattern: the literal string to match (e.g. "refreshed", "alert")
-    # or "_" for the wildcard. Specializer wraps literals in quotes
-    # at emit time ; "_" is bare.
-    attribute :pattern,  Pattern
-    # result: the returned `&'static str` content WITHOUT surrounding
-    # quotes (specializer wraps them). Note : escape sequences like
-    # \u{200d} ZWJ are stored escaped (\\u) so the parser emits a
-    # literal backslash + u, which round-trips through Rust string
-    # quoting back to the source's \u{200d} form.
-    attribute :result,   ArmResult
-    # comment: optional trailing `// <comment>` after the arm value.
-    # Used today only by provider_badge_for's claude-default arm.
-    attribute :comment,  ArmComment, default: ""
+    # ---- StringMatchArm ----------------------------------------------
+    #
+    # One arm in an icon-lookup match block ; function selects fn
+    # membership.
 
-    value_object "FunctionName" do
-      attribute :value, String
+    value_object "StringMatchArm" do
+      description "One arm in an icon-lookup match block ; function selects fn membership"
+      # function: which fn this arm belongs to (mood_icon_for /
+      # fatigue_icon_for / provider_badge_for). Matches the Phase.name
+      # of the string_match phase that emits this fn.
+      attribute :function, String
+      # order: ascending integer ; specializer sorts before emitting
+      # so arm order is stable across edits to row text.
+      attribute :order,    Integer
+      # pattern: the literal string to match (e.g. "refreshed", "alert")
+      # or "_" for the wildcard. Specializer wraps literals in quotes
+      # at emit time ; "_" is bare.
+      attribute :pattern,  String
+      # result: the returned `&'static str` content WITHOUT surrounding
+      # quotes (specializer wraps them). Note : escape sequences like
+      # \u{200d} ZWJ are stored escaped (\\u) so the parser emits a
+      # literal backslash + u, which round-trips through Rust string
+      # quoting back to the source's \u{200d} form.
+      attribute :result,   String
+      # comment: optional trailing `// <comment>` after the arm value.
+      # Used today only by provider_badge_for's claude-default arm.
+      attribute :comment,  String
     end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "Pattern" do
-      attribute :value, String
-    end
-    value_object "ArmResult" do
-      attribute :value, String
-    end
-    value_object "ArmComment" do
-      attribute :value, String
+
+    attribute :target_rs, TargetRs
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitRunStatusline" do
+      role "Autophagy"
+      description "Walk Phase rows in `order` ascending. For doc_block / imports_block / verbatim_body / tests_block rows, read snippet_path raw. For string_match rows, fold StringMatchArm rows where arm.function == phase.name in `order` ascending, pad each arm so `=>` aligns to the widest pattern (with Phase.min_gap whitespace), wrap pattern literals in quotes (bare for `_`), wrap result in quotes, append optional `// comment`. Concatenate the rendered phases and return the bytes the caller writes to TargetRs. Byte-identical against the hand-written rust/src/run_statusline.rs at i147 W7."
+      attribute :target_rs, TargetRs
+      emits "RunStatuslineEmitted"
+      then_set :target_rs, to: :target_rs
     end
   end
 end

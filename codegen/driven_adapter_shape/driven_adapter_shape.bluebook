@@ -1,4 +1,4 @@
-Hecks.bluebook "DrivenAdapterShape", version: "2026.05.12.1" do
+Hecks.bluebook "DrivenAdapterShape", version: "2026.05.12.2" do
   vision "The shape of storehouse/src/runtime/adapter_llm.rs as a bluebook — driven LLM adapter (ollama HTTP-POST + claude shell-invoke + dispatcher) made IR-derivable via per-backend body_kind vocabulary."
   category "autophagy"
 
@@ -56,116 +56,113 @@ Hecks.bluebook "DrivenAdapterShape", version: "2026.05.12.1" do
   # bearer token, or a gRPC backend), it adds a third body_kind row
   # with its own template. The dispatcher row's snippet absorbs the
   # new arm.
-
-  # ---- Section -----------------------------------------------------
   #
-  # One row per ordered code section in adapter_llm.rs. body_kind
-  # picks how the specializer emits the section :
-  #   verbatim_section — snippet emitted verbatim
-  #   http_post        — knobs interpolated into the http_post template
-  #   shell_invoke     — knobs interpolated into the shell_invoke template
-  #
-  # The specializer concatenates HEADER + each section body in `order`
-  # ascending. For verbatim_section rows, snippet_path points at a
-  # `.rs.frag` ; for http_post / shell_invoke rows, the row's knob
-  # attributes (url_path, env_var, etc.) drive the templated emission.
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The Section row-type is a value_object on
+  # the DrivenAdapterShape root ; the row catalog lives in the sibling
+  # fixtures file. EmitAdapterLlm is the semantic command — given the
+  # row set, emit storehouse/src/runtime/adapter_llm.rs as a single
+  # Rust source string.
 
-  aggregate "Section", "One ordered code section emitted from the driven_adapter shape" do
-    attribute :name,             SectionName
-    # order: ascending integer ; specializer sorts before concatenating.
-    attribute :order,            Order
-    # body_kind: verbatim_section | http_post | shell_invoke
-    attribute :body_kind,        BodyKind
-    # snippet_path: relative to repo root. Required for verbatim_section
-    # (the snippet IS the body) ; ignored for http_post / shell_invoke.
-    attribute :snippet_path,     SnippetPath, default: ""
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,      Description, default: ""
-    # doc_snippet: relative path to a .rs.frag holding the per-backend
-    # doc comment (`///` lines). Optional ; if blank, no doc emitted.
-    # Used by http_post and shell_invoke body_kinds where the prose is
-    # bespoke per backend but the function shape is uniform.
-    attribute :doc_snippet,      DocSnippet, default: ""
+  aggregate "DrivenAdapterShape", "Static schema for the adapter_llm.rs codegen target — Section rows live in the sibling fixtures file" do
+    identified_by :target_rs
 
-    # ---- http_post knobs ----
-    # function name (e.g. "call_ollama") ; specializer emits
-    # `fn <fn_name>(url: &str, model: &str, input: &str) -> Option<String>`
-    attribute :fn_name,          FnName, default: ""
-    # url_path: appended to the url arg (e.g. "/api/generate")
-    attribute :url_path,         UrlPath, default: ""
-    # prompt_prefix: a literal string concatenated before the input
-    # to form the prompt (used as `format!("<prefix>{}", input)`).
-    # Use `\n` for newlines.
-    attribute :prompt_prefix,    PromptPrefix, default: ""
-    # response_field: the JSON field path to extract from the response
-    # (e.g. "response" for ollama).
-    attribute :response_field,   ResponseField, default: ""
-    # timeout_secs: passed as `-m` to curl.
-    attribute :timeout_secs,     TimeoutSecs, default: 0
-    # num_predict: ollama-specific options.num_predict cap.
-    attribute :num_predict,      NumPredict, default: 0
+    # ---- TargetRs ----------------------------------------------------
+    #
+    # The relative path of the emitted Rust file. Today
+    # "storehouse/src/runtime/adapter_llm.rs" ; carried as a VO so
+    # parity with the wasm_worker_shape / embedded_bluebooks_shape
+    # convention is preserved.
 
-    # ---- shell_invoke knobs ----
-    # env_var: env var name holding the binary path (e.g. "CLAUDE_BIN")
-    attribute :env_var,          EnvVar, default: ""
-    # default_bin: fallback path when env var unset
-    attribute :default_bin,      DefaultBin, default: ""
-    # flag: CLI flag preceding the input arg (e.g. "-p")
-    attribute :flag,             Flag, default: ""
-    # min_len / max_len: post-processing length filter on stdout
-    attribute :min_len,          MinLen, default: 0
-    attribute :max_len,          MaxLen, default: 0
+    value_object "TargetRs" do
+      attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
+    end
 
-    value_object "SectionName" do
+    # ---- EmittedRs ---------------------------------------------------
+    #
+    # The rendered Rust source string. The caller writes the bytes to
+    # TargetRs ; the byte-identity test asserts the emitted bytes match
+    # the hand-written source.
+
+    value_object "EmittedRs" do
       attribute :value, String
     end
-    value_object "Order" do
-      attribute :value, Integer
+
+    # ---- Section -----------------------------------------------------
+    #
+    # One row per ordered code section in adapter_llm.rs. body_kind
+    # picks how the specializer emits the section :
+    #   verbatim_section — snippet emitted verbatim
+    #   http_post        — knobs interpolated into the http_post template
+    #   shell_invoke     — knobs interpolated into the shell_invoke template
+    #
+    # The specializer concatenates HEADER + each section body in `order`
+    # ascending. For verbatim_section rows, snippet_path points at a
+    # `.rs.frag` ; for http_post / shell_invoke rows, the row's knob
+    # attributes (url_path, env_var, etc.) drive the templated emission.
+
+    value_object "Section" do
+      description "One ordered code section emitted from the driven_adapter shape"
+      attribute :name,             String
+      # order: ascending integer ; specializer sorts before concatenating.
+      attribute :order,            Integer
+      # body_kind: verbatim_section | http_post | shell_invoke
+      attribute :body_kind,        String
+      # snippet_path: relative to repo root. Required for verbatim_section
+      # (the snippet IS the body) ; ignored for http_post / shell_invoke.
+      attribute :snippet_path,     String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,      String
+      # doc_snippet: relative path to a .rs.frag holding the per-backend
+      # doc comment (`///` lines). Optional ; if blank, no doc emitted.
+      # Used by http_post and shell_invoke body_kinds where the prose is
+      # bespoke per backend but the function shape is uniform.
+      attribute :doc_snippet,      String
+
+      # ---- http_post knobs ----
+      # function name (e.g. "call_ollama") ; specializer emits
+      # `fn <fn_name>(url: &str, model: &str, input: &str) -> Option<String>`
+      attribute :fn_name,          String
+      # url_path: appended to the url arg (e.g. "/api/generate")
+      attribute :url_path,         String
+      # prompt_prefix: a literal string concatenated before the input
+      # to form the prompt (used as `format!("<prefix>{}", input)`).
+      # Use `\n` for newlines.
+      attribute :prompt_prefix,    String
+      # response_field: the JSON field path to extract from the response
+      # (e.g. "response" for ollama).
+      attribute :response_field,   String
+      # timeout_secs: passed as `-m` to curl.
+      attribute :timeout_secs,     Integer
+      # num_predict: ollama-specific options.num_predict cap.
+      attribute :num_predict,      Integer
+
+      # ---- shell_invoke knobs ----
+      # env_var: env var name holding the binary path (e.g. "CLAUDE_BIN")
+      attribute :env_var,          String
+      # default_bin: fallback path when env var unset
+      attribute :default_bin,      String
+      # flag: CLI flag preceding the input arg (e.g. "-p")
+      attribute :flag,             String
+      # min_len / max_len: post-processing length filter on stdout
+      attribute :min_len,          Integer
+      attribute :max_len,          Integer
     end
-    value_object "BodyKind" do
-      attribute :value, String
-    end
-    value_object "SnippetPath" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-    value_object "DocSnippet" do
-      attribute :value, String
-    end
-    value_object "FnName" do
-      attribute :value, String
-    end
-    value_object "UrlPath" do
-      attribute :value, String
-    end
-    value_object "PromptPrefix" do
-      attribute :value, String
-    end
-    value_object "ResponseField" do
-      attribute :value, String
-    end
-    value_object "TimeoutSecs" do
-      attribute :value, Integer
-    end
-    value_object "NumPredict" do
-      attribute :value, Integer
-    end
-    value_object "EnvVar" do
-      attribute :value, String
-    end
-    value_object "DefaultBin" do
-      attribute :value, String
-    end
-    value_object "Flag" do
-      attribute :value, String
-    end
-    value_object "MinLen" do
-      attribute :value, Integer
-    end
-    value_object "MaxLen" do
-      attribute :value, Integer
+
+    attribute :target_rs, TargetRs
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitAdapterLlm" do
+      role "Autophagy"
+      description "Walk every Section row in the sibling fixtures file in `order` ascending, dispatch each row on its body_kind (verbatim_section reads snippet_path raw ; http_post interpolates the url_path / prompt_prefix / response_field / timeout_secs / num_predict knobs into the http-post template ; shell_invoke interpolates env_var / default_bin / flag / timeout_secs / min_len / max_len into the shell-invoke template), concatenate HEADER + each rendered section, and return the bytes the caller writes to TargetRs. Byte-identical against the hand-written storehouse/src/runtime/adapter_llm.rs at i147 W3-B."
+      attribute :target_rs, TargetRs
+      emits "AdapterLlmEmitted"
+      then_set :target_rs, to: :target_rs
     end
   end
 end

@@ -1,4 +1,4 @@
-Hecks.bluebook "MutationOpShape", version: "2026.05.12.1" do
+Hecks.bluebook "MutationOpShape", version: "2026.05.12.2" do
   vision "The shape of MutationOp dispatch as a bluebook — interpreter.rs's apply_mutations match arms AND aggregate_state.rs's mutator method family regenerated from one declarative row set, closing i171."
   category "autophagy"
 
@@ -33,7 +33,7 @@ Hecks.bluebook "MutationOpShape", version: "2026.05.12.1" do
   #   L7 = rust/src/runtime/interpreter.rs (generated)
   #        rust/src/runtime/aggregate_state.rs (generated)
   #
-  # ## Three aggregates
+  # ## Three row-types (value_objects on the collapsed root)
   #
   # MutationOp     — one row per MutationOp variant (Set, Append,
   #                  Increment, Decrement, Toggle, Delete, Multiply,
@@ -106,136 +106,160 @@ Hecks.bluebook "MutationOpShape", version: "2026.05.12.1" do
   # arm. The dispatch_kind template emits the doc_snippet (when
   # present) inside the arm before its body, preserving byte-identity
   # against the existing tracked source.
+  #
+  # ============================================================
+  # Single-aggregate shape per Chris's "no bluebooks without commands"
+  # principle (2026-05-12). The three row-types — MutationOp,
+  # MutatorMethod, Section — become value_objects on the
+  # MutationOpShape root. The row catalogs live in the sibling
+  # fixtures file ; the two Emit commands target the two consumers.
 
-  aggregate "MutationOp", "One MutationOp variant ; describes how to emit its apply_mutations match arm" do
-    # Variant name as it appears in `MutationOp::<name>` — Set,
-    # Append, Increment, Decrement, Toggle, Delete, Multiply, Decay,
-    # Clamp. The specializer emits `MutationOp::<name> => { … }`.
-    attribute :op_name,            OpName
-    # order: ascending integer ; specializer sorts before emitting so
-    # the arm order stays stable across edits to row text.
-    attribute :order,              Order
-    # dispatch_kind: resolve_call | numeric_with_float_branch |
-    # nullary_method | state_flag | field_factor | clamp_bounds.
-    attribute :dispatch_kind,      DispatchKind
-    # doc_snippet: path to a .rs.frag carrying the leading `// …` doc
-    # comment for this arm. Optional ; empty when the arm has no doc.
-    attribute :doc_snippet,        DocSnippet, default: ""
-    # state_method: AggregateState method name to call inside the arm.
-    # Used by resolve_call and nullary_method ; for the int-branch of
-    # numeric_with_float_branch see state_method_int.
-    attribute :state_method,       StateMethod, default: ""
-    # state_method_int / state_method_float: numeric_with_float_branch
-    # only ; pair of method names for the integer fallback and the
-    # fractional fast path.
-    attribute :state_method_int,   StateMethodInt, default: ""
-    attribute :state_method_float, StateMethodFloat, default: ""
-    # arg_local: field_factor only ; the local f64 variable name in
-    # `if let Some(<arg_local>) = numeric_value(&val)`. "factor" for
-    # Multiply, "rate" for Decay — readability only, not semantics.
-    attribute :arg_local,          ArgLocal, default: ""
-    # factor_expr: field_factor only ; the right-hand expression
-    # passed to set_float. Uses the local variable bound by `let cur`
-    # plus arg_local. Multiply: "cur * factor". Decay: "cur * (1.0 - rate)".
-    attribute :factor_expr,        FactorExpr, default: ""
-    # flag_name: state_flag only ; the bool field on AggregateState
-    # this arm flips to true. Today: "deleted".
-    attribute :flag_name,          FlagName, default: ""
+  aggregate "MutationOpShape", "Static schema for the interpreter.rs + aggregate_state.rs codegen targets — MutationOp + MutatorMethod + Section rows live in the sibling fixtures file" do
+    identified_by :name
 
-    value_object "OpName" do
-      attribute :value, String
-    end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "DispatchKind" do
-      attribute :value, String
-    end
-    value_object "DocSnippet" do
-      attribute :value, String
-    end
-    value_object "StateMethod" do
-      attribute :value, String
-    end
-    value_object "StateMethodInt" do
-      attribute :value, String
-    end
-    value_object "StateMethodFloat" do
-      attribute :value, String
-    end
-    value_object "ArgLocal" do
-      attribute :value, String
-    end
-    value_object "FactorExpr" do
-      attribute :value, String
-    end
-    value_object "FlagName" do
-      attribute :value, String
-    end
-  end
+    # ---- ShapeName ---------------------------------------------------
+    #
+    # Identifier for this shape — one row per file emission. Today
+    # carries "mutation_op_shape" ; future revisions may host a
+    # sibling shape rooted on a different name.
 
-  aggregate "MutatorMethod", "One method on impl AggregateState ; emitted verbatim from a per-method snippet" do
-    attribute :name,         MethodName
-    # order: ascending integer ; specializer sorts before
-    # concatenating method bodies so the impl block is stable.
-    attribute :order,        Order
-    # snippet_path: relative to repo root. The .rs.frag file
-    # containing the method body (incl. its leading `///` doc
-    # comment, the `pub fn …` signature, and the closing `}`).
-    attribute :snippet_path, SnippetPath
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  Description, default: ""
+    value_object "ShapeName" do
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
 
-    value_object "MethodName" do
-      attribute :value, String
-    end
-    value_object "Order" do
-      attribute :value, Integer
-    end
-    value_object "SnippetPath" do
-      attribute :value, String
-    end
-    value_object "Description" do
-      attribute :value, String
-    end
-  end
+    # ---- TargetRs ----------------------------------------------------
+    #
+    # The relative path of an emitted Rust file. Two emissions per
+    # shape — "rust/src/runtime/interpreter.rs" and
+    # "rust/src/runtime/aggregate_state.rs". Each Emit command takes
+    # its own TargetRs.
 
-  aggregate "Section", "One ordered code section in interpreter.rs or aggregate_state.rs" do
-    # target: which consumer file this row belongs to. The specializer
-    # emits one consumer at a time, filtered by this knob.
-    #   "interpreter"     → rust/src/runtime/interpreter.rs
-    #   "aggregate_state" → rust/src/runtime/aggregate_state.rs
-    attribute :target,       Target
-    attribute :name,         SectionName
-    # order: ascending integer (per target) ; specializer sorts
-    # before concatenating.
-    attribute :order,        Order
-    # body_kind: verbatim_section | mutation_op_dispatch | mutator_impl
-    attribute :body_kind,    BodyKind
-    # snippet_path: required for verbatim_section ; ignored for the
-    # synthetic kinds (mutation_op_dispatch, mutator_impl) which
-    # build their bodies from MutationOp / MutatorMethod rows.
-    attribute :snippet_path, SnippetPath, default: ""
-    # description: prose for humans reading the bluebook ; not emitted.
-    attribute :description,  Description, default: ""
+    value_object "TargetRs" do
+      attribute :value, String
+      invariant "must end in .rs" do
+        value.end_with?(".rs")
+      end
+    end
 
-    value_object "Target" do
+    # ---- EmittedRs ---------------------------------------------------
+    #
+    # The rendered Rust source string. The caller writes the bytes to
+    # TargetRs ; the byte-identity test asserts the emitted bytes match
+    # the hand-written source.
+
+    value_object "EmittedRs" do
       attribute :value, String
     end
-    value_object "SectionName" do
-      attribute :value, String
+
+    # ---- MutationOp --------------------------------------------------
+    #
+    # One row per MutationOp variant ; describes how to emit its
+    # apply_mutations match arm.
+
+    value_object "MutationOp" do
+      description "One MutationOp variant ; describes how to emit its apply_mutations match arm"
+      # Variant name as it appears in `MutationOp::<name>` — Set,
+      # Append, Increment, Decrement, Toggle, Delete, Multiply, Decay,
+      # Clamp. The specializer emits `MutationOp::<name> => { … }`.
+      attribute :op_name,            String
+      # order: ascending integer ; specializer sorts before emitting so
+      # the arm order stays stable across edits to row text.
+      attribute :order,              Integer
+      # dispatch_kind: resolve_call | numeric_with_float_branch |
+      # nullary_method | state_flag | field_factor | clamp_bounds.
+      attribute :dispatch_kind,      String
+      # doc_snippet: path to a .rs.frag carrying the leading `// …` doc
+      # comment for this arm. Optional ; empty when the arm has no doc.
+      attribute :doc_snippet,        String
+      # state_method: AggregateState method name to call inside the arm.
+      # Used by resolve_call and nullary_method ; for the int-branch of
+      # numeric_with_float_branch see state_method_int.
+      attribute :state_method,       String
+      # state_method_int / state_method_float: numeric_with_float_branch
+      # only ; pair of method names for the integer fallback and the
+      # fractional fast path.
+      attribute :state_method_int,   String
+      attribute :state_method_float, String
+      # arg_local: field_factor only ; the local f64 variable name in
+      # `if let Some(<arg_local>) = numeric_value(&val)`. "factor" for
+      # Multiply, "rate" for Decay — readability only, not semantics.
+      attribute :arg_local,          String
+      # factor_expr: field_factor only ; the right-hand expression
+      # passed to set_float. Uses the local variable bound by `let cur`
+      # plus arg_local. Multiply: "cur * factor". Decay: "cur * (1.0 - rate)".
+      attribute :factor_expr,        String
+      # flag_name: state_flag only ; the bool field on AggregateState
+      # this arm flips to true. Today: "deleted".
+      attribute :flag_name,          String
     end
-    value_object "Order" do
-      attribute :value, Integer
+
+    # ---- MutatorMethod -----------------------------------------------
+    #
+    # One method on impl AggregateState ; emitted verbatim from a
+    # per-method snippet.
+
+    value_object "MutatorMethod" do
+      description "One method on impl AggregateState ; emitted verbatim from a per-method snippet"
+      attribute :name,         String
+      # order: ascending integer ; specializer sorts before
+      # concatenating method bodies so the impl block is stable.
+      attribute :order,        Integer
+      # snippet_path: relative to repo root. The .rs.frag file
+      # containing the method body (incl. its leading `///` doc
+      # comment, the `pub fn …` signature, and the closing `}`).
+      attribute :snippet_path, String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,  String
     end
-    value_object "BodyKind" do
-      attribute :value, String
+
+    # ---- Section -----------------------------------------------------
+    #
+    # One ordered code section in interpreter.rs or aggregate_state.rs.
+
+    value_object "Section" do
+      description "One ordered code section in interpreter.rs or aggregate_state.rs"
+      # target: which consumer file this row belongs to. The specializer
+      # emits one consumer at a time, filtered by this knob.
+      #   "interpreter"     → rust/src/runtime/interpreter.rs
+      #   "aggregate_state" → rust/src/runtime/aggregate_state.rs
+      attribute :target,       String
+      attribute :name,         String
+      # order: ascending integer (per target) ; specializer sorts
+      # before concatenating.
+      attribute :order,        Integer
+      # body_kind: verbatim_section | mutation_op_dispatch | mutator_impl
+      attribute :body_kind,    String
+      # snippet_path: required for verbatim_section ; ignored for the
+      # synthetic kinds (mutation_op_dispatch, mutator_impl) which
+      # build their bodies from MutationOp / MutatorMethod rows.
+      attribute :snippet_path, String
+      # description: prose for humans reading the bluebook ; not emitted.
+      attribute :description,  String
     end
-    value_object "SnippetPath" do
-      attribute :value, String
+
+    attribute :name, ShapeName
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "EmitInterpreter" do
+      role "Autophagy"
+      description "Walk Section rows filtered by target=='interpreter' in `order` ascending. For verbatim_section rows, read snippet_path raw. For mutation_op_dispatch rows, fold MutationOp rows in `order` ascending and emit one `MutationOp::<op_name> => { … }` arm per row using its dispatch_kind template (resolve_call / numeric_with_float_branch / nullary_method / state_flag / field_factor / clamp_bounds), prepending the row's doc_snippet when present. Concatenate the sections and return the bytes the caller writes to TargetRs. Byte-identical against the hand-written rust/src/runtime/interpreter.rs at i147 W4-A."
+      attribute :name,      ShapeName
+      attribute :target_rs, TargetRs
+      emits "InterpreterEmitted"
+      then_set :name, to: :name
     end
-    value_object "Description" do
-      attribute :value, String
+
+    command "EmitAggregateState" do
+      role "Autophagy"
+      description "Walk Section rows filtered by target=='aggregate_state' in `order` ascending. For verbatim_section rows, read snippet_path raw. For mutator_impl rows, fold MutatorMethod rows in `order` ascending and concatenate each method's snippet_path body (already carrying `///` doc + `pub fn …` signature + closing brace), separated by blank lines, wrapped in the impl AggregateState opener and closing brace. Concatenate the sections and return the bytes the caller writes to TargetRs. Byte-identical against the hand-written rust/src/runtime/aggregate_state.rs at i147 W4-A."
+      attribute :name,      ShapeName
+      attribute :target_rs, TargetRs
+      emits "AggregateStateEmitted"
+      then_set :name, to: :name
     end
   end
 end
