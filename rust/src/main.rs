@@ -25,21 +25,21 @@
 //!  dispatch arms. This IS the structural rewrite that closes the gap
 //!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
 //!  and runtime enforcement. Same i80 retirement contract as run_loop /
-//!  run_daemon / run_macrophage_edit. Net ~12 LoC.]
+//!  run_daemon / run_macrophage. Net ~12 LoC.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs — closes i113 (sleep-as-blocking-
 //!  streaming-command). Wires Consciousness.EnterSleep dispatch + heki polling
 //!  + dream stream + wake-report read into a single blocking CLI. Same kernel-
-//!  surface family as run_loop / run_daemon / run_macrophage_edit ; same i80
+//!  surface family as run_loop / run_daemon / run_macrophage ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs — closes i118 (macrophage-honors-
-//!  in-file-antibody-exempt-markers). run_macrophage_edit now reads the touched
+//!  in-file-antibody-exempt-markers). run_macrophage now reads the touched
 //!  file's first 200 lines and dispatches Macrophage.RecordExemptedEdit (silent
 //!  exit 0) instead of Macrophage.Complain when the file already carries a
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
-//!  the rest of the run_macrophage_edit family.]
+//!  the rest of the run_macrophage family.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs detect_bash_write_target +
 //!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
@@ -48,7 +48,7 @@
 //!  .rs files. New shape : each cmd_name names the exact write signatures
 //!  (None for tee/always-write ; Some(&[bigrams]) for sed -i / --in-place
 //!  and awk -i inplace). Same i80 retirement contract as the rest of the
-//!  run_macrophage_edit family — retires when the macrophage's command-string
+//!  run_macrophage family — retires when the macrophage's command-string
 //!  classification becomes a domain dispatched from
 //!  aggregates/discipline/macrophage/.]
 //!
@@ -402,11 +402,12 @@ fn main() {
         return;
     }
 
-    // `storehouse enforce-edit` — PostToolUse listener primitive.
+    // `storehouse macrophage` — PostToolUse listener primitive.
+    // (Old name `storehouse enforce-edit` kept as deprecated alias.)
     //
     // Reads tool-input JSON from stdin, classifies the touched file
-    // by extension, dispatches Enforcer.RecordXxxEdit (and, for
-    // imperative-language files, Enforcer.Complain), prints the
+    // by extension, dispatches Macrophage.RecordXxxEdit (and, for
+    // imperative-language files, Macrophage.Complain), prints the
     // complaint to stderr, exits 2 so Claude Code routes the
     // complaint to the agent as a system reminder.
     //
@@ -415,10 +416,15 @@ fn main() {
     // contract takes a command, and the command can now be storehouse
     // directly. No shell glue. Same family as `storehouse loop` and
     // `storehouse daemon` — kernel-surface primitives a bluebook
-    // capability dispatches into. The Enforcer brain stays in
-    // aggregates/enforcer.bluebook.
-    if command == "enforce-edit" {
-        run_enforce_edit(&args);
+    // capability dispatches into. The Macrophage brain stays in
+    // aggregates/discipline/macrophage/macrophage.bluebook (i553).
+    if command == "enforce-edit" || command == "macrophage" {
+        // Deprecation notice if old form used. Print BEFORE the dispatch
+        // because run_macrophage exits internally (never returns).
+        if command == "enforce-edit" {
+            eprintln!("[macrophage] note : `storehouse enforce-edit` renamed to `storehouse macrophage` (i553) ; old form still works for now.");
+        }
+        run_macrophage(&args);
         return;
     }
 
@@ -483,7 +489,7 @@ fn main() {
     // wake_review.sh + interpret_dream.sh automatically), prints it to
     // stdout, exits 0.
     //
-    // Same family as run_loop / run_daemon / run_enforce_edit / run_clock
+    // Same family as run_loop / run_daemon / run_macrophage / run_clock
     // — kernel-surface CLI primitive. Bluebook brain (sleep.bluebook,
     // lucid_dream.bluebook) stays unchanged ; this just wires the
     // dispatch + heki polling + dream stream + wake-report read into a
@@ -3219,21 +3225,23 @@ fn parse_loop_duration(s: &str) -> Option<std::time::Duration> {
 //     Removes the pidfile.
 
 // ============================================================
-// ENFORCE-EDIT SUBCOMMAND — PostToolUse listener primitive
+// MACROPHAGE SUBCOMMAND — PostToolUse listener primitive
+// (canonical name as of i553 ; old `enforce-edit` is a
+//  deprecated alias still wired in main())
 // ============================================================
 //
 // Reads JSON from stdin (Claude Code's PostToolUse contract),
 // extracts tool_name and tool_input.file_path, classifies the
-// extension, dispatches into the Enforcer aggregate, and routes
+// extension, dispatches into the Macrophage aggregate, and routes
 // imperative-edit complaints back to the agent via stderr + exit 2.
 //
 // Replaces ~/.claude/hooks/enforce_bluebook.sh (i104). Same family
 // as run_loop / run_daemon : kernel-surface CLI primitive that a
 // bluebook capability dispatches into. Bluebook brain
-// (aggregates/enforcer.bluebook) stays unchanged ; the shell glue
-// retires.
+// (aggregates/discipline/macrophage/macrophage.bluebook) stays
+// unchanged ; the shell glue retires.
 
-fn run_enforce_edit(_args: &[String]) {
+fn run_macrophage(_args: &[String]) {
     use std::io::Read;
     let mut input = String::new();
     if std::io::stdin().read_to_string(&mut input).is_err() {
@@ -4529,7 +4537,7 @@ fn run_sleep(_args: &[String]) {
     use std::io::Write;
     use std::time::Instant;
 
-    // Resolve aggregates dir + heki dir the same way run_enforce_edit
+    // Resolve aggregates dir + heki dir the same way run_macrophage
     // does — HECKS_HOME, then walk up from the binary. The find_world_
     // heki_dir helper honors HECKS_INFO override, so private-state
     // setups (~/Projects/miette-state/information) keep working.
