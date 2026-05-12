@@ -102,13 +102,28 @@ fn creation_cards(domain: &str, rt: &Runtime) -> String {
         let icon = module_icon(&agg.name);
         let desc = agg.description.as_deref().unwrap_or("");
 
+        // i549 — collect the distinct roles this aggregate exposes via
+        // its commands. The top-bar role filter (rendered in
+        // html_shared::top_bar's accompanying JS) toggles
+        // `aria-hidden` + `display:none` on cards whose data-roles
+        // doesn't include the selected role. "All" shows everything.
+        let mut roles: Vec<String> = agg
+            .commands
+            .iter()
+            .filter_map(|c| c.role.as_ref().map(|r| r.to_ascii_lowercase()))
+            .collect();
+        roles.sort();
+        roles.dedup();
+        let roles_attr = roles.join(",");
+
         s.push_str(&format!(
-            r#"<div id="agg-{anchor}" data-aggregate="{anchor}" class="bg-surface-2 rounded-xl border border-surface-3 p-5 hover:border-brand/30 transition scroll-mt-24">
+            r#"<div id="agg-{anchor}" data-aggregate="{anchor}" data-roles="{roles_attr}" class="bg-surface-2 rounded-xl border border-surface-3 p-5 hover:border-brand/30 transition scroll-mt-24">
   <div class="mb-3">
     <h3 class="font-semibold text-white">{icon} {label}</h3>
     <p class="text-xs text-gray-500 mt-1">{desc}</p>
   </div>"#,
             anchor = esc(&agg.name),
+            roles_attr = esc(&roles_attr),
             icon = icon,
             label = esc(&display_name(&agg.name)),
             desc = esc(desc),
