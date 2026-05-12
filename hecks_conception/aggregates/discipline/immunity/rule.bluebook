@@ -19,22 +19,42 @@ Hecks.bluebook "Rule", version: "2026.04.28.1" do
 
   aggregate "Rule", "One validation rule — innate or adaptive" do
     identified_by :name
-    attribute :name, String
-    attribute :category, String
-    attribute :description, String
-    attribute :severity, String
+    attribute :name,        Name
+    attribute :category,    Category
+    attribute :description, Description
+    attribute :severity,    Severity
+
+    value_object "Name" do
+      # Stable slug identifying the rule (e.g. 'no_primitive_envy').
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # The validator family the rule belongs to (innate / adaptive / warning / verb).
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Human-readable explanation of what the rule enforces.
+      attribute :value, String
+    end
+
+    value_object "Severity" do
+      # Either 'error' (hard stop) or 'warning' (surface only).
+      attribute :value, String
+    end
 
     command "RegisterRule" do
       description "Register a validation rule"
-      attribute :name, String
-      attribute :category, String
-      attribute :description, String
-      attribute :severity, String
+      attribute :name,        Name
+      attribute :category,    Category
+      attribute :description, Description
+      attribute :severity,    Severity
       emits "RuleRegistered"
-      then_set :name, to: :name
-      then_set :category, to: :category
+      then_set :name,        to: :name
+      then_set :category,    to: :category
       then_set :description, to: :description
-      then_set :severity, to: :severity
+      then_set :severity,    to: :severity
     end
 
     query ListRules do

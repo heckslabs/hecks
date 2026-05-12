@@ -13,19 +13,44 @@ Hecks.bluebook "Violation", version: "2026.04.28.1" do
 
   aggregate "Violation", "A detected rule violation" do
     identified_by :ref
-    attribute :ref, String
-    attribute :rule_name, String
-    attribute :message, String
-    attribute :aggregate_name, String
-    attribute :command_name, String
+    attribute :ref,            Ref
+    attribute :rule_name,      RuleName
+    attribute :message,        Message
+    attribute :aggregate_name, AggregateName
+    attribute :command_name,   CommandName
+
+    value_object "Ref" do
+      # Stable identifier for the violation event.
+      attribute :value, String
+    end
+
+    value_object "RuleName" do
+      # The Rule.name that was breached.
+      attribute :value, String
+    end
+
+    value_object "Message" do
+      # Human-readable description of the breach.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The aggregate where the breach was observed.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # The command where the breach was observed (if any).
+      attribute :value, String
+    end
 
     command "DetectViolation" do
       description "A rule was broken"
-      attribute :rule_name, String
-      attribute :message, String
+      attribute :rule_name, RuleName
+      attribute :message,   Message
       emits "ViolationDetected"
       then_set :rule_name, to: :rule_name
-      then_set :message, to: :message
+      then_set :message,   to: :message
     end
 
     query ListViolations do
