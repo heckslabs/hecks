@@ -16,23 +16,48 @@ Hecks.bluebook "Store", version: "2026.04.28.1" do
 
   aggregate "Store", "A long-term memory entry — one record per stored signal" do
     identified_by :ref
-    attribute :ref, String
-    attribute :kind, String
-    attribute :payload, String
-    attribute :source, String
-    attribute :created_at, String
+    attribute :ref,        Ref
+    attribute :kind,       Kind
+    attribute :payload,    Payload
+    attribute :source,     Source
+    attribute :created_at, Timestamp
+
+    value_object "Ref" do
+      # Stable identifier for the stored memory record.
+      attribute :value, String
+    end
+
+    value_object "Kind" do
+      # Category of the stored signal (e.g. 'event', 'dream', 'observation').
+      attribute :value, String
+    end
+
+    value_object "Payload" do
+      # The serialized body of the stored signal.
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # Where the signal originated (organ, daemon, agent name).
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp when the memory was stored.
+      attribute :value, String
+    end
 
     command "StoreMemory" do
       role "Daemon"
       description "Save a signal (or any payload) into long-term memory — kind/payload/source/created_at"
-      attribute :kind, String
-      attribute :payload, String
-      attribute :source, String
-      attribute :created_at, String
+      attribute :kind,       Kind
+      attribute :payload,    Payload
+      attribute :source,     Source
+      attribute :created_at, Timestamp
       emits "MemoryStored"
-      then_set :kind, to: :kind
-      then_set :payload, to: :payload
-      then_set :source, to: :source
+      then_set :kind,       to: :kind
+      then_set :payload,    to: :payload
+      then_set :source,     to: :source
       then_set :created_at, to: :created_at
     end
   end
