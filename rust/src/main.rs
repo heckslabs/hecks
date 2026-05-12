@@ -25,21 +25,21 @@
 //!  dispatch arms. This IS the structural rewrite that closes the gap
 //!  between the bluebook-declared rules (capabilities/validator_warnings_shape/)
 //!  and runtime enforcement. Same i80 retirement contract as run_loop /
-//!  run_daemon / run_enforce_edit. Net ~12 LoC.]
+//!  run_daemon / run_macrophage_edit. Net ~12 LoC.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs — closes i113 (sleep-as-blocking-
 //!  streaming-command). Wires Consciousness.EnterSleep dispatch + heki polling
 //!  + dream stream + wake-report read into a single blocking CLI. Same kernel-
-//!  surface family as run_loop / run_daemon / run_enforce_edit ; same i80
+//!  surface family as run_loop / run_daemon / run_macrophage_edit ; same i80
 //!  retirement contract — retires once cli.bluebook lands and CLI routing
 //!  becomes declarative.]
 //!
-//! [antibody-exempt: storehouse/src/main.rs — closes i118 (enforcer-honors-
-//!  in-file-antibody-exempt-markers). run_enforce_edit now reads the touched
-//!  file's first 200 lines and dispatches Enforcer.RecordExemptedEdit (silent
-//!  exit 0) instead of Enforcer.Complain when the file already carries a
+//! [antibody-exempt: storehouse/src/main.rs — closes i118 (macrophage-honors-
+//!  in-file-antibody-exempt-markers). run_macrophage_edit now reads the touched
+//!  file's first 200 lines and dispatches Macrophage.RecordExemptedEdit (silent
+//!  exit 0) instead of Macrophage.Complain when the file already carries a
 //!  marker. The marker IS the audit trail. Same i80 retirement contract as
-//!  the rest of the run_enforce_edit family.]
+//!  the rest of the run_macrophage_edit family.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs detect_bash_write_target +
 //!  scan_command_with_path_arg — 2026-05-02 false-positive heal. The prior
@@ -48,9 +48,9 @@
 //!  .rs files. New shape : each cmd_name names the exact write signatures
 //!  (None for tee/always-write ; Some(&[bigrams]) for sed -i / --in-place
 //!  and awk -i inplace). Same i80 retirement contract as the rest of the
-//!  run_enforce_edit family — retires when the enforcer's command-string
+//!  run_macrophage_edit family — retires when the macrophage's command-string
 //!  classification becomes a domain dispatched from
-//!  aggregates/discipline/enforcer/.]
+//!  aggregates/discipline/macrophage/.]
 //!
 //! [antibody-exempt: storehouse/src/main.rs — i117 Round 4. load_combined_domain
 //!  walks the sibling ../miette repo as an additional bluebook root at depth 1.
@@ -3976,7 +3976,7 @@ fn run_loop(args: &[String]) {
     //  primitive with multi-command rotation (i106) and gated cadence (i108).
     //  This IS the structural rewrite that lets breath / ultradian / sleep_cycle
     //  retire. Same i80 retirement contract as the rest of the loop / daemon /
-    //  enforce-edit family. Net ~30 LoC.]
+    //  macrophage family. Net ~30 LoC.]
     //
     // Args layout : storehouse loop <target> <Cmd1[,Cmd2,...]> --every <dur>
     //               [--gate <heki-file>:<field>=<value>] [k=v ...]
