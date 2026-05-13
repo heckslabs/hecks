@@ -1,0 +1,202 @@
+Hecks.bluebook "LineCountMacrophage", version: "2026.05.13.1" do
+  vision "The 200-line file limit made structural — one macrophage, one enforcement. Tracks line counts on every imperative file write, distinguishing files approaching the limit (at-warning, default 180) from files that have crossed it (over-limit, default 200). Every offending write lands in an entity collection; the complaint text names the rule so attribution is instant. Doc-comment headers do not count toward the limit — only code lines. Scoped strictly to the line-count discipline; no other rule lives here."
+  category "discipline"
+
+  # ============================================================
+  # LINE COUNT MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # CLAUDE.md says : "No file over 200 lines of code — doc comment
+  # headers don't count toward this limit; extract modules/classes
+  # by concern when approaching it."
+  #
+  # Large files are where concerns go to hide. A 400-line Ruby file
+  # almost always contains two or three natural splits — one class
+  # doing I/O and another doing domain logic, or a generic concern
+  # bundled with a specialised one. The 200-line rule forces the
+  # conversation early, before the tangle sets in.
+  #
+  # i595 decomposes the original monolithic Macrophage aggregate into
+  # a family of per-rule macrophages. LineCountMacrophage is the sixth
+  # member. The parent Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Only imperative files are checked (the file
+  # kinds that hold code) ; declarative and support files are recorded
+  # but never complained about.
+  #
+  # File kinds (same classification as the parent Macrophage) :
+  #   .bluebook .hecksagon .fixtures .behaviors .world  → declarative
+  #   .rs .sh .rb .js .py .go .ts                       → imperative (checked)
+  #   .md .heki .json .toml .yaml .txt                  → support
+  #   anything else                                     → other
+  #
+  # Two thresholds are domain attributes, not magic constants :
+  #   warning_threshold_lines (default 180) — files approaching limit
+  #   limit_lines             (default 200) — files over the limit
+  #
+  # Two entity kinds separate the urgency clearly :
+  #   WarningFile  — between threshold and limit (start extracting now)
+  #   OversizedFile — at or over limit (a rule violation)
+
+  aggregate "LineCountMacrophage", "Per-rule macrophage for the 200-line file limit — tracks checked files, records warning and over-limit files as distinct entities, and surfaces a complaint for every violation" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Enforcement thresholds — domain attributes, not magic constants.
+    attribute :limit_lines,             LineCount
+    attribute :warning_threshold_lines, LineCount
+
+    # Session tallies — scoped to this session for scoreboard reads.
+    attribute :total_files_checked, FileCount
+    attribute :files_within_limit,  FileCount
+    attribute :files_at_warning,    FileCount
+    attribute :files_over_limit,    FileCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_file,    FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # recorded_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a check or complaint.
+      attribute :value, String
+    end
+
+    value_object "LineCount" do
+      # Count of code lines in a file, or a threshold value.
+      # Doc-comment headers are excluded by the hook before dispatch.
+      attribute :value, Integer
+    end
+
+    value_object "FileCount" do
+      # Count of files in a particular category (checked / within /
+      # at-warning / over-limit) recorded in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Begins "The LineCountMacrophage expected ..." so rule
+      # attribution is visible at a glance in the system reminder.
+      attribute :value, String
+    end
+
+    value_object "FileKind" do
+      # Classification of the file being checked.
+      # Only Imperative files are subject to the line-count rule.
+      attribute :value, String  # "Imperative" | "Declarative" | "Support" | "Other"
+    end
+
+    # ── Entity — oversized-file audit trail ──
+
+    entity "OversizedFile" do
+      description "One file that crossed the line-count limit. Recorded when RecordLineCount routes to over-limit, or when RecordOversizedFile is dispatched directly. The exceeded_by field makes the delta legible without subtraction — how many lines over the limit the file sits."
+      attribute :recorded_at,  Timestamp
+      attribute :file_path,    FilePath
+      attribute :line_count,   LineCount
+      attribute :kind,         FileKind
+      attribute :exceeded_by,  LineCount
+    end
+
+    # ── Entity — warning-file audit trail ──
+
+    entity "WarningFile" do
+      description "One file that sits between warning_threshold_lines and limit_lines — approaching the limit but not yet over it. Distinct from OversizedFile so urgency reads at a glance: WarningFile = act soon, OversizedFile = rule violated. The lines_to_limit field shows the remaining headroom."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :line_count,     LineCount
+      attribute :kind,           FileKind
+      attribute :lines_to_limit, LineCount
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects today's activity, not lifetime totals. The OversizedFile and WarningFile entity collections are NOT reset — they are audit trail. Thresholds are set here with defaults if not provided."
+      attribute :session_started_at,      Timestamp
+      attribute :limit_lines,             LineCount
+      attribute :warning_threshold_lines, LineCount
+      then_set :session_started_at,      to: :session_started_at
+      then_set :limit_lines,             to: :limit_lines
+      then_set :warning_threshold_lines, to: :warning_threshold_lines
+      emits "SessionStarted"
+    end
+
+    # ── Primary recording command ──
+
+    command "RecordLineCount" do
+      role "Hook"
+      description "A file was checked for line count. Routes internally to within-limit, at-warning, or over-limit depending on where line_count falls relative to warning_threshold_lines and limit_lines. Increments the appropriate session counter. The hook calls this once per file write; the macrophage decides the category. Only Imperative files trigger a complaint — Declarative, Support, and Other files are tallied but never complained about."
+      attribute :file_path,  FilePath
+      attribute :line_count, LineCount
+      attribute :kind,       FileKind
+      emits "LineCountRecorded"
+    end
+
+    # ── Explicit violation commands ──
+
+    command "RecordOversizedFile" do
+      role "Hook"
+      description "A file has exceeded the line-count limit. Records an OversizedFile entity for the audit trail and increments files_over_limit. The hook chains into Complain after this command to surface the complaint — this command records the fact; Complain records the reaction. exceeded_by is pre-computed by the hook (line_count minus limit_lines) so the entity is self-describing."
+      attribute :file_path,  FilePath
+      attribute :line_count, LineCount
+      attribute :kind,       FileKind
+      attribute :exceeded_by, LineCount
+      emits "OversizedFileRecorded"
+    end
+
+    command "RecordWarningFile" do
+      role "Hook"
+      description "A file sits between warning_threshold_lines and limit_lines — approaching the limit. Records a WarningFile entity and increments files_at_warning. The hook may emit a softer warning (not a hard complaint) so the author knows to start extracting. lines_to_limit is pre-computed by the hook (limit_lines minus line_count)."
+      attribute :file_path,      FilePath
+      attribute :line_count,     LineCount
+      attribute :kind,           FileKind
+      attribute :lines_to_limit, LineCount
+      emits "WarningFileRecorded"
+    end
+
+    # ── Threshold adjustment ──
+
+    command "AdjustLimit" do
+      role "Lead"
+      description "Change the line-count thresholds when the team agrees on a new default. One-shot domain command — the new values persist as domain attributes and apply to all subsequent RecordLineCount dispatches. Does not retroactively reclassify existing entities; the audit trail records what the rule said at the time of each check."
+      attribute :limit_lines,             LineCount
+      attribute :warning_threshold_lines, LineCount
+      then_set :limit_lines,             to: :limit_lines
+      then_set :warning_threshold_lines, to: :warning_threshold_lines
+      emits "LimitAdjusted"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The LineCountMacrophage detected a file that has exceeded the line-count limit. Records the complaint text and timestamp on the root for fast statusline reads, and sets last_offending_file. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LineCountMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,         FilePath
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,      to: :complaint
+      then_set :last_complaint_at,   to: :last_complaint_at
+      then_set :last_offending_file, to: :file_path
+      emits "ComplaintIssued"
+    end
+  end
+end
