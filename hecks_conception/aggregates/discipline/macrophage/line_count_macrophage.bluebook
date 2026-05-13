@@ -99,9 +99,10 @@ Hecks.bluebook "LineCountMacrophage", version: "2026.05.13.1" do
     end
 
     value_object "FileKind" do
-      # Classification of the file being checked.
+      # Classification of the file being checked. Legal values :
+      # "Imperative" | "Declarative" | "Support" | "Other".
       # Only Imperative files are subject to the line-count rule.
-      attribute :value, String  # "Imperative" | "Declarative" | "Support" | "Other"
+      attribute :value, String
     end
 
     # ── Entity — oversized-file audit trail ──

@@ -153,11 +153,6 @@ Hecks.bluebook "TestSpeedMacrophage", version: "2026.05.13.1" do
       description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what ran today, not lifetime totals. The SlowTestRun and ExemptedSlowTest entity collections are NOT reset — they are audit trail and configuration respectively."
       attribute :session_started_at, Timestamp
       then_set :session_started_at, to: :session_started_at
-      then_set :total_runs,            to: :total_runs
-      then_set :runs_within_threshold, to: :runs_within_threshold
-      then_set :runs_at_warning,       to: :runs_at_warning
-      then_set :runs_over_threshold,   to: :runs_over_threshold
-      then_set :total_duration_ms,     to: :total_duration_ms
       emits "SessionStarted"
     end
 
@@ -169,8 +164,6 @@ Hecks.bluebook "TestSpeedMacrophage", version: "2026.05.13.1" do
       attribute :suite_name,  SuiteName
       attribute :kind,        TestKind
       attribute :duration_ms, DurationMs
-      then_set :total_runs,        to: :total_runs
-      then_set :total_duration_ms, to: :total_duration_ms
       emits "TestRunRecorded"
     end
 
@@ -211,7 +204,6 @@ Hecks.bluebook "TestSpeedMacrophage", version: "2026.05.13.1" do
       then_set :last_complaint,        to: :complaint
       then_set :last_complaint_at,     to: :last_complaint_at
       then_set :last_offending_suite,  to: :suite_name
-      then_set :runs_over_threshold,   to: :runs_over_threshold
       emits "ComplaintIssued"
     end
   end
