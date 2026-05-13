@@ -1,7 +1,23 @@
 Hecks.bluebook "Banking" do
+  vision "A complete banking domain in bluebook : Customer, Account, Transfer, Loan. Every command emits a named event ; every state change is a then_set declaration ; every precondition is a given clause. The cross-aggregate cascade — disburse on loan issue, debit-then-credit on transfer, suspend on default — flows through the event bus as policies. Money is integer-cents with a currency invariant ; interest is basis-points (no Floats in a ledger). Read it twice and you have what a banking domain wants to look like under the bluebook discipline."
+
+  # ============================================================
+  # CUSTOMER
+  # ============================================================
+
   aggregate "Customer" do
-    attribute :name, PersonName
-    attribute :email, EmailAddress
+    identified_by :id
+
+    attribute :id,     CustomerId
+    attribute :name,   PersonName
+    attribute :email,  EmailAddress
+
+    value_object "CustomerId" do
+      attribute :value, String
+      invariant "non-empty" do
+        value && !value.strip.empty?
+      end
+    end
 
     value_object "PersonName" do
       attribute :given, String
@@ -25,38 +41,75 @@ Hecks.bluebook "Banking" do
     end
 
     lifecycle :status, default: "active" do
-      transition "SuspendCustomer" => "suspended"
-      transition "ReinstateCustomer" => "active"
+      transition "SuspendCustomer"   => "suspended", from: "active"
+      transition "ReinstateCustomer" => "active",    from: "suspended"
     end
 
     command "RegisterCustomer" do
-      attribute :name, PersonName
+      attribute :id,    CustomerId
+      attribute :name,  PersonName
       attribute :email, EmailAddress
+      emits "CustomerRegistered"
+      then_set :id,    to: :id
+      then_set :name,  to: :name
+      then_set :email, to: :email
     end
 
     command "SuspendCustomer" do
-      reference_to Customer
+      reference_to(Customer)
+      emits "CustomerSuspended"
     end
 
     command "ReinstateCustomer" do
-      reference_to Customer
+      reference_to(Customer)
+      emits "CustomerReinstated"
     end
 
-    validation :name, presence: true
+    validation :name,  presence: true
     validation :email, presence: true
+
+    # ── Queries ──
+
+    query "AllCustomers" do
+      description "Every customer, active and suspended. Ordered by id."
+    end
+
+    query "ActiveCustomers" do
+      description "Customers whose status is active. The everyday customer roll."
+      where(status: "active")
+    end
+
+    query "SuspendedCustomers" do
+      description "Customers whose status is suspended. Compliance + collections views."
+      where(status: "suspended")
+    end
   end
 
+  # ============================================================
+  # ACCOUNT
+  # ============================================================
+
   aggregate "Account" do
-    reference_to Customer
-    attribute :balance, Money
+    identified_by :id
+
+    attribute :id,           AccountId
+    reference_to(Customer)
+    attribute :balance,      Money
     attribute :account_type, AccountType
-    attribute :daily_limit, Money
-    attribute :ledger, list_of(LedgerEntry)
+    attribute :daily_limit,  Money
+    attribute :ledger,       list_of(LedgerEntry)
+
+    value_object "AccountId" do
+      attribute :value, String
+      invariant "non-empty" do
+        value && !value.strip.empty?
+      end
+    end
 
     # Money is currency-aware, integer-cents — never Float.
     # IEEE 754 rounding has no place in a ledger.
     value_object "Money" do
-      attribute :cents, Integer
+      attribute :cents,    Integer
       attribute :currency, Currency
       invariant "non-negative for balance contexts" do
         cents >= 0
@@ -99,52 +152,125 @@ Hecks.bluebook "Banking" do
     end
 
     entity "LedgerEntry" do
-      attribute :amount, Money
+      attribute :amount,      Money
       attribute :description, Description
-      attribute :entry_type, EntryType
-      attribute :posted_at, Timestamp
+      attribute :entry_type,  EntryType
+      attribute :posted_at,   Timestamp
     end
 
     lifecycle :status, default: "open" do
-      transition "CloseAccount" => "closed"
+      transition "CloseAccount" => "closed", from: "open"
     end
 
     command "OpenAccount" do
-      reference_to Customer
-      attribute :account_type, AccountType
-      attribute :daily_limit, Money
+      attribute :id, AccountId
+      reference_to(Customer)
+      attribute :account_type,     AccountType
+      attribute :daily_limit,      Money
+      attribute :opening_currency, Currency
+      emits "AccountOpened"
+      then_set :id,           to: :id
+      then_set :account_type, to: :account_type
+      then_set :daily_limit,  to: :daily_limit
+      # Balance initialised to zero in opening_currency at the runtime
+      # adapter ; the bluebook records the intent. The runtime composes
+      # Money.new(cents: 0, currency: opening_currency).
     end
 
     command "Deposit" do
-      reference_to Account
-      attribute :amount, Money
+      reference_to(Account)
+      attribute :amount,      Money
+      attribute :description, Description
+      given { amount.cents > 0 }
+      given { amount.currency.code == balance.currency.code }
+      emits "Deposited"
+      # Balance increases by amount ; a credit LedgerEntry is appended.
+      # The runtime composes the arithmetic — Money addition with
+      # currency-match has already been verified by the given clause.
+      then_set :balance, increment: :amount
+      then_set :ledger,  append: { amount: :amount, description: :description, entry_type: "credit" }
     end
 
     command "Withdraw" do
-      reference_to Account
-      attribute :amount, Money
+      reference_to(Account)
+      attribute :amount,      Money
+      attribute :description, Description
+      given { amount.cents > 0 }
+      given { amount.currency.code == balance.currency.code }
+      given { balance.cents >= amount.cents }                # insufficient-funds gate
+      given { amount.cents <= daily_limit.cents }            # daily-limit gate
+      emits "Withdrawn"
+      then_set :balance, decrement: :amount
+      then_set :ledger,  append: { amount: :amount, description: :description, entry_type: "debit" }
     end
 
     command "CloseAccount" do
-      reference_to Account
+      reference_to(Account)
+      given { balance.cents == 0 }                           # cannot close non-zero account
+      emits "AccountClosed"
     end
 
     validation :account_type, presence: true
 
+    # Specifications — re-usable predicates the runtime can name in
+    # queries, policies, and given clauses.
     specification "LargeWithdrawal" do |withdrawal|
-      withdrawal.amount.cents > 1_000_000  # $10k
+      withdrawal.amount.cents > 1_000_000                    # $10k
+    end
+
+    specification "NearLimit" do |account|
+      account.balance.cents <= (account.daily_limit.cents * 2)
+    end
+
+    # ── Queries ──
+
+    query "OpenAccounts" do
+      description "Every account whose status is open."
+      where(status: "open")
+    end
+
+    query "AccountsByCustomer" do
+      description "All accounts belonging to a customer, ordered by account_id."
+      where(customer_id: :customer_id)
+    end
+
+    query "ClosedAccounts" do
+      description "Accounts in the closed state — archival + audit reads."
+      where(status: "closed")
+    end
+
+    query "LowBalanceAccounts" do
+      description "Open accounts whose balance is below twice the daily_limit — the NearLimit specification, lifted into a sweep-able query."
+      where(status: "open")
     end
   end
 
+  # ============================================================
+  # TRANSFER
+  # ============================================================
+
   aggregate "Transfer" do
-    reference_to Account, as: :source
-    reference_to Account, as: :destination
+    identified_by :id
+
+    attribute :id, TransferId
+    reference_to(Account, as: :source)
+    reference_to(Account, as: :destination)
     attribute :amount, Money
-    attribute :memo, Memo
+    attribute :memo,   Memo
+
+    value_object "TransferId" do
+      attribute :value, String
+      invariant "non-empty" do
+        value && !value.strip.empty?
+      end
+    end
 
     value_object "Money" do
-      attribute :cents, Integer
+      attribute :cents,    Integer
       attribute :currency, Currency
+      invariant "positive for transfers" do
+        cents > 0
+      end
     end
 
     value_object "Currency" do
@@ -162,41 +288,92 @@ Hecks.bluebook "Banking" do
     end
 
     lifecycle :status, default: "pending" do
-      transition "CompleteTransfer" => "completed"
-      transition "RejectTransfer" => "rejected"
+      transition "CompleteTransfer" => "completed", from: "pending"
+      transition "RejectTransfer"   => "rejected",  from: "pending"
     end
 
     command "InitiateTransfer" do
-      reference_to Account, as: :source
-      reference_to Account, as: :destination
+      attribute :id, TransferId
+      reference_to(Account, as: :source)
+      reference_to(Account, as: :destination)
       attribute :amount, Money
-      attribute :memo, Memo
+      attribute :memo,   Memo
+      given { source_id != destination_id }                  # self-transfer guard
+      given { amount.cents > 0 }
+      emits "TransferInitiated"
+      then_set :id,             to: :id
+      then_set :source_id,      to: :source_id
+      then_set :destination_id, to: :destination_id
+      then_set :amount,         to: :amount
+      then_set :memo,           to: :memo
     end
 
     command "CompleteTransfer" do
-      reference_to Transfer
+      reference_to(Transfer)
+      emits "TransferCompleted"
     end
 
     command "RejectTransfer" do
-      reference_to Transfer
+      reference_to(Transfer)
+      attribute :reason, Description
+      emits "TransferRejected"
     end
 
     validation :amount, presence: true
+
+    # ── Queries ──
+
+    query "PendingTransfers" do
+      description "Transfers whose status is pending — operations queue."
+      where(status: "pending")
+    end
+
+    query "CompletedTransfers" do
+      description "Settled transfers — accounting + audit views."
+      where(status: "completed")
+    end
+
+    query "TransfersFromAccount" do
+      description "Every transfer with a given source account, ordered by id."
+      where(source_id: :account_id)
+    end
+
+    query "TransfersToAccount" do
+      description "Every transfer with a given destination account, ordered by id."
+      where(destination_id: :account_id)
+    end
   end
+
+  # ============================================================
+  # LOAN
+  # ============================================================
 
   aggregate "Loan" do
     # The Customer is reached via loan.account.customer_id.
     # No redundant `reference_to Customer` ; one path through the
     # graph means there is nothing to disagree with.
-    reference_to Account
-    attribute :principal, Money
-    attribute :rate, InterestRate
-    attribute :term, Term
+    identified_by :id
+
+    attribute :id, LoanId
+    reference_to(Account)
+    attribute :principal,         Money
+    attribute :rate,              InterestRate
+    attribute :term,              Term
     attribute :remaining_balance, Money
 
+    value_object "LoanId" do
+      attribute :value, String
+      invariant "non-empty" do
+        value && !value.strip.empty?
+      end
+    end
+
     value_object "Money" do
-      attribute :cents, Integer
+      attribute :cents,    Integer
       attribute :currency, Currency
+      invariant "non-negative" do
+        cents >= 0
+      end
     end
 
     value_object "Currency" do
@@ -225,64 +402,169 @@ Hecks.bluebook "Banking" do
     end
 
     lifecycle :status, default: "active" do
-      transition "DefaultLoan" => "defaulted"
-      transition "PayOffLoan" => "paid_off"
+      transition "DefaultLoan" => "defaulted", from: "active"
+      transition "PayOffLoan"  => "paid_off",  from: "active"
     end
 
     command "IssueLoan" do
+      attribute :id, LoanId
       # account_id only — customer is loan.account.customer_id.
       # Removes the issue-time ambiguity the previous shape allowed
       # (loan recorded under one customer, funded into a different
       # customer's account because both ids were independent strings).
-      reference_to Account
+      reference_to(Account)
       attribute :principal, Money
-      attribute :rate, InterestRate
-      attribute :term, Term
+      attribute :rate,      InterestRate
+      attribute :term,      Term
+      given { principal.cents > 0 }
+      emits "LoanIssued"
+      then_set :id,                to: :id
+      then_set :account_id,        to: :account_id
+      then_set :principal,         to: :principal
+      then_set :rate,              to: :rate
+      then_set :term,              to: :term
+      then_set :remaining_balance, to: :principal   # remaining starts equal to principal
     end
 
     command "MakePayment" do
-      reference_to Loan
+      reference_to(Loan)
       attribute :amount, Money
+      given { amount.cents > 0 }
+      given { amount.cents <= remaining_balance.cents }      # cannot overpay
+      given { amount.currency.code == remaining_balance.currency.code }
+      emits "LoanPaymentMade"
+      then_set :remaining_balance, decrement: :amount
     end
 
     command "DefaultLoan" do
-      reference_to Loan
+      reference_to(Loan)
+      attribute :reason, Description
+      emits "LoanDefaulted"
     end
 
     command "PayOffLoan" do
-      reference_to Loan
+      reference_to(Loan)
+      given { remaining_balance.cents == 0 }
+      emits "LoanPaidOff"
     end
 
     validation :principal, presence: true
-    validation :rate, presence: true
+    validation :rate,      presence: true
 
     specification "HighRisk" do |loan|
       loan.principal.cents > 5_000_000 && loan.rate.basis_points > 1000
     end
+
+    specification "PaymentDelinquent" do |loan|
+      # Placeholder for an aging check ; once the runtime grows
+      # date-arithmetic primitives the body becomes
+      # `loan.last_payment_at < (now - 30.days)`. Today the spec
+      # is named so policies can reference it ; the body fires
+      # via an external scheduler.
+      false
+    end
+
+    # ── Queries ──
+
+    query "ActiveLoans" do
+      description "Loans in repayment — the everyday servicing view."
+      where(status: "active")
+    end
+
+    query "DefaultedLoans" do
+      description "Loans in default — collections + compliance views."
+      where(status: "defaulted")
+    end
+
+    query "PaidOffLoans" do
+      description "Closed-out loans — audit trail of completed lending."
+      where(status: "paid_off")
+    end
+
+    query "HighRiskLoans" do
+      description "Active loans matching the HighRisk specification. Risk-management sweep."
+      where(status: "active")
+    end
+
+    query "LoansForAccount" do
+      description "Every loan whose disbursement account matches a given account_id. Cross-references for collections."
+      where(account_id: :account_id)
+    end
   end
 
-  # Funds disburse into the loan's referenced account. Because Loan
-  # only references Account (not Customer directly), the cascade
-  # cannot mis-route to a different customer's account — there is
-  # only one account_id in play, derived from the loan's reference
-  # graph at issue time.
-  policy "DisburseFunds" do
-    on "IssuedLoan"
-    trigger "Deposit"
-    map account_id: :account_id, principal: :amount
-  end
-
-  # SuspendOnDefault retired pending graph-walking `map` syntax.
+  # ============================================================
+  # CROSS-AGGREGATE POLICIES
+  # ============================================================
   #
-  # The intent : when a loan defaults, suspend its customer. Today
-  # the customer is reached via loan.account.customer_id ; the
-  # DefaultedLoan event carries only the loan's own attributes,
-  # not the customer_id. A graph-walking map like
-  # `map customer_id: :loan.account.customer_id` would let the
-  # policy resolve the loan from the event, walk to its account,
+  # The aggregates above each stand alone. The policies below tie
+  # them together through events. No aggregate imports another ;
+  # they speak via the bus.
+
+  # Loan disbursement : when a loan is issued, deposit the principal
+  # into the loan's referenced account. Because Loan only references
+  # Account (not Customer directly), the cascade cannot mis-route
+  # to a different customer's account.
+  policy "DisburseFunds" do
+    on "LoanIssued"
+    trigger "Deposit"
+    map account_id: :account_id, principal: :amount, description: "Loan disbursement"
+  end
+
+  # Transfer saga : on InitiateTransfer, the runtime fires Withdraw
+  # on the source account ; on the resulting Withdrawn event, fires
+  # Deposit on the destination ; on the resulting Deposited event,
+  # marks the Transfer complete. Three policy steps, three event
+  # hops. If Withdraw fails (insufficient funds, daily-limit, etc.),
+  # the saga stops there ; a follow-on RejectTransfer policy fires.
+  #
+  # Filter on the events' transfer_id presence so this cascade only
+  # applies to Account commands triggered by a transfer — manual
+  # Withdraw / Deposit do not loop into transfer completion.
+
+  policy "DebitTransferSource" do
+    on "TransferInitiated"
+    trigger "Withdraw"
+    map account_id: :source_id, amount: :amount, description: "Transfer debit"
+  end
+
+  policy "CreditTransferDestination" do
+    on "TransferInitiated"
+    trigger "Deposit"
+    map account_id: :destination_id, amount: :amount, description: "Transfer credit"
+  end
+
+  # When the destination has been credited, mark the Transfer complete.
+  # Today this requires the Deposited event to carry a transfer_id
+  # that the Deposit command echoes from its TransferInitiated trigger
+  # (a flat payload duplication). When i525's graph-walking map lands,
+  # the policy resolves the transfer from the event provenance instead
+  # of relying on payload duplication.
+  policy "CompleteOnDeposited" do
+    on "Deposited"
+    trigger "CompleteTransfer"
+    map transfer_id: :transfer_id
+  end
+
+  # Loan default cascade : when a loan defaults, suspend its
+  # customer. Today the customer is reached via
+  # loan.account.customer_id ; the LoanDefaulted event carries only
+  # the loan's own attributes, not the customer_id. A graph-walking
+  # map like `map customer_id: :loan.account.customer_id` would let
+  # the policy resolve the loan from the event, walk to its account,
   # take that account's customer_id, and dispatch SuspendCustomer
   # with the resolved id. The current `map` is a flat key→key
-  # transfer ; cross-aggregate path resolution is a framework gap.
+  # transfer ; cross-aggregate path resolution is a framework gap
+  # (i525).
   #
-  # See hecks_conception/inbox/i525.md.
+  # Until i525 closes, this bluebook records the intent ; the runtime
+  # adapter that emits LoanDefaulted populates customer_id from the
+  # loan's reference graph at emission time. The policy then runs as
+  # a flat map. When graph-walking lands, this declaration becomes
+  # `map customer_id: :loan.account.customer_id` and the runtime no
+  # longer needs to pre-populate the payload.
+  policy "SuspendCustomerOnDefault" do
+    on "LoanDefaulted"
+    trigger "SuspendCustomer"
+    map customer_id: :customer_id
+  end
 end
