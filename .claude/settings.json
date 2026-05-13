@@ -10,7 +10,7 @@
           },
           {
             "type": "command",
-            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life storehouse route WakeReview.ComposeWakeReview 2>&1 | tail -1 ; true",
+            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview 2>&1 | tail -1 ; true",
             "timeout": 20
           }
         ]
@@ -59,7 +59,7 @@
           },
           {
             "type": "command",
-            "command": "/Users/christopheryoung/Projects/hecks/rust/target/release/hecks-life statusline 2>/dev/null | jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"current body state : \" + (. | rtrimstr(\"\\n\")))}}' 2>/dev/null || true",
+            "command": "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse statusline 2>/dev/null | jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"current body state : \" + (. | rtrimstr(\"\\n\")))}}' 2>/dev/null || true",
             "timeout": 5
           }
         ]
