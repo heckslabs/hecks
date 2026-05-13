@@ -1,20 +1,3 @@
-/// Render one input field for a command attribute.
-fn field_input(attr: &crate::ir::Attribute) -> String {
-    let input_type = match attr.attr_type.to_lowercase().as_str() {
-        "float" | "integer" | "int" => "number",
-        _ => "text",
-    };
-    let step = if attr.attr_type.to_lowercase() == "float" { r#" step="any""# } else { "" };
-    let placeholder = esc(&display_name(&attr.name));
-    format!(
-        r#"<input name="{name}" type="{input_type}"{step} placeholder="{placeholder}" class="bg-surface-0 border border-surface-4 rounded px-3 py-1.5 text-sm text-gray-100 focus:border-brand focus:outline-none w-full">"#,
-        name = esc(&attr.name),
-        input_type = input_type,
-        step = step,
-        placeholder = placeholder,
-    )
-}
-
 /// The Glass command palette — one input, fuzzy match, inline form (kept for future use)
 #[allow(dead_code)]
 fn command_palette(domain: &str, rt: &Runtime) -> String {

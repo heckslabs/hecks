@@ -54,10 +54,12 @@ pub fn generate_domain_page(
     // Records table
     main.push_str(&records_table(&rt));
 
-    wrap_page(&display_name(name), &sidebar, &main)
+    wrap_page_with_domain(&display_name(name), Some(name), &sidebar, &main)
 }
 
-/// Creation cards — one per aggregate, forms for all commands
+/// Creation cards — one per aggregate, with every command rendered as a
+/// collapsible details panel (i108) and lifecycle rules scoped to the
+/// aggregate (i113).
 fn creation_cards(domain: &str, rt: &Runtime) -> String {
     let mut s = String::new();
     let agg_count = rt.domain.aggregates.len();
@@ -72,19 +74,35 @@ fn creation_cards(domain: &str, rt: &Runtime) -> String {
         let icon = module_icon(&agg.name);
         let desc = agg.description.as_deref().unwrap_or("");
 
+        // i549 — collect the distinct roles this aggregate exposes via
+        // its commands. The top-bar role filter (rendered in
+        // html_shared::top_bar's accompanying JS) toggles
+        // `aria-hidden` + `display:none` on cards whose data-roles
+        // doesn't include the selected role. "All" shows everything.
+        let mut roles: Vec<String> = agg
+            .commands
+            .iter()
+            .filter_map(|c| c.role.as_ref().map(|r| r.to_ascii_lowercase()))
+            .collect();
+        roles.sort();
+        roles.dedup();
+        let roles_attr = roles.join(",");
+
         s.push_str(&format!(
-            r#"<div id="agg-{anchor}" class="bg-surface-2 rounded-xl border border-surface-3 p-5 hover:border-brand/30 transition scroll-mt-24">
+            r#"<div id="agg-{anchor}" data-aggregate="{anchor}" data-roles="{roles_attr}" class="bg-surface-2 rounded-xl border border-surface-3 p-5 hover:border-brand/30 transition scroll-mt-24">
   <div class="mb-3">
     <h3 class="font-semibold text-white">{icon} {label}</h3>
     <p class="text-xs text-gray-500 mt-1">{desc}</p>
   </div>"#,
             anchor = esc(&agg.name),
+            roles_attr = esc(&roles_attr),
             icon = icon,
             label = esc(&display_name(&agg.name)),
             desc = esc(desc),
         ));
 
-        s.push_str(&aggregate_form(domain, agg));
+        s.push_str(&render_agg_commands(domain, agg, rt));
+        s.push_str(&render_agg_rules(agg));
 
         s.push_str("</div>");
     }
@@ -93,83 +111,88 @@ fn creation_cards(domain: &str, rt: &Runtime) -> String {
     s
 }
 
-/// One unified form per aggregate — entity fields + value object fields together.
-fn aggregate_form(domain: &str, agg: &crate::ir::Aggregate) -> String {
-    // Find the create command (entry point)
-    let create_cmd = agg.commands.iter().find(|c| c.references.is_empty());
-    let create_cmd = match create_cmd {
-        Some(c) => c,
-        None => return String::new(),
-    };
-
-    // Collect all value object field names to identify VO sections
-    let vo_field_names: Vec<Vec<&str>> = agg.value_objects.iter()
-        .map(|vo| vo.attributes.iter().map(|a| a.name.as_str()).collect())
-        .collect();
-
-    // Find the action command whose attrs overlap a value object (e.g. AddEntry)
-    let child_cmd = agg.commands.iter().find(|c| {
-        !c.references.is_empty() && vo_field_names.iter().any(|vo_names| {
-            c.attributes.iter().filter(|a| vo_names.contains(&a.name.as_str())).count() >= 3
-        })
-    });
-
+/// Render every command on an aggregate as a stacked <details> panel
+/// (i108). The first command (the create / entry point) is open by
+/// default ; downstream action commands stay collapsed until the
+/// operator clicks. Each form delegates type-aware input rendering and
+/// reference pickers to `html_form::render_command_form`.
+fn render_agg_commands(domain: &str, agg: &crate::ir::Aggregate, rt: &Runtime) -> String {
+    if agg.commands.is_empty() { return String::new(); }
     let mut s = String::new();
+    s.push_str(r#"<div class="space-y-2">"#);
 
-    // The form dispatches the create command; JS will chain the child if present
-    let cmd_name = if child_cmd.is_some() && create_cmd.attributes.len() <= 1 {
-        // If create is trivial (just a name), dispatch the child command instead
-        // and include the create fields inline
-        child_cmd.unwrap().name.as_str()
-    } else {
-        create_cmd.name.as_str()
-    };
-
-    s.push_str(&format!(
-        r#"<form onsubmit="return wizardSubmit(this, '{domain}', '{cmd_name}')" class="space-y-2 mb-3">"#,
-        domain = esc(domain),
-        cmd_name = esc(cmd_name),
-    ));
-
-    // Entity-level fields from create command
-    let create_cols = if create_cmd.attributes.len() <= 3 { "grid-cols-1" } else { "grid-cols-2" };
-    if !create_cmd.attributes.is_empty() {
-        s.push_str(&format!(r#"<div class="grid {} gap-2">"#, create_cols));
-        for attr in &create_cmd.attributes {
-            s.push_str(&field_input(attr));
-        }
-        s.push_str("</div>");
+    // Order : create command (no references) first, then action
+    // commands. Within each group, declaration order is preserved.
+    let mut ordered: Vec<&crate::ir::Command> = Vec::with_capacity(agg.commands.len());
+    for c in &agg.commands {
+        if c.references.is_empty() { ordered.push(c); }
+    }
+    for c in &agg.commands {
+        if !c.references.is_empty() { ordered.push(c); }
     }
 
-    // Value object section — fields from the child command grouped under VO label
-    if let Some(child) = child_cmd {
-        let matched_vo = agg.value_objects.iter().find(|vo| {
-            let names: Vec<&str> = vo.attributes.iter().map(|a| a.name.as_str()).collect();
-            child.attributes.iter().filter(|a| names.contains(&a.name.as_str())).count() >= 3
-        });
-        let label = matched_vo
-            .and_then(|vo| vo.description.as_deref())
-            .unwrap_or_else(|| matched_vo.map(|vo| vo.name.as_str()).unwrap_or("Details"));
-        let cols = if child.attributes.len() <= 3 { "grid-cols-1" } else { "grid-cols-2" };
+    for (i, cmd) in ordered.iter().enumerate() {
+        let open = if i == 0 { " open" } else { "" };
+        let goal = cmd.description.as_deref().unwrap_or("");
+        let role = cmd.role.as_deref().unwrap_or("");
+        let role_html = if role.is_empty() {
+            String::new()
+        } else {
+            format!(
+                r#" <span class="text-xs text-gray-500">as {}</span>"#,
+                esc(role),
+            )
+        };
+        let goal_html = if goal.is_empty() {
+            String::new()
+        } else {
+            format!(
+                r#"<p class="text-xs text-gray-500 mb-2">{}</p>"#,
+                esc(goal),
+            )
+        };
         s.push_str(&format!(
-            r#"<div class="mt-2 pt-2 border-t border-surface-3">
-  <p class="text-xs text-gray-400 mb-2">{}</p>
-  <div class="grid {} gap-2">"#,
-            esc(label), cols,
+            r#"<details{open} data-domain-command="{cmd_name}" class="bg-surface-1 rounded-lg border border-surface-3">
+  <summary class="cursor-pointer px-3 py-2 text-sm font-medium text-white hover:bg-surface-3 rounded-t-lg flex items-center justify-between">
+    <span><span class="text-brand">▸</span> {label}{role}</span>
+  </summary>
+  <div class="px-3 pb-3 pt-1">
+    {goal_html}
+    {form}
+  </div>
+</details>"#,
+            open = open,
+            cmd_name = esc(&cmd.name),
+            label = esc(&display_name(&cmd.name)),
+            role = role_html,
+            goal_html = goal_html,
+            form = render_command_form(domain, agg, cmd, rt),
         ));
-        for attr in &child.attributes {
-            s.push_str(&field_input(attr));
-        }
-        s.push_str("</div></div>");
     }
 
-    let btn_label = display_name(&create_cmd.name);
-    s.push_str(&format!(
-        r#"<button type="submit" class="w-full px-4 py-2 bg-brand/10 border border-brand/30 rounded-lg text-brand text-sm font-medium hover:bg-brand/20 transition mt-2">{label}</button>
-  <div class="wizard-result"></div>
-</form>"#,
-        label = esc(&btn_label),
-    ));
+    s.push_str("</div>");
+    s
+}
+
+/// i113 — render the lifecycle rules / invariants gathered from every
+/// `given` declaration on the aggregate's commands. Empty givens collapse
+/// to no section. Same display shape as the previous global dump, just
+/// scoped to one aggregate's commands so the rule sits beside the form
+/// that enforces it.
+fn render_agg_rules(agg: &crate::ir::Aggregate) -> String {
+    let invariants = collect_invariants_for(agg);
+    if invariants.is_empty() { return String::new(); }
+    let mut s = String::new();
+    s.push_str(r#"<div class="mt-4 pt-3 border-t border-surface-3">"#);
+    s.push_str(r#"<p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Rules</p>"#);
+    s.push_str(r#"<ul class="space-y-1">"#);
+    for (cmd_name, rule) in &invariants {
+        s.push_str(&format!(
+            r#"<li class="text-sm text-gray-300"><span class="text-white">{}</span> requires {}</li>"#,
+            esc(&display_name(cmd_name)), esc(rule),
+        ));
+    }
+    s.push_str("</ul></div>");
     s
 }
 
