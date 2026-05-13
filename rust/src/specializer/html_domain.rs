@@ -72,15 +72,27 @@ const HEADER: &str = r#"//! HTML domain page — detail view for a single domain
 //! Shows modules (aggregates), commands, lifecycle states, and records
 //! for one domain. Forms submit to the JSON dispatch endpoint.
 //!
+//! i534 walking-skeleton upgrades :
+//!   - i106 typed inputs + i107 reference pickers + i109 required marks
+//!     are delegated to `html_form::render_command_form`.
+//!   - i108 every command per aggregate renders as a collapsible
+//!     `<details>` card (creator open by default).
+//!   - i112 per-aggregate icons read from `html_icons::module_icon`'s
+//!     bin-buddy fallback table.
+//!   - i113 rules (lifecycle invariants) render inside the aggregate
+//!     card, scoped to that aggregate's commands.
+//!
 //! Usage:
 //!   let page = generate_domain_page(&rt, &all_domains);
 
 use crate::runtime::Runtime;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use super::html_shared::{wrap_page, display_name, module_icon, esc};
+use super::html_shared::{wrap_page_with_domain, display_name, module_icon, esc};
 use super::html_sidebar::sidebar_tree;
 use super::html_fixtures::fixtures_section;
 use super::html_usage::usage_section;
+use super::html_form::render_command_form;
+use super::html_rules::collect_invariants_for;
 
 "#;

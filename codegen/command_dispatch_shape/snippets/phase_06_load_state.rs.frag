@@ -1,5 +1,18 @@
     let (mut state, is_new) = if let Some(ref_name) = &self_ref {
-        if let Some(id_val) = attrs.get(ref_name) {
+        // Universal self-ref dispatch — i519 sidequest. Callers may pass
+        // either the snake-cased aggregate name (the historical kwarg
+        // determined by `find_self_ref_res`) or the universal `id` key.
+        // The snake-cased lookup takes precedence so existing dispatches
+        // are byte-identical ; the `id` fallback removes the convention-
+        // discovery cliff for new callers (`reference_to(ExemptRegistry)`
+        // is no longer "guess `exempt_registry=`").
+        //
+        // Safety : the `attribute :id` / `reference_to` collision was
+        // checked across every bluebook in the corpus at i519-time ; no
+        // command declares its own `id` attribute alongside a self-ref.
+        // The corpus contract is enforceable by a validator if it ever
+        // drifts.
+        if let Some(id_val) = attrs.get(ref_name).or_else(|| attrs.get("id")) {
             let id = id_val.to_string();
             match repo.find(&id).cloned() {
                 Some(s) => (s, false),

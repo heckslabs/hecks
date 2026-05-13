@@ -1,31 +1,44 @@
 /// Resolve a command address to a Resolution (aggregate or entity-owned).
 ///
-/// Forms accepted, in order of specificity (i142 — bluebooks as bounded
-/// contexts ; i111-J — entity-qualified addresses) :
+/// ## Canonical form — i560 v2 FQN migration (2026-05-12)
 ///
-///   - `Context.Aggregate.Command` — three dotted parts. Filters
-///     aggregates by both context (bluebook namespace) and aggregate
-///     name. The most specific form ; resolves cross-context
-///     same-name aggregates correctly (e.g. `Boot.Identity.Identify`
-///     vs `Being.Identity.RecordSession`).
+///   - `Domain::Aggregate.Command` (commands, PascalCase)
+///   - `Domain::Aggregate.query_name` (queries, snake_case)
 ///
-///   - `Aggregate.Entity.Command` — three dotted parts that DON'T
-///     match a known context. Resolves to a command declared inside
-///     the aggregate's `entity "Foo" do … end` block (i111-J — close
-///     the DDD gap). Tried after the context form so a real context
-///     match takes precedence.
+///     Two `::`-separated segments followed by `.<Command-or-query>`.
 ///
-///   - `Aggregate.Command` — two dotted parts. Filters by aggregate
-///     name only ; if not found there, walks the aggregate's entities
-///     looking for a unique entity-owned command match. Multiple
-///     entities owning the same command name on the same aggregate is
-///     ambiguous and errors loudly.
+///     - `Domain` matches against an aggregate's `context` (bluebook
+///       namespace, set by `Hecks.bluebook "X"`) OR against the
+///       bluebook's `category` (the directory under `aggregates/`,
+///       e.g. `discipline`, `framework`, `world`). Case-insensitive.
+///     - `Aggregate` matches the aggregate's `name`.
+///     - The post-`.` token is PascalCase for commands and snake_case
+///       for queries.
 ///
-///   - `Command` — bare command name. Walks every command in every
-///     aggregate (and i111-J : every entity within them). First-match-
-///     wins ; per-aggregate uniqueness (i155) still holds within a
-///     single bluebook. Cross-bluebook strictness is filed as i156.
+///   This is the form the CLI accepts (`storehouse <root>
+///   Domain::Aggregate.Command`). The CLI gate in `main.rs` rejects
+///   the legacy short forms with a helpful error naming the canonical
+///   shape. The resolver below still accepts the legacy dotted forms
+///   so internal cascade machinery (`drain_policies`,
+///   `dispatch_cascade`) keeps working — bluebook `trigger_command`
+///   strings are typically declared as `Aggregate.Command` in source
+///   today, and rewriting every bluebook is out of scope for this
+///   sidequest.
+///
+/// ## Legacy forms (accepted for internal cascade use)
+///
+///   - `Context.Aggregate.Command` — three dotted parts (i142 form).
+///   - `Aggregate.Entity.Command` — three dotted parts that don't
+///     match a known context (i111-J).
+///   - `Aggregate.Command` — two dotted parts.
+///   - `Command` — bare command name.
 fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError> {
+    // i560 v2 — canonical FQN form first. Presence of `::` is the
+    // discriminator ; the rest falls through to the legacy dotted
+    // forms that internal cascade dispatch relies on.
+    if command_name.contains("::") {
+        return resolve_fully_qualified(rt, command_name);
+    }
     let parts: Vec<&str> = command_name.split('.').collect();
     match parts.as_slice() {
         [a, b, c] => {
@@ -179,9 +192,121 @@ fn resolve(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError>
             }
         }
         _ => Err(RuntimeError::UnknownCommand(format!(
-            "{} — malformed dispatch address (expected one of: 'Command', 'Aggregate.Command', 'Context.Aggregate.Command', or 'Aggregate.Entity.Command')",
+            "{} — malformed dispatch address (canonical form is 'Domain::Aggregate.Command' or 'Domain::Aggregate.query_name'; legacy forms still accepted for cascade: 'Command', 'Aggregate.Command', 'Context.Aggregate.Command', 'Aggregate.Entity.Command')",
             command_name
         ))),
     }
+}
+
+/// Parse the canonical fully-qualified form `Domain::Aggregate.Command`
+/// (or `.query_name`) into component parts. Returns Err with a
+/// helpful message naming the canonical shape when the input doesn't
+/// conform.
+///
+/// Returned tuple: (domain, aggregate, command_or_query)
+///
+/// i560 v2 (2026-05-12) — the v1 attempt targeted 3 segments
+/// (`Domain::Aggregate::Aggregate.Command`) and produced redundant
+/// duplication like `Tools::Tools::Tools.Bash`. v2 collapses to 2
+/// segments + dot : `Tools::Tools.Bash`, `Discipline::Macrophage.Run`.
+pub fn parse_fqn(command_name: &str) -> Result<(String, String, String), String> {
+    let (head, tail) = match command_name.rsplit_once('.') {
+        Some(pair) => pair,
+        None => {
+            return Err(format!(
+                "calling format is Domain::Aggregate.Command (queries: .query_name lowercase) — got '{}'",
+                command_name
+            ));
+        }
+    };
+    if tail.is_empty() || head.is_empty() {
+        return Err(format!(
+            "calling format is Domain::Aggregate.Command (queries: .query_name lowercase) — got '{}'",
+            command_name
+        ));
+    }
+    let segments: Vec<&str> = head.split("::").collect();
+    if segments.len() != 2 {
+        return Err(format!(
+            "calling format is Domain::Aggregate.Command (queries: .query_name lowercase) — got '{}' (expected 2 '::'-separated segments before the '.')",
+            command_name
+        ));
+    }
+    Ok((
+        segments[0].to_string(),
+        segments[1].to_string(),
+        tail.to_string(),
+    ))
+}
+
+/// Resolve the fully-qualified canonical form
+/// `Domain::Aggregate.Command`. The trailing token is the command
+/// name (PascalCase) ; queries are resolved by the query layer using
+/// `parse_fqn` directly, so this function only returns a Resolution
+/// for command-shaped addresses.
+fn resolve_fully_qualified(rt: &Runtime, command_name: &str) -> Result<Resolution, RuntimeError> {
+    let (domain, target, cmd) = match parse_fqn(command_name) {
+        Ok(parts) => parts,
+        Err(msg) => return Err(RuntimeError::UnknownCommand(msg)),
+    };
+
+    let domain_lc = domain.to_lowercase();
+
+    // First pass — aggregate-rooted command (target == aggregate name).
+    for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+        if agg.name != target { continue; }
+        if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        for (ci, c) in agg.commands.iter().enumerate() {
+            if c.name == cmd {
+                return Ok(Resolution::Aggregate(ai, ci));
+            }
+        }
+    }
+
+    // Second pass — entity-owned command. The canonical form uses the
+    // entity name in the command (e.g. `Discipline::Macrophage.CheckRegister`
+    // for a Register command on the Check entity). But for parity with
+    // the legacy `Aggregate.Entity.Command` form, we also accept lookups
+    // where `target` is an aggregate name and the command lives on one
+    // of its entities — useful for one-shot dispatches without renaming
+    // the entity command.
+    for (ai, agg) in rt.domain.aggregates.iter().enumerate() {
+        if agg.name != target { continue; }
+        if !domain_matches(rt, ai, &domain, &domain_lc) { continue; }
+        for (ei, ent) in agg.entities.iter().enumerate() {
+            for (ci, c) in ent.commands.iter().enumerate() {
+                if c.name == cmd {
+                    return Ok(Resolution::Entity(ai, ei, ci));
+                }
+            }
+        }
+    }
+
+    Err(RuntimeError::UnknownCommand(format!(
+        "{} — no command at this address. Checked domain '{}' for aggregate '{}' and command '{}'.",
+        command_name, domain, target, cmd
+    )))
+}
+
+/// Does the FQN's first segment match the aggregate's bluebook
+/// context or category? Case-insensitive match — `Discipline` and
+/// `discipline` both resolve to `category "discipline"`.
+fn domain_matches(rt: &Runtime, agg_idx: usize, domain: &str, domain_lc: &str) -> bool {
+    let agg = &rt.domain.aggregates[agg_idx];
+    if agg.context.as_deref() == Some(domain) { return true; }
+    if let Some(ref ctx) = agg.context {
+        if ctx.to_lowercase() == *domain_lc { return true; }
+    }
+    // i560 v2 — match against the aggregate's stamped category so
+    // `Discipline::Macrophage.Run` resolves through the merged corpus.
+    if let Some(ref cat) = agg.category {
+        if cat == domain || cat.to_lowercase() == *domain_lc { return true; }
+    }
+    // Single-domain fallback : when the runtime was booted from a
+    // single .bluebook the per-Domain category is still set.
+    if let Some(ref cat) = rt.domain.category {
+        if cat.to_lowercase() == *domain_lc { return true; }
+    }
+    false
 }
 
