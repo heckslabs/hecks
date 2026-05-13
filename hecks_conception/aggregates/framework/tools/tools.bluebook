@@ -1,4 +1,4 @@
-Hecks.bluebook "Tools", version: "2026.05.12.6" do
+Hecks.bluebook "Tools", version: "2026.05.13.1" do
   vision "First-class tool invocations as dispatched commands, grouped by category. Each tool family is its own aggregate (ShellTool, FileTool, SearchTool, WebTool) ; the Cascade aggregate carries the kernel-hook's RecordResult chain. Replaces the earlier flat single-Tools aggregate (versions ≤ 2026.05.12.5) — sibling commands of unrelated kinds no longer share a single record. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it ; duplication across aggregates (Id, Description, FilePath, SearchPath) is fine."
   category "framework"
 
@@ -163,6 +163,35 @@ Hecks.bluebook "Tools", version: "2026.05.12.6" do
       attribute :value, String
     end
 
+    value_object "NotebookPath" do
+      # Path to a Jupyter notebook (.ipynb file). Distinct from
+      # FilePath only by convention — the underlying type is the
+      # same string. Carried as its own VO so the bluebook clearly
+      # signals "this command operates on a notebook, not an
+      # arbitrary file".
+      attribute :value, String
+    end
+
+    value_object "CellId" do
+      # The id of the notebook cell being edited. Notebooks address
+      # cells by id rather than by index (indices shift as cells are
+      # inserted / deleted) ; the adapter resolves the id to the
+      # right cell.
+      attribute :value, String
+    end
+
+    value_object "NewSource" do
+      # The new source content for the targeted cell. Lives in the
+      # NotebookEdited event payload only.
+      attribute :value, String
+    end
+
+    value_object "EditMode" do
+      # Optional edit mode — one of "replace" / "insert" / "delete".
+      # When absent, the adapter defaults to "replace".
+      attribute :value, String
+    end
+
     value_object "Description" do
       # One-line caption in active voice. Same shape as the
       # Description VO on every other tool aggregate ; duplicated
@@ -208,6 +237,46 @@ Hecks.bluebook "Tools", version: "2026.05.12.6" do
       attribute :description, Description
       emits "FileUpdated"
       then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+
+    # ── Write ──
+    #
+    # Write does a full-file overwrite. Distinct from Update only by
+    # the harness's traditional naming (Claude Code calls this tool
+    # "Write" ; the existing tools.bluebook renamed it to Update to
+    # emphasize the state-changing nature). We keep BOTH : Write is
+    # the harness-name surface, Update is the bluebook-canonical
+    # surface. Identical attribute shape ; the adapter routes both
+    # to the same underlying write operation.
+    command "Write" do
+      role "Miette"
+      description "Write content to a file (full-file overwrite). Records the dispatch as a FileTool record and emits FileWritten carrying the file_path, content, and description. The full content lives in the event payload ; aggregate state stores only the file_path + description. Surfaced under the harness-traditional 'Write' name for parity with Claude Code's existing tool ; Update is the same operation under the bluebook-canonical name."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :content, Content
+      attribute :description, Description
+      emits "FileWritten"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+
+    # ── NotebookEdit ──
+    #
+    # NotebookEdit operates on Jupyter .ipynb files at cell
+    # granularity. The cell_id addresses the target cell ; new_source
+    # is the replacement content ; edit_mode selects replace / insert
+    # / delete semantics.
+    command "NotebookEdit" do
+      role "Miette"
+      description "Edit a cell in a Jupyter notebook. Records the dispatch as a FileTool record and emits NotebookEdited carrying the notebook_path, cell_id, new_source, edit_mode, and description. The new_source rides in the event payload ; aggregate state stores only the notebook_path + description."
+      attribute :id, Id
+      attribute :notebook_path, NotebookPath
+      attribute :cell_id, CellId
+      attribute :new_source, NewSource
+      attribute :edit_mode, EditMode
+      attribute :description, Description
+      emits "NotebookEdited"
       then_set :description, to: :description
     end
   end
@@ -343,6 +412,946 @@ Hecks.bluebook "Tools", version: "2026.05.12.6" do
       attribute :description, Description
       emits "WebSearched"
       then_set :query,       to: :query
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: TaskTool ────
+  #
+  # TaskTool wraps Claude Code's task-management surface as a
+  # first-class aggregate. The harness exposes Create / Get / List
+  # / Output / Stop / Update against a task registry ; each
+  # command lands as a dispatched record so the runtime can react
+  # to task lifecycle events the same way it reacts to file or
+  # shell events.
+  aggregate "TaskTool", "Task-registry tool invocations as first-class dispatched commands. Create mints a task ; Get / List / Output observe ; Stop terminates ; Update mutates. State carries the task identifier plus the most recent subject / status / description ; large payloads (prompts, output, metadata) ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :task_id, TaskId
+    attribute :subject, Subject
+    attribute :status, TaskStatus
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id (one per dispatched TaskTool command),
+      # minted by the caller before dispatch. NOT the task_id —
+      # see TaskId below.
+      attribute :value, String
+    end
+
+    value_object "TaskId" do
+      # The id of the task being created / observed / mutated.
+      # Distinct from the invocation Id : a single task receives
+      # many dispatches (Update, Get, Stop) over its lifetime,
+      # each with its own invocation Id, all referencing the same
+      # TaskId.
+      attribute :value, String
+    end
+
+    value_object "Subject" do
+      # Short noun phrase naming the task. Shown in task lists and
+      # statusline surfaces. Stays under 80 characters by
+      # convention.
+      attribute :value, String
+    end
+
+    value_object "ActiveForm" do
+      # Present-continuous phrasing of the subject ("Refactoring
+      # the parser") for in-flight task displays. Optional ; when
+      # absent the surface derives it from the subject.
+      attribute :value, String
+    end
+
+    value_object "TaskStatus" do
+      # Lifecycle status — one of "pending" / "in_progress" /
+      # "completed" / "blocked" / "cancelled". Lowercase by
+      # convention so the value matches Claude Code's task
+      # registry vocabulary.
+      attribute :value, String
+    end
+
+    value_object "Owner" do
+      # The being or human that owns the task. Free-form name ;
+      # the runtime may match it against a roster but the
+      # bluebook does not enforce membership.
+      attribute :value, String
+    end
+
+    value_object "Metadata" do
+      # Free-form JSON-shaped metadata bag. Lives in the event
+      # payload only ; aggregate state stores only the most recent
+      # known status / subject. Schema is intentionally open ; the
+      # adapter and downstream listeners interpret it.
+      attribute :value, String
+    end
+
+    value_object "BlockRef" do
+      # A reference to another task id, used by Update's
+      # addBlocks / addBlockedBy lists. Wrapping it as a VO (rather
+      # than bare String) lets the macrophage validate ULID shape
+      # at parse time if we later add an invariant.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice. Duplicated per locked
+      # convention.
+      attribute :value, String
+    end
+
+    # ── Create ──
+    command "Create" do
+      role "Miette"
+      description "Create a task in the harness's task registry. Records the dispatch as a TaskTool record and emits TaskCreated carrying the subject, description, active_form, and metadata. The runtime substrate mints the task_id and pipes it back through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :subject, Subject
+      attribute :description, Description
+      attribute :active_form, ActiveForm
+      attribute :metadata, Metadata
+      emits "TaskCreated"
+      then_set :subject,     to: :subject
+      then_set :description, to: :description
+    end
+
+    # ── Get ──
+    command "Get" do
+      role "Miette"
+      description "Look up a task by id. Records the dispatch as a TaskTool record and emits TaskFetched carrying the task_id. The task's current state lands in the event payload and on the Cascade.RecordResult follow-on."
+      attribute :id, Id
+      attribute :task_id, TaskId
+      attribute :description, Description
+      emits "TaskFetched"
+      then_set :task_id,     to: :task_id
+      then_set :description, to: :description
+    end
+
+    # ── List ──
+    command "List" do
+      role "Miette"
+      description "List tasks in the harness's registry. Records the dispatch as a TaskTool record and emits TasksListed. The result set rides through the event payload ; aggregate state records only that a listing happened."
+      attribute :id, Id
+      attribute :description, Description
+      emits "TasksListed"
+      then_set :description, to: :description
+    end
+
+    # ── Output ──
+    command "Output" do
+      role "Miette"
+      description "Fetch a task's captured output (sub-agent transcripts, command output, etc.). Records the dispatch as a TaskTool record and emits TaskOutputFetched. Output payload rides through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :task_id, TaskId
+      attribute :description, Description
+      emits "TaskOutputFetched"
+      then_set :task_id,     to: :task_id
+      then_set :description, to: :description
+    end
+
+    # ── Stop ──
+    command "Stop" do
+      role "Miette"
+      description "Stop a running task. Records the dispatch as a TaskTool record and emits TaskStopped carrying the task_id. The adapter signals the underlying runtime ; the outcome rides through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :task_id, TaskId
+      attribute :description, Description
+      emits "TaskStopped"
+      then_set :task_id,     to: :task_id
+      then_set :description, to: :description
+    end
+
+    # ── Update ──
+    command "Update" do
+      role "Miette"
+      description "Mutate a task's status / subject / description / active_form / owner / metadata, optionally adding block or blocked-by references. Records the dispatch as a TaskTool record and emits TaskUpdated. Aggregate state absorbs the most recent subject + status + description ; block-list mutations ride in the event payload."
+      attribute :id, Id
+      attribute :task_id, TaskId
+      attribute :status, TaskStatus
+      attribute :subject, Subject
+      attribute :description, Description
+      attribute :active_form, ActiveForm
+      attribute :owner, Owner
+      attribute :metadata, Metadata
+      attribute :add_blocks, list_of(BlockRef)
+      attribute :add_blocked_by, list_of(BlockRef)
+      emits "TaskUpdated"
+      then_set :task_id,     to: :task_id
+      then_set :subject,     to: :subject
+      then_set :status,      to: :status
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: Sidequest ────
+  #
+  # Sidequest wraps Claude Code's Agent / sub-agent dispatch
+  # tool. Distinct from TaskTool because Agent is a single
+  # fire-and-collect dispatch (one prompt in, one transcript out)
+  # rather than a task with a lifecycle. The sub-agent's
+  # transcript lands through Cascade.RecordResult with
+  # tool_kind "sidequest".
+  aggregate "Sidequest", "Sub-agent dispatches as first-class dispatched commands. One Sidequest record per dispatch ; the agent's transcript rides through Cascade.RecordResult. State carries the description and subagent_type ; large prompts ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :subagent_type, SubagentType
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before
+      # dispatch. The sub-agent's transcript flows back through
+      # Cascade.RecordResult sharing this id.
+      attribute :value, String
+    end
+
+    value_object "PromptText" do
+      # The prompt the sub-agent is given. Often long — sometimes
+      # thousands of bytes. Lives in the event payload only ;
+      # aggregate state does not persist it.
+      attribute :value, String
+    end
+
+    value_object "SubagentType" do
+      # Which sub-agent role to dispatch (e.g. "general-purpose",
+      # "researcher", "implementer"). Optional ; when absent the
+      # adapter picks a default.
+      attribute :value, String
+    end
+
+    value_object "ModelName" do
+      # Optional explicit model override (e.g. "claude-opus-4-7",
+      # "claude-sonnet-4-5"). When absent the adapter inherits
+      # the parent's model.
+      attribute :value, String
+    end
+
+    value_object "RunInBackground" do
+      # When true, the dispatch returns immediately and the
+      # transcript streams in via later Cascade events ; when
+      # false (the default), the dispatch blocks until the
+      # sub-agent finishes.
+      attribute :value, Boolean
+    end
+
+    value_object "Isolation" do
+      # Optional isolation mode — e.g. "worktree" / "none". When
+      # "worktree", the sub-agent runs in a fresh worktree (see
+      # WorktreeTool). When absent, the adapter picks a default.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice. Duplicated per locked
+      # convention.
+      attribute :value, String
+    end
+
+    # ── Dispatch ──
+    command "Dispatch" do
+      role "Miette"
+      description "Dispatch a sub-agent with a prompt and optional configuration. Records the dispatch as a Sidequest record and emits SidequestDispatched carrying the description, subagent_type, model, run_in_background flag, and isolation. The full prompt rides in the event payload ; the transcript flows back through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :description, Description
+      attribute :prompt, PromptText
+      attribute :subagent_type, SubagentType
+      attribute :model, ModelName
+      attribute :run_in_background, RunInBackground
+      attribute :isolation, Isolation
+      emits "SidequestDispatched"
+      then_set :subagent_type, to: :subagent_type
+      then_set :description,   to: :description
+    end
+  end
+
+  # ──── Aggregate: WakeupTool ────
+  #
+  # WakeupTool schedules a future self-dispatch — "wake me up in
+  # N seconds and prompt me with X". Used for follow-up checks,
+  # polling, and time-based reactions.
+  aggregate "WakeupTool", "Scheduled future self-dispatch invocations. Schedule queues a deferred prompt to be delivered to the being after delay_seconds elapses ; the runtime substrate handles the timer and re-dispatch. State carries the delay and reason ; the prompt rides in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :delay_seconds, DelaySeconds
+    attribute :reason, ReasonText
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "DelaySeconds" do
+      # How long to wait, in seconds, before re-dispatching. The
+      # runtime substrate enforces a lower bound ; the bluebook
+      # records it here as semantic guidance (>= 60).
+      attribute :value, Integer
+    end
+
+    value_object "ReasonText" do
+      # Short prose explaining why the wake-up is scheduled.
+      # Persisted to aggregate state so a later look-back can
+      # explain why a particular dispatch fired. Non-empty by
+      # convention.
+      attribute :value, String
+    end
+
+    value_object "PromptText" do
+      # The prompt to deliver when the wake-up fires. Lives in
+      # the event payload only ; aggregate state stores only the
+      # reason + delay.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Schedule ──
+    command "Schedule" do
+      role "Miette"
+      description "Schedule a future self-dispatch. Records the dispatch as a WakeupTool record and emits WakeupScheduled carrying the delay_seconds, reason, prompt, and description. The runtime fires the wake-up when the timer elapses ; the resulting re-dispatch is a separate event."
+      attribute :id, Id
+      attribute :delay_seconds, DelaySeconds
+      attribute :reason, ReasonText
+      attribute :prompt, PromptText
+      attribute :description, Description
+      emits "WakeupScheduled"
+      then_set :delay_seconds, to: :delay_seconds
+      then_set :reason,        to: :reason
+      then_set :description,   to: :description
+    end
+  end
+
+  # ──── Aggregate: CronTool ────
+  #
+  # CronTool wraps Claude Code's cron-job registry — recurring
+  # remote agents that fire on a schedule. Create / List / Delete
+  # mirror the harness's CronCreate / CronList / CronDelete tools.
+  aggregate "CronTool", "Recurring scheduled-agent invocations as first-class dispatched commands. Create registers a cron job with a schedule + prompt ; List enumerates the registry ; Delete removes a job. State carries the cron_id plus the most recent schedule + prompt summary." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :cron_id, CronId
+    attribute :schedule, CronSchedule
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Distinct from cron_id — see CronId.
+      attribute :value, String
+    end
+
+    value_object "CronId" do
+      # The id of the cron job being created / listed / deleted.
+      # Many CronTool dispatches (Create, Delete, future Update)
+      # reference the same CronId over the job's lifetime.
+      attribute :value, String
+    end
+
+    value_object "CronSchedule" do
+      # Cron-expression schedule string ("0 9 * * 1-5"). The
+      # bluebook does not validate the expression at the type
+      # level ; the runtime adapter parses + rejects malformed
+      # values.
+      attribute :value, String
+    end
+
+    value_object "PromptText" do
+      # The prompt the cron job dispatches when it fires. Lives
+      # in the event payload only ; aggregate state stores only
+      # the schedule + description.
+      attribute :value, String
+    end
+
+    value_object "JobName" do
+      # Human-readable name for the cron job, used in listings.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Create ──
+    command "Create" do
+      role "Miette"
+      description "Register a new cron job with a schedule and prompt. Records the dispatch as a CronTool record and emits CronCreated carrying the schedule, job_name, prompt, and description. The runtime mints the cron_id and pipes it back through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :schedule, CronSchedule
+      attribute :job_name, JobName
+      attribute :prompt, PromptText
+      attribute :description, Description
+      emits "CronCreated"
+      then_set :schedule,    to: :schedule
+      then_set :description, to: :description
+    end
+
+    # ── List ──
+    command "List" do
+      role "Miette"
+      description "List registered cron jobs. Records the dispatch as a CronTool record and emits CronListed. The job listing rides through the event payload."
+      attribute :id, Id
+      attribute :description, Description
+      emits "CronListed"
+      then_set :description, to: :description
+    end
+
+    # ── Delete ──
+    command "Delete" do
+      role "Miette"
+      description "Delete a cron job by id. Records the dispatch as a CronTool record and emits CronDeleted carrying the cron_id."
+      attribute :id, Id
+      attribute :cron_id, CronId
+      attribute :description, Description
+      emits "CronDeleted"
+      then_set :cron_id,     to: :cron_id
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: MonitorTool ────
+  #
+  # MonitorTool subscribes to a streaming source (a background
+  # process, a log file, a tool's stdout). Stream is modelled as
+  # a COMMAND rather than a query because subscribing emits a
+  # side effect — a live subscription — and each stream line
+  # lands as a follow-on Cascade.RecordResult event. Aggregate
+  # state records what was subscribed to ; payload rides through
+  # Cascade.
+  aggregate "MonitorTool", "Streaming-subscription invocations as first-class dispatched commands. Stream subscribes to a target (a background-process id, a log path, a tool id) ; stream lines flow back through Cascade.RecordResult one line at a time. State carries the target + filters." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :target, StreamTarget
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Stream lines flowing back through Cascade.RecordResult
+      # share this id so the subscriber can join lines to their
+      # subscription.
+      attribute :value, String
+    end
+
+    value_object "StreamTarget" do
+      # What is being streamed — typically a background-process
+      # id, a log-file path, or a tool-invocation id. Free-form ;
+      # the adapter interprets it.
+      attribute :value, String
+    end
+
+    value_object "FilterPattern" do
+      # Optional regex pattern that filters which lines flow
+      # through. When absent, every line passes.
+      attribute :value, String
+    end
+
+    value_object "UntilLine" do
+      # Optional regex pattern that, when matched, terminates the
+      # subscription. Lets a subscriber wait for a specific log
+      # marker.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Stream ──
+    command "Stream" do
+      role "Miette"
+      description "Subscribe to a streaming source. Records the dispatch as a MonitorTool record and emits StreamSubscribed carrying the target, optional filter, optional until-pattern, and description. Stream lines arrive as Cascade.RecordResult events sharing this invocation's id."
+      attribute :id, Id
+      attribute :target, StreamTarget
+      attribute :filter, FilterPattern
+      attribute :until_pattern, UntilLine
+      attribute :description, Description
+      emits "StreamSubscribed"
+      then_set :target,      to: :target
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: NotifyTool ────
+  #
+  # NotifyTool wraps Claude Code's PushNotification surface — a
+  # one-shot push to the operator's notification channel.
+  aggregate "NotifyTool", "Push-notification invocations as first-class dispatched commands. Push sends a title + body to the operator's notification channel. State carries the title + channel ; the body rides in the event payload (may be longer than a statusline-safe line)." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :title, NotificationTitle
+    attribute :channel, NotificationChannel
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "NotificationTitle" do
+      # Short title for the push notification. Shown at the top
+      # of the notification card. Stays under 60 characters by
+      # convention.
+      attribute :value, String
+    end
+
+    value_object "NotificationBody" do
+      # Body text of the notification. Lives in the event payload
+      # only ; aggregate state stores only the title + channel.
+      attribute :value, String
+    end
+
+    value_object "NotificationChannel" do
+      # Optional channel identifier — e.g. "default" / "urgent" /
+      # "background". When absent the adapter picks a default.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Push ──
+    command "Push" do
+      role "Miette"
+      description "Send a push notification to the operator. Records the dispatch as a NotifyTool record and emits NotificationPushed carrying the title, body, channel, and description. The body rides in the event payload."
+      attribute :id, Id
+      attribute :title, NotificationTitle
+      attribute :body, NotificationBody
+      attribute :channel, NotificationChannel
+      attribute :description, Description
+      emits "NotificationPushed"
+      then_set :title,       to: :title
+      then_set :channel,     to: :channel
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: PlanTool ────
+  #
+  # PlanTool wraps Claude Code's plan-mode surface. Enter records
+  # an explicit plan ; Exit closes the planning surface. No
+  # separate PlanSession entity ; the session-id IS the Enter
+  # invocation's id, and Exit may reference it. If we later need
+  # to distinguish active / abandoned / completed plans, a
+  # PlanSession entity inside PlanTool would be the right move.
+  aggregate "PlanTool", "Plan-mode invocations as first-class dispatched commands. Enter records the plan text and opens plan mode ; Exit closes it. State carries the most recent plan ; the full plan rides in the event payload if it's large." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :plan, PlanText
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # An Exit command may carry the originating Enter's id to
+      # close a specific plan-mode session.
+      attribute :value, String
+    end
+
+    value_object "PlanText" do
+      # The plan text the operator approves before execution.
+      # Markdown-shaped by convention ; the bluebook does not
+      # enforce a particular format.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Enter ──
+    command "Enter" do
+      role "Miette"
+      description "Enter plan mode with an explicit plan. Records the dispatch as a PlanTool record and emits PlanEntered carrying the plan text and description. The plan rides in the event payload ; aggregate state absorbs a summary."
+      attribute :id, Id
+      attribute :plan, PlanText
+      attribute :description, Description
+      emits "PlanEntered"
+      then_set :plan,        to: :plan
+      then_set :description, to: :description
+    end
+
+    # ── Exit ──
+    command "Exit" do
+      role "Miette"
+      description "Exit plan mode. Records the dispatch as a PlanTool record and emits PlanExited carrying the description and (when supplied) the id of the originating Enter."
+      attribute :id, Id
+      attribute :description, Description
+      emits "PlanExited"
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: WorktreeTool ────
+  #
+  # WorktreeTool wraps Claude Code's EnterWorktree / ExitWorktree
+  # — isolated working directories for sub-agent runs and risky
+  # operations. Enter mints a fresh worktree ; Exit cleans it up.
+  aggregate "WorktreeTool", "Worktree-isolation invocations as first-class dispatched commands. Enter creates an isolated working directory (optionally on a named branch) ; Exit cleans it up. State carries the branch + path." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :branch, BranchName
+    attribute :path, WorktreePath
+    attribute :task_id, TaskId
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "BranchName" do
+      # Optional branch name for the worktree. When absent, the
+      # adapter creates an unnamed worktree off the current HEAD.
+      attribute :value, String
+    end
+
+    value_object "WorktreePath" do
+      # Optional filesystem path for the worktree. When absent,
+      # the adapter picks a path under the harness's worktree
+      # root.
+      attribute :value, String
+    end
+
+    value_object "TaskId" do
+      # Optional task id binding the worktree to a specific
+      # TaskTool record. When supplied, Exit closes the worktree
+      # associated with the given task.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Enter ──
+    command "Enter" do
+      role "Miette"
+      description "Create an isolated worktree. Records the dispatch as a WorktreeTool record and emits WorktreeEntered carrying the branch, path, and description. The runtime substrate creates the worktree and pipes its path back through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :branch, BranchName
+      attribute :path, WorktreePath
+      attribute :description, Description
+      emits "WorktreeEntered"
+      then_set :branch,      to: :branch
+      then_set :path,        to: :path
+      then_set :description, to: :description
+    end
+
+    # ── Exit ──
+    command "Exit" do
+      role "Miette"
+      description "Tear down a worktree. Records the dispatch as a WorktreeTool record and emits WorktreeExited carrying the task_id (when supplied) and description."
+      attribute :id, Id
+      attribute :task_id, TaskId
+      attribute :description, Description
+      emits "WorktreeExited"
+      then_set :task_id,     to: :task_id
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: AskTool ────
+  #
+  # AskTool wraps the Claude Code AskUserQuestion tool as a first-class
+  # dispatched command. The other tool aggregates represent outbound
+  # actions the agent performs unilaterally. AskUser is the inverse :
+  # it is a directed request for operator input. The agent cannot
+  # continue without the answer, so the command blocks until the
+  # operator responds. Per the locked 2026-05-12 principles, wiring is
+  # override — the bluebook is the contract whether or not the
+  # :claude_tool :ask_user adapter is live today.
+  aggregate "AskTool", "Interactive operator-question invocations as first-class dispatched commands. AskUser poses a question to the operator (optionally with a header and a list of selectable options) and records what was asked. The operator's answers flow through the UserAnswered event payload ; aggregate state carries only the question, header, option labels, and the multi_select flag." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :question, Question
+    attribute :header, Header
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Same ULID convention used across the sibling tool aggregates.
+      # A Cascade.RecordResult that carries the operator's answer uses
+      # the same id so the question and its answer are joinable.
+      attribute :value, String
+    end
+
+    value_object "Question" do
+      # The question text shown to the operator verbatim. Free-form
+      # prose ; no length limit enforced by the bluebook (the
+      # underlying Claude Code tool does not impose one either).
+      attribute :value, String
+    end
+
+    value_object "Header" do
+      # Short heading shown above the question. The Claude Code
+      # AskUserQuestion schema limits this to 12 characters ; the
+      # bluebook records that constraint here by convention but does
+      # not enforce it at the type level (the adapter is responsible
+      # for truncation or rejection).
+      attribute :value, String
+    end
+
+    value_object "MultiSelect" do
+      # When true, the operator may pick more than one option.
+      # When false (the default), only one option may be chosen.
+      # Meaningless when options is empty ; the adapter ignores it
+      # in that case.
+      attribute :value, Boolean
+    end
+
+    value_object "AskOption" do
+      # One selectable option presented to the operator. label is
+      # the display text ; description adds detail below the label ;
+      # preview is optional — when present it is the text shown in
+      # an expanded preview pane. Whether preview is plain text or
+      # Markdown is deliberately left open here : the Claude Code
+      # schema does not specify, different surfaces render it
+      # differently, and forcing a constraint now would be premature.
+      # The adapter may document its own preference.
+      attribute :label, String
+      attribute :description, String
+      attribute :preview, Option
+    end
+
+    value_object "Option" do
+      # Optional wrapper for the AskOption preview field. Present
+      # means a preview string was supplied ; absent means no preview
+      # pane is shown. Rust target maps this to Option<String> ;
+      # Ruby target treats nil as absent.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice, captioning why the question
+      # is being asked. Same shape as the Description VO on every
+      # other tool aggregate ; duplicated here per the locked
+      # convention (VOs live inside the aggregate that uses them).
+      attribute :value, String
+    end
+
+    # ── AskUser ──
+    command "AskUser" do
+      role "Miette"
+      description "Pose a question to the operator and record it as an AskTool invocation. Emits UserAsked carrying the question, header, options list, multi_select flag, and description. The operator's answers are not in aggregate state — they flow through the UserAnswered event on the Cascade.RecordResult follow-on so downstream policies can branch on what the operator said. The :claude_tool adapter fires the underlying AskUserQuestion tool and pipes the response back."
+      attribute :id, Id
+      attribute :question, Question
+      attribute :header, Header
+      attribute :options, list_of(AskOption)
+      attribute :multi_select, MultiSelect
+      attribute :description, Description
+      emits "UserAsked"
+      then_set :question,     to: :question
+      then_set :header,       to: :header
+      then_set :description,  to: :description
+    end
+  end
+
+  # ──── Aggregate: SkillTool ────
+  #
+  # SkillTool wraps Claude Code's Skill invocation surface. A
+  # skill is a packaged capability (e.g. "bluebook", "navigate",
+  # "boot-spring") that the harness can execute on demand.
+  aggregate "SkillTool", "Skill-invocation tool dispatches as first-class commands. Invoke runs a named skill, optionally with arguments. State carries the skill name ; arguments ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :skill, SkillName
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "SkillName" do
+      # The skill's registered name (e.g. "bluebook", "navigate").
+      # Plugin-namespaced skills use the "plugin:skill" form.
+      attribute :value, String
+    end
+
+    value_object "SkillArgs" do
+      # Free-form argument string passed to the skill. Lives in
+      # the event payload only ; aggregate state stores only the
+      # skill name.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Invoke ──
+    command "Invoke" do
+      role "Miette"
+      description "Invoke a named skill. Records the dispatch as a SkillTool record and emits SkillInvoked carrying the skill name, args, and description. The skill's output rides through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :skill, SkillName
+      attribute :args, SkillArgs
+      attribute :description, Description
+      emits "SkillInvoked"
+      then_set :skill,       to: :skill
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: LspTool ────
+  #
+  # LspTool wraps Claude Code's language-server tool — symbol
+  # navigation, hover info, references, etc., scoped to a file
+  # path and optional position.
+  aggregate "LspTool", "Language-server tool invocations as first-class dispatched commands. Query asks the LSP for information at a file path and optional position. State carries the file path ; the query result rides through Cascade.RecordResult." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :file_path, FilePath
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # The file the LSP query is rooted at. Absolute path
+      # preferred ; relative paths are interpreted by the runtime
+      # substrate.
+      attribute :value, String
+    end
+
+    value_object "FilePosition" do
+      # Optional "line:column" position within the file (1-indexed
+      # by convention). When absent the query is file-scoped
+      # rather than position-scoped.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Query ──
+    command "Query" do
+      role "Miette"
+      description "Query the language server at a file path and optional position. Records the dispatch as an LspTool record and emits LspQueried carrying the file_path, position, and description. The LSP response (hover info, references, definitions) rides through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :file_path, FilePath
+      attribute :position, FilePosition
+      attribute :description, Description
+      emits "LspQueried"
+      then_set :file_path,   to: :file_path
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: MetaTool ────
+  #
+  # MetaTool wraps Claude Code's ToolSearch surface — searching
+  # the harness's deferred-tool registry. Used to discover and
+  # load tool schemas on demand.
+  aggregate "MetaTool", "Tool-discovery dispatches as first-class commands. ToolSearch matches a query against the deferred-tool list and returns matching tool schemas. State carries the query ; the result schemas ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :query, SearchQuery
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "SearchQuery" do
+      # The query string. Supports "select:Name1,Name2" for direct
+      # selection by name, "+name keyword" for required-substring
+      # ranking, and bare keyword search.
+      attribute :value, String
+    end
+
+    value_object "MaxResults" do
+      # Optional cap on returned schema count. When absent the
+      # adapter uses a sensible default (5).
+      attribute :value, Integer
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── ToolSearch ──
+    command "ToolSearch" do
+      role "Miette"
+      description "Search the deferred-tool registry. Records the dispatch as a MetaTool record and emits ToolsSearched carrying the query, max_results, and description. Matching tool schemas ride through Cascade.RecordResult so the harness can load them on demand."
+      attribute :id, Id
+      attribute :query, SearchQuery
+      attribute :max_results, MaxResults
+      attribute :description, Description
+      emits "ToolsSearched"
+      then_set :query,       to: :query
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: RemoteTriggerTool ────
+  #
+  # RemoteTriggerTool fires a named remote trigger — a webhook,
+  # an external integration, or a registered remote-agent
+  # endpoint — with an optional payload.
+  aggregate "RemoteTriggerTool", "Remote-trigger invocations as first-class dispatched commands. Trigger fires a named external endpoint with an optional payload. State carries the target name ; payload rides in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :target, TriggerTarget
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "TriggerTarget" do
+      # The named remote-trigger target (e.g. "ci.deploy" /
+      # "stripe.refund"). Free-form ; the adapter resolves the
+      # name to a concrete endpoint.
+      attribute :value, String
+    end
+
+    value_object "TriggerPayload" do
+      # Optional JSON-shaped payload sent to the trigger. Lives in
+      # the event payload only ; aggregate state stores only the
+      # target name.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── Trigger ──
+    command "Trigger" do
+      role "Miette"
+      description "Fire a named remote trigger. Records the dispatch as a RemoteTriggerTool record and emits TriggerFired carrying the target, payload, and description. The remote endpoint's response rides through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :target, TriggerTarget
+      attribute :payload, TriggerPayload
+      attribute :description, Description
+      emits "TriggerFired"
+      then_set :target,      to: :target
       then_set :description, to: :description
     end
   end

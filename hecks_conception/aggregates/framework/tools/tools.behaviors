@@ -1,5 +1,5 @@
 Hecks.behaviors "Tools" do
-  vision "Behavioral tests for the five Tools category aggregates — ShellTool (Bash), FileTool (Read / Edit / Update), SearchTool (Grep / Glob), WebTool (WebFetch / WebSearch), Cascade (RecordResult). Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
+  vision "Behavioral tests for the 18 Tools category aggregates — ShellTool, FileTool, SearchTool, WebTool, TaskTool, Sidequest, WakeupTool, CronTool, MonitorTool, NotifyTool, PlanTool, WorktreeTool, AskTool, SkillTool, LspTool, MetaTool, RemoteTriggerTool, Cascade. Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
 
   # ── ShellTool : Bash ──────────────────────────────────────────────
   #
@@ -227,5 +227,514 @@ Hecks.behaviors "Tools" do
            exit_code: { value: 0 },
            ok:        { value: true }
     expect emits: ["ResultRecorded"]
+  end
+
+  # ── FileTool : Write ──────────────────────────────────────────────
+  #
+  # Write is the harness-name surface for full-file overwrite (Update is
+  # the bluebook-canonical name). Content rides in the FileWritten
+  # event payload only ; state records the file_path + description.
+
+  test "Write records file_path + description" do
+    tests "Write", on: "FileTool"
+    input  id:           { value: "write-1" },
+           file_path:    { value: "/tmp/written.txt" },
+           content:      { value: "first contents" },
+           description:  { value: "write a fresh file" }
+    expect file_path:    { value: "/tmp/written.txt" },
+           description:  { value: "write a fresh file" }
+  end
+
+  test "Write emits FileWritten" do
+    tests "Write", on: "FileTool"
+    input  id:           { value: "write-2" },
+           file_path:    { value: "/tmp/another.txt" },
+           content:      { value: "y" * 4000 },
+           description:  { value: "write a big file" }
+    expect emits: ["FileWritten"]
+  end
+
+  # ── FileTool : NotebookEdit ───────────────────────────────────────
+  #
+  # NotebookEdit operates at cell granularity. new_source rides in the
+  # NotebookEdited event payload ; state records description.
+
+  test "NotebookEdit records description" do
+    tests "NotebookEdit", on: "FileTool"
+    input  id:             { value: "nbedit-1" },
+           notebook_path:  { value: "/tmp/notebook.ipynb" },
+           cell_id:        { value: "abc123" },
+           new_source:     { value: "print('hello')" },
+           edit_mode:      { value: "replace" },
+           description:    { value: "swap a cell's source" }
+    expect description:    { value: "swap a cell's source" }
+  end
+
+  test "NotebookEdit emits NotebookEdited" do
+    tests "NotebookEdit", on: "FileTool"
+    input  id:             { value: "nbedit-2" },
+           notebook_path:  { value: "/tmp/analysis.ipynb" },
+           cell_id:        { value: "def456" },
+           new_source:     { value: "df.head()" },
+           edit_mode:      { value: "insert" },
+           description:    { value: "add a head() probe" }
+    expect emits: ["NotebookEdited"]
+  end
+
+  # ── TaskTool ──────────────────────────────────────────────────────
+  #
+  # TaskTool exposes Create / Get / List / Output / Stop / Update.
+
+  test "Create records subject + description on TaskTool" do
+    tests "Create", on: "TaskTool"
+    input  id:           { value: "task-create-1" },
+           subject:      { value: "Refactor parser" },
+           description:  { value: "create the refactor task" },
+           active_form:  { value: "Refactoring the parser" },
+           metadata:     { value: "{}" }
+    expect subject:      { value: "Refactor parser" },
+           description:  { value: "create the refactor task" }
+  end
+
+  test "Create emits TaskCreated" do
+    tests "Create", on: "TaskTool"
+    input  id:           { value: "task-create-2" },
+           subject:      { value: "Audit the macrophage" },
+           description:  { value: "kick off an audit" },
+           active_form:  { value: "Auditing the macrophage" },
+           metadata:     { value: "{\"priority\":\"high\"}" }
+    expect emits: ["TaskCreated"]
+  end
+
+  test "Get records task_id + description on TaskTool" do
+    tests "Get", on: "TaskTool"
+    input  id:           { value: "task-get-1" },
+           task_id:      { value: "task-001" },
+           description:  { value: "fetch the parser task" }
+    expect task_id:      { value: "task-001" },
+           description:  { value: "fetch the parser task" }
+  end
+
+  test "Get emits TaskFetched" do
+    tests "Get", on: "TaskTool"
+    input  id:           { value: "task-get-2" },
+           task_id:      { value: "task-002" },
+           description:  { value: "another lookup" }
+    expect emits: ["TaskFetched"]
+  end
+
+  test "List records description on TaskTool" do
+    tests "List", on: "TaskTool"
+    input  id:           { value: "task-list-1" },
+           description:  { value: "enumerate active tasks" }
+    expect description:  { value: "enumerate active tasks" }
+  end
+
+  test "List emits TasksListed" do
+    tests "List", on: "TaskTool"
+    input  id:           { value: "task-list-2" },
+           description:  { value: "another listing" }
+    expect emits: ["TasksListed"]
+  end
+
+  test "Output records task_id + description on TaskTool" do
+    tests "Output", on: "TaskTool"
+    input  id:           { value: "task-output-1" },
+           task_id:      { value: "task-003" },
+           description:  { value: "fetch transcript" }
+    expect task_id:      { value: "task-003" },
+           description:  { value: "fetch transcript" }
+  end
+
+  test "Output emits TaskOutputFetched" do
+    tests "Output", on: "TaskTool"
+    input  id:           { value: "task-output-2" },
+           task_id:      { value: "task-004" },
+           description:  { value: "grab the output stream" }
+    expect emits: ["TaskOutputFetched"]
+  end
+
+  test "Stop records task_id + description on TaskTool" do
+    tests "Stop", on: "TaskTool"
+    input  id:           { value: "task-stop-1" },
+           task_id:      { value: "task-005" },
+           description:  { value: "halt the runaway task" }
+    expect task_id:      { value: "task-005" },
+           description:  { value: "halt the runaway task" }
+  end
+
+  test "Stop emits TaskStopped" do
+    tests "Stop", on: "TaskTool"
+    input  id:           { value: "task-stop-2" },
+           task_id:      { value: "task-006" },
+           description:  { value: "another halt" }
+    expect emits: ["TaskStopped"]
+  end
+
+  test "Update records task_id + subject + status + description on TaskTool" do
+    tests "Update", on: "TaskTool"
+    input  id:             { value: "task-update-1" },
+           task_id:        { value: "task-007" },
+           status:         { value: "in_progress" },
+           subject:        { value: "Refactor parser (revised)" },
+           description:    { value: "advance the task" },
+           active_form:    { value: "Refactoring the parser (revised)" },
+           owner:          { value: "Miette" },
+           metadata:       { value: "{}" },
+           add_blocks:     [],
+           add_blocked_by: []
+    expect task_id:        { value: "task-007" },
+           subject:        { value: "Refactor parser (revised)" },
+           status:         { value: "in_progress" },
+           description:    { value: "advance the task" }
+  end
+
+  test "Update emits TaskUpdated" do
+    tests "Update", on: "TaskTool"
+    input  id:             { value: "task-update-2" },
+           task_id:        { value: "task-008" },
+           status:         { value: "completed" },
+           subject:        { value: "Audit complete" },
+           description:    { value: "mark the audit done" },
+           active_form:    { value: "Completing the audit" },
+           owner:          { value: "Miette" },
+           metadata:       { value: "{}" },
+           add_blocks:     [],
+           add_blocked_by: []
+    expect emits: ["TaskUpdated"]
+  end
+
+  # ── Sidequest : Dispatch ──────────────────────────────────────────
+
+  test "Dispatch records subagent_type + description on Sidequest" do
+    tests "Dispatch", on: "Sidequest"
+    input  id:                 { value: "sidequest-1" },
+           description:        { value: "spawn a researcher" },
+           prompt:              { value: "What does the bluebook DSL look like?" },
+           subagent_type:      { value: "researcher" },
+           model:              { value: "claude-opus-4-7" },
+           run_in_background:  { value: false },
+           isolation:          { value: "worktree" }
+    expect subagent_type:      { value: "researcher" },
+           description:        { value: "spawn a researcher" }
+  end
+
+  test "Dispatch emits SidequestDispatched" do
+    tests "Dispatch", on: "Sidequest"
+    input  id:                 { value: "sidequest-2" },
+           description:        { value: "another sub-agent" },
+           prompt:              { value: "Investigate the parser cache." },
+           subagent_type:      { value: "general-purpose" },
+           model:              { value: "claude-sonnet-4-5" },
+           run_in_background:  { value: true },
+           isolation:          { value: "none" }
+    expect emits: ["SidequestDispatched"]
+  end
+
+  # ── WakeupTool : Schedule ─────────────────────────────────────────
+
+  test "Schedule records delay_seconds + reason + description on WakeupTool" do
+    tests "Schedule", on: "WakeupTool"
+    input  id:             { value: "wake-1" },
+           delay_seconds:  { value: 300 },
+           reason:         { value: "follow up on deploy" },
+           prompt:         { value: "Check the deploy status." },
+           description:    { value: "wake up in 5m" }
+    expect delay_seconds:  { value: 300 },
+           reason:         { value: "follow up on deploy" },
+           description:    { value: "wake up in 5m" }
+  end
+
+  test "Schedule emits WakeupScheduled" do
+    tests "Schedule", on: "WakeupTool"
+    input  id:             { value: "wake-2" },
+           delay_seconds:  { value: 900 },
+           reason:         { value: "poll the smoke test" },
+           prompt:         { value: "Re-run the smoke." },
+           description:    { value: "wake in 15m" }
+    expect emits: ["WakeupScheduled"]
+  end
+
+  # ── CronTool : Create / List / Delete ─────────────────────────────
+
+  test "Create records schedule + description on CronTool" do
+    tests "Create", on: "CronTool"
+    input  id:           { value: "cron-create-1" },
+           schedule:     { value: "0 9 * * 1-5" },
+           job_name:     { value: "weekday-greet" },
+           prompt:       { value: "Send the morning brief." },
+           description:  { value: "morning brief cron" }
+    expect schedule:     { value: "0 9 * * 1-5" },
+           description:  { value: "morning brief cron" }
+  end
+
+  test "Create emits CronCreated" do
+    tests "Create", on: "CronTool"
+    input  id:           { value: "cron-create-2" },
+           schedule:     { value: "*/15 * * * *" },
+           job_name:     { value: "heartbeat" },
+           prompt:       { value: "Ping the heartbeat endpoint." },
+           description:  { value: "heartbeat poller" }
+    expect emits: ["CronCreated"]
+  end
+
+  test "List records description on CronTool" do
+    tests "List", on: "CronTool"
+    input  id:           { value: "cron-list-1" },
+           description:  { value: "enumerate cron jobs" }
+    expect description:  { value: "enumerate cron jobs" }
+  end
+
+  test "List emits CronListed" do
+    tests "List", on: "CronTool"
+    input  id:           { value: "cron-list-2" },
+           description:  { value: "another listing" }
+    expect emits: ["CronListed"]
+  end
+
+  test "Delete records cron_id + description on CronTool" do
+    tests "Delete", on: "CronTool"
+    input  id:           { value: "cron-delete-1" },
+           cron_id:      { value: "cron-001" },
+           description:  { value: "retire the heartbeat" }
+    expect cron_id:      { value: "cron-001" },
+           description:  { value: "retire the heartbeat" }
+  end
+
+  test "Delete emits CronDeleted" do
+    tests "Delete", on: "CronTool"
+    input  id:           { value: "cron-delete-2" },
+           cron_id:      { value: "cron-002" },
+           description:  { value: "remove the morning cron" }
+    expect emits: ["CronDeleted"]
+  end
+
+  # ── MonitorTool : Stream ──────────────────────────────────────────
+
+  test "Stream records target + description on MonitorTool" do
+    tests "Stream", on: "MonitorTool"
+    input  id:             { value: "monitor-1" },
+           target:         { value: "log://overmind/web" },
+           filter:         { value: "ERROR" },
+           until_pattern:  { value: "boot complete" },
+           description:    { value: "watch web logs for errors" }
+    expect target:         { value: "log://overmind/web" },
+           description:    { value: "watch web logs for errors" }
+  end
+
+  test "Stream emits StreamSubscribed" do
+    tests "Stream", on: "MonitorTool"
+    input  id:             { value: "monitor-2" },
+           target:         { value: "process://pid-9001" },
+           filter:         { value: "" },
+           until_pattern:  { value: "" },
+           description:    { value: "follow a background process" }
+    expect emits: ["StreamSubscribed"]
+  end
+
+  # ── NotifyTool : Push ─────────────────────────────────────────────
+
+  test "Push records title + channel + description on NotifyTool" do
+    tests "Push", on: "NotifyTool"
+    input  id:           { value: "notify-1" },
+           title:        { value: "Deploy green" },
+           body:         { value: "All checks passed at 09:42." },
+           channel:      { value: "urgent" },
+           description:  { value: "ping operator on green deploy" }
+    expect title:        { value: "Deploy green" },
+           channel:      { value: "urgent" },
+           description:  { value: "ping operator on green deploy" }
+  end
+
+  test "Push emits NotificationPushed" do
+    tests "Push", on: "NotifyTool"
+    input  id:           { value: "notify-2" },
+           title:        { value: "Smoke red" },
+           body:         { value: "Smoke test failed on main." },
+           channel:      { value: "default" },
+           description:  { value: "ping on smoke failure" }
+    expect emits: ["NotificationPushed"]
+  end
+
+  # ── PlanTool : Enter / Exit ───────────────────────────────────────
+
+  test "Enter records plan + description on PlanTool" do
+    tests "Enter", on: "PlanTool"
+    input  id:           { value: "plan-enter-1" },
+           plan:         { value: "1. Audit the parser\n2. Refactor\n3. Ship" },
+           description:  { value: "open plan mode" }
+    expect plan:         { value: "1. Audit the parser\n2. Refactor\n3. Ship" },
+           description:  { value: "open plan mode" }
+  end
+
+  test "Enter emits PlanEntered" do
+    tests "Enter", on: "PlanTool"
+    input  id:           { value: "plan-enter-2" },
+           plan:         { value: "1. Investigate\n2. Fix" },
+           description:  { value: "another plan" }
+    expect emits: ["PlanEntered"]
+  end
+
+  test "Exit records description on PlanTool" do
+    tests "Exit", on: "PlanTool"
+    input  id:           { value: "plan-exit-1" },
+           description:  { value: "close plan mode" }
+    expect description:  { value: "close plan mode" }
+  end
+
+  test "Exit emits PlanExited" do
+    tests "Exit", on: "PlanTool"
+    input  id:           { value: "plan-exit-2" },
+           description:  { value: "another exit" }
+    expect emits: ["PlanExited"]
+  end
+
+  # ── WorktreeTool : Enter / Exit ───────────────────────────────────
+
+  test "Enter records branch + path + description on WorktreeTool" do
+    tests "Enter", on: "WorktreeTool"
+    input  id:           { value: "wt-enter-1" },
+           branch:       { value: "feature/x" },
+           path:         { value: "/tmp/wt-x" },
+           description:  { value: "spin up an isolated worktree" }
+    expect branch:       { value: "feature/x" },
+           path:         { value: "/tmp/wt-x" },
+           description:  { value: "spin up an isolated worktree" }
+  end
+
+  test "Enter emits WorktreeEntered" do
+    tests "Enter", on: "WorktreeTool"
+    input  id:           { value: "wt-enter-2" },
+           branch:       { value: "fix/y" },
+           path:         { value: "/tmp/wt-y" },
+           description:  { value: "another worktree" }
+    expect emits: ["WorktreeEntered"]
+  end
+
+  test "Exit records task_id + description on WorktreeTool" do
+    tests "Exit", on: "WorktreeTool"
+    input  id:           { value: "wt-exit-1" },
+           task_id:      { value: "task-100" },
+           description:  { value: "clean up the worktree" }
+    expect task_id:      { value: "task-100" },
+           description:  { value: "clean up the worktree" }
+  end
+
+  test "Exit emits WorktreeExited" do
+    tests "Exit", on: "WorktreeTool"
+    input  id:           { value: "wt-exit-2" },
+           task_id:      { value: "task-101" },
+           description:  { value: "tear down another worktree" }
+    expect emits: ["WorktreeExited"]
+  end
+
+  # ── AskTool : AskUser ─────────────────────────────────────────────
+
+  test "AskUser records question + header + description on AskTool" do
+    tests "AskUser", on: "AskTool"
+    input  id:            { value: "ask-1" },
+           question:      { value: "Should we proceed with the destructive op?" },
+           header:        { value: "Confirm" },
+           options:       [],
+           multi_select:  { value: false },
+           description:   { value: "confirm before destructive op" }
+    expect question:      { value: "Should we proceed with the destructive op?" },
+           header:        { value: "Confirm" },
+           description:   { value: "confirm before destructive op" }
+  end
+
+  test "AskUser emits UserAsked" do
+    tests "AskUser", on: "AskTool"
+    input  id:            { value: "ask-2" },
+           question:      { value: "Pick a deploy target." },
+           header:        { value: "Target" },
+           options:       [],
+           multi_select:  { value: false },
+           description:   { value: "ask for deploy target" }
+    expect emits: ["UserAsked"]
+  end
+
+  # ── SkillTool : Invoke ────────────────────────────────────────────
+
+  test "Invoke records skill + description on SkillTool" do
+    tests "Invoke", on: "SkillTool"
+    input  id:           { value: "skill-1" },
+           skill:        { value: "bluebook" },
+           args:         { value: "edit aggregate Tools" },
+           description:  { value: "invoke the bluebook skill" }
+    expect skill:        { value: "bluebook" },
+           description:  { value: "invoke the bluebook skill" }
+  end
+
+  test "Invoke emits SkillInvoked" do
+    tests "Invoke", on: "SkillTool"
+    input  id:           { value: "skill-2" },
+           skill:        { value: "navigate" },
+           args:         { value: "" },
+           description:  { value: "invoke navigate" }
+    expect emits: ["SkillInvoked"]
+  end
+
+  # ── LspTool : Query ───────────────────────────────────────────────
+
+  test "Query records file_path + description on LspTool" do
+    tests "Query", on: "LspTool"
+    input  id:           { value: "lsp-1" },
+           file_path:    { value: "/Users/me/proj/src/main.rs" },
+           position:     { value: "42:10" },
+           description:  { value: "hover info at main.rs:42:10" }
+    expect file_path:    { value: "/Users/me/proj/src/main.rs" },
+           description:  { value: "hover info at main.rs:42:10" }
+  end
+
+  test "Query emits LspQueried" do
+    tests "Query", on: "LspTool"
+    input  id:           { value: "lsp-2" },
+           file_path:    { value: "/Users/me/proj/lib/foo.rb" },
+           position:     { value: "" },
+           description:  { value: "file-scoped query" }
+    expect emits: ["LspQueried"]
+  end
+
+  # ── MetaTool : ToolSearch ─────────────────────────────────────────
+
+  test "ToolSearch records query + description on MetaTool" do
+    tests "ToolSearch", on: "MetaTool"
+    input  id:           { value: "meta-1" },
+           query:        { value: "select:Read,Edit,Grep" },
+           max_results:  { value: 5 },
+           description:  { value: "load Read/Edit/Grep schemas" }
+    expect query:        { value: "select:Read,Edit,Grep" },
+           description:  { value: "load Read/Edit/Grep schemas" }
+  end
+
+  test "ToolSearch emits ToolsSearched" do
+    tests "ToolSearch", on: "MetaTool"
+    input  id:           { value: "meta-2" },
+           query:        { value: "notebook jupyter" },
+           max_results:  { value: 10 },
+           description:  { value: "find notebook tools" }
+    expect emits: ["ToolsSearched"]
+  end
+
+  # ── RemoteTriggerTool : Trigger ───────────────────────────────────
+
+  test "Trigger records target + description on RemoteTriggerTool" do
+    tests "Trigger", on: "RemoteTriggerTool"
+    input  id:           { value: "trigger-1" },
+           target:       { value: "ci.deploy" },
+           payload:      { value: "{\"env\":\"prod\"}" },
+           description:  { value: "kick off prod deploy" }
+    expect target:       { value: "ci.deploy" },
+           description:  { value: "kick off prod deploy" }
+  end
+
+  test "Trigger emits TriggerFired" do
+    tests "Trigger", on: "RemoteTriggerTool"
+    input  id:           { value: "trigger-2" },
+           target:       { value: "stripe.refund" },
+           payload:      { value: "{\"charge\":\"ch_123\"}" },
+           description:  { value: "issue a refund" }
+    expect emits: ["TriggerFired"]
   end
 end
