@@ -181,7 +181,7 @@ Hecks.fixtures "IrShape" do
     fixture "SectionRow_label", type_name: "SectionRow", order: 1, name: "label", field_type: "String", doc_snippet: ""
     fixture "SectionRow_field", type_name: "SectionRow", order: 2, name: "field", field_type: "String", doc_snippet: ""
 
-    # Aggregate — 12 fields ; context, category, identified_by, entities, views carry doc.
+    # Aggregate — 12 fields ; context, category, identified_by, entities carry doc.
     fixture "Aggregate_name",          type_name: "Aggregate", order: 1,  name: "name",          field_type: "String",          doc_snippet: ""
     fixture "Aggregate_description",   type_name: "Aggregate", order: 2,  name: "description",   field_type: "Option<String>",  doc_snippet: ""
     fixture "Aggregate_context",       type_name: "Aggregate", order: 3,  name: "context",       field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_context.rs.frag"
