@@ -75,3 +75,4 @@
         format!("{}::{}.{}",
             domain_name, result.aggregate_type, bare_command)
     }
+

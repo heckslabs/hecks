@@ -19,6 +19,41 @@ fn main() {
         std::process::exit(1);
     }
 
+    // Cross-repo Tools.* dispatch (i518 follow-up). When invoked as
+    // `storehouse Aggregate.Command [key=val ...]` from any cwd, route
+    // straight into the default conception's aggregates dir. The check :
+    //   * args[1] looks like `<PascalCase>.<PascalCase>` (the
+    //     `Aggregate.Command` shape any dispatch would take)
+    //   * args[1] is NOT a path that exists on disk (so an existing
+    //     "parse this file" usage still wins)
+    //   * not a recognised subcommand (`storehouse`, `lexicon`, ...)
+    //     — those are handled by the regular if-chain below
+    // Conception dir comes from HECKS_CONCEPTION_DIR or the canonical
+    // ~/Projects/hecks/hecks_conception fallback (see
+    // storehouse_conception_root). Explicit positional invocations
+    // (`storehouse /path/to/conception Tools.Bash ...`) still work
+    // because they fall through to the directory-or-bluebook dispatch
+    // path further down. Backward-compatible.
+    if args.len() >= 2 && looks_like_aggregate_command(&args[1])
+        && !std::path::Path::new(&args[1]).exists()
+    {
+        let conception = storehouse_conception_root();
+        let agg_dir = format!("{}/aggregates", conception);
+        if std::path::Path::new(&agg_dir).is_dir() {
+            let cmd_name = args[1].clone();
+            let attrs: std::collections::HashMap<String, serde_json::Value> = args[2..].iter()
+                .filter_map(|a| {
+                    let mut parts = a.splitn(2, '=');
+                    let key = parts.next()?;
+                    let val = parts.next()?;
+                    Some((key.to_string(), serde_json::Value::String(val.to_string())))
+                })
+                .collect();
+            dispatch_hecksagon(&agg_dir, &cmd_name, attrs);
+            return;
+        }
+    }
+
     // Backwards compat: if arg[1] is a file path, treat as parse
     let (command, path) = if args.len() == 2 && args[1].contains('.') {
         ("parse", args[1].as_str())

@@ -210,7 +210,32 @@ pub mod prompt_scaffolder;
 // route through `compute_dispatcher::call` which resolves
 // `function_name` against the static `compute_functions` registry.
 pub mod compute_dispatcher;
+pub mod claude_tool_dispatcher;
+// i593 — :mcp adapter family kernel hook. One behavior :
+// invoke_mcp_tool (open stdio MCP session, call named tool with
+// args, route response back into the cascade). Sibling to
+// claude_tool_dispatcher ; registered into i557's framework
+// registry alongside it. Shell hooks reach this via the new
+// `storehouse mcp` subcommand family in main.rs.
+pub mod mcp_dispatcher;
+pub mod sms_dispatcher;
+pub mod tts_dispatcher;
+// i569 — :web_tool adapter family kernel hook. Two behaviors :
+// perform_web_fetch (curl HTTP GET, URL-safety gated) and
+// perform_web_search (DuckDuckGo HTML-lite). Sibling to
+// claude_tool_dispatcher ; registered into i557's framework registry
+// once that lands. This module exposes `lookup_hook` +
+// `WEB_TOOL_BEHAVIOR_NAMES` for the registry to consume — `Runtime::
+// dispatch` is deliberately NOT modified to call into it.
+pub mod web_tool_dispatcher;
 pub mod compute_functions;
+// i557 — Phase-2 framework runtime. Walks
+// `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
+// at boot and builds a typed registry of adapter families + behavior
+// kinds + native kernel hooks. Part 1 lands the registry surface +
+// boot wiring + kernel-hook seed for `invoke_claude_tool` ; part 2
+// retires the hardcoded `:claude_tool` shortcut in `Runtime::dispatch`.
+pub mod framework_registry;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;

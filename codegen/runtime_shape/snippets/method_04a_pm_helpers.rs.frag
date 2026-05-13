@@ -234,6 +234,164 @@
         }
     }
 
+    /// i551 — `:claude_tool` adapter resolver. Sibling of
+    /// `resolve_llm_adapters` for the io-adapter family that binds
+    /// `Tools.X` dispatches to native primitives (shell, edit, read,
+    /// write, grep, glob). For each adapter declared in a loaded
+    /// hecksagon whose `command` option matches the just-dispatched
+    /// `Aggregate.Command`, the runtime reads the aggregate state,
+    /// stringifies it into `attrs`, and calls
+    /// `claude_tool_dispatcher::dispatch`.
+    ///
+    /// After the kernel-floor primitive returns, the resolver chains
+    /// the `ClaudeToolResult` back into the aggregate via a follow-on
+    /// `dispatch_cascade` into the adapter's `result_into` target
+    /// (typically `Tools.RecordResult`). The cascade carries the
+    /// originating invocation `id`, the `tool` kind, captured
+    /// `output`, `exit_code`, and `ok` flag — so the outcome becomes
+    /// a first-class event (ResultRecorded) the runtime can react to
+    /// instead of just a stderr line. The stderr log is preserved for
+    /// debug visibility.
+    fn resolve_claude_tool_adapters(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        dispatch_attrs: &HashMap<String, Value>,
+    ) {
+        if self.hecksagons.is_empty() { return; }
+        let debug = std::env::var("HECKS_DEBUG_CLAUDE_TOOL").is_ok();
+        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
+        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        if debug {
+            eprintln!("[claude_tool:debug] resolve cmd={} target={} hecksagons={}",
+                command_name, target, self.hecksagons.len());
+        }
+
+        // Snapshot every `:claude_tool` io adapter whose `command`
+        // option matches the dispatched target. Values come from
+        // parse_options unprocessed — strings still carry their
+        // surrounding quotes, symbols still carry their leading colon
+        // — so we strip those before matching. `result_into` carries
+        // the follow-on cascade target (e.g. "Tools.RecordResult").
+        let matched: Vec<(String, String, Option<String>)> = self.hecksagons.iter()
+            .flat_map(|h| h.io_adapters.iter())
+            .filter(|a| a.kind == "claude_tool")
+            .filter_map(|a| {
+                let mut cmd: Option<String> = None;
+                let mut tool: Option<String> = None;
+                let mut result_into: Option<String> = None;
+                for (k, v) in &a.options {
+                    match k.as_str() {
+                        "command"     => cmd = Some(strip_quotes_or_colon(v)),
+                        "tool"        => tool = Some(strip_quotes_or_colon(v)),
+                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
+                        _ => {}
+                    }
+                }
+                match (cmd, tool) {
+                    (Some(c), Some(t)) if c == target => Some((c, t, result_into)),
+                    _ => None,
+                }
+            })
+            .collect();
+        if debug {
+            eprintln!("[claude_tool:debug] matched {} adapter(s) for target={}",
+                matched.len(), target);
+        }
+        if matched.is_empty() { return; }
+
+        // Snapshot the just-dispatched aggregate's state so we can
+        // pass its fields to the kernel-floor primitive. The `id`
+        // field flows through here so the follow-on RecordResult
+        // cascade lands on the same invocation record.
+        let state_clone: Option<AggregateState> = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .cloned();
+        let mut attrs: HashMap<String, String> = HashMap::new();
+        if let Some(s) = state_clone.as_ref() {
+            for (k, v) in &s.fields {
+                attrs.insert(k.clone(), v.to_string());
+            }
+        }
+        // i559 — overlay the original dispatch attrs on top of the
+        // state-derived ones. Tools.Edit's old_string/new_string and
+        // Tools.Update's content are event-only payloads (never
+        // persisted onto aggregate state per the Tools bluebook), so
+        // the state snapshot above is missing them. The dispatch
+        // attrs are the only place they exist at this point in the
+        // pipeline. Overlay-after-state means the user-supplied
+        // values win over any state echo.
+        for (k, v) in dispatch_attrs {
+            attrs.insert(k.clone(), v.to_string());
+        }
+        // The aggregate id is authoritative — fall back to the
+        // dispatch result if state didn't carry it explicitly.
+        let invocation_id = attrs
+            .get("id")
+            .cloned()
+            .unwrap_or_else(|| result.aggregate_id.clone());
+
+        for (_cmd, tool, result_into) in &matched {
+            let tool_result = claude_tool_dispatcher::dispatch(tool, &attrs);
+            // Preserve the existing debug-visibility log — useful when
+            // a cascade fails or the result_into target is missing.
+            // i559 — surface the error message inline when ok=false ;
+            // previously the message lived only in `tool_result.error`
+            // and never made it to stderr, so silent failures showed
+            // as `ok=false exit=1 output=""` with no diagnostic.
+            let err_tail = match (&tool_result.ok, &tool_result.error) {
+                (false, Some(msg)) => format!(" error={:?}", msg),
+                _ => String::new(),
+            };
+            eprintln!(
+                "[claude_tool:{}] ok={} exit={} output={:?}{}",
+                tool, tool_result.ok, tool_result.exit_code, tool_result.output, err_tail
+            );
+
+            // Chain the result back into the aggregate via the
+            // adapter's `result_into` target. Mirror the LLM
+            // dispatcher's cascade contract : route through
+            // `dispatch_cascade` so depth + cycle protection apply,
+            // and pass the originating aggregate as the upstream so
+            // the same invocation id is reused.
+            let result_into_target = match result_into.as_deref() {
+                Some(s) if !s.is_empty() => s,
+                _ => {
+                    if debug {
+                        eprintln!("[claude_tool:debug] no result_into on adapter — skipping cascade");
+                    }
+                    continue;
+                }
+            };
+
+            let mut record_attrs: HashMap<String, Value> = HashMap::new();
+            record_attrs.insert("id".to_string(), Value::Str(invocation_id.clone()));
+            record_attrs.insert("tool".to_string(), Value::Str(tool_result.tool.clone()));
+            record_attrs.insert("output".to_string(), Value::Str(tool_result.output.clone()));
+            record_attrs.insert("exit_code".to_string(), Value::Int(tool_result.exit_code as i64));
+            record_attrs.insert("ok".to_string(), Value::Bool(tool_result.ok));
+
+            let cascade_outcome = command_dispatch::dispatch_cascade(
+                self,
+                result_into_target,
+                record_attrs,
+                &result.aggregate_type,
+                &result.aggregate_id,
+            );
+            if debug {
+                match &cascade_outcome {
+                    Ok(_)  => eprintln!("[claude_tool:debug] cascaded into {} ok", result_into_target),
+                    Err(e) => eprintln!("[claude_tool:debug] cascade into {} failed: {:?}", result_into_target, e),
+                }
+            }
+            // Swallow the cascade outcome — failures are observable
+            // via the debug eprintln above ; we don't want the
+            // tool-side error to bubble through the kernel hook and
+            // break the original dispatch's return.
+            let _ = cascade_outcome;
+        }
+    }
+
     /// i220 sub-gap 5 — compute-adapter resolver. Mirror of
     /// `resolve_llm_adapters` for the `:compute` family. Scans every
     /// loaded hecksagon for an `adapter :compute` declaration whose

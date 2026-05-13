@@ -23,5 +23,16 @@ pub struct Runtime {
     /// explicit `register_llm_provider` call so unit tests can never
     /// silently shell out to a real model.
     pub llm_providers: HashMap<String, Box<dyn llm_providers::LlmProvider>>,
+    /// i557 part 1 — Phase-2 framework registry. Populated at boot by
+    /// `boot_with_framework_dir` (walks
+    /// `<framework_dir>/adapter_families/*.hecksagon` +
+    /// `<framework_dir>/behavior_kinds/*.hecksagon`) and seeded with
+    /// the kernel hooks the runtime knows natively (today : just
+    /// `invoke_claude_tool`). Default-constructed (empty + seeded
+    /// hooks) when the runtime boots without a framework path —
+    /// preserves backward compat with every caller that doesn't
+    /// supply one. Read only by part 2 ; `Runtime::dispatch` still
+    /// uses the hardcoded `:claude_tool` path in part 1.
+    pub framework_registry: framework_registry::FrameworkRegistry,
 }
 

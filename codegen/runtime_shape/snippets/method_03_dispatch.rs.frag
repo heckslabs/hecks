@@ -92,6 +92,25 @@
         // re-entry), exactly as the Ruby surface relies on.
         self.resolve_llm_adapters(&result, command_name);
 
+        // i551 — :claude_tool adapter hook. After the LLM cascade
+        // settles, scan loaded hecksagons for any `:claude_tool` io
+        // adapter whose `command` option matches the just-dispatched
+        // `Aggregate.Command` target. Build the attrs from the just-
+        // dispatched aggregate's state UNION the original dispatch
+        // attrs (the latter wins on key collision) and call into the
+        // kernel-floor dispatcher (claude_tool_dispatcher::dispatch).
+        // The native primitive (shell exec, file edit, etc.) runs.
+        //
+        // The dispatch-attrs overlay matters for tools whose inputs
+        // are deliberately event-only payloads (Tools.Edit's
+        // old_string/new_string, Tools.Update's content). Those
+        // attributes never land on aggregate state by design (the
+        // bluebook keeps the heki small), so without the overlay the
+        // kernel hook sees `attrs.get("old_string") == None` and
+        // returns "missing required attr" — silently, because the
+        // log line below didn't surface error messages until i559.
+        self.resolve_claude_tool_adapters(&result, command_name, &ctx.attrs);
+
         Ok(result)
     }
 
