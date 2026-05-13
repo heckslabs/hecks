@@ -1,0 +1,1188 @@
+# PigeonCoop — the ASA (American School for the Arts) community app.
+#
+# Trimmed to story-supported scope : Person, Shoutout, Announcement,
+# Notification, three peer Calendars, Article, Newsletter, Event with
+# embedded Ticket, Document, AbsenceNotification, Donation, MerchItem,
+# MerchPurchase, TuitionPayment.
+#
+# Commands are story-driven. Refund / cancel / waive / archive flows
+# omitted until ASA names them.
+
+Hecks.bluebook "PigeonCoop" do
+  aggregate "Person" do
+    attribute :name,                  PersonName
+    attribute :email,                 EmailAddress
+    attribute :phone,                 PhoneNumber
+    attribute :roles,                 list_of(PersonRole)
+    attribute :student_enrollments,   list_of(StudentEnrollment)
+    attribute :parent_links,          list_of(ParentLink)
+    attribute :teaching_assignments,  list_of(TeachingAssignment)
+    attribute :admin_grants,          list_of(AdminGrant)
+    attribute :subscriptions,         list_of(Subscription)
+
+    value_object "PersonName" do
+      attribute :given,  String
+      attribute :family, String
+      invariant("given non-empty")  { !given.strip.empty?  }
+      invariant("family non-empty") { !family.strip.empty? }
+    end
+
+    value_object "EmailAddress" do
+      attribute :address, String
+      invariant("contains @")          { address.include?("@") }
+      invariant("contains domain dot") { address.split("@", 2).last.to_s.include?(".") }
+    end
+
+    value_object "PhoneNumber" do
+      attribute :digits, String
+      invariant("E.164 or empty") { digits.empty? || digits =~ /\A\+?\d{10,15}\z/ }
+    end
+
+    value_object "PersonRole" do
+      attribute :name, String
+      invariant("student | parent | admin | teacher | alumni | board") do
+        %w[student parent admin teacher alumni board].include?(name)
+      end
+    end
+
+    value_object "NotificationSource" do
+      attribute :kind, String
+      invariant("announcement | shoutout | absence | event | newsletter | message") do
+        %w[announcement shoutout absence event newsletter message].include?(kind)
+      end
+    end
+
+    value_object "DeliveryChannel" do
+      attribute :name, String
+      invariant("in_app | email | sms") { %w[in_app email sms].include?(name) }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    entity "Subscription" do
+      attribute :source_kind,   NotificationSource
+      attribute :channel,       DeliveryChannel
+    end
+
+    value_object "GradeLevel" do
+      attribute :value, String
+      invariant("non-empty, ≤ 16 chars") { !value.strip.empty? && value.length <= 16 }
+    end
+
+    value_object "Department" do
+      attribute :name, String
+      invariant("non-empty, ≤ 80 chars") { !name.strip.empty? && name.length <= 80 }
+    end
+
+    value_object "PermissionTag" do
+      attribute :name, String
+      invariant("non-empty") { !name.strip.empty? }
+    end
+
+    entity "StudentEnrollment" do
+      attribute :grade_level,  GradeLevel
+      attribute :school_year,  SchoolYear
+      attribute :enrolled_at,  Timestamp
+    end
+
+    entity "ParentLink" do
+      reference_to Person, as: :child
+      attribute :linked_at, Timestamp
+    end
+
+    entity "TeachingAssignment" do
+      attribute :department,    Department
+      attribute :school_year,   SchoolYear
+      attribute :assigned_at,   Timestamp
+    end
+
+    entity "AdminGrant" do
+      attribute :permissions, list_of(PermissionTag)
+      attribute :granted_at,  Timestamp
+    end
+
+    value_object "SchoolYear" do
+      attribute :label, String
+      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
+    end
+
+    command "RegisterPerson" do
+      attribute :name,   PersonName
+      attribute :email,  EmailAddress
+      attribute :phone,  PhoneNumber
+      attribute :roles,  list_of(PersonRole)
+    end
+
+    command "AddRole" do
+      reference_to Person
+      attribute :role, PersonRole
+    end
+
+    command "RemoveRole" do
+      reference_to Person
+      attribute :role, PersonRole
+    end
+
+    command "Subscribe" do
+      reference_to Person
+      attribute :source_kind, NotificationSource
+      attribute :channel,     DeliveryChannel
+    end
+
+    command "Unsubscribe" do
+      reference_to Person
+      attribute :source_kind, NotificationSource
+      attribute :channel,     DeliveryChannel
+    end
+
+    query "MyProfile" do
+      description "Return the calling Person's full profile — name, email, phone, roles, subscriptions, registered_at. The login-landing view and the student's ASA school ID source."
+    end
+
+    query "MySubscriptions" do
+      description "Return the calling Person's Subscription list — source_kind, channel, subscribed_at — the read side of admin/student/parent subscription management."
+    end
+
+    query "MyAnnualPayments" do
+      description "Cross-aggregate : every TuitionPayment, Donation, and MerchPurchase where the payer/donor/buyer is the calling Person AND the recorded date falls in the current school year. Returns a unified ledger ordered by date descending — the parent's complete financial picture for the year."
+    end
+
+    query "MyChildSchoolActivity" do
+      description "Cross-aggregate : for each Person linked as child via Person.parent_links to the calling Person, return their AbsenceNotification entries, Shoutouts (as recipient), and Event Tickets/Registrations they hold — a single dashboard of the child's school engagement, ordered by date descending."
+    end
+
+    validation :name,  presence: true
+    validation :email, presence: true
+  end
+
+  aggregate "Shoutout" do
+    reference_to Person, as: :author
+    reference_to Person, as: :recipient
+    attribute :message,    ShoutoutMessage
+
+    value_object "ShoutoutMessage" do
+      attribute :text, String
+      invariant("non-empty, ≤ 500 chars") { !text.strip.empty? && text.length <= 500 }
+    end
+
+    value_object "RejectionReason" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("pending | approved | rejected") do
+        %w[pending approved rejected].include?(value)
+      end
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "pending" do
+      transition "ApproveShoutout" => "approved"
+      transition "RejectShoutout"  => "rejected"
+    end
+
+    command "WriteShoutout" do
+      reference_to Person, as: :author
+      reference_to Person, as: :recipient
+      attribute :message, ShoutoutMessage
+    end
+
+    query "Pending" do
+      description "Every Shoutout where status = pending, ordered by created_at ascending — the admin approval queue."
+    end
+
+    query "MyShoutouts" do
+      description "Every Shoutout where the calling Person is the author or the recipient, ordered by created_at descending."
+    end
+
+    query "AboutMyChildThisYear" do
+      description "Cross-aggregate : every approved Shoutout whose recipient is a Person linked as a child to the calling Person (via Person.parent_links) AND created_at falls in the current school year. Joins Shoutout + Person.parent_links + AcademicCalendar.school_year. Ordered by created_at descending — the parent's view of recognition their child has received."
+    end
+
+    command "ApproveShoutout" do
+      reference_to Shoutout
+      reference_to Person, as: :approved_by
+    end
+
+    command "RejectShoutout" do
+      reference_to Shoutout
+      reference_to Person, as: :rejected_by
+      attribute :reason, RejectionReason
+    end
+
+    validation :author,    presence: true
+    validation :recipient, presence: true
+    validation :message,   presence: true
+  end
+
+  aggregate "Announcement" do
+    reference_to Person, as: :author
+    attribute :title,         AnnouncementTitle
+    attribute :body,          AnnouncementBody
+    attribute :audience,      list_of(PersonRole)
+    attribute :scheduled_for, Timestamp
+    attribute :recurrence,    Recurrence
+
+    value_object "AnnouncementTitle" do
+      attribute :text, String
+      invariant("non-empty, ≤ 120 chars") { !text.strip.empty? && text.length <= 120 }
+    end
+
+    value_object "AnnouncementBody" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "AnchorDate" do
+      attribute :value, String
+      invariant("YYYY-MM-DD") { value.match?(/\A\d{4}-\d{2}-\d{2}\z/) }
+    end
+
+    value_object "Recurrence" do
+      attribute :pattern, String
+      attribute :anchor,  AnchorDate
+      invariant("pattern is recognized") do
+        %w[none weekly biweekly monthly].include?(pattern)
+      end
+    end
+
+    value_object "PersonRole" do
+      attribute :name, String
+      invariant("student | parent | admin | teacher | alumni | board") do
+        %w[student parent admin teacher alumni board].include?(name)
+      end
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("draft | scheduled | sent") { %w[draft scheduled sent].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "draft" do
+      transition "ScheduleAnnouncement" => "scheduled"
+      transition "SendAnnouncement"     => "sent"
+    end
+
+    command "WriteAnnouncement" do
+      reference_to Person, as: :author
+      attribute :title,      AnnouncementTitle
+      attribute :body,       AnnouncementBody
+      attribute :audience,   list_of(PersonRole)
+      attribute :recurrence, Recurrence
+    end
+
+    command "ScheduleAnnouncement" do
+      reference_to Announcement
+      attribute :scheduled_for, Timestamp
+    end
+
+    query "Scheduled" do
+      description "Every Announcement where status = scheduled, ordered by scheduled_for ascending — admin's upcoming-send view."
+    end
+
+    query "Recent" do
+      description "Every Announcement where status = sent, ordered by sent_at descending — parents and the wider community browsing what's recently gone out."
+    end
+  end
+
+  aggregate "Notification" do
+    reference_to Person, as: :recipient
+    attribute :source_kind, NotificationSource
+    attribute :source_id,   SourceRef
+    attribute :body,        NotificationBody
+
+    value_object "NotificationSource" do
+      attribute :kind, String
+      invariant("announcement | shoutout | absence | event | newsletter | message") do
+        %w[announcement shoutout absence event newsletter message].include?(kind)
+      end
+    end
+
+    value_object "SourceRef" do
+      attribute :id, String
+      invariant("non-empty") { !id.strip.empty? }
+    end
+
+    value_object "NotificationBody" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("pending | delivered | read") { %w[pending delivered read].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "pending" do
+      transition "DeliverNotification" => "delivered"
+      transition "MarkRead"            => "read"
+    end
+
+    command "SendNotification" do
+      reference_to Person, as: :recipient
+      attribute :source_kind, NotificationSource
+      attribute :source_id,   SourceRef
+      attribute :body,        NotificationBody
+    end
+
+    command "MarkRead" do
+      reference_to Notification
+      reference_to Person, as: :recipient
+    end
+
+    query "ForMe" do
+      description "Every Notification where recipient = the calling Person, ordered by sent_at descending."
+    end
+
+    query "Unread" do
+      description "Every Notification where recipient = the calling Person AND status != read, ordered by sent_at descending — the inbox view."
+    end
+
+    query "UnifiedInbox" do
+      description "Cross-aggregate : every unread Notification for the calling Person GROUPED by source_kind (announcement, shoutout, absence, event, newsletter, message), each item resolved with a snippet from the source aggregate (Announcement.title, Shoutout.message, Message.subject, Event.title, etc.). The single inbox screen that pulls from every notification-emitting aggregate."
+    end
+  end
+
+  aggregate "Message" do
+    reference_to Person, as: :sender
+    reference_to Person, as: :recipient
+    attribute :subject, MessageSubject
+    attribute :body,    MessageBody
+
+    value_object "MessageSubject" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "MessageBody" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("sent | read") { %w[sent read].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "sent" do
+      transition "MarkMessageRead" => "read"
+    end
+
+    command "SendMessage" do
+      reference_to Person, as: :sender
+      reference_to Person, as: :recipient
+      attribute :subject, MessageSubject
+      attribute :body,    MessageBody
+    end
+
+    command "MarkMessageRead" do
+      reference_to Message
+      reference_to Person, as: :recipient
+    end
+
+    query "Inbox" do
+      description "Every Message where recipient = the calling Person, ordered by sent_at descending — the parent/admin/teacher inbox view."
+    end
+
+    query "Sent" do
+      description "Every Message where sender = the calling Person, ordered by sent_at descending — the sent-items view."
+    end
+  end
+
+  aggregate "AcademicCalendar" do
+    reference_to Person, as: :maintained_by
+    attribute :entries,     list_of(CalendarEntry)
+    attribute :school_year, SchoolYear
+
+    value_object "SchoolYear" do
+      attribute :label, String
+      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "EntryTitle" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "EntryNotes" do
+      attribute :text, String
+      invariant("≤ 1000 chars") { text.length <= 1000 }
+    end
+
+    value_object "EntryRef" do
+      attribute :id, String
+      invariant("non-empty") { !id.strip.empty? }
+    end
+
+    entity "CalendarEntry" do
+      attribute :title,     EntryTitle
+      attribute :starts_at, Timestamp
+      attribute :ends_at,   Timestamp
+      attribute :notes,     EntryNotes
+    end
+
+    command "AddEntry" do
+      reference_to AcademicCalendar
+      reference_to Person, as: :maintained_by
+      attribute :title,     EntryTitle
+      attribute :starts_at, Timestamp
+      attribute :ends_at,   Timestamp
+      attribute :notes,     EntryNotes
+    end
+
+    command "RemoveEntry" do
+      reference_to AcademicCalendar
+      reference_to Person, as: :maintained_by
+      attribute :entry_id, EntryRef
+    end
+
+    query "Current" do
+      description "Return the AcademicCalendar for the current school_year with all CalendarEntry rows ordered by starts_at ascending — the view parents and students see on the academic calendar page."
+    end
+  end
+
+  aggregate "ArtsCalendar" do
+    reference_to Person, as: :maintained_by
+    attribute :entries, list_of(CalendarEntry)
+    attribute :season,  Season
+
+    value_object "Season" do
+      attribute :label, String
+      invariant("non-empty") { !label.strip.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "EntryTitle" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "Venue" do
+      attribute :name, String
+      invariant("non-empty, ≤ 200 chars") { !name.strip.empty? && name.length <= 200 }
+    end
+
+    value_object "EntryRef" do
+      attribute :id, String
+      invariant("non-empty") { !id.strip.empty? }
+    end
+
+    entity "CalendarEntry" do
+      attribute :title,     EntryTitle
+      attribute :starts_at, Timestamp
+      attribute :ends_at,   Timestamp
+      attribute :venue,     Venue
+    end
+
+    command "AddEntry" do
+      reference_to ArtsCalendar
+      reference_to Person, as: :maintained_by
+      attribute :title,     EntryTitle
+      attribute :starts_at, Timestamp
+      attribute :ends_at,   Timestamp
+      attribute :venue,     Venue
+    end
+
+    command "RemoveEntry" do
+      reference_to ArtsCalendar
+      reference_to Person, as: :maintained_by
+      attribute :entry_id, EntryRef
+    end
+
+    query "Current" do
+      description "Return the ArtsCalendar for the current season with all CalendarEntry rows ordered by starts_at ascending — the arts-season schedule view."
+    end
+  end
+
+  aggregate "LunchCalendar" do
+    reference_to Person, as: :maintained_by
+    attribute :entries, list_of(MenuDay)
+    attribute :week_of, CalendarWeek
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "CalendarWeek" do
+      attribute :iso_week, String
+      invariant("YYYY-Www format") { iso_week.match?(/\A\d{4}-W\d{2}\z/) }
+    end
+
+    value_object "DietaryTag" do
+      attribute :name, String
+      invariant("vegetarian | vegan | gluten_free | nut_free | dairy_free") do
+        %w[vegetarian vegan gluten_free nut_free dairy_free].include?(name)
+      end
+    end
+
+    value_object "MenuMain" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "MenuSides" do
+      attribute :text, String
+      invariant("≤ 500 chars") { text.length <= 500 }
+    end
+
+    entity "MenuDay" do
+      attribute :date,         Timestamp
+      attribute :main,         MenuMain
+      attribute :sides,        MenuSides
+      attribute :dietary_tags, list_of(DietaryTag)
+    end
+
+    command "PostMenuWeek" do
+      reference_to LunchCalendar
+      reference_to Person, as: :maintained_by
+      attribute :week_of, CalendarWeek
+    end
+
+    command "AddMenuDay" do
+      reference_to LunchCalendar
+      reference_to Person, as: :maintained_by
+      attribute :date,         Timestamp
+      attribute :main,         MenuMain
+      attribute :sides,        MenuSides
+      attribute :dietary_tags, list_of(DietaryTag)
+    end
+
+    query "ThisWeek" do
+      description "Return the LunchCalendar whose week_of contains today, with all MenuDay rows ordered by date ascending — the lunch-schedule view for parents and students."
+    end
+  end
+
+  aggregate "Article" do
+    reference_to Person, as: :author
+    attribute :title,        ArticleTitle
+    attribute :body,         ArticleBody
+
+    value_object "ArticleTitle" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "ArticleBody" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("draft | published") { %w[draft published].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "draft" do
+      transition "PublishArticle" => "published"
+    end
+
+    command "WriteArticle" do
+      reference_to Person, as: :author
+      attribute :title, ArticleTitle
+      attribute :body,  ArticleBody
+    end
+
+    command "PublishArticle" do
+      reference_to Article
+      reference_to Person, as: :publisher
+    end
+
+    query "Published" do
+      description "Every Article where status = published, ordered by published_at descending — the public content stream."
+    end
+  end
+
+  aggregate "Newsletter" do
+    reference_to Article, as: :lead_article
+    attribute :issue_label,  IssueLabel
+    attribute :articles,     list_of(ArticleRef)
+
+    value_object "IssueLabel" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "ArticleRef" do
+      attribute :article_id, String
+      invariant("non-empty") { !article_id.strip.empty? }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("draft | published") { %w[draft published].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "draft" do
+      transition "PublishNewsletter" => "published"
+    end
+
+    command "AssembleNewsletter" do
+      reference_to Person, as: :editor
+      reference_to Article, as: :lead_article
+      attribute :issue_label, IssueLabel
+      attribute :articles,    list_of(ArticleRef)
+    end
+
+    command "PublishNewsletter" do
+      reference_to Newsletter
+      reference_to Person, as: :publisher
+    end
+
+    query "Current" do
+      description "The most recent Newsletter where status = published, by published_at descending — the issue parents see when they open the newsletter view."
+    end
+
+    query "Past" do
+      description "Every Newsletter where status = published, excluding the most recent, ordered by published_at descending — the archive."
+    end
+  end
+
+  aggregate "Event" do
+    reference_to Person, as: :organizer
+    attribute :title,         EventTitle
+    attribute :description,   EventDescription
+    attribute :starts_at,     Timestamp
+    attribute :ends_at,       Timestamp
+    attribute :venue,         Venue
+    attribute :capacity,      Capacity
+    attribute :ticket_price,  Money
+    attribute :registration_kind, RegistrationKind
+    attribute :tickets,       list_of(Ticket)
+    attribute :registrations, list_of(Registration)
+    attribute :tickets_sold,  Count
+
+    value_object "EventTitle" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "EventDescription" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "Venue" do
+      attribute :name, String
+      invariant("non-empty, ≤ 200 chars") { !name.strip.empty? && name.length <= 200 }
+    end
+
+    value_object "Capacity" do
+      attribute :seats, Integer
+      invariant("positive") { seats > 0 }
+    end
+
+    value_object "Count" do
+      attribute :n, Integer
+      invariant("non-negative") { n >= 0 }
+    end
+
+    value_object "RegistrationKind" do
+      attribute :name, String
+      invariant("ticket | registration | both | none") do
+        %w[ticket registration both none].include?(name)
+      end
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("non-negative") { cents >= 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "TicketCode" do
+      attribute :value, String
+      invariant("8..16 alphanumeric") { value =~ /\A[A-Z0-9]{8,16}\z/ }
+    end
+
+    value_object "TicketStatus" do
+      attribute :name, String
+      invariant("valid | redeemed | transferred") { %w[valid redeemed transferred].include?(name) }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("draft | published") { %w[draft published].include?(value) }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    entity "Ticket" do
+      reference_to Person, as: :holder
+      attribute :code,        TicketCode
+      attribute :status,      TicketStatus
+      attribute :payment,     Payment
+    end
+
+    entity "Registration" do
+      reference_to Person, as: :registrant
+      attribute :registered_at, Timestamp
+    end
+
+    specification "SoldOut" do |event|
+      event.tickets_sold.n >= event.capacity.seats
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "draft" do
+      transition "PublishEvent" => "published"
+    end
+
+    command "CreateEvent" do
+      reference_to Person, as: :organizer
+      attribute :title,             EventTitle
+      attribute :description,       EventDescription
+      attribute :starts_at,         Timestamp
+      attribute :ends_at,           Timestamp
+      attribute :venue,             Venue
+      attribute :capacity,          Capacity
+      attribute :ticket_price,      Money
+      attribute :registration_kind, RegistrationKind
+    end
+
+    command "IssueTicket" do
+      reference_to Event
+      reference_to Person, as: :holder
+      attribute :payment, Payment
+      # Guard : SoldOut specification — runtime enforces at dispatch.
+    end
+
+    command "RedeemTicket" do
+      reference_to Event
+      attribute :ticket_code, TicketCode
+    end
+
+    command "TransferTicket" do
+      reference_to Event
+      attribute :ticket_code, TicketCode
+      reference_to Person, as: :new_holder
+    end
+
+    command "RegisterAttendance" do
+      reference_to Event
+      reference_to Person, as: :registrant
+    end
+
+    command "CancelRegistration" do
+      reference_to Event
+      reference_to Person, as: :registrant
+    end
+
+    query "Upcoming" do
+      description "Every Event where status = published AND starts_at >= now, ordered by starts_at ascending — admin's management view and the parent-facing event calendar."
+    end
+
+    query "MyTickets" do
+      description "Every Event whose Ticket entities include one with holder = the calling Person, paired with that Ticket — what a parent or student sees on their tickets screen."
+    end
+
+    query "MyRegistrations" do
+      description "Cross-aggregate : every Event whose Registration entities include one with registrant = the calling Person, ordered by Event.starts_at ascending — the parent's view of free/RSVP events they're committed to attending."
+    end
+  end
+
+  aggregate "Document" do
+    reference_to Person, as: :uploaded_by
+    attribute :title,        DocumentTitle
+    attribute :file_locator, FileLocator
+    attribute :mime_type,    MimeType
+
+    value_object "DocumentTitle" do
+      attribute :text, String
+      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
+    end
+
+    value_object "FileLocator" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "MimeType" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    command "UploadDocument" do
+      reference_to Person, as: :uploaded_by
+      attribute :title,        DocumentTitle
+      attribute :file_locator, FileLocator
+      attribute :mime_type,    MimeType
+    end
+
+    query "All" do
+      description "Every Document, ordered by uploaded_at descending — the documents browse view for parents and the wider community."
+    end
+  end
+
+  aggregate "AbsenceNotification" do
+    reference_to Person, as: :reporter
+    reference_to Person, as: :student
+    attribute :date,        Timestamp
+    attribute :reason,      AbsenceReason
+
+    value_object "AbsenceReason" do
+      attribute :kind, String
+      invariant("illness | family | appointment | other") do
+        %w[illness family appointment other].include?(kind)
+      end
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "ReportAbsence" do
+      reference_to Person, as: :reporter
+      reference_to Person, as: :student
+      attribute :date,   Timestamp
+      attribute :reason, AbsenceReason
+    end
+
+    query "Recent" do
+      description "Every AbsenceNotification ordered by reported_at descending — the queue admins scan to see absences that have come in."
+    end
+  end
+
+  aggregate "Donation" do
+    reference_to Person, as: :donor
+    attribute :amount,      Money
+    attribute :payment,     Payment
+    attribute :designation, Designation
+    attribute :note,        DonationNote
+    attribute :received_at, Timestamp
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("positive") { cents > 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "Designation" do
+      attribute :fund, String
+      invariant("general | arts | scholarship | building | unrestricted") do
+        %w[general arts scholarship building unrestricted].include?(fund)
+      end
+    end
+
+    value_object "DonationNote" do
+      attribute :text, String
+      invariant("≤ 500 chars") { text.length <= 500 }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "RecordDonation" do
+      reference_to Person, as: :donor
+      attribute :payment,     Payment
+      attribute :designation, Designation
+      attribute :note,        DonationNote
+    end
+
+    query "Recent" do
+      description "Every Donation ordered by received_at descending — the admin donations dashboard."
+    end
+  end
+
+  aggregate "MerchItem" do
+    attribute :name,          MerchName
+    attribute :description,   MerchDescription
+    attribute :price,         Money
+    attribute :stock,         Stock
+    attribute :image_locator, FileLocator
+
+    value_object "MerchName" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    value_object "MerchDescription" do
+      attribute :text, String
+      invariant("non-empty")    { !text.strip.empty? }
+      invariant("≤ 1000 chars") { text.length <= 1000 }
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("non-negative") { cents >= 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "Stock" do
+      attribute :n, Integer
+      invariant("non-negative") { n >= 0 }
+    end
+
+    value_object "StockDelta" do
+      attribute :n, Integer
+      invariant("non-zero") { n != 0 }
+    end
+
+    value_object "FileLocator" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    command "AddMerchItem" do
+      reference_to Person, as: :added_by
+      attribute :name,          MerchName
+      attribute :description,   MerchDescription
+      attribute :price,         Money
+      attribute :stock,         Stock
+      attribute :image_locator, FileLocator
+    end
+
+    command "AdjustStock" do
+      reference_to MerchItem
+      reference_to Person, as: :adjusted_by
+      attribute :delta, StockDelta
+    end
+
+    query "Available" do
+      description "Every MerchItem where status = available AND stock.n > 0, ordered by name — the merch storefront for parents browsing what's for sale."
+    end
+  end
+
+  aggregate "MerchPurchase" do
+    reference_to MerchItem
+    reference_to Person, as: :buyer
+    attribute :quantity,  Count
+    attribute :total,     Money
+    attribute :payment,   Payment
+
+    value_object "Count" do
+      attribute :n, Integer
+      invariant("positive") { n > 0 }
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("positive") { cents > 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    command "PlaceMerchOrder" do
+      reference_to MerchItem
+      reference_to Person, as: :buyer
+      attribute :quantity, Count
+      attribute :total,    Money
+      attribute :payment,  Payment
+    end
+
+    query "MyOrders" do
+      description "Every MerchPurchase where buyer = the calling Person, ordered by placed_at descending — the parent's merch order history."
+    end
+  end
+
+  aggregate "TuitionPayment" do
+    reference_to Person, as: :payer
+    reference_to Person, as: :student
+    attribute :school_year, SchoolYear
+    attribute :amount,      Money
+    attribute :payment,     Payment
+    attribute :paid_at,     Timestamp
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("positive") { cents > 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "SchoolYear" do
+      attribute :label, String
+      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    command "RecordPayment" do
+      reference_to Person, as: :payer
+      reference_to Person, as: :student
+      attribute :school_year, SchoolYear
+      attribute :payment,     Payment
+    end
+
+    query "MyPayments" do
+      description "Every TuitionPayment where payer = the calling Person, ordered by paid_at descending — the parent's tuition payment history for their child."
+    end
+  end
+
+  # ── Cascade policies ─────────────────────────────────────────────
+
+  policy "NotifyOnAnnouncementSent" do
+    on      "AnnouncementSent"
+    trigger "SendNotification"
+    map     source_kind: "announcement",
+            source_id:   :announcement_id,
+            body:        :body
+  end
+
+  policy "NotifyOnShoutoutApproved" do
+    on      "ShoutoutApproved"
+    trigger "SendNotification"
+    map     recipient:   :recipient,
+            source_kind: "shoutout",
+            source_id:   :shoutout_id
+  end
+
+  policy "NotifyOnNewsletterPublished" do
+    on      "NewsletterPublished"
+    trigger "SendNotification"
+    map     source_kind: "newsletter",
+            source_id:   :newsletter_id
+  end
+
+  policy "NotifyOnMessageReceived" do
+    on      "MessageSent"
+    trigger "SendNotification"
+    map     recipient:   :recipient,
+            source_kind: "message",
+            source_id:   :message_id
+  end
+end
