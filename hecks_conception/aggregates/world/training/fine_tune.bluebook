@@ -12,7 +12,7 @@ Hecks.bluebook "FineTune", version: "2026.04.28.1" do
     attribute :epochs,        EpochCount
     attribute :learning_rate, LearningRate
     attribute :loss,          Loss
-    attribute :status,        Status
+    attribute :status,        Status, default: "pending"
 
     value_object "Ref" do
       # Stable identifier for this fine-tune run.

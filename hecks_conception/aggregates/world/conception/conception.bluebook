@@ -15,7 +15,7 @@ Hecks.bluebook "Conception", version: "2026.04.16.1" do
     attribute :source,           Source
     attribute :bounded_contexts, list_of(BoundedContextName)
     attribute :category,         Category
-    attribute :status,           Status
+    attribute :status,           Status, default: "spark"
 
     value_object "Name" do
       # Identifier of the conceived domain (Hecks.bluebook "<Name>").

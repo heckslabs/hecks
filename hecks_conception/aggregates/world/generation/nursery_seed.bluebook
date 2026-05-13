@@ -15,7 +15,7 @@ Hecks.bluebook "NurserySeed", version: "2026.04.28.1" do
     attribute :ref,             Ref
     attribute :worker_count,    WorkerCount
     attribute :domains_seeded,  DomainCount
-    attribute :status,          Status
+    attribute :status,          Status, default: "pending"
 
     value_object "Ref" do
       # Stable identifier for this seeding run.
