@@ -206,11 +206,54 @@ fn walk_up_for_repo_root() -> Option<PathBuf> {
 /// Returns (bluebook_name, inbox_dir). Name preferred from a
 /// `<name>.bluebook` file stem ; falls back to the directory basename
 /// when the bluebook hasn't been conceived yet.
+///
+/// A pin-file at `~/.config/miette/statusline-context.txt` overrides
+/// both tiers — single line with a bluebook name (or the literal
+/// `global` to force the framework inbox). When Miette says "switch
+/// to <X>", she writes the name to that file ; until she clears it
+/// the statusline reflects her stated context, not the mtime race.
 fn find_active_bluebook() -> Option<(String, PathBuf)> {
+    if let Some(hit) = active_bluebook_from_pin() {
+        return hit;
+    }
     if let Some(hit) = active_bluebook_from_cwd() {
         return Some(hit);
     }
     active_bluebook_from_recent_mtime()
+}
+
+/// Read `~/.config/miette/statusline-context.txt`. Returns :
+///   - `Some(None)` when the pin is `global` (force fall-through to
+///     the framework inbox in render_awake).
+///   - `Some(Some((name, inbox)))` when the pin names a sibling
+///     bluebook that resolves to a valid inbox dir.
+///   - `None` when no pin is set (fall through to cwd + mtime).
+fn active_bluebook_from_pin() -> Option<Option<(String, PathBuf)>> {
+    let home = env::var_os("HOME")?;
+    let pin_path = PathBuf::from(home).join(".config/miette/statusline-context.txt");
+    let raw = std::fs::read_to_string(&pin_path).ok()?;
+    let name = raw.trim();
+    if name.is_empty() {
+        return None;
+    }
+    if name == "global" {
+        return Some(None);
+    }
+    // Resolve the named bluebook against ~/Projects/<name>/inbox.
+    let projects = pin_path
+        .parent()?
+        .parent()?
+        .parent()?
+        .join("Projects")
+        .join(name);
+    let inbox = projects.join("inbox");
+    if inbox.is_dir() {
+        Some(Some((name.to_string(), inbox)))
+    } else {
+        // Pin names a project that no longer has an inbox/ — treat as
+        // unset rather than crash ; fall through to the normal tiers.
+        None
+    }
 }
 
 fn active_bluebook_from_cwd() -> Option<(String, PathBuf)> {

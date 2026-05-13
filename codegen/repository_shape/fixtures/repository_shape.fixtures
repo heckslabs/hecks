@@ -85,10 +85,11 @@ Hecks.fixtures "RepositoryShape" do
     fixture "MethodHekiPath", kind: "snippet",              snippet_path: "codegen/repository_shape/snippets/method_heki_path_self.rs.frag",   order: 18
     fixture "BlankAfterHeki", kind: "blank",                snippet_path: "",                                                                                          order: 19
     fixture "AccessorBlock",  kind: "store_accessor_block", snippet_path: "",                                                                                          order: 20
-    fixture "ImplClose",      kind: "impl_close",           snippet_path: "",                                                                                          order: 21
-    fixture "BlankAfterImpl", kind: "blank",                snippet_path: "",                                                                                          order: 22
-    fixture "FnToJson",       kind: "snippet",              snippet_path: "codegen/repository_shape/snippets/fn_to_json.rs.frag",              order: 23
-    fixture "BlankAfterToJ",  kind: "blank",                snippet_path: "",                                                                                          order: 24
-    fixture "FnFromJson",     kind: "snippet",              snippet_path: "codegen/repository_shape/snippets/fn_from_json.rs.frag",            order: 25
+    fixture "MethodSeedRec",  kind: "snippet",              snippet_path: "codegen/repository_shape/snippets/method_seed_record.rs.frag",      order: 21
+    fixture "ImplClose",      kind: "impl_close",           snippet_path: "",                                                                                          order: 22
+    fixture "BlankAfterImpl", kind: "blank",                snippet_path: "",                                                                                          order: 23
+    fixture "FnToJson",       kind: "snippet",              snippet_path: "codegen/repository_shape/snippets/fn_to_json.rs.frag",              order: 24
+    fixture "BlankAfterToJ",  kind: "blank",                snippet_path: "",                                                                                          order: 25
+    fixture "FnFromJson",     kind: "snippet",              snippet_path: "codegen/repository_shape/snippets/fn_from_json.rs.frag",            order: 26
   end
 end
