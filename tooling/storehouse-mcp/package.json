@@ -2,7 +2,7 @@
   "name": "storehouse-mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP server that exposes Hecks storehouse Tools.* dispatches as native MCP tools so Claude can use the bus instead of native shell/file tools.",
+  "description": "MCP server that exposes the Hecks bluebook bus — universal dispatcher + discovery tools — so Claude can call any bluebook command through MCP.",
   "type": "module",
   "main": "src/server.mjs",
   "bin": {
@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "smoke": "node test/smoke.mjs"
+    "smoke": "node test/cli_smoke.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

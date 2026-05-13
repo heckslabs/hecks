@@ -1,439 +1,1104 @@
-Hecks.bluebook "Extensions", version: "2026.04.11.1" do
+Hecks.bluebook "Extensions", version: "2026.05.12.1" do
   category "framework"
   aggregate "Logging", definition: "Structured logging for command dispatch" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Message" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Log" do
-      attribute :message, String
+      attribute :message, Message
     end
   end
 
   aggregate "Metrics", definition: "Runtime metrics collection" do
 
-    command "Record" do
-      attribute :metric_name, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "MetricName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying Integer on this aggregate.
       attribute :value, Integer
+    end
+
+
+    command "Record" do
+      attribute :metric_name, MetricName
+      attribute :value, Value
     end
   end
 
   aggregate "Bubble", definition: "Anti-Corruption Layer for legacy system translation" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "LegacyData" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainData" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "TranslateInbound" do
-      attribute :legacy_data, String
+      attribute :legacy_data, LegacyData
     end
 
     command "TranslateOutbound" do
-      attribute :domain_data, String
+      attribute :domain_data, DomainData
     end
   end
 
   aggregate "Tenancy", definition: "Multi-tenant data isolation" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TenantId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SetTenant" do
-      attribute :tenant_id, String
+      attribute :tenant_id, TenantId
     end
   end
 
   aggregate "RetryPolicy", definition: "Automatic command retry with backoff" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "MaxRetries" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "RetryCommand" do
-      attribute :command_name, String
-      attribute :max_retries, Integer
+      attribute :command_name, CommandName
+      attribute :max_retries, MaxRetries
     end
   end
 
   aggregate "WebExplorer", definition: "HTML UI for browsing aggregates and events" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Template" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Browse" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
 
     command "RenderView" do
-      attribute :template, String
+      attribute :template, Template
     end
   end
 
   aggregate "ReadmeWriter", definition: "Generates per-extension Markdown README files from metadata" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Root" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :root, String
+      attribute :root, Root
     end
   end
 
   aggregate "IRIntrospector", definition: "Structural queries from Bluebook IR for web explorer display" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Introspect" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
 
     command "FindCommand" do
-      attribute :aggregate_name, String
-      attribute :command_name, String
+      attribute :aggregate_name, AggregateName
+      attribute :command_name, CommandName
     end
   end
 
   aggregate "EventIntrospector", definition: "Reads and filters events from EventBus instances for web display" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TypeFilter" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateFilter" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ListEvents" do
-      attribute :type_filter, String
-      attribute :aggregate_filter, String
+      attribute :type_filter, TypeFilter
+      attribute :aggregate_filter, AggregateFilter
     end
   end
 
   aggregate "Paginator", definition: "Offset-based pagination for web explorer list views" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Page" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "PerPage" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Paginate" do
-      attribute :page, Integer
-      attribute :per_page, Integer
+      attribute :page, Page
+      attribute :per_page, PerPage
     end
   end
 
   aggregate "Renderer", definition: "ERB template rendering with layout wrapping and HTML escaping" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TemplateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Render" do
-      attribute :template_name, String
+      attribute :template_name, TemplateName
     end
   end
 
   aggregate "RuntimeBridge", definition: "Isolates runtime CRUD access behind a clean interface for web explorer" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "MethodName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "FindAll" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
 
     command "ExecuteCommand" do
-      attribute :aggregate_name, String
-      attribute :method_name, String
+      attribute :aggregate_name, AggregateName
+      attribute :method_name, MethodName
     end
   end
 
   aggregate "WebExplorerTemplateBinding", definition: "Clean binding for ERB templates where locals become methods" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TemplateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Bind" do
-      attribute :template_name, String
+      attribute :template_name, TemplateName
     end
   end
 
   aggregate "Slack", definition: "Slack notification integration" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Channel" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Message" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Notify" do
-      attribute :channel, String
-      attribute :message, String
+      attribute :channel, Channel
+      attribute :message, Message
     end
   end
 
   aggregate "OutboxExtension", definition: "Outbox pattern for reliable messaging" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Message" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "BatchSize" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Enqueue" do
-      attribute :message, String
+      attribute :message, Message
     end
 
     command "Poll" do
-      attribute :batch_size, Integer
+      attribute :batch_size, BatchSize
     end
   end
 
   aggregate "FilesystemRepository", definition: "JSON file-based persistence" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Data" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Save" do
-      attribute :aggregate_name, String
-      attribute :data, String
+      attribute :aggregate_name, AggregateName
+      attribute :data, Data
     end
 
     command "Load" do
-      attribute :aggregate_name, String
-      attribute :id, String
+      attribute :aggregate_name, AggregateName
+      attribute :id, Id
     end
 
     command "Forget" do
-      attribute :id, String
+      attribute :id, Id
     end
   end
 
   aggregate "FileAdapter", definition: "Low-level file read/write adapter" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Content" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Write" do
-      attribute :path, String
-      attribute :content, String
+      attribute :path, Path
+      attribute :content, Content
     end
 
     command "Read" do
-      attribute :path, String
+      attribute :path, Path
     end
   end
 
   aggregate "RabbitMqAdapter", definition: "RabbitMQ queue adapter that publishes events by routing key" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "RoutingKey" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Payload" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Publish" do
-      attribute :routing_key, String
-      attribute :payload, String
+      attribute :routing_key, RoutingKey
+      attribute :payload, Payload
     end
   end
 
   aggregate "DomainServer", definition: "WEBrick REST server for a single domain" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Port" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Reason" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Start" do
-      attribute :port, Integer
+      attribute :port, Port
     end
 
     command "Stop" do
-      attribute :reason, String
+      attribute :reason, Reason
     end
   end
 
   aggregate "MultiDomainServer", definition: "Serves multiple domains on one port" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Port" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Start" do
-      attribute :port, Integer
+      attribute :port, Port
     end
   end
 
   aggregate "RpcServer", definition: "JSON-RPC 2.0 server over HTTP" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Method" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Params" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "HandleRequest" do
-      attribute :method, String
-      attribute :params, String
+      attribute :method, Method
+      attribute :params, Params
     end
   end
 
   aggregate "RouteBuilder", definition: "Generates route definitions from aggregates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "BuildRoutes" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "CommandBusPort", definition: "HTTP-to-command-bus bridge" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Params" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Dispatch" do
-      attribute :command_name, String
-      attribute :params, String
+      attribute :command_name, CommandName
+      attribute :params, Params
     end
   end
 
   aggregate "Connection", definition: "HTTP connection wrapper for boot blocks" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Host" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Port" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Connect" do
-      attribute :host, String
-      attribute :port, Integer
+      attribute :host, Host
+      attribute :port, Port
     end
   end
 
   aggregate "DomainWatcher", definition: "File watcher for auto-reload during serve" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Watch" do
-      attribute :domain_path, String
+      attribute :domain_path, DomainPath
     end
   end
 
   aggregate "RequestWrapper", definition: "Wraps WEBrick request for consistent route handler interface" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Method" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Wrap" do
-      attribute :path, String
-      attribute :method, String
+      attribute :path, Path
+      attribute :method, Method
     end
   end
 
   aggregate "CorsHeaders", definition: "ENV-driven CORS origin header middleware" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Origin" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ApplyOrigin" do
-      attribute :origin, String
+      attribute :origin, Origin
     end
   end
 
   aggregate "CsrfHelpers", definition: "Double-submit cookie CSRF protection mixin" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CookieToken" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "HeaderToken" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "RequestId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Validate" do
-      attribute :cookie_token, String
-      attribute :header_token, String
+      attribute :cookie_token, CookieToken
+      attribute :header_token, HeaderToken
     end
 
     command "EnsureCookie" do
-      attribute :request_id, String
+      attribute :request_id, RequestId
     end
   end
 
   aggregate "RouteDispatcher", definition: "Dispatches UI requests to index/show/form handlers by URL path" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Method" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Dispatch" do
-      attribute :path, String
-      attribute :method, String
+      attribute :path, Path
+      attribute :method, Method
     end
   end
 
   aggregate "IndexRoute", definition: "Serves aggregate index pages with search, filtering, and computed attributes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ServeIndex" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "ShowRoute", definition: "Serves aggregate detail pages with user and computed attributes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ServeShow" do
-      attribute :aggregate_name, String
-      attribute :id, String
+      attribute :aggregate_name, AggregateName
+      attribute :id, Id
     end
   end
 
   aggregate "FormRoute", definition: "Renders command forms and handles form submission with CSRF" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Params" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ServeForm" do
-      attribute :command_name, String
+      attribute :command_name, CommandName
     end
 
     command "ServeSubmit" do
-      attribute :command_name, String
-      attribute :params, String
+      attribute :command_name, CommandName
+      attribute :params, Params
     end
   end
 
   aggregate "EventRoutes", definition: "Handles event listing and JSON endpoints with filtering and pagination" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TypeFilter" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Format" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ServeEvents" do
-      attribute :type_filter, String
+      attribute :type_filter, TypeFilter
     end
 
     command "ServeEventsJson" do
-      attribute :format, String
+      attribute :format, Format
     end
   end
 
   aggregate "UIRoutes", definition: "Multi-domain UI route composition module" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainSlug" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Mount" do
-      attribute :domain_slug, String
+      attribute :domain_slug, DomainSlug
     end
   end
 
   aggregate "HttpConnection", definition: "Connection wrapper for declarative boot block HTTP listeners" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Host" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Port" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Reason" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Connect" do
-      attribute :host, String
-      attribute :port, Integer
+      attribute :host, Host
+      attribute :port, Port
     end
 
     command "Start" do
-      attribute :reason, String
+      attribute :reason, Reason
     end
   end
 
   aggregate "ScreenRoutes", definition: "Login, signup, and logout HTTP route handlers for auth screens" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Method" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "HandleAuthRoute" do
-      attribute :path, String
-      attribute :method, String
+      attribute :path, Path
+      attribute :method, Method
     end
   end
 
   aggregate "SessionStore", definition: "In-memory credential store with cookie-based session management" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Email" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Role" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Cookie" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SetSession" do
-      attribute :email, String
-      attribute :role, String
+      attribute :email, Email
+      attribute :role, Role
     end
 
     command "RestoreSession" do
-      attribute :cookie, String
+      attribute :cookie, Cookie
     end
   end
 
   aggregate "TemplateBinding", definition: "Minimal binding for auth screen ERB templates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TemplateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Bind" do
-      attribute :template_name, String
+      attribute :template_name, TemplateName
     end
   end
 
   aggregate "Auth", definition: "Actor-based authentication and authorization" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Actor" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Role" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Authenticate" do
-      attribute :actor, String
+      attribute :actor, Actor
     end
 
     command "Authorize" do
-      attribute :command_name, String
-      attribute :role, String
+      attribute :command_name, CommandName
+      attribute :role, Role
     end
   end
 
   aggregate "Audit", definition: "Command execution audit trail" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Actor" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Record" do
-      attribute :command_name, String
-      attribute :actor, String
+      attribute :command_name, CommandName
+      attribute :actor, Actor
     end
   end
 
   aggregate "PII", definition: "PII attribute marking, masking, and erasure" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "MarkPII" do
-      attribute :field, String
+      attribute :field, Field
     end
 
     command "Erase" do
-      attribute :aggregate_id, String
+      attribute :aggregate_id, AggregateId
     end
   end
 
   aggregate "RateLimit", definition: "Per-command rate limiting" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Actor" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Check" do
-      attribute :command_name, String
-      attribute :actor, String
+      attribute :command_name, CommandName
+      attribute :actor, Actor
     end
   end
 
   aggregate "Idempotency", definition: "Idempotency key tracking for commands" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "IdempotencyKey" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Check" do
-      attribute :idempotency_key, String
+      attribute :idempotency_key, IdempotencyKey
     end
   end
 
   aggregate "AggregateMapper", definition: "Collects inbound/outbound field mappings for a single aggregate" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Action" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Data" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "TranslateLegacy" do
-      attribute :action, String
-      attribute :data, String
+      attribute :action, Action
+      attribute :data, Data
     end
 
     command "ReverseTranslate" do
-      attribute :action, String
-      attribute :data, String
+      attribute :action, Action
+      attribute :data, Data
     end
   end
 
   aggregate "Context", definition: "DSL host grouping aggregate mappers with translate and reverse entry points" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Action" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "MapAggregate" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
 
     command "Translate" do
-      attribute :aggregate_name, String
-      attribute :action, String
+      attribute :aggregate_name, AggregateName
+      attribute :action, Action
     end
   end
 
   aggregate "OwnershipScopedRepository", definition: "Repository proxy filtering by ownership field identity" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "OwnerId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "RecordId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ScopeToOwner" do
-      attribute :owner_id, String
+      attribute :owner_id, OwnerId
     end
 
     command "VerifyOwnership" do
-      attribute :record_id, String
+      attribute :record_id, RecordId
     end
   end
 
   aggregate "TenantScopedRepository", definition: "Repository proxy maintaining separate instances per tenant" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TenantId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ScopeToTenant" do
-      attribute :tenant_id, String
+      attribute :tenant_id, TenantId
     end
 
     command "ForTenant" do
-      attribute :tenant_id, String
+      attribute :tenant_id, TenantId
     end
   end
 end

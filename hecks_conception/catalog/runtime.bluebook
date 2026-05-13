@@ -1,116 +1,291 @@
-Hecks.bluebook "Runtime", version: "2026.04.11.1" do
+Hecks.bluebook "Runtime", version: "2026.05.12.1" do
   category "framework"
   aggregate "ViewBinding", definition: "Wires read model projections to event bus" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ViewName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "BindView" do
-      attribute :view_name, String
+      attribute :view_name, ViewName
     end
   end
 
   aggregate "Projection", definition: "CQRS read model projection with in-memory store" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "QueryName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Apply" do
-      attribute :event_name, String
+      attribute :event_name, EventName
     end
 
     command "Query" do
-      attribute :query_name, String
+      attribute :query_name, QueryName
     end
   end
 
   aggregate "ProjectionSetup", definition: "Wires CQRS projections to event bus at boot" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SetupProjections" do
-      attribute :domain_id, String
+      attribute :domain_id, DomainId
     end
   end
 
   aggregate "ModelMixinInternal", definition: "Aggregate model mixin: attributes, equality, serialization" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Attributes" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Format" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Initialize" do
-      attribute :attributes, String
+      attribute :attributes, Attributes
     end
 
     command "Serialize" do
-      attribute :format, String
+      attribute :format, Format
     end
   end
 
   aggregate "DispatchMixin", definition: "Command dispatch mixin" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Payload" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Dispatch" do
-      attribute :command_name, String
-      attribute :payload, String
+      attribute :command_name, CommandName
+      attribute :payload, Payload
     end
   end
 
   aggregate "ReferenceValidation", definition: "Validates references exist before dispatch" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ReferenceName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Validate" do
-      attribute :reference_name, String
-      attribute :id, String
+      attribute :reference_name, ReferenceName
+      attribute :id, Id
     end
   end
 
   aggregate "LifecycleSteps", definition: "Lifecycle state transition steps" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "FromState" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ToState" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Transition" do
-      attribute :from_state, String
-      attribute :to_state, String
+      attribute :from_state, FromState
+      attribute :to_state, ToState
     end
   end
 
   aggregate "AndSpecification", definition: "Composite AND specification" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Candidate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Satisfied" do
-      attribute :candidate, String
+      attribute :candidate, Candidate
     end
   end
 
   aggregate "OrSpecification", definition: "Composite OR specification" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Candidate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Satisfied" do
-      attribute :candidate, String
+      attribute :candidate, Candidate
     end
   end
 
   aggregate "NotSpecification", definition: "Composite NOT specification" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Candidate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Satisfied" do
-      attribute :candidate, String
+      attribute :candidate, Candidate
     end
   end
 
   aggregate "BreakingBumper", definition: "Auto-bumps version on breaking changes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Bump" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "BreakingClassifier", definition: "Classifies domain changes as breaking/non-breaking" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Diff" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Classify" do
-      attribute :diff, String
+      attribute :diff, Diff
     end
   end
 
   aggregate "Command", definition: "Mixin orchestrating command lifecycle: guard, validate, call, persist, emit event" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventNames" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Attrs" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Emits" do
-      attribute :event_names, String
+      attribute :event_names, EventNames
     end
 
     command "Call" do
-      attribute :attrs, String
+      attribute :attrs, Attrs
     end
   end
 
   aggregate "Model", definition: "Mixin for aggregate classes providing attribute DSL, UUID identity, and auto-discovery" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Default" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Attribute" do
-      attribute :name, String
-      attribute :default, String
+      attribute :name, Name
+      attribute :default, Default
     end
 
     command "RebuildInitializer" do
@@ -119,15 +294,35 @@ Hecks.bluebook "Runtime", version: "2026.04.11.1" do
 
   aggregate "Query", definition: "Mixin for query classes providing repository wiring and QueryBuilder delegation" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Params" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Call" do
-      attribute :params, String
+      attribute :params, Params
     end
   end
 
   aggregate "Specification", definition: "Mixin for composable business rule predicates with and/or/not operators" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Candidate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SatisfiedBy" do
-      attribute :candidate, String
+      attribute :candidate, Candidate
     end
   end
 
@@ -142,792 +337,1962 @@ Hecks.bluebook "Runtime", version: "2026.04.11.1" do
 
   aggregate "Validation", definition: "Pre/postcondition DSL and enforcement for command objects" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Message" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Precondition" do
-      attribute :message, String
+      attribute :message, Message
     end
 
     command "Postcondition" do
-      attribute :message, String
+      attribute :message, Message
     end
   end
 
   aggregate "RuntimeAttributeDefinition", definition: "Struct wrapping a single model attribute's name, default, and freeze flag" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Default" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Define" do
-      attribute :name, String
-      attribute :default, String
+      attribute :name, Name
+      attribute :default, Default
     end
   end
 
   aggregate "WorkflowStepCompat", definition: "Deprecation shim for legacy workflow_step API" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TargetClass" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Register" do
-      attribute :target_class, String
+      attribute :target_class, TargetClass
     end
   end
 
   aggregate "ConnectionConfigCompat", definition: "Deprecation shim for legacy connection_config API" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TargetClass" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Register" do
-      attribute :target_class, String
+      attribute :target_class, TargetClass
     end
   end
 
   aggregate "Runtime", definition: "Wires domain IR to adapters, dispatches commands, publishes events" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainIr" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ConfigBlock" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Boot" do
-      attribute :domain_path, String
+      attribute :domain_path, DomainPath
     end
 
     command "Load" do
-      attribute :domain_ir, String
+      attribute :domain_ir, DomainIr
     end
 
     command "Configure" do
-      attribute :config_block, String
+      attribute :config_block, ConfigBlock
     end
   end
 
   aggregate "Configuration", definition: "Application wiring: adapters, extensions, domain loading" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AdapterName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ExtensionName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SetAdapter" do
-      attribute :adapter_name, String
+      attribute :adapter_name, AdapterName
     end
 
     command "AddExtension" do
-      attribute :extension_name, String
+      attribute :extension_name, ExtensionName
     end
 
     command "LoadDomain" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "GateEnforcer", definition: "Restricts aggregate access by gate role" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "GateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "EnforceGate" do
-      attribute :gate_name, String
-      attribute :aggregate_name, String
+      attribute :gate_name, GateName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "DryRunResult", definition: "Previews command execution without side effects" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "DryRun" do
-      attribute :command_name, String
+      attribute :command_name, CommandName
     end
   end
 
   aggregate "Introspection", definition: "Runtime inspection of aggregates, commands, events" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Inspect" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "DomainVersioning", definition: "Snapshot-based domain version management" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Version" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "FromVersion" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ToVersion" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "TagVersion" do
-      attribute :version, String
+      attribute :version, Version
     end
 
     command "LoadVersion" do
-      attribute :version, String
+      attribute :version, Version
     end
 
     command "DiffVersions" do
-      attribute :from_version, String
-      attribute :to_version, String
+      attribute :from_version, FromVersion
+      attribute :to_version, ToVersion
     end
   end
 
   aggregate "Validations", definition: "Domain validation rule enforcement" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Validate" do
-      attribute :aggregate, String
+      attribute :aggregate, Aggregate
     end
   end
 
   aggregate "BootBluebook", definition: "Boots domains from Bluebook IR" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "BluebookPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Boot" do
-      attribute :bluebook_path, String
+      attribute :bluebook_path, BluebookPath
     end
   end
 
   aggregate "BootPhase", definition: "Ordered boot phase execution" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "PhaseName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :phase_name, String
+      attribute :phase_name, PhaseName
     end
   end
 
   aggregate "ConfigurationDSL", definition: "DSL methods for Hecks.configure block" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ConfigBlock" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Evaluate" do
-      attribute :config_block, String
+      attribute :config_block, ConfigBlock
     end
   end
 
   aggregate "ConnectionSetup", definition: "Wires database connections at boot" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AdapterName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Url" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Connect" do
-      attribute :adapter_name, String
-      attribute :url, String
+      attribute :adapter_name, AdapterName
+      attribute :url, Url
     end
   end
 
   aggregate "ConstantHoisting", definition: "Hoists generated classes into constant namespace" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ModuleName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Hoist" do
-      attribute :module_name, String
+      attribute :module_name, ModuleName
     end
   end
 
   aggregate "DomainConfigBuilder", definition: "Builds domain config from DSL block" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ConfigBlock" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Build" do
-      attribute :config_block, String
+      attribute :config_block, ConfigBlock
     end
   end
 
   aggregate "DomainLoader", definition: "Loads domain IR from file or gem" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "FilePath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "GemName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "LoadFromFile" do
-      attribute :file_path, String
+      attribute :file_path, FilePath
     end
 
     command "LoadFromGem" do
-      attribute :gem_name, String
+      attribute :gem_name, GemName
     end
   end
 
   aggregate "ExtensionDispatch", definition: "Dispatches extension lifecycle hooks" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "HookName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Dispatch" do
-      attribute :hook_name, String
+      attribute :hook_name, HookName
     end
   end
 
   aggregate "LoadExtensions", definition: "Loads and registers extensions at boot" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ExtensionName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Load" do
-      attribute :extension_name, String
+      attribute :extension_name, ExtensionName
     end
   end
 
   aggregate "PolicySetup", definition: "Wires policy event listeners" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "PolicyName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Wire" do
-      attribute :policy_name, String
+      attribute :policy_name, PolicyName
     end
   end
 
   aggregate "PortSetup", definition: "Creates port modules from domain IR" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Create" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "ReadModelSetup", definition: "Wires read model projections" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ProjectionName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Wire" do
-      attribute :projection_name, String
+      attribute :projection_name, ProjectionName
     end
   end
 
   aggregate "RepositorySetup", definition: "Creates repository adapters" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AdapterName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Create" do
-      attribute :adapter_name, String
-      attribute :aggregate_name, String
+      attribute :adapter_name, AdapterName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "SagaSetup", definition: "Registers saga runners" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "SagaName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Register" do
-      attribute :saga_name, String
+      attribute :saga_name, SagaName
     end
   end
 
   aggregate "ServiceSetup", definition: "Wires service objects with dependency injection" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ServiceName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Wire" do
-      attribute :service_name, String
+      attribute :service_name, ServiceName
     end
   end
 
   aggregate "ServiceContext", definition: "Execution context for services" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ServiceName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Build" do
-      attribute :service_name, String
+      attribute :service_name, ServiceName
     end
   end
 
   aggregate "SubscriberSetup", definition: "Registers event subscribers" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Handler" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Register" do
-      attribute :event_name, String
-      attribute :handler, String
+      attribute :event_name, EventName
+      attribute :handler, Handler
     end
   end
 
   aggregate "ViewSetup", definition: "Wires view projections" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ViewName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Wire" do
-      attribute :view_name, String
+      attribute :view_name, ViewName
     end
   end
 
   aggregate "WorkflowSetup", definition: "Registers workflow executors" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "WorkflowName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Register" do
-      attribute :workflow_name, String
+      attribute :workflow_name, WorkflowName
     end
   end
 
   aggregate "CommandDispatch", definition: "Command dispatch pipeline" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Payload" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Dispatch" do
-      attribute :command_name, String
-      attribute :payload, String
+      attribute :command_name, CommandName
+      attribute :payload, Payload
     end
   end
 
   aggregate "AuthCoverageCheck", definition: "Verifies all ports have auth gates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Check" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "ReferenceCoverageCheck", definition: "Verifies reference authorizers exist" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Check" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "Versioning", definition: "Runtime version tracking" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "CurrentVersion" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "CommandLoader", definition: "Generates and evaluates CRUD command and event classes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Load" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "QueryContext", definition: "Read-only cross-domain query execution context" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "QueryName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :query_name, String
+      attribute :query_name, QueryName
     end
   end
 
   aggregate "AdapterWiring", definition: "Wires command adapters into the runtime" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AdapterModule" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Adapt" do
-      attribute :aggregate_name, String
-      attribute :adapter_module, String
+      attribute :aggregate_name, AggregateName
+      attribute :adapter_module, AdapterModule
     end
   end
 
   aggregate "ReferenceAuthorizerCheck", definition: "Validates reference_to authorizers exist at boot" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Check" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "CommandMethods", definition: "Shared command port interface methods" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Command" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :command, String
+      attribute :command, Command
     end
   end
 
   aggregate "CommandResolver", definition: "Resolves command/event classes from names" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Resolve" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
   aggregate "CollectionItem", definition: "Single-item repository wrapper" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Wrap" do
-      attribute :id, String
+      attribute :id, Id
     end
   end
 
   aggregate "CollectionMethods", definition: "Enumerable collection interface for repos" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Block" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Each" do
-      attribute :block, String
+      attribute :block, Block
     end
   end
 
   aggregate "CollectionProxy", definition: "Lazy-loading collection with query chaining" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Scope" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Chain" do
-      attribute :scope, String
+      attribute :scope, Scope
     end
 
     command "Load" do
-      attribute :scope, String
+      attribute :scope, Scope
     end
   end
 
   aggregate "EventRecorder", definition: "Records events during command execution" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Payload" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Record" do
-      attribute :event_name, String
-      attribute :payload, String
+      attribute :event_name, EventName
+      attribute :payload, Payload
     end
   end
 
   aggregate "ReferenceMethods", definition: "Reference resolution methods for repos" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ReferenceName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Resolve" do
-      attribute :reference_name, String
-      attribute :id, String
+      attribute :reference_name, ReferenceName
+      attribute :id, Id
     end
   end
 
   aggregate "RepositoryMethods", definition: "Core CRUD methods for repository ports" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Attributes" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Create" do
-      attribute :attributes, String
+      attribute :attributes, Attributes
     end
 
     command "Read" do
-      attribute :id, String
+      attribute :id, Id
     end
 
     command "Update" do
-      attribute :id, String
-      attribute :attributes, String
+      attribute :id, Id
+      attribute :attributes, Attributes
     end
 
     command "Delete" do
-      attribute :id, String
+      attribute :id, Id
     end
   end
 
   aggregate "MemoryOutbox", definition: "In-memory transactional outbox" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Message" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "BatchSize" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Enqueue" do
-      attribute :message, String
+      attribute :message, Message
     end
 
     command "Flush" do
-      attribute :batch_size, Integer
+      attribute :batch_size, BatchSize
     end
   end
 
   aggregate "MemoryQueue", definition: "In-memory message queue" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Message" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Push" do
-      attribute :message, String
+      attribute :message, Message
     end
 
     command "Pop" do
-      attribute :count, Integer
+      attribute :count, Count
     end
   end
 
   aggregate "AdHocQueries", definition: "Ad-hoc query builder DSL" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Expression" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Build" do
-      attribute :expression, String
+      attribute :expression, Expression
     end
   end
 
   aggregate "ConditionNode", definition: "Query condition tree node" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Record" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Evaluate" do
-      attribute :record, String
+      attribute :record, Record
     end
   end
 
   aggregate "InMemoryExecutor", definition: "Executes queries against in-memory collections" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Query" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Collection" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :query, String
-      attribute :collection, String
+      attribute :query, Query
+      attribute :collection, Collection
     end
   end
 
   aggregate "ScopeMethods", definition: "Scope composition methods for queries" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ScopeA" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ScopeB" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Compose" do
-      attribute :scope_a, String
-      attribute :scope_b, String
+      attribute :scope_a, ScopeA
+      attribute :scope_b, ScopeB
     end
   end
 
   aggregate "Operators", definition: "Operator registry module" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Operator" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Register" do
-      attribute :name, String
-      attribute :operator, String
+      attribute :name, Name
+      attribute :operator, Operator
     end
   end
 
   aggregate "Operator", definition: "Base operator class for query comparisons" do
 
-    command "Compare" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Compare" do
+      attribute :field, Field
+      attribute :value, Value
     end
   end
 
   aggregate "Gt", definition: "Greater-than query operator" do
 
-    command "Compare" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Compare" do
+      attribute :field, Field
+      attribute :value, Value
     end
   end
 
   aggregate "Gte", definition: "Greater-than-or-equal query operator" do
 
-    command "Compare" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Compare" do
+      attribute :field, Field
+      attribute :value, Value
     end
   end
 
   aggregate "Lt", definition: "Less-than query operator" do
 
-    command "Compare" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Compare" do
+      attribute :field, Field
+      attribute :value, Value
     end
   end
 
   aggregate "Lte", definition: "Less-than-or-equal query operator" do
 
-    command "Compare" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Compare" do
+      attribute :field, Field
+      attribute :value, Value
     end
   end
 
   aggregate "InOp", definition: "Inclusion query operator" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Values" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Compare" do
-      attribute :field, String
-      attribute :values, String
+      attribute :field, Field
+      attribute :values, Values
     end
   end
 
   aggregate "NotEq", definition: "Not-equal query operator" do
 
-    command "Compare" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
+    end
+
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Compare" do
+      attribute :field, Field
+      attribute :value, Value
     end
   end
 
   aggregate "CommandHandle", definition: "Deferred command execution handle with wait/completed?/result" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Timeout" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Wait" do
-      attribute :timeout, Integer
+      attribute :timeout, Timeout
     end
   end
 
   aggregate "SagaRunner", definition: "Executes multi-step sagas with compensation" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "SagaName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "StartSaga" do
-      attribute :saga_name, String
+      attribute :saga_name, SagaName
     end
   end
 
   aggregate "SagaStore", definition: "Persists saga state across steps" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "SagaId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SaveState" do
-      attribute :saga_id, String
-      attribute :state, String
+      attribute :saga_id, SagaId
+      attribute :state, State
     end
   end
 
   aggregate "WorkflowExecutor", definition: "Runs multi-step workflows with branching" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "WorkflowName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ExecuteWorkflow" do
-      attribute :workflow_name, String
+      attribute :workflow_name, WorkflowName
     end
   end
 
   aggregate "EventStore", definition: "Append-only event log per aggregate stream" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "StreamId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Event" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Append" do
-      attribute :stream_id, String
-      attribute :event, String
+      attribute :stream_id, StreamId
+      attribute :event, Event
     end
 
     command "ReadStream" do
-      attribute :stream_id, String
+      attribute :stream_id, StreamId
     end
   end
 
   aggregate "SnapshotStore", definition: "Periodic aggregate state snapshots" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "StreamId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Snapshot" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Save" do
-      attribute :stream_id, String
-      attribute :snapshot, String
+      attribute :stream_id, StreamId
+      attribute :snapshot, Snapshot
     end
 
     command "Load" do
-      attribute :stream_id, String
+      attribute :stream_id, StreamId
     end
   end
 
   aggregate "UpcasterRegistry", definition: "Registers event version upcasters" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventType" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Version" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Register" do
-      attribute :event_type, String
-      attribute :version, Integer
+      attribute :event_type, EventType
+      attribute :version, Version
     end
   end
 
   aggregate "UpcasterEngine", definition: "Applies upcasters to old event versions" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Event" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Upcast" do
-      attribute :event, String
+      attribute :event, Event
     end
   end
 
   aggregate "ProjectionRebuilder", definition: "Rebuilds read models from event history" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ProjectionName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Rebuild" do
-      attribute :projection_name, String
+      attribute :projection_name, ProjectionName
     end
   end
 
   aggregate "Reconstitution", definition: "Rebuilds aggregate from events + snapshot" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "StreamId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Reconstitute" do
-      attribute :stream_id, String
+      attribute :stream_id, StreamId
     end
   end
 
   aggregate "TimeTravel", definition: "Query aggregate state at a point in time" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "StreamId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "At" do
-      attribute :stream_id, String
-      attribute :timestamp, String
+      attribute :stream_id, StreamId
+      attribute :timestamp, Timestamp
     end
   end
 
   aggregate "ProcessManager", definition: "Long-running event-driven coordinator" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Event" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Handle" do
-      attribute :event, String
+      attribute :event, Event
     end
   end
 
   aggregate "OutboxES", definition: "Transactional outbox for reliable event publishing" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Event" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Enqueue" do
-      attribute :event, String
+      attribute :event, Event
     end
   end
 
   aggregate "OutboxPoller", definition: "Polls outbox and publishes pending events" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "BatchSize" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Poll" do
-      attribute :batch_size, Integer
+      attribute :batch_size, BatchSize
     end
   end
 
   aggregate "Concurrency", definition: "Optimistic concurrency version stamps" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Version" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Stamp" do
-      attribute :aggregate, String
-      attribute :version, Integer
+      attribute :aggregate, Aggregate
+      attribute :version, Version
     end
   end
 
   aggregate "EventSourcing", definition: "Top-level module for event sourcing concerns with autoload registry" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ConstName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Autoload" do
-      attribute :const_name, String
-      attribute :path, String
+      attribute :const_name, ConstName
+      attribute :path, Path
     end
   end
 
   aggregate "EventBus", definition: "Publish-subscribe event dispatch" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Publish" do
-      attribute :event_name, String
+      attribute :event_name, EventName
     end
 
     command "Subscribe" do
-      attribute :event_name, String
+      attribute :event_name, EventName
     end
   end
 
   aggregate "CommandBus", definition: "Routes commands to handlers with middleware" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "MiddlewareName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Dispatch" do
-      attribute :command_name, String
+      attribute :command_name, CommandName
     end
 
     command "AddMiddleware" do
-      attribute :middleware_name, String
+      attribute :middleware_name, MiddlewareName
     end
   end
 
   aggregate "CommandRunner", definition: "Executes a single command through the pipeline" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Run" do
-      attribute :command_name, String
+      attribute :command_name, CommandName
     end
   end
 
   aggregate "Repository", definition: "Aggregate persistence port with collection proxy" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Id" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Persist" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
 
     command "Find" do
-      attribute :id, String
+      attribute :id, Id
     end
 
     command "Forget" do
-      attribute :id, String
+      attribute :id, Id
     end
   end
 
   aggregate "QueryBuilder", definition: "Composable query DSL with in-memory executor" do
 
-    command "Where" do
-      attribute :field, String
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
       attribute :value, String
     end
 
+    value_object "Value" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
+    command "Where" do
+      attribute :field, Field
+      attribute :value, Value
+    end
+
     command "OrderBy" do
-      attribute :field, String
+      attribute :field, Field
     end
   end
 
   aggregate "QueuePort", definition: "Async command dispatch via in-memory queue" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "BatchSize" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+
     command "Enqueue" do
-      attribute :command_name, String
+      attribute :command_name, CommandName
     end
 
     command "Process" do
-      attribute :batch_size, Integer
+      attribute :batch_size, BatchSize
     end
   end
 
   aggregate "CommandMixin", definition: "Included into generated command classes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Attributes" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :attributes, String
+      attribute :attributes, Attributes
     end
   end
 
   aggregate "ModelMixin", definition: "Included into generated aggregate/entity classes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Attributes" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Initialize" do
-      attribute :attributes, String
+      attribute :attributes, Attributes
     end
   end
 
   aggregate "QueryMixin", definition: "Included into generated query classes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Params" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Call" do
-      attribute :params, String
+      attribute :params, Params
     end
   end
 
   aggregate "SpecificationMixin", definition: "Predicate objects for domain rules" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Candidate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Satisfied" do
-      attribute :candidate, String
+      attribute :candidate, Candidate
     end
   end
 
   aggregate "AttachmentMethods", definition: "File attachment support for aggregates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "File" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Attach" do
-      attribute :field, String
-      attribute :file, String
+      attribute :field, Field
+      attribute :file, File
     end
   end
 
   aggregate "Commands", definition: "Wires command dispatch infrastructure onto aggregate classes at boot" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Klass" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Bind" do
-      attribute :klass, String
-      attribute :aggregate, String
+      attribute :klass, Klass
+      attribute :aggregate, Aggregate
     end
 
     command "BindShortcuts" do
-      attribute :klass, String
-      attribute :aggregate, String
+      attribute :klass, Klass
+      attribute :aggregate, Aggregate
     end
   end
 
   aggregate "Querying", definition: "Wires query services (scopes, ad-hoc queries, operators) onto aggregate classes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Klass" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Bind" do
-      attribute :klass, String
-      attribute :aggregate, String
+      attribute :klass, Klass
+      attribute :aggregate, Aggregate
     end
   end
 
   aggregate "Persistence", definition: "Wires CRUD, collection proxy, reference, and event recording onto aggregates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Klass" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Repo" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Recorder" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Bind" do
-      attribute :klass, String
-      attribute :aggregate, String
-      attribute :repo, String
+      attribute :klass, Klass
+      attribute :aggregate, Aggregate
+      attribute :repo, Repo
     end
 
     command "BindEventRecorder" do
-      attribute :klass, String
-      attribute :recorder, String
+      attribute :klass, Klass
+      attribute :recorder, Recorder
     end
   end
 
   aggregate "Outbox", definition: "Reliable event publishing via transactional outbox pattern" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Enabled" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Enable" do
-      attribute :enabled, String
+      attribute :enabled, Enabled
     end
   end
 
   aggregate "Queue", definition: "Event queue publishing (RabbitMQ, file, custom adapter)" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Adapter" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Enable" do
-      attribute :adapter, String
+      attribute :adapter, Adapter
     end
   end
 
   aggregate "SmokeTest", definition: "Browser-style HTTP smoke tests for domains" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "BaseUrl" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "EventLog" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "RunSmoke" do
-      attribute :base_url, String
+      attribute :base_url, BaseUrl
     end
 
     command "CheckEvents" do
-      attribute :event_log, String
+      attribute :event_log, EventLog
     end
 
     command "TestBehaviors" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 end

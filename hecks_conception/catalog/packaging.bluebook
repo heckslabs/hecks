@@ -1,27 +1,62 @@
-Hecks.bluebook "Packaging", version: "2026.04.11.1" do
+Hecks.bluebook "Packaging", version: "2026.05.12.1" do
   category "framework"
   aggregate "ChapterRegistry", definition: "All available chapters and their load status" do
-    attribute :name, String
-    attribute :loaded, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Loaded" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ChapterId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :name, Name
+    attribute :loaded, Loaded
 
     command "RegisterChapter" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "LoadChapter" do
-      attribute :chapter_id, String
+      attribute :chapter_id, ChapterId
     end
 
     command "UnloadChapter" do
-      attribute :chapter_id, String
+      attribute :chapter_id, ChapterId
     end
   end
 
   aggregate "ChapterSelector", definition: "DSL for selecting which chapters to load" do
-    attribute :selected, list_of(String)
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Selected" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Names" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :selected, list_of(Selected)
 
     command "SelectChapters" do
-      attribute :names, String
+      attribute :names, Names
     end
 
     command "SelectAll" do
@@ -29,10 +64,20 @@ Hecks.bluebook "Packaging", version: "2026.04.11.1" do
   end
 
   aggregate "ChapterFile", definition: "HecksChapters file parser" do
-    attribute :path, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :path, Path
 
     command "ParseChapterFile" do
-      attribute :path, String
+      attribute :path, Path
     end
   end
 end

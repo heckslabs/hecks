@@ -1,27 +1,73 @@
-Hecks.bluebook "Catalog", version: "2026.04.11.2" do
+Hecks.bluebook "Catalog", version: "2026.05.12.1" do
   vision "Born domains with version history — every development leaves a trail"
   category "meta"
 
   aggregate "Entry", "A domain in the catalog — current version plus full history" do
-    attribute :name, String
-    attribute :version, String
-    attribute :path, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :policy_count, Integer
-    attribute :lines, Integer
-    attribute :status, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Version" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "CommandCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "PolicyCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Lines" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Status" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :name, Name
+    attribute :version, Version
+    attribute :path, Path
+    attribute :aggregate_count, AggregateCount
+    attribute :command_count, CommandCount
+    attribute :policy_count, PolicyCount
+    attribute :lines, Lines
+    attribute :status, Status, default: "pending"
+
 
     command "RegisterDomain" do
       role "Miette"
       description "Add a born domain to the catalog"
-      attribute :name, String
-      attribute :version, String
-      attribute :path, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :policy_count, Integer
-      attribute :lines, Integer
+      attribute :name, Name
+      attribute :version, Version
+      attribute :path, Path
+      attribute :aggregate_count, AggregateCount
+      attribute :command_count, CommandCount
+      attribute :policy_count, PolicyCount
+      attribute :lines, Lines
       emits "DomainRegistered"
       then_set :name, to: :name
       then_set :version, to: :version
@@ -37,11 +83,11 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
       role "Miette"
       description "Domain developed — bump version, snapshot the old one, update entry"
       reference_to(Entry)
-      attribute :version, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :policy_count, Integer
-      attribute :lines, Integer
+      attribute :version, Version
+      attribute :aggregate_count, AggregateCount
+      attribute :command_count, CommandCount
+      attribute :policy_count, PolicyCount
+      attribute :lines, Lines
       emits "DomainDeveloped"
       then_set :version, to: :version
       then_set :aggregate_count, to: :aggregate_count
@@ -65,25 +111,80 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
   end
 
   aggregate "Version", "A snapshot of a domain at a point in time — development history" do
-    attribute :domain_name, String
-    attribute :version, String
-    attribute :snapshot, String
-    attribute :developed_from, String
-    attribute :developed_at, String
-    attribute :aggregate_count, Integer
-    attribute :command_count, Integer
-    attribute :vector, list_of(Float)
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Version" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Snapshot" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DevelopedFrom" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DevelopedAt" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "CommandCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Vector" do
+      # Typed wrapper around the underlying Float on this aggregate.
+      attribute :value, Float
+    end
+
+    value_object "FromVersion" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ToVersion" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :domain_name, DomainName
+    attribute :version, Version
+    attribute :snapshot, Snapshot
+    attribute :developed_from, DevelopedFrom
+    attribute :developed_at, DevelopedAt
+    attribute :aggregate_count, AggregateCount
+    attribute :command_count, CommandCount
+    attribute :vector, list_of(Vector)
 
     command "SnapshotVersion" do
       role "System"
       description "Capture the full bluebook content at this version — preserves the exact shape"
-      attribute :domain_name, String
-      attribute :version, String
-      attribute :snapshot, String
-      attribute :developed_from, String
-      attribute :aggregate_count, Integer
-      attribute :command_count, Integer
-      attribute :vector, list_of(Float)
+      attribute :domain_name, DomainName
+      attribute :version, Version
+      attribute :snapshot, Snapshot
+      attribute :developed_from, DevelopedFrom
+      attribute :aggregate_count, AggregateCount
+      attribute :command_count, CommandCount
+      attribute :vector, list_of(Vector)
       emits "VersionSnapshotted"
       then_set :domain_name, to: :domain_name
       then_set :version, to: :version
@@ -97,22 +198,42 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
     command "CompareVersions" do
       role "Miette"
       description "Diff two versions of a domain — see what changed in development"
-      attribute :domain_name, String
-      attribute :from_version, String
-      attribute :to_version, String
+      attribute :domain_name, DomainName
+      attribute :from_version, FromVersion
+      attribute :to_version, ToVersion
       emits "VersionsCompared"
     end
   end
 
   aggregate "Mirror", "Auto-sync catalog from cannon — always current, never stale" do
-    attribute :cannon_path, String
-    attribute :last_synced_at, String
-    attribute :domains_synced, Integer
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CannonPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "LastSyncedAt" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainsSynced" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    attribute :cannon_path, CannonPath
+    attribute :last_synced_at, LastSyncedAt
+    attribute :domains_synced, DomainsSynced
 
     command "SyncFromCannon" do
       role "System"
       description "Copy bluebooks from cannon to catalog, bump versions on changes, snapshot old versions"
-      attribute :cannon_path, String
+      attribute :cannon_path, CannonPath
       emits "CatalogSynced"
       then_set :cannon_path, to: :cannon_path
     end
@@ -125,18 +246,43 @@ Hecks.bluebook "Catalog", version: "2026.04.11.2" do
   end
 
   aggregate "Index", "The full index — catalog and nursery combined" do
-    attribute :catalog_count, Integer
-    attribute :nursery_count, Integer
-    attribute :total_aggregates, Integer
-    attribute :total_commands, Integer
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CatalogCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "NurseryCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "TotalAggregates" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "TotalCommands" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    attribute :catalog_count, CatalogCount
+    attribute :nursery_count, NurseryCount
+    attribute :total_aggregates, TotalAggregates
+    attribute :total_commands, TotalCommands
 
     command "RebuildIndex" do
       role "System"
       description "Scan catalog and nursery, recount everything"
-      attribute :catalog_count, Integer
-      attribute :nursery_count, Integer
-      attribute :total_aggregates, Integer
-      attribute :total_commands, Integer
+      attribute :catalog_count, CatalogCount
+      attribute :nursery_count, NurseryCount
+      attribute :total_aggregates, TotalAggregates
+      attribute :total_commands, TotalCommands
       emits "IndexRebuilt"
       then_set :catalog_count, to: :catalog_count
       then_set :nursery_count, to: :nursery_count

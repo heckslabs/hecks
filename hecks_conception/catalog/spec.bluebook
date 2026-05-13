@@ -1,4 +1,4 @@
-Hecks.bluebook "Spec", version: "2026.04.11.1" do
+Hecks.bluebook "Spec", version: "2026.05.12.1" do
   vision "Testing infrastructure — spec generation, memory adapters, canonical Pizza/Order domain"
   category "framework"
 
@@ -9,40 +9,100 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
   end
 
   aggregate "InMemoryLoader" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Domain" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Mod" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "Loads a domain into Ruby without disk I/O via RubyVM::InstructionSequence"
     command "Load" do
-      attribute :domain, String
-      attribute :mod, String
+      attribute :domain, Domain
+      attribute :mod, Mod
     end
   end
 
   aggregate "MemoryAdapter" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainModule" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "Generated in-memory repository with find, save, delete, all, count, query, clear"
     command "Generate" do
-      attribute :aggregate, String
-      attribute :domain_module, String
+      attribute :aggregate, Aggregate
+      attribute :domain_module, DomainModule
     end
   end
 
   aggregate "MemoryOutbox" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Event" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "EntryId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "In-memory outbox for testing: store, poll, mark_published, clear"
     command "Store" do
-      attribute :event, String
+      attribute :event, Event
     end
     command "Poll" do
     end
     command "MarkPublished" do
-      attribute :entry_id, String
+      attribute :entry_id, EntryId
     end
   end
 
   aggregate "EventBus" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Event" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "In-memory pub/sub with ordered event log for test verification"
     command "Subscribe" do
-      attribute :event_name, String
+      attribute :event_name, EventName
     end
     command "Publish" do
-      attribute :event, String
+      attribute :event, Event
     end
     command "Clear" do
     end
@@ -61,40 +121,110 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
   end
 
   aggregate "SpecHelpers" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Thing" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Attr" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "Example value generation, argument building, and spec snippet builders"
     command "ExampleArgs" do
-      attribute :thing, String
+      attribute :thing, Thing
     end
     command "ExampleValue" do
-      attribute :attr, String
+      attribute :attr, Attr
     end
   end
 
   aggregate "SpecWriter" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Root" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "GemName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "Orchestrates writing all RSpec files to disk for a domain gem"
     command "GenerateSpecs" do
-      attribute :root, String
-      attribute :gem_name, String
+      attribute :root, Root
+      attribute :gem_name, GemName
     end
   end
 
   aggregate "ServerHelpers" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Url" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "BaseUrl" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "FormPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     description "HTTP server test helpers: port allocation, readiness polling, form submission"
     command "FreePort" do
     end
     command "WaitForServer" do
-      attribute :url, String
+      attribute :url, Url
     end
     command "SubmitForm" do
-      attribute :base_url, String
-      attribute :form_path, String
+      attribute :base_url, BaseUrl
+      attribute :form_path, FormPath
     end
   end
 
   aggregate "Pizza" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Amount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
     description "A pizza with a name, description, and toppings. Demonstrates value objects, lists, validations, and queries."
-    attribute :name, String
-    attribute :description, String
+    attribute :name, Name
+    attribute :description, Description
     attribute :toppings, list_of(Topping)
 
     value_object "Topping" do
@@ -112,8 +242,8 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
 
     command "CreatePizza" do
       description "Add a new pizza to the menu with a name and description"
-      attribute :name, String
-      attribute :description, String
+      attribute :name, Name
+      attribute :description, Description
     end
 
     query "ByDescription" do |desc|
@@ -123,18 +253,39 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
     command "AddTopping" do
       description "Add a measured topping to an existing pizza"
       reference_to(Pizza)
-      attribute :name, String
-      attribute :amount, Integer
+      attribute :name, Name
+      attribute :amount, Amount
     end
   end
 
   aggregate "Order" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CustomerName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Quantity" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
     description "A customer order referencing a pizza. Demonstrates references, transitions, and collection proxies."
-    attribute :customer_name, String
+    attribute :customer_name, CustomerName
     attribute :items, list_of(OrderItem)
     reference_to(Pizza)
 
-    attribute :status, String
+    attribute :status, Status, default: "pending"
+
     lifecycle :status, default: "pending" do
       transition "CancelOrder" => "cancelled"
     end
@@ -152,9 +303,9 @@ Hecks.bluebook "Spec", version: "2026.04.11.1" do
 
     command "PlaceOrder" do
       description "Place a new order for a pizza"
-      attribute :customer_name, String
+      attribute :customer_name, CustomerName
       reference_to(Pizza)
-      attribute :quantity, Integer
+      attribute :quantity, Quantity
     end
 
     command "CancelOrder" do

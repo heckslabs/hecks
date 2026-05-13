@@ -1,4 +1,4 @@
-Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
+Hecks.bluebook "Hecksagon", version: "2026.05.12.1" do
   category "framework"
   aggregate "SerializationLines", definition: "Mixin for MongoAdapterGenerator that builds serialize/deserialize method source" do
 
@@ -38,8 +38,18 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "SqlHelpers", definition: "Shared helpers for SQL migration: type mapping, naming, literal quoting" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "RubyType" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "MapType" do
-      attribute :ruby_type, String
+      attribute :ruby_type, RubyType
     end
   end
 
@@ -57,42 +67,107 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "AggregateCapabilityBuilder", definition: "Fluent builder for per-aggregate capability tags via chained method calls" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddCapability" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "AttributeSelector", definition: "Fluent attribute selector that captures attribute name for capability tagging" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AttrName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SelectAttribute" do
-      attribute :attr_name, String
+      attribute :attr_name, AttrName
     end
   end
 
   aggregate "TagApplier", definition: "Applies a capability tag to a selected attribute via method_missing" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TagName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ApplyTag" do
-      attribute :tag_name, String
+      attribute :tag_name, TagName
     end
   end
 
   aggregate "HecksagonModule", definition: "Top-level Hecksagon namespace with autoload registry for DSL, Structure, and mixins" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ConstName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Path" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Autoload" do
-      attribute :const_name, String
-      attribute :path, String
+      attribute :const_name, ConstName
+      attribute :path, Path
     end
   end
 
   aggregate "HecksagonBuilder", definition: "DSL builder for hexagonal architecture wiring: gates, adapters, extensions" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Role" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Type" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddGate" do
-      attribute :aggregate, String
-      attribute :role, String
+      attribute :aggregate, Aggregate
+      attribute :role, Role
     end
 
     command "SetAdapter" do
-      attribute :type, String
+      attribute :type, Type
     end
 
     command "Build" do
@@ -101,8 +176,18 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "GateBuilder", definition: "DSL builder for access control gates on aggregates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Methods" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Allow" do
-      attribute :methods, String
+      attribute :methods, Methods
     end
 
     command "Build" do
@@ -111,28 +196,68 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "GateDefinition", definition: "Immutable IR structure for a gate (access control on an aggregate)" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Role" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Erect" do
-      attribute :aggregate, String
-      attribute :role, String
+      attribute :aggregate, Aggregate
+      attribute :role, Role
     end
   end
 
   aggregate "AclDefinition", definition: "Collects translations for an anti-corruption layer" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Entity" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Translate" do
-      attribute :entity, String
+      attribute :entity, Entity
     end
   end
 
   aggregate "DrivenPortRegistry", definition: "Formalizes adapter registration for driven ports" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Port" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "RegisterAdapter" do
-      attribute :name, String
-      attribute :port, String
+      attribute :name, Name
+      attribute :port, Port
     end
 
     command "LookupAdapter" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
@@ -144,26 +269,46 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "StrategicDSL", definition: "Mixin for domain builders adding shared kernels, ACLs, published events" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SharedKernel" do
     end
 
     command "UseKernel" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "AntiCorruptionLayer" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
   aggregate "ExtensionsDSL", definition: "Mixin for domain builders declaring driving and driven ports" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "DrivingPort" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "DrivenPort" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
@@ -175,8 +320,18 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
 
   aggregate "DatabaseConnection", definition: "Connects to databases via Sequel: MySQL, Postgres, SQLite, URLs" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Url" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Connect" do
-      attribute :url, String
+      attribute :url, Url
     end
   end
 
@@ -229,14 +384,39 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "DomainDeclaration", "A bounded context declared in the hecksagon — the unit of composition" do
-    attribute :name, String
-    attribute :listens_to, list_of(String)
-    attribute :expressed, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ListensTo" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Expressed" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "TargetDomain" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :name, Name
+    attribute :listens_to, list_of(ListensTo)
+    attribute :expressed, Expressed
 
     command "DeclareDomain" do
       role "Architect"
       description "Register a bounded context in the hecksagon"
-      attribute :name, String
+      attribute :name, Name
       emits "DomainDeclared"
       then_set :name, to: :name
       then_set :expressed, to: "true"
@@ -246,7 +426,7 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
       role "Architect"
       description "This domain listens to events from another domain"
       reference_to(DomainDeclaration)
-      attribute :target_domain, String
+      attribute :target_domain, TargetDomain
       emits "DependencyWired"
       then_set :listens_to, append: :target_domain
     end
@@ -261,15 +441,35 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "CapabilityDeclaration", "A capability declared in the hecksagon — pluggable behavior" do
-    attribute :name, String
-    attribute :category, String
-    attribute :bluebook_path, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Category" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "BluebookPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :name, Name
+    attribute :category, Category
+    attribute :bluebook_path, BluebookPath
 
     command "DeclareCapability" do
       role "Architect"
       description "Register a capability — security, voice, heki, projection, etc."
-      attribute :name, String
-      attribute :category, String
+      attribute :name, Name
+      attribute :category, Category
       emits "CapabilityDeclared"
       then_set :name, to: :name
       then_set :category, to: :category
@@ -277,16 +477,36 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "WorldConfig", "Runtime configuration — database, API keys, adapter selection" do
-    attribute :config_key, String
-    attribute :config_value, String
-    attribute :environment, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ConfigKey" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ConfigValue" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Environment" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :config_key, ConfigKey
+    attribute :config_value, ConfigValue
+    attribute :environment, Environment
 
     command "SetConfig" do
       role "Architect"
       description "Set a world configuration value for a specific environment"
-      attribute :config_key, String
-      attribute :config_value, String
-      attribute :environment, String
+      attribute :config_key, ConfigKey
+      attribute :config_value, ConfigValue
+      attribute :environment, Environment
       emits "ConfigSet"
       then_set :config_key, to: :config_key
       then_set :config_value, to: :config_value
@@ -295,16 +515,41 @@ Hecks.bluebook "Hecksagon", version: "2026.04.11.1" do
   end
 
   aggregate "AppOverride", "Per-app hecksagon and world that merge with the parent" do
-    attribute :app_name, String
-    attribute :app_type, String
-    attribute :overrides_hecksagon, String
-    attribute :overrides_world, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AppName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AppType" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OverridesHecksagon" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OverridesWorld" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :app_name, AppName
+    attribute :app_type, AppType
+    attribute :overrides_hecksagon, OverridesHecksagon
+    attribute :overrides_world, OverridesWorld
 
     command "RegisterApp" do
       role "Architect"
       description "Register an app variant — web, cli, mobile — that merges its config with the parent"
-      attribute :app_name, String
-      attribute :app_type, String
+      attribute :app_name, AppName
+      attribute :app_type, AppType
       emits "AppRegistered"
       then_set :app_name, to: :app_name
       then_set :app_type, to: :app_type

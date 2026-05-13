@@ -1,25 +1,28 @@
 #!/usr/bin/env node
 // server.mjs
 //
-// storehouse-mcp — the MCP server that exposes Hecks Tools.* dispatches
+// storehouse-mcp — the MCP server that exposes Hecks bluebook dispatches
 // as MCP tools. Run by claude-code (via .mcp.json or `claude mcp add`).
 //
 // Talks stdio MCP transport. Each tool call shells to `storehouse` and
 // returns the parsed JSON state object as the response payload.
 //
+// The universal door is `storehouse__dispatch` — any bluebook command
+// (Domain::Aggregate.Command) or query (Domain::Aggregate.snake_case)
+// against any aggregates root. Discovery flows through
+// storehouse__list_aggregates, storehouse__describe_aggregate, and
+// storehouse__catalog. No per-command MCP tools are hand-registered ;
+// the LLM constructs the verb string dynamically from the IR catalog.
+//
 // Env vars :
 //   STOREHOUSE_BIN              — path to the storehouse binary (default: "storehouse" on PATH)
 //   STOREHOUSE_ROOT             — bluebook root dir (default: "hecks_conception")
-//   STOREHOUSE_MCP_QUALIFIED    — "true" to use fully-qualified verbs (default: "false")
-//
-// The qualified flag is the switch for when the Tools.bluebook 5-aggregate
-// split (worktree-agent-a2c393f2905d4dfd1) merges to main ; until then
-// the legacy short form (Tools.Bash) is what the runtime accepts.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { TOOLS, runTool } from "./tools.mjs";
+import { registerEventsResource } from "./events.mjs";
 
 const server = new McpServer(
   {
@@ -27,11 +30,18 @@ const server = new McpServer(
     version: "0.1.0",
   },
   {
-    capabilities: { tools: {} },
+    capabilities: {
+      tools: {},
+      // The events resource backs the i17 emit_to_agent stream ;
+      // subscribe → notifications/resources/updated on each new line.
+      resources: { subscribe: true, listChanged: false },
+    },
     instructions:
-      "All filesystem and shell access flows through Tools.* dispatches on the Hecks bus. Every tool call emits a domain event the runtime can react to. Use these in place of native Bash / Read / Edit / Write / Grep / Glob — those are denied at the project layer.",
+      "The Hecks bluebook bus. storehouse__dispatch is the universal door — call any bluebook command (Domain::Aggregate.Command) or query (Domain::Aggregate.snake_case) on any aggregates root. Use storehouse__catalog or storehouse__describe_aggregate first to discover what's callable. storehouse__validate, storehouse__macrophage_check, storehouse__behaviors, and storehouse__conceive_behaviors cover the developer workflow. The storehouse://events resource is a live tail of the runtime's emit_to_agent stream (i17) — subscribe to be notified of policy events as they fire.",
   },
 );
+
+registerEventsResource(server);
 
 for (const tool of TOOLS) {
   server.registerTool(
@@ -51,7 +61,7 @@ async function main() {
   // stderr-log so the user can see the server is alive in claude's MCP
   // diagnostics ; stdout is reserved for the MCP transport.
   process.stderr.write(
-    `[storehouse-mcp] connected, ${TOOLS.length} tools registered\n`,
+    `[storehouse-mcp] connected, ${TOOLS.length} tools + storehouse://events resource registered\n`,
   );
 }
 

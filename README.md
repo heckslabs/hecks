@@ -1,12 +1,17 @@
 <p align="center">
-  <img src="hecks_logo.png" width="200" height="200" alt="Hecks">
+  <img src="una.png" width="200" alt="Una, the Embryonaut brand mark">
 </p>
 
-# Hecks
+# What the Hecks?
 
-**A domain compiler for Ruby.** Describe your business in a five-rule DSL — the *Bluebook* — and Hecks generates the running runtime by construction. The description and the running code are byte-identical by design ; there is no layer of glue between what you wrote and what runs.
+**Hecks is executable specifications, not a translation.** Describe your domain in the *Bluebook* — Hecks's specification language — and the running program is the spec. There is no translation layer between what you wrote and what runs ; no documentation that can lie to you. The Bluebook IS the program.
 
-You get aggregates, events, lifecycles, queries, validations, a web explorer, behavioral tests, and a generated app — Ruby, Rails, Go, or Sinatra. You own the output.
+Two claims structure the work :
+
+- *Specification is king.* The Bluebook is the contract. Validators, immune-system hooks, and parity gates make the discipline structural — the team does not have to remember it, the runtime does.
+- *Building software correctly is fast.* The trade-off between speed and correctness is a category error. With no translation step to slip through, the spec compiles, the runtime obeys, and the rework cycle that consumes most engineering hours disappears.
+
+Hecks ships two compatible implementations — a Rust runtime (`storehouse`) and a Ruby library — held to byte-identical IR by a parity suite. From the same Bluebook you generate Ruby, Rails, Sinatra, or a single Go binary. You get aggregates, events, lifecycles, validators, behavioral tests, and an MCP server for AI-native modelling. You own the output.
 
 ```ruby
 Hecks.bluebook "Banking" do
@@ -24,7 +29,7 @@ Hecks.bluebook "Banking" do
 end
 ```
 
-That's the source of truth. Boot it, dispatch a command, watch an event:
+That's the source of truth. Boot it, dispatch a command, watch an event :
 
 ```ruby
 require "hecks"
@@ -34,7 +39,7 @@ app.Account.deposit(account_id: account.id, amount: 50.0)
 # => DepositedAccount { balance: 50.0 }
 ```
 
-The whole language is five rules. **[Bluebook on a Napkin →](docs/napkin.md)**
+The whole language is five rules. **[Bluebook on a Napkin →](docs/napkin.md)** · For the longer argument, see the open letter at [embryonaut.ai/letter](https://embryonaut.ai/letter).
 
 ---
 
@@ -78,48 +83,161 @@ A Bluebook describes one bounded context. Each construct maps to a real generate
 | `service` | Orchestrates multiple commands across aggregates |
 | `port` | Role-based access control boundary |
 
-A complete domain looks like this:
+A complete domain looks like this. The `Banking` bluebook is in [`examples/banking/hecks/banking.bluebook`](examples/banking/hecks/banking.bluebook) ; it carries four aggregates (Customer, Account, Transfer, Loan), value objects with invariants (Money is integer-cents, never Float ; Currency is an ISO three-letter code), an entity for ledger lines, lifecycles, commands, validations, specifications, and a policy that cascades an `IssuedLoan` event into a `Deposit` :
 
 ```ruby
-Hecks.bluebook "Bookshelf" do
-  aggregate "Book" do
-    attribute :title,  String
-    attribute :author, String
-    attribute :status, String, default: "available" do
-      transition "CheckOutBook" => "checked_out"
-      transition "ReturnBook"   => "available"
+Hecks.bluebook "Banking" do
+  aggregate "Customer" do
+    attribute :name,  PersonName
+    attribute :email, EmailAddress
+
+    value_object "PersonName" do
+      attribute :given,  String
+      attribute :family, String
+      invariant("given name present")  { given  && !given.strip.empty?  }
+      invariant("family name present") { family && !family.strip.empty? }
     end
 
-    validation :title,  presence: true
-    validation :author, presence: true
-
-    command "AddBook" do
-      attribute :title,  String
-      attribute :author, String
+    value_object "EmailAddress" do
+      attribute :address, String
+      invariant("must contain @")          { address.include?("@") }
+      invariant("must contain domain dot") { address.split("@", 2).last.to_s.include?(".") }
     end
 
-    command "CheckOutBook" do
-      reference_to Book
+    lifecycle :status, default: "active" do
+      transition "SuspendCustomer"  => "suspended"
+      transition "ReinstateCustomer" => "active"
     end
 
-    query "Available" do
-      where(status: "available")
+    command "RegisterCustomer"  do attribute :name, PersonName; attribute :email, EmailAddress end
+    command "SuspendCustomer"   do reference_to Customer end
+    command "ReinstateCustomer" do reference_to Customer end
+  end
+
+  aggregate "Account" do
+    reference_to Customer
+    attribute :balance,      Money
+    attribute :account_type, AccountType
+    attribute :daily_limit,  Money
+    attribute :ledger,       list_of(LedgerEntry)
+
+    # Money is currency-aware, integer-cents — never Float.
+    # IEEE 754 rounding has no place in a ledger.
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("non-negative for balance contexts") { cents >= 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217 three-letter code") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "AccountType" do
+      attribute :name, String
+      invariant("checking, savings, or money_market") { %w[checking savings money_market].include?(name) }
+    end
+
+    entity "LedgerEntry" do
+      attribute :amount,      Money
+      attribute :description, Description
+      attribute :entry_type,  EntryType
+      attribute :posted_at,   Timestamp
+    end
+
+    lifecycle :status, default: "open" do
+      transition "CloseAccount" => "closed"
+    end
+
+    command "OpenAccount" do
+      reference_to Customer
+      attribute :account_type, AccountType
+      attribute :daily_limit,  Money
+    end
+    command "Deposit"      do reference_to Account; attribute :amount, Money end
+    command "Withdraw"     do reference_to Account; attribute :amount, Money end
+    command "CloseAccount" do reference_to Account end
+
+    specification "LargeWithdrawal" do |withdrawal|
+      withdrawal.amount.cents > 1_000_000  # $10k
     end
   end
 
-  aggregate "Loan" do
-    reference_to Book
-    attribute :borrower_name, String
-    attribute :due_date,      String
-    attribute :status,        String, default: "active" do
-      transition "CloseLoan" => "returned"
+  aggregate "Transfer" do
+    reference_to Account, as: :source
+    reference_to Account, as: :destination
+    attribute :amount, Money
+    attribute :memo,   Memo
+
+    value_object "Memo" do
+      attribute :text, String
+      invariant("under 280 chars") { text.nil? || text.length <= 280 }
     end
 
-    command "CreateLoan" do
-      reference_to Book
-      attribute :borrower_name, String
-      attribute :due_date,      String
+    lifecycle :status, default: "pending" do
+      transition "CompleteTransfer" => "completed"
+      transition "RejectTransfer"   => "rejected"
     end
+
+    command "InitiateTransfer" do
+      reference_to Account, as: :source
+      reference_to Account, as: :destination
+      attribute :amount, Money
+      attribute :memo,   Memo
+    end
+    command "CompleteTransfer" do reference_to Transfer end
+    command "RejectTransfer"   do reference_to Transfer end
+  end
+
+  aggregate "Loan" do
+    # The Customer is reached via loan.account.customer_id ; one path
+    # through the graph means there is nothing to disagree with.
+    reference_to Account
+    attribute :principal,         Money
+    attribute :rate,              InterestRate
+    attribute :term,              Term
+    attribute :remaining_balance, Money
+
+    # Rate as basis points (525 = 5.25%) — Float APRs are a
+    # round-tripping nightmare in interest accrual.
+    value_object "InterestRate" do
+      attribute :basis_points, Integer
+      invariant("between 0 and 10000 bps") { basis_points >= 0 && basis_points <= 10000 }
+    end
+
+    value_object "Term" do
+      attribute :months, Integer
+      invariant("positive duration") { months > 0 }
+    end
+
+    lifecycle :status, default: "active" do
+      transition "DefaultLoan" => "defaulted"
+      transition "PayOffLoan"  => "paid_off"
+    end
+
+    command "IssueLoan" do
+      reference_to Account
+      attribute :principal, Money
+      attribute :rate,      InterestRate
+      attribute :term,      Term
+    end
+    command "MakePayment" do reference_to Loan; attribute :amount, Money end
+    command "DefaultLoan" do reference_to Loan end
+    command "PayOffLoan"  do reference_to Loan end
+
+    specification "HighRisk" do |loan|
+      loan.principal.cents > 5_000_000 && loan.rate.basis_points > 1000
+    end
+  end
+
+  # Funds disburse into the loan's referenced account. Because Loan only
+  # references Account (not Customer directly), the cascade cannot
+  # mis-route to a different customer's account.
+  policy "DisburseFunds" do
+    on      "IssuedLoan"
+    trigger "Deposit"
+    map     account_id: :account_id, principal: :amount
   end
 end
 ```
@@ -128,112 +246,18 @@ The full reference is in [`docs/usage/dsl_reference.md`](docs/usage/dsl_referenc
 
 ---
 
-## Sketch and Play
+## Two Implementations, One Spec
 
-You don't have to write the file in one shot. The console builds it for you.
-
-```bash
-$ hecks new blog
-$ cd blog
-$ hecks console
-```
-
-```
-hecks(sketch)> Post
-created Post
-hecks(sketch)> Post.title String
-added attribute title to Post
-hecks(sketch)> Post.status String, default: "draft"
-added attribute status to Post
-hecks(sketch)> Post.transition "PublishPost" => "published"
-added transition PublishPost → published
-hecks(sketch)> Post.create.title String
-added attribute title to CreatePost → CreatedPost
-hecks(sketch)> play!
-Entering play mode (1 aggregate, 2 commands)
-hecks(play)> Post.create(title: "Hello World")
-=> CreatedPost { title: "Hello World", status: "draft" }
-hecks(play)> Post.publish(post_id: Post.all.first.id)
-=> PublishedPost { status: "published" }
-hecks(play)> export
-Wrote hecks_domain.rb -- the source of truth.
-```
-
-`sketch` mode mutates the in-memory IR. `play` runs commands against a fresh in-memory store. `export` writes the Bluebook. See [`docs/usage/console_tour.md`](docs/usage/console_tour.md).
-
----
-
-## The Web Explorer
-
-```ruby
-hecks(play)> serve!
-# Serving BlogDomain on http://localhost:9292
-```
-
-Open the browser. Create a post. Watch the lifecycle badge flip from `draft` to `published`. Add a comment — the Post dropdown shows your aggregates. Hit `/_events` for the JSON event log.
-
-These are domain events, not framework events: `CreatedPost`, `PublishedPost`, `CreatedComment`. This is your ubiquitous language.
-
-The explorer also runs standalone:
+Hecks ships two parsers for the same Bluebook language : a Ruby DSL (`ruby/`) and a Rust runtime (`rust/`, the `storehouse` binary). Both produce a single canonical IR. A parity suite holds them to **byte-identical IR**, run on every commit ; any drift between Ruby and Rust is a structural bug, not a style difference.
 
 ```bash
-$ hecks serve
+$ ruby -Iruby parity/parity_test.rb           # Ruby ↔ Rust IR parity
+$ cargo test --lib --manifest-path rust/Cargo.toml
 ```
 
-See [`docs/usage/serve_web_app.md`](docs/usage/serve_web_app.md) for routes, embedding, and customisation.
+This matters because it's the proof that one specification can mean exactly the same thing in two languages — which means it can mean the same thing in any language a generator targets next. A target generator is a function from the IR ; Ruby and Rust are the first two outputs. The Bluebook is the input.
 
----
-
-## Build Targets
-
-The same Bluebook compiles to multiple targets.
-
-**Plain Ruby:**
-
-```ruby
-require "hecks"
-app = Hecks.boot(__dir__)
-app.Account.deposit(account_id: id, amount: 50.0)
-```
-
-**Rails:**
-
-```bash
-$ hecks build --target rails
-$ rails server
-```
-
-```ruby
-class PostsController < ApplicationController
-  def create
-    Post.create(title: params[:title], body: params[:body])
-    redirect_to posts_path
-  end
-end
-```
-
-Hecks owns the domain and the database; Rails owns the request cycle. No ActiveRecord. See [`docs/usage/hecks_on_rails.md`](docs/usage/hecks_on_rails.md).
-
-**Sinatra:**
-
-```ruby
-require "sinatra"
-require "blog_domain"
-
-post "/posts" do
-  Post.create(title: params[:title], body: params[:body])
-  redirect "/posts"
-end
-```
-
-**Go (single binary):**
-
-```bash
-$ hecks build --target go
-$ ./blog serve 9292
-```
-
-Same web explorer. Same forms. Same lifecycle badges. See [`docs/usage/go_runtime_interpreter.md`](docs/usage/go_runtime_interpreter.md).
+`storehouse` is the canonical runtime today : it parses bluebooks, dispatches commands, runs validators, conceives companions, executes behavioral tests, and runs MCP. The Ruby gem is the convenient embedding for Ruby projects. See [`docs/usage/architecture_tour.md`](docs/usage/architecture_tour.md).
 
 ---
 
@@ -251,7 +275,7 @@ extend :outbox                              # transactional outbox
 extend :scheduler                           # cron policies
 ```
 
-When you `export`, the extensions are captured in the Bluebook so the next boot reproduces them. See [`docs/usage/extension_adapter_types.md`](docs/usage/extension_adapter_types.md) and [`docs/usage/creating_extensions.md`](docs/usage/creating_extensions.md) to write your own.
+Extensions are declared in the Bluebook and boot alongside the domain. See [`docs/usage/extension_adapter_types.md`](docs/usage/extension_adapter_types.md) and [`docs/usage/creating_extensions.md`](docs/usage/creating_extensions.md) to write your own.
 
 ---
 
@@ -384,16 +408,19 @@ The defaults protect people. Overriding them requires a deliberate choice. See [
 
 ## Examples
 
-The [`examples/`](examples/) directory has runnable domains for every target:
+The [`examples/`](examples/) directory has runnable domains for every target :
 
-- [`examples/bookshelf`](examples/bookshelf) — Books with lifecycle, Loans with references — the canonical first read
-- [`examples/banking`](examples/banking) — Accounts, ledger entries, ports, services, invariants
-- [`examples/governance`](examples/governance) — 5 bounded contexts, 14 aggregates, cross-domain policies
-- [`examples/pizzas`](examples/pizzas) — Value objects and lists
-- [`examples/pizzas_rails`](examples/pizzas_rails) — Same domain, Rails target
-- [`examples/pizzas_static_go`](examples/pizzas_static_go) — Same domain, single Go binary
-- [`examples/sinatra_app`](examples/sinatra_app) — Minimal HTTP integration
-- [`examples/multi_domain`](examples/multi_domain) — Cross-context event flow
+- [`examples/banking`](examples/banking) — the canonical first read. Four aggregates, value objects with invariants, an entity, a cross-aggregate policy. The example from the section above.
+- [`examples/bookshelf`](examples/bookshelf) — Books with lifecycle, Loans with references. The simplest two-aggregate domain.
+- [`examples/governance`](examples/governance) — 5 bounded contexts, 14 aggregates, cross-domain policies.
+- [`examples/pizzas`](examples/pizzas) — Value objects and lists.
+- [`examples/pizzas_rails`](examples/pizzas_rails) — Same domain, Rails target.
+- [`examples/pizzas_static_go`](examples/pizzas_static_go) — Same domain, single Go binary.
+- [`examples/pizzas_static_ruby`](examples/pizzas_static_ruby) — Same domain, standalone Ruby.
+- [`examples/sinatra_app`](examples/sinatra_app) — Minimal HTTP integration.
+- [`examples/multi_domain`](examples/multi_domain) — Cross-context event flow.
+- [`examples/llm_adapter`](examples/llm_adapter) — LLM-backed adapter wired through Hecks ports.
+- [`examples/shell_adapter`](examples/shell_adapter) — Shell-command adapter.
 
 Each comes with a README and runs from the project root with one command.
 

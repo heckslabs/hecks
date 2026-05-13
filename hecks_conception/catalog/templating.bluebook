@@ -1,42 +1,92 @@
-Hecks.bluebook "Templating", version: "2026.04.11.1" do
+Hecks.bluebook "Templating", version: "2026.05.12.1" do
   category "framework"
   aggregate "NamingHelpers", definition: "Mixin providing domain naming convention methods for modules, gems, slugs, and routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ResolveDomainModuleName" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "DomainGemName" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "DomainAggregateSlug" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "DomainCommandMethod" do
-      attribute :command_name, String
-      attribute :aggregate_name, String
+      attribute :command_name, CommandName
+      attribute :aggregate_name, AggregateName
     end
 
     command "DomainRoutePath" do
-      attribute :domain_name, String
-      attribute :aggregate_name, String
+      attribute :domain_name, DomainName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "SmokeTest", definition: "Browser-style HTTP smoke test that exercises every page like a real user" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "BaseUrl" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Run" do
-      attribute :base_url, String
-      attribute :domain_name, String
+      attribute :base_url, BaseUrl
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "EventChecks", definition: "Validates event log entries via /_events endpoint" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ExpectedEvents" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "CheckEventsContain" do
-      attribute :expected_events, String
+      attribute :expected_events, ExpectedEvents
     end
   end
 
@@ -54,8 +104,18 @@ Hecks.bluebook "Templating", version: "2026.04.11.1" do
 
   aggregate "FormSubmission", definition: "Navigates to forms, fills fields, and submits via POST" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "FormPath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SubmitForm" do
-      attribute :form_path, String
+      attribute :form_path, FormPath
     end
   end
 
@@ -91,8 +151,18 @@ Hecks.bluebook "Templating", version: "2026.04.11.1" do
 
   aggregate "DomainLookups", definition: "Helper for resolving aggregates and commands by name during smoke tests" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "LookupAggregate" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 end

@@ -1,9 +1,14 @@
-Hecks.bluebook "Rails", version: "2026.04.11.1" do
+Hecks.bluebook "Rails", version: "2026.05.12.1" do
   category "framework"
   aggregate "ActiveHecks", definition: "Adds full ActiveModel compatibility to generated domain objects for Rails" do
 
+    value_object "DomainModule" do
+      # Fully-qualified Ruby module path of the generated domain (e.g. "Pizzas") that ActiveModel compat is being grafted onto.
+      attribute :value, String
+    end
+
     command "Activate" do
-      attribute :domain_module, String
+      attribute :domain_module, DomainModule
     end
   end
 
@@ -27,15 +32,25 @@ Hecks.bluebook "Rails", version: "2026.04.11.1" do
 
   aggregate "ValidationWiring", definition: "Converts DSL validation rules into ActiveModel validates calls" do
 
+    value_object "Klass" do
+      # Fully-qualified Ruby class name receiving the validation wiring.
+      attribute :value, String
+    end
+
     command "Bind" do
-      attribute :klass, String
+      attribute :klass, Klass
     end
   end
 
   aggregate "PersistenceWrapper", definition: "Wraps save/destroy with validation checks and lifecycle callbacks" do
 
+    value_object "Klass" do
+      # Fully-qualified Ruby class name whose save/destroy is being wrapped.
+      attribute :value, String
+    end
+
     command "Bind" do
-      attribute :klass, String
+      attribute :klass, Klass
     end
   end
 
@@ -59,9 +74,19 @@ Hecks.bluebook "Rails", version: "2026.04.11.1" do
 
   aggregate "RailsGenerator", definition: "Generates Rails integration files (initializer, routes, controllers)" do
 
+    value_object "DomainId" do
+      # Hecks domain identifier whose Rails integration files are being generated.
+      attribute :value, String
+    end
+
+    value_object "OutputDir" do
+      # Filesystem path where the generated Rails integration files are written.
+      attribute :value, String
+    end
+
     command "GenerateRails" do
-      attribute :domain_id, String
-      attribute :output_dir, String
+      attribute :domain_id, DomainId
+      attribute :output_dir, OutputDir
     end
   end
 end

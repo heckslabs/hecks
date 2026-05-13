@@ -1,9 +1,19 @@
-Hecks.bluebook "Workshop", version: "2026.04.11.1" do
+Hecks.bluebook "Workshop", version: "2026.05.12.1" do
   category "framework"
   aggregate "ConstantHoister", definition: "Manages hoisting and cleanup of constants on WorkshopRunner" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ConstName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "HoistAggregate" do
-      attribute :const_name, String
+      attribute :const_name, ConstName
     end
   end
 
@@ -21,8 +31,18 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "WorkshopSession", definition: "Wraps Workshop WebRunner for IDE integration with safe command eval" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Input" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :input, String
+      attribute :input, Input
     end
 
     command "GetCompletions" do
@@ -31,8 +51,18 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "Playground", definition: "Live execution sandbox with memory adapters for rapid prototyping" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :command_name, String
+      attribute :command_name, CommandName
     end
 
     command "Reset" do
@@ -53,8 +83,18 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "RuntimeResolver", definition: "Resolves generated command and event classes at runtime" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "ResolveCommand" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
@@ -108,15 +148,35 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "MermaidBuilder", definition: "Builds Mermaid LR graph string from serialized aggregates with relationship edges" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregates" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Build" do
-      attribute :aggregates, String
+      attribute :aggregates, Aggregates
     end
   end
 
   aggregate "PolicyFlowBuilder", definition: "Builds cross-aggregate policy flow edges from serialized aggregates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Aggregates" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Build" do
-      attribute :aggregates, String
+      attribute :aggregates, Aggregates
     end
   end
 
@@ -128,15 +188,35 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "Evaluator", definition: "Safe eval-free command execution delegating to CommandParser" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Input" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Evaluate" do
-      attribute :input, String
+      attribute :input, Input
     end
   end
 
   aggregate "CommandParser", definition: "Safe command dispatcher using BlueBook Grammar for the web workshop" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Input" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Execute" do
-      attribute :input, String
+      attribute :input, Input
     end
   end
 
@@ -148,24 +228,44 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "Workshop", definition: "Interactive domain-building session for REPL-driven development" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Word" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Convene" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "AddAggregate" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "RemoveAggregate" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
 
     command "AddVerb" do
-      attribute :word, String
+      attribute :word, Word
     end
 
     command "Promote" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
 
     command "ActivateActiveHecks" do
@@ -174,34 +274,79 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "AggregateHandle", definition: "Interactive handle for incrementally building a single aggregate in the REPL" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Type" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Field" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "From" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "To" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddAttribute" do
-      attribute :name, String
-      attribute :type, String
+      attribute :name, Name
+      attribute :type, Type
     end
 
     command "AddCommand" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "AddPolicy" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "AddLifecycle" do
-      attribute :field, String
+      attribute :field, Field
     end
 
     command "AddTransition" do
-      attribute :from, String
-      attribute :to, String
+      attribute :from, From
+      attribute :to, To
     end
   end
 
   aggregate "CommandHandle", definition: "Interactive handle for adding attributes to a command after creation" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Type" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddAttribute" do
-      attribute :name, String
-      attribute :type, String
+      attribute :name, Name
+      attribute :type, Type
     end
   end
 
@@ -234,12 +379,22 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "PersistentImage", definition: "File-based save/restore for SessionImage objects" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "SaveImage" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "RestoreImage" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "ListImages" do
@@ -257,43 +412,103 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "BehaviorMethods", definition: "AggregateHandle mixin for adding commands, events, policies, and lifecycle transitions" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddCommand" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
   aggregate "ConstraintMethods", definition: "AggregateHandle mixin for adding validations, specifications, and scopes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddValidation" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
   aggregate "QueryMethods", definition: "AggregateHandle mixin for adding queries and subscribers" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddQuery" do
-      attribute :name, String
+      attribute :name, Name
     end
   end
 
   aggregate "ImplicitSyntax", definition: "AggregateHandle mixin for dot-syntax method_missing attribute and command inference" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "MethodName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "HandleMissing" do
-      attribute :method_name, String
+      attribute :method_name, MethodName
     end
   end
 
   aggregate "MessageNotUnderstood", definition: "Smalltalk-inspired error for unknown aggregate handle methods with command suggestions" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "MethodName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "HandleMissing" do
-      attribute :method_name, String
+      attribute :method_name, MethodName
     end
   end
 
   aggregate "BluebookMode", definition: "Workshop mixin for composing multiple domains as chapters with shared event bus" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "AddChapter" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "ListChapters" do
@@ -317,29 +532,69 @@ Hecks.bluebook "Workshop", version: "2026.04.11.1" do
 
   aggregate "VisualizeMode", definition: "Mermaid diagram visualization for the Workshop" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Format" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Visualize" do
-      attribute :format, String
+      attribute :format, Format
     end
   end
 
   aggregate "SystemBrowser", definition: "Smalltalk-inspired tree view of all domain elements" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Browse" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "DeepInspect", definition: "Detailed aggregate structure display using Navigator and Renderer" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Inspect" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "Navigator", definition: "Traverses domain IR and yields each element with depth and path context" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Walk" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
 
     command "WalkAll" do

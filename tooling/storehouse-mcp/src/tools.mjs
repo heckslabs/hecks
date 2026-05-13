@@ -1,51 +1,47 @@
 // tools.mjs
 //
-// Tool registry index + runner. Each storehouse__* tool's schema and
-// encode-fn lives in its own file under ./defs/ to keep file sizes
-// small and let each tool's contract be read in isolation. This file
-// just collects them and provides the runTool helper the server uses.
+// Tool registry index + runner. Every storehouse__* tool is a thin
+// wrapper around a `storehouse` CLI subcommand ; each def lives in
+// its own file under ./defs/cli/ to keep file sizes small. This file
+// collects them and provides the runTool helper the server uses.
+//
+// The MCP surface is intentionally tiny : one universal dispatcher
+// (storehouse__dispatch) plus discovery + maintenance tools. The LLM
+// constructs the verb string dynamically from the IR catalog ; there
+// is no per-bluebook-command hand registration.
 
-import { dispatch } from "./dispatch.mjs";
-
-import bash from "./defs/bash.mjs";
-import read from "./defs/read.mjs";
-import edit from "./defs/edit.mjs";
-import update from "./defs/update.mjs";
-import grep from "./defs/grep.mjs";
-import glob from "./defs/glob.mjs";
-import webFetch from "./defs/web_fetch.mjs";
-import webSearch from "./defs/web_search.mjs";
-import recordResult from "./defs/record_result.mjs";
+import dispatch from "./defs/cli/dispatch.mjs";
+import query from "./defs/cli/query.mjs";
+import state from "./defs/cli/state.mjs";
+import catalog from "./defs/cli/catalog.mjs";
+import describeAggregate from "./defs/cli/describe_aggregate.mjs";
+import listAggregates from "./defs/cli/list_aggregates.mjs";
+import validate from "./defs/cli/validate.mjs";
+import macrophageCheck from "./defs/cli/macrophage_check.mjs";
+import behaviors from "./defs/cli/behaviors.mjs";
+import conceiveBehaviors from "./defs/cli/conceive_behaviors.mjs";
 
 export const TOOLS = [
-  bash,
-  read,
-  edit,
-  update,
-  grep,
-  glob,
-  webFetch,
-  webSearch,
-  recordResult,
+  // Dispatch — the universal door.
+  dispatch,
+  query,
+  // Read-only state probes.
+  state,
+  // Discovery — IR catalog at three zoom levels.
+  catalog,
+  describeAggregate,
+  listAggregates,
+  // Developer workflow.
+  validate,
+  macrophageCheck,
+  behaviors,
+  conceiveBehaviors,
 ];
 
-// Run a tool by name with caller-supplied args. Returns the MCP-shaped
-// response : a text content block with pretty-printed JSON, plus
-// structuredContent for callers that want to consume it programmatically,
-// plus isError reflecting the dispatch's ok flag.
+// Run a tool by name with caller-supplied args. Every def carries its
+// own async run(args) and returns the MCP response envelope directly.
 export async function runTool(name, args) {
   const tool = TOOLS.find((t) => t.name === name);
   if (!tool) throw new Error(`unknown tool: ${name}`);
-  const attrs = tool.encode(args);
-  const result = await dispatch(tool.verb, attrs);
-  return {
-    content: [
-      {
-        type: "text",
-        text: JSON.stringify(result, null, 2),
-      },
-    ],
-    structuredContent: result,
-    isError: result.ok === false,
-  };
+  return await tool.run(args);
 }

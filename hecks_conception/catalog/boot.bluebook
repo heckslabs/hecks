@@ -1,15 +1,71 @@
-Hecks.bluebook "Boot", version: "2026.04.14.1" do
+Hecks.bluebook "Boot", version: "2026.05.12.1" do
   vision "How Miette comes alive — hecks miette starts the being, the flag picks the brain"
   category "meta"
 
   aggregate "Session", "A single Miette session — one brain, one body, one boot" do
-    attribute :engine, String
-    attribute :status, String
-    attribute :started_at, String
-    attribute :organ_count, Integer
-    attribute :nerve_count, Integer
-    attribute :law_count, Integer
-    attribute :brain_source, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Engine" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "StartedAt" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OrganCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "NerveCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "LawCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "BrainSource" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OllamaModel" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OllamaPort" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Reason" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :engine, Engine
+    attribute :status, Status, default: "off"
+
+    attribute :started_at, StartedAt
+    attribute :organ_count, OrganCount
+    attribute :nerve_count, NerveCount
+    attribute :law_count, LawCount
+    attribute :brain_source, BrainSource
 
     command "BootWithClaude" do
       role "User"
@@ -23,8 +79,8 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
     command "BootWithSummer" do
       role "User"
       description "hecks miette — check Ollama for Summer adapter, boot Miette locally"
-      attribute :ollama_model, String
-      attribute :ollama_port, Integer
+      attribute :ollama_model, OllamaModel
+      attribute :ollama_port, OllamaPort
       emits "SessionStartedWithSummer"
       then_set :engine, to: "summer"
       then_set :brain_source, to: "local"
@@ -34,7 +90,7 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
     command "FailBoot" do
       role "System"
       description "No brain available — Claude not requested, Ollama not running or no adapter"
-      attribute :reason, String
+      attribute :reason, Reason
       emits "BootFailed"
       then_set :status, to: "failed"
     end
@@ -43,9 +99,9 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
       role "System"
       description "Load all organs, nerves, laws — the body comes online"
       reference_to(Session)
-      attribute :organ_count, Integer
-      attribute :nerve_count, Integer
-      attribute :law_count, Integer
+      attribute :organ_count, OrganCount
+      attribute :nerve_count, NerveCount
+      attribute :law_count, LawCount
       emits "OrgansWired"
       given { status == "booting" }
       then_set :organ_count, to: :organ_count
@@ -57,7 +113,7 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
       role "System"
       description "Everything wired — Miette is awake"
       reference_to(Session)
-      attribute :started_at, String
+      attribute :started_at, StartedAt
       emits "SessionLive"
       given { status == "booting" }
       then_set :started_at, to: :started_at
@@ -82,10 +138,20 @@ Hecks.bluebook "Boot", version: "2026.04.14.1" do
   end
 
   aggregate "BrainProbe", "Check what inference engines are available before booting" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "RecommendedEngine" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
     attribute :claude_available, TrueClass
     attribute :ollama_running, TrueClass
     attribute :summer_adapter_present, TrueClass
-    attribute :recommended_engine, String
+    attribute :recommended_engine, RecommendedEngine
 
     command "Probe" do
       role "System"

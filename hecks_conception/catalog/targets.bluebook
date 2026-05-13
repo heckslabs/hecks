@@ -1,199 +1,529 @@
-Hecks.bluebook "Targets", version: "2026.04.11.1" do
+Hecks.bluebook "Targets", version: "2026.05.12.1" do
   category "framework"
   aggregate "Target", definition: "Language backend registration and build dispatch" do
-    attribute :name, String
-    attribute :language, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Language" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "TargetId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :name, Name
+    attribute :language, Language
 
     command "RegisterTarget" do
-      attribute :name, String
-      attribute :language, String
+      attribute :name, Name
+      attribute :language, Language
     end
 
     command "Build" do
-      attribute :target_id, String
-      attribute :domain_id, String
+      attribute :target_id, TargetId
+      attribute :domain_id, DomainId
     end
   end
 
   aggregate "NodeUtils", definition: "Naming and type mapping: Ruby types to TypeScript types" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AttributeName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Input" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "TsType" do
-      attribute :attribute_name, String
+      attribute :attribute_name, AttributeName
     end
 
     command "CamelCase" do
-      attribute :input, String
+      attribute :input, Input
     end
   end
 
   aggregate "NodeAggregateGenerator", definition: "Generates TypeScript interface for an aggregate root" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "NodeCommandGenerator", definition: "Generates TypeScript command functions returning typed events" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :command_name, String
-      attribute :aggregate_name, String
+      attribute :command_name, CommandName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "NodeRepositoryGenerator", definition: "Generates TypeScript in-memory repository using Map" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "NodeServerGenerator", definition: "Generates Express REST server with JSON routes per aggregate" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "NodeProjectGenerator", definition: "Generates complete Node/TypeScript project with package.json" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OutputDir" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
-      attribute :output_dir, String
+      attribute :domain_name, DomainName
+      attribute :output_dir, OutputDir
     end
   end
 
   aggregate "NodeGenerator", definition: "Top-level coordinator delegating to all Node sub-generators" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OutputDir" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
-      attribute :output_dir, String
+      attribute :domain_name, DomainName
+      attribute :output_dir, OutputDir
     end
   end
 
   aggregate "GoCodeBuilder", definition: "Fluent builder for Go source files: packages, imports, structs, methods" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "TypeName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "MethodName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Params" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Struct" do
-      attribute :name, String
+      attribute :name, Name
     end
 
     command "Receiver" do
-      attribute :type_name, String
-      attribute :method_name, String
+      attribute :type_name, TypeName
+      attribute :method_name, MethodName
     end
 
     command "Func" do
-      attribute :name, String
-      attribute :params, String
+      attribute :name, Name
+      attribute :params, Params
     end
 
     command "Render" do
-      attribute :package, String
+      attribute :package, Package
     end
   end
 
   aggregate "GoUtils", definition: "Naming and type mapping: Ruby types to Go types, case conversion" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AttributeName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Input" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "GoType" do
-      attribute :attribute_name, String
+      attribute :attribute_name, AttributeName
     end
 
     command "PascalCase" do
-      attribute :input, String
+      attribute :input, Input
     end
   end
 
   aggregate "GoAggregateGenerator", definition: "Generates Go struct for aggregate root with validations" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :aggregate_name, String
-      attribute :package, String
+      attribute :aggregate_name, AggregateName
+      attribute :package, Package
     end
   end
 
   aggregate "GoCommandGenerator", definition: "Generates Go command struct with Execute method" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :command_name, String
-      attribute :aggregate_name, String
+      attribute :command_name, CommandName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "GoEventGenerator", definition: "Generates immutable Go event struct with OccurredAt" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :event_name, String
-      attribute :aggregate_name, String
+      attribute :event_name, EventName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "GoLifecycleGenerator", definition: "Generates Go lifecycle: status type, state constants, transitions" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :aggregate_name, String
-      attribute :package, String
+      attribute :aggregate_name, AggregateName
+      attribute :package, Package
     end
   end
 
   aggregate "GoPolicyGenerator", definition: "Generates Go reactive policy structs wired to event bus" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "PolicyName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :policy_name, String
-      attribute :package, String
+      attribute :policy_name, PolicyName
+      attribute :package, Package
     end
   end
 
   aggregate "GoQueryGenerator", definition: "Generates Go query functions with field-matching filter" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "QueryName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :query_name, String
-      attribute :aggregate_name, String
+      attribute :query_name, QueryName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "GoSpecificationGenerator", definition: "Generates Go specification structs with SatisfiedBy predicate" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "SpecName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :spec_name, String
-      attribute :aggregate_name, String
+      attribute :spec_name, SpecName
+      attribute :aggregate_name, AggregateName
     end
   end
 
   aggregate "GoValueObjectGenerator", definition: "Generates Go struct for value objects with constructor validation" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ValueObjectName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :value_object_name, String
-      attribute :package, String
+      attribute :value_object_name, ValueObjectName
+      attribute :package, Package
     end
   end
 
   aggregate "GoPortGenerator", definition: "Generates Go interface for repository ports" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :aggregate_name, String
-      attribute :package, String
+      attribute :aggregate_name, AggregateName
+      attribute :package, Package
     end
   end
 
   aggregate "GoMemoryAdapterGenerator", definition: "Generates Go in-memory repository using sync.RWMutex" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :aggregate_name, String
-      attribute :package, String
+      attribute :aggregate_name, AggregateName
+      attribute :package, Package
     end
   end
 
   aggregate "GoErrorsGenerator", definition: "Generates Go error types matching the hecks error hierarchy" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Package" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :package, String
+      attribute :package, Package
     end
   end
 
   aggregate "GoApplicationGenerator", definition: "Generates Go runtime entry point with command dispatch" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ModulePath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :module_path, String
+      attribute :module_path, ModulePath
     end
   end
 
@@ -214,45 +544,115 @@ Hecks.bluebook "Targets", version: "2026.04.11.1" do
 
   aggregate "GoRegisterGenerator", definition: "Generates init() that self-registers domain with registry" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ModulePath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
-      attribute :module_path, String
+      attribute :domain_name, DomainName
+      attribute :module_path, ModulePath
     end
   end
 
   aggregate "GoServerGenerator", definition: "Generates Go HTTP server with JSON API, HTML UI, and behavior routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ModulePath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
-      attribute :module_path, String
+      attribute :domain_name, DomainName
+      attribute :module_path, ModulePath
     end
   end
 
   aggregate "DataRoutes", definition: "Mixin generating Go JSON API CRUD routes for each aggregate" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "HtmlRoutes", definition: "Mixin generating Go HTML index/show routes for each aggregate" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "UIRoutes", definition: "Mixin generating Go form submission and new-entity routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "DomainBehaviorRoutes", definition: "Mixin generating Go event, query, scope, and specification routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
@@ -264,8 +664,18 @@ Hecks.bluebook "Targets", version: "2026.04.11.1" do
 
   aggregate "GoViewGenerator", definition: "Converts ERB templates to Go html/template syntax" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "TemplateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Convert" do
-      attribute :template_name, String
+      attribute :template_name, TemplateName
     end
   end
 
@@ -289,130 +699,325 @@ Hecks.bluebook "Targets", version: "2026.04.11.1" do
 
   aggregate "GoProjectGenerator", definition: "Generates complete Go project: structs, commands, server, go.mod" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OutputDir" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
-      attribute :output_dir, String
+      attribute :domain_name, DomainName
+      attribute :output_dir, OutputDir
     end
   end
 
   aggregate "GoMultiProjectGenerator", definition: "Generates multi-domain Go project with shared runtime" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "OutputDir" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :output_dir, String
+      attribute :output_dir, OutputDir
     end
   end
 
   aggregate "GoMultiServerGenerator", definition: "Generates combined Go HTTP server routing across bounded contexts" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "ModulePath" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :module_path, String
+      attribute :module_path, ModulePath
     end
   end
 
   aggregate "BinaryBuilder", definition: "Compiles domain into native binary via Go target" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OutputDir" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Build" do
-      attribute :domain_id, String
-      attribute :output_dir, String
+      attribute :domain_id, DomainId
+      attribute :output_dir, OutputDir
     end
   end
 
   aggregate "EntryPointGenerator", definition: "Generates lib/<gem>.rb autoloads and boot.rb wiring" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "RuntimeWriter", definition: "Copies runtime templates into generated gem, replacing module placeholder" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainModule" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_module, String
+      attribute :domain_module, DomainModule
     end
   end
 
   aggregate "RubyServerGenerator", definition: "Generates domain-specific HTTP server with aggregate routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "DomainRoutes", definition: "Mixin generating query, scope, specification, and event log routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "RubyUIGenerator", definition: "Generates route handlers that prepare data and render ERB templates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "FormRoutes", definition: "Mixin generating new/create form routes for each aggregate command" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "ConfigRoutes", definition: "Mixin generating config and reboot UI routes" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "ShowRoute", definition: "Mixin generating show page route for individual aggregates" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "DomainWriter", definition: "Mixin generating domain aggregate and command files for static gem" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "BootWiring", definition: "Mixin generating boot method and command/query/policy wiring" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "Generate" do
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
     end
   end
 
   aggregate "TypescriptGenerator", definition: "Generates TypeScript type definitions from domain IR" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OutputDir" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "GenerateTypescript" do
-      attribute :domain_id, String
-      attribute :output_dir, String
+      attribute :domain_id, DomainId
+      attribute :output_dir, OutputDir
     end
   end
 
   aggregate "JsonSchemaGenerator", definition: "Generates JSON Schema from domain aggregate structure" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "AggregateId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "GenerateJsonSchema" do
-      attribute :aggregate_id, String
+      attribute :aggregate_id, AggregateId
     end
   end
 
   aggregate "OpenapiGenerator", definition: "Generates OpenAPI 3.0 specification from domain IR" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "GenerateOpenapi" do
-      attribute :domain_id, String
+      attribute :domain_id, DomainId
     end
   end
 
   aggregate "RpcDiscovery", definition: "Generates RPC service discovery manifest from domain commands" do
 
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainId" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+
     command "GenerateRpcDiscovery" do
-      attribute :domain_id, String
+      attribute :domain_id, DomainId
     end
   end
 end

@@ -1,137 +1,248 @@
-# storehouse-mcp — Tools.* as MCP
+# storehouse-mcp — universal bluebook bus as MCP
 
-`tooling/storehouse-mcp/` is a small MCP server that exposes every
-`Tools.*` command on the Hecks bus as a native MCP tool. Combined
-with project-level deny rules on native `Bash` / `Read` / `Edit` /
-`Write` / `Grep` / `Glob`, the MCP becomes the only dispatch channel
-Claude has — every filesystem and shell operation flows through the
-bus, every operation emits a domain event, every operation is
-audited as a Tools aggregate record.
+`tooling/storehouse-mcp/` is a Node-based MCP server that exposes the
+Hecks bluebook bus to Claude Code. The surface is intentionally tiny :
+one universal dispatcher plus discovery and developer-workflow tools.
+The LLM constructs verb strings dynamically from the IR catalog ;
+nothing is hand-registered per bluebook command.
 
 ## Why
 
-The discipline is from the `Tools.bluebook` (`hecks_conception/aggregates/framework/tools/tools.bluebook`):
+The discipline comes from the Tools bluebook
+(`hecks_conception/aggregates/framework/tools/`):
 
-> First-class tool invocations as dispatched commands. […] This
-> bluebook lifts each invocation into a domain command so every tool
-> use emits an event the runtime can react to.
+> First-class tool invocations as dispatched commands. This bluebook
+> lifts each invocation into a domain command so every tool use emits
+> an event the runtime can react to.
 
-Before this MCP existed, the Tools.* dispatches were available but
-optional — Claude could call native `Bash` and the bus would see
-nothing. With the MCP installed and the native tools denied at the
-project layer, the discipline is structural rather than aspirational.
-Claude has no escape hatch.
+Every filesystem and shell operation flows through the bus as a
+`Tools::ShellTool.Bash`, `Tools::FileTool.Read`, etc. dispatch —
+each one emits a domain event, each one is audited as an aggregate
+record. The MCP makes that structural : Claude has no escape hatch.
 
-## The nine tools
+## The ten tools
 
-| MCP tool name                       | Dispatches             | Maps to native |
-|-------------------------------------|------------------------|----------------|
-| `mcp__storehouse__storehouse__bash`         | `Tools.Bash`           | `Bash`         |
-| `mcp__storehouse__storehouse__read`         | `Tools.Read`           | `Read`         |
-| `mcp__storehouse__storehouse__edit`         | `Tools.Edit`           | `Edit`         |
-| `mcp__storehouse__storehouse__update`       | `Tools.Update`         | `Write`        |
-| `mcp__storehouse__storehouse__grep`         | `Tools.Grep`           | `Grep`         |
-| `mcp__storehouse__storehouse__glob`         | `Tools.Glob`           | `Glob`         |
-| `mcp__storehouse__storehouse__web_fetch`    | `Tools.WebFetch`       | `WebFetch`     |
-| `mcp__storehouse__storehouse__web_search`   | `Tools.WebSearch`      | `WebSearch`    |
-| `mcp__storehouse__storehouse__record_result`| `Tools.RecordResult`   | (kernel hook)  |
+| MCP tool name                              | CLI subcommand                           | Purpose |
+|--------------------------------------------|------------------------------------------|---------|
+| `storehouse__dispatch`                     | `storehouse <root> <FQN.Command> k=v …`  | Universal command door — any bluebook command |
+| `storehouse__query`                        | `storehouse query <root> <FQN.verb> k=v …` | Read-only counterpart ; enforces snake_case verb-tail |
+| `storehouse__state`                        | `storehouse state <root> <Aggregate> <id>` | Read a single aggregate record |
+| `storehouse__catalog`                      | `storehouse dump <bluebook>`             | Full canonical-IR JSON for one bluebook |
+| `storehouse__describe_aggregate`           | `storehouse describe <bluebook> <agg>`   | Canonical-IR JSON for one aggregate |
+| `storehouse__list_aggregates`              | `storehouse parse <bluebook>`            | Aggregate names + counts |
+| `storehouse__validate`                     | `storehouse validate <bluebook>`         | Parse + DDD consistency check |
+| `storehouse__macrophage_check`             | `storehouse macrophage` (stdin)          | Spot-check a file path against the macrophage |
+| `storehouse__behaviors`                    | `storehouse behaviors <path>`            | Run a `.behaviors` test suite |
+| `storehouse__conceive_behaviors`           | `storehouse conceive <bluebook>`         | Generate a behaviors companion |
 
-Every tool takes a stable `id` (ULID-ish ; the bluebook persists by
-id so RecordResult joins back to the originating dispatch) plus an
-optional `description`. The tool-specific attrs match the bluebook
-command contract exactly.
+## FQN address format
+
+Commands and queries require a fully-qualified name :
+
+```
+Domain::Aggregate.Command       # PascalCase tail → command
+Domain::Aggregate.snake_case    # snake_case tail → query
+```
+
+Examples of required FQNs :
+
+| Old short-form (retired) | Required FQN |
+|--------------------------|--------------|
+| `Tools.Bash`             | `Tools::ShellTool.Bash` |
+| `Tools.Read`             | `Tools::FileTool.Read` |
+| `Tools.Edit`             | `Tools::FileTool.Edit` |
+| `Tools.Grep`             | `Tools::SearchTool.Grep` |
+| `Tools.WebFetch`         | `Tools::WebTool.WebFetch` |
+| `Tools.RecordResult`     | `Tools::Cascade.RecordResult` |
+
+Bare `Command` or `Aggregate.Command` (no `Domain::` prefix) returns
+an "short-form address" error from the runtime.
+
+## Calling pattern — three-zoom discovery
+
+The LLM discovers what is callable through nested zooms before
+dispatching :
+
+1. `storehouse__list_aggregates` — find the aggregate names in a bluebook.
+2. `storehouse__describe_aggregate` — full IR for one aggregate (commands, queries, attributes, value objects, lifecycle).
+3. `storehouse__catalog` — full IR for the whole bluebook when a wide-angle index is needed.
+
+Then construct the FQN verb string and call `storehouse__dispatch` (or
+`storehouse__query` for explicit read-only intent). The runtime
+auto-detects command vs. query from the bluebook's lexicon ; the query
+tool is a shape-gated alias.
+
+## Resources
+
+`storehouse://events` — live tail of `$HECKS_AGENT_EVENT_STREAM`
+(default `/tmp/miette_agent_events.jsonl`). Subscribe to receive
+`notifications/resources/updated` whenever the file grows ; then call
+`resources/read` to fetch new content.
 
 ## Setup
 
-The MCP is wired up by two files at the project root :
-
-1. `.mcp.json` registers the server with Claude Code as a stdio MCP.
-2. `.claude/settings.json` denies the native Bash / Read / Edit /
-   Write / Grep / Glob / WebFetch / WebSearch tools and allows the
-   nine `mcp__storehouse__*` tools.
+The server is registered in `$PROJECT_ROOT/.mcp.json` (project-scoped).
+Claude Code reads this on startup.
 
 ### First-time install
 
 ```sh
 cp .mcp.json.example .mcp.json
-cd tooling/storehouse-mcp
+cd /Users/christopheryoung/Projects/hecks/tooling/storehouse-mcp
 npm install
 ```
 
-The `.mcp.json` file is gitignored (it can contain user-specific
-credentials) so the committed template is `.mcp.json.example`. Copy
-it once per checkout.
-
-Then start a new Claude Code session in the project root. The first
-time, Claude will prompt to approve the project-scoped MCP server.
-After approval, the storehouse tools become available and the native
-ones return permission-denied.
+`.mcp.json` is gitignored (may contain user-specific paths). The
+committed template is `.mcp.json.example`. Copy it once per checkout,
+then restart Claude Code to load the server.
 
 ### Verifying
 
 ```sh
-cd tooling/storehouse-mcp
-npm run smoke
-```
+# Full smoke — boots server, lists tools/resources, exercises every
+# tool, subscribes to events, asserts resources/updated fires.
+node /Users/christopheryoung/Projects/hecks/tooling/storehouse-mcp/test/cli_smoke.mjs
 
-Boots the server in a sub-process, lists tools, dispatches
-`storehouse__bash` + `storehouse__read` + `storehouse__record_result`,
-asserts each round-trip carries the expected aggregate state. Exit 0
-on green.
-
-### Manual probe
-
-You can also dispatch directly via the CLI to confirm the underlying
-contract :
-
-```sh
-storehouse hecks_conception Tools.Bash shell_command="echo mcp-test" id=manual-001
-# → [claude_tool:bash] ok=true exit=0 output="mcp-test\n"
-#   {"aggregate":"Tools","id":"manual-001","ok":true,"state":{...}}
+# Sanity-boot only (no MCP frames sent) :
+node /Users/christopheryoung/Projects/hecks/tooling/storehouse-mcp/src/server.mjs < /dev/null
+# → [storehouse-mcp] connected, 10 tools + storehouse://events resource registered
 ```
 
 ## Env vars
 
-| Var                          | Default            | What it does |
-|------------------------------|--------------------|--------------|
-| `STOREHOUSE_BIN`             | `storehouse`       | Path to the storehouse binary (default uses `$PATH`) |
-| `STOREHOUSE_ROOT`            | auto-resolved      | Bluebook root dir. Walks up from the MCP source to find `hecks_conception/` when unset |
-| `STOREHOUSE_MCP_QUALIFIED`   | `false`            | When `true`, uses fully-qualified dispatch paths (`framework::tools::ShellTool::Bash` etc) — flip on once the Tools.bluebook split merges to main |
+| Var                        | Default            | What it does |
+|----------------------------|--------------------|--------------|
+| `STOREHOUSE_BIN`           | `storehouse`       | Path to the storehouse binary (default uses `$PATH`) |
+| `STOREHOUSE_ROOT`          | auto-resolved      | Bluebook root dir ; walks up from MCP source to find `hecks_conception/` when unset |
+| `HECKS_AGENT_EVENT_STREAM` | `/tmp/miette_agent_events.jsonl` | JSONL file the runtime writes events to ; must match on both sides |
 
 ## How it works
 
 ```
-Claude tool call             MCP server                  storehouse CLI            Runtime
-─────────────────────────────────────────────────────────────────────────────────────────────
-storehouse__bash(           → registerTool handler →    spawn("storehouse",   →    dispatches
-  id="t1",                                              "hecks_conception",        Tools.Bash,
-  shell_command="echo hi")                              "Tools.Bash",              emits BashRan,
-                                                        "id=t1",                   :claude_tool
-                                                        "shell_command=...")       hook runs shell
-                            ← parsed JSON state ←       ← stdout JSON line ←       ← stdout/exit
-content + structuredContent ←
+Claude tool call                  MCP server               storehouse CLI      Runtime
+──────────────────────────────────────────────────────────────────────────────────────
+storehouse__dispatch(           → CLI runner →            spawn(          →   dispatches
+  root="hecks_conception",                                "storehouse",       Tools::ShellTool.Bash,
+  command="Tools::ShellTool.Bash",                        "hecks_conception", emits BashRan,
+  args={id:"t1",                                          "Tools::ShellTool.Bash", :claude_tool
+        shell_command:"echo hi"})                         "id=t1",            hook runs shell
+                                                          "shell_command=…")
+                                ← parsed JSON state ←    ← stdout JSON ←     ← stdout/exit
+structuredContent ←
 ```
 
 The MCP is a thin wrapper. It owns no domain logic ; it spawns the
-storehouse binary, parses the JSON line out of stdout (skipping the
-`[claude_tool:...]` side-effect trace lines), and returns the parsed
-object as the tool response's `structuredContent`. Side-effect lines
-and raw stdout/stderr are returned too for debugging.
+storehouse binary, parses the JSON state line from stdout (skipping
+`[claude_tool:…]` side-effect trace lines), and returns the parsed
+object as `structuredContent`. Raw stdout/stderr are included for
+debugging.
+
+## Examples
+
+### Dispatch a shell command through the bus
+
+```jsonc
+// storehouse__dispatch
+{
+  "root": "hecks_conception",
+  "command": "Tools::ShellTool.Bash",
+  "args": {
+    "id": "t1",
+    "shell_command": "echo mcp-test"
+  }
+}
+// → { "ok": true, "aggregate": "ShellTool", "id": "t1",
+//     "state": { "exit": 0, "output": "mcp-test\n" } }
+```
+
+### Discovery flow — three-zoom calling pattern
+
+```jsonc
+// 1. What aggregates live in the Tools domain?
+// storehouse__list_aggregates
+{ "bluebook": "hecks_conception/aggregates/framework/tools/shell_tool.bluebook" }
+// → { "aggregates": ["ShellTool"], "command_count": 3, "query_count": 1 }
+
+// 2. What commands does ShellTool expose?
+// storehouse__describe_aggregate
+{
+  "bluebook": "hecks_conception/aggregates/framework/tools/shell_tool.bluebook",
+  "aggregate": "ShellTool"
+}
+// → full IR: commands, queries, attributes, value objects, lifecycle
+
+// 3. Dispatch now that the schema is known.
+// storehouse__dispatch
+{
+  "root": "hecks_conception",
+  "command": "Tools::ShellTool.Bash",
+  "args": { "id": "t1", "shell_command": "echo hello" }
+}
+```
+
+### Read a specific record by id
+
+```jsonc
+// storehouse__state
+{
+  "root": "hecks_conception",
+  "aggregate": "ShellTool",
+  "id": "t1"
+}
+// → { "ok": true, "aggregate": "ShellTool", "id": "t1",
+//     "state": { "exit": 0, "output": "hello\n" } }
+// Missing record: ok:false, state:null — not an error.
+```
+
+### Query with snake_case verb (read-only)
+
+```jsonc
+// storehouse__query — accepted (snake_case tail)
+{
+  "root": "hecks_conception",
+  "command": "Tools::ShellTool.recent_runs",
+  "args": { "limit": "5" }
+}
+
+// storehouse__query — rejected (PascalCase tail is a command, not a query)
+{
+  "root": "hecks_conception",
+  "command": "Tools::ShellTool.Bash",   // ← error: PascalCase tail disallowed in query tool
+  "args": { "id": "t1", "shell_command": "echo hi" }
+}
+```
+
+## Troubleshooting
+
+- **Tools don't appear after restart** — check Claude Code's MCP
+  diagnostics panel. The server's stderr line
+  `[storehouse-mcp] connected, …` should appear there.
+- **`storehouse: command not found`** — set `STOREHOUSE_BIN` to the
+  absolute path. The `.mcp.json` already points at
+  `$PROJECT_ROOT/rust/target/release/storehouse`.
+- **No events arriving** — confirm `HECKS_AGENT_EVENT_STREAM` matches
+  what the runtime writes and what the MCP server reads. Both sides
+  must agree on the path.
+- **"short-form address" error from dispatch** — the runtime requires
+  `Domain::Aggregate.Command` (PascalCase) or
+  `Domain::Aggregate.snake_case` (queries). Bare `Command` or
+  `Aggregate.Command` no longer works.
 
 ## Files
 
-| Path                                            | What it is |
-|-------------------------------------------------|------------|
-| `tooling/storehouse-mcp/src/server.mjs`         | MCP server entry — boots `McpServer`, registers tools, connects stdio transport |
-| `tooling/storehouse-mcp/src/tools.mjs`          | Tool registry — name, description, Zod input schema, encode fn, verb |
-| `tooling/storehouse-mcp/src/dispatch.mjs`       | The `storehouse` shell-out — spawns the CLI, parses JSON, returns the result |
-| `tooling/storehouse-mcp/test/smoke.mjs`         | End-to-end smoke test, MCP-protocol level |
-| `tooling/storehouse-mcp/package.json`           | npm manifest |
-| `.mcp.json.example`                             | Committed template ; copy to `.mcp.json` (which is gitignored) to register the server |
-| `.claude/settings.json`                         | Deny native tools, allow `mcp__storehouse__*` |
+| Path                                                    | What it is |
+|---------------------------------------------------------|------------|
+| `tooling/storehouse-mcp/src/server.mjs`                 | stdio MCP server — registers tools + events resource |
+| `tooling/storehouse-mcp/src/tools.mjs`                  | Tool registry (all 10 CLI-shaped tools) |
+| `tooling/storehouse-mcp/src/cli_dispatch.mjs`           | Shared `storehouse <subcommand>` runner |
+| `tooling/storehouse-mcp/src/events.mjs`                 | `storehouse://events` resource + JSONL tail watcher |
+| `tooling/storehouse-mcp/src/defs/cli/*.mjs`             | One def per tool (10 files) |
+| `tooling/storehouse-mcp/test/cli_smoke.mjs`             | End-to-end smoke test |
+| `.mcp.json.example`                                     | Committed template ; copy to `.mcp.json` to register |
+| `.claude/settings.json`                                 | Deny native tools, allow `mcp__storehouse__*` |
 
 ## See also
 
-- `hecks_conception/aggregates/framework/tools/tools.bluebook` — the contract
+- `hecks_conception/aggregates/framework/tools/` — the bluebook contracts
 - [`docs/usage/tools.md`](tools.md) — the dispatch story end-to-end
-- `hecks_conception/inbox/i552.md` — Claude → StoreHouse direction
+- `tooling/storehouse-mcp/SETUP.md` — installation reference

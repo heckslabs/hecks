@@ -1,0 +1,106 @@
+// dispatch.mjs — storehouse__dispatch
+//             → `storehouse <aggregates_dir> <Verb> k=v ...`
+//
+// The universal door : dispatch any bluebook command or query against
+// any aggregates root. The runtime hydrates the .heki stores under
+// aggregates_dir, applies the command, persists, and prints the
+// resulting state JSON.
+//
+// command form examples (fully-qualified Domain::Aggregate.Command for
+// commands, Domain::Aggregate.snake_case for queries) :
+//   "Sandbox::Session.RecordNote"
+//   "Tools::ShellTool.Bash"
+//   "PigeonCoop::Coop.AdmitPigeon"
+//
+// args is a free-form object of key=value attribute pairs. Values are
+// stringified and joined as `key=value` on the CLI. The runtime parses
+// types according to the bluebook's attribute schema.
+
+import { z } from "zod";
+import { spawn } from "node:child_process";
+
+const STOREHOUSE_BIN = process.env.STOREHOUSE_BIN || "storehouse";
+
+function encodeAttrs(args) {
+  const out = [];
+  for (const [k, v] of Object.entries(args || {})) {
+    if (v === undefined || v === null) continue;
+    out.push(`${k}=${String(v)}`);
+  }
+  return out;
+}
+
+function dispatchProcess(aggregatesDir, command, attrArgs) {
+  return new Promise((resolve, reject) => {
+    const argv = [aggregatesDir, command, ...attrArgs];
+    const child = spawn(STOREHOUSE_BIN, argv, {
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d.toString()));
+    child.stderr.on("data", (d) => (stderr += d.toString()));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      const lines = stdout.split("\n").filter((l) => l.trim().length);
+      let parsed = null;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const ln = lines[i].trim();
+        if (!ln.startsWith("{")) continue;
+        try {
+          parsed = JSON.parse(ln);
+          break;
+        } catch {
+          // keep scanning
+        }
+      }
+      resolve({
+        ok: code === 0 && (parsed?.ok !== false),
+        exit_code: code,
+        command,
+        aggregates_dir: aggregatesDir,
+        stdout,
+        stderr,
+        state: parsed,
+      });
+    });
+  });
+}
+
+export default {
+  name: "storehouse__dispatch",
+  title: "Dispatch a Bluebook Command or Query",
+  description:
+    "The universal door. Dispatch any bluebook command or query against any aggregates root. Shells `storehouse <aggregates_dir> <command> k=v ...`. command is the FQN — PascalCase for commands (e.g. 'Sandbox::Session.RecordNote') or snake_case for queries (e.g. 'World::Hecks.current_state'). args is an object of attribute key/values. Returns the runtime's state JSON in structuredContent.state. Use storehouse__catalog or storehouse__describe_aggregate first to discover what's callable.",
+  inputSchema: {
+    aggregates_dir: z
+      .string()
+      .min(1)
+      .describe(
+        "Absolute path to the aggregates root (e.g. /Users/.../hecks_conception) or a single bluebook file.",
+      ),
+    command: z
+      .string()
+      .min(1)
+      .describe(
+        "Fully-qualified verb — Domain::Aggregate.Command for commands, Domain::Aggregate.snake_case for queries.",
+      ),
+    args: z
+      .record(z.any())
+      .optional()
+      .describe(
+        "Key/value pairs for the command's attributes. Values are stringified to key=value on the CLI.",
+      ),
+  },
+  async run(input) {
+    const attrArgs = encodeAttrs(input.args || {});
+    const result = await dispatchProcess(input.aggregates_dir, input.command, attrArgs);
+    const summary = result.stdout || result.stderr || `exit=${result.exit_code}`;
+    return {
+      content: [{ type: "text", text: summary }],
+      structuredContent: result,
+      isError: result.ok === false,
+    };
+  },
+};

@@ -60,12 +60,57 @@ pub fn extract_string(line: &str) -> Option<String> {
     None
 }
 
+/// Two-string-form helper for `aggregate "Name", "Description" do` and
+/// the matching `command`/`entity` shapes. Returns the UNESCAPED second
+/// string — escape-aware throughout, mirroring `extract_string` above.
+/// Embedded `\"` sequences in either string no longer prematurely
+/// terminate parsing (the prior naïve `find('"')` scan truncated
+/// descriptions containing escaped quotes — drift caught on
+/// infrastructure.bluebook's adapter-family description).
 pub fn extract_second_string(line: &str) -> Option<String> {
-    let first_end = line.find('"')? + 1;
-    let after_first = line[first_end..].find('"')? + first_end + 1;
-    let start = line[after_first..].find('"')? + after_first + 1;
-    let end = line[start..].find('"')? + start;
-    Some(line[start..end].to_string())
+    // Skip past the first string with escape awareness.
+    let first_open = line.find('"')? + 1;
+    let mut idx = first_open;
+    let bytes = line.as_bytes();
+    while idx < bytes.len() {
+        let b = bytes[idx];
+        if b == b'\\' && idx + 1 < bytes.len() {
+            idx += 2;
+            continue;
+        }
+        if b == b'"' {
+            idx += 1;
+            break;
+        }
+        idx += 1;
+    }
+    // Locate opening quote of the second string.
+    let second_open_offset = line[idx..].find('"')?;
+    let second_open = idx + second_open_offset + 1;
+    // Read second string, unescaping the recognised set (mirrors
+    // extract_string's behaviour : unknown `\X` collapses to `X`).
+    let mut out = String::new();
+    let mut chars = line[second_open..].chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('"')  => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some('n')  => out.push('\n'),
+                Some('t')  => out.push('\t'),
+                Some('r')  => out.push('\r'),
+                Some('0')  => out.push('\0'),
+                Some(other) => out.push(other),
+                None => return None,
+            }
+            continue;
+        }
+        if c == '"' {
+            return Some(out);
+        }
+        out.push(c);
+    }
+    None
 }
 
 pub fn extract_symbol(line: &str) -> Option<String> {

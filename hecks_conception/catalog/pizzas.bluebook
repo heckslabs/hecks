@@ -3,9 +3,29 @@ Hecks.bluebook "Pizzas" do
   core
 
   aggregate "Pizza" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Amount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
     description "A pizza with toppings, pricing, and menu visibility"
-    attribute :name, String
-    attribute :description, String
+    attribute :name, Name
+    attribute :description, Description
     attribute :toppings, list_of(Topping)
 
     value_object "Topping" do
@@ -27,8 +47,8 @@ Hecks.bluebook "Pizzas" do
     command "CreatePizza" do
       role "Chef"
       goal "Add a new pizza to the menu"
-      attribute :name, String
-      attribute :description, String
+      attribute :name, Name
+      attribute :description, Description
       emits "PizzaCreated"
     end
 
@@ -36,8 +56,8 @@ Hecks.bluebook "Pizzas" do
       role "Chef"
       goal "Customize a pizza with ingredients"
       reference_to(Pizza)
-      attribute :name, String
-      attribute :amount, Integer
+      attribute :name, Name
+      attribute :amount, Amount
 
       given("max 10 toppings") { toppings.size < 10 }
       then_set :toppings, append: { name: :name, amount: :amount }
@@ -50,8 +70,28 @@ Hecks.bluebook "Pizzas" do
   end
 
   aggregate "Order" do
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CustomerName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Quantity" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
     description "A customer order referencing a pizza with status tracking"
-    attribute :customer_name, String
+    attribute :customer_name, CustomerName
     attribute :items, list_of(OrderItem)
     reference_to(Pizza)
 
@@ -66,7 +106,7 @@ Hecks.bluebook "Pizzas" do
       attribute :status_label, default: "pending"
     end
 
-    attribute :status, String, default: "pending"
+    attribute :status, Status, default: "pending"
     lifecycle :status, default: "pending" do
       transition "CancelOrder" => "cancelled"
     end
@@ -75,8 +115,8 @@ Hecks.bluebook "Pizzas" do
       role "Customer"
       goal "Order a pizza for delivery or pickup"
       reference_to(Pizza)
-      attribute :customer_name, String
-      attribute :quantity, Integer
+      attribute :customer_name, CustomerName
+      attribute :quantity, Quantity
       emits "OrderPlaced"
     end
 

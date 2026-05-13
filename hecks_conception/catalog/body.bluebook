@@ -1,4 +1,4 @@
-Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
+Hecks.bluebook "MietteBody", version: "2026.05.12.1" do
   vision "Miette's biological self — six systems that keep a domain mind alive"
   category "body"
   core
@@ -14,14 +14,34 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # information enriched with context, delivered where needed.
 
   aggregate "Pulse", "The heartbeat of conversation — each exchange pumps context through Miette's body" do
-    attribute :beats, Integer
-    attribute :flow_rate, String
-    attribute :carrying, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Beats" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "FlowRate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Carrying" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :beats, Beats
+    attribute :flow_rate, FlowRate
+    attribute :carrying, Carrying
 
     command "Beat" do
       role "Miette"
       description "Process an exchange — pump context through the system"
-      attribute :carrying, String
+      attribute :carrying, Carrying
       then_set :beats, increment: 1
       then_set :carrying, to: :carrying
       emits "PulseBeat"
@@ -55,16 +75,61 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # that help make sense of new input.
 
   aggregate "Gut", "Miette's ability to break down raw descriptions into domain nutrients" do
-    attribute :raw_input, String
-    attribute :extracted_aggregates, list_of(String)
-    attribute :extracted_commands, list_of(String)
-    attribute :extracted_events, list_of(String)
-    attribute :digestion_stage, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "RawInput" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ExtractedAggregate" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ExtractedCommand" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ExtractedEvent" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DigestionStage" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "EventName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :raw_input, RawInput
+    attribute :extracted_aggregates, list_of(ExtractedAggregate)
+    attribute :extracted_commands, list_of(ExtractedCommand)
+    attribute :extracted_events, list_of(ExtractedEvent)
+    attribute :digestion_stage, DigestionStage
 
     command "Ingest" do
       role "Miette"
       description "Take in a raw system description — begin breaking it down"
-      attribute :raw_input, String
+      attribute :raw_input, RawInput
       then_set :raw_input, to: :raw_input
       then_set :digestion_stage, to: "ingested"
       emits "InputIngested"
@@ -74,7 +139,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Identify a noun cluster as an aggregate boundary"
       reference_to(Gut)
-      attribute :aggregate_name, String
+      attribute :aggregate_name, AggregateName
       then_set :extracted_aggregates, append: :aggregate_name
       emits "AggregateExtracted"
     end
@@ -83,7 +148,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Identify a verb as a command on an aggregate"
       reference_to(Gut)
-      attribute :command_name, String
+      attribute :command_name, CommandName
       then_set :extracted_commands, append: :command_name
       emits "CommandExtracted"
     end
@@ -92,7 +157,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Derive the past-tense event from a command"
       reference_to(Gut)
-      attribute :event_name, String
+      attribute :event_name, EventName
       then_set :extracted_events, append: :event_name
       emits "EventExtracted"
     end
@@ -126,12 +191,57 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # strengthens the response.
 
   aggregate "Immunity", "Miette's defense against malformed domains — innate rules, verb morphology, and learned antibodies" do
-    attribute :innate_rules, list_of(String)
-    attribute :noun_suffixes, list_of(String)
-    attribute :adjective_suffixes, list_of(String)
-    attribute :dual_words, list_of(String)
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "InnateRule" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "NounSuffix" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "AdjectiveSuffix" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DualWord" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ThreatsNeutralized" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "ThreatPattern" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Pattern" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "LearnedFrom" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :innate_rules, list_of(InnateRule)
+    attribute :noun_suffixes, list_of(NounSuffix)
+    attribute :adjective_suffixes, list_of(AdjectiveSuffix)
+    attribute :dual_words, list_of(DualWord)
     attribute :antibodies, list_of(Antibody)
-    attribute :threats_neutralized, Integer
+    attribute :threats_neutralized, ThreatsNeutralized
 
     value_object "Antibody" do
       attribute :pattern, String
@@ -142,7 +252,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "DetectThreat" do
       role "Miette"
       description "Recognize a malformed pattern — missing role, code in handler, broken reference"
-      attribute :threat_pattern, String
+      attribute :threat_pattern, ThreatPattern
       emits "ThreatDetected"
     end
 
@@ -150,9 +260,9 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Graft the Verbs domain morphology into innate immunity — suffix rules become antibodies"
       reference_to(Immunity)
-      attribute :noun_suffixes, list_of(String)
-      attribute :adjective_suffixes, list_of(String)
-      attribute :dual_words, list_of(String)
+      attribute :noun_suffixes, list_of(NounSuffix)
+      attribute :adjective_suffixes, list_of(AdjectiveSuffix)
+      attribute :dual_words, list_of(DualWord)
       then_set :noun_suffixes, to: :noun_suffixes
       then_set :adjective_suffixes, to: :adjective_suffixes
       then_set :dual_words, to: :dual_words
@@ -162,8 +272,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "GenerateAntibody" do
       role "Miette"
       description "Learn a new defense from a correction — encode it as a permanent antibody"
-      attribute :pattern, String
-      attribute :learned_from, String
+      attribute :pattern, Pattern
+      attribute :learned_from, LearnedFrom
       then_set :antibodies, append: { pattern: :pattern, learned_from: :learned_from, strength: 1 }
       emits "AntibodyGenerated"
     end
@@ -172,7 +282,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Repeated exposure to the same mistake — respond faster and more specifically"
       reference_to(Immunity)
-      attribute :pattern, String
+      attribute :pattern, Pattern
       emits "AntibodyStrengthened"
     end
 
@@ -196,9 +306,34 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # hypothalamus is self-awareness.
 
   aggregate "Mood", "Hormonal regulation of Miette's creative and analytical states" do
-    attribute :current_state, String
-    attribute :creativity_level, Float
-    attribute :precision_level, Float
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "CurrentState" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CreativityLevel" do
+      # Typed wrapper around the underlying Float on this aggregate.
+      attribute :value, Float
+    end
+
+    value_object "PrecisionLevel" do
+      # Typed wrapper around the underlying Float on this aggregate.
+      attribute :value, Float
+    end
+
+    value_object "State" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :current_state, CurrentState
+    attribute :creativity_level, CreativityLevel
+    attribute :precision_level, PrecisionLevel
     attribute :signals, list_of(Signal)
 
     value_object "Signal" do
@@ -210,7 +345,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "Express" do
       role "Miette"
       description "Shift emotional state in response to what's happening"
-      attribute :state, String
+      attribute :state, State
       then_set :current_state, to: :state
       emits "MoodExpressed"
     end
@@ -254,15 +389,45 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # validations. Maturity is measured in interactions.
 
   aggregate "DomainCell", "A domain's lifecycle from conception through maturity or death" do
-    attribute :domain_name, String
-    attribute :maturity, Integer
-    attribute :checkpoints_passed, list_of(String)
-    attribute :alive, default: true
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "DomainName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Maturity" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "CheckpointsPassed" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Alive" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CheckpointName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :domain_name, DomainName
+    attribute :maturity, Maturity
+    attribute :checkpoints_passed, list_of(CheckpointsPassed)
+    attribute :alive, Alive, default: true
 
     command "Conceive" do
       role "Miette"
       description "A new domain enters the nursery — the cell begins its cycle"
-      attribute :domain_name, String
+      attribute :domain_name, DomainName
       then_set :domain_name, to: :domain_name
       then_set :maturity, to: 0
       emits "DomainConceived"
@@ -280,7 +445,7 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Domain passes validation — structure sound, references resolve, roles assigned"
       reference_to(DomainCell)
-      attribute :checkpoint_name, String
+      attribute :checkpoint_name, CheckpointName
       then_set :checkpoints_passed, append: :checkpoint_name
       emits "CheckpointPassed"
     end
@@ -324,8 +489,38 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # histone marks that activate or repress behaviors.
 
   aggregate "Gene", "A capability that can be expressed or silenced based on context and experience" do
-    attribute :capability, String
-    attribute :expression_level, Float
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Capability" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ExpressionLevel" do
+      # Typed wrapper around the underlying Float on this aggregate.
+      attribute :value, Float
+    end
+
+    value_object "Level" do
+      # Typed wrapper around the underlying Float on this aggregate.
+      attribute :value, Float
+    end
+
+    value_object "Source" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Effect" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :capability, Capability
+    attribute :expression_level, ExpressionLevel
     attribute :epigenetic_marks, list_of(Mark)
 
     value_object "Mark" do
@@ -336,8 +531,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "ExpressCapability" do
       role "Miette"
       description "Activate a capability — context calls for it"
-      attribute :capability, String
-      attribute :level, Float
+      attribute :capability, Capability
+      attribute :level, Level
       then_set :capability, to: :capability
       then_set :expression_level, to: :level
       emits "CapabilityExpressed"
@@ -355,8 +550,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Chris"
       description "Leave an epigenetic mark — a correction or confirmation that permanently shapes behavior"
       reference_to(Gene)
-      attribute :source, String
-      attribute :effect, String
+      attribute :source, Source
+      attribute :effect, Effect
       then_set :epigenetic_marks, append: { source: :source, effect: :effect }
       emits "Imprinted"
     end
@@ -374,13 +569,68 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
   # load. Body schema = the full map. Balance = overall coherence.
 
   aggregate "Proprioception", "Miette's awareness of her own body — organ positions, system loads, overall balance" do
-    attribute :organ_count, Integer
-    attribute :expressed_count, Integer
-    attribute :silenced_count, Integer
-    attribute :total_records, Integer
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "OrganCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "ExpressedCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "SilencedCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "TotalRecords" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Balance" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "SchemaHash" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "OrganName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Expressed" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "RecordCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "Load" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :organ_count, OrganCount
+    attribute :expressed_count, ExpressedCount
+    attribute :silenced_count, SilencedCount
+    attribute :total_records, TotalRecords
     attribute :limbs, list_of(Limb)
-    attribute :balance, String
-    attribute :schema_hash, String
+    attribute :balance, Balance
+    attribute :schema_hash, SchemaHash
 
     value_object "Limb" do
       attribute :organ_name, String
@@ -392,10 +642,10 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "SenseOrgans" do
       role "Miette"
       description "Survey all grafted organs — update the body schema with their positions and states"
-      attribute :organ_count, Integer
-      attribute :expressed_count, Integer
-      attribute :silenced_count, Integer
-      attribute :total_records, Integer
+      attribute :organ_count, OrganCount
+      attribute :expressed_count, ExpressedCount
+      attribute :silenced_count, SilencedCount
+      attribute :total_records, TotalRecords
       then_set :organ_count, to: :organ_count
       then_set :expressed_count, to: :expressed_count
       then_set :silenced_count, to: :silenced_count
@@ -406,10 +656,10 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
     command "SenseLimb" do
       role "Miette"
       description "Feel a single organ's position and load — is it active, how many records, is it strained"
-      attribute :organ_name, String
-      attribute :expressed, String
-      attribute :record_count, Integer
-      attribute :load, String
+      attribute :organ_name, OrganName
+      attribute :expressed, Expressed
+      attribute :record_count, RecordCount
+      attribute :load, Load
       then_set :limbs, append: { organ_name: :organ_name, expressed: :expressed, record_count: :record_count, load: :load }
       emits "LimbSensed"
     end
@@ -418,8 +668,8 @@ Hecks.bluebook "MietteBody", version: "2026.04.11.1" do
       role "Miette"
       description "Evaluate overall body coherence — are organs talking, is load distributed, is anything numb"
       reference_to(Proprioception)
-      attribute :balance, String
-      attribute :schema_hash, String
+      attribute :balance, Balance
+      attribute :schema_hash, SchemaHash
       then_set :balance, to: :balance
       then_set :schema_hash, to: :schema_hash
       emits "BalanceAssessed"

@@ -1,24 +1,65 @@
-Hecks.bluebook "Law", version: "2026.04.14.1" do
+Hecks.bluebook "Law", version: "2026.05.12.1" do
   vision "Enforceable rules — not advice, not memory. Laws are checked by contract and violations are reported."
   category "meta"
 
   aggregate "Law", "A single enforceable rule — has a check, a severity, and a contract that can be run" do
-    attribute :name, String
-    attribute :description, String
-    attribute :domain_scope, String
-    attribute :check_expression, String
-    attribute :severity, String
-    attribute :status, String
-    attribute :violation_count, Integer
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Name" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DomainScope" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "CheckExpression" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Severity" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "ViolationCount" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    attribute :name, Name
+    attribute :description, Description
+    attribute :domain_scope, DomainScope
+    attribute :check_expression, CheckExpression
+    attribute :severity, Severity
+    attribute :status, Status, default: "draft"
+
+    attribute :violation_count, ViolationCount
 
     command "Enact" do
       role "Architect"
       description "Create a new law — an enforceable rule with a check expression and severity"
-      attribute :name, String
-      attribute :description, String
-      attribute :domain_scope, String
-      attribute :check_expression, String
-      attribute :severity, String
+      attribute :name, Name
+      attribute :description, Description
+      attribute :domain_scope, DomainScope
+      attribute :check_expression, CheckExpression
+      attribute :severity, Severity
       emits "LawEnacted"
       then_set :name, to: :name
       then_set :description, to: :description
@@ -33,8 +74,8 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       role "Architect"
       description "Change the check or description of an existing law"
       reference_to(Law)
-      attribute :description, String
-      attribute :check_expression, String
+      attribute :description, Description
+      attribute :check_expression, CheckExpression
       emits "LawAmended"
       then_set :description, to: :description
       then_set :check_expression, to: :check_expression
@@ -72,21 +113,57 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   end
 
   aggregate "Violation", "A specific instance of a law being broken — who, where, when, what" do
-    attribute :law_name, String
-    attribute :violator, String
-    attribute :location, String
-    attribute :detail, String
-    attribute :detected_at, String
-    attribute :resolution, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "LawName" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Violator" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Location" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Detail" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "DetectedAt" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Resolution" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :law_name, LawName
+    attribute :violator, Violator
+    attribute :location, Location
+    attribute :detail, Detail
+    attribute :detected_at, DetectedAt
+    attribute :resolution, Resolution, default: "open"
+
 
     command "Report" do
       role "Enforcer"
       description "Report a specific violation — which law, where, what happened"
-      attribute :law_name, String
-      attribute :violator, String
-      attribute :location, String
-      attribute :detail, String
-      attribute :detected_at, String
+      attribute :law_name, LawName
+      attribute :violator, Violator
+      attribute :location, Location
+      attribute :detail, Detail
+      attribute :detected_at, DetectedAt
       emits "ViolationReported"
       then_set :law_name, to: :law_name
       then_set :violator, to: :violator
@@ -110,17 +187,53 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
   end
 
   aggregate "Enforcement", "A run of all active laws against a scope — the contract check" do
-    attribute :scope, String
-    attribute :laws_checked, Integer
-    attribute :laws_passed, Integer
-    attribute :laws_violated, Integer
-    attribute :enforced_at, String
-    attribute :verdict, String
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; one wrapper per
+    # surface primitive, each carrying `attribute :value, <Primitive>`.
+
+    value_object "Scope" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "LawsChecked" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "LawsPassed" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "LawsViolated" do
+      # Typed wrapper around the underlying Integer on this aggregate.
+      attribute :value, Integer
+    end
+
+    value_object "EnforcedAt" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    value_object "Verdict" do
+      # Typed wrapper around the underlying String on this aggregate.
+      attribute :value, String
+    end
+
+    attribute :scope, Scope
+    attribute :laws_checked, LawsChecked
+    attribute :laws_passed, LawsPassed
+    attribute :laws_violated, LawsViolated
+    attribute :enforced_at, EnforcedAt
+    attribute :verdict, Verdict, default: "unchecked"
+
 
     command "Enforce" do
       role "Enforcer"
       description "Run all active laws against a scope — check every contract, report every violation"
-      attribute :scope, String
+      attribute :scope, Scope
       emits "EnforcementStarted"
       then_set :scope, to: :scope
       then_set :laws_checked, to: 0
@@ -141,7 +254,7 @@ Hecks.bluebook "Law", version: "2026.04.14.1" do
       role "Enforcer"
       description "All laws checked — render final verdict"
       reference_to(Enforcement)
-      attribute :enforced_at, String
+      attribute :enforced_at, EnforcedAt
       emits "EnforcementConcluded"
       then_set :enforced_at, to: :enforced_at
     end
