@@ -20,28 +20,58 @@ Hecks.bluebook "Call", version: "2026.04.28.1" do
 
   aggregate "Call", "One invocation of an LLM — provider, token counts, cost, and what command triggered it" do
     identified_by :ref
-    attribute :ref, String
-    attribute :provider, String
-    attribute :tokens_in, Integer
-    attribute :tokens_out, Integer
-    attribute :cost_usd, Float
-    attribute :command_ref, String
-    attribute :recorded_at, String
+    attribute :ref,         Ref
+    attribute :provider,    ProviderName
+    attribute :tokens_in,   TokenCount
+    attribute :tokens_out,  TokenCount
+    attribute :cost_usd,    UsdAmount
+    attribute :command_ref, CommandRef
+    attribute :recorded_at, Timestamp
+
+    value_object "Ref" do
+      # Stable identifier for this call record.
+      attribute :value, String
+    end
+
+    value_object "ProviderName" do
+      # LLM provider name (e.g. 'anthropic', 'openai').
+      attribute :value, String
+    end
+
+    value_object "TokenCount" do
+      # A token count (input or output).
+      attribute :value, Integer
+    end
+
+    value_object "UsdAmount" do
+      # Cost in U.S. dollars (Float for fractional cents).
+      attribute :value, Float
+    end
+
+    value_object "CommandRef" do
+      # The command that triggered the call (e.g. 'Speech.Speak:speech_42').
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp of when the call was recorded.
+      attribute :value, String
+    end
 
     command "RecordCall" do
       role "System"
       description "Record a single LLM invocation — provider, token counts, cost, and the command that triggered it"
-      attribute :provider, String
-      attribute :tokens_in, Integer
-      attribute :tokens_out, Integer
-      attribute :cost_usd, Float
-      attribute :command_ref, String
-      attribute :recorded_at, String
+      attribute :provider,    ProviderName
+      attribute :tokens_in,   TokenCount
+      attribute :tokens_out,  TokenCount
+      attribute :cost_usd,    UsdAmount
+      attribute :command_ref, CommandRef
+      attribute :recorded_at, Timestamp
       emits "CallRecorded"
-      then_set :provider, to: :provider
-      then_set :tokens_in, to: :tokens_in
-      then_set :tokens_out, to: :tokens_out
-      then_set :cost_usd, to: :cost_usd
+      then_set :provider,    to: :provider
+      then_set :tokens_in,   to: :tokens_in
+      then_set :tokens_out,  to: :tokens_out
+      then_set :cost_usd,    to: :cost_usd
       then_set :command_ref, to: :command_ref
       then_set :recorded_at, to: :recorded_at
     end
