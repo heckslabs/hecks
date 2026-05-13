@@ -3451,6 +3451,23 @@ fn run_macrophage(_args: &[String]) {
     }
 
     if matches!(kind, FileKind::Imperative) && !exempted {
+        // Scope check (2026-05-13) : the bluebook-first rule applies only to
+        // writes inside hecks-managed paths. Client repos (opt-website, emaho,
+        // embryonaut-site) aren't bluebook-backed yet ; firing the complaint
+        // on their edits is noise that paused the Lou Ann volunteer-page
+        // sidequest tonight. corpus_root_buf was already resolved above for
+        // the is_imperative_exempt lookup ; reuse it as the scope root. If
+        // the touched file_path is outside the corpus root, exit silently —
+        // the macrophage will not police repos it doesn't own. When a client
+        // site becomes bluebook-backed, its repo joins the tracked paths
+        // (future ClientSignOffMacrophage + tracked_repo_paths attribute).
+        if let Some(ref root) = corpus_root_buf {
+            let file_path_buf = std::path::Path::new(&file_path);
+            if !file_path_buf.starts_with(root) {
+                std::process::exit(0);
+            }
+        }
+
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let complaint = format!(
             "bluebook-first violation : {} wrote .{} ({}). The macrophage expected a \
