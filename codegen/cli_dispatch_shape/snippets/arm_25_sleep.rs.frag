@@ -9,7 +9,7 @@
     // wake_review.sh + interpret_dream.sh automatically), prints it to
     // stdout, exits 0.
     //
-    // Same family as run_loop / run_daemon / run_enforce_edit / run_clock
+    // Same family as run_loop / run_daemon / run_macrophage / run_clock
     // — kernel-surface CLI primitive. Bluebook brain (sleep.bluebook,
     // lucid_dream.bluebook) stays unchanged ; this just wires the
     // dispatch + heki polling + dream stream + wake-report read into a

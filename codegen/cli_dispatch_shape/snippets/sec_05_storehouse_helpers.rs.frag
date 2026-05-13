@@ -279,13 +279,59 @@ fn storehouse_collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehouseP
     }
 }
 
+/// Detect whether a CLI token is an `Aggregate.Command` dispatch (e.g.
+/// `Tools.Bash`, `Heartbeat.Beat`). Both segments must start uppercase ;
+/// the second must be non-empty. Used by the cross-repo dispatch
+/// shortcut at the top of `main` so callers can drop the explicit
+/// conception path. Sibling commands like `Some.Thing.Else` (more than
+/// one dot) still match — we just require the first dotted-pair to look
+/// PascalCase on both sides.
+fn looks_like_aggregate_command(s: &str) -> bool {
+    let mut parts = s.splitn(2, '.');
+    let head = match parts.next() { Some(h) => h, None => return false };
+    let tail = match parts.next() { Some(t) => t, None => return false };
+    if head.is_empty() || tail.is_empty() { return false; }
+    if !head.chars().next().map_or(false, |c| c.is_ascii_uppercase()) { return false; }
+    if !tail.chars().next().map_or(false, |c| c.is_ascii_uppercase()) { return false; }
+    // Reject anything containing path separators — those are file paths.
+    if s.contains('/') || s.contains('\\') { return false; }
+    true
+}
+
+/// Resolve the conception root (the `hecks_conception/` directory).
+///
+/// Resolution order — cross-repo accessibility (i518 follow-up) :
+///
+///   1. `HECKS_CONCEPTION_DIR` env var when set and non-empty. Lets a
+///      sibling project (`embryonaut-site`, `miette_family`, etc.) opt
+///      into its own conception path without changing argv.
+///   2. `repo_root()/hecks_conception/` when the canonicalised binary
+///      lives inside the hecks checkout (the historical case).
+///   3. `~/Projects/hecks/hecks_conception/` as a hard fallback so a
+///      symlinked binary on PATH (`~/bin/storehouse` →
+///      `~/Projects/hecks/rust/target/release/storehouse`) keeps
+///      dispatching even when invoked from `cd /tmp` or any other
+///      unrelated cwd. The `~` is expanded via the `$HOME` env var.
+///   4. `.` when nothing above resolves (preserves the prior return
+///      shape so existing callers don't observe a panic).
 fn storehouse_conception_root() -> String {
+    if let Ok(p) = env::var("HECKS_CONCEPTION_DIR") {
+        if !p.is_empty() {
+            return p;
+        }
+    }
     if let Some(root) = storehouse::heki::repo_root() {
         let conception = root.join("hecks_conception");
         if conception.is_dir() {
             return conception.to_string_lossy().into_owned();
         }
         return root.to_string_lossy().into_owned();
+    }
+    if let Ok(home) = env::var("HOME") {
+        let fallback = format!("{}/Projects/hecks/hecks_conception", home);
+        if std::path::Path::new(&fallback).is_dir() {
+            return fallback;
+        }
     }
     ".".into()
 }
