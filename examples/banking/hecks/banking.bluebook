@@ -257,6 +257,7 @@ Hecks.bluebook "Banking" do
     reference_to(Account, as: :destination)
     attribute :amount, Money
     attribute :memo,   Memo
+    attribute :steps,  list_of(TransferStep)
 
     value_object "TransferId" do
       attribute :value, String
@@ -287,6 +288,33 @@ Hecks.bluebook "Banking" do
       end
     end
 
+    value_object "StepKind" do
+      attribute :name, String
+      invariant "one of the saga step names" do
+        %w[initiated debited credited completed rejected].include?(name)
+      end
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant "looks like ISO-8601" do
+        iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+      end
+    end
+
+    # Each step of the saga gets a TransferStep entity appended to the
+    # steps list. Reading the list reads the audit trail : initiated →
+    # debited → credited → completed (happy path), or initiated → debited
+    # → rejected (insufficient funds on the destination side), or just
+    # initiated → rejected (source-side failure). The order in the list
+    # IS the order of events ; no separate timestamp sort needed.
+    entity "TransferStep" do
+      attribute :kind,   StepKind
+      attribute :at,     Timestamp
+      attribute :amount, Money
+      attribute :reason, Description
+    end
+
     lifecycle :status, default: "pending" do
       transition "CompleteTransfer" => "completed", from: "pending"
       transition "RejectTransfer"   => "rejected",  from: "pending"
@@ -296,8 +324,9 @@ Hecks.bluebook "Banking" do
       attribute :id, TransferId
       reference_to(Account, as: :source)
       reference_to(Account, as: :destination)
-      attribute :amount, Money
-      attribute :memo,   Memo
+      attribute :amount,       Money
+      attribute :memo,         Memo
+      attribute :initiated_at, Timestamp
       given { source_id != destination_id }                  # self-transfer guard
       given { amount.cents > 0 }
       emits "TransferInitiated"
@@ -306,17 +335,20 @@ Hecks.bluebook "Banking" do
       then_set :destination_id, to: :destination_id
       then_set :amount,         to: :amount
       then_set :memo,           to: :memo
+      then_set :steps, append: { kind: "initiated", at: :initiated_at, amount: :amount }
     end
 
     command "CompleteTransfer" do
       reference_to(Transfer)
       emits "TransferCompleted"
+      then_set :steps, append: { kind: "completed", at: :completed_at }
     end
 
     command "RejectTransfer" do
       reference_to(Transfer)
       attribute :reason, Description
       emits "TransferRejected"
+      then_set :steps, append: { kind: "rejected", reason: :reason, at: :rejected_at }
     end
 
     validation :amount, presence: true
@@ -360,6 +392,7 @@ Hecks.bluebook "Banking" do
     attribute :rate,              InterestRate
     attribute :term,              Term
     attribute :remaining_balance, Money
+    attribute :payments,          list_of(LoanPayment)
 
     value_object "LoanId" do
       attribute :value, String
@@ -401,6 +434,26 @@ Hecks.bluebook "Banking" do
       end
     end
 
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant "looks like ISO-8601" do
+        iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+      end
+    end
+
+    # Each payment on the loan gets a LoanPayment entity appended to
+    # the payments list. Reading the list IS the payment history :
+    # date, amount, post-payment remaining_balance. Servicing reports
+    # walk the list ; collections reads the gap between the last entry's
+    # at and "now" to surface delinquency. The PaymentDelinquent
+    # specification below uses this list once date-arithmetic primitives
+    # land.
+    entity "LoanPayment" do
+      attribute :amount,                 Money
+      attribute :at,                     Timestamp
+      attribute :remaining_after_payment, Money
+    end
+
     lifecycle :status, default: "active" do
       transition "DefaultLoan" => "defaulted", from: "active"
       transition "PayOffLoan"  => "paid_off",  from: "active"
@@ -429,11 +482,13 @@ Hecks.bluebook "Banking" do
     command "MakePayment" do
       reference_to(Loan)
       attribute :amount, Money
+      attribute :paid_at, Timestamp
       given { amount.cents > 0 }
       given { amount.cents <= remaining_balance.cents }      # cannot overpay
       given { amount.currency.code == remaining_balance.currency.code }
       emits "LoanPaymentMade"
       then_set :remaining_balance, decrement: :amount
+      then_set :payments, append: { amount: :amount, at: :paid_at, remaining_after_payment: :remaining_balance }
     end
 
     command "DefaultLoan" do
