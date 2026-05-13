@@ -289,6 +289,12 @@ Hecks.bluebook "PigeonCoop" do
       attribute :scheduled_for, Timestamp
     end
 
+    command "SendAnnouncement" do
+      reference_to Announcement
+      reference_to Person, as: :sent_by
+      requires "status" => "scheduled"
+    end
+
     query "Scheduled" do
       description "Every Announcement where status = scheduled, ordered by scheduled_for ascending — admin's upcoming-send view."
     end
@@ -614,6 +620,7 @@ Hecks.bluebook "PigeonCoop" do
     command "PublishArticle" do
       reference_to Article
       reference_to Person, as: :publisher
+      requires "status" => "draft"
     end
 
     query "Published" do
@@ -657,6 +664,7 @@ Hecks.bluebook "PigeonCoop" do
     command "PublishNewsletter" do
       reference_to Newsletter
       reference_to Person, as: :publisher
+      requires "status" => "draft"
     end
 
     query "Current" do
@@ -798,11 +806,18 @@ Hecks.bluebook "PigeonCoop" do
       attribute :registration_kind, RegistrationKind
     end
 
+    command "PublishEvent" do
+      reference_to Event
+      reference_to Person, as: :published_by
+      requires "status" => "draft"
+    end
+
     command "IssueTicket" do
       reference_to Event
       reference_to Person, as: :holder
       attribute :payment, Payment
-      # Guard : SoldOut specification — runtime enforces at dispatch.
+      requires "status" => "published"
+      # SoldOut specification also enforced at dispatch (capacity invariant).
     end
 
     command "RedeemTicket" do
@@ -819,11 +834,13 @@ Hecks.bluebook "PigeonCoop" do
     command "RegisterAttendance" do
       reference_to Event
       reference_to Person, as: :registrant
+      requires "status" => "published"
     end
 
     command "CancelRegistration" do
       reference_to Event
       reference_to Person, as: :registrant
+      requires "status" => "published"
     end
 
     query "Upcoming" do
@@ -860,11 +877,28 @@ Hecks.bluebook "PigeonCoop" do
       invariant("non-empty") { !value.strip.empty? }
     end
 
+    value_object "Status" do
+      attribute :value, String
+      invariant("active | archived") { %w[active archived].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "active" do
+      transition "ArchiveDocument" => "archived"
+    end
+
     command "UploadDocument" do
       reference_to Person, as: :uploaded_by
       attribute :title,        DocumentTitle
       attribute :file_locator, FileLocator
       attribute :mime_type,    MimeType
+    end
+
+    command "ArchiveDocument" do
+      reference_to Document
+      reference_to Person, as: :archived_by
+      requires "status" => "active"
     end
 
     query "All" do
@@ -885,6 +919,17 @@ Hecks.bluebook "PigeonCoop" do
       end
     end
 
+    value_object "Status" do
+      attribute :value, String
+      invariant("pending | acknowledged") { %w[pending acknowledged].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "pending" do
+      transition "AcknowledgeAbsence" => "acknowledged"
+    end
+
     value_object "Timestamp" do
       attribute :iso8601, String
       invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
@@ -895,6 +940,12 @@ Hecks.bluebook "PigeonCoop" do
       reference_to Person, as: :student
       attribute :date,   Timestamp
       attribute :reason, AbsenceReason
+    end
+
+    command "AcknowledgeAbsence" do
+      reference_to AbsenceNotification
+      reference_to Person, as: :acknowledged_by
+      requires "status" => "pending"
     end
 
     query "Recent" do
@@ -1013,6 +1064,18 @@ Hecks.bluebook "PigeonCoop" do
       invariant("non-empty") { !value.strip.empty? }
     end
 
+    value_object "Status" do
+      attribute :value, String
+      invariant("available | unavailable") { %w[available unavailable].include?(value) }
+    end
+
+    attribute :status, Status
+
+    lifecycle :status, default: "available" do
+      transition "RetireMerchItem"  => "unavailable"
+      transition "RestoreMerchItem" => "available"
+    end
+
     command "AddMerchItem" do
       reference_to Person, as: :added_by
       attribute :name,          MerchName
@@ -1026,6 +1089,18 @@ Hecks.bluebook "PigeonCoop" do
       reference_to MerchItem
       reference_to Person, as: :adjusted_by
       attribute :delta, StockDelta
+    end
+
+    command "RetireMerchItem" do
+      reference_to MerchItem
+      reference_to Person, as: :retired_by
+      requires "status" => "available"
+    end
+
+    command "RestoreMerchItem" do
+      reference_to MerchItem
+      reference_to Person, as: :restored_by
+      requires "status" => "unavailable"
     end
 
     query "Available" do
