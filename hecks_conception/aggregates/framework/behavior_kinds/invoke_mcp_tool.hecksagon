@@ -1,0 +1,101 @@
+Hecks.behavior_kind "invoke_mcp_tool" do
+  # The invoke_mcp_tool behavior — what the kernel does when an
+  # :mcp adapter fires. Sibling to invoke_claude_tool (for :claude_tool),
+  # render_text_to_audio (for :tts), call_sms_api (for :sms),
+  # perform_web_fetch / perform_web_search (for :web_tool).
+  #
+  # ── The dispatch flow ──
+  #
+  #   1. The bus dispatches a command whose hecksagon declares
+  #      `adapter :mcp, command: "Domain::Aggregate.Command", …`.
+  #   2. The kernel resolves the matching :mcp adapter binding.
+  #   3. The kernel reads the binding's :server, :tool, :args fields.
+  #   4. The kernel opens a stdio MCP session against the named server :
+  #      a. Spawn the server's process (for :storehouse, that is
+  #         `node tooling/storehouse-mcp/src/server.mjs`).
+  #      b. Send JSON-RPC initialize with client info + capabilities.
+  #      c. Read initialize response (server info, capabilities).
+  #      d. Send notifications/initialized.
+  #      e. Send tools/call with the binding's :tool + :args.
+  #      f. Read the tools/call response.
+  #      g. Close stdin ; reap the child.
+  #   5. The kernel routes the response into :result_into as a
+  #      follow-on dispatch carrying the parsed result content.
+  #
+  # ── Why a one-shot session per call ──
+  #
+  # v1 is shell-hook-friendly : each call gets its own server process,
+  # spun up and torn down per invocation. Acceptable for the SessionStart
+  # case (one call per session) and the post-tool-use case (one call
+  # per tool dispatch). High-rate use cases (statusline polls, every-
+  # tick policies) will want a long-lived session ; that's a v2 path
+  # with the same field surface, different transport state.
+  #
+  # ── Argument passing ──
+  #
+  # The binding's :args is a hash with arbitrary nesting. The kernel
+  # passes it verbatim as the MCP tool call's `arguments` field. The
+  # dispatched command's own attrs (the bluebook command being run)
+  # are NOT auto-flowed into args — the binding's :args row composes
+  # the call shape explicitly. This keeps the binding declarative and
+  # legible : the args are right there, no implicit attribute folding.
+  #
+  # If a binding needs to thread one of the command's attrs through
+  # to MCP, the binding uses a placeholder string like "{id}" and the
+  # kernel substitutes from the command's attrs before sending. Same
+  # substitution rules as the :daemon adapter's {info} / {body} / {agg}
+  # placeholders ; see runtime/boot/daemons.rs substitute() for the
+  # canonical implementation.
+  #
+  # ── Server identity (the :server field) ──
+  #
+  # v1 supports a single value : :storehouse — the local Node stdio
+  # server at tooling/storehouse-mcp/src/server.mjs. Resolved via a
+  # fixed lookup in the kernel hook ; the spawn command is
+  # `node <server.mjs>` with STOREHOUSE_BIN inherited from the env.
+  # Once we have more MCP servers, a Hecks.provider :mcp_server
+  # registry attaches their wire shapes and the kernel hook routes
+  # by the :server field's value.
+
+  vision "Open a one-shot stdio MCP session against the named server,
+          call the named tool with the binding's :args, capture the
+          response, route it into :result_into as a follow-on
+          dispatch. The kernel hook accepts (server, tool, args,
+          command_attrs) and returns (content, is_error,
+          structured_result). One server in v1 (:storehouse) ; the
+          protocol dance is mechanical JSON-RPC over stdio."
+
+  # The contract : every adapter family that picks this behavior_kind
+  # must provide a :server field (which MCP server), a :tool field
+  # (which tool to call), and a :result_into field (follow-on dispatch
+  # target). The :args field is optional — tools with no params can
+  # omit it.
+  requires_field :server
+  requires_field :tool
+  requires_field :result_into
+
+  # The dispatched command's attrs are read so placeholder substitution
+  # in :args (e.g. "{id}", "{began_at}") works. Every command at minimum
+  # carries an id ; the kernel uses that as the always-present trigger.
+  trigger_attribute :id
+
+  # What the kernel does, declaratively :
+  #   1. Read the adapter binding's :server, :tool, :args
+  #   2. Substitute "{attr}" placeholders in :args from the dispatched
+  #      command's attribute map
+  #   3. Resolve :server to a spawn command (v1 : :storehouse → node
+  #      tooling/storehouse-mcp/src/server.mjs)
+  #   4. Spawn the server, do the initialize → tools/call → close
+  #      JSON-RPC dance
+  #   5. Capture the tool result's content + isError + structuredContent
+  #   6. Dispatch :result_into with the captured result as the payload
+  #
+  # Cancellation : tool calls are synchronous in v1 ; no in-flight
+  # supersession. A follow-up dispatch for the same id is accepted ;
+  # the kernel runs it sequentially.
+  #
+  # Errors : if the MCP call raises (server fails to start, protocol
+  # error, tool returns isError:true), the kernel dispatches
+  # :result_into with an error payload so downstream policies see the
+  # failure as a normal event, not a runtime panic.
+end

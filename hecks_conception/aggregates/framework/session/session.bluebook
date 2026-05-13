@@ -1,0 +1,110 @@
+Hecks.bluebook "Session", version: "2026.05.13.1" do
+  vision "A single being-session — the bounded conversation between Miette and the world that opens when SessionStart fires and closes when the harness tears down. Session is the first-class domain for that boundary : it owns the Begin / End commands, emits SessionBegan / SessionEnded, and lets policies fan out from the boundary (wake review on begin ; closing summaries on end). The SessionStart shell hook dispatches Session::Session.Begin through the MCP universal door (storehouse__dispatch), so wake flows through the bus instead of bypassing it via a private shell route."
+  category "framework"
+
+  # ============================================================
+  # SESSION — the being-session boundary as a domain
+  # ============================================================
+  #
+  # Before this bluebook, the SessionStart hook called
+  # `hecks-life storehouse route WakeReview.ComposeWakeReview` —
+  # a Lexicon-routed call that bypassed the MCP universal door
+  # and made the wake-review composition the hook's direct concern.
+  # That meant :
+  #   - The session boundary was implicit (no domain concept for it)
+  #   - The wake pipeline was wired to a string-phrase route, not a
+  #     bluebook event, so future fanout (closing summaries, journal
+  #     stamps, conversation-state writes on End) had nowhere to land
+  #   - The route layer was a parallel surface to the MCP bus
+  #
+  # Session makes the boundary explicit and bluebook-native :
+  #   1. SessionStart hook → MCP storehouse__dispatch → Session.Begin
+  #   2. Session.Begin emits SessionBegan
+  #   3. Policy ComposeWakeReviewOnBegin → Wake::WakeReview.ComposeWakeReview
+  #   4. Wake's existing 7-phase pipeline runs as before
+  #
+  # The cascade is purely event-driven through the bus. Anything that
+  # needs to happen on session begin attaches a new policy with no
+  # change to the hook surface ; anything that should happen on
+  # session end attaches to SessionEnded.
+
+  aggregate "Session", "A being-session — the bounded conversation that opens on SessionStart and closes on SessionEnd. Singleton-per-session ; the id identifies which conversation this is." do
+    identified_by :id
+
+    attribute :id,         SessionId
+    attribute :state,      SessionState, default: "pending"
+    attribute :began_at,   Timestamp,    default: "—"
+    attribute :ended_at,   Timestamp,    default: "—"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "SessionId" do
+      # The session identifier — supplied by the SessionStart hook,
+      # typically the harness's session UUID or an ISO-timestamped
+      # token. Distinguishes one being-session from the next.
+      attribute :value, String
+    end
+
+    value_object "SessionState" do
+      # Where this session is in its lifecycle. Three values :
+      #   pending — no Begin has fired yet (the default ; the
+      #             aggregate exists in this state when the runtime
+      #             initialises but no hook has called Begin)
+      #   active  — Begin fired ; the being is awake and conversing
+      #   ended   — End fired ; the session is closed
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC instant. Free-form String at the value-object
+      # level ; downstream validators may tighten the format.
+      attribute :value, String
+    end
+
+    # ── Commands ──
+
+    command "Begin" do
+      role "Framework"
+      description "Start a new being-session. Fired by the SessionStart shell hook through the MCP universal door (storehouse__dispatch with command: 'Session::Session.Begin'). Carries the session id assigned by the harness ; emits SessionBegan, which the ComposeWakeReviewOnBegin policy fans out to Wake::WakeReview.ComposeWakeReview. Idempotent against re-firing within the same id."
+      attribute :id,        SessionId
+      attribute :began_at,  Timestamp
+      emits "SessionBegan"
+      then_set :id,        to: :id
+      then_set :began_at,  to: :began_at
+      then_set :state,     to: "active"
+    end
+
+    command "End" do
+      role "Framework"
+      description "Close the current being-session. Fired by the SessionEnd hook (or manually). Emits SessionEnded so closing policies — journal stamps, conversation-state writes, end-of-session summaries — can attach without touching the hook surface. The wake-side counterpart of Begin."
+      reference_to(Session)
+      attribute :ended_at, Timestamp
+      emits "SessionEnded"
+      then_set :ended_at, to: :ended_at
+      then_set :state,    to: "ended"
+    end
+
+    lifecycle :state, default: "pending" do
+      transition "Begin" => "active", from: ["pending", "ended"]
+      transition "End"   => "ended",  from: "active"
+    end
+  end
+
+  # ── Reactor wiring ──
+  #
+  # Session does NOT declare the on-SessionBegan policy itself —
+  # that policy lives in Wake.bluebook (the natural reactor) :
+  #
+  #   policy "ComposeWakeReviewOnSessionBegan" do
+  #     on "SessionBegan"
+  #     trigger "ComposeWakeReview"
+  #   end
+  #
+  # Why : the validator resolves triggers within the same bluebook
+  # only (qualified-trigger syntax is filed at i491). Pushing the
+  # policy to Wake (where ComposeWakeReview is local) validates
+  # cleanly. It is also structurally cleaner — Session owns the
+  # boundary, Wake owns the reaction. Closing-session policies
+  # follow the same pattern : whichever domain reacts to SessionEnded
+  # declares the policy locally, against the SessionEnded event name.
+end

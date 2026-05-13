@@ -1,0 +1,93 @@
+Hecks.adapter_family "mcp" do
+  # The :mcp adapter family — bridge a bluebook command dispatch to a
+  # stdio MCP tool call. Sibling to :claude_tool, :web_tool, :llm,
+  # :compute, :sms, :tts.
+  #
+  # Same bluebook-first promise : the family declares the field surface,
+  # the consumer hecksagon attaches one binding per command, and the
+  # kernel runs the adapter at dispatch time. No Rust / Ruby edits
+  # for the family itself — the runtime walks framework/adapter_families/
+  # at boot and registers each family it finds. (The behavior_kind's
+  # kernel hook, invoke_mcp_tool, is the impure layer that owns the
+  # stdio MCP protocol.)
+  #
+  # ── Why this family exists ──
+  #
+  # Before this family, the only way for a shell hook (SessionStart,
+  # post-tool-use, etc.) to reach the MCP universal door
+  # (`storehouse__dispatch`) was either :
+  #
+  #   (a) hecks-life storehouse route <verb>  — Lexicon-routed, bypasses
+  #       MCP entirely, uses string-phrase resolution instead of FQN.
+  #   (b) An ad-hoc node helper (e.g. mcp-call.mjs) — imperative JS,
+  #       grows the storehouse-mcp .mjs pile instead of shrinking it.
+  #
+  # Neither path matches Chris's bluebook-first standard. The :mcp
+  # adapter family closes the gap : capabilities declare MCP as a
+  # transport just like they declare :fs, :stdout, or :daemon. The
+  # bluebook composes the call shape (server, tool, args) ; the kernel
+  # hook handles the impure transport (spawn server, JSON-RPC dance,
+  # parse result).
+  #
+  # ── How it composes ──
+  #
+  # A consumer hecksagon (e.g. runtime/session/session_start.hecksagon)
+  # binds one :mcp adapter per bluebook command :
+  #
+  #   adapter :mcp,
+  #     command:     "SessionStart.Initialise",
+  #     server:      :storehouse,
+  #     tool:        "storehouse__dispatch",
+  #     args:        { aggregates_dir: "...", command: "Session::Session.Begin", ... },
+  #     result_into: "Cascade.RecordResult"
+  #
+  # When the bus dispatches SessionStart.Initialise, the kernel
+  # resolves the matching :mcp binding, fires the invoke_mcp_tool
+  # behavior with (server, tool, args), and routes the JSON result
+  # via result_into.
+  #
+  # ── The principle the family sits on ──
+  #
+  #   "the domain will compose the tool call and the adapter runs
+  #    them" — Chris, 2026-05-12
+  #
+  # The bluebook (composition) is pure : it says WHICH MCP tool to
+  # call and with WHAT arguments. The :mcp adapter (execution) is the
+  # only impure layer : it spawns the MCP server subprocess, does the
+  # JSON-RPC initialize / tools/call / close dance, captures the
+  # response. Domain + adapter stay cleanly split.
+  #
+  # ── Server identity ──
+  #
+  # The :server field names which MCP server to invoke. v1 supports a
+  # single value : :storehouse — the local stdio storehouse-mcp Node
+  # server at tooling/storehouse-mcp/src/server.mjs. The kernel hook
+  # resolves :storehouse to the Node command via a fixed lookup ; once
+  # we have more MCP servers, a sibling Hecks.provider :mcp_server
+  # registry attaches their wire shapes.
+
+  vision "Bridge a bluebook command dispatch to a stdio MCP tool call.
+          Each instance binds one Domain::Aggregate.Command to one
+          MCP server's tool. The runtime resolves the binding at
+          dispatch time, fires the invoke_mcp_tool behavior, and
+          chains the result back into the aggregate state.
+          behavior_kind = invoke_mcp_tool."
+
+  fields  :name,         # optional symbolic adapter name in the consumer's hecksagon
+          :command,      # "Domain::Aggregate.Command" — the dispatched verb this adapter binds to
+          :server,       # symbol — which MCP server to call (:storehouse for v1)
+          :tool,         # string — the MCP tool name (e.g. "storehouse__dispatch", "storehouse__query")
+          :args,         # hash — JSON-shaped arguments passed verbatim to the MCP tool's `arguments` field
+          :result_into   # "Cascade.RecordResult" (or per-binding variant) — follow-on dispatch carrying the result
+
+  trigger_field :command
+  response_field :result_into
+
+  behavior :invoke_mcp_tool
+
+  # No providers list yet — the v1 substrate has one MCP server
+  # (:storehouse, the local Node stdio server). When/if we add more
+  # (remote SSE, sandboxed runners, other vendors), they get listed
+  # here as :mcp_server providers and the kernel hook routes by the
+  # :server field's value.
+end

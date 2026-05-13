@@ -47,6 +47,13 @@ pub mod prompt_scaffolder;
 // `function_name` against the static `compute_functions` registry.
 pub mod compute_dispatcher;
 pub mod claude_tool_dispatcher;
+// i593 — :mcp adapter family kernel hook. One behavior :
+// invoke_mcp_tool (open stdio MCP session, call named tool with
+// args, route response back into the cascade). Sibling to
+// claude_tool_dispatcher ; registered into i557's framework
+// registry alongside it. Shell hooks reach this via the new
+// `storehouse mcp` subcommand family in main.rs.
+pub mod mcp_dispatcher;
 pub mod sms_dispatcher;
 pub mod tts_dispatcher;
 // i569 — :web_tool adapter family kernel hook. Two behaviors :

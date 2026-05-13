@@ -33,9 +33,18 @@ Hecks.bluebook "Wake", version: "2026.05.12.1" do
     attribute :markdown_bytes,      ByteCount,   default: 0
 
     # ---- Pipeline phase ----
-    attribute :phase,               String,      default: "pending"
+    attribute :phase,               PhaseName,   default: "pending"
 
     # ── Value-objects ──
+
+    value_object "PhaseName" do
+      # Where this wake-review is in its 7-phase pipeline.
+      # Values : pending → begun → consciousness_read → dream_read →
+      # markdown_rendered → surface_written → report_stamped → done.
+      # The lifecycle below pins the transitions ; the value-object
+      # documents the language so callers don't pass arbitrary strings.
+      attribute :value, String
+    end
 
     value_object "DirPath" do
       attribute :value, String
@@ -157,6 +166,21 @@ Hecks.bluebook "Wake", version: "2026.05.12.1" do
   # ============================================================
   # CHAINED POLICIES — one per phase transition
   # ============================================================
+
+  # ── Entry policy : session boundary → wake review ──
+  #
+  # The SessionStart shell hook dispatches Session::Session.Begin
+  # through the MCP universal door (storehouse__dispatch). That
+  # emits SessionBegan, which this policy turns into a local
+  # ComposeWakeReview dispatch. The chained policies below take
+  # over from there. Lives in Wake (not Session) because Wake owns
+  # the reaction ; Session stays pure boundary. See
+  # aggregates/framework/session/session.bluebook for the boundary
+  # declaration + the cross-aggregate-policy comment.
+  policy "ComposeWakeReviewOnSessionBegan" do
+    on "SessionBegan"
+    trigger "ComposeWakeReview"
+  end
 
   policy "ReadConsciousnessOnBegin" do
     on "WakeReviewBegun"
