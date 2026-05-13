@@ -22,15 +22,15 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     // every `attribute Role, as: :role` line, so any `then_set :role`
     // referencing it tripped check-lifecycle's mutation-reference
     // gate as if the attribute didn't exist.
-    let (name, attr_type, type_already_known) = if let Some(sym) = extract_symbol(first) {
-        (sym, None, false)
+    let (name, attr_type) = if let Some(sym) = extract_symbol(first) {
+        (sym, None)
     } else {
         let vo_name = bare_vo_type(first)?;
         let alias = parts.get(1)
             .and_then(|p| p.find("as:").map(|pos| &p[pos + "as:".len()..]))
             .and_then(extract_symbol)
             .unwrap_or_else(|| to_snake_case(&vo_name));
-        (alias, Some(vo_name), true)
+        (alias, Some(vo_name))
     };
 
     // Resolve the type from parts[1]. Three cases:
@@ -42,7 +42,7 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
     // as bare types are also collection-shaped (Ruby DSL treats them
     // as list:true). `:list_ofs` (substring of "list_of") must NOT
     // register — only `list_of(` with the paren counts.
-    let list = line.contains("list_of(") || (!type_already_known && (raw == "Array" || raw == "Hash"));
+    let list = line.contains("list_of(");
     let attr_type = if let Some(t) = attr_type {
         // Bare-VO form already pinned the type to the value-object name.
         t

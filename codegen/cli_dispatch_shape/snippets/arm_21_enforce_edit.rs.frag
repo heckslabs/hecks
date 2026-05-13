@@ -12,8 +12,8 @@
     // contract takes a command, and the command can now be storehouse
     // directly. No shell glue. Same family as `storehouse loop` and
     // `storehouse daemon` — kernel-surface primitives a bluebook
-    // capability dispatches into. The Enforcer brain stays in
-    // aggregates/enforcer.bluebook.
+    // capability dispatches into. The Macrophage brain stays in
+    // aggregates/discipline/macrophage/macrophage.bluebook.
     if command == "enforce-edit" {
         run_enforce_edit(&args);
         return;

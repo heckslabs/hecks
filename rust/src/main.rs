@@ -481,7 +481,7 @@ fn main() {
     // is claimed by some adapter / specializer ; exit 1 silently if
     // not. The LoC ratchet calls this per-file so growth in IR-
     // claimed surfaces stops counting against the non-bluebook
-    // budget. Same substrate the antibody enforcer uses.
+    // budget. Same substrate the antibody macrophage uses.
     if command == "is-dispatched" {
         let path = match args.get(2) {
             Some(p) => p.clone(),
@@ -3341,7 +3341,7 @@ fn run_macrophage(_args: &[String]) {
     //
     // Fast-path : if the command doesn't even mention a kernel-surface
     // extension, exit 0 immediately. Most bash invocations are reads
-    // (git, grep, ls) ; we don't want enforcer overhead on every shell.
+    // (git, grep, ls) ; we don't want macrophage overhead on every shell.
     if file_path.is_empty() && tool_name == "Bash" {
         let bash_cmd = json.pointer("/tool_input/command")
             .and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -3413,7 +3413,7 @@ fn run_macrophage(_args: &[String]) {
         // retire, this is the only signal that an edit was exempt
         // and why.
         eprintln!(
-            "[enforcer] exempt by corpus : {} ({} in {})",
+            "[macrophage] exempt by corpus : {} ({} in {})",
             file_path, info.kind, info.source
         );
     }
@@ -3445,7 +3445,7 @@ fn run_macrophage(_args: &[String]) {
                  silently — discipline drift hides as a passing build.",
                 file_path, violations.join("\n  "),
             );
-            eprintln!("[enforcer] {}", complaint);
+            eprintln!("[macrophage] {}", complaint);
             std::process::exit(2);
         }
     }
@@ -3453,7 +3453,7 @@ fn run_macrophage(_args: &[String]) {
     if matches!(kind, FileKind::Imperative) && !exempted {
         let ext = file_path.rsplit('.').next().unwrap_or("");
         let complaint = format!(
-            "bluebook-first violation : {} wrote .{} ({}). The enforcer expected a \
+            "bluebook-first violation : {} wrote .{} ({}). The macrophage expected a \
              bluebook (.bluebook / .hecksagon / .fixtures / .behaviors / .world). If \
              this is genuinely kernel-surface or transitional, name the exemption in \
              the file's antibody marker AND in the next commit's message ; otherwise, \
@@ -3468,7 +3468,7 @@ fn run_macrophage(_args: &[String]) {
         let _ = std::panic::catch_unwind(|| {
             dispatch_hecksagon(&agg_dir, "Complain", complain_attrs);
         });
-        eprintln!("[enforcer] {}", complaint);
+        eprintln!("[macrophage] {}", complaint);
         std::process::exit(2);
     }
     std::process::exit(0);
@@ -3484,7 +3484,7 @@ fn run_macrophage(_args: &[String]) {
 ///
 /// Fast-path : if the command doesn't mention any kernel-surface
 /// extension, return None immediately. Most bash invocations are
-/// reads (git, grep, ls, find) ; we don't want enforcer overhead
+/// reads (git, grep, ls, find) ; we don't want macrophage overhead
 /// on every shell call.
 ///
 /// Patterns matched (each catches one canonical write shape) :
@@ -3751,7 +3751,7 @@ fn scan_command_with_path_arg(
 
 /// Scan a shell file for direct heki writes (heki append / upsert /
 /// delete / mark) that lack `--reason`. Returns Some(violations) when
-/// the file has at least one unreasoned write — the enforcer refuses
+/// the file has at least one unreasoned write — the macrophage refuses
 /// the edit. Returns None when the file is clean (no writes, or every
 /// write carries --reason in its multi-line invocation).
 ///

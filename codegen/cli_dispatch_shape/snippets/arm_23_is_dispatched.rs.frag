@@ -4,7 +4,7 @@
     // is claimed by some adapter / specializer ; exit 1 silently if
     // not. The LoC ratchet calls this per-file so growth in IR-
     // claimed surfaces stops counting against the non-bluebook
-    // budget. Same substrate the antibody enforcer uses.
+    // budget. Same substrate the antibody macrophage uses.
     if command == "is-dispatched" {
         let path = match args.get(2) {
             Some(p) => p.clone(),
