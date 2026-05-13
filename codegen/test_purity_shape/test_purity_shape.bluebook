@@ -1,5 +1,5 @@
-Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
-  vision "Architectural rule declared as bluebook: .fixtures files are TEST data only. Runtime data flows through commands → events → .heki via adapters. This shape gives a future enforcer extension the detection patterns it needs to catch violations."
+Hecks.bluebook "TestPurityShape", version: "2026.05.13.1" do
+  vision "Architectural rule declared as bluebook: .fixtures files are TEST data only. Runtime data flows through commands → events → .heki via adapters. This shape gives a future macrophage extension the detection patterns it needs to catch violations."
   category "discipline"
 
   # ============================================================
@@ -37,7 +37,7 @@ Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
   # Open question (2026-04-27): whether capabilities/**/*.fixtures
   # should be included in the scan is unresolved. A glob IS
   # included below (DisallowPath row "all_fixtures") so the future
-  # enforcer can evaluate the question against real data. Chris
+  # macrophage can evaluate the question against real data. Chris
   # reserves the final ruling.
   #
   # No .fixtures file lives in this capability — that would be
@@ -49,11 +49,11 @@ Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
   # Collapsed under one root (TestPurityShape) with no behaviour
   # change.
 
-  aggregate "TestPurityShape", "Static schema for the fixtures-as-test-data enforcer — RuntimeConfigAttribute + AllowedFixturesCaller + DisallowPath rows define the rule" do
+  aggregate "TestPurityShape", "Static schema for the fixtures-as-test-data macrophage — RuntimeConfigAttribute + AllowedFixturesCaller + DisallowPath rows define the rule" do
     # ---- RuntimeConfigAttribute ----------------------------------------
     #
     # One row per attribute name that signals "this fixture row is
-    # runtime data, not test data". The enforcer checks whether any
+    # runtime data, not test data". The macrophage checks whether any
     # key in a .fixtures file matches one of these names.
     #
     # attribute_name: the exact key as it appears in a .fixtures row
@@ -61,7 +61,7 @@ Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
     # canonical_heki: the .heki file where this attribute legitimately lives
 
     value_object "RuntimeConfigAttribute" do
-      description "One attribute name that marks a .fixtures row as runtime data — enforcer key list"
+      description "One attribute name that marks a .fixtures row as runtime data — macrophage key list"
       attribute :attribute_name,  String
       attribute :rationale,       String
       attribute :canonical_heki,  String, default: ""
@@ -98,7 +98,7 @@ Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
     #               means behaviors_runner during the test suite
 
     value_object "AllowedFixturesCaller" do
-      description "One Rust caller permitted to load .fixtures files — enforcer allowlist"
+      description "One Rust caller permitted to load .fixtures files — macrophage allowlist"
       attribute :caller_name,   String
       attribute :load_purpose,  String
       attribute :load_phase,    String, default: "test"
@@ -116,7 +116,7 @@ Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
 
     # ---- DisallowPath --------------------------------------------------
     #
-    # One row per glob pattern the enforcer should scan for purity
+    # One row per glob pattern the macrophage should scan for purity
     # violations. Paths are relative to the conception root.
     #
     # glob:          shell glob (** supported) relative to conception root
@@ -142,7 +142,37 @@ Hecks.bluebook "TestPurityShape", version: "2026.05.01.1" do
     #     — Shape-capability fixtures (e.g. validator_shape.fixtures)
     #       seed declarative configuration for the specializer, not
     #       runtime persona/config data. Lower risk, but included so
-    #       the enforcer can surface any surprises. Chris's ruling is
+    #       the macrophage can surface any surprises. Chris's ruling is
     #       tentative "exempt" but not yet final; ruling_open: true.
+
+    # ── Commands ───────────────────────────────────────────────
+    #
+    # Three pure catalog-row commands — one per row type. The
+    # specializer/macrophage reads recorded events to build its
+    # detection tables ; the rule itself lives entirely as data.
+
+    command "RegisterRuntimeAttribute" do
+      role "Discipline"
+      description "Register one attribute name as runtime data — macrophage adds it to the key list it scans .fixtures files for."
+      attribute :attribute_name, RuntimeConfigAttribute
+      emits "RuntimeAttributeRegistered"
+      then_set :attribute_name, to: :attribute_name
+    end
+
+    command "RegisterAllowedCaller" do
+      role "Discipline"
+      description "Register one Rust caller as permitted to load .fixtures files — macrophage adds it to the allowlist any other caller is checked against."
+      attribute :caller_name, AllowedFixturesCaller
+      emits "AllowedCallerRegistered"
+      then_set :caller_name, to: :caller_name
+    end
+
+    command "RegisterDisallowPath" do
+      role "Discipline"
+      description "Register one glob pattern the macrophage scans for test-purity violations. ruling_open=true means the final include/exempt ruling is still pending Chris's decision."
+      attribute :glob, DisallowPath
+      emits "DisallowPathRegistered"
+      then_set :glob, to: :glob
+    end
   end
 end

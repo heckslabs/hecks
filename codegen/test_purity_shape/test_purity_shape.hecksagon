@@ -4,7 +4,7 @@ Hecks.hecksagon "TestPurityShape" do
   # ============================================================
   #
   # This capability declares the rule "fixtures = test data only"
-  # as bluebook so a future enforcer extension can read the
+  # as bluebook so a future macrophage extension can read the
   # detection patterns (RuntimeConfigAttribute names, allowed
   # callers, glob patterns) and apply them at commit time.
   #
