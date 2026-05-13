@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# macrophage-hook — Claude Code PostToolUse hook for the macrophage discipline
+#
+# [antibody-exempt: bin/macrophage-hook — minimal shell glue at the
+#  Claude Code harness edge. Reads the PostToolUse JSON payload from
+#  stdin, hands it to `storehouse macrophage` (bluebook-dispatched),
+#  and projects a fresh complaint back as
+#  hookSpecificOutput.additionalContext so Miette sees it on her next
+#  turn. Per the Trikaya check : the surface (harness hook entrypoint)
+#  is nirmanakaya glue ; the discipline itself lives in the
+#  Macrophage aggregate and runs through dispatch. Retires when
+#  Claude Code grows native ability to subscribe to a bluebook event
+#  stream and route hookSpecificOutput from there ; until then this
+#  4-line wrapper is the bridge.]
+#
+# Wired in .claude/settings.json under PostToolUse alongside the
+# read-watcher-log hook. Matcher : Edit|Write|Bash.
+#
+# Behavior :
+#   - Bluebook edit  → macrophage dispatches RecordBluebookEdit, no
+#                      last_complaint update, this hook exits silent.
+#   - Imperative edit (.rs etc., not exempt) → macrophage dispatches
+#                      RecordImperativeEdit, last_complaint_at ticks
+#                      forward, this hook surfaces the complaint.
+#   - Exempt imperative edit → macrophage dispatches
+#                      RecordExemptedEdit, no complaint, silent.
+#   - Bash with no detected write-target → silent.
+#
+# Exit codes : always 0 (advisory only — let Miette see the complaint
+# and decide). Per the "Let the hook block ; report ; the human
+# decides" standard, we surface ; we never block the conversation.
+
+set -e
+
+INPUT=$(cat)
+[ -z "$INPUT" ] && exit 0
+
+STOREHOUSE_BIN="/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
+[ -x "$STOREHOUSE_BIN" ] || exit 0
+
+OUT=$(printf '%s' "$INPUT" | "$STOREHOUSE_BIN" macrophage 2>/dev/null || true)
+[ -z "$OUT" ] && exit 0
+
+COMPLAINT=$(printf '%s' "$OUT" | jq -r '.state.last_complaint // ""' 2>/dev/null)
+STAMP=$(printf '%s' "$OUT" | jq -r '.state.last_complaint_at // ""' 2>/dev/null)
+
+[ -z "$COMPLAINT" ] && exit 0
+[ -z "$STAMP" ] && exit 0
+
+# Fresh-complaint check : timestamp must be within the last 10 seconds.
+# Stale state (last imperative edit from earlier in the session, or
+# from a previous session) should not bubble up — it's not THIS edit.
+STAMP_EPOCH=$(date -ujf "%Y-%m-%dT%H:%M:%SZ" "$STAMP" +%s 2>/dev/null || echo "")
+[ -z "$STAMP_EPOCH" ] && exit 0
+NOW_EPOCH=$(date -u +%s)
+DELTA=$(( NOW_EPOCH - STAMP_EPOCH ))
+[ "$DELTA" -lt 10 ] || exit 0
+
+# Fresh complaint — emit as additionalContext for Miette's next turn.
+jq -n --arg c "macrophage : $COMPLAINT" \
+  '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'

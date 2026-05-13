@@ -12,7 +12,7 @@
 //! consulting any whitelist registry. Three consumers share the
 //! substrate :
 //!
-//!   1. The antibody enforcer (`storehouse enforce-edit`) — when it
+//!   1. The antibody macrophage (`storehouse macrophage`) — when it
 //!      sees an imperative-language edit, it asks here BEFORE the
 //!      `exempt_registry.heki` lookup. If the IR claims the file,
 //!      the edit is exempt structurally, no marker required.
@@ -100,8 +100,8 @@ pub fn is_dispatched_by_corpus(file_path: &str, corpus_root: &Path) -> Option<Di
 /// Imperative-exemption check : asks both the central
 /// `exempt_registry.heki` AND the in-file `[antibody-exempt: ...]`
 /// marker convention. Either path satisfies the structural
-/// exemption ; the marker IS the audit trail (per enforcer.bluebook
-/// `ExemptedEdited` event). Used by the antibody enforcer after the
+/// exemption ; the marker IS the audit trail (per macrophage.bluebook
+/// `ExemptedEdited` event). Used by the antibody macrophage after the
 /// IR-claim query (`is_dispatched_by_corpus`) returns None.
 pub fn is_imperative_exempt(file_path: &str, corpus_root: &Path) -> bool {
     if file_in_exempt_registry(file_path, corpus_root) { return true; }
@@ -109,7 +109,7 @@ pub fn is_imperative_exempt(file_path: &str, corpus_root: &Path) -> bool {
 }
 
 /// Walk the central `exempt_registry.heki` under the corpus root.
-/// Each row carries `path` as the natural-key id ; the enforcer only
+/// Each row carries `path` as the natural-key id ; the macrophage only
 /// needs `path` for the suffix-match.
 fn file_in_exempt_registry(file_path: &str, corpus_root: &Path) -> bool {
     let registry = corpus_root.join("information/exempt_registry.heki");

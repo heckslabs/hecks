@@ -24,6 +24,11 @@
             "type": "command",
             "command": "ruby bin/read-watcher-log 2>/dev/null || true",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "/Users/christopheryoung/Projects/hecks/bin/macrophage-hook",
+            "timeout": 5
           }
         ]
       }
