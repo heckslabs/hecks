@@ -1,0 +1,135 @@
+Hecks.bluebook "FixturesRuntimeMacrophage", version: "2026.05.13.1" do
+  vision "The fixtures-at-runtime rule made structural — one macrophage, one enforcement. Tracks whether .fixtures files are loaded exclusively by behaviors tests, never by production or runtime code. Every time a .fixtures file is required or loaded outside a behaviors context, this macrophage records the offense, surfaces a complaint, and keeps the audit trail. Scoped strictly to the fixtures-at-runtime discipline; no other rule lives here."
+  category "discipline"
+
+  # ============================================================
+  # FIXTURES RUNTIME MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # The original Macrophage aggregate enforces the bluebook-first
+  # discipline alongside fixtures-at-runtime and other checks —
+  # all sharing a single aggregate. i595 decomposes that singleton
+  # into a family of per-rule macrophages. This is the second member.
+  #
+  # Responsibility : track every .fixtures file access by context,
+  # record the violation when a .fixtures file is loaded by non-test
+  # code, and maintain the full violation history as an entity
+  # collection. The statusline can surface "2 fixtures violations
+  # this session" with rule-level precision because counts are
+  # scoped to this enforcement alone.
+  #
+  # .fixtures files are TEST DATA. They describe the domain state
+  # that behaviors specs exercise. Production and runtime code must
+  # never require or load them — doing so couples the test data
+  # surface into the runtime path, which breaks the contract
+  # between domain specification and deployment artefact.
+  #
+  # Access contexts :
+  #   behaviors test (*.behaviors, *_spec.rb, *_test.rb)  → safe (record access, no complaint)
+  #   any other caller                                    → violation (complain)
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 2 of the i595 plan.
+
+  aggregate "FixturesRuntimeMacrophage", "Per-rule macrophage for the fixtures-at-runtime enforcement — tracks .fixtures file accesses, violations, and the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Access tallies — scoped to this rule's signal.
+    # files_checked counts all .fixtures accesses observed;
+    # fixtures_violations counts the non-test subset.
+    attribute :files_checked,        ViolationCount
+    attribute :fixtures_violations,  ViolationCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_violation,           ViolationText
+    attribute :last_violation_at,        Timestamp
+    attribute :last_violation_file_path, FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # violated_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a .fixtures access or violation.
+      attribute :value, String
+    end
+
+    value_object "ViolationCount" do
+      # Count of events of a particular kind (files_checked /
+      # fixtures_violations) recorded by this macrophage in the
+      # current session.
+      attribute :value, Integer
+    end
+
+    value_object "ViolationText" do
+      # The body of a violation complaint — the stderr text the hook
+      # emits. Includes the rule name so complaint attribution is clear :
+      # "The FixturesRuntimeMacrophage expected ..."
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "FixturesViolation" do
+      description "One historical violation event for the fixtures-at-runtime rule. Records which .fixtures file was loaded, who loaded it, what the violation text said, and when. The last_violation / last_violation_at / last_violation_file_path scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :violated_at,     Timestamp
+      attribute :file_path,       FilePath
+      attribute :violation_text,  ViolationText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what loaded today, not lifetime totals. The FixturesViolation entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Access recording ──
+
+    command "RecordFixturesAccess" do
+      role "Hook"
+      description "A .fixtures file was loaded — neutral signal from the hook. Increments files_checked so the session scoreboard can show what proportion of accesses were violations versus safe behaviors-test loads. No complaint is issued here; the caller discriminates safe from violation and routes accordingly."
+      attribute :file_path, FilePath
+      emits "FixturesAccessed"
+    end
+
+    command "RecordRuntimeViolation" do
+      role "Hook"
+      description "A .fixtures file was loaded by non-test code — the violation signal. Increments fixtures_violations. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path, FilePath
+      emits "RuntimeViolationRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The FixturesRuntimeMacrophage detected a .fixtures file loaded outside a behaviors-test context. Records the violation text and timestamp on the root for fast statusline reads, and appends a FixturesViolation entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The FixturesRuntimeMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,       FilePath
+      attribute :violation,       ViolationText
+      attribute :violated_at,     Timestamp
+      then_set :last_violation,           to: :violation
+      then_set :last_violation_at,        to: :violated_at
+      then_set :last_violation_file_path, to: :file_path
+      emits "ComplaintIssued"
+    end
+  end
+end
