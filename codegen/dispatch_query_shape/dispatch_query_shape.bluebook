@@ -1,4 +1,4 @@
-Hecks.bluebook "DispatchQueryShape", version: "2026.04.30.1" do
+Hecks.bluebook "DispatchQueryShape", version: "2026.05.13.1" do
   vision "The shape of storehouse/src/dispatch_query.rs as a bluebook — the IR-query substrate (i122) closes the loop on itself. dispatch_query.rs is the file every other antibody decision routes through ; once it regenerates from this shape, hand-edits to it become structurally impossible (the byte-identity test refuses them) and the substrate self-claims (its own filename appears in its own SPECIALIZER_TARGETS table)."
   category "autophagy"
 
@@ -7,7 +7,7 @@ Hecks.bluebook "DispatchQueryShape", version: "2026.04.30.1" do
   # ============================================================
   #
   # dispatch_query.rs answers "is this file dispatched by something
-  # the IR declared?" — three consumers (the antibody enforcer, the
+  # the IR declared?" — three consumers (the antibody macrophage, the
   # LoC ratchet, the inline marker parser) all share its answers.
   #
   # Structurally the file is :
@@ -51,22 +51,92 @@ Hecks.bluebook "DispatchQueryShape", version: "2026.04.30.1" do
   #                       array_name, entries (comma-separated).
 
   aggregate "Section", "One ordered chunk of dispatch_query.rs — body_kind picks the emitter" do
-    attribute :name,         String
+    identified_by :name
+
+    # ── Value-objects : wrapped primitives (no-primitive-envy, 2026-05-12) ──
+    # Per i555 VOs live inside their aggregate ; each carries
+    # `attribute :value, <Primitive>` and reads as a typed domain
+    # concept on the Section surface.
+
+    value_object "SectionName" do
+      description "Section identifier — stable handle the fixture row keys on"
+      attribute :value, String
+    end
+
+    value_object "SectionOrder" do
+      description "1..N emission order in dispatch_query.rs ; specializer walks ascending"
+      attribute :value, Integer
+    end
+
+    value_object "BodyKind" do
+      description "Codegen branch selector — embedded_snippet | string_table"
+      attribute :value, String
+    end
+
+    value_object "SnippetPath" do
+      description "For embedded_snippet — repo-relative path to the .rs.frag read verbatim"
+      attribute :value, String
+    end
+
+    value_object "DocSnippet" do
+      description "For string_table — repo-relative path to a .rs.frag carrying leading /// doc lines"
+      attribute :value, String
+    end
+
+    value_object "ArrayName" do
+      description "For string_table — the Rust const identifier (e.g. SPECIALIZER_TARGETS)"
+      attribute :value, String
+    end
+
+    value_object "Entries" do
+      description "For string_table — comma-separated list of string literals, one per emitted line"
+      attribute :value, String
+    end
+
+    attribute :name,         SectionName
     # order: 1..N — emission order in dispatch_query.rs
-    attribute :order,        Integer
+    attribute :order,        SectionOrder
     # body_kind: embedded_snippet | string_table
-    attribute :body_kind,    String
+    attribute :body_kind,    BodyKind
     # snippet_path: for embedded_snippet — relative path to .rs.frag
-    attribute :snippet_path, String, default: ""
+    attribute :snippet_path, SnippetPath
     # doc_snippet: for string_table — relative path to .rs.frag with
     # the leading `///` doc lines
-    attribute :doc_snippet,  String, default: ""
+    attribute :doc_snippet,  DocSnippet
     # array_name: for string_table — the const identifier (e.g.
     # "SPECIALIZER_TARGETS")
-    attribute :array_name,   String, default: ""
+    attribute :array_name,   ArrayName
     # entries: for string_table — comma-separated list of string
     # literals to emit (one per line, 4-space indented). Order is
     # preserved exactly as written.
-    attribute :entries,      String, default: ""
+    attribute :entries,      Entries
+
+    # ── Commands ───────────────────────────────────────────────
+    #
+    # RecordSection mints one ordered chunk of dispatch_query.rs from
+    # a fixture row. Pure catalog-row aggregate — one create command
+    # is enough to satisfy the "every aggregate has at least one
+    # command" rule. The specializer walks SectionRecorded events in
+    # `order` ascending to emit the target file.
+
+    command "RecordSection" do
+      role "Autophagy"
+      description "Mint one ordered Section row from the sibling fixtures file. The specializer walks recorded rows by `order` ascending and dispatches per `body_kind` (embedded_snippet reads snippet_path verbatim ; string_table emits doc_snippet + `pub const <array_name>: &[&str] = &[...];` from entries)."
+      attribute :name,         SectionName
+      attribute :order,        SectionOrder
+      attribute :body_kind,    BodyKind
+      attribute :snippet_path, SnippetPath
+      attribute :doc_snippet,  DocSnippet
+      attribute :array_name,   ArrayName
+      attribute :entries,      Entries
+      emits "SectionRecorded"
+      then_set :name,         to: :name
+      then_set :order,        to: :order
+      then_set :body_kind,    to: :body_kind
+      then_set :snippet_path, to: :snippet_path
+      then_set :doc_snippet,  to: :doc_snippet
+      then_set :array_name,   to: :array_name
+      then_set :entries,      to: :entries
+    end
   end
 end
