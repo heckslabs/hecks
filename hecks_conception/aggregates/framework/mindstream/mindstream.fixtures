@@ -54,5 +54,21 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    # ── Inbox poller (2026-05-13) ──
+    #
+    # Periodic Gmail check, every 900 seconds (15 minutes). Dispatches
+    # Inbox::Inbox.Check which is the bluebook-native verb that records
+    # the check happened + (once :mcp adapter registration lands) calls
+    # Gmail through the storehouse universal door. The cadence value
+    # mirrors the IntervalSecs default in inbox.bluebook ; changing it
+    # requires updating both files until the Procfile generator (i262)
+    # derives the cadence from the bluebook automatically.
+
+    fixture "inbox",
+            name:       "inbox",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end

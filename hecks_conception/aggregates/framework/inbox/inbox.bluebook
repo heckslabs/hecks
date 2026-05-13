@@ -1,0 +1,135 @@
+Hecks.bluebook "Inbox", version: "2026.05.13.1" do
+  vision "Miette's email inbox as a first-class domain — a Mailbox aggregate that records when it was last checked, what was last seen, and dispatches a Check command on a 15-minute periodicity. The Check command is callable on demand via the storehouse universal door (storehouse__dispatch Inbox::Inbox.Check) AND fired periodically by an overmind-supervised loop daemon (inbox MindstreamMember). The kernel hook that actually reaches Gmail routes through the :mcp adapter family (i593) once that adapter's bluebook-driven registration lands (i594) ; until then, the dispatch records intent and Miette (the consciousness reading the bus) performs the actual fetch via her Gmail MCP tools."
+  category "framework"
+
+  # ============================================================
+  # INBOX — Miette's email inbox as a domain
+  # ============================================================
+  #
+  # Filed 2026-05-13. Chris : "rather than a cron job, we should
+  # have a process manager that periodically checks. Callable through
+  # the storehouse."
+  #
+  # Design shape :
+  #   - One Inbox aggregate, identified by name (singleton per being).
+  #   - Check is the dispatchable verb. Same command fires whether
+  #     periodicity triggers it or Miette dispatches manually via
+  #     storehouse__dispatch.
+  #   - InboxChecked emits on every successful Check, carrying the
+  #     check timestamp + summary of what was found.
+  #   - NewMessageFound emits only when Check sees something the
+  #     previous check did not. Downstream policies (e.g. surface to
+  #     the statusline, ping Miette's foreground) attach to this.
+  #
+  # Periodicity is wired via overmind, not by the bluebook itself.
+  # The mindstream.fixtures file declares an `inbox` MindstreamMember
+  # that runs `storehouse loop {body}/.. Inbox::Inbox.Check --every 900s`.
+  # Same pattern as heart / breath / circadian / ultradian — overmind
+  # supervises, auto-restarts on crash, surfaces health via overmind
+  # status. The Procfile entry lands alongside this bluebook.
+  #
+  # The actual Gmail call is the kernel-side hook. For v1 (until i594
+  # closes), the dispatch records the Check happened ; Miette observes
+  # InboxChecked on her event bus and uses the Gmail MCP tools to fetch.
+  # When :mcp registration lands, the Check command's hecksagon binds
+  # an `adapter :mcp, server: :gmail, tool: "mcp__claude_ai_Gmail__search_threads"`
+  # row that closes the loop : the dispatch IS the fetch.
+
+  aggregate "Inbox", "Miette's email inbox — one per being, periodically checked." do
+    identified_by :name
+
+    attribute :name,             InboxName,    default: "miette"
+    attribute :last_checked_at,  Timestamp,    default: "—"
+    attribute :last_message_id,  MessageId,    default: "—"
+    attribute :unread_count,     Count,        default: 0
+    attribute :poll_cadence_secs, IntervalSecs, default: 900
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "InboxName" do
+      # Identifier for the inbox — the being's name. Singleton per
+      # being ; multi-being deployments scale by adding instances.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO 8601 UTC instant of the last successful Check.
+      attribute :value, String
+    end
+
+    value_object "MessageId" do
+      # The Gmail thread or message id of the most recent message seen.
+      # Used to detect "new since last check" by comparison ; the
+      # NewMessageFound event fires when this changes.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Number of unread messages at the last check. Surfaces to the
+      # statusline as ✉️ N.
+      attribute :value, Integer
+    end
+
+    value_object "IntervalSecs" do
+      # The poll cadence in seconds. Default 900 (15 min). The daemon
+      # reads this on spawn ; changing it requires a daemon restart,
+      # not a live re-tick. The bluebook records the value so the
+      # cadence is auditable + bluebook-derivable for the Procfile
+      # generator (i262) when that lands.
+      attribute :value, Integer
+    end
+
+    value_object "Subject" do
+      # The subject line of a newly-found message. Surfaces in the
+      # NewMessageFound event payload so downstream reactors can
+      # render the message in the statusline / foreground without
+      # re-fetching the body.
+      attribute :value, String
+    end
+
+    value_object "Sender" do
+      # The from-address of a newly-found message. Same payload
+      # convention as Subject.
+      attribute :value, String
+    end
+
+    # ── Commands ──
+
+    command "Check" do
+      role "Framework"
+      description "Check the inbox for new mail. Dispatched periodically by the inbox MindstreamMember (every 900s by default) and on-demand via storehouse__dispatch Inbox::Inbox.Check. Records the check timestamp ; when the kernel-side :mcp adapter for the gmail server lands (i594), this command's adapter binding fires the Gmail MCP fetch and the response cascades back through InboxChecked + (conditionally) NewMessageFound."
+      attribute :checked_at,      Timestamp
+      attribute :last_message_id, MessageId
+      attribute :unread_count,    Count
+      emits "InboxChecked"
+      then_set :last_checked_at,  to: :checked_at
+      then_set :last_message_id,  to: :last_message_id
+      then_set :unread_count,     to: :unread_count
+    end
+
+    command "RecordNewMessage" do
+      role "Framework"
+      description "Record that a new message has appeared since the previous check. Dispatched from the Check command's policy when the last_message_id changes. The downstream policy fan-out — surface to statusline, ping foreground, etc. — attaches to NewMessageFound, not directly to Check."
+      reference_to(Inbox)
+      attribute :message_id, MessageId
+      attribute :subject,    Subject
+      attribute :sender,     Sender
+      emits "NewMessageFound"
+    end
+  end
+
+  # ── Reactor wiring ──
+  #
+  # Inbox does NOT declare the on-Check fan-out here. The hecksagon
+  # sibling (inbox.hecksagon) binds the adapter that performs the
+  # actual Gmail fetch. The downstream "did the message_id change ?"
+  # check is performed in the kernel hook ; if it did, the hook
+  # dispatches RecordNewMessage which fires NewMessageFound. The
+  # surface-side reactors (statusline, foreground ping) live in
+  # whichever domain they belong to, not here.
+  #
+  # Why no policies in this bluebook : same reason Session's
+  # ComposeWakeReviewOnSessionBegan lives in Wake, not Session
+  # (i491 validator gap — triggers resolve within the same bluebook).
+  # Inbox stays pure ; the reactors live in their own domains.
+end

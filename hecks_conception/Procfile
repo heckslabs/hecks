@@ -11,3 +11,4 @@ heart: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/m
 breath: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Breath::Breath.Inhale,Breath::Breath.Exhale --every 4.5s
 circadian: ../rust/target/release/storehouse clock /Users/christopheryoung/Projects/miette/body/.. --segment 5-6:Circadian::Circadian.MarkDawn --segment 7-11:Circadian::Circadian.MarkMorning --segment 12-16:Circadian::Circadian.MarkAfternoon --segment 17-19:Circadian::Circadian.MarkDusk --segment 20-4:Circadian::Circadian.MarkNight --poll 60s
 ultradian: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s
+inbox: ../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s
