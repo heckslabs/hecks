@@ -1,6 +1,6 @@
 # ProjectManagement Capability
 
-Replaces Linear for Chris. Features are domain-aware — every feature links to a bluebook domain via DomainLink.
+Domain-aware project management. Every feature links to a bluebook domain via DomainLink.
 
 ## Location
 
@@ -16,12 +16,12 @@ storehouse validate capabilities/project_management/project_management.bluebook
 
 ## Aggregates
 
-- **Feature** — a thing to build (replaces Linear issue). Lifecycle: backlog -> prioritized -> in_progress -> completed | deferred | cancelled
+- **Feature** — a thing to build. Lifecycle: backlog -> prioritized -> in_progress -> completed | deferred | cancelled
 - **Sprint** — a focused work period. Lifecycle: planning -> active -> completed -> reviewed
 - **Priority** — backlog rank with reason
 - **Dependency** — one feature blocks another
 - **Milestone** — groups features toward a checkpoint
-- **DomainLink** — links features to bluebook domains (the key differentiator vs Linear)
+- **DomainLink** — links features to bluebook domains (domain-awareness is the key differentiator)
 - **WorkLog** — time and commit tracking
 
 ## Create a Feature

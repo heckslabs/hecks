@@ -1,6 +1,6 @@
 # Unfiled Capability Stories
 
-Linear free tier limit hit. File these when capacity is available.
+Capabilities below are documented and ready to be filed as inbox cards when prioritized.
 
 ## Data & Storage
 

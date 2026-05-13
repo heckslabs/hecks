@@ -26,9 +26,9 @@ The `bin/post-commit` hook automatically launches the agent in the background wh
 - **File Size** — delegates to `claude` CLI to extract modules and reduce file length
 - **Doc Reminders** — delegates to `claude` CLI to update FEATURES.md and changelogs
 
-### Skipped (creates Linear issue)
+### Skipped (filed for follow-up)
 
-- **Cross Require** — needs architectural decision, not auto-fixable
+- **Cross Require** — needs architectural decision, not auto-fixable; logged as an inbox card for triage
 
 ## Example Output
 

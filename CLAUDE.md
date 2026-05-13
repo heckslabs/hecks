@@ -7,8 +7,6 @@
 - **Tests must run under 1 second** — enforced by pre-commit hook
 - **Every lib file has a doc comment header** — class name, purpose, usage example
 - **Stage specifically** — never `git add -A`, always name files
-- **Tag new Linear issues with "New" label** — they need to be prioritized
-- **Mark Linear issues Done** when committed and pushed
 
 ## Before every commit
 
@@ -40,3 +38,12 @@
 - **VO placement** — `value_object` declarations live INSIDE each aggregate. Duplication across aggregates is fine; bluebook-file-top-level VOs are forbidden (macrophage check `bluebook_top_level_value_object`, i555)
 - **Macrophage rename** — `enforcer` is now `macrophage` (i531/i553). `storehouse enforce-edit` still works as a deprecation-warning alias
 - **Tools.bluebook** — Miette's first-class tool invocations dispatch through the bus as `ShellTool.Bash`, `FileTool.Read` / `FileTool.Edit` / `FileTool.Update`, `SearchTool.Grep` / `SearchTool.Glob`, `WebTool.WebFetch` / `WebTool.WebSearch` ; outcomes cascade into `Cascade.RecordResult`. Restructured 2026-05-12 from a flat `Tools` aggregate into five category aggregates. See `docs/usage/tools.md`
+
+## Tonight's locked conventions (2026-05-13)
+
+- **`storehouse__dispatch` is the universal door** — `storehouse__dispatch_command` renamed to `storehouse__dispatch`. Any bluebook command on any aggregates root flows through it. No per-command MCP tool wrappers ; the bluebook IS the contract
+- **9 hand-registered Tools.* sugar wrappers retired** — `storehouse__bash`, `_read`, `_edit`, `_update`, `_grep`, `_glob`, `_web_fetch`, `_web_search`, `_record_result` are gone from the MCP surface. Use `storehouse__dispatch` with the FQN verb instead (e.g. `command: "Tools::ShellTool.Bash"`)
+- **`storehouse__list` retired** — use `storehouse__catalog` (full IR JSON for a bluebook) and `storehouse__describe_aggregate` (one aggregate's IR). MCP surface is now 10 tools ; see `docs/usage/storehouse-mcp.md`
+- **New `storehouse` CLI subcommands** — `describe <bluebook> <aggregate>`, `query <root> <Domain::Aggregate.snake_case> k=v ...`, `state <root> <aggregate> <id>`
+- **FQN required at runtime** — `Domain::Aggregate.Command` for commands, `Domain::Aggregate.snake_case` for queries. Short-form `Tools.Bash` is rejected
+- **Macrophage hook live on PostToolUse** — `bin/macrophage-hook` wired alongside `read-watcher-log`. Fresh complaints surface as `hookSpecificOutput.additionalContext`. `[enforcer]` stderr labels are now `[macrophage]` ; complaint text reads "The macrophage expected"

@@ -57,7 +57,7 @@ cd hecks
 bundle install
 ```
 
-Hecks ships two parsers — a Ruby DSL (`ruby/`) and a Rust runtime (`rust/`) — held to byte-identical IR by a parity suite. Most workflows only use the gem; the `storehouse` binary becomes useful when you start authoring behavioral tests or running validators outside Ruby.
+Most workflows only use the gem ; the `storehouse` binary becomes useful when you want the static runtime, the codegen-emitted Rust, or the byte-identity parity tests.
 
 **[Getting Started — zero to a running domain in 10 minutes](docs/getting_started.md)**
 
@@ -390,7 +390,7 @@ A specification language flips this. The Bluebook is small enough to learn compl
 
 Hecks bets on this direction. The Bluebook is the source of truth ; code is generation ; correctness is decidable at the spec level before a line of runtime exists. Two implementations (Ruby and Rust) held to byte-identical IR are not a curiosity — they're the proof that one specification can mean exactly the same thing in two languages, which means it can mean the same thing in any language a generator targets next. We're shipping in a way that's compatible with a near future where the AI's working language isn't a programming language at all. It's a spec.
 
-For the technical argument behind this — DDD validation, MCP-native modelling, the Futamura projection that lets Hecks specialise itself, cascade lockdown, language-neutral parity — see [`docs/papers/prior_use/`](docs/papers/prior_use/).
+For the technical argument behind this — DDD validation, MCP-native modelling, the Futamura projection that lets Hecks specialize itself, cascade lockdown, language-neutral parity — see [`docs/papers/prior_use/`](docs/papers/prior_use/).
 
 ---
 
