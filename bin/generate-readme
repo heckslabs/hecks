@@ -1,4 +1,0 @@
-#!/usr/bin/env ruby
-require_relative "../lib/hecks/readme_generator"
-Hecks::ReadmeGenerator.new(File.expand_path("..", __dir__)).generate
-puts "Generated README.md"

@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set -e
-
-echo "=== Regenerating examples ==="
-ruby -Ilib examples/pizzas/pizzas.rb
-ruby -Ilib examples/multi_domain/app.rb
-echo "Done."
