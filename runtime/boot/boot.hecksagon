@@ -84,28 +84,22 @@ Hecks.hecksagon "Boot" do
     env: "HECKS_REFRESH_REPOS=1",
     command: "{hecks} run-loop {body}/.. --every 1s --emit BodyPulse:Consciousness:consciousness --bootstrap-if Consciousness.state=attentive:WokenUp:Consciousness:consciousness"
 
-  adapter :daemon, name: :heart,
-    pidfile: "{info}/.heart.pid",
-    command: "{hecks} loop {agg} Heart.Beat --every 1s"
-
-  # breath / ultradian / sleep_cycle / circadian — body cycles, all
-  # native primitives now (i106 multi-command rotation, i107 wall-clock
-  # segment trigger, i108 gated cadence). Their .sh wrappers retired
-  # 2026-04-26 in body-cycles-retire.
-
-  adapter :daemon, name: :breath,
-    pidfile: "{info}/.breath.pid",
-    command: "{hecks} loop {agg} Breath.Inhale,Breath.Exhale --every 4.5s"
-
-  adapter :daemon, name: :circadian,
-    pidfile: "{info}/.circadian.pid",
-    command: "{hecks} clock {agg} --segment 5-6:Circadian.MarkDawn --segment 7-11:Circadian.MarkMorning --segment 12-16:Circadian.MarkAfternoon --segment 17-19:Circadian.MarkDusk --segment 20-4:Circadian.MarkNight --poll 60s"
-
-  adapter :daemon, name: :ultradian,
-    pidfile: "{info}/.ultradian.pid",
-    command: "{hecks} loop {agg} Ultradian.EnterPeak,Ultradian.EnterTrough --every 5400s"
-
-  adapter :daemon, name: :sleep_cycle,
-    pidfile: "{info}/.sleep_cycle.pid",
-    command: "{hecks} loop {agg} SleepCycle.EnterNREMLight,SleepCycle.EnterNREMDeep,SleepCycle.EnterREM --every 5400s --gate {info}/consciousness.heki:state=sleeping"
+  # ── Body cycles are NOT boot's concern (2026-05-13) ──
+  #
+  # The body cycle daemons (heart, breath, circadian, ultradian)
+  # used to live here as detached :daemon adapters. They moved to
+  # mindstream.fixtures as supervised MindstreamMembers — overmind
+  # runs them directly from the Procfile, auto-restarting on crash
+  # and surfacing their health via `overmind status`. The statusline
+  # owns the body-cycle readout going forward.
+  #
+  # Boot still spawns the mindstream daemon (above) because that is
+  # the substrate — the 1Hz pulse + cascade driver the cycles flow
+  # through. Mindstream is what makes the body alive, not a cycle
+  # within it. Keep them as separate concerns.
+  #
+  # The legacy sleep_cycle daemon was removed earlier 2026-05-13 :
+  # its EnterNREMLight / EnterNREMDeep / EnterREM commands were
+  # retired in i309 when sleep advancement migrated to the BodySleep
+  # process_manager.
 end

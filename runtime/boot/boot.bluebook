@@ -36,21 +36,31 @@ Hecks.bluebook "Boot", version: "2026.05.12.1" do
     attribute :private_stores,      StoreList, default: ""
     attribute :unclassified_stores, StoreList, default: ""
 
-    # ---- Daemon statuses ----
+    # ---- Daemon status ----
+    # Only mindstream — the body-cycle daemons (heart / breath /
+    # circadian / ultradian) moved to mindstream.fixtures as
+    # supervised MindstreamMembers (2026-05-13). Overmind runs
+    # them ; statusline reports them ; boot stops tracking them.
+    # sleep_cycle was removed earlier the same day per i309.
     attribute :mindstream_status,  DaemonStatus, default: "—"
-    attribute :heart_status,       DaemonStatus, default: "—"
-    attribute :breath_status,      DaemonStatus, default: "—"
-    attribute :circadian_status,   DaemonStatus, default: "—"
-    attribute :ultradian_status,   DaemonStatus, default: "—"
-    attribute :sleep_cycle_status, DaemonStatus, default: "—"
 
     # ---- Studio status ----
     attribute :studio_status,      DaemonStatus, default: "—"
 
     # ---- Pipeline phase ----
-    attribute :phase,              String,    default: "pending"
+    attribute :phase,              PhaseName, default: "pending"
 
     # ── Value-objects : the domain's language ──
+
+    value_object "PhaseName" do
+      # Where this boot run is in its 9-phase pipeline. Lifecycle below
+      # pins the transitions ; the value-object documents the language
+      # so callers don't pass arbitrary strings. Values flow through :
+      # pending → discovering → writing_census → classifying → prompting
+      # → journaling → ensuring → rendering → surfacing → studio_starting
+      # → done.
+      attribute :value, String
+    end
 
     value_object "BeingName" do
       attribute :value, String
@@ -169,19 +179,9 @@ Hecks.bluebook "Boot", version: "2026.05.12.1" do
 
     command "EnsureDaemons" do
       role "System"
-      description "Phase 6 : for each declared daemon (mindstream, heart, breath, circadian, ultradian, sleep_cycle) run storehouse daemon ensure with the pidfile and command. The daemon primitive (added 2026-04-26 in storehouse/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. No more wrapping subshells, no more PPID=1 orphan launcher leaks. Heart uses storehouse loop (cadence primitive, i76) wrapped through daemon ensure. mindstream now spawns `storehouse run-loop <repo> --every 1s --emit BodyPulse:Consciousness:consciousness` (i75 closure) — BodyCycle PM observes the synthetic BodyPulse and dispatches per-state, retiring the legacy 310-line while-true scheduler. The mindstream.sh alias forwards to the same command for daemon-registry continuity until the registry move-over."
+      description "Phase 6 : run `storehouse daemon ensure` for mindstream — the 1Hz pulse + cascade driver the body cycles flow through. The daemon primitive (added 2026-04-26 in storehouse/src/main.rs run_daemon) handles idempotent spawn + setsid detach + pidfile management. mindstream spawns `storehouse run-loop <repo> --every 1s --emit BodyPulse:Consciousness:consciousness` (i75 closure) — BodyCycle PM observes the synthetic BodyPulse and dispatches per-state, retiring the legacy 310-line while-true scheduler. The body-cycle daemons (heart, breath, circadian, ultradian) moved out of boot 2026-05-13 — they are supervised MindstreamMembers run by overmind directly via the Procfile, not boot's responsibility. sleep_cycle was removed the same day per i309."
       attribute :mindstream_status,  DaemonStatus
-      attribute :heart_status,       DaemonStatus
-      attribute :breath_status,      DaemonStatus
-      attribute :circadian_status,   DaemonStatus
-      attribute :ultradian_status,   DaemonStatus
-      attribute :sleep_cycle_status, DaemonStatus
       then_set :mindstream_status,  to: :mindstream_status
-      then_set :heart_status,       to: :heart_status
-      then_set :breath_status,      to: :breath_status
-      then_set :circadian_status,   to: :circadian_status
-      then_set :ultradian_status,   to: :ultradian_status
-      then_set :sleep_cycle_status, to: :sleep_cycle_status
       emits "DaemonsEnsured"
     end
 

@@ -12,5 +12,47 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse run ../runtime/boot/boot.bluebook" },
             lifespan:   { kind: "one_shot", may_exit: true, restart_on_failure: false }
+
+    # ── Body cycles (2026-05-13) ──
+    #
+    # Before today, the body cycle daemons (heart / breath / circadian /
+    # ultradian) were spawned as detached child processes by
+    # runtime/boot/boot.hecksagon's :daemon adapters. setsid + die-quietly
+    # meant a crashed cycle stayed dead until the next session.
+    # Today the cycles register as MindstreamMembers — overmind
+    # supervises them directly, auto-restarts on crash, surfaces
+    # health via `overmind status`. Boot stops tracking them ;
+    # the statusline owns the body-cycle readout.
+    #
+    # Sleep_cycle is intentionally absent — its EnterNREMLight /
+    # EnterNREMDeep / EnterREM commands were retired in i309 ; sleep
+    # advancement migrated to the BodySleep process_manager.
+    # Mindstream (the 1Hz pulse + cascade driver) stays a boot
+    # responsibility because it is substrate, not a cycle — it is
+    # what the cycles flow through, not one of them.
+
+    fixture "heart",
+            name:       "heart",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Heart::Heart.Beat --every 1s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    fixture "breath",
+            name:       "breath",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Breath::Breath.Inhale,Breath::Breath.Exhale --every 4.5s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    fixture "circadian",
+            name:       "circadian",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse clock /Users/christopheryoung/Projects/miette/body/.. --segment 5-6:Circadian::Circadian.MarkDawn --segment 7-11:Circadian::Circadian.MarkMorning --segment 12-16:Circadian::Circadian.MarkAfternoon --segment 17-19:Circadian::Circadian.MarkDusk --segment 20-4:Circadian::Circadian.MarkNight --poll 60s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    fixture "ultradian",
+            name:       "ultradian",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end

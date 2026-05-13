@@ -1,1 +1,13 @@
+# Generated artifact — bluebook-of-record :
+#   aggregates/framework/mindstream/mindstream.bluebook (Mindstream, MindstreamMember types)
+#   aggregates/framework/mindstream/mindstream.fixtures (the boot Mindstream + its members)
+#
+# Until the :overmind generator capability lands (i262), this file is
+# hand-derived from those fixtures and committed as if it were generated.
+# Members with lifespan.kind == "one_shot" flow into OVERMIND_CAN_DIE
+# in the sibling .overmind.env.
 boot: ../rust/target/release/storehouse run ../runtime/boot/boot.bluebook
+heart: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Heart::Heart.Beat --every 1s
+breath: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Breath::Breath.Inhale,Breath::Breath.Exhale --every 4.5s
+circadian: ../rust/target/release/storehouse clock /Users/christopheryoung/Projects/miette/body/.. --segment 5-6:Circadian::Circadian.MarkDawn --segment 7-11:Circadian::Circadian.MarkMorning --segment 12-16:Circadian::Circadian.MarkAfternoon --segment 17-19:Circadian::Circadian.MarkDusk --segment 20-4:Circadian::Circadian.MarkNight --poll 60s
+ultradian: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s
