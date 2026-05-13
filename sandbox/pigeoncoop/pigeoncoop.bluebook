@@ -2,13 +2,13 @@
 #
 # Trimmed to story-supported scope : Person, Shoutout, Announcement,
 # Notification, Article, Newsletter, Event with embedded Ticket,
-# Document, AbsenceNotification, Donation, MerchItem, MerchPurchase,
-# TuitionPayment.
+# Document, AbsenceNotification, MerchItem.
 #
 # Commands are story-driven. Refund / cancel / waive / archive flows
 # omitted until ASA names them.
 #
 # Calendars extracted to ./calendars.bluebook (2026-05-13)
+# Payments extracted to ./payments.bluebook (2026-05-13)
 Hecks.bluebook "PigeonCoop" do
   aggregate "Person" do
     attribute :name,                  PersonName
@@ -147,9 +147,8 @@ Hecks.bluebook "PigeonCoop" do
       description "Return the calling Person's Subscription list — source_kind, channel, subscribed_at — the read side of admin/student/parent subscription management."
     end
 
-    query "MyAnnualPayments" do
-      description "Cross-aggregate : every TuitionPayment, Donation, and MerchPurchase where the payer/donor/buyer is the calling Person AND the recorded date falls in the current school year. Returns a unified ledger ordered by date descending — the parent's complete financial picture for the year."
-    end
+    # MyAnnualPayments retired 2026-05-13 — backed by Payments::Ledger.MyAnnualPayments
+    # in ./payments.bluebook now.
 
     query "MyChildSchoolActivity" do
       description "Cross-aggregate : for each Person linked as child via Person.parent_links to the calling Person, return their AbsenceNotification entries, Shoutouts (as recipient), and Event Tickets/Registrations they hold — a single dashboard of the child's school engagement, ordered by date descending."
@@ -781,73 +780,6 @@ Hecks.bluebook "PigeonCoop" do
     end
   end
 
-  aggregate "Donation" do
-    reference_to Person, as: :donor
-    attribute :amount,      Money
-    attribute :payment,     Payment
-    attribute :designation, Designation
-    attribute :note,        DonationNote
-    attribute :received_at, Timestamp
-
-    value_object "Money" do
-      attribute :cents,    Integer
-      attribute :currency, Currency
-      invariant("positive") { cents > 0 }
-    end
-
-    value_object "Currency" do
-      attribute :code, String
-      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
-    end
-
-    value_object "Designation" do
-      attribute :fund, String
-      invariant("general | arts | scholarship | building | unrestricted") do
-        %w[general arts scholarship building unrestricted].include?(fund)
-      end
-    end
-
-    value_object "DonationNote" do
-      attribute :text, String
-      invariant("≤ 500 chars") { text.length <= 500 }
-    end
-
-    value_object "PaymentMethod" do
-      attribute :name, String
-      invariant("cash | check | card | bank_transfer | other") do
-        %w[cash check card bank_transfer other].include?(name)
-      end
-    end
-
-    value_object "PaymentReference" do
-      attribute :value, String
-      invariant("non-empty") { !value.strip.empty? }
-    end
-
-    value_object "Payment" do
-      attribute :amount,      Money
-      attribute :method,      PaymentMethod
-      attribute :reference,   PaymentReference
-      attribute :recorded_at, Timestamp
-    end
-
-    value_object "Timestamp" do
-      attribute :iso8601, String
-      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
-    end
-
-    command "RecordDonation" do
-      reference_to Person, as: :donor
-      attribute :payment,     Payment
-      attribute :designation, Designation
-      attribute :note,        DonationNote
-    end
-
-    query "Recent" do
-      description "Every Donation ordered by received_at descending — the admin donations dashboard."
-    end
-  end
-
   aggregate "MerchItem" do
     attribute :name,          MerchName
     attribute :description,   MerchDescription
@@ -933,126 +865,6 @@ Hecks.bluebook "PigeonCoop" do
 
     query "Available" do
       description "Every MerchItem where status = available AND stock.n > 0, ordered by name — the merch storefront for parents browsing what's for sale."
-    end
-  end
-
-  aggregate "MerchPurchase" do
-    reference_to MerchItem
-    reference_to Person, as: :buyer
-    attribute :quantity,  Count
-    attribute :total,     Money
-    attribute :payment,   Payment
-
-    value_object "Count" do
-      attribute :n, Integer
-      invariant("positive") { n > 0 }
-    end
-
-    value_object "Money" do
-      attribute :cents,    Integer
-      attribute :currency, Currency
-      invariant("positive") { cents > 0 }
-    end
-
-    value_object "Currency" do
-      attribute :code, String
-      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
-    end
-
-    value_object "Timestamp" do
-      attribute :iso8601, String
-      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
-    end
-
-    value_object "PaymentMethod" do
-      attribute :name, String
-      invariant("cash | check | card | bank_transfer | other") do
-        %w[cash check card bank_transfer other].include?(name)
-      end
-    end
-
-    value_object "PaymentReference" do
-      attribute :value, String
-      invariant("non-empty") { !value.strip.empty? }
-    end
-
-    value_object "Payment" do
-      attribute :amount,      Money
-      attribute :method,      PaymentMethod
-      attribute :reference,   PaymentReference
-      attribute :recorded_at, Timestamp
-    end
-
-    command "PlaceMerchOrder" do
-      reference_to MerchItem
-      reference_to Person, as: :buyer
-      attribute :quantity, Count
-      attribute :total,    Money
-      attribute :payment,  Payment
-    end
-
-    query "MyOrders" do
-      description "Every MerchPurchase where buyer = the calling Person, ordered by placed_at descending — the parent's merch order history."
-    end
-  end
-
-  aggregate "TuitionPayment" do
-    reference_to Person, as: :payer
-    reference_to Person, as: :student
-    attribute :school_year, SchoolYear
-    attribute :amount,      Money
-    attribute :payment,     Payment
-    attribute :paid_at,     Timestamp
-
-    value_object "Money" do
-      attribute :cents,    Integer
-      attribute :currency, Currency
-      invariant("positive") { cents > 0 }
-    end
-
-    value_object "Currency" do
-      attribute :code, String
-      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
-    end
-
-    value_object "SchoolYear" do
-      attribute :label, String
-      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
-    end
-
-    value_object "Timestamp" do
-      attribute :iso8601, String
-      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
-    end
-
-    value_object "PaymentMethod" do
-      attribute :name, String
-      invariant("cash | check | card | bank_transfer | other") do
-        %w[cash check card bank_transfer other].include?(name)
-      end
-    end
-
-    value_object "PaymentReference" do
-      attribute :value, String
-      invariant("non-empty") { !value.strip.empty? }
-    end
-
-    value_object "Payment" do
-      attribute :amount,      Money
-      attribute :method,      PaymentMethod
-      attribute :reference,   PaymentReference
-      attribute :recorded_at, Timestamp
-    end
-
-    command "RecordPayment" do
-      reference_to Person, as: :payer
-      reference_to Person, as: :student
-      attribute :school_year, SchoolYear
-      attribute :payment,     Payment
-    end
-
-    query "MyPayments" do
-      description "Every TuitionPayment where payer = the calling Person, ordered by paid_at descending — the parent's tuition payment history for their child."
     end
   end
 

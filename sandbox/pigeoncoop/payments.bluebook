@@ -1,0 +1,365 @@
+# Payments — PigeonCoop financial sub-domain.
+#
+# COHESION NOTE (2026-05-12 convention): Per bluebook-first principle,
+# VOs are declared INSIDE each aggregate. The "consolidation" achieved
+# here is cohesion in one bluebook file — Money, Currency, Payment,
+# PaymentMethod, PaymentReference, and Timestamp appear verbatim in
+# every aggregate that needs them. This is intentional duplication for
+# aggregate autonomy, not a shared-declaration scheme. The runtime
+# does not unify them; each aggregate owns its own VO definitions.
+#
+# BOUNDARY NOTE: Event remains in PigeonCoop. Its IssueTicket → Payment
+# cluster is event-specific (ticket sales, not a financial ledger entry).
+# Event holds a reference to Payments via `reference_to MerchItem` only
+# indirectly; it carries its own Payment VO. No aggregates in Payments
+# reference Event or MerchItem.
+#
+# CROSS-REFS THAT RESIST CLEAN EXTRACTION:
+#   - MerchPurchase carries `reference_to MerchItem` — MerchItem lives in
+#     PigeonCoop (it is catalog/inventory, not financial). This reference
+#     stays. The Payments bluebook takes a hard dependency on PigeonCoop's
+#     MerchItem identity; the runtime resolves cross-bluebook refs by id.
+#   - All three aggregates carry `reference_to Person` — Person lives in
+#     PigeonCoop. Same pattern as Calendars extraction; acceptable.
+#   - Ledger.MyAnnualPayments retires the cross-aggregate query currently
+#     sitting in Person.MyAnnualPayments (pigeoncoop.bluebook line 149).
+#     That query should be removed from Person once this bluebook lands.
+
+Hecks.bluebook "Payments" do
+
+  # ── Cross-bluebook stubs ─────────────────────────────────────────────
+  #
+  # The real Person and MerchItem aggregates live in pigeoncoop.bluebook.
+  # Until the runtime supports cross-bluebook reference resolution, minimal
+  # stubs are declared here so `reference_to Person` / `reference_to MerchItem`
+  # calls validate. Each stub carries only the natural key needed for
+  # identity ; the full aggregates are authoritative in PigeonCoop.
+
+  aggregate "Person" do
+    value_object "PersonName" do
+      attribute :given,  String
+      attribute :family, String
+    end
+
+    attribute :name, PersonName
+
+    command "RegisterPerson" do
+      attribute :name, PersonName
+    end
+  end
+
+  aggregate "MerchItem" do
+    value_object "MerchName" do
+      attribute :text, String
+      invariant("non-empty") { !text.strip.empty? }
+    end
+
+    attribute :name, MerchName
+
+    command "AddMerchItem" do
+      attribute :name, MerchName
+    end
+  end
+
+  # ── Donation ─────────────────────────────────────────────────────────
+
+  aggregate "Donation" do
+    reference_to Person, as: :donor
+    attribute :amount,      Money
+    attribute :payment,     Payment
+    attribute :designation, Designation
+    attribute :note,        DonationNote
+    attribute :received_at, Timestamp
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("positive") { cents > 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "Designation" do
+      attribute :fund, String
+      invariant("general | arts | scholarship | building | unrestricted") do
+        %w[general arts scholarship building unrestricted].include?(fund)
+      end
+    end
+
+    value_object "DonationNote" do
+      attribute :text, String
+      invariant("≤ 500 chars") { text.length <= 500 }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "RecordDonation" do
+      reference_to Person, as: :donor
+      attribute :payment,     Payment
+      attribute :designation, Designation
+      attribute :note,        DonationNote
+    end
+
+    query "Recent" do
+      description "Every Donation ordered by received_at descending — the admin donations dashboard."
+    end
+  end
+
+  # ── MerchPurchase ─────────────────────────────────────────────────────
+  #
+  # Cross-ref note: `reference_to MerchItem` links to PigeonCoop's catalog
+  # aggregate. MerchItem is not financial; it stays in PigeonCoop. The
+  # runtime resolves by identity across bluebooks.
+
+  aggregate "MerchPurchase" do
+    reference_to MerchItem
+    reference_to Person, as: :buyer
+    attribute :quantity, Count
+    attribute :total,    Money
+    attribute :payment,  Payment
+
+    value_object "Count" do
+      attribute :n, Integer
+      invariant("positive") { n > 0 }
+    end
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("positive") { cents > 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "PlaceMerchOrder" do
+      reference_to MerchItem
+      reference_to Person, as: :buyer
+      attribute :quantity, Count
+      attribute :total,    Money
+      attribute :payment,  Payment
+    end
+
+    query "MyOrders" do
+      description "Every MerchPurchase where buyer = the calling Person, ordered by placed_at descending — the parent's merch order history."
+    end
+  end
+
+  # ── TuitionPayment ───────────────────────────────────────────────────
+
+  aggregate "TuitionPayment" do
+    reference_to Person, as: :payer
+    reference_to Person, as: :student
+    attribute :school_year, SchoolYear
+    attribute :amount,      Money
+    attribute :payment,     Payment
+    attribute :paid_at,     Timestamp
+
+    value_object "Money" do
+      attribute :cents,    Integer
+      attribute :currency, Currency
+      invariant("positive") { cents > 0 }
+    end
+
+    value_object "Currency" do
+      attribute :code, String
+      invariant("ISO 4217") { code.length == 3 && code == code.upcase }
+    end
+
+    value_object "SchoolYear" do
+      attribute :label, String
+      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
+    end
+
+    value_object "PaymentMethod" do
+      attribute :name, String
+      invariant("cash | check | card | bank_transfer | other") do
+        %w[cash check card bank_transfer other].include?(name)
+      end
+    end
+
+    value_object "PaymentReference" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Payment" do
+      attribute :amount,      Money
+      attribute :method,      PaymentMethod
+      attribute :reference,   PaymentReference
+      attribute :recorded_at, Timestamp
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "RecordPayment" do
+      reference_to Person, as: :payer
+      reference_to Person, as: :student
+      attribute :school_year, SchoolYear
+      attribute :payment,     Payment
+    end
+
+    query "MyPayments" do
+      description "Every TuitionPayment where payer = the calling Person, ordered by paid_at descending — the parent's tuition payment history for their child."
+    end
+  end
+
+  # ── Ledger ───────────────────────────────────────────────────────────
+  #
+  # Read-model aggregate. Projects from TuitionPayment, Donation, and
+  # MerchPurchase into a unified, chronological view. It does not own any
+  # write commands — it is populated by policies that fire on RecordDonation,
+  # PlaceMerchOrder, and RecordPayment events. The Ledger is the authoritative
+  # backing store for the cross-aggregate annual-payments query; once it
+  # lands, Person.MyAnnualPayments in pigeoncoop.bluebook is retired.
+  #
+  # Shape decision: read-model (projected), not pass-through coordinator.
+  # A coordinator would reach back into three aggregates at query time —
+  # that couples query latency to three stores and forces the runtime to
+  # assemble the union in memory. A read-model pays on write (three
+  # policies), reads cheaply from one store, and is filterable by
+  # school_year without cross-aggregate joins.
+
+  aggregate "Ledger" do
+    reference_to Person, as: :payer
+    attribute :school_year,  SchoolYear
+    attribute :entries,      list_of(LedgerEntry)
+
+    value_object "SchoolYear" do
+      attribute :label, String
+      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
+    end
+
+    value_object "AmountCents" do
+      attribute :value, Integer
+      invariant("non-negative") { value >= 0 }
+    end
+
+    value_object "LedgerEntry" do
+      attribute :kind,         EntryKind
+      attribute :amount_cents, AmountCents
+      attribute :recorded_at,  Timestamp
+      attribute :source_id,    SourceId
+    end
+
+    value_object "EntryKind" do
+      attribute :name, String
+      invariant("tuition | donation | merch") do
+        %w[tuition donation merch].include?(name)
+      end
+    end
+
+    value_object "SourceId" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "AppendLedgerEntry" do
+      reference_to Person, as: :payer
+      attribute :school_year,  SchoolYear
+      attribute :kind,         EntryKind
+      attribute :amount_cents, AmountCents
+      attribute :recorded_at,  Timestamp
+      attribute :source_id,    SourceId
+    end
+
+    query "MyAnnualPayments" do
+      description "Cross-aggregate read-model : every LedgerEntry for the calling Person in the given school_year, ordered by recorded_at descending — the parent's complete financial picture for the year. Retires Person.MyAnnualPayments from pigeoncoop.bluebook."
+    end
+  end
+
+  # ── Cascade policies ─────────────────────────────────────────────────
+  #
+  # These policies project the three source aggregates into Ledger on
+  # every write command. Ledger is append-only from the write side.
+
+  policy "ProjectDonationToLedger" do
+    on      "DonationRecorded"
+    trigger "AppendLedgerEntry"
+    map     payer:        :donor,
+            kind:         "donation",
+            amount_cents: :payment_amount_cents,
+            recorded_at:  :payment_recorded_at,
+            source_id:    :donation_id
+  end
+
+  policy "ProjectMerchPurchaseToLedger" do
+    on      "MerchOrderPlaced"
+    trigger "AppendLedgerEntry"
+    map     payer:        :buyer,
+            kind:         "merch",
+            amount_cents: :total_cents,
+            recorded_at:  :payment_recorded_at,
+            source_id:    :merch_purchase_id
+  end
+
+  policy "ProjectTuitionPaymentToLedger" do
+    on      "TuitionPaymentRecorded"
+    trigger "AppendLedgerEntry"
+    map     payer:        :payer,
+            kind:         "tuition",
+            amount_cents: :payment_amount_cents,
+            recorded_at:  :payment_recorded_at,
+            source_id:    :tuition_payment_id
+  end
+
+end
