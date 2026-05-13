@@ -6,6 +6,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
     let mut agg = Aggregate {
         name, description: desc,
         context: None, // populated by parse() after parse_aggregate returns
+        category: None, // i560 v2 — stamped from domain.category by invoke()
         attributes: vec![],
         commands: vec![], queries: vec![], value_objects: vec![],
         entities: vec![],

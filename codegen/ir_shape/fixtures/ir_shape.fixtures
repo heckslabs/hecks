@@ -181,21 +181,22 @@ Hecks.fixtures "IrShape" do
     fixture "SectionRow_label", type_name: "SectionRow", order: 1, name: "label", field_type: "String", doc_snippet: ""
     fixture "SectionRow_field", type_name: "SectionRow", order: 2, name: "field", field_type: "String", doc_snippet: ""
 
-    # Aggregate — 11 fields ; context, identified_by, entities carry doc.
+    # Aggregate — 12 fields ; context, category, identified_by, entities, views carry doc.
     fixture "Aggregate_name",          type_name: "Aggregate", order: 1,  name: "name",          field_type: "String",          doc_snippet: ""
     fixture "Aggregate_description",   type_name: "Aggregate", order: 2,  name: "description",   field_type: "Option<String>",  doc_snippet: ""
     fixture "Aggregate_context",       type_name: "Aggregate", order: 3,  name: "context",       field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_context.rs.frag"
-    fixture "Aggregate_identified_by", type_name: "Aggregate", order: 4,  name: "identified_by", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_identified_by.rs.frag"
-    fixture "Aggregate_attributes",    type_name: "Aggregate", order: 5,  name: "attributes",    field_type: "Vec<Attribute>",  doc_snippet: ""
-    fixture "Aggregate_commands",      type_name: "Aggregate", order: 6,  name: "commands",      field_type: "Vec<Command>",    doc_snippet: ""
-    fixture "Aggregate_queries",       type_name: "Aggregate", order: 7,  name: "queries",       field_type: "Vec<Query>",      doc_snippet: ""
-    fixture "Aggregate_value_objects", type_name: "Aggregate", order: 8,  name: "value_objects", field_type: "Vec<ValueObject>", doc_snippet: ""
-    fixture "Aggregate_entities",      type_name: "Aggregate", order: 9,  name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
-    fixture "Aggregate_references",    type_name: "Aggregate", order: 10, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
-    fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 11, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
+    fixture "Aggregate_category",      type_name: "Aggregate", order: 4,  name: "category",      field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_category.rs.frag"
+    fixture "Aggregate_identified_by", type_name: "Aggregate", order: 5,  name: "identified_by", field_type: "Option<String>",  doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_identified_by.rs.frag"
+    fixture "Aggregate_attributes",    type_name: "Aggregate", order: 6,  name: "attributes",    field_type: "Vec<Attribute>",  doc_snippet: ""
+    fixture "Aggregate_commands",      type_name: "Aggregate", order: 7,  name: "commands",      field_type: "Vec<Command>",    doc_snippet: ""
+    fixture "Aggregate_queries",       type_name: "Aggregate", order: 8,  name: "queries",       field_type: "Vec<Query>",      doc_snippet: ""
+    fixture "Aggregate_value_objects", type_name: "Aggregate", order: 9,  name: "value_objects", field_type: "Vec<ValueObject>", doc_snippet: ""
+    fixture "Aggregate_entities",      type_name: "Aggregate", order: 10, name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
+    fixture "Aggregate_references",    type_name: "Aggregate", order: 11, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
+    fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 12, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
     # i254 — views per role. Ordered Vec ; declaration order survives
     # JSON round-trip so portal renderers can iterate views deterministically.
-    fixture "Aggregate_views",         type_name: "Aggregate", order: 12, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
+    fixture "Aggregate_views",         type_name: "Aggregate", order: 13, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
 
     # Attribute — 4 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
