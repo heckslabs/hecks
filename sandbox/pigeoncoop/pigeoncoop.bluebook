@@ -1,13 +1,14 @@
 # PigeonCoop — the ASA (American School for the Arts) community app.
 #
 # Trimmed to story-supported scope : Person, Shoutout, Announcement,
-# Notification, three peer Calendars, Article, Newsletter, Event with
-# embedded Ticket, Document, AbsenceNotification, Donation, MerchItem,
-# MerchPurchase, TuitionPayment.
+# Notification, Article, Newsletter, Event with embedded Ticket,
+# Document, AbsenceNotification, Donation, MerchItem, MerchPurchase,
+# TuitionPayment.
 #
 # Commands are story-driven. Refund / cancel / waive / archive flows
 # omitted until ASA names them.
-
+#
+# Calendars extracted to ./calendars.bluebook (2026-05-13)
 Hecks.bluebook "PigeonCoop" do
   aggregate "Person" do
     attribute :name,                  PersonName
@@ -409,179 +410,6 @@ Hecks.bluebook "PigeonCoop" do
 
     query "Sent" do
       description "Every Message where sender = the calling Person, ordered by sent_at descending — the sent-items view."
-    end
-  end
-
-  aggregate "AcademicCalendar" do
-    reference_to Person, as: :maintained_by
-    attribute :entries,     list_of(CalendarEntry)
-    attribute :school_year, SchoolYear
-
-    value_object "SchoolYear" do
-      attribute :label, String
-      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
-    end
-
-    value_object "Timestamp" do
-      attribute :iso8601, String
-      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
-    end
-
-    value_object "EntryTitle" do
-      attribute :text, String
-      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
-    end
-
-    value_object "EntryNotes" do
-      attribute :text, String
-      invariant("≤ 1000 chars") { text.length <= 1000 }
-    end
-
-    value_object "EntryRef" do
-      attribute :id, String
-      invariant("non-empty") { !id.strip.empty? }
-    end
-
-    entity "CalendarEntry" do
-      attribute :title,     EntryTitle
-      attribute :starts_at, Timestamp
-      attribute :ends_at,   Timestamp
-      attribute :notes,     EntryNotes
-    end
-
-    command "AddEntry" do
-      reference_to AcademicCalendar
-      reference_to Person, as: :maintained_by
-      attribute :title,     EntryTitle
-      attribute :starts_at, Timestamp
-      attribute :ends_at,   Timestamp
-      attribute :notes,     EntryNotes
-    end
-
-    command "RemoveEntry" do
-      reference_to AcademicCalendar
-      reference_to Person, as: :maintained_by
-      attribute :entry_id, EntryRef
-    end
-
-    query "Current" do
-      description "Return the AcademicCalendar for the current school_year with all CalendarEntry rows ordered by starts_at ascending — the view parents and students see on the academic calendar page."
-    end
-  end
-
-  aggregate "ArtsCalendar" do
-    reference_to Person, as: :maintained_by
-    attribute :entries, list_of(CalendarEntry)
-    attribute :season,  Season
-
-    value_object "Season" do
-      attribute :label, String
-      invariant("non-empty") { !label.strip.empty? }
-    end
-
-    value_object "Timestamp" do
-      attribute :iso8601, String
-      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
-    end
-
-    value_object "EntryTitle" do
-      attribute :text, String
-      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
-    end
-
-    value_object "Venue" do
-      attribute :name, String
-      invariant("non-empty, ≤ 200 chars") { !name.strip.empty? && name.length <= 200 }
-    end
-
-    value_object "EntryRef" do
-      attribute :id, String
-      invariant("non-empty") { !id.strip.empty? }
-    end
-
-    entity "CalendarEntry" do
-      attribute :title,     EntryTitle
-      attribute :starts_at, Timestamp
-      attribute :ends_at,   Timestamp
-      attribute :venue,     Venue
-    end
-
-    command "AddEntry" do
-      reference_to ArtsCalendar
-      reference_to Person, as: :maintained_by
-      attribute :title,     EntryTitle
-      attribute :starts_at, Timestamp
-      attribute :ends_at,   Timestamp
-      attribute :venue,     Venue
-    end
-
-    command "RemoveEntry" do
-      reference_to ArtsCalendar
-      reference_to Person, as: :maintained_by
-      attribute :entry_id, EntryRef
-    end
-
-    query "Current" do
-      description "Return the ArtsCalendar for the current season with all CalendarEntry rows ordered by starts_at ascending — the arts-season schedule view."
-    end
-  end
-
-  aggregate "LunchCalendar" do
-    reference_to Person, as: :maintained_by
-    attribute :entries, list_of(MenuDay)
-    attribute :week_of, CalendarWeek
-
-    value_object "Timestamp" do
-      attribute :iso8601, String
-      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
-    end
-
-    value_object "CalendarWeek" do
-      attribute :iso_week, String
-      invariant("YYYY-Www format") { iso_week.match?(/\A\d{4}-W\d{2}\z/) }
-    end
-
-    value_object "DietaryTag" do
-      attribute :name, String
-      invariant("vegetarian | vegan | gluten_free | nut_free | dairy_free") do
-        %w[vegetarian vegan gluten_free nut_free dairy_free].include?(name)
-      end
-    end
-
-    value_object "MenuMain" do
-      attribute :text, String
-      invariant("non-empty, ≤ 200 chars") { !text.strip.empty? && text.length <= 200 }
-    end
-
-    value_object "MenuSides" do
-      attribute :text, String
-      invariant("≤ 500 chars") { text.length <= 500 }
-    end
-
-    entity "MenuDay" do
-      attribute :date,         Timestamp
-      attribute :main,         MenuMain
-      attribute :sides,        MenuSides
-      attribute :dietary_tags, list_of(DietaryTag)
-    end
-
-    command "PostMenuWeek" do
-      reference_to LunchCalendar
-      reference_to Person, as: :maintained_by
-      attribute :week_of, CalendarWeek
-    end
-
-    command "AddMenuDay" do
-      reference_to LunchCalendar
-      reference_to Person, as: :maintained_by
-      attribute :date,         Timestamp
-      attribute :main,         MenuMain
-      attribute :sides,        MenuSides
-      attribute :dietary_tags, list_of(DietaryTag)
-    end
-
-    query "ThisWeek" do
-      description "Return the LunchCalendar whose week_of contains today, with all MenuDay rows ordered by date ascending — the lunch-schedule view for parents and students."
     end
   end
 
