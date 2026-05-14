@@ -1,5 +1,5 @@
-Hecks.bluebook "Macrophage", version: "2026.05.12.1" do
-  vision "The bluebook-first discipline made structural — a live watcher that engulfs the bad write the moment it happens and surfaces the complaint into the next conversation turn. One dense aggregate carries the counters, the registered checks, and the history of complaints + violations as child entities. The companion to the antibody : antibody binds at commit-time, macrophage engulfs at write-time."
+Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
+  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of eight per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirstMacrophage, FixturesRuntimeMacrophage, AntibodyExemptionMacrophage, WarningsMacrophage, LinearReferenceMacrophage, LineCountMacrophage, TestSpeedMacrophage, CardLockMacrophage) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. FQN dispatch becomes Macrophage::<Rule>Macrophage.Command — no more awkward BluebookFirstMacrophage::BluebookFirstMacrophage.X addresses."
   category "discipline"
 
   # ============================================================
@@ -272,4 +272,1350 @@ Hecks.bluebook "Macrophage", version: "2026.05.12.1" do
   # cross-aggregate queries land (i101) this becomes a query on
   # the Macrophage aggregate that walks the Complaint / Check
   # entity collections.
+
+  # ============================================================
+  # BLUEBOOK FIRST MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # The original Macrophage aggregate enforces the bluebook-first
+  # discipline alongside fixtures-at-runtime and other checks —
+  # all sharing a single aggregate. i595 decomposes that singleton
+  # into a family of per-rule macrophages. This is the first member.
+  #
+  # Responsibility : track every file write by kind, record the
+  # complaint when an imperative file arrives without an exempt
+  # marker, and maintain the full complaint history as an entity
+  # collection. The statusline can surface "3 bluebook violations
+  # this session" with rule-level precision because counts are
+  # scoped to this enforcement alone.
+  #
+  # File kinds (same classification as the parent Macrophage) :
+  #   .bluebook .hecksagon .fixtures .behaviors .world  → declarative (no complaint)
+  #   .rs .sh .rb .js .py .go .ts                       → imperative (complain)
+  #   .md .heki .json .toml .yaml .txt                  → support (no complaint)
+  #   anything else                                     → other (no complaint)
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 2 of the i595 plan.
+
+  aggregate "BluebookFirstMacrophage", "Per-rule macrophage for the bluebook-first enforcement — tracks imperative edits, exempted edits, and the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Edit tallies — scoped to this rule's relevant file kinds.
+    # Bluebook and support edits are recorded to keep the session
+    # picture whole ; imperative_edits is the signal for this rule.
+    attribute :bluebook_edits,   EditCount
+    attribute :imperative_edits, EditCount
+    attribute :exempted_edits,   EditCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,    ComplaintText
+    attribute :last_complaint_at, Timestamp
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # complained_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an edit or complaint.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The BluebookFirstMacrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "EditCount" do
+      # Count of edits of a particular kind (bluebook / imperative
+      # / exempted) recorded by this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    # ── Entity — complaint audit trail ──
+
+    entity "Complaint" do
+      description "One historical complaint event for the bluebook-first rule. Records which file triggered the complaint, what the complaint text said, and when. The last_complaint / last_complaint_at scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :complained_at,  Timestamp
+      attribute :file_path,      FilePath
+      attribute :complaint_text, ComplaintText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The Complaint entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Edit recording — one command per file kind ──
+
+    command "RecordBluebookEdit" do
+      role "Hook"
+      description "A bluebook-family file (.bluebook | .hecksagon | .fixtures | .behaviors | .world) was written. The bluebook-first rule is satisfied — no complaint. Increments bluebook_edits so the session scoreboard can show the ratio of declarative to imperative writes."
+      attribute :file_path, FilePath
+      emits "BluebookEdited"
+    end
+
+    command "RecordImperativeEdit" do
+      role "Hook"
+      description "An imperative-language file (.rs | .sh | .rb | .js | .py | .go | .ts) was written without an antibody-exempt marker. Increments imperative_edits. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path, FilePath
+      emits "ImperativeEdited"
+    end
+
+    command "RecordExemptedEdit" do
+      role "Hook"
+      description "An imperative-language file was written, but carries an [antibody-exempt: ...] marker — the bluebook-first discipline is satisfied by the marker. Tracked separately so the scoreboard can distinguish 'exempted imperative edits' from 'unexempted imperative edits' and confirm the exemption discipline is being followed."
+      attribute :file_path, FilePath
+      emits "ExemptedEdited"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The BluebookFirstMacrophage detected an imperative edit without an antibody-exempt marker. Records the complaint text and timestamp on the root for fast statusline reads, and appends a Complaint entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The BluebookFirstMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,         FilePath
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # FIXTURES RUNTIME MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # The original Macrophage aggregate enforces the bluebook-first
+  # discipline alongside fixtures-at-runtime and other checks —
+  # all sharing a single aggregate. i595 decomposes that singleton
+  # into a family of per-rule macrophages. This is the second member.
+  #
+  # Responsibility : track every .fixtures file access by context,
+  # record the violation when a .fixtures file is loaded by non-test
+  # code, and maintain the full violation history as an entity
+  # collection. The statusline can surface "2 fixtures violations
+  # this session" with rule-level precision because counts are
+  # scoped to this enforcement alone.
+  #
+  # .fixtures files are TEST DATA. They describe the domain state
+  # that behaviors specs exercise. Production and runtime code must
+  # never require or load them — doing so couples the test data
+  # surface into the runtime path, which breaks the contract
+  # between domain specification and deployment artefact.
+  #
+  # Access contexts :
+  #   behaviors test (*.behaviors, *_spec.rb, *_test.rb)  → safe (record access, no complaint)
+  #   any other caller                                    → violation (complain)
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 2 of the i595 plan.
+
+  aggregate "FixturesRuntimeMacrophage", "Per-rule macrophage for the fixtures-at-runtime enforcement — tracks .fixtures file accesses, violations, and the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Access tallies — scoped to this rule's signal.
+    # files_checked counts all .fixtures accesses observed;
+    # fixtures_violations counts the non-test subset.
+    attribute :files_checked,        ViolationCount
+    attribute :fixtures_violations,  ViolationCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_violation,           ViolationText
+    attribute :last_violation_at,        Timestamp
+    attribute :last_violation_file_path, FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # violated_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a .fixtures access or violation.
+      attribute :value, String
+    end
+
+    value_object "ViolationCount" do
+      # Count of events of a particular kind (files_checked /
+      # fixtures_violations) recorded by this macrophage in the
+      # current session.
+      attribute :value, Integer
+    end
+
+    value_object "ViolationText" do
+      # The body of a violation complaint — the stderr text the hook
+      # emits. Includes the rule name so complaint attribution is clear :
+      # "The FixturesRuntimeMacrophage expected ..."
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "FixturesViolation" do
+      description "One historical violation event for the fixtures-at-runtime rule. Records which .fixtures file was loaded, who loaded it, what the violation text said, and when. The last_violation / last_violation_at / last_violation_file_path scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :violated_at,     Timestamp
+      attribute :file_path,       FilePath
+      attribute :violation_text,  ViolationText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what loaded today, not lifetime totals. The FixturesViolation entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Access recording ──
+
+    command "RecordFixturesAccess" do
+      role "Hook"
+      description "A .fixtures file was loaded — neutral signal from the hook. Increments files_checked so the session scoreboard can show what proportion of accesses were violations versus safe behaviors-test loads. No complaint is issued here; the caller discriminates safe from violation and routes accordingly."
+      attribute :file_path, FilePath
+      emits "FixturesAccessed"
+    end
+
+    command "RecordRuntimeViolation" do
+      role "Hook"
+      description "A .fixtures file was loaded by non-test code — the violation signal. Increments fixtures_violations. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path, FilePath
+      emits "RuntimeViolationRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The FixturesRuntimeMacrophage detected a .fixtures file loaded outside a behaviors-test context. Records the violation text and timestamp on the root for fast statusline reads, and appends a FixturesViolation entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The FixturesRuntimeMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,       FilePath
+      attribute :violation,       ViolationText
+      attribute :violated_at,     Timestamp
+      then_set :last_violation,           to: :violation
+      then_set :last_violation_at,        to: :violated_at
+      then_set :last_violation_file_path, to: :file_path
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # ANTIBODY EXEMPTION MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # The [antibody-exempt: <reason>] marker exists so a human can
+  # explicitly bless a specific imperative write after the hook
+  # blocks it. The discipline is : (a) the marker must name a
+  # concrete, per-file concern, and (b) it must NOT be written
+  # pre-emptively — the hook must block first, then the human
+  # decides per file. Pre-empting drains the surface : if the
+  # model pre-writes the marker it never has to surface the edit
+  # for human review, which defeats the entire gate mechanism.
+  #
+  # This macrophage tracks every [antibody-exempt: ...] marker it
+  # sees, classifies each as well-formed or malformed, records the
+  # reason-for-malformation on a MalformedExemption entity, and
+  # issues a complaint when a marker is pre-emptive or vague. The
+  # complaint text begins "The AntibodyExemptionMacrophage expected
+  # ..." so rule attribution is visible at a glance.
+  #
+  # Malformation criteria :
+  #   Pre-emptive  — marker appears before the hook ever fired
+  #   Too vague    — reason text is a generic phrase with no
+  #                  file-specific content (e.g. "exempt", "ok",
+  #                  "known", "safe", "auto-generated")
+  #   Blanket      — marker covers multiple files with a single
+  #                  reason rather than naming per-file rationale
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. i595 decomposition #3 of 7.
+
+  aggregate "AntibodyExemptionMacrophage", "Per-rule macrophage for the antibody-exemption-marker well-formedness enforcement — tracks all exemption markers seen, classifies them as well-formed or malformed, and maintains the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Exemption tallies — scoped to this rule.
+    attribute :total_exemptions_seen,  ExemptionCount
+    attribute :well_formed_exemptions, ExemptionCount
+    attribute :malformed_exemptions,   ExemptionCount
+    attribute :preemptive_exemptions,  ExemptionCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,              ComplaintText
+    attribute :last_complaint_at,           Timestamp
+    attribute :last_offending_marker_text,  MarkerText
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an exemption marker or complaint.
+      attribute :value, String
+    end
+
+    value_object "MarkerText" do
+      # The raw text of the [antibody-exempt: <reason>] marker as
+      # it appeared in the commit message or file. Preserved verbatim
+      # so the audit trail can show exactly what was written.
+      attribute :value, String
+    end
+
+    value_object "ExemptionCount" do
+      # Count of exemption markers of a particular classification
+      # (total / well-formed / malformed / pre-emptive) recorded
+      # by this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The AntibodyExemptionMacrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "ReasonText" do
+      # The human-readable explanation of why a given exemption
+      # marker was judged malformed — e.g. "marker is too vague",
+      # "pre-emptive: hook had not yet fired for this file",
+      # "blanket marker covers multiple files".
+      attribute :value, String
+    end
+
+    # ── Entity — malformed-exemption audit trail ──
+
+    entity "MalformedExemption" do
+      description "One historical record of a malformed or pre-emptive [antibody-exempt: ...] marker. Records the file where the marker appeared, the verbatim marker text, and the reason the macrophage judged it malformed. The last_complaint / last_complaint_at scalars on the root mirror the most recent complaint; this collection holds the full audit trail."
+      attribute :recorded_at,           Timestamp
+      attribute :file_path,             FilePath
+      attribute :marker_text,           MarkerText
+      attribute :reason_for_malformation, ReasonText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The MalformedExemption entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Exemption recording — one command per classification ──
+
+    command "RecordExemption" do
+      role "Hook"
+      description "An [antibody-exempt: <reason>] marker was seen in a commit message or file header. Neutral intake — increments total_exemptions_seen before classification is complete. The hook follows up immediately with RecordWellFormedExemption or RecordMalformedExemption once it evaluates the marker's specificity and timing."
+      attribute :file_path,   FilePath
+      attribute :marker_text, MarkerText
+      emits "ExemptionSeen"
+    end
+
+    command "RecordWellFormedExemption" do
+      role "Hook"
+      description "The [antibody-exempt: <reason>] marker names a specific, concrete, per-file concern and was written after the hook blocked — not pre-emptively. The exemption discipline is satisfied. Increments well_formed_exemptions so the scoreboard can confirm the exemption gate is functioning as designed."
+      attribute :file_path,   FilePath
+      attribute :marker_text, MarkerText
+      emits "WellFormedExemptionRecorded"
+    end
+
+    command "RecordMalformedExemption" do
+      role "Hook"
+      description "The [antibody-exempt: <reason>] marker is too vague, pre-emptive, or blanket. Increments malformed_exemptions and, if the marker is specifically pre-emptive, also increments preemptive_exemptions. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path,             FilePath
+      attribute :marker_text,           MarkerText
+      attribute :reason_for_malformation, ReasonText
+      emits "MalformedExemptionRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The AntibodyExemptionMacrophage detected a malformed or pre-emptive exemption marker. Records the complaint text and timestamp on the root for fast statusline reads, and appends a MalformedExemption entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The AntibodyExemptionMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,             FilePath
+      attribute :marker_text,           MarkerText
+      attribute :complaint,             ComplaintText
+      attribute :last_complaint_at,     Timestamp
+      attribute :reason_for_malformation, ReasonText
+      then_set :last_complaint,             to: :complaint
+      then_set :last_complaint_at,          to: :last_complaint_at
+      then_set :last_offending_marker_text, to: :marker_text
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # WARNINGS MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # Rule (from CLAUDE.md / Standards) :
+  #   "Warnings are errors waiting to happen — `cargo build` produces
+  #   no warnings. `rspec` produces no deprecation traces. ESLint
+  #   produces no swallowed rules."
+  #
+  # Why it matters : a zero-warning build is an alarm system. Every
+  # warning that slips through dulls the signal; the team stops
+  # noticing. Structural enforcement keeps the threshold honest by
+  # making each deviation visible in the audit trail rather than
+  # silent in a scrolling terminal.
+  #
+  # i595 context : the original Macrophage aggregate enforces
+  # several rules in a single aggregate. i595 decomposes that
+  # singleton into a family of per-rule macrophages. This is the
+  # fourth member of that family. The parent Macrophage aggregate
+  # is NOT retired here — this aggregate is a sibling.
+  #
+  # Warning sources tracked :
+  #   Compiler — `cargo build`, `rustc`, or similar producing a
+  #              warning line (e.g. "warning: unused variable")
+  #   Test     — test runner (rspec, jest, etc.) producing a
+  #              deprecation warning or a `warning:` trace
+  #   Lint     — ESLint / rubocop / clippy / similar producing
+  #              a rule violation outside compiler output
+  #
+  # Suppression markers (e.g. #[allow(dead_code)], eslint-disable)
+  # are tracked as their own category — the discipline equivalent
+  # of antibody-exempt markers for the warnings rule. They must be
+  # named and intentional; pre-emptive suppression is itself a
+  # violation surfaced by Complain.
+
+  aggregate "WarningsMacrophage", "Per-rule macrophage for the zero-warning-build enforcement — tracks compiler, test, and lint warnings plus explicit suppression markers and the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Warning tallies — broken out by source so the scoreboard
+    # can show "2 compiler, 0 test, 1 lint" rather than a single number.
+    attribute :total_warnings,      WarningCount
+    attribute :compiler_warnings,   WarningCount
+    attribute :test_warnings,       WarningCount
+    attribute :lint_warnings,       WarningCount
+
+    # Suppression markers — analogous to exempted_edits in
+    # BluebookFirstMacrophage. Each #[allow(...)] or eslint-disable
+    # that lands is recorded here; a non-zero count triggers the
+    # same scrutiny as an antibody-exempt marker.
+    attribute :suppressed_warnings, WarningCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,       ComplaintText
+    attribute :last_complaint_at,    Timestamp
+    attribute :last_offending_file,  FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-event recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a warning or complaint.
+      attribute :value, String
+    end
+
+    value_object "WarningCount" do
+      # Count of warnings of a particular kind (compiler / test /
+      # lint / suppressed) recorded by this macrophage in the
+      # current session.
+      attribute :value, Integer
+    end
+
+    value_object "WarningText" do
+      # The raw warning line as emitted by the tool —
+      # e.g. "warning: unused variable `x` [unused_variables]".
+      # Stored verbatim so the audit trail is replayable.
+      attribute :value, String
+    end
+
+    value_object "WarningSource" do
+      # Which tool surface produced the warning.
+      # One of: "Compiler" | "Test" | "Lint"
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The WarningsMacrophage expected ..."
+      attribute :value, String
+    end
+
+    # ── Entity — warning audit trail ──
+
+    entity "Warning" do
+      description "One historical warning event. Records which file triggered the warning, the source tool, the raw warning text, and when it was recorded. The total_warnings / compiler_warnings / test_warnings / lint_warnings scalars on the root mirror live counts; this collection holds the full audit trail so individual warnings remain queryable after the session."
+      attribute :recorded_at,   Timestamp
+      attribute :file_path,     FilePath
+      attribute :source,        WarningSource
+      attribute :warning_text,  WarningText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what surfaced today, not lifetime totals. The Warning entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Warning recording — one command per source kind ──
+
+    command "RecordCompilerWarning" do
+      role "Hook"
+      description "The compiler (cargo / rustc / similar) produced a warning line during a build. Increments compiler_warnings and total_warnings. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path,    FilePath
+      attribute :warning_text, WarningText
+      attribute :recorded_at,  Timestamp
+      emits "CompilerWarningRecorded"
+    end
+
+    command "RecordTestWarning" do
+      role "Hook"
+      description "The test runner (rspec / jest / similar) produced a deprecation warning or warning trace. Increments test_warnings and total_warnings. Deprecation traces are pre-failures — treating them as warnings under this rule surfaces the debt before it becomes a breakage."
+      attribute :file_path,    FilePath
+      attribute :warning_text, WarningText
+      attribute :recorded_at,  Timestamp
+      emits "TestWarningRecorded"
+    end
+
+    command "RecordLintWarning" do
+      role "Hook"
+      description "A linter (ESLint / rubocop / clippy / similar) produced a rule violation. Increments lint_warnings and total_warnings. Lint warnings that are swallowed or ignored become permanent technical debt; this command makes each one visible in the audit trail."
+      attribute :file_path,    FilePath
+      attribute :warning_text, WarningText
+      attribute :recorded_at,  Timestamp
+      emits "LintWarningRecorded"
+    end
+
+    command "RecordSuppressedWarning" do
+      role "Hook"
+      description "A suppression marker (#[allow(...)], eslint-disable-next-line, rubocop:disable, etc.) was added to a file — the warnings discipline is satisfied by the explicit marker. Tracked separately so the scoreboard can distinguish 'suppressed warnings' from 'unacknowledged warnings' and confirm the suppression discipline is case-by-case rather than blanket. Suppression without a corresponding named reason is itself a violation that Complain should surface."
+      attribute :file_path,    FilePath
+      attribute :warning_text, WarningText
+      attribute :recorded_at,  Timestamp
+      emits "SuppressedWarningRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The WarningsMacrophage detected a warning (or an unsanctioned suppression marker) that violates the zero-warning build rule. Records the complaint text and timestamp on the root for fast statusline reads, records the offending file, and appends a Warning entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The WarningsMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,        FilePath
+      attribute :complaint,        ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,      to: :complaint
+      then_set :last_complaint_at,   to: :last_complaint_at
+      then_set :last_offending_file, to: :file_path
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # LINEAR REFERENCE MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # The name is "LinearReference" not "Linear" — it generalises
+  # to any retired tool. Linear is the canonical first member of
+  # the tracked-retired-tools list (retired 2026-04-27, replaced
+  # by the hecks MCP + Glass command palette).
+  #
+  # Stale references compound over time: they appear in docs,
+  # commit messages, usage examples, and onboarding guides. Each
+  # one is a false affordance — a reader reaches for a tool that
+  # no longer exists and wastes time debugging their environment.
+  # Catching references at write-time, before they accumulate, is
+  # far cheaper than periodic grep-and-purge sweeps.
+  #
+  # The list of tracked retired tools is a TrackedRetiredTool
+  # entity collection, not a hard-coded constant. Adding a newly-
+  # retired tool is a single TrackRetiredTool command — no code
+  # change needed. Removing a fully-purged tool is a single
+  # UntrackRetiredTool command.
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 5 of the i595 plan.
+
+  aggregate "LinearReferenceMacrophage", "Per-rule macrophage for the retired-tool-reference enforcement — tracks which tools are being watched, records detected references, and maintains the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Running totals — scoped to this rule.
+    attribute :total_references_seen, ReferenceCount
+    attribute :files_checked,         ReferenceCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_file,    FilePath
+    attribute :last_offending_tool,    ToolName
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a reference or complaint.
+      attribute :value, String
+    end
+
+    value_object "ToolName" do
+      # The canonical name of a retired tool, e.g. "Linear".
+      # Stored on both TrackedRetiredTool and RetiredReference so
+      # queries can filter by tool without joining on entity ids.
+      attribute :value, String
+    end
+
+    value_object "ReferenceCount" do
+      # Count of detected references (or files checked) recorded
+      # by this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ReferenceText" do
+      # The verbatim snippet of the file that contained the
+      # reference — the line or phrase that triggered detection.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The LinearReferenceMacrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "LineNumber" do
+      # 1-based line number within the file where the reference
+      # was detected. Zero means the line could not be isolated.
+      attribute :value, Integer
+    end
+
+    # ── Entity — retired-tool registry ──
+
+    entity "TrackedRetiredTool" do
+      description "One tool that has been retired and whose references should be flagged. Adding a new entry via TrackRetiredTool is the only change required when a new tool is retired — the detection loop iterates this collection at runtime, so the set is data, not code."
+      attribute :tool_name,    ToolName
+      attribute :retired_at,   Timestamp
+      attribute :replaced_by,  ToolName
+      attribute :notes,        ReferenceText
+    end
+
+    # ── Entity — reference audit trail ──
+
+    entity "RetiredReference" do
+      description "One detected reference to a tracked retired tool. Records when it was seen, which file contained it, which tool was referenced, the line number, and the verbatim snippet. The last_offending_file / last_offending_tool scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,      Timestamp
+      attribute :file_path,        FilePath
+      attribute :tool_name,        ToolName
+      attribute :line_number,      LineNumber
+      attribute :reference_text,   ReferenceText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was detected today, not lifetime totals. The TrackedRetiredTool and RetiredReference entity collections are NOT reset — they are persistent state and audit trail respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Tool registry commands ──
+
+    command "TrackRetiredTool" do
+      role "System"
+      description "Register a newly-retired tool so the macrophage will flag references to it going forward. This is the only change needed when a tool is retired — no code edit, no redeploy. Appends a TrackedRetiredTool entity. If the tool_name already exists, the entry is refreshed with the new metadata."
+      attribute :tool_name,   ToolName
+      attribute :retired_at,  Timestamp
+      attribute :replaced_by, ToolName
+      attribute :notes,       ReferenceText
+      emits "RetiredToolTracked"
+    end
+
+    command "UntrackRetiredTool" do
+      role "System"
+      description "Remove a tool from the watch list once all references to it have been purged from the codebase. This acknowledges that the cleanup is complete and prevents false positives on historical commits or example output that legitimately names the old tool in a 'was replaced by' context."
+      attribute :tool_name, ToolName
+      emits "RetiredToolUntracked"
+    end
+
+    # ── Reference recording ──
+
+    command "RecordReference" do
+      role "Hook"
+      description "A tracked retired tool was referenced in a file. Increments total_references_seen, updates last_offending_file and last_offending_tool, and appends a RetiredReference entity for the audit trail. The hook chains into Complain to surface the violation on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path,      FilePath
+      attribute :tool_name,      ToolName
+      attribute :line_number,    LineNumber
+      attribute :reference_text, ReferenceText
+      attribute :recorded_at,    Timestamp
+      then_set :last_offending_file, to: :file_path
+      then_set :last_offending_tool, to: :tool_name
+      emits "ReferenceRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The LinearReferenceMacrophage detected a reference to a tracked retired tool. Records the complaint text and timestamp on the root for fast statusline reads, and appends a Complaint for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LinearReferenceMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,         FilePath
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # LINE COUNT MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # CLAUDE.md says : "No file over 200 lines of code — doc comment
+  # headers don't count toward this limit; extract modules/classes
+  # by concern when approaching it."
+  #
+  # Large files are where concerns go to hide. A 400-line Ruby file
+  # almost always contains two or three natural splits — one class
+  # doing I/O and another doing domain logic, or a generic concern
+  # bundled with a specialised one. The 200-line rule forces the
+  # conversation early, before the tangle sets in.
+  #
+  # i595 decomposes the original monolithic Macrophage aggregate into
+  # a family of per-rule macrophages. LineCountMacrophage is the sixth
+  # member. The parent Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Only imperative files are checked (the file
+  # kinds that hold code) ; declarative and support files are recorded
+  # but never complained about.
+  #
+  # File kinds (same classification as the parent Macrophage) :
+  #   .bluebook .hecksagon .fixtures .behaviors .world  → declarative
+  #   .rs .sh .rb .js .py .go .ts                       → imperative (checked)
+  #   .md .heki .json .toml .yaml .txt                  → support
+  #   anything else                                     → other
+  #
+  # Two thresholds are domain attributes, not magic constants :
+  #   warning_threshold_lines (default 180) — files approaching limit
+  #   limit_lines             (default 200) — files over the limit
+  #
+  # Two entity kinds separate the urgency clearly :
+  #   WarningFile  — between threshold and limit (start extracting now)
+  #   OversizedFile — at or over limit (a rule violation)
+
+  aggregate "LineCountMacrophage", "Per-rule macrophage for the 200-line file limit — tracks checked files, records warning and over-limit files as distinct entities, and surfaces a complaint for every violation" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Enforcement thresholds — domain attributes, not magic constants.
+    attribute :limit_lines,             LineCount
+    attribute :warning_threshold_lines, LineCount
+
+    # Session tallies — scoped to this session for scoreboard reads.
+    attribute :total_files_checked, FileCount
+    attribute :files_within_limit,  FileCount
+    attribute :files_at_warning,    FileCount
+    attribute :files_over_limit,    FileCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_file,    FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # recorded_at, and any per-event when fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a check or complaint.
+      attribute :value, String
+    end
+
+    value_object "LineCount" do
+      # Count of code lines in a file, or a threshold value.
+      # Doc-comment headers are excluded by the hook before dispatch.
+      attribute :value, Integer
+    end
+
+    value_object "FileCount" do
+      # Count of files in a particular category (checked / within /
+      # at-warning / over-limit) recorded in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Begins "The LineCountMacrophage expected ..." so rule
+      # attribution is visible at a glance in the system reminder.
+      attribute :value, String
+    end
+
+    value_object "FileKind" do
+      # Classification of the file being checked. Legal values :
+      # "Imperative" | "Declarative" | "Support" | "Other".
+      # Only Imperative files are subject to the line-count rule.
+      attribute :value, String
+    end
+
+    # ── Entity — oversized-file audit trail ──
+
+    entity "OversizedFile" do
+      description "One file that crossed the line-count limit. Recorded when RecordLineCount routes to over-limit, or when RecordOversizedFile is dispatched directly. The exceeded_by field makes the delta legible without subtraction — how many lines over the limit the file sits."
+      attribute :recorded_at,  Timestamp
+      attribute :file_path,    FilePath
+      attribute :line_count,   LineCount
+      attribute :kind,         FileKind
+      attribute :exceeded_by,  LineCount
+    end
+
+    # ── Entity — warning-file audit trail ──
+
+    entity "WarningFile" do
+      description "One file that sits between warning_threshold_lines and limit_lines — approaching the limit but not yet over it. Distinct from OversizedFile so urgency reads at a glance: WarningFile = act soon, OversizedFile = rule violated. The lines_to_limit field shows the remaining headroom."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :line_count,     LineCount
+      attribute :kind,           FileKind
+      attribute :lines_to_limit, LineCount
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects today's activity, not lifetime totals. The OversizedFile and WarningFile entity collections are NOT reset — they are audit trail. Thresholds are set here with defaults if not provided."
+      attribute :session_started_at,      Timestamp
+      attribute :limit_lines,             LineCount
+      attribute :warning_threshold_lines, LineCount
+      then_set :session_started_at,      to: :session_started_at
+      then_set :limit_lines,             to: :limit_lines
+      then_set :warning_threshold_lines, to: :warning_threshold_lines
+      emits "SessionStarted"
+    end
+
+    # ── Primary recording command ──
+
+    command "RecordLineCount" do
+      role "Hook"
+      description "A file was checked for line count. Routes internally to within-limit, at-warning, or over-limit depending on where line_count falls relative to warning_threshold_lines and limit_lines. Increments the appropriate session counter. The hook calls this once per file write; the macrophage decides the category. Only Imperative files trigger a complaint — Declarative, Support, and Other files are tallied but never complained about."
+      attribute :file_path,  FilePath
+      attribute :line_count, LineCount
+      attribute :kind,       FileKind
+      emits "LineCountRecorded"
+    end
+
+    # ── Explicit violation commands ──
+
+    command "RecordOversizedFile" do
+      role "Hook"
+      description "A file has exceeded the line-count limit. Records an OversizedFile entity for the audit trail and increments files_over_limit. The hook chains into Complain after this command to surface the complaint — this command records the fact; Complain records the reaction. exceeded_by is pre-computed by the hook (line_count minus limit_lines) so the entity is self-describing."
+      attribute :file_path,  FilePath
+      attribute :line_count, LineCount
+      attribute :kind,       FileKind
+      attribute :exceeded_by, LineCount
+      emits "OversizedFileRecorded"
+    end
+
+    command "RecordWarningFile" do
+      role "Hook"
+      description "A file sits between warning_threshold_lines and limit_lines — approaching the limit. Records a WarningFile entity and increments files_at_warning. The hook may emit a softer warning (not a hard complaint) so the author knows to start extracting. lines_to_limit is pre-computed by the hook (limit_lines minus line_count)."
+      attribute :file_path,      FilePath
+      attribute :line_count,     LineCount
+      attribute :kind,           FileKind
+      attribute :lines_to_limit, LineCount
+      emits "WarningFileRecorded"
+    end
+
+    # ── Threshold adjustment ──
+
+    command "AdjustLimit" do
+      role "Lead"
+      description "Change the line-count thresholds when the team agrees on a new default. One-shot domain command — the new values persist as domain attributes and apply to all subsequent RecordLineCount dispatches. Does not retroactively reclassify existing entities; the audit trail records what the rule said at the time of each check."
+      attribute :limit_lines,             LineCount
+      attribute :warning_threshold_lines, LineCount
+      then_set :limit_lines,             to: :limit_lines
+      then_set :warning_threshold_lines, to: :warning_threshold_lines
+      emits "LimitAdjusted"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The LineCountMacrophage detected a file that has exceeded the line-count limit. Records the complaint text and timestamp on the root for fast statusline reads, and sets last_offending_file. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LineCountMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,         FilePath
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,      to: :complaint
+      then_set :last_complaint_at,   to: :last_complaint_at
+      then_set :last_offending_file, to: :file_path
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # TEST SPEED MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # CLAUDE.md states: "Tests must run under 1 second — enforced by
+  # pre-commit hook." That constraint exists because a slow test
+  # suite fragments attention and erodes the tight feedback loop
+  # that makes test-driven work pleasant. When a suite drifts past
+  # the threshold, the rule has been broken whether or not the
+  # pre-commit hook fires — this macrophage makes the drift
+  # observable as domain state.
+  #
+  # i595 decomposes the monolithic Macrophage aggregate into a
+  # family of per-rule macrophages. TestSpeedMacrophage is the
+  # seventh (and final) member of that family. Each per-rule
+  # macrophage is a sibling, not a child, of the original
+  # Macrophage aggregate — migration step 7 of the i595 plan.
+  #
+  # Thresholds (configurable via AdjustThreshold) :
+  #   warning    800 ms — approaching the limit; monitor
+  #   error     1000 ms — rule broken; complaint issued
+  #
+  # Slow-test exemptions follow the same discipline as antibody
+  # markers : case-by-case, named, never pre-emptive. An exemption
+  # without a reason is rejected — the pre-emptive trap is the
+  # failure mode the discipline guards against.
+  #
+  # Suite kinds distinguish the four test surfaces in the project :
+  #   Behaviors   — .behaviors files run via storehouse
+  #   Unit        — fast isolated unit specs
+  #   Integration — adapter-level specs that may touch I/O
+  #   Smoke       — end-to-end smoke tests
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 7 of the i595 plan.
+
+  aggregate "TestSpeedMacrophage", "Per-rule macrophage for the tests-under-1-second enforcement — tracks suite durations, threshold breaches, and named exemptions for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Threshold configuration — adjustable if the team decides on
+    # a new default, but the starting contract is 1000 ms hard /
+    # 800 ms warning.
+    attribute :threshold_ms,         DurationMs
+    attribute :warning_threshold_ms, DurationMs
+
+    # Run tallies — scoped to this session.
+    attribute :total_runs,             RunCount
+    attribute :runs_within_threshold,  RunCount
+    attribute :runs_at_warning,        RunCount
+    attribute :runs_over_threshold,    RunCount
+
+    # Aggregate duration — sum of every recorded run's duration_ms
+    # in the current session. Lets the statusline show "total test
+    # time this session: X ms".
+    attribute :total_duration_ms, DurationMs
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_suite,   SuiteName
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-event recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "SuiteName" do
+      # The name of a test suite — typically a file path, rspec
+      # group label, or storehouse behaviors target. Used both as
+      # a key in ExemptedSlowTest and as an audit dimension in
+      # SlowTestRun.
+      attribute :value, String
+    end
+
+    value_object "DurationMs" do
+      # A duration in milliseconds. Used for threshold_ms,
+      # warning_threshold_ms, total_duration_ms, duration_ms on
+      # individual runs, and exceeded_by_ms on slow runs.
+      attribute :value, Integer
+    end
+
+    value_object "RunCount" do
+      # Count of test runs in a particular bucket (within / warning
+      # / over / total) accumulated this session.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The TestSpeedMacrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "TestKind" do
+      # Classifies which test surface a run came from. Four values :
+      #   Behaviors   — .behaviors files run via storehouse behaviors
+      #   Unit        — fast isolated unit specs
+      #   Integration — adapter-level specs that may touch I/O
+      #   Smoke       — end-to-end smoke tests (e.g. pizzas.rb)
+      attribute :value, String
+    end
+
+    value_object "ExemptionReason" do
+      # Named reason text for a slow-test exemption. Must be
+      # non-empty — an exemption without a reason is the pre-emptive
+      # trap the discipline guards against. Example : "cargo test
+      # --release compiles the binary; unavoidably slow by design."
+      attribute :value, String
+    end
+
+    # ── Entity — slow run audit trail ──
+
+    entity "SlowTestRun" do
+      description "One recorded test run that exceeded the warning or error threshold. Appended by the Complain command. Provides the full audit trail of slow runs this session — the last_offending_suite / last_complaint_at scalars on the root mirror the most recent entry for fast reads, but this collection holds everything."
+      attribute :recorded_at,   Timestamp
+      attribute :suite_name,    SuiteName
+      attribute :kind,          TestKind
+      attribute :duration_ms,   DurationMs
+      attribute :exceeded_by_ms, DurationMs
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "ExemptedSlowTest" do
+      description "A suite whose slowness is officially exempted with a named, case-by-case reason. Registered via ExemptSlowTest. The macrophage will not issue a complaint for a suite that appears in this collection — but the exemption must carry a non-empty reason, enforcing the same discipline as antibody markers. Exemptions are never pre-emptive; they are registered after the hook has complained and the team has decided."
+      attribute :suite_name, SuiteName
+      attribute :reason,     ExemptionReason
+      attribute :exempted_at, Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what ran today, not lifetime totals. The SlowTestRun and ExemptedSlowTest entity collections are NOT reset — they are audit trail and configuration respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Test run recording ──
+
+    command "RecordTestRun" do
+      role "Hook"
+      description "A test suite finished. Routes the run into the correct bucket based on duration_ms vs threshold_ms and warning_threshold_ms : within-threshold increments runs_within_threshold; at-warning increments runs_at_warning; over-threshold increments runs_over_threshold and chains into Complain (unless the suite is in ExemptedSlowTest). Always increments total_runs and adds duration_ms to total_duration_ms."
+      attribute :suite_name,  SuiteName
+      attribute :kind,        TestKind
+      attribute :duration_ms, DurationMs
+      emits "TestRunRecorded"
+    end
+
+    # ── Exemption management ──
+
+    command "ExemptSlowTest" do
+      role "Developer"
+      description "Register a named exemption for a specific suite so the macrophage will not complain about its duration. The reason attribute is required and must be non-empty — an exemption without a named reason falls into the pre-emptive trap the discipline forbids. Exemptions are registered after the hook has fired, never before; the SlowTestRun audit trail should already contain an entry for this suite. Appends an ExemptedSlowTest entity."
+      attribute :suite_name,  SuiteName
+      attribute :reason,      ExemptionReason
+      attribute :exempted_at, Timestamp
+      emits "SlowTestExempted"
+    end
+
+    # ── Threshold adjustment ──
+
+    command "AdjustThreshold" do
+      role "Developer"
+      description "Update the error and/or warning thresholds if the team decides on a new default. The canonical CLAUDE.md contract is 1000 ms / 800 ms; this command exists for deliberate, team-agreed changes — not for relaxing the rule to hide rot. Both threshold_ms and warning_threshold_ms must be provided so the two values stay consistent."
+      attribute :threshold_ms,         DurationMs
+      attribute :warning_threshold_ms, DurationMs
+      then_set :threshold_ms,         to: :threshold_ms
+      then_set :warning_threshold_ms, to: :warning_threshold_ms
+      emits "ThresholdAdjusted"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The TestSpeedMacrophage detected a test suite that exceeded the threshold_ms. Records the complaint text and timestamp on the root for fast statusline reads, appends a SlowTestRun entity to the audit trail, and updates last_offending_suite. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The TestSpeedMacrophage expected ...' so the rule's name is visible at a glance and attribution is unambiguous."
+      attribute :suite_name,         SuiteName
+      attribute :kind,               TestKind
+      attribute :duration_ms,        DurationMs
+      attribute :exceeded_by_ms,     DurationMs
+      attribute :complaint,          ComplaintText
+      attribute :last_complaint_at,  Timestamp
+      then_set :last_complaint,        to: :complaint
+      then_set :last_complaint_at,     to: :last_complaint_at
+      then_set :last_offending_suite,  to: :suite_name
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # CARD LOCK MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # i595 decomposes the original Macrophage singleton into a family
+  # of per-rule macrophages. CardLockMacrophage is the 8th member.
+  #
+  # Rule : when a card reaches the `locked` status, its signoff_scope
+  # (a list of path patterns) is frozen. Any edit that touches a path
+  # matching those patterns is a lock violation unless the commit
+  # message carries an exemption marker or the card itself has been
+  # superseded by a new card with a fresh signoff.
+  #
+  # Source of truth : the Inbox aggregate on the library/stores root.
+  # This macrophage does NOT duplicate the sign-off registry — it reads
+  # Inbox cards. The runtime hook resolves "which cards are locked?" by
+  # querying Inbox, then calls RecordEdit or RecordLockViolation here.
+  #
+  # This is the correct replacement for the ClientSignOffMacrophage
+  # that was conceived and reverted earlier (it tracked sign-offs as
+  # its own git-tag state, creating a second source of truth).
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 8 of the i595 plan.
+
+  aggregate "CardLockMacrophage", "Per-rule macrophage for the card-lock enforcement — tracks edits against locked card scopes and maintains the full violation history for this rule alone" do
+    identified_by :name
+
+    attribute :name,                    Name
+
+    # Session metadata
+    attribute :session_started_at,      Timestamp
+
+    # Edit tallies — scoped to this rule.
+    attribute :edits_checked,           EditCount
+    attribute :lock_complaints,         ComplaintCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,          ComplaintText
+    attribute :last_complaint_at,       Timestamp
+    attribute :last_offending_file_path, FilePath
+    attribute :last_offending_card_ref,  CardRef
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-entity recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an edit or violation.
+      attribute :value, String
+    end
+
+    value_object "CardRef" do
+      # Reference to an Inbox card — matches the pattern i\d+
+      # (e.g. "i595"). Opaque at this layer ; resolution is the
+      # runtime hook's responsibility.
+      attribute :value, String
+    end
+
+    value_object "ClientName" do
+      # Human-readable name of the client or team member who signed
+      # off the card (e.g. "Joey", "Meredith"). Stored on the violation
+      # record so the complaint is self-contained.
+      attribute :value, String
+    end
+
+    value_object "CommitSha" do
+      # Opaque hexadecimal commit SHA at which the signoff was recorded.
+      # Short (7-char) or full (40-char) forms are both acceptable ;
+      # the macrophage treats this as an opaque string.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The CardLockMacrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "ComplaintCount" do
+      # Count of lock violations detected by this macrophage in the
+      # current session.
+      attribute :value, Integer
+    end
+
+    value_object "EditCount" do
+      # Count of edits checked by this macrophage in the current session,
+      # regardless of whether a violation was found.
+      attribute :value, Integer
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "LockComplaint" do
+      description "One historical lock-violation event. Records which file triggered the complaint, which card's signoff covers that path, who signed off and at which commit, and the full complaint text. The last_complaint / last_complaint_at / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,       Timestamp
+      attribute :file_path,         FilePath
+      attribute :offending_card_ref, CardRef
+      attribute :signed_off_by,     ClientName
+      attribute :signoff_commit,    CommitSha
+      attribute :complaint_text,    ComplaintText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The LockComplaint entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Edit recording ──
+
+    command "RecordEdit" do
+      role "Hook"
+      description "An edit was checked against the set of locked card scopes. No violation was found — the path does not match any locked scope, or the commit message carries an exemption marker. Increments edits_checked so the session scoreboard can show the total volume of checks performed, including clean ones."
+      attribute :file_path, FilePath
+      emits "EditRecorded"
+    end
+
+    command "RecordLockViolation" do
+      role "Hook"
+      description "An edit touches a path that falls within the signoff_scope of a locked Inbox card, and no exemption marker is present. Appends a LockComplaint entity to the audit trail and updates the last_offending_* scalars on the root. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path,          FilePath
+      attribute :offending_card_ref,  CardRef
+      attribute :signed_off_by,      ClientName
+      attribute :signoff_commit,     CommitSha
+      attribute :recorded_at,        Timestamp
+      then_set :last_offending_file_path, to: :file_path
+      then_set :last_offending_card_ref,  to: :offending_card_ref
+      emits "LockViolationRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The CardLockMacrophage detected an edit inside the scope of a signed-off locked card. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as additionalContext on the next turn — the feedback loop that closes the card-lock discipline. Complaint text begins 'The CardLockMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,         FilePath
+      attribute :offending_card_ref, CardRef
+      attribute :signed_off_by,     ClientName
+      attribute :signoff_commit,    CommitSha
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+  end
 end
