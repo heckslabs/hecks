@@ -92,14 +92,27 @@ export default {
       .describe(
         "Key/value pairs for the command's attributes. Values are stringified to key=value on the CLI.",
       ),
+    summary: z
+      .string()
+      .min(1)
+      .describe(
+        "One-line, terse summary of what this dispatch DOES — e.g., 'write i606 card for MCP summary-required lock' or 'merge sq/macrophage-rename-drop-suffix into main'. Recommended ≤80 characters. Required.",
+      ),
   },
   async run(input) {
+    const trimmedSummary = (input.summary || "").trim();
+    if (!trimmedSummary) {
+      return {
+        content: [{ type: "text", text: "summary is required: provide a one-line description of what this dispatch does (e.g. 'boot sandbox session for smoke test')" }],
+        isError: true,
+      };
+    }
     const attrArgs = encodeAttrs(input.args || {});
     const result = await dispatchProcess(input.aggregates_dir, input.command, attrArgs);
-    const summary = result.stdout || result.stderr || `exit=${result.exit_code}`;
+    const outputText = result.stdout || result.stderr || `exit=${result.exit_code}`;
     return {
-      content: [{ type: "text", text: summary }],
-      structuredContent: result,
+      content: [{ type: "text", text: outputText }],
+      structuredContent: { ...result, summary: trimmedSummary },
       isError: result.ok === false,
     };
   },
