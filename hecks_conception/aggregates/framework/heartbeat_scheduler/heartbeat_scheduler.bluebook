@@ -1,0 +1,208 @@
+Hecks.bluebook "HeartbeatScheduler", version: "2026.05.14.1" do
+  vision "Rhythmic command dispatcher. The heartbeat already pulses (`~/miette-state/information/.statusline_heart_phase` is incremented on every statusline render) ; this aggregate turns that pulse into a bluebook-first command dispatcher. Rules register a schedule binding a target command to a cadence (every Nth tick) ; on each Tick the scheduler checks all registered schedules and fires Dispatch for the ones whose cadence matches. i616's first consumer is the macrophage family (autonomic sweeps as sidequests) ; i617's ChaosMonkey is the second. Any 'fire X every N ticks' intent in the framework lands here. Stub shape, 2026-05-14 — the runtime side iterates from this contract."
+  category "framework"
+
+  # ============================================================
+  # HEARTBEAT SCHEDULER — autonomic dispatch on a cadence
+  # ============================================================
+  #
+  # First draft, 2026-05-14, card i616. The bluebook IS the contract
+  # for autonomic dispatch ; the runtime wires the statusline pulse
+  # into Tick and the sidequest substrate into Dispatch.
+  #
+  # ── Two aggregates, dense by design ──
+  #
+  #   * HeartbeatScheduler — the singleton substrate. Holds the
+  #     current tick counter and the registry of Schedule entities
+  #     (rule → cadence → target command). Conventional
+  #     `identified_by :name` shape for now ; once i611 phase 1
+  #     lands singleton: true, this collapses to a true singleton.
+  #
+  #   * Schedule is a CHILD ENTITY inside HeartbeatScheduler, not
+  #     its own aggregate. Schedules live and die with the scheduler ;
+  #     they have no identity outside it.
+  #
+  # ── Why singleton-shaped ──
+  #
+  # There is one heartbeat per runtime ; there is one scheduler.
+  # The scheduler's state is the tick counter (for observability)
+  # plus the schedule registry. Per-rule state (when did THIS rule
+  # last fire ?) lives on the Schedule entity, not on the rule
+  # aggregate — keeping the macrophages clean of scheduling concern.
+  #
+  # ── What goes through the scheduler vs. what doesn't ──
+  #
+  # Goes through : any command that should fire on a tick cadence —
+  # macrophage sweeps (Macrophage::*.Check with a target_list), chaos
+  # actions (i617), future autonomic agents.
+  #
+  # Does NOT go through : reactive commands (Macrophage.Record*Edit
+  # from the PostToolUse hook), explicit user commands, command-bus
+  # routing in general. The scheduler is the cadence surface only ;
+  # everything else stays in the existing dispatch path.
+
+  aggregate "HeartbeatScheduler", "The rhythmic command dispatcher. Holds the tick counter and the Schedule entity collection ; each Tick advances the counter and dispatches every schedule whose cadence matches. Effectively a singleton — i611 phase 1 will convert this to a singleton-flagged aggregate." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # The beat — incremented every Tick.
+    attribute :current_tick, TickCount
+
+    # Dispatch tallies — visible at a glance for observability.
+    attribute :schedules_registered, RegistrationCount
+    attribute :dispatches_fired,     DispatchCount
+
+    # Last-operation surface for the statusline / quick reads.
+    attribute :last_tick_at,     Timestamp
+    attribute :last_dispatch_at, Timestamp
+    attribute :last_dispatched,  ScheduledCommand
+
+    # ── Value-objects : the language of rhythmic dispatch ──
+
+    value_object "Name" do
+      # Singleton key — there is exactly one HeartbeatScheduler per
+      # runtime. Under i611 phase 1 (`singleton: true`), this VO
+      # disappears.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_*_at fields, and per-dispatch recorded_at attributes.
+      attribute :value, String
+    end
+
+    value_object "TickCount" do
+      # Monotonic count of heartbeats since session start. Resets
+      # on StartSession ; persists across Tick dispatches inside the
+      # session. The Schedule entity stores `last_dispatched_tick`
+      # of this type so it can compute "next fire = last + cadence".
+      attribute :value, Integer
+    end
+
+    value_object "Cadence" do
+      # Number of ticks between dispatches. A cadence of 100 means
+      # the schedule fires every 100th tick. Cadence of 1 fires every
+      # tick (chatty — only use for the cheapest checks). There is no
+      # cadence-of-zero ; "I never want to fire on tick" means
+      # "don't register a schedule".
+      attribute :ticks, Integer
+    end
+
+    value_object "ScheduledCommand" do
+      # The FQN of the command to dispatch when the schedule fires.
+      # Form : "Domain::Aggregate.Command" (e.g.
+      # "Macrophage::IdentityDiscipline.Check"). The scheduler
+      # quotes this verbatim — does not validate that the command
+      # exists at registration time ; runtime resolution catches a
+      # typo when Dispatch fires.
+      attribute :verb, String
+    end
+
+    value_object "TargetList" do
+      # Comma-joined list of repo roots the dispatched command sweeps.
+      # The receiving command (e.g. Macrophage::IdentityDiscipline.Check)
+      # is responsible for parsing the list and walking each target.
+      # Stored as a single string here so the bluebook stays a stub ;
+      # once list-of-VO support firms up this becomes list_of(RepoPath).
+      attribute :value, String
+    end
+
+    value_object "ScheduleId" do
+      # Stable slug identifying a registered schedule
+      # (e.g. 'identity_discipline_sweep'). Used to look the schedule
+      # up so the scheduler can record `last_dispatched_tick` on it.
+      attribute :value, String
+    end
+
+    value_object "RegistrationCount" do
+      # Tally of how many RegisterSchedule commands have been
+      # accepted in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "DispatchCount" do
+      # Tally of how many Dispatch commands have fired in the
+      # current session. Across all schedules.
+      attribute :value, Integer
+    end
+
+    # ── Entities — child records living inside the scheduler ──
+
+    entity "Schedule" do
+      description "One registered cadence binding. Says : every `cadence.ticks` ticks, dispatch `command` against `targets`. The scheduler walks every Schedule on each Tick and fires Dispatch for the ones whose `(current_tick - last_dispatched_tick) >= cadence.ticks`."
+      attribute :id,                    ScheduleId
+      attribute :command,               ScheduledCommand
+      attribute :cadence,               Cadence
+      attribute :targets,               TargetList
+      attribute :last_dispatched_tick,  TickCount
+      attribute :last_dispatched_at,    Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset the tick counter and dispatch tallies at session boot. The Schedule entity collection is NOT reset — schedules persist across sessions so a rule registers once and the scheduler honors it on every subsequent boot. Reset behavior is consistent with the macrophage : tallies are per-session, audit trail persists."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── The pulse ──
+
+    command "Tick" do
+      role "System"
+      description "One heartbeat. Advances current_tick by 1 and records last_tick_at. The runtime dispatches Tick on every statusline pulse ; the scheduler is responsible for then walking its Schedule entity collection and emitting Dispatch for any whose cadence matches (the dispatcher logic is in the runtime — the bluebook contract is just that Tick fires every pulse and Dispatch fires when cadence matches)."
+      attribute :last_tick_at, Timestamp
+      then_set :last_tick_at, to: :last_tick_at
+      emits "Ticked"
+    end
+
+    # ── Schedule registration ──
+
+    command "RegisterSchedule" do
+      role "System"
+      description "Declare a new cadence binding. id is a stable slug ; command is the FQN to dispatch ; cadence.ticks is how many heartbeats between dispatches ; targets is the comma-joined repo list the dispatched command should sweep. Registration is idempotent on id — registering the same id twice replaces the prior schedule with the new cadence / command / targets."
+      attribute :id,      ScheduleId
+      attribute :command, ScheduledCommand
+      attribute :cadence, Cadence
+      attribute :targets, TargetList
+      emits "ScheduleRegistered"
+    end
+
+    command "RetireSchedule" do
+      role "System"
+      description "Remove a registered schedule. Once retired, the scheduler stops considering it on future Ticks. Used when a rule decides it no longer wants autonomic sweeps, or when reconfiguring at boot."
+      attribute :id, ScheduleId
+      emits "ScheduleRetired"
+    end
+
+    # ── The autonomic surface ──
+
+    command "Dispatch" do
+      role "System"
+      description "Fire a registered schedule. Records last_dispatched_tick + last_dispatched_at on the matching Schedule entity, increments dispatches_fired, and updates the root's last_dispatched / last_dispatch_at surface. The runtime is responsible for ACTUALLY dispatching the command — this command records the intent and the audit trail ; the side effect (firing Macrophage::IdentityDiscipline.Check or similar) lands as a sidequest in the existing Cascade substrate."
+      attribute :id,               ScheduleId
+      attribute :dispatched_tick,  TickCount
+      attribute :last_dispatch_at, Timestamp
+      then_set :last_dispatch_at, to: :last_dispatch_at
+      emits "Dispatched"
+    end
+  end
+
+  # ── Consumer-contract — the runtime wiring ──
+  #
+  # The statusline renderer (rust/src/run_statusline/) dispatches
+  # `HeartbeatScheduler.Tick` on every pulse via storehouse. The
+  # runtime then walks the Schedule entity collection ; for each
+  # schedule whose `(current_tick - last_dispatched_tick) >= cadence.ticks`
+  # it dispatches `HeartbeatScheduler.Dispatch` for that schedule id
+  # AND spawns the scheduled command as a sidequest. Both pieces of
+  # wiring are out of scope for the i616 stub — the bluebook
+  # establishes the contract ; companion cards wire it up.
+end

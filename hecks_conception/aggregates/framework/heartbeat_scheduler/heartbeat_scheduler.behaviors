@@ -1,0 +1,53 @@
+Hecks.behaviors "HeartbeatScheduler" do
+  vision "Behavioral tests for the HeartbeatScheduler aggregate — StartSession resets tallies, Tick advances the counter, RegisterSchedule stores a schedule, Dispatch updates the last-dispatched surface. Stub coverage matching the i616 first-draft bluebook ; deeper cadence-match tests follow when the runtime wiring lands."
+
+  # ── HeartbeatScheduler.StartSession ────────────────────────────
+
+  test "StartSession stamps the session timestamp" do
+    tests "StartSession", on: "HeartbeatScheduler"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-14T00:00:00Z" }
+    expect session_started_at: { value: "2026-05-14T00:00:00Z" }
+  end
+
+  # ── HeartbeatScheduler.Tick ────────────────────────────────────
+
+  test "Tick records the last tick timestamp" do
+    tests "Tick", on: "HeartbeatScheduler"
+    input  name:         { value: "default" },
+           last_tick_at: { value: "2026-05-14T00:00:01Z" }
+    expect last_tick_at: { value: "2026-05-14T00:00:01Z" }
+  end
+
+  # ── HeartbeatScheduler.RegisterSchedule / RetireSchedule ───────
+  #
+  # RegisterSchedule appends a Schedule entity to the scheduler's
+  # entity collection ; RetireSchedule removes one. Behavioral
+  # coverage deferred until the test runner's entity-collection
+  # shape on commands-that-append matches the dispatch surface this
+  # stub assumes. Same gap as Mindstream.Retire (i277 sibling) —
+  # the bluebook contract stands ; the test follows when entity-
+  # append assertions are first-class. Sample invocation for the
+  # runtime side : id "identity_discipline_sweep", command verb
+  # "Macrophage::IdentityDiscipline.Check", cadence ticks: 100,
+  # targets "hecks_conception,miette,miette_family,embryonaut-site".
+
+  # ── HeartbeatScheduler.Dispatch ────────────────────────────────
+
+  test "Dispatch records the last-dispatch timestamp" do
+    tests "Dispatch", on: "HeartbeatScheduler"
+    input  name:               { value: "default" },
+           id:                 { value: "identity_discipline_sweep" },
+           dispatched_tick:    { value: 100 },
+           last_dispatch_at:   { value: "2026-05-14T00:01:40Z" }
+    expect last_dispatch_at:   { value: "2026-05-14T00:01:40Z" }
+  end
+
+  # ── Retire — deferred ──────────────────────────────────────────
+  #
+  # HeartbeatScheduler.RetireSchedule takes the schedule id and removes
+  # the matching Schedule entity. Behavioral coverage deferred until
+  # the runtime side of i616 lands and we know whether RetireSchedule
+  # is bus-routed or in-process. The bluebook contract stands ; the
+  # test follows the implementation.
+end
