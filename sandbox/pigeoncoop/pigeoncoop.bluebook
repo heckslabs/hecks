@@ -137,6 +137,176 @@ Hecks.bluebook "PigeonCoop" do
     command "UnlinkStudent"
   end
 
+  # ── Invite — one-time-use activation token ────────────────────────
+  # Ties a new identity to an email for account activation (i52).
+  # Issued by Admin after RegisterPerson ; consumed when the user
+  # clicks the link and sets their password. Expires on a schedule or
+  # by admin action.
+  aggregate "Invite" do
+    attribute :token,      Token
+    attribute :identity,   Identity
+    attribute :email,      EmailAddress
+    attribute :issued_at,  Timestamp
+    attribute :expires_at, Timestamp
+
+    value_object "Token" do
+      attribute :value, String
+      invariant("URL-safe, ≥ 32 chars") { value =~ /\A[A-Za-z0-9_\-]{32,}\z/ }
+    end
+
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "EmailAddress" do
+      attribute :address, String
+      invariant("contains @")          { address.include?("@") }
+      invariant("contains domain dot") { address.split("@", 2).last.to_s.include?(".") }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("pending | used | expired") { %w[pending used expired].include?(value) }
+    end
+
+    attribute :status, Status, default: "pending"
+
+    lifecycle :status, default: "pending" do
+      transition "Use"    => "used"
+      transition "Expire" => "expired"
+    end
+
+    command "Issue" do
+      attribute :identity,   Identity
+      attribute :email,      EmailAddress
+      attribute :issued_at,  Timestamp
+      attribute :expires_at, Timestamp
+      role "Admin"
+    end
+
+    command "Use" do
+      reference_to Invite
+      role "User"
+    end
+
+    command "Expire" do
+      reference_to Invite
+      requires "status" => "pending"
+      role "Admin"
+    end
+  end
+
+  # ── Credential — auth material for one identity ───────────────────
+  # Password hash + history for login and reset (i52). Set after
+  # Invite.Use lands a hash. No lifecycle — the Credential simply
+  # exists for an identity once Set.
+  aggregate "Credential" do
+    attribute :identity,                 Identity
+    attribute :password_hash,            PasswordHash
+    attribute :last_login_at,            Timestamp
+    attribute :last_password_change_at,  Timestamp
+
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "PasswordHash" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    command "Set" do
+      attribute :identity,      Identity
+      attribute :password_hash, PasswordHash
+      role "User"
+    end
+
+    command "Verify" do
+      reference_to Credential
+      attribute :password_hash, PasswordHash
+      role "User"
+    end
+
+    command "ResetRequest" do
+      reference_to Credential
+      role "User"
+    end
+
+    command "Change" do
+      reference_to Credential
+      attribute :password_hash, PasswordHash
+      role "User"
+    end
+  end
+
+  # ── Setup — singleton first-boot bootstrap coordinator ───────────
+  # Idempotent; tracks whether the app has been seeded with a first
+  # admin (i54). BootstrapFirstAdmin is a no-op if already seeded.
+  # Internally dispatches Person.RegisterPerson + Admin.Register +
+  # Credential.Set for the seed identity.
+  aggregate "Setup" do
+    attribute :bootstrapped_at, Timestamp
+
+    value_object "Timestamp" do
+      attribute :iso8601, String
+      invariant("ISO-8601") { iso8601 =~ /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/ }
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("pristine | seeded") { %w[pristine seeded].include?(value) }
+    end
+
+    attribute :status, Status, default: "pristine"
+
+    lifecycle :status, default: "pristine" do
+      transition "BootstrapFirstAdmin" => "seeded"
+    end
+
+    command "BootstrapFirstAdmin" do
+      attribute :identity,      Identity
+      attribute :name,          PersonName
+      attribute :email,         EmailAddress
+      attribute :password_hash, PasswordHash
+      role "System"
+    end
+
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    value_object "PersonName" do
+      attribute :given,  String
+      attribute :family, String
+      invariant("given non-empty")  { !given.strip.empty?  }
+      invariant("family non-empty") { !family.strip.empty? }
+    end
+
+    value_object "EmailAddress" do
+      attribute :address, String
+      invariant("contains @")          { address.include?("@") }
+      invariant("contains domain dot") { address.split("@", 2).last.to_s.include?(".") }
+    end
+
+    value_object "PasswordHash" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+  end
+
   aggregate "Shoutout" do
     reference_to Person, as: :author
     reference_to Person, as: :recipient
