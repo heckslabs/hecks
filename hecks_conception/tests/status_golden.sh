@@ -67,6 +67,7 @@ raw="$("$conception/status.sh" --no-color)"
 # blanked to placeholders.
 normalized="$(printf '%s\n' "$raw" \
   | sed -E 's/\x1b\[[0-9;]*m//g' \
+  | sed -E '/^\[20[0-9-]+T[0-9:]+Z\] (dispatch|event|cascade|policy|\[claude_tool:)/d' \
   | sed -E 's/  age:[[:space:]]+[^ ]+/  age: <days>/' \
   | sed -E 's/  last_dream_at:.*/  last_dream_at: <ts>/' \
   | sed -E 's/  last_turn_at:.*/  last_turn_at: <ts>/' \
