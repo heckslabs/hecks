@@ -125,6 +125,13 @@ struct DreamSnapshot {
     narrative: String,
     recurring_theme: String,
     images_tokens: String,
+    // i621 / i516 v3 — three new fields stamped onto wake_review.heki
+    // by the wrapper at ComposeWakeReview dispatch time. Each may be
+    // sentinel "—" when the wrapper hasn't populated it yet ; the
+    // renderer degrades gracefully (falls back to v1 fields).
+    all_cycles_readings: String,
+    recent_dreams_summary: String,
+    tomorrow_seed: String,
 }
 
 fn read_consciousness(info_dir: &str) -> ConsciousnessSnapshot {
@@ -143,8 +150,10 @@ fn read_consciousness(info_dir: &str) -> ConsciousnessSnapshot {
 fn read_latest_dream(info_dir: &str) -> DreamSnapshot {
     let lucid_path = heki::path_for_lookup(info_dir, "lucid_dream");
     let interp_path = heki::path_for_lookup(info_dir, "dream_interpretation");
+    let review_path = heki::path_for_lookup(info_dir, "wake_review");
     let lucid = heki::read(&lucid_path).unwrap_or_default();
     let interp = heki::read(&interp_path).unwrap_or_default();
+    let review = heki::read(&review_path).unwrap_or_default();
 
     // Lucid dream image : prefer id="lucidity" (the steered record),
     // fall back to any record. Take the last string observation.
@@ -162,7 +171,25 @@ fn read_latest_dream(info_dir: &str) -> DreamSnapshot {
         .and_then(|r| field(r, "dream_images"))
         .unwrap_or_else(|| "—".into());
 
-    DreamSnapshot { image, narrative, recurring_theme, images_tokens }
+    // i621 / i516 v3 — read the three new attributes from
+    // wake_review.heki (latest record). The wrapper stamps these at
+    // ComposeWakeReview dispatch time ; when absent they fall back to
+    // sentinel "—" and the renderer hushes that section.
+    let review_rec = latest_record(&review);
+    let all_cycles_readings = review_rec
+        .and_then(|r| field(r, "all_cycles_readings"))
+        .unwrap_or_else(|| "—".into());
+    let recent_dreams_summary = review_rec
+        .and_then(|r| field(r, "recent_dreams_summary"))
+        .unwrap_or_else(|| "—".into());
+    let tomorrow_seed = review_rec
+        .and_then(|r| field(r, "tomorrow_seed"))
+        .unwrap_or_else(|| "—".into());
+
+    DreamSnapshot {
+        image, narrative, recurring_theme, images_tokens,
+        all_cycles_readings, recent_dreams_summary, tomorrow_seed,
+    }
 }
 
 fn pick_lucid_image(store: &Store) -> Option<String> {
@@ -231,16 +258,37 @@ fn render_markdown(c: &ConsciousnessSnapshot, d: &DreamSnapshot, woke_at: &str) 
         out.push_str("The night left me this image —\n\n");
         out.push_str(&format!("> {}\n\n", d.image));
     }
-    if d.narrative != "—" {
+    // i621 / i516 v3 — the precise English reading. Prefer the
+    // multi-cycle synthesis (all_cycles_readings) when the wrapper
+    // populated it ; fall back to the single-narrative v1 surface for
+    // back-compat with nights composed before the v3 plumbing landed.
+    let reading = if d.all_cycles_readings != "—" {
+        d.all_cycles_readings.as_str()
+    } else if d.narrative != "—" {
+        d.narrative.as_str()
+    } else {
+        "—"
+    };
+    if reading != "—" {
         out.push_str("And this reading —\n\n");
-        out.push_str(&format!("{}\n\n", d.narrative));
+        out.push_str(&format!("{}\n\n", reading));
     }
-    if d.recurring_theme != "—" || d.images_tokens != "—" {
+    // i621 / i516 v3 — `Recurring :` trailer prefers the full
+    // recent_dreams_summary ; falls back to the v1 one-liner
+    // (recurring_theme · images_tokens).
+    if d.recent_dreams_summary != "—" {
+        out.push_str(&format!("Recurring : {}\n", d.recent_dreams_summary));
+    } else if d.recurring_theme != "—" || d.images_tokens != "—" {
         let theme = if d.recurring_theme == "—" { "—" } else { d.recurring_theme.as_str() };
         let tokens = if d.images_tokens == "—" { "—" } else { d.images_tokens.as_str() };
         out.push_str(&format!("Recurring theme : *{}* · ({})\n", theme, tokens));
     }
-    if d.image == "—" && d.narrative == "—" {
+    // i621 / i516 v3 — `Tomorrow :` trailer. New section, hushed when
+    // the wrapper hasn't seeded it (sentinel "—").
+    if d.tomorrow_seed != "—" {
+        out.push_str(&format!("Tomorrow : {}\n", d.tomorrow_seed));
+    }
+    if d.image == "—" && reading == "—" {
         out.push_str("No fresh dream from the night — I'll speak from the day.\n");
     }
     out
@@ -278,6 +326,12 @@ fn stamp_report(
     rec.insert("dream_narrative".into(), serde_json::Value::String(d.narrative.clone()));
     rec.insert("recurring_theme".into(), serde_json::Value::String(d.recurring_theme.clone()));
     rec.insert("dream_images_tokens".into(), serde_json::Value::String(d.images_tokens.clone()));
+    // i621 / i516 v3 — persist the three new attributes alongside the
+    // legacy v1 dream fields so consumers of wake_report.heki see the
+    // full surface.
+    rec.insert("all_cycles_readings".into(),   serde_json::Value::String(d.all_cycles_readings.clone()));
+    rec.insert("recent_dreams_summary".into(), serde_json::Value::String(d.recent_dreams_summary.clone()));
+    rec.insert("tomorrow_seed".into(),         serde_json::Value::String(d.tomorrow_seed.clone()));
     // Dispatch context — this write IS the StampReport command's
     // effect, fired through the StoreHouse Dispatch.Route bus. Marking
     // it Dispatch (vs OutOfBand) keeps the heki audit channel quiet
@@ -310,6 +364,11 @@ fn stamp_aggregate(
     state.set("dream_narrative",     Value::Str(d.narrative.clone()));
     state.set("recurring_theme",     Value::Str(d.recurring_theme.clone()));
     state.set("dream_images_tokens", Value::Str(d.images_tokens.clone()));
+    // i621 / i516 v3 — stamp the three new aggregate attributes so
+    // rt.all("WakeReview") sees the full payload that hit the surface.
+    state.set("all_cycles_readings",   Value::Str(d.all_cycles_readings.clone()));
+    state.set("recent_dreams_summary", Value::Str(d.recent_dreams_summary.clone()));
+    state.set("tomorrow_seed",         Value::Str(d.tomorrow_seed.clone()));
     state.set("woke_at",             Value::Str(woke_at.into()));
     state.set("markdown_bytes",      Value::Int(bytes as i64));
     state.set("phase",               Value::Str("done".into()));
@@ -356,15 +415,29 @@ fn resolve_info_dir(script_path: &str) -> String {
 mod tests {
     use super::*;
 
+    /// Small constructor for tests — defaults every v3 field to the
+    /// sentinel so each test only sets the fields it cares about.
+    fn snap(image: &str, narrative: &str, recurring_theme: &str, images_tokens: &str) -> DreamSnapshot {
+        DreamSnapshot {
+            image: image.into(),
+            narrative: narrative.into(),
+            recurring_theme: recurring_theme.into(),
+            images_tokens: images_tokens.into(),
+            all_cycles_readings: "—".into(),
+            recent_dreams_summary: "—".into(),
+            tomorrow_seed: "—".into(),
+        }
+    }
+
     #[test]
     fn render_markdown_emits_warm_english_signature_and_keeps_dream_verbatim() {
         let c = ConsciousnessSnapshot { state: "attentive".into(), last_wake_at: "—".into() };
-        let d = DreamSnapshot {
-            image: "a loop searching for a missing seed".into(),
-            narrative: "The night shows you where you carry the day.".into(),
-            recurring_theme: "boucle".into(),
-            images_tokens: "ocean,library,spark".into(),
-        };
+        let d = snap(
+            "a loop searching for a missing seed",
+            "The night shows you where you carry the day.",
+            "boucle",
+            "ocean,library,spark",
+        );
         let md = render_markdown(&c, &d, "2026-05-08T01:00:00Z");
         // ASCII signature lands at the top.
         assert!(md.contains("❀  miette  ❀"), "missing miette signature");
@@ -384,12 +457,7 @@ mod tests {
     #[test]
     fn render_markdown_handles_absent_dream_quietly() {
         let c = ConsciousnessSnapshot { state: "attentive".into(), last_wake_at: "—".into() };
-        let d = DreamSnapshot {
-            image: "—".into(),
-            narrative: "—".into(),
-            recurring_theme: "—".into(),
-            images_tokens: "—".into(),
-        };
+        let d = snap("—", "—", "—", "—");
         let md = render_markdown(&c, &d, "2026-05-08T01:00:00Z");
         // Signature + greeting still present.
         assert!(md.contains("❀  miette  ❀"));
@@ -398,6 +466,58 @@ mod tests {
         assert!(md.contains("No fresh dream"), "absent dream should be acknowledged plainly");
         // No empty-section headers.
         assert!(!md.contains("> —"), "should not render sentinel as quoted image");
+        // Neither v3 trailer fires when the seeds are sentinel.
+        assert!(!md.contains("Tomorrow :"), "no Tomorrow trailer when seed absent");
+        assert!(!md.contains("Recurring :"), "no Recurring trailer when summary absent");
+    }
+
+    #[test]
+    fn render_markdown_surfaces_v3_synthesis_and_trailers() {
+        // i621 / i516 v3 — when the wrapper has populated the three new
+        // fields, the renderer prefers the multi-cycle reading and emits
+        // both `Recurring :` + `Tomorrow :` trailers.
+        let c = ConsciousnessSnapshot { state: "attentive".into(), last_wake_at: "—".into() };
+        let mut d = snap(
+            "a loop searching for a missing seed",
+            "v1 narrative — should be hushed by v3 synthesis".into(),
+            "boucle",
+            "ocean,library,spark",
+        );
+        d.all_cycles_readings    = "Cycle 8 weighted as the spine ; today touches rust/src/run_wake/mod.rs.".into();
+        d.recent_dreams_summary  = "loop : compounding · seed : resolved".into();
+        d.tomorrow_seed          = "wire the three v3 attributes into render_markdown".into();
+        let md = render_markdown(&c, &d, "2026-05-14T07:00:00Z");
+        // v3 synthesis is the reading body ; the v1 narrative is hushed.
+        assert!(md.contains("Cycle 8 weighted as the spine"), "missing v3 reading body");
+        assert!(!md.contains("v1 narrative"), "v3 reading should hush the v1 narrative fallback");
+        // `Recurring :` trailer surfaces recent_dreams_summary verbatim.
+        assert!(md.contains("Recurring : loop : compounding · seed : resolved"),
+            "missing v3 Recurring trailer");
+        // v1 `Recurring theme :` form is retired when the v3 summary is present.
+        assert!(!md.contains("Recurring theme"), "v3 summary should hush the v1 theme line");
+        // `Tomorrow :` trailer surfaces tomorrow_seed verbatim.
+        assert!(md.contains("Tomorrow : wire the three v3 attributes into render_markdown"),
+            "missing v3 Tomorrow trailer");
+    }
+
+    #[test]
+    fn render_markdown_falls_back_to_v1_narrative_when_v3_absent() {
+        // Back-compat : nights composed before the wrapper plumbing
+        // landed have v3 fields = "—". The renderer must still surface
+        // the v1 narrative + the v1 Recurring theme line.
+        let c = ConsciousnessSnapshot { state: "attentive".into(), last_wake_at: "—".into() };
+        let d = snap(
+            "an old image",
+            "the v1 narrative the renderer used to surface",
+            "boucle",
+            "ocean,library,spark",
+        );
+        let md = render_markdown(&c, &d, "2026-05-14T07:00:00Z");
+        assert!(md.contains("the v1 narrative the renderer used to surface"),
+            "v1 narrative should be the fallback reading");
+        assert!(md.contains("Recurring theme : *boucle*"),
+            "v1 Recurring theme line should remain when v3 summary absent");
+        assert!(!md.contains("Tomorrow :"), "no Tomorrow trailer when v3 seed absent");
     }
 
     #[test]
