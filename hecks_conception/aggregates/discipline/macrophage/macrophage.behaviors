@@ -119,4 +119,92 @@ Hecks.behaviors "Macrophage" do
            revoked_at:     { value: "2026-05-14T10:01:00Z" }
     expect emits: ["ExemptionRevoked"]
   end
+
+  # ── WritingDiscipline aggregate (i623) ─────────────────────────
+  #
+  # Minimal companion-block coverage for the i623 writing-style rules.
+  # StartSession resets per-session counters ; Check exercises the
+  # primary scan path ; RecordViolation walks the entity accretion ;
+  # Complain surfaces the rule voice ; ExemptDraft registers a named,
+  # non-empty exemption ; SetThreshold tunes the we_dont_we_do bound.
+
+  test "WritingDiscipline StartSession records session_started_at" do
+    tests "StartSession", on: "WritingDiscipline"
+    input  session_started_at: { value: "2026-05-14T11:00:00Z" }
+    expect session_started_at: { value: "2026-05-14T11:00:00Z" }
+  end
+
+  test "WritingDiscipline StartSession emits SessionStarted" do
+    tests "StartSession", on: "WritingDiscipline"
+    input  session_started_at: { value: "2026-05-14T11:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  test "WritingDiscipline Check records drafts_checked" do
+    tests "Check", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  draft_id:   { value: "01JCKZWRITE0010" },
+           draft_text: { value: "Clean draft with no rule violations." }
+    expect emits: ["DraftChecked"]
+  end
+
+  test "WritingDiscipline RecordViolation appends a WritingViolation entity" do
+    tests "RecordViolation", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  draft_id:       { value: "01JCKZWRITE0011" },
+           kind:           { value: "em_dash" },
+           excerpt:        { value: "prose with one offending character" },
+           offset:         { value: 18 },
+           complaint_text: { value: "The WritingDiscipline macrophage expected zero em-dashes." },
+           recorded_at:    { value: "2026-05-14T11:00:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "WritingDiscipline ExemptDraft appends an ExemptedDraft entity" do
+    tests "ExemptDraft", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  draft_id:    { value: "01JCKZWRITE0011" },
+           kind:        { value: "em_dash" },
+           reason:      { value: "literal quote of the rule itself, dash is intentional" },
+           exempted_at: { value: "2026-05-14T11:00:02Z" }
+    expect emits: ["DraftExempted"]
+  end
+
+  test "WritingDiscipline Complain sets last_complaint" do
+    tests "Complain", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  draft_id:          { value: "01JCKZWRITE0011" },
+           kind:              { value: "em_dash" },
+           excerpt:           { value: "one offending span" },
+           complaint:         { value: "The WritingDiscipline macrophage expected zero em-dashes (U+2014)." },
+           last_complaint_at: { value: "2026-05-14T11:00:03Z" }
+    expect last_complaint: { value: "The WritingDiscipline macrophage expected zero em-dashes (U+2014)." }
+  end
+
+  test "WritingDiscipline Complain emits ComplaintIssued" do
+    tests "Complain", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  draft_id:          { value: "01JCKZWRITE0011" },
+           kind:              { value: "we_dont_we_do" },
+           excerpt:           { value: "we do not sell products, we build futures" },
+           complaint:         { value: "The WritingDiscipline macrophage expected sparse use of the negative-positive construction." },
+           last_complaint_at: { value: "2026-05-14T11:00:04Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "WritingDiscipline SetThreshold updates we_dont_we_do_threshold" do
+    tests "SetThreshold", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  we_dont_we_do_threshold: { value: 2 }
+    expect we_dont_we_do_threshold: { value: 2 }
+  end
+
+  test "WritingDiscipline RevokeExemption emits ExemptionRevoked" do
+    tests "RevokeExemption", on: "WritingDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T11:00:00Z" }
+    input  draft_id:   { value: "01JCKZWRITE0011" },
+           kind:       { value: "em_dash" },
+           revoked_at: { value: "2026-05-14T11:01:00Z" }
+    expect emits: ["ExemptionRevoked"]
+  end
 end
