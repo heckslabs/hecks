@@ -1618,4 +1618,198 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       emits "ComplaintIssued"
     end
   end
+
+  # ============================================================
+  # BIDIRECTIONAL ASSOCIATION — one macrophage, one rule
+  # ============================================================
+  #
+  # DDD (Vernon Rule 2) says aggregates must reference one another
+  # by identity only. The corollary is topological : associations
+  # must be unidirectional. If aggregate A references aggregate B,
+  # aggregate B must NOT reference back to aggregate A. The
+  # back-pointer is a relational-mindset hangover that collapses
+  # two aggregate boundaries into one tightly-coupled pair and
+  # makes each root's consistency invariant depend on the other's
+  # state.
+  #
+  # What this macrophage checks :
+  #   For every pair (A, B) of aggregates within a bluebook (and
+  #   across bluebooks in the same corpus) : if A has any attribute
+  #   typed as B AND B has any attribute typed as A, the pair is
+  #   bidirectional. Both scalar and list_of(X) forms count.
+  #
+  # What is explicitly excluded :
+  #   Self-reference  — A.attribute :X, A. Recursive composition
+  #                     is not a cycle between distinct roots.
+  #   VO → aggregate  — value objects carry no identity ; a VO
+  #                     inside A that names B is not a root-level
+  #                     back-reference from B's perspective.
+  #   Fan-in          — A → C and B → C. No cycle.
+  #
+  # Complaint voice : "The BidirectionalAssociation macrophage
+  # expected a unidirectional reference between <A> and <B>.
+  # Currently <A> references <B> AND <B> references <A>. Drop
+  # one direction — keep the reference in the aggregate whose
+  # consistency boundary actually requires it ; replace the
+  # back-pointer with a query or an identity-typed attribute."
+  #
+  # This is the ninth per-rule macrophage sibling (i612).
+  # Filed alongside the identity overhaul (i611) ; both lean on
+  # Vernon's identity rules. The existing Macrophage aggregate is
+  # NOT retired here — this aggregate is a sibling.
+
+  aggregate "BidirectionalAssociation", "Per-rule macrophage for the unidirectional-association enforcement — scans bluebook attribute declarations for mutual aggregate references and maintains the full violation history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Scan tallies — scoped to this rule.
+    attribute :pairs_checked,       PairCount
+    attribute :violations_detected, PairCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,    ComplaintText
+    attribute :last_complaint_at, Timestamp
+    attribute :last_offending_pair, AggregatePair
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-entity recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The PascalCase name of an aggregate root as it appears in
+      # the bluebook (e.g. "Parent", "Student"). Used to record the
+      # two sides of a bidirectional pair without coupling to file
+      # paths or full FQNs — both of which may shift with domain
+      # restructuring, while the aggregate name is stable.
+      attribute :value, String
+    end
+
+    value_object "AggregatePair" do
+      # An ordered, canonical pair of aggregate names involved in a
+      # detected bidirectional association. Canonicalised
+      # alphabetically so (A, B) and (B, A) always map to the same
+      # pair — ensuring the violation history de-duplicates cleanly.
+      # Stored as "AggregateName::AggregateName" (e.g. "Parent::Student").
+      attribute :value, String
+    end
+
+    value_object "BluebookPath" do
+      # Relative path to the .bluebook file where the offending
+      # attribute declaration was found (e.g.
+      # "sandbox/pigeoncoop/pigeoncoop.bluebook"). Relative so
+      # records survive machine moves.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The BidirectionalAssociation macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "PairCount" do
+      # Count of aggregate pairs checked or violations detected in
+      # the current session. Semantically distinct from EditCount —
+      # a pair is a topological relationship, not a file operation.
+      attribute :value, Integer
+    end
+
+    value_object "ExemptionReason" do
+      # Human-readable rationale for why a specific aggregate pair
+      # is explicitly exempted from the bidirectionality check.
+      # Required — a blank exemption is itself a violation of the
+      # exemption discipline (same as AntibodyExemption).
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "PairViolation" do
+      description "One historical bidirectionality violation event. Records which two aggregates form the offending pair, in which bluebooks the two offending attributes were found, the full complaint text, and when the check ran. The last_complaint / last_complaint_at / last_offending_pair scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,      Timestamp
+      attribute :aggregate_a,      AggregateName
+      attribute :aggregate_b,      AggregateName
+      attribute :bluebook_a,       BluebookPath
+      attribute :bluebook_b,       BluebookPath
+      attribute :complaint_text,   ComplaintText
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "Exemption" do
+      description "An explicitly named exemption for an aggregate pair that is allowed to hold mutual references despite the rule. Exemptions must name a concrete per-pair reason — a vague rationale ('legacy', 'ok', 'skip') is itself a macrophage violation. The runtime check skips pairs that appear in this collection."
+      attribute :pair,            AggregatePair
+      attribute :reason,          ExemptionReason
+      attribute :exempted_at,     Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was scanned today, not lifetime totals. The PairViolation and Exemption entity collections are NOT reset — they are audit trail and standing rules respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Check surface ──
+
+    command "Check" do
+      role "Hook"
+      description "Run the bidirectionality check against a single .bluebook file or a pair of bluebooks. The hook resolves all aggregate-typed attributes in the target(s), builds the full reference graph, and for each pair (A, B) where A references B AND B references A : chains into RecordViolation + Complain. Self-references (A → A) and value-object-to-aggregate references are excluded before the pair graph is built. Pairs listed in the Exemption collection are skipped silently."
+      attribute :bluebook_path,  BluebookPath
+      emits "CheckRun"
+    end
+
+    command "RecordViolation" do
+      role "Hook"
+      description "Record a detected bidirectional pair in the violation audit trail. Appends a PairViolation entity, increments violations_detected, and updates the last_offending_pair scalar on the root. Called by the Check command for each offending pair before Complain fires — this command records the fact; Complain records the reaction."
+      attribute :aggregate_a,   AggregateName
+      attribute :aggregate_b,   AggregateName
+      attribute :bluebook_a,    BluebookPath
+      attribute :bluebook_b,    BluebookPath
+      attribute :recorded_at,   Timestamp
+      then_set :last_offending_pair, to: :aggregate_a
+      emits "ViolationRecorded"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The BidirectionalAssociation macrophage detected a mutual aggregate reference. Records the complaint text and timestamp on the root for fast statusline reads, and appends a PairViolation entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline. Complaint text begins 'The BidirectionalAssociation macrophage expected a unidirectional reference between <A> and <B>. Currently <A> references <B> AND <B> references <A>. Drop one direction — keep the reference in the aggregate whose consistency boundary actually requires it; replace the back-pointer with a query or an identity-typed attribute.' so the rule name and corrective action are both visible."
+      attribute :aggregate_a,      AggregateName
+      attribute :aggregate_b,      AggregateName
+      attribute :complaint,        ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    # ── Exemption surface ──
+
+    command "Exempt" do
+      role "System"
+      description "Grant a named exemption for an aggregate pair that is legitimately allowed to hold mutual references. The reason attribute must name a concrete, per-pair rationale — not a generic phrase. Once an Exemption entity exists for a pair, Check silently skips that pair on future runs. Exemptions are standing rules (not per-session) and survive session resets."
+      attribute :aggregate_a, AggregateName
+      attribute :aggregate_b, AggregateName
+      attribute :reason,      ExemptionReason
+      attribute :exempted_at, Timestamp
+      emits "ExemptionGranted"
+    end
+  end
 end
