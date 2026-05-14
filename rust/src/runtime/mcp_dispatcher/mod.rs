@@ -52,6 +52,18 @@ use crate::runtime::framework_registry::KernelResult;
 //  Server registry
 // ─────────────────────────────────────────────────────────────────────
 
+/// True when `server` names a registered MCP server. Lets callers
+/// (e.g. `Runtime::resolve_mcp_adapters`, i594) validate the binding's
+/// `:server` field at dispatch time and emit a warning rather than
+/// silently failing when an unregistered server (e.g. `:gmail`,
+/// pending i610's bridge) appears. Trims a leading `:` so both
+/// `:storehouse` and `storehouse` answer truthy ; matches the same
+/// rule `resolve_server_spawn` follows.
+pub fn server_is_registered(server: &str) -> bool {
+    let name = server.trim_start_matches(':');
+    matches!(name, "storehouse")
+}
+
 /// Resolve the :server field to a (program, args) spawn pair.
 ///
 /// v1 supports a single value : :storehouse → the local stdio server
@@ -355,6 +367,14 @@ pub fn dispatch(
 // ─────────────────────────────────────────────────────────────────────
 //  Kernel hook : the registry entry point
 // ─────────────────────────────────────────────────────────────────────
+
+/// Public alias of `substitute` so the runtime's `resolve_mcp_adapters`
+/// arm (i594) can run the same placeholder pass before calling
+/// `dispatch`. Kept distinct from the private internal symbol so the
+/// kernel-hook path (`dispatch_via_registry`) stays its own surface.
+pub fn substitute_value(value: serde_json::Value, attrs: &HashMap<String, String>) -> serde_json::Value {
+    substitute(value, attrs)
+}
 
 /// Substitute `{attr_name}` placeholders in a JSON value's string
 /// fields using `command_attrs`. Walks the JSON tree recursively ;
