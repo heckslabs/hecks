@@ -1,47 +1,19 @@
-Hecks.bluebook "Inbox", version: "2026.05.12.1" do
-  vision "The TODO log Chris writes against the codebase — short refs (iN) humans type, monotonic and stable for the lifetime of a record, status walking queued → done with optional reopen/drop"
+Hecks.bluebook "Inbox", version: "2026.05.14.1" do
+  vision "The TODO log Chris writes against the codebase — short refs (iN) humans type, monotonic and stable for the lifetime of a record, status walking queued → modeled → designed → signed_off → locked → (superseded) with optional legacy close/reopen/drop"
   category "memory"
-
-  # ============================================================
-  # INBOX — the inbox.sh shell-to-bluebook conversion
-  # ============================================================
-  #
-  # The conception's TODO surface — every "file an inbox item"
-  # ritual writes here. Each Inbox record is one filed TODO, with:
-  #
-  #   * ref  (sequential, "i42" — the short id humans type, also the filename stem)
-  #
-  # Persistence is markdown : one card per file at
-  # `hecks_conception/inbox/iNNN.md` (active) or
-  # `hecks_conception/inbox/archive/iNNN.md` (closed). The legacy
-  # heki store retired 2026-05-07 (see i476). Each card carries the
-  # bluebook attributes as YAML frontmatter ; the body is the prose
-  # of the filing.
-  #
-  # Refs are assigned monotonically at Add time and never change.
-  # Closing or dropping a row leaves the ref pointing at the same
-  # record so historical mentions ("see i42") stay valid forever.
-  #
-  # This file declares the JOURNAL — the Inbox shape, the lifecycle,
-  # the four state-transition commands, and the queries the CLI
-  # surface drives over the markdown directory.
-  #
-  # The companion capability (capabilities/inbox/inbox.bluebook)
-  # declares the user-facing CLI shape — the `add` / `list` / `get`
-  # / `close` / `reopen` / `drop` subcommands and the auto-commit-
-  # to-main durability dance.
 
   # ── Inbox aggregate ────────────────────────────────────────────
   #
-  # One row per filed TODO. priority is the operator-supplied
-  # bucket (high/medium/normal/low) used by the queued list to
-  # bubble urgency to the top. status walks queued → done via
-  # Close, queued ← done via Reopen, and any state → dropped via
-  # Drop. wish_id is empty for plain filings ; populated for
-  # filings that satisfy a DreamWish (i98 / 2026-04-26).
+  # One row per filed TODO. Persistence: markdown at
+  # hecks_conception/inbox/iNNN.md (active) or .../archive/iNNN.md.
+  # Lifecycle (i602): queued → modeled → designed → signed_off → locked
+  #                                                              ↘ superseded
+  # Legacy: queued → done via Close (backwards compat; done cards stay done).
+  # Companion capability: capabilities/inbox/inbox.bluebook (CLI surface).
 
-  aggregate "Inbox", "One filed TODO — short ref, body, priority, lifecycle, optional dream-wish receipt" do
+  aggregate "Inbox", "One filed TODO — short ref, body, priority, lifecycle, optional dream-wish receipt, card-as-lock authorization fields" do
     identified_by :ref
+
     # ---- Identity ----
     # ref : the short id humans type ("i42"). Monotonic, stable.
     # Assigned by NextRef at Add time and never reassigned, even
@@ -54,26 +26,49 @@ Hecks.bluebook "Inbox", version: "2026.05.12.1" do
     attribute :posted_at,    Timestamp
 
     # ---- Lifecycle ----
-    # status: queued | done | dropped
-    # queued  — newly filed, waiting for processing
-    # done    — closed with optional resolution note
-    # dropped — abandoned (was `archive` in the shell ; renamed
-    #           because it's a hard delete in the implementation
-    #           and the bluebook should match what actually happens)
-    attribute :status,       Status, default: "queued"
-    attribute :completed_at, Timestamp
-    attribute :resolution,   Resolution
+    # status: queued | modeled | designed | signed_off | locked | superseded | done | dropped
+    # queued      — newly filed, waiting for processing
+    # modeled     — domain shape committed; modeled_commit stamped
+    # designed    — design committed; designed_commit stamped
+    # signed_off  — signoff recorded; signoff_* fields stamped
+    # locked      — card is now a change-authorization lock
+    # superseded  — locked card replaced by a newer card (superseded_by ref set)
+    # done        — legacy closed state (Close command, backwards compat)
+    # dropped     — abandoned row
+    attribute :status,          Status, default: "queued"
+    attribute :completed_at,    Timestamp
+    attribute :resolution,      Resolution
+
+    # ---- Card-as-lock fields (i602, 2026-05-14) ----------------
+    # modeled stage
+    attribute :modeled_at,      Timestamp
+    attribute :modeled_commit,  CommitSha
+
+    # designed stage
+    attribute :designed_at,     Timestamp
+    attribute :designed_commit, CommitSha
+
+    # signed_off stage
+    attribute :signoff_at,      Timestamp
+    attribute :signoff_by,      ClientName
+    attribute :signoff_commit,  CommitSha
+    attribute :signoff_scope,   list_of(PathPattern)
+
+    # locked / superseded
+    attribute :locked_at,       Timestamp
+    attribute :superseded_by,   CardRef
 
     # ---- Dream-wish receipt (i98 / 2026-04-26) -----------------
     # wish_id is the DreamWish id this filing satisfies. Empty for
     # plain filings. When set, Add also dispatches DreamWish.MarkFiled
     # so the wish exits the seed pool (the receipt mechanism
     # documented in aggregates/dream_wish.bluebook).
-    attribute :wish_id,      WishId
+    attribute :wish_id,         WishId
 
     # ── Value-objects : the inbox's vocabulary ──
     #
     # 2026-05-12 : wrapped primitives per no-primitive-envy.
+    # 2026-05-14 : new VOs for card-as-lock fields (i602).
 
     value_object "Ref" do
       # The short id humans type ("i42"). Monotonic, stable, never
@@ -93,12 +88,14 @@ Hecks.bluebook "Inbox", version: "2026.05.12.1" do
     end
 
     value_object "Timestamp" do
-      # ISO 8601 UTC stamp — used for posted_at and completed_at.
+      # ISO 8601 UTC stamp — used for posted_at, completed_at,
+      # modeled_at, designed_at, signoff_at, locked_at.
       attribute :value, String
     end
 
     value_object "Status" do
-      # Lifecycle token : queued / done / dropped.
+      # Lifecycle token : queued / modeled / designed / signed_off /
+      # locked / superseded / done (legacy) / dropped.
       attribute :value, String
     end
 
@@ -111,6 +108,30 @@ Hecks.bluebook "Inbox", version: "2026.05.12.1" do
     value_object "WishId" do
       # The DreamWish id this filing satisfies (empty when none).
       attribute :value, String
+    end
+
+    value_object "CommitSha" do
+      # Opaque commit identifier. Non-empty; short-form and full SHA accepted.
+      attribute :value, String
+      invariant "non-empty" do value.length > 0 end
+    end
+
+    value_object "ClientName" do
+      # Human or agent name that signed off (e.g. "Chris", "Miette").
+      attribute :value, String
+      invariant "non-empty" do value.length > 0 end
+    end
+
+    value_object "PathPattern" do
+      # File path pattern in signoff_scope; glob-style, non-empty.
+      attribute :value, String
+      invariant "non-empty" do value.length > 0 end
+    end
+
+    value_object "CardRef" do
+      # Reference to another inbox card in "iN" form (superseded_by).
+      attribute :value, String
+      invariant "valid ref format" do value.match?(/\Ai\d+\z/) end
     end
 
     # ============================================================
@@ -136,7 +157,7 @@ Hecks.bluebook "Inbox", version: "2026.05.12.1" do
 
     command "Close" do
       role "Chris"
-      description "Mark a queued item as done. Stamps completed_at and records a one-line resolution (commit sha, PR url, or free-text note). Reversible via Reopen."
+      description "Mark a queued item as done (legacy path — predates the card-as-lock lifecycle). Stamps completed_at and records a one-line resolution (commit sha, PR url, or free-text note). Reversible via Reopen. Cards entering the modeled → locked chain should use MarkModeled rather than Close."
       reference_to(Inbox)
       attribute :completed_at, Timestamp
       attribute :resolution,   Resolution
@@ -174,49 +195,139 @@ Hecks.bluebook "Inbox", version: "2026.05.12.1" do
       emits "InboxArchived"
     end
 
+    # ── Card-as-lock lifecycle commands (i602, 2026-05-14) ───────
+
+    command "MarkModeled" do
+      description "queued → modeled. Domain shape committed. Stamps modeled_at + modeled_commit."
+      reference_to(Inbox)
+      attribute :modeled_commit, CommitSha
+      attribute :modeled_at,     Timestamp
+      given("must be queued") { status == "queued" }
+      then_set :status,          to: "modeled"
+      then_set :modeled_commit,  to: :modeled_commit
+      then_set :modeled_at,      to: :modeled_at
+      emits "InboxModeled"
+    end
+
+    command "MarkDesigned" do
+      description "modeled → designed. Design artifacts committed. Stamps designed_at + designed_commit."
+      reference_to(Inbox)
+      attribute :designed_commit, CommitSha
+      attribute :designed_at,     Timestamp
+      given("must be modeled") { status == "modeled" }
+      then_set :status,           to: "designed"
+      then_set :designed_commit,  to: :designed_commit
+      then_set :designed_at,      to: :designed_at
+      emits "InboxDesigned"
+    end
+
+    command "RecordSignoff" do
+      description "designed → signed_off. Records signoff_by, signoff_commit, signoff_scope (path patterns this card gates). LockOnSignoff policy auto-fires Lock on SignoffRecorded."
+      reference_to(Inbox)
+      attribute :signoff_by,     ClientName
+      attribute :signoff_commit, CommitSha
+      attribute :signoff_scope,  list_of(PathPattern)
+      attribute :signoff_at,     Timestamp
+      given("must be designed") { status == "designed" }
+      then_set :status,          to: "signed_off"
+      then_set :signoff_by,      to: :signoff_by
+      then_set :signoff_commit,  to: :signoff_commit
+      then_set :signoff_scope,   to: :signoff_scope
+      then_set :signoff_at,      to: :signoff_at
+      emits "SignoffRecorded"
+    end
+
+    command "Lock" do
+      description "signed_off → locked. Card becomes a live change-authorization token. Stamps locked_at. Auto-fired by LockOnSignoff; manual path also available."
+      reference_to(Inbox)
+      attribute :locked_at, Timestamp
+      given("must be signed_off") { status == "signed_off" }
+      then_set :status,     to: "locked"
+      then_set :locked_at,  to: :locked_at
+      emits "InboxLocked"
+    end
+
+    command "Supersede" do
+      description "locked → superseded. Card leaves the lock pool; superseded_by points at the replacement card."
+      reference_to(Inbox)
+      attribute :superseded_by, CardRef
+      given("must be locked") { status == "locked" }
+      then_set :status,        to: "superseded"
+      then_set :superseded_by, to: :superseded_by
+      emits "InboxSuperseded"
+    end
+
+    # ── Lifecycle state machine ──────────────────────────────────
+
     lifecycle :status, default: "queued" do
       # Add is the creation command — no `from:` clause because the
       # record doesn't exist yet. Default "queued" applies on creation.
-      transition "Add"     => "queued"
-      transition "Close"   => "done",    from: "queued"
-      transition "Reopen"  => "queued",  from: "done"
-      transition "Drop"    => "dropped", from: "queued"
-      transition "Drop"    => "dropped", from: "done"
+      transition "Add"           => "queued"
+
+      # Legacy path (Close / Reopen keep working for existing cards)
+      transition "Close"         => "done",       from: "queued"
+      transition "Reopen"        => "queued",     from: "done"
+      transition "Drop"          => "dropped",    from: "queued"
+      transition "Drop"          => "dropped",    from: "done"
+
+      # Card-as-lock chain (i602)
+      transition "MarkModeled"   => "modeled",    from: "queued"
+      transition "MarkDesigned"  => "designed",   from: "modeled"
+      transition "RecordSignoff" => "signed_off", from: "designed"
+      transition "Lock"          => "locked",     from: "signed_off"
+      transition "Supersede"     => "superseded", from: "locked"
+
       # Archive is a store-move, not a status change — the row leaves
       # the live store carrying its existing status (done or dropped).
       # No transition entry : Archive doesn't mutate :status.
     end
 
+    # ── Lifecycle policy : auto-lock on signoff ──────────────────
+
+    policy "LockOnSignoff" do
+      on "SignoffRecorded"
+      trigger "Lock"
+      map ref: :ref
+    end
+
     # ============================================================
-    # QUERIES
+    # QUERIES — descriptions carry intent for i101 query IR
     # ============================================================
-    #
-    # Today's DSL stores `query` as name + description (see i101) —
-    # the where/order/limit clauses are imperative Ruby blocks the
-    # Rust runtime cannot execute. The descriptions below carry the
-    # full intent so the future first-class query IR (i101) can
-    # parse them mechanically. Until then, the inbox.sh wrapper
-    # walks the markdown directory directly, parsing YAML frontmatter
-    # for the matching filter / order specs.
 
     query "ListAll" do
-      description "Every Inbox, ordered by priority descending (high → low) then by ref numerically ascending. Walks hecks_conception/inbox/ for *.md files, parses frontmatter, sorts by priority enum (high,medium,normal,low) then by numeric ref."
+      description "Every Inbox ordered by priority desc then ref asc. Walks inbox/*.md + inbox/archive/*.md."
     end
 
     query "ListQueued" do
-      description "Every Inbox where status = queued, ordered by priority then ref. The default `inbox list` view — what's still on Chris's plate."
+      description "Every Inbox where status = queued, ordered by priority then ref. Default `inbox list` view."
     end
 
     query "ListDone" do
-      description "Every Inbox where status = done, ordered by priority then ref. Audit trail of what's been processed."
+      description "Every Inbox where status = done, ordered by priority then ref. Legacy audit trail — predates card-as-lock lifecycle."
+    end
+
+    query "ListByStatus" do
+      description "Every Inbox where status matches the supplied argument. Accepts: queued, modeled, designed, signed_off, locked, superseded, done, dropped."
+    end
+
+    query "ListLocked" do
+      description "Every Inbox where status = locked, ordered by ref asc. CardLockMacrophage enumerates the live lock pool here."
     end
 
     query "GetByRef" do
-      description "Look up one Inbox by its short ref (e.g., 'i42'). Returns the heki uuid and the full row. The shell wrapper uses this for `inbox show <ref>` — every other transition command (Close, Reopen, Drop) goes through ref → uuid resolution first."
+      description "Look up one Inbox by short ref (e.g., 'i42'). Used by `inbox show` and as the ref → uuid step before every transition command."
+    end
+
+    query "LockedScopeFor" do
+      description "Return signoff_scope for a single locked card by ref. Empty list when card is not locked or absent. CardLockMacrophage uses this for targeted scope inspection."
+    end
+
+    query "ScopeOverlapsLockedCard" do
+      description "Given a file_path, return any locked card whose signoff_scope matches it (glob-style). Primary macrophage gate query — answers: is this file gated by a card lock?"
     end
 
     query "NextRef" do
-      description "Compute the next monotonic ref by scanning every existing ref across hecks_conception/inbox/ AND hecks_conception/inbox/archive/, stripping the alphabetic prefix ('i'), taking the numeric tail's max, and returning '<prefix><max+1>'. Handles gaps (deleted items) by skipping them — the next ref after a deletion is still max+1, not the gap. Both directories must be scanned so refs stay monotonic across the active/archive split."
+      description "Next monotonic ref. Scans inbox/ and inbox/archive/ for all iN refs, takes max numeric suffix, returns i<max+1>. Gaps are skipped; the next ref is always max+1."
     end
   end
 end
