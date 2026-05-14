@@ -1630,9 +1630,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # `value_object "Id"` triad is the surrogate-key lie ; this
   # macrophage hunts it.
   #
-  # Six structural checks (each implemented as a registered Check
-  # entity with its own pattern_kind, severity, and complaint
-  # template) :
+  # Four structural checks (each a hard violation) :
   #
   #   * id_attribute       — any `attribute :id, Id` declaration
   #                          (in aggregate body, command body, or
@@ -1646,19 +1644,20 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   #                          typed by the domain-meaningful VOs
   #                          their fields carry (Identity, ThreadId,
   #                          ToolName, ...).
-  #   * missing_identity   — every aggregate root must declare
-  #                          either `identified_by ...` (instance-
-  #                          bearing) or `singleton: true` (one-of).
-  #                          Bare aggregates are forbidden.
-  #   * missing_entity_id  — every `entity "..."` block must declare
-  #                          `identified_by`. Entities without
-  #                          identity have no addressable form ;
-  #                          the parent-scoped identity contract
-  #                          (i611 rule 4) requires the local part.
   #   * dangling_identity  — `identified_by` lists fields that are
   #                          not declared as attributes on the same
   #                          aggregate (a typo or a leftover after
   #                          a rename). The reference must resolve.
+  #
+  # NOT checked (UUID-default softening, 2026-05-14) :
+  #   * missing_identity   — aggregates without `identified_by` are
+  #                          valid ; the runtime defaults to a UUID.
+  #   * missing_entity_id  — entities without `identified_by` are
+  #                          valid ; the runtime defaults to a UUID.
+  #                          Omitting identified_by is a design
+  #                          choice, not a violation. Chris confirmed:
+  #                          "you can use uuids as the default then.
+  #                          If we don't supply identified_by"
   #
   # File kinds checked : .bluebook only. Other kinds are recorded
   # but never complained against — IdentityDiscipline is a structural
@@ -1669,7 +1668,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # per-rule sibling, counters, complaint history entity, Complain
   # command, exemption support.
 
-  aggregate "IdentityDiscipline", "Per-rule macrophage for the i611 natural-key-identity enforcement — tracks bluebook structural violations of the identified_by / no-surrogate-id contract and maintains the complaint history for this rule alone" do
+  aggregate "IdentityDiscipline", "Per-rule macrophage for the i611 natural-key-identity enforcement — tracks bluebook structural violations of the no-surrogate-id contract (four hard checks : id_attribute, identified_by_id, id_value_object, dangling_identity) and maintains the complaint history. Missing identified_by is NOT a violation — the runtime defaults to UUID when absent (2026-05-14 UUID-default softening)." do
     identified_by :name
 
     attribute :name, Name
@@ -1683,8 +1682,6 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     attribute :id_attribute_violations,       ViolationCount
     attribute :identified_by_id_violations,   ViolationCount
     attribute :id_value_object_violations,    ViolationCount
-    attribute :missing_identity_violations,   ViolationCount
-    attribute :missing_entity_id_violations,  ViolationCount
     attribute :dangling_identity_violations,  ViolationCount
 
     # Exemption tally — well-formed `[antibody-exempt: id-overhaul: <reason>]`
@@ -1735,13 +1732,14 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     end
 
     value_object "ViolationKind" do
-      # The check that fired. One of :
+      # The check that fired. One of the four hard checks :
       #   "id_attribute"       — `attribute :id, Id`
       #   "identified_by_id"   — `identified_by :id`
       #   "id_value_object"    — `value_object "Id"`
-      #   "missing_identity"   — aggregate has neither identified_by nor singleton
-      #   "missing_entity_id"  — entity has no identified_by
       #   "dangling_identity"  — identified_by names a non-attribute field
+      # Note : "missing_identity" and "missing_entity_id" are NOT valid
+      # ViolationKinds — they were retired by the UUID-default softening
+      # (2026-05-14). Aggregates without identified_by are valid.
       attribute :value, String
     end
 
@@ -1815,7 +1813,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Check" do
       role "Hook"
-      description "Scan one bluebook file for identity-discipline violations. Increments bluebooks_checked. Internally walks every aggregate, command, entity, and value_object declaration ; for each of the six checks (id_attribute, identified_by_id, id_value_object, missing_identity, missing_entity_id, dangling_identity), dispatches RecordViolation when the pattern matches. The hook calls this once per .bluebook write ; the macrophage decides what fired. No complaint is issued here — Complain is the surface command."
+      description "Scan one bluebook file for identity-discipline violations. Increments bluebooks_checked. Internally walks every aggregate, command, entity, and value_object declaration ; for each of the four hard checks (id_attribute, identified_by_id, id_value_object, dangling_identity), dispatches RecordViolation when the pattern matches. Missing identified_by is NOT checked — aggregates without it are valid under the UUID-default fallback. The hook calls this once per .bluebook write ; the macrophage decides what fired. No complaint is issued here — Complain is the surface command."
       attribute :file_path, FilePath
       emits "BluebookChecked"
     end
@@ -1824,7 +1822,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "RecordViolation" do
       role "Hook"
-      description "A specific identity-discipline violation was detected. Records the file path, aggregate/entity name, offending field, violation kind, and line number ; appends an IdentityViolation entity ; increments the kind-specific counter (id_attribute_violations / identified_by_id_violations / etc.) and total_violations ; updates last_offending_file and last_offending_kind. The hook chains into Complain to surface the violation on the next turn — this command records the fact; Complain records the reaction. If the aggregate_name + kind appears in ExemptedAggregate, the hook skips Complain and increments exempted_violations instead."
+      description "A specific identity-discipline violation was detected. Records the file path, aggregate/entity name, offending field, violation kind, and line number ; appends an IdentityViolation entity ; increments the kind-specific counter (id_attribute_violations / identified_by_id_violations / id_value_object_violations / dangling_identity_violations) and total_violations ; updates last_offending_file and last_offending_kind. Valid kinds are the four hard checks only — id_attribute, identified_by_id, id_value_object, dangling_identity. The hook chains into Complain to surface the violation on the next turn — this command records the fact; Complain records the reaction. If the aggregate_name + kind appears in ExemptedAggregate, the hook skips Complain and increments exempted_violations instead."
       attribute :file_path,      FilePath
       attribute :aggregate_name, AggregateName
       attribute :field_name,     FieldName
