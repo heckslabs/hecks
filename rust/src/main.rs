@@ -3342,15 +3342,75 @@ fn run_macrophage(_args: &[String]) {
     // Fast-path : if the command doesn't even mention a kernel-surface
     // extension, exit 0 immediately. Most bash invocations are reads
     // (git, grep, ls) ; we don't want macrophage overhead on every shell.
+    //
+    // bash_cmd is extracted here (outside the inner if-block) so that the
+    // breadcrumb writer below can reuse it for "🛠️  Bash : <cmd…>" without
+    // a second json.pointer call.
+    let bash_cmd = if tool_name == "Bash" {
+        json.pointer("/tool_input/command")
+            .and_then(|v| v.as_str()).unwrap_or("").to_string()
+    } else {
+        String::new()
+    };
     if file_path.is_empty() && tool_name == "Bash" {
-        let bash_cmd = json.pointer("/tool_input/command")
-            .and_then(|v| v.as_str()).unwrap_or("").to_string();
         if let Some(target) = detect_bash_write_target(&bash_cmd) {
             file_path = target;
         }
     }
 
     if file_path.is_empty() {
+        // Even when there is nothing for the macrophage to classify
+        // (read-only Bash, a Read tool call, etc.) we still want the
+        // statusline breadcrumb to update. Write .last_dispatch before
+        // exiting so the bar shows the tool call Chris just ran within
+        // the 30-second freshness window.
+        //
+        // HECKS_DAEMON=1 suppresses the write : body-cycle plumbing
+        // (mindstream.sh, pulse_organs.sh) shouldn't flood the bar —
+        // same guard Runtime::dispatch uses.
+        let is_daemon = std::env::var("HECKS_DAEMON").ok().as_deref() == Some("1");
+        if !is_daemon {
+            if let Some(agg_dir_bc) = resolve_aggregates_dir() {
+                if let Some(heki_dir) = find_world_heki_dir(&agg_dir_bc) {
+                    let phrase = match tool_name.as_str() {
+                        "Bash" => {
+                            let cmd = bash_cmd.trim();
+                            if cmd.chars().count() > 50 {
+                                let truncated: String = cmd.chars().take(50).collect();
+                                format!("\u{1f6e0}\u{fe0f}  Bash : {}...", truncated)
+                            } else {
+                                format!("\u{1f6e0}\u{fe0f}  Bash : {}", cmd)
+                            }
+                        }
+                        "Read" => {
+                            let basename = std::path::Path::new(&file_path)
+                                .file_name()
+                                .map(|n| n.to_string_lossy().into_owned())
+                                .unwrap_or_else(|| file_path.clone());
+                            format!("\u{1f4d6}  Read : {}", basename)
+                        }
+                        other => {
+                            let fp = json.pointer("/tool_input/file_path")
+                                .and_then(|v| v.as_str()).unwrap_or("");
+                            let basename = std::path::Path::new(fp)
+                                .file_name()
+                                .map(|n| n.to_string_lossy().into_owned())
+                                .unwrap_or_else(|| fp.to_string());
+                            format!("\u{270f}\u{fe0f}  {} : {}", other, basename)
+                        }
+                    };
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs()).unwrap_or(0);
+                    let dispatch_path = format!(
+                        "{}/.last_dispatch",
+                        heki_dir.trim_end_matches('/')
+                    );
+                    let _ = std::fs::write(&dispatch_path,
+                        format!("{}\n{}\n", phrase, now));
+                }
+            }
+        }
         std::process::exit(0);
     }
 
@@ -3447,6 +3507,54 @@ fn run_macrophage(_args: &[String]) {
             );
             eprintln!("[macrophage] {}", complaint);
             std::process::exit(2);
+        }
+    }
+
+    // Breadcrumb write for file-bearing tool calls (Read, Edit, Write, Bash).
+    // Runs after dispatch_hecksagon so the human-readable tool-call label
+    // ("📖  Read : foo.txt") wins over the internal domain command name
+    // ("Macrophage::Macrophage.RecordOtherEdit") that the runtime's own
+    // dispatch writes to .last_dispatch. Same HECKS_DAEMON=1 guard as
+    // Runtime::dispatch and the empty-path branch above.
+    {
+        let is_daemon = std::env::var("HECKS_DAEMON").ok().as_deref() == Some("1");
+        if !is_daemon {
+            if let Some(heki_dir) = find_world_heki_dir(&agg_dir) {
+                let phrase = match tool_name.as_str() {
+                    "Bash" => {
+                        let cmd = bash_cmd.trim();
+                        if cmd.chars().count() > 50 {
+                            let truncated: String = cmd.chars().take(50).collect();
+                            format!("\u{1f6e0}\u{fe0f}  Bash : {}...", truncated)
+                        } else {
+                            format!("\u{1f6e0}\u{fe0f}  Bash : {}", cmd)
+                        }
+                    }
+                    "Read" => {
+                        let basename = std::path::Path::new(&file_path)
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| file_path.clone());
+                        format!("\u{1f4d6}  Read : {}", basename)
+                    }
+                    other => {
+                        let basename = std::path::Path::new(&file_path)
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| file_path.clone());
+                        format!("\u{270f}\u{fe0f}  {} : {}", other, basename)
+                    }
+                };
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs()).unwrap_or(0);
+                let dispatch_path = format!(
+                    "{}/.last_dispatch",
+                    heki_dir.trim_end_matches('/')
+                );
+                let _ = std::fs::write(&dispatch_path,
+                    format!("{}\n{}\n", phrase, now));
+            }
         }
     }
 
