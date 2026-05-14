@@ -1,7 +1,7 @@
 #!/bin/bash
 # statusline-command.sh — thin wrapper for Claude Code's statusline
 # harness. Bluebook-of-record : hecks_conception/capabilities/statusline/
-# Logic lives in rust/src/run_statusline.rs (Rust runner).
+# Logic lives in rust/src/run_statusline/ (Rust runner).
 #
 # Claude Code's settings.json points the statusline action at this
 # script (~/.claude/statusline-command.sh is a symlink here). The
