@@ -1,4 +1,4 @@
-//! StoreHouse stdout logger — i622
+//! StoreHouse stdout + file logger — i622
 //!
 //! [antibody-exempt: rust/src/runtime/storehouse_log.rs — kernel-floor
 //!  sibling of rust/src/runtime/mod.rs. Owns the one-line stdout
@@ -19,6 +19,19 @@
 //!   - `normal`  — dispatch + event + cascade + policy   (default)
 //!   - `verbose` — normal + per-attribute trace
 //!
+//! In addition to stdout, every emitted line ALSO appends to a stable
+//! file path so a sibling process (`storehouse follow`) can tail and
+//! filter the bus from another terminal. File path resolution :
+//!
+//!   1. `STOREHOUSE_LOG_FILE` env var, if set and non-empty.
+//!   2. `<heki::resolve_info_dir()>/storehouse.log` — the same
+//!      `miette-state/information` sibling the rest of the runtime
+//!      writes to.
+//!
+//! If the file can't be opened (permission, missing dir), a single
+//! stderr warning fires and stdout-only emission continues. The file
+//! sink follows the exact same level gating as stdout.
+//!
 //! Usage :
 //!   storehouse_log::dispatch_entry("Tools::ShellTool.Bash", "abc123", Some("run echo"));
 //!   storehouse_log::event_emitted("ShellTool", "BashRan", "abc123");
@@ -31,7 +44,9 @@
 //! single audit stream. See `hecks_conception/inbox/i622.md` for the
 //! design and `i613.md` for the envelope shape this record reflects.
 
-use std::sync::OnceLock;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -67,6 +82,62 @@ pub fn set_level_for_test(new_level: LogLevel) {
     let _ = LEVEL.set(new_level);
 }
 
+/// Resolve the storehouse log file path. Honors `STOREHOUSE_LOG_FILE`
+/// first, then falls back to `<heki::resolve_info_dir()>/storehouse.log`
+/// so the file lands next to the rest of the runtime's heki records.
+/// Public so `storehouse follow` can resolve the same path the writer
+/// uses without duplicating the env-var contract.
+pub fn log_file_path() -> std::path::PathBuf {
+    if let Ok(v) = std::env::var("STOREHOUSE_LOG_FILE") {
+        if !v.is_empty() {
+            return std::path::PathBuf::from(v);
+        }
+    }
+    crate::heki::resolve_info_dir().join("storehouse.log")
+}
+
+// Lazy-initialized append-mode file handle wrapped in a Mutex so
+// concurrent dispatches don't interleave lines. The OnceLock holds
+// `None` if the open failed once and we've given up — stdout-only
+// from there.
+static FILE_SINK: OnceLock<Option<Mutex<std::fs::File>>> = OnceLock::new();
+
+fn file_sink_init() -> Option<Mutex<std::fs::File>> {
+    let path = log_file_path();
+    if let Some(parent) = path.parent() {
+        // Best-effort directory creation. If this fails the open will
+        // fail next and we'll fall into the warn-and-skip branch.
+        let _ = std::fs::create_dir_all(parent);
+    }
+    match OpenOptions::new().create(true).append(true).open(&path) {
+        Ok(f) => Some(Mutex::new(f)),
+        Err(e) => {
+            eprintln!(
+                "[storehouse_log] warning : cannot open log file {} ({}) — stdout only",
+                path.display(),
+                e
+            );
+            None
+        }
+    }
+}
+
+/// Emit one line to both stdout and the append-mode file sink. All five
+/// public surfaces funnel through here so the dual-sink contract lives
+/// in exactly one place. `println!` goes first so a panicking file
+/// write never costs the operator the stdout breadcrumb.
+fn emit(line: String) {
+    println!("{}", line);
+    if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
+        if let Ok(mut f) = sink.lock() {
+            // Errors here are swallowed deliberately — we already
+            // succeeded on stdout, and reporting the same warning per
+            // write would spam stderr.
+            let _ = writeln!(f, "{}", line);
+        }
+    }
+}
+
 /// Surface 1 — dispatch entry. Printed when a top-level command enters
 /// the runtime. `description` is optional (the human-readable label
 /// from the command declaration, when known).
@@ -75,7 +146,7 @@ pub fn dispatch_entry(fqn: &str, id: &str, description: Option<&str>) {
         let desc = description
             .map(|d| format!(" \"{}\"", d))
             .unwrap_or_default();
-        println!("[{}] dispatch {}#{}{}", now_iso8601(), fqn, id, desc);
+        emit(format!("[{}] dispatch {}#{}{}", now_iso8601(), fqn, id, desc));
     }
 }
 
@@ -83,7 +154,7 @@ pub fn dispatch_entry(fqn: &str, id: &str, description: Option<&str>) {
 /// event. Suppressed at `Quiet`.
 pub fn event_emitted(aggregate: &str, event_name: &str, id: &str) {
     if level() == LogLevel::Normal || level() == LogLevel::Verbose {
-        println!("[{}] event {}.{}#{}", now_iso8601(), aggregate, event_name, id);
+        emit(format!("[{}] event {}.{}#{}", now_iso8601(), aggregate, event_name, id));
     }
 }
 
@@ -93,7 +164,7 @@ pub fn event_emitted(aggregate: &str, event_name: &str, id: &str) {
 /// dispatch error). Suppressed at `Quiet`.
 pub fn cascade_step(fqn: &str, id: &str, ok: bool) {
     if level() == LogLevel::Normal || level() == LogLevel::Verbose {
-        println!("[{}] cascade {}#{} ok={}", now_iso8601(), fqn, id, ok);
+        emit(format!("[{}] cascade {}#{} ok={}", now_iso8601(), fqn, id, ok));
     }
 }
 
@@ -108,10 +179,10 @@ pub fn policy_reaction(
     dispatched_command: &str,
 ) {
     if level() == LogLevel::Quiet || level() == LogLevel::Normal || level() == LogLevel::Verbose {
-        println!(
+        emit(format!(
             "[{}] policy {} on {}.{}#{} -> {}",
             now_iso8601(), policy_name, aggregate, event_name, id, dispatched_command
-        );
+        ));
     }
 }
 
@@ -125,10 +196,10 @@ pub fn attribute_trace(aggregate: &str, id: &str, attr: &str, value: &str) {
         } else {
             value.to_string()
         };
-        println!(
+        emit(format!(
             "[{}] attr {}#{} {}={}",
             now_iso8601(), aggregate, id, attr, v_trimmed
-        );
+        ));
     }
 }
 
@@ -138,7 +209,7 @@ pub fn attribute_trace(aggregate: &str, id: &str, attr: &str, value: &str) {
 /// MCP server misbehaves). `server` is the resolved server name
 /// (e.g. `storehouse`) ; `line` is the raw stderr line, trimmed.
 pub fn mcp_stderr_line(server: &str, line: &str) {
-    println!("[{}] [mcp:{}] {}", now_iso8601(), server, line);
+    emit(format!("[{}] [mcp:{}] {}", now_iso8601(), server, line));
 }
 
 /// RFC-3339 / ISO-8601 timestamp with seconds precision, UTC. Hand-
