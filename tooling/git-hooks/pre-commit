@@ -20,6 +20,10 @@
 #   6. Smoke tests must pass
 #   6b. Behaviors corpus — `storehouse test` over each root
 #       (parallel to Gate 6 during the i500 migration window)
+#   7. LoC ratchet — non-bluebook LoC may not increase vs origin/main
+#   8. cargo check --tests — all integration test targets compile
+#   9. Specializer byte-identity — codegen output equals rust/src/<name>.rs
+#      for all 30 tracked shapes
 #
 # Exit 0 = commit allowed. Exit 1 = commit blocked.
 # Set PARITY_SKIP=1 to bypass gate 1 (an antibody failure).
@@ -28,6 +32,9 @@
 # Set COMPANION_SKIP=1 to bypass gate 4b (also an antibody failure).
 # Set TESTS_SKIP=1 to bypass gate 6 (also an antibody failure).
 # Set BEHAVIORS_SKIP=1 to bypass gate 6b (also an antibody failure).
+# Set RATCHET_SKIP=1 to bypass gate 7 (also an antibody failure).
+# Set CARGO_CHECK_SKIP=1 to bypass gate 8 (also an antibody failure).
+# Set SPECIALIZER_SKIP=1 to bypass gate 9 (also an antibody failure).
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 STOREHOUSE="$REPO/rust/target/release/storehouse"
@@ -405,6 +412,38 @@ if [ -z "$CARGO_CHECK_SKIP" ] && [ -f "$REPO/rust/Cargo.toml" ]; then
         echo "COMMIT BLOCKED: cargo check --tests failed."
         echo "  Re-run : cd rust && cargo check --tests"
         echo "  Bypass (use only for emergencies) : CARGO_CHECK_SKIP=1 git commit ..."
+        exit 1
+    fi
+fi
+
+# ── Gate 9: specializer byte-identity — codegen output matches tracked files ──
+# The Rust specializer turns codegen fragments (`codegen/<shape>/snippets/*.rs.frag`)
+# + shape contracts into `rust/src/<name>.rs`. Any drift between what the
+# specializer produces and what's committed at `rust/src/<name>.rs` means
+# the kernel surface is editable in two places — fragment OR final file —
+# which silently breaks future regenerations. The gate enforces single-source
+# of truth : the specializer's output IS the file.
+#
+# All 30 byte-identity tests must pass. Test runs in ~0.2s on a warm release
+# cache (the `cargo build --release` from prior storehouse work). On a cold
+# cache the gate compiles release artifacts first, which can be slow ; in
+# practice everyone working on Hecks has a warm release target/ from running
+# `storehouse` daily.
+#
+# Set SPECIALIZER_SKIP=1 to bypass (an antibody failure for emergencies).
+if [ -z "$SPECIALIZER_SKIP" ] && [ -f "$REPO/rust/tests/specializer_golden_test.rs" ]; then
+    if ! ( cd "$REPO/rust" && cargo test --release --test specializer_golden_test --quiet ) >/tmp/specializer_goldens.out 2>&1; then
+        cat /tmp/specializer_goldens.out
+        echo ""
+        echo "COMMIT BLOCKED: specializer byte-identity goldens drifted."
+        echo "  One or more rust/src/<name>.rs files no longer match what the"
+        echo "  specializer would emit from codegen/<shape>/snippets/*.rs.frag."
+        echo ""
+        echo "  Fix : sync the codegen fragment(s) so the specializer's output"
+        echo "  equals the production file. Never edit rust/src/<name>.rs by hand."
+        echo ""
+        echo "  Re-run : cd rust && cargo test --release --test specializer_golden_test"
+        echo "  Bypass (use only for emergencies) : SPECIALIZER_SKIP=1 git commit ..."
         exit 1
     fi
 fi
