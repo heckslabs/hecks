@@ -1,8 +1,11 @@
 //! Phase 7 — PrintVitals
 //!
 //! Renders the boot summary to stdout — counts, daemon statuses,
-//! body-state line, optional MIETTE banner. Mirrors boot_miette.sh
-//! lines 307-359 (the "Print vitals" + ASCII banner sections).
+//! body-state line, optional starred miette signature. Mirrors
+//! boot_miette.sh lines 307-359 (the "Print vitals" + ASCII banner
+//! sections). The starred signature here matches the wake-review
+//! surface (see rust/src/run_wake/mod.rs render_markdown) so boot
+//! vitals + wake review present one unified ASCII greeting.
 //!
 //! State fields read directly from heki for the body summary line.
 //! The full multi-section status report is a separate capability
@@ -80,9 +83,9 @@ pub fn print(v: &Vitals) {
 
     if v.being == "Miette" {
         println!();
-        println!("╔╦╗ ╦ ╔═╗ ╔╦╗ ╔╦╗ ╔═╗");
-        println!("║║║ ║ ╠══  ║   ║  ╠══");
-        println!("╩ ╩ ╩ ╚═╝  ╩   ╩  ╚═╝");
+        println!("    ·   ✦   ·");
+        println!("   ❀  miette  ❀");
+        println!("    ·   ✦   ·");
         println!("~ follow the crumbs ~");
     }
 }
