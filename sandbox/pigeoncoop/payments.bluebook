@@ -19,8 +19,10 @@
 #     PigeonCoop (it is catalog/inventory, not financial). This reference
 #     stays. The Payments bluebook takes a hard dependency on PigeonCoop's
 #     MerchItem identity; the runtime resolves cross-bluebook refs by id.
-#   - All three aggregates carry `reference_to Person` — Person lives in
-#     PigeonCoop. Same pattern as Calendars extraction; acceptable.
+#   - Donation.donor, MerchPurchase.buyer, TuitionPayment.payer are typed as
+#     Parent (per i13 / i14 / i19). A Parent stub is declared here alongside
+#     the Person stub. Person is retained for TuitionPayment.student (Student
+#     role lives in PigeonCoop; referenced via Person identity for now).
 #   - Ledger.MyAnnualPayments retires the cross-aggregate query currently
 #     sitting in Person.MyAnnualPayments (pigeoncoop.bluebook line 149).
 #     That query should be removed from Person once this bluebook lands.
@@ -29,22 +31,43 @@ Hecks.bluebook "Payments" do
 
   # ── Cross-bluebook stubs ─────────────────────────────────────────────
   #
-  # The real Person and MerchItem aggregates live in pigeoncoop.bluebook.
+  # The real Person, Parent, and MerchItem aggregates live in pigeoncoop.bluebook.
   # Until the runtime supports cross-bluebook reference resolution, minimal
-  # stubs are declared here so `reference_to Person` / `reference_to MerchItem`
-  # calls validate. Each stub carries only the natural key needed for
-  # identity ; the full aggregates are authoritative in PigeonCoop.
+  # stubs are declared here so `reference_to Person` / `reference_to Parent` /
+  # `reference_to MerchItem` calls validate. Each stub carries only the
+  # identity-bearing minimum; full aggregates are authoritative in PigeonCoop.
 
   aggregate "Person" do
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
     value_object "PersonName" do
       attribute :given,  String
       attribute :family, String
     end
 
-    attribute :name, PersonName
+    attribute :identity, Identity
+    attribute :name,     PersonName
 
     command "RegisterPerson" do
-      attribute :name, PersonName
+      attribute :identity, Identity
+      attribute :name,     PersonName
+    end
+  end
+
+  # Parent stub — the real Parent lives in pigeoncoop.bluebook.
+  # Donor, buyer, and payer roles in Payments are Parents (per i13 / i14 / i19).
+  aggregate "Parent" do
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    attribute :identity, Identity
+
+    command "Register" do
     end
   end
 
@@ -64,7 +87,7 @@ Hecks.bluebook "Payments" do
   # ── Donation ─────────────────────────────────────────────────────────
 
   aggregate "Donation" do
-    reference_to Person, as: :donor
+    reference_to Parent, as: :donor
     attribute :amount,      Money
     attribute :payment,     Payment
     attribute :designation, Designation
@@ -119,7 +142,7 @@ Hecks.bluebook "Payments" do
     end
 
     command "RecordDonation" do
-      reference_to Person, as: :donor
+      reference_to Parent, as: :donor
       attribute :payment,     Payment
       attribute :designation, Designation
       attribute :note,        DonationNote
@@ -138,7 +161,7 @@ Hecks.bluebook "Payments" do
 
   aggregate "MerchPurchase" do
     reference_to MerchItem
-    reference_to Person, as: :buyer
+    reference_to Parent, as: :buyer
     attribute :quantity, Count
     attribute :total,    Money
     attribute :payment,  Payment
@@ -185,7 +208,7 @@ Hecks.bluebook "Payments" do
 
     command "PlaceMerchOrder" do
       reference_to MerchItem
-      reference_to Person, as: :buyer
+      reference_to Parent, as: :buyer
       attribute :quantity, Count
       attribute :total,    Money
       attribute :payment,  Payment
@@ -199,7 +222,8 @@ Hecks.bluebook "Payments" do
   # ── TuitionPayment ───────────────────────────────────────────────────
 
   aggregate "TuitionPayment" do
-    reference_to Person, as: :payer
+    reference_to Parent, as: :payer
+    # student : the Student role lives in PigeonCoop; referenced via Person identity for now.
     reference_to Person, as: :student
     attribute :school_year, SchoolYear
     attribute :amount,      Money
@@ -247,7 +271,7 @@ Hecks.bluebook "Payments" do
     end
 
     command "RecordPayment" do
-      reference_to Person, as: :payer
+      reference_to Parent, as: :payer
       reference_to Person, as: :student
       attribute :school_year, SchoolYear
       attribute :payment,     Payment
@@ -275,7 +299,7 @@ Hecks.bluebook "Payments" do
   # school_year without cross-aggregate joins.
 
   aggregate "Ledger" do
-    reference_to Person, as: :payer
+    reference_to Parent, as: :payer
     attribute :school_year,  SchoolYear
     attribute :entries,      list_of(LedgerEntry)
 
@@ -314,7 +338,7 @@ Hecks.bluebook "Payments" do
     end
 
     command "AppendLedgerEntry" do
-      reference_to Person, as: :payer
+      reference_to Parent, as: :payer
       attribute :school_year,  SchoolYear
       attribute :kind,         EntryKind
       attribute :amount_cents, AmountCents

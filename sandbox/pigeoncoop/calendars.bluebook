@@ -25,19 +25,27 @@ Hecks.bluebook "Calendars" do
   # Person — cross-bluebook stub.
   # The real Person lives in pigeoncoop.bluebook. Until the runtime supports
   # cross-bluebook reference resolution, a minimal stub is declared here so
-  # `reference_to Person` calls validate. The stub carries only the natural
-  # key (name) ; the full aggregate is authoritative in PigeonCoop.
+  # `reference_to Person` calls validate. Shape mirrors the real Person's
+  # identity-bearing minimum (Identity + PersonName); the full aggregate is
+  # authoritative in PigeonCoop.
   # ---------------------------------------------------------------------------
   aggregate "Person" do
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
     value_object "PersonName" do
       attribute :given,  String
       attribute :family, String
     end
 
-    attribute :name, PersonName
+    attribute :identity, Identity
+    attribute :name,     PersonName
 
     command "RegisterPerson" do
-      attribute :name, PersonName
+      attribute :identity, Identity
+      attribute :name,     PersonName
     end
   end
 
