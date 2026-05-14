@@ -72,6 +72,11 @@ pub mod compute_functions;
 // boot wiring + kernel-hook seed for `invoke_claude_tool` ; part 2
 // retires the hardcoded `:claude_tool` shortcut in `Runtime::dispatch`.
 pub mod framework_registry;
+// i622 — StoreHouse stdout logger. One-line records on stdout per
+// dispatch, event, cascade, policy. Level gated by STOREHOUSE_LOG
+// (quiet/normal/verbose). All four surfaces and the MCP child stderr
+// route through this module so stdout is the single audit stream.
+pub mod storehouse_log;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
@@ -242,6 +247,27 @@ impl Runtime {
         command_name: &str,
         attrs: HashMap<String, Value>,
     ) -> Result<CommandResult, RuntimeError> {
+        // i622 — dispatch entry log. One stdout line per top-level
+        // dispatch, gated by STOREHOUSE_LOG. The invocation id is the
+        // dispatch's `id` attr when present (matches i613's envelope),
+        // falling back to a short hex token derived from the system
+        // clock so every dispatch carries SOMETHING addressable.
+        let invocation_id = attrs.get("id")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("inv_{:x}", std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.subsec_nanos() as u64 ^ d.as_secs())
+                .unwrap_or(0)));
+        storehouse_log::dispatch_entry(command_name, &invocation_id, None);
+
+        // i622 verbose — per-attribute trace. One line per attr the
+        // caller passed. Gated to the Verbose level inside the logger.
+        for (k, v) in &attrs {
+            storehouse_log::attribute_trace(
+                command_name, &invocation_id, k, &v.to_string()
+            );
+        }
+
         // Middleware: before
         let ctx = CommandContext {
             command_name: command_name.to_string(),
@@ -252,6 +278,15 @@ impl Runtime {
 
         // Core dispatch
         let result = command_dispatch::dispatch(self, command_name, attrs)?;
+
+        // i622 — event emission log. The dispatch produced an event ;
+        // emit a one-liner naming the aggregate, event, and the
+        // originating invocation id. Suppressed at quiet.
+        if let Some(ref ev) = result.event {
+            storehouse_log::event_emitted(
+                &ev.aggregate_type, &ev.name, &ev.aggregate_id
+            );
+        }
 
         // Breadcrumb : write the entry-point command (the top-level
         // dispatch the user / CLI invoked) to a tiny plaintext file
@@ -795,8 +830,14 @@ impl Runtime {
                 (false, Some(msg)) => format!(" error={:?}", msg),
                 _ => String::new(),
             };
-            eprintln!(
-                "[claude_tool:{}] ok={} exit={} output={:?}{}",
+            // i622 — runtime outcome line moved to stdout. Same fact
+            // as before (one line per claude_tool invocation), now on
+            // the single audit stream alongside the other surfaces.
+            // The cascade_step log below captures the result_into
+            // dispatch outcome separately.
+            println!(
+                "[{}] [claude_tool:{}] ok={} exit={} output={:?}{}",
+                storehouse_log::now_iso8601(),
                 tool, tool_result.ok, tool_result.exit_code, tool_result.output, err_tail
             );
 
@@ -829,6 +870,12 @@ impl Runtime {
                 record_attrs,
                 &result.aggregate_type,
                 &result.aggregate_id,
+            );
+            // i622 — cascade step log. claude_tool result_into chain.
+            storehouse_log::cascade_step(
+                result_into_target,
+                &invocation_id,
+                cascade_outcome.is_ok(),
             );
             if debug {
                 match &cascade_outcome {
@@ -1123,6 +1170,12 @@ impl Runtime {
                             &event.aggregate_type,
                             &event.aggregate_id,
                         );
+                        // i622 — cascade step log. PM-driven cascade.
+                        storehouse_log::cascade_step(
+                            &dispatched.command_name,
+                            &event.aggregate_id,
+                            inner.is_ok(),
+                        );
                         if let Ok(inner_result) = inner {
                             self.drain_policies(&inner_result);
                             // i220 sub-gap 5 — fire the :compute hook
@@ -1160,6 +1213,17 @@ impl Runtime {
                 let cmd = trigger.command_name.clone();
                 let mut data = trigger.event_data.clone();
 
+                // i622 — policy reaction log. Printed at every level
+                // (including quiet) because policy chains are the
+                // operational signal operators most often want to see.
+                storehouse_log::policy_reaction(
+                    &policy_name,
+                    &event.aggregate_type,
+                    &event.name,
+                    &event.aggregate_id,
+                    &cmd,
+                );
+
                 // Inject every reference the triggered command needs:
                 //   1. self-ref or upstream-ref → use upstream event's aggregate_id
                 //   2. other refs → use any record currently in that repo (singleton)
@@ -1181,6 +1245,10 @@ impl Runtime {
                 let inner = command_dispatch::dispatch_cascade(
                     self, &cmd, data,
                     &event.aggregate_type, &event.aggregate_id,
+                );
+                // i622 — cascade step log. Policy-driven cascade.
+                storehouse_log::cascade_step(
+                    &cmd, &event.aggregate_id, inner.is_ok(),
                 );
                 if let Ok(inner_result) = inner {
                     self.drain_policies(&inner_result);
