@@ -1,6 +1,5 @@
 #!/bin/bash
-# statusline_regression_smoke.sh — catch the regression classes that have
-# bit us twice in the 2026-04-22 arc:
+# statusline_regression_smoke.sh — post-2026-05-14 simplification.
 #
 # [antibody-exempt: hecks_conception/tests/statusline_regression_smoke.sh —
 #  transitional shell smoke until every non-bluebook test file retires to
@@ -9,35 +8,30 @@
 #  `storehouse behaviors run` — is the keystone gap (runtime parses
 #  .behaviors but doesn't execute them as live tests yet). Also retires
 #  under i44 (statusline-as-bluebook) — the renderer is already in Rust
-#  (rust/src/run_statusline.rs) but the catalog-driven mood / fatigue
-#  emission contract still lives outside a `Statusline` bluebook.]
+#  (rust/src/run_statusline/) but the catalog-driven emission contract
+#  still lives outside a `Statusline` bluebook.]
 #
-#   1. SYMLINK RESOLUTION — Claude Code runs the script via a symlink
-#      (~/.claude/statusline-command.sh → hecks_conception/). If $0 is
-#      used without readlink the script can't find status_coherence.sh,
-#      coherence check errors non-zero, and the mood icon degrades to ⚠
-#      on every render. This bit us silently. (PR #289 fixed.)
+# Post-simplification the statusline surfaces TWO signals only :
+#   1. ❤️ <beats>          (heartbeat from tick.heki)
+#   2. ✉️ <init>:<count> ...  (multi-inbox, omitted when all empty)
 #
-#   2. MISSING MOOD ICON CASE — body.bluebook emits six mood strings
-#      (refreshed, groggy, excited, focused, curious, drifting). The
-#      script's case statement has to track them; if a mood is missing,
-#      the icon falls through to 😐 and we quietly lose a signal.
-#      (PR #286 added the three missing ones.)
+# The old shape's mood / fatigue / inventions / musings / provider /
+# bulb / coherence-⚠ / last-dispatch breadcrumb were all stripped. This
+# regression test now asserts the inverse : that NONE of those signals
+# come back, and that the new multi-inbox shape renders.
 #
-#   3. MISSING FATIGUE ICON — same shape for fatigue_state.
+# Symlink resolution (the original regression class) is still tested —
+# Claude Code invokes the script via ~/.claude/statusline-command.sh
+# and a broken readlink would still degrade the line.
 #
-# Transitional: this is a shell smoke for a shell script. Retires when
-# inbox i44 (statusline-as-bluebook) ships, at which point both the
-# renderer and its tests live in .bluebook + .behaviors and drift
-# becomes structurally impossible.
-#
-# Assertions:
+# Assertions :
 #   - Running via a symlinked path resolves to the real script dir
-#   - Rendered line starts with ☀️ Miette in awake state
-#   - Mood icon renders for every mood body.bluebook emits (6 scenarios)
-#   - Fatigue icon renders for every fatigue_state (5 scenarios)
-#   - No ⚠ glyph when body state is coherent (sanity)
-#   - No literal "No such file or directory" string anywhere in output
+#   - Rendered line starts with one of the heart glyphs (❤️ alive / 🖤 dim)
+#   - Mood, fatigue, breadcrumb, coherence, bulb, invention, provider
+#     signals are all ABSENT from the output
+#   - Multi-inbox listing renders as `✉️ gl:N` when a queued card exists
+#   - When every inbox is empty, the envelope segment is suppressed
+#     (no orphan separator, no leading whitespace before nothing)
 #
 # Exit 0 on pass, non-zero on fail.
 
@@ -48,10 +42,7 @@ TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
-# i565 — worktree-aware MAIN_REPO anchor. From a .claude/worktrees/*
-# checkout, REPO_ROOT/rust/target doesn't exist. Resolve the canonical
-# main checkout via git-common-dir so the storehouse binary lookup
-# falls through to MAIN_REPO. Same pattern as i561's landed fix.
+# i565 — worktree-aware MAIN_REPO anchor.
 GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
 case "$GIT_COMMON" in
   /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
@@ -79,115 +70,143 @@ fail=0
 note_fail() { echo "  ✗ $*" >&2; fail=1; }
 note_pass() { echo "  ✓ $*"; }
 
-# Create a symlink to statusline-command.sh. All scenarios invoke through
-# the symlink so the symlink resolution bug (#1) is tested on every run.
+# Symlink to statusline-command.sh — all renders go through it so the
+# symlink-resolution regression class stays covered.
 SYMLINK_DIR="$(mktemp -d -t statusline_symlink.XXXXXX)"
-# Process-group cleanup : kill the entire group on EXIT so any daemon
-# spawned during the test can't survive into the next test.
-trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$SYMLINK_DIR"' EXIT
+# Hermetic HOME so the inbox walk doesn't see Chris's real ~/Projects
+# inboxes during the run. Each render() seeds the inboxes it wants.
+FAKE_HOME="$(mktemp -d -t statusline_fakehome.XXXXXX)"
+trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$SYMLINK_DIR" "$FAKE_HOME"' EXIT
 ln -s "$CONCEPT_DIR/statusline-command.sh" "$SYMLINK_DIR/statusline-command.sh"
 
-# seed <info-dir> <mood> <fatigue_state> <pulses_since_sleep>
-# Writes coherent body state per status_coherence.sh invariants 1, 3, 6.
-# Invariant 6 (added i498, 2026-05-08) : fatigue_state="spent" requires
-# consciousness ∈ {sleeping, napping}. The seed picks the consciousness
-# state to keep the snapshot coherent — `spent` pairs with `napping`,
-# everything else with `attentive`.
-seed() {
-  local info="$1" mood="$2" fstate="$3" pulses="$4"
-  local consc_state="attentive"
-  [ "$fstate" = "spent" ] && consc_state="napping"
-  "$HECKS" heki upsert "$info/mood.heki" \
-    --reason "test setup : statusline regression fixture — seed mood for coherence invariants" \
-    current_state="$mood" creativity_level=0.7 precision_level=0.8 >/dev/null
-  "$HECKS" heki upsert "$info/heartbeat.heki" \
-    --reason "test setup : statusline regression fixture — seed heartbeat fatigue state" \
-    fatigue=0.3 fatigue_state="$fstate" pulse_rate=1.0 \
-    flow_rate="steady" pulses_since_sleep="$pulses" >/dev/null
-  "$HECKS" heki upsert "$info/consciousness.heki" \
-    --reason "test setup : statusline regression fixture — seed consciousness coherent with fatigue rung (invariant 6)" \
-    state="$consc_state" sleep_stage="" sleep_cycle=8 sleep_total=8 \
-    sleep_summary="" is_lucid="no" >/dev/null
+# seed_tick <info> <cycle> — seed only what awake-mode actually reads :
+# tick.heki for beats + consciousness.heki for the awake/sleep branch.
+# The mood / heartbeat / mint reads were removed when those signals
+# were stripped, so the previous many-store seed is gone too.
+seed_tick() {
+  local info="$1" cycle="$2"
   "$HECKS" heki upsert "$info/tick.heki" \
-    --reason "test setup : statusline regression fixture — seed tick cycle for monotonicity invariant" \
-    cycle=555 >/dev/null
-  # Seed .tick_baseline to match so invariant 4 (tick monotonicity) passes.
-  printf '%s %s\n' "$(date +%s)" 555 > "$info/.tick_baseline"
+    --reason "test setup : statusline regression — seed tick cycle for heartbeat read" \
+    cycle="$cycle" >/dev/null
+  "$HECKS" heki upsert "$info/consciousness.heki" \
+    --reason "test setup : statusline regression — pin consciousness=attentive (awake branch)" \
+    state="attentive" sleep_stage="" sleep_cycle=0 sleep_total=0 \
+    sleep_summary="" is_lucid="no" >/dev/null
 }
 
-# render <mood> <fatigue_state> <pulses> → prints the statusline output
+# seed_inbox <home> <project-rel-path> <ref> <status>
+# Writes one markdown card with YAML frontmatter at the expected
+# project-relative inbox path inside the fake HOME.
+seed_inbox() {
+  local home="$1" rel="$2" ref="$3" status="$4"
+  local inbox="$home/$rel"
+  mkdir -p "$inbox"
+  cat > "$inbox/$ref.md" <<EOF
+---
+ref: $ref
+status: $status
+priority: normal
+posted_at: 2026-05-14
+source: statusline-regression-smoke
+value: 'test fixture card'
+---
+body
+EOF
+}
+
+# Reset the fake home so each scenario starts with no inboxes.
+reset_home() {
+  rm -rf "$FAKE_HOME"
+  mkdir -p "$FAKE_HOME"
+}
+
+# render <cycle> → prints the statusline output (one line).
 render() {
-  local mood="$1" fstate="$2" pulses="$3"
+  local cycle="$1"
   local tmp info
   tmp="$(mktemp -d -t statusline_regression.XXXXXX)"
   info="$tmp/information"
   mkdir -p "$info"
-  seed "$info" "$mood" "$fstate" "$pulses"
-  printf '' | HECKS_INFO="$info" bash -c 'bash "$0"' "$SYMLINK_DIR/statusline-command.sh" 2>&1
+  seed_tick "$info" "$cycle"
+  printf '' | HOME="$FAKE_HOME" HECKS_INFO="$info" \
+    bash -c 'bash "$0"' "$SYMLINK_DIR/statusline-command.sh" 2>&1
   rm -rf "$tmp"
 }
 
-# Shared assertion harness. The statusline shape is :
-#   <heart_glyph> <beats> <mood_icon> <mood> [<fatigue_icon> <fatigue>] 💭 <count> [✉️ <inbox>] <provider>
-# The historical "☀️ Miette ..." prefix retired ; the heart glyph is
-# now the prefix in awake mode. We assert the line starts with one of
-# the heart glyphs (❤️ alive / 🖤 dim) instead.
-check_line() {
+# Assert the rendered line has the right shape and none of the
+# stripped signals leak back in.
+check_no_stripped_signals() {
   local label="$1" line="$2"
   if ! printf '%s' "$line" | grep -qE '^(❤️|🖤) '; then
-    note_fail "[$label] rendered line did not start with a heart glyph — got: $line"
+    note_fail "[$label] line must start with a heart glyph — got: $line"
   fi
-  if printf '%s' "$line" | grep -q "⚠"; then
-    note_fail "[$label] ⚠ glyph in output — coherence check failed (likely the symlink regression) — got: $line"
-  fi
+  for forbidden in \
+    "focused" "groggy" "drifting" "refreshed" "excited" "curious" \
+    "rested" "limber" "tuned" "tired" "exhausted" "spent" \
+    "😊" "🤩" "🎯" "🤔" "🌀" "😐" \
+    "🌿" "⚡" "🥱" "😩" "🫠" \
+    "🛠️" "⚠" "💡" "🔬" "💭" "🤖" "🦙" \
+    "(global)" ; do
+    if printf '%s' "$line" | grep -qF -- "$forbidden"; then
+      note_fail "[$label] stripped signal '$forbidden' leaked into: $line"
+    fi
+  done
   if printf '%s' "$line" | grep -q "No such file or directory"; then
     note_fail "[$label] 'No such file or directory' in output — symlink resolution broken"
   fi
 }
 
-# ---- Mood scenarios (one per mood body.bluebook emits) ------------------
-for scenario in \
-  "refreshed:😊:limber:0" \
-  "excited:🤩:tuned:300" \
-  "focused:🎯:tuned:300" \
-  "curious:🤔:normal:700" \
-  "drifting:🌀:tired:1200" \
-  "groggy:😵‍💫:normal:700"; do
-  IFS=: read -r mood icon fstate pulses <<< "$scenario"
-  out="$(render "$mood" "$fstate" "$pulses")"
-  echo "[mood=$mood] $out"
-  check_line "mood=$mood" "$out"
-  printf '%s' "$out" | grep -qF -- "$icon" || note_fail "[mood=$mood] icon '$icon' missing"
-  printf '%s' "$out" | grep -qF -- "$mood" || note_fail "[mood=$mood] word '$mood' missing"
-done
+# ---- Scenario 1 : heartbeat-only (all inboxes empty) ------------------
+reset_home
+out="$(render 1234)"
+echo "[heartbeat-only] $out"
+check_no_stripped_signals "heartbeat-only" "$out"
+printf '%s' "$out" | grep -qF -- "1.23k" \
+  || note_fail "[heartbeat-only] beats '1.23k' missing"
+if printf '%s' "$out" | grep -qF -- "✉️"; then
+  note_fail "[heartbeat-only] envelope must be suppressed when all inboxes empty — got: $out"
+fi
+if printf '%s' "$out" | grep -qF -- "•"; then
+  note_fail "[heartbeat-only] dot separator must be suppressed when inbox list empty — got: $out"
+fi
 
-# ---- Fatigue scenarios (one per fatigue_state with a non-empty icon) ----
-# 'normal' has an intentionally empty fatigue_icon so we skip it.
-for scenario in \
-  "limber:⚡:0" \
-  "tuned:🎯:300" \
-  "tired:🥱:1200" \
-  "exhausted:😩:1600" \
-  "spent:🫠:1900"; do
-  IFS=: read -r fstate icon pulses <<< "$scenario"
-  # For coherence, we need mood to match the fatigue rung — refreshed
-  # requires limber|tuned. For rungs above tuned, use 'curious' or
-  # 'drifting' which don't trigger invariant 1.
-  mood="curious"
-  [ "$fstate" = "limber" ] && mood="refreshed"
-  [ "$fstate" = "tuned" ] && mood="focused"
-  out="$(render "$mood" "$fstate" "$pulses")"
-  echo "[fatigue=$fstate] $out"
-  check_line "fatigue=$fstate" "$out"
-  printf '%s' "$out" | grep -qF -- "$icon" || note_fail "[fatigue=$fstate] icon '$icon' missing"
-  printf '%s' "$out" | grep -qF -- "$fstate" || note_fail "[fatigue=$fstate] word '$fstate' missing"
-done
+# ---- Scenario 2 : single seeded inbox (gl) ----------------------------
+reset_home
+seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "test-1" "queued"
+out="$(render 5678)"
+echo "[gl-only] $out"
+check_no_stripped_signals "gl-only" "$out"
+printf '%s' "$out" | grep -qF -- "5.68k" \
+  || note_fail "[gl-only] beats '5.68k' missing"
+printf '%s' "$out" | grep -qF -- "✉️ gl:1" \
+  || note_fail "[gl-only] expected '✉️ gl:1' — got: $out"
+printf '%s' "$out" | grep -qF -- "•" \
+  || note_fail "[gl-only] expected dot separator '•' — got: $out"
+if printf '%s' "$out" | grep -qF -- "pi:"; then
+  note_fail "[gl-only] empty pc inbox must NOT render — got: $out"
+fi
 
-# ---- Fallback scenario: unknown mood → 😐, no crash ---------------------
-out="$(render 'totally_made_up_mood' 'normal' 700)"
-echo "[fallback] $out"
-check_line "fallback" "$out"
-printf '%s' "$out" | grep -qF -- "😐" || note_fail "[fallback] expected 😐 fallback icon"
+# ---- Scenario 3 : multiple seeded inboxes (gl + pc + bb) --------------
+reset_home
+seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "i1" "queued"
+seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "i2" "queued"
+seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p1" "queued"
+seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b1" "queued"
+seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b2" "queued"
+seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b3" "queued"
+# A non-queued card in pc must be ignored by the queued-status filter.
+seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p-closed" "closed"
+out="$(render 999)"
+echo "[multi-inbox] $out"
+check_no_stripped_signals "multi-inbox" "$out"
+printf '%s' "$out" | grep -qF -- "999" \
+  || note_fail "[multi-inbox] beats '999' missing"
+printf '%s' "$out" | grep -qF -- "gl:2" \
+  || note_fail "[multi-inbox] expected 'gl:2' — got: $out"
+printf '%s' "$out" | grep -qF -- "pi:1" \
+  || note_fail "[multi-inbox] expected 'pi:1' (closed card filtered) — got: $out"
+printf '%s' "$out" | grep -qF -- "bb:3" \
+  || note_fail "[multi-inbox] expected 'bb:3' — got: $out"
 
 if [ "$fail" = "0" ]; then
   echo "statusline_regression_smoke: OK"
