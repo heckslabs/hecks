@@ -57,6 +57,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::runtime::claude_tool_dispatcher;
+use crate::runtime::mcp_dispatcher;
 
 /// A category of adapter declared under
 /// `framework/adapter_families/<name>.hecksagon`.
@@ -220,15 +221,30 @@ impl FrameworkRegistry {
 
 /// Seed kernel hooks for the families this kernel knows natively.
 ///
-/// Today : `invoke_claude_tool` (the i551/i556 claude_tool family).
-/// Future families (web_tool, sms, tts, ...) register their hooks
-/// here as their kernel-side dispatchers land. The signature is the
-/// same for every hook — the family declares the surface, the kernel
+/// Today : `invoke_claude_tool` (the i551/i556 claude_tool family)
+/// and `invoke_mcp_tool` (the i593 mcp family). Future families
+/// (web_tool, sms, tts, ...) register their hooks here as their
+/// kernel-side dispatchers land. The signature is the same for
+/// every hook — the family declares the surface, the kernel
 /// supplies the execution.
+///
+/// i594 — `invoke_mcp_tool` joins the table alongside
+/// `invoke_claude_tool`. The :mcp adapter family (declared at
+/// `aggregates/framework/adapter_families/mcp.hecksagon`) carries
+/// `behavior :invoke_mcp_tool` ; without the registration below the
+/// family parses cleanly but never fires. Adding the line here is
+/// the i594-temporary path while bluebook-driven hook registration
+/// (the i594 acceptance, an `inventory`-style discovery) is still
+/// in design. Same exemption pattern as the rest of this kernel-
+/// floor file.
 fn seed_kernel_hooks(registry: &mut FrameworkRegistry) {
     registry.register_hook(
         "invoke_claude_tool",
         claude_tool_dispatcher::dispatch_via_registry,
+    );
+    registry.register_hook(
+        "invoke_mcp_tool",
+        mcp_dispatcher::dispatch_via_registry,
     );
     // web_tool follow-up : when `web_tool_dispatcher` lands on main
     // (currently lives only on the i569 worktree branches), seed it
@@ -533,6 +549,9 @@ end
         assert!(reg.behaviors.is_empty());
         // Hooks are seeded regardless of disk state — they're native.
         assert!(reg.lookup_hook("invoke_claude_tool").is_some());
+        // i594 — invoke_mcp_tool seeds alongside invoke_claude_tool so
+        // the :mcp adapter family fires once a binding matches.
+        assert!(reg.lookup_hook("invoke_mcp_tool").is_some());
     }
 
     /// End-to-end discovery test : walking the real framework dir
