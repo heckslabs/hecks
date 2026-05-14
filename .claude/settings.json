@@ -10,7 +10,7 @@
           },
           {
             "type": "command",
-            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview 2>&1 | tail -1 ; true",
+            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview >/tmp/wake_review_route.log 2>&1 ; true",
             "timeout": 20
           }
         ]
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "F=/tmp/wake_review_latest.md; M=/tmp/.miette_last_wake_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then CONTENT=$(cat \"$F\" | jq -Rs .); printf '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":%s}}' \"$CONTENT\"; touch \"$M\"; fi; true",
+            "command": "F=/tmp/wake_review_latest.md; M=/tmp/.miette_last_wake_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: .}}' < \"$F\"; touch \"$M\"; fi; true",
             "timeout": 5
           },
           {
