@@ -38,6 +38,33 @@ REPO="$(git rev-parse --show-toplevel)"
 MAIN_REPO="$(dirname "$(git rev-parse --git-common-dir)")"
 STOREHOUSE="$MAIN_REPO/rust/target/release/storehouse"
 
+# Gate 6b worktree detection — when pushing from a git worktree, .git is
+# a file (pointing to the common gitdir) rather than a directory.
+# In that case skip the behaviors gate and warn instead of blocking.
+#
+# Root cause: storehouse behaviors uses load_combined_domain, which walks
+# the aggregates/ root with depth=0 and the integrations/ bucket with
+# depth=1. When the behaviors file lives in a worktree path (e.g.
+# /private/tmp/sq-foo/hecks_conception/aggregates/…), the aggregates
+# root resolves to that worktree path. Bluebooks within it get their
+# relative depth from that path. But the integrations/ bucket is always
+# loaded relative to MAIN_REPO (via heki::repo_root() which walks up
+# from the binary, not the worktree). The depth misalignment means
+# integrations/cloudflare_deploy/cloudflare_artifacts.bluebook (depth=1)
+# beats grammar/lexicon.bluebook (depth≥4) in the shallowest-wins sort —
+# wrong Compile wins, cascade assertions diverge from the main-checkout
+# result. This is structural, not a code regression.
+#
+# CI (parity.yml's cargo test sweep) is authoritative for behaviors
+# correctness. The pre-push gate is a local convenience fence; worktree
+# pushes from sidequest branches land in CI immediately.
+if [ -f "$REPO/.git" ] && [ "$REPO" != "$MAIN_REPO" ]; then
+    echo "pre-push: running from git worktree ($REPO) — behaviors gate deferred."
+    echo "  CI is authoritative. Run storehouse behaviors locally against"
+    echo "  the main checkout if you want to verify before the PR lands."
+    exit 0
+fi
+
 if [ -n "$BEHAVIORS_SKIP" ]; then
     echo "pre-push: BEHAVIORS_SKIP=1 — skipping behaviors gate (antibody failure)."
     exit 0
