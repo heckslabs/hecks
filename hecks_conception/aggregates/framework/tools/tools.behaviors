@@ -1,5 +1,5 @@
 Hecks.behaviors "Tools" do
-  vision "Behavioral tests for the 19 Tools category aggregates — ShellTool, FileTool, SearchTool, WebTool, EmailTool, TaskTool, Sidequest, WakeupTool, CronTool, MonitorTool, NotifyTool, PlanTool, WorktreeTool, AskTool, SkillTool, LspTool, MetaTool, RemoteTriggerTool, Cascade. Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
+  vision "Behavioral tests for the 18 Tools category aggregates — ShellTool, FileTool, SearchTool, WebTool, EmailTool, TaskTool, Sidequest, WakeupTool, CronTool, MonitorTool, NotifyTool, PlanTool, WorktreeTool, AskTool, SkillTool, LspTool, MetaTool, RemoteTriggerTool. Cascade extracted to framework/cascade/cascade.behaviors (i609 phase 1, 2026-05-14). Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
 
   # ── ShellTool : Bash ──────────────────────────────────────────────
   #
@@ -290,33 +290,7 @@ Hecks.behaviors "Tools" do
     expect emits: ["DraftsListed"]
   end
 
-  # ── Cascade : RecordResult ────────────────────────────────────────
-  #
-  # RecordResult lands the kernel-hook's outcome onto a Cascade record.
-  # The id matches the originating tool dispatch so the join is by id.
-
-  test "RecordResult records tool + output + exit_code + ok" do
-    tests "RecordResult", on: "Cascade"
-    input  id:        { value: "cascade-1" },
-           tool:      { value: "bash" },
-           output:    { value: "hello\n" },
-           exit_code: { value: 0 },
-           ok:        { value: true }
-    expect tool_kind: { value: "bash" },
-           output:    { value: "hello\n" },
-           exit_code: { value: 0 },
-           ok_status: { value: true }
-  end
-
-  test "RecordResult emits ResultRecorded" do
-    tests "RecordResult", on: "Cascade"
-    input  id:        { value: "cascade-2" },
-           tool:      { value: "grep" },
-           output:    { value: "match1\nmatch2\n" },
-           exit_code: { value: 0 },
-           ok:        { value: true }
-    expect emits: ["ResultRecorded"]
-  end
+  # Cascade behaviors moved to framework/cascade/cascade.behaviors (i609 phase 1, 2026-05-14)
 
   # ── FileTool : Write ──────────────────────────────────────────────
   #
