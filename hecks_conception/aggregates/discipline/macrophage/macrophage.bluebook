@@ -1,5 +1,5 @@
 Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
-  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of eight per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirstMacrophage, FixturesRuntimeMacrophage, AntibodyExemptionMacrophage, WarningsMacrophage, LinearReferenceMacrophage, LineCountMacrophage, TestSpeedMacrophage, CardLockMacrophage) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. FQN dispatch becomes Macrophage::<Rule>Macrophage.Command — no more awkward BluebookFirstMacrophage::BluebookFirstMacrophage.X addresses."
+  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of eight per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirst, FixturesRuntime, AntibodyExemption, Warnings, LinearReference, LineCount, TestSpeed, CardLock) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. FQN dispatch reads Macrophage::BluebookFirst.Command etc. — the domain prefix already says 'macrophage', no suffix needed."
   category "discipline"
 
   # ============================================================
@@ -274,7 +274,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # entity collections.
 
   # ============================================================
-  # BLUEBOOK FIRST MACROPHAGE — one macrophage, one rule
+  # BLUEBOOK FIRST — one macrophage, one rule
   # ============================================================
   #
   # The original Macrophage aggregate enforces the bluebook-first
@@ -298,7 +298,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The existing Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. Migration step 2 of the i595 plan.
 
-  aggregate "BluebookFirstMacrophage", "Per-rule macrophage for the bluebook-first enforcement — tracks imperative edits, exempted edits, and the complaint history for this rule alone" do
+  aggregate "BluebookFirst", "Per-rule macrophage for the bluebook-first enforcement — tracks imperative edits, exempted edits, and the complaint history for this rule alone" do
     identified_by :name
 
     attribute :name, Name
@@ -339,7 +339,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
       # Includes the rule name so complaint attribution is clear :
-      # "The BluebookFirstMacrophage expected ..."
+      # "The BluebookFirst macrophage expected ..."
       attribute :value, String
     end
 
@@ -395,7 +395,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The BluebookFirstMacrophage detected an imperative edit without an antibody-exempt marker. Records the complaint text and timestamp on the root for fast statusline reads, and appends a Complaint entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The BluebookFirstMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The BluebookFirst macrophage detected an imperative edit without an antibody-exempt marker. Records the complaint text and timestamp on the root for fast statusline reads, and appends a Complaint entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The BluebookFirst macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,         FilePath
       attribute :complaint,         ComplaintText
       attribute :last_complaint_at, Timestamp
@@ -406,7 +406,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # FIXTURES RUNTIME MACROPHAGE — one macrophage, one rule
+  # FIXTURES RUNTIME — one macrophage, one rule
   # ============================================================
   #
   # The original Macrophage aggregate enforces the bluebook-first
@@ -434,7 +434,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The existing Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. Migration step 2 of the i595 plan.
 
-  aggregate "FixturesRuntimeMacrophage", "Per-rule macrophage for the fixtures-at-runtime enforcement — tracks .fixtures file accesses, violations, and the complaint history for this rule alone" do
+  aggregate "FixturesRuntime", "Per-rule macrophage for the fixtures-at-runtime enforcement — tracks .fixtures file accesses, violations, and the complaint history for this rule alone" do
     identified_by :name
 
     attribute :name, Name
@@ -482,7 +482,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ViolationText" do
       # The body of a violation complaint — the stderr text the hook
       # emits. Includes the rule name so complaint attribution is clear :
-      # "The FixturesRuntimeMacrophage expected ..."
+      # "The FixturesRuntime macrophage expected ..."
       attribute :value, String
     end
 
@@ -525,7 +525,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The FixturesRuntimeMacrophage detected a .fixtures file loaded outside a behaviors-test context. Records the violation text and timestamp on the root for fast statusline reads, and appends a FixturesViolation entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The FixturesRuntimeMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The FixturesRuntime macrophage detected a .fixtures file loaded outside a behaviors-test context. Records the violation text and timestamp on the root for fast statusline reads, and appends a FixturesViolation entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The FixturesRuntime macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,       FilePath
       attribute :violation,       ViolationText
       attribute :violated_at,     Timestamp
@@ -537,7 +537,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # ANTIBODY EXEMPTION MACROPHAGE — one macrophage, one rule
+  # ANTIBODY EXEMPTION — one macrophage, one rule
   # ============================================================
   #
   # The [antibody-exempt: <reason>] marker exists so a human can
@@ -553,7 +553,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # sees, classifies each as well-formed or malformed, records the
   # reason-for-malformation on a MalformedExemption entity, and
   # issues a complaint when a marker is pre-emptive or vague. The
-  # complaint text begins "The AntibodyExemptionMacrophage expected
+  # complaint text begins "The AntibodyExemption macrophage expected
   # ..." so rule attribution is visible at a glance.
   #
   # Malformation criteria :
@@ -567,7 +567,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The existing Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. i595 decomposition #3 of 7.
 
-  aggregate "AntibodyExemptionMacrophage", "Per-rule macrophage for the antibody-exemption-marker well-formedness enforcement — tracks all exemption markers seen, classifies them as well-formed or malformed, and maintains the complaint history for this rule alone" do
+  aggregate "AntibodyExemption", "Per-rule macrophage for the antibody-exemption-marker well-formedness enforcement — tracks all exemption markers seen, classifies them as well-formed or malformed, and maintains the complaint history for this rule alone" do
     identified_by :name
 
     attribute :name, Name
@@ -622,7 +622,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
       # Includes the rule name so complaint attribution is clear :
-      # "The AntibodyExemptionMacrophage expected ..."
+      # "The AntibodyExemption macrophage expected ..."
       attribute :value, String
     end
 
@@ -685,7 +685,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The AntibodyExemptionMacrophage detected a malformed or pre-emptive exemption marker. Records the complaint text and timestamp on the root for fast statusline reads, and appends a MalformedExemption entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The AntibodyExemptionMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The AntibodyExemption macrophage detected a malformed or pre-emptive exemption marker. Records the complaint text and timestamp on the root for fast statusline reads, and appends a MalformedExemption entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The AntibodyExemption macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,             FilePath
       attribute :marker_text,           MarkerText
       attribute :complaint,             ComplaintText
@@ -699,7 +699,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # WARNINGS MACROPHAGE — one macrophage, one rule
+  # WARNINGS — one macrophage, one rule
   # ============================================================
   #
   # Rule (from CLAUDE.md / Standards) :
@@ -733,7 +733,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # named and intentional; pre-emptive suppression is itself a
   # violation surfaced by Complain.
 
-  aggregate "WarningsMacrophage", "Per-rule macrophage for the zero-warning-build enforcement — tracks compiler, test, and lint warnings plus explicit suppression markers and the complaint history for this rule alone" do
+  aggregate "Warnings", "Per-rule macrophage for the zero-warning-build enforcement — tracks compiler, test, and lint warnings plus explicit suppression markers and the complaint history for this rule alone" do
     identified_by :name
 
     attribute :name, Name
@@ -749,7 +749,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     attribute :lint_warnings,       WarningCount
 
     # Suppression markers — analogous to exempted_edits in
-    # BluebookFirstMacrophage. Each #[allow(...)] or eslint-disable
+    # BluebookFirst macrophage. Each #[allow(...)] or eslint-disable
     # that lands is recorded here; a non-zero count triggers the
     # same scrutiny as an antibody-exempt marker.
     attribute :suppressed_warnings, WarningCount
@@ -801,7 +801,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
       # Includes the rule name so complaint attribution is clear :
-      # "The WarningsMacrophage expected ..."
+      # "The Warnings macrophage expected ..."
       attribute :value, String
     end
 
@@ -867,7 +867,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The WarningsMacrophage detected a warning (or an unsanctioned suppression marker) that violates the zero-warning build rule. Records the complaint text and timestamp on the root for fast statusline reads, records the offending file, and appends a Warning entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The WarningsMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The Warnings macrophage detected a warning (or an unsanctioned suppression marker) that violates the zero-warning build rule. Records the complaint text and timestamp on the root for fast statusline reads, records the offending file, and appends a Warning entity for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The Warnings macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,        FilePath
       attribute :complaint,        ComplaintText
       attribute :last_complaint_at, Timestamp
@@ -879,7 +879,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # LINEAR REFERENCE MACROPHAGE — one macrophage, one rule
+  # LINEAR REFERENCE — one macrophage, one rule
   # ============================================================
   #
   # The name is "LinearReference" not "Linear" — it generalises
@@ -903,7 +903,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The existing Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. Migration step 5 of the i595 plan.
 
-  aggregate "LinearReferenceMacrophage", "Per-rule macrophage for the retired-tool-reference enforcement — tracks which tools are being watched, records detected references, and maintains the complaint history for this rule alone" do
+  aggregate "LinearReference", "Per-rule macrophage for the retired-tool-reference enforcement — tracks which tools are being watched, records detected references, and maintains the complaint history for this rule alone" do
     identified_by :name
 
     attribute :name, Name
@@ -962,7 +962,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
       # Includes the rule name so complaint attribution is clear :
-      # "The LinearReferenceMacrophage expected ..."
+      # "The LinearReference macrophage expected ..."
       attribute :value, String
     end
 
@@ -1041,7 +1041,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The LinearReferenceMacrophage detected a reference to a tracked retired tool. Records the complaint text and timestamp on the root for fast statusline reads, and appends a Complaint for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LinearReferenceMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The LinearReference macrophage detected a reference to a tracked retired tool. Records the complaint text and timestamp on the root for fast statusline reads, and appends a Complaint for the audit trail. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LinearReference macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,         FilePath
       attribute :complaint,         ComplaintText
       attribute :last_complaint_at, Timestamp
@@ -1052,7 +1052,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # LINE COUNT MACROPHAGE — one macrophage, one rule
+  # LINE COUNT — one macrophage, one rule
   # ============================================================
   #
   # CLAUDE.md says : "No file over 200 lines of code — doc comment
@@ -1066,7 +1066,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # conversation early, before the tangle sets in.
   #
   # i595 decomposes the original monolithic Macrophage aggregate into
-  # a family of per-rule macrophages. LineCountMacrophage is the sixth
+  # a family of per-rule macrophages. LineCount is the sixth
   # member. The parent Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. Only imperative files are checked (the file
   # kinds that hold code) ; declarative and support files are recorded
@@ -1086,7 +1086,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   #   WarningFile  — between threshold and limit (start extracting now)
   #   OversizedFile — at or over limit (a rule violation)
 
-  aggregate "LineCountMacrophage", "Per-rule macrophage for the 200-line file limit — tracks checked files, records warning and over-limit files as distinct entities, and surfaces a complaint for every violation" do
+  aggregate "LineCount", "Per-rule macrophage for the 200-line file limit — tracks checked files, records warning and over-limit files as distinct entities, and surfaces a complaint for every violation" do
     identified_by :name
 
     attribute :name, Name
@@ -1142,7 +1142,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
-      # Begins "The LineCountMacrophage expected ..." so rule
+      # Begins "The LineCount macrophage expected ..." so rule
       # attribution is visible at a glance in the system reminder.
       attribute :value, String
     end
@@ -1239,7 +1239,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The LineCountMacrophage detected a file that has exceeded the line-count limit. Records the complaint text and timestamp on the root for fast statusline reads, and sets last_offending_file. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LineCountMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The LineCount macrophage detected a file that has exceeded the line-count limit. Records the complaint text and timestamp on the root for fast statusline reads, and sets last_offending_file. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The LineCount macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,         FilePath
       attribute :complaint,         ComplaintText
       attribute :last_complaint_at, Timestamp
@@ -1251,7 +1251,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # TEST SPEED MACROPHAGE — one macrophage, one rule
+  # TEST SPEED — one macrophage, one rule
   # ============================================================
   #
   # CLAUDE.md states: "Tests must run under 1 second — enforced by
@@ -1263,7 +1263,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # observable as domain state.
   #
   # i595 decomposes the monolithic Macrophage aggregate into a
-  # family of per-rule macrophages. TestSpeedMacrophage is the
+  # family of per-rule macrophages. TestSpeed is the
   # seventh (and final) member of that family. Each per-rule
   # macrophage is a sibling, not a child, of the original
   # Macrophage aggregate — migration step 7 of the i595 plan.
@@ -1286,7 +1286,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The existing Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. Migration step 7 of the i595 plan.
 
-  aggregate "TestSpeedMacrophage", "Per-rule macrophage for the tests-under-1-second enforcement — tracks suite durations, threshold breaches, and named exemptions for this rule alone" do
+  aggregate "TestSpeed", "Per-rule macrophage for the tests-under-1-second enforcement — tracks suite durations, threshold breaches, and named exemptions for this rule alone" do
     identified_by :name
 
     attribute :name, Name
@@ -1353,7 +1353,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
       # Includes the rule name so complaint attribution is clear :
-      # "The TestSpeedMacrophage expected ..."
+      # "The TestSpeed macrophage expected ..."
       attribute :value, String
     end
 
@@ -1442,7 +1442,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The TestSpeedMacrophage detected a test suite that exceeded the threshold_ms. Records the complaint text and timestamp on the root for fast statusline reads, appends a SlowTestRun entity to the audit trail, and updates last_offending_suite. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The TestSpeedMacrophage expected ...' so the rule's name is visible at a glance and attribution is unambiguous."
+      description "The TestSpeed macrophage detected a test suite that exceeded the threshold_ms. Records the complaint text and timestamp on the root for fast statusline reads, appends a SlowTestRun entity to the audit trail, and updates last_offending_suite. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text should begin 'The TestSpeed macrophage expected ...' so the rule's name is visible at a glance and attribution is unambiguous."
       attribute :suite_name,         SuiteName
       attribute :kind,               TestKind
       attribute :duration_ms,        DurationMs
@@ -1457,11 +1457,11 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   end
 
   # ============================================================
-  # CARD LOCK MACROPHAGE — one macrophage, one rule
+  # CARD LOCK — one macrophage, one rule
   # ============================================================
   #
   # i595 decomposes the original Macrophage singleton into a family
-  # of per-rule macrophages. CardLockMacrophage is the 8th member.
+  # of per-rule macrophages. CardLock is the 8th member.
   #
   # Rule : when a card reaches the `locked` status, its signoff_scope
   # (a list of path patterns) is frozen. Any edit that touches a path
@@ -1481,7 +1481,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
   # The existing Macrophage aggregate is NOT retired here — this
   # aggregate is a sibling. Migration step 8 of the i595 plan.
 
-  aggregate "CardLockMacrophage", "Per-rule macrophage for the card-lock enforcement — tracks edits against locked card scopes and maintains the full violation history for this rule alone" do
+  aggregate "CardLock", "Per-rule macrophage for the card-lock enforcement — tracks edits against locked card scopes and maintains the full violation history for this rule alone" do
     identified_by :name
 
     attribute :name,                    Name
@@ -1542,7 +1542,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
     value_object "ComplaintText" do
       # The body of a complaint — the stderr text the hook emits.
       # Includes the rule name so complaint attribution is clear :
-      # "The CardLockMacrophage expected ..."
+      # "The CardLock macrophage expected ..."
       attribute :value, String
     end
 
@@ -1606,7 +1606,7 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
 
     command "Complain" do
       role "Hook"
-      description "The CardLockMacrophage detected an edit inside the scope of a signed-off locked card. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as additionalContext on the next turn — the feedback loop that closes the card-lock discipline. Complaint text begins 'The CardLockMacrophage expected ...' so the rule's name is visible at a glance."
+      description "The CardLock macrophage detected an edit inside the scope of a signed-off locked card. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as additionalContext on the next turn — the feedback loop that closes the card-lock discipline. Complaint text begins 'The CardLock macrophage expected ...' so the rule's name is visible at a glance."
       attribute :file_path,         FilePath
       attribute :offending_card_ref, CardRef
       attribute :signed_off_by,     ClientName
