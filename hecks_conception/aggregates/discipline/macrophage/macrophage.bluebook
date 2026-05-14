@@ -1618,4 +1618,260 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       emits "ComplaintIssued"
     end
   end
+
+  # ============================================================
+  # IDENTITY DISCIPLINE — one macrophage, one rule
+  # ============================================================
+  #
+  # Filed under i611 (Chris, 2026-05-14) : identity in Hecks is a
+  # natural-key thread — the fields of an entity that do not change
+  # over its lifetime — never a synthetic surrogate. The bluebook's
+  # historical `attribute :id, Id` + `identified_by :id` +
+  # `value_object "Id"` triad is the surrogate-key lie ; this
+  # macrophage hunts it.
+  #
+  # Six structural checks (each implemented as a registered Check
+  # entity with its own pattern_kind, severity, and complaint
+  # template) :
+  #
+  #   * id_attribute       — any `attribute :id, Id` declaration
+  #                          (in aggregate body, command body, or
+  #                          entity body) is forbidden.
+  #   * identified_by_id   — `identified_by :id` is forbidden ;
+  #                          identity must name a natural-key field
+  #                          (or fields), or the aggregate must be
+  #                          flagged `singleton: true`.
+  #   * id_value_object    — `value_object "Id"` declarations are
+  #                          forbidden ; identities are already
+  #                          typed by the domain-meaningful VOs
+  #                          their fields carry (Identity, ThreadId,
+  #                          ToolName, ...).
+  #   * missing_identity   — every aggregate root must declare
+  #                          either `identified_by ...` (instance-
+  #                          bearing) or `singleton: true` (one-of).
+  #                          Bare aggregates are forbidden.
+  #   * missing_entity_id  — every `entity "..."` block must declare
+  #                          `identified_by`. Entities without
+  #                          identity have no addressable form ;
+  #                          the parent-scoped identity contract
+  #                          (i611 rule 4) requires the local part.
+  #   * dangling_identity  — `identified_by` lists fields that are
+  #                          not declared as attributes on the same
+  #                          aggregate (a typo or a leftover after
+  #                          a rename). The reference must resolve.
+  #
+  # File kinds checked : .bluebook only. Other kinds are recorded
+  # but never complained against — IdentityDiscipline is a structural
+  # rule about the domain spec, not an imperative-write rule.
+  #
+  # i595 family member #10 (after RenameDiscipline (i605) and
+  # BidirectionalAssociation (i612) land). Follows the same shape :
+  # per-rule sibling, counters, complaint history entity, Complain
+  # command, exemption support.
+
+  aggregate "IdentityDiscipline", "Per-rule macrophage for the i611 natural-key-identity enforcement — tracks bluebook structural violations of the identified_by / no-surrogate-id contract and maintains the complaint history for this rule alone" do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Bluebook tallies — scoped to this rule's signal.
+    attribute :bluebooks_checked,             CheckCount
+    attribute :total_violations,              ViolationCount
+    attribute :id_attribute_violations,       ViolationCount
+    attribute :identified_by_id_violations,   ViolationCount
+    attribute :id_value_object_violations,    ViolationCount
+    attribute :missing_identity_violations,   ViolationCount
+    attribute :missing_entity_id_violations,  ViolationCount
+    attribute :dangling_identity_violations,  ViolationCount
+
+    # Exemption tally — well-formed `[antibody-exempt: id-overhaul: <reason>]`
+    # markers seen and accepted. Counted so the scoreboard can show
+    # the exemption rate alongside the violation rate.
+    attribute :exempted_violations, ViolationCount
+
+    # Latest-complaint surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_file,    FilePath
+    attribute :last_offending_kind,    ViolationKind
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage. (Per i611 this would be
+      # a singleton; for now it follows the family's existing shape.)
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-event recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of a check or violation. Always a .bluebook path —
+      # IdentityDiscipline only inspects bluebook structure.
+      attribute :value, String
+    end
+
+    value_object "AggregateName" do
+      # The bluebook-declared aggregate or entity name where the
+      # violation was found (e.g. "ShellTool", "FileTool",
+      # "Event::Ticket"). Disambiguates which slot the rule
+      # caught.
+      attribute :value, String
+    end
+
+    value_object "FieldName" do
+      # The attribute or identified_by field that triggered the
+      # violation (e.g. ":id", ":file_path", ":thread_id"). Stored
+      # verbatim so the complaint can quote the exact offending text.
+      attribute :value, String
+    end
+
+    value_object "ViolationKind" do
+      # The check that fired. One of :
+      #   "id_attribute"       — `attribute :id, Id`
+      #   "identified_by_id"   — `identified_by :id`
+      #   "id_value_object"    — `value_object "Id"`
+      #   "missing_identity"   — aggregate has neither identified_by nor singleton
+      #   "missing_entity_id"  — entity has no identified_by
+      #   "dangling_identity"  — identified_by names a non-attribute field
+      attribute :value, String
+    end
+
+    value_object "CheckCount" do
+      # Count of bluebooks scanned by this macrophage in the
+      # current session (regardless of whether a violation was found).
+      attribute :value, Integer
+    end
+
+    value_object "ViolationCount" do
+      # Count of structural violations of a particular kind recorded
+      # by this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The IdentityDiscipline macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "ReasonText" do
+      # The human-readable explanation attached to an exemption —
+      # e.g. "transitional shape pending i611 phase 3 conversion".
+      # An exemption without a non-empty reason is itself a
+      # malformed-exemption violation (AntibodyExemption macrophage).
+      attribute :value, String
+    end
+
+    value_object "LineNumber" do
+      # 1-based line number within the bluebook file where the
+      # violation was detected. Zero means the line could not be
+      # isolated (e.g. multi-line declarations).
+      attribute :value, Integer
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "IdentityViolation" do
+      description "One historical violation event for the identity-discipline rule. Records the bluebook file, the offending aggregate / entity name, the field that triggered the violation, the kind of check that fired, the line number, and when it was recorded. The last_complaint / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :aggregate_name, AggregateName
+      attribute :field_name,     FieldName
+      attribute :kind,           ViolationKind
+      attribute :line_number,    LineNumber
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "ExemptedAggregate" do
+      description "An aggregate (or aggregate.entity pair) whose identity-discipline violation is officially exempted with a named, case-by-case reason. Registered via ExemptAggregate. The macrophage will not issue a complaint for a violation against an entry in this collection — but the exemption must carry a non-empty ReasonText, mirroring the AntibodyExemption discipline. Exemptions are never pre-emptive; they are registered after the macrophage has complained and the team has decided the conversion is queued, not skipped."
+      attribute :aggregate_name, AggregateName
+      attribute :kind,           ViolationKind
+      attribute :reason,         ReasonText
+      attribute :exempted_at,    Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The IdentityViolation and ExemptedAggregate entity collections are NOT reset — they are audit trail and configuration respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Primary scan command ──
+
+    command "Check" do
+      role "Hook"
+      description "Scan one bluebook file for identity-discipline violations. Increments bluebooks_checked. Internally walks every aggregate, command, entity, and value_object declaration ; for each of the six checks (id_attribute, identified_by_id, id_value_object, missing_identity, missing_entity_id, dangling_identity), dispatches RecordViolation when the pattern matches. The hook calls this once per .bluebook write ; the macrophage decides what fired. No complaint is issued here — Complain is the surface command."
+      attribute :file_path, FilePath
+      emits "BluebookChecked"
+    end
+
+    # ── Per-violation recording ──
+
+    command "RecordViolation" do
+      role "Hook"
+      description "A specific identity-discipline violation was detected. Records the file path, aggregate/entity name, offending field, violation kind, and line number ; appends an IdentityViolation entity ; increments the kind-specific counter (id_attribute_violations / identified_by_id_violations / etc.) and total_violations ; updates last_offending_file and last_offending_kind. The hook chains into Complain to surface the violation on the next turn — this command records the fact; Complain records the reaction. If the aggregate_name + kind appears in ExemptedAggregate, the hook skips Complain and increments exempted_violations instead."
+      attribute :file_path,      FilePath
+      attribute :aggregate_name, AggregateName
+      attribute :field_name,     FieldName
+      attribute :kind,           ViolationKind
+      attribute :line_number,    LineNumber
+      attribute :recorded_at,    Timestamp
+      then_set :last_offending_file, to: :file_path
+      then_set :last_offending_kind, to: :kind
+      emits "ViolationRecorded"
+    end
+
+    # ── Exemption management ──
+
+    command "ExemptAggregate" do
+      role "Lead"
+      description "Register a named exemption for a specific aggregate (or aggregate.entity pair) so the macrophage will not complain about its identity-discipline violation of a specific kind. The reason attribute is required and must be non-empty — an exemption without a named reason falls into the pre-emptive trap the AntibodyExemption discipline forbids. Exemptions are registered after the macrophage has fired, never before; the IdentityViolation audit trail should already contain an entry for this aggregate + kind. Appends an ExemptedAggregate entity. Typical use : 'Tools::EmailTool, kind: id_attribute, reason: \"phase 3 conversion queued — see i611\"'."
+      attribute :aggregate_name, AggregateName
+      attribute :kind,           ViolationKind
+      attribute :reason,         ReasonText
+      attribute :exempted_at,    Timestamp
+      emits "AggregateExempted"
+    end
+
+    command "RevokeExemption" do
+      role "Lead"
+      description "Remove an existing exemption — typically after the conversion has landed and the violation should no longer fire because the bluebook now follows the i611 contract. Matches by aggregate_name + kind. The ExemptedAggregate entity is marked revoked rather than deleted so the audit trail of who exempted what when stays intact."
+      attribute :aggregate_name, AggregateName
+      attribute :kind,           ViolationKind
+      attribute :revoked_at,     Timestamp
+      emits "ExemptionRevoked"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The IdentityDiscipline macrophage detected a bluebook that breaks the i611 natural-key-identity contract. Records the complaint text and timestamp on the root for fast statusline reads, and updates last_offending_file / last_offending_kind. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline mechanism. Complaint text begins 'The IdentityDiscipline macrophage expected ...' so the rule's name is visible at a glance. Each ViolationKind has a templated complaint body, for example : 'The IdentityDiscipline macrophage expected aggregate ShellTool to declare a natural-key `identified_by`, not `identified_by :id`. The :id field is a surrogate (i611 rule 1). Use `identified_by :shell_command, suffix: :ulid` — the shell command IS the entity ; the ULID is the disambiguator for concurrent invocations.'"
+      attribute :file_path,         FilePath
+      attribute :aggregate_name,    AggregateName
+      attribute :kind,              ViolationKind
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      then_set :last_offending_file, to: :file_path
+      then_set :last_offending_kind, to: :kind
+      emits "ComplaintIssued"
+    end
+  end
 end
