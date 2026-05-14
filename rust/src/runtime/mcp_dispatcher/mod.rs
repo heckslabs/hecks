@@ -44,9 +44,11 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::thread;
 use std::time::Duration;
 
 use crate::runtime::framework_registry::KernelResult;
+use crate::runtime::storehouse_log;
 
 // ─────────────────────────────────────────────────────────────────────
 //  Server registry
@@ -117,19 +119,36 @@ struct McpSession {
 }
 
 impl McpSession {
-    /// Spawn `<program> <args>` with stdin/stdout piped, capture stderr
-    /// to null (the server logs there but we don't surface them in v1).
-    fn spawn(program: &str, args: &[String]) -> Result<Self, String> {
+    /// Spawn `<program> <args>` with stdin/stdout/stderr all piped.
+    /// i622 — stderr was previously routed to `Stdio::null()` and the
+    /// server's diagnostics vanished. Now each captured stderr line
+    /// goes to the StoreHouse log stream prefixed with
+    /// `[mcp:<server-name>]` so operator visibility lines up with
+    /// dispatch/event/cascade/policy lines on the same stdout.
+    fn spawn(program: &str, args: &[String], server_name: &str) -> Result<Self, String> {
         let mut cmd = Command::new(program);
         cmd.args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(Stdio::piped());
         let mut child = cmd.spawn().map_err(|e| {
             format!("mcp : spawn '{}' failed : {}", program, e)
         })?;
         let stdin = child.stdin.take().ok_or("mcp : no stdin")?;
         let stdout = BufReader::new(child.stdout.take().ok_or("mcp : no stdout")?);
+        // Forward stderr to the storehouse log surface on a detached
+        // thread. The thread exits when the child closes stderr (EOF
+        // on the BufRead loop). One log line per stderr line — same
+        // shape as the rest of the runtime's per-line stdout records.
+        if let Some(err) = child.stderr.take() {
+            let server_label = server_name.to_string();
+            thread::spawn(move || {
+                let reader = BufReader::new(err);
+                for line in reader.lines().flatten() {
+                    storehouse_log::mcp_stderr_line(&server_label, line.trim_end());
+                }
+            });
+        }
         Ok(Self { child, stdin, stdout, next_id: 1 })
     }
 
@@ -256,7 +275,7 @@ pub fn dispatch(
         }
     };
 
-    let mut session = match McpSession::spawn(&program, &prog_args) {
+    let mut session = match McpSession::spawn(&program, &prog_args, server) {
         Ok(s) => s,
         Err(e) => {
             out.is_error = true;
