@@ -1,5 +1,5 @@
-Hecks.bluebook "Tools", version: "2026.05.13.1" do
-  vision "First-class tool invocations as dispatched commands, grouped by category. Each tool family is its own aggregate (ShellTool, FileTool, SearchTool, WebTool) ; the Cascade aggregate carries the kernel-hook's RecordResult chain. Replaces the earlier flat single-Tools aggregate (versions ≤ 2026.05.12.5) — sibling commands of unrelated kinds no longer share a single record. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it ; duplication across aggregates (Id, Description, FilePath, SearchPath) is fine."
+Hecks.bluebook "Tools", version: "2026.05.14.1" do
+  vision "First-class tool invocations as dispatched commands, grouped by category. Each tool family is its own aggregate ; the Cascade aggregate carries the kernel-hook's RecordResult chain. Replaces the earlier flat single-Tools aggregate (versions ≤ 2026.05.12.5) — sibling commands of unrelated kinds no longer share a single record. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it ; duplication across aggregates (Id, Description, FilePath, SearchPath) is fine."
   category "framework"
 
   # ============================================================
@@ -412,6 +412,133 @@ Hecks.bluebook "Tools", version: "2026.05.13.1" do
       attribute :description, Description
       emits "WebSearched"
       then_set :query,       to: :query
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: EmailTool ────
+  #
+  # EmailTool wraps Claude Code's Gmail MCP surface as a first-class
+  # aggregate. The harness exposes search_threads, get_thread,
+  # create_draft, list_drafts (plus a label-management family —
+  # not yet bluebooked, deferred to a follow-up) against Gmail ;
+  # each command lands as a dispatched record so the runtime can
+  # react to email events the same way it reacts to file or shell
+  # events.
+  #
+  # Scoped to the four operations Miette actually uses nightly :
+  # search threads, fetch a thread verbatim, draft a reply, list
+  # outstanding drafts. The label-management family (label_message,
+  # label_thread, unlabel_message, unlabel_thread, create_label,
+  # update_label, delete_label, list_labels) is deferred until
+  # there is a concrete dispatch site demanding it. The
+  # "drafts only, never send" operating mode is encoded in what is
+  # NOT modelled here : there is no SendDraft command. Sending is
+  # the operator's act ; Miette composes, the operator approves.
+  aggregate "EmailTool", "Gmail tool invocations as first-class dispatched commands. SearchThreads queries the inbox ; GetThread retrieves one thread's full content ; CreateDraft composes a reply ; ListDrafts enumerates pending outbound drafts. State carries the thread_id + recipient + subject + description ; bodies and full thread content ride in the event payload." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :thread_id, ThreadId
+    attribute :to, EmailAddress
+    attribute :subject, Subject
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Same shape as ShellTool/FileTool/SearchTool/WebTool/Cascade
+      # — one ULID per dispatch, shared with the corresponding
+      # Cascade.RecordResult so the outcome is joinable by id.
+      attribute :value, String
+    end
+
+    value_object "ThreadId" do
+      # Gmail thread identifier (the API's "thread-<hash>" form).
+      # GetThread targets a specific thread ; SearchThreads emits
+      # a list of these via the event payload.
+      attribute :value, String
+    end
+
+    value_object "EmailAddress" do
+      # RFC 5322 email address. Used as the recipient for
+      # CreateDraft. Plus-aliases are preserved verbatim
+      # (chris+x@embryonaut.ai folds at the receiver, not here).
+      attribute :value, String
+    end
+
+    value_object "Subject" do
+      # Email subject line — the one rendered in the inbox. Stays
+      # on aggregate state because it is small and identifies the
+      # conversation at a glance.
+      attribute :value, String
+    end
+
+    value_object "BodyMarkdown" do
+      # The draft body, in markdown. Lives in the DraftCreated
+      # event payload only ; not persisted to aggregate state so
+      # the heki does not grow unbounded with every draft's content.
+      attribute :value, String
+    end
+
+    value_object "SearchQuery" do
+      # The gmail-search-syntax query passed to SearchThreads
+      # (e.g. "from:joey is:unread", "label:embryonaut newer_than:7d").
+      # Lives in the event payload ; carries verbatim what the
+      # operator-facing search would.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice. Duplicated per locked
+      # convention (VOs inside each aggregate).
+      attribute :value, String
+    end
+
+    # ── SearchThreads ──
+    command "SearchThreads" do
+      role "Miette"
+      description "Run a Gmail search and return the matching threads. Records the dispatch as an EmailTool record and emits ThreadsSearched carrying the query + matched thread ids + a short summary. The full search hit list (snippets, sender info) rides in the event payload ; aggregate state stores only the description so the heki stays small for noisy mailing-list passes."
+      attribute :id, Id
+      attribute :query, SearchQuery
+      attribute :description, Description
+      emits "ThreadsSearched"
+      then_set :description, to: :description
+    end
+
+    # ── GetThread ──
+    command "GetThread" do
+      role "Miette"
+      description "Fetch one Gmail thread's full content. Records the dispatch as an EmailTool record and emits ThreadFetched carrying the thread_id + a content summary. Full thread body (every message verbatim) rides in the event payload ; aggregate state stores thread_id + description."
+      attribute :id, Id
+      attribute :thread_id, ThreadId
+      attribute :description, Description
+      emits "ThreadFetched"
+      then_set :thread_id,   to: :thread_id
+      then_set :description, to: :description
+    end
+
+    # ── CreateDraft ──
+    command "CreateDraft" do
+      role "Miette"
+      description "Compose a Gmail draft. Records the dispatch as an EmailTool record and emits DraftCreated carrying the to/subject/body + description. Body rides in the event payload only ; aggregate state carries to + subject + description. Drafts only — there is no SendDraft command. Sending is the operator's act."
+      attribute :id, Id
+      attribute :to, EmailAddress
+      attribute :subject, Subject
+      attribute :body, BodyMarkdown
+      attribute :description, Description
+      emits "DraftCreated"
+      then_set :to,          to: :to
+      then_set :subject,     to: :subject
+      then_set :description, to: :description
+    end
+
+    # ── ListDrafts ──
+    command "ListDrafts" do
+      role "Miette"
+      description "Enumerate Gmail drafts in the operator's outbox. Records the dispatch as an EmailTool record and emits DraftsListed carrying the count + a list of (subject, to, drafted_at) tuples. The list rides in the event payload ; aggregate state stores only the description."
+      attribute :id, Id
+      attribute :description, Description
+      emits "DraftsListed"
       then_set :description, to: :description
     end
   end

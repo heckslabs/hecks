@@ -1,5 +1,5 @@
 Hecks.behaviors "Tools" do
-  vision "Behavioral tests for the 18 Tools category aggregates — ShellTool, FileTool, SearchTool, WebTool, TaskTool, Sidequest, WakeupTool, CronTool, MonitorTool, NotifyTool, PlanTool, WorktreeTool, AskTool, SkillTool, LspTool, MetaTool, RemoteTriggerTool, Cascade. Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
+  vision "Behavioral tests for the 19 Tools category aggregates — ShellTool, FileTool, SearchTool, WebTool, EmailTool, TaskTool, Sidequest, WakeupTool, CronTool, MonitorTool, NotifyTool, PlanTool, WorktreeTool, AskTool, SkillTool, LspTool, MetaTool, RemoteTriggerTool, Cascade. Each command records its identifying attrs into state via then_set and emits a matching event the runtime can react to."
 
   # ── ShellTool : Bash ──────────────────────────────────────────────
   #
@@ -199,6 +199,95 @@ Hecks.behaviors "Tools" do
            query:        { value: "rust bevy ecs" },
            description:  { value: "research bevy" }
     expect emits: ["WebSearched"]
+  end
+
+  # ── EmailTool : SearchThreads ──────────────────────────────
+  #
+  # SearchThreads records description only ; query + matched thread
+  # ids ride in the ThreadsSearched event payload.
+
+  test "SearchThreads records description" do
+    tests "SearchThreads", on: "EmailTool"
+    input  id:          { value: "email-search-1" },
+           query:       { value: "from:joey is:unread" },
+           description: { value: "find joey's pending replies" }
+    expect description: { value: "find joey's pending replies" }
+  end
+
+  test "SearchThreads emits ThreadsSearched" do
+    tests "SearchThreads", on: "EmailTool"
+    input  id:          { value: "email-search-2" },
+           query:       { value: "label:embryonaut newer_than:7d" },
+           description: { value: "scan embryonaut label" }
+    expect emits: ["ThreadsSearched"]
+  end
+
+  # ── EmailTool : GetThread ───────────────────────────────────
+  #
+  # GetThread records thread_id + description ; full thread body
+  # rides in the ThreadFetched event payload.
+
+  test "GetThread records thread_id + description" do
+    tests "GetThread", on: "EmailTool"
+    input  id:          { value: "email-get-1" },
+           thread_id:   { value: "thread-abc123" },
+           description: { value: "fetch joey's reply thread" }
+    expect thread_id:   { value: "thread-abc123" },
+           description: { value: "fetch joey's reply thread" }
+  end
+
+  test "GetThread emits ThreadFetched" do
+    tests "GetThread", on: "EmailTool"
+    input  id:          { value: "email-get-2" },
+           thread_id:   { value: "thread-def456" },
+           description: { value: "fetch another thread" }
+    expect emits: ["ThreadFetched"]
+  end
+
+  # ── EmailTool : CreateDraft ───────────────────────────────────
+  #
+  # CreateDraft records to + subject + description ; body rides in
+  # the DraftCreated event payload only.
+
+  test "CreateDraft records to + subject + description" do
+    tests "CreateDraft", on: "EmailTool"
+    input  id:          { value: "email-draft-1" },
+           to:          { value: "joey@example.com" },
+           subject:     { value: "Re : OPT site fixes" },
+           body:        { value: "Hi Joey,\n\nThe nine fixes are in.\n" },
+           description: { value: "draft reply to joey's audit" }
+    expect to:          { value: "joey@example.com" },
+           subject:     { value: "Re : OPT site fixes" },
+           description: { value: "draft reply to joey's audit" }
+  end
+
+  test "CreateDraft emits DraftCreated" do
+    tests "CreateDraft", on: "EmailTool"
+    input  id:          { value: "email-draft-2" },
+           to:          { value: "louann@example.com" },
+           subject:     { value: "Volunteer page update" },
+           body:        { value: "Hi Lou Ann, the page is ready.\n" },
+           description: { value: "draft reply to lou ann" }
+    expect emits: ["DraftCreated"]
+  end
+
+  # ── EmailTool : ListDrafts ───────────────────────────────────
+  #
+  # ListDrafts records description only ; the draft list rides in
+  # the DraftsListed event payload.
+
+  test "ListDrafts records description" do
+    tests "ListDrafts", on: "EmailTool"
+    input  id:          { value: "email-list-1" },
+           description: { value: "review pending drafts" }
+    expect description: { value: "review pending drafts" }
+  end
+
+  test "ListDrafts emits DraftsListed" do
+    tests "ListDrafts", on: "EmailTool"
+    input  id:          { value: "email-list-2" },
+           description: { value: "another listing pass" }
+    expect emits: ["DraftsListed"]
   end
 
   # ── Cascade : RecordResult ────────────────────────────────────────
