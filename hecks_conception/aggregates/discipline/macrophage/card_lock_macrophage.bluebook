@@ -1,0 +1,167 @@
+Hecks.bluebook "CardLockMacrophage", version: "2026.05.14.1" do
+  vision "Signed-off cards declare a scope of paths they cover — edits that land inside a locked scope without a new card or explicit exemption are flagged. Single source of truth : the Inbox aggregate carries the locked card state (signoff_scope + signoff_commit) ; this macrophage reads those cards and fires a complaint whenever a pending edit touches a protected path. No parallel sign-off state is kept here."
+  category "discipline"
+
+  # ============================================================
+  # CARD LOCK MACROPHAGE — one macrophage, one rule
+  # ============================================================
+  #
+  # i595 decomposes the original Macrophage singleton into a family
+  # of per-rule macrophages. CardLockMacrophage is the 8th member.
+  #
+  # Rule : when a card reaches the `locked` status, its signoff_scope
+  # (a list of path patterns) is frozen. Any edit that touches a path
+  # matching those patterns is a lock violation unless the commit
+  # message carries an exemption marker or the card itself has been
+  # superseded by a new card with a fresh signoff.
+  #
+  # Source of truth : the Inbox aggregate on the library/stores root.
+  # This macrophage does NOT duplicate the sign-off registry — it reads
+  # Inbox cards. The runtime hook resolves "which cards are locked?" by
+  # querying Inbox, then calls RecordEdit or RecordLockViolation here.
+  #
+  # This is the correct replacement for the ClientSignOffMacrophage
+  # that was conceived and reverted earlier (it tracked sign-offs as
+  # its own git-tag state, creating a second source of truth).
+  #
+  # The existing Macrophage aggregate is NOT retired here — this
+  # aggregate is a sibling. Migration step 8 of the i595 plan.
+
+  aggregate "CardLockMacrophage", "Per-rule macrophage for the card-lock enforcement — tracks edits against locked card scopes and maintains the full violation history for this rule alone" do
+    identified_by :name
+
+    attribute :name,                    Name
+
+    # Session metadata
+    attribute :session_started_at,      Timestamp
+
+    # Edit tallies — scoped to this rule.
+    attribute :edits_checked,           EditCount
+    attribute :lock_complaints,         ComplaintCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,          ComplaintText
+    attribute :last_complaint_at,       Timestamp
+    attribute :last_offending_file_path, FilePath
+    attribute :last_offending_card_ref,  CardRef
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-entity recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an edit or violation.
+      attribute :value, String
+    end
+
+    value_object "CardRef" do
+      # Reference to an Inbox card — matches the pattern i\d+
+      # (e.g. "i595"). Opaque at this layer ; resolution is the
+      # runtime hook's responsibility.
+      attribute :value, String
+    end
+
+    value_object "ClientName" do
+      # Human-readable name of the client or team member who signed
+      # off the card (e.g. "Joey", "Meredith"). Stored on the violation
+      # record so the complaint is self-contained.
+      attribute :value, String
+    end
+
+    value_object "CommitSha" do
+      # Opaque hexadecimal commit SHA at which the signoff was recorded.
+      # Short (7-char) or full (40-char) forms are both acceptable ;
+      # the macrophage treats this as an opaque string.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The CardLockMacrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "ComplaintCount" do
+      # Count of lock violations detected by this macrophage in the
+      # current session.
+      attribute :value, Integer
+    end
+
+    value_object "EditCount" do
+      # Count of edits checked by this macrophage in the current session,
+      # regardless of whether a violation was found.
+      attribute :value, Integer
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "LockComplaint" do
+      description "One historical lock-violation event. Records which file triggered the complaint, which card's signoff covers that path, who signed off and at which commit, and the full complaint text. The last_complaint / last_complaint_at / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,       Timestamp
+      attribute :file_path,         FilePath
+      attribute :offending_card_ref, CardRef
+      attribute :signed_off_by,     ClientName
+      attribute :signoff_commit,    CommitSha
+      attribute :complaint_text,    ComplaintText
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The LockComplaint entity collection is NOT reset — it is audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Edit recording ──
+
+    command "RecordEdit" do
+      role "Hook"
+      description "An edit was checked against the set of locked card scopes. No violation was found — the path does not match any locked scope, or the commit message carries an exemption marker. Increments edits_checked so the session scoreboard can show the total volume of checks performed, including clean ones."
+      attribute :file_path, FilePath
+      emits "EditRecorded"
+    end
+
+    command "RecordLockViolation" do
+      role "Hook"
+      description "An edit touches a path that falls within the signoff_scope of a locked Inbox card, and no exemption marker is present. Appends a LockComplaint entity to the audit trail and updates the last_offending_* scalars on the root. The hook chains into Complain to surface the complaint on the next turn — this command records the fact; Complain records the reaction."
+      attribute :file_path,          FilePath
+      attribute :offending_card_ref,  CardRef
+      attribute :signed_off_by,      ClientName
+      attribute :signoff_commit,     CommitSha
+      attribute :recorded_at,        Timestamp
+      then_set :last_offending_file_path, to: :file_path
+      then_set :last_offending_card_ref,  to: :offending_card_ref
+      emits "LockViolationRecorded"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The CardLockMacrophage detected an edit inside the scope of a signed-off locked card. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as additionalContext on the next turn — the feedback loop that closes the card-lock discipline. Complaint text begins 'The CardLockMacrophage expected ...' so the rule's name is visible at a glance."
+      attribute :file_path,         FilePath
+      attribute :offending_card_ref, CardRef
+      attribute :signed_off_by,     ClientName
+      attribute :signoff_commit,    CommitSha
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+  end
+end
