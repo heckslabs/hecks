@@ -8,7 +8,7 @@
 // domain catalog, use storehouse__catalog.
 
 import { z } from "zod";
-import { runCli, toMcpResponse } from "../../cli_dispatch.mjs";
+import { runCli, toMcpResponse, toMcpResponsePretty } from "../../cli_dispatch.mjs";
 
 export default {
   name: "storehouse__describe_aggregate",
@@ -29,6 +29,6 @@ export default {
   },
   async run(args) {
     const result = await runCli("describe", [args.bluebook_path, args.aggregate_name]);
-    return toMcpResponse(result);
+    return toMcpResponsePretty(result);
   },
 };

@@ -112,13 +112,15 @@ async function main() {
   eq(validateRes.isError, false, "validate isError=false");
   contains(validateRes.content[0].text, "VALID", "validate stdout VALID");
 
-  // -- storehouse__catalog returns the full IR (JSON)
+  // -- storehouse__catalog returns the full IR (JSON, pretty-printed)
   const catalogRes = await client.callTool({
     name: "storehouse__catalog",
     arguments: { bluebook_path: WORLD_BLUEBOOK },
   });
   eq(catalogRes.isError, false, "catalog isError=false");
   contains(catalogRes.content[0].text, '"aggregates"', "catalog stdout has aggregates key");
+  // pretty-printed JSON has leading spaces (2-space indent)
+  truthy(catalogRes.content[0].text.includes("  "), "catalog output is pretty-printed (has indentation)");
 
   // -- storehouse__describe_aggregate emits one aggregate's IR
   const describeRes = await client.callTool({
@@ -150,10 +152,24 @@ async function main() {
     arguments: {
       aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
       verb: "Tools::ShellTool.Bash",
+      summary: "intentionally wrong shape to test query verb guard",
     },
   });
   eq(queryShapeRes.isError, true, "query rejects command-shape verb");
   contains(queryShapeRes.content[0].text, "looks like a command", "query shape error mentions command");
+
+  // -- storehouse__dispatch without summary must be rejected (i606)
+  const dispatchNoSummaryRes = await client.callTool({
+    name: "storehouse__dispatch",
+    arguments: {
+      aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
+      command: "Tools::ShellTool.Bash",
+      args: { id: "cli-smoke-no-summary", shell_command: "echo nope" },
+      summary: "",
+    },
+  });
+  eq(dispatchNoSummaryRes.isError, true, "dispatch without summary isError=true");
+  contains(dispatchNoSummaryRes.content[0].text, "summary is required", "dispatch no-summary error mentions 'summary is required'");
 
   // -- storehouse__dispatch — universal door. Dispatch ShellTool.Bash
   // and assert ok=true + state carries the captured shell command.
@@ -163,10 +179,26 @@ async function main() {
       aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
       command: "Tools::ShellTool.Bash",
       args: { id: "cli-smoke-bash", shell_command: "echo smoke", description: "cli smoke" },
+      summary: "cli smoke dispatch for storehouse-mcp test",
     },
   });
   eq(dispatchRes.isError, false, "dispatch ShellTool.Bash isError=false");
   contains(dispatchRes.content[0].text, '"ok":true', "dispatch stdout ok=true");
+
+  // -- multi-line output renders as real newlines, not escaped \\n (i607)
+  const multiLineRes = await client.callTool({
+    name: "storehouse__dispatch",
+    arguments: {
+      aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
+      command: "Tools::ShellTool.Bash",
+      args: { id: "cli-smoke-multiline", shell_command: "printf 'line1\\nline2\\nline3\\n'", description: "multiline test" },
+      summary: "verify multi-line stdout renders without escape sequences",
+    },
+  });
+  const multiLineText = multiLineRes.content[0].text;
+  const realNewlines = (multiLineText.match(/\n/g) || []).length;
+  const escapedNewlines = (multiLineText.match(/\\n/g) || []).length;
+  truthy(realNewlines > escapedNewlines, "multi-line output has real newlines, not escaped \\n");
 
   // -- storehouse__state — read the record we just dispatched by id.
   const stateRes = await client.callTool({
@@ -175,6 +207,7 @@ async function main() {
       aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
       aggregate_name: "ShellTool",
       id: "cli-smoke-bash",
+      summary: "verify ShellTool record persisted after cli-smoke dispatch",
     },
   });
   eq(stateRes.isError, false, "state read isError=false");
@@ -188,6 +221,7 @@ async function main() {
       aggregates_dir: path.join(HECKS_ROOT, "hecks_conception"),
       aggregate_name: "ShellTool",
       id: "no-such-id-cli-smoke",
+      summary: "confirm missing id returns ok=false gracefully",
     },
   });
   eq(stateMissRes.isError, false, "state miss isError=false (ok answer)");

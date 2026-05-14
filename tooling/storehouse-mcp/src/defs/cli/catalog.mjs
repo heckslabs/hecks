@@ -8,7 +8,7 @@
 // For one-aggregate focus, use storehouse__describe_aggregate.
 
 import { z } from "zod";
-import { runCli, toMcpResponse } from "../../cli_dispatch.mjs";
+import { runCli, toMcpResponse, toMcpResponsePretty } from "../../cli_dispatch.mjs";
 
 export default {
   name: "storehouse__catalog",
@@ -23,6 +23,6 @@ export default {
   },
   async run(args) {
     const result = await runCli("dump", [args.bluebook_path]);
-    return toMcpResponse(result);
+    return toMcpResponsePretty(result);
   },
 };

@@ -72,3 +72,30 @@ export function toMcpResponse(result) {
     isError: result.ok === false,
   };
 }
+
+// Like toMcpResponse but attempts to parse the stdout as JSON and
+// re-emit it with 2-space indentation. Used for discovery tools
+// (catalog, describe_aggregate) that return structured data — makes
+// the response readable in the MCP inspector and downstream renderers.
+// Falls back to raw stdout if parsing fails (e.g. error messages).
+export function toMcpResponsePretty(result) {
+  let text = result.stdout || result.stderr || `exit=${result.exit_code}`;
+  if (result.stdout) {
+    try {
+      const parsed = JSON.parse(result.stdout.trim());
+      text = JSON.stringify(parsed, null, 2);
+    } catch {
+      // not valid JSON (e.g. error output) — fall through to raw text
+    }
+  }
+  return {
+    content: [
+      {
+        type: "text",
+        text,
+      },
+    ],
+    structuredContent: result,
+    isError: result.ok === false,
+  };
+}

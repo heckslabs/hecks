@@ -32,8 +32,21 @@ export default {
       .string()
       .min(1)
       .describe("The aggregate instance's id."),
+    summary: z
+      .string()
+      .min(1)
+      .describe(
+        "One-line, terse summary of why you are reading this state — e.g., 'verify ShellTool record persisted after bash dispatch'. Recommended ≤80 characters. Required.",
+      ),
   },
   async run(args) {
+    const trimmedSummary = (args.summary || "").trim();
+    if (!trimmedSummary) {
+      return {
+        content: [{ type: "text", text: "summary is required: provide a one-line description of why you are reading this state (e.g. 'confirm record exists after dispatch')" }],
+        isError: true,
+      };
+    }
     const result = await runCli("state", [
       args.aggregates_dir,
       args.aggregate_name,
