@@ -1,0 +1,272 @@
+Hecks.bluebook "HandlerRegistry", version: "2026.05.14.1" do
+  vision "Runtime substrate for i619 handlers. Owns the named registration of (command_fqn → handler_kind + handler_args) tuples. Five commands : RegisterHandler / UnregisterHandler at boot, ResolveHandler before dispatch, InvokeHandler at dispatch, RecordInvocation as audit trail. Five handler kinds : :rust (a runtime function), :mcp (a Model-Context-Protocol tool call), :shell (a shell command template), :dispatch (a sub-bluebook command — what i604 calls a forwarder), and the existing adapter families (:claude_tool, :web_tool) which the registry treats as further handler kinds. The registry IS the bluebook the runtime walks at boot to know what runs when a command dispatches. Today this knowledge is embedded in adapter-family Rust code and kernel hook tables ; HandlerRegistry makes it bluebook-native and inspectable. Singleton-shaped — there is one handler registry per Hecks runtime. Sister to IdentifierService (i614) ; same shape, different concern. i613 names the dispatch pipeline (StoreHouse wraps every command) ; i619 names the substrate the pipeline invokes."
+  category "framework"
+
+  # ============================================================
+  # HANDLER REGISTRY — the runtime side of i619 handlers
+  # ============================================================
+  #
+  # First draft, 2026-05-14. Stub shape ; the real implementation
+  # iterates from here. Companion to i619 in the inbox.
+  #
+  # ── The one aggregate ──
+  #
+  #   * HandlerRegistry — the substrate. Records each (command_fqn,
+  #     handler_kind, handler_args) tuple registered at boot ;
+  #     resolves handlers at dispatch time ; invokes the resolved
+  #     handler ; records per-invocation audit on the Invocation
+  #     entity collection. Effectively a singleton — there is one
+  #     handler registry per Hecks runtime. For now it follows the
+  #     conventional identified_by :name shape ; under i611 phase 1
+  #     (when singleton: true lands in the parser) it converts to a
+  #     singleton-flagged aggregate with no identified_by.
+  #
+  # ── Why singleton-shaped ──
+  #
+  # There is one runtime ; there is one handler registry. State on
+  # the registry is the handler-operation tally (registrations,
+  # resolutions, invocations) for observability, plus the latest
+  # operations for fast statusline reads. Per-registration detail
+  # lives in the event stream (HandlerRegistered) ; per-invocation
+  # detail lives on the Invocation entity collection.
+  #
+  # ── What goes through the registry vs. what doesn't ──
+  #
+  # Goes through : handler registration at boot for every command
+  # carrying a `handler` declaration ; handler resolution before
+  # every command dispatch ; handler invocation for every command
+  # whose handler kind is one of the five supported.
+  #
+  # Does NOT go through : pure-event commands (commands with zero
+  # handlers — just record a domain fact and emit). Those skip
+  # the resolve+invoke pipeline entirely and emit directly. The
+  # macrophage will check that every command either has a handler
+  # registered OR is explicitly marked as pure-event.
+
+  # ── HandlerRegistry : the substrate ──
+  aggregate "HandlerRegistry", "The runtime substrate for i619 handlers. Records named (command_fqn, handler_kind, handler_args) tuples at boot ; resolves handlers by command FQN before dispatch ; invokes the resolved handler with the command's input attrs ; records per-invocation audit on the Invocation entity collection. The handler's return value lands in the event payload (per i618's ResponseEmitted, per i613's envelope). Effectively a singleton — there is one registry per Hecks runtime. Sister to IdentifierService (i614). i613 names the dispatch pipeline (StoreHouse wraps every command at the bluebook level) ; HandlerRegistry names the substrate that pipeline invokes." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Operation tallies — visible at a glance for observability.
+    attribute :handlers_registered,   RegistrationCount
+    attribute :handlers_resolved,     ResolutionCount
+    attribute :handlers_invoked,      InvocationCount
+
+    # Last-operation surface for the statusline / quick reads.
+    attribute :last_registered_at, Timestamp
+    attribute :last_resolved_at,   Timestamp
+    attribute :last_invoked_at,    Timestamp
+    attribute :last_command,       CommandRef
+
+    # ── Value-objects : the language of handler operations ──
+
+    value_object "Name" do
+      # Singleton key — there is exactly one HandlerRegistry per
+      # Hecks runtime. Under i611 phase 1 (`singleton: true`),
+      # this VO disappears.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_*_at fields, and per-operation recorded_at attributes.
+      attribute :value, String
+    end
+
+    value_object "HandlerName" do
+      # Stable name for one handler registration. Convention :
+      # the command FQN with dots replaced by slashes, e.g.
+      # "Tools/ShellTool/Bash" for the Bash handler. Used so the
+      # Invocation entity collection has a per-handler addressable
+      # form for the audit trail.
+      attribute :value, String
+    end
+
+    value_object "HandlerKind" do
+      # The handler family. Allowed values :
+      #   "rust"        — a Rust function in the runtime crate
+      #   "mcp"         — a Model-Context-Protocol tool call
+      #   "shell"       — a shell command template
+      #   "dispatch"    — a sub-bluebook command (i604 forwarder)
+      #   "claude_tool" — the existing :claude_tool adapter family
+      #   "web_tool"    — the existing :web_tool adapter family
+      # Stored as a string so the bluebook-time parser does not
+      # need a closed enum ; the runtime validates the kind
+      # against the families it knows about at boot.
+      attribute :value, String
+    end
+
+    value_object "HandlerArgs" do
+      # Kind-specific args, encoded as a JSON string. Same
+      # convention tools.hecksagon uses for its `args:` field so
+      # the encoding is byte-equal across Ruby and Rust parsers.
+      # Examples :
+      #   :rust       — "{\"function_name\":\"execute_bash\"}"
+      #   :mcp        — "{\"server\":\"gmail\",\"tool_name\":\"...\",\"args\":\"...\"}"
+      #   :shell      — "{\"command_template\":\"echo {phase}\"}"
+      #   :dispatch   — "{\"command\":\"Tools::ShellTool.Bash\"}"
+      #   :claude_tool— "{\"tool_name\":\"Bash\"}"
+      #   :web_tool   — "{\"tool\":\"web_fetch\"}"
+      # The runtime parses this string at resolve time and routes
+      # the parsed fields to the matching adapter family.
+      attribute :value, String
+    end
+
+    value_object "CommandRef" do
+      # FQN of the command this handler handles. Form :
+      # "Domain::Aggregate.Command", e.g. "Tools::ShellTool.Bash"
+      # or "IdentifierService::IdentifierService.MintDefault".
+      attribute :value, String
+    end
+
+    value_object "InvocationOutcome" do
+      # The result of one handler firing. Allowed values :
+      #   "ok"      — handler returned a result without error
+      #   "error"   — handler raised or returned an error
+      #   "timeout" — handler exceeded its configured time budget
+      # Stored as a string ; the runtime validates against the
+      # closed set at write time. The full return payload is on
+      # the envelope-wrapped event (per i613) ; this is the
+      # coarse signal for fast queries.
+      attribute :value, String
+    end
+
+    value_object "PayloadSummary" do
+      # A short, human-readable summary of what the handler
+      # returned — e.g. "exit_code=0 stdout=24 bytes" for a Bash
+      # invocation, or "thread_count=8" for a Gmail search. The
+      # full payload lives on the envelope-wrapped event ; this
+      # is the at-a-glance form for the Invocation audit row.
+      attribute :value, String
+    end
+
+    value_object "RegistrationCount" do
+      # Count of handler registrations in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ResolutionCount" do
+      # Count of handler resolutions performed in the current
+      # session.
+      attribute :value, Integer
+    end
+
+    value_object "InvocationCount" do
+      # Count of handler invocations performed in the current
+      # session.
+      attribute :value, Integer
+    end
+
+    value_object "ReasonText" do
+      # Human-readable explanation attached to a registration or
+      # unregistration — e.g. "boot-time registration from
+      # tools.bluebook line 142" or "command renamed under i604
+      # forwarder ; unregistering the old binding".
+      attribute :value, String
+    end
+
+    # ── Entity — per-invocation audit trail ──
+
+    entity "Invocation" do
+      description "Audit record for one handler firing. When the runtime invokes a registered handler, it creates one Invocation row capturing the command FQN, the handler kind, when dispatch began, when the handler completed, the outcome (ok / error / timeout), and a short payload summary. The full handler return payload lives on the envelope-wrapped event on the StoreHouse meta-bus (i613) ; the Invocation entity is the fast-query inspection surface that ties handler-firing back to the registry's tally. Per-invocation detail accumulates over time and across sessions ; the per-session tallies on the parent aggregate reset at StartSession."
+      attribute :handler_name,    HandlerName
+      attribute :command,         CommandRef
+      attribute :handler_kind,    HandlerKind
+      attribute :dispatched_at,   Timestamp
+      attribute :completed_at,    Timestamp
+      attribute :outcome,         InvocationOutcome
+      attribute :payload_summary, PayloadSummary
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at runtime boot. The HandlerRegistry keeps per-session tallies so observability surfaces (statusline, dashboards) reflect what the current session has done, not lifetime totals. The Invocation entity collection is NOT reset — it's an audit trail that spans sessions."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Primary operation 1 : register a handler ──
+
+    command "RegisterHandler" do
+      role "System"
+      description "Record a (command, handler_kind, handler_args) tuple at boot time. The runtime walks every bluebook in the corpus at boot, finds each `handler` declaration inside a command block, and dispatches RegisterHandler with the command's FQN, the declared handler kind, and the kind-specific args encoded as a JSON string. The registration is the bluebook-native record of what runs when this command dispatches. Increments handlers_registered ; updates last_registered_at and last_command ; emits HandlerRegistered so downstream listeners (the dispatcher, the macrophage's HandlerCoverage rule) can react. Re-registering an existing command_fqn overwrites the previous registration with a HandlerReRegistered event for the audit trail (not modeled in this stub — adds in the operational version)."
+      attribute :handler_name,    HandlerName
+      attribute :command,         CommandRef
+      attribute :handler_kind,    HandlerKind
+      attribute :handler_args,    HandlerArgs
+      attribute :reason,          ReasonText
+      attribute :registered_at,   Timestamp
+      emits "HandlerRegistered"
+      then_set :last_registered_at, to: :registered_at
+      then_set :last_command,       to: :command
+    end
+
+    # ── Primary operation 2 : unregister a handler ──
+
+    command "UnregisterHandler" do
+      role "System"
+      description "Remove a previously-registered handler. Dispatched when a command is renamed (i604 forwarder migration) or removed from the corpus. The previous registration is dropped from the registry ; subsequent ResolveHandler calls for that command_fqn return a not-found signal that the dispatcher routes to the pure-event path. Updates last_command ; emits HandlerUnregistered so the audit trail captures the removal."
+      attribute :handler_name,     HandlerName
+      attribute :command,          CommandRef
+      attribute :reason,           ReasonText
+      attribute :unregistered_at,  Timestamp
+      emits "HandlerUnregistered"
+      then_set :last_command, to: :command
+    end
+
+    # ── Primary operation 3 : resolve a handler ──
+
+    command "ResolveHandler" do
+      role "System"
+      description "Look up the registered handler for a command FQN. The dispatcher calls this before invoking a command — it asks the registry 'what handler runs for Tools::ShellTool.Bash ?' and receives the registered handler_kind + handler_args. Resolution increments handlers_resolved ; updates last_resolved_at and last_command ; emits HandlerResolved carrying the matched handler details so the dispatcher and the meta-bus envelope can both observe the resolution. A miss (no handler registered for the command FQN) emits HandlerResolutionMissed instead — the dispatcher routes that to the pure-event path."
+      attribute :command,        CommandRef
+      attribute :resolved_at,    Timestamp
+      attribute :handler_kind,   HandlerKind
+      attribute :handler_args,   HandlerArgs
+      emits "HandlerResolved"
+      then_set :last_resolved_at, to: :resolved_at
+      then_set :last_command,     to: :command
+    end
+
+    # ── Primary operation 4 : invoke a handler ──
+
+    command "InvokeHandler" do
+      role "System"
+      description "Fire the resolved handler with the command's input attrs. This is the universal invocation site — every handler-resolved command flows through this command. The handler kind determines which substrate runs : :rust dispatches to a registered runtime function ; :mcp invokes the named tool on the named MCP server ; :shell expands the command template and executes ; :dispatch re-dispatches the named bluebook command ; :claude_tool and :web_tool route to their respective adapter families. The handler's return value becomes the payload of an envelope-wrapped event (per i613's envelope shape, per i618's ResponseEmitted). Increments handlers_invoked ; updates last_invoked_at and last_command ; emits HandlerInvoked carrying the return payload."
+      attribute :handler_name,    HandlerName
+      attribute :command,         CommandRef
+      attribute :handler_kind,    HandlerKind
+      attribute :handler_args,    HandlerArgs
+      attribute :dispatched_at,   Timestamp
+      attribute :completed_at,    Timestamp
+      attribute :outcome,         InvocationOutcome
+      attribute :payload_summary, PayloadSummary
+      emits "HandlerInvoked"
+      then_set :last_invoked_at, to: :completed_at
+      then_set :last_command,    to: :command
+    end
+
+    # ── Primary operation 5 : record an invocation ──
+
+    command "RecordInvocation" do
+      role "System"
+      description "Append one Invocation row to the audit trail. Dispatched by the dispatcher after every InvokeHandler so the per-invocation detail accumulates on the entity collection. Carries the handler name, command FQN, handler kind, dispatch+complete timestamps, the outcome, and a short payload summary. The full handler return payload lives on the envelope-wrapped event ; the Invocation row is the fast-query inspection surface. Does NOT update the per-session tallies on the parent aggregate (those are handled by InvokeHandler) ; this command exists so the audit row is its own first-class event."
+      attribute :handler_name,    HandlerName
+      attribute :command,         CommandRef
+      attribute :handler_kind,    HandlerKind
+      attribute :dispatched_at,   Timestamp
+      attribute :completed_at,    Timestamp
+      attribute :outcome,         InvocationOutcome
+      attribute :payload_summary, PayloadSummary
+      emits "InvocationRecorded"
+    end
+  end
+end

@@ -1,0 +1,170 @@
+Hecks.behaviors "HandlerRegistry" do
+  vision "Behavioral tests for the HandlerRegistry bluebook — the runtime substrate for i619 handlers. First-draft placeholder coverage : one or two tests per command so the companion-block discipline is satisfied. As the substrate fleshes out (real handler resolution, real handler invocation, real result-into-event payload), these tests grow into operational coverage ; for now they assert the command-records-attribute shape only."
+
+  # ── Session lifecycle ────────────────────────────────────────────
+  #
+  # StartSession resets per-session counters at runtime boot. The
+  # Invocation entity collection is NOT reset — that's audit trail
+  # spanning sessions.
+
+  test "StartSession records session_started_at" do
+    tests "StartSession", on: "HandlerRegistry"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-14T00:00:00Z" }
+    expect session_started_at: { value: "2026-05-14T00:00:00Z" }
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "HandlerRegistry"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-14T00:00:01Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  # ── RegisterHandler : boot-time registration ─────────────────────
+  #
+  # Dispatched by the runtime at boot for every command in the corpus
+  # that carries a `handler` declaration. Records the (command,
+  # handler_kind, handler_args) tuple.
+
+  test "RegisterHandler records registered_at + last_command" do
+    tests "RegisterHandler", on: "HandlerRegistry"
+    input  name:           { value: "default" },
+           handler_name:   { value: "Tools/ShellTool/Bash" },
+           command:        { value: "Tools::ShellTool.Bash" },
+           handler_kind:   { value: "claude_tool" },
+           handler_args:   { value: "{\"tool_name\":\"Bash\"}" },
+           reason:         { value: "boot-time registration from tools.bluebook" },
+           registered_at:  { value: "2026-05-14T00:00:02Z" }
+    expect last_registered_at: { value: "2026-05-14T00:00:02Z" },
+           last_command:       { value: "Tools::ShellTool.Bash" }
+  end
+
+  test "RegisterHandler emits HandlerRegistered" do
+    tests "RegisterHandler", on: "HandlerRegistry"
+    input  name:           { value: "default" },
+           handler_name:   { value: "Tools/EmailTool/SearchThreads" },
+           command:        { value: "Tools::EmailTool.SearchThreads" },
+           handler_kind:   { value: "mcp" },
+           handler_args:   { value: "{\"server\":\"gmail\",\"tool_name\":\"mcp__claude_ai_Gmail__search_threads\"}" },
+           reason:         { value: "boot-time registration from tools.bluebook" },
+           registered_at:  { value: "2026-05-14T00:00:03Z" }
+    expect emits: ["HandlerRegistered"]
+  end
+
+  # ── UnregisterHandler : remove a registration ────────────────────
+  #
+  # Dispatched when a command is renamed (i604 forwarder migration)
+  # or removed from the corpus.
+
+  test "UnregisterHandler records last_command" do
+    tests "UnregisterHandler", on: "HandlerRegistry"
+    input  name:             { value: "default" },
+           handler_name:     { value: "Tools/Tools/Bash" },
+           command:          { value: "Tools::Tools.Bash" },
+           reason:           { value: "i609 cohesion split ; command moved to Tools::ShellTool.Bash" },
+           unregistered_at:  { value: "2026-05-14T00:00:04Z" }
+    expect last_command: { value: "Tools::Tools.Bash" }
+  end
+
+  test "UnregisterHandler emits HandlerUnregistered" do
+    tests "UnregisterHandler", on: "HandlerRegistry"
+    input  name:             { value: "default" },
+           handler_name:     { value: "Tools/OldTool/Run" },
+           command:          { value: "Tools::OldTool.Run" },
+           reason:           { value: "aggregate retired" },
+           unregistered_at:  { value: "2026-05-14T00:00:05Z" }
+    expect emits: ["HandlerUnregistered"]
+  end
+
+  # ── ResolveHandler : look up by command FQN ──────────────────────
+  #
+  # Dispatcher calls this before invoking. Returns the registered
+  # handler kind + args.
+
+  test "ResolveHandler records resolved_at + last_command" do
+    tests "ResolveHandler", on: "HandlerRegistry"
+    input  name:          { value: "default" },
+           command:       { value: "Tools::ShellTool.Bash" },
+           resolved_at:   { value: "2026-05-14T00:00:06Z" },
+           handler_kind:  { value: "claude_tool" },
+           handler_args:  { value: "{\"tool_name\":\"Bash\"}" }
+    expect last_resolved_at: { value: "2026-05-14T00:00:06Z" },
+           last_command:     { value: "Tools::ShellTool.Bash" }
+  end
+
+  test "ResolveHandler emits HandlerResolved" do
+    tests "ResolveHandler", on: "HandlerRegistry"
+    input  name:          { value: "default" },
+           command:       { value: "Tools::EmailTool.GetThread" },
+           resolved_at:   { value: "2026-05-14T00:00:07Z" },
+           handler_kind:  { value: "mcp" },
+           handler_args:  { value: "{\"server\":\"gmail\",\"tool_name\":\"mcp__claude_ai_Gmail__get_thread\"}" }
+    expect emits: ["HandlerResolved"]
+  end
+
+  # ── InvokeHandler : fire the substrate ───────────────────────────
+  #
+  # The universal invocation site. Every handler-resolved command
+  # flows through this command. Handler kind determines which
+  # substrate runs ; the return becomes the event payload.
+
+  test "InvokeHandler records completed_at + last_command" do
+    tests "InvokeHandler", on: "HandlerRegistry"
+    input  name:             { value: "default" },
+           handler_name:     { value: "Tools/ShellTool/Bash" },
+           command:          { value: "Tools::ShellTool.Bash" },
+           handler_kind:     { value: "claude_tool" },
+           handler_args:     { value: "{\"tool_name\":\"Bash\"}" },
+           dispatched_at:    { value: "2026-05-14T00:00:08Z" },
+           completed_at:     { value: "2026-05-14T00:00:09Z" },
+           outcome:          { value: "ok" },
+           payload_summary:  { value: "exit_code=0 stdout=24 bytes" }
+    expect last_invoked_at: { value: "2026-05-14T00:00:09Z" },
+           last_command:    { value: "Tools::ShellTool.Bash" }
+  end
+
+  test "InvokeHandler emits HandlerInvoked" do
+    tests "InvokeHandler", on: "HandlerRegistry"
+    input  name:             { value: "default" },
+           handler_name:     { value: "Tools/EmailTool/SearchThreads" },
+           command:          { value: "Tools::EmailTool.SearchThreads" },
+           handler_kind:     { value: "mcp" },
+           handler_args:     { value: "{\"server\":\"gmail\",\"tool_name\":\"mcp__claude_ai_Gmail__search_threads\"}" },
+           dispatched_at:    { value: "2026-05-14T00:00:10Z" },
+           completed_at:     { value: "2026-05-14T00:00:11Z" },
+           outcome:          { value: "ok" },
+           payload_summary:  { value: "thread_count=8" }
+    expect emits: ["HandlerInvoked"]
+  end
+
+  # ── RecordInvocation : audit row on the Invocation entity ────────
+  #
+  # Appends one Invocation row after every InvokeHandler. The full
+  # return payload lives on the envelope-wrapped event ; the
+  # Invocation row is the fast-query inspection surface.
+
+  test "RecordInvocation emits InvocationRecorded" do
+    tests "RecordInvocation", on: "HandlerRegistry"
+    input  handler_name:    { value: "Tools/ShellTool/Bash" },
+           command:         { value: "Tools::ShellTool.Bash" },
+           handler_kind:    { value: "claude_tool" },
+           dispatched_at:   { value: "2026-05-14T00:00:12Z" },
+           completed_at:    { value: "2026-05-14T00:00:13Z" },
+           outcome:         { value: "ok" },
+           payload_summary: { value: "exit_code=0 stdout=24 bytes" }
+    expect emits: ["InvocationRecorded"]
+  end
+
+  test "RecordInvocation captures handler_kind variety" do
+    tests "RecordInvocation", on: "HandlerRegistry"
+    input  handler_name:    { value: "IdentifierService/IdentifierService/MintDefault" },
+           command:         { value: "IdentifierService::IdentifierService.MintDefault" },
+           handler_kind:    { value: "rust" },
+           dispatched_at:   { value: "2026-05-14T00:00:14Z" },
+           completed_at:    { value: "2026-05-14T00:00:14Z" },
+           outcome:         { value: "ok" },
+           payload_summary: { value: "uuid=550e8400-..." }
+    expect emits: ["InvocationRecorded"]
+  end
+end
