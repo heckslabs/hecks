@@ -215,6 +215,14 @@ how the Claude tool family resolves to a StoreHouse dispatch, how the
 substrate after the side-effect completes — see
 [`docs/usage/claude_tool.md`](claude_tool.md).
 
+## EmailTool — Gmail invocations (i608)
+
+`Tools` is bigger than the five categories above. `EmailTool`
+(SearchThreads / GetThread / CreateDraft / ListDrafts) lifts each
+Gmail call into a domain command, with `:mcp` adapter bindings in
+`tools.hecksagon` that route to the Claude harness's Gmail MCP
+surface. See [`docs/usage/email-tool.md`](email-tool.md).
+
 ## Related
 
 - `hecks_conception/aggregates/framework/tools/tools.bluebook` — the contract
