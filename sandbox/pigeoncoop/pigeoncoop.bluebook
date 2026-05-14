@@ -186,12 +186,16 @@ Hecks.bluebook "PigeonCoop" do
 
     command "ApproveShoutout" do
       reference_to Shoutout
-      reference_to Person, as: :approved_by
+      # approved_by is Admin (per i35) or Teacher for class-related shoutouts (per i45).
+      # DSL has no union type; Admin covers the primary path. Teacher-originated approvals
+      # are gated by policy, not modelled as a separate reference here.
+      reference_to Admin, as: :approved_by
     end
 
     command "RejectShoutout" do
       reference_to Shoutout
-      reference_to Person, as: :rejected_by
+      # rejected_by follows the same Admin / Teacher duality as approved_by (i35 / i45).
+      reference_to Admin, as: :rejected_by
       attribute :reason, RejectionReason
     end
 
@@ -201,7 +205,7 @@ Hecks.bluebook "PigeonCoop" do
   end
 
   aggregate "Announcement" do
-    reference_to Person, as: :author
+    reference_to Admin, as: :author
     attribute :title,         AnnouncementTitle
     attribute :body,          AnnouncementBody
     attribute :audience,      list_of(AudienceKind)
@@ -256,7 +260,7 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "WriteAnnouncement" do
-      reference_to Person, as: :author
+      reference_to Admin, as: :author
       attribute :title,      AnnouncementTitle
       attribute :body,       AnnouncementBody
       attribute :audience,   list_of(AudienceKind)
@@ -270,7 +274,7 @@ Hecks.bluebook "PigeonCoop" do
 
     command "SendAnnouncement" do
       reference_to Announcement
-      reference_to Person, as: :sent_by
+      reference_to Admin, as: :sent_by
       requires "status" => "scheduled"
     end
 
@@ -392,7 +396,7 @@ Hecks.bluebook "PigeonCoop" do
   end
 
   aggregate "Article" do
-    reference_to Person, as: :author
+    reference_to Admin, as: :author
     attribute :title,        ArticleTitle
     attribute :body,         ArticleBody
 
@@ -418,14 +422,14 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "WriteArticle" do
-      reference_to Person, as: :author
+      reference_to Admin, as: :author
       attribute :title, ArticleTitle
       attribute :body,  ArticleBody
     end
 
     command "PublishArticle" do
       reference_to Article
-      reference_to Person, as: :publisher
+      reference_to Admin, as: :publisher
       requires "status" => "draft"
     end
 
@@ -461,7 +465,7 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "AssembleNewsletter" do
-      reference_to Person, as: :editor
+      reference_to Admin, as: :editor
       reference_to Article, as: :lead_article
       attribute :issue_label, IssueLabel
       attribute :articles,    list_of(ArticleRef)
@@ -469,7 +473,7 @@ Hecks.bluebook "PigeonCoop" do
 
     command "PublishNewsletter" do
       reference_to Newsletter
-      reference_to Person, as: :publisher
+      reference_to Admin, as: :publisher
       requires "status" => "draft"
     end
 
@@ -483,7 +487,7 @@ Hecks.bluebook "PigeonCoop" do
   end
 
   aggregate "Event" do
-    reference_to Person, as: :organizer
+    reference_to Admin, as: :organizer
     attribute :title,         EventTitle
     attribute :description,   EventDescription
     attribute :starts_at,     Timestamp
@@ -579,14 +583,14 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     entity "Ticket" do
-      reference_to Person, as: :holder
+      reference_to Parent, as: :holder
       attribute :code,        TicketCode
       attribute :status,      TicketStatus
       attribute :payment,     Payment
     end
 
     entity "Registration" do
-      reference_to Person, as: :registrant
+      reference_to Parent, as: :registrant
       attribute :registered_at, Timestamp
     end
 
@@ -601,7 +605,7 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "CreateEvent" do
-      reference_to Person, as: :organizer
+      reference_to Admin, as: :organizer
       attribute :title,             EventTitle
       attribute :description,       EventDescription
       attribute :starts_at,         Timestamp
@@ -614,13 +618,13 @@ Hecks.bluebook "PigeonCoop" do
 
     command "PublishEvent" do
       reference_to Event
-      reference_to Person, as: :published_by
+      reference_to Admin, as: :published_by
       requires "status" => "draft"
     end
 
     command "IssueTicket" do
       reference_to Event
-      reference_to Person, as: :holder
+      reference_to Parent, as: :holder
       attribute :payment, Payment
       requires "status" => "published"
       # SoldOut specification also enforced at dispatch (capacity invariant).
@@ -634,18 +638,18 @@ Hecks.bluebook "PigeonCoop" do
     command "TransferTicket" do
       reference_to Event
       attribute :ticket_code, TicketCode
-      reference_to Person, as: :new_holder
+      reference_to Parent, as: :new_holder
     end
 
     command "RegisterAttendance" do
       reference_to Event
-      reference_to Person, as: :registrant
+      reference_to Parent, as: :registrant
       requires "status" => "published"
     end
 
     command "CancelRegistration" do
       reference_to Event
-      reference_to Person, as: :registrant
+      reference_to Parent, as: :registrant
       requires "status" => "published"
     end
 
@@ -663,6 +667,8 @@ Hecks.bluebook "PigeonCoop" do
   end
 
   aggregate "Document" do
+    # uploaded_by : Admin (per i39) or Teacher (per i48). DSL has no union type;
+    # keeping Person so both roles can upload. Legitimate uploaders: Admin, Teacher.
     reference_to Person, as: :uploaded_by
     attribute :title,        DocumentTitle
     attribute :file_locator, FileLocator
@@ -695,6 +701,7 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "UploadDocument" do
+      # uploaded_by : Admin (i39) or Teacher (i48) — kept as Person (no union type in DSL).
       reference_to Person, as: :uploaded_by
       attribute :title,        DocumentTitle
       attribute :file_locator, FileLocator
@@ -703,7 +710,7 @@ Hecks.bluebook "PigeonCoop" do
 
     command "ArchiveDocument" do
       reference_to Document
-      reference_to Person, as: :archived_by
+      reference_to Admin, as: :archived_by
       requires "status" => "active"
     end
 
@@ -713,8 +720,10 @@ Hecks.bluebook "PigeonCoop" do
   end
 
   aggregate "AbsenceNotification" do
+    # reporter : Parent (per i21) or Teacher (per i47). DSL has no union type;
+    # keeping Person so both roles can report. Legitimate reporters: Parent, Teacher.
     reference_to Person, as: :reporter
-    reference_to Person, as: :student
+    reference_to Student, as: :student
     attribute :date,        Timestamp
     attribute :reason,      AbsenceReason
 
@@ -742,15 +751,16 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "ReportAbsence" do
+      # reporter : Parent (i21) or Teacher (i47) — kept as Person (no union type in DSL).
       reference_to Person, as: :reporter
-      reference_to Person, as: :student
+      reference_to Student, as: :student
       attribute :date,   Timestamp
       attribute :reason, AbsenceReason
     end
 
     command "AcknowledgeAbsence" do
       reference_to AbsenceNotification
-      reference_to Person, as: :acknowledged_by
+      reference_to Admin, as: :acknowledged_by
       requires "status" => "pending"
     end
 
@@ -816,7 +826,7 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     command "AddMerchItem" do
-      reference_to Person, as: :added_by
+      reference_to Admin, as: :added_by
       attribute :name,          MerchName
       attribute :description,   MerchDescription
       attribute :price,         Money
@@ -826,19 +836,19 @@ Hecks.bluebook "PigeonCoop" do
 
     command "AdjustStock" do
       reference_to MerchItem
-      reference_to Person, as: :adjusted_by
+      reference_to Admin, as: :adjusted_by
       attribute :delta, StockDelta
     end
 
     command "RetireMerchItem" do
       reference_to MerchItem
-      reference_to Person, as: :retired_by
+      reference_to Admin, as: :retired_by
       requires "status" => "available"
     end
 
     command "RestoreMerchItem" do
       reference_to MerchItem
-      reference_to Person, as: :restored_by
+      reference_to Admin, as: :restored_by
       requires "status" => "unavailable"
     end
 
