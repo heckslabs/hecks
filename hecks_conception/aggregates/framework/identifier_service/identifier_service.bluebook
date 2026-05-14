@@ -1,5 +1,5 @@
 Hecks.bluebook "IdentifierService", version: "2026.05.14.1" do
-  vision "Runtime substrate for i611 identity. Owns four operations : (1) UUID-default minting when an aggregate has no identified_by ; (2) natural-key derivation by concatenating identified_by field values, with optional ULID suffix on aggregate roots and parent-prefix scoping on nested entities ; (3) non-destructive id migration via new||old concatenation in the repository so lookups by either succeed forever ; (4) an identity-petition workflow giving identity-rule changes a submit / review / apply state machine plus an audit trail. The bluebook is the contract for identity ; IdentifierService is where the contract becomes operational. i611 names the rules (and IdentityDiscipline macrophage polices them) ; i614 is the bluebook that implements them at runtime."
+  vision "Runtime substrate for i611 identity. Owns four operations : (1) UUID-default minting when an aggregate has no identified_by ; (2) natural-key derivation by concatenating identified_by field values, with optional ULID suffix on aggregate roots and parent-prefix scoping on nested entities ; (3) autonomic identity migration — when an identified_by rule changes the IdentifierService rewrites each affected IdentityString in place, prepending the new form with a slash separator so the key itself carries the full history (new/old/oldest). Lookup by any segment resolves the record ; no repository column. (4) an identity-petition workflow giving identity-rule changes a submit / review / apply state machine plus an audit trail. Natural keys via identified_by remain addable at any time — UUID default is the start, not the end. The bluebook is the contract for identity ; IdentifierService is where the contract becomes operational. i611 names the rules (and IdentityDiscipline macrophage polices them) ; i614 is the bluebook that implements them at runtime."
   category "framework"
 
   # ============================================================
@@ -49,7 +49,7 @@ Hecks.bluebook "IdentifierService", version: "2026.05.14.1" do
   # entities and roots.
 
   # ── IdentifierService : the substrate ──
-  aggregate "IdentifierService", "The runtime substrate for i611 identity. Mints UUID defaults when an aggregate has no identified_by, derives natural-key addresses by concatenating identified_by field values (with optional ULID suffix on roots and parent-prefix scoping on entities), and records id migrations via the new||old repository pattern so non-destructive identity changes are addressable by either form forever. Effectively a singleton — i611 phase 1 will move this to a singleton-flagged aggregate ; for now it follows the conventional identified_by :name shape." do
+  aggregate "IdentifierService", "The runtime substrate for i611 identity. Mints UUID defaults when an aggregate has no identified_by, derives natural-key addresses by concatenating identified_by field values (with optional ULID suffix on roots and parent-prefix scoping on entities), and autonomically rewrites IdentityStrings when an aggregate's identified_by rule changes — prepending the new form to the existing string so the persistence key carries its full migration history (new/old, or newest/middle/oldest for repeated migrations). Lookup by any historical segment resolves the current record through string matching ; no separate repository column or side-table. Effectively a singleton — i611 phase 1 will move this to a singleton-flagged aggregate ; for now it follows the conventional identified_by :name shape." do
     identified_by :name
 
     attribute :name, Name
@@ -95,13 +95,30 @@ Hecks.bluebook "IdentifierService", version: "2026.05.14.1" do
 
     value_object "IdentityString" do
       # The derived addressable form for an entity or aggregate.
-      # Examples : "Person:alice" (single-field natural key),
-      # "Booking:event-2026|alice" (multi-field, joined by `|`),
-      # "ShellTool:echo ok|01HXY9..." (natural key + ULID suffix),
-      # "Event:gala-2026/Ticket:T-001" (parent-scoped entity),
-      # "550e8400-e29b-41d4-a716-446655440000" (UUID default,
-      # bare — no prefix because the bluebook didn't declare one).
-      # The string IS the persistence key.
+      # This string IS the persistence key — and after a migration,
+      # it IS the migration record. The new identity is prepended to
+      # the old as a slash-separated chain :
+      #   "Person:alice@example.com/Person:abc-123-uuid"
+      # After a second migration the chain grows at the front :
+      #   "Person:alice-legale/Person:alice@example.com/Person:abc-123-uuid"
+      # Lookup by any segment in the chain resolves the record.
+      # There is no separate repository column or side-table for the
+      # migration — the IdentityString itself carries the full history.
+      #
+      # Separator conventions :
+      #   `/`  — migration-chain separator (new / old)
+      #   `|`  — natural-key field separator within one segment
+      #            e.g. "Booking:event-2026|alice" (multi-field)
+      #   `/`  — also the parent-entity-scoping separator ; migration
+      #            layer sits outermost when both apply
+      #
+      # Examples :
+      #   "Person:alice"                             (single natural key)
+      #   "Booking:event-2026|alice"                 (multi-field natural key)
+      #   "ShellTool:echo ok|01HXY9..."              (natural key + ULID suffix)
+      #   "Event:gala-2026/Ticket:T-001"             (parent-scoped entity)
+      #   "550e8400-e29b-41d4-a716-446655440000"     (UUID default, bare)
+      #   "Person:alice@example.com/Person:abc-uuid" (post-migration)
       attribute :value, String
     end
 
@@ -151,7 +168,7 @@ Hecks.bluebook "IdentifierService", version: "2026.05.14.1" do
     # ── Entity — migration audit trail ──
 
     entity "MigrationRecord" do
-      description "One recorded identity migration : when an aggregate's identified_by rule changed and a record's address was re-keyed. Captures the subject entity ref, the old IdentityString, the new IdentityString, the reason, and when it was recorded. The repository stores the keys as `<new>||<old>` so lookups by either succeed ; this entity is the audit-side mirror that records the same fact for inspection. Chains accumulate for repeated migrations of the same subject — the runtime walks the entity collection to reconstruct the full identity history."
+      description "Audit record for one autonomic identity rewrite. When the IdentifierService detects an identified_by rule change and rewrites an entity's IdentityString in place (prepending the new form as a slash-separated prefix), it creates one MigrationRecord capturing the subject, the old IdentityString, the new IdentityString, the reason, and the timestamp. The rewritten IdentityString itself is the live operational form — lookups by any historical segment succeed through string matching against the key, with no separate repository column. The MigrationRecord is the inspection and audit surface : it answers 'when did this rewrite happen and why' without affecting how lookup works. Chains accumulate naturally for repeated migrations of the same subject."
       attribute :subject,       EntityRef
       attribute :old_identity,  IdentityString
       attribute :new_identity,  IdentityString
@@ -201,7 +218,7 @@ Hecks.bluebook "IdentifierService", version: "2026.05.14.1" do
 
     command "RecordMigration" do
       role "System"
-      description "Record a non-destructive id migration for an aggregate or entity whose identified_by rule has changed. The repository re-keys the record as `<new>||<old>` (double-pipe migration-chain separator, distinct from the single-pipe natural-key separator). Lookups against either half succeed thereafter. The MigrationRecord entity captures the audit-side trail. Repeated migrations of the same subject accumulate — the chain grows `<newer>||<new>||<old>`. References stored in other aggregates' attributes are resolved lazily : the runtime tolerates old forms forever via the migration chain. Increments migrations_recorded ; updates last_migration_at and last_subject ; emits MigrationRecorded so listeners (e.g. the repository) can persist the new key. Reason text is required (empty string accepted but discouraged) so audit consumers know why each migration happened."
+      description "Autonomic identity rewrite dispatched by the IdentifierService itself when it observes an identified_by rule change — not by an operator or deploy hook. The service prepends the new identity form to the existing IdentityString using the slash migration-chain separator, producing a key of the form `new/old` (or `newest/middle/oldest` for repeated migrations). The rewritten IdentityString IS the persistence key ; there is no separate repository column. Lookups against any slash-delimited segment in the chain succeed through string matching, so dangling references stored in other aggregates' attributes resolve lazily forever. The MigrationRecord entity is created as the audit trail for this rewrite (subject, old form, new form, reason, timestamp). Repeated invocations for the same subject accumulate MigrationRecords ; the IdentityString chain grows at the front each time. Increments migrations_recorded ; updates last_migration_at and last_subject ; emits MigrationRecorded so listeners can react. Reason text is required (empty string accepted but discouraged)."
       attribute :subject,        EntityRef
       attribute :old_identity,   IdentityString
       attribute :new_identity,   IdentityString
