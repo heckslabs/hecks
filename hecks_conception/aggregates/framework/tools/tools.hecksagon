@@ -61,4 +61,93 @@ Hecks.hecksagon "Tools" do
   # but won't auto-dispatch until i557's framework_registry lands.
   adapter :web_tool, command: "WebTool.WebFetch",  tool: :web_fetch,  result_into: "Cascade.RecordResult"
   adapter :web_tool, command: "WebTool.WebSearch", tool: :web_search, result_into: "Cascade.RecordResult"
+
+  # ── EmailTool : :mcp adapter family (i608) ──
+  #
+  # Bind the four EmailTool commands to the Claude harness's Gmail MCP
+  # surface. The :mcp adapter family (framework/adapter_families/mcp.hecksagon)
+  # is the right family : Gmail is exposed as MCP tools, not as one of the
+  # six native :claude_tool kinds. Same shape as the SessionStart binding
+  # documented in framework/adapter_families/mcp.hecksagon — `command`
+  # names the dispatch target, `server` names the MCP server, `tool` names
+  # the MCP tool to call, `args` composes the JSON payload (placeholders
+  # like "{query}" / "{thread_id}" / "{to}" / "{subject}" / "{body}"
+  # are substituted from the dispatched command's attrs by the kernel
+  # hook before tools/call is sent).
+  #
+  # Args mapping (per i608) :
+  #   SearchThreads : query → q
+  #   GetThread     : thread_id → thread_id
+  #   CreateDraft   : to → to, subject → subject, body → body_markdown
+  #   ListDrafts    : (no args)
+  #
+  # Runtime status (2026-05-14) : these bindings declare the CONTRACT,
+  # matching the bluebook-first principle ("wiring is override, not
+  # substrate"). Two runtime gaps remain before the dispatch IS the
+  # fetch end-to-end :
+  #
+  #   1. i594 — bluebook-driven kernel-hook registration. Until that
+  #      lands, `framework_registry::seed_kernel_hooks` does not seed
+  #      `invoke_mcp_tool` and the runtime has no `resolve_mcp_adapters`
+  #      arm parallel to `resolve_claude_tool_adapters`. So a matching
+  #      :mcp binding parses into IR cleanly but the runtime does not
+  #      auto-fire it after a dispatch.
+  #
+  #   2. The :gmail server in the kernel hook's `resolve_server_spawn`
+  #      registry. Today only :storehouse is registered. Adding :gmail
+  #      needs a spawn target — and the Claude harness's Gmail MCP is
+  #      exposed through the harness itself, not as an independently-
+  #      spawnable stdio server. The right path is a harness-side
+  #      bridge (or a thin proxy that re-exports the harness's Gmail
+  #      tools as a local stdio server) ; that bridge lands in a
+  #      sibling card.
+  #
+  # In the meantime the bindings ARE the contract — the bluebook says
+  # which MCP tool a given EmailTool command flows to, with which args.
+  # When (1) and (2) close, the dispatch becomes the fetch with no
+  # further bluebook edits.
+  #
+  # NB : `args` is declared as a JSON-encoded STRING literal rather
+  # than a Ruby/Rust hash literal. Two reasons :
+  #
+  #   1. The kernel hook (rust/src/runtime/mcp_dispatcher/mod.rs)
+  #      already does `serde_json::from_str(&args_raw)` on this field —
+  #      it expects a JSON string and parses it into the JSON value
+  #      that goes verbatim into the MCP tool call's `arguments` field.
+  #   2. The Ruby + Rust hecksagon parsers render hash literals
+  #      DIFFERENTLY (Ruby's old hash syntax `{:k=>"v"}` vs Rust's
+  #      `{ k: "v" }`). Encoding as a quoted JSON string makes the
+  #      field byte-equal across targets and keeps the parity suite
+  #      green.
+  #
+  # The {attr} placeholders are substituted from the dispatched
+  # command's attrs before tools/call is sent (see mcp_dispatcher's
+  # `substitute()` ; it walks the parsed JSON value recursively).
+  adapter :mcp,
+    command: "EmailTool.SearchThreads",
+    server:  :gmail,
+    tool:    "mcp__claude_ai_Gmail__search_threads",
+    args:    "{\"q\":\"{query}\"}",
+    result_into: "Cascade.RecordResult"
+
+  adapter :mcp,
+    command: "EmailTool.GetThread",
+    server:  :gmail,
+    tool:    "mcp__claude_ai_Gmail__get_thread",
+    args:    "{\"thread_id\":\"{thread_id}\"}",
+    result_into: "Cascade.RecordResult"
+
+  adapter :mcp,
+    command: "EmailTool.CreateDraft",
+    server:  :gmail,
+    tool:    "mcp__claude_ai_Gmail__create_draft",
+    args:    "{\"to\":\"{to}\",\"subject\":\"{subject}\",\"body_markdown\":\"{body}\"}",
+    result_into: "Cascade.RecordResult"
+
+  adapter :mcp,
+    command: "EmailTool.ListDrafts",
+    server:  :gmail,
+    tool:    "mcp__claude_ai_Gmail__list_drafts",
+    args:    "{}",
+    result_into: "Cascade.RecordResult"
 end
