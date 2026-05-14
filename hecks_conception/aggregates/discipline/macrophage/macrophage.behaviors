@@ -1,0 +1,42 @@
+Hecks.behaviors "Macrophage" do
+  vision "Behavioral tests for the BidirectionalAssociation macrophage — verifies that Check, RecordViolation, Complain, and Exempt commands accept well-formed inputs."
+
+  # ── BidirectionalAssociation aggregate ──────────────────────────────
+
+  test "StartSession sets session_started_at" do
+    tests "StartSession", on: "BidirectionalAssociation"
+    input  session_started_at: "2026-05-14T00:00:00Z"
+    expect ok: "true"
+  end
+
+  test "Check records a clean run" do
+    tests "Check", on: "BidirectionalAssociation"
+    input  bluebook_path: "sandbox/pigeoncoop/pigeoncoop.bluebook"
+    expect ok: "true"
+  end
+
+  test "RecordViolation increments violations_detected" do
+    tests "RecordViolation", on: "BidirectionalAssociation"
+    input  aggregate_a: "Parent", aggregate_b: "Student",
+           bluebook_a: "sandbox/pigeoncoop/pigeoncoop.bluebook",
+           bluebook_b: "sandbox/pigeoncoop/pigeoncoop.bluebook",
+           recorded_at: "2026-05-14T00:00:00Z"
+    expect ok: "true"
+  end
+
+  test "Complain sets last_complaint" do
+    tests "Complain", on: "BidirectionalAssociation"
+    input  aggregate_a: "Parent", aggregate_b: "Student",
+           complaint: "The BidirectionalAssociation macrophage expected a unidirectional reference between Parent and Student.",
+           last_complaint_at: "2026-05-14T00:00:00Z"
+    expect ok: "true"
+  end
+
+  test "Exempt records a named exemption" do
+    tests "Exempt", on: "BidirectionalAssociation"
+    input  aggregate_a: "Parent", aggregate_b: "Student",
+           reason: "Parent and Student share identity in this domain; navigation is bidirectional by design.",
+           exempted_at: "2026-05-14T00:00:00Z"
+    expect ok: "true"
+  end
+end
