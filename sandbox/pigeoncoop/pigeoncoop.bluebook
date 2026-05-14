@@ -847,14 +847,63 @@ Hecks.bluebook "PigeonCoop" do
     end
   end
 
+  # ── AudienceResolver — AudienceKind → Identity fan-out ───────────
+  # Singleton read-model. The runtime calls IdentitiesFor before fanning
+  # out SendNotification per recipient in NotifyOnAnnouncementSent.
+  #
+  # Resolution contract (per AudienceKind.name value) :
+  #   all      → every Person.identity in the system
+  #   teachers → every identity that has a Teacher aggregate
+  #   students → every identity that has a Student aggregate
+  #   parents  → every identity that has a Parent aggregate
+  #   admins   → every identity that has an Admin aggregate
+  #
+  # The adapter (runtime or application service) executes the query and
+  # feeds the resulting identity list into the SendNotification fan-out.
+  # No identity logic lives in the policy itself.
+  aggregate "AudienceResolver" do
+    value_object "AudienceKind" do
+      attribute :name, String
+      invariant("all | teachers | students | parents | admins") do
+        %w[all teachers students parents admins].include?(name)
+      end
+    end
+
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
+
+    query "IdentitiesFor" do
+      attribute :audience_kind, AudienceKind
+      description "Resolves an AudienceKind to the list of Person identities that should receive a notification : all → every Person ; teachers / students / parents / admins → every identity that has the corresponding role aggregate. Used by the NotifyOnAnnouncementSent cascade before SendNotification is fanned out per recipient."
+    end
+
+    # Seed is a no-op command required by the aggregate contract.
+    # AudienceResolver is a pure read-model ; it holds no mutable state.
+    command "Seed" do
+    end
+  end
+
   # ── Cascade policies ─────────────────────────────────────────────
 
   policy "NotifyOnAnnouncementSent" do
     on      "AnnouncementSent"
     trigger "SendNotification"
+    # Fan-out contract :
+    #   1. For each AudienceKind in Announcement.audience call
+    #      AudienceResolver.IdentitiesFor(audience_kind:) to obtain
+    #      the resolved identity list.
+    #   2. De-duplicate across audience values (e.g. "all" + "teachers"
+    #      must not double-notify any identity).
+    #   3. Emit one SendNotification per resolved recipient identity.
+    # The resolution itself is owned by AudienceResolver.IdentitiesFor ;
+    # the policy owns the fan-out loop and de-duplication contract.
     map     source_kind: "announcement",
             source_id:   :announcement_id,
             body:        :body
+    # recipient is not mapped here — it is supplied per-identity by the
+    # fan-out loop described above.
   end
 
   policy "NotifyOnShoutoutApproved" do
