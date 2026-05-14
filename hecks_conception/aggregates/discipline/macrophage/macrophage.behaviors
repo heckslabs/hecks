@@ -1,21 +1,21 @@
 Hecks.behaviors "Macrophage" do
-  vision "Behavioral tests for the BidirectionalAssociation macrophage — verifies that Check, RecordViolation, Complain, and Exempt commands accept well-formed inputs."
+  vision "Behavioral tests for the per-rule macrophage family. Placeholder coverage for the BidirectionalAssociation (i612) and IdentityDiscipline (i611) aggregates ; expand to the other rule aggregates as their companion-block tests land. Each test exercises one command's state contract — input attributes recorded onto the aggregate, lifecycle counters incremented, ComplaintIssued / ViolationRecorded emitted."
 
-  # ── BidirectionalAssociation aggregate ──────────────────────────────
+  # ── BidirectionalAssociation aggregate (i612) ──────────────────
 
-  test "StartSession sets session_started_at" do
+  test "StartSession sets session_started_at on BidirectionalAssociation" do
     tests "StartSession", on: "BidirectionalAssociation"
     input  session_started_at: "2026-05-14T00:00:00Z"
     expect ok: "true"
   end
 
-  test "Check records a clean run" do
+  test "BidirectionalAssociation Check records a clean run" do
     tests "Check", on: "BidirectionalAssociation"
     input  bluebook_path: "sandbox/pigeoncoop/pigeoncoop.bluebook"
     expect ok: "true"
   end
 
-  test "RecordViolation increments violations_detected" do
+  test "BidirectionalAssociation RecordViolation increments violations_detected" do
     tests "RecordViolation", on: "BidirectionalAssociation"
     input  aggregate_a: "Parent", aggregate_b: "Student",
            bluebook_a: "sandbox/pigeoncoop/pigeoncoop.bluebook",
@@ -24,7 +24,7 @@ Hecks.behaviors "Macrophage" do
     expect ok: "true"
   end
 
-  test "Complain sets last_complaint" do
+  test "BidirectionalAssociation Complain sets last_complaint" do
     tests "Complain", on: "BidirectionalAssociation"
     input  aggregate_a: "Parent", aggregate_b: "Student",
            complaint: "The BidirectionalAssociation macrophage expected a unidirectional reference between Parent and Student.",
@@ -32,11 +32,91 @@ Hecks.behaviors "Macrophage" do
     expect ok: "true"
   end
 
-  test "Exempt records a named exemption" do
+  test "BidirectionalAssociation Exempt records a named exemption" do
     tests "Exempt", on: "BidirectionalAssociation"
     input  aggregate_a: "Parent", aggregate_b: "Student",
            reason: "Parent and Student share identity in this domain; navigation is bidirectional by design.",
            exempted_at: "2026-05-14T00:00:00Z"
     expect ok: "true"
+  end
+
+  # ── IdentityDiscipline aggregate (i611) ────────────────────────────
+  #
+  # Minimal companion-block coverage for the four primary commands.
+  # The Check command observes one bluebook (no violations expected
+  # in this clean fixture path) ; RecordViolation walks the entity
+  # accretion ; Complain surfaces the rule's voice ; ExemptAggregate
+  # registers a named, non-empty exemption.
+
+  test "IdentityDiscipline StartSession records session_started_at" do
+    tests "StartSession", on: "IdentityDiscipline"
+    input  session_started_at: { value: "2026-05-14T10:00:00Z" }
+    expect session_started_at: { value: "2026-05-14T10:00:00Z" }
+  end
+
+  test "IdentityDiscipline StartSession emits SessionStarted" do
+    tests "StartSession", on: "IdentityDiscipline"
+    input  session_started_at: { value: "2026-05-14T10:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  test "IdentityDiscipline Check records bluebooks_checked" do
+    tests "Check", on: "IdentityDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T10:00:00Z" }
+    input  file_path: { value: "/tmp/fake-aggregates/clean.bluebook" }
+    expect emits: ["BluebookChecked"]
+  end
+
+  test "IdentityDiscipline RecordViolation appends an IdentityViolation entity" do
+    tests "RecordViolation", on: "IdentityDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T10:00:00Z" }
+    input  file_path:      { value: "/tmp/fake-aggregates/bad.bluebook" },
+           aggregate_name: { value: "ShellTool" },
+           field_name:     { value: ":id" },
+           kind:           { value: "identified_by_id" },
+           line_number:    { value: 72 },
+           recorded_at:    { value: "2026-05-14T10:00:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "IdentityDiscipline ExemptAggregate appends an ExemptedAggregate entity" do
+    tests "ExemptAggregate", on: "IdentityDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T10:00:00Z" }
+    input  aggregate_name: { value: "Tools::EmailTool" },
+           kind:           { value: "id_attribute" },
+           reason:         { value: "phase 3 conversion queued — see i611" },
+           exempted_at:    { value: "2026-05-14T10:00:02Z" }
+    expect emits: ["AggregateExempted"]
+  end
+
+  test "IdentityDiscipline Complain sets last_complaint" do
+    tests "Complain", on: "IdentityDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T10:00:00Z" }
+    input  file_path:         { value: "/tmp/fake-aggregates/bad.bluebook" },
+           aggregate_name:    { value: "ShellTool" },
+           kind:              { value: "identified_by_id" },
+           complaint:         { value: "The IdentityDiscipline macrophage expected a natural-key identified_by — :id is forbidden (i611)." },
+           last_complaint_at: { value: "2026-05-14T10:00:03Z" }
+    expect last_complaint: { value: "The IdentityDiscipline macrophage expected a natural-key identified_by — :id is forbidden (i611)." }
+  end
+
+  test "IdentityDiscipline Complain emits ComplaintIssued" do
+    tests "Complain", on: "IdentityDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T10:00:00Z" }
+    input  file_path:         { value: "/tmp/fake-aggregates/bad.bluebook" },
+           aggregate_name:    { value: "ShellTool" },
+           kind:              { value: "identified_by_id" },
+           complaint:         { value: "The IdentityDiscipline macrophage expected ..." },
+           last_complaint_at: { value: "2026-05-14T10:00:03Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "IdentityDiscipline RevokeExemption emits ExemptionRevoked" do
+    tests "RevokeExemption", on: "IdentityDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-14T10:00:00Z" }
+    input  aggregate_name: { value: "Tools::EmailTool" },
+           kind:           { value: "id_attribute" },
+           revoked_at:     { value: "2026-05-14T10:01:00Z" }
+    expect emits: ["ExemptionRevoked"]
   end
 end
