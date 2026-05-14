@@ -1,0 +1,31 @@
+Hecks.behaviors "Cascade" do
+  vision "Behavioral tests for the Cascade aggregate — extracted from tools.behaviors 2026-05-14 (i609 phase 1). Cascade.RecordResult lands the kernel-hook's outcome onto a Cascade record ; the id matches the originating tool dispatch so the join is by id."
+
+  # ── Cascade : RecordResult ────────────────────────────────────────
+  #
+  # RecordResult lands the kernel-hook's outcome onto a Cascade record.
+  # The id matches the originating tool dispatch so the join is by id.
+
+  test "RecordResult records tool + output + exit_code + ok" do
+    tests "RecordResult", on: "Cascade"
+    input  id:        { value: "cascade-1" },
+           tool:      { value: "bash" },
+           output:    { value: "hello\n" },
+           exit_code: { value: 0 },
+           ok:        { value: true }
+    expect tool_kind: { value: "bash" },
+           output:    { value: "hello\n" },
+           exit_code: { value: 0 },
+           ok_status: { value: true }
+  end
+
+  test "RecordResult emits ResultRecorded" do
+    tests "RecordResult", on: "Cascade"
+    input  id:        { value: "cascade-2" },
+           tool:      { value: "grep" },
+           output:    { value: "match1\nmatch2\n" },
+           exit_code: { value: 0 },
+           ok:        { value: true }
+    expect emits: ["ResultRecorded"]
+  end
+end

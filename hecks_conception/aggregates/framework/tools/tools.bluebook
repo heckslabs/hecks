@@ -1,5 +1,5 @@
 Hecks.bluebook "Tools", version: "2026.05.14.1" do
-  vision "First-class tool invocations as dispatched commands, grouped by category. Each tool family is its own aggregate ; the Cascade aggregate carries the kernel-hook's RecordResult chain. Replaces the earlier flat single-Tools aggregate (versions ≤ 2026.05.12.5) — sibling commands of unrelated kinds no longer share a single record. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it ; duplication across aggregates (Id, Description, FilePath, SearchPath) is fine."
+  vision "First-class tool invocations as dispatched commands, grouped by category. Each tool family is its own aggregate ; the kernel-hook's RecordResult chain lives in the sibling Cascade bluebook (extracted 2026-05-14, i609 phase 1). Replaces the earlier flat single-Tools aggregate (versions ≤ 2026.05.12.5) — sibling commands of unrelated kinds no longer share a single record. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it ; duplication across aggregates (Id, Description, FilePath, SearchPath) is fine."
   category "framework"
 
   # ============================================================
@@ -1483,84 +1483,5 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     end
   end
 
-  # ── Cascade : RecordResult (kernel-hook outcome chain) ──
-  #
-  # Cascade is the landing pad for the :claude_tool / :web_tool kernel
-  # hook's output. When ShellTool.Bash / FileTool.Read / SearchTool.Grep
-  # / WebTool.WebFetch (etc.) finishes, the adapter fires
-  # Cascade.RecordResult carrying the same invocation id plus the
-  # captured tool kind, output, exit_code, and ok flag.
-  #
-  # The id matches the originating dispatch — a Cascade record and its
-  # originating tool record share the same id, so the join is by id
-  # across aggregates. ResultRecorded events carry the full outcome
-  # payload for downstream policies that need to react to tool
-  # outcomes (success / failure / non-zero exit / interesting output).
-  aggregate "Cascade", "Kernel-hook outcome chain. After a ShellTool / FileTool / SearchTool / WebTool dispatch runs through its adapter, the adapter chains Cascade.RecordResult carrying the captured outcome (tool, output, exit_code, ok). The Cascade record shares the originating invocation id so the join is straightforward." do
-    identified_by :id
-
-    attribute :id, Id
-    attribute :tool_kind, ToolKind
-    attribute :output, Output
-    attribute :exit_code, ExitCode
-    attribute :ok_status, Ok
-    attribute :description, Description
-
-    value_object "Id" do
-      # Invocation id — matches the id of the originating
-      # ShellTool/FileTool/SearchTool/WebTool record so the outcome
-      # is joinable against the invocation by id.
-      attribute :value, String
-    end
-
-    value_object "ToolKind" do
-      # Which tool produced the result — one of "bash" / "edit" /
-      # "read" / "write" / "grep" / "glob" / "web_fetch" /
-      # "web_search". Lowercase by convention so the value matches
-      # the kernel hook's `tool` field in the result payload.
-      attribute :value, String
-    end
-
-    value_object "Output" do
-      # Captured stdout / tool output from the underlying runtime
-      # invocation, as the kernel hook returned it. May be long ;
-      # the aggregate state records it so a follow-up dispatch can
-      # reason over the most recent result.
-      attribute :value, String
-    end
-
-    value_object "ExitCode" do
-      # Process exit code from the underlying runtime invocation,
-      # mirroring ClaudeToolResult.exit_code. 0 conventionally
-      # means success ; non-zero means failure with the specific
-      # number carrying tool-defined meaning.
-      attribute :value, Integer
-    end
-
-    value_object "Ok" do
-      # Coarse-grained success flag, mirroring ClaudeToolResult.ok.
-      attribute :value, Boolean
-    end
-
-    value_object "Description" do
-      # One-line caption. Duplicated per locked convention.
-      attribute :value, String
-    end
-
-    # ── RecordResult ──
-    command "RecordResult" do
-      role "System"
-      description "Record the outcome of a previous tool dispatch onto a Cascade record. The :claude_tool / :web_tool adapter fires this after the matching tool command runs, carrying the same invocation id plus the captured tool kind, output, exit_code, and ok flag from the kernel hook's result payload. Emits ResultRecorded so downstream policies can react to tool outcomes the same way they react to any other domain event."
-      attribute :id, Id
-      attribute :tool, ToolKind
-      attribute :output, Output
-      attribute :exit_code, ExitCode
-      attribute :ok, Ok
-      emits "ResultRecorded"
-      then_set :tool_kind,  to: :tool
-      then_set :output,     to: :output
-      then_set :exit_code,  to: :exit_code
-      then_set :ok_status,  to: :ok
-    end
-  end
+  # Cascade moved to framework/cascade/cascade.bluebook (i609 phase 1, 2026-05-14)
 end
