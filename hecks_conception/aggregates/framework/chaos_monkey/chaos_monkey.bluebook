@@ -1,0 +1,357 @@
+Hecks.bluebook "ChaosMonkey", version: "2026.05.14.1" do
+  vision "Resilience-by-disturbance for the bluebook system. ChaosMonkey deliberately corrupts runtime state — aggregate attributes, references, .heki files — and then verifies whether the discipline layer (tests + macrophages) catches the corruption. Caught corruptions confirm coverage ; uncaught corruptions become recorded Weaknesses — a backlog of blind spots the discipline layer needs to close. Dispatched on a circadian rhythm (slower than heartbeat sweeps in i616) so chaos perturbs the system daily / strategically rather than every invocation. Breaking things — even in production — is the discipline ; the bus chronicles every act so weaknesses surface loudly. Bluebook-native, dispatchable, queryable, audit-trailed."
+  category "framework"
+
+  # ============================================================
+  # CHAOS MONKEY — active resilience testing on a circadian beat
+  # ============================================================
+  #
+  # Sister to i616 (heartbeat + macrophage sweep). Where the
+  # heartbeat AUDITS the system (what is already broken ?), the
+  # circadian rhythm EXPERIMENTS on the system (what would the
+  # system fail to notice if it broke ?).
+  #
+  # The verification cycle is the load-bearing part :
+  #
+  #   1. PerturbCircadian (dispatched by circadian)
+  #   2. Pick aggregate + corruption kind
+  #   3. Record original value (revert payload)
+  #   4. CorruptAttribute / BreakReference / CorruptHeki
+  #   5. RunVerification → tests + macrophage sweep
+  #   6a. Discipline catches it →  RecordWeakness(blind_spot: false)
+  #   6b. Discipline stays silent → RecordWeakness(blind_spot: true) ⚠
+  #   7. RevertCorruption (auto-revert unless opted-out)
+  #
+  # Production is in-scope. Chris's commitment, verbatim :
+  #   "its okay that it breaks things live - it will push us to
+  #    be more resilliant. It can report on weaknesses."
+  #
+  # ── Production safety boundaries ──
+  #
+  # Some surfaces stay off-limits — corruption there would hurt
+  # rather than harden : financial transactions, customer-facing
+  # commitments, irreversible external API calls, migrations
+  # in flight. The ExemptedTarget entity names those surfaces ;
+  # ChaosMonkey reads exemptions before picking a target. The
+  # exemption list lives in aggregate state (bluebook-native,
+  # dispatchable, queryable) so adding / removing exemptions
+  # is itself an auditable act.
+  #
+  # ── First-draft scope ──
+  #
+  # This bluebook ships the CONTRACT. The corruption engine
+  # itself (the substrate that actually mutates a .heki file,
+  # patches an aggregate attribute in memory, runs the
+  # verification suite) is later runtime work. ChaosMonkey
+  # parses + validates + dispatches cleanly ; the implementation
+  # of the engine that fulfills the dispatched commands is the
+  # follow-up substrate.
+
+  aggregate "ChaosMonkey", "Singleton-shaped chaos-engineering aggregate — owns the corruption history, the weakness backlog, and the exemption list. The circadian dispatcher fires PerturbCircadian ; ChaosMonkey orchestrates the corrupt → verify → revert cycle." do
+    identified_by :name
+
+    # Singleton-shaped via identified_by :name until i611's
+    # `singleton: true` declaration lands.
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Tally facet — running counts, reset on StartSession
+    attribute :perturbations_fired,    PerturbationCount
+    attribute :weaknesses_found,       WeaknessCount
+    attribute :revertibles_pending,    PendingCount
+    attribute :failed_reverts,         FailedRevertCount
+
+    # Latest-surface — quick read for statusline / dashboards
+    attribute :last_perturbed_at,      Timestamp
+    attribute :last_corruption_kind,   CorruptionKind
+    attribute :last_target,            TargetRef
+    attribute :last_outcome,           VerificationOutcome
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp. Used wherever an event has a when
+      # (session_started_at, perturbed_at, reverted_at).
+      attribute :value, String
+    end
+
+    value_object "TargetRef" do
+      # A reference to the aggregate ChaosMonkey is corrupting.
+      # Shape : "Domain::Aggregate#id" — the FQN ChaosMonkey can
+      # round-trip back to a dispatch target. (E.g. for revert.)
+      attribute :value, String
+    end
+
+    value_object "CorruptionKind" do
+      # The KIND of corruption applied. Free-form String at the
+      # value-object level ; valid values today :
+      #   attribute       — CorruptAttribute fired
+      #   reference       — BreakReference fired
+      #   heki            — CorruptHeki fired
+      # New kinds extend the vocabulary without schema churn.
+      attribute :value, String
+    end
+
+    value_object "AttributeName" do
+      # The aggregate-attribute being corrupted (CorruptAttribute).
+      attribute :value, String
+    end
+
+    value_object "ReferenceName" do
+      # The reference field being broken (BreakReference) — e.g.
+      # "customer_id" on Order.
+      attribute :value, String
+    end
+
+    value_object "OriginalValue" do
+      # The pre-corruption value (revert payload). Stringified to
+      # keep the VO simple ; the engine deserializes on revert.
+      attribute :value, String
+    end
+
+    value_object "CorruptedValue" do
+      # The post-corruption value — what ChaosMonkey wrote in.
+      attribute :value, String
+    end
+
+    value_object "HekiPath" do
+      # Absolute path to a .heki file (CorruptHeki target).
+      attribute :value, String
+    end
+
+    value_object "HekiPatch" do
+      # The mutation applied to the .heki — typically a JSON
+      # patch or a raw byte-string replacement. Engine reads
+      # this back to apply OR revert.
+      attribute :value, String
+    end
+
+    value_object "VerificationOutcome" do
+      # Three values :
+      #   caught         — discipline detected the corruption
+      #   uncaught       — discipline stayed silent (BLIND SPOT)
+      #   pending        — verification hasn't run yet
+      attribute :value, String
+    end
+
+    value_object "RevertPolicy" do
+      # Three values :
+      #   auto           — auto-revert after verification (default)
+      #   manual         — wait for operator RevertCorruption dispatch
+      #   leave          — never revert (deliberate persistent break)
+      attribute :value, String
+    end
+
+    value_object "RevertStatus" do
+      # Three values :
+      #   pending        — not yet reverted
+      #   reverted       — successfully restored
+      #   revert_failed  — revert attempt failed (loud event)
+      attribute :value, String
+    end
+
+    value_object "ExemptionReason" do
+      # The free-text reason a target is exempt — same shape as
+      # [antibody-exempt: file — reason] markers. The marker IS
+      # the audit trail.
+      attribute :value, String
+    end
+
+    value_object "WeaknessSummary" do
+      # A one-line description of the blind spot — what corruption
+      # the system didn't catch. Surfaced loudly in the macrophage
+      # complaint stream and in the dashboard.
+      attribute :value, String
+    end
+
+    value_object "PerturbationCount" do
+      attribute :value, Integer
+    end
+
+    value_object "WeaknessCount" do
+      attribute :value, Integer
+    end
+
+    value_object "PendingCount" do
+      attribute :value, Integer
+    end
+
+    value_object "FailedRevertCount" do
+      attribute :value, Integer
+    end
+
+    # ── Entities — child records living inside ChaosMonkey ──
+
+    entity "Corruption" do
+      description "One act of corruption — the full audit row. Carries the target, kind, original + corrupted values, verification outcome, and revert status. Each PerturbCircadian creates one Corruption row ; the row stays even after revert as the historical trace."
+      attribute :perturbed_at,        Timestamp
+      attribute :target,              TargetRef
+      attribute :kind,                CorruptionKind
+      attribute :original_value,      OriginalValue
+      attribute :corrupted_value,     CorruptedValue
+      attribute :verification_outcome, VerificationOutcome
+      attribute :revert_policy,       RevertPolicy
+      attribute :revert_status,       RevertStatus
+    end
+
+    entity "Weakness" do
+      description "One blind spot — a corruption the discipline layer failed to catch. This is the backlog : every Weakness row is a gap in test + macrophage coverage that needs closing. Recorded loud (the macrophage hook surfaces them in stderr) so they don't drift into a quiet log."
+      attribute :discovered_at, Timestamp
+      attribute :target,        TargetRef
+      attribute :kind,          CorruptionKind
+      attribute :summary,       WeaknessSummary
+    end
+
+    entity "ExemptedTarget" do
+      description "A target ChaosMonkey will NOT corrupt. Each exemption carries a reason — same audit-trail shape as [antibody-exempt: file — reason] markers. Adding / removing exemptions goes through the bus (ExemptTarget command) so the exemption history is itself queryable."
+      attribute :target,    TargetRef
+      attribute :reason,    ExemptionReason
+      attribute :added_at,  Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset counters at session boot. ChaosMonkey keeps a per-session tally so the dashboard reflects the day's chaos, not lifetime totals. Entity collections (Corruption / Weakness / ExemptedTarget) are NOT reset — they're audit trail and backlog."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "ChaosMonkeySessionStarted"
+    end
+
+    # ── Circadian entry point ──
+
+    command "PerturbCircadian" do
+      role "Circadian"
+      description "The circadian dispatcher's entry into ChaosMonkey. Fires once per circadian tick. ChaosMonkey picks an aggregate + corruption kind (avoiding ExemptedTargets), records the original value, applies the corruption, runs verification, records the outcome, and auto-reverts unless revert_policy says otherwise. The whole cycle flows through the bus ; this command is the single circadian-side entry point."
+      attribute :perturbed_at, Timestamp
+      emits "CircadianPerturbed"
+      then_set :last_perturbed_at, to: :perturbed_at
+    end
+
+    # ── Corruption commands (three kinds) ──
+
+    command "CorruptAttribute" do
+      role "Engine"
+      description "Mutate an aggregate's attribute to a value its value-object should reject. Tests whether the VO refuses construction OR whether downstream behaviors / queries surface the corruption. Carries the original value so RevertCorruption can restore it."
+      attribute :perturbed_at,    Timestamp
+      attribute :target,          TargetRef
+      attribute :attribute_name,  AttributeName
+      attribute :original_value,  OriginalValue
+      attribute :corrupted_value, CorruptedValue
+      attribute :revert_policy,   RevertPolicy
+      emits "AttributeCorrupted"
+      then_set :last_corruption_kind, to: "attribute"
+      then_set :last_target,          to: :target
+    end
+
+    command "BreakReference" do
+      role "Engine"
+      description "Change an aggregate's reference_to field to point at a non-existent id. Tests whether queries that resolve the reference catch the dangling ref, and whether any macrophage flags ref-integrity violations."
+      attribute :perturbed_at,    Timestamp
+      attribute :target,          TargetRef
+      attribute :reference_name,  ReferenceName
+      attribute :original_value,  OriginalValue
+      attribute :corrupted_value, CorruptedValue
+      attribute :revert_policy,   RevertPolicy
+      emits "ReferenceBroken"
+      then_set :last_corruption_kind, to: "reference"
+      then_set :last_target,          to: :target
+    end
+
+    command "CorruptHeki" do
+      role "Engine"
+      description "Mutate a .heki file directly — bypass the bus, write malformed JSON / wrong schema / garbage. Tests the LOAD path : does the runtime fail loudly on next boot, or silently swallow the bad row ? Deepest layer of disturbance — the system has to defend itself from its own persistence."
+      attribute :perturbed_at, Timestamp
+      attribute :target,       TargetRef
+      attribute :heki_path,    HekiPath
+      attribute :heki_patch,   HekiPatch
+      attribute :revert_policy, RevertPolicy
+      emits "HekiCorrupted"
+      then_set :last_corruption_kind, to: "heki"
+      then_set :last_target,          to: :target
+    end
+
+    # ── Verification + weakness recording ──
+
+    command "RunVerification" do
+      role "Engine"
+      description "Run the discipline layer against the freshly-corrupted system. Today this is a placeholder — the engine will dispatch Macrophage::Macrophage.RunSweep (i616) and a yet-to-be-specified Verification.RunSuite command, gather the outcomes, and decide whether the corruption was caught. Records the outcome on the latest Corruption row."
+      attribute :verified_at, Timestamp
+      attribute :target,      TargetRef
+      attribute :outcome,     VerificationOutcome
+      emits "VerificationRan"
+      then_set :last_outcome, to: :outcome
+    end
+
+    command "RecordWeakness" do
+      role "Engine"
+      description "Record an uncaught corruption — a blind spot in the discipline layer. Carries a free-text summary of the gap. ChaosMonkey emits a loud event so the macrophage hook surfaces the weakness in the stderr complaint stream rather than burying it in a quiet log."
+      attribute :discovered_at, Timestamp
+      attribute :target,        TargetRef
+      attribute :kind,          CorruptionKind
+      attribute :summary,       WeaknessSummary
+      emits "WeaknessRecorded"
+    end
+
+    # ── Revert ──
+
+    command "RevertCorruption" do
+      role "Engine"
+      description "Restore the original value from the Corruption row. Default behavior after RunVerification when revert_policy is 'auto'. May be dispatched manually when revert_policy is 'manual' (e.g. when Chris wants to inspect the broken state before restoring). If the revert itself fails (target deleted, heki write fails), emits RevertFailed — a loud event surfaced as a real problem."
+      attribute :reverted_at, Timestamp
+      attribute :target,      TargetRef
+      emits "CorruptionReverted"
+    end
+
+    # ── Exemption management ──
+
+    command "ExemptTarget" do
+      role "Operator"
+      description "Add a target to the exemption list. ChaosMonkey will never pick this target for corruption. Required reason — same audit-trail discipline as [antibody-exempt: file — reason] markers. Examples : 'Stripe::Charge — irreversible external side effects', 'BinBuddy::PickupRoute — customer commitment in flight'."
+      attribute :target,    TargetRef
+      attribute :reason,    ExemptionReason
+      attribute :added_at,  Timestamp
+      emits "TargetExempted"
+    end
+
+    command "RemoveExemption" do
+      role "Operator"
+      description "Remove a target from the exemption list — chaos resumes on this target. Removal goes through the bus so 'when did this become testable again ?' has an answer in the audit trail."
+      attribute :target,     TargetRef
+      attribute :removed_at, Timestamp
+      emits "ExemptionRemoved"
+    end
+  end
+
+  # ── Reactor wiring (sketch — not yet declared) ──
+  #
+  # Future policies that should attach to the chaos cycle :
+  #
+  #   policy "RunVerificationAfterCorruption" do
+  #     on "AttributeCorrupted"   # also "ReferenceBroken", "HekiCorrupted"
+  #     trigger "RunVerification"
+  #   end
+  #
+  #   policy "RecordWeaknessOnUncaught" do
+  #     on "VerificationRan"      # filter: outcome == "uncaught"
+  #     trigger "RecordWeakness"
+  #   end
+  #
+  #   policy "RevertAfterVerification" do
+  #     on "VerificationRan"      # filter: revert_policy == "auto"
+  #     trigger "RevertCorruption"
+  #   end
+  #
+  # These policies need filter syntax the runtime doesn't yet
+  # surface (filter on an attribute of the event payload).
+  # Tracked as a follow-up — i617 ships the contract, not the
+  # reactor wiring.
+end

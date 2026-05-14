@@ -1,0 +1,92 @@
+Hecks.behaviors "ChaosMonkey" do
+  vision "Behavioral tests for the ChaosMonkey aggregate — the corrupt → verify → revert cycle, weakness recording, exemption management. First-draft stubs ; the corruption engine (the substrate that actually mutates state) is later work."
+
+  # ── Session lifecycle ──
+
+  test "StartSession sets session_started_at" do
+    tests "StartSession", on: "ChaosMonkey"
+    input  session_started_at: "sample"
+    expect ok: "true"
+  end
+
+  # ── Circadian entry point ──
+
+  test "PerturbCircadian records last_perturbed_at" do
+    tests "PerturbCircadian", on: "ChaosMonkey"
+    input  perturbed_at: "sample"
+    expect last_perturbed_at: "sample"
+  end
+
+  # ── Corruption commands ──
+
+  test "CorruptAttribute records the latest target + kind" do
+    tests "CorruptAttribute", on: "ChaosMonkey"
+    input  perturbed_at:    "sample",
+           target:          "sample",
+           attribute_name:  "sample",
+           original_value:  "sample",
+           corrupted_value: "sample",
+           revert_policy:   "auto"
+    expect last_target: "sample", last_corruption_kind: "attribute"
+  end
+
+  test "BreakReference records the latest target + kind" do
+    tests "BreakReference", on: "ChaosMonkey"
+    input  perturbed_at:    "sample",
+           target:          "sample",
+           reference_name:  "sample",
+           original_value:  "sample",
+           corrupted_value: "sample",
+           revert_policy:   "auto"
+    expect last_target: "sample", last_corruption_kind: "reference"
+  end
+
+  test "CorruptHeki records the latest target + kind" do
+    tests "CorruptHeki", on: "ChaosMonkey"
+    input  perturbed_at:  "sample",
+           target:        "sample",
+           heki_path:     "sample",
+           heki_patch:    "sample",
+           revert_policy: "auto"
+    expect last_target: "sample", last_corruption_kind: "heki"
+  end
+
+  # ── Verification + weakness ──
+
+  test "RunVerification records the outcome" do
+    tests "RunVerification", on: "ChaosMonkey"
+    input  verified_at: "sample", target: "sample", outcome: "caught"
+    expect last_outcome: "caught"
+  end
+
+  test "RecordWeakness runs" do
+    tests "RecordWeakness", on: "ChaosMonkey"
+    input  discovered_at: "sample",
+           target:        "sample",
+           kind:          "attribute",
+           summary:       "sample"
+    expect ok: "true"
+  end
+
+  # ── Revert ──
+
+  test "RevertCorruption runs" do
+    tests "RevertCorruption", on: "ChaosMonkey"
+    input  reverted_at: "sample", target: "sample"
+    expect ok: "true"
+  end
+
+  # ── Exemption management ──
+
+  test "ExemptTarget runs" do
+    tests "ExemptTarget", on: "ChaosMonkey"
+    input  target: "sample", reason: "sample", added_at: "sample"
+    expect ok: "true"
+  end
+
+  test "RemoveExemption runs" do
+    tests "RemoveExemption", on: "ChaosMonkey"
+    input  target: "sample", removed_at: "sample"
+    expect ok: "true"
+  end
+end
