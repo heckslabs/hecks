@@ -1,0 +1,182 @@
+Hecks.behaviors "IdentifierService" do
+  vision "Behavioral tests for the IdentifierService bluebook — the runtime substrate for i611 identity. First-draft placeholder coverage : one test per command on each aggregate (IdentifierService + IdentityPetition) so the companion-block discipline is satisfied. As the substrate fleshes out (real UUID minting, real natural-key derivation, real migration storage), these tests grow into operational coverage ; for now they assert the command-records-attribute shape only."
+
+  # ── IdentifierService : substrate operations ─────────────────────
+  #
+  # StartSession resets per-session counters at runtime boot. The
+  # MigrationRecord entity collection is NOT reset — that's audit
+  # trail spanning sessions.
+
+  test "StartSession records session_started_at" do
+    tests "StartSession", on: "IdentifierService"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-14T00:00:00Z" }
+    expect session_started_at: { value: "2026-05-14T00:00:00Z" }
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "IdentifierService"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-14T00:00:01Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  # ── MintDefault : UUID fallback when identified_by is absent ─────
+  #
+  # Dispatched whenever the runtime persists a record whose bluebook
+  # declared no identified_by. The minted UUID is the persistence key.
+
+  test "MintDefault records minted_at + subject" do
+    tests "MintDefault", on: "IdentifierService"
+    input  name:       { value: "default" },
+           subject:    { value: "Sandbox::Note" },
+           minted_at:  { value: "2026-05-14T00:00:02Z" },
+           uuid:       { value: "550e8400-e29b-41d4-a716-446655440000" }
+    expect last_minted_at: { value: "2026-05-14T00:00:02Z" },
+           last_subject:   { value: "Sandbox::Note" }
+  end
+
+  test "MintDefault emits UuidMinted" do
+    tests "MintDefault", on: "IdentifierService"
+    input  name:       { value: "default" },
+           subject:    { value: "Sandbox::Note" },
+           minted_at:  { value: "2026-05-14T00:00:03Z" },
+           uuid:       { value: "6ba7b810-9dad-11d1-80b4-00c04fd430c8" }
+    expect emits: ["UuidMinted"]
+  end
+
+  # ── DeriveNaturalKey : the concatenation operation ───────────────
+  #
+  # Asks IdentifierService for an aggregate-or-entity's addressable
+  # form at persist time and at lookup time. The runtime hands in
+  # the IR's identified_by fields ; the service returns the derived
+  # IdentityString.
+
+  test "DeriveNaturalKey records derived_at + subject" do
+    tests "DeriveNaturalKey", on: "IdentifierService"
+    input  name:                { value: "default" },
+           subject:             { value: "PigeonCoop::Person" },
+           natural_key_fields:  { value: "identity" },
+           suffix_kind:         { value: "" },
+           derived_identity:    { value: "Person:alice" },
+           derived_at:          { value: "2026-05-14T00:00:04Z" }
+    expect last_derived_at: { value: "2026-05-14T00:00:04Z" },
+           last_subject:    { value: "PigeonCoop::Person" }
+  end
+
+  test "DeriveNaturalKey emits NaturalKeyDerived" do
+    tests "DeriveNaturalKey", on: "IdentifierService"
+    input  name:                { value: "default" },
+           subject:             { value: "Tools::ShellTool" },
+           natural_key_fields:  { value: "shell_command" },
+           suffix_kind:         { value: "ulid" },
+           derived_identity:    { value: "ShellTool:echo ok|01HXY9ABC" },
+           derived_at:          { value: "2026-05-14T00:00:05Z" }
+    expect emits: ["NaturalKeyDerived"]
+  end
+
+  # ── RecordMigration : non-destructive identity change ────────────
+  #
+  # The repository re-keys as `<new>||<old>` ; this command records
+  # the audit-side fact. Lookups against either half succeed forever.
+
+  test "RecordMigration records migration_at + subject" do
+    tests "RecordMigration", on: "IdentifierService"
+    input  name:          { value: "default" },
+           subject:       { value: "PigeonCoop::Person" },
+           old_identity:  { value: "Person:abc-123-uuid" },
+           new_identity:  { value: "Person:alice@example.com" },
+           reason:        { value: "natural key replaces UUID default" },
+           recorded_at:   { value: "2026-05-14T00:00:06Z" }
+    expect last_migration_at: { value: "2026-05-14T00:00:06Z" },
+           last_subject:      { value: "PigeonCoop::Person" }
+  end
+
+  test "RecordMigration emits MigrationRecorded" do
+    tests "RecordMigration", on: "IdentifierService"
+    input  name:          { value: "default" },
+           subject:       { value: "Tools::EmailTool" },
+           old_identity:  { value: "EmailTool:opaque-uuid" },
+           new_identity:  { value: "EmailTool:thread-abc|01HXY9ABC" },
+           reason:        { value: "i611 phase 3 conversion" },
+           recorded_at:   { value: "2026-05-14T00:00:07Z" }
+    expect emits: ["MigrationRecorded"]
+  end
+
+  # ── IdentityPetition : Shape α state machine ─────────────────────
+  #
+  # Submit → Review → Apply OR Reject. The state attribute is not
+  # mutated by the placeholder tests (the state-transition logic
+  # ships with the implementation) — these only assert that each
+  # command records its inputs and emits its event.
+
+  test "Submit records subject + proposed_rule + reason" do
+    tests "Submit", on: "IdentityPetition"
+    input  name:           { value: "petition-1" },
+           subject:        { value: "PigeonCoop::Parent" },
+           proposed_rule:  { value: "identified_by :identity" },
+           reason:         { value: "share Identity space with Person" },
+           submitted_at:   { value: "2026-05-14T00:00:08Z" }
+    expect subject:        { value: "PigeonCoop::Parent" },
+           proposed_rule:  { value: "identified_by :identity" },
+           reason:         { value: "share Identity space with Person" }
+  end
+
+  test "Submit emits PetitionSubmitted" do
+    tests "Submit", on: "IdentityPetition"
+    input  name:           { value: "petition-2" },
+           subject:        { value: "Tools::ShellTool" },
+           proposed_rule:  { value: "identified_by :shell_command, suffix: :ulid" },
+           reason:         { value: "i611 phase 3 conversion" },
+           submitted_at:   { value: "2026-05-14T00:00:09Z" }
+    expect emits: ["PetitionSubmitted"]
+  end
+
+  test "Review records reviewed_at + reason" do
+    tests "Review", on: "IdentityPetition"
+    input  name:          { value: "petition-3" },
+           reason:        { value: "looks reasonable ; queued for apply" },
+           reviewed_at:   { value: "2026-05-14T00:00:10Z" }
+    expect reason:        { value: "looks reasonable ; queued for apply" },
+           reviewed_at:   { value: "2026-05-14T00:00:10Z" }
+  end
+
+  test "Review emits PetitionReviewed" do
+    tests "Review", on: "IdentityPetition"
+    input  name:          { value: "petition-4" },
+           reason:        { value: "needs more thought" },
+           reviewed_at:   { value: "2026-05-14T00:00:11Z" }
+    expect emits: ["PetitionReviewed"]
+  end
+
+  test "Apply records applied_at" do
+    tests "Apply", on: "IdentityPetition"
+    input  name:         { value: "petition-5" },
+           applied_at:   { value: "2026-05-14T00:00:12Z" }
+    expect applied_at:   { value: "2026-05-14T00:00:12Z" }
+  end
+
+  test "Apply emits PetitionApplied" do
+    tests "Apply", on: "IdentityPetition"
+    input  name:         { value: "petition-6" },
+           applied_at:   { value: "2026-05-14T00:00:13Z" }
+    expect emits: ["PetitionApplied"]
+  end
+
+  test "Reject records rejected_at + reason" do
+    tests "Reject", on: "IdentityPetition"
+    input  name:          { value: "petition-7" },
+           reason:        { value: "no domain need yet ; revisit later" },
+           rejected_at:   { value: "2026-05-14T00:00:14Z" }
+    expect reason:        { value: "no domain need yet ; revisit later" },
+           rejected_at:   { value: "2026-05-14T00:00:14Z" }
+  end
+
+  test "Reject emits PetitionRejected" do
+    tests "Reject", on: "IdentityPetition"
+    input  name:          { value: "petition-8" },
+           reason:        { value: "conflicts with i613 bus rules" },
+           rejected_at:   { value: "2026-05-14T00:00:15Z" }
+    expect emits: ["PetitionRejected"]
+  end
+end

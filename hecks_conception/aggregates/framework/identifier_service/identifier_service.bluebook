@@ -1,0 +1,350 @@
+Hecks.bluebook "IdentifierService", version: "2026.05.14.1" do
+  vision "Runtime substrate for i611 identity. Owns four operations : (1) UUID-default minting when an aggregate has no identified_by ; (2) natural-key derivation by concatenating identified_by field values, with optional ULID suffix on aggregate roots and parent-prefix scoping on nested entities ; (3) autonomic identity migration — when an identified_by rule changes the IdentifierService rewrites each affected IdentityString in place, prepending the new form with a slash separator so the key itself carries the full history (new/old/oldest). Lookup by any segment resolves the record ; no repository column. (4) an identity-petition workflow giving identity-rule changes a submit / review / apply state machine plus an audit trail. Natural keys via identified_by remain addable at any time — UUID default is the start, not the end. The bluebook is the contract for identity ; IdentifierService is where the contract becomes operational. i611 names the rules (and IdentityDiscipline macrophage polices them) ; i614 is the bluebook that implements them at runtime."
+  category "framework"
+
+  # ============================================================
+  # IDENTIFIER SERVICE — the runtime side of i611 identity
+  # ============================================================
+  #
+  # First draft, 2026-05-14. Stub shape ; the real implementation
+  # iterates from here. Companion to i611's discipline.
+  #
+  # ── The two aggregates ──
+  #
+  #   * IdentifierService — the substrate. Mints UUID defaults,
+  #     derives natural keys, records id migrations. Effectively a
+  #     singleton — there is one identity service per Hecks runtime.
+  #     For now it follows the conventional identified_by :name shape ;
+  #     under i611 phase 1 (when the singleton: true flag lands in the
+  #     parser) it will convert to a singleton-flagged aggregate with
+  #     no identified_by.
+  #
+  #   * IdentityPetition — petitions are their own aggregate so the
+  #     state machine (submitted → under_review → applied OR rejected)
+  #     has its own identity, audit fields, and entity collections.
+  #     Each petition is one record in the IdentityPetition aggregate.
+  #     This corresponds to Shape α from i614 — petition as bluebook
+  #     command. Chris's call : if Shape β or γ wins, this aggregate
+  #     collapses into IdentifierService and the state machine moves
+  #     out of band.
+  #
+  # ── Why singleton-shaped for IdentifierService ──
+  #
+  # There is one runtime ; there is one identity service. State on
+  # the service is the identity-operation tally (UUIDs minted,
+  # natural keys derived, migrations recorded) for observability
+  # plus the latest operations for fast statusline reads. Per-record
+  # detail lives in the entity collections (MigrationRecord) or
+  # flows through the event stream (UuidMinted, NaturalKeyDerived).
+  #
+  # ── What goes through the service vs. what doesn't ──
+  #
+  # Goes through : address derivation for any aggregate or entity
+  # at persist time ; UUID minting when identified_by is absent ;
+  # any id migration when an aggregate's identified_by rule changes.
+  #
+  # Does NOT go through : value-object identity (computed inline by
+  # the runtime since VOs are pure value equality — no minting, no
+  # migration, no persistence-key concern). The service is for
+  # entities and roots.
+
+  # ── IdentifierService : the substrate ──
+  aggregate "IdentifierService", "The runtime substrate for i611 identity. Mints UUID defaults when an aggregate has no identified_by, derives natural-key addresses by concatenating identified_by field values (with optional ULID suffix on roots and parent-prefix scoping on entities), and autonomically rewrites IdentityStrings when an aggregate's identified_by rule changes — prepending the new form to the existing string so the persistence key carries its full migration history (new/old, or newest/middle/oldest for repeated migrations). Lookup by any historical segment resolves the current record through string matching ; no separate repository column or side-table. Effectively a singleton — i611 phase 1 will move this to a singleton-flagged aggregate ; for now it follows the conventional identified_by :name shape." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Operation tallies — visible at a glance for observability.
+    attribute :uuids_minted,         MintCount
+    attribute :natural_keys_derived, DerivationCount
+    attribute :migrations_recorded,  MigrationCount
+
+    # Last-operation surface for the statusline / quick reads.
+    attribute :last_minted_at,    Timestamp
+    attribute :last_derived_at,   Timestamp
+    attribute :last_migration_at, Timestamp
+    attribute :last_subject,      EntityRef
+
+    # ── Value-objects : the language of identity operations ──
+
+    value_object "Name" do
+      # Singleton key — there is exactly one IdentifierService per
+      # Hecks runtime. Under i611 phase 1 (`singleton: true`),
+      # this VO disappears.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_*_at fields, and per-operation recorded_at attributes.
+      attribute :value, String
+    end
+
+    value_object "EntityRef" do
+      # FQN of the aggregate or entity an operation pertains to.
+      # Form : "Domain::Aggregate" for roots or
+      # "Domain::Aggregate::Entity" for nested entities. The
+      # service quotes this verbatim — does not validate that the
+      # ref points at a live IR node, since migrations may carry
+      # references to ones that have been renamed.
+      attribute :value, String
+    end
+
+    value_object "IdentityString" do
+      # The derived addressable form for an entity or aggregate.
+      # This string IS the persistence key — and after a migration,
+      # it IS the migration record. The new identity is prepended to
+      # the old as a slash-separated chain :
+      #   "Person:alice@example.com/Person:abc-123-uuid"
+      # After a second migration the chain grows at the front :
+      #   "Person:alice-legale/Person:alice@example.com/Person:abc-123-uuid"
+      # Lookup by any segment in the chain resolves the record.
+      # There is no separate repository column or side-table for the
+      # migration — the IdentityString itself carries the full history.
+      #
+      # Separator conventions :
+      #   `/`  — migration-chain separator (new / old)
+      #   `|`  — natural-key field separator within one segment
+      #            e.g. "Booking:event-2026|alice" (multi-field)
+      #   `/`  — also the parent-entity-scoping separator ; migration
+      #            layer sits outermost when both apply
+      #
+      # Examples :
+      #   "Person:alice"                             (single natural key)
+      #   "Booking:event-2026|alice"                 (multi-field natural key)
+      #   "ShellTool:echo ok|01HXY9..."              (natural key + ULID suffix)
+      #   "Event:gala-2026/Ticket:T-001"             (parent-scoped entity)
+      #   "550e8400-e29b-41d4-a716-446655440000"     (UUID default, bare)
+      #   "Person:alice@example.com/Person:abc-uuid" (post-migration)
+      attribute :value, String
+    end
+
+    value_object "NaturalKeyFields" do
+      # The comma-separated list of field names from an aggregate's
+      # identified_by line, e.g. "shell_command" or
+      # "event_title,registrant". Quoted verbatim so the derivation
+      # event log preserves what the bluebook declared at the time
+      # of the operation, even if the bluebook later changes.
+      attribute :value, String
+    end
+
+    value_object "SuffixKind" do
+      # The suffix family declared on an aggregate root, e.g.
+      # "ulid" for `identified_by :foo, suffix: :ulid`. Empty string
+      # when no suffix is requested. Future kinds : "timestamp",
+      # "dispatch_seq", "content_hash" — for now only "ulid" lands.
+      attribute :value, String
+    end
+
+    value_object "MintCount" do
+      # Count of UUIDs minted by the service in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "DerivationCount" do
+      # Count of natural-key derivations performed by the service
+      # in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "MigrationCount" do
+      # Count of id migrations recorded by the service in the
+      # current session.
+      attribute :value, Integer
+    end
+
+    value_object "ReasonText" do
+      # Human-readable explanation attached to a migration or
+      # petition — e.g. "phase 3 conversion : surrogate id retired".
+      # Empty string is permitted for routine UUID mints but a
+      # migration without a reason is suspicious and should
+      # surface in the audit trail.
+      attribute :value, String
+    end
+
+    # ── Entity — migration audit trail ──
+
+    entity "MigrationRecord" do
+      description "Audit record for one autonomic identity rewrite. When the IdentifierService detects an identified_by rule change and rewrites an entity's IdentityString in place (prepending the new form as a slash-separated prefix), it creates one MigrationRecord capturing the subject, the old IdentityString, the new IdentityString, the reason, and the timestamp. The rewritten IdentityString itself is the live operational form — lookups by any historical segment succeed through string matching against the key, with no separate repository column. The MigrationRecord is the inspection and audit surface : it answers 'when did this rewrite happen and why' without affecting how lookup works. Chains accumulate naturally for repeated migrations of the same subject."
+      attribute :subject,       EntityRef
+      attribute :old_identity,  IdentityString
+      attribute :new_identity,  IdentityString
+      attribute :reason,        ReasonText
+      attribute :recorded_at,   Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at runtime boot. The IdentifierService keeps per-session tallies so observability surfaces (statusline, dashboards) reflect what the current session has done, not lifetime totals. The MigrationRecord entity collection is NOT reset — it's an audit trail that spans sessions."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Primary operation 1 : UUID default mint ──
+
+    command "MintDefault" do
+      role "System"
+      description "Mint a UUID for an aggregate or entity whose bluebook declares no identified_by line. The runtime dispatches this whenever it needs an address for a record under the UUID-default fallback Chris confirmed 2026-05-14 ('I think you can use uuids as the default then. If we don't supply identified_by'). The minted UUID becomes the record's persistence key. Increments uuids_minted ; updates last_minted_at and last_subject ; emits UuidMinted so downstream listeners can react. The bluebook does NOT declare a uuid attribute — the runtime mints transparently at first-persist time."
+      attribute :subject,    EntityRef
+      attribute :minted_at,  Timestamp
+      attribute :uuid,       IdentityString
+      emits "UuidMinted"
+      then_set :last_minted_at, to: :minted_at
+      then_set :last_subject,   to: :subject
+    end
+
+    # ── Primary operation 2 : natural-key derivation ──
+
+    command "DeriveNaturalKey" do
+      role "System"
+      description "Derive the addressable IdentityString for an aggregate or entity whose bluebook declares identified_by. Concatenates the field values named in identified_by with the natural-key separator (`|`) ; when suffix: :ulid is declared, appends a ULID disambiguator after a `|` ; when the subject is a nested entity, prepends the parent's derived form joined by `/`. The runtime asks IdentifierService for a record's address at persist time and at lookup time. Increments natural_keys_derived ; updates last_derived_at and last_subject ; emits NaturalKeyDerived so listeners (e.g. the persistence adapter) can observe the derivation."
+      attribute :subject,           EntityRef
+      attribute :natural_key_fields, NaturalKeyFields
+      attribute :suffix_kind,       SuffixKind
+      attribute :derived_identity,  IdentityString
+      attribute :derived_at,        Timestamp
+      emits "NaturalKeyDerived"
+      then_set :last_derived_at, to: :derived_at
+      then_set :last_subject,    to: :subject
+    end
+
+    # ── Primary operation 3 : id migration ──
+
+    command "RecordMigration" do
+      role "System"
+      description "Autonomic identity rewrite dispatched by the IdentifierService itself when it observes an identified_by rule change — not by an operator or deploy hook. The service prepends the new identity form to the existing IdentityString using the slash migration-chain separator, producing a key of the form `new/old` (or `newest/middle/oldest` for repeated migrations). The rewritten IdentityString IS the persistence key ; there is no separate repository column. Lookups against any slash-delimited segment in the chain succeed through string matching, so dangling references stored in other aggregates' attributes resolve lazily forever. The MigrationRecord entity is created as the audit trail for this rewrite (subject, old form, new form, reason, timestamp). Repeated invocations for the same subject accumulate MigrationRecords ; the IdentityString chain grows at the front each time. Increments migrations_recorded ; updates last_migration_at and last_subject ; emits MigrationRecorded so listeners can react. Reason text is required (empty string accepted but discouraged)."
+      attribute :subject,        EntityRef
+      attribute :old_identity,   IdentityString
+      attribute :new_identity,   IdentityString
+      attribute :reason,         ReasonText
+      attribute :recorded_at,    Timestamp
+      emits "MigrationRecorded"
+      then_set :last_migration_at, to: :recorded_at
+      then_set :last_subject,      to: :subject
+    end
+  end
+
+  # ── IdentityPetition : Shape α — petition as bluebook command ──
+  aggregate "IdentityPetition", "Formal request to change an aggregate's identity rules. Each petition is one record carrying the subject (which aggregate / entity), the proposed new rule (the identified_by line, suffix kind, singleton flag), the reason, and a state machine (submitted → under_review → applied OR rejected) with audit fields per transition. Implements Shape α from i614 — the bluebook-explicit governance route. If Chris picks Shape β or γ later, this aggregate collapses ; for now it makes the workflow first-class on the bus." do
+    identified_by :name
+
+    attribute :name, Name
+
+    attribute :subject,       EntityRef
+    attribute :proposed_rule, ProposedRule
+    attribute :reason,        ReasonText
+    attribute :state,         PetitionState
+
+    # Audit timestamps — one per transition the state machine
+    # supports. Empty when the transition hasn't happened yet.
+    attribute :submitted_at, Timestamp
+    attribute :reviewed_at,  Timestamp
+    attribute :applied_at,   Timestamp
+    attribute :rejected_at,  Timestamp
+
+    # ── Value-objects ──
+
+    value_object "Name" do
+      # Petition identifier. Per-petition unique. Under i611 the
+      # petition would carry a natural-key identified_by like
+      # `:subject, :submitted_at` instead of an opaque name ; for
+      # now follows the conventional name-keyed shape.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string for each state transition.
+      attribute :value, String
+    end
+
+    value_object "EntityRef" do
+      # FQN of the aggregate or entity the petition pertains to,
+      # e.g. "PigeonCoop::Parent" or "Tools::ShellTool". Duplicated
+      # per locked 2026-05-12 convention (VOs inside each aggregate).
+      attribute :value, String
+    end
+
+    value_object "ProposedRule" do
+      # The proposed new identity rule, encoded as a string the
+      # bluebook author can review verbatim. Examples :
+      # "identified_by :email"
+      # "identified_by :shell_command, suffix: :ulid"
+      # "singleton: true (no identified_by)"
+      # Stored verbatim so a reviewer reads the petition exactly
+      # as it was submitted.
+      attribute :value, String
+    end
+
+    value_object "ReasonText" do
+      # Human-readable explanation for the petition — both why the
+      # change is being requested at submission time and the
+      # review notes at review time. Single field used in both
+      # places, with the audit trail preserving which was which
+      # via the event sequence.
+      attribute :value, String
+    end
+
+    value_object "PetitionState" do
+      # The current state in the petition's lifecycle. Allowed
+      # values : "submitted", "under_review", "applied", "rejected".
+      # The state machine is enforced by the commands — only Review
+      # transitions out of "submitted" ; only Apply / Reject
+      # transitions out of "under_review".
+      attribute :value, String
+    end
+
+    # ── State-machine commands ──
+
+    command "Submit" do
+      role "DomainAuthor"
+      description "Submit a new petition to change an aggregate's identity rules. Records the subject, the proposed rule, the reason for the change, and the submission timestamp ; sets state to 'submitted'. Emits PetitionSubmitted so reviewers and downstream listeners can react. The petition becomes addressable by its name once submitted ; subsequent Review / Apply / Reject commands dispatch by name."
+      attribute :name,           Name
+      attribute :subject,        EntityRef
+      attribute :proposed_rule,  ProposedRule
+      attribute :reason,         ReasonText
+      attribute :submitted_at,   Timestamp
+      emits "PetitionSubmitted"
+      then_set :subject,       to: :subject
+      then_set :proposed_rule, to: :proposed_rule
+      then_set :reason,        to: :reason
+      then_set :submitted_at,  to: :submitted_at
+    end
+
+    command "Review" do
+      role "Lead"
+      description "Move a submitted petition into the under_review state, recording the reviewer's notes. The state transition is recorded ; Apply or Reject must follow to complete the petition. This middle state is Shape α's distinguishing feature — Shape β has no review step ; Shape γ would model review as an out-of-band concern. Keeping the state machine explicit is the value."
+      attribute :name,         Name
+      attribute :reason,       ReasonText
+      attribute :reviewed_at,  Timestamp
+      emits "PetitionReviewed"
+      then_set :reason,       to: :reason
+      then_set :reviewed_at,  to: :reviewed_at
+    end
+
+    command "Apply" do
+      role "Lead"
+      description "Apply an under-review petition — the proposed identity rule becomes the new rule for the subject aggregate. This command emits PetitionApplied carrying the subject and proposed_rule so the runtime (and any bluebook-edit automation) can react. The actual bluebook edit may happen in-band (an automated editor rewrites the identified_by line) or out-of-band (a human edits the bluebook then closes the petition) ; either way the event records the intent."
+      attribute :name,        Name
+      attribute :applied_at,  Timestamp
+      emits "PetitionApplied"
+      then_set :applied_at, to: :applied_at
+    end
+
+    command "Reject" do
+      role "Lead"
+      description "Reject an under-review petition — the proposed identity rule is not adopted. The state transition is recorded with a reason. Rejected petitions stay addressable in the aggregate so the audit trail of who proposed what when is preserved."
+      attribute :name,         Name
+      attribute :reason,       ReasonText
+      attribute :rejected_at,  Timestamp
+      emits "PetitionRejected"
+      then_set :reason,       to: :reason
+      then_set :rejected_at,  to: :rejected_at
+    end
+  end
+end
