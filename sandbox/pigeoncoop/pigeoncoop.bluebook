@@ -10,16 +10,22 @@
 # Calendars extracted to ./calendars.bluebook (2026-05-13)
 # Payments extracted to ./payments.bluebook (2026-05-13)
 Hecks.bluebook "PigeonCoop" do
+  # ── Person — identity-bearing core ──────────────────────────────
+  # Holds only what's true of a human regardless of role : identity,
+  # contact info, subscriptions. Roles (Teacher, Student, Admin,
+  # Parent) are their own aggregates that share the same identity.
   aggregate "Person" do
-    attribute :name,                  PersonName
-    attribute :email,                 EmailAddress
-    attribute :phone,                 PhoneNumber
-    attribute :roles,                 list_of(PersonRole)
-    attribute :student_enrollments,   list_of(StudentEnrollment)
-    attribute :parent_links,          list_of(ParentLink)
-    attribute :teaching_assignments,  list_of(TeachingAssignment)
-    attribute :admin_grants,          list_of(AdminGrant)
-    attribute :subscriptions,         list_of(Subscription)
+    identified_by :identity
+    attribute :identity,      Identity
+    attribute :name,          PersonName
+    attribute :email,         EmailAddress
+    attribute :phone,         PhoneNumber
+    attribute :subscriptions, list_of(Subscription)
+
+    value_object "Identity" do
+      attribute :value, String
+      invariant("non-empty") { !value.strip.empty? }
+    end
 
     value_object "PersonName" do
       attribute :given,  String
@@ -37,13 +43,6 @@ Hecks.bluebook "PigeonCoop" do
     value_object "PhoneNumber" do
       attribute :digits, String
       invariant("E.164 or empty") { digits.empty? || digits =~ /\A\+?\d{10,15}\z/ }
-    end
-
-    value_object "PersonRole" do
-      attribute :name, String
-      invariant("student | parent | admin | teacher | alumni | board") do
-        %w[student parent admin teacher alumni board].include?(name)
-      end
     end
 
     value_object "NotificationSource" do
@@ -64,67 +63,21 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     entity "Subscription" do
-      attribute :source_kind,   NotificationSource
-      attribute :channel,       DeliveryChannel
-    end
-
-    value_object "GradeLevel" do
-      attribute :value, String
-      invariant("non-empty, ≤ 16 chars") { !value.strip.empty? && value.length <= 16 }
-    end
-
-    value_object "Department" do
-      attribute :name, String
-      invariant("non-empty, ≤ 80 chars") { !name.strip.empty? && name.length <= 80 }
-    end
-
-    value_object "PermissionTag" do
-      attribute :name, String
-      invariant("non-empty") { !name.strip.empty? }
-    end
-
-    entity "StudentEnrollment" do
-      attribute :grade_level,  GradeLevel
-      attribute :school_year,  SchoolYear
-      attribute :enrolled_at,  Timestamp
-    end
-
-    entity "ParentLink" do
-      reference_to Person, as: :child
-      attribute :linked_at, Timestamp
-    end
-
-    entity "TeachingAssignment" do
-      attribute :department,    Department
-      attribute :school_year,   SchoolYear
-      attribute :assigned_at,   Timestamp
-    end
-
-    entity "AdminGrant" do
-      attribute :permissions, list_of(PermissionTag)
-      attribute :granted_at,  Timestamp
-    end
-
-    value_object "SchoolYear" do
-      attribute :label, String
-      invariant("YYYY-YYYY") { label =~ /\A\d{4}-\d{4}\z/ }
+      attribute :source_kind, NotificationSource
+      attribute :channel,     DeliveryChannel
     end
 
     command "RegisterPerson" do
-      attribute :name,   PersonName
-      attribute :email,  EmailAddress
-      attribute :phone,  PhoneNumber
-      attribute :roles,  list_of(PersonRole)
+      attribute :identity, Identity
+      attribute :name,     PersonName
+      attribute :email,    EmailAddress
+      attribute :phone,    PhoneNumber
     end
 
-    command "AddRole" do
+    command "UpdateContact" do
       reference_to Person
-      attribute :role, PersonRole
-    end
-
-    command "RemoveRole" do
-      reference_to Person
-      attribute :role, PersonRole
+      attribute :email, EmailAddress
+      attribute :phone, PhoneNumber
     end
 
     command "Subscribe" do
@@ -140,22 +93,48 @@ Hecks.bluebook "PigeonCoop" do
     end
 
     query "MyProfile" do
-      description "Return the calling Person's full profile — name, email, phone, roles, subscriptions, registered_at. The login-landing view and the student's ASA school ID source."
+      description "Return the calling identity's Person record — identity, name, email, phone, subscriptions. The login-landing view and the source of truth for contact info. Role aggregates (Teacher, Student, Admin, Parent) are queried separately by identity."
     end
 
     query "MySubscriptions" do
-      description "Return the calling Person's Subscription list — source_kind, channel, subscribed_at — the read side of admin/student/parent subscription management."
-    end
-
-    # MyAnnualPayments retired 2026-05-13 — backed by Payments::Ledger.MyAnnualPayments
-    # in ./payments.bluebook now.
-
-    query "MyChildSchoolActivity" do
-      description "Cross-aggregate : for each Person linked as child via Person.parent_links to the calling Person, return their AbsenceNotification entries, Shoutouts (as recipient), and Event Tickets/Registrations they hold — a single dashboard of the child's school engagement, ordered by date descending."
+      description "Return the calling identity's Subscription list — source_kind, channel — the read side of subscription management. Identity-scoped, not role-scoped : one subscription stream regardless of which role aggregates the identity also has."
     end
 
     validation :name,  presence: true
     validation :email, presence: true
+  end
+
+  # ── Teacher (Role per Fowler Party-Role) ───────────────────────
+  # Aggregate exists for an identity. Teacher's actions create events
+  # on action-aggregates (Shoutout, Message, AbsenceNotification,
+  # Document) and reference Teacher by identity.
+  aggregate "Teacher" do
+    command "Register"
+  end
+
+  # ── Student (Role per Fowler Party-Role) ───────────────────────
+  # Aggregate exists for an identity. Student actions reference Student.
+  aggregate "Student" do
+    command "Register"
+  end
+
+  # ── Admin (Role per Fowler Party-Role) ─────────────────────────
+  # Aggregate exists for an identity. Admin actions create events on
+  # action-aggregates (Announcement, Article, Event, Newsletter, etc.).
+  aggregate "Admin" do
+    command "Register"
+  end
+
+  # ── Parent (Role per Fowler Party-Role) ────────────────────────
+  # Aggregate exists for an identity AND knows which students they're
+  # responsible for in the school's records (not biological parentage).
+  # students referenced by identity per Vernon Rule 2.
+  aggregate "Parent" do
+    attribute :students, list_of(Student)
+
+    command "Register"
+    command "LinkStudent"
+    command "UnlinkStudent"
   end
 
   aggregate "Shoutout" do
@@ -180,7 +159,7 @@ Hecks.bluebook "PigeonCoop" do
       end
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "pending"
 
     lifecycle :status, default: "pending" do
       transition "ApproveShoutout" => "approved"
@@ -201,8 +180,8 @@ Hecks.bluebook "PigeonCoop" do
       description "Every Shoutout where the calling Person is the author or the recipient, ordered by created_at descending."
     end
 
-    query "AboutMyChildThisYear" do
-      description "Cross-aggregate : every approved Shoutout whose recipient is a Person linked as a child to the calling Person (via Person.parent_links) AND created_at falls in the current school year. Joins Shoutout + Person.parent_links + AcademicCalendar.school_year. Ordered by created_at descending — the parent's view of recognition their child has received."
+    query "AboutMyStudentThisYear" do
+      description "Cross-aggregate : every approved Shoutout whose recipient identity appears in the calling Parent's students list AND created_at falls in the current school year. Joins Shoutout + Parent.students + AcademicCalendar.school_year. Ordered by created_at descending — the parent's view of recognition their student has received."
     end
 
     command "ApproveShoutout" do
@@ -225,7 +204,7 @@ Hecks.bluebook "PigeonCoop" do
     reference_to Person, as: :author
     attribute :title,         AnnouncementTitle
     attribute :body,          AnnouncementBody
-    attribute :audience,      list_of(PersonRole)
+    attribute :audience,      list_of(AudienceKind)
     attribute :scheduled_for, Timestamp
     attribute :recurrence,    Recurrence
 
@@ -252,10 +231,10 @@ Hecks.bluebook "PigeonCoop" do
       end
     end
 
-    value_object "PersonRole" do
+    value_object "AudienceKind" do
       attribute :name, String
-      invariant("student | parent | admin | teacher | alumni | board") do
-        %w[student parent admin teacher alumni board].include?(name)
+      invariant("all | teachers | students | parents | admins") do
+        %w[all teachers students parents admins].include?(name)
       end
     end
 
@@ -269,7 +248,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("draft | scheduled | sent") { %w[draft scheduled sent].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "draft"
 
     lifecycle :status, default: "draft" do
       transition "ScheduleAnnouncement" => "scheduled"
@@ -280,7 +259,7 @@ Hecks.bluebook "PigeonCoop" do
       reference_to Person, as: :author
       attribute :title,      AnnouncementTitle
       attribute :body,       AnnouncementBody
-      attribute :audience,   list_of(PersonRole)
+      attribute :audience,   list_of(AudienceKind)
       attribute :recurrence, Recurrence
     end
 
@@ -332,7 +311,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("pending | delivered | read") { %w[pending delivered read].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "pending"
 
     lifecycle :status, default: "pending" do
       transition "DeliverNotification" => "delivered"
@@ -385,7 +364,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("sent | read") { %w[sent read].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "sent"
 
     lifecycle :status, default: "sent" do
       transition "MarkMessageRead" => "read"
@@ -432,7 +411,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("draft | published") { %w[draft published].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "draft"
 
     lifecycle :status, default: "draft" do
       transition "PublishArticle" => "published"
@@ -475,7 +454,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("draft | published") { %w[draft published].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "draft"
 
     lifecycle :status, default: "draft" do
       transition "PublishNewsletter" => "published"
@@ -615,7 +594,7 @@ Hecks.bluebook "PigeonCoop" do
       event.tickets_sold.n >= event.capacity.seats
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "draft"
 
     lifecycle :status, default: "draft" do
       transition "PublishEvent" => "published"
@@ -709,7 +688,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("active | archived") { %w[active archived].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "active"
 
     lifecycle :status, default: "active" do
       transition "ArchiveDocument" => "archived"
@@ -751,7 +730,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("pending | acknowledged") { %w[pending acknowledged].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "pending"
 
     lifecycle :status, default: "pending" do
       transition "AcknowledgeAbsence" => "acknowledged"
@@ -829,7 +808,7 @@ Hecks.bluebook "PigeonCoop" do
       invariant("available | unavailable") { %w[available unavailable].include?(value) }
     end
 
-    attribute :status, Status
+    attribute :status, Status, default: "available"
 
     lifecycle :status, default: "available" do
       transition "RetireMerchItem"  => "unavailable"
