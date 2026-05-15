@@ -494,6 +494,26 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :value, String
     end
 
+    value_object "MessageId" do
+      # Gmail message identifier (the API's hex message id, distinct
+      # from ThreadId). GetAttachment targets a specific message.
+      attribute :value, String
+    end
+
+    value_object "AttachmentId" do
+      # The opaque Gmail attachment id read from a message part's
+      # body.attachmentId. Long and URL-safe ; rides in the event
+      # payload, never persisted to aggregate state.
+      attribute :value, String
+    end
+
+    value_object "SavePath" do
+      # Absolute local path the decoded attachment bytes are written
+      # to. The written file is the artifact ; aggregate state keeps
+      # only the description so the heki stays small.
+      attribute :value, String
+    end
+
     # ── SearchThreads ──
     command "SearchThreads" do
       role "Miette"
@@ -539,6 +559,26 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :id, Id
       attribute :description, Description
       emits "DraftsListed"
+      then_set :description, to: :description
+    end
+
+    # ── GetAttachment ──
+    # Closes the long-standing "attachments cannot be read" gap. The
+    # Gmail MCP surface exposes no attachment fetch, but the Gmail REST
+    # API does (users.messages.attachments.get). The :web_tool adapter
+    # refreshes the stored Google OAuth token when expired (refresh_token
+    # grant against token_uri), calls the endpoint, base64url-decodes the
+    # payload, and writes it to save_path. The bytes are the artifact and
+    # land on disk ; aggregate state keeps only the description.
+    command "GetAttachment" do
+      role "Miette"
+      description "Fetch a Gmail attachment by message id + attachment id and write the decoded bytes to a local path. Records the dispatch as an EmailTool record and emits AttachmentFetched carrying the message_id + filename + byte size + save_path. The :web_tool adapter refreshes the OAuth token if expired, calls users.messages.attachments.get, base64url-decodes, and writes the file. Attachments ARE readable — this command is the contract for that act."
+      attribute :id, Id
+      attribute :message_id, MessageId
+      attribute :attachment_id, AttachmentId
+      attribute :save_path, SavePath
+      attribute :description, Description
+      emits "AttachmentFetched"
       then_set :description, to: :description
     end
   end
