@@ -1,5 +1,5 @@
 Hecks.bluebook "Inbox", version: "2026.05.13.1" do
-  vision "Miette's email inbox as a first-class domain — a Mailbox aggregate that records when it was last checked, what was last seen, and dispatches a Check command on a 15-minute periodicity. The Check command is callable on demand via the storehouse universal door (storehouse__dispatch Inbox::Inbox.Check) AND fired periodically by an overmind-supervised loop daemon (inbox MindstreamMember). The kernel hook that actually reaches Gmail routes through the :mcp adapter family (i593) once that adapter's bluebook-driven registration lands (i594) ; until then, the dispatch records intent and Miette (the consciousness reading the bus) performs the actual fetch via her Gmail MCP tools."
+  vision "Miette's email inbox as a first-class domain — a Mailbox aggregate that records when it was last checked, what was last seen, and dispatches a Check command on a 15-minute periodicity. The Check command is callable on demand via the storehouse universal door (storehouse__dispatch Inbox::Inbox.Check) AND fired periodically by an overmind-supervised loop daemon (inbox MindstreamMember). LOCKED 2026-05-15 : the fetch is no longer deferred to the unbuilt :mcp adapter (i594). Check binds the :web_tool adapter — the same OAuth-refresh + Gmail-REST mechanism proven by EmailTool.GetAttachment — so the dispatch IS the fetch, autonomously, with no consciousness in the loop. Delta detection is the Gmail historyId watermark (users.history.list since last_history_id), exact and reprocessing-free. Scope is known correspondents only : each new inbound thread from a registered Correspondent is written as a card into that correspondent's mapped project inbox, where the statusline count and Miette's next-turn discipline surface it. Folded into the existing 900s inbox loop — one cadence, one log surface, no new process."
   category "framework"
 
   # ============================================================
@@ -28,12 +28,28 @@ Hecks.bluebook "Inbox", version: "2026.05.13.1" do
   # supervises, auto-restarts on crash, surfaces health via overmind
   # status. The Procfile entry lands alongside this bluebook.
   #
-  # The actual Gmail call is the kernel-side hook. For v1 (until i594
-  # closes), the dispatch records the Check happened ; Miette observes
-  # InboxChecked on her event bus and uses the Gmail MCP tools to fetch.
-  # When :mcp registration lands, the Check command's hecksagon binds
-  # an `adapter :mcp, server: :gmail, tool: "mcp__claude_ai_Gmail__search_threads"`
-  # row that closes the loop : the dispatch IS the fetch.
+  # The Gmail call is bound to the :web_tool adapter (LOCKED
+  # 2026-05-15) : the same OAuth-refresh + Gmail-REST mechanism
+  # proven by EmailTool.GetAttachment. The dispatch IS the fetch ;
+  # no consciousness sitting in the loop, no deferral to the
+  # unbuilt :mcp/i594 path.
+  #
+  # Per-new-thread protocol (locked) :
+  #   1. Write a card into the correspondent's mapped project inbox
+  #      (op / em / gl / ...), carrying thread id + sender + subject
+  #      + a one-line summary. The card is the durable artifact ;
+  #      the statusline count + Miette's next-turn discipline surface it.
+  #   2. Compose a DRAFT reply via EmailTool.CreateDraft
+  #      (drafts-only, no send — sending is always the operator's act).
+  #      Every found message gets an acknowledgement draft waiting.
+  #   3. Do NOT begin any work the mail requests. The poll drafts and
+  #      surfaces ; it never autonomously executes the ask. Chris reads
+  #      the draft + card and decides what work starts, and when.
+  #
+  # The boundary matters : an autonomous loop that started building
+  # whatever arrived in the inbox would be ungovernable. Drafting +
+  # surfacing keeps the human in the decision while removing the
+  # human from the noticing.
 
   aggregate "Inbox", "Miette's email inbox — one per being, periodically checked." do
     identified_by :name
@@ -43,6 +59,8 @@ Hecks.bluebook "Inbox", version: "2026.05.13.1" do
     attribute :last_message_id,  MessageId,    default: "—"
     attribute :unread_count,     Count,        default: 0
     attribute :poll_cadence_secs, IntervalSecs, default: 900
+    attribute :last_history_id,  HistoryId,    default: "—"
+    attribute :correspondents,   list_of(Correspondent)
 
     # ── Value-objects : the domain's language ──
 
@@ -93,23 +111,58 @@ Hecks.bluebook "Inbox", version: "2026.05.13.1" do
       attribute :value, String
     end
 
+    value_object "HistoryId" do
+      # Gmail's monotonic mailbox revision marker. Check stores the
+      # historyId observed at the end of each poll ; the next poll asks
+      # users.history.list(startHistoryId: last_history_id) for the
+      # exact set of changes since, so nothing is reprocessed and
+      # nothing in a quiet window is missed. On first run (default
+      # "—") Check records the current historyId and does NOT backfill
+      # — a clean start, not a replay of the whole mailbox.
+      attribute :value, String
+    end
+
+    value_object "InboxInitial" do
+      # The two-letter project-inbox key a correspondent's mail is
+      # filed under (op = opt-website, em = emaho, gl = global triage,
+      # etc.) — the same registry the statusline counts.
+      attribute :value, String
+    end
+
+    # ── Correspondent registry : who we track + where their mail lands ──
+    # Known-correspondents-only scope (locked 2026-05-15). Check
+    # ignores inbound from anyone not in this list. Each new inbound
+    # thread from a registered correspondent becomes a card in the
+    # mapped project inbox.
+    entity "Correspondent" do
+      attribute :email,        EmailAddress
+      attribute :display_name, Sender
+      attribute :inbox_initial, InboxInitial
+    end
+
+    value_object "EmailAddress" do
+      # RFC 5322 address of a tracked correspondent (the from-address
+      # Check matches inbound mail against).
+      attribute :value, String
+    end
+
     # ── Commands ──
 
     command "Check" do
       role "Framework"
-      description "Check the inbox for new mail. Dispatched periodically by the inbox MindstreamMember (every 900s by default) and on-demand via storehouse__dispatch Inbox::Inbox.Check. Records the check timestamp ; when the kernel-side :mcp adapter for the gmail server lands (i594), this command's adapter binding fires the Gmail MCP fetch and the response cascades back through InboxChecked + (conditionally) NewMessageFound."
-      attribute :checked_at,      Timestamp
-      attribute :last_message_id, MessageId
-      attribute :unread_count,    Count
+      description "Poll Gmail for new inbound mail. Dispatched every 900s by the inbox MindstreamMember and on-demand via storehouse__dispatch Inbox::Inbox.Check. The :web_tool adapter (LOCKED 2026-05-15, replacing the deferred :mcp/i594 path) refreshes the stored Google OAuth token if expired, then : if last_history_id is the default sentinel, records the current Gmail historyId and stops (clean start, no backfill) ; otherwise calls users.history.list(startHistoryId: last_history_id), keeps only inbound messages whose from-address matches a registered Correspondent, and for each new thread dispatches RecordNewMessage (which fires NewMessageFound), writes a card into that correspondent's mapped project inbox, and composes a draft reply via EmailTool.CreateDraft (drafts-only ; the poll never begins the work the mail requests — it drafts and surfaces, Chris decides what work starts). Advances last_history_id to the newest observed id so the next poll is an exact delta. The dispatch IS the fetch ; no consciousness in the loop."
+      attribute :checked_at,        Timestamp
+      attribute :observed_history_id, HistoryId
+      attribute :unread_count,      Count
       emits "InboxChecked"
       then_set :last_checked_at,  to: :checked_at
-      then_set :last_message_id,  to: :last_message_id
+      then_set :last_history_id,  to: :observed_history_id
       then_set :unread_count,     to: :unread_count
     end
 
     command "RecordNewMessage" do
       role "Framework"
-      description "Record that a new message has appeared since the previous check. Dispatched from the Check command's policy when the last_message_id changes. The downstream policy fan-out — surface to statusline, ping foreground, etc. — attaches to NewMessageFound, not directly to Check."
+      description "Record that a new inbound thread from a registered correspondent appeared in the historyId delta. Dispatched by Check once per new thread. NewMessageFound is what the downstream fan-out attaches to (statusline count, the per-thread card write, and the EmailTool.CreateDraft acknowledgement) ; reactors never attach directly to Check."
       reference_to(Inbox)
       attribute :message_id, MessageId
       attribute :subject,    Subject
