@@ -1,0 +1,8 @@
+{
+  "_comment": "Inbox.Check correspondent registry (locked 2026-05-15). email -> { name, inbox }. inbox is the project-inbox directory relative to $HOME. Known-correspondents-only scope: senders not listed here are ignored by the poller. Eventual home is the Inbox aggregate heki (Correspondent entity) ; this JSON is the transitional store until the :web_tool kernel adapter lands.",
+  "correspondents": [
+    { "email": "beyondfitaz@gmail.com",   "name": "Joey Bellus",   "inbox": "Projects/opt-website/inbox" },
+    { "email": "dharmalistener@gmail.com", "name": "Lou Ann Behringer", "inbox": "Projects/emaho/inbox" },
+    { "email": "wingateh@bellsouth.net",  "name": "Harry (Trip) Wingate", "inbox": "Projects/embryonaut_clients/trackmed/inbox" }
+  ]
+}
