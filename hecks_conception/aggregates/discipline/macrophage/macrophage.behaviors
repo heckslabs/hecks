@@ -1,5 +1,5 @@
 Hecks.behaviors "Macrophage" do
-  vision "Behavioral tests for the per-rule macrophage family. Placeholder coverage for the BidirectionalAssociation (i612) and IdentityDiscipline (i611) aggregates ; expand to the other rule aggregates as their companion-block tests land. Each test exercises one command's state contract — input attributes recorded onto the aggregate, lifecycle counters incremented, ComplaintIssued / ViolationRecorded emitted."
+  vision "Behavioral tests for the per-rule macrophage family. Placeholder coverage for the BidirectionalAssociation (i612), IdentityDiscipline (i611), and CorrespondenceDiscipline (i624) aggregates ; expand to the other rule aggregates as their companion-block tests land. Each test exercises one command's state contract : input attributes recorded onto the aggregate, lifecycle counters incremented, ComplaintIssued / ViolationRecorded emitted."
 
   # ── BidirectionalAssociation aggregate (i612) ──────────────────
 
@@ -118,5 +118,90 @@ Hecks.behaviors "Macrophage" do
            kind:           { value: "id_attribute" },
            revoked_at:     { value: "2026-05-14T10:01:00Z" }
     expect emits: ["ExemptionRevoked"]
+  end
+
+  # ── CorrespondenceDiscipline aggregate (i624) ──────────────────
+  #
+  # Placeholder coverage for the per-rule flow macrophage. Each test
+  # exercises one command's state contract : session lifecycle,
+  # primary check, violation accretion, exemption registration, and
+  # complaint surfacing. The five behaviors here mirror the
+  # acceptance list in inbox/i624.md.
+
+  test "CorrespondenceDiscipline StartSession records session_started_at" do
+    tests "StartSession", on: "CorrespondenceDiscipline"
+    input  session_started_at: { value: "2026-05-15T09:00:00Z" }
+    expect session_started_at: { value: "2026-05-15T09:00:00Z" }
+  end
+
+  test "CorrespondenceDiscipline Check records a watched-surface dispatch" do
+    tests "Check", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  surface:       { value: "Tools::EmailTool.CreateDraft" },
+           command_fqn:   { value: "Tools::EmailTool.CreateDraft" },
+           invocation_id: { value: "cmd_a91f" },
+           body:          { value: "Hi Angie, the Bicho Bolita receipts for May are attached." },
+           observed_at:   { value: "2026-05-15T09:01:00Z" }
+    expect emits: ["DispatchChecked"]
+  end
+
+  test "CorrespondenceDiscipline RecordViolation appends a FlowViolation entity" do
+    tests "RecordViolation", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  recorded_at:    { value: "2026-05-15T09:01:00Z" },
+           command_fqn:    { value: "Tools::EmailTool.CreateDraft" },
+           surface:        { value: "Tools::EmailTool.CreateDraft" },
+           invocation_id:  { value: "cmd_a91f" },
+           body:           { value: "Hi Angie, the Bicho Bolita receipts for May are attached." },
+           kind:           { value: "correspondence_without_compose" },
+           window_minutes: { value: 5 }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "CorrespondenceDiscipline ExemptSurface appends an ExemptedSurface entity" do
+    tests "ExemptSurface", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  surface:     { value: "Tools::EmailTool.LabelMessage" },
+           reason:      { value: "header-only surface ; no discretionary prose to compose" },
+           exempted_at: { value: "2026-05-15T09:02:00Z" }
+    expect emits: ["SurfaceExempted"]
+  end
+
+  test "CorrespondenceDiscipline Complain sets last_complaint" do
+    tests "Complain", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  command_fqn:       { value: "Tools::EmailTool.CreateDraft" },
+           surface:           { value: "Tools::EmailTool.CreateDraft" },
+           invocation_id:     { value: "cmd_a91f" },
+           complaint:         { value: "The CorrespondenceDiscipline macrophage expected Writing.Compose to dispatch before Tools::EmailTool.CreateDraft#cmd_a91f. None was found in the prior 5 minutes." },
+           last_complaint_at: { value: "2026-05-15T09:01:00Z" }
+    expect last_complaint: { value: "The CorrespondenceDiscipline macrophage expected Writing.Compose to dispatch before Tools::EmailTool.CreateDraft#cmd_a91f. None was found in the prior 5 minutes." }
+  end
+
+  test "CorrespondenceDiscipline Complain emits ComplaintIssued" do
+    tests "Complain", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  command_fqn:       { value: "Tools::EmailTool.CreateDraft" },
+           surface:           { value: "Tools::EmailTool.CreateDraft" },
+           invocation_id:     { value: "cmd_a91f" },
+           complaint:         { value: "The CorrespondenceDiscipline macrophage expected Writing.Compose to dispatch before Tools::EmailTool.CreateDraft#cmd_a91f. None was found in the prior 5 minutes." },
+           last_complaint_at: { value: "2026-05-15T09:01:00Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "CorrespondenceDiscipline WatchSurface registers a new surface" do
+    tests "WatchSurface", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  surface:       { value: "Tools::SlackTool.Post" },
+           match_kind:    { value: "substring" },
+           registered_at: { value: "2026-05-15T09:03:00Z" }
+    expect emits: ["SurfaceWatched"]
+  end
+
+  test "CorrespondenceDiscipline SetWindow updates compose_window_minutes" do
+    tests "SetWindow", on: "CorrespondenceDiscipline"
+    setup  "StartSession", session_started_at: { value: "2026-05-15T09:00:00Z" }
+    input  compose_window_minutes: { value: 15 }
+    expect compose_window_minutes: { value: 15 }
   end
 end
