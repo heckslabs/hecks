@@ -2066,4 +2066,290 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       emits "ComplaintIssued"
     end
   end
+
+  # ============================================================
+  # WRITING DISCIPLINE : one macrophage, prose style rules
+  # ============================================================
+  #
+  # Filed under i623 (Chris, 2026-05-14) : every piece of prose
+  # Miette generates flows through Writing::Writing.Compose before
+  # reaching the underlying creation tool. The Check policy on
+  # DraftComposed walks each registered rule against the draft text
+  # and emits a Complain event for every rule that fires.
+  #
+  # Initial rule set (two ; expand later) :
+  #
+  #   * em_dash         : finds U+2014 characters (the em-dash). The
+  #                       most direct rule, requested explicitly by
+  #                       Chris on 2026-05-14. Replace with a colon,
+  #                       semicolon, comma, parenthesis, or period.
+  #
+  #   * we_dont_we_do   : finds the negative-positive "we don.t X, we
+  #                       Y" construction common to agency-marketing
+  #                       voice. Detected as a case-insensitive regex
+  #                       on the draft text :
+  #
+  #                         /\bwe\s+(don.?t|do\s+not|aren.?t)\s+
+  #                          [^,.;:!?\n]{1,80}?,\s*we\s+(\w+)/ix
+  #
+  #                       The pattern requires "we" + a negation +
+  #                       at most 80 non-terminator characters +
+  #                       comma + "we" + a positive verb. The bound
+  #                       keeps natural prose (a paragraph that
+  #                       happens to contain both "we don.t" and
+  #                       a separate "we Y" sentence) from false-
+  #                       firing.
+  #
+  #                       Threshold : one occurrence per draft is
+  #                       acceptable (the construction has its uses) ;
+  #                       two or more in the same draft fires the
+  #                       complaint. Tunable through the
+  #                       SetThreshold command.
+  #
+  # File kinds : the macrophage acts on draft_text inside the Writing
+  # aggregate, not on .bluebook or imperative files directly. The
+  # bridge between Writing's DraftComposed event and this macrophage's
+  # Check command is a policy in the runtime ; the bluebook here
+  # describes the rule-check shape and its history.
+  #
+  # i595 family member #11 (after IdentityDiscipline).
+  # Same per-rule shape : counters, ViolationKind enum, entity
+  # collection for the audit trail, Complain surface, exemption
+  # support keyed by named draft.
+
+  aggregate "WritingDiscipline", "Per-rule macrophage for the i623 writing-style enforcement. Runs registered rule checks against composed draft text (em_dash, we_dont_we_do, ...) and maintains the complaint history for this rule alone. Scoped to Writing.Compose / Writing.Revise dispatches ; bluebook files and imperative files are out of scope." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Draft tallies, scoped to this rule's signal.
+    attribute :drafts_checked,             CheckCount
+    attribute :total_violations,           ViolationCount
+    attribute :em_dash_violations,         ViolationCount
+    attribute :we_dont_we_do_violations,   ViolationCount
+
+    # Exemption tally for well-formed named exemptions (per draft id
+    # plus rule kind, with a non-empty reason).
+    attribute :exempted_violations, ViolationCount
+
+    # Threshold for the we_dont_we_do rule. One occurrence per draft
+    # is acceptable ; the rule fires when occurrences strictly exceed
+    # this value. Default is 1 ; SetThreshold mutates it.
+    attribute :we_dont_we_do_threshold, OccurrenceCount
+
+    # Latest-complaint surface for quick statusline reads.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_draft,   DraftId
+    attribute :last_offending_kind,    ViolationKind
+    attribute :last_offending_excerpt, ExcerptText
+
+    # ── Value-objects : this rule's vocabulary ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-entity recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "DraftId" do
+      # The id of the Writing aggregate composition the rule fired
+      # against (a ULID minted by Writing.Compose). Stored as a
+      # back-reference so the macrophage history points to the
+      # composition that triggered it.
+      attribute :value, String
+    end
+
+    value_object "DraftText" do
+      # The full composed text the macrophage scanned. Stored verbatim
+      # on the ViolationDraft history so the audit trail is reproducible.
+      attribute :value, String
+    end
+
+    value_object "ExcerptText" do
+      # The exact substring of the draft that matched the rule. For
+      # the em_dash rule this is one character with a few characters
+      # of left + right context ; for the we_dont_we_do rule this is
+      # the full matched span. Quoted in the complaint so the rule
+      # can point to the offending text.
+      attribute :value, String
+    end
+
+    value_object "ViolationKind" do
+      # The rule that fired. One of :
+      #   "em_dash"        : the draft contains one or more U+2014
+      #                      characters.
+      #   "we_dont_we_do"  : the draft contains the negative-positive
+      #                      construction more than the configured
+      #                      threshold.
+      # Additional kinds may be registered later.
+      attribute :value, String
+    end
+
+    value_object "CheckCount" do
+      # Count of drafts scanned by this macrophage in the current
+      # session, regardless of whether any rule fired.
+      attribute :value, Integer
+    end
+
+    value_object "ViolationCount" do
+      # Count of structural violations of a particular kind recorded
+      # by this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "OccurrenceCount" do
+      # The number of times a single rule's pattern matched inside a
+      # single draft (for example, three em-dashes in one email body).
+      # Distinct from ViolationCount : a draft with three em-dash
+      # occurrences contributes one violation but three occurrences.
+      attribute :value, Integer
+    end
+
+    value_object "OffsetIndex" do
+      # Zero-based byte offset of the match start inside draft_text.
+      # Stored on the violation entity so the complaint can point to
+      # an exact location without re-scanning.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint, the stderr text the hook emits.
+      # Begins "The WritingDiscipline macrophage expected ..." so the
+      # rule attribution is visible at a glance.
+      attribute :value, String
+    end
+
+    value_object "ReasonText" do
+      # The human-readable explanation attached to an exemption,
+      # for example "intentional dash usage in a literal quote of the
+      # rule itself". An exemption without a non-empty reason is
+      # itself a malformed-exemption violation (AntibodyExemption).
+      attribute :value, String
+    end
+
+    value_object "PurposeFilter" do
+      # Optional purpose enum the rule applies to. Empty string means
+      # "all purposes" ; otherwise the value must match the Writing
+      # aggregate's Purpose enum ("email", "reply", "marketing",
+      # "page-copy", "inbox-card", "commit-msg", "other"). Used for
+      # future per-purpose tuning ; the current rule set runs against
+      # all purposes uniformly.
+      attribute :value, String
+    end
+
+    # ── Entity : violation audit trail ──
+
+    entity "WritingViolation" do
+      description "One historical writing-rule violation event. Records the draft id, the rule kind that fired, the exact excerpt that matched, the byte offset of the match, the complaint text issued, and when the check ran. The last_offending_* scalars on the root mirror the most recent entry ; this collection holds the full audit trail."
+      attribute :recorded_at,    Timestamp
+      attribute :draft_id,       DraftId
+      attribute :kind,           ViolationKind
+      attribute :excerpt,        ExcerptText
+      attribute :offset,         OffsetIndex
+      attribute :complaint_text, ComplaintText
+    end
+
+    # ── Entity : named exemptions ──
+
+    entity "ExemptedDraft" do
+      description "A specific draft (by id) whose violation of a specific rule kind is officially exempted with a named, case-by-case reason. Registered via ExemptDraft. The macrophage will not issue a complaint for a violation against an entry in this collection, but the exemption must carry a non-empty ReasonText, mirroring the AntibodyExemption discipline. Exemptions are never pre-emptive ; they are registered after the macrophage has complained and Chris has decided the prose stays."
+      attribute :draft_id,     DraftId
+      attribute :kind,         ViolationKind
+      attribute :reason,       ReasonText
+      attribute :exempted_at,  Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The WritingViolation and ExemptedDraft entity collections are NOT reset ; they are audit trail and standing rules respectively. The we_dont_we_do_threshold also persists across sessions."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Primary scan command ──
+
+    command "Check" do
+      role "Hook"
+      description "Scan one composed draft for writing-style violations. Inputs : the draft id and the full draft_text. Increments drafts_checked. Internally runs every registered rule (currently em_dash and we_dont_we_do) against draft_text ; for each match, dispatches RecordViolation. The runtime policy that wires Writing::Writing.DraftComposed to this command supplies the draft id and text from the Compose event payload. No complaint is issued here ; Complain is the surface command and fires once per detected violation."
+      attribute :draft_id,    DraftId
+      attribute :draft_text,  DraftText
+      emits "DraftChecked"
+    end
+
+    # ── Per-violation recording ──
+
+    command "RecordViolation" do
+      role "Hook"
+      description "A specific writing-rule violation was detected on a draft. Records the draft id, rule kind, offending excerpt, byte offset, and complaint text. Appends a WritingViolation entity. Increments the kind-specific counter (em_dash_violations or we_dont_we_do_violations) and total_violations. Updates last_offending_draft, last_offending_kind, and last_offending_excerpt on the root. If the (draft_id, kind) pair appears in ExemptedDraft, the hook skips Complain and increments exempted_violations instead."
+      attribute :draft_id,       DraftId
+      attribute :kind,           ViolationKind
+      attribute :excerpt,        ExcerptText
+      attribute :offset,         OffsetIndex
+      attribute :complaint_text, ComplaintText
+      attribute :recorded_at,    Timestamp
+      then_set :last_offending_draft,   to: :draft_id
+      then_set :last_offending_kind,    to: :kind
+      then_set :last_offending_excerpt, to: :excerpt
+      emits "ViolationRecorded"
+    end
+
+    # ── Exemption management ──
+
+    command "ExemptDraft" do
+      role "Lead"
+      description "Register a named exemption for a specific draft + rule kind pair so the macrophage will not complain about that draft's violation of that rule. The reason attribute is required and must be non-empty ; an exemption without a named reason falls into the pre-emptive trap the AntibodyExemption discipline forbids. Exemptions are registered after the macrophage has fired, never before ; the WritingViolation audit trail should already contain an entry for this draft + kind. Appends an ExemptedDraft entity."
+      attribute :draft_id,     DraftId
+      attribute :kind,         ViolationKind
+      attribute :reason,       ReasonText
+      attribute :exempted_at,  Timestamp
+      emits "DraftExempted"
+    end
+
+    command "RevokeExemption" do
+      role "Lead"
+      description "Remove an existing exemption, typically after the prose has been revised and the macrophage should fire again on future passes. Matches by draft_id + kind. The ExemptedDraft entity is marked revoked rather than deleted so the audit trail of who exempted what when stays intact."
+      attribute :draft_id,    DraftId
+      attribute :kind,        ViolationKind
+      attribute :revoked_at,  Timestamp
+      emits "ExemptionRevoked"
+    end
+
+    command "SetThreshold" do
+      role "Lead"
+      description "Tune the threshold for the we_dont_we_do rule. The rule fires only when occurrences strictly exceed this value within a single draft. Default is 1 (one occurrence is acceptable, two or more triggers a complaint). Other rules currently have no threshold ; future rules with frequency thresholds will gain their own SetThreshold variants."
+      attribute :we_dont_we_do_threshold, OccurrenceCount
+      then_set :we_dont_we_do_threshold, to: :we_dont_we_do_threshold
+      emits "ThresholdSet"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The WritingDiscipline macrophage detected a draft that breaks a style rule. Records the complaint text and timestamp on the root for fast statusline reads, and updates last_offending_draft / last_offending_kind / last_offending_excerpt. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn ; the feedback loop that closes the discipline mechanism. Complaint text begins 'The WritingDiscipline macrophage expected ...' so the rule's name is visible at a glance. Each ViolationKind has a templated complaint body, for example : 'The WritingDiscipline macrophage expected zero em-dashes (U+2014) in draft 01JCKZWRITE0001 ; one occurrence found at offset 42, excerpt: \"...prose flows through Writing.Compose...\". Replace the em-dash with a colon, semicolon, comma, or period.' For we_dont_we_do : 'The WritingDiscipline macrophage expected sparse use of the \"we don.t X, we Y\" construction in draft 01JCKZWRITE0001 ; 3 occurrences found (threshold 1). Rewrite as direct positive constructions.'"
+      attribute :draft_id,          DraftId
+      attribute :kind,              ViolationKind
+      attribute :excerpt,           ExcerptText
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,         to: :complaint
+      then_set :last_complaint_at,      to: :last_complaint_at
+      then_set :last_offending_draft,   to: :draft_id
+      then_set :last_offending_kind,    to: :kind
+      then_set :last_offending_excerpt, to: :excerpt
+      emits "ComplaintIssued"
+    end
+  end
 end

@@ -1,0 +1,83 @@
+Hecks.behaviors "Writing" do
+  vision "Behavioral tests for the Writing aggregate. Placeholder coverage : Compose records the draft and emits DraftComposed ; Revise updates the draft text and emits DraftRevised ; RecordViolationsCount sets the count surface and emits ViolationsCountRecorded. Expand once the WritingDiscipline macrophage's Check policy is wired so end-to-end violation flows can be exercised."
+
+  test "Compose records the draft text" do
+    tests "Compose", on: "Writing"
+    input  id:           { value: "01JCKZWRITE0001" },
+           draft_text:   { value: "Hi Joey, quick check on the Q3 timing." },
+           purpose:      { value: "reply" },
+           recipient:    { value: "joey@example.com" },
+           description:  { value: "reply to Joey re Q3 timing" },
+           composed_at:  { value: "2026-05-14T10:00:00Z" }
+    expect draft_text: { value: "Hi Joey, quick check on the Q3 timing." }
+  end
+
+  test "Compose emits DraftComposed" do
+    tests "Compose", on: "Writing"
+    input  id:           { value: "01JCKZWRITE0002" },
+           draft_text:   { value: "A clean line of marketing copy." },
+           purpose:      { value: "marketing" },
+           recipient:    { value: "" },
+           description:  { value: "homepage hero copy" },
+           composed_at:  { value: "2026-05-14T10:01:00Z" }
+    expect emits: ["DraftComposed"]
+  end
+
+  test "Revise updates the draft text" do
+    tests "Revise", on: "Writing"
+    setup  "Compose",
+           id:           { value: "01JCKZWRITE0003" },
+           draft_text:   { value: "First pass with an em-dash : a forbidden character." },
+           purpose:      { value: "email" },
+           recipient:    { value: "chris@embryonaut.ai" },
+           description:  { value: "demo of revision flow" },
+           composed_at:  { value: "2026-05-14T10:02:00Z" }
+    input  writing_id:  "01JCKZWRITE0003",
+           draft_text:  { value: "Revised pass with no em-dash, just a colon." },
+           revised_at:  { value: "2026-05-14T10:02:30Z" }
+    expect draft_text: { value: "Revised pass with no em-dash, just a colon." }
+  end
+
+  test "Revise emits DraftRevised" do
+    tests "Revise", on: "Writing"
+    setup  "Compose",
+           id:           { value: "01JCKZWRITE0004" },
+           draft_text:   { value: "Original prose." },
+           purpose:      { value: "inbox-card" },
+           recipient:    { value: "" },
+           description:  { value: "card revision demo" },
+           composed_at:  { value: "2026-05-14T10:03:00Z" }
+    input  writing_id:  "01JCKZWRITE0004",
+           draft_text:  { value: "Cleaner prose." },
+           revised_at:  { value: "2026-05-14T10:03:30Z" }
+    expect emits: ["DraftRevised"]
+  end
+
+  test "RecordViolationsCount sets violations_count" do
+    tests "RecordViolationsCount", on: "Writing"
+    setup  "Compose",
+           id:           { value: "01JCKZWRITE0005" },
+           draft_text:   { value: "Draft pending macrophage scan." },
+           purpose:      { value: "email" },
+           recipient:    { value: "chris@embryonaut.ai" },
+           description:  { value: "macrophage feedback channel" },
+           composed_at:  { value: "2026-05-14T10:04:00Z" }
+    input  writing_id:        "01JCKZWRITE0005",
+           violations_count:  { value: 2 }
+    expect violations_count: { value: 2 }
+  end
+
+  test "RecordViolationsCount emits ViolationsCountRecorded" do
+    tests "RecordViolationsCount", on: "Writing"
+    setup  "Compose",
+           id:           { value: "01JCKZWRITE0006" },
+           draft_text:   { value: "Another draft pending scan." },
+           purpose:      { value: "email" },
+           recipient:    { value: "chris@embryonaut.ai" },
+           description:  { value: "macrophage feedback channel" },
+           composed_at:  { value: "2026-05-14T10:05:00Z" }
+    input  writing_id:        "01JCKZWRITE0006",
+           violations_count:  { value: 0 }
+    expect emits: ["ViolationsCountRecorded"]
+  end
+end

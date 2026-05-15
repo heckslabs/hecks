@@ -1,0 +1,180 @@
+Hecks.bluebook "Writing", version: "2026.05.14.1" do
+  vision "Prose composition surface. Every piece of content Miette (or any sub-agent) produces (emails, marketing copy, replies, page text, inbox cards, any prose) dispatches through Writing.Compose before reaching the underlying creation tool (Gmail draft, FileTool.Edit, page render). The dispatch records the draft, attaches a purpose, and triggers the WritingDiscipline macrophage so style rules are enforced uniformly instead of living as informal guidance in system prompts. The first two rules : no em-dashes (U+2014 is forbidden) and sparse use of the negative-positive 'we don.t X, we Y' construction. Composition IS a domain ; writing IS a first-class concept."
+  category "framework"
+
+  # ============================================================
+  # WRITING : the prose composition surface
+  # ============================================================
+  #
+  # Origin : Chris, 2026-05-14.
+  #
+  #   "we need a writing bluebook. All emails and email updates go
+  #    through it, any content you develop. Rule number one : NO EM
+  #    DASHES. Rule number two : be sparse with, 'we don.t X, we Y'"
+  #
+  # Today every piece of prose Miette generates flows straight into
+  # the underlying creation tool. The drafts are good or bad based
+  # on whatever rules happen to live in the active system prompt.
+  # Style guidance drifts ; a prompt update fixes one channel but
+  # not another ; an em-dash slips into a marketing email two days
+  # after Chris said "no em dashes" because the rule was conversational
+  # rather than structural.
+  #
+  # Promoting writing to a bluebook makes the rules structural. Every
+  # composition is a dispatched command. The WritingDiscipline
+  # macrophage (in macrophage.bluebook, sibling to BluebookFirst,
+  # IdentityDiscipline, etc.) scans the draft text on each dispatch
+  # and surfaces a complaint if any rule fires.
+  #
+  # ── The composition flow ─────────────────────────────────────
+  #
+  #   1. Miette has prose to produce (email body, reply, inbox card,
+  #      marketing copy, page text).
+  #   2. Before calling the underlying creation tool, Miette dispatches
+  #      Writing::Writing.Compose with the full draft_text, a purpose
+  #      enum, an optional recipient, and a one-line description.
+  #   3. The Compose command records the draft on the aggregate and
+  #      emits DraftComposed. The WritingDiscipline macrophage's Check
+  #      policy fires, runs every rule, and emits a Complain event
+  #      for each violation.
+  #   4. If the dispatch returns with violations_count > 0, Miette
+  #      reads the macrophage complaints, revises the text via
+  #      Writing::Writing.Revise, and re-dispatches. Only the clean
+  #      draft flows downstream.
+  #
+  # The aggregate is intentionally thin. The discipline lives in the
+  # macrophage ; this aggregate carries the recorded text plus the
+  # violation count surface so the runtime can route accordingly.
+  #
+  # ── Identity ─────────────────────────────────────────────────
+  #
+  # Each composition gets a ULID. The id is a natural concurrency
+  # disambiguator across overlapping drafts ; it is NOT a surrogate
+  # for any other natural key. (IdentityDiscipline note : i611's
+  # UUID-default softening covers this ; the id attribute here is
+  # the composition handle, not a primary-key dodge.)
+  #
+  # ── Cross-references ─────────────────────────────────────────
+  #
+  # i623 : the seed card for this bluebook + the WritingDiscipline
+  #        macrophage rule.
+  # i613 : StoreHouse wraps every command ; Writing.Compose is one
+  #        of those, dispatched through the bus envelope.
+  # i615 : PromptReceived / Unfurling. Composition is itself a
+  #        reasoning act, observable on the bus.
+  # i612 : BidirectionalAssociation macrophage sibling, same per-rule
+  #        pattern.
+  # macrophage.bluebook : WritingDiscipline lives there as the
+  #        eleventh per-rule aggregate.
+
+  aggregate "Writing", "Prose composition surface : every email, reply, marketing line, page-copy block, and inbox-card prose flows through Writing.Compose before reaching the underlying creation tool. State carries the recorded draft, its purpose, optional recipient, the most recent violations count set by the WritingDiscipline macrophage, and a one-line description." do
+    identified_by :id
+
+    attribute :id,                Id
+    attribute :draft_text,        DraftText
+    attribute :purpose,           Purpose
+    attribute :recipient,         Recipient
+    attribute :violations_count,  ViolationCount
+    attribute :description,       Description
+    attribute :composed_at,       Timestamp
+    attribute :revised_at,        Timestamp
+
+    # ── Value-objects : the composition vocabulary ──
+
+    value_object "Id" do
+      # Composition identity. A ULID so concurrent drafts coexist
+      # without collision. The id IS the handle Miette references
+      # when revising a draft after the macrophage flags it.
+      attribute :value, String
+    end
+
+    value_object "DraftText" do
+      # The full composed text. May be a one-liner email subject,
+      # a multi-paragraph reply body, an inbox card section, or a
+      # whole marketing block. The macrophage scans this verbatim ;
+      # any rule that fires references the exact offending excerpt.
+      attribute :value, String
+    end
+
+    value_object "Purpose" do
+      # The kind of prose being composed. One of :
+      #   "email"        : an outbound email body.
+      #   "reply"        : a reply to an inbound thread.
+      #   "marketing"    : marketing copy, website hero, ad text.
+      #   "page-copy"    : durable page text in an app or doc.
+      #   "inbox-card"   : an i### card body in the inbox.
+      #   "commit-msg"   : a git commit message.
+      #   "other"        : anything that does not fit the above.
+      # The macrophage may tune rule strictness by purpose later ;
+      # for now, every purpose runs every rule.
+      attribute :value, String
+    end
+
+    value_object "Recipient" do
+      # Optional addressee. For email + reply purposes this is the
+      # recipient address ; for marketing copy it may be the audience
+      # segment ; for inbox cards it is typically empty. Empty string
+      # means "no addressee in scope".
+      attribute :value, String
+    end
+
+    value_object "ViolationCount" do
+      # The number of WritingDiscipline rules that fired on the most
+      # recent Check pass. Zero means the draft is clean. Greater
+      # than zero means Miette should revise via Writing.Revise and
+      # re-dispatch.
+      attribute :value, Integer
+    end
+
+    value_object "Description" do
+      # One-line caption summarising the composition for the
+      # statusline + audit log. Example : "reply to Joey re : Q3
+      # budget timing".
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 UTC timestamp. Used for composed_at and revised_at.
+      attribute :value, String
+    end
+
+    # ── Commands ─────────────────────────────────────────────────
+
+    command "Compose" do
+      role "Miette"
+      description "Record a new prose composition before it reaches the underlying creation tool. Inputs : the composition id (a fresh ULID), the full draft_text, the purpose enum, the optional recipient, the one-line description, and the composed_at timestamp. Emits DraftComposed. The WritingDiscipline macrophage's Check policy fires on this event and runs every registered rule against draft_text ; each violation is recorded on the macrophage and surfaces as a Complain event. The macrophage also sets violations_count back on this aggregate so a single read of Writing state tells Miette whether to proceed or revise."
+      attribute :id,           Id
+      attribute :draft_text,   DraftText
+      attribute :purpose,      Purpose
+      attribute :recipient,    Recipient
+      attribute :description,  Description
+      attribute :composed_at,  Timestamp
+      then_set :draft_text,   to: :draft_text
+      then_set :purpose,      to: :purpose
+      then_set :recipient,    to: :recipient
+      then_set :description,  to: :description
+      then_set :composed_at,  to: :composed_at
+      emits "DraftComposed"
+    end
+
+    command "Revise" do
+      role "Miette"
+      description "Rewrite an existing draft, typically after the WritingDiscipline macrophage flagged one or more violations. Inputs : the original composition id, the new draft_text, and the revised_at timestamp. Emits DraftRevised. The macrophage re-runs Check on the revised text ; a clean revision sets violations_count to zero. Purpose, recipient, and description carry over from the original Compose ; only the prose changes here."
+      reference_to(Writing)
+      attribute :draft_text,  DraftText
+      attribute :revised_at,  Timestamp
+      then_set :draft_text,  to: :draft_text
+      then_set :revised_at,  to: :revised_at
+      emits "DraftRevised"
+    end
+
+    command "RecordViolationsCount" do
+      role "Macrophage"
+      description "The WritingDiscipline macrophage finished its Check pass and reports the number of rules that fired against this composition. Sets violations_count on the aggregate root so a downstream reader can route the draft : zero means clean, greater than zero means revise. This is the only path that updates violations_count ; Miette never sets it directly."
+      reference_to(Writing)
+      attribute :violations_count,  ViolationCount
+      then_set :violations_count,  to: :violations_count
+      emits "ViolationsCountRecorded"
+    end
+  end
+end
