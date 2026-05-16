@@ -249,7 +249,15 @@ fn parse_shell_adapter(rest: &str) -> Option<ShellAdapter> {
     let mut sa = ShellAdapter { output_format: "text".into(), ok_exit: 0, ..Default::default() };
     for (k, v) in parse_options(rest) {
         match k.as_str() {
-            "name" => sa.name = strip_symbol(&v),
+            // Accept both the symbol form (name: :foo) and the string
+            // form (name: "foo") and canonicalize to the bare
+            // identifier — mirrors the `function` case above so Rust
+            // round-trips a quoted name: identically to the Ruby parser
+            // (hecksagon-parity : Ruby strips quotes, Rust must too).
+            "name" => {
+                let stripped = strip_quotes(&v);
+                sa.name = if stripped == v { strip_symbol(&v) } else { stripped };
+            }
             "command" => sa.command = strip_quotes(&v),
             "args" => sa.args = parse_string_array(&v),
             "output_format" => sa.output_format = strip_symbol(&v),
