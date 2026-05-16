@@ -63,28 +63,21 @@ fn main() {
         (args[1].as_str(), "")
     };
 
-    // Subcommand catalog gate (i80 follow-up — multi-domain CLI split).
-    // The Subcommand catalog (information/subcommand.heki) is the source
-    // of truth for "what subcommands exist." Today this gate :
-    //   1. honours a `deprecated: yes` flag with a stderr warning
-    //   2. dispatches handlers that have been migrated to catalog-
-    //      driven form (the match arm below) — currently only
-    //      print_usage, with the rest falling through to the legacy
-    //      if-chain unchanged
-    //
-    // Each future migration adds one more arm to the match below and
-    // removes the corresponding branch from the if-chain. Once every
-    // arm is here AND a capability runner implements it, the if-chain
-    // retires entirely.
-    if let Some(record) = lookup_subcommand(command) {
-        if record.get("deprecated").and_then(|v| v.as_str()) == Some("yes") {
+    // SubcommandRegistry gate (i80 Unit C — routing through domain).
+    // load_cli_routes() reads information/subcommand_registry/subcommand.heki
+    // (the SubcommandRegistry domain's heki store). The record carries
+    // handler, deprecated, and dispatch_address. invoke_route dispatches
+    // recognised handlers (loop, pm_loop, daemon, macrophage, statusline,
+    // clock, single-shot FQN) and returns true ; unrecognised handlers
+    // return false and fall through to the legacy if-chain unchanged.
+    // Graceful degradation : missing heki yields an empty map so the
+    // if-chain continues to function as before.
+    let routes = load_cli_routes();
+    if let Some(route) = routes.get(command) {
+        if route.get("deprecated").and_then(|v| v.as_str()) == Some("yes") {
             eprintln!("warning: subcommand '{}' is deprecated", command);
         }
-        let handler = record.get("handler").and_then(|v| v.as_str()).unwrap_or("");
-        match handler {
-            "print_usage" => { print_usage(); return; }
-            // Future migrations land here ; the legacy if-chain
-            // implements anything that hasn't moved yet.
-            _ => {}
+        if invoke_route(route, &args) {
+            return;
         }
     }

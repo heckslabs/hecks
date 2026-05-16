@@ -1,0 +1,76 @@
+Hecks.behaviors "DeployParity" do
+  vision "Behavioral tests for the DeployParity autophage (i627). Exercises the session lifecycle, Check, RecordDrift, Complain, and Clear commands. The git_connected=false finding is tested explicitly — CLI-only Pages projects warrant their own complaint line. The :exec runtime arm is deferred to i629 — these tests cover the pure declarative contract."
+
+  test "StartSession records last_check_at" do
+    tests "StartSession", on: "DeployParity"
+    input  session_started_at: { value: "2026-05-16T00:00:00Z" }
+    expect last_check_at: { value: "2026-05-16T00:00:00Z" }
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "DeployParity"
+    input  session_started_at: { value: "2026-05-16T00:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  test "Check records main_head and deployed_commit" do
+    tests "Check", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  checked_at:      { value: "2026-05-16T00:01:00Z" },
+           main_head:       { value: "fa805ac" },
+           deployed_commit: { value: "fa805ac" },
+           deployed_at:     { value: "2026-05-12T10:00:00Z" },
+           git_connected:   { value: "true" }
+    expect main_head: { value: "fa805ac" }
+  end
+
+  test "Check emits Checked" do
+    tests "Check", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  checked_at:      { value: "2026-05-16T00:01:00Z" },
+           main_head:       { value: "fa805ac" },
+           deployed_commit: { value: "fa805ac" },
+           deployed_at:     { value: "2026-05-12T10:00:00Z" },
+           git_connected:   { value: "true" }
+    expect emits: ["Checked"]
+  end
+
+  test "RecordDrift records drift_age" do
+    tests "RecordDrift", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  drift_age:   { value: "4 days" },
+           recorded_at: { value: "2026-05-16T00:01:01Z" }
+    expect drift_age: { value: "4 days" }
+  end
+
+  test "RecordDrift emits DriftRecorded" do
+    tests "RecordDrift", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  drift_age:   { value: "4 days" },
+           recorded_at: { value: "2026-05-16T00:01:01Z" }
+    expect emits: ["DriftRecorded"]
+  end
+
+  test "Complain sets last_complaint" do
+    tests "Complain", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  complaint:         { value: "DeployParity: opt-website main is 4 days ahead of deployed commit fa805ac. Run: wrangler pages deploy . --project-name=opt-website" },
+           last_complaint_at: { value: "2026-05-16T00:01:02Z" }
+    expect last_complaint: { value: "DeployParity: opt-website main is 4 days ahead of deployed commit fa805ac. Run: wrangler pages deploy . --project-name=opt-website" }
+  end
+
+  test "Complain emits ComplaintIssued" do
+    tests "Complain", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  complaint:         { value: "DeployParity: opt-website is CLI-only (git_connected=false) — every merge requires a manual deploy step." },
+           last_complaint_at: { value: "2026-05-16T00:01:03Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "Clear emits DriftCleared" do
+    tests "Clear", on: "DeployParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  cleared_at: { value: "2026-05-16T00:10:00Z" }
+    expect emits: ["DriftCleared"]
+  end
+end

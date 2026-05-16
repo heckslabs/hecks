@@ -133,29 +133,22 @@ fn main() {
         (args[1].as_str(), "")
     };
 
-    // Subcommand catalog gate (i80 follow-up — multi-domain CLI split).
-    // The Subcommand catalog (information/subcommand.heki) is the source
-    // of truth for "what subcommands exist." Today this gate :
-    //   1. honours a `deprecated: yes` flag with a stderr warning
-    //   2. dispatches handlers that have been migrated to catalog-
-    //      driven form (the match arm below) — currently only
-    //      print_usage, with the rest falling through to the legacy
-    //      if-chain unchanged
-    //
-    // Each future migration adds one more arm to the match below and
-    // removes the corresponding branch from the if-chain. Once every
-    // arm is here AND a capability runner implements it, the if-chain
-    // retires entirely.
-    if let Some(record) = lookup_subcommand(command) {
-        if record.get("deprecated").and_then(|v| v.as_str()) == Some("yes") {
+    // SubcommandRegistry gate (i80 Unit C — routing through domain).
+    // load_cli_routes() reads information/subcommand_registry/subcommand.heki
+    // (the SubcommandRegistry domain's heki store). The record carries
+    // handler, deprecated, and dispatch_address. invoke_route dispatches
+    // recognised handlers (loop, pm_loop, daemon, macrophage, statusline,
+    // clock, single-shot FQN) and returns true ; unrecognised handlers
+    // return false and fall through to the legacy if-chain unchanged.
+    // Graceful degradation : missing heki yields an empty map so the
+    // if-chain continues to function as before.
+    let routes = load_cli_routes();
+    if let Some(route) = routes.get(command) {
+        if route.get("deprecated").and_then(|v| v.as_str()) == Some("yes") {
             eprintln!("warning: subcommand '{}' is deprecated", command);
         }
-        let handler = record.get("handler").and_then(|v| v.as_str()).unwrap_or("");
-        match handler {
-            "print_usage" => { print_usage(); return; }
-            // Future migrations land here ; the legacy if-chain
-            // implements anything that hasn't moved yet.
-            _ => {}
+        if invoke_route(route, &args) {
+            return;
         }
     }
 
@@ -3838,30 +3831,6 @@ fn dispatch_lookup(file_path: &str) -> Option<storehouse::dispatch_query::Dispat
     storehouse::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
 }
 
-/// Look up a subcommand by name in the Subcommand catalog
-/// (`information/subcommand.heki`). Returns the heki record when
-/// present, `None` when the subcommand isn't registered.
-///
-/// Reads heki directly without booting a runtime — the catalog gate
-/// at the top of `main()` runs on every invocation and a full runtime
-/// boot per binary fire would be expensive. Same path-resolution
-/// pattern as `find_exempt_registry_heki` : prefer in-tree catalog
-/// (so the seed ships with the repo), no HECKS_INFO override needed
-/// because the catalog is repo-content not user-state.
-fn lookup_subcommand(name: &str) -> Option<heki::Record> {
-    let path = find_subcommand_heki()?;
-    let store = heki::read(&path).ok()?;
-    store.get(name).cloned()
-}
-
-fn find_subcommand_heki() -> Option<String> {
-    let agg_dir = resolve_aggregates_dir()?;
-    let p = std::path::Path::new(&agg_dir)
-        .parent()?
-        .join("information/subcommand.heki");
-    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
-}
-
 enum FileKind { Bluebook, Imperative, Support, Other }
 
 fn classify_file(path: &str) -> FileKind {
@@ -4115,12 +4084,19 @@ fn run_loop(args: &[String]) {
         std::process::exit(1);
     });
 
-    // Multi-command rotation (i106). Split on commas and strip per-entry
-    // "Aggregate." prefix so the runtime gets the bare command name.
+    // Multi-command rotation (i106). Split on commas. Each entry is a
+    // full Domain::Aggregate.Command FQN — require_fqn_dispatch_address
+    // above already guaranteed the `::`. i630 : do NOT truncate to the
+    // bare command name. The old `.split('.').last()` dropped the
+    // aggregate qualifier, so an ambiguous bare `Check`
+    // (Inbox::Inbox.Check) resolved to the wrong aggregate's command
+    // (the macrophage's BidirectionalAssociation.CheckRun). Pass the
+    // FQN through unchanged ; command_dispatch::resolve honors it via
+    // resolve_fully_qualified, exactly as the single-shot CLI path.
     let cmd_names: Vec<String> = cmd_full.split(',')
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .map(|s| s.split('.').last().unwrap_or(s).to_string())
+        .map(|s| s.to_string())
         .collect();
     if cmd_names.is_empty() {
         eprintln!("loop : empty command list '{}'", cmd_full);
@@ -4356,7 +4332,10 @@ fn run_pm_loop(args: &[String]) {
                     // address to FQN form (Domain::Aggregate.Command)
                     // so run-loop matches the main dispatch entry point.
                     require_fqn_dispatch_address("run-loop", c);
-                    dispatches.push(c.split('.').last().unwrap_or(c).to_string());
+                    // i630 : keep the full FQN ; do not truncate to the
+                    // bare command name (it dropped the aggregate
+                    // qualifier and mis-resolved ambiguous commands).
+                    dispatches.push(c.to_string());
                 }
                 i += 2;
             }
@@ -4512,7 +4491,10 @@ fn run_clock(args: &[String]) {
                 // i560 v2 follow-up — gate each --segment address to
                 // FQN form (Domain::Aggregate.Command).
                 require_fqn_dispatch_address("clock", cmd_full);
-                let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
+                // i630 : keep the full FQN. Truncating to the bare
+                // command name dropped the aggregate qualifier and let
+                // an ambiguous command resolve to the wrong aggregate.
+                let cmd_name = cmd_full.to_string();
                 segments.push((lo, hi, cmd_name));
                 i += 2;
             }
@@ -5337,4 +5319,73 @@ fn emit_validator_warnings_to_stderr(domain: &storehouse::ir::Domain) {
     if let Some(msg) = validator_warnings::multi_domain_split_warning(domain) { eprintln!("{}", msg); }
     if let Some(msg) = validator_warnings::mixed_concerns_warning(domain)    { eprintln!("{}", msg); }
     if let Some(msg) = validator_warnings::bluebook_size_warning(domain)     { eprintln!("{}", msg); }
+}
+
+/// Resolve the SubcommandRegistry heki path.
+///
+/// Uses the same resolution strategy as `find_subcommand_heki` but
+/// targets `information/subcommand_registry/subcommand.heki` — the
+/// canonical path written by the storehouse domain runtime (domain
+/// SubcommandRegistry, aggregate Subcommand).
+fn find_subcommand_registry_heki() -> Option<String> {
+    let agg_dir = resolve_aggregates_dir()?;
+    let p = std::path::Path::new(&agg_dir)
+        .parent()?
+        .join("information/subcommand_registry/subcommand.heki");
+    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
+}
+
+/// Load all SubcommandRegistry rows into a name-keyed map.
+///
+/// Returns an empty map when the heki file is absent (graceful
+/// degradation : missing catalog falls through to the legacy if-chain).
+fn load_cli_routes() -> heki::Store {
+    find_subcommand_registry_heki()
+        .and_then(|path| heki::read(&path).ok())
+        .unwrap_or_default()
+}
+
+/// Dispatch a CLI route from the SubcommandRegistry.
+///
+/// Returns `true` when the route was fully handled (caller should
+/// `return`) ; `false` when the route falls through to the legacy
+/// if-chain. The dispatch_address field is passed verbatim to
+/// dispatch_hecksagon — never truncated — eliminating the i630 class
+/// of bugs for every routed subcommand.
+fn invoke_route(route: &heki::Record, args: &[String]) -> bool {
+    // Non-empty dispatch_address with '::' → single-shot FQN dispatch.
+    // The DispatchAddress invariant guarantees that any non-empty value
+    // contains '::' ; we check anyway to be safe at the call site.
+    let dispatch_address = route
+        .get("dispatch_address")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if !dispatch_address.is_empty() && dispatch_address.contains("::") {
+        let conception = storehouse_conception_root();
+        let agg_dir = format!("{}/aggregates", conception);
+        let attrs: std::collections::HashMap<String, serde_json::Value> = args[2..].iter()
+            .filter_map(|a| {
+                let mut parts = a.splitn(2, '=');
+                let key = parts.next()?;
+                let val = parts.next()?;
+                Some((key.to_string(), serde_json::Value::String(val.to_string())))
+            })
+            .collect();
+        dispatch_hecksagon(&agg_dir, dispatch_address, attrs);
+        return true;
+    }
+
+    let handler = route.get("handler").and_then(|v| v.as_str()).unwrap_or("");
+    match handler {
+        "print_usage"    => { print_usage(); true }
+        "run_loop"       => { run_loop(args); true }
+        "run_pm_loop"    => { run_pm_loop(args); true }
+        "run_daemon"     => { run_daemon(args); true }
+        "run_macrophage" => { run_macrophage(args); true }
+        "run_statusline" => { storehouse::run_statusline::run(); true }
+        "run_clock"      => { run_clock(args); true }
+        // Verbatim / unrecognised handler : fall through to the legacy
+        // if-chain. Returns false so the caller continues.
+        _                => false,
+    }
 }

@@ -1,0 +1,163 @@
+Hecks.bluebook "NavSitemapParity", version: "2026.05.16.1" do
+  vision "Autophage discipline cell that watches the contract between site-nav modules and sitemap.xml. Whenever a nav module changes, this cell checks whether the sitemap entries still match the live nav surface. Failure mode forward: page added to nav, missing from sitemap (crawl gap, silent SEO regression). Failure mode inverse: page removed from nav, still in sitemap (dead URL poisoning). This is an autophage, not a macrophage: it does not block writes. It watches deployed state and signals drift as additional-context. The runtime :exec arm (heartbeat dispatch + nav-module walker + sitemap parser) rides the :exec adapter family — deferred to i629."
+  category "discipline"
+
+  # ============================================================
+  # NavSitemapParity — autophage for nav/sitemap contract
+  # ============================================================
+  #
+  # Family placement:
+  #   Macrophage  : ingests broken bluebooks, prevents commits
+  #   Antibody    : binds to drift signatures, surfaces in CI
+  #   Autophage   : self-eats inconsistent state, reports the gap
+  #   Fibroblast  : repair cell ; closes what the autophage finds
+  #
+  # This is the first autophage family member. It holds one
+  # NavSitemapParity aggregate per site-root being watched.
+  # Check populates the drift list ; Clear reconciles it.
+  # Snapshot records a last-known-good baseline.
+  #
+  # Cross-references:
+  #   i625 — this card
+  #   i626 — Fibroblast (repair cell that closes nav/sitemap drift)
+  #   i629 — :exec adapter family (runtime arm, deferred)
+
+  aggregate "NavSitemapParity", "One watched site — holds the drift record between its nav modules and its sitemap.xml" do
+    identified_by :site_root
+
+    attribute :site_root,        SiteRoot
+    attribute :nav_modules,      list_of(NavModulePath)
+    attribute :sitemap_path,     SitemapPath
+    attribute :last_check_at,    Timestamp
+    attribute :last_snapshot_at, Timestamp
+    attribute :drift,            list_of(NavSitemapDrift)
+    attribute :checks_run,       CheckCount
+
+    # Latest-complaint surface — quick read for statusline
+    attribute :last_complaint_at, Timestamp
+    attribute :last_complaint,    ComplaintText
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "SiteRoot" do
+      # Absolute filesystem path to the site repository root.
+      attribute :value, String
+    end
+
+    value_object "NavModulePath" do
+      # Path to a JS/TS file that exports a LINKS-style navigation
+      # array (relative to site_root). The :exec arm discovers these
+      # by convention or explicit registration.
+      attribute :value, String
+    end
+
+    value_object "SitemapPath" do
+      # Path to the site's sitemap.xml (relative to site_root).
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used wherever an event has a when.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a drift complaint — the text surfaced as
+      # additional-context on the next turn.
+      attribute :value, String
+    end
+
+    value_object "CheckCount" do
+      # Running count of Check dispatches against this site.
+      attribute :value, Integer
+    end
+
+    value_object "PresenceFlag" do
+      # Whether a path is present in a given surface
+      # (nav module or sitemap). Wraps a boolean so the domain
+      # reads as domain language, not primitive.
+      attribute :value, Boolean
+    end
+
+    value_object "NavSitemapDrift" do
+      # One path where the nav and sitemap are out of sync.
+      # nav_present.value=true, sitemap_present.value=false :
+      #   added to nav, missing from sitemap (crawl gap).
+      # nav_present.value=false, sitemap_present.value=true :
+      #   removed from nav, still in sitemap (dead URL).
+      attribute :path,             String
+      attribute :nav_present,      String
+      attribute :sitemap_present,  String
+      attribute :discovered_at,    String
+    end
+
+    # ── Commands ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The drift list and snapshot are NOT reset — they are the audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :last_check_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    command "Check" do
+      role "System"
+      description "Walk nav modules and sitemap.xml, compute the diff, populate the drift list. The :exec arm invokes this on a heartbeat or after a nav-module file edit. Pure declarative contract here — execution deferred to i629."
+      attribute :checked_at, Timestamp
+      then_set :last_check_at, to: :checked_at
+      emits "Checked"
+    end
+
+    command "RecordDrift" do
+      role "System"
+      description "Record one discovered drift entry — a path that is present in nav but absent from sitemap, or vice-versa. nav_present and sitemap_present are PresenceFlags; the :exec arm calls this once per offending path after a Check walk."
+      attribute :path,            NavModulePath
+      attribute :nav_present,     PresenceFlag
+      attribute :sitemap_present, PresenceFlag
+      attribute :discovered_at,   Timestamp
+      emits "DriftRecorded"
+    end
+
+    command "Complain" do
+      role "System"
+      description "Surface drift as additional-context. Called by the :exec arm after a Check finds non-empty drift. Sets last_complaint + last_complaint_at so the statusline can surface the gap on the next turn."
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    command "Clear" do
+      role "System"
+      description "Drift reconciled — Fibroblast (i626) or human closed the gap. Clears the drift list and records when the reconciliation happened."
+      attribute :cleared_at, Timestamp
+      emits "DriftCleared"
+    end
+
+    command "Snapshot" do
+      role "System"
+      description "Record last-known-good state — nav and sitemap were in agreement at this moment. The :exec arm calls this after a clean Check (empty drift). Used as a baseline for drift-age calculations."
+      attribute :snapshotted_at, Timestamp
+      then_set :last_snapshot_at, to: :snapshotted_at
+      emits "Snapshotted"
+    end
+
+    # ── Queries ──
+
+    query "current_drift" do
+      description "Every NavSitemapParity where drift is non-empty — the live repair queue."
+    end
+
+    query "stale_snapshots" do
+      description "Every NavSitemapParity where last_snapshot_at is older than last_check_at — sites that have never had a clean check after their most recent check run."
+    end
+  end
+
+  # Repair handoff: drift found -> Fibroblast closes it.
+  policy "HandoffToFibroblast" do
+    on "DriftRecorded"
+    trigger "Complain"
+  end
+end
