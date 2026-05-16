@@ -29,6 +29,7 @@ use std::path::{Path, PathBuf};
 ///   em — emaho
 ///   hn — hecks_nursury
 ///   op — opt-website
+///   re — restarts (miette_family/restarts_inbox — session restart prompts)
 ///
 /// Both repos that have an `inbox/` → `main.inbox/` rename in progress
 /// (emaho, opt-website) already expose `inbox/` as a working path
@@ -41,6 +42,7 @@ pub(super) const INBOXES: &[(&str, &str)] = &[
     ("em", "Projects/emaho/inbox"),
     ("hn", "Projects/hecks_nursury/inbox"),
     ("op", "Projects/opt-website/inbox"),
+    ("re", "Projects/miette_family/restarts_inbox"),
 ];
 
 /// Walk INBOXES, count active cards under `$HOME/<rel>` for each.
