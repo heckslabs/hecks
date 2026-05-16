@@ -1,10 +1,19 @@
-Hecks.adapter_family "shell" do
-  # The :shell adapter family — bind one aggregate.command dispatch to
+Hecks.adapter_family "exec" do
+  # The :exec adapter family — bind one aggregate.command dispatch to
   # one local executable, run it on dispatch, cascade its outcome. The
-  # sibling of :claude_tool (which runs a fixed set of harness tool
-  # primitives) and :web_tool (which runs one HTTP fetch). :shell runs
-  # an ARBITRARY local program named by the adapter instance's :exec
-  # field — the general case the others are specializations of.
+  # sibling of :claude_tool (fixed harness tool primitives) and
+  # :web_tool (one HTTP fetch). :exec runs an ARBITRARY local program
+  # named by the adapter instance's :exec field — the general case the
+  # others are specializations of.
+  #
+  # Why :exec and NOT :shell : the Rust hecksagon parser already routes
+  # `adapter :shell` to a pre-existing legacy ShellAdapter (run a shell
+  # command, with command/args/ok_exit) — different semantics. Reusing
+  # :shell would collide and the binding would be mis-parsed as a
+  # legacy shell-command adapter. The hecksagon-parity gate surfaced
+  # this. :exec is a clean, unclaimed keyword (i629 named it as the
+  # alternative). The legacy :shell keeps parse_shell_adapter ; :exec
+  # gets its own route.
   #
   # Why it exists (i629) : Inbox.Check is locked to a multi-step poll
   # (OAuth refresh + Gmail historyId delta + per-thread card + draft).
@@ -17,18 +26,18 @@ Hecks.adapter_family "shell" do
   # ── The principle the binding sits on ──
   #   "the domain composes the call ; the adapter runs it"
   # The bluebook (Inbox.Check, pure composition) names the contract ;
-  # the :shell adapter (execution) is the only impure layer. Same
+  # the :exec adapter (execution) is the only impure layer. Same
   # IO-monad shape as :claude_tool / :web_tool.
 
   vision "Bind one aggregate.command to one local executable. On
-          dispatch the kernel resolves the matching :shell adapter
+          dispatch the kernel resolves the matching :exec adapter
           (one with command: \"<Agg>.<Cmd>\"), runs its :exec program
           to completion, captures stdout / stderr / exit code, caps
           the captured output, and routes the result into
           :result_into as a follow-on dispatch. One behavior_kind :
-          perform_shell_exec. No providers — the exec is the provider."
+          perform_exec. No providers — the exec is the provider."
 
-  fields  :name,         # optional symbolic adapter name in the consumer's hecksagon
+  fields  :name,         # symbolic adapter name in the consumer's hecksagon
           :command,      # "Inbox.Check" — the dispatched aggregate.command this adapter binds to
           :exec,         # "node bin/inbox_poll.mjs" — the local program run on dispatch (cwd = aggregates root parent)
           :result_into   # "Cascade.RecordResult" — follow-on dispatch carrying the outcome
@@ -36,14 +45,14 @@ Hecks.adapter_family "shell" do
   trigger_field :command
   response_field :result_into
 
-  # One behavior kind : run the exec. Adding a new shell operation is
-  # not a thing — the exec IS the operation. The family contract is
-  # deliberately minimal so it cannot grow into a second tool surface.
-  behaviors :perform_shell_exec
+  # One behavior kind : run the exec. Adding a new exec "operation" is
+  # not a thing — the exec IS the operation. Deliberately minimal so
+  # it cannot grow into a second tool surface.
+  behaviors :perform_exec
 
   # No providers. :web_tool has :http_get / :duckduckgo because a fetch
   # has wire variants ; a local exec has none — the :exec string fully
-  # determines the side effect. Keeping providers empty is the fence
-  # that stops :shell becoming a god-adapter.
+  # determines the side effect. Empty providers is the fence that stops
+  # :exec becoming a god-adapter.
   providers
 end

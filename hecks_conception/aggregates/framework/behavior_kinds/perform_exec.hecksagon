@@ -1,13 +1,13 @@
-Hecks.behavior_kind "perform_shell_exec" do
-  # The perform_shell_exec behavior — what the kernel does when a
-  # :shell adapter fires. Sibling to perform_web_fetch (:web_tool)
-  # and invoke_claude_tool (:claude_tool). The kernel hook is one of
-  # the small fixed set of runtime primitives the framework ships.
+Hecks.behavior_kind "perform_exec" do
+  # The perform_exec behavior — what the kernel does when an :exec
+  # adapter fires. Sibling to perform_web_fetch (:web_tool) and
+  # invoke_claude_tool (:claude_tool). The kernel hook is one of the
+  # small fixed set of runtime primitives the framework ships.
   #
   # The dispatch flow :
   #
   #   1. The bus dispatches the bound command (e.g. Inbox.Check).
-  #   2. The kernel resolves the matching :shell adapter
+  #   2. The kernel resolves the matching :exec adapter
   #      (one with command: "Inbox.Check").
   #   3. The kernel reads the adapter's :exec field
   #      ("node bin/inbox_poll.mjs") and runs it to completion with
@@ -23,11 +23,11 @@ Hecks.behavior_kind "perform_shell_exec" do
   #      exit_code, and ok (true iff exit_code == 0).
   #
   # No URL safety / no network rules (that is perform_web_fetch's
-  # concern). :shell trusts its :exec because the :exec string is
+  # concern). :exec trusts its :exec because the :exec string is
   # author-controlled in a committed hecksagon, never attacker-supplied
-  # — exactly the trust model :claude_tool's bash primitive already has.
+  # — exactly the trust model :claude_tool's bash primitive has.
 
-  vision "Run the bound :shell adapter's :exec program to completion
+  vision "Run the bound :exec adapter's :exec program to completion
           and return (stdout, exit_code, ok). cwd is the aggregates
           root's parent. stdout capped at 100 KB ; on non-zero exit
           the captured stderr tail rides in output so the failure is
@@ -37,7 +37,7 @@ Hecks.behavior_kind "perform_shell_exec" do
   # Every adapter family that picks this behavior must name the
   # follow-on dispatch target. The :exec travels on the adapter
   # instance, not the command attrs (unlike perform_web_fetch's :url,
-  # which is per-dispatch input — a shell exec is fixed by its binding).
+  # per-dispatch input — an exec binding is fixed at declaration).
   requires_field :result_into
 
   # :description is the always-present captionable attribute on the
@@ -48,7 +48,7 @@ Hecks.behavior_kind "perform_shell_exec" do
   trigger_attribute :description
 
   # What the kernel does, declaratively :
-  #   1. Resolve the :shell adapter for the dispatched command.
+  #   1. Resolve the :exec adapter for the dispatched command.
   #   2. Split :exec into program + args ; run with cwd =
   #      aggregates-root-parent ; inherit the process env.
   #   3. Capture stdout + stderr ; cap stdout at 100 KB, append
