@@ -1,4 +1,4 @@
-Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
+Hecks.bluebook "SubcommandRegistry", version: "2026.05.16.1" do
   vision "The subcommand catalog as a domain — one row per known storehouse subcommand, queried by Cli's RouteSubcommand to resolve a parsed name to a handler. Earns its keep precisely because handlers walk it ; without that operation it would be inert declaration, which is the rejected shape earlier drafts of cli.bluebook called out."
   category "runtime"
 
@@ -50,30 +50,81 @@ Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
     identified_by :name
     # name : the subcommand string ("heki", "specialize", "behaviors",
     # "conceive", "develop", "run", "serve", "loop", "daemon", …).
-    attribute :name, String
+    attribute :name, SubcommandName
 
     # handler : the Rust function (or future capability runner) the
     # dispatch lands in. Today this is a string the Rust matcher
     # consults ("run_heki", "run_conceive", "run_specialize", …) ;
     # tomorrow it can be an aggregate.command pair when capability
     # runners are first-class.
-    attribute :handler, String
+    attribute :handler, HandlerName
 
     # exit_kind_default : the ExitKind name the runtime reports when
     # the handler returns Ok with no specific kind ("ok") vs surfacing
     # a more precise variant ("parse_failure" for parsers, etc.).
-    attribute :exit_kind_default, String, default: "ok"
+    attribute :exit_kind_default, ExitKind, default: "ok"
 
     # deprecated : "yes" when the subcommand still resolves but emits
     # a deprecation warning, "no" otherwise. Lets us announce removal
     # without breaking existing scripts.
-    attribute :deprecated, String, default: "no"
+    attribute :deprecated, DeprecatedFlag, default: "no"
 
     # The expected argv shape — single value_object snapshot per row.
     # Replaced wholesale (via Register) when a subcommand's signature
     # changes. The runtime reads it to validate Argv tokens before
     # dispatching the handler.
     attribute :argv_shape, ArgvShape
+
+    # dispatch_address : the fully-qualified FQN this subcommand routes to
+    # (e.g. "Discipline::Macrophage.Complain"), or empty string for
+    # cadence/verbatim subcommands whose address comes from argv and is
+    # validated at invocation time. The DispatchAddress invariant makes
+    # the i630 truncation class structurally impossible : a non-empty
+    # address MUST contain '::' and therefore cannot be a bare command name.
+    attribute :dispatch_address, DispatchAddress
+
+    value_object "SubcommandName" do
+      # The CLI subcommand string as invoked ("heki", "specialize",
+      # "behaviors", "conceive", "run-loop", etc.). Wraps the primitive
+      # so the domain reads as itself rather than as an opaque String.
+      attribute :value, String
+      invariant "must be non-empty" do
+        !value.empty?
+      end
+    end
+
+    value_object "HandlerName" do
+      # The Rust function symbol or capability-runner name the dispatch
+      # lands in ("run_heki", "run_conceive", "run_specialize", …).
+      # Wraps the primitive so handler references are named concepts.
+      attribute :value, String
+    end
+
+    value_object "ExitKind" do
+      # The symbolic exit-kind name the runtime reports when the handler
+      # returns Ok with no specific variant ("ok", "parse_failure", etc.).
+      # Wraps the primitive so exit-policy declarations read as domain
+      # vocabulary rather than raw strings.
+      attribute :value, String
+    end
+
+    value_object "DeprecatedFlag" do
+      # "yes" when the subcommand still resolves but emits a deprecation
+      # warning ; "no" otherwise. Wraps the primitive so the flag is
+      # a named concept (not a String) in the domain vocabulary.
+      attribute :value, String
+    end
+
+    value_object "DispatchAddress" do
+      # value : the FQN dispatch address ("Domain::Aggregate.Command") or
+      # empty string. The invariant forbids non-empty values that lack '::',
+      # which is the structural condition that caused i630 (the old
+      # .split('.').last() truncation dropped the aggregate qualifier).
+      attribute :value, String
+      invariant "must be fully qualified (contains '::') or empty when the address is supplied at invocation time" do
+        value.empty? || value.include?("::")
+      end
+    end
 
     value_object "ArgvShape" do
       # min_positional / max_positional : how many positional args are
@@ -94,16 +145,18 @@ Hecks.bluebook "SubcommandRegistry", version: "2026.04.28.1" do
     command "Register" do
       role "Chris"
       description "Add a subcommand row to the catalog (or update an existing row's metadata, since identified_by :name makes registrations idempotent on name). New subcommands land via this dispatch ; the bluebook's Register command becomes the single source-of-truth registration path once handlers port through it."
-      attribute :name, String
-      attribute :handler, String
-      attribute :exit_kind_default, String
-      attribute :deprecated, String
+      attribute :name, SubcommandName
+      attribute :handler, HandlerName
+      attribute :exit_kind_default, ExitKind
+      attribute :deprecated, DeprecatedFlag
       attribute :argv_shape, ArgvShape
+      attribute :dispatch_address, DispatchAddress
       then_set :name, to: :name
       then_set :handler, to: :handler
       then_set :exit_kind_default, to: :exit_kind_default
       then_set :deprecated, to: :deprecated
       then_set :argv_shape, to: :argv_shape
+      then_set :dispatch_address, to: :dispatch_address
       emits "SubcommandRegistered"
     end
 
