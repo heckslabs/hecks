@@ -1,4 +1,4 @@
-Hecks.bluebook "ChangeTracker", version: "2026.04.28.1" do
+Hecks.bluebook "ChangeTracker", version: "2026.05.16.1" do
   vision "Track what changed since last beat — only process the delta. Part of how Miette stays fast at 100,000 domains."
   category "meta"
 
@@ -15,16 +15,36 @@ Hecks.bluebook "ChangeTracker", version: "2026.04.28.1" do
 
   aggregate "ChangeTracker", "Track what changed since last beat — only process the delta" do
     identified_by :name
-    attribute :name, String
-    attribute :tracked_files, Integer
-    attribute :changed_since_last, Integer
-    attribute :last_scan_at, String
+    attribute :name,               TrackerName
+    attribute :tracked_files,      FileCount
+    attribute :changed_since_last, ChangeCount
+    attribute :last_scan_at,       ScanTimestamp
+
+    value_object "TrackerName" do
+      # Identifies this tracker instance — typically the root path being watched.
+      attribute :value, String
+    end
+
+    value_object "FileCount" do
+      # Total number of files under observation.
+      attribute :value, Integer
+    end
+
+    value_object "ChangeCount" do
+      # Number of files that changed since the last processed beat.
+      attribute :value, Integer
+    end
+
+    value_object "ScanTimestamp" do
+      # ISO-8601 timestamp of the most recent scan.
+      attribute :value, String
+    end
 
     command "ScanForChanges" do
       role "System"
       description "Compare file mtimes against last known state — find the delta"
-      attribute :tracked_files, Integer
-      attribute :changed_since_last, Integer
+      attribute :tracked_files,      FileCount
+      attribute :changed_since_last, ChangeCount
       emits "ChangesScanned"
       then_set :tracked_files, to: :tracked_files
       then_set :changed_since_last, to: :changed_since_last
