@@ -18,12 +18,6 @@ Hecks.fixtures "Inbox" do
             path:   "Projects/pigeoncoop/inbox",
             label:  "pigeoncoop"
 
-    fixture "bb",
-            abbrev: "bb",
-            emoji:  "♻️",
-            path:   "Projects/bin-buddy/inbox",
-            label:  "bin-buddy"
-
     fixture "em",
             abbrev: "em",
             emoji:  "☸️",
@@ -53,5 +47,11 @@ Hecks.fixtures "Inbox" do
             emoji:  "🔊",
             path:   "Projects/vindiction/inbox",
             label:  "VinDiction"
+
+    fixture "mt",
+            abbrev: "mt",
+            emoji:  "🩺",
+            path:   "Projects/medtracker/inbox",
+            label:  "MedTracker"
   end
 end
