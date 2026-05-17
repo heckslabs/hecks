@@ -376,6 +376,37 @@ Hecks.bluebook "MietteBody", version: "2026.05.12.1" do
       then_set :current_state, to: "curious"
       emits "Regulated"
     end
+
+    # ── Miette's expressive mood for the statusline (i640) ──
+    # Free-form : a glyph (any emoji) + a one-word vibe, set by Miette
+    # anytime through the bus only :
+    #   storehouse__dispatch MietteBody::Mood.SetMood glyph=<emoji> vibe=<word>
+    # Persists to the Mood heki ; the statusline reads it and renders
+    # <glyph> <vibe> in front of the heartbeat. Distinct from
+    # current_state / Express (the immunity-coupled regulation model),
+    # which is left untouched.
+    value_object "Glyph" do
+      # An arbitrary emoji string. Not an enum — expressive by design.
+      attribute :value, String
+    end
+
+    value_object "Vibe" do
+      # One word for how it's going. Rides next to the glyph.
+      attribute :value, String
+    end
+
+    attribute :glyph, Glyph
+    attribute :vibe, Vibe
+
+    command "SetMood" do
+      role "Miette"
+      description "Miette sets her expressive mood — a free-form glyph + one-word vibe — for the statusline. Through the bus only. Records glyph + vibe and emits MoodSet ; does not touch current_state or the Express regulation model."
+      attribute :glyph, Glyph
+      attribute :vibe, Vibe
+      then_set :glyph, to: :glyph
+      then_set :vibe, to: :vibe
+      emits "MoodSet"
+    end
   end
 
   # === DomainCell ===
