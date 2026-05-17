@@ -133,6 +133,18 @@ Hecks.behaviors "MietteBody" do
     expect current_state: "sample"
   end
 
+  test "SetMood records glyph + vibe on Mood" do
+    tests "SetMood", on: "Mood"
+    input  glyph: "🌊", vibe: "flowing"
+    expect glyph: "🌊", vibe: "flowing"
+  end
+
+  test "SetMood emits MoodSet" do
+    tests "SetMood", on: "Mood"
+    input  glyph: "🔥", vibe: "deep"
+    expect emits: ["MoodSet"]
+  end
+
   test "Excite runs" do
     tests "Excite", on: "Mood"
     expect current_state: "excited"
