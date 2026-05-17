@@ -47,5 +47,11 @@ Hecks.fixtures "Inbox" do
             emoji:  "🌅",
             path:   "Projects/miette_family/restarts_inbox",
             label:  "restarts (session restart prompts)"
+
+    fixture "vd",
+            abbrev: "vd",
+            emoji:  "🔊",
+            path:   "Projects/vindiction/inbox",
+            label:  "VinDiction"
   end
 end
