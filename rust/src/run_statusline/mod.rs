@@ -148,13 +148,17 @@ mod tests {
 
     #[test]
     fn awake_render_includes_inboxes_when_seeded() {
-        // Build a fake HOME with a single inbox containing one queued
-        // card. "gl" is first in INBOXES so it owns the slot.
+        // Build a fake HOME with one inbox holding a queued card plus
+        // its .channel.md descriptor (autoloaded ; abbrev gl / crystal).
         let tmp = std::env::temp_dir().join(format!(
             "statusline_inbox_seed_{}", std::process::id()
         ));
         let inbox_dir = tmp.join("Projects/hecks/hecks_conception/inbox");
         std::fs::create_dir_all(&inbox_dir).unwrap();
+        std::fs::write(
+            inbox_dir.join(".channel.md"),
+            "---\nabbrev: gl\nemoji: 🔮\nlabel: Global\n---\nx",
+        ).unwrap();
         std::fs::write(
             inbox_dir.join("test.md"),
             "---\nstatus: queued\nref: test\n---\nbody\n",
