@@ -180,8 +180,8 @@ printf '%s' "$out" | grep -qF -- "5.68k" \
   || note_fail "[gl-only] beats '5.68k' missing"
 printf '%s' "$out" | grep -qF -- "✉️ gl:1" \
   || note_fail "[gl-only] expected '✉️ gl:1' — got: $out"
-printf '%s' "$out" | grep -qF -- "•" \
-  || note_fail "[gl-only] expected dot separator '•' — got: $out"
+! printf '%s' "$out" | grep -qF -- "•" \
+  || note_fail "[gl-only] dot separator must be gone — got: $out"
 if printf '%s' "$out" | grep -qF -- "pi:"; then
   note_fail "[gl-only] empty pc inbox must NOT render — got: $out"
 fi
