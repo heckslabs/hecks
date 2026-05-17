@@ -21,10 +21,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 const HOME = process.env.HOME;
 const TOKEN_PATH = HOME + "/.config/miette/google-oauth-token.json";
 const STATE_PATH = HOME + "/miette-state/information/inbox_poll_state.json";
+// drafts.heki : durable running total of email drafts Miette has composed.
+// Upserted here (count += 1) after each successful Gmail draft create so
+// the awake statusline can show ✉️ N. Path mirrors heki::resolve_info_dir().
+const DRAFTS_HEKI = HOME + "/miette-state/information/drafts.heki";
+const STOREHOUSE  = path.join(path.dirname(new URL(import.meta.url).pathname),
+                              "../rust/target/release/storehouse");
 const REGISTRY  = path.join(path.dirname(new URL(import.meta.url).pathname), "inbox_correspondents.json");
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
@@ -137,6 +144,26 @@ async function main() {
       body: JSON.stringify({ message: { raw: b64url(mime), threadId: msg.threadId } }),
     }).then(r => r.json());
     log(`card i${n} -> ${corr.inbox} ; draft ${dr.id ? "ok" : "FAILED " + JSON.stringify(dr).slice(0,120)} ; ${corr.name} : ${subject}`);
+    // Bump drafts.heki counter only on a confirmed draft (dr.id truthy).
+    // Defensive : heki write failure must not abort the poll.
+    if (dr.id) {
+      try {
+        const prev = (() => {
+          try {
+            return parseInt(
+              execFileSync(STOREHOUSE, ["heki", "latest-field", DRAFTS_HEKI, "count"],
+                           { encoding: "utf8" }).trim(), 10) || 0;
+          } catch { return 0; }
+        })();
+        execFileSync(STOREHOUSE,
+          ["heki", "upsert", DRAFTS_HEKI, "--reason", "inbox poll drafted reply",
+           `count=${prev + 1}`],
+          { encoding: "utf8" });
+        log(`drafts.heki updated : count=${prev + 1}`);
+      } catch (e) {
+        log("[warn] drafts.heki upsert failed (non-fatal):", e.message);
+      }
+    }
     carded++;
   }
 

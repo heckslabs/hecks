@@ -6,7 +6,9 @@
 //! Statusline state — all heki sources read up front so render
 //! functions stay pure. Reads : consciousness + tick + lucid_dream,
 //! plus mood (i640 — Miette's expressive glyph + one-word vibe, set
-//! via the bus `MietteBody::Mood.SetMood`, durable in mood.heki).
+//! via the bus `MietteBody::Mood.SetMood`, durable in mood.heki),
+//! plus drafts (running tally of composed email drafts, durable in
+//! drafts.heki — appended by inbox_poll.mjs after each compose).
 //! The heartbeat / mint / invention / inbox-heki / claude_assist
 //! reads stay dropped with their removed UI.
 
@@ -38,6 +40,11 @@ pub(super) struct State {
     // heartbeat. Empty when never set ; the segment is then omitted.
     pub(super) mood_glyph: String,
     pub(super) mood_vibe: String,
+
+    // From drafts.heki — running count of email drafts Miette has
+    // composed via inbox_poll.mjs. Upserted as {count: N} after each
+    // successful Gmail draft create. Shown as ✉️ N ; omitted when 0.
+    pub(super) drafts_count: i64,
 }
 
 pub(super) fn read_state(info: &Path) -> State {
@@ -72,6 +79,15 @@ pub(super) fn read_state(info: &Path) -> State {
         if let Some(rec) = heki::latest(&store) {
             s.mood_glyph = string_field(rec, "glyph");
             s.mood_vibe  = string_field(rec, "vibe");
+        }
+    }
+
+    // drafts.heki — singleton upserted by inbox_poll.mjs after each
+    // successful Gmail draft compose. Holds {count: N} where N is a
+    // running total. Zero when the file doesn't exist yet.
+    if let Ok(store) = heki::read(&heki::path_for_lookup(&info_s, "drafts")) {
+        if let Some(rec) = heki::latest(&store) {
+            s.drafts_count = int_field(rec, "count");
         }
     }
 
