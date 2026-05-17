@@ -27,8 +27,9 @@
 //! Render order : the abbrev-less channel (the framework inbox) leads,
 //! the rest follow alphabetically by abbrev.
 //!
-//! Supersedes `aggregates/framework/inbox/inbox.fixtures` as the render
-//! source : adding a channel is now "drop a `.channel.md`", no lockstep.
+//! Replaced the central `inbox.fixtures` InboxChannel registry, which
+//! was retired 2026-05-17 : adding a channel is now "drop a
+//! `.channel.md`" — no central registry, no lockstep, no drift.
 
 use std::env;
 use std::path::{Path, PathBuf};
