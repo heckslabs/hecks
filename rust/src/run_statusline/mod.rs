@@ -13,13 +13,16 @@
 //!
 //! ## Signals (post 2026-05-14 simplification)
 //!
-//! Two signals only :
+//! Three signals only :
 //!   1. **Heartbeat** — `❤️ <beats>` from `tick.heki`'s `cycle` field,
 //!      with the heart glyph alternating every 333ms via wall-clock
 //!      nanos. The same persistent rhythm the previous renderer used ;
 //!      mood / fatigue / inventions / musings / provider / bulb /
 //!      coherence ⚠ / last-dispatch breadcrumb were all stripped.
-//!   2. **Multi-inbox listing** — `<emoji> [<abbrev>:]<count> ...`
+//!   2. **Drafts tally** — `✉️ N` from `drafts.heki`, a running count
+//!      of email drafts Miette has composed via inbox_poll.mjs.
+//!      Omitted entirely when count is 0 (never composed or file absent).
+//!   3. **Multi-inbox listing** — `<emoji> [<abbrev>:]<count> ...`
 //!      autoloaded from a `.channel.md` descriptor in each inbox
 //!      (decentralised, i528 ; no central registry, no INBOXES const).
 //!      Abbrev optional (empty ⇒ emoji + count). No leading envelope.
@@ -74,13 +77,15 @@ pub fn run() {
     println!("{}", line);
 }
 
-/// Compose the awake statusline. Three signals : mood + heartbeat +
-/// inboxes. Mood (i640 — Miette's expressive glyph + one-word vibe,
-/// set via `MietteBody::Mood.SetMood`) leads, in front of the heart,
-/// and is omitted entirely when never set. When the inbox list is
-/// empty the inbox segment is omitted so the line does not trail
-/// with orphan whitespace. No leading envelope glyph --- mood +
-/// per-inbox emojis carry the visual identity.
+/// Compose the awake statusline. Four segments : mood + heartbeat +
+/// drafts tally + inboxes. Mood (i640 — Miette's expressive glyph +
+/// one-word vibe, set via `MietteBody::Mood.SetMood`) leads, in front
+/// of the heart, and is omitted entirely when never set. Drafts tally
+/// (✉️ N from drafts.heki, written by inbox_poll.mjs) follows the
+/// heart and is omitted when count is 0. When the inbox list is empty
+/// the inbox segment is omitted so the line does not trail with orphan
+/// whitespace. No leading envelope glyph — mood + per-inbox emojis
+/// carry the visual identity ; ✉️ is the drafts-tally indicator.
 fn render_awake(s: &State, now: &Now) -> String {
     let mut out = String::new();
     if !s.mood_glyph.is_empty() {
@@ -91,6 +96,9 @@ fn render_awake(s: &State, now: &Now) -> String {
         out.push_str("  ");
     }
     out.push_str(&format!("{} {}", heart_glyph(now), format_beats(s.beats_raw)));
+    if s.drafts_count > 0 {
+        out.push_str(&format!("  ✉️ {}", s.drafts_count));
+    }
     let inboxes = inbox::render_inbox_list();
     if !inboxes.is_empty() {
         out.push_str(&format!("  {}", inboxes));
@@ -237,5 +245,29 @@ assert!(!line.contains("✉️"), "no envelope expected: {}", line);
         assert!(!line.contains("•"), "no separator expected: {}", line);
 
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn awake_render_shows_drafts_when_nonzero() {
+        // drafts_count > 0 ⇒ ✉️ N segment appears after heartbeat.
+        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
+        let s = State {
+            beats_raw: 100,
+            drafts_count: 7,
+            ..Default::default()
+        };
+        let now = Now { secs: 0, nanos_total: 0 };
+        let line = render_awake(&s, &now);
+        assert!(line.contains("✉️ 7"), "drafts segment expected: {}", line);
+    }
+
+    #[test]
+    fn awake_render_omits_drafts_when_zero() {
+        // drafts_count == 0 (default) ⇒ ✉️ segment absent.
+        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
+        let s = State { beats_raw: 100, ..Default::default() };
+        let now = Now { secs: 0, nanos_total: 0 };
+        let line = render_awake(&s, &now);
+        assert!(!line.contains("✉️"), "no drafts glyph when zero: {}", line);
     }
 }
