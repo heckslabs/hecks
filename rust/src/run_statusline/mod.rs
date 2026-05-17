@@ -73,15 +73,14 @@ pub fn run() {
 }
 
 /// Compose the awake statusline. Two signals : heartbeat + inboxes.
-/// The dot-emoji separator (`•`) follows `feedback_status_dots.md`.
 /// When the inbox list is empty (nothing queued anywhere) the
-/// separator + envelope segment is omitted so the line doesn't trail
+/// envelope segment is omitted so the line doesn't trail
 /// with orphan whitespace.
 fn render_awake(s: &State, now: &Now) -> String {
     let mut out = format!("{} {}", heart_glyph(now), format_beats(s.beats_raw));
     let inboxes = inbox::render_inbox_list();
     if !inboxes.is_empty() {
-        out.push_str(&format!("  •  ✉️ {}", inboxes));
+        out.push_str(&format!("  ✉️ {}", inboxes));
     }
     out
 }
@@ -167,7 +166,7 @@ mod tests {
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now);
         assert!(line.contains("✉️ gl:1"), "expected gl:1 in: {}", line);
-        assert!(line.contains("•"), "dot separator missing in: {}", line);
+        assert!(!line.contains("•"), "dot separator should be gone in: {}", line);
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
