@@ -56,7 +56,7 @@ Hecks.fixtures "Inbox" do
 
     fixture "mi",
             abbrev: "mi",
-            emoji:  "❀",
+            emoji:  "🐝",
             path:   "Projects/mietteai/inbox",
             label:  "MietteAI (Miette's own app)"
   end
