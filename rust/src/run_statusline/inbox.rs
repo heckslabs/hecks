@@ -17,7 +17,7 @@
 //! whose value is NOT one of `closed`, `done`, `archived`. Cards
 //! without frontmatter (READMEs, scratch files) are not counted.
 //!
-//! Example output : `🔮 gl:134  🕊️ pi:51  ♻️ bb:8`.
+//! Example output : `🔮 gl:134  🕊️ pi:51  🩺 mt:3`.
 //!
 //! Source of record for the emoji+abbrev mapping is
 //! `aggregates/framework/inbox/inbox.fixtures` (InboxChannel rows).
@@ -34,21 +34,21 @@ use std::path::{Path, PathBuf};
 ///
 ///   gl — global (hecks_conception framework inbox)  🔮
 ///   pi — pigeoncoop                                  🕊️
-///   bb — bin-buddy                                   ♻️
 ///   em — emaho (Emaho Buddhist foundation)           ☸️
 ///   hn — hecks nursery                               🌱
 ///   op — OPT Beyond Fitness gym                      💪
 ///   re — restarts (miette_family/restarts_inbox)     🌅
 ///   vd — VinDiction                                  🔊
+///   mt — MedTracker                                  🩺
 pub(super) const INBOXES: &[(&str, &str, &str)] = &[
     ("gl", "🔮",   "Projects/hecks/hecks_conception/inbox"),
     ("pi", "🕊️",  "Projects/pigeoncoop/inbox"),
-    ("bb", "♻️",  "Projects/bin-buddy/inbox"),
     ("em", "☸️",  "Projects/emaho/inbox"),
     ("hn", "🌱",   "Projects/hecks_nursury/inbox"),
     ("op", "💪",   "Projects/opt-website/inbox"),
     ("re", "🌅",   "Projects/miette_family/restarts_inbox"),
     ("vd", "🔊",   "Projects/vindiction/inbox"),
+    ("mt", "🩺",   "Projects/medtracker/inbox"),
 ];
 
 /// Walk INBOXES, count active cards under `$HOME/<rel>` for each.
