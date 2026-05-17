@@ -1,6 +1,0 @@
-Create
-Update
-Add
-Set
-Place
-Cancel

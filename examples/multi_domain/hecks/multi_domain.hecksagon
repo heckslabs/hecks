@@ -1,4 +1,0 @@
-Hecks.hecksagon do
-  # Billing and Shipping react to Pizzas domain events
-  subscribe "Pizzas"
-end
