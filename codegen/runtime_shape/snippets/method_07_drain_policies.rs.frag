@@ -104,6 +104,12 @@
                             &event.aggregate_type,
                             &event.aggregate_id,
                         );
+                        // i622 — cascade step log. PM-driven cascade.
+                        storehouse_log::cascade_step(
+                            &dispatched.command_name,
+                            &event.aggregate_id,
+                            inner.is_ok(),
+                        );
                         if let Ok(inner_result) = inner {
                             self.drain_policies(&inner_result);
                             // i220 sub-gap 5 — fire the :compute hook
@@ -141,6 +147,17 @@
                 let cmd = trigger.command_name.clone();
                 let mut data = trigger.event_data.clone();
 
+                // i622 — policy reaction log. Printed at every level
+                // (including quiet) because policy chains are the
+                // operational signal operators most often want to see.
+                storehouse_log::policy_reaction(
+                    &policy_name,
+                    &event.aggregate_type,
+                    &event.name,
+                    &event.aggregate_id,
+                    &cmd,
+                );
+
                 // Inject every reference the triggered command needs:
                 //   1. self-ref or upstream-ref → use upstream event's aggregate_id
                 //   2. other refs → use any record currently in that repo (singleton)
@@ -162,6 +179,10 @@
                 let inner = command_dispatch::dispatch_cascade(
                     self, &cmd, data,
                     &event.aggregate_type, &event.aggregate_id,
+                );
+                // i622 — cascade step log. Policy-driven cascade.
+                storehouse_log::cascade_step(
+                    &cmd, &event.aggregate_id, inner.is_ok(),
                 );
                 if let Ok(inner_result) = inner {
                     self.drain_policies(&inner_result);

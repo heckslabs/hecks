@@ -1338,3 +1338,71 @@ fn universal_id_both_forms_produce_identical_state() {
     assert_eq!(state_a.get("reason"), state_b.get("reason"));
     assert_eq!(state_a.id, state_b.id);
 }
+
+#[test]
+fn fqn_dispatch_honors_aggregate_qualifier() {
+    // i630 regression. Two aggregates in the loaded domain both declare
+    // a `Check` command — the real-world collision is framework
+    // Inbox.Check vs the macrophage's BidirectionalAssociation.Check.
+    // Before the fix, `storehouse loop` / `clock` / `run-loop`
+    // truncated the Domain::Aggregate.Command FQN down to the bare
+    // `Check`, and bare-name resolution (first-match-wins) landed on
+    // the WRONG aggregate — `Inbox::Inbox.Check` fired the macrophage's
+    // CheckRun, so the inbox loop never reached Inbox.Check. The fix
+    // passes the full FQN through ; command_dispatch::resolve must
+    // honor the aggregate qualifier and land on the named aggregate.
+    let mut rt = boot(r#"Hecks.bluebook "Coll" do
+  aggregate "Inbox" do
+    description "An inbox"
+    attribute :seen, Float, default: 0.5
+    command "CreateInbox" do
+      role "Poller"
+    end
+    command "Check" do
+      role "Poller"
+      reference_to Inbox
+      then_set :seen, multiply: 0.5
+    end
+  end
+
+  aggregate "BidirectionalAssociation" do
+    description "A macrophage rule sibling that also declares Check"
+    attribute :seen, Float, default: 0.5
+    command "CreateAssoc" do
+      role "Macrophage"
+    end
+    command "Check" do
+      role "Macrophage"
+      reference_to BidirectionalAssociation
+      then_set :seen, multiply: 0.5
+    end
+  end
+end"#);
+
+    rt.dispatch("Coll::Inbox.CreateInbox", HashMap::new()).unwrap();
+    rt.dispatch("Coll::BidirectionalAssociation.CreateAssoc", HashMap::new())
+        .unwrap();
+
+    // FQN naming the Inbox aggregate must resolve to Inbox — not the
+    // first/any aggregate that happens to declare a bare `Check`.
+    let r_inbox = rt
+        .dispatch("Coll::Inbox.Check", attrs(&[("inbox", s("1"))]))
+        .unwrap();
+    assert_eq!(
+        r_inbox.aggregate_type, "Inbox",
+        "FQN Coll::Inbox.Check must resolve to the Inbox aggregate, not a sibling declaring Check"
+    );
+
+    // The sibling FQN must resolve to its own aggregate — proving the
+    // qualifier disambiguates in both directions, not just first-match.
+    let r_assoc = rt
+        .dispatch(
+            "Coll::BidirectionalAssociation.Check",
+            attrs(&[("bidirectional_association", s("1"))]),
+        )
+        .unwrap();
+    assert_eq!(
+        r_assoc.aggregate_type, "BidirectionalAssociation",
+        "FQN Coll::BidirectionalAssociation.Check must resolve to that aggregate"
+    );
+}
