@@ -39,6 +39,7 @@ use std::path::{Path, PathBuf};
 ///   hn — hecks nursery                               🌱
 ///   op — OPT Beyond Fitness gym                      💪
 ///   re — restarts (miette_family/restarts_inbox)     🌅
+///   vd — VinDiction                                  🔊
 pub(super) const INBOXES: &[(&str, &str, &str)] = &[
     ("gl", "🔮",   "Projects/hecks/hecks_conception/inbox"),
     ("pi", "🕊️",  "Projects/pigeoncoop/inbox"),
@@ -47,6 +48,7 @@ pub(super) const INBOXES: &[(&str, &str, &str)] = &[
     ("hn", "🌱",   "Projects/hecks_nursury/inbox"),
     ("op", "💪",   "Projects/opt-website/inbox"),
     ("re", "🌅",   "Projects/miette_family/restarts_inbox"),
+    ("vd", "🔊",   "Projects/vindiction/inbox"),
 ];
 
 /// Walk INBOXES, count active cards under `$HOME/<rel>` for each.
