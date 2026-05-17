@@ -171,6 +171,56 @@ Hecks.bluebook "Inbox", version: "2026.05.13.1" do
     end
   end
 
+  # ── InboxChannel : per-project inbox registry ──
+  #
+  # Source of record for the statusline inbox segment (render order,
+  # emoji, two-letter abbreviation, HOME-relative path, human label).
+  # Full runtime read-from-bluebook is a noted follow-up (i528 StoreHouse arc) ;
+  # the Rust renderer currently uses a hard-coded INBOXES const that mirrors
+  # the fixtures below. The fixtures are the authoritative declaration.
+  aggregate "InboxChannel", "One registered project inbox — maps an abbreviation and emoji to a filesystem path for the statusline renderer." do
+    identified_by :abbrev
+
+    attribute :abbrev, InboxInitial,     default: "gl"
+    attribute :emoji,  EmojiGlyph,       default: "�"
+    attribute :path,   HomeRelativePath, default: ""
+    attribute :label,  InboxLabel,       default: ""
+
+    value_object "EmojiGlyph" do
+      # The Unicode emoji glyph rendered before `abbrev:count` in the
+      # statusline segment. May include a VS-16 variation selector (U+FE0F)
+      # for text glyphs that need emoji presentation.
+      attribute :value, String
+    end
+
+    value_object "HomeRelativePath" do
+      # The inbox directory path relative to $HOME (e.g.
+      # "Projects/hecks/hecks_conception/inbox"). The statusline renderer
+      # joins this with $HOME to locate the markdown card directory.
+      attribute :value, String
+    end
+
+    value_object "InboxLabel" do
+      # Human-readable description of the inbox, for tooling and reports.
+      attribute :value, String
+    end
+
+    # ── Commands ──
+
+    command "Register" do
+      role "Framework"
+      description "Register or update an inbox channel. Dispatched at boot by the seed-subcommand-registry tooling when the fixture rows are written to .heki storage. Idempotent — re-registering the same abbrev updates the row in place."
+      attribute :abbrev, InboxInitial
+      attribute :emoji,  EmojiGlyph
+      attribute :path,   HomeRelativePath
+      attribute :label,  InboxLabel
+      emits "InboxChannelRegistered"
+      then_set :emoji,  to: :emoji
+      then_set :path,   to: :path
+      then_set :label,  to: :label
+    end
+  end
+
   # ── Reactor wiring ──
   #
   # Inbox does NOT declare the on-Check fan-out here. The hecksagon

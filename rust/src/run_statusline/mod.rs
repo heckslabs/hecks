@@ -19,11 +19,13 @@
 //!      nanos. The same persistent rhythm the previous renderer used ;
 //!      mood / fatigue / inventions / musings / provider / bulb /
 //!      coherence ⚠ / last-dispatch breadcrumb were all stripped.
-//!   2. **Multi-inbox listing** — `✉️ <init>:<count> ...` across the
-//!      five known inboxes (initials hard-coded in `inbox::INBOXES`).
+//!   2. **Multi-inbox listing** — `<emoji> <init>:<count> ...` across the
+//!      seven known inboxes (registry hard-coded in `inbox::INBOXES`,
+//!      mirrored from `aggregates/framework/inbox/inbox.fixtures`).
+//!      Each inbox has its own emoji glyph ; no leading envelope.
 //!      Entries with zero queued cards are omitted so the line stays
-//!      compact. When every inbox is empty the envelope segment is
-//!      dropped entirely (no orphan separator).
+//!      compact. When every inbox is empty the segment is dropped
+//!      entirely (no orphan separator).
 //!
 //! Sleep mode is unchanged from pre-simplification — moon glyph +
 //! cycle counter + dream narrative render from `consciousness.heki`
@@ -74,13 +76,14 @@ pub fn run() {
 
 /// Compose the awake statusline. Two signals : heartbeat + inboxes.
 /// When the inbox list is empty (nothing queued anywhere) the
-/// envelope segment is omitted so the line doesn't trail
-/// with orphan whitespace.
+/// inbox segment is omitted entirely so the line does not trail
+/// with orphan whitespace. No leading envelope glyph ---
+/// per-inbox emojis carry the visual identity.
 fn render_awake(s: &State, now: &Now) -> String {
     let mut out = format!("{} {}", heart_glyph(now), format_beats(s.beats_raw));
     let inboxes = inbox::render_inbox_list();
     if !inboxes.is_empty() {
-        out.push_str(&format!("  ✉️ {}", inboxes));
+        out.push_str(&format!("  {}", inboxes));
     }
     out
 }
@@ -165,7 +168,10 @@ mod tests {
         };
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now);
-        assert!(line.contains("✉️ gl:1"), "expected gl:1 in: {}", line);
+        
+assert!(line.contains("gl:1"), "expected gl:1 in: {}", line);
+        assert!(line.contains("🔮"), "expected gl emoji in: {}", line);
+        assert!(!line.contains("✉️"), "no envelope expected in: {}", line);
         assert!(!line.contains("•"), "dot separator should be gone in: {}", line);
 
         let _ = std::fs::remove_dir_all(&tmp);
@@ -184,7 +190,8 @@ mod tests {
         let s = State { beats_raw: 42, ..Default::default() };
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now);
-        assert!(!line.contains("✉️"), "no envelope expected: {}", line);
+        
+assert!(!line.contains("✉️"), "no envelope expected: {}", line);
         assert!(!line.contains("•"), "no separator expected: {}", line);
 
         let _ = std::fs::remove_dir_all(&tmp);

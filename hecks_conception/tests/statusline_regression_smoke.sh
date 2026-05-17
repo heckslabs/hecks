@@ -13,7 +13,7 @@
 #
 # Post-simplification the statusline surfaces TWO signals only :
 #   1. ❤️ <beats>          (heartbeat from tick.heki)
-#   2. ✉️ <init>:<count> ...  (multi-inbox, omitted when all empty)
+#   2. <emoji> <init>:<count> ...  (multi-inbox, per-inbox emoji, omitted when all empty)
 #
 # The old shape's mood / fatigue / inventions / musings / provider /
 # bulb / coherence-⚠ / last-dispatch breadcrumb were all stripped. This
@@ -29,7 +29,7 @@
 #   - Rendered line starts with one of the heart glyphs (❤️ alive / 🖤 dim)
 #   - Mood, fatigue, breadcrumb, coherence, bulb, invention, provider
 #     signals are all ABSENT from the output
-#   - Multi-inbox listing renders as `✉️ gl:N` when a queued card exists
+#   - Multi-inbox listing renders as `<emoji> gl:N` when a queued card exists (no leading envelope)
 #   - When every inbox is empty, the envelope segment is suppressed
 #     (no orphan separator, no leading whitespace before nothing)
 #
@@ -164,7 +164,7 @@ check_no_stripped_signals "heartbeat-only" "$out"
 printf '%s' "$out" | grep -qF -- "1.23k" \
   || note_fail "[heartbeat-only] beats '1.23k' missing"
 if printf '%s' "$out" | grep -qF -- "✉️"; then
-  note_fail "[heartbeat-only] envelope must be suppressed when all inboxes empty — got: $out"
+  note_fail "[heartbeat-only] no envelope expected when all inboxes empty — got: $out"
 fi
 if printf '%s' "$out" | grep -qF -- "•"; then
   note_fail "[heartbeat-only] dot separator must be suppressed when inbox list empty — got: $out"
@@ -178,8 +178,13 @@ echo "[gl-only] $out"
 check_no_stripped_signals "gl-only" "$out"
 printf '%s' "$out" | grep -qF -- "5.68k" \
   || note_fail "[gl-only] beats '5.68k' missing"
-printf '%s' "$out" | grep -qF -- "✉️ gl:1" \
-  || note_fail "[gl-only] expected '✉️ gl:1' — got: $out"
+printf '%s' "$out" | grep -qF -- "gl:1" \
+  || note_fail "[gl-only] expected 'gl:1' — got: $out"
+printf '%s' "$out" | grep -qF -- "🔮" \
+  || note_fail "[gl-only] expected gl emoji — got: $out"
+if printf '%s' "$out" | grep -qF -- "✉️"; then
+  note_fail "[gl-only] no envelope expected — got: $out"
+fi
 ! printf '%s' "$out" | grep -qF -- "•" \
   || note_fail "[gl-only] dot separator must be gone — got: $out"
 if printf '%s' "$out" | grep -qF -- "pi:"; then
