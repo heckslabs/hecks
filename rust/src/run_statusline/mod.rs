@@ -19,10 +19,10 @@
 //!      nanos. The same persistent rhythm the previous renderer used ;
 //!      mood / fatigue / inventions / musings / provider / bulb /
 //!      coherence ⚠ / last-dispatch breadcrumb were all stripped.
-//!   2. **Multi-inbox listing** — `<emoji> <init>:<count> ...` across the
-//!      seven known inboxes (registry hard-coded in `inbox::INBOXES`,
-//!      mirrored from `aggregates/framework/inbox/inbox.fixtures`).
-//!      Each inbox has its own emoji glyph ; no leading envelope.
+//!   2. **Multi-inbox listing** — `<emoji> [<abbrev>:]<count> ...`
+//!      autoloaded from a `.channel.md` descriptor in each inbox
+//!      (decentralised, i528 ; no central registry, no INBOXES const).
+//!      Abbrev optional (empty ⇒ emoji + count). No leading envelope.
 //!      Entries with zero queued cards are omitted so the line stays
 //!      compact. When every inbox is empty the segment is dropped
 //!      entirely (no orphan separator).
