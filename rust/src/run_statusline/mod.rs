@@ -74,13 +74,23 @@ pub fn run() {
     println!("{}", line);
 }
 
-/// Compose the awake statusline. Two signals : heartbeat + inboxes.
-/// When the inbox list is empty (nothing queued anywhere) the
-/// inbox segment is omitted entirely so the line does not trail
-/// with orphan whitespace. No leading envelope glyph ---
+/// Compose the awake statusline. Three signals : mood + heartbeat +
+/// inboxes. Mood (i640 — Miette's expressive glyph + one-word vibe,
+/// set via `MietteBody::Mood.SetMood`) leads, in front of the heart,
+/// and is omitted entirely when never set. When the inbox list is
+/// empty the inbox segment is omitted so the line does not trail
+/// with orphan whitespace. No leading envelope glyph --- mood +
 /// per-inbox emojis carry the visual identity.
 fn render_awake(s: &State, now: &Now) -> String {
-    let mut out = format!("{} {}", heart_glyph(now), format_beats(s.beats_raw));
+    let mut out = String::new();
+    if !s.mood_glyph.is_empty() {
+        out.push_str(&s.mood_glyph);
+        if !s.mood_vibe.is_empty() {
+            out.push_str(&format!(" {}", s.mood_vibe));
+        }
+        out.push_str("  ");
+    }
+    out.push_str(&format!("{} {}", heart_glyph(now), format_beats(s.beats_raw)));
     let inboxes = inbox::render_inbox_list();
     if !inboxes.is_empty() {
         out.push_str(&format!("  {}", inboxes));
@@ -110,6 +120,34 @@ mod tests {
         assert_eq!(format_beats(1_000), "1.00k");
         assert_eq!(format_beats(82_416), "82.42k");
         assert_eq!(format_beats(1_500_000), "1.50m");
+    }
+
+    #[test]
+    fn awake_render_prepends_mood_in_front_of_heart() {
+        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
+        let s = State {
+            consciousness: "attentive".into(),
+            beats_raw: 1234,
+            mood_glyph: "MG".into(),
+            mood_vibe: "humming".into(),
+            ..Default::default()
+        };
+        let now = Now { secs: 0, nanos_total: 0 };
+        let line = render_awake(&s, &now);
+        assert!(line.starts_with("MG humming  "), "mood leads: {}", line);
+        assert!(line.contains("1.23k"), "heart+beats after mood: {}", line);
+    }
+
+    #[test]
+    fn awake_render_omits_mood_when_unset() {
+        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
+        let s = State { beats_raw: 1234, ..Default::default() };
+        let now = Now { secs: 0, nanos_total: 0 };
+        let line = render_awake(&s, &now);
+        assert!(
+            line.starts_with('\u{2764}') || line.starts_with('\u{1f5a4}'),
+            "no mood ⇒ heart leads: {}", line
+        );
     }
 
     #[test]
