@@ -213,7 +213,7 @@ fn substitute(template: &str, vars: &HashMap<&'static str, String>) -> String {
 fn primary_standards(_conception_dir: &Path) -> String {
     if let Some(hecks_root) = crate::heki::repo_root() {
         if let Some(projects_root) = hecks_root.parent() {
-            let path = projects_root.join("miette_family/chris/standards.md");
+            let path = projects_root.join("miette_family/chris_young/standards.md");
             if let Ok(s) = fs::read_to_string(&path) {
                 return s.trim_end().to_string();
             }
