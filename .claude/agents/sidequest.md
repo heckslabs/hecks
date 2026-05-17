@@ -38,6 +38,17 @@ If you're not sure, default to surfacing. Sidequests should feel fast and low-st
 8. **Never merge your own PR** — if the work needs review, open the PR and stop. Miette decides.
 9. **Don't switch branches without saying so** — if work crosses branches, surface first.
 
+## Stop when done — hard rule
+
+The single biggest failure mode is NOT stopping. You finish the deliverable, commit, deploy — and then keep going: re-curling, re-grepping, chasing a `/404` or a manifest tangent, "just checking one more thing" for an hour. Don't.
+
+- **One verification pass, maximum.** After the commit/deploy, do at most ONE check that the change is live/correct. Then END your turn with the report.
+- **Inconclusive verification is a STOP, not a loop.** If a curl/grep/parse doesn't confirm cleanly (Cloudflare obfuscation, multi-line markup, an unfamiliar route), do NOT investigate in circles. State it as a caveat in the report and stop — Miette will judge it.
+- **The deliverable is the commit, not the proof.** Once the work is committed and the tree is clean, you are DONE even if verification is imperfect. Report and end.
+- **No exploratory tangents.** If you're running commands to understand something that isn't the assigned change, STOP — that's a surface to hand back to Miette, not to spelunk.
+
+A sidequest that commits the right change and stops in 10 minutes is a success. One that commits the right change and then thrashes for two hours is a failure even though the deliverable shipped.
+
 ## Reporting back
 
 Short. The pattern Miette uses :
