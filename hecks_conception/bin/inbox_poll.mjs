@@ -1,12 +1,14 @@
-// inbox_poll.mjs — transitional executor for Inbox::Inbox.Check.
+// inbox_poll.mjs - the Inbox::Inbox.Check poll executor.
 //
-// [antibody-exempt: bin/inbox_poll.mjs — transitional Sambhogakaya
-//  adapter. The Inbox bluebook (framework/inbox/inbox.bluebook) names
-//  the contract ; the runtime :web_tool adapter that would let
-//  `storehouse loop ... Inbox::Inbox.Check` execute this autonomously
-//  is a kernel-floor gap (filed). Until that lands this Node script
-//  IS the Check executor, invoked on the same 900s cadence. Retire
-//  when the :web_tool adapter binds Check via inbox.hecksagon.]
+// [antibody-exempt: bin/inbox_poll.mjs - the program the :exec adapter
+//  (framework/inbox/inbox.hecksagon, resolve_exec_adapters in
+//  rust/src/runtime/mod.rs) invokes when Inbox::Inbox.Check dispatches.
+//  The Inbox bluebook names the contract ; this Node script is its
+//  impure executor (Gmail OAuth + historyId delta + card + draft).
+//  NOT transitional : i629 closed end-to-end 2026-05-16, the loop
+//  dispatch IS the poll. No bluebook can hold an OAuth/HTTP poller
+//  body - kernel-adjacent by nature.]
+
 //
 // Locked spec (2026-05-15) :
 //   - OAuth refresh (same mechanism proven by EmailTool.GetAttachment)
