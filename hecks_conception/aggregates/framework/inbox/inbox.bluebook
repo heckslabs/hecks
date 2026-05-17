@@ -1,4 +1,4 @@
-Hecks.bluebook "Inbox", version: "2026.05.13.1" do
+Hecks.bluebook "Inbox", version: "2026.05.17.1" do
   vision "Miette's email inbox as a first-class domain — a Mailbox aggregate that records when it was last checked, what was last seen, and dispatches a Check command on a 15-minute periodicity. The Check command is callable on demand via the storehouse universal door (storehouse__dispatch Inbox::Inbox.Check) AND fired periodically by an overmind-supervised loop daemon (inbox MindstreamMember). LOCKED 2026-05-15 : the fetch is no longer deferred to the unbuilt :mcp adapter (i594). Check binds the :web_tool adapter — the same OAuth-refresh + Gmail-REST mechanism proven by EmailTool.GetAttachment — so the dispatch IS the fetch, autonomously, with no consciousness in the loop. Delta detection is the Gmail historyId watermark (users.history.list since last_history_id), exact and reprocessing-free. Scope is known correspondents only : each new inbound thread from a registered Correspondent is written as a card into that correspondent's mapped project inbox, where the statusline count and Miette's next-turn discipline surface it. Folded into the existing 900s inbox loop — one cadence, one log surface, no new process."
   category "framework"
 
@@ -168,56 +168,6 @@ Hecks.bluebook "Inbox", version: "2026.05.13.1" do
       attribute :subject,    Subject
       attribute :sender,     Sender
       emits "NewMessageFound"
-    end
-  end
-
-  # ── InboxChannel : per-project inbox registry ──
-  #
-  # Source of record for the statusline inbox segment (render order,
-  # emoji, two-letter abbreviation, HOME-relative path, human label).
-  # Full runtime read-from-bluebook is a noted follow-up (i528 StoreHouse arc) ;
-  # the Rust renderer currently uses a hard-coded INBOXES const that mirrors
-  # the fixtures below. The fixtures are the authoritative declaration.
-  aggregate "InboxChannel", "One registered project inbox — maps an abbreviation and emoji to a filesystem path for the statusline renderer." do
-    identified_by :abbrev
-
-    attribute :abbrev, InboxInitial,     default: "gl"
-    attribute :emoji,  EmojiGlyph,       default: "�"
-    attribute :path,   HomeRelativePath, default: ""
-    attribute :label,  InboxLabel,       default: ""
-
-    value_object "EmojiGlyph" do
-      # The Unicode emoji glyph rendered before `abbrev:count` in the
-      # statusline segment. May include a VS-16 variation selector (U+FE0F)
-      # for text glyphs that need emoji presentation.
-      attribute :value, String
-    end
-
-    value_object "HomeRelativePath" do
-      # The inbox directory path relative to $HOME (e.g.
-      # "Projects/hecks/hecks_conception/inbox"). The statusline renderer
-      # joins this with $HOME to locate the markdown card directory.
-      attribute :value, String
-    end
-
-    value_object "InboxLabel" do
-      # Human-readable description of the inbox, for tooling and reports.
-      attribute :value, String
-    end
-
-    # ── Commands ──
-
-    command "Register" do
-      role "Framework"
-      description "Register or update an inbox channel. Dispatched at boot by the seed-subcommand-registry tooling when the fixture rows are written to .heki storage. Idempotent — re-registering the same abbrev updates the row in place."
-      attribute :abbrev, InboxInitial
-      attribute :emoji,  EmojiGlyph
-      attribute :path,   HomeRelativePath
-      attribute :label,  InboxLabel
-      emits "InboxChannelRegistered"
-      then_set :emoji,  to: :emoji
-      then_set :path,   to: :path
-      then_set :label,  to: :label
     end
   end
 
