@@ -828,6 +828,40 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       then_set :subagent_type, to: :subagent_type
       then_set :description,   to: :description
     end
+
+    value_object "AgentMessage" do
+      # The steering message to deliver into a RUNNING sub-agent's
+      # live context (course-correction, added constraint, new
+      # instruction). Rides in the event payload ; not persisted.
+      attribute :value, String
+    end
+
+    # ── SendMessage ── (i639)
+    #
+    # Steer a sub-agent that is ALREADY running : deliver `message`
+    # into the live agent identified by `id` (the Sidequest record
+    # minted at Dispatch). Records the steer + emits
+    # SidequestMessageSent ; the message rides in the event payload
+    # and the agent's continued transcript flows back through
+    # Cascade.RecordResult under the same id.
+    #
+    # RUNTIME GAP (i639, honest) : CONTRACT only. No kernel arm yet
+    # delivers a message into a running agent's context — this
+    # harness runs sub-agents one-shot (Dispatch → detached →
+    # Cascade on completion). Until an agent_dispatcher (sibling of
+    # exec_dispatcher / claude_tool_dispatcher) + the harness
+    # deliver-into-live-agent capability land, SendMessage is a
+    # declared-but-unwired door — same posture as the EmailTool
+    # :mcp bindings (contract now, dispatch-IS-the-act later).
+    command "SendMessage" do
+      role "Miette"
+      description "Steer an already-running sub-agent : deliver a message into the live agent identified by id. Records the steer as a Sidequest record and emits SidequestMessageSent ; the message rides in the event payload. CONTRACT ONLY until i639's kernel arm lands — no runtime currently delivers into a running agent."
+      attribute :id, Id
+      attribute :message, AgentMessage
+      attribute :description, Description
+      emits "SidequestMessageSent"
+      then_set :description, to: :description
+    end
   end
 
   # ──── Aggregate: WakeupTool ────

@@ -494,6 +494,24 @@ Hecks.behaviors "Tools" do
     expect emits: ["SidequestDispatched"]
   end
 
+  # ── Sidequest : SendMessage (i639) ────────────────────
+
+  test "SendMessage records description on Sidequest" do
+    tests "SendMessage", on: "Sidequest"
+    input  id:          { value: "sidequest-1" },
+           message:     { value: "drop the AgentTool idea — extend Sidequest instead" },
+           description: { value: "steer the running agent" }
+    expect description: { value: "steer the running agent" }
+  end
+
+  test "SendMessage emits SidequestMessageSent" do
+    tests "SendMessage", on: "Sidequest"
+    input  id:          { value: "sidequest-2" },
+           message:     { value: "tighten the spec" },
+           description: { value: "course-correct" }
+    expect emits: ["SidequestMessageSent"]
+  end
+
   # ── WakeupTool : Schedule ─────────────────────────────────────────
 
   test "Schedule records delay_seconds + reason + description on WakeupTool" do
