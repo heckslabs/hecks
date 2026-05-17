@@ -13,7 +13,8 @@
 #
 # Post-simplification the statusline surfaces TWO signals only :
 #   1. ❤️ <beats>          (heartbeat from tick.heki)
-#   2. <emoji> <init>:<count> ...  (multi-inbox, per-inbox emoji, omitted when all empty)
+#   2. <emoji> [<abbrev>:]<count> ...  (autoloaded .channel.md per
+#      inbox ; abbrev optional, empty => emoji + count ; omitted when empty)
 #
 # The old shape's mood / fatigue / inventions / musings / provider /
 # bulb / coherence-⚠ / last-dispatch breadcrumb were all stripped. This
@@ -114,6 +115,23 @@ body
 EOF
 }
 
+# seed_channel <home> <rel> <abbrev> <emoji>
+# Drops a .channel.md descriptor so the inbox is discovered + labelled
+# (decentralised autoload, i528). Empty abbrev => emoji + count only.
+seed_channel() {
+  local home="$1" rel="$2" abbrev="$3" emoji="$4"
+  local inbox="$home/$rel"
+  mkdir -p "$inbox"
+  cat > "$inbox/.channel.md" <<EOF
+---
+abbrev: $abbrev
+emoji: $emoji
+label: smoke
+---
+descriptor
+EOF
+}
+
 # Reset the fake home so each scenario starts with no inboxes.
 reset_home() {
   rm -rf "$FAKE_HOME"
@@ -173,15 +191,14 @@ fi
 # ---- Scenario 2 : single seeded inbox (gl) ----------------------------
 reset_home
 seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "test-1" "queued"
+seed_channel "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "" "🔮"
 out="$(render 5678)"
 echo "[gl-only] $out"
 check_no_stripped_signals "gl-only" "$out"
 printf '%s' "$out" | grep -qF -- "5.68k" \
   || note_fail "[gl-only] beats '5.68k' missing"
-printf '%s' "$out" | grep -qF -- "gl:1" \
-  || note_fail "[gl-only] expected 'gl:1' — got: $out"
-printf '%s' "$out" | grep -qF -- "🔮" \
-  || note_fail "[gl-only] expected gl emoji — got: $out"
+printf '%s' "$out" | grep -qF -- "🔮 1" \
+  || note_fail "[gl-only] expected abbrev-less '🔮 1' — got: $out"
 if printf '%s' "$out" | grep -qF -- "✉️"; then
   note_fail "[gl-only] no envelope expected — got: $out"
 fi
@@ -201,13 +218,16 @@ seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m2" "queued"
 seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m3" "queued"
 # A non-queued card in pi must be ignored by the queued-status filter.
 seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p-closed" "closed"
+seed_channel "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "" "🔮"
+seed_channel "$FAKE_HOME" "Projects/pigeoncoop/inbox" "pi" "🕊️"
+seed_channel "$FAKE_HOME" "Projects/medtracker/inbox" "mt" "🩺"
 out="$(render 999)"
 echo "[multi-inbox] $out"
 check_no_stripped_signals "multi-inbox" "$out"
 printf '%s' "$out" | grep -qF -- "999" \
   || note_fail "[multi-inbox] beats '999' missing"
-printf '%s' "$out" | grep -qF -- "gl:2" \
-  || note_fail "[multi-inbox] expected 'gl:2' — got: $out"
+printf '%s' "$out" | grep -qF -- "🔮 2" \
+  || note_fail "[multi-inbox] expected abbrev-less '🔮 2' — got: $out"
 printf '%s' "$out" | grep -qF -- "pi:1" \
   || note_fail "[multi-inbox] expected 'pi:1' (closed card filtered) — got: $out"
 printf '%s' "$out" | grep -qF -- "mt:3" \
