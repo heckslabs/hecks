@@ -5323,10 +5323,11 @@ fn emit_validator_warnings_to_stderr(domain: &storehouse::ir::Domain) {
 
 /// Resolve the SubcommandRegistry heki path.
 ///
-/// Uses the same resolution strategy as `find_subcommand_heki` but
-/// targets `information/subcommand_registry/subcommand.heki` — the
-/// canonical path written by the storehouse domain runtime (domain
-/// SubcommandRegistry, aggregate Subcommand).
+/// Resolves via HECKS_HOME or by walking up from the binary to the repo
+/// root, then joins `hecks_conception/information/subcommand_registry/
+/// subcommand.heki` — seeded by bin/seed-subcommand-registry from
+/// cli/subcommand/subcommand.fixtures (domain SubcommandRegistry,
+/// aggregate Subcommand, command Register).
 fn find_subcommand_registry_heki() -> Option<String> {
     let agg_dir = resolve_aggregates_dir()?;
     let p = std::path::Path::new(&agg_dir)

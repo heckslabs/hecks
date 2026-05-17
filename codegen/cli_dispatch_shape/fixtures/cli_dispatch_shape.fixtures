@@ -10,7 +10,7 @@ Hecks.fixtures "CliDispatchShape" do
       order: 1,
       body_kind: "verbatim_section",
       snippet_path: "codegen/cli_dispatch_shape/snippets/sec_01_main_open.rs.frag",
-      description: "fn main() opening — argv collection, being detection, args.len()<2 short-circuit, command/path parsing, and the subcommand-catalog gate (lookup_subcommand handler-match for print_usage)."
+      description: "fn main() opening — argv collection, being detection, args.len()<2 short-circuit, command/path parsing, and the SubcommandRegistry gate (load_cli_routes + invoke_route from i80 Unit C)."
 
     fixture "DispatchChain",
       name: "dispatch_chain",
