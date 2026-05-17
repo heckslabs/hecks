@@ -191,15 +191,15 @@ if printf '%s' "$out" | grep -qF -- "pi:"; then
   note_fail "[gl-only] empty pc inbox must NOT render — got: $out"
 fi
 
-# ---- Scenario 3 : multiple seeded inboxes (gl + pc + bb) --------------
+# ---- Scenario 3 : multiple seeded inboxes (gl + pi + mt) --------------
 reset_home
 seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "i1" "queued"
 seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "i2" "queued"
 seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p1" "queued"
-seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b1" "queued"
-seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b2" "queued"
-seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b3" "queued"
-# A non-queued card in pc must be ignored by the queued-status filter.
+seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m1" "queued"
+seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m2" "queued"
+seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m3" "queued"
+# A non-queued card in pi must be ignored by the queued-status filter.
 seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p-closed" "closed"
 out="$(render 999)"
 echo "[multi-inbox] $out"
@@ -210,8 +210,8 @@ printf '%s' "$out" | grep -qF -- "gl:2" \
   || note_fail "[multi-inbox] expected 'gl:2' — got: $out"
 printf '%s' "$out" | grep -qF -- "pi:1" \
   || note_fail "[multi-inbox] expected 'pi:1' (closed card filtered) — got: $out"
-printf '%s' "$out" | grep -qF -- "bb:3" \
-  || note_fail "[multi-inbox] expected 'bb:3' — got: $out"
+printf '%s' "$out" | grep -qF -- "mt:3" \
+  || note_fail "[multi-inbox] expected 'mt:3' — got: $out"
 
 if [ "$fail" = "0" ]; then
   echo "statusline_regression_smoke: OK"
