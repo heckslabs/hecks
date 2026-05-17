@@ -17,47 +17,52 @@
 //! whose value is NOT one of `closed`, `done`, `archived`. Cards
 //! without frontmatter (READMEs, scratch files) are not counted.
 //!
-//! Example output : `gl:134 pi:51 bb:8`.
+//! Example output : `🔮 gl:134  🕊️ pi:51  ♻️ bb:8`.
+//!
+//! Source of record for the emoji+abbrev mapping is
+//! `aggregates/framework/inbox/inbox.fixtures` (InboxChannel rows).
+//! Full runtime read-from-bluebook is a noted follow-up (i528 StoreHouse arc) ;
+//! the INBOXES const below mirrors those fixtures by hand until then.
 
 use std::env;
 use std::path::{Path, PathBuf};
 
-/// Initial → `$HOME`-relative inbox path. Order drives render order.
-///   gl — global (hecks_conception, the framework inbox)
-///   pi — pigeoncoop
-///   bb — bin-buddy
-///   em — emaho
-///   hn — hecks_nursury
-///   op — opt-website
-///   re — restarts (miette_family/restarts_inbox — session restart prompts)
+/// (abbrev, emoji, `$HOME`-relative inbox path). Order drives render order.
 ///
-/// Both repos that have an `inbox/` → `main.inbox/` rename in progress
-/// (emaho, opt-website) already expose `inbox/` as a working path
-/// (symlink or sibling). Keeping the registry pointed at `inbox/` lets
-/// either layout resolve.
-pub(super) const INBOXES: &[(&str, &str)] = &[
-    ("gl", "Projects/hecks/hecks_conception/inbox"),
-    ("pi", "Projects/pigeoncoop/inbox"),
-    ("bb", "Projects/bin-buddy/inbox"),
-    ("em", "Projects/emaho/inbox"),
-    ("hn", "Projects/hecks_nursury/inbox"),
-    ("op", "Projects/opt-website/inbox"),
-    ("re", "Projects/miette_family/restarts_inbox"),
+/// Mirrors `aggregates/framework/inbox/inbox.fixtures` InboxChannel rows.
+/// Source of record is the bluebook fixtures ; update both in lockstep.
+///
+///   gl — global (hecks_conception framework inbox)  🔮
+///   pi — pigeoncoop                                  🕊️
+///   bb — bin-buddy                                   ♻️
+///   em — emaho (Emaho Buddhist foundation)           ☸️
+///   hn — hecks nursery                               🌱
+///   op — OPT Beyond Fitness gym                      💪
+///   re — restarts (miette_family/restarts_inbox)     🌅
+pub(super) const INBOXES: &[(&str, &str, &str)] = &[
+    ("gl", "🔮",   "Projects/hecks/hecks_conception/inbox"),
+    ("pi", "🕊️",  "Projects/pigeoncoop/inbox"),
+    ("bb", "♻️",  "Projects/bin-buddy/inbox"),
+    ("em", "☸️",  "Projects/emaho/inbox"),
+    ("hn", "🌱",   "Projects/hecks_nursury/inbox"),
+    ("op", "💪",   "Projects/opt-website/inbox"),
+    ("re", "🌅",   "Projects/miette_family/restarts_inbox"),
 ];
 
 /// Walk INBOXES, count active cards under `$HOME/<rel>` for each.
-/// Render entries with count > 0 as `init:count`, space-joined ;
+/// Render entries with count > 0 as `« emoji abbrev:count»`, space-joined ;
 /// entries with count == 0 are omitted so the listing stays compact.
+/// No leading envelope glyph — per-inbox emojis carry the visual identity.
 pub(super) fn render_inbox_list() -> String {
     let home = match env::var_os("HOME") {
         Some(h) => PathBuf::from(h),
         None => return String::new(),
     };
     let mut parts: Vec<String> = Vec::new();
-    for (init, rel) in INBOXES {
+    for (init, emoji, rel) in INBOXES {
         let count = count_md_inbox_active(&home.join(rel));
         if count > 0 {
-            parts.push(format!("{}:{}", init, count));
+            parts.push(format!("{} {}:{}", emoji, init, count));
         }
     }
     parts.join(" ")
