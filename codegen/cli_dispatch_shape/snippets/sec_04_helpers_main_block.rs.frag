@@ -3096,30 +3096,6 @@ fn dispatch_lookup(file_path: &str) -> Option<storehouse::dispatch_query::Dispat
     storehouse::dispatch_query::is_dispatched_by_corpus(file_path, corpus_root)
 }
 
-/// Look up a subcommand by name in the Subcommand catalog
-/// (`information/subcommand.heki`). Returns the heki record when
-/// present, `None` when the subcommand isn't registered.
-///
-/// Reads heki directly without booting a runtime — the catalog gate
-/// at the top of `main()` runs on every invocation and a full runtime
-/// boot per binary fire would be expensive. Same path-resolution
-/// pattern as `find_exempt_registry_heki` : prefer in-tree catalog
-/// (so the seed ships with the repo), no HECKS_INFO override needed
-/// because the catalog is repo-content not user-state.
-fn lookup_subcommand(name: &str) -> Option<heki::Record> {
-    let path = find_subcommand_heki()?;
-    let store = heki::read(&path).ok()?;
-    store.get(name).cloned()
-}
-
-fn find_subcommand_heki() -> Option<String> {
-    let agg_dir = resolve_aggregates_dir()?;
-    let p = std::path::Path::new(&agg_dir)
-        .parent()?
-        .join("information/subcommand.heki");
-    if p.exists() { Some(p.to_string_lossy().into_owned()) } else { None }
-}
-
 enum FileKind { Bluebook, Imperative, Support, Other }
 
 fn classify_file(path: &str) -> FileKind {
@@ -3373,12 +3349,19 @@ fn run_loop(args: &[String]) {
         std::process::exit(1);
     });
 
-    // Multi-command rotation (i106). Split on commas and strip per-entry
-    // "Aggregate." prefix so the runtime gets the bare command name.
+    // Multi-command rotation (i106). Split on commas. Each entry is a
+    // full Domain::Aggregate.Command FQN — require_fqn_dispatch_address
+    // above already guaranteed the `::`. i630 : do NOT truncate to the
+    // bare command name. The old `.split('.').last()` dropped the
+    // aggregate qualifier, so an ambiguous bare `Check`
+    // (Inbox::Inbox.Check) resolved to the wrong aggregate's command
+    // (the macrophage's BidirectionalAssociation.CheckRun). Pass the
+    // FQN through unchanged ; command_dispatch::resolve honors it via
+    // resolve_fully_qualified, exactly as the single-shot CLI path.
     let cmd_names: Vec<String> = cmd_full.split(',')
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
-        .map(|s| s.split('.').last().unwrap_or(s).to_string())
+        .map(|s| s.to_string())
         .collect();
     if cmd_names.is_empty() {
         eprintln!("loop : empty command list '{}'", cmd_full);
@@ -3614,7 +3597,10 @@ fn run_pm_loop(args: &[String]) {
                     // address to FQN form (Domain::Aggregate.Command)
                     // so run-loop matches the main dispatch entry point.
                     require_fqn_dispatch_address("run-loop", c);
-                    dispatches.push(c.split('.').last().unwrap_or(c).to_string());
+                    // i630 : keep the full FQN ; do not truncate to the
+                    // bare command name (it dropped the aggregate
+                    // qualifier and mis-resolved ambiguous commands).
+                    dispatches.push(c.to_string());
                 }
                 i += 2;
             }
@@ -3770,7 +3756,10 @@ fn run_clock(args: &[String]) {
                 // i560 v2 follow-up — gate each --segment address to
                 // FQN form (Domain::Aggregate.Command).
                 require_fqn_dispatch_address("clock", cmd_full);
-                let cmd_name = cmd_full.split('.').last().unwrap_or(cmd_full).to_string();
+                // i630 : keep the full FQN. Truncating to the bare
+                // command name dropped the aggregate qualifier and let
+                // an ambiguous command resolve to the wrong aggregate.
+                let cmd_name = cmd_full.to_string();
                 segments.push((lo, hi, cmd_name));
                 i += 2;
             }

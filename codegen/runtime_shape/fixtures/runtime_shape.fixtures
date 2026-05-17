@@ -16,6 +16,13 @@ Hecks.fixtures "RuntimeShape" do
   #                    wire_policies, wire_projections, assemble_runtime.
 
   aggregate "Section" do
+    fixture "Header",
+      name: "header",
+      order: 0,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/runtime_shape/snippets/00_header.rs.frag",
+      description: "module doc-comment + antibody-exempt headers + mod / pub-use declarations + crate imports — everything before `pub struct Runtime`. i630 follow-up : lifted out of the root.rs HEADER const so the runtime header is declared section data like every other section, not ~100 lines of hardcoded Rust (same i80 / autophagy retirement direction ; removes the non-bluebook .rs surface instead of overriding the LoC ratchet)."
+
     fixture "StructRuntime",
       name: "struct_runtime",
       order: 1,

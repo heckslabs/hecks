@@ -3,6 +3,27 @@
         command_name: &str,
         attrs: HashMap<String, Value>,
     ) -> Result<CommandResult, RuntimeError> {
+        // i622 — dispatch entry log. One stdout line per top-level
+        // dispatch, gated by STOREHOUSE_LOG. The invocation id is the
+        // dispatch's `id` attr when present (matches i613's envelope),
+        // falling back to a short hex token derived from the system
+        // clock so every dispatch carries SOMETHING addressable.
+        let invocation_id = attrs.get("id")
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("inv_{:x}", std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.subsec_nanos() as u64 ^ d.as_secs())
+                .unwrap_or(0)));
+        storehouse_log::dispatch_entry(command_name, &invocation_id, None);
+
+        // i622 verbose — per-attribute trace. One line per attr the
+        // caller passed. Gated to the Verbose level inside the logger.
+        for (k, v) in &attrs {
+            storehouse_log::attribute_trace(
+                command_name, &invocation_id, k, &v.to_string()
+            );
+        }
+
         // Middleware: before
         let ctx = CommandContext {
             command_name: command_name.to_string(),
@@ -13,6 +34,15 @@
 
         // Core dispatch
         let result = command_dispatch::dispatch(self, command_name, attrs)?;
+
+        // i622 — event emission log. The dispatch produced an event ;
+        // emit a one-liner naming the aggregate, event, and the
+        // originating invocation id. Suppressed at quiet.
+        if let Some(ref ev) = result.event {
+            storehouse_log::event_emitted(
+                &ev.aggregate_type, &ev.name, &ev.aggregate_id
+            );
+        }
 
         // Breadcrumb : write the entry-point command (the top-level
         // dispatch the user / CLI invoked) to a tiny plaintext file
@@ -110,6 +140,29 @@
         // returns "missing required attr" — silently, because the
         // log line below didn't surface error messages until i559.
         self.resolve_claude_tool_adapters(&result, command_name, &ctx.attrs);
+
+        // i594 — :mcp adapter hook. Sibling to the :claude_tool arm
+        // above. Scans loaded hecksagons for `:mcp` io adapters whose
+        // `command` option matches the just-dispatched
+        // `Aggregate.Command` target, opens a stdio MCP session
+        // against the named server, calls the named tool with the
+        // declared args (with {attr} placeholders filled from state
+        // ∪ dispatch attrs), and cascades the response into
+        // `result_into`. Closes one half of the EmailTool round-trip
+        // gap ; the other half is i610's `:gmail` bridge — until that
+        // lands, bindings with `server: :gmail` warn (graceful) rather
+        // than panic.
+        self.resolve_mcp_adapters(&result, command_name, &ctx.attrs);
+
+        // i629 — :exec adapter hook. Sibling to the :claude_tool /
+        // :mcp arms above. Scans loaded hecksagons for `:exec` io
+        // adapters whose `command` option matches the just-dispatched
+        // Aggregate.Command target, runs the adapter's `exec:`
+        // program (cwd inherited from the runtime process), and
+        // cascades (output, exit_code, ok) into `result_into`. This
+        // is what makes `storehouse loop ... Inbox::Inbox.Check` BE
+        // the Gmail poll — the dispatch is the fetch.
+        self.resolve_exec_adapters(&result, command_name, &ctx.attrs);
 
         Ok(result)
     }

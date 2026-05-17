@@ -1,0 +1,76 @@
+Hecks.behaviors "NavSitemapParity" do
+  vision "Behavioral tests for the NavSitemapParity autophage (i625). Exercises the session lifecycle, Check, RecordDrift, Complain, Clear, and Snapshot commands. The :exec runtime arm is deferred to i629 — these tests cover the pure declarative contract."
+
+  test "StartSession records last_check_at" do
+    tests "StartSession", on: "NavSitemapParity"
+    input  session_started_at: { value: "2026-05-16T00:00:00Z" }
+    expect last_check_at: { value: "2026-05-16T00:00:00Z" }
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "NavSitemapParity"
+    input  session_started_at: { value: "2026-05-16T00:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  test "Check records last_check_at" do
+    tests "Check", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  checked_at: { value: "2026-05-16T00:01:00Z" }
+    expect last_check_at: { value: "2026-05-16T00:01:00Z" }
+  end
+
+  test "Check emits Checked" do
+    tests "Check", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  checked_at: { value: "2026-05-16T00:01:00Z" }
+    expect emits: ["Checked"]
+  end
+
+  test "RecordDrift emits DriftRecorded" do
+    tests "RecordDrift", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  path:            { value: "/vajrayana" },
+           nav_present:     { value: "true" },
+           sitemap_present: { value: "false" },
+           discovered_at:   { value: "2026-05-16T00:01:01Z" }
+    expect emits: ["DriftRecorded"]
+  end
+
+  test "Complain sets last_complaint" do
+    tests "Complain", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  complaint:         { value: "NavSitemapParity: /vajrayana is in nav but missing from sitemap.xml" },
+           last_complaint_at: { value: "2026-05-16T00:01:02Z" }
+    expect last_complaint: { value: "NavSitemapParity: /vajrayana is in nav but missing from sitemap.xml" }
+  end
+
+  test "Complain emits ComplaintIssued" do
+    tests "Complain", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  complaint:         { value: "NavSitemapParity: /vajrayana is in nav but missing from sitemap.xml" },
+           last_complaint_at: { value: "2026-05-16T00:01:02Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "Clear emits DriftCleared" do
+    tests "Clear", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  cleared_at: { value: "2026-05-16T00:05:00Z" }
+    expect emits: ["DriftCleared"]
+  end
+
+  test "Snapshot records last_snapshot_at" do
+    tests "Snapshot", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  snapshotted_at: { value: "2026-05-16T00:10:00Z" }
+    expect last_snapshot_at: { value: "2026-05-16T00:10:00Z" }
+  end
+
+  test "Snapshot emits Snapshotted" do
+    tests "Snapshot", on: "NavSitemapParity"
+    setup  "StartSession", session_started_at: { value: "2026-05-16T00:00:00Z" }
+    input  snapshotted_at: { value: "2026-05-16T00:10:00Z" }
+    expect emits: ["Snapshotted"]
+  end
+end

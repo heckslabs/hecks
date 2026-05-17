@@ -1,0 +1,167 @@
+Hecks.bluebook "DeployParity", version: "2026.05.16.1" do
+  vision "Autophage discipline cell that watches the contract between a site repo's main HEAD and its live Cloudflare Pages deployment. Failure mode: merged-to-main but never-deployed — the incident that surfaced this was opt-website frozen 4-5 days (PR #2 merged, deploy step never run, Joey reviewed stale work for days). git_connected=false is itself a finding: a CLI-only Pages project is one forgotten command away from this incident on every merge. This autophage watches deployed state and signals drift as additional-context. Fibroblast (i626) is the unambiguous closing path for static-site repos: the signal data (repo + project name + HEAD) uniquely determines the fix. The runtime :exec arm (wrangler CLI probe + git log) rides the :exec adapter family — deferred to i629."
+  category "discipline"
+
+  # ============================================================
+  # DeployParity — autophage for deploy/main contract
+  # ============================================================
+  #
+  # The invariant:
+  #   deployed_commit == main_head
+  # When main advances past deployed_commit, that is drift.
+  #
+  # Registered sites (at runtime, not in the bluebook):
+  #   embryonaut-site, emaho, opt-website, bin-buddy
+  #   (plus any future client static-site repo)
+  #
+  # git_connected=false is its own finding — it means the Pages
+  # project is wrangler-CLI deployed, so every merge requires a
+  # manual deploy step. Surfaces separately in drift for triage.
+  #
+  # Family placement:
+  #   Macrophage  : ingests broken bluebooks, prevents commits
+  #   Antibody    : binds to drift signatures, surfaces in CI
+  #   Autophage   : self-eats inconsistent state, reports the gap
+  #   Fibroblast  : repair cell ; closes what the autophage finds
+  #
+  # Cross-references:
+  #   i625 — NavSitemapParity (same two-state-contract shape)
+  #   i626 — Fibroblast (closing path for static-site repos)
+  #   i627 — this card
+  #   i629 — :exec adapter family (runtime arm, deferred)
+
+  aggregate "DeployParity", "One watched site repo — holds the deploy/main parity record and drift age" do
+    identified_by :repo
+
+    attribute :repo,             RepoPath
+    attribute :pages_project,    PagesProject
+    attribute :main_head,        CommitSha
+    attribute :deployed_commit,  CommitSha
+    attribute :deployed_at,      Timestamp
+    attribute :last_check_at,    Timestamp
+    attribute :drift_age,        DriftAge
+    attribute :git_connected,    GitConnected
+    attribute :checks_run,       CheckCount
+
+    # Latest-complaint surface — quick read for statusline
+    attribute :last_complaint_at, Timestamp
+    attribute :last_complaint,    ComplaintText
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "RepoPath" do
+      # Absolute filesystem path to the site repository root.
+      attribute :value, String
+    end
+
+    value_object "PagesProject" do
+      # Cloudflare Pages project name (as listed by
+      # `wrangler pages project list`).
+      attribute :value, String
+    end
+
+    value_object "CommitSha" do
+      # A git commit SHA — full or abbreviated 7-char.
+      # Used for both main_head and deployed_commit.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string.
+      attribute :value, String
+    end
+
+    value_object "DriftAge" do
+      # How long main has been ahead of the deployed commit —
+      # expressed as a human-readable duration string
+      # (e.g. '4 days', '2 hours'). Computed by the :exec arm.
+      attribute :value, String
+    end
+
+    value_object "GitConnected" do
+      # Whether the Pages project has git auto-deploy enabled.
+      # git_connected.value='false' is itself a finding:
+      # CLI-only deploys require a manual step after every merge.
+      attribute :value, String
+    end
+
+    value_object "CheckCount" do
+      # Running count of Check dispatches against this repo.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a parity complaint — the text surfaced as
+      # additional-context on the next turn.
+      attribute :value, String
+    end
+
+    # ── Commands ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The parity state and history are NOT reset — they are the audit trail."
+      attribute :session_started_at, Timestamp
+      then_set :last_check_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    command "Check" do
+      role "System"
+      description "Probe the live Pages deployment and compare deployed_commit to main_head. The :exec arm runs `wrangler pages deployment list` and `git rev-parse main`. Pure declarative contract here — execution deferred to i629."
+      attribute :checked_at,       Timestamp
+      attribute :main_head,        CommitSha
+      attribute :deployed_commit,  CommitSha
+      attribute :deployed_at,      Timestamp
+      attribute :git_connected,    GitConnected
+      then_set :last_check_at,   to: :checked_at
+      then_set :main_head,       to: :main_head
+      then_set :deployed_commit, to: :deployed_commit
+      then_set :deployed_at,     to: :deployed_at
+      then_set :git_connected,   to: :git_connected
+      emits "Checked"
+    end
+
+    command "RecordDrift" do
+      role "System"
+      description "Record drift state after a Check finds main_head != deployed_commit. drift_age is the computed duration. Called by the :exec arm after a Check run that detects a gap."
+      attribute :drift_age,   DriftAge
+      attribute :recorded_at, Timestamp
+      then_set :drift_age, to: :drift_age
+      emits "DriftRecorded"
+    end
+
+    command "Complain" do
+      role "System"
+      description "Surface deploy drift as additional-context. Sets last_complaint + last_complaint_at so the statusline surfaces the gap on the next turn. git_connected=false warrants its own complaint line (CLI-only project)."
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    command "Clear" do
+      role "System"
+      description "Drift reconciled — Fibroblast ran the deploy and re-confirmed parity, or human deployed manually. Resets drift_age; records when the resolution happened."
+      attribute :cleared_at, Timestamp
+      emits "DriftCleared"
+    end
+
+    # ── Queries ──
+
+    query "stale_deploys" do
+      description "Every DeployParity where main_head != deployed_commit — the live repair queue."
+    end
+
+    query "cli_only_projects" do
+      description "Every DeployParity where git_connected.value is 'false' — sites that require a manual deploy step after every merge."
+    end
+  end
+
+  # Drift detected -> surface complaint.
+  policy "ComplainOnDrift" do
+    on "DriftRecorded"
+    trigger "Complain"
+  end
+end

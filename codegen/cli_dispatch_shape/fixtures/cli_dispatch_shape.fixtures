@@ -1,7 +1,7 @@
 Hecks.fixtures "CliDispatchShape" do
-  # i147 Wave 6 — main.rs as data. Seven Section rows partition the file
-  # (five verbatim_section + one synthetic dispatch_chain + one synthetic
-  # usage_help). Twenty-eight Subcommand rows compose the if-chain.
+  # i147 Wave 6 + i80 Unit C — main.rs as data. Eight Section rows partition
+  # the file (six verbatim_section + one synthetic dispatch_chain + one
+  # synthetic usage_help). Twenty-eight Subcommand rows compose the if-chain.
   # Nineteen HelpRow rows compose the print_usage Commands: listing.
 
   aggregate "Section" do
@@ -10,7 +10,7 @@ Hecks.fixtures "CliDispatchShape" do
       order: 1,
       body_kind: "verbatim_section",
       snippet_path: "codegen/cli_dispatch_shape/snippets/sec_01_main_open.rs.frag",
-      description: "fn main() opening — argv collection, being detection, args.len()<2 short-circuit, command/path parsing, and the subcommand-catalog gate (lookup_subcommand handler-match for print_usage)."
+      description: "fn main() opening — argv collection, being detection, args.len()<2 short-circuit, command/path parsing, and the SubcommandRegistry gate (load_cli_routes + invoke_route from i80 Unit C)."
 
     fixture "DispatchChain",
       name: "dispatch_chain",
@@ -51,6 +51,13 @@ Hecks.fixtures "CliDispatchShape" do
       body_kind: "verbatim_section",
       snippet_path: "codegen/cli_dispatch_shape/snippets/sec_06_helpers_tail.rs.frag",
       description: "emit_validator_warnings_to_stderr — the four-warning fan-out called by parse/dump/validate/inspect arms in the match block."
+
+    fixture "CliRouteLoader",
+      name: "cli_route_loader",
+      order: 8,
+      body_kind: "verbatim_section",
+      snippet_path: "codegen/cli_dispatch_shape/snippets/sec_07_cli_route_loader.rs.frag",
+      description: "load_cli_routes + invoke_route — i80 Unit C. Reads SubcommandRegistry heki, dispatches recognised handlers (loop/pm_loop/daemon/macrophage/statusline/clock/FQN), falls through for the rest."
   end
 
   aggregate "Subcommand" do

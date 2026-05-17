@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000"
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -10,7 +13,7 @@
           },
           {
             "type": "command",
-            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview >/tmp/wake_review_route.log 2>&1 ; true",
+            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview >/tmp/wake_review_route.log 2>&1 ; B=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse ; [ -x $B ] && $B statusline >/dev/null 2>&1 && echo boot-verify-PASS storehouse/MCP reachable >/tmp/storehouse_boot_verify.log || echo boot-verify-FAIL storehouse/MCP unreachable >/tmp/storehouse_boot_verify.log ; true",
             "timeout": 20
           }
         ]

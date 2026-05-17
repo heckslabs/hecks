@@ -1,0 +1,117 @@
+Hecks.behaviors "Fibroblast" do
+  vision "Behavioral tests for the Fibroblast repair-cell (i626). Exercises the full healing lifecycle: ReceiveSignal, SelectStrategy, Heal, Decline, and RecordOutcome. Key discipline: decline-gracefully behavior is tested explicitly to prove the cell does not over-reach on ambiguous signals. The :exec runtime arm is deferred to i629 — these tests cover the pure declarative contract."
+
+  # ── Signal receipt ──
+
+  test "ReceiveSignal records signal provenance" do
+    tests "ReceiveSignal", on: "Fibroblast"
+    input  signal_id:        { value: "nsp-drift-001" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    expect started_at: { value: "2026-05-16T01:00:00Z" }
+  end
+
+  test "ReceiveSignal emits SignalReceived" do
+    tests "ReceiveSignal", on: "Fibroblast"
+    input  signal_id:        { value: "nsp-drift-001" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    expect emits: ["SignalReceived"]
+  end
+
+  # ── Strategy selection ──
+
+  test "SelectStrategy records the chosen strategy" do
+    tests "SelectStrategy", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "nsp-drift-001" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  strategy: { name: "nav_sitemap_close" }
+    expect strategy: { name: "nav_sitemap_close" }
+  end
+
+  test "SelectStrategy emits StrategySelected" do
+    tests "SelectStrategy", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "nsp-drift-001" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  strategy: { name: "nav_sitemap_close" }
+    expect emits: ["StrategySelected"]
+  end
+
+  # ── Successful heal ──
+
+  test "Heal records commit_sha" do
+    tests "Heal", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "nsp-drift-002" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  commit_sha: { value: "abc1234" },
+           healed_at:  { value: "2026-05-16T01:02:00Z" }
+    expect commit_sha: { value: "abc1234" }
+  end
+
+  test "Heal emits Healed" do
+    tests "Heal", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "nsp-drift-002" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  commit_sha: { value: "abc1234" },
+           healed_at:  { value: "2026-05-16T01:02:00Z" }
+    expect emits: ["Healed"]
+  end
+
+  # ── Decline-gracefully discipline ──
+  #
+  # This is the load-bearing test: proves the cell does not
+  # over-reach when the signal is ambiguous. A Fibroblast that
+  # never declines is a bug waiting to land.
+
+  test "Decline sets last_complaint" do
+    tests "Decline", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "mac-001" },
+           signal_source:    { kind: "macrophage" },
+           signal_aggregate: { name: "BidirectionalAssociation" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  reason:      { value: "Signal from BidirectionalAssociation does not map to a declared first-target strategy — surfacing to human." },
+           declined_at: { value: "2026-05-16T01:00:30Z" }
+    expect last_complaint: { value: "Signal from BidirectionalAssociation does not map to a declared first-target strategy — surfacing to human." }
+  end
+
+  test "Decline emits Declined" do
+    tests "Decline", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "mac-001" },
+           signal_source:    { kind: "macrophage" },
+           signal_aggregate: { name: "BidirectionalAssociation" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  reason:      { value: "No unambiguous strategy for this signal." },
+           declined_at: { value: "2026-05-16T01:00:30Z" }
+    expect emits: ["Declined"]
+  end
+
+  # ── Outcome recording ──
+
+  test "RecordOutcome emits OutcomeRecorded" do
+    tests "RecordOutcome", on: "Fibroblast"
+    setup  "ReceiveSignal",
+           signal_id:        { value: "nsp-drift-003" },
+           signal_source:    { kind: "autophage" },
+           signal_aggregate: { name: "NavSitemapParity" },
+           received_at:      { value: "2026-05-16T01:00:00Z" }
+    input  outcome:     { status: "closed", reason: "" },
+           recorded_at: { value: "2026-05-16T01:03:00Z" }
+    expect emits: ["OutcomeRecorded"]
+  end
+end

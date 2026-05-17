@@ -1,0 +1,297 @@
+Hecks.fixtures "SubcommandRegistry" do
+  # Complete catalog of CLI subcommands for `storehouse` (and its being
+  # aliases miette / summer). One fixture row per subcommand, matching
+  # the if-chain in rust/src/main.rs fn main() as of i630.
+  #
+  # dispatch_address : empty string for subcommands whose address comes
+  # from argv (cadence handlers) or from invocation-time Rust dispatch
+  # (internal handlers). A non-empty value here MUST be a fully-qualified
+  # FQN (contains '::') — enforced by the DispatchAddress invariant.
+  # Rows will be filled in progressively as handlers port to domain
+  # dispatch (i80 retirement arc).
+  #
+  # argv_shape notes :
+  #   max_positional: -1 means unbounded
+  #   allowed_kwargs / allowed_flags : "" means none, "*" means any
+
+  aggregate "Subcommand" do
+    # order 0 — storehouse generic dispatcher (i484)
+    fixture "Storehouse",
+      name: "storehouse",
+      handler: "run_storehouse",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 1 — hecksagon-driven lexicon query
+    fixture "Lexicon",
+      name: "lexicon",
+      handler: "run_lexicon",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 0, max_positional: 2, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 2 — interactive terminal
+    fixture "Terminal",
+      name: "terminal",
+      handler: "run_terminal",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 0, max_positional: 0, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 3 — four-into-one transitional redirect (speak/status/musings/boot)
+    fixture "TransitionalPrint",
+      name: "transitional_print",
+      handler: "run_transitional_print",
+      exit_kind_default: "ok",
+      deprecated: "yes",
+      argv_shape: { min_positional: 0, max_positional: 0, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 4 — heki binary store read/write
+    fixture "Heki",
+      name: "heki",
+      handler: "run_heki",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 5 — generate a new domain from corpus archetypes
+    fixture "Conceive",
+      name: "conceive",
+      handler: "run_conceive",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 6 — develop features in an existing domain
+    fixture "Develop",
+      name: "develop",
+      handler: "run_develop",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 7 — conceive behaviors for an existing domain
+    fixture "ConceiveBehaviors",
+      name: "conceive-behaviors",
+      handler: "run_conceive_behaviors",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 8 — run behaviors / test suite (alias: test)
+    fixture "Behaviors",
+      name: "behaviors",
+      handler: "run_behaviors",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 9 — universal .behaviors runner (i500 alias for behaviors)
+    fixture "Test",
+      name: "test",
+      handler: "run_behaviors",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 10 — parse a .fixtures file and emit canonical JSON
+    fixture "DumpFixtures",
+      name: "dump-fixtures",
+      handler: "run_dump_fixtures",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: 2, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 11 — parse a .world file and emit canonical JSON
+    fixture "DumpWorld",
+      name: "dump-world",
+      handler: "run_dump_world",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: 1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 12 — parse a .hecksagon file and emit canonical JSON
+    fixture "DumpHecksagon",
+      name: "dump-hecksagon",
+      handler: "run_dump_hecksagon",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: 1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 13 — run the specializer
+    fixture "Specialize",
+      name: "specialize",
+      handler: "run_specialize",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 14 — print cascade_emits chains for every aggregate command
+    fixture "Cascade",
+      name: "cascade",
+      handler: "run_cascade",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: 1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 15 — run check-io validation
+    fixture "CheckIo",
+      name: "check-io",
+      handler: "run_check_io",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 16 — run check-lifecycle validation
+    fixture "CheckLifecycle",
+      name: "check-lifecycle",
+      handler: "run_check_lifecycle",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 17 — run check-duplicate-policies validation
+    fixture "CheckDuplicatePolicies",
+      name: "check-duplicate-policies",
+      handler: "run_check_duplicate_policies",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 18 — run all checks
+    fixture "CheckAll",
+      name: "check-all",
+      handler: "run_check_all",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 19 — script-mode execution (shebang-run)
+    fixture "Run",
+      name: "run",
+      handler: "run_script",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 20 — cadence loop : dispatch one or more commands every <dur>
+    # dispatch_address is empty because the address comes from argv
+    fixture "Loop",
+      name: "loop",
+      handler: "run_loop",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 2, max_positional: -1, allowed_kwargs: "*", allowed_flags: "*" },
+      dispatch_address: { value: "" }
+
+    # order 21 — PM-loop daemon (run-loop)
+    # dispatch_address is empty because the address comes from argv
+    fixture "RunLoop",
+      name: "run-loop",
+      handler: "run_pm_loop",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "*", allowed_flags: "*" },
+      dispatch_address: { value: "" }
+
+    # order 22 — process-lifecycle daemon
+    # dispatch_address is empty because the address comes from argv
+    fixture "Daemon",
+      name: "daemon",
+      handler: "run_daemon",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "*", allowed_flags: "*" },
+      dispatch_address: { value: "" }
+
+    # order 23 — PostToolUse antibody listener (canonical name as of i553)
+    # enforce-edit is the deprecated alias kept for backward compat
+    # dispatch_address is empty: macrophage dispatches to different
+    # commands based on file kind (RecordBluebookEdit / RecordImperativeEdit
+    # / RecordExemptedEdit / RecordSupportEdit / RecordOtherEdit)
+    fixture "Macrophage",
+      name: "macrophage",
+      handler: "run_macrophage",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 0, max_positional: 0, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # deprecated alias for macrophage (order 23b)
+    fixture "EnforceEdit",
+      name: "enforce-edit",
+      handler: "run_macrophage",
+      exit_kind_default: "ok",
+      deprecated: "yes",
+      argv_shape: { min_positional: 0, max_positional: 0, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 24 — statusline capability runner
+    fixture "Statusline",
+      name: "statusline",
+      handler: "run_statusline",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 0, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 25 — IR-query subcommand (exit 0 + stdout if dispatched, exit 1 if not)
+    fixture "IsDispatched",
+      name: "is-dispatched",
+      handler: "run_is_dispatched",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: 2, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 26 — wall-clock segment trigger
+    # dispatch_address is empty because the address comes from --segment flags in argv
+    fixture "Clock",
+      name: "clock",
+      handler: "run_clock",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "*", allowed_flags: "*" },
+      dispatch_address: { value: "" }
+
+    # order 27 — sleep dispatch (EnterSleep, stage/dream changes, wake report)
+    # dispatch_address is empty: sleep dispatches EnterSleep internally
+    fixture "Sleep",
+      name: "sleep",
+      handler: "run_sleep",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 1, max_positional: -1, allowed_kwargs: "*", allowed_flags: "" },
+      dispatch_address: { value: "" }
+
+    # order 28 — interactive REPL (legacy `run`)
+    fixture "Repl",
+      name: "repl",
+      handler: "run_repl",
+      exit_kind_default: "ok",
+      deprecated: "no",
+      argv_shape: { min_positional: 0, max_positional: -1, allowed_kwargs: "", allowed_flags: "" },
+      dispatch_address: { value: "" }
+  end
+end

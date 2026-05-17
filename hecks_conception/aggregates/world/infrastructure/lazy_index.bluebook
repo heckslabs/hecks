@@ -1,4 +1,4 @@
-Hecks.bluebook "LazyIndex", version: "2026.04.28.1" do
+Hecks.bluebook "LazyIndex", version: "2026.05.16.1" do
   vision "Load domain entries on demand — not all at boot. Part of how Miette stays fast at 100,000 domains."
   category "meta"
 
@@ -14,15 +14,35 @@ Hecks.bluebook "LazyIndex", version: "2026.04.28.1" do
 
   aggregate "LazyIndex", "Load domain entries on demand — not all at boot" do
     identified_by :name
-    attribute :name, String
-    attribute :total_indexed, Integer
-    attribute :loaded_in_memory, Integer
-    attribute :cache_hit_rate, Float
+    attribute :name,             IndexName
+    attribute :total_indexed,    TotalIndexed
+    attribute :loaded_in_memory, LoadedInMemory
+    attribute :cache_hit_rate,   CacheHitRate
+
+    value_object "IndexName" do
+      # Identifies this index instance — typically the nursery root path.
+      attribute :value, String
+    end
+
+    value_object "TotalIndexed" do
+      # Total number of domain entries known to the index (including unloaded).
+      attribute :value, Integer
+    end
+
+    value_object "LoadedInMemory" do
+      # Number of domain entries currently resident in memory.
+      attribute :value, Integer
+    end
+
+    value_object "CacheHitRate" do
+      # Fraction of queries served from memory without a .heki load (0.0–1.0).
+      attribute :value, Float
+    end
 
     command "QueryIndex" do
       role "System"
       description "Look up domains by name, sector, or pattern — load from .heki on demand"
-      attribute :loaded_in_memory, Integer
+      attribute :loaded_in_memory, LoadedInMemory
       emits "IndexQueried"
       then_set :loaded_in_memory, to: :loaded_in_memory
     end

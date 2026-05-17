@@ -70,17 +70,5 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
-
-    # Transitional executor for the locked Inbox.Check poll (2026-05-15).
-    # The `inbox` member above is the bus tick ; this runs the actual
-    # Gmail fetch (OAuth refresh + historyId delta + card + draft) on
-    # the same 900s cadence. Retires when a :shell/:exec adapter family
-    # lets Inbox.Check dispatch the executor natively (filed runtime gap)
-    # — that is when "no new process" is truly achieved.
-    fixture "inboxpoll",
-            name:       "inboxpoll",
-            mindstream: "boot",
-            command:    { line: "node bin/inbox_poll.mjs --loop 900" },
-            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end

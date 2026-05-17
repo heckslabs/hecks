@@ -12,10 +12,3 @@ breath: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/
 circadian: ../rust/target/release/storehouse clock /Users/christopheryoung/Projects/miette/body/.. --segment 5-6:Circadian::Circadian.MarkDawn --segment 7-11:Circadian::Circadian.MarkMorning --segment 12-16:Circadian::Circadian.MarkAfternoon --segment 17-19:Circadian::Circadian.MarkDusk --segment 20-4:Circadian::Circadian.MarkNight --poll 60s
 ultradian: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s
 inbox: ../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s
-# [antibody-exempt: Procfile inboxpoll member — transitional Sambhogakaya
-#  executor for the locked Inbox.Check poll. The `inbox` line above is the
-#  bus tick (records Check) ; this runs the actual Gmail fetch on the same
-#  900s cadence until a :shell/:exec adapter family lets Inbox.Check dispatch
-#  it natively (filed runtime gap). Retire this member then — that is when
-#  "no new process" is truly achieved.]
-inboxpoll: node bin/inbox_poll.mjs --loop 900

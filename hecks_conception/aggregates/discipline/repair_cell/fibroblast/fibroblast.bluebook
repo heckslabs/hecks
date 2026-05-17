@@ -1,0 +1,170 @@
+Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
+  vision "Repair-cell discipline domain. The Fibroblast reads signals from autophage/macrophage/antibody cells and closes the gap they reported, when the fix is unambiguous. First targets: NavSitemapParity drift (i625), bluebook-first violation when the .rs file maps to a known gap card, LoC ratchet over-shoot when extraction is clear-cut. Decline-gracefully discipline: when the signal is ambiguous, the Fibroblast surfaces to a human rather than guessing. The runtime :exec arm (signal reader, fix composer, dispatch executor) rides the :exec adapter family — deferred to i629."
+  category "discipline"
+
+  # ============================================================
+  # Fibroblast — generic repair cell
+  # ============================================================
+  #
+  # In biology, fibroblasts are the workhorse connective-tissue
+  # repair cells — they lay down the extracellular matrix that
+  # knits torn tissue back. Here they close narrow, unambiguous
+  # gaps surfaced by the immune system.
+  #
+  # Family placement:
+  #   Macrophage  : ingests broken bluebooks, prevents commits
+  #   Antibody    : binds to drift signatures, surfaces in CI
+  #   Autophage   : self-eats inconsistent state, reports the gap
+  #   Fibroblast  : repair cell ; closes what the above cells find
+  #
+  # A Fibroblast aggregate represents one healing attempt —
+  # from signal receipt through outcome (closed | declined | failed).
+  # The discipline is narrow by design: decline gracefully when
+  # the fix is ambiguous. Over-reaching is a bug, not a feature.
+  #
+  # Named first-target strategies (RepairStrategy.name values):
+  #   nav_sitemap_close     : write missing sitemap entries; prune dead
+  #   bluebook_first_file_gap : file gap card + re-dispatch as bluebook
+  #   loc_ratchet_extract   : extract over-shooting function to module
+  #
+  # Cross-references:
+  #   i625 — NavSitemapParity (first closing path)
+  #   i626 — this card
+  #   i627 — DeployParity (second closing path, static-site repos)
+  #   i629 — :exec adapter family (runtime arm, deferred)
+
+  aggregate "Fibroblast", "One healing attempt — reads a discipline-cell signal, composes the fix, dispatches it; declines gracefully when ambiguous" do
+    identified_by :signal_id
+
+    attribute :signal_id,        SignalId
+    attribute :signal_source,    SignalSource
+    attribute :signal_aggregate, AggregateRef
+    attribute :strategy,         RepairStrategy
+    attribute :outcome,          RepairOutcome
+    attribute :commit_sha,       CommitSha
+    attribute :started_at,       Timestamp
+    attribute :closed_at,        Timestamp
+    attribute :last_complaint,   ComplaintText
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "SignalId" do
+      # Stable identifier for the signal being healed. Typically
+      # the complaint id from the originating discipline cell.
+      attribute :value, String
+    end
+
+    value_object "SignalSource" do
+      # Which family of discipline cell fired the signal.
+      # One of: macrophage | antibody | autophage
+      attribute :kind, String
+    end
+
+    value_object "AggregateRef" do
+      # Which specific discipline-cell aggregate emitted the signal
+      # (e.g. 'NavSitemapParity', 'BidirectionalAssociation').
+      attribute :name, String
+    end
+
+    value_object "RepairStrategy" do
+      # Named repair move the Fibroblast will attempt.
+      # Constrained to the declared first-target set:
+      #   nav_sitemap_close | bluebook_first_file_gap | loc_ratchet_extract
+      # The :exec arm maps strategy name to its execution path.
+      attribute :name, String
+    end
+
+    value_object "RepairOutcome" do
+      # Final state of the healing attempt.
+      # status: closed | declined | failed
+      # reason: human-readable rationale (required for declined/failed)
+      attribute :status, String
+      attribute :reason, String
+    end
+
+    value_object "CommitSha" do
+      # The git SHA the fix landed as — empty until outcome=closed.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # Human-readable description of why a Decline was issued.
+      attribute :value, String
+    end
+
+    # ── Commands ──
+
+    command "ReceiveSignal" do
+      role "System"
+      description "A discipline cell has fired. Record the signal provenance so the Fibroblast knows what to heal and from whom."
+      attribute :signal_id,        SignalId
+      attribute :signal_source,    SignalSource
+      attribute :signal_aggregate, AggregateRef
+      attribute :received_at,      Timestamp
+      then_set :signal_id,        to: :signal_id
+      then_set :signal_source,    to: :signal_source
+      then_set :signal_aggregate, to: :signal_aggregate
+      then_set :started_at,       to: :received_at
+      emits "SignalReceived"
+    end
+
+    command "SelectStrategy" do
+      role "System"
+      description "Choose the repair strategy based on the signal provenance. The :exec arm maps signal_aggregate + strategy.name to the concrete execution path. If no unambiguous strategy exists, chain into Decline instead."
+      attribute :strategy, RepairStrategy
+      then_set :strategy, to: :strategy
+      emits "StrategySelected"
+    end
+
+    command "Heal" do
+      role "System"
+      description "Execute the selected strategy: compose the fix from the signal data, dispatch it, record the commit SHA. The :exec arm performs the actual filesystem or git operations — deferred to i629. Pure declarative contract here."
+      attribute :commit_sha, CommitSha
+      attribute :healed_at,  Timestamp
+      then_set :commit_sha, to: :commit_sha
+      then_set :closed_at,  to: :healed_at
+      emits "Healed"
+    end
+
+    command "Decline" do
+      role "System"
+      description "The signal is too ambiguous for automated repair — surface to human. Decline gracefully: record the reason and set outcome=declined. The Fibroblast stays narrow; over-reaching is the failure mode we discipline against."
+      attribute :reason,      ComplaintText
+      attribute :declined_at, Timestamp
+      then_set :last_complaint, to: :reason
+      then_set :closed_at,      to: :declined_at
+      emits "Declined"
+    end
+
+    command "RecordOutcome" do
+      role "System"
+      description "Close the healing cycle with a final outcome record — status (closed | declined | failed) and reason. Called after Heal or Decline to stamp the aggregate as done."
+      attribute :outcome,     RepairOutcome
+      attribute :recorded_at, Timestamp
+      then_set :outcome,     to: :outcome
+      then_set :closed_at,   to: :recorded_at
+      emits "OutcomeRecorded"
+    end
+
+    # ── Queries ──
+
+    query "open_healings" do
+      description "Every Fibroblast where outcome is unset — the in-flight repair queue."
+    end
+
+    query "declined_healings" do
+      description "Every Fibroblast where outcome.status is 'declined' — signals that surfaced to human review."
+    end
+  end
+
+  # Strategy selected -> attempt the heal.
+  policy "HealAfterStrategy" do
+    on "StrategySelected"
+    trigger "Heal"
+  end
+end
