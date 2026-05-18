@@ -32,7 +32,6 @@
 //! design and `i613.md` for the envelope shape this record reflects.
 
 use std::sync::OnceLock;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LogLevel {
@@ -146,10 +145,10 @@ pub fn mcp_stderr_line(server: &str, line: &str) {
 /// Produces `YYYY-MM-DDTHH:MM:SSZ`. Public for callers that want to
 /// emit ad-hoc lines on the same stream with matching timestamps.
 pub fn now_iso8601() -> String {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+    // wasm-safe clock (i630) — raw SystemTime::now() panics
+    // "time not implemented" on wasm32 (CF Worker). dispatch_entry
+    // runs on every dispatch, so the worker hit this on every POST.
+    let secs = crate::heki::now_duration().as_secs();
     format_iso8601(secs)
 }
 
