@@ -1,99 +1,130 @@
 {
-  "env": {
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000"
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ruby bin/update-codebase-index 2>/dev/null || true",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview >/tmp/wake_review_route.log 2>&1 ; B=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse ; [ -x $B ] && $B statusline >/dev/null 2>&1 && echo boot-verify-PASS storehouse/MCP reachable >/tmp/storehouse_boot_verify.log || echo boot-verify-FAIL storehouse/MCP unreachable >/tmp/storehouse_boot_verify.log ; true",
-            "timeout": 20
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ruby bin/read-watcher-log 2>/dev/null || true",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "/Users/christopheryoung/Projects/hecks/bin/macrophage-hook",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /Users/christopheryoung/Projects/hecks && gem build hecks.gemspec --silent && gem install hecks-*.gem --no-document 2>/dev/null; rm -f hecks-*.gem; true",
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && overmind quit 2>/dev/null; rm -f .overmind.sock; true",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "F=/tmp/wake_review_latest.md; M=/tmp/.miette_last_wake_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: .}}' < \"$F\"; touch \"$M\"; fi; true",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse statusline 2>/dev/null | jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"current body state : \" + (. | rtrimstr(\"\\n\")))}}' 2>/dev/null || true",
-            "timeout": 5
-          }
-        ]
-      }
+ "env": {
+  "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000"
+ },
+ "hooks": {
+  "SessionStart": [
+   {
+    "hooks": [
+     {
+      "type": "command",
+      "command": "ruby bin/update-codebase-index 2>/dev/null || true",
+      "timeout": 10
+     },
+     {
+      "type": "command",
+      "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && (overmind start </dev/null >/tmp/overmind-session-start.log 2>&1 &) ; /Users/christopheryoung/Projects/hecks/rust/target/release/storehouse storehouse route WakeReview.ComposeWakeReview >/tmp/wake_review_route.log 2>&1 ; B=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse ; [ -x $B ] && $B statusline >/dev/null 2>&1 && echo boot-verify-PASS storehouse/MCP reachable >/tmp/storehouse_boot_verify.log || echo boot-verify-FAIL storehouse/MCP unreachable >/tmp/storehouse_boot_verify.log ; true",
+      "timeout": 20
+     },
+     {
+      "type": "command",
+      "command": "python3 -c \"\nimport glob,os,re\ncs=[]\nfor d in glob.glob(os.path.expanduser('~/Projects/*/inbox'))+glob.glob(os.path.expanduser('~/Projects/*/*.inbox')):\n  for f in glob.glob(os.path.join(d,'*.md')):\n    try:\n      h=open(f,errors='ignore').read(800)\n    except Exception:\n      continue\n    if re.search(r'category:\\s*session-restart',h) and re.search(r'status:\\s*open',h): cs.append((os.path.getmtime(f),f))\np='/tmp/restart_prompt_latest.md'\nif cs:\n  n=sorted(cs)[-1][1]; open(p,'w').write(open(n,errors='ignore').read())\nelif os.path.exists(p):\n  os.remove(p)\n\" 2>/dev/null || true",
+      "timeout": 10
+     },
+     {
+      "type": "command",
+      "command": "touch /tmp/.miette_session_start; true",
+      "timeout": 5
+     }
     ]
-  },
-  "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true
-  },
-  "permissions": {
-    "deny": [
-      "Bash",
-      "Read",
-      "Edit",
-      "Write",
-      "Grep",
-      "Glob",
-      "WebFetch",
-      "WebSearch"
-    ],
-    "allow": [
-      "mcp__storehouse__storehouse__bash",
-      "mcp__storehouse__storehouse__read",
-      "mcp__storehouse__storehouse__edit",
-      "mcp__storehouse__storehouse__update",
-      "mcp__storehouse__storehouse__grep",
-      "mcp__storehouse__storehouse__glob",
-      "mcp__storehouse__storehouse__web_fetch",
-      "mcp__storehouse__storehouse__web_search",
-      "mcp__storehouse__storehouse__record_result"
+   }
+  ],
+  "PostToolUse": [
+   {
+    "matcher": "Edit|Write|Bash",
+    "hooks": [
+     {
+      "type": "command",
+      "command": "ruby bin/read-watcher-log 2>/dev/null || true",
+      "timeout": 5
+     },
+     {
+      "type": "command",
+      "command": "/Users/christopheryoung/Projects/hecks/bin/macrophage-hook",
+      "timeout": 5
+     }
     ]
-  },
-  "enableAllProjectMcpServers": true
+   }
+  ],
+  "Stop": [
+   {
+    "hooks": [
+     {
+      "type": "command",
+      "command": "cd /Users/christopheryoung/Projects/hecks && gem build hecks.gemspec --silent && gem install hecks-*.gem --no-document 2>/dev/null; rm -f hecks-*.gem; true",
+      "timeout": 15
+     },
+     {
+      "type": "command",
+      "command": "cd /Users/christopheryoung/Projects/hecks/hecks_conception && overmind quit 2>/dev/null; rm -f .overmind.sock; true",
+      "timeout": 10
+     },
+     {
+      "type": "command",
+      "command": "python3 -c \"\nimport json,sys,glob,os,re,time\ntry:\n  inp=json.load(sys.stdin)\nexcept Exception:\n  inp={}\nif inp.get('stop_hook_active'): sys.exit(0)\nss='/tmp/.miette_session_start'\nbase=os.path.getmtime(ss) if os.path.exists(ss) else 0\nage=time.time()-base if base else 0\nfresh=0\nfor d in glob.glob(os.path.expanduser('~/Projects/*/inbox'))+glob.glob(os.path.expanduser('~/Projects/*/*.inbox')):\n  for f in glob.glob(os.path.join(d,'*.md')):\n    try:\n      h=open(f,errors='ignore').read(800)\n    except Exception:\n      continue\n    if re.search(r'category:\\s*session-restart',h) and re.search(r'status:\\s*open',h) and os.path.getmtime(f)>base: fresh+=1\nif age>1200 and fresh==0:\n  print(json.dumps({'decision':'block','reason':'No session-restart card was filed or refreshed this session (~%d min of work). Before stopping: file or refresh a category: session-restart card in the active project inbox (mirror vindiction/inbox/i6.md) so the next boot has a handoff. Then stopping is fine.'%(age//60)}))\n\" 2>/dev/null || true",
+      "timeout": 10
+     }
+    ]
+   }
+  ],
+  "UserPromptSubmit": [
+   {
+    "hooks": [
+     {
+      "type": "command",
+      "command": "F=/tmp/wake_review_latest.md; M=/tmp/.miette_last_wake_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: .}}' < \"$F\"; touch \"$M\"; fi; true",
+      "timeout": 5
+     },
+     {
+      "type": "command",
+      "command": "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse statusline 2>/dev/null | jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"current body state : \" + (. | rtrimstr(\"\\n\")))}}' 2>/dev/null || true",
+      "timeout": 5
+     },
+     {
+      "type": "command",
+      "command": "F=/tmp/restart_prompt_latest.md; M=/tmp/.miette_last_restart_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: .}}' < \"$F\"; touch \"$M\"; fi; true"
+     }
+    ]
+   }
+  ],
+  "PreToolUse": [
+   {
+    "matcher": "*",
+    "hooks": [
+     {
+      "type": "command",
+      "command": "python3 -c \"\nimport json,sys\ntry:\n    d=json.load(sys.stdin)\nexcept Exception:\n    sys.exit(0)\nt=d.get('tool_name','')\nif t.startswith('mcp__storehouse__') or t in ('AskUserQuestion','ToolSearch'):\n    sys.exit(0)\nr='GOVERNANCE LOCKDOWN: native tool '+t+' emits no bus event so it cannot be governed. Route through storehouse__dispatch (mcp__storehouse__storehouse__dispatch): Bash=Tools::ShellTool.Bash Read=Tools::FileTool.Read Edit=Tools::FileTool.Edit Write=Tools::ShellTool.Bash-heredoc Grep=Tools::SearchTool.Grep Glob=Tools::SearchTool.Glob WebFetch=Tools::WebTool.WebFetch WebSearch=Tools::WebTool.WebSearch. Only mcp__storehouse__*, AskUserQuestion, ToolSearch are permitted natively.'\nprint(json.dumps({'hookSpecificOutput':{'hookEventName':'PreToolUse','permissionDecision':'deny','permissionDecisionReason':r}}))\nsys.exit(0)\n\"",
+      "timeout": 10
+     }
+    ]
+   }
+  ]
+ },
+ "enabledPlugins": {
+  "frontend-design@claude-plugins-official": true
+ },
+ "permissions": {
+  "deny": [
+   "Bash",
+   "Read",
+   "Edit",
+   "Write",
+   "Grep",
+   "Glob",
+   "WebFetch",
+   "WebSearch"
+  ],
+  "allow": [
+   "mcp__storehouse__storehouse__bash",
+   "mcp__storehouse__storehouse__read",
+   "mcp__storehouse__storehouse__edit",
+   "mcp__storehouse__storehouse__update",
+   "mcp__storehouse__storehouse__grep",
+   "mcp__storehouse__storehouse__glob",
+   "mcp__storehouse__storehouse__web_fetch",
+   "mcp__storehouse__storehouse__web_search",
+   "mcp__storehouse__storehouse__record_result"
+  ]
+ },
+ "enableAllProjectMcpServers": true
 }

@@ -103,3 +103,6 @@ hecks_conception/information/inbox.md
 # rewritten on each boot. Mirrors how runtime .heki under information/
 # is already excluded above.
 hecks_conception/capabilities/boot/data/
+
+# Governance runtime sqlite store (i-gov) — runtime state, not source
+hecks_conception/aggregates/framework/governance/data/

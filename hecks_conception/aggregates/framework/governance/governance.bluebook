@@ -1,0 +1,176 @@
+Hecks.bluebook "Governance", version: "2026.05.18.1" do
+  vision "Governance is the claim that every act is accountable. An act is accountable only if it emitted an event the runtime could log ; an act that emits no bus event cannot be governed. The rule follows : every tool invocation flows through storehouse__dispatch (Domain::Aggregate.Command), which emits a bus event ; native harness tool calls, which emit nothing, are denied by default. This domain holds the Policy (default-deny + the allow-list), the Violation recorded when a denied act is attempted, and the EnforcementAdapter — the harness-side surface that makes the policy real where the harness cannot itself dispatch through storehouse (a PreToolUse hook ; a filed harness-gap, not a permanent home)."
+  category "framework"
+
+  aggregate "Policy", "The governance rule for one harness session-class : deny every tool act by default, permit only named patterns. Permitted means natively callable because it IS the governed channel (storehouse__dispatch) or is conversational infra with no filesystem effect." do
+    identified_by :name
+
+    attribute :name,        Name
+    attribute :stance,      Stance
+    attribute :enforcement, Enforcement
+    attribute :status,      Status
+    attribute :permitted,   list_of(PermittedTool)
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    value_object "Stance" do
+      attribute :kind, String, enum: ["deny_by_default", "allow_by_default"]
+    end
+
+    value_object "Enforcement" do
+      attribute :kind, String, enum: ["advisory", "hard_block"]
+    end
+
+    value_object "Status" do
+      attribute :phase, String, enum: ["proposed", "active", "suspended"]
+    end
+
+    value_object "PermittedTool" do
+      # One tool-name pattern callable natively, and why it is exempt
+      # from the bus (it IS the bus, or has no ungoverned fs/exec effect).
+      attribute :pattern, String
+      attribute :reason,  String
+    end
+
+    value_object "Pattern" do
+      # A tool-name prefix/glob the policy reasons about in isolation.
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      # Operator justification for a governance state change.
+      attribute :value, String
+    end
+
+    command "Propose" do
+      role "Framework"
+      description "Declare a governance policy in the proposed phase. Stance and enforcement are fixed at proposal ; the allow-list starts empty and is filled by Permit."
+      attribute :name,        Name
+      attribute :stance,      Stance
+      attribute :enforcement, Enforcement
+      emits "Proposed"
+    end
+
+    command "Permit" do
+      role "Framework"
+      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. Everything not permitted is denied by the stance. Single-leaf VO params so the command marshals cleanly through k=v dispatch ; the stored allow-list still holds PermittedTool."
+      reference_to(Policy)
+      attribute :pattern, Pattern
+      attribute :reason,  Reason
+      emits "Permitted"
+    end
+
+    command "Forbid" do
+      role "Framework"
+      description "Remove a pattern from the allow-list. The next denied attempt against it is recorded as a Violation."
+      reference_to(Policy)
+      attribute :pattern, Pattern
+      emits "Forbade"
+    end
+
+    command "Activate" do
+      role "Framework"
+      description "Move the policy to active — the enforcement adapter is authoritative and denied acts are recorded."
+      reference_to(Policy)
+      emits "Activated"
+    end
+
+    command "Suspend" do
+      role "Framework"
+      description "Move the policy to suspended — enforcement stands down for recovery or migration. Suspension is itself a governed, logged act."
+      reference_to(Policy)
+      attribute :reason, Reason
+      emits "Suspended"
+    end
+  end
+
+  aggregate "Violation", "A tool act denied because it would not have emitted a bus event. Recording it is the point : the denial itself becomes a governed, logged fact." do
+    identified_by :id
+
+    attribute :id,          Id
+    attribute :tool_name,   ToolName
+    attribute :reason,      Reason
+    attribute :occurred_at, OccurredAt
+
+    value_object "Id" do
+      attribute :value, String
+    end
+
+    value_object "ToolName" do
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    value_object "OccurredAt" do
+      attribute :iso8601, String
+    end
+
+    command "Record" do
+      role "Framework"
+      description "Record that a denied native tool call was attempted. Emitted by the enforcement adapter, or dispatched manually for adapters that cannot reach the bus inline."
+      attribute :id,          Id
+      attribute :tool_name,   ToolName
+      attribute :reason,      Reason
+      attribute :occurred_at, OccurredAt
+      emits "Recorded"
+    end
+  end
+
+  aggregate "EnforcementAdapter", "The harness surface that makes a Policy real where the harness cannot itself dispatch through storehouse. For Claude Code this is a PreToolUse hook in settings.json — Nirmanakaya glue for a genuine harness-gap, declared here so the gap is a domain fact, not a hidden script." do
+    identified_by :name
+
+    attribute :name,   Name
+    attribute :kind,   Kind
+    attribute :target, Target
+    attribute :status, Status
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    value_object "Kind" do
+      attribute :kind, String, enum: ["harness_pre_tool_hook"]
+    end
+
+    value_object "Target" do
+      attribute :path, String
+    end
+
+    value_object "Status" do
+      attribute :phase, String, enum: ["registered", "live", "stale"]
+    end
+
+    value_object "DriftReason" do
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "Framework"
+      description "Declare an enforcement adapter for a policy. Registered means written but not yet trusted by the harness (Claude Code requires hook review before execution)."
+      attribute :name,   Name
+      attribute :kind,   Kind
+      attribute :target, Target
+      emits "Registered"
+    end
+
+    command "MarkLive" do
+      role "Framework"
+      description "The harness has reviewed and is executing the adapter ; the policy is now enforced in-session. Words match state : call only once the harness actually runs it."
+      reference_to(EnforcementAdapter)
+      emits "MarkedLive"
+    end
+
+    command "MarkStale" do
+      role "Framework"
+      description "The adapter drifted from the policy (renamed tools, changed allow-list). It must be regenerated before MarkLive again."
+      reference_to(EnforcementAdapter)
+      attribute :reason, DriftReason
+      emits "MarkedStale"
+    end
+  end
+end
