@@ -131,6 +131,66 @@ Hecks.bluebook "HeartbeatScheduler", version: "2026.05.14.1" do
       attribute :value, Integer
     end
 
+    # ── CLI-cadence value-objects (i638 Unit E) ──
+    #
+    # The vocabulary of a CLI cadence invocation : `storehouse loop`
+    # / `clock` / `run-loop`. The single kernel-floor
+    # parse_cadence_invocation bridge (main.rs) parses argv into a
+    # CadenceInvocation ; the run_loop / run_clock / run_pm_loop
+    # shims then hold ONLY this typed value. The i630 FQN-truncation
+    # bug class (`.split('.').last()` dropping the aggregate
+    # qualifier) is structurally inexpressible here because no raw
+    # FQN string survives the bridge — every command is a
+    # ScheduledCommand. Bluebook = contract ; main.rs = the
+    # kernel-floor mirror (consistent with 6ca50098 : the registry
+    # belongs in main.rs as kernel-floor).
+
+    value_object "CadenceInterval" do
+      # Wall-clock interval between CLI-loop iterations, in
+      # milliseconds. A documented TWIN of `Cadence` above, NOT a
+      # merge : Cadence.ticks counts heartbeats for autonomic
+      # dispatch (i616/i617 consumers — untouched) ; this is the
+      # wall-clock sleep the CLI shims wait between iterations,
+      # parsed once from "1s" / "500ms" / "2m" / "--poll <dur>".
+      attribute :millis, Integer
+    end
+
+    value_object "GatePredicate" do
+      # The `storehouse loop --gate <file.heki>:<field>=<value>`
+      # predicate (i108). When the named heki field does not equal
+      # `expected`, the shim sleeps WITHOUT dispatching. Typed so
+      # the gate is a value, never a (String,String,String) tuple
+      # sliced by hand in the handler.
+      attribute :heki_path, String
+      attribute :field,     String
+      attribute :expected,  String
+    end
+
+    value_object "ClockSegment" do
+      # One `storehouse clock --segment <lo>-<hi>:<FQN>` binding
+      # (i107) : dispatch `command` while the local hour is within
+      # [lo_hour, hi_hour] (wrap-around when lo_hour > hi_hour).
+      # `command` is a ScheduledCommand so the FQN is never sliced.
+      attribute :lo_hour, Integer
+      attribute :hi_hour, Integer
+      attribute :command, ScheduledCommand
+    end
+
+    value_object "CadenceInvocation" do
+      # The parsed result of ONE CLI cadence invocation. The single
+      # parse_cadence_invocation bridge produces this ; the shims
+      # dispatch from `commands[idx].verb`. `commands` is the i106
+      # rotation list (one FQN per tick) ; `interval` is the
+      # wall-clock sleep ; `gate` is the optional i108 predicate ;
+      # `segments` is the i107 clock-mode list. A single typed value
+      # replacing the cmd_full / cmd_names / gate-tuple / segments
+      # string surgery the three handlers do today.
+      attribute :commands, list_of(ScheduledCommand)
+      attribute :interval, CadenceInterval
+      attribute :gate,     GatePredicate
+      attribute :segments, list_of(ClockSegment)
+    end
+
     # ── Entities — child records living inside the scheduler ──
 
     entity "Schedule" do
@@ -192,6 +252,17 @@ Hecks.bluebook "HeartbeatScheduler", version: "2026.05.14.1" do
       attribute :last_dispatch_at, Timestamp
       then_set :last_dispatch_at, to: :last_dispatch_at
       emits "Dispatched"
+    end
+
+    # ── CLI cadence surface (i638 Unit E) ──
+
+    command "RunCadence" do
+      role "System"
+      description "Honor a CLI-parsed cadence invocation. The kernel-floor parse_cadence_invocation bridge parses `storehouse loop|clock|run-loop` argv into a CadenceInvocation ; this command records that the scheduler is running it and updates the last-dispatch surface. The run_loop / run_clock / run_pm_loop shims hold only the typed CadenceInvocation by the time they reach this surface — the i630 FQN-truncation bug class is structurally inexpressible because no raw FQN string survives the bridge."
+      attribute :invocation,       CadenceInvocation
+      attribute :last_dispatch_at, Timestamp
+      then_set :last_dispatch_at, to: :last_dispatch_at
+      emits "CadenceRan"
     end
   end
 
