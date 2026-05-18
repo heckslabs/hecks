@@ -36,7 +36,17 @@
 # Set CARGO_CHECK_SKIP=1 to bypass gate 8 (also an antibody failure).
 # Set SPECIALIZER_SKIP=1 to bypass gate 9 (also an antibody failure).
 
-REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+# i637 — worktree-aware repo anchor. The hook script lives in the
+# shared core.hooksPath (always the main repo's .git/hooks), so a
+# $0-relative anchor resolves to the main checkout even when the
+# commit is happening in a linked worktree — and every gate then runs
+# against the main tree + its (possibly in-flight) binary instead of
+# the tree being committed. Derive $REPO from the working tree git is
+# actually committing (git runs hooks with cwd = that worktree root),
+# falling back to the $0-relative path only if rev-parse is unavailable.
+# Mirrors the i565 worktree-awareness already in the smoke script.
+REPO="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$REPO" ] || REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 STOREHOUSE="$REPO/rust/target/release/storehouse"
 CONCEPTION_DIR="$REPO/hecks_conception"
 PARITY_TEST="$REPO/parity/parity_test.rb"
