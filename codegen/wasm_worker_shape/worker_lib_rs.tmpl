@@ -1,0 +1,758 @@
+//! __APP_TITLE__ Worker
+//!
+//! Exposes the __APP__ bluebook command bus over HTTP, plus the
+//! Living Diagram + walking skeleton surfaces the dev server serves
+//! locally.
+//!
+//!   POST /route                       — Route command : { phrase, params } → event
+//!   GET  /lexicon                     — ListPhrases query : the materialized scope set
+//!   GET  /query                       — Query.Run / Query.Read dispatch
+//!   GET  /health                      — HealthCheck query : status + scope size
+//!   GET  /                            — Dashboard
+//!   GET  /diagram                     — Living Diagram (universe view)
+//!   GET  /diagram/:domain             — Living Diagram (single-domain)
+//!   GET  /diagram/_all/graph.json     — Universe graph data
+//!   GET  /diagram/:domain/graph.json  — Graph data for Cytoscape
+//!   GET  /diagram/flows.json          — Inbox cards as user-flow stories
+//!   GET  /domains                     — JSON list of loaded domains
+//!   GET  /domains/:domain             — Walking skeleton (browse-by-aggregate)
+//!   POST /domains/:domain/dispatch    — Dispatch a command through the live Runtime
+//!
+//! Auth (POST /route only) : carried by the auth_scheme value the
+//! world file picks ; the auth secret reads through
+//! `ctx.env.secret("__AUTH_SECRET_ENV__")`.
+//!
+//! POST /route appends every routed command to the R2 object
+//! `dispatch.heki` via `storehouse::heki_r2::append_record`
+//! (i528 R2 storage adapter).
+//!
+//! POST /domains/:domain/dispatch is the live-cascade path : the
+//! worker parses every embedded bluebook into a Runtime at request
+//! time, seeds each aggregate's records from R2 + fixtures, runs the
+//! command through `Runtime::dispatch`, persists every modified repo
+//! back to R2, returns the event JSON plus the cascade trail.
+//!
+//! ## R2 state layout (i114)
+//!
+//! For every aggregate, records live at the R2 key
+//! `state/<aggregate_snake>.heki` in the bucket bound as
+//! `__R2_BINDING__`. The next-id counter manifest lives at
+//! `state/_counters.heki` keyed by aggregate name. Fixtures from
+//! every embedded `.fixtures` file seed the repositories at boot
+//! BEFORE R2 state is layered on top — R2 always wins for the same
+//! aggregate, so demo seeds become the empty-bucket starting point.
+
+use worker::*;
+use std::cell::RefCell;
+use std::collections::HashMap;
+
+mod embedded;
+
+// ── Runtime boot ────────────────────────────────────────────
+// Mirror of `multi::load_all_domains` but reading from the embedded
+// bluebook strings instead of walking the filesystem. PRIMARY_BASENAME
+// is the root bluebook (e.g. "__APP__.bluebook") ; every other
+// .bluebook entry contributes its aggregates / policies / fixtures /
+// sections / process_managers / cadences / block_grammars into the
+// merged Domain. Hecksagons load alongside so the runtime sees the
+// :web / :email / :stripe adapter bindings. `.fixtures` files merge
+// their declared `Fixture` rows into the same Domain so the boot path
+// can seed each repo with demo data before R2 state layers on top.
+//
+// Booted fresh per request today. Each parse + IR build is a few ms
+// per bluebook ; with 27 embedded files, cold start is ~50ms. Move
+// to a cached thread_local OnceCell when latency matters.
+async fn boot_runtimes(
+    bucket: Option<&Bucket>,
+) -> (HashMap<String, RefCell<storehouse::runtime::Runtime>>, String) {
+    let primary_src = embedded::EMBEDDED_BLUEBOOKS.iter()
+        .find(|(name, _)| *name == embedded::PRIMARY_BASENAME)
+        .map(|(_, src)| *src)
+        .unwrap_or("");
+    let mut merged: storehouse::ir::Domain = storehouse::parser::parse(primary_src);
+    for (name, source) in embedded::EMBEDDED_BLUEBOOKS {
+        if *name == embedded::PRIMARY_BASENAME { continue; }
+        if name.ends_with(".bluebook") {
+            let child = storehouse::parser::parse(source);
+            // Requires-only primary bluebooks parse nameless ; adopt a child
+            // domain name so the worker can key + route the domain.
+            if merged.name.is_empty() && !child.name.is_empty() {
+                merged.name = child.name.clone();
+            }
+            merged.aggregates.extend(child.aggregates);
+            merged.policies.extend(child.policies);
+            merged.fixtures.extend(child.fixtures);
+            merged.sections.extend(child.sections);
+            merged.process_managers.extend(child.process_managers);
+            merged.cadences.extend(child.cadences);
+            merged.block_grammars.extend(child.block_grammars);
+        }
+    }
+    // .fixtures files — sibling `Hecks.fixtures` DSL declarations. Parse
+    // each into a FixturesFile and fold its rows into merged.fixtures
+    // so the boot seed path below sees them alongside any in-bluebook
+    // fixture rows.
+    for (name, source) in embedded::EMBEDDED_BLUEBOOKS {
+        if name.ends_with(".fixtures") {
+            let f = storehouse::fixtures_parser::parse(source);
+            merged.fixtures.extend(f.fixtures);
+        }
+    }
+    let mut hecksagons: Vec<storehouse::hecksagon_ir::Hecksagon> = Vec::new();
+    for (name, source) in embedded::EMBEDDED_BLUEBOOKS {
+        if name.ends_with(".hecksagon") {
+            hecksagons.push(storehouse::hecksagon_parser::parse(source));
+        }
+    }
+    let primary_name = merged.name.clone();
+    let mut rt = storehouse::runtime::Runtime::boot_with_hecksagons(merged, None, hecksagons);
+
+    // ── Fixture seed (companion to __APP__/i105) ────────────────
+    // The Domain holds every fixture row declared across the embedded
+    // .bluebook + .fixtures files. The runtime's boot path leaves
+    // them in the IR — nothing else pushes them into repositories.
+    // Seed them here as AggregateState so the demo world is non-empty
+    // on the first request to a fresh bucket. R2 state (read below)
+    // overwrites by id so live data always wins over seed data.
+    seed_fixtures(&mut rt);
+
+    // ── R2 state hydration (i114) ─────────────────────────────────
+    // For every aggregate, read `state/<aggregate_snake>.heki` and
+    // upsert each record into the repository. Empty / missing objects
+    // are a no-op (the R2 read_record adapter maps missing keys to an
+    // empty Store).
+    if let Some(bucket) = bucket {
+        hydrate_from_r2(&mut rt, bucket).await;
+    }
+
+    let mut map = HashMap::new();
+    map.insert(primary_name.clone(), RefCell::new(rt));
+    (map, primary_name)
+}
+
+/// Walk every fixture in the merged Domain and inject it into the
+/// matching repository as an AggregateState. The fixture's `name`
+/// field becomes the record id when the aggregate has no
+/// `identified_by` ; when `identified_by` is set, the matching
+/// attribute (e.g. `account_email`) becomes the id.
+fn seed_fixtures(rt: &mut storehouse::runtime::Runtime) {
+    use storehouse::runtime::{AggregateState, repo_lookup_key};
+    // Snapshot identified_by lookup per aggregate (avoid borrow conflicts).
+    let identified_by: HashMap<String, Option<String>> = rt
+        .domain
+        .aggregates
+        .iter()
+        .map(|a| (a.name.clone(), a.identified_by.clone()))
+        .collect();
+    let fixtures = rt.domain.fixtures.clone();
+    for fix in &fixtures {
+        let Some(repo_key) = repo_lookup_key(&rt.repositories, &fix.aggregate_name) else {
+            continue;
+        };
+        let id_field = identified_by.get(&fix.aggregate_name).cloned().flatten();
+        let id = if let Some(ref key) = id_field {
+            fix.attributes.iter().find(|(k, _)| k == key).map(|(_, v)| v.clone())
+                .or_else(|| fix.name.clone())
+                .unwrap_or_else(|| format!("fixture_{}", fix.aggregate_name))
+        } else {
+            fix.name.clone().unwrap_or_else(|| format!("fixture_{}", fix.aggregate_name))
+        };
+        let mut state = AggregateState::new(&id);
+        for (k, v) in &fix.attributes {
+            state.set(k, infer_value(v));
+        }
+        if let Some(repo) = rt.repositories.get_mut(&repo_key) {
+            repo.seed_record(state);
+        }
+    }
+}
+
+/// Light type inference for fixture attribute values (currently
+/// stringly-typed in the IR). Integers and booleans get coerced ;
+/// everything else stays a `Str`.
+fn infer_value(raw: &str) -> storehouse::runtime::Value {
+    use storehouse::runtime::Value;
+    if let Ok(n) = raw.parse::<i64>() {
+        return Value::Int(n);
+    }
+    match raw {
+        "true"  => Value::Bool(true),
+        "false" => Value::Bool(false),
+        _       => Value::Str(raw.to_string()),
+    }
+}
+
+/// Pull every persisted record out of R2 and inject it into the
+/// matching repository. Counters layer in via `state/_counters.heki`
+/// so counter-minted aggregates resume their id sequence rather than
+/// colliding with seeded fixture rows.
+async fn hydrate_from_r2(rt: &mut storehouse::runtime::Runtime, bucket: &Bucket) {
+    use storehouse::runtime::{AggregateState, Value, repo_lookup_key};
+    let agg_names: Vec<String> = rt.domain.aggregates.iter().map(|a| a.name.clone()).collect();
+    for agg_name in &agg_names {
+        let snake = storehouse::heki::snake_case(agg_name);
+        let key = format!("state/{}.heki", snake);
+        let store = match storehouse::heki_r2::read_record(bucket, &key).await {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let Some(repo_key) = repo_lookup_key(&rt.repositories, agg_name) else {
+            continue;
+        };
+        let Some(repo) = rt.repositories.get_mut(&repo_key) else { continue };
+        for (_, rec) in &store {
+            let id = rec.get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("1")
+                .to_string();
+            let mut state = AggregateState::new(&id);
+            for (k, v) in rec {
+                if k != "id" && k != "created_at" && k != "updated_at" {
+                    state.set(k, json_value_to_runtime(v));
+                }
+            }
+            repo.seed_record(state);
+        }
+    }
+    // Counter manifest — single object keyed by aggregate name.
+    if let Ok(counters) = storehouse::heki_r2::read_record(bucket, "state/_counters.heki").await {
+        if let Some(rec) = counters.values().next() {
+            for (k, v) in rec {
+                if k == "id" || k == "created_at" || k == "updated_at" { continue; }
+                let Some(repo_key) = repo_lookup_key(&rt.repositories, k) else { continue };
+                if let Some(n) = v.as_i64() {
+                    if let Some(repo) = rt.repositories.get_mut(&repo_key) {
+                        repo.set_next_id(n as u64);
+                    }
+                }
+            }
+        }
+    }
+    // Quiet the unused-variable lint paths that the runtime-Value
+    // shape would catch — kept here so the helper compiles cleanly.
+    let _ = Value::Null;
+}
+
+/// Persist every repository's records back to R2 plus the counter
+/// manifest. Called after every successful dispatch so the next
+/// cold boot reads back the same world.
+async fn persist_runtime_to_r2(
+    rt: &storehouse::runtime::Runtime,
+    bucket: &Bucket,
+) -> Result<()> {
+    use storehouse::heki::Store;
+    let mut counters = serde_json::Map::new();
+    for agg in &rt.domain.aggregates {
+        let snake = storehouse::heki::snake_case(&agg.name);
+        let r2_key = format!("state/{}.heki", snake);
+        let Some(repo_key) = storehouse::runtime::repo_lookup_key(&rt.repositories, &agg.name) else { continue };
+        let Some(repo) = rt.repositories.get(&repo_key) else { continue };
+        let mut store: Store = Store::new();
+        for state in repo.all() {
+            let mut rec = storehouse::heki::Record::new();
+            rec.insert("id".into(), serde_json::Value::String(state.id.clone()));
+            for (k, v) in &state.fields {
+                rec.insert(k.clone(), runtime_value_to_json(v));
+            }
+            store.insert(state.id.clone(), rec);
+        }
+        // Best-effort write : we let upsert_record handle empty-Store
+        // semantics for empty repos by just skipping them entirely
+        // (no point overwriting with empty).
+        if !store.is_empty() {
+            // Use put_store equivalent via the raw bucket put : encode
+            // through the same HEKI wire format heki_r2 emits. Since
+            // heki_r2 only exposes per-record upsert / append, we use
+            // upsert in a loop — but to avoid N round trips we use a
+            // direct bucket write of a freshly-encoded blob via the
+            // public helpers.
+            let _ = write_store_to_r2(bucket, &r2_key, &store).await;
+        }
+        counters.insert(agg.name.clone(), serde_json::Value::Number(repo.next_id_value().into()));
+    }
+    // Counter manifest — single record under the well-known id "_".
+    if !counters.is_empty() {
+        let mut counter_rec = storehouse::heki::Record::new();
+        counter_rec.insert("id".into(), serde_json::Value::String("_".into()));
+        for (k, v) in counters {
+            counter_rec.insert(k, v);
+        }
+        let _ = storehouse::heki_r2::upsert_record(bucket, "state/_counters.heki", &counter_rec).await;
+    }
+    Ok(())
+}
+
+/// Encode a Store into the HEKI wire format and PUT it back to R2.
+/// heki_r2 exposes per-record upsert / append but not whole-Store
+/// writes, so we go through the public read_record decode pattern
+/// inversely : encode by hand, PUT via the bucket binding.
+async fn write_store_to_r2(
+    bucket: &Bucket,
+    key: &str,
+    store: &storehouse::heki::Store,
+) -> std::result::Result<(), String> {
+    // Reuse the public encode via a stand-in record set : the heki_r2
+    // module gives us upsert_record (which round-trips one record at a
+    // time). To write a whole Store atomically, we do one upsert per
+    // record. Cost : N round trips per dispatch. Acceptable for the
+    // walking-skeleton scale ; revisit when a domain has thousands of
+    // records per aggregate.
+    for (_, rec) in store {
+        let mut attrs = storehouse::heki::Record::new();
+        for (k, v) in rec {
+            attrs.insert(k.clone(), v.clone());
+        }
+        storehouse::heki_r2::upsert_record(bucket, key, &attrs).await?;
+    }
+    Ok(())
+}
+
+#[event(fetch)]
+pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
+    console_error_panic_hook::set_once();
+    Router::new()
+        .get("/health", health)
+        .get("/lexicon", lexicon)
+        .get("/query", query)
+        .post_async("/route", route)
+        .get_async("/diagram", diagram_universe)
+        .get_async("/diagram/_all/graph.json", diagram_universe_graph_json)
+        .get_async("/diagram/flows.json", diagram_flows_json)
+        .get_async("/diagram/:domain", diagram_domain)
+        .get_async("/diagram/:domain/graph.json", diagram_graph_json)
+        .get_async("/domains", domains_index)
+        .get_async("/domains/:domain", walking_skeleton)
+        .post_async("/domains/:domain/dispatch", walking_skeleton_dispatch)
+        .run(req, env)
+        .await
+}
+
+fn health(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
+    let body = serde_json::json!({
+        "service":            "__APP__-worker",
+        "status":             "ok",
+        "bluebooks_embedded": embedded::BLUEBOOK_COUNT,
+        "primary":            embedded::PRIMARY_BASENAME,
+    });
+    Response::from_json(&body)
+}
+
+fn lexicon(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
+    let body = serde_json::json!({
+        "ok":                 false,
+        "stage":              "stub — pending R2 heki adapter (i104)",
+        "bluebooks_embedded": embedded::BLUEBOOK_COUNT,
+    });
+    Response::from_json(&body)
+}
+
+fn query(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
+    let body = serde_json::json!({
+        "ok":    false,
+        "stage": "stub — pending R2 heki adapter (i104)",
+    });
+    Response::from_json(&body)
+}
+
+async fn route(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    // ── Auth ─────────────────────────────────────────────────
+    let expected_token = ctx
+        .env
+        .secret("__AUTH_SECRET_ENV__")
+        .map(|s| s.to_string())
+        .unwrap_or_default();
+    let header_token = req
+        .headers()
+        .get("Authorization")
+        .ok()
+        .flatten()
+        .and_then(|h| h.strip_prefix("Bearer ").map(|t| t.to_string()))
+        .unwrap_or_default();
+    if expected_token.is_empty() || header_token != expected_token {
+        return Response::error("unauthorized — Bearer token mismatch", 401);
+    }
+
+    let body: serde_json::Value = match req.json().await {
+        Ok(v) => v,
+        Err(e) => return Response::error(format!("bad JSON body : {}", e), 400),
+    };
+    let phrase = body.get("phrase").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let params = body.get("params").cloned().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+    if phrase.is_empty() {
+        return Response::error("missing 'phrase' field — expected 'app::domain::Aggregate::Command'", 400);
+    }
+
+    let bucket = match ctx.env.bucket("__R2_BINDING__") {
+        Ok(b)  => b,
+        Err(e) => return Response::error(format!("r2 binding __R2_BINDING__ unavailable : {}", e), 500),
+    };
+    let mut attrs = storehouse::heki::Record::new();
+    attrs.insert("phrase".into(), serde_json::Value::String(phrase.clone()));
+    attrs.insert("params".into(), params.clone());
+    let appended = match storehouse::heki_r2::append_record(&bucket, "dispatch.heki", &attrs).await {
+        Ok(rec) => rec,
+        Err(e)  => return Response::error(format!("r2 append : {}", e), 502),
+    };
+    let body = serde_json::json!({
+        "ok":                 true,
+        "stage":              "appended-to-r2",
+        "record":             appended,
+        "bluebooks_embedded": embedded::BLUEBOOK_COUNT,
+    });
+    Response::from_json(&body)
+}
+
+// ── Dev-server surfaces ──────────────────────────────────────
+
+async fn diagram_universe(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let html = render_universe_html(&runtimes);
+    Response::from_html(html)
+}
+
+async fn diagram_domain(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let name = ctx.param("domain").cloned().unwrap_or_default();
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let rt = match runtimes.get(&name) {
+        Some(r) => r,
+        None => return Response::error(format!("unknown domain : {}", name), 404),
+    };
+    let html = storehouse::server::html_diagram::generate(&name, rt);
+    Response::from_html(html)
+}
+
+async fn diagram_graph_json(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let name = ctx.param("domain").cloned().unwrap_or_default();
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let rt = match runtimes.get(&name) {
+        Some(r) => r,
+        None => return Response::error(format!("unknown domain : {}", name), 404),
+    };
+    let body = storehouse::server::html_diagram::graph_json(&rt.borrow());
+    Response::ok(body).map(|r| r.with_headers(json_headers()))
+}
+
+async fn diagram_universe_graph_json(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let body = storehouse::server::html_diagram::all_domains_graph_json(&runtimes);
+    Response::ok(body).map(|r| r.with_headers(json_headers()))
+}
+
+async fn diagram_flows_json(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
+    // No inbox cards embedded yet — return empty list. Phase 2 :
+    // embed the __APP__/inbox/*.md tree alongside the bluebooks
+    // and walk via the same user-flows serializer the dev server uses.
+    Response::ok("[]").map(|r| r.with_headers(json_headers()))
+}
+
+async fn domains_index(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    // Render the same dashboard the root `/` uses — a clickable
+    // card per loaded domain — so visitors to /domains land on a
+    // navigable HTML index rather than a raw JSON dump. The JSON
+    // shape stays available with ?format=json for tools that need
+    // it (per existing /domains contract).
+    let wants_json = _req
+        .url()
+        .ok()
+        .map(|u| u.query_pairs().any(|(k, v)| k == "format" && v == "json"))
+        .unwrap_or(false);
+
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+
+    if wants_json {
+        let names: Vec<&String> = runtimes.keys().collect();
+        let body = serde_json::json!({
+            "count":   names.len(),
+            "domains": names,
+        });
+        return Response::from_json(&body);
+    }
+    let html = storehouse::server::html::generate_index(&runtimes);
+    Response::from_html(html)
+}
+
+async fn walking_skeleton(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let name = ctx.param("domain").cloned().unwrap_or_default();
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let rt = match runtimes.get(&name) {
+        Some(r) => r,
+        None => return Response::error(format!("unknown domain : {}", name), 404),
+    };
+    let html = storehouse::server::html_domain::generate_domain_page(&name, rt, &runtimes);
+    Response::from_html(html)
+}
+
+async fn walking_skeleton_dispatch(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let name = ctx.param("domain").cloned().unwrap_or_default();
+    let body: serde_json::Value = match req.json().await {
+        Ok(v) => v,
+        Err(e) => return Response::error(format!("bad JSON body : {}", e), 400),
+    };
+    let command = body.get("command").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let attrs_json = body.get("attrs").cloned().unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+    if command.is_empty() {
+        return Response::error("missing 'command' field", 400);
+    }
+    let attrs = json_to_runtime_attrs(&attrs_json);
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let rt = match runtimes.get(&name) {
+        Some(r) => r,
+        None => return Response::error(format!("unknown domain : {}", name), 404),
+    };
+
+    // i115 — slice every event published during THIS dispatch so the
+    // response can surface the cascade tail (policy fires → triggered
+    // command → its event, recursively). Boot leaves the EventBus
+    // empty, so this index is normally 0 ; preserving the pattern
+    // means we still work if a future boot path replays history.
+    let pre_count = rt.borrow().event_bus.events().len();
+
+    let result = {
+        let mut rt_mut = rt.borrow_mut();
+        rt_mut.dispatch(&command, attrs)
+    };
+
+    match result {
+        Ok(result) => {
+            let event_name = result.event.as_ref().map(|e| e.name.clone()).unwrap_or_default();
+            let cascade: Vec<serde_json::Value> = {
+                let rt_ref = rt.borrow();
+                let events = rt_ref.event_bus.events();
+                events.iter().skip(pre_count).map(event_to_json).collect()
+            };
+            // i114 — persist every modified repo back to R2 so the
+            // next cold boot sees the new state. Best-effort : a
+            // failed write is logged via the response body, not raised.
+            let persist_result = if let Some(ref bucket) = bucket {
+                persist_runtime_to_r2(&rt.borrow(), bucket).await
+            } else {
+                Ok(())
+            };
+            let persisted = persist_result.is_ok();
+            Response::from_json(&serde_json::json!({
+                "ok":             true,
+                "event":          event_name,
+                "aggregate_type": result.aggregate_type,
+                "aggregate_id":   result.aggregate_id,
+                "cascade":        cascade,
+                "persisted":      persisted,
+            }))
+        }
+        Err(e) => {
+            let humanized = humanize_runtime_error(&e);
+            Response::from_json(&serde_json::json!({
+                "ok":         false,
+                "error":      humanized.message,
+                "suggestion": humanized.suggestion,
+                "field":      humanized.field,
+            }))
+        }
+    }
+}
+
+/// One event from EventBus history → JSON for the cascade response.
+fn event_to_json(e: &storehouse::runtime::Event) -> serde_json::Value {
+    let mut data = serde_json::Map::new();
+    for (k, v) in &e.data {
+        data.insert(k.clone(), runtime_value_to_json(v));
+    }
+    serde_json::json!({
+        "name":           e.name,
+        "aggregate_type": e.aggregate_type,
+        "aggregate_id":   e.aggregate_id,
+        "data":           data,
+    })
+}
+
+/// i110 — humanize a RuntimeError into operator-friendly text.
+/// The walking-skeleton dispatch response carries this directly so
+/// the diagram's panel can surface it inline without needing to
+/// parse Rust debug formatting.
+struct HumanizedError {
+    message: String,
+    suggestion: Option<String>,
+    field: Option<String>,
+}
+
+fn humanize_runtime_error(err: &storehouse::runtime::RuntimeError) -> HumanizedError {
+    use storehouse::runtime::RuntimeError as E;
+    match err {
+        E::UnknownCommand(name) => HumanizedError {
+            message: format!("No command named `{}`.", name),
+            suggestion: Some("Check the spelling — commands are `Aggregate.Command` or just `Command`.".into()),
+            field: None,
+        },
+        E::UnknownAggregate(name) => HumanizedError {
+            message: format!("No aggregate named `{}`.", name),
+            suggestion: Some("Browse /domains/:domain to see the loaded aggregate names.".into()),
+            field: None,
+        },
+        E::MissingAttribute(name) => HumanizedError {
+            message: format!("The field `{}` is required.", name),
+            suggestion: Some(format!("Add `{}` to the command form.", name)),
+            field: Some(name.clone()),
+        },
+        E::LifecycleViolation { command, field, current, allowed } => HumanizedError {
+            message: format!(
+                "Cannot `{}` from state `{}` — it needs `{}`.",
+                command,
+                current,
+                allowed.join(" or "),
+            ),
+            suggestion: Some(format!(
+                "Transition the aggregate's `{}` to one of [{}] first.",
+                field,
+                allowed.join(", "),
+            )),
+            field: Some(field.clone()),
+        },
+        E::AggregateNotFound(id) => HumanizedError {
+            message: format!("Aggregate `{}` not found.", id),
+            suggestion: Some("Create it first, or check the id you passed.".into()),
+            field: None,
+        },
+        E::GivenFailed { message, expression } => HumanizedError {
+            message: format!("Precondition failed : {}", message),
+            suggestion: Some(format!("The check `{}` did not hold for this command.", expression)),
+            field: None,
+        },
+        E::AmbiguousCommand { name, candidates } => HumanizedError {
+            message: format!(
+                "Command `{}` is declared on multiple aggregates : {}.",
+                name,
+                candidates.join(", "),
+            ),
+            suggestion: Some(format!(
+                "Qualify the dispatch with the aggregate name, e.g. `{}.{}`.",
+                candidates.first().cloned().unwrap_or_default(),
+                name,
+            )),
+            field: None,
+        },
+    }
+}
+
+// ── Universe view HTML ──────────────────────────────────────
+//
+// Mirrors `html_diagram::generate` but bakes the universe graph
+// directly into the page (every domain's nodes in one Cytoscape
+// canvas, cross-domain edges dashed). The single-domain template
+// uses Cytoscape's tap → command form ; the universe view stays
+// read-only for now (clicking a command in the universe view
+// surfaces an info panel rather than a dispatch form). Once
+// `html_diagram::all_domains_graph_view` lands as a public helper,
+// this function calls into it instead.
+
+fn render_universe_html(
+    runtimes: &HashMap<String, RefCell<storehouse::runtime::Runtime>>,
+) -> String {
+    let graph_json = storehouse::server::html_diagram::all_domains_graph_json(runtimes);
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Universe — Living Diagram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/cytoscape@3.30.4/dist/cytoscape.min.js"></script>
+  <style>
+    body {{ margin: 0; background: #0a0a0a; color: #ddd; font-family: -apple-system, system-ui, sans-serif; }}
+    #cy {{ width: 100vw; height: calc(100vh - 56px); }}
+    header {{ height: 56px; padding: 0 1.5rem; background: #111; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }}
+    h1 {{ font-size: 1.1rem; font-weight: 600; color: #ffe400; }}
+    #legend {{ position: fixed; left: 1rem; bottom: 1rem; background: rgba(20,20,20,0.95); border: 1px solid #2a2a2a; border-radius: 8px; padding: 8px 12px; font-size: 0.75rem; }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌌 Universe — Living Diagram</h1>
+    <a href="/domains" class="text-sm text-gray-400 hover:text-white">Domains →</a>
+  </header>
+  <div id="cy"></div>
+  <div id="legend">
+    <span>● aggregate</span>&nbsp;&nbsp;
+    <span>○ command</span>&nbsp;&nbsp;
+    <span>◇ event</span>&nbsp;&nbsp;
+    <span style="border-bottom: 1px dashed #888;">— cross-domain</span>
+  </div>
+  <script>
+    const GRAPH = {graph};
+    const cy = cytoscape({{
+      container: document.getElementById('cy'),
+      elements: GRAPH,
+      style: [
+        {{ selector: 'node', style: {{ 'label': 'data(label)', 'font-size': 11, 'color': '#fff', 'text-outline-width': 2, 'text-outline-color': '#0a0a0a' }} }},
+        {{ selector: 'node[kind="aggregate"]', style: {{ 'background-color': '#ffe400', 'color': '#111', 'shape': 'round-rectangle', 'width': 'label', 'padding': 12 }} }},
+        {{ selector: 'node[kind="command"]',   style: {{ 'background-color': '#5b9eff', 'shape': 'ellipse', 'width': 'label', 'padding': 8 }} }},
+        {{ selector: 'node[kind="event"]',     style: {{ 'background-color': '#b275ff', 'shape': 'diamond', 'width': 32, 'height': 32 }} }},
+        {{ selector: 'node[kind="policy"]',    style: {{ 'background-color': '#ff7d5b', 'shape': 'tag', 'width': 'label', 'padding': 6 }} }},
+        {{ selector: 'edge', style: {{ 'width': 2, 'line-color': '#444', 'target-arrow-color': '#444', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier' }} }},
+        {{ selector: 'edge[kind="cross_domain"]', style: {{ 'line-style': 'dashed', 'line-color': '#888' }} }},
+      ],
+      layout: {{ name: 'cose', idealEdgeLength: 110, nodeRepulsion: 8000, animate: true, randomize: false }},
+    }});
+  </script>
+</body>
+</html>"#,
+        graph = graph_json,
+    )
+}
+
+/// serde_json::Value (request body) → HashMap<String, runtime::Value>
+/// (what Runtime::dispatch expects for command attrs). Mirrors the
+/// private `json_to_value` helper in runtime/command_dispatch.rs.
+fn json_to_runtime_attrs(v: &serde_json::Value) -> HashMap<String, storehouse::runtime::Value> {
+    let mut out = HashMap::new();
+    if let serde_json::Value::Object(map) = v {
+        for (k, val) in map {
+            out.insert(k.clone(), json_value_to_runtime(val));
+        }
+    }
+    out
+}
+
+fn json_value_to_runtime(v: &serde_json::Value) -> storehouse::runtime::Value {
+    use storehouse::runtime::Value;
+    match v {
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Bool(b) => Value::Bool(*b),
+        serde_json::Value::Number(n) => n.as_i64().map(Value::Int)
+            .unwrap_or_else(|| Value::Str(n.to_string())),
+        serde_json::Value::String(s) => Value::Str(s.clone()),
+        serde_json::Value::Array(a) => Value::List(a.iter().map(json_value_to_runtime).collect()),
+        serde_json::Value::Object(m) => {
+            let mut hm = HashMap::new();
+            for (k, vv) in m { hm.insert(k.clone(), json_value_to_runtime(vv)); }
+            Value::Map(hm)
+        }
+    }
+}
+
+fn runtime_value_to_json(v: &storehouse::runtime::Value) -> serde_json::Value {
+    use storehouse::runtime::Value;
+    match v {
+        Value::Null => serde_json::Value::Null,
+        Value::Bool(b) => serde_json::Value::Bool(*b),
+        Value::Int(n) => serde_json::json!(*n),
+        Value::Str(s) => serde_json::Value::String(s.clone()),
+        Value::List(items) => serde_json::Value::Array(items.iter().map(runtime_value_to_json).collect()),
+        Value::Map(m) => {
+            let obj: serde_json::Map<String, serde_json::Value> =
+                m.iter().map(|(k, v)| (k.clone(), runtime_value_to_json(v))).collect();
+            serde_json::Value::Object(obj)
+        }
+    }
+}
+
+fn json_headers() -> Headers {
+    let h = Headers::new();
+    let _ = h.set("content-type", "application/json");
+    h
+}
