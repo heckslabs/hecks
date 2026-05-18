@@ -239,18 +239,18 @@ fn rand_below_impl(n: i64) -> i64 {
         }
     }
     use std::cell::Cell;
-    use std::time::{SystemTime, UNIX_EPOCH};
     thread_local! {
         static STATE: Cell<u64> = Cell::new(0);
     }
     STATE.with(|s| {
         let mut x = s.get();
         if x == 0 {
-            x = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_nanos() as u64)
-                .unwrap_or(0x9e3779b97f4a7c15)
-                | 1; // ensure non-zero
+            // wasm-safe clock : raw std::time::SystemTime::now()
+            // panics "time not implemented" on wasm32 (CF Worker).
+            // Route the xorshift seed through heki::now_duration
+            // (i7, the i630 follow-up). `| 1` keeps the non-zero
+            // invariant the xorshift needs.
+            x = (crate::heki::now_duration().as_nanos() as u64) | 1;
         }
         // xorshift64 — fast, decent distribution, no dependency
         x ^= x << 13;
