@@ -13,7 +13,9 @@
 #
 # Post-simplification the statusline surfaces TWO signals only :
 #   1. ❤️ <beats>          (heartbeat from tick.heki)
-#   2. ✉️ <init>:<count> ...  (multi-inbox, omitted when all empty)
+#   2. <emoji> [<abbrev>:]<count> ...  (i528 decentralised channels :
+#      one segment per inbox holding a `.channel.md` ; omitted when
+#      all empty ; abbrev-less channels render `<emoji> <count>`)
 #
 # The old shape's mood / fatigue / inventions / musings / provider /
 # bulb / coherence-⚠ / last-dispatch breadcrumb were all stripped. This
@@ -29,8 +31,9 @@
 #   - Rendered line starts with one of the heart glyphs (❤️ alive / 🖤 dim)
 #   - Mood, fatigue, breadcrumb, coherence, bulb, invention, provider
 #     signals are all ABSENT from the output
-#   - Multi-inbox listing renders as `✉️ gl:N` when a queued card exists
-#   - When every inbox is empty, the envelope segment is suppressed
+#   - Each seeded inbox renders as `<emoji> <abbrev>:N` (i528, from
+#     its `.channel.md`) when a queued card exists
+#   - When every inbox is empty, the channel segment is suppressed
 #     (no orphan separator, no leading whitespace before nothing)
 #
 # Exit 0 on pass, non-zero on fail.
@@ -94,13 +97,38 @@ seed_tick() {
     sleep_summary="" is_lucid="no" >/dev/null
 }
 
+# seed_channel <inbox-abs-path> — write the i528 `.channel.md`
+# descriptor so the decentralised discovery (walks $HOME/Projects for
+# .channel.md, treats that dir as an inbox) finds this seeded inbox.
+# The abbrev + emoji here ARE the rendered shape
+# (`<emoji> <abbrev>:<count>`), so each scenario asserts exactly these.
+seed_channel() {
+  local inbox="$1" abbrev emoji label
+  case "$inbox" in
+    */hecks/hecks_conception/inbox) abbrev=gl; emoji="🔮"; label="Global" ;;
+    */pigeoncoop/inbox)             abbrev=pi; emoji="🕊️"; label="Pigeoncoop" ;;
+    */bin-buddy/inbox)              abbrev=bb; emoji="♻️"; label="Bin-buddy" ;;
+    *)                              abbrev=xx; emoji="❔"; label="Unknown" ;;
+  esac
+  cat > "$inbox/.channel.md" <<EOF
+---
+abbrev: $abbrev
+emoji: $emoji
+label: $label
+---
+statusline regression smoke channel descriptor
+EOF
+}
+
 # seed_inbox <home> <project-rel-path> <ref> <status>
 # Writes one markdown card with YAML frontmatter at the expected
-# project-relative inbox path inside the fake HOME.
+# project-relative inbox path inside the fake HOME, plus the i528
+# .channel.md descriptor (idempotent) so discovery sees the inbox.
 seed_inbox() {
   local home="$1" rel="$2" ref="$3" status="$4"
   local inbox="$home/$rel"
   mkdir -p "$inbox"
+  seed_channel "$inbox"
   cat > "$inbox/$ref.md" <<EOF
 ---
 ref: $ref
@@ -178,8 +206,8 @@ echo "[gl-only] $out"
 check_no_stripped_signals "gl-only" "$out"
 printf '%s' "$out" | grep -qF -- "5.68k" \
   || note_fail "[gl-only] beats '5.68k' missing"
-printf '%s' "$out" | grep -qF -- "✉️ gl:1" \
-  || note_fail "[gl-only] expected '✉️ gl:1' — got: $out"
+printf '%s' "$out" | grep -qF -- "🔮 gl:1" \
+  || note_fail "[gl-only] expected '🔮 gl:1' — got: $out"
 ! printf '%s' "$out" | grep -qF -- "•" \
   || note_fail "[gl-only] dot separator must be gone — got: $out"
 if printf '%s' "$out" | grep -qF -- "pi:"; then
@@ -201,12 +229,12 @@ echo "[multi-inbox] $out"
 check_no_stripped_signals "multi-inbox" "$out"
 printf '%s' "$out" | grep -qF -- "999" \
   || note_fail "[multi-inbox] beats '999' missing"
-printf '%s' "$out" | grep -qF -- "gl:2" \
-  || note_fail "[multi-inbox] expected 'gl:2' — got: $out"
-printf '%s' "$out" | grep -qF -- "pi:1" \
-  || note_fail "[multi-inbox] expected 'pi:1' (closed card filtered) — got: $out"
-printf '%s' "$out" | grep -qF -- "bb:3" \
-  || note_fail "[multi-inbox] expected 'bb:3' — got: $out"
+printf '%s' "$out" | grep -qF -- "🔮 gl:2" \
+  || note_fail "[multi-inbox] expected '🔮 gl:2' — got: $out"
+printf '%s' "$out" | grep -qF -- "🕊️ pi:1" \
+  || note_fail "[multi-inbox] expected '🕊️ pi:1' (closed card filtered) — got: $out"
+printf '%s' "$out" | grep -qF -- "♻️ bb:3" \
+  || note_fail "[multi-inbox] expected '♻️ bb:3' — got: $out"
 
 if [ "$fail" = "0" ]; then
   echo "statusline_regression_smoke: OK"
