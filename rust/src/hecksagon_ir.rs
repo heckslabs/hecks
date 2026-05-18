@@ -69,6 +69,12 @@ pub struct Hecksagon {
     /// the returned string into `response_into_target` under
     /// `response_into_attr`.
     pub compute_adapters: Vec<ComputeAdapter>,
+    /// `adapter :tts, name:, provider:, voice_id:, model:, speed:,
+    /// stability:, similarity_boost:, style:, trigger_on:, cache_dir:,
+    /// auto_play:` entries. Fire-and-forget (`response_field :none`
+    /// per the tts adapter family) — the runtime renders audio via the
+    /// resolved provider and does NOT cascade a follow-on command.
+    pub tts_adapters: Vec<TtsAdapter>,
     /// `gate "Aggregate", :role do allow :Cmd end` entries.
     pub gates: Vec<Gate>,
     /// `subscribe "OtherDomain"` — reads a directed edge into the
@@ -210,6 +216,35 @@ impl ComputeAdapter {
     }
 }
 
+/// `adapter :tts, name:, provider:, voice_id:, model:, speed:,
+/// stability:, similarity_boost:, style:, trigger_on:, cache_dir:,
+/// auto_play:` — the text-to-speech adapter family
+/// (framework/adapter_families/tts.hecksagon, behavior_kind
+/// render_text_to_audio). Fire-and-forget : `response_field :none`,
+/// so there is no response_into / cascade. `effective_trigger`
+/// returns `trigger_on` only (no response_into fallback, unlike
+/// Llm/Compute) because `:tts` chains into nothing.
+#[derive(Debug, Clone, Default)]
+pub struct TtsAdapter {
+    pub name: String,
+    pub provider: Option<String>,
+    pub voice_id: Option<String>,
+    pub model: Option<String>,
+    pub speed: Option<String>,
+    pub stability: Option<String>,
+    pub similarity_boost: Option<String>,
+    pub style: Option<String>,
+    pub trigger_on: Option<String>,
+    pub cache_dir: Option<String>,
+    pub auto_play: Option<String>,
+}
+
+impl TtsAdapter {
+    pub fn effective_trigger(&self) -> Option<&str> {
+        self.trigger_on.as_deref()
+    }
+}
+
 impl Hecksagon {
     pub fn shell_adapter(&self, adapter_name: &str) -> Option<&ShellAdapter> {
         self.shell_adapters.iter().find(|a| a.name == adapter_name)
@@ -225,6 +260,10 @@ impl Hecksagon {
 
     pub fn compute_adapter(&self, adapter_name: &str) -> Option<&ComputeAdapter> {
         self.compute_adapters.iter().find(|a| a.name == adapter_name)
+    }
+
+    pub fn tts_adapter(&self, adapter_name: &str) -> Option<&TtsAdapter> {
+        self.tts_adapters.iter().find(|a| a.name == adapter_name)
     }
 
     pub fn gate_for(&self, aggregate: &str, role: &str) -> Option<&Gate> {
