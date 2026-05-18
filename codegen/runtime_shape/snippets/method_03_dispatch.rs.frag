@@ -164,6 +164,15 @@
         // the Gmail poll — the dispatch is the fetch.
         self.resolve_exec_adapters(&result, command_name, &ctx.attrs);
 
+        // i-tts - :tts adapter hook. Sibling to the :exec / :mcp /
+        // :claude_tool resolvers above. Scans loaded hecksagons for
+        // typed :tts adapters whose effective trigger equals the
+        // just-dispatched Aggregate.Command target, renders text to
+        // audio via the resolved provider (ElevenLabs today),
+        // optionally caches + plays. Fire-and-forget per the family
+        // contract (`response_field :none`) - no follow-on cascade.
+        self.resolve_tts_adapters(&result, command_name, &ctx.attrs);
+
         Ok(result)
     }
 
