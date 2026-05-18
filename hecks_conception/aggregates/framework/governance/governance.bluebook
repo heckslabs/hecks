@@ -1,4 +1,4 @@
-Hecks.bluebook "Governance", version: "2026.05.18.1" do
+Hecks.bluebook "Governance", version: "2026.05.18.2" do
   vision "Governance is the claim that every act is accountable. An act is accountable only if it emitted an event the runtime could log ; an act that emits no bus event cannot be governed. The rule follows : every tool invocation flows through storehouse__dispatch (Domain::Aggregate.Command), which emits a bus event ; native harness tool calls, which emit nothing, are denied by default. This domain holds the Policy (default-deny + the allow-list), the Violation recorded when a denied act is attempted, and the EnforcementAdapter — the harness-side surface that makes the policy real where the harness cannot itself dispatch through storehouse (a PreToolUse hook ; a filed harness-gap, not a permanent home)."
   category "framework"
 
@@ -8,7 +8,7 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
     attribute :name,        Name
     attribute :stance,      Stance
     attribute :enforcement, Enforcement
-    attribute :status,      Status
+    attribute :status,      Status, default: "proposed"
     attribute :permitted,   list_of(PermittedTool)
 
     value_object "Name" do
@@ -24,23 +24,19 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
     end
 
     value_object "Status" do
-      attribute :phase, String, enum: ["proposed", "active", "suspended"]
+      attribute :value, String, enum: ["proposed", "active", "suspended"]
     end
 
     value_object "PermittedTool" do
-      # One tool-name pattern callable natively, and why it is exempt
-      # from the bus (it IS the bus, or has no ungoverned fs/exec effect).
       attribute :pattern, String
       attribute :reason,  String
     end
 
     value_object "Pattern" do
-      # A tool-name prefix/glob the policy reasons about in isolation.
       attribute :value, String
     end
 
     value_object "Reason" do
-      # Operator justification for a governance state change.
       attribute :value, String
     end
 
@@ -51,20 +47,25 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
       attribute :stance,      Stance
       attribute :enforcement, Enforcement
       emits "Proposed"
+      then_set :name,        to: :name
+      then_set :stance,      to: :stance
+      then_set :enforcement, to: :enforcement
+      then_set :status,      to: "proposed"
     end
 
     command "Permit" do
       role "Framework"
-      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. Everything not permitted is denied by the stance. Single-leaf VO params so the command marshals cleanly through k=v dispatch ; the stored allow-list still holds PermittedTool."
+      description "Add a tool-name pattern to the allow-list with the reason it is exempt from bus-routing. The allow-list is append-only ; everything not permitted is denied by the stance."
       reference_to(Policy)
       attribute :pattern, Pattern
       attribute :reason,  Reason
       emits "Permitted"
+      then_set :permitted, append: { pattern: :pattern, reason: :reason }
     end
 
     command "Forbid" do
       role "Framework"
-      description "Remove a pattern from the allow-list. The next denied attempt against it is recorded as a Violation."
+      description "Record that a pattern is no longer trusted. The allow-list is append-only and event-sourced : Forbid is a logged audit signal, not an in-place delete — the policy history is the source of truth."
       reference_to(Policy)
       attribute :pattern, Pattern
       emits "Forbade"
@@ -83,6 +84,11 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
       reference_to(Policy)
       attribute :reason, Reason
       emits "Suspended"
+    end
+
+    lifecycle :status, default: "proposed" do
+      transition "Activate" => "active",    from: ["proposed", "suspended"]
+      transition "Suspend"  => "suspended", from: "active"
     end
   end
 
@@ -118,6 +124,10 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
       attribute :reason,      Reason
       attribute :occurred_at, OccurredAt
       emits "Recorded"
+      then_set :id,          to: :id
+      then_set :tool_name,   to: :tool_name
+      then_set :reason,      to: :reason
+      then_set :occurred_at, to: :occurred_at
     end
   end
 
@@ -127,7 +137,7 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
     attribute :name,   Name
     attribute :kind,   Kind
     attribute :target, Target
-    attribute :status, Status
+    attribute :status, Status, default: "registered"
 
     value_object "Name" do
       attribute :value, String
@@ -142,7 +152,7 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
     end
 
     value_object "Status" do
-      attribute :phase, String, enum: ["registered", "live", "stale"]
+      attribute :value, String, enum: ["registered", "live", "stale"]
     end
 
     value_object "DriftReason" do
@@ -156,6 +166,10 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
       attribute :kind,   Kind
       attribute :target, Target
       emits "Registered"
+      then_set :name,   to: :name
+      then_set :kind,   to: :kind
+      then_set :target, to: :target
+      then_set :status, to: "registered"
     end
 
     command "MarkLive" do
@@ -171,6 +185,11 @@ Hecks.bluebook "Governance", version: "2026.05.18.1" do
       reference_to(EnforcementAdapter)
       attribute :reason, DriftReason
       emits "MarkedStale"
+    end
+
+    lifecycle :status, default: "registered" do
+      transition "MarkLive"  => "live",  from: ["registered", "stale"]
+      transition "MarkStale" => "stale", from: ["registered", "live"]
     end
   end
 end
