@@ -150,4 +150,36 @@ Hecks.hecksagon "Tools" do
     tool:    "mcp__claude_ai_Gmail__list_drafts",
     args:    "{}",
     result_into: "Cascade.RecordResult"
+
+  # ── EmailTool.GetAttachment : :web_tool family (NOT :mcp) ──
+  #
+  # The Gmail MCP surface exposes NO attachment fetch (verified : no
+  # tool, no resource). The Gmail REST API does —
+  # users.messages.attachments.get returns base64url bytes. So
+  # GetAttachment binds the :web_tool family (HTTP + OAuth), not :mcp,
+  # exactly as the EmailTool.GetAttachment bluebook comment specifies.
+  #
+  # `tool: "gmail_attachment"` is a NEW web_tool behavior the runtime
+  # dispatcher does not yet route (web_tool_dispatcher.rs handles only
+  # web_fetch / web_search today). This binding declares the CONTRACT
+  # ahead of the runtime arm — same convention as the :mcp bindings
+  # above (declared, parity-clean, auto-fires once the runtime gap
+  # closes, no further bluebook edits).
+  #
+  # Proven mechanism the runtime arm must implement (recipe verified
+  # 2026-05-18, ~/.config/miette/fetch_gmail_attachment.py is the
+  # transitional adapter, reachable today via Tools::ShellTool.Bash) :
+  #   1. load ~/.config/miette/google-oauth-token.json (custom Google
+  #      app : token, refresh_token, client_id/secret, token_uri).
+  #   2. GET gmail/v1/users/me/messages/{message_id}/attachments/
+  #      {attachment_id} with Bearer token ; on 401/403 refresh via
+  #      refresh_token grant against token_uri, persist, retry.
+  #   3. base64url-decode the `data` field ; write bytes to save_path.
+  # attrs (message_id / attachment_id / save_path) flow from the
+  # dispatched command's attrs, same as web_fetch reads attrs.url.
+  # Runtime arm + i594/i557 gating tracked in the sibling inbox card.
+  adapter :web_tool,
+    command: "EmailTool.GetAttachment",
+    tool:    "gmail_attachment",
+    result_into: "Cascade.RecordResult"
 end

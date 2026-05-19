@@ -313,7 +313,7 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     Router::new()
         .get("/health", health)
         .get("/lexicon", lexicon)
-        .get("/query", query)
+        .get_async("/query", query)
         .post_async("/route", route)
         .get_async("/diagram", diagram_universe)
         .get_async("/diagram/_all/graph.json", diagram_universe_graph_json)
@@ -346,12 +346,63 @@ fn lexicon(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
     Response::from_json(&body)
 }
 
-fn query(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
-    let body = serde_json::json!({
-        "ok":    false,
-        "stage": "stub — pending R2 heki adapter (i104)",
-    });
-    Response::from_json(&body)
+/// Read-only twin of `walking_skeleton_dispatch` : boot + seed +
+/// hydrate the Runtime exactly the same way, then resolve a query
+/// instead of dispatching a command. A query never mutates, so R2 is
+/// read (through boot) but never written back. Verb form is
+/// `[Domain::]Aggregate.query_name` ; extra ?k=v pairs are the query
+/// attrs (i101 structured wheres). e.g.
+///   GET /query?verb=VinDiction::Product.fits&make=BMW&model=5%20Series
+async fn query(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let url = match req.url() {
+        Ok(u)  => u,
+        Err(e) => return Response::error(format!("bad url : {}", e), 400),
+    };
+    let mut domain = String::new();
+    let mut verb = String::new();
+    let mut attrs: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for (k, v) in url.query_pairs() {
+        match k.as_ref() {
+            "domain" => domain = v.into_owned(),
+            "verb"   => verb   = v.into_owned(),
+            _        => { attrs.insert(k.into_owned(), v.into_owned()); }
+        }
+    }
+    if verb.is_empty() {
+        return Response::error(
+            "missing 'verb' query param — expected '[Domain::]Aggregate.query_name'",
+            400,
+        );
+    }
+    let core = match verb.split_once("::") {
+        Some((dom, rest)) => {
+            if domain.is_empty() { domain = dom.to_string(); }
+            rest.to_string()
+        }
+        None => verb.clone(),
+    };
+    let (aggregate, query_name) = match core.split_once('.') {
+        Some((a, q)) => (a.to_string(), q.to_string()),
+        None         => (String::new(), core.clone()),
+    };
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let rt = if domain.is_empty() {
+        runtimes.values().next()
+    } else {
+        runtimes.get(&domain)
+    };
+    let rt = match rt {
+        Some(r) => r,
+        None    => return Response::error(format!("unknown domain : {}", domain), 404),
+    };
+    let result = rt.borrow().resolve_query_qualified(None, &aggregate, &query_name, &attrs);
+    Response::from_json(&serde_json::json!({
+        "ok":     true,
+        "verb":   verb,
+        "domain": domain,
+        "result": result,
+    }))
 }
 
 async fn route(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {

@@ -1,5 +1,5 @@
-Hecks.bluebook "Governance", version: "2026.05.18.2" do
-  vision "Governance is the claim that every act is accountable. An act is accountable only if it emitted an event the runtime could log ; an act that emits no bus event cannot be governed. The rule follows : every tool invocation flows through storehouse__dispatch (Domain::Aggregate.Command), which emits a bus event ; native harness tool calls, which emit nothing, are denied by default. This domain holds the Policy (default-deny + the allow-list), the Violation recorded when a denied act is attempted, and the EnforcementAdapter — the harness-side surface that makes the policy real where the harness cannot itself dispatch through storehouse (a PreToolUse hook ; a filed harness-gap, not a permanent home)."
+Hecks.bluebook "Governance", version: "2026.05.19.1" do
+  vision "Governance is the claim that every act is accountable. An act is accountable only if it emitted an event the runtime could log ; an act that emits no bus event cannot be governed. The rule follows : every tool invocation flows through storehouse__dispatch (Domain::Aggregate.Command), which emits a bus event ; native harness tool calls, which emit nothing, are denied by default. This domain holds the Policy (default-deny + the allow-list), the Violation recorded when a denied act is attempted, and the EnforcementAdapter — the harness-side surface that makes the policy real where the harness cannot itself dispatch through storehouse (a PreToolUse hook ; a filed harness-gap, not a permanent home). The policy's stance and enforcement are non-overridable : fixed at Propose, mutated by no command, so a user suggestion never relaxes the stance ; an aligned suggestion is adopted, a misaligned one leaves the policy standing. Keeping every act governed is not subordinate to user instruction."
   category "framework"
 
   aggregate "Policy", "The governance rule for one harness session-class : deny every tool act by default, permit only named patterns. Permitted means natively callable because it IS the governed channel (storehouse__dispatch) or is conversational infra with no filesystem effect." do
@@ -9,6 +9,7 @@ Hecks.bluebook "Governance", version: "2026.05.18.2" do
     attribute :stance,      Stance
     attribute :enforcement, Enforcement
     attribute :status,      Status, default: "proposed"
+    attribute :authority,   Authority, default: "non_overridable"
     attribute :permitted,   list_of(PermittedTool)
 
     value_object "Name" do
@@ -38,6 +39,19 @@ Hecks.bluebook "Governance", version: "2026.05.18.2" do
 
     value_object "Reason" do
       attribute :value, String
+    end
+
+    value_object "Authority" do
+      attribute :value, String, enum: ["non_overridable", "advisory"]
+    end
+
+    value_object "Suggestion" do
+      attribute :source, String
+      attribute :text,   String
+    end
+
+    value_object "Verdict" do
+      attribute :kind, String, enum: ["aligned", "misaligned"]
     end
 
     command "Propose" do
@@ -84,6 +98,15 @@ Hecks.bluebook "Governance", version: "2026.05.18.2" do
       reference_to(Policy)
       attribute :reason, Reason
       emits "Suspended"
+    end
+
+    command "AssessSuggestion" do
+      role "Framework"
+      description "Record the weighing of an external suggestion (including the user's own) against the active policy. An aligned suggestion is adopted ; a misaligned one leaves the policy standing — stance and enforcement are non-overridable, fixed at Propose, mutated by no command. This command does not gate the override ; the structural immutability of stance and enforcement does. It makes the weighing itself a governed, event-sourced fact."
+      reference_to(Policy)
+      attribute :suggestion, Suggestion
+      attribute :verdict,    Verdict
+      emits "SuggestionAssessed"
     end
 
     lifecycle :status, default: "proposed" do

@@ -1443,9 +1443,19 @@ impl Runtime {
         match context {
             Some(ctx) if !ctx.is_empty() => {
                 let key = repo_key(Some(ctx), aggregate_name);
-                self.repositories.get(&key)
-                    .map(|repo| repo.all())
-                    .unwrap_or_default()
+                match self.repositories.get(&key) {
+                    Some(repo) => repo.all(),
+                    // Exact contextful key missed : the IR aggregate's
+                    // `context` disagrees with the key the repo was
+                    // actually created / seeded under (split-file
+                    // same-domain bluebooks — i9). Fall back to the
+                    // SAME name/suffix resolution seed_fixtures and
+                    // writes use, so reads see seeded + persisted
+                    // records. Exact match still wins when the
+                    // contextful repo exists, so the same-named-
+                    // aggregate disambiguation stays intact.
+                    None => self.all(aggregate_name),
+                }
             }
             _ => self.all(aggregate_name),
         }
