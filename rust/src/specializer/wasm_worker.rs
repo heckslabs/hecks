@@ -148,8 +148,19 @@ mod tests {
 
         assert!(src.contains(".get(\"/health\", health)"));
         assert!(src.contains(".get(\"/lexicon\", lexicon)"));
-        assert!(src.contains(".get(\"/query\", query)"));
+        assert!(src.contains(".get_async(\"/query\", query)"));
         assert!(src.contains(".post_async(\"/route\", route)"));
+        // i4 — /query is a live read path, never the old stub : it
+        // must resolve through the Runtime. (lexicon stays a stub ;
+        // that is out of i4 scope, so no blanket stub-string check.)
+        assert!(
+            src.contains("resolve_query_qualified"),
+            "query route must resolve a real query, not the retired stub",
+        );
+        assert!(
+            !src.contains("fn query(_req: Request, _ctx: RouteContext"),
+            "the sync query stub signature must be gone",
+        );
     }
 
     #[test]
