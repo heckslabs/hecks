@@ -797,7 +797,7 @@ fn run_specialize(args: &[String]) {
     if target.is_empty() {
         eprintln!("Usage: storehouse specialize <target> [--output PATH]");
         eprintln!("       storehouse specialize wasm_worker --app <app> --host <host> --auth-scheme <scheme> --auth-secret-env <env> --storehouse-path <path> [--output-dir <dir>]");
-        eprintln!("       storehouse specialize cf_function_proxy --app <app> --worker-url-env <env> --auth-secret-env <env> [--allow-methods <json>] [--output <path>]");
+        eprintln!("       storehouse specialize cf_function_proxy --app <app> --worker-url-env <env> --auth-secret-env <env> [--auth-mode inject|enforce] [--allow-methods <json>] [--output <path>]");
         eprintln!("       storehouse specialize embedded_bluebooks --app <app> --root <path> --primary <basename> [--extensions <csv>] --output <path>");
         std::process::exit(2);
     }
@@ -977,12 +977,18 @@ fn run_specialize_cf_function_proxy(args: &[String]) {
         .unwrap_or_else(|| "[\"GET\",\"POST\"]".to_string());
     let output = flag(args, "--output")
         .unwrap_or_else(|| "./functions/api/[[route]].js".to_string());
+    let auth_mode = flag(args, "--auth-mode").unwrap_or_else(|| "inject".to_string());
+    if auth_mode != "inject" && auth_mode != "enforce" {
+        eprintln!("specialize cf_function_proxy : --auth-mode must be inject|enforce (got {:?})", auth_mode);
+        std::process::exit(2);
+    }
 
     let js = storehouse::specializer::cf_function_proxy::emit_proxy(
         &app,
         &worker_url_env,
         &auth_secret_env,
         &allow_methods,
+        &auth_mode,
     );
 
     let out_path = std::path::PathBuf::from(&output);

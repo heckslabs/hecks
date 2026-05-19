@@ -796,7 +796,12 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
 /// Wasm32-portable "now since epoch" — host uses std::time, the
 /// CF-Worker WASM target uses worker::Date so the WASM build doesn't
 /// trip std's "time not implemented on this platform" panic.
-fn now_duration() -> std::time::Duration {
+///
+/// pub(crate) so the runtime dispatch path (runtime/mod.rs, generated
+/// from runtime_shape) can route its invocation-id + breadcrumb
+/// timestamps through the same wasm-safe clock instead of calling
+/// std::time::SystemTime::now() directly (i630/VinDiction worker fix).
+pub(crate) fn now_duration() -> std::time::Duration {
     #[cfg(not(target_arch = "wasm32"))]
     {
         SystemTime::now()
