@@ -215,27 +215,36 @@ Hecks.fixtures "CliDispatchShape" do
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_22_statusline.rs.frag",
       description: "delegate_run pattern — storehouse::run_statusline::run(). Statusline capability runner."
 
+    # i590 — follow subcommand. Tails the storehouse bus log file from
+    # another terminal with filter forms (all|dispatch|event|cascade|
+    # policy|<substring>). Paired with the storehouse_log file sink.
+    fixture "Follow",
+      name: "follow",
+      order: 25,
+      snippet_path: "codegen/cli_dispatch_shape/snippets/arm_22a_follow.rs.frag",
+      description: "Sui-generis arm — `storehouse follow [stream]` tails the storehouse bus log with optional filter. Exits via std::process::exit(storehouse::run_follow::run(&args))."
+
     fixture "IsDispatched",
       name: "is_dispatched",
-      order: 25,
+      order: 26,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_23_is_dispatched.rs.frag",
       description: "Sui-generis arm — IR-query subcommand. Exit 0 + stdout if dispatched, exit 1 silently if not."
 
     fixture "Clock",
       name: "clock",
-      order: 26,
+      order: 27,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_24_clock.rs.frag",
       description: "delegate_run pattern — run_clock(&args). Wall-clock segment trigger primitive."
 
     fixture "Sleep",
       name: "sleep",
-      order: 27,
+      order: 28,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_25_sleep.rs.frag",
       description: "delegate_run pattern — run_sleep(&args). Blocking streaming-sleep CLI."
 
     fixture "Repl",
       name: "repl",
-      order: 28,
+      order: 29,
       snippet_path: "codegen/cli_dispatch_shape/snippets/arm_26_repl.rs.frag",
       description: "Sui-generis arm — interactive REPL. Boots Runtime, loads seeds, runs interactive loop."
   end
