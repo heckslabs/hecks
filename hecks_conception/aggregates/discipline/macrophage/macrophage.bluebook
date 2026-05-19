@@ -1,5 +1,5 @@
 Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
-  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of eight per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirst, FixturesRuntime, AntibodyExemption, Warnings, LinearReference, LineCount, TestSpeed, CardLock) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. FQN dispatch reads Macrophage::BluebookFirst.Command etc. — the domain prefix already says 'macrophage', no suffix needed."
+  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirst, FixturesRuntime, AntibodyExemption, Warnings, LinearReference, LineCount, TestSpeed, CardLock, BidirectionalAssociation, IdentityDiscipline, CorrespondenceDiscipline) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. FQN dispatch reads Macrophage::BluebookFirst.Command etc. — the domain prefix already says 'macrophage', no suffix needed."
   category "discipline"
 
   # ============================================================
@@ -2349,6 +2349,335 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       then_set :last_offending_draft,   to: :draft_id
       then_set :last_offending_kind,    to: :kind
       then_set :last_offending_excerpt, to: :excerpt
+      emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # CorrespondenceDiscipline (i624) - flow discipline for AI-generated
+  # correspondence. Sister rule to WritingDiscipline (i623).
+  # ============================================================
+  #
+  # Filed under i624 (Chris, 2026-05-15) : the Writing bluebook gave
+  # us Tools::Writing::Writing.Compose as the prose-dispatch surface,
+  # and WritingDiscipline scans the composed text for the em-dash
+  # pattern and the false-contrast collective-voice pattern. That
+  # closes the content loop but not the flow loop : nothing today
+  # FORCES correspondence to pass through Writing.Compose before
+  # leaving the system. CorrespondenceDiscipline is the sibling
+  # macrophage that closes the flow loop.
+  #
+  # The rule (seed) :
+  #
+  #   * correspondence_without_compose - for every dispatch to a
+  #     watched correspondence surface (e.g. EmailTool.CreateDraft),
+  #     the macrophage requires a preceding Writing.Compose dispatch
+  #     with matching content (per MatchKind) within the configured
+  #     window (default 5 minutes). If none is found, the macrophage
+  #     records a FlowViolation and complains.
+  #
+  # Watched surfaces (seed list) :
+  #
+  #   * Tools::EmailTool.CreateDraft               (live)
+  #   * Tools::EmailTool.SendDraft                 (proposed sibling)
+  #   * mcp__claude_ai_Gmail__create_draft         (native MCP)
+  #   * mcp__claude_ai_Gmail__send_message         (native MCP)
+  #
+  # Future surfaces (registered as they land) :
+  #   * Tools::SlackTool.Post
+  #   * Tools::SmsTool.Send
+  #
+  # Matching semantics : substring (default). The composed text must
+  # appear as a contiguous substring of the correspondence body.
+  # Tolerates appended signatures and quoted-thread wrappers. The
+  # MatchKind VO carries the mode so per-surface overrides are
+  # possible without a code change. Alternatives are 'exact' and
+  # 'hash_normalized'.
+  #
+  # File kinds checked : none. CorrespondenceDiscipline is a
+  # bus-observation rule, not a write-time rule. It is invoked by
+  # the dispatch hook (post-dispatch on watched FQNs), not by a
+  # PostToolUse file hook.
+  #
+  # i595 family member #11 - follows the established per-rule shape :
+  # session counters, audit-trail entity, named exemptions with
+  # non-empty ReasonText, Complain surface that pipes through the
+  # additionalContext channel.
+
+  aggregate "CorrespondenceDiscipline", "Per-rule macrophage for the i624 correspondence-flow enforcement. Watches the bus for dispatches to AI-generated correspondence surfaces (EmailTool.CreateDraft, native Gmail create_draft, etc.) and fires when no preceding Writing.Compose dispatch with matching content was observed within the configured window. Maintains the watched-surface list, the flow-violation audit trail, per-surface exemptions, and the complaint history." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Window configuration. The macrophage looks back this many
+    # minutes from the watched-surface dispatch to find a matching
+    # Writing.Compose. Configurable via SetWindow.
+    attribute :compose_window_minutes, ComposeWindowMinutes
+
+    # Default match semantics. Per-surface overrides may be added
+    # later by extending WatchedSurface.
+    attribute :default_match_kind, MatchKind
+
+    # Tallies - scoped to this rule's signal.
+    attribute :dispatches_checked,             CheckCount
+    attribute :total_violations,               ViolationCount
+    attribute :correspondence_without_compose_violations, ViolationCount
+
+    # Exemption tally - per-surface exemptions that suppressed a
+    # complaint but still recorded the FlowViolation audit row.
+    attribute :exempted_violations, ViolationCount
+
+    # Latest-complaint surface - quick read for the statusline.
+    attribute :last_complaint,           ComplaintText
+    attribute :last_complaint_at,        Timestamp
+    attribute :last_offending_surface,   WatchedSurface
+    attribute :last_offending_invocation, InvocationId
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage. (Per i611 this would be a
+      # singleton ; for now it follows the family's existing shape.)
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-event recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "WatchedSurface" do
+      # The fully-qualified verb name of a correspondence surface the
+      # macrophage observes. Examples :
+      #   "Tools::EmailTool.CreateDraft"
+      #   "Tools::EmailTool.SendDraft"
+      #   "mcp__claude_ai_Gmail__create_draft"
+      #   "mcp__claude_ai_Gmail__send_message"
+      # The seed list ships pre-registered via WatchSurface at boot.
+      # Native MCP surfaces are eligible because i599's PreToolUse
+      # auto-route rewrites them into Tools::EmailTool.* before the
+      # macrophage sees them ; the rule still names them explicitly
+      # so the audit trail is correct in either flow.
+      attribute :value, String
+    end
+
+    value_object "InvocationId" do
+      # The invocation identifier carried by i613's command envelope.
+      # Recorded so the audit trail can be joined against the
+      # storehouse stdout log (i622). For seed compatibility a short
+      # hex token is acceptable until the envelope ships.
+      attribute :value, String
+    end
+
+    value_object "ComposeWindowMinutes" do
+      # How far back the macrophage looks for a matching
+      # Writing.Compose dispatch. Default 5 minutes. Set via
+      # SetWindow. Values must be positive integers.
+      attribute :value, Integer
+    end
+
+    value_object "MatchKind" do
+      # How the macrophage compares the Writing.Compose draft_text
+      # against the correspondence body. One of :
+      #   "substring"       - composed draft appears verbatim
+      #                       inside the correspondence body
+      #                       (default ; tolerates signatures)
+      #   "exact"           - byte-identical
+      #   "hash_normalized" - SHA-256 of whitespace-normalized text
+      #                       on both sides ; equal hashes count.
+      attribute :value, String
+    end
+
+    value_object "ViolationKind" do
+      # The check that fired. The seed has one kind :
+      #   "correspondence_without_compose"
+      #     - a watched-surface dispatch had no matching
+      #       Writing.Compose dispatch in the prior window.
+      # Future kinds may include "empty_correspondence_body" or
+      # "stale_compose" ; the value-object keeps the field open.
+      attribute :value, String
+    end
+
+    value_object "CheckCount" do
+      # Count of watched-surface dispatches observed by this
+      # macrophage in the current session (regardless of whether a
+      # violation was found).
+      attribute :value, Integer
+    end
+
+    value_object "ViolationCount" do
+      # Count of flow violations of a particular kind recorded by
+      # this macrophage in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint - the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The CorrespondenceDiscipline macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "ReasonText" do
+      # The human-readable explanation attached to a per-surface
+      # exemption - e.g. "transactional shipping notification ; no
+      # discretionary prose ; auto-template only". An exemption
+      # without a non-empty reason is itself a malformed-exemption
+      # violation (AntibodyExemption macrophage).
+      attribute :value, String
+    end
+
+    value_object "CorrespondenceBody" do
+      # The outgoing body text of a watched-surface dispatch. Stored
+      # only as a hash or short snippet in production (audit shapes
+      # do not need the full body) ; declared as a VO so the
+      # matching pipeline has a typed slot.
+      attribute :value, String
+    end
+
+    value_object "CommandFqn" do
+      # The bluebook-declared command FQN of the watched-surface
+      # dispatch that triggered the check (e.g.
+      # "Tools::EmailTool.CreateDraft"). Recorded verbatim so the
+      # complaint can quote the exact surface that fired.
+      attribute :value, String
+    end
+
+    # ── Entity - flow-violation audit trail ──
+
+    entity "FlowViolation" do
+      description "One historical flow-violation event for the correspondence-discipline rule. Records the offending command FQN, the invocation id, the offending body snippet, the kind of check that fired, the window that was searched, and when it was recorded. The last_complaint / last_offending_* scalars on the root mirror the most recent entry ; this collection holds the full audit trail."
+      attribute :recorded_at,   Timestamp
+      attribute :command_fqn,   CommandFqn
+      attribute :surface,       WatchedSurface
+      attribute :invocation_id, InvocationId
+      attribute :body,          CorrespondenceBody
+      attribute :kind,          ViolationKind
+      attribute :window_minutes, ComposeWindowMinutes
+    end
+
+    # ── Entity - registered watched surfaces ──
+
+    entity "RegisteredSurface" do
+      description "A correspondence surface FQN the macrophage actively observes. Registered via WatchSurface ; retired via UnwatchSurface. The seed list ships pre-registered with the live EmailTool commands and the native Gmail MCP tool names. A dispatch to an FQN not in this collection is invisible to this rule."
+      attribute :surface,     WatchedSurface
+      attribute :match_kind,  MatchKind
+      attribute :registered_at, Timestamp
+    end
+
+    # ── Entity - named per-surface exemptions ──
+
+    entity "ExemptedSurface" do
+      description "A correspondence surface whose flow-violation is officially exempted with a named, case-by-case reason. Registered via ExemptSurface. The macrophage will not issue a complaint for a violation against an entry in this collection ; the FlowViolation row is still recorded for the audit trail. Exemptions must carry a non-empty ReasonText, mirroring the AntibodyExemption and IdentityDiscipline disciplines. Exemptions are never pre-emptive ; they are registered after the macrophage has complained and the team has decided this surface is an audited bypass (e.g. transactional notifications with no discretionary prose)."
+      attribute :surface,     WatchedSurface
+      attribute :reason,      ReasonText
+      attribute :exempted_at, Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what landed today, not lifetime totals. The FlowViolation, RegisteredSurface, and ExemptedSurface entity collections are NOT reset - they are audit trail and configuration respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Configuration commands ──
+
+    command "SetWindow" do
+      role "Lead"
+      description "Configure how far back the macrophage looks for a matching Writing.Compose dispatch. Default is 5 minutes. Raise this if long-form drafting sessions produce false positives ; lower it if the window swallows stale compositions that should not count. Values must be positive integers."
+      attribute :compose_window_minutes, ComposeWindowMinutes
+      then_set :compose_window_minutes, to: :compose_window_minutes
+      emits "WindowSet"
+    end
+
+    command "WatchSurface" do
+      role "Lead"
+      description "Register a correspondence surface FQN for active observation. The seed list ships pre-registered ; this command is the surface for adding new correspondence aggregates (SlackTool.Post, SmsTool.Send) as their bluebooks land. The match_kind attribute selects the per-surface matching semantics ; if omitted the macrophage falls back to default_match_kind."
+      attribute :surface,       WatchedSurface
+      attribute :match_kind,    MatchKind
+      attribute :registered_at, Timestamp
+      emits "SurfaceWatched"
+    end
+
+    command "UnwatchSurface" do
+      role "Lead"
+      description "Retire a correspondence surface from active observation. The RegisteredSurface entity is marked retired rather than deleted so the audit trail of who watched what when stays intact."
+      attribute :surface,    WatchedSurface
+      attribute :retired_at, Timestamp
+      emits "SurfaceUnwatched"
+    end
+
+    # ── Primary scan command ──
+
+    command "Check" do
+      role "Hook"
+      description "Observe one dispatch to a watched correspondence surface. Increments dispatches_checked. The hook reads the recent dispatch history for any Writing.Compose whose draft_text matches the correspondence body (per the surface's MatchKind) within compose_window_minutes ; if no match is found, dispatches RecordViolation. If the surface appears in ExemptedSurface, the violation is recorded but Complain is skipped and exempted_violations is incremented instead. No complaint is issued from this command directly - Complain is the surface command."
+      attribute :surface,       WatchedSurface
+      attribute :command_fqn,   CommandFqn
+      attribute :invocation_id, InvocationId
+      attribute :body,          CorrespondenceBody
+      attribute :observed_at,   Timestamp
+      emits "DispatchChecked"
+    end
+
+    # ── Per-violation recording ──
+
+    command "RecordViolation" do
+      role "Hook"
+      description "A specific correspondence-flow violation was detected. Records the command FQN, invocation id, surface, body snippet, violation kind, and the window that was searched ; appends a FlowViolation entity ; increments correspondence_without_compose_violations and total_violations ; updates last_offending_surface and last_offending_invocation. The hook chains into Complain to surface the violation on the next turn - this command records the fact ; Complain records the reaction. If the surface appears in ExemptedSurface, the hook skips Complain and increments exempted_violations instead."
+      attribute :recorded_at,    Timestamp
+      attribute :command_fqn,    CommandFqn
+      attribute :surface,        WatchedSurface
+      attribute :invocation_id,  InvocationId
+      attribute :body,           CorrespondenceBody
+      attribute :kind,           ViolationKind
+      attribute :window_minutes, ComposeWindowMinutes
+      then_set :last_offending_surface,    to: :surface
+      then_set :last_offending_invocation, to: :invocation_id
+      emits "ViolationRecorded"
+    end
+
+    # ── Exemption management ──
+
+    command "ExemptSurface" do
+      role "Lead"
+      description "Register a named exemption for a specific correspondence surface so the macrophage will not complain about its flow violation. The reason attribute is required and must be non-empty - an exemption without a named reason falls into the pre-emptive trap the AntibodyExemption discipline forbids. Exemptions are registered after the macrophage has fired, never before ; the FlowViolation audit trail should already contain an entry for this surface. Appends an ExemptedSurface entity. Typical use : 'Tools::EmailTool.LabelMessage, reason: \"header-only surface ; no discretionary prose to compose\"'."
+      attribute :surface,     WatchedSurface
+      attribute :reason,      ReasonText
+      attribute :exempted_at, Timestamp
+      emits "SurfaceExempted"
+    end
+
+    command "RevokeExemption" do
+      role "Lead"
+      description "Remove an existing exemption - typically after the surface evolves to carry real prose and should flow through Writing.Compose again. Matches by surface. The ExemptedSurface entity is marked revoked rather than deleted so the audit trail of who exempted what when stays intact."
+      attribute :surface,    WatchedSurface
+      attribute :revoked_at, Timestamp
+      emits "ExemptionRevoked"
+    end
+
+    # ── Complaint surface ──
+
+    command "Complain" do
+      role "Hook"
+      description "The CorrespondenceDiscipline macrophage detected a correspondence-surface dispatch that bypassed Writing.Compose. Records the complaint text and timestamp on the root for fast statusline reads, and updates last_offending_surface / last_offending_invocation. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn - the feedback loop that closes the discipline mechanism. Complaint text begins 'The CorrespondenceDiscipline macrophage expected ...' so the rule's name is visible at a glance. Template : 'The CorrespondenceDiscipline macrophage expected Writing.Compose to dispatch before <command_fqn>#<invocation_id>. None was found in the prior <window_minutes> minutes. Correspondence sent without composing through the bluebook misses the style rules WritingDiscipline enforces and the cumulative audit trail.'"
+      attribute :command_fqn,       CommandFqn
+      attribute :surface,           WatchedSurface
+      attribute :invocation_id,     InvocationId
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,             to: :complaint
+      then_set :last_complaint_at,          to: :last_complaint_at
+      then_set :last_offending_surface,     to: :surface
+      then_set :last_offending_invocation,  to: :invocation_id
       emits "ComplaintIssued"
     end
   end
