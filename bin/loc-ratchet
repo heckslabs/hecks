@@ -3,8 +3,9 @@
 #
 # Counts `*.rs` under rust/src/ and `*.sh` under hecks_conception/
 # on HEAD vs the base branch. If HEAD's total exceeds base's total, the
-# PR fails — unless the increase is authorised by a signed commit
-# carrying a [loc-ratchet-override: <reason>] marker.
+# PR fails — unless the increase is authorised by a commit carrying
+# a [loc-ratchet-override: <reason>] marker. (Commit signing dropped
+# 2026-05-18 ; the operator commits the marker — that authorises.)
 #
 # i118 renamed storehouse/ → rust/ ; the path here was updated 2026-05-01
 # to match. Before that, the scan returned 0 trivially because the old
@@ -15,7 +16,7 @@
 # inbox). The resulting drift left the stated direction "no Rust"
 # unenforced. This check creates the monotonic pressure : new non-
 # bluebook code must either replace more non-bluebook code than it
-# adds, or carry a signed override from the operator. Declaration
+# adds, or carry an override from the operator. Declaration
 # without deletion stops being a silent habit.
 #
 # Usage:
@@ -24,7 +25,7 @@
 #
 # Exit codes:
 #   0  HEAD's non-bluebook LoC is <= base's
-#   1  HEAD's total exceeded base's without a signed override
+#   1  HEAD's total exceeded base's without an override
 #   2  Git / filesystem error during counting
 
 require "optparse"
@@ -50,18 +51,6 @@ IGNORED_SEGMENTS = %w[
 ].freeze
 
 def run(cmd)
-  out, _, status = Open3.capture3(*cmd)
-  [out.strip, status.success?]
-end
-
-# See the matching block in bin/antibody-check for the rationale —
-# SSH signature verification needs an allowed-signers file or %G?
-# returns N for every signed commit. Passing it inline keeps the
-# check self-contained (no dependency on per-developer git config).
-ALLOWED_SIGNERS = File.expand_path("../.github/allowed_signers", __dir__).freeze
-
-def git_log_with_signers(args)
-  cmd = ["git", "-c", "gpg.ssh.allowedSignersFile=#{ALLOWED_SIGNERS}", "log"] + args
   out, _, status = Open3.capture3(*cmd)
   [out.strip, status.success?]
 end
@@ -129,26 +118,6 @@ def overrides_present?(base_ref)
   !out.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i).nil?
 end
 
-def overrides_signed?(base_ref)
-  # Every commit carrying [loc-ratchet-override: ...] must be signed.
-  # Mirrors the antibody-exemption signing rule : only the operator
-  # authorises increases.
-  shas, ok = run(["git", "log", "--format=%H", "#{base_ref}..HEAD"])
-  return false unless ok
-  shas.lines.map(&:strip).reject(&:empty?).each do |sha|
-    msg, _ = run(["git", "log", "-1", "--format=%B", sha])
-    next unless msg.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i)
-    sig, _ = git_log_with_signers(["-1", "--format=%G?", sha])
-    status = sig.to_s.strip
-    # G good, U untrusted-but-present, E expired — all count as signed
-    # for ratchet purposes. N none, B bad, others reject.
-    unless %w[G U E].include?(status)
-      return false
-    end
-  end
-  true
-end
-
 options = { base: nil, verbose: false }
 OptionParser.new do |opts|
   opts.on("--base REF",   "Base ref to compare HEAD against")    { |v| options[:base] = v }
@@ -182,26 +151,19 @@ if delta <= 0
   exit 0
 end
 
-# Delta is positive — must be authorised by a signed override.
+# Delta is positive — must be authorised by an override marker.
 if overrides_present?(base_ref)
-  if overrides_signed?(base_ref)
-    puts "✓ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total}) — authorised by signed [loc-ratchet-override]"
-    exit 0
-  else
-    puts "✗ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total})"
-    puts "    [loc-ratchet-override] marker present but commit is UNSIGNED"
-    puts "    signed commits only — run: git commit -S -m '[loc-ratchet-override: <reason>]'"
-    exit 1
-  end
+  puts "✓ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total}) — authorised by [loc-ratchet-override]"
+  exit 0
 end
 
 puts "✗ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total})"
 puts "    non-bluebook LoC increased ; no authorisation marker present"
 puts ""
-puts "  The direction is 'no Rust / no shell' — increases need a signed override."
+puts "  The direction is 'no Rust / no shell' — increases need an override."
 puts "  If this PR legitimately adds non-bluebook code (e.g. kernel primitive,"
-puts "  transitional adapter), add a commit on the branch with a signed"
-puts "  message containing [loc-ratchet-override: <concrete reason>]."
+puts "  transitional adapter), add a commit on the branch whose"
+puts "  message contains [loc-ratchet-override: <concrete reason>]."
 puts ""
 puts "  Run bin/loc-ratchet --base #{base_ref} --verbose for per-tree counts."
 exit 1

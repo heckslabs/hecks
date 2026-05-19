@@ -13,8 +13,9 @@
 #
 # Post-simplification the statusline surfaces TWO signals only :
 #   1. ❤️ <beats>          (heartbeat from tick.heki)
-#   2. <emoji> [<abbrev>:]<count> ...  (autoloaded .channel.md per
-#      inbox ; abbrev optional, empty => emoji + count ; omitted when empty)
+#   2. <emoji> [<abbrev>:]<count> ...  (i528 decentralised channels :
+#      one segment per inbox holding a `.channel.md` ; omitted when
+#      all empty ; abbrev-less channels render `<emoji> <count>`)
 #
 # The old shape's mood / fatigue / inventions / musings / provider /
 # bulb / coherence-⚠ / last-dispatch breadcrumb were all stripped. This
@@ -30,8 +31,9 @@
 #   - Rendered line starts with one of the heart glyphs (❤️ alive / 🖤 dim)
 #   - Mood, fatigue, breadcrumb, coherence, bulb, invention, provider
 #     signals are all ABSENT from the output
-#   - Multi-inbox listing renders as `<emoji> gl:N` when a queued card exists (no leading envelope)
-#   - When every inbox is empty, the envelope segment is suppressed
+#   - Each seeded inbox renders as `<emoji> <abbrev>:N` (i528, from
+#     its `.channel.md`) when a queued card exists
+#   - When every inbox is empty, the channel segment is suppressed
 #     (no orphan separator, no leading whitespace before nothing)
 #
 # Exit 0 on pass, non-zero on fail.
@@ -95,13 +97,38 @@ seed_tick() {
     sleep_summary="" is_lucid="no" >/dev/null
 }
 
+# seed_channel <inbox-abs-path> — write the i528 `.channel.md`
+# descriptor so the decentralised discovery (walks $HOME/Projects for
+# .channel.md, treats that dir as an inbox) finds this seeded inbox.
+# The abbrev + emoji here ARE the rendered shape
+# (`<emoji> <abbrev>:<count>`), so each scenario asserts exactly these.
+seed_channel() {
+  local inbox="$1" abbrev emoji label
+  case "$inbox" in
+    */hecks/hecks_conception/inbox) abbrev=gl; emoji="🔮"; label="Global" ;;
+    */pigeoncoop/inbox)             abbrev=pi; emoji="🕊️"; label="Pigeoncoop" ;;
+    */bin-buddy/inbox)              abbrev=bb; emoji="♻️"; label="Bin-buddy" ;;
+    *)                              abbrev=xx; emoji="❔"; label="Unknown" ;;
+  esac
+  cat > "$inbox/.channel.md" <<EOF
+---
+abbrev: $abbrev
+emoji: $emoji
+label: $label
+---
+statusline regression smoke channel descriptor
+EOF
+}
+
 # seed_inbox <home> <project-rel-path> <ref> <status>
 # Writes one markdown card with YAML frontmatter at the expected
-# project-relative inbox path inside the fake HOME.
+# project-relative inbox path inside the fake HOME, plus the i528
+# .channel.md descriptor (idempotent) so discovery sees the inbox.
 seed_inbox() {
   local home="$1" rel="$2" ref="$3" status="$4"
   local inbox="$home/$rel"
   mkdir -p "$inbox"
+  seed_channel "$inbox"
   cat > "$inbox/$ref.md" <<EOF
 ---
 ref: $ref
@@ -112,23 +139,6 @@ source: statusline-regression-smoke
 value: 'test fixture card'
 ---
 body
-EOF
-}
-
-# seed_channel <home> <rel> <abbrev> <emoji>
-# Drops a .channel.md descriptor so the inbox is discovered + labelled
-# (decentralised autoload, i528). Empty abbrev => emoji + count only.
-seed_channel() {
-  local home="$1" rel="$2" abbrev="$3" emoji="$4"
-  local inbox="$home/$rel"
-  mkdir -p "$inbox"
-  cat > "$inbox/.channel.md" <<EOF
----
-abbrev: $abbrev
-emoji: $emoji
-label: smoke
----
-descriptor
 EOF
 }
 
@@ -182,7 +192,7 @@ check_no_stripped_signals "heartbeat-only" "$out"
 printf '%s' "$out" | grep -qF -- "1.23k" \
   || note_fail "[heartbeat-only] beats '1.23k' missing"
 if printf '%s' "$out" | grep -qF -- "✉️"; then
-  note_fail "[heartbeat-only] no envelope expected when all inboxes empty — got: $out"
+  note_fail "[heartbeat-only] envelope must be suppressed when all inboxes empty — got: $out"
 fi
 if printf '%s' "$out" | grep -qF -- "•"; then
   note_fail "[heartbeat-only] dot separator must be suppressed when inbox list empty — got: $out"
@@ -191,47 +201,40 @@ fi
 # ---- Scenario 2 : single seeded inbox (gl) ----------------------------
 reset_home
 seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "test-1" "queued"
-seed_channel "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "" "🔮"
 out="$(render 5678)"
 echo "[gl-only] $out"
 check_no_stripped_signals "gl-only" "$out"
 printf '%s' "$out" | grep -qF -- "5.68k" \
   || note_fail "[gl-only] beats '5.68k' missing"
-printf '%s' "$out" | grep -qF -- "🔮 1" \
-  || note_fail "[gl-only] expected abbrev-less '🔮 1' — got: $out"
-if printf '%s' "$out" | grep -qF -- "✉️"; then
-  note_fail "[gl-only] no envelope expected — got: $out"
-fi
+printf '%s' "$out" | grep -qF -- "🔮 gl:1" \
+  || note_fail "[gl-only] expected '🔮 gl:1' — got: $out"
 ! printf '%s' "$out" | grep -qF -- "•" \
   || note_fail "[gl-only] dot separator must be gone — got: $out"
 if printf '%s' "$out" | grep -qF -- "pi:"; then
   note_fail "[gl-only] empty pc inbox must NOT render — got: $out"
 fi
 
-# ---- Scenario 3 : multiple seeded inboxes (gl + pi + mt) --------------
+# ---- Scenario 3 : multiple seeded inboxes (gl + pc + bb) --------------
 reset_home
 seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "i1" "queued"
 seed_inbox "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "i2" "queued"
 seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p1" "queued"
-seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m1" "queued"
-seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m2" "queued"
-seed_inbox "$FAKE_HOME" "Projects/medtracker/inbox" "m3" "queued"
-# A non-queued card in pi must be ignored by the queued-status filter.
+seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b1" "queued"
+seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b2" "queued"
+seed_inbox "$FAKE_HOME" "Projects/bin-buddy/inbox" "b3" "queued"
+# A non-queued card in pc must be ignored by the queued-status filter.
 seed_inbox "$FAKE_HOME" "Projects/pigeoncoop/inbox" "p-closed" "closed"
-seed_channel "$FAKE_HOME" "Projects/hecks/hecks_conception/inbox" "" "🔮"
-seed_channel "$FAKE_HOME" "Projects/pigeoncoop/inbox" "pi" "🕊️"
-seed_channel "$FAKE_HOME" "Projects/medtracker/inbox" "mt" "🩺"
 out="$(render 999)"
 echo "[multi-inbox] $out"
 check_no_stripped_signals "multi-inbox" "$out"
 printf '%s' "$out" | grep -qF -- "999" \
   || note_fail "[multi-inbox] beats '999' missing"
-printf '%s' "$out" | grep -qF -- "🔮 2" \
-  || note_fail "[multi-inbox] expected abbrev-less '🔮 2' — got: $out"
-printf '%s' "$out" | grep -qF -- "pi:1" \
-  || note_fail "[multi-inbox] expected 'pi:1' (closed card filtered) — got: $out"
-printf '%s' "$out" | grep -qF -- "mt:3" \
-  || note_fail "[multi-inbox] expected 'mt:3' — got: $out"
+printf '%s' "$out" | grep -qF -- "🔮 gl:2" \
+  || note_fail "[multi-inbox] expected '🔮 gl:2' — got: $out"
+printf '%s' "$out" | grep -qF -- "🕊️ pi:1" \
+  || note_fail "[multi-inbox] expected '🕊️ pi:1' (closed card filtered) — got: $out"
+printf '%s' "$out" | grep -qF -- "♻️ bb:3" \
+  || note_fail "[multi-inbox] expected '♻️ bb:3' — got: $out"
 
 if [ "$fail" = "0" ]; then
   echo "statusline_regression_smoke: OK"

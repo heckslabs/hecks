@@ -70,5 +70,21 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    # The slow loop. Speech proposes (durable :heki under the global
+    # HECKS_INFO root) ; every 5s this member dispatches
+    # MietteMind::Reconciler.Reconcile against the mietteai root. The
+    # :exec adapter (mietteai.hecksagon mind_reconcile) runs
+    # slow_loop/reconcile.mjs : set-diff pending Proposals vs
+    # Dispositions, Note + Ratify/Overrule per pending proposal
+    # (fail-closed allowlist in slow_loop/config.json). Absolute
+    # mietteai root (cross-repo, like the heart/breath members reach
+    # into miette/body/..). FQN is mandatory ; storehouse loop rejects
+    # short forms.
+    fixture "mind_reconcile",
+            name:       "mind_reconcile",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/mietteai MietteMind::Reconciler.Reconcile --every 5s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end

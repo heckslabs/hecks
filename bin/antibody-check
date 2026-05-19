@@ -71,23 +71,6 @@ def run(cmd)
   [out.strip, status.success?]
 end
 
-# Allowed-signers file for SSH signature verification. Without this
-# pointed at a valid file, `git log --format=%G?` returns N for every
-# SSH-signed commit — git cannot verify without the key list, so the
-# whole gate would silently reject correctly-signed commits.
-#
-# We pass it inline via `git -c gpg.ssh.allowedSignersFile=…` so the
-# check works in CI without depending on a per-developer or workflow-
-# level git config. The path is repo-relative to keep the file
-# version-controlled and auditable alongside the gate it feeds.
-ALLOWED_SIGNERS = File.expand_path("../.github/allowed_signers", __dir__).freeze
-
-def git_log_with_signers(args)
-  cmd = ["git", "-c", "gpg.ssh.allowedSignersFile=#{ALLOWED_SIGNERS}", "log"] + args
-  out, _, status = Open3.capture3(*cmd)
-  [out.strip, status.success?]
-end
-
 def touched_files(base_ref, include_staged)
   touched = []
   if base_ref
@@ -265,33 +248,11 @@ if options[:each_commit]
                      .map { |m| m[0].strip }
     subject, = run(["git", "log", "-1", "--format=%s", sha])
     if reasons.any?
-      # Exemption markers require a valid signature (SSH or GPG) on the
-      # commit. Prevents the "Miette self-exempts" drift from earlier
-      # in the Phase F arc : the rule is that only the operator can
-      # authorise an exemption, enforced mechanically via `git verify-
-      # commit`. Both SSH and GPG signatures validate here — git
-      # handles both transparently.
-      sig_status, = git_log_with_signers(["-1", "--format=%G?", sha])
-      signed_ok = %w[G U E].include?(sig_status.to_s.strip)
-      # G : good signature
-      # U : good signature, untrusted key (still a real signature — CI
-      #     may not have the operator's trust DB ; presence is the
-      #     gate, trust is out of band)
-      # E : expired signature — accept rather than silently fail CI
-      #     on the day the key rolls over ; the audit trail still
-      #     names the operator
-      # N : no signature — reject
-      # B : bad signature — reject
-      # X / Y / R : edge cases — reject
-      if signed_ok
-        puts "✓ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s) [signed: #{sig_status.strip}]"
-      else
-        puts "✗ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s) but UNSIGNED"
-        code.each { |p| puts "    #{p}" }
-        puts "    exemption markers require a signed commit (git commit -S)"
-        puts "    signature status: #{sig_status.strip.empty? ? 'N (none)' : sig_status.strip}"
-        any_fail = true
-      end
+      # Operator-authored exemption markers authorise by presence : the
+      # [antibody-exempt: ...] marker IS the audit trail. (Commit
+      # signing was dropped 2026-05-18 — the operator commits the
+      # marker ; committing it is the authorisation.)
+      puts "✓ #{sha[0, 7]} #{subject.to_s.slice(0, 60)} — #{reasons.size} exemption(s)"
     else
       puts "✗ #{sha[0, 7]} #{subject.to_s.slice(0, 60)}"
       code.each { |p| puts "    #{p}" }

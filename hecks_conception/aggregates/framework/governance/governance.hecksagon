@@ -1,0 +1,9 @@
+Hecks.hecksagon "Governance" do
+  # Governance production wiring. The model (governance.bluebook)
+  # stays pure ; this file is the override that gives the bus state
+  # across dispatches — Propose, then Permit, then Activate must see
+  # the same Policy. Absolute db path so the store resolves the same
+  # regardless of the storehouse process cwd. Mirrors vindiction /
+  # bin-buddy (i76). Tests ignore this file and run memory-only.
+  adapter :sqlite, db: "/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/framework/governance/data/governance.db"
+end
