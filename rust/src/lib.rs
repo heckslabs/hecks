@@ -45,6 +45,7 @@ pub mod world_ir;
 pub mod world_parser;
 pub mod run;
 pub mod run_boot;
+pub mod run_follow;
 pub mod run_restructure;
 pub mod run_status;
 pub mod run_statusline;
