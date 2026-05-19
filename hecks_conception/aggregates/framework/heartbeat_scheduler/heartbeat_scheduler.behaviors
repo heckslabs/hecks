@@ -43,6 +43,21 @@ Hecks.behaviors "HeartbeatScheduler" do
     expect last_dispatch_at:   { value: "2026-05-14T00:01:40Z" }
   end
 
+  # ── HeartbeatScheduler.RunCadence (i638 Unit E) ────────────────
+
+  test "RunCadence records the last-dispatch timestamp" do
+    tests "RunCadence", on: "HeartbeatScheduler"
+    input  name:             { value: "default" },
+           invocation:       {
+             commands: [ { verb: "Inbox::Inbox.Check" } ],
+             interval: { millis: 4000 },
+             gate:     { heki_path: "", field: "", expected: "" },
+             segments: []
+           },
+           last_dispatch_at: { value: "2026-05-17T00:00:00Z" }
+    expect last_dispatch_at: { value: "2026-05-17T00:00:00Z" }
+  end
+
   # ── Retire — deferred ──────────────────────────────────────────
   #
   # HeartbeatScheduler.RetireSchedule takes the schedule id and removes

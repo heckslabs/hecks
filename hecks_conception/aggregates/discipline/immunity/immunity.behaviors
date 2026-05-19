@@ -10,12 +10,12 @@ Hecks.behaviors "Immunity" do
     expect ok: "true"
   end
 
-  test "DetectThreat cascades through policy chain" do
-    tests "DetectThreat", on: "Immunity", kind: :cross_cascade
-    setup  "Mood.Express", state: "sample"
-    input  threat_pattern: "sample"
-    expect emits: ["ThreatDetected", "Focused"]
-  end
+  # NOTE : the "DetectThreat cascades through policy chain"
+  # :cross_cascade test was removed 2026-05-17. Its only cross-leg
+  # was into Mood (expected "Focused") — Miette's body, moved to the
+  # chrisyoung/miette repo by i117 Round 4 (6b081837). DetectThreat
+  # now emits only "ThreatDetected", already covered by "DetectThreat
+  # sets threat_pattern" above. i117 Round 4 residue (cf i158/i159). i642.
 
   test "GraftVerbImmunity sets noun_suffixes + adjective_suffixes + dual_words" do
     tests "GraftVerbImmunity", on: "Immunity"

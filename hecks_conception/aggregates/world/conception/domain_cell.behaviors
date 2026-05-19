@@ -10,15 +10,13 @@ Hecks.behaviors "DomainCell" do
     expect domain_name: "sample", maturity: 0, phase: "conceived"
   end
 
-  test "Conceive cascades through policy chain" do
-    tests "Conceive", on: "DomainCell", kind: :cross_cascade
-    setup  "Mood.Express", state: "sample"
-    setup  "Heartbeat.Accelerate"
-    setup  "ExpressCapability", capability: "sample", level: 1.0
-    setup  "SenseOrgans", organ_count: 1, expressed_count: 1, silenced_count: 1, total_records: 1
-    input  domain_name: "sample"
-    expect emits_subset: ["DomainConceived", "CapabilityExpressed", "LimbSensed", "Excited", "HeartbeatAccelerated"]
-  end
+  # NOTE : the "Conceive cascades through policy chain" :cross_cascade
+  # test was removed 2026-05-17. It primed + expected events from
+  # Mood / Heartbeat / Capabilities / Organs — Miette's body, moved to
+  # the chrisyoung/miette repo by i117 Round 4 (6b081837). The cascade
+  # web no longer exists in this repo ; DomainCell.Conceive now emits
+  # only "DomainConceived", already covered by "Conceive sets
+  # domain_name" above. i117 Round 4 residue (cf i158/i159). i642.
 
   test "Mature runs" do
     tests "Mature", on: "DomainCell"
