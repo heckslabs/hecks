@@ -187,7 +187,12 @@ async function main() {
     },
   });
   eq(dispatchRes.isError, false, "dispatch ShellTool.Bash isError=false");
-  contains(dispatchRes.content[0].text, '"ok":true', "dispatch stdout ok=true");
+  // i654 — content[0].text is now the rich rendering (headline +
+  // timeline + state + auto_summary). Raw stdout still lives verbatim
+  // in structuredContent.stdout, asserted further down.
+  contains(dispatchRes.content[0].text, "✓ Tools::ShellTool.Bash", "dispatch text has success headline");
+  contains(dispatchRes.content[0].text, "Timeline", "dispatch text has timeline section");
+  contains(dispatchRes.structuredContent.stdout, '"ok":true', "raw stdout (structuredContent) still ok=true");
 
   // -- structuredContent.events — parsed event array from stdout
   const dispatchStruct = dispatchRes.structuredContent || {};

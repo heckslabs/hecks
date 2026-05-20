@@ -19,6 +19,7 @@
 import { z } from "zod";
 import { spawn } from "node:child_process";
 import { parseEvents, composeAutoSummary } from "./dispatch_digest.mjs";
+import { renderDispatch } from "./dispatch_render.mjs";
 
 const STOREHOUSE_BIN = process.env.STOREHOUSE_BIN || "storehouse";
 
@@ -34,6 +35,7 @@ function encodeAttrs(args) {
 function dispatchProcess(aggregatesDir, command, attrArgs) {
   return new Promise((resolve, reject) => {
     const argv = [aggregatesDir, command, ...attrArgs];
+    const startedAt = Date.now();
     const child = spawn(STOREHOUSE_BIN, argv, {
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
@@ -44,6 +46,7 @@ function dispatchProcess(aggregatesDir, command, attrArgs) {
     child.stderr.on("data", (d) => (stderr += d.toString()));
     child.on("error", reject);
     child.on("close", (code) => {
+      const duration_ms = Date.now() - startedAt;
       const lines = stdout.split("\n").filter((l) => l.trim().length);
       let parsed = null;
       for (let i = lines.length - 1; i >= 0; i--) {
@@ -75,6 +78,7 @@ function dispatchProcess(aggregatesDir, command, attrArgs) {
         state: parsed,
         events,
         auto_summary,
+        duration_ms,
       });
     });
   });
@@ -121,7 +125,19 @@ export default {
     }
     const attrArgs = encodeAttrs(input.args || {});
     const result = await dispatchProcess(input.aggregates_dir, input.command, attrArgs);
-    const outputText = result.stdout || result.stderr || `exit=${result.exit_code}`;
+    // Rich rendering for content[0].text — headline, timeline, state,
+    // auto-summary. If anything in the renderer throws, fall back to
+    // the raw stdout/stderr so a render bug never costs the operator
+    // the breadcrumb. The structuredContent stays byte-identical
+    // either way.
+    let outputText;
+    try {
+      outputText = renderDispatch(result);
+    } catch (err) {
+      outputText =
+        (result.stdout || result.stderr || `exit=${result.exit_code}`) +
+        `\n\n[render error : ${err && err.message ? err.message : err}]`;
+    }
     return {
       content: [{ type: "text", text: outputText }],
       structuredContent: { ...result, summary: trimmedSummary },
