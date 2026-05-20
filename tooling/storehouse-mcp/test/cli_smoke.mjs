@@ -19,13 +19,17 @@ import { tmpdir } from "node:os";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVER = path.join(__dirname, "..", "src", "server.mjs");
 const HECKS_ROOT = "/Users/christopheryoung/Projects/hecks";
-const WORLD_BLUEBOOK = path.join(
+// Stable known-good bluebook + behaviors for smoke discovery probes.
+// Picked post-reorg : RestartPrompt is a small single-aggregate bluebook,
+// its companion behaviors file runs clean. Replaces the retired world.bluebook
+// + sandbox.behaviors pairing.
+const SMOKE_BLUEBOOK = path.join(
   HECKS_ROOT,
-  "hecks_conception/aggregates/world/world.bluebook",
+  "hecks_conception/aggregates/framework/restart_prompt/restart_prompt.bluebook",
 );
-const SANDBOX_BEHAVIORS = path.join(
+const SMOKE_BEHAVIORS = path.join(
   HECKS_ROOT,
-  "hecks_conception/aggregates/sandbox/sandbox.behaviors",
+  "hecks_conception/aggregates/framework/restart_prompt/restart_prompt.behaviors",
 );
 
 let failed = 0;
@@ -107,7 +111,7 @@ async function main() {
   // -- storehouse__validate on a known-good bluebook
   const validateRes = await client.callTool({
     name: "storehouse__validate",
-    arguments: { bluebook_path: WORLD_BLUEBOOK },
+    arguments: { bluebook_path: SMOKE_BLUEBOOK },
   });
   eq(validateRes.isError, false, "validate isError=false");
   contains(validateRes.content[0].text, "VALID", "validate stdout VALID");
@@ -115,7 +119,7 @@ async function main() {
   // -- storehouse__catalog returns the full IR (JSON, pretty-printed)
   const catalogRes = await client.callTool({
     name: "storehouse__catalog",
-    arguments: { bluebook_path: WORLD_BLUEBOOK },
+    arguments: { bluebook_path: SMOKE_BLUEBOOK },
   });
   eq(catalogRes.isError, false, "catalog isError=false");
   contains(catalogRes.content[0].text, '"aggregates"', "catalog stdout has aggregates key");
@@ -125,26 +129,26 @@ async function main() {
   // -- storehouse__describe_aggregate emits one aggregate's IR
   const describeRes = await client.callTool({
     name: "storehouse__describe_aggregate",
-    arguments: { bluebook_path: WORLD_BLUEBOOK, aggregate_name: "World" },
+    arguments: { bluebook_path: SMOKE_BLUEBOOK, aggregate_name: "RestartPrompt" },
   });
   eq(describeRes.isError, false, "describe_aggregate isError=false");
-  contains(describeRes.content[0].text, '"name": "World"', "describe_aggregate names World");
+  contains(describeRes.content[0].text, '"name": "RestartPrompt"', "describe_aggregate names RestartPrompt");
 
   // -- describe_aggregate on a missing name surfaces the available list
   const describeMissRes = await client.callTool({
     name: "storehouse__describe_aggregate",
-    arguments: { bluebook_path: WORLD_BLUEBOOK, aggregate_name: "DoesNotExist" },
+    arguments: { bluebook_path: SMOKE_BLUEBOOK, aggregate_name: "DoesNotExist" },
   });
   eq(describeMissRes.isError, true, "describe_aggregate miss isError=true");
   contains(describeMissRes.content[0].text, "available", "describe_aggregate miss lists available names");
 
-  // -- storehouse__list_aggregates (parse) returns World
+  // -- storehouse__list_aggregates (parse) returns RestartPrompt
   const listAggRes = await client.callTool({
     name: "storehouse__list_aggregates",
-    arguments: { bluebook_path: WORLD_BLUEBOOK },
+    arguments: { bluebook_path: SMOKE_BLUEBOOK },
   });
   eq(listAggRes.isError, false, "list_aggregates isError=false");
-  contains(listAggRes.content[0].text, "World", "list_aggregates mentions World");
+  contains(listAggRes.content[0].text, "RestartPrompt", "list_aggregates mentions RestartPrompt");
 
   // -- storehouse__query rejects a PascalCase verb (command-shape)
   const queryShapeRes = await client.callTool({
@@ -254,15 +258,15 @@ async function main() {
   });
   truthy(macroRes.content[0].text.length > 0, "macrophage_check returned output");
 
-  // -- storehouse__behaviors on the sandbox behaviors file
-  if (existsSync(SANDBOX_BEHAVIORS)) {
+  // -- storehouse__behaviors on the smoke behaviors file
+  if (existsSync(SMOKE_BEHAVIORS)) {
     const behaviorsRes = await client.callTool({
       name: "storehouse__behaviors",
-      arguments: { behaviors_path: SANDBOX_BEHAVIORS },
+      arguments: { behaviors_path: SMOKE_BEHAVIORS },
     });
     contains(behaviorsRes.content[0].text, "passed", "behaviors output mentions 'passed'");
   } else {
-    process.stderr.write(`skip behaviors (no sandbox.behaviors)\n`);
+    process.stderr.write(`skip behaviors (no restart_prompt.behaviors)\n`);
   }
 
   // -- events resource read returns the file contents
