@@ -1,0 +1,102 @@
+Hecks.bluebook "RestartPrompt", version: "2026.05.19.1" do
+  vision "The mechanism that keeps the next session oriented. When Miette or a sidequest agent composes a recap of the current session's arc, it dispatches RestartPrompt.Compose. A bus-event daemon (bin/restart-prompt-daemon, supervised by overmind) catches the RestartPromptComposed event and writes hecks_conception/inbox/restarts_inbox/latest.md — the canonical orientation artifact the next session pastes in. Bus-driven, not periodic : the daemon is always listening, writes only when a Compose fires. The Composition entity records audit history ; latest_* attrs on the root are the fast-path surface for the daemon (avoids a second query). total_compositions is passed in by the caller so it remains a pure domain record with no runtime arithmetic dependency."
+  category "framework"
+
+  # ============================================================
+  # RESTARTPROMPT — singleton session orientation record
+  # ============================================================
+  #
+  # Filed 2026-05-19. Architecture :
+  #   - One RestartPrompt aggregate, identified by name (singleton).
+  #   - Compose is the dispatchable verb — carries the recap body,
+  #     session id, timestamp, and the new total count.
+  #   - RestartPromptComposed emits on each Compose, carrying all
+  #     fields so the daemon can drive latest.md from state.
+  #   - The Composition entity records each individual recap for
+  #     audit / history rotation.
+  #   - total_compositions is passed by the caller (daemon reads
+  #     current state first, increments externally). This avoids
+  #     needing a runtime increment DSL form.
+  #
+  # Daemon pattern (Shape B — standalone bin script) :
+  #   - bin/restart-prompt-daemon runs `storehouse follow RestartPrompt`
+  #     and pipes stdout through a `while read line` loop.
+  #   - On matching `event RestartPrompt.Composed`, it queries
+  #     `storehouse state hecks_conception RestartPrompt miette`
+  #     and writes restarts_inbox/latest.md from the state JSON.
+  #   - Supervised by overmind (Procfile entry), auto-restarted.
+  #   - Registering as a MindstreamMember (mindstream.fixtures) keeps
+  #     the bluebook-of-record aware ; Procfile entry is hand-derived
+  #     per the existing pattern until i262 generator lands.
+
+  aggregate "RestartPrompt", "The session orientation singleton — one per being. Records the latest restart prompt composed, audit history via Composition entities, and a rolling count. The daemon writes restarts_inbox/latest.md whenever a new Composed event fires on the bus." do
+    identified_by :name
+
+    attribute :name,               Name,             default: "miette"
+    attribute :latest_content,     ComposedContent,  default: "—"
+    attribute :latest_at,          Timestamp,        default: "—"
+    attribute :latest_session_id,  SessionId,        default: "—"
+    attribute :total_compositions, Count,            default: 0
+
+    # ── Value-objects ──
+
+    value_object "Name" do
+      # Identifier for the singleton — one RestartPrompt per being.
+      # Mirrors Inbox.InboxName pattern : named "miette" by default.
+      attribute :value, String
+    end
+
+    value_object "ComposedContent" do
+      # The markdown body of the restart prompt — the richly-formatted
+      # session recap that the next session agent pastes in verbatim.
+      # May contain multi-line markdown ; stored as a single string value.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock string at which the Compose was dispatched.
+      # Stored on the root (latest_at) and on each Composition entity.
+      attribute :iso8601, String
+    end
+
+    value_object "SessionId" do
+      # Opaque identifier for the session that produced this recap.
+      # Typically a branch name, date string, or arc label so the reader
+      # of latest.md can immediately orient to what session this covers.
+      attribute :value, String
+    end
+
+    value_object "Count" do
+      # Running total of Compose invocations. Passed in by the caller
+      # so the domain stays arithmetic-free (no runtime increment dep).
+      attribute :value, Integer
+    end
+
+    # ── Audit entity ──
+
+    entity "Composition" do
+      # Audit trail — one Composition created per Compose command.
+      # The daemon may use the Composition list to rotate numbered
+      # history files (iNNN.md) alongside latest.md.
+      attribute :content,    ComposedContent
+      attribute :session_id, SessionId
+      attribute :composed_at, Timestamp
+    end
+
+    # ── Commands ──
+
+    command "Compose" do
+      role "Framework"
+      description "Record a new session recap as the latest restart prompt. Sets latest_content, latest_at, latest_session_id to the incoming values ; records total_compositions from the caller (caller reads current state, increments externally). Emits RestartPromptComposed — the daemon catches this event and writes restarts_inbox/latest.md."
+      attribute :content,             ComposedContent
+      attribute :session_id,          SessionId
+      attribute :composed_at,         Timestamp
+      attribute :total_compositions,  Count
+      emits "Composed"
+      then_set :latest_content,     to: :content
+      then_set :latest_at,          to: :composed_at
+      then_set :latest_session_id,  to: :session_id
+      then_set :total_compositions, to: :total_compositions
+    end
+  end
+end

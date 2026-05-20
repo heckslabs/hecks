@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# [antibody-exempt: kernel-floor daemon for the i645 RestartPrompt mindstream member — declarative shape lives in the bluebook]
+#
+# restart-prompt-daemon — bus-event-driven restart prompt writer
+#
+# Listens on the storehouse bus for RestartPrompt.Composed events.
+# On each match, reads the current singleton state via heki latest
+# and writes hecks_conception/inbox/restarts_inbox/latest.md.
+# Supervised by overmind (Procfile entry) ; only writes when a
+# Compose fires ; otherwise idle.
+#
+# Usage: bin/restart-prompt-daemon
+# Env: STOREHOUSE_LOG_FILE (default: ~/miette-state/information/storehouse.log)
+
+set -euo pipefail
+
+HECKS_CONCEPTION="/Users/christopheryoung/Projects/hecks/hecks_conception"
+RESTARTS_DIR="${HECKS_CONCEPTION}/inbox/restarts_inbox"
+HEKI_FILE="/Users/christopheryoung/Projects/miette-state/information/restart_prompt/restart_prompt.heki"
+STOREHOUSE="$(cd "$(dirname "$0")/.." && pwd)/rust/target/release/storehouse"
+
+mkdir -p "${RESTARTS_DIR}"
+
+write_latest() {
+  # Flat JSON from heki latest : { latest_content, latest_at,
+  # latest_session_id, total_compositions, name, id }
+  local heki_json
+  heki_json=$("${STOREHOUSE}" heki latest "${HEKI_FILE}" 2>/dev/null) || return 1
+
+  local content at session_id count
+  content=$(printf '%s' "${heki_json}" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(d.get('latest_content', '—'))
+" 2>/dev/null) || content="—"
+
+  at=$(printf '%s' "${heki_json}" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(d.get('latest_at', '—'))
+" 2>/dev/null) || at="—"
+
+  session_id=$(printf '%s' "${heki_json}" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(d.get('latest_session_id', '—'))
+" 2>/dev/null) || session_id="—"
+
+  count=$(printf '%s' "${heki_json}" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(d.get('total_compositions', 0))
+" 2>/dev/null) || count=0
+
+  {
+    printf 'ref: latest\n'
+    printf 'generated_at: %s\n' "${at}"
+    printf 'session_id: %s\n' "${session_id}"
+    printf 'total_compositions: %s\n' "${count}"
+    printf 'generated_by: restart-prompt-daemon (bus-event triggered)\n'
+    printf '\n'
+    printf '%s\n' "${content}"
+  } > "${RESTARTS_DIR}/latest.md"
+
+  echo "[restart-prompt-daemon] wrote latest.md (session=${session_id}, count=${count})"
+}
+
+echo "[restart-prompt-daemon] starting — watching for RestartPrompt.Composed events"
+
+# Stream the bus (long-running tail), write on each Composed event.
+"${STOREHOUSE}" follow RestartPrompt | while IFS= read -r line; do
+  if printf '%s' "${line}" | grep -q "event RestartPrompt\.Composed"; then
+    write_latest || echo "[restart-prompt-daemon] write_latest failed"
+  fi
+done

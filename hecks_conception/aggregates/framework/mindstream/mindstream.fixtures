@@ -86,5 +86,20 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/mietteai MietteMind::Reconciler.Reconcile --every 5s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    # ── RestartPrompt daemon (2026-05-19) ──
+    #
+    # Bus-event-driven — not periodic. Subscribes via `storehouse follow`
+    # for RestartPromptComposed events ; on each match queries singleton
+    # state and writes hecks_conception/inbox/restarts_inbox/latest.md.
+    # Only writes when a Compose fires ; otherwise idle. Shape B
+    # (standalone bin script) because `storehouse follow` as a named
+    # mindstream command form is not yet a first-class Procfile pattern.
+    # The declarative shape lives in restart_prompt.bluebook.
+    fixture "restart_prompt",
+            name:       "restart_prompt",
+            mindstream: "boot",
+            command:    { line: "bin/restart-prompt-daemon" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end
