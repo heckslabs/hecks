@@ -1,0 +1,101 @@
+Hecks.fixtures "DispatchMetaShape" do
+  # Worked-example rows — one row per family that exists in
+  # rust/src/runtime today, enough to exercise both adapter_source
+  # variants (typed_list + io_adapters) and all three response_wire
+  # variants (cascade_via_result_into + cascade_via_response_into +
+  # fire_and_forget). The specializer is not yet wired to consume
+  # these ; the rows prove the shape carries the data faithfully.
+  # Snippet replacements are the deferred follow-up work named in
+  # the i651 inbox card.
+
+  # ── DispatcherFamily — one row per resolver loop in mod.rs ────────
+  #
+  # Order matches the hand-written dispatch order today
+  # (compute → llm → claude_tool → mcp → exec → tts). Compute /
+  # sms / web_tool rows are deferred per the inbox card — adding
+  # them is mechanical once their dispatchers' resolvers stabilise.
+  aggregate "DispatcherFamily" do
+    fixture "Llm",          name: "llm",          dispatcher_module: "llm_dispatcher",         dispatch_fn: "call",     behavior_kind: "invoke_llm",          adapter_source: "typed_list",  response_wire: "cascade_via_response_into", cross_aggregate_attrs: "true",  cycle_guard: "true",  debug_env_var: "HECKS_DEBUG_LLM",         log_label: "llm",          order: 2
+    fixture "ClaudeTool",   name: "claude_tool",  dispatcher_module: "claude_tool_dispatcher", dispatch_fn: "dispatch", behavior_kind: "invoke_claude_tool",  adapter_source: "io_adapters", response_wire: "cascade_via_result_into",   cross_aggregate_attrs: "false", cycle_guard: "false", debug_env_var: "HECKS_DEBUG_CLAUDE_TOOL", log_label: "claude_tool",  order: 3
+    fixture "Mcp",          name: "mcp",          dispatcher_module: "mcp_dispatcher",         dispatch_fn: "dispatch", behavior_kind: "invoke_mcp_tool",     adapter_source: "io_adapters", response_wire: "cascade_via_result_into",   cross_aggregate_attrs: "false", cycle_guard: "false", debug_env_var: "HECKS_DEBUG_MCP",         log_label: "mcp",          order: 4
+    fixture "Exec",         name: "exec",         dispatcher_module: "exec_dispatcher",        dispatch_fn: "dispatch", behavior_kind: "invoke_exec",         adapter_source: "io_adapters", response_wire: "cascade_via_result_into",   cross_aggregate_attrs: "false", cycle_guard: "false", debug_env_var: "",                       log_label: "exec",         order: 5
+    fixture "Tts",          name: "tts",          dispatcher_module: "tts_dispatcher",         dispatch_fn: "dispatch", behavior_kind: "render_text_to_audio", adapter_source: "typed_list", response_wire: "fire_and_forget",           cross_aggregate_attrs: "false", cycle_guard: "false", debug_env_var: "HECKS_DEBUG_TTS",         log_label: "tts",          order: 6
+  end
+
+  # ── DispatcherFieldMap — one row per adapter field the resolver
+  # folds into the attrs map the dispatcher reads. Mirrors the
+  # `for (k, v) in &a.options { match k.as_str() { ... } }` blocks
+  # for io_adapters families, and the `if let Some(v) = &a.<field>`
+  # folds for typed_list families.
+  #
+  # Llm + Compute resolvers (typed_list) snapshot the entire upstream
+  # aggregate state instead of folding named fields ; their template
+  # substitution is the read path, not field-folding. Those families
+  # have no DispatcherFieldMap rows — the empty set IS the contract.
+  aggregate "DispatcherFieldMap" do
+    # ClaudeTool — three required io_adapters options pulled by name
+    fixture "ClaudeToolCommand",    family: "claude_tool", source_field: "command",     attr_key: "command",     required: "true",  strip_quotes_or_colon: "true", order: 1
+    fixture "ClaudeToolTool",       family: "claude_tool", source_field: "tool",        attr_key: "tool",        required: "true",  strip_quotes_or_colon: "true", order: 2
+    fixture "ClaudeToolResultInto", family: "claude_tool", source_field: "result_into", attr_key: "result_into", required: "false", strip_quotes_or_colon: "true", order: 3
+
+    # Mcp — five io_adapters options (command + server + tool + args + result_into)
+    fixture "McpCommand",     family: "mcp", source_field: "command",     attr_key: "command",     required: "true",  strip_quotes_or_colon: "true", order: 1
+    fixture "McpServer",      family: "mcp", source_field: "server",      attr_key: "server",      required: "true",  strip_quotes_or_colon: "true", order: 2
+    fixture "McpTool",        family: "mcp", source_field: "tool",        attr_key: "tool",        required: "true",  strip_quotes_or_colon: "true", order: 3
+    fixture "McpArgs",        family: "mcp", source_field: "args",        attr_key: "args",        required: "false", strip_quotes_or_colon: "true", order: 4
+    fixture "McpResultInto",  family: "mcp", source_field: "result_into", attr_key: "result_into", required: "false", strip_quotes_or_colon: "true", order: 5
+
+    # Exec — three io_adapters options (command + exec + result_into)
+    fixture "ExecCommand",    family: "exec", source_field: "command",     attr_key: "command",     required: "true",  strip_quotes_or_colon: "true", order: 1
+    fixture "ExecExec",       family: "exec", source_field: "exec",        attr_key: "exec",        required: "true",  strip_quotes_or_colon: "true", order: 2
+    fixture "ExecResultInto", family: "exec", source_field: "result_into", attr_key: "result_into", required: "false", strip_quotes_or_colon: "true", order: 3
+
+    # Tts — typed_list folds : seven optional adapter fields land on
+    # the attrs the dispatcher reads. provider lives off-band (selected
+    # as `a.provider.as_deref().unwrap_or("elevenlabs")`) and is not
+    # folded — it picks the provider arm of tts_dispatcher::dispatch.
+    fixture "TtsVoiceId",         family: "tts", source_field: "voice_id",         attr_key: "voice_id",         required: "false", strip_quotes_or_colon: "false", order: 1
+    fixture "TtsModel",           family: "tts", source_field: "model",            attr_key: "model",            required: "false", strip_quotes_or_colon: "false", order: 2
+    fixture "TtsSpeed",           family: "tts", source_field: "speed",            attr_key: "speed",            required: "false", strip_quotes_or_colon: "false", order: 3
+    fixture "TtsStability",       family: "tts", source_field: "stability",       attr_key: "stability",        required: "false", strip_quotes_or_colon: "false", order: 4
+    fixture "TtsSimilarityBoost", family: "tts", source_field: "similarity_boost", attr_key: "similarity_boost", required: "false", strip_quotes_or_colon: "false", order: 5
+    fixture "TtsStyle",           family: "tts", source_field: "style",            attr_key: "style",            required: "false", strip_quotes_or_colon: "false", order: 6
+    fixture "TtsCacheDir",        family: "tts", source_field: "cache_dir",        attr_key: "cache_dir",        required: "false", strip_quotes_or_colon: "false", order: 7
+    fixture "TtsAutoPlay",        family: "tts", source_field: "auto_play",        attr_key: "auto_play",        required: "false", strip_quotes_or_colon: "false", order: 8
+  end
+
+  # ── CascadePayloadField — one row per field the resolver lifts off
+  # the dispatcher's result and lands on the cascade. Fire-and-forget
+  # families (tts) have zero rows : no cascade, no payload.
+  aggregate "CascadePayloadField" do
+    # Llm — single field. The cascade_attr is runtime-resolved from
+    # the adapter's response_into_attr ; the sentinel marks "look up
+    # at codegen time" rather than embedding a literal.
+    fixture "LlmResponseText", family: "llm", source_field: "response_text", cascade_attr: "<adapter.response_into_attr>", value_kind: "str", order: 1
+
+    # ClaudeTool — five-field cascade payload : id (invocation join
+    # key, sourced from attrs not the result struct), tool, output,
+    # exit_code, ok. `id` is the cross-step join key — sourced from
+    # the resolver's invocation_id, not the dispatcher result — and
+    # appears here so the shape captures the full cascade row.
+    fixture "ClaudeToolId",       family: "claude_tool", source_field: "<resolver.invocation_id>", cascade_attr: "id",        value_kind: "str",  order: 1
+    fixture "ClaudeToolTool",     family: "claude_tool", source_field: "tool",                      cascade_attr: "tool",      value_kind: "str",  order: 2
+    fixture "ClaudeToolOutput",   family: "claude_tool", source_field: "output",                    cascade_attr: "output",    value_kind: "str",  order: 3
+    fixture "ClaudeToolExitCode", family: "claude_tool", source_field: "exit_code",                 cascade_attr: "exit_code", value_kind: "int",  order: 4
+    fixture "ClaudeToolOk",       family: "claude_tool", source_field: "ok",                        cascade_attr: "ok",        value_kind: "bool", order: 5
+
+    # Mcp — four-field cascade payload (same shape as ClaudeTool
+    # minus `tool` since the family's KernelResult already names the
+    # operation via `kind`).
+    fixture "McpId",       family: "mcp", source_field: "<resolver.invocation_id>", cascade_attr: "id",        value_kind: "str",  order: 1
+    fixture "McpOutput",   family: "mcp", source_field: "output",                    cascade_attr: "output",    value_kind: "str",  order: 2
+    fixture "McpExitCode", family: "mcp", source_field: "exit_code",                 cascade_attr: "exit_code", value_kind: "int",  order: 3
+    fixture "McpOk",       family: "mcp", source_field: "ok",                        cascade_attr: "ok",        value_kind: "bool", order: 4
+
+    # Exec — four-field cascade payload (same as Mcp).
+    fixture "ExecId",       family: "exec", source_field: "<resolver.invocation_id>", cascade_attr: "id",        value_kind: "str",  order: 1
+    fixture "ExecOutput",   family: "exec", source_field: "output",                    cascade_attr: "output",    value_kind: "str",  order: 2
+    fixture "ExecExitCode", family: "exec", source_field: "exit_code",                 cascade_attr: "exit_code", value_kind: "int",  order: 3
+    fixture "ExecOk",       family: "exec", source_field: "ok",                        cascade_attr: "ok",        value_kind: "bool", order: 4
+  end
+end
