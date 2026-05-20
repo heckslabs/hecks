@@ -1,0 +1,220 @@
+Hecks.bluebook "InboxIndex", version: "2026.05.20.1" do
+  vision "The end of the inbox-number-collision pattern. Tonight (2026-05-20) two pairs of agents collided on the same i-number (i649 : audit vs autophagy ; i656 : universal-door vs executable-bluebook) — each agent independently scanned its own worktree's `hecks_conception/inbox/`, picked `max(i*.md) + 1`, and filed simultaneously. Per-worktree max is a local view of a global resource ; concurrent local-max picks collide. The fix is a centralized atomic allocator. InboxIndex is the singleton substrate that owns the global next-number ; Allocate is the atomic increment ; Reserve takes a contiguous range for a sidequest with N expected cards ; Recover re-scans every project inbox on disk and reclaims missing numbers (so the allocator stays consistent if a card is deleted or a hand-edit happens). The persistent ground-truth is `~/.hecks/inbox/next.json` (outside any worktree, the same shape `~/.hecks/inbox/` already hosts the broader inbox state), read + atomically updated through a flock-guarded shim at `bin/hecks-inbox`. Agents call the shim before filing ; the SessionStart hook injects the current next-number into additionalContext so an agent sees it inline at boot."
+  category "framework"
+
+  # ============================================================
+  # INBOX INDEX — the centralized i-number allocator
+  # ============================================================
+  #
+  # Filed 2026-05-20. Chris : "inboxes should pull data from ~/hecks
+  # so we don't collide."
+  #
+  # ── The collision pattern (the bug this domain ends) ──
+  #
+  # Inbox cards in `hecks_conception/inbox/` are named `i<N>.md` or
+  # `i<N>-<slug>.md`. Today, an agent filing a card scans its OWN
+  # worktree's inbox dir, finds `max(i*.md) + 1`, and writes. When
+  # two agents in two worktrees do this concurrently — both pick
+  # the same N. Tonight that produced two pairs : i649 and i656.
+  #
+  # The root cause is structural : per-worktree max is a LOCAL view
+  # of a GLOBAL resource. The fix is to move the resource out of the
+  # worktree. `~/.hecks/inbox/next.json` is the single source of
+  # truth ; the allocator atomically reads-increments-writes it
+  # under flock so concurrent allocators serialize.
+  #
+  # ── Two operations, one aggregate ──
+  #
+  #   * Allocate — return the current next_number AND advance it
+  #     by 1, in one atomic step. The default verb for "I'm about
+  #     to file a card, give me a number."
+  #
+  #   * Reserve — return a contiguous range [start..start+count-1]
+  #     AND advance next_number by count, in one atomic step. The
+  #     verb for "I'm spawning N sidequest agents that will each
+  #     file a card — give me a block so they don't collide with
+  #     each other or with anyone else."
+  #
+  #   * Recover — re-scan every known project inbox directory,
+  #     compute the global max(i*.md), set next_number to max+1.
+  #     Idempotent — running it never decreases next_number, only
+  #     advances it if disk reality has overtaken state. Run by
+  #     hand when a hand-edit or rename creates suspicion that
+  #     state has drifted ; run automatically on first call (init).
+  #
+  # ── Persistence : ~/.hecks/inbox/next.json ──
+  #
+  # The aggregate's state persists outside any worktree, at
+  # `~/.hecks/inbox/next.json`. Shape :
+  #
+  #     {
+  #       "next_number":         658,
+  #       "last_allocated_at":   "2026-05-20T22:14:03Z",
+  #       "last_allocated_to":   "inbox-centralized-numbering",
+  #       "total_allocated":     12,
+  #       "total_reserved":      3,
+  #       "recoveries":          1
+  #     }
+  #
+  # The bin/hecks-inbox shim implements the atomicity via `flock`
+  # on the file itself : read → increment → write under exclusive
+  # lock so concurrent callers serialize at the OS level. The
+  # bluebook IS the contract ; the shim is the impure execution.
+  #
+  # ── Scope discipline ──
+  #
+  # InboxIndex allocates NUMBERS. It does not write cards, route
+  # cards to inboxes, or know about card content. Filing is still
+  # the agent's act — InboxIndex just hands out the next number,
+  # atomically, on demand. The agent then writes
+  # `i<N>[-slug].md` into the appropriate project inbox.
+  #
+  # The scan in Recover is broad on purpose : every `inbox/` and
+  # `*.inbox/` directory under `~/Projects/*/`, every
+  # `hecks_conception/inbox/` across worktrees. The collisions
+  # we're ending happened because agents only saw their own
+  # worktree ; Recover is the catch-up sweep that re-grounds
+  # state against ALL of disk.
+
+  aggregate "InboxIndex", "Singleton substrate for centralized i-number allocation. Owns next_number, the single source of truth for what the next inbox card's i-number should be. Allocate atomically returns + increments ; Reserve takes a contiguous range ; Recover re-scans disk to reclaim drifted state. Effectively a singleton — there is one inbox-number namespace per operator. Conventional `identified_by :name` shape for now ; under i611 phase 1 (when `singleton: true` lands) this converts." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # The number that will be returned by the NEXT Allocate call.
+    # Advanced by 1 on Allocate, by N on Reserve(count: N), and
+    # re-grounded to max(disk) + 1 on Recover.
+    attribute :next_number, Number
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Last-operation surface for the statusline / quick reads.
+    attribute :last_allocated_at, Timestamp
+    attribute :last_allocated_to, Requester
+    attribute :last_reserved_at,  Timestamp
+    attribute :last_recovered_at, Timestamp
+
+    # Lifetime tallies (per-session resets via StartSession).
+    attribute :total_allocated, AllocationCount
+    attribute :total_reserved,  ReservationCount
+    attribute :recoveries,      RecoveryCount
+
+    # ── Value-objects : the language of allocation ──
+
+    value_object "Name" do
+      # Singleton key — there is exactly one InboxIndex per operator.
+      # Under i611 phase 1 (`singleton: true`), this VO disappears.
+      attribute :value, String
+    end
+
+    value_object "Number" do
+      # An i-number. Form : a positive integer. Cards are filed as
+      # `i<value>.md` or `i<value>-<slug>.md`. Allocate returns one ;
+      # Reserve returns a range of these.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 UTC timestamp. Recorded on every Allocate / Reserve /
+      # Recover so the audit surface answers "who got what when."
+      attribute :value, String
+    end
+
+    value_object "Requester" do
+      # Free-form label naming the agent or branch that requested an
+      # allocation. Recorded verbatim — no validation of the form.
+      # Examples : "inbox-centralized-numbering" (a branch name),
+      # "audit-sidequest" (an agent task tag), "manual" (Chris filing
+      # a card by hand). The audit surface, not a foreign key.
+      attribute :value, String
+    end
+
+    value_object "Range" do
+      # A contiguous allocation result from Reserve. start is inclusive,
+      # count is the size. The reserved numbers are [start, start+count-1].
+      # Reserve advances next_number by count atomically, so callers can
+      # use the range without checking for further collision.
+      attribute :start, Integer
+      attribute :count, Integer
+    end
+
+    value_object "AllocationCount" do
+      # Lifetime count of Allocate dispatches in the current session.
+      # Reset on StartSession ; the durable disk file keeps cross-session
+      # totals if reporting needs them.
+      attribute :value, Integer
+    end
+
+    value_object "ReservationCount" do
+      # Lifetime count of Reserve dispatches in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "RecoveryCount" do
+      # Lifetime count of Recover dispatches in the current session.
+      # Recovery is expected to be rare — running it under normal
+      # operation is a no-op (next_number already exceeds disk max).
+      attribute :value, Integer
+    end
+
+    value_object "ScanRoot" do
+      # A directory the Recover scan walks. The Recover command takes
+      # a list of these so the operator (or the bin/hecks-inbox shim)
+      # can scope the scan precisely. Default scan roots are documented
+      # in the shim ; the bluebook stays declarative about what a
+      # ScanRoot is, not what the defaults are.
+      attribute :value, String
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at runtime boot. Lifetime totals on disk (in next.json) are preserved — this resets only the in-memory tallies the aggregate exposes for observability."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Primary operation 1 : Allocate ──
+
+    command "Allocate" do
+      role "Agent"
+      description "Atomically return the current next_number and advance it by 1. The default verb for 'I'm about to file an inbox card ; give me the next i-number.' Atomicity is enforced by the bin/hecks-inbox shim's flock on the persistence file — concurrent Allocate dispatches from sibling agents serialize at the OS level, so each gets a distinct number. The returned number is what the caller writes as `i<N>.md` into the target inbox ; InboxIndex does not file the card or know which inbox it lands in. requester is a free-form label (branch, task tag, 'manual') recorded for the audit surface. Increments total_allocated ; updates last_allocated_at and last_allocated_to ; emits NumberAllocated so downstream observers (the statusline counter, an audit reactor) can react."
+      attribute :allocated_number, Number
+      attribute :requester,        Requester
+      attribute :allocated_at,     Timestamp
+      emits "NumberAllocated"
+      then_set :last_allocated_at, to: :allocated_at
+      then_set :last_allocated_to, to: :requester
+    end
+
+    # ── Primary operation 2 : Reserve ──
+
+    command "Reserve" do
+      role "Agent"
+      description "Atomically take a contiguous range of N i-numbers and advance next_number by N. The verb for spawning sidequest agents : 'I'm dispatching 5 child agents who will each file a card ; reserve a block of 5 so they can pick from a known range without colliding with each other or with anyone else.' Returned as a Range value object (start + count). The caller is responsible for distributing the range to its children ; InboxIndex just hands out the block atomically. Increments total_reserved ; updates last_reserved_at ; emits RangeReserved."
+      attribute :reserved_range, Range
+      attribute :requester,      Requester
+      attribute :reserved_at,    Timestamp
+      emits "RangeReserved"
+      then_set :last_reserved_at, to: :reserved_at
+      then_set :last_allocated_to, to: :requester
+    end
+
+    # ── Primary operation 3 : Recover ──
+
+    command "Recover" do
+      role "System"
+      description "Re-scan a set of inbox directories on disk, compute the global max(i*.md), and re-ground next_number to max + 1. Idempotent — never decreases next_number, only advances it if disk reality has overtaken the persisted state (e.g. a hand-filed card with a guessed number, a worktree merge that brought in cards filed elsewhere, a rename that exposed a higher number than the allocator knew about). Run automatically on the first call to Allocate when next.json does not yet exist ; run by hand via `hecks-inbox recover` when the operator suspects drift. The scan_roots attribute carries the list of directories walked — the bin/hecks-inbox shim defaults this to the union of all `~/Projects/*/inbox/`, `~/Projects/*/*.inbox/`, and `~/Projects/*/.../hecks_conception/inbox/` directories the scan finds. Increments recoveries ; updates last_recovered_at ; emits StateRecovered carrying the max observed on disk and whether next_number was advanced."
+      attribute :observed_max,    Number
+      attribute :previous_next,   Number
+      attribute :new_next,        Number
+      attribute :recovered_at,    Timestamp
+      emits "StateRecovered"
+      then_set :next_number,      to: :new_next
+      then_set :last_recovered_at, to: :recovered_at
+    end
+  end
+end
