@@ -102,7 +102,7 @@ fn render_awake(s: &State, now: &Now) -> String {
     // compact until there's actually a signal to show.
     if s.voice_sample_count > 0 {
         out.push_str(&format!(
-            "  ⏱️ {:.2}s {}%",
+            "  ⏱️ speech:{:.2}s {}%",
             (s.voice_avg_total_ms as f64) / 1000.0, s.voice_hit_rate_pct
         ));
     }
