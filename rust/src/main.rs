@@ -2922,7 +2922,18 @@ fn read_world_heki_dir(aggregates_path: &str) -> Option<String> {
 /// hook can resolve named `:llm` adapters at runtime.
 fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon> {
     let mut out = Vec::new();
-    fn walk(dir: &std::path::Path, out: &mut Vec<storehouse::hecksagon_ir::Hecksagon>) {
+    // Dedup by canonical path : the primary agg_dir walk and the
+    // sibling-repo walk below can otherwise both pick up the same
+    // file (e.g. `miette/body/voice/voice.hecksagon` is visited both
+    // by an agg_dir at `miette/body/` and by the sibling fan-out into
+    // `miette/`), which silently doubled :tts dispatches and re-played
+    // every audio render twice.
+    let mut seen: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
+    fn walk(
+        dir: &std::path::Path,
+        out: &mut Vec<storehouse::hecksagon_ir::Hecksagon>,
+        seen: &mut std::collections::HashSet<std::path::PathBuf>,
+    ) {
         let Ok(entries) = fs::read_dir(dir) else { return };
         for entry in entries.flatten() {
             let p = entry.path();
@@ -2932,15 +2943,17 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
                 continue;
             }
             if p.is_dir() {
-                walk(&p, out);
+                walk(&p, out, seen);
             } else if p.extension().map(|e| e == "hecksagon").unwrap_or(false) {
+                let key = std::fs::canonicalize(&p).unwrap_or_else(|_| p.clone());
+                if !seen.insert(key) { continue; }
                 if let Ok(source) = fs::read_to_string(&p) {
                     out.push(storehouse::hecksagon_parser::parse(&source));
                 }
             }
         }
     }
-    walk(std::path::Path::new(agg_dir), &mut out);
+    walk(std::path::Path::new(agg_dir), &mut out, &mut seen);
     // i221 follow-up — mirror load_combined_domain's parent walk so
     // hecksagons in sibling roots participate in :llm adapter
     // resolution. Without this the named-adapter chain
@@ -2959,7 +2972,7 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
         for sibling in &["miette", "miette_family"] {
             if let Ok(canonical) = std::fs::canonicalize(repo_root.join("..").join(sibling)) {
                 if canonical.is_dir() && canonical != std::path::Path::new(agg_dir) {
-                    walk(&canonical, &mut out);
+                    walk(&canonical, &mut out, &mut seen);
                 }
             }
         }
@@ -2970,7 +2983,7 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
                         "integrations", "tools", "capabilities"] {
             let bucket_dir = repo_root.join(bucket);
             if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
-                walk(&bucket_dir, &mut out);
+                walk(&bucket_dir, &mut out, &mut seen);
             }
         }
     }
