@@ -1,0 +1,79 @@
+Hecks.behaviors "ToolCache" do
+  vision "Behavioral tests for the ToolCache bluebook. RecordCall records one observed invocation against ToolStats ; Compose mints a fresh roster snapshot. The tests assert command-records-attribute shape and the emit envelope. Coverage grows as the runtime substrate (bin/update-tool-cache) lands real wiring ; for now these tests satisfy the companion-block discipline and lock the bluebook contract."
+
+  # ── ToolStats : per-tool call history ───────────────────────────────
+  #
+  # RecordCall is the only state-changing command. It increments
+  # call_count, updates last_seen_at, and refreshes last_description.
+  # One ToolStats record per observed tool name (keyed by tool_name).
+
+  test "RecordCall records last_seen_at" do
+    tests "RecordCall", on: "ToolStats"
+    input  tool_name:   { value: "mcp__storehouse__storehouse__dispatch" },
+           seen_at:     { value: "2026-05-20T12:00:00Z" },
+           description: { value: "Universal bluebook door — dispatches any command." }
+    expect last_seen_at: { value: "2026-05-20T12:00:00Z" }
+  end
+
+  test "RecordCall records last_description" do
+    tests "RecordCall", on: "ToolStats"
+    input  tool_name:   { value: "mcp__storehouse__storehouse__dispatch" },
+           seen_at:     { value: "2026-05-20T12:00:01Z" },
+           description: { value: "Universal bluebook door — dispatches any command." }
+    expect last_description: { value: "Universal bluebook door — dispatches any command." }
+  end
+
+  test "RecordCall emits CallRecorded" do
+    tests "RecordCall", on: "ToolStats"
+    input  tool_name:   { value: "FileTool.Edit" },
+           seen_at:     { value: "2026-05-20T12:00:02Z" },
+           description: { value: "" }
+    expect emits: ["CallRecorded"]
+  end
+
+  # ── ToolCacheSnapshot : the hot-path roster ─────────────────────────
+  #
+  # Compose mints a snapshot per dispatch. The roster_markdown rides in
+  # the SnapshotComposed event payload only ; aggregate state stores
+  # composed_at + tool_count + top_n.
+
+  test "Compose records composed_at" do
+    tests "Compose", on: "ToolCacheSnapshot"
+    input  snapshot_id:     { value: "01HXSNAPSHOT1234567890ABCD" },
+           composed_at:     { value: "2026-05-20T12:01:00Z" },
+           tool_count:      { value: 40 },
+           top_n:           { value: 40 },
+           roster_markdown: { value: "# Hot-path tools\n\n## storehouse\n- dispatch (912 calls)" }
+    expect composed_at: { value: "2026-05-20T12:01:00Z" }
+  end
+
+  test "Compose records tool_count" do
+    tests "Compose", on: "ToolCacheSnapshot"
+    input  snapshot_id:     { value: "01HXSNAPSHOT2234567890ABCD" },
+           composed_at:     { value: "2026-05-20T12:01:01Z" },
+           tool_count:      { value: 32 },
+           top_n:           { value: 40 },
+           roster_markdown: { value: "# Hot-path tools\n\n32 tools cached." }
+    expect tool_count: { value: 32 }
+  end
+
+  test "Compose records top_n" do
+    tests "Compose", on: "ToolCacheSnapshot"
+    input  snapshot_id:     { value: "01HXSNAPSHOT3234567890ABCD" },
+           composed_at:     { value: "2026-05-20T12:01:02Z" },
+           tool_count:      { value: 40 },
+           top_n:           { value: 40 },
+           roster_markdown: { value: "# Hot-path tools" }
+    expect top_n: { value: 40 }
+  end
+
+  test "Compose emits SnapshotComposed" do
+    tests "Compose", on: "ToolCacheSnapshot"
+    input  snapshot_id:     { value: "01HXSNAPSHOT4234567890ABCD" },
+           composed_at:     { value: "2026-05-20T12:01:03Z" },
+           tool_count:      { value: 40 },
+           top_n:           { value: 40 },
+           roster_markdown: { value: "# Hot-path tools\n\n40 tools cached." }
+    expect emits: ["SnapshotComposed"]
+  end
+end

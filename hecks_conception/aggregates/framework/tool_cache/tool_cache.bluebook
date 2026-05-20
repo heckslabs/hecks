@@ -1,0 +1,182 @@
+Hecks.bluebook "ToolCache", version: "2026.05.20.1" do
+  vision "MCP tool-cache as a first-class domain. ToolStats records per-tool call counts and last-seen-at across sessions ; ToolCacheSnapshot freezes a hot-path roster (the top-N most-called tools) for the SessionStart additionalContext injection. The Claude Code harness has no native pre-load hook ; ToolSearch is the only loader and it's pull-only. So the cache surfaces as a markdown catalog in /tmp/tool_cache_latest.md that the UserPromptSubmit hook injects as additionalContext — the LLM reads the right names from the catalog instead of guessing and false-negatives on ToolSearch misses. Persistence pair : the projected JSON at ~/.claude/tool-cache.json (read by the discovery surface and the snapshot writer) plus the event log (the bus truth). The dispatch IS the act per the locked 2026-05-12 principles ; bin/update-tool-cache walks recent transcript jsonls, dispatches RecordCall per observed tool_use, then dispatches Compose to mint a fresh snapshot."
+  category "framework"
+
+  # ============================================================
+  # TOOL_CACHE — MCP-tool hot-path memory across sessions
+  # ============================================================
+  #
+  # Filed 2026-05-20 against the lived friction : every session,
+  # hundreds of tools are deferred behind ToolSearch ; some are
+  # called dozens of times (mcp__storehouse__storehouse__dispatch,
+  # Voice.Speak, FileTool.Edit, ShellTool.Bash, Gmail.get_thread) ;
+  # ToolSearch is pull-only and a wrong-name guess returns empty
+  # and gets reported as "tool doesn't exist" — a false blocker.
+  #
+  # The fix is two layers :
+  #
+  #   Layer 1 — Hot-path roster. ToolStats records (tool_name,
+  #             call_count, last_seen_at) across sessions ;
+  #             ToolCacheSnapshot freezes the top-N for injection.
+  #   Layer 2 — Visible catalog. bin/storehouse-tools reads the
+  #             projected JSON and prints the full MCP catalog
+  #             grouped by server, with descriptions. Discovery
+  #             becomes enumeration, not guessing.
+  #
+  # ── Why no per-server entity ──
+  #
+  # Each ToolStats record is keyed by the full tool name (e.g.
+  # "mcp__storehouse__storehouse__dispatch") and that's enough to
+  # answer every operational question. Grouping by server is a
+  # rendering concern, derived at read time from the name prefix —
+  # not a state concern. So no per-server entity ; ToolStats is
+  # flat-by-design.
+  #
+  # ── Why no SendCatalog command ──
+  #
+  # The catalog itself is a render of the projection (the JSON
+  # at ~/.claude/tool-cache.json plus the snapshot markdown at
+  # /tmp/tool_cache_latest.md). Reading IS reading ; there's no
+  # state to mutate when the discovery surface prints. The
+  # storehouse universal query door covers it via :
+  #
+  #     storehouse query <root> ToolCache::ToolCacheSnapshot.snake_case ...
+  #
+  # plus the projected JSON sidecar.
+  #
+  # ── The runtime substrate ──
+  #
+  # bin/update-tool-cache is the cache writer. It :
+  #   (a) walks recent transcript jsonls under
+  #       ~/.claude/projects/*/*.jsonl (last N days),
+  #   (b) extracts each tool_use block's name,
+  #   (c) dispatches ToolStats.RecordCall for each observation,
+  #   (d) dispatches ToolCacheSnapshot.Compose to mint the
+  #       top-N roster,
+  #   (e) writes the projected ~/.claude/tool-cache.json + the
+  #       /tmp/tool_cache_latest.md catalog.
+  #
+  # The SessionStart hook calls update-tool-cache once per
+  # boot ; the UserPromptSubmit hook injects the markdown into
+  # additionalContext on the first turn.
+
+  # ── ToolStats : per-tool call history ──
+  aggregate "ToolStats", "One ToolStats record per observed tool name (e.g. mcp__storehouse__storehouse__dispatch, FileTool.Read). RecordCall increments the count and updates the last-seen timestamp ; the aggregate is the persistent hot-path memory. Tool descriptions ride in the event payload and are folded into the rendered catalog ; aggregate state stays small (name + count + last_seen_at + last_description)." do
+    identified_by :tool_name
+
+    attribute :tool_name, ToolName
+    attribute :call_count, CallCount
+    attribute :last_seen_at, Timestamp
+    attribute :last_description, Description
+
+    value_object "ToolName" do
+      # The verbatim tool name as it appears in transcript JSONL
+      # tool_use blocks — typically "mcp__<server>__<server>__<verb>"
+      # for MCP tools, or a bare name like "Bash" / "Edit" / "Read"
+      # for harness-native tools. Used as the identified_by key so
+      # one ToolStats record per tool name exists across sessions.
+      attribute :value, String
+    end
+
+    value_object "CallCount" do
+      # Cumulative number of times this tool has been called across
+      # all observed sessions. Monotonically non-decreasing ; the
+      # aggregate increments on every RecordCall dispatch.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 UTC timestamp of the most recent observed call.
+      # Used to age out tools that have not been called recently
+      # (the snapshot writer down-weights or excludes old entries).
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line description of what the tool does. When known —
+      # e.g. captured from a prior ToolSearch result schema, or
+      # extracted from the MCP server's tool registry — this is
+      # what renders in the catalog. Optional ; absent for newly
+      # observed tools until a description-fetch pass runs.
+      attribute :value, String
+    end
+
+    # ── RecordCall ──
+    command "RecordCall" do
+      role "Miette"
+      description "Record one observed invocation of a tool. Increments call_count, updates last_seen_at, and (when supplied) refreshes last_description. The cache-writer (bin/update-tool-cache) dispatches this once per tool_use block extracted from the transcript walk ; downstream the projected JSON at ~/.claude/tool-cache.json reflects the running totals."
+      attribute :tool_name, ToolName
+      attribute :seen_at, Timestamp
+      attribute :description, Description
+      emits "CallRecorded"
+      then_set :last_seen_at,     to: :seen_at
+      then_set :last_description, to: :description
+    end
+  end
+
+  # ── ToolCacheSnapshot : the hot-path roster ──
+  aggregate "ToolCacheSnapshot", "A frozen top-N roster of tool names + descriptions, minted on each cache refresh. Compose mints a fresh snapshot from the current ToolStats records ; the markdown render (the catalog injected at SessionStart) reads from the most recent snapshot. Identified by snapshot_id (one per Compose dispatch) so the history is replayable." do
+    identified_by :snapshot_id
+
+    attribute :snapshot_id, SnapshotId
+    attribute :composed_at, Timestamp
+    attribute :tool_count, ToolCount
+    attribute :top_n, TopN
+
+    value_object "SnapshotId" do
+      # ULID minted by the caller (the cache writer) at Compose
+      # time. The most recent snapshot is the live catalog ;
+      # older snapshots stay queryable for "how did the hot-path
+      # shift over the week?" introspection.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 UTC timestamp marking when the snapshot was
+      # composed. The SessionStart hook re-composes on every
+      # boot so the catalog is always fresh.
+      attribute :value, String
+    end
+
+    value_object "ToolCount" do
+      # Total distinct tools the snapshot contains — equals the
+      # length of the roster after applying the top-N cut. The
+      # markdown render exposes this as "N tools cached" in the
+      # catalog header.
+      attribute :value, Integer
+    end
+
+    value_object "TopN" do
+      # The N parameter applied at Compose time — how many tools
+      # the snapshot retained from the full ToolStats set. Default
+      # 40 by convention (large enough to cover the hot-path,
+      # small enough to keep the injection under a kilobyte).
+      attribute :value, Integer
+    end
+
+    value_object "RosterMarkdown" do
+      # The fully rendered markdown catalog : header + grouped
+      # entries by MCP server + one-line descriptions. Lives in
+      # the SnapshotComposed event payload only ; the rendered
+      # surface at /tmp/tool_cache_latest.md is the projection
+      # for the UserPromptSubmit hook to inject. Not on aggregate
+      # state so the heki does not grow with each refresh.
+      attribute :value, String
+    end
+
+    # ── Compose ──
+    command "Compose" do
+      role "Miette"
+      description "Mint a fresh snapshot from current ToolStats. The cache writer assembles the roster (ranked by call_count, capped at top_n) and renders it to markdown ; this command records the snapshot metadata and emits SnapshotComposed carrying the full roster_markdown. Composes IS the act : the projected /tmp/tool_cache_latest.md surface is written from the SnapshotComposed event payload by the runtime, so the SessionStart hook just dispatches and the injection follows."
+      attribute :snapshot_id, SnapshotId
+      attribute :composed_at, Timestamp
+      attribute :tool_count, ToolCount
+      attribute :top_n, TopN
+      attribute :roster_markdown, RosterMarkdown
+      emits "SnapshotComposed"
+      then_set :composed_at, to: :composed_at
+      then_set :tool_count,  to: :tool_count
+      then_set :top_n,       to: :top_n
+    end
+  end
+end
