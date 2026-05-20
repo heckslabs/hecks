@@ -10,14 +10,22 @@
 //  body - kernel-adjacent by nature.]
 
 //
-// Locked spec (2026-05-15) :
+// Locked spec (2026-05-15, amended 2026-05-19) :
 //   - OAuth refresh (same mechanism proven by EmailTool.GetAttachment)
 //   - Gmail historyId watermark : exact delta, no reprocessing, no
 //     window blind spot ; clean start on first run (no backfill)
 //   - known-correspondents-only (inbox_correspondents.json)
-//   - per new inbound thread : write a card into the mapped project
-//     inbox AND compose a draft reply (drafts only, never sent)
-//   - never starts the work the mail requests : drafts + surfaces
+//   - per new inbound thread : ATOMIC ON DRAFT SUCCESS.
+//     - compose draft FIRST.
+//     - on dr.id truthy : write card + mark thread seen + bump heki.
+//     - on draft failure : surface error to stderr, do NOT write the
+//       card, do NOT mark seen, do NOT advance historyId watermark
+//       past this poll ; next poll re-attempts the same thread.
+//   - never starts the work the mail requests : drafts + surfaces.
+//
+// (i26 2026-05-19) Status-decoupled-from-truth was the bug : the card
+// claimed "Draft acknowledgement composed" before the draft existed.
+// Atomic-on-success guarantees the card only ever lands AFTER dr.id.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -28,7 +36,7 @@ const TOKEN_PATH = HOME + "/.config/miette/google-oauth-token.json";
 const STATE_PATH = HOME + "/miette-state/information/inbox_poll_state.json";
 // drafts.heki : durable running total of email drafts Miette has composed.
 // Upserted here (count += 1) after each successful Gmail draft create so
-// the awake statusline can show ✉️ N. Path mirrors heki::resolve_info_dir().
+// the awake statusline can show ✉\u{fe0f} N. Path mirrors heki::resolve_info_dir().
 const DRAFTS_HEKI = HOME + "/miette-state/information/drafts.heki";
 const STOREHOUSE  = path.join(path.dirname(new URL(import.meta.url).pathname),
                               "../rust/target/release/storehouse");
@@ -38,6 +46,7 @@ const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 function readJson(p, dflt) { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return dflt; } }
 function writeJson(p, o) { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, JSON.stringify(o, null, 2)); }
 function log(...a) { console.log("[inbox_poll]", ...a); }
+function errlog(...a) { process.stderr.write("[inbox_poll] " + a.join(" ") + "\n"); }
 
 async function accessToken() {
   const t = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
@@ -108,6 +117,8 @@ async function main() {
   } while (pageToken);
 
   const seen = new Set(state.seen_threads);
+  const attemptedThisPoll = new Set();
+  let failuresThisPoll = false;
   let carded = 0;
   for (const id of [...new Set(added)]) {
     const msg = await api(tok, "/messages/" + id +
@@ -119,15 +130,10 @@ async function main() {
     const corr = byEmail.get(email);
     if (!corr) continue;
     if (seen.has(msg.threadId)) continue;
-    seen.add(msg.threadId);
+    if (attemptedThisPoll.has(msg.threadId)) continue;
+    attemptedThisPoll.add(msg.threadId);
 
     const subject = headerVal(msg, "Subject") || "(no subject)";
-    const dir = path.join(HOME, corr.inbox);
-    const n = nextCardId(dir);
-    const today = new Date().toISOString().slice(0, 10);
-    const card = `---\nref: i${n}\nstatus: open\npriority: normal\nposted_at: ${today}\nsource: inbox-poll\nfrom: ${corr.name} <${email}>\nthread: ${msg.threadId}\nvalue: 'Inbound from ${corr.name} : ${subject.replace(/'/g, "")}. Draft acknowledgement composed ; full reply + any work pending conscious review.'\n---\n\n# i${n} — ${corr.name} : ${subject}\n\nArrived ${today} via the inbox poll (thread \`${msg.threadId}\`).\nA draft acknowledgement is in Drafts. The full reply, and any work\nthis asks for, are pending conscious review : the poll drafts and\nsurfaces, it does not start the work.\n`;
-    fs.writeFileSync(path.join(dir, `i${n}.md`), card);
-
     const reSub = /^re:/i.test(subject) ? subject : "Re: " + subject;
     const msgId = headerVal(msg, "Message-ID");
     const first = corr.name.split(" ")[0];
@@ -138,39 +144,57 @@ async function main() {
       `To: ${email}\r\nSubject: ${reSub}\r\n` +
       (msgId ? `In-Reply-To: ${msgId}\r\nReferences: ${msgId}\r\n` : "") +
       `Content-Type: text/plain; charset=UTF-8\r\n\r\n${bodyText}`;
+
+    // Draft FIRST. Card + seen + heki only land on dr.id truthy.
     const dr = await fetch(API + "/drafts", {
       method: "POST",
       headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
       body: JSON.stringify({ message: { raw: b64url(mime), threadId: msg.threadId } }),
     }).then(r => r.json());
-    log(`card i${n} -> ${corr.inbox} ; draft ${dr.id ? "ok" : "FAILED " + JSON.stringify(dr).slice(0,120)} ; ${corr.name} : ${subject}`);
-    // Bump drafts.heki counter only on a confirmed draft (dr.id truthy).
-    // Defensive : heki write failure must not abort the poll.
-    if (dr.id) {
-      try {
-        const prev = (() => {
-          try {
-            return parseInt(
-              execFileSync(STOREHOUSE, ["heki", "latest-field", DRAFTS_HEKI, "count"],
-                           { encoding: "utf8" }).trim(), 10) || 0;
-          } catch { return 0; }
-        })();
-        execFileSync(STOREHOUSE,
-          ["heki", "upsert", DRAFTS_HEKI, "--reason", "inbox poll drafted reply",
-           `count=${prev + 1}`],
-          { encoding: "utf8" });
-        log(`drafts.heki updated : count=${prev + 1}`);
-      } catch (e) {
-        log("[warn] drafts.heki upsert failed (non-fatal):", e.message);
-      }
+
+    if (!dr.id) {
+      // Surface the API error body so overmind / macrophage sees it.
+      errlog(`DRAFT_FAILED thread=${msg.threadId} from=${corr.name} <${email}> subject=${JSON.stringify(subject)} body=${JSON.stringify(dr).slice(0,400)}`);
+      log(`draft FAILED ${corr.name} : ${subject} — thread NOT marked seen ; watermark held ; next poll retries`);
+      failuresThisPoll = true;
+      continue;
+    }
+
+    // Draft confirmed. Atomic block : seen + card + heki.
+    seen.add(msg.threadId);
+    const dir = path.join(HOME, corr.inbox);
+    const n = nextCardId(dir);
+    const today = new Date().toISOString().slice(0, 10);
+    const card = `---\nref: i${n}\nstatus: open\npriority: normal\nposted_at: ${today}\nsource: inbox-poll\nfrom: ${corr.name} <${email}>\nthread: ${msg.threadId}\ndraft_id: ${dr.id}\nvalue: 'Inbound from ${corr.name} : ${subject.replace(/'/g, "")}. Draft acknowledgement composed (id=${dr.id}) ; full reply + any work pending conscious review.'\n---\n\n# i${n} — ${corr.name} : ${subject}\n\nArrived ${today} via the inbox poll (thread \`${msg.threadId}\`).\nA draft acknowledgement is in Drafts (id \`${dr.id}\`). The full reply,\nand any work this asks for, are pending conscious review : the poll\ndrafts and surfaces, it does not start the work.\n`;
+    fs.writeFileSync(path.join(dir, `i${n}.md`), card);
+    log(`card i${n} -> ${corr.inbox} ; draft ok (${dr.id}) ; ${corr.name} : ${subject}`);
+
+    // Bump drafts.heki counter (non-fatal on failure).
+    try {
+      const prev = (() => {
+        try {
+          return parseInt(
+            execFileSync(STOREHOUSE, ["heki", "latest-field", DRAFTS_HEKI, "count"],
+                         { encoding: "utf8" }).trim(), 10) || 0;
+        } catch { return 0; }
+      })();
+      execFileSync(STOREHOUSE,
+        ["heki", "upsert", DRAFTS_HEKI, "--reason", "inbox poll drafted reply",
+         `count=${prev + 1}`],
+        { encoding: "utf8" });
+      log(`drafts.heki updated : count=${prev + 1}`);
+    } catch (e) {
+      log("[warn] drafts.heki upsert failed (non-fatal):", e.message);
     }
     carded++;
   }
 
-  state.last_history_id = newHistoryId;
+  // Watermark advance ONLY if no failures ; otherwise next poll re-reads
+  // the same history range and seen-set short-circuits the successes.
+  state.last_history_id = failuresThisPoll ? state.last_history_id : newHistoryId;
   state.seen_threads = [...seen].slice(-500);
   writeJson(STATE_PATH, state);
-  log(`done : ${carded} new thread(s) carded+drafted ; watermark ${state.last_history_id}`);
+  log(`done : ${carded} new thread(s) carded+drafted${failuresThisPoll ? " ; some drafts failed, watermark held" : ""} ; watermark ${state.last_history_id}`);
 }
 
 // --loop <secs> : run forever on a cadence (overmind-supervised
