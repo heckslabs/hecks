@@ -185,6 +185,26 @@ async function main() {
   eq(dispatchRes.isError, false, "dispatch ShellTool.Bash isError=false");
   contains(dispatchRes.content[0].text, '"ok":true', "dispatch stdout ok=true");
 
+  // -- structuredContent.events — parsed event array from stdout
+  const dispatchStruct = dispatchRes.structuredContent || {};
+  truthy(Array.isArray(dispatchStruct.events), "dispatch carries events[] array");
+  truthy((dispatchStruct.events || []).length >= 1, "dispatch events[] non-empty");
+  const firstEv = (dispatchStruct.events || [])[0] || {};
+  eq(firstEv.kind, "dispatch", "events[0].kind === dispatch");
+  truthy(typeof firstEv.invocation_id === "string" && firstEv.invocation_id.length > 0,
+    "events[0].invocation_id is a non-empty string");
+  // Every parsed event should carry the same invocation_id (chain id)
+  const invIds = new Set((dispatchStruct.events || []).map((e) => e.invocation_id));
+  eq(invIds.size, 1, "all events share one invocation_id");
+
+  // -- structuredContent.auto_summary — non-empty digest line
+  truthy(
+    typeof dispatchStruct.auto_summary === "string" && dispatchStruct.auto_summary.length > 0,
+    "dispatch carries non-empty auto_summary",
+  );
+  contains(dispatchStruct.auto_summary, "Tools::ShellTool.Bash", "auto_summary names the verb");
+  contains(dispatchStruct.auto_summary, "exit 0", "auto_summary reports exit 0");
+
   // -- multi-line output renders as real newlines, not escaped \\n (i607)
   const multiLineRes = await client.callTool({
     name: "storehouse__dispatch",
