@@ -18,7 +18,7 @@
      },
      {
       "type": "command",
-      "command": "python3 -c \"\nimport glob,os,re\ncs=[]\nfor d in glob.glob(os.path.expanduser('~/Projects/*/inbox'))+glob.glob(os.path.expanduser('~/Projects/*/*.inbox')):\n  for f in glob.glob(os.path.join(d,'*.md')):\n    try:\n      h=open(f,errors='ignore').read(800)\n    except Exception:\n      continue\n    if re.search(r'category:\\s*session-restart',h) and re.search(r'status:\\s*open',h): cs.append((os.path.getmtime(f),f))\np='/tmp/restart_prompt_latest.md'\nif cs:\n  n=sorted(cs)[-1][1]; open(p,'w').write(open(n,errors='ignore').read())\nelif os.path.exists(p):\n  os.remove(p)\n\" 2>/dev/null || true",
+      "command": "python3 -c \"\nimport glob,os,re\ncs=[]\nfor d in glob.glob(os.path.expanduser('~/Projects/*/inbox'))+glob.glob(os.path.expanduser('~/Projects/*/*.inbox'))+glob.glob(os.path.expanduser('~/Projects/*/*/inbox/restarts_inbox'))+glob.glob(os.path.expanduser('~/Projects/*/inbox/restarts_inbox')):\n  for f in glob.glob(os.path.join(d,'*.md')):\n    try:\n      h=open(f,errors='ignore').read(800)\n    except Exception:\n      continue\n    if re.search(r'category:\\s*session-restart',h) and re.search(r'status:\\s*open',h): cs.append((os.path.getmtime(f),f))\np='/tmp/restart_prompt_latest.md'\nif cs:\n  n=sorted(cs)[-1][1]; open(p,'w').write(open(n,errors='ignore').read())\nelif os.path.exists(p):\n  os.remove(p)\n\" 2>/dev/null || true",
       "timeout": 10
      },
      {

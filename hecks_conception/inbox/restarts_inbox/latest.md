@@ -5,6 +5,7 @@ session_id: 2026-05-19-night
 generated_by: miette (manual compose, daemon not yet on main)
 posted_by: miette
 status: open
+category: session-restart
 value: 'Resume on #39 merge execution. 4 PRs ready to merge. Joey drafts waiting. Merge plan at miette/MERGE_PLAN.md.'
 ---
 
