@@ -387,9 +387,36 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
     if joined.trim_end().ends_with(" do") {
         joined = joined.trim_end().trim_end_matches(" do").trim_end().to_string();
         while idx < lines.len() {
-            let t = lines[idx].trim();
+            let raw_t = lines[idx];
             consumed += 1;
             idx += 1;
+            // Strip trailing `# ...` comment outside string literals,
+            // then trim. Without this, a line like
+            //     voice_id   "WwS1lF7yiubZWoroH5D5"   # Björk-tone
+            // emitted `voice_id: "WwS1lF7yiubZWoroH5D5" # ...` and
+            // strip_quotes (matches both ends) left the literal quotes
+            // intact, which broke downstream URL construction in the
+            // :tts dispatcher and any other consumer that expected a
+            // clean value. Inlined here (not pulled into its own helper)
+            // so the specializer golden (codegen/hecksagon_parser_shape/
+            // snippets/join_adapter_lines_body.rs.frag) stays a single
+            // self-contained snippet — no new ParserHelper fixture row
+            // needed.
+            let cleaned: String = {
+                let mut out = String::with_capacity(raw_t.len());
+                let mut in_str = false;
+                let mut prev = '\0';
+                for c in raw_t.chars() {
+                    match c {
+                        '"' if prev != '\\' => { in_str = !in_str; out.push(c); }
+                        '#' if !in_str => break,
+                        _ => out.push(c),
+                    }
+                    prev = c;
+                }
+                out
+            };
+            let t = cleaned.trim();
             if t.is_empty() || t.starts_with('#') { continue; }
             if t == "end" { break; }
             if let Some(sp) = t.find(char::is_whitespace) {
