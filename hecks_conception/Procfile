@@ -13,3 +13,4 @@ circadian: ../rust/target/release/storehouse clock /Users/christopheryoung/Proje
 ultradian: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body/.. Ultradian::Ultradian.EnterPeak,Ultradian::Ultradian.EnterTrough --every 5400s
 inbox: ../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s
 restart_prompt: bin/restart-prompt-daemon
+voice: ../bin/voice-daemon
