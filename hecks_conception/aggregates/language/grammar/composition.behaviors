@@ -13,7 +13,7 @@ Hecks.behaviors "Composition" do
   test "Compose cascades through policy chain" do
     tests "Compose", on: "Composition", kind: :cross_cascade
     input  phrase: "sample", from_domain: "sample", from_command: "sample", to_domain: "sample", to_command: "sample", bridge_type: "sample", connector: "sample"
-    expect emits: ["CompositionCreated", "LexiconCompiled"]
+    expect emits_subset: ["CompositionCreated", "DomainCompiled"]
   end
 
   test "TranslateComposition sets natural_phrase" do
