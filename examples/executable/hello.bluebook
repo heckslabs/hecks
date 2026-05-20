@@ -1,0 +1,56 @@
+#!/usr/bin/env storehouse run
+Hecks.bluebook "Hello", version: "2026.05.20.1" do
+  vision "The smallest executable bluebook — proves the shebang path. A .bluebook with `chmod +x` runs as a script through `storehouse run`, parses + validates + dispatches its declared entrypoint, exits 0. Companion .hecksagon wires :stdout so the dispatch surfaces a line."
+  category "examples"
+
+  # ============================================================
+  # HELLO — the executable-bluebook hello-world
+  # ============================================================
+  #
+  # The shebang line above is the load-bearing detail. The parser
+  # strips `#!...\n` (parser::strip_shebang, i558) so the rest of
+  # the file parses identically to a non-executable bluebook ;
+  # `storehouse run` then dispatches the declared entrypoint.
+  #
+  # Usage :
+  #   chmod +x examples/executable/hello.bluebook
+  #   ./examples/executable/hello.bluebook
+  #     # exit 0, with one stdout log line per dispatched command
+  #     # (i622 storehouse log) plus any :stdout adapter emit
+  #
+  # Or, explicitly (no chmod required) :
+  #   storehouse run examples/executable/hello.bluebook
+  #
+  # Prerequisite : `storehouse` is on $PATH (cargo build --release
+  # under rust/, then symlink target/release/storehouse onto PATH
+  # or set the shebang to an absolute path).
+
+  entrypoint "Greet"
+
+  aggregate "Hello" do
+    description "One greeting. Singleton ; resets per invocation. The simplest aggregate shape that the script-mode runner can dispatch — one attribute, one command, one lifecycle slot."
+
+    attribute :greeting, Greeting, default: "hello, world"
+    attribute :phase,    Phase,    default: "pending"
+
+    value_object "Greeting" do
+      attribute :value, String
+    end
+
+    value_object "Phase" do
+      attribute :value, String
+    end
+
+    lifecycle :phase, default: "pending" do
+      transition "Greet"   => "greeting", from: "pending"
+      transition "Greeted" => "done",     from: "greeting"
+    end
+
+    command "Greet" do
+      role "User"
+      description "Stamp the phase lifecycle and emit Greeted. The :stdout adapter (sibling hello.hecksagon) surfaces the dispatch through the i622 storehouse log line ; that's enough to prove the executable-bluebook path end-to-end."
+      then_set :phase, to: "greeting"
+      emits "Greeted"
+    end
+  end
+end
