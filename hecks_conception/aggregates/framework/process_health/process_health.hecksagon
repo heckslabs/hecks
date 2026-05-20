@@ -1,0 +1,48 @@
+Hecks.hecksagon "ProcessHealth" do
+  # ProcessHealth adapter binding : ProcessMacrophage.Sweep dispatch
+  # → the real per-process health signal walk.
+  #
+  # The ProcessHealth bluebook (sibling process_health.bluebook) locks
+  # Sweep to a four-layer signal check : heartbeat event freshness,
+  # process exists + recent file activity, process exists alone, or
+  # nothing — the runtime decides which MarkX to dispatch per
+  # ProcessName in the watchlist. Pure composition — the bluebook
+  # names the contract.
+  #
+  # This file is the impure layer. The :exec adapter (family
+  # framework/adapter_families/exec.hecksagon, behavior perform_exec,
+  # kernel arm runtime/exec_dispatcher.rs + resolve_exec_adapters)
+  # binds ProcessMacrophage.Sweep to bin/process_health_sweep. When
+  # the heartbeat-scheduler tick (or the overmind process_macrophage
+  # loop) dispatches ProcessHealth::ProcessMacrophage.Sweep every 30s
+  # — OR Miette dispatches it on demand via the storehouse universal
+  # door — the kernel runs bin/process_health_sweep and cascades its
+  # outcome into Cascade.RecordResult, joinable by id.
+  #
+  # bin/process_health_sweep is FOLLOW-UP work. Tonight's bluebook
+  # ships the contract ; the script that actually walks the
+  # watchlist, runs pgrep, checks log mtimes, and dispatches the
+  # per-sentinel MarkX commands is the next card. The bluebook is
+  # honest about this : the :exec adapter is declared so the wiring
+  # is contract-of-record, and the script lands in a follow-up that
+  # only has to satisfy this contract.
+  #
+  # :exec, not :shell : the parser routes :shell to a legacy
+  # ShellAdapter with different semantics (i629). :exec is the
+  # clean general "run a local program on dispatch" family — the
+  # same pattern proven by inbox.hecksagon.
+  #
+  # cwd contract : exec_dispatcher inherits the runtime process cwd.
+  # The overmind process_macrophage member runs from
+  # hecks_conception/, so bin/process_health_sweep resolves identically
+  # whether the loop or a manual dispatch fired it — same convention
+  # as inbox_poll.
+
+  adapter :memory
+
+  adapter :exec,
+          name:        "process_health_sweep",
+          command:     "ProcessMacrophage.Sweep",
+          exec:        "bin/process_health_sweep",
+          result_into: "Cascade.RecordResult"
+end

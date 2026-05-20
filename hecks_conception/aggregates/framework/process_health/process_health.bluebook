@@ -1,0 +1,333 @@
+Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
+  vision "Process-health immune cell. Watches the process managers (overmind) and individual daemons (heart, breath, voice, restart_prompt, ...) and detects hangs / deaths the moment they happen — rather than letting work continue past silent corpses. Sister to the discipline-layer Macrophage (which watches bluebook drift) ; this is the runtime-layer macrophage (which watches actual process liveness). Conceived 2026-05-20 after a voice-daemon never came up + overmind died silently overnight, and the work kept going forward past both. First concrete shape of i646 (macrophages become Protectors) for runtime processes : Sweep is the Inspect verb ; Heal is the CallForHelp verb ; v1 does not Destroy. Bluebook is the contract ; the runtime cadence loop (a MindstreamMember calling ProcessMacrophage.Sweep every 30s) is the secondary concern."
+  category "framework"
+
+  # ============================================================
+  # PROCESS HEALTH — process-liveness immune cell
+  # ============================================================
+  #
+  # Filed 2026-05-20, card i648. Two aggregates :
+  #
+  #   * ProcessSentinel — one per supervised process. Carries the
+  #     liveness state for THIS process (alive | hanged | dead),
+  #     last_seen_at, the trust-source the state came from
+  #     (heartbeat | pgrep | log_mtime), and a consecutive-miss
+  #     counter so the policy "mark dead after N hangs in a row"
+  #     can fire from pure state.
+  #
+  #   * ProcessMacrophage — the singleton sweeper. Holds the
+  #     watchlist (process names to check), the cadence, and the
+  #     last-sweep timestamp. Sweep is the recurring tick : the
+  #     runtime side (process_health.hecksagon) walks the watchlist,
+  #     gathers signal per process, and dispatches MarkAlive /
+  #     MarkHanged / MarkDead on each ProcessSentinel.
+  #
+  # ── Sentinel materialization ──
+  #
+  # Sentinels are NOT pre-registered. The first time Sweep
+  # dispatches a MarkX command for a process_name, the runtime
+  # upserts the Sentinel by id. This keeps the watchlist (one place,
+  # on the Macrophage) the single source of truth for who's
+  # supervised ; the Sentinel collection is the dynamic state.
+  #
+  # ── Health-signal layers (trust order) ──
+  #
+  # The Sweep runtime checks these in order per process_name :
+  #
+  #   1. Heartbeat event — has the process emitted Heartbeat (or
+  #      its domain equivalent : Heart.Beat, Breath.Inhale, ...)
+  #      within sweep_cadence_seconds * 2 ?  → MarkAlive
+  #      (signal_source: heartbeat)
+  #
+  #   2. Process exists + recent file activity — pgrep -f <name>
+  #      returns a pid AND the process's log file mtime is recent.
+  #      → MarkAlive (signal_source: log_mtime). Alive but no
+  #      heartbeat ; surface as a warning.
+  #
+  #   3. Process exists at all — pgrep alone, no recent activity.
+  #      → MarkHanged (signal_source: pgrep). Possibly stuck.
+  #
+  #   4. Nothing — no pid, no log activity, no heartbeat.
+  #      → MarkDead.
+  #
+  # ── v1 boundary : Sweep computes, Heal proposes ──
+  #
+  # Sweep records health and emits per-sentinel MarkX dispatches.
+  # Heal emits a HealRequested event WITHOUT actually killing or
+  # restarting anything ; the follow-up card wires the actual
+  # `overmind restart <name>` (or relaunch) into a HealRequested
+  # reactor. This keeps tonight's ship small : the immune cell can
+  # SEE everything, but only PROPOSES action — a human or a future
+  # reactor decides what gets phagocytosed.
+
+  aggregate "ProcessSentinel", "One per supervised process. Carries the liveness state, the last-seen timestamp, the trust source the state came from, and a consecutive-miss counter so the mark-dead-after-N-hangs policy can fire from pure state. Auto-materialized by Sweep on first MarkX dispatch — no explicit registration command. The aggregate root identifier is process_name (e.g. 'heart', 'voice', 'restart_prompt')." do
+    identified_by :process_name
+
+    attribute :process_name,         ProcessName
+    attribute :last_seen_at,         Timestamp,    default: "—"
+    attribute :last_heartbeat_at,    Timestamp,    default: "—"
+    attribute :state,                LivenessState, default: "alive"
+    attribute :signal_source,        SignalSource, default: "heartbeat"
+    attribute :consecutive_misses,   MissCount,    default: 0
+
+    # ── Value-objects : the language of process liveness ──
+
+    value_object "ProcessName" do
+      # The supervised process's identifier — matches the
+      # MindstreamMember.name in mindstream.fixtures (heart, breath,
+      # voice, restart_prompt, ...). Used as the Sentinel id so a
+      # process_name uniquely names one Sentinel.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock instant. Used for last_seen_at,
+      # last_heartbeat_at, and the per-event recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "LivenessState" do
+      # One of : alive | hanged | dead. The mark-* commands move
+      # the sentinel between these states ; the consecutive_misses
+      # counter drives the alive -> hanged -> dead transition policy.
+      attribute :value, String
+    end
+
+    value_object "SignalSource" do
+      # Which signal layer convinced Sweep the sentinel is in its
+      # current state. One of : heartbeat | log_mtime | pgrep | none.
+      # Stored on the sentinel root so the macrophage can answer
+      # "why do you think this is alive ?" — the trust trail.
+      attribute :value, String
+    end
+
+    value_object "MissCount" do
+      # Number of consecutive sweeps where the sentinel was marked
+      # hanged. Resets to 0 on MarkAlive ; increments on MarkHanged.
+      # When this crosses the mark-dead threshold the
+      # MarkDeadAfterRepeatedHangs policy fires MarkDead.
+      attribute :value, Integer
+    end
+
+    # ── Commands : the four liveness verbs ──
+
+    command "RecordHeartbeat" do
+      role "System"
+      description "The watched process emitted a heartbeat (Heart.Beat, Breath.Inhale, Inbox.Check, or its domain-equivalent). Stamps last_heartbeat_at and last_seen_at, sets signal_source to 'heartbeat', and (via MarkAliveOnHeartbeat policy) cascades into MarkAlive. Idempotent — multiple heartbeats in a sweep window all stamp the latest."
+      attribute :last_heartbeat_at, Timestamp
+      then_set :last_heartbeat_at, to: :last_heartbeat_at
+      then_set :last_seen_at,      to: :last_heartbeat_at
+      emits "HeartbeatRecorded"
+    end
+
+    command "MarkAlive" do
+      role "System"
+      description "The sweep confirmed this sentinel is alive on this tick. Sets state='alive', records the signal_source (heartbeat | log_mtime), resets consecutive_misses to 0, and stamps last_seen_at. Dispatched by the macrophage runtime when signal layer 1 or 2 fires."
+      attribute :last_seen_at,    Timestamp
+      attribute :signal_source,   SignalSource
+      then_set :state,              to: "alive"
+      then_set :last_seen_at,       to: :last_seen_at
+      then_set :signal_source,      to: :signal_source
+      then_set :consecutive_misses, to: 0
+      emits "MarkedAlive"
+    end
+
+    command "MarkHanged" do
+      role "System"
+      description "The sweep saw a pid but no recent activity. Sets state='hanged', signal_source='pgrep', stamps last_seen_at, and bumps consecutive_misses. Dispatched by the macrophage runtime when signal layer 3 fires. If consecutive_misses crosses the mark-dead threshold, the MarkDeadAfterRepeatedHangs policy then cascades MarkDead."
+      attribute :last_seen_at,        Timestamp
+      attribute :consecutive_misses,  MissCount
+      then_set :state,                to: "hanged"
+      then_set :signal_source,        to: "pgrep"
+      then_set :last_seen_at,         to: :last_seen_at
+      then_set :consecutive_misses,   to: :consecutive_misses
+      emits "MarkedHanged"
+    end
+
+    command "MarkDead" do
+      role "System"
+      description "The sweep saw nothing — no pid, no log activity, no heartbeat. Sets state='dead', signal_source='none', stamps last_seen_at as the observation moment (the moment the absence was confirmed, not the moment the process died — that's unknowable from pgrep). Dispatched by the macrophage runtime when signal layer 4 fires, or by MarkDeadAfterRepeatedHangs when a hanged sentinel exhausts its miss tolerance."
+      attribute :last_seen_at, Timestamp
+      then_set :state,         to: "dead"
+      then_set :signal_source, to: "none"
+      then_set :last_seen_at,  to: :last_seen_at
+      emits "MarkedDead"
+    end
+  end
+
+  # ── ProcessMacrophage — the singleton sweeper ──
+
+  aggregate "ProcessMacrophage", "The singleton sweeper. Holds the watchlist (process names to supervise), the cadence between sweeps, and the last-sweep surface. Sweep is the recurring tick : the runtime walks the watchlist, gathers signal per process, and dispatches MarkAlive / MarkHanged / MarkDead on each ProcessSentinel. Heal proposes recovery without acting — emits HealRequested ; the actual `overmind restart <name>` is a follow-up reactor." do
+    identified_by :name
+
+    attribute :name,                    Name,           default: "process_macrophage"
+    attribute :session_started_at,      Timestamp,      default: "—"
+    attribute :watchlist,               list_of(ProcessName)
+    attribute :last_sweep_at,           Timestamp,      default: "—"
+    attribute :sweep_cadence_seconds,   IntervalSecs,   default: 30
+    attribute :mark_dead_threshold,     MissCount,      default: 3
+
+    # Tally facet — running counts since session start
+    attribute :sweeps_run,              SweepCount,     default: 0
+    attribute :heals_requested,         HealCount,      default: 0
+
+    # ── Value-objects : the language of supervision ──
+
+    value_object "Name" do
+      # Singleton key — there is one ProcessMacrophage per being.
+      # Default "process_macrophage". Under i611 phase 1
+      # (`singleton: true`), this VO disappears.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock instant. Mirrors the same VO on
+      # ProcessSentinel ; duplicated per the per-aggregate VO rule
+      # (CLAUDE.md 2026-05-12 : VO placement is per-aggregate, not
+      # bluebook-top-level).
+      attribute :value, String
+    end
+
+    value_object "ProcessName" do
+      # The supervised process's identifier. Mirrors the same VO on
+      # ProcessSentinel ; the watchlist is a list_of(ProcessName)
+      # and Sweep dispatches one MarkX per entry.
+      attribute :value, String
+    end
+
+    value_object "IntervalSecs" do
+      # The sweep cadence in seconds. Default 30. The daemon reads
+      # this on spawn ; changing it requires a daemon restart, not
+      # a live re-tick. Mirrors Inbox.IntervalSecs pattern so the
+      # cadence is auditable + bluebook-derivable for the Procfile
+      # generator (i262) when that lands.
+      attribute :value, Integer
+    end
+
+    value_object "MissCount" do
+      # Two uses : on ProcessSentinel, the per-sentinel consecutive
+      # miss counter ; here on ProcessMacrophage, the threshold at
+      # which the MarkDeadAfterRepeatedHangs policy promotes a
+      # hanged sentinel to dead. Default 3 — three consecutive
+      # missed sweeps before declaring the process dead.
+      attribute :value, Integer
+    end
+
+    value_object "SweepCount" do
+      # Tally of Sweep commands fired since session start. Resets
+      # on StartSession.
+      attribute :value, Integer
+    end
+
+    value_object "HealCount" do
+      # Tally of Heal commands fired since session start. Resets
+      # on StartSession.
+      attribute :value, Integer
+    end
+
+    value_object "HealReason" do
+      # Free-form text saying why a heal was requested
+      # (e.g. "voice marked dead after 3 hangs"). Stored on the
+      # HealRequested event so the eventual reactor can decide
+      # whether to restart, alert, or noop.
+      attribute :value, String
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session tallies at session boot. The watchlist + sweep_cadence_seconds + mark_dead_threshold persist across sessions ; sweeps_run + heals_requested reset. Consistent with the discipline-layer Macrophage : tallies are per-session, configuration persists."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      then_set :sweeps_run,         to: 0
+      then_set :heals_requested,    to: 0
+      emits "SessionStarted"
+    end
+
+    # ── Configuration commands ──
+
+    command "Watch" do
+      role "System"
+      description "Add a process_name to the watchlist. Idempotent — adding a name already on the list is a no-op (the runtime de-dupes). The watchlist is the single source of truth for who is supervised ; ProcessSentinel records are dynamic state derived from sweeping the watchlist."
+      attribute :process_name, ProcessName
+      emits "ProcessWatched"
+    end
+
+    command "Unwatch" do
+      role "System"
+      description "Remove a process_name from the watchlist. Sentinels already recorded against that name are not deleted (audit trail) ; they simply stop receiving MarkX commands on future sweeps."
+      attribute :process_name, ProcessName
+      emits "ProcessUnwatched"
+    end
+
+    # ── The sweep ──
+
+    command "Sweep" do
+      role "System"
+      description "One sweep tick. The runtime (process_health.hecksagon binds this to bin/process_health_sweep via the :exec adapter) walks the watchlist ; for each ProcessName it gathers the four signal layers (heartbeat / log_mtime / pgrep / none) and dispatches MarkAlive | MarkHanged | MarkDead on the matching ProcessSentinel. Sweep itself only records the tick happened — the per-sentinel fan-out is the runtime's job (mirrors Inbox.Check which records the poll without expressing per-message fan-out). The cadence dispatcher is a MindstreamMember calling Sweep --every 30s."
+      attribute :last_sweep_at, Timestamp
+      then_set :last_sweep_at, to: :last_sweep_at
+      emits "Swept"
+    end
+
+    # ── The heal verb ──
+
+    command "Heal" do
+      role "System"
+      description "Request recovery for an unhealthy sentinel. v1 ships PROPOSAL-only : Heal emits HealRequested carrying the process_name + the reason, but does NOT itself kill or restart anything. A follow-up reactor (not in tonight's scope) listens for HealRequested and runs `overmind restart <process_name>` (or its relaunch equivalent). This keeps the immune cell honest : it can see and propose, but every phagocytosis act is its own auditable command on its own card. heals_requested is passed in by the caller (mirrors RestartPrompt.Compose pattern — runtime reads state and increments externally, the bluebook stays arithmetic-free)."
+      attribute :process_name,    ProcessName
+      attribute :reason,          HealReason
+      attribute :requested_at,    Timestamp
+      attribute :heals_requested, HealCount
+      then_set :heals_requested, to: :heals_requested
+      emits "HealRequested"
+    end
+  end
+
+  # ── Policies ──
+  #
+  # Cross-aggregate policies are fine inside a single bluebook —
+  # the i491 constraint (triggers resolve within the same bluebook)
+  # is satisfied because all three policies stay in
+  # process_health.bluebook.
+
+  policy "MarkAliveOnHeartbeat" do
+    # A heartbeat IS a liveness signal — when a sentinel records
+    # one, mark it alive. Keeps the alive-because-of-heartbeat
+    # path declarative rather than baked into the RecordHeartbeat
+    # command's then_set chain (RecordHeartbeat stamps timestamps ;
+    # this policy promotes the sentinel state).
+    on "HeartbeatRecorded"
+    trigger "MarkAlive"
+  end
+
+  policy "MarkHangedOnMissingHeartbeat" do
+    # A signal-layer-3 sweep (pgrep returns a pid but no recent
+    # activity) is the macrophage's "I see the body but it isn't
+    # moving" call. The runtime side of Sweep is responsible for
+    # detecting the absence and emitting MarkHanged ; this policy
+    # placeholder documents the contract — the same Sweep event
+    # is consumed by the runtime fan-out.
+    on "Swept"
+    trigger "MarkHanged"
+  end
+
+  policy "MarkDeadAfterRepeatedHangs" do
+    # When a sentinel's consecutive_misses crosses
+    # ProcessMacrophage.mark_dead_threshold, promote it from hanged
+    # to dead. Wired off MarkedHanged so the policy reacts in the
+    # same tick the threshold is crossed — no waiting for the
+    # next sweep.
+    on "MarkedHanged"
+    trigger "MarkDead"
+  end
+
+  policy "ProposeHealOnDeath" do
+    # When a sentinel transitions to dead, dispatch Heal so the
+    # immune cell records the proposal. Heal in v1 only emits
+    # HealRequested — actual recovery is a follow-up reactor.
+    on "MarkedDead"
+    trigger "Heal"
+  end
+end
