@@ -1,5 +1,5 @@
-Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
-  vision "Process-health immune cell. Watches the process managers (overmind) and individual daemons (heart, breath, voice, restart_prompt, ...) and detects hangs / deaths the moment they happen — rather than letting work continue past silent corpses. Sister to the discipline-layer Macrophage (which watches bluebook drift) ; this is the runtime-layer macrophage (which watches actual process liveness). Conceived 2026-05-20 after a voice-daemon never came up + overmind died silently overnight, and the work kept going forward past both. First concrete shape of i646 (macrophages become Protectors) for runtime processes : Sweep is the Inspect verb ; Heal is the CallForHelp verb ; v1 does not Destroy. Bluebook is the contract ; the runtime cadence loop (a MindstreamMember calling ProcessMacrophage.Sweep every 30s) is the secondary concern."
+Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
+  vision "Process-health immune cell. Watches the process managers (overmind) and individual daemons (heart, breath, voice, restart_prompt, ...) and detects hangs / deaths the moment they happen — rather than letting work continue past silent corpses. Sister to the discipline-layer Macrophage (which watches bluebook drift) ; this is the runtime-layer macrophage (which watches actual process liveness). Conceived 2026-05-20 after a voice-daemon never came up + overmind died silently overnight, and the work kept going forward past both. First concrete shape of i646 (macrophages become Protectors) for runtime processes : Sweep is the Inspect verb ; Heal is the CallForHelp verb. v2 (2026-05-20) gives Heal teeth — the :exec adapter binds Heal to `node bin/process_health_heal.mjs` which actually runs `overmind restart <process_name>` (or `overmind start -D` when the supervisor itself is dead) and dispatches MarkAlive back on the sentinel so the policy loop doesn't re-fire. Bluebook is the contract ; the runtime cadence loop (a MindstreamMember calling ProcessMacrophage.Sweep every 30s) is the secondary concern."
   category "framework"
 
   # ============================================================
@@ -50,15 +50,29 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
   #   4. Nothing — no pid, no log activity, no heartbeat.
   #      → MarkDead.
   #
-  # ── v1 boundary : Sweep computes, Heal proposes ──
+  # ── v2 (2026-05-20) : Heal has teeth ──
   #
   # Sweep records health and emits per-sentinel MarkX dispatches.
-  # Heal emits a HealRequested event WITHOUT actually killing or
-  # restarting anything ; the follow-up card wires the actual
-  # `overmind restart <name>` (or relaunch) into a HealRequested
-  # reactor. This keeps tonight's ship small : the immune cell can
-  # SEE everything, but only PROPOSES action — a human or a future
-  # reactor decides what gets phagocytosed.
+  # Heal stamps last_heal_attempted_at + heals_requested and emits
+  # HealRequested ; the :exec adapter (process_health.hecksagon)
+  # binds the dispatch to `node bin/process_health_heal.mjs`,
+  # which :
+  #
+  #   1. resolves the `overmind` binary (loud failure if missing) ;
+  #   2. detects whether overmind itself is alive (the .overmind.sock
+  #      file plus `overmind ps`). If dead → `overmind start -D` from
+  #      hecks_conception/ — the whole supervisor comes back ;
+  #   3. otherwise reads process_sentinel.heki for state=dead
+  #      records and runs `overmind restart <process_name>` per
+  #      sentinel ;
+  #   4. on a successful restart dispatches MarkAlive on the
+  #      sentinel so the ProposeHealOnDeath policy doesn't re-fire
+  #      Heal in a tight loop on the next sweep.
+  #
+  # The bluebook stays pure : Heal records its dispatch + emits the
+  # event. The :exec adapter is the impure layer that acts. The
+  # script's actions are visible in stdout (Cascade.RecordResult
+  # carries the output back to the bus).
 
   aggregate "ProcessSentinel", "One per supervised process. Carries the liveness state, the last-seen timestamp, the trust source the state came from, and a consecutive-miss counter so the mark-dead-after-N-hangs policy can fire from pure state. Auto-materialized by Sweep on first MarkX dispatch — no explicit registration command. The aggregate root identifier is process_name (e.g. 'heart', 'voice', 'restart_prompt')." do
     identified_by :process_name
@@ -157,7 +171,7 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
 
   # ── ProcessMacrophage — the singleton sweeper ──
 
-  aggregate "ProcessMacrophage", "The singleton sweeper. Holds the watchlist (process names to supervise), the cadence between sweeps, and the last-sweep surface. Sweep is the recurring tick : the runtime walks the watchlist, gathers signal per process, and dispatches MarkAlive / MarkHanged / MarkDead on each ProcessSentinel. Heal proposes recovery without acting — emits HealRequested ; the actual `overmind restart <name>` is a follow-up reactor." do
+  aggregate "ProcessMacrophage", "The singleton sweeper. Holds the watchlist (process names to supervise), the cadence between sweeps, and the last-sweep surface. Sweep is the recurring tick : the runtime walks the watchlist, gathers signal per process, and dispatches MarkAlive / MarkHanged / MarkDead on each ProcessSentinel. Heal acts on recovery : the bluebook records the dispatch (heals_requested, last_heal_attempted_at) and emits HealRequested ; the :exec adapter binding (process_health.hecksagon) runs bin/process_health_heal.mjs which actually invokes `overmind restart <process_name>` (or `overmind start -D` when the supervisor itself is dead) and dispatches MarkAlive so the policy loop closes cleanly." do
     identified_by :name
 
     attribute :name,                    Name,           default: "process_macrophage"
@@ -170,6 +184,13 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
     # Tally facet — running counts since session start
     attribute :sweeps_run,              SweepCount,     default: 0
     attribute :heals_requested,         HealCount,      default: 0
+
+    # v2 (2026-05-20) — Heal-acts surface. last_heal_attempted_at is
+    # stamped by Heal itself the moment the dispatch lands ; the
+    # :exec adapter result (overmind restart's stdout/exit) is
+    # cascaded into Cascade.RecordResult, not onto the macrophage —
+    # the macrophage holds the request, the cascade holds the outcome.
+    attribute :last_heal_attempted_at,  Timestamp,      default: "—"
 
     # ── Value-objects : the language of supervision ──
 
@@ -275,12 +296,14 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
 
     command "Heal" do
       role "System"
-      description "Request recovery for an unhealthy sentinel. v1 ships PROPOSAL-only : Heal emits HealRequested carrying the process_name + the reason, but does NOT itself kill or restart anything. A follow-up reactor (not in tonight's scope) listens for HealRequested and runs `overmind restart <process_name>` (or its relaunch equivalent). This keeps the immune cell honest : it can see and propose, but every phagocytosis act is its own auditable command on its own card. heals_requested is passed in by the caller (mirrors RestartPrompt.Compose pattern — runtime reads state and increments externally, the bluebook stays arithmetic-free)."
-      attribute :process_name,    ProcessName
-      attribute :reason,          HealReason
-      attribute :requested_at,    Timestamp
-      attribute :heals_requested, HealCount
-      then_set :heals_requested, to: :heals_requested
+      description "Request recovery for an unhealthy sentinel and act on it. The bluebook layer records the dispatch — heals_requested is bumped (caller passes the next count, mirrors RestartPrompt.Compose pattern), last_heal_attempted_at is stamped, HealRequested is emitted. The :exec adapter (process_health.hecksagon) catches the dispatch and runs bin/process_health_heal, which : (1) verifies overmind is alive (else `overmind start -D` from hecks_conception/) ; (2) walks process_sentinel.heki for state=dead records ; (3) runs `overmind restart <process_name>` per dead sentinel ; (4) dispatches MarkAlive on each restarted sentinel so the ProposeHealOnDeath policy doesn't re-fire on the next sweep. heals_requested is passed in by the caller — runtime reads state and increments externally, the bluebook stays arithmetic-free."
+      attribute :process_name,           ProcessName
+      attribute :reason,                 HealReason
+      attribute :requested_at,           Timestamp
+      attribute :heals_requested,        HealCount
+      attribute :last_heal_attempted_at, Timestamp
+      then_set :heals_requested,        to: :heals_requested
+      then_set :last_heal_attempted_at, to: :last_heal_attempted_at
       emits "HealRequested"
     end
   end
@@ -325,8 +348,13 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.1" do
 
   policy "ProposeHealOnDeath" do
     # When a sentinel transitions to dead, dispatch Heal so the
-    # immune cell records the proposal. Heal in v1 only emits
-    # HealRequested — actual recovery is a follow-up reactor.
+    # immune cell records the proposal AND the :exec adapter
+    # (process_health.hecksagon) fires bin/process_health_heal.mjs
+    # to actually run `overmind restart <process_name>`. The script
+    # dispatches MarkAlive on the sentinel after a successful
+    # restart, which closes the policy loop — a sentinel that
+    # restarts cleanly is alive again and ProposeHealOnDeath won't
+    # re-fire on the next sweep.
     on "MarkedDead"
     trigger "Heal"
   end

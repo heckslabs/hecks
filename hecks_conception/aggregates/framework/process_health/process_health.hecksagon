@@ -1,31 +1,28 @@
 Hecks.hecksagon "ProcessHealth" do
-  # ProcessHealth adapter binding : ProcessMacrophage.Sweep dispatch
-  # → the real per-process health signal walk.
+  # ProcessHealth adapter bindings :
   #
-  # The ProcessHealth bluebook (sibling process_health.bluebook) locks
-  # Sweep to a four-layer signal check : heartbeat event freshness,
-  # process exists + recent file activity, process exists alone, or
-  # nothing — the runtime decides which MarkX to dispatch per
-  # ProcessName in the watchlist. Pure composition — the bluebook
-  # names the contract.
+  #   * ProcessMacrophage.Sweep → bin/process_health_sweep
+  #       The recurring tick (heartbeat-scheduler / overmind loop) that
+  #       walks the watchlist and dispatches per-sentinel MarkAlive /
+  #       MarkHanged / MarkDead. Bluebook ships the contract ; script
+  #       is follow-up work (bin/process_health_sweep doesn't exist yet).
   #
-  # This file is the impure layer. The :exec adapter (family
-  # framework/adapter_families/exec.hecksagon, behavior perform_exec,
-  # kernel arm runtime/exec_dispatcher.rs + resolve_exec_adapters)
-  # binds ProcessMacrophage.Sweep to bin/process_health_sweep. When
-  # the heartbeat-scheduler tick (or the overmind process_macrophage
-  # loop) dispatches ProcessHealth::ProcessMacrophage.Sweep every 30s
-  # — OR Miette dispatches it on demand via the storehouse universal
-  # door — the kernel runs bin/process_health_sweep and cascades its
-  # outcome into Cascade.RecordResult, joinable by id.
+  #   * ProcessMacrophage.Heal → bin/process_health_heal      (v2, 2026-05-20)
+  #       The teeth. The bluebook layer (Heal command) records the
+  #       dispatch and emits HealRequested. The :exec arm runs
+  #       bin/process_health_heal which : detects whether overmind is
+  #       alive (else `overmind start -D` from hecks_conception/),
+  #       reads process_sentinel.heki for state=dead records, runs
+  #       `overmind restart <process_name>` per dead sentinel, and
+  #       dispatches MarkAlive on each restarted sentinel so the
+  #       ProposeHealOnDeath policy doesn't re-fire on the next sweep.
   #
-  # bin/process_health_sweep is FOLLOW-UP work. Tonight's bluebook
-  # ships the contract ; the script that actually walks the
-  # watchlist, runs pgrep, checks log mtimes, and dispatches the
-  # per-sentinel MarkX commands is the next card. The bluebook is
-  # honest about this : the :exec adapter is declared so the wiring
-  # is contract-of-record, and the script lands in a follow-up that
-  # only has to satisfy this contract.
+  # The :exec adapter family (framework/adapter_families/exec.hecksagon,
+  # behavior perform_exec, kernel arm runtime/exec_dispatcher.rs +
+  # resolve_exec_adapters) binds one aggregate.command to one local
+  # executable, runs it to completion, captures stdout/stderr/exit,
+  # and cascades the outcome into result_into. Pure composition meets
+  # pure execution at the bus boundary.
   #
   # :exec, not :shell : the parser routes :shell to a legacy
   # ShellAdapter with different semantics (i629). :exec is the
@@ -34,9 +31,9 @@ Hecks.hecksagon "ProcessHealth" do
   #
   # cwd contract : exec_dispatcher inherits the runtime process cwd.
   # The overmind process_macrophage member runs from
-  # hecks_conception/, so bin/process_health_sweep resolves identically
-  # whether the loop or a manual dispatch fired it — same convention
-  # as inbox_poll.
+  # hecks_conception/, so bin/process_health_sweep + bin/process_health_heal
+  # resolve identically whether the loop or a manual dispatch fired
+  # them — same convention as inbox_poll.
 
   adapter :memory
 
@@ -44,5 +41,16 @@ Hecks.hecksagon "ProcessHealth" do
           name:        "process_health_sweep",
           command:     "ProcessMacrophage.Sweep",
           exec:        "bin/process_health_sweep",
+          result_into: "Cascade.RecordResult"
+
+  # v2 — Heal-has-teeth (2026-05-20). When ProcessMacrophage.Heal
+  # dispatches, the kernel runs bin/process_health_heal.mjs (via
+  # node, mirroring inbox_poll.mjs) which does the actual
+  # `overmind restart <name>` work and cascades its outcome
+  # (ok, exit_code, stdout) into Cascade.RecordResult.
+  adapter :exec,
+          name:        "process_health_heal",
+          command:     "ProcessMacrophage.Heal",
+          exec:        "node bin/process_health_heal.mjs",
           result_into: "Cascade.RecordResult"
 end

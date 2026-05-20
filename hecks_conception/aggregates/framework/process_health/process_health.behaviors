@@ -154,11 +154,12 @@ Hecks.behaviors "ProcessHealth" do
     tests "Heal", on: "ProcessMacrophage"
     setup  "StartSession", name: { value: "process_macrophage" },
                            session_started_at: { value: "2026-05-20T00:00:00Z" }
-    input  name:             { value: "process_macrophage" },
-           process_name:     { value: "voice" },
-           reason:           { value: "voice marked dead after 3 hangs" },
-           requested_at:     { value: "2026-05-20T00:03:00Z" },
-           heals_requested:  { value: 1 }
+    input  name:                    { value: "process_macrophage" },
+           process_name:            { value: "voice" },
+           reason:                  { value: "voice marked dead after 3 hangs" },
+           requested_at:            { value: "2026-05-20T00:03:00Z" },
+           heals_requested:         { value: 1 },
+           last_heal_attempted_at:  { value: "2026-05-20T00:03:00Z" }
     expect heals_requested: { value: 1 }
   end
 
@@ -166,11 +167,33 @@ Hecks.behaviors "ProcessHealth" do
     tests "Heal", on: "ProcessMacrophage"
     setup  "StartSession", name: { value: "process_macrophage" },
                            session_started_at: { value: "2026-05-20T00:00:00Z" }
-    input  name:             { value: "process_macrophage" },
-           process_name:     { value: "voice" },
-           reason:           { value: "voice marked dead after 3 hangs" },
-           requested_at:     { value: "2026-05-20T00:03:00Z" },
-           heals_requested:  { value: 1 }
+    input  name:                    { value: "process_macrophage" },
+           process_name:            { value: "voice" },
+           reason:                  { value: "voice marked dead after 3 hangs" },
+           requested_at:            { value: "2026-05-20T00:03:00Z" },
+           heals_requested:         { value: 1 },
+           last_heal_attempted_at:  { value: "2026-05-20T00:03:00Z" }
     expect emits: ["HealRequested"]
+  end
+
+  # v2 (2026-05-20) — Heal-has-teeth coverage. The :exec adapter is
+  # not exercised here (hecksagon-level wiring, not bluebook surface) ;
+  # this test covers the bluebook side of v2 : the stamp of
+  # last_heal_attempted_at the moment the dispatch lands. The
+  # bin/process_health_heal script's behavior (overmind detect /
+  # restart / MarkAlive) is a runtime concern, surfaced via the
+  # exec_dispatcher's stdout cascade rather than .behaviors.
+
+  test "Heal stamps last_heal_attempted_at" do
+    tests "Heal", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:                    { value: "process_macrophage" },
+           process_name:            { value: "voice" },
+           reason:                  { value: "voice marked dead after 3 hangs" },
+           requested_at:            { value: "2026-05-20T00:03:00Z" },
+           heals_requested:         { value: 1 },
+           last_heal_attempted_at:  { value: "2026-05-20T00:03:00Z" }
+    expect last_heal_attempted_at: { value: "2026-05-20T00:03:00Z" }
   end
 end
