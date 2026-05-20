@@ -10,7 +10,9 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "smoke": "node test/cli_smoke.mjs"
+    "smoke": "node test/cli_smoke.mjs",
+    "render-test": "node test/dispatch_render_test.mjs",
+    "render-samples": "node test/dispatch_render_samples.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
