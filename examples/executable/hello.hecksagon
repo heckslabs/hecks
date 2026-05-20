@@ -1,0 +1,18 @@
+Hecks.hecksagon "Hello" do
+  # ============================================================
+  # HELLO — hexagonal wiring for the executable-bluebook example
+  # ============================================================
+  #
+  # The sibling bluebook declares one aggregate (Hello) with one
+  # entrypoint command (Greet). One outbound port :
+  #
+  #   Greet → :stdout
+  #
+  # That's the only adapter this example needs. No :fs, no
+  # :memory, no :shell. The point of hello.bluebook is to prove
+  # the executable + dispatch path ; persistence + side effects
+  # belong in larger examples.
+
+  adapter :memory
+  adapter :stdout
+end
