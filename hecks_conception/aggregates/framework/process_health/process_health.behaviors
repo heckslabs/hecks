@@ -1,0 +1,176 @@
+Hecks.behaviors "ProcessHealth" do
+  vision "Behavioral tests for the ProcessHealth domain — covers ProcessSentinel's four liveness verbs (RecordHeartbeat, MarkAlive, MarkHanged, MarkDead) and ProcessMacrophage's lifecycle / configuration / sweep / heal surface. Each test exercises one command's state contract : input attributes recorded onto the aggregate, lifecycle counters updated, the right event emitted. Modeled on the IdentityDiscipline pattern in macrophage.behaviors — setup with StartSession when state matters, assert against emits + state."
+
+  # ── ProcessSentinel.RecordHeartbeat ────────────────────────────
+
+  test "RecordHeartbeat stamps last_heartbeat_at" do
+    tests "RecordHeartbeat", on: "ProcessSentinel"
+    input  process_name:      { value: "heart" },
+           last_heartbeat_at: { value: "2026-05-20T00:00:01Z" }
+    expect last_heartbeat_at: { value: "2026-05-20T00:00:01Z" }
+  end
+
+  test "RecordHeartbeat emits HeartbeatRecorded" do
+    tests "RecordHeartbeat", on: "ProcessSentinel"
+    input  process_name:      { value: "heart" },
+           last_heartbeat_at: { value: "2026-05-20T00:00:01Z" }
+    expect emits: ["HeartbeatRecorded"]
+  end
+
+  # ── ProcessSentinel.MarkAlive ──────────────────────────────────
+
+  test "MarkAlive sets state to alive" do
+    tests "MarkAlive", on: "ProcessSentinel"
+    input  process_name:  { value: "voice" },
+           last_seen_at:  { value: "2026-05-20T00:00:30Z" },
+           signal_source: { value: "heartbeat" }
+    expect state: "alive"
+  end
+
+  test "MarkAlive records the signal_source" do
+    tests "MarkAlive", on: "ProcessSentinel"
+    input  process_name:  { value: "voice" },
+           last_seen_at:  { value: "2026-05-20T00:00:30Z" },
+           signal_source: { value: "log_mtime" }
+    expect signal_source: { value: "log_mtime" }
+  end
+
+  test "MarkAlive emits MarkedAlive" do
+    tests "MarkAlive", on: "ProcessSentinel"
+    input  process_name:  { value: "voice" },
+           last_seen_at:  { value: "2026-05-20T00:00:30Z" },
+           signal_source: { value: "heartbeat" }
+    expect emits: ["MarkedAlive"]
+  end
+
+  # ── ProcessSentinel.MarkHanged ─────────────────────────────────
+
+  test "MarkHanged sets state to hanged" do
+    tests "MarkHanged", on: "ProcessSentinel"
+    input  process_name:       { value: "voice" },
+           last_seen_at:       { value: "2026-05-20T00:01:00Z" },
+           consecutive_misses: { value: 1 }
+    expect state: "hanged"
+  end
+
+  test "MarkHanged records consecutive_misses" do
+    tests "MarkHanged", on: "ProcessSentinel"
+    input  process_name:       { value: "voice" },
+           last_seen_at:       { value: "2026-05-20T00:01:00Z" },
+           consecutive_misses: { value: 2 }
+    expect consecutive_misses: { value: 2 }
+  end
+
+  test "MarkHanged emits MarkedHanged" do
+    tests "MarkHanged", on: "ProcessSentinel"
+    input  process_name:       { value: "voice" },
+           last_seen_at:       { value: "2026-05-20T00:01:00Z" },
+           consecutive_misses: { value: 1 }
+    expect emits: ["MarkedHanged"]
+  end
+
+  # ── ProcessSentinel.MarkDead ───────────────────────────────────
+
+  test "MarkDead sets state to dead" do
+    tests "MarkDead", on: "ProcessSentinel"
+    input  process_name: { value: "voice" },
+           last_seen_at: { value: "2026-05-20T00:02:00Z" }
+    expect state: "dead"
+  end
+
+  test "MarkDead sets signal_source to none" do
+    tests "MarkDead", on: "ProcessSentinel"
+    input  process_name: { value: "voice" },
+           last_seen_at: { value: "2026-05-20T00:02:00Z" }
+    expect signal_source: "none"
+  end
+
+  test "MarkDead emits MarkedDead" do
+    tests "MarkDead", on: "ProcessSentinel"
+    input  process_name: { value: "voice" },
+           last_seen_at: { value: "2026-05-20T00:02:00Z" }
+    expect emits: ["MarkedDead"]
+  end
+
+  # ── ProcessMacrophage.StartSession ─────────────────────────────
+
+  test "ProcessMacrophage StartSession records session_started_at" do
+    tests "StartSession", on: "ProcessMacrophage"
+    input  name:               { value: "process_macrophage" },
+           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    expect session_started_at: { value: "2026-05-20T00:00:00Z" }
+  end
+
+  test "ProcessMacrophage StartSession emits SessionStarted" do
+    tests "StartSession", on: "ProcessMacrophage"
+    input  name:               { value: "process_macrophage" },
+           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  # ── ProcessMacrophage.Watch / Unwatch ──────────────────────────
+
+  test "Watch emits ProcessWatched" do
+    tests "Watch", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:         { value: "process_macrophage" },
+           process_name: { value: "voice" }
+    expect emits: ["ProcessWatched"]
+  end
+
+  test "Unwatch emits ProcessUnwatched" do
+    tests "Unwatch", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:         { value: "process_macrophage" },
+           process_name: { value: "voice" }
+    expect emits: ["ProcessUnwatched"]
+  end
+
+  # ── ProcessMacrophage.Sweep ────────────────────────────────────
+
+  test "Sweep records last_sweep_at" do
+    tests "Sweep", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:          { value: "process_macrophage" },
+           last_sweep_at: { value: "2026-05-20T00:00:30Z" }
+    expect last_sweep_at: { value: "2026-05-20T00:00:30Z" }
+  end
+
+  test "Sweep emits Swept" do
+    tests "Sweep", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:          { value: "process_macrophage" },
+           last_sweep_at: { value: "2026-05-20T00:00:30Z" }
+    expect emits: ["Swept"]
+  end
+
+  # ── ProcessMacrophage.Heal ─────────────────────────────────────
+
+  test "Heal records heals_requested" do
+    tests "Heal", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:             { value: "process_macrophage" },
+           process_name:     { value: "voice" },
+           reason:           { value: "voice marked dead after 3 hangs" },
+           requested_at:     { value: "2026-05-20T00:03:00Z" },
+           heals_requested:  { value: 1 }
+    expect heals_requested: { value: 1 }
+  end
+
+  test "Heal emits HealRequested" do
+    tests "Heal", on: "ProcessMacrophage"
+    setup  "StartSession", name: { value: "process_macrophage" },
+                           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    input  name:             { value: "process_macrophage" },
+           process_name:     { value: "voice" },
+           reason:           { value: "voice marked dead after 3 hangs" },
+           requested_at:     { value: "2026-05-20T00:03:00Z" },
+           heals_requested:  { value: 1 }
+    expect emits: ["HealRequested"]
+  end
+end

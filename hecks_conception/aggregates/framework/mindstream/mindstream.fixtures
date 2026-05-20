@@ -87,6 +87,23 @@ Hecks.fixtures "Mindstream" do
             command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/mietteai MietteMind::Reconciler.Reconcile --every 5s" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
 
+    # ── ProcessMacrophage sweeper (2026-05-20, i648) ──
+    #
+    # The runtime-layer immune cell. Every 30s, dispatches
+    # ProcessHealth::ProcessMacrophage.Sweep. The :exec adapter
+    # (process_health.hecksagon) binds Sweep to bin/process_health_sweep
+    # which walks the watchlist and dispatches MarkX per sentinel.
+    # The dispatch IS the inspection ; the macrophage records what
+    # it found ; HealRequested fires for unhealthy sentinels (no
+    # auto-restart in v1 — proposal only). Sibling of the inbox
+    # member ; same pattern (overmind-supervised, auto-restart,
+    # storehouse loop dispatching at a cadence).
+    fixture "process_macrophage",
+            name:       "process_macrophage",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop aggregates ProcessHealth::ProcessMacrophage.Sweep --every 30s" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
     # ── RestartPrompt daemon (2026-05-19) ──
     #
     # Bus-event-driven — not periodic. Subscribes via `storehouse follow`
