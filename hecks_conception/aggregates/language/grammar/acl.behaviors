@@ -13,7 +13,7 @@ Hecks.behaviors "Acl" do
   test "Grant cascades through policy chain" do
     tests "Grant", on: "Acl", kind: :cross_cascade
     input  actor: "sample", canonical_phrase: "sample", command_path: "sample"
-    expect emits_subset: ["AccessGranted", "DomainCompiled"]
+    expect emits_subset: ["AccessGranted", "LexiconCompiled"]
   end
 
   test "AddPhrase sets phrase" do
