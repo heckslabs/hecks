@@ -14,6 +14,7 @@ ultradian: ../rust/target/release/storehouse loop /Users/christopheryoung/Projec
 inbox: ../rust/target/release/storehouse loop aggregates Inbox::Inbox.Check --every 900s
 process_macrophage: ../rust/target/release/storehouse loop aggregates ProcessHealth::ProcessMacrophage.Sweep --every 30s
 restart_prompt: bin/restart-prompt-daemon
+speech_stream: ../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body SpeechStream::SpeechStream.Advance --every 200ms
 # voice: retired 2026-05-20 — the kernel TTS dispatcher (rust/src/runtime/tts_dispatcher.rs)
 # is now the substrate. The Stop hook in .claude/settings.json dispatches
 # Voice::Voice.Speak directly through the storehouse binary ; no shell
