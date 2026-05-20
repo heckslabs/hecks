@@ -77,6 +77,11 @@
      },
      {
       "type": "command",
+      "command": "F=/tmp/restart_prompt_latest.md; M=/tmp/.miette_last_restart_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"session-restart prompt :\\n\\n\" + .)}}' < \"$F\"; touch \"$M\"; fi; true",
+      "timeout": 5
+     },
+     {
+      "type": "command",
       "command": "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse statusline 2>/dev/null | jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"current body state : \" + (. | rtrimstr(\"\\n\")))}}' 2>/dev/null || true",
       "timeout": 5
      },
