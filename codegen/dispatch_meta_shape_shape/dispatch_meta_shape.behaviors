@@ -1,0 +1,11 @@
+Hecks.behaviors "DispatchMetaShape" do
+  vision "Shape-layer happy-path for the resolver-loop meta-shape — confirms the EmitResolver tuple plumbs through. The actual generated resolver bodies are deferred per the i651 inbox card ; the snippets/ directory ships empty, the fixtures hold the canonical five families (llm, claude_tool, mcp, exec, tts), and this smoke just proves the bluebook-layer contract carries the (family_name, output_rs) tuple faithfully end-to-end."
+
+  test "EmitResolver accepts the (family_name, output_rs) tuple for a fire-and-forget family" do
+    tests "EmitResolver", on: "DispatchMetaShape"
+    input  family_name: "tts",
+           output_rs: "rust/src/runtime/resolve_tts_adapters.rs"
+    expect family_name: "tts",
+           output_rs: "rust/src/runtime/resolve_tts_adapters.rs"
+  end
+end

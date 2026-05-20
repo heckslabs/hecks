@@ -1,0 +1,261 @@
+Hecks.bluebook "DispatchMetaShape", version: "2026.05.20.1" do
+  vision "Shape of the resolver-loop glue that today is duplicated across rust/src/runtime/resolve_*_adapters in mod.rs (one copy per dispatcher family : llm, claude_tool, mcp, exec, tts, soon web_tool / sms / compute). The five dispatcher modules (tts_dispatcher, llm_dispatcher, claude_tool_dispatcher, mcp_dispatcher, exec_dispatcher) each pair with a hand-rolled resolver in mod.rs that walks hecksagons, matches by trigger target, builds attrs, fires the dispatcher, and threads the response back through dispatch_cascade. The meta-shape captures that loop ; the dispatcher bodies (ElevenLabs HTTP, MCP stdio, shell spawn) stay as family-specific work. When fully landed, the resolver-loop copies retire and the framework_registry table replaces seed_kernel_hooks's hand-registered entries — i557 part 2 in shape form. Sibling Futamura target to diagnostic_validator_meta_shape (Ruby specializers) and hecksagon_parser_shape (Rust parsers)."
+  category "autophagy"
+
+  # ============================================================
+  # DISPATCH META SHAPE — i651 design
+  # ============================================================
+  #
+  # The Rust runtime today has FIVE hand-written resolver loops :
+  #
+  #   rust/src/runtime/mod.rs
+  #     resolve_llm_adapters         → llm_dispatcher::call
+  #     resolve_claude_tool_adapters → claude_tool_dispatcher::dispatch
+  #     resolve_mcp_adapters         → mcp_dispatcher::dispatch
+  #     resolve_exec_adapters        → exec_dispatcher::dispatch
+  #     resolve_tts_adapters         → tts_dispatcher::dispatch
+  #
+  # Plus pending : resolve_web_tool_adapters (i569), sms (stub), and a
+  # rework of resolve_compute_adapters along the same lines. Each
+  # resolver carries 60-180 LoC of near-identical glue that follows
+  # the same seven-step shape :
+  #
+  #   1. Guard empty hecksagons / read debug env var
+  #   2. Build `target` = "<aggregate>.<bare_command>"
+  #   3. Collect matching adapters (from one of two adapter sources)
+  #   4. Snapshot upstream aggregate state into a String map
+  #   5. Overlay dispatch attrs (and optionally cross-aggregate state)
+  #   6. Fold the adapter instance's declared fields into the attrs
+  #   7. Call the dispatcher ; wire the response via cascade or fire-
+  #      and-forget per the family's response_field
+  #
+  # The shape carries that pattern as one row per DispatcherFamily
+  # plus N rows per DispatcherFieldMap (adapter-field → attrs key)
+  # plus N rows per CascadePayloadField (dispatcher-result-field →
+  # cascade attr).
+  #
+  # ── Relationship to framework_registry.rs ──
+  #
+  # framework_registry.rs already abstracts the kernel-hook envelope
+  # (AdapterFamily, BehaviorKind, KernelHook signature, KernelResult).
+  # What it does NOT abstract is the RESOLVER (which adapters to walk,
+  # how to match the trigger, how to build attrs, how to cascade the
+  # response). That's what this meta-shape adds : the resolver-loop
+  # pattern that wraps every KernelHook invocation.
+  #
+  # When this meta-shape lands + a specializer generates the resolver
+  # loops + framework_registry seeds itself from the same fixtures,
+  # the dispatcher path becomes :
+  #
+  #   runtime.dispatch(cmd, attrs)
+  #     → command_dispatch (pure domain)
+  #     → generic_resolver_loop(framework_registry, cmd_result)
+  #         (one loop, walks every registered family,
+  #          fires every matched dispatcher)
+  #
+  # No per-family arm in mod.rs. The seed_kernel_hooks table retires
+  # in lockstep with the resolver duplication.
+  #
+  # ── Two adapter-source sub-patterns ──
+  #
+  # Today's resolvers split into two source patterns :
+  #
+  #   typed_list   — `hecksagons.iter().flat_map(|h| h.<family>_adapters.iter())`
+  #                  with `effective_trigger() == target` for the
+  #                  match. Used by llm, compute, tts.
+  #
+  #   io_adapters  — `hecksagons.iter().flat_map(|h| h.io_adapters.iter())`
+  #                  filtered by `kind == "<family_name>"` and
+  #                  matched by the `command` option string ==
+  #                  target. Used by claude_tool, exec, mcp.
+  #
+  # The shape carries `adapter_source` as a discriminator. A future
+  # arc may collapse the two into one (forcing io_adapters families
+  # to migrate to typed IR, or vice versa) but the shape stays
+  # forward-compatible by naming both today.
+  #
+  # ── Three response wires ──
+  #
+  # `response_wire` discriminates :
+  #
+  #   cascade_via_result_into        — the adapter declares
+  #                                    `result_into "Agg.Cmd"` and the
+  #                                    response cascade dispatches
+  #                                    into that target with the
+  #                                    payload built from the
+  #                                    dispatcher's result fields.
+  #                                    Used by claude_tool, mcp, exec.
+  #
+  #   cascade_via_response_into      — the adapter declares
+  #                                    `response_into_target` +
+  #                                    `response_into_attr`. The
+  #                                    cascade dispatches into the
+  #                                    target with a single kwarg
+  #                                    (`<attr>: <response_text>`).
+  #                                    Used by llm, compute.
+  #
+  #   fire_and_forget                — no cascade. The dispatcher's
+  #                                    side effect IS the response.
+  #                                    Used by tts (and any future
+  #                                    `response_field :none` family).
+  #
+  # ── i111-F : single root aggregate with three nested value_objects ──
+  #
+  # Mirrors hecksagon_parser_shape (LineParser / LineDispatch /
+  # ParserHelper) and diagnostic_validator_meta_shape (RubyClass /
+  # RubyConstant / RubyMethod). Three catalog rows ; the specializer
+  # reads fixtures, not this bluebook.
+
+  aggregate "DispatchMetaShape", "Static schema for the resolver-loop codegen target — DispatcherFamily + DispatcherFieldMap + CascadePayloadField rows live in the sibling fixtures file" do
+    # ── Commands ──
+    #
+    # EmitResolver is the eventual specializer entry point. Given a
+    # family_name (matching a DispatcherFamily row) and an output_rs
+    # path, the specializer reads the row + its DispatcherFieldMap +
+    # CascadePayloadField rows, weaves them into the resolver-loop
+    # template (which lands under snippets/ in the retirement arc),
+    # and writes one specialized resolver fn at output_rs. Today the
+    # command is contract-only — the body is the deferred follow-up
+    # work named in the i651 inbox card. Carrying it as a real
+    # bluebook command lets the .behaviors smoke dispatch through and
+    # proves the meta-shape parses + validates as a domain, not just
+    # as a static catalog.
+    command "EmitResolver" do
+      role "System"
+      description "Emit a generated resolver Rust source file for the named DispatcherFamily. Reads the family's DispatcherFieldMap + CascadePayloadField rows from the sibling fixtures and weaves them into the resolver-loop template under snippets/ (deferred per i651 inbox card — the snippets directory is intentionally empty in the design ship). Output is one specialized resolver fn at `output_rs`, byte-stable across runs for a given fixtures snapshot. When fully landed, the five resolve_*_adapters fns in rust/src/runtime/mod.rs all source from this command."
+      attribute :family_name, FamilyName
+      attribute :output_rs,   OutputRs
+      emits "ResolverEmitted"
+      then_set :family_name, to: :family_name
+      then_set :output_rs,   to: :output_rs
+    end
+
+    value_object "FamilyName" do
+      description "The DispatcherFamily.name this EmitResolver run targets (e.g. \"llm\", \"claude_tool\", \"tts\"). Must match an existing row in the sibling fixtures file."
+      attribute :value, String
+    end
+
+    value_object "OutputRs" do
+      description "Absolute path where the generated resolver Rust source lands (e.g. rust/src/runtime/resolve_tts_adapters.rs once the retirement arc is in flight)."
+      attribute :value, String
+    end
+
+    value_object "DispatcherFamily" do
+      description "One resolver-loop per adapter family — the contract that lets the generic dispatcher walk hecksagons, match a trigger, build attrs, fire the dispatcher, and wire the response"
+      # name: the adapter family name as declared in
+      # framework/adapter_families/<name>.hecksagon (e.g. "llm",
+      # "claude_tool", "tts", "mcp", "exec"). Also the IR `kind`
+      # discriminator for io_adapters-source families.
+      attribute :name,                String
+      # dispatcher_module: rust/src/runtime/<module>.rs that holds
+      # the family-specific dispatch fn (e.g. "tts_dispatcher",
+      # "llm_dispatcher", "claude_tool_dispatcher"). The dispatcher
+      # body — provider HTTP, MCP stdio, shell spawn — stays here.
+      attribute :dispatcher_module,   String
+      # dispatch_fn: the public fn the resolver calls. Most families
+      # use "dispatch" ; llm + compute use "call". Names the entry
+      # point in `dispatcher_module`.
+      attribute :dispatch_fn,         String
+      # behavior_kind: the framework/behavior_kinds/<name>.hecksagon
+      # this resolver implements (e.g. "render_text_to_audio",
+      # "invoke_claude_tool", "invoke_mcp_tool"). Used by the
+      # generated resolver to look up its KernelHook via
+      # framework_registry.lookup_hook (i557 part 2).
+      attribute :behavior_kind,       String
+      # adapter_source: typed_list | io_adapters
+      # typed_list walks hecksagons[*].<family>_adapters (LlmAdapter,
+      # ComputeAdapter, TtsAdapter). io_adapters walks
+      # hecksagons[*].io_adapters filtered by kind == name.
+      attribute :adapter_source,      String
+      # response_wire: cascade_via_result_into | cascade_via_response_into | fire_and_forget
+      # Picks the response-routing arm of the generated resolver. See
+      # the file header for the three wires.
+      attribute :response_wire,       String
+      # cross_aggregate_attrs: true when the resolver should snapshot
+      # EVERY aggregate's latest state into the attrs map (prefixed
+      # and bare keys both, last-write-wins bare). Today only :llm
+      # does this — for {{Dream_text_fr}} cross-aggregate templates.
+      # Defaults false : the dispatched aggregate's state plus
+      # dispatch attrs is the standard surface.
+      attribute :cross_aggregate_attrs, String, default: "false"
+      # cycle_guard: true when the resolver should track fired-adapter
+      # names in a recursion exclude-set (gap3 / i220-3 — prevents
+      # cascade-of-cascade loops when trigger == response). Today
+      # only :llm uses this. Defaults false : most families are
+      # cascade-once or fire-and-forget.
+      attribute :cycle_guard,         String, default: "false"
+      # debug_env_var: the environment variable that toggles the
+      # resolver's eprintln debug trace (e.g. "HECKS_DEBUG_TTS",
+      # "HECKS_DEBUG_LLM", "HECKS_DEBUG_CLAUDE_TOOL"). Empty disables
+      # the debug arm in the generated resolver.
+      attribute :debug_env_var,       String, default: ""
+      # log_label: the stdout audit-line label the resolver emits
+      # post-dispatch (e.g. "claude_tool", "tts", "exec"). Matches
+      # `[<label>:<kind>]` or `[<label>]` per the storehouse_log
+      # convention (one stdout line per dispatcher invocation).
+      attribute :log_label,           String
+      # order: emission order — controls the dispatch-after-dispatch
+      # sequence in the generated runtime. Today's hand-written
+      # order is compute → llm → claude_tool → mcp → exec → tts ;
+      # this attr lets the specializer preserve it.
+      attribute :order,               Integer
+    end
+
+    value_object "DispatcherFieldMap" do
+      description "One adapter-field-to-attrs-key mapping per family — the fields the resolver folds out of the matched adapter into the attrs map the dispatcher reads"
+      # family: links to DispatcherFamily.name
+      attribute :family,         String
+      # source_field: the field on the adapter IR (for typed_list
+      # families : "voice_id" / "model" / "speed" on TtsAdapter ; for
+      # io_adapters families : "tool" / "server" / "args" / "result_into"
+      # — keys of the IoAdapter options map).
+      attribute :source_field,   String
+      # attr_key: the key the resolver inserts into the attrs map
+      # the dispatcher reads. Usually equal to source_field ; named
+      # explicitly so the shape carries any renaming (none today,
+      # but future families may want translation).
+      attribute :attr_key,       String
+      # required: true if the resolver should reject the dispatch
+      # when this field is absent on the matched adapter (e.g.
+      # claude_tool's `tool` field — without it the match is
+      # incomplete). False = optional, fold when present.
+      attribute :required,       String, default: "false"
+      # strip_quotes_or_colon: true when the field comes from
+      # io_adapters.options (parse_options leaves strings quoted and
+      # symbols colon-prefixed ; the resolver strips before
+      # folding). False for typed-list fields (already cleaned by
+      # the parser).
+      attribute :strip_quotes_or_colon, String, default: "false"
+      # order: emission order within the family's adapter-field
+      # extraction block.
+      attribute :order,          Integer
+    end
+
+    value_object "CascadePayloadField" do
+      description "One dispatcher-result-field-to-cascade-attr mapping per family — the fields the resolver lifts off the dispatcher's KernelResult and lands on the response_into / result_into cascade"
+      # family: links to DispatcherFamily.name. Empty / absent for
+      # fire_and_forget families (no cascade payload).
+      attribute :family,         String
+      # source_field: the field on the dispatcher's result struct
+      # (e.g. "tool" / "output" / "exit_code" / "ok" off
+      # ClaudeToolResult ; "response_text" off LlmResult).
+      attribute :source_field,   String
+      # cascade_attr: the kwarg the resolver sets on the cascade
+      # dispatch. For cascade_via_response_into families, only one
+      # row applies — the response_into_attr declared on the
+      # adapter (rendered with cascade_attr equal to the literal
+      # "<adapter.response_into_attr>" sentinel since the actual
+      # kwarg name is runtime-resolved). For cascade_via_result_into
+      # families, every row lands as a kwarg.
+      attribute :cascade_attr,   String
+      # value_kind: str | int | bool — picks the IR Value constructor
+      # the resolver uses (Value::Str / Value::Int / Value::Bool).
+      # The dispatcher's result fields are typed Rust ; this carries
+      # the IR-side coercion.
+      attribute :value_kind,     String
+      # order: emission order within the family's cascade-payload
+      # build block.
+      attribute :order,          Integer
+    end
+  end
+end

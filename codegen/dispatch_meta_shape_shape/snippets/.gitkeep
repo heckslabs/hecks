@@ -1,0 +1,12 @@
+# snippets/ — deferred per i651 inbox card
+#
+# When the resolver-loop meta-shape moves from design to retirement,
+# this directory will hold the .rs.frag templates that the specializer
+# weaves around each DispatcherFamily row (analogous to
+# hecksagon_parser_shape/snippets/parse_*_body.rs.frag).
+#
+# Today the directory is intentionally empty : the meta-shape ships
+# as the bluebook + fixtures + .behaviors smoke. The full
+# retirement (replacing the five hand-written resolve_*_adapters
+# functions in rust/src/runtime/mod.rs with a single specialized
+# resolver) is a multi-week follow-up arc.
