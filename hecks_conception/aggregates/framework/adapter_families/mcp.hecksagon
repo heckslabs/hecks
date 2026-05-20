@@ -85,9 +85,37 @@ Hecks.adapter_family "mcp" do
 
   behavior :invoke_mcp_tool
 
-  # No providers list yet — the v1 substrate has one MCP server
-  # (:storehouse, the local Node stdio server). When/if we add more
-  # (remote SSE, sandboxed runners, other vendors), they get listed
-  # here as :mcp_server providers and the kernel hook routes by the
-  # :server field's value.
+  # ── Providers (one per MCP server) ───────────────────────────────
+  #
+  # Each provider listed here declares one MCP server's identity,
+  # auth path, tool list, and error mapping in
+  # framework/providers/<server>.hecksagon. The :server symbol in a
+  # consumer hecksagon's :mcp adapter binding resolves to the
+  # matching provider here.
+  #
+  #   :gmail       — the harness-exposed Gmail MCP surface (i656).
+  #                  EmailTool's four bindings in tools.hecksagon
+  #                  reference server: :gmail and resolve to
+  #                  framework/providers/gmail.hecksagon.
+  #
+  # Future providers each get one line + one
+  # framework/providers/<server>.hecksagon. The migration arc per
+  # i656 :
+  #
+  #   :gdrive        — Google Drive ; backs DriveTool (NEW category).
+  #   :chrome        — claude-in-chrome ; backs BrowserTool (NEW).
+  #   :computer_use  — computer-use ; backs ComputerTool (NEW).
+  #   :linear        — Linear plugin ; backs LinearTool (NEW).
+  #   :storehouse    — local stdio storehouse-mcp (already wired
+  #                    in v1 ; needs explicit provider declaration
+  #                    for parity with the others).
+  #
+  # The framework_registry (sibling i557) auto-walks
+  # framework/providers/ at boot and builds the
+  # server_symbol → provider mapping the kernel hook uses to route
+  # by the binding's :server field. Until i557 lands, the kernel
+  # hook's hardcoded :storehouse → spawn-Node-server mapping stays
+  # in place ; this providers list is the bluebook-shaped contract
+  # the registry will consume.
+  providers :gmail
 end

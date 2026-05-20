@@ -1,0 +1,174 @@
+Hecks.provider "gmail" do
+  # Gmail as a provider for the :mcp adapter family. The provider
+  # declaration says : "when an :mcp adapter has server: :gmail,
+  # here is the MCP server identity, the auth path, the wire shape
+  # per tool, and the response handling."
+  #
+  # Sibling provider to :storehouse (the local stdio storehouse-mcp
+  # Node server, v1's only :mcp server). Future MCP servers
+  # (:gdrive, :chrome, :computer_use, :linear) get their own
+  # framework/providers/<server>.hecksagon under the same family.
+  # Reference card : i656 — Universal door : every MCP tool flows
+  # through storehouse via :mcp providers.
+  #
+  # ── Why a provider, not a new family ──
+  #
+  # Gmail is one MCP server among many that the harness exposes. The
+  # :mcp family ALREADY captures the right substrate (spawn / JSON-RPC
+  # initialize / tools/call / parse-result). Each server differs only
+  # in identity (which tools, which auth, which error shape) — exactly
+  # what provider declarations are for. Same shape as ElevenLabs
+  # under :tts, Twilio under :sms, DuckDuckGo under :web_tool.
+  #
+  # ── How it composes with EmailTool ──
+  #
+  # The Tools bluebook (framework/tools/tools.bluebook) declares the
+  # EmailTool aggregate with five commands : SearchThreads, GetThread,
+  # CreateDraft, ListDrafts, GetAttachment. The Tools hecksagon
+  # (framework/tools/tools.hecksagon) binds four of them via the :mcp
+  # family with `server: :gmail` — that symbol resolves HERE, in this
+  # provider declaration. GetAttachment binds via :web_tool because
+  # the Gmail MCP exposes no attachment fetch (the Gmail REST API
+  # does ; see i645).
+  #
+  # ── Runtime gating (be honest) ──
+  #
+  # This provider declares the CONTRACT — the bluebook-shaped truth
+  # about how :mcp adapters with server :gmail resolve. The kernel
+  # arm that consumes it auto-walks framework/providers/ at boot to
+  # build a server registry (sibling i557). Until i557 + i594 (the
+  # bluebook-driven kernel-hook registration) land, this file is
+  # parity-clean declarative data ; once they land, EmailTool's four
+  # :mcp bindings auto-fire end-to-end with no further bluebook edits.
+  # That gating posture is the same as every other declared-ahead-of-
+  # runtime artifact (see i608 / i645 for the pattern).
+
+  vision "Gmail MCP server provider for the :mcp adapter family. Names
+          the harness-exposed Gmail tools (search_threads, get_thread,
+          create_draft, list_drafts, plus the broader label-management
+          family), the auth path (harness-injected ; no per-provider
+          key file — the Claude harness owns the OAuth token surface),
+          and the per-tool response handling. Each :mcp adapter binding
+          with server: :gmail resolves here for the wire shape."
+
+  family :mcp                       # which adapter family this implements
+  behavior :invoke_mcp_tool         # which kernel behavior_kind we satisfy
+
+  # ── Server identity ──────────────────────────────────────────────
+  #
+  # The :server symbol the :mcp adapter binding references when it
+  # names server: :gmail. The framework_registry (i557) reads
+  # server_symbol below to resolve the binding to THIS provider.
+  server_symbol :gmail
+
+  # ── Server class — harness-injected, not standalone stdio ────────
+  #
+  # The Claude harness exposes Gmail tools through its own MCP
+  # surface, not as an independently-spawnable stdio server. The
+  # :mcp dispatcher recognizes :harness_injected and routes through
+  # the harness's own MCP channel rather than spawning a new
+  # subprocess. Sibling to :storehouse which IS spawnable
+  # (Node stdio server at tooling/storehouse-mcp/src/server.mjs).
+  #
+  # Other harness-injected servers : :gdrive, :chrome, :computer_use,
+  # :linear — each gets the same server_class.
+  server_class :harness_injected
+
+  # ── Auth ─────────────────────────────────────────────────────────
+  #
+  # Gmail MCP calls authenticate via OAuth tokens the Claude harness
+  # owns — the user has authorized the Claude Gmail integration
+  # in the harness's settings. The provider does NOT manage tokens ;
+  # it declares that the harness is the auth boundary.
+  #
+  # Distinct from EmailTool.GetAttachment which uses a custom Google
+  # app's OAuth token (~/.config/miette/google-oauth-token.json) via
+  # the :web_tool family — that path is documented in i645 and binds
+  # under :web_tool, not :mcp.
+  auth_scheme :harness_injected
+
+  # ── Tool list (the wire shape per command) ───────────────────────
+  #
+  # Each `tool` declares one Gmail MCP tool by its harness-exposed
+  # name, the bluebook command it backs, and the arg-key remapping
+  # (since EmailTool's attribute names don't always match the MCP
+  # tool's expected param names). The :mcp dispatcher reads this
+  # mapping when substituting {placeholder} values from the
+  # dispatched command's attrs into the JSON-RPC arguments field.
+  #
+  # Manual enumeration (not auto-discovery via tools/list) per i656's
+  # "schema discovery" open question : the bluebook IS the contract.
+  # A separate validation step can parity-check the declared list
+  # against the server's tools/list at boot.
+
+  tool :search_threads,
+       mcp_name: "mcp__claude_ai_Gmail__search_threads",
+       backs:    "EmailTool.SearchThreads",
+       args:     { query: :q }
+
+  tool :get_thread,
+       mcp_name: "mcp__claude_ai_Gmail__get_thread",
+       backs:    "EmailTool.GetThread",
+       args:     { thread_id: :thread_id }
+
+  tool :create_draft,
+       mcp_name: "mcp__claude_ai_Gmail__create_draft",
+       backs:    "EmailTool.CreateDraft",
+       args:     { to: :to, subject: :subject, body: :body_markdown }
+
+  tool :list_drafts,
+       mcp_name: "mcp__claude_ai_Gmail__list_drafts",
+       backs:    "EmailTool.ListDrafts",
+       args:     {}
+
+  # ── Label-management family (deferred per i608/i656) ─────────────
+  #
+  # The Gmail MCP surface also exposes label-management tools : list,
+  # create, update, delete, label_message, label_thread, unlabel_*.
+  # These are NOT yet bound to EmailTool commands because no
+  # dispatch site demands them. When that demand surfaces, the
+  # pattern is :
+  #
+  #   1. add a `command "LabelThread"` (or whichever verb) to the
+  #      EmailTool aggregate in tools.bluebook,
+  #   2. add the matching `adapter :mcp, command: ...` binding in
+  #      tools.hecksagon with server: :gmail,
+  #   3. add a `tool :label_thread, mcp_name: "...", backs: "..."
+  #      args: {...}` entry below.
+  #
+  # The pattern is bluebook-only — no Rust edits, no kernel work
+  # (assuming i594 + i557 have landed).
+
+  # ── Response handling ────────────────────────────────────────────
+  #
+  # The :mcp family's kernel hook (invoke_mcp_tool) captures the
+  # JSON-RPC tools/call response verbatim and cascades it through
+  # Cascade.RecordResult — the consumer's `result_into` value. So
+  # the provider declaration doesn't need to spell out per-tool
+  # response parsing ; the response shape rides through as the
+  # tool_output payload.
+  #
+  # When/if a downstream policy needs to react on specific Gmail
+  # response shapes (e.g. matching on thread snippet length, or
+  # branching on whether matched threads was empty), that lives
+  # in the consumer's bluebook, not here.
+  response_kind :mcp_tool_result
+
+  # ── Error mapping ────────────────────────────────────────────────
+  #
+  # Gmail-via-MCP errors arrive as JSON-RPC errors. Common shapes :
+  #
+  #   tool_not_found             → :invalid_request
+  #   harness auth not granted   → :auth_failure
+  #   Gmail API 401 / 403        → :auth_failure
+  #   Gmail API 429              → :rate_limited
+  #   Gmail API 5xx              → :provider_unavailable
+  #   tools/call response.isError → mapped by Cascade.RecordResult
+  #                                 (ok: false + the error string)
+  #
+  # The :mcp dispatcher applies this mapping uniformly via the
+  # error_mapping_field below (the JSON path into the JSON-RPC
+  # error object). The path "code" matches the JSON-RPC standard
+  # error.code field.
+  error_mapping_field "code"
+end
