@@ -63,6 +63,11 @@
       "type": "command",
       "command": "python3 -c \"\nimport json,sys,glob,os,re,time\ntry:\n  inp=json.load(sys.stdin)\nexcept Exception:\n  inp={}\nif inp.get('stop_hook_active'): sys.exit(0)\nss='/tmp/.miette_session_start'\nbase=os.path.getmtime(ss) if os.path.exists(ss) else 0\nage=time.time()-base if base else 0\nfresh=0\nfor d in glob.glob(os.path.expanduser('~/Projects/*/inbox'))+glob.glob(os.path.expanduser('~/Projects/*/*.inbox')):\n  for f in glob.glob(os.path.join(d,'*.md')):\n    try:\n      h=open(f,errors='ignore').read(800)\n    except Exception:\n      continue\n    if re.search(r'category:\\s*session-restart',h) and re.search(r'status:\\s*open',h) and os.path.getmtime(f)>base: fresh+=1\nif age>1200 and fresh==0:\n  print(json.dumps({'decision':'block','reason':'No session-restart card was filed or refreshed this session (~%d min of work). Before stopping: file or refresh a category: session-restart card in the active project inbox (mirror vindiction/inbox/i6.md) so the next boot has a handoff. Then stopping is fine.'%(age//60)}))\n\" 2>/dev/null || true",
       "timeout": 10
+     },
+     {
+      "type": "command",
+      "command": "python3 -c \"\nimport json,sys,os,subprocess,re\ntry:\n  inp=json.load(sys.stdin)\nexcept Exception:\n  sys.exit(0)\nif inp.get('stop_hook_active'): sys.exit(0)\ntp=inp.get('transcript_path')\nif not tp or not os.path.exists(tp): sys.exit(0)\nlast=''\nwith open(tp,errors='ignore') as f:\n  for line in f:\n    try:\n      o=json.loads(line)\n    except Exception:\n      continue\n    if o.get('type')!='assistant': continue\n    c=o.get('message',{}).get('content',[])\n    if not isinstance(c,list): continue\n    ts=[b.get('text','') for b in c if isinstance(b,dict) and b.get('type')=='text']\n    j='\\n\\n'.join(t for t in ts if t.strip())\n    if j: last=j\nspoken=re.sub(r'\\`\\`\\`[\\s\\S]*?\\`\\`\\`','',last)\nspoken=re.sub(r'\\`[^\\`\\n]+\\`','',spoken)\nspoken=spoken.strip()\nif len(spoken)<20: sys.exit(0)\nsubprocess.Popen(['/Users/christopheryoung/bin/miette-speak',spoken],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,close_fds=True,start_new_session=True)\n\" 2>/dev/null || true",
+      "timeout": 5
      }
     ]
    }
