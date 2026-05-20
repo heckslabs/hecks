@@ -1,0 +1,145 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# update-tool-cache — MCP tool-cache writer
+#
+# Walks recent transcript JSONL files under ~/.claude/projects/, tallies every
+# observed tool_use block by name, ranks the result, and writes :
+#
+#   ~/.claude/tool-cache.json    → projected per-tool stats (the discovery
+#                                  surface reads this)
+#   /tmp/tool_cache_latest.md    → rendered top-N catalog (the
+#                                  UserPromptSubmit hook injects this as
+#                                  additionalContext so the LLM sees the
+#                                  correct tool names without ToolSearch
+#                                  round-trips)
+#
+# Optionally dispatches ToolCache::ToolStats.RecordCall + ToolCacheSnapshot
+# .Compose against the conception aggregates_root so the events become bus
+# truth (the JSON + markdown are projections of the event log per the
+# bluebook-first convention). Dispatch is BEST-EFFORT — if the storehouse
+# binary is unavailable the projection still writes so the catalog stays
+# usable.
+#
+# Usage :
+#
+#   bin/update-tool-cache             # default top_n=40, days=14
+#   bin/update-tool-cache --top-n 60  # bigger roster
+#   bin/update-tool-cache --no-dispatch  # projection-only (no bus events)
+#
+# Companion : bin/storehouse-tools renders the catalog from the projected
+# JSON on demand (the visible discovery surface — Layer 2 of i654).
+
+require 'json'
+require 'fileutils'
+require 'time'
+require 'securerandom'
+
+require_relative '../tooling/tool_cache/transcript_walker'
+require_relative '../tooling/tool_cache/snapshot_writer'
+
+CACHE_PATH      = File.expand_path('~/.claude/tool-cache.json')
+ROSTER_PATH     = '/tmp/tool_cache_latest.md'
+TRANSCRIPT_ROOT = File.expand_path('~/.claude/projects')
+
+def parse_args(argv)
+  opts = { top_n: 40, days: 14, dispatch: true }
+  while (a = argv.shift)
+    case a
+    when '--top-n'      then opts[:top_n]    = argv.shift.to_i
+    when '--days'       then opts[:days]     = argv.shift.to_i
+    when '--no-dispatch' then opts[:dispatch] = false
+    when '-h', '--help'
+      puts File.read(__FILE__).lines.take_while { |l| l.start_with?('#') }.join
+      exit 0
+    end
+  end
+  opts
+end
+
+def storehouse_bin
+  candidates = [
+    ENV['STOREHOUSE_BIN'],
+    File.expand_path('~/Projects/hecks/rust/target/release/storehouse'),
+    '/usr/local/bin/storehouse'
+  ].compact
+  candidates.find { |p| File.executable?(p) }
+end
+
+def dispatch_record_call(bin, root, name, seen_at, description)
+  cmd = [bin, root, 'ToolCache::ToolStats.RecordCall',
+         "tool_name=#{name}",
+         "seen_at=#{seen_at}",
+         "description=#{description.to_s.gsub("\n", ' ')[0, 120]}"]
+  system(*cmd, out: File::NULL, err: File::NULL)
+end
+
+def dispatch_compose(bin, root, snapshot_id, composed_at, tool_count, top_n, roster_md)
+  cmd = [bin, root, 'ToolCache::ToolCacheSnapshot.Compose',
+         "snapshot_id=#{snapshot_id}",
+         "composed_at=#{composed_at}",
+         "tool_count=#{tool_count}",
+         "top_n=#{top_n}",
+         "roster_markdown=#{roster_md[0, 8_000]}"]
+  system(*cmd, out: File::NULL, err: File::NULL)
+end
+
+def write_json_projection(path, stats)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, JSON.pretty_generate(
+                     'updated_at' => Time.now.utc.iso8601,
+                     'tool_count' => stats.size,
+                     'tools'      => stats.sort_by { |_, v| -v[:count] }.map do |name, v|
+                       { 'name'        => name,
+                         'count'       => v[:count],
+                         'last_seen'   => v[:last_seen],
+                         'description' => v[:description] }
+                     end
+                   ))
+end
+
+def mint_snapshot_id
+  # ULID-ish : timestamp + random hex. The Hecks runtime mints proper
+  # ULIDs ; the cache-writer just needs unique-per-dispatch.
+  t = (Time.now.utc.to_f * 1000).to_i.to_s(16).upcase.rjust(12, '0')
+  r = SecureRandom.hex(7).upcase
+  "01H#{t[-10..]}#{r}"[0, 26]
+end
+
+def main(argv)
+  opts = parse_args(argv)
+
+  stats = TranscriptWalker.walk(TRANSCRIPT_ROOT, days: opts[:days])
+  if stats.empty?
+    warn 'update-tool-cache : no tool_use blocks found in recent transcripts'
+    exit 0
+  end
+
+  write_json_projection(CACHE_PATH, stats)
+
+  roster_md = SnapshotWriter.render(stats, top_n: opts[:top_n])
+  FileUtils.mkdir_p(File.dirname(ROSTER_PATH))
+  File.write(ROSTER_PATH, roster_md)
+
+  warn "update-tool-cache : #{stats.size} tools cached, top #{opts[:top_n]} written to #{ROSTER_PATH}"
+
+  return unless opts[:dispatch]
+
+  bin = storehouse_bin
+  unless bin
+    warn 'update-tool-cache : storehouse binary not found ; projection-only run'
+    exit 0
+  end
+
+  root = File.expand_path('~/Projects/hecks/hecks_conception')
+  now  = Time.now.utc.iso8601
+
+  stats.first(opts[:top_n]).each do |name, v|
+    dispatch_record_call(bin, root, name, v[:last_seen] || now, v[:description].to_s)
+  end
+
+  dispatch_compose(bin, root, mint_snapshot_id, now,
+                   [stats.size, opts[:top_n]].min, opts[:top_n], roster_md)
+end
+
+main(ARGV) if $PROGRAM_NAME == __FILE__

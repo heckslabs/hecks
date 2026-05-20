@@ -1,0 +1,102 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# storehouse-tools — the visible MCP tool catalogue (Layer 2 of i654).
+#
+# Reads the projected JSON at ~/.claude/tool-cache.json (written by
+# bin/update-tool-cache) and prints every observed tool grouped by MCP
+# server. Output mirrors `gh api repos` / `aws ec2 describe-instances` :
+# enumerable, fast, descriptive — discovery is enumeration, not guessing.
+#
+# Usage :
+#
+#   bin/storehouse-tools                 # everything, grouped by server
+#   bin/storehouse-tools storehouse      # one server only
+#   bin/storehouse-tools --top 30        # most-called only
+#   bin/storehouse-tools --json          # raw JSON for piping into jq
+#
+# When the cache is missing or stale, the script prints the path and
+# suggests `bin/update-tool-cache` rather than failing — the discovery
+# surface stays graceful when the writer hasn't run yet.
+
+require 'json'
+require 'fileutils'
+
+require_relative '../tooling/tool_cache/snapshot_writer'
+
+CACHE_PATH = File.expand_path('~/.claude/tool-cache.json')
+
+def parse_args(argv)
+  opts = { server: nil, top: nil, json: false }
+  rest = []
+  while (a = argv.shift)
+    case a
+    when '--top'  then opts[:top]  = argv.shift.to_i
+    when '--json' then opts[:json] = true
+    when '-h', '--help'
+      puts File.read(__FILE__).lines.take_while { |l| l.start_with?('#') }.join
+      exit 0
+    else rest << a
+    end
+  end
+  opts[:server] = rest.first if rest.first
+  opts
+end
+
+def load_cache
+  return nil unless File.exist?(CACHE_PATH)
+
+  JSON.parse(File.read(CACHE_PATH))
+rescue JSON::ParserError
+  nil
+end
+
+def missing_message
+  warn "storehouse-tools : cache not found at #{CACHE_PATH}"
+  warn 'storehouse-tools : run bin/update-tool-cache to populate it'
+  exit 2
+end
+
+def to_stats(raw)
+  raw['tools'].to_h do |t|
+    [t['name'], { count: t['count'].to_i,
+                  last_seen: t['last_seen'],
+                  description: t['description'] }]
+  end
+end
+
+def filter_stats(stats, server:, top:)
+  filtered = stats
+  if server
+    filtered = filtered.select { |name, _| SnapshotWriter.server_of(name) == server }.to_h
+  end
+  filtered = filtered.first(top).to_h if top
+  filtered
+end
+
+def print_catalog(stats, opts)
+  if opts[:json]
+    puts JSON.pretty_generate(stats.map { |name, v| { name: name }.merge(v) })
+    return
+  end
+
+  if stats.empty?
+    warn "storehouse-tools : no tools matched"
+    exit 1
+  end
+
+  md = SnapshotWriter.render(stats, top_n: stats.size)
+  puts md
+end
+
+def main(argv)
+  opts = parse_args(argv)
+  raw = load_cache
+  missing_message if raw.nil?
+
+  stats = to_stats(raw)
+  stats = filter_stats(stats, server: opts[:server], top: opts[:top])
+  print_catalog(stats, opts)
+end
+
+main(ARGV) if $PROGRAM_NAME == __FILE__
