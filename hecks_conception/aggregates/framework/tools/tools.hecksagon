@@ -62,7 +62,7 @@ Hecks.hecksagon "Tools" do
   adapter :web_tool, command: "WebTool.WebFetch",  tool: :web_fetch,  result_into: "Cascade.RecordResult"
   adapter :web_tool, command: "WebTool.WebSearch", tool: :web_search, result_into: "Cascade.RecordResult"
 
-  # ── EmailTool : :mcp adapter family (i608) ──
+  # ── EmailTool : :mcp adapter family (i608, i656) ──
   #
   # Bind the four EmailTool commands to the Claude harness's Gmail MCP
   # surface. The :mcp adapter family (framework/adapter_families/mcp.hecksagon)
@@ -74,6 +74,16 @@ Hecks.hecksagon "Tools" do
   # like "{query}" / "{thread_id}" / "{to}" / "{subject}" / "{body}"
   # are substituted from the dispatched command's attrs by the kernel
   # hook before tools/call is sent).
+  #
+  # The `server: :gmail` symbol resolves to
+  # framework/providers/gmail.hecksagon (landed by i656 — the universal-
+  # door card naming the migration arc for every MCP server). The provider
+  # declares the wire shape per tool, the auth scheme
+  # (:harness_injected — the Claude harness owns the OAuth token surface),
+  # and the error mapping. New providers (:gdrive / :chrome /
+  # :computer_use / :linear) follow the same shape ; each new MCP server
+  # is one framework/providers/<server>.hecksagon plus one entry in
+  # mcp.hecksagon's providers list.
   #
   # Args mapping (per i608) :
   #   SearchThreads : query → q
