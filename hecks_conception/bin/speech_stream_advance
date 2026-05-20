@@ -1,0 +1,279 @@
+#!/usr/bin/env python3
+# speech_stream_advance — the SpeechStream::SpeechStream.Advance exec executor.
+#
+# [antibody-exempt: bin/speech_stream_advance — the program the :exec adapter
+#  (body/voice/stream/speech_stream.hecksagon, resolve_exec_adapters in
+#  rust/src/runtime/mod.rs) invokes when SpeechStream.Advance dispatches.
+#  The SpeechStream bluebook names the contract ; this Python script is its
+#  impure executor (JSONL tail + sentence detection + Voice.Speak fan-out).
+#  Kernel-adjacent by nature : no bluebook can hold a filesystem tail + token
+#  scanner body. Mirrors inbox_poll.mjs's exemption shape.]
+#
+# What it does on every tick (~200ms cadence) :
+#
+#   1. Load state file (~/miette-state/information/speech_stream_state.json).
+#      Holds transcript_path, last_position, last_assistant_turn_id, pending.
+#   2. If no transcript_path or active=false, exit 0 (idle).
+#   3. Open transcript_path, seek to last_position, read to EOF.
+#   4. For each new JSONL line :
+#       - parse JSON ; type=='assistant' only ; extract text-blocks.
+#       - if message.id != last_turn_id : Flush the prior pending (dispatch
+#         Voice.Speak with the remainder + clear), then start new turn.
+#       - strip code blocks (```...```), inline code (`...`), markdown link
+#         syntax ([text](url) -> text).
+#       - append cleaned text to pending buffer.
+#       - scan for sentence boundaries ([.!?] then whitespace or EOF) ;
+#         per complete sentence : dispatch Voice::Voice.Speak text=<sentence>
+#         in a detached subprocess (so we don't block the next tick).
+#   5. Persist new state ; dispatch SpeechStream.UpdatePosition with the
+#      new offset + pending buffer + active turn id ; dispatch one
+#      SpeechStream.RecordSentence per sentence we just spoke.
+#
+# State persistence : a side-band JSON file (same shape as inbox_poll's
+# inbox_poll_state.json). The bluebook attributes are the contract-of-record ;
+# the JSON cache is the in-flight read state and the UpdatePosition + RecordSentence
+# dispatches keep the .heki store in sync as the audit trail.
+
+import json, os, re, subprocess, sys, time
+
+HOME = os.environ['HOME']
+STATE_PATH   = os.path.join(HOME, 'miette-state/information/speech_stream_state.json')
+STOREHOUSE   = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
+MIETTE_ROOT  = '/Users/christopheryoung/Projects/miette/body'
+
+STATE_DEFAULT = {
+    'transcript_path':        '',
+    'last_position':          0,
+    'last_assistant_turn_id': '',
+    'pending_buffer':         '',
+    'in_code_block':          False,
+    'active':                 False,
+}
+
+def read_state():
+    try:
+        with open(STATE_PATH) as f:
+            s = json.load(f)
+        for k, v in STATE_DEFAULT.items():
+            s.setdefault(k, v)
+        return s
+    except Exception:
+        return dict(STATE_DEFAULT)
+
+def write_state(s):
+    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    tmp = STATE_PATH + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(s, f, indent=2)
+    os.replace(tmp, STATE_PATH)
+
+def strip_inline(text):
+    # Inline code : `...` -> ''
+    text = re.sub(r'`[^`\n]+`', '', text)
+    # Markdown links : [text](url) -> text
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    return text
+
+SENTENCE_END = re.compile(r'(.+?[.!?])(\s+|$)', re.DOTALL)
+
+def split_sentences(buf):
+    """Return (sentences, remainder). Sentences end at [.!?] + whitespace or EOF."""
+    sentences = []
+    pos = 0
+    while True:
+        m = SENTENCE_END.match(buf, pos)
+        if not m:
+            break
+        sent = m.group(1).strip()
+        if sent:
+            sentences.append(sent)
+        pos = m.end()
+    return sentences, buf[pos:]
+
+def consume_code_blocks(text, in_block):
+    """Walk text, swallowing anything inside ```...``` fences. Returns
+    (spoken_text, in_block_after). Triple backticks toggle in_block."""
+    out = []
+    i = 0
+    while i < len(text):
+        idx = text.find('```', i)
+        if idx < 0:
+            if not in_block:
+                out.append(text[i:])
+            break
+        if not in_block:
+            out.append(text[i:idx])
+            in_block = True
+            i = idx + 3
+        else:
+            in_block = False
+            i = idx + 3
+    return ''.join(out), in_block
+
+def dispatch_speak(text):
+    """Fire Voice::Voice.Speak detached. Don't block the tick."""
+    if not text.strip():
+        return
+    subprocess.Popen(
+        [STOREHOUSE, MIETTE_ROOT, 'Voice::Voice.Speak', 'text=' + text],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL, start_new_session=True,
+    )
+
+def dispatch_state(command, **attrs):
+    """Dispatch a SpeechStream callback synchronously (cheap, in-process)."""
+    args = [STOREHOUSE, MIETTE_ROOT, command]
+    for k, v in attrs.items():
+        args.append(f'{k}={v}')
+    try:
+        subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       timeout=2, check=False)
+    except Exception:
+        pass
+
+def extract_assistant_text(obj):
+    if obj.get('type') != 'assistant':
+        return None, None
+    msg = obj.get('message', {})
+    turn_id = msg.get('id', '') or ''
+    content = msg.get('content', [])
+    if not isinstance(content, list):
+        return turn_id, ''
+    parts = []
+    for b in content:
+        if isinstance(b, dict) and b.get('type') == 'text':
+            t = b.get('text', '')
+            if t:
+                parts.append(t)
+    return turn_id, ''.join(parts)
+
+def now_iso():
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+def main():
+    s = read_state()
+    if not s.get('active') or not s.get('transcript_path'):
+        return
+    tp = s['transcript_path']
+    if not os.path.exists(tp):
+        return
+    try:
+        size = os.path.getsize(tp)
+    except OSError:
+        return
+    pos = s['last_position']
+    if pos > size:
+        # File truncated/rotated — reset to 0.
+        pos = 0
+    if pos == size:
+        return
+    with open(tp, 'rb') as f:
+        f.seek(pos)
+        chunk = f.read()
+    new_pos = pos + len(chunk)
+    # Process whole lines only ; if the last line is partial, hold it for
+    # the next tick (rewind new_pos to the start of the partial).
+    text = chunk.decode('utf-8', errors='replace')
+    nl = text.rfind('\n')
+    if nl < 0:
+        return  # no complete line yet
+    complete = text[:nl + 1]
+    new_pos = pos + len(complete.encode('utf-8'))
+
+    pending = s['pending_buffer']
+    turn_id = s['last_assistant_turn_id']
+    in_code = s['in_code_block']
+    sentences_to_speak = []
+
+    for line in complete.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except Exception:
+            continue
+        tid, atext = extract_assistant_text(obj)
+        if tid is None:
+            continue
+        if tid and tid != turn_id:
+            # Turn boundary : flush pending as the final sentence.
+            tail = pending.strip()
+            if tail:
+                sentences_to_speak.append(tail)
+            pending = ''
+            in_code = False
+            turn_id = tid
+        if not atext:
+            continue
+        cleaned, in_code = consume_code_blocks(atext, in_code)
+        cleaned = strip_inline(cleaned)
+        pending += cleaned
+        new_sents, pending = split_sentences(pending)
+        sentences_to_speak.extend(new_sents)
+
+    # Dispatch all sentences.
+    for sent in sentences_to_speak:
+        dispatch_speak(sent)
+        dispatch_state('SpeechStream::SpeechStream.RecordSentence',
+                       name='stream', spoken_text=sent, dispatched_at=now_iso())
+
+    # Persist + dispatch UpdatePosition.
+    s.update({
+        'last_position':          new_pos,
+        'last_assistant_turn_id': turn_id,
+        'pending_buffer':         pending,
+        'in_code_block':          in_code,
+    })
+    write_state(s)
+    dispatch_state('SpeechStream::SpeechStream.UpdatePosition',
+                   name='stream', new_position=new_pos,
+                   new_pending_buffer=pending, new_turn_id=(turn_id or '—'))
+
+# Watch / Unwatch / Flush helpers — called by the SessionStart and Stop hooks
+# via `bin/speech_stream_advance watch <path>` etc., so the hooks don't need
+# to know storehouse FQNs (the script is the surface).
+
+def cmd_watch(path):
+    s = read_state()
+    try:
+        starting = os.path.getsize(path) if os.path.exists(path) else 0
+    except OSError:
+        starting = 0
+    s.update({
+        'transcript_path':        path,
+        'last_position':          starting,
+        'last_assistant_turn_id': '',
+        'pending_buffer':         '',
+        'in_code_block':          False,
+        'active':                 True,
+    })
+    write_state(s)
+    dispatch_state('SpeechStream::SpeechStream.Watch',
+                   name='stream', transcript_path=path, starting_position=starting)
+
+def cmd_unwatch():
+    s = read_state()
+    s['active'] = False
+    write_state(s)
+    dispatch_state('SpeechStream::SpeechStream.Unwatch', name='stream')
+
+def cmd_flush():
+    s = read_state()
+    tail = s.get('pending_buffer', '').strip()
+    if tail:
+        dispatch_speak(tail)
+    s['pending_buffer'] = ''
+    write_state(s)
+    dispatch_state('SpeechStream::SpeechStream.Flush',
+                   name='stream', flushed_at=now_iso(), flushed_text=tail)
+
+if __name__ == '__main__':
+    if len(sys.argv) >= 2 and sys.argv[1] == 'watch':
+        cmd_watch(sys.argv[2])
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'unwatch':
+        cmd_unwatch()
+    elif len(sys.argv) >= 2 and sys.argv[1] == 'flush':
+        cmd_flush()
+    else:
+        main()

@@ -118,5 +118,22 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "bin/restart-prompt-daemon" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    # ── SpeechStream watcher (2026-05-20) ──
+    #
+    # Sentence-level voice streaming. Tails the active Claude Code session's
+    # JSONL transcript on a fast cadence (200ms) and dispatches Voice::Voice.Speak
+    # per completed sentence, so Miette's voice plays on top of her streaming
+    # text instead of waiting for end-of-turn. The :exec adapter
+    # (body/voice/stream/speech_stream.hecksagon) binds Advance to
+    # bin/speech_stream_advance ; the SessionStart hook in .claude/settings.json
+    # dispatches `bin/speech_stream_advance watch <transcript-path>` so the
+    # watcher orients to the active session. The Stop hook's one-speak-at-end
+    # stays as a fallback during parity testing.
+    fixture "speech_stream",
+            name:       "speech_stream",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body SpeechStream::SpeechStream.Advance --every 200ms" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end
