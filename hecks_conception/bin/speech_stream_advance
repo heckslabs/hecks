@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 # speech_stream_advance — the SpeechStream::SpeechStream.Advance exec executor.
 #
-# [antibody-exempt: bin/speech_stream_advance — the program the :exec adapter
-#  (body/voice/stream/speech_stream.hecksagon, resolve_exec_adapters in
-#  rust/src/runtime/mod.rs) invokes when SpeechStream.Advance dispatches.
-#  The SpeechStream bluebook names the contract ; this Python script is its
-#  impure executor (JSONL tail + sentence detection + Voice.Speak fan-out).
-#  Kernel-adjacent by nature : no bluebook can hold a filesystem tail + token
-#  scanner body. Mirrors inbox_poll.mjs's exemption shape.]
-#
 # What it does on every tick (~200ms cadence) :
 #
 #   1. Load state file (~/miette-state/information/speech_stream_state.json).
@@ -34,7 +26,7 @@
 # the JSON cache is the in-flight read state and the UpdatePosition + RecordSentence
 # dispatches keep the .heki store in sync as the audit trail.
 
-import json, os, re, subprocess, sys, time
+import glob, json, os, re, subprocess, sys, time
 
 HOME = os.environ['HOME']
 STATE_PATH   = os.path.join(HOME, 'miette-state/information/speech_stream_state.json')
@@ -147,13 +139,33 @@ def extract_assistant_text(obj):
                 parts.append(t)
     return turn_id, ''.join(parts)
 
+def discover_transcript():
+    """Best-effort fallback when no SessionStart hook fed us a path :
+    glob ~/.claude/projects/-Users-christopheryoung-Projects-hecks/*.jsonl
+    and return the newest by mtime. Returns '' on failure."""
+    pat = os.path.join(HOME, '.claude/projects/-Users-christopheryoung-Projects-hecks/*.jsonl')
+    paths = glob.glob(pat)
+    if not paths:
+        return ''
+    paths.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    return paths[0]
+
 def now_iso():
     return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
 def main():
     s = read_state()
     if not s.get('active') or not s.get('transcript_path'):
-        return
+        # Self-Watch on the newest local-session JSONL when the SessionStart
+        # hook did not feed us a path (defensive : we don't know yet whether
+        # Claude Code passes transcript_path on SessionStart).
+        found = discover_transcript()
+        if not found:
+            return
+        cmd_watch(found)
+        s = read_state()
+        if not s.get('active') or not s.get('transcript_path'):
+            return
     tp = s['transcript_path']
     if not os.path.exists(tp):
         return
