@@ -1,0 +1,39 @@
+Hecks.behaviors "RestartPrompt" do
+  vision "Behavioral tests for the RestartPrompt aggregate — the Compose command sets the three latest_* attributes and total_compositions from the caller's inputs."
+
+  test "Compose sets latest_content" do
+    tests "Compose", on: "RestartPrompt"
+    input  content:            "sample recap body",
+           session_id:         "sq/restart-prompt-daemon",
+           composed_at:        "2026-05-19T04:00:00Z",
+           total_compositions: 1
+    expect latest_content: "sample recap body"
+  end
+
+  test "Compose sets latest_at from composed_at" do
+    tests "Compose", on: "RestartPrompt"
+    input  content:            "sample",
+           session_id:         "sq/test",
+           composed_at:        "2026-05-19T04:00:00Z",
+           total_compositions: 1
+    expect latest_at: "2026-05-19T04:00:00Z"
+  end
+
+  test "Compose sets latest_session_id" do
+    tests "Compose", on: "RestartPrompt"
+    input  content:            "sample",
+           session_id:         "i528-storehouse-arc",
+           composed_at:        "2026-05-19T04:00:00Z",
+           total_compositions: 1
+    expect latest_session_id: "i528-storehouse-arc"
+  end
+
+  test "Compose records total_compositions" do
+    tests "Compose", on: "RestartPrompt"
+    input  content:            "sample",
+           session_id:         "sq/test",
+           composed_at:        "2026-05-19T04:00:00Z",
+           total_compositions: 3
+    expect total_compositions: 3
+  end
+end
