@@ -1,4 +1,0 @@
-#!/bin/sh
-DIR="$(dirname "$0")"
-"$DIR/../rust/target/release/storehouse" boot "$DIR" "$@"
-exec "$DIR/../rust/target/release/storehouse" terminal "$DIR"
