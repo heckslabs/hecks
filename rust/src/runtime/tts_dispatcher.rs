@@ -19,26 +19,46 @@
 //!
 //! ── Scope ──
 //!
-//! Real ElevenLabs HTTP integration : POST /v1/text-to-speech/{voice_id}
+//! Real ElevenLabs HTTP integration : POST /v1/text-to-speech/{voice_id}/stream
 //! with a JSON body carrying text + model_id + voice_settings (speed +
-//! stability + similarity_boost + style). The mp3 response lands in
-//! `cache_dir` keyed by UTC timestamp ; afplay plays it detached so
-//! the dispatch returns immediately. A pid file at
-//! `~/.config/miette/speak.pid` records the wrapper process id so a
+//! stability + similarity_boost + style). The mp3 bytes return as
+//! they generate (TTFB ~860ms vs ~8s for the non-streaming endpoint).
+//! We tee the byte stream inside the dispatch loop : (a) into
+//! `mpg123 -`'s stdin so playback begins as soon as the first MP3
+//! frame lands, and (b) into a cache file at
+//! `cache_dir/miette_{utc}.mp3` so Replay still has a full artifact
+//! after the stream finishes. A pid file at
+//! `~/.config/miette/speak.pid` records the dispatcher pid so a
 //! fresh dispatch cancels the prior in-flight render before starting
 //! a new one (latest-wins semantics ; mirrors the historical
 //! ~/bin/miette-speak shell bridge that this dispatcher retires).
 //!
 //! Falls back to macOS `say -v Samantha` when the key file is missing,
-//! empty, or the API call fails — same contract as the shell bridge
-//! so a network drop or expired key still produces audible speech.
+//! empty, or the HTTP call delivered zero bytes — same contract as
+//! the shell bridge so a network drop or expired key still produces
+//! audible speech.
 //!
-//! Hand-rolled JSON + spawned `curl` (no serde, no reqwest at kernel
-//! floor — mirrors the sibling :exec / :llm dispatchers' substrate
-//! discipline).
+//! Hand-rolled JSON + spawned `curl` + spawned `mpg123` (no serde,
+//! no reqwest at kernel floor — mirrors the sibling :exec / :llm
+//! dispatchers' substrate discipline). The tee runs in pure Rust
+//! because a shell `curl | tee file | mpg123 -` pipeline truncates
+//! the cache the moment mpg123 closes stdin (tee dies on EPIPE) ;
+//! the in-process loop keeps writing the file even after mpg123
+//! exits or stops accepting bytes.
+//!
+//! Timing note : dispatch BLOCKS for the duration of the stream
+//! (typically a few seconds end-to-end). Playback begins inside
+//! the first second via mpg123 reading our piped stdin ; mpg123
+//! is reparented to init when the dispatch returns so audio
+//! continues past return. This is a semantic departure from the
+//! pre-streaming dispatcher, which spawned `afplay` detached and
+//! returned immediately. Blocking is necessary because returning
+//! before EOF would tear down the in-process tee loop and truncate
+//! the cache.
 
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{ErrorKind, Read, Write};
+use std::process::Stdio;
 
 /// What a `:tts` dispatch produced. `audio_path` is the cached
 /// audio file's filesystem location ; empty when the fallback path
@@ -158,7 +178,12 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         "{{\"text\":\"{}\",\"model_id\":\"{}\",\"voice_settings\":{{{}}}}}",
         json_escape(&text), model, settings
     );
-    let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}", voice_id);
+    // Streaming endpoint — bytes flow back as they generate. The
+    // non-streaming sibling endpoint (no `/stream` suffix) returns
+    // the same MP3 but holds it for ~8s end-to-end ; the streaming
+    // path delivers TTFB ~860ms so mpg123 begins playback inside the
+    // first second.
+    let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}/stream", voice_id);
 
     if std::env::var("HECKS_DEBUG_TTS").is_ok() {
         eprintln!("[tts:debug] POST {}", url);
@@ -166,47 +191,206 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         eprintln!("[tts:debug] mp3  {}", audio_path);
     }
 
-    let out = std::process::Command::new("curl")
-        .arg("-s").arg("-X").arg("POST").arg(&url)
+    // auto_play decides whether we spawn mpg123 at all. When false,
+    // we still stream-write the cache so Replay has the artifact ;
+    // we just skip the playback child.
+    let auto_play = attrs.get("auto_play")
+        .map(|s| matches!(s.as_str(), "true" | "1" | "yes"))
+        .unwrap_or(true);
+
+    // Spawn curl with stdout piped so we can read MP3 chunks
+    // ourselves. No `--output` here — that would buffer the whole
+    // response to disk before we ever see a byte. `-N` (--no-buffer)
+    // tells curl to flush as bytes arrive ; `--fail` makes a
+    // non-2xx HTTP status surface as a non-zero exit so we can
+    // detect ElevenLabs errors and fall back to `say`.
+    let mut curl = match std::process::Command::new("curl")
+        .arg("-sN").arg("--fail").arg("-X").arg("POST").arg(&url)
         .arg("-H").arg(format!("xi-api-key: {}", api_key))
         .arg("-H").arg("Content-Type: application/json")
         .arg("-H").arg("Accept: audio/mpeg")
         .arg("-d").arg(&body)
-        .arg("--output").arg(&audio_path)
-        .output();
-    match out {
-        Ok(o) if o.status.success() => {}
-        Ok(o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr).into_owned();
-            return fallback_say(&text, &format!("curl exit {:?} : {}", o.status.code(), stderr));
-        }
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
         Err(e) => return fallback_say(&text, &format!("curl spawn failed ({})", e)),
+    };
+
+    // Spawn mpg123 reading from stdin. Absolute path avoids PATH
+    // surprises when storehouse is launched from non-login shells
+    // (Claude Code, launchd, hooks). `-q` keeps stderr quiet so the
+    // dispatch's parent doesn't see decoder chatter. `-` reads MP3
+    // frames from stdin. We deliberately don't `.wait()` for mpg123
+    // — playback runs past the dispatch's return so the CLI exits
+    // promptly after the stream finishes.
+    let mpg123 = if auto_play {
+        match std::process::Command::new("/opt/homebrew/bin/mpg123")
+            .arg("-q").arg("-")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            Ok(c) => Some(c),
+            // mpg123 missing → still let the cache write proceed
+            // (Replay works), but log that playback is degraded.
+            Err(e) => {
+                if std::env::var("HECKS_DEBUG_TTS").is_ok() {
+                    eprintln!("[tts:debug] mpg123 spawn failed ({}) ; tee→file only", e);
+                }
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Open the cache file. Errors here are fatal for the dispatch :
+    // if we can't write the artifact, fall back to `say` and reap
+    // any half-spawned children.
+    let mut cache_file = match std::fs::File::create(&audio_path) {
+        Ok(f) => f,
+        Err(e) => {
+            let _ = curl.kill();
+            if let Some(mut c) = mpg123 { let _ = c.kill(); }
+            return fallback_say(&text, &format!("cannot create cache file {} ({})", audio_path, e));
+        }
+    };
+
+    // Take ownership of the pipes before the tee loop. curl's stdout
+    // is a `ChildStdout` ; mpg123's stdin is a `ChildStdin`. Both
+    // are owned exactly once, so we move them out of the children
+    // here. The children themselves stay alive (curl until EOF,
+    // mpg123 until we drop its stdin or it finishes playing).
+    let mut mpg123 = mpg123;
+    let mut curl_out = match curl.stdout.take() {
+        Some(s) => s,
+        None => {
+            let _ = curl.kill();
+            if let Some(mut c) = mpg123 { let _ = c.kill(); }
+            return fallback_say(&text, "curl stdout pipe vanished");
+        }
+    };
+    let mut mpg_in = mpg123.as_mut().and_then(|c| c.stdin.take());
+
+    // Tee loop. Read up to 4 KiB at a time so we don't block waiting
+    // for a fat buffer to fill ; mpg123 starts decoding the first
+    // MP3 frame inside the first chunk. Cache write errors are
+    // fatal (the artifact is the whole point of caching) ; mpg123
+    // write errors are not — if the user kills playback or mpg123
+    // dies mid-stream, we keep feeding the cache so Replay still
+    // has the full file.
+    let mut buf = [0u8; 4096];
+    let mut total_bytes: u64 = 0;
+    loop {
+        match curl_out.read(&mut buf) {
+            Ok(0) => break, // EOF — curl finished
+            Ok(n) => {
+                if let Err(e) = cache_file.write_all(&buf[..n]) {
+                    let _ = curl.kill();
+                    if let Some(mut c) = mpg123.take() { let _ = c.kill(); }
+                    return fallback_say(&text, &format!("cache write failed ({})", e));
+                }
+                total_bytes += n as u64;
+                // Write to mpg123 if it's still attached.
+                // BrokenPipe just means mpg123 stopped reading (user
+                // killed it, or it finished decoding). Drop our
+                // handle so we don't keep trying ; the file write
+                // continues normally. Use a `take` + restore dance
+                // so the borrow on `mpg_in` ends before we possibly
+                // reassign it.
+                let drop_pipe = if let Some(stdin) = mpg_in.as_mut() {
+                    match stdin.write_all(&buf[..n]) {
+                        Ok(()) => false,
+                        Err(e) => {
+                            if e.kind() != ErrorKind::BrokenPipe
+                                && std::env::var("HECKS_DEBUG_TTS").is_ok()
+                            {
+                                eprintln!("[tts:debug] mpg123 stdin write : {}", e);
+                            }
+                            true
+                        }
+                    }
+                } else {
+                    false
+                };
+                if drop_pipe {
+                    mpg_in = None;
+                }
+            }
+            Err(e) => {
+                let _ = curl.kill();
+                if let Some(mut c) = mpg123.take() { let _ = c.kill(); }
+                return fallback_say(&text, &format!("curl stdout read failed ({})", e));
+            }
+        }
     }
-    // ElevenLabs returns a small JSON error body (not audio) on
-    // failure. Treat a too-small file as an error, surface the
-    // body for diagnosis, and fall back to `say`.
-    match std::fs::metadata(&audio_path) {
-        Ok(m) if m.len() > 1024 => {}
-        Ok(m) => {
-            let snippet = std::fs::read_to_string(&audio_path).unwrap_or_default();
+    // Flush + close the cache file deterministically before we look
+    // at curl's exit status, so even on a partial stream the artifact
+    // on disk reflects exactly the bytes we received.
+    let _ = cache_file.flush();
+    drop(cache_file);
+    // Close mpg123's stdin so it knows the stream ended and can
+    // finish decoding the tail. We do NOT wait for it to exit —
+    // playback continues past the dispatch's return.
+    drop(mpg_in);
+
+    // Inspect curl's exit. `--fail` makes a 4xx/5xx surface here.
+    // If curl errored AND we never forwarded any bytes, treat it as
+    // a hard failure and fall back to `say`. If we forwarded some
+    // bytes (network drop mid-stream, partial render), keep the
+    // partial cache and report success — the user already heard the
+    // first part of the utterance, downgrading to `say` would talk
+    // over the playback.
+    let status = curl.wait();
+    let curl_stderr = curl.stderr.take()
+        .map(|mut s| {
+            let mut buf = Vec::new();
+            let _ = s.read_to_end(&mut buf);
+            String::from_utf8_lossy(&buf).into_owned()
+        })
+        .unwrap_or_default();
+    match status {
+        Ok(st) if st.success() => {
+            // Happy path : full stream delivered, playback in
+            // progress, cache complete.
+        }
+        Ok(st) if total_bytes == 0 => {
+            // curl errored before any bytes ; remove the empty cache
+            // file and fall back so Chris still hears something.
             let _ = std::fs::remove_file(&audio_path);
             return fallback_say(&text, &format!(
-                "response too small ({} bytes) : {}",
-                m.len(), snippet.chars().take(200).collect::<String>()));
+                "curl exit {:?} (zero bytes) : {}",
+                st.code(),
+                curl_stderr.lines().take(3).collect::<Vec<_>>().join(" / ")
+            ));
         }
-        Err(e) => return fallback_say(&text, &format!("no audio file written ({})", e)),
-    }
-
-    // Play the rendered audio. auto_play defaults true — the dispatch
-    // is a one-shot voice command, silently writing the mp3 without
-    // playing is almost never what the caller wanted. Detach so the
-    // dispatch returns immediately ; the supervised pid file lets
-    // the next call cancel this playback if a fresher one arrives.
-    let auto_play = attrs.get("auto_play")
-        .map(|s| matches!(s.as_str(), "true" | "1" | "yes"))
-        .unwrap_or(true);
-    if auto_play {
-        let _ = std::process::Command::new("afplay").arg(&audio_path).spawn();
+        Ok(_) => {
+            // Partial stream — leave the cache, surface the warning
+            // in `error` but report ok=true since audio was heard.
+            return TtsResult {
+                audio_path,
+                ok: true,
+                error: Some(format!(
+                    "partial stream ({} bytes) : {}",
+                    total_bytes,
+                    curl_stderr.lines().take(3).collect::<Vec<_>>().join(" / ")
+                )),
+            };
+        }
+        Err(e) => {
+            if total_bytes == 0 {
+                let _ = std::fs::remove_file(&audio_path);
+                return fallback_say(&text, &format!("curl wait failed ({})", e));
+            }
+            return TtsResult {
+                audio_path,
+                ok: true,
+                error: Some(format!("curl wait failed after {} bytes ({})", total_bytes, e)),
+            };
+        }
     }
 
     TtsResult { audio_path, ok: true, error: None }
@@ -229,10 +413,17 @@ fn fallback_say(text: &str, reason: &str) -> TtsResult {
 }
 
 /// Kill the prior `miette-speak` / `tts dispatch` wrapper recorded in
-/// the pid file, plus its children (curl, afplay), plus any orphan
-/// afplay processes from a crashed run. Best-effort : missing or
-/// invalid pid files are silently ignored. Mirrors the shell
-/// bridge's identical guard.
+/// the pid file, plus its children (curl, mpg123, afplay), plus any
+/// orphan mpg123 / afplay processes from a crashed run. Best-effort :
+/// missing or invalid pid files are silently ignored. Mirrors the
+/// shell bridge's identical guard.
+///
+/// `afplay` lingers in the kill list because Replay (cached playback
+/// after the streaming render is gone) still uses it ; both players
+/// must die when a fresh Speak supersedes them. mpg123 is the new
+/// streaming player ; afplay is the legacy / Replay player. The
+/// transitional double-pkill is intentional and removed only when
+/// Replay also moves off afplay.
 fn cancel_prior_render(pid_file: &str) {
     if let Ok(s) = std::fs::read_to_string(pid_file) {
         if let Ok(pid) = s.trim().parse::<i32>() {
@@ -244,7 +435,8 @@ fn cancel_prior_render(pid_file: &str) {
                 .arg("-9").arg(pid.to_string()).output();
         }
     }
-    // Belt-and-suspenders : reap any orphan afplay from a crashed run.
+    // Belt-and-suspenders : reap any orphan player from a crashed run.
+    let _ = std::process::Command::new("pkill").arg("-9").arg("mpg123").output();
     let _ = std::process::Command::new("pkill").arg("-9").arg("afplay").output();
 }
 
