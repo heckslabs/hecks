@@ -71,7 +71,7 @@ Hecks.behaviors "Conception" do
   test "CheckParity sets parity" do
     tests "CheckParity", on: "Labor", kind: :cross_cascade
     setup  "ValidateBluebook", domain_name: "sample", bluebook_source: "sample"
-    input  parity: "sample"
+    input  id: "sample", parity: "sample"
     expect parity: "sample"
   end
 
