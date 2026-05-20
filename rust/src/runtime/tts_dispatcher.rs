@@ -40,6 +40,8 @@
 use std::collections::HashMap;
 use std::io::Write;
 
+use super::voice::{phrase_cache, latency};
+
 /// What a `:tts` dispatch produced. `audio_path` is the cached
 /// audio file's filesystem location ; empty when the fallback path
 /// (macOS `say`) ran instead of the ElevenLabs render.
@@ -85,6 +87,53 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
             error: Some("tts dispatcher : no `text` attr to render".into()),
         },
     };
+
+    // Start the latency measurement window BEFORE any work so cache
+    // hits and HTTP misses share the same start instant.
+    let measurement = latency::start();
+
+    // Resolve the cache-key tuple early so hit + miss paths agree
+    // on the key shape. voice_id may be missing — in that case the
+    // miss path will fall back to `say` ; we still skip the cache
+    // check in that case (no key → no hit).
+    let cache_voice_id = attrs.get("voice_id").cloned().unwrap_or_default();
+    let cache_model = attrs.get("model").cloned().unwrap_or_else(|| "eleven_v3".into());
+    let cache_speed = attrs.get("speed").cloned().unwrap_or_else(|| "1.2".into());
+
+    // Cache hit ? Skip the HTTP roundtrip entirely : pipe the cached
+    // mp3 straight to mpg123, record latency with cache_hit=true,
+    // return. mpg123 over afplay because the task locked it in and
+    // because mpg123's stdin-streaming option (`mpg123 -`) lets us
+    // pipe without an intermediate file dance on a future tightening
+    // pass (v1 just plays the file directly).
+    if !cache_voice_id.is_empty() {
+        if let Some(cached) = phrase_cache::try_hit(
+            &text, &cache_voice_id, &cache_model, &cache_speed
+        ) {
+            let auto_play = attrs.get("auto_play")
+                .map(|s| matches!(s.as_str(), "true" | "1" | "yes"))
+                .unwrap_or(true);
+            if auto_play {
+                let _ = std::process::Command::new("mpg123")
+                    .arg("-q").arg(&cached).spawn();
+            }
+            let path_str = cached.to_string_lossy().to_string();
+            // ttfb on a hit is effectively zero — the audio file is
+            // already on disk and mpg123 spawned in <1ms. Report the
+            // elapsed wall-clock so the rolling average still has a
+            // signal even on the fast path.
+            let ttfb = measurement.started_at.elapsed().as_millis();
+            latency::record(&measurement, text.chars().count(), ttfb, true);
+            if std::env::var("HECKS_DEBUG_TTS").is_ok() {
+                eprintln!("[tts:debug] cache HIT → {}", path_str);
+            }
+            return TtsResult {
+                audio_path: path_str,
+                ok: true,
+                error: None,
+            };
+        }
+    }
 
     let home = std::env::var("HOME").unwrap_or_default();
 
@@ -208,6 +257,19 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
     if auto_play {
         let _ = std::process::Command::new("afplay").arg(&audio_path).spawn();
     }
+
+    // Cache miss : save the freshly rendered mp3 under its content
+    // hash so the next Speak with the same (text, voice_id, model,
+    // speed) tuple hits. Best-effort — a copy failure doesn't
+    // invalidate the dispatch (the timestamped audit file already
+    // played).
+    if !cache_voice_id.is_empty() {
+        let _ = phrase_cache::save(
+            &text, &cache_voice_id, &cache_model, &cache_speed, &audio_path
+        );
+    }
+    let ttfb = measurement.started_at.elapsed().as_millis();
+    latency::record(&measurement, text.chars().count(), ttfb, false);
 
     TtsResult { audio_path, ok: true, error: None }
 }

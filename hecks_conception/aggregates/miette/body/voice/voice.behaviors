@@ -1,0 +1,87 @@
+Hecks.behaviors "Voice" do
+  vision "Behavioral tests for the Voice domain — PhraseCache (cache dir config), LatencyTelemetry (rolling-5 average singleton), LatencyEvent (per-utterance audit log). Each test exercises one command's state contract : input attributes recorded onto the aggregate, the right event emitted. Modeled on the ProcessHealth pattern (sibling discipline-floor behaviors)."
+
+  # ── PhraseCache.Configure ──────────────────────────────────────
+
+  test "Configure stamps the cache_dir" do
+    tests "Configure", on: "PhraseCache"
+    input  cache_dir: { value: "~/.config/miette/audio/phrase_cache" }
+    expect cache_dir: { value: "~/.config/miette/audio/phrase_cache" }
+  end
+
+  test "Configure emits PhraseCacheConfigured" do
+    tests "Configure", on: "PhraseCache"
+    input  cache_dir: { value: "/tmp/voice_cache" }
+    expect emits: ["PhraseCacheConfigured"]
+  end
+
+  # ── LatencyTelemetry.Record ────────────────────────────────────
+
+  test "Record stamps the rolling averages" do
+    tests "Record", on: "LatencyTelemetry"
+    input  avg_total_ms:    { value: 250 },
+           avg_ttfb_ms:     { value: 250 },
+           sample_count:    { value: 1 },
+           hit_rate_pct:    { value: 0 },
+           last_text_chars: { value: 5 },
+           last_cache_hit:  { value: "false" },
+           last_ts:         { value: "2026-05-20T00:00:02Z" }
+    expect avg_total_ms: { value: 250 }
+  end
+
+  test "Record stamps the cache_hit flag" do
+    tests "Record", on: "LatencyTelemetry"
+    input  avg_total_ms:    { value: 5 },
+           avg_ttfb_ms:     { value: 5 },
+           sample_count:    { value: 2 },
+           hit_rate_pct:    { value: 50 },
+           last_text_chars: { value: 5 },
+           last_cache_hit:  { value: "true" },
+           last_ts:         { value: "2026-05-20T00:00:03Z" }
+    expect last_cache_hit: { value: "true" }
+  end
+
+  test "Record emits LatencyRecorded" do
+    tests "Record", on: "LatencyTelemetry"
+    input  avg_total_ms:    { value: 5 },
+           avg_ttfb_ms:     { value: 5 },
+           sample_count:    { value: 2 },
+           hit_rate_pct:    { value: 50 },
+           last_text_chars: { value: 5 },
+           last_cache_hit:  { value: "true" },
+           last_ts:         { value: "2026-05-20T00:00:03Z" }
+    expect emits: ["LatencyRecorded"]
+  end
+
+  # ── LatencyEvent.Record ────────────────────────────────────────
+
+  test "LatencyEvent.Record stamps ttfb_ms" do
+    tests "Record", on: "LatencyEvent"
+    input  ts:         { value: "2026-05-20T00:00:04Z" },
+           text_chars: { value: 5 },
+           ttfb_ms:    { value: 12 },
+           total_ms:   { value: 12 },
+           cache_hit:  { value: "true" }
+    expect ttfb_ms: { value: 12 }
+  end
+
+  test "LatencyEvent.Record stamps cache_hit" do
+    tests "Record", on: "LatencyEvent"
+    input  ts:         { value: "2026-05-20T00:00:05Z" },
+           text_chars: { value: 18 },
+           ttfb_ms:    { value: 940 },
+           total_ms:   { value: 940 },
+           cache_hit:  { value: "false" }
+    expect cache_hit: { value: "false" }
+  end
+
+  test "LatencyEvent.Record emits Latency" do
+    tests "Record", on: "LatencyEvent"
+    input  ts:         { value: "2026-05-20T00:00:06Z" },
+           text_chars: { value: 5 },
+           ttfb_ms:    { value: 12 },
+           total_ms:   { value: 12 },
+           cache_hit:  { value: "true" }
+    expect emits: ["Latency"]
+  end
+end

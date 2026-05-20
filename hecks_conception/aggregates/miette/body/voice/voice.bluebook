@@ -1,0 +1,201 @@
+Hecks.bluebook "Voice", version: "2026.05.20.1" do
+  vision "Miette's voice — the speaking organ. The runtime-floor :tts dispatcher (rust/src/runtime/tts_dispatcher.rs) renders text into audio through the ElevenLabs HTTP path ; this bluebook is the discipline-floor contract for the phrase cache + latency telemetry that wrap it. Two aggregates : PhraseCache (per-phrase render durability — hash-keyed mp3s under ~/.config/miette/audio/phrase_cache/ so common acks replay without a network roundtrip) and LatencyTelemetry (first-token-to-first-sound measurements per Voice.Speak, with rolling-5 averages + cache-hit rate surfaced on the statusline). Conceived 2026-05-20 to close the voice-polish stellar item : cached acks return in <100ms ; latency stays observable from the statusline."
+  category "miette"
+
+  # ============================================================
+  # VOICE — phrase cache + latency telemetry
+  # ============================================================
+  #
+  # Three aggregates :
+  #
+  #   * PhraseCache — cache directory configuration. The cache key
+  #     is sha256(text + voice_id + model_id + speed) ; the
+  #     rendered mp3 lives at <cache_dir>/<hash>.mp3. First Speak
+  #     with a given tuple does the ElevenLabs render and saves
+  #     under the hash ; every Speak after that hits the cache,
+  #     skipping the HTTP call and piping the cached mp3 straight
+  #     to mpg123. The cache is content-addressed and durable
+  #     across sessions ; no eviction yet (audio files are tiny ;
+  #     common acks fit in kilobytes).
+  #
+  #   * LatencyEvent — per-utterance audit log. Every Voice.Speak
+  #     appends one record carrying {ts, text_chars, ttfb_ms,
+  #     total_ms, cache_hit}. Append-only history ; the rolling
+  #     reduction is LatencyTelemetry.
+  #
+  #   * LatencyTelemetry — rolling-5 singleton. Reads the last 5
+  #     LatencyEvents (held inline as a CSV ring on the singleton
+  #     record itself, by the kernel module) to compute
+  #     avg_total_ms + hit_rate_pct, surfaced on the statusline as
+  #     "🔊 <avg>ms <hit%>". The segment is omitted when no
+  #     measurements exist yet.
+  #
+  # ── Where the bluebook meets the kernel floor ──
+  #
+  # The phrase_cache + latency Rust modules
+  # (rust/src/runtime/voice/) implement this contract. Cache
+  # hit / miss is recorded by LatencyEvent.Record's `cache_hit`
+  # field (true | false) ; the hit rate is reduced into
+  # LatencyTelemetry.hit_rate_pct. PhraseCache's only surface
+  # is the cache_dir override (Configure).
+
+  aggregate "PhraseCache", "Singleton holding the cache directory configuration. Cached audio files live on disk under cache_dir keyed by sha256(text + voice_id + model_id + speed). Hit / miss accounting is delegated to LatencyTelemetry (every Voice.Speak records there with cache_hit:bool ; the rolling hit_rate_pct is the canonical statusline source). Keeping PhraseCache tiny avoids parallel ledgers diverging." do
+    identified_by :name
+
+    attribute :name,      Name,     default: "phrase_cache"
+    attribute :cache_dir, CacheDir, default: "~/.config/miette/audio/phrase_cache"
+
+    value_object "Name" do
+      # Singleton key — there is one PhraseCache per being.
+      # Default "phrase_cache". When i611 phase 1 (`singleton:
+      # true`) lands this VO can retire.
+      attribute :value, String
+    end
+
+    value_object "CacheDir" do
+      # Filesystem location of the cached audio files. The leading
+      # `~/` is resolved against $HOME at write time by the kernel
+      # module ; the stored value keeps the tilde so a user
+      # bluebook stays portable across machines.
+      attribute :value, String
+    end
+
+    command "Configure" do
+      role "System"
+      description "Set the cache directory. Read by the runtime module on each Voice.Speak ; changes take effect on the next dispatch (no daemon restart needed). Default `~/.config/miette/audio/phrase_cache` covers the kernel-floor case ; an override is useful for tests + per-deployment overrides."
+      attribute :cache_dir, CacheDir
+      then_set :cache_dir, to: :cache_dir
+      emits "PhraseCacheConfigured"
+    end
+  end
+
+  aggregate "LatencyEvent", "Per-utterance audit log. Every Voice.Speak appends one record carrying {ts, text_chars, ttfb_ms, total_ms, cache_hit}. Distinct from LatencyTelemetry's rolling singleton : LatencyEvent is the raw history ; LatencyTelemetry is the reduced rolling-5 average + hit rate the statusline reads. Both write through the same kernel-floor latency module (rust/src/runtime/voice/latency.rs) — heki::append here, heki::upsert there." do
+    identified_by :id
+
+    attribute :ts,         Timestamp
+    attribute :text_chars, TextChars,    default: 0
+    attribute :ttfb_ms,    LatencyMs,    default: 0
+    attribute :total_ms,   LatencyMs,    default: 0
+    attribute :cache_hit,  CacheHitFlag, default: "false"
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock instant of the Voice.Speak. The audit
+      # trail can correlate utterances with Cascade.RecordResult
+      # entries (same wall-clock source).
+      attribute :value, String
+    end
+
+    value_object "TextChars" do
+      # Character count of the utterance's text. Useful for
+      # correlating latency with utterance size — cached acks
+      # are short ; one-shot paragraphs are long.
+      attribute :value, Integer
+    end
+
+    value_object "LatencyMs" do
+      # Millisecond measurement — ttfb_ms (first-token-to-first-sound)
+      # or total_ms (full dispatch wall-clock). Integer ms
+      # precision matches LatencyTelemetry's same VO.
+      attribute :value, Integer
+    end
+
+    value_object "CacheHitFlag" do
+      # "true" | "false" — whether THIS utterance hit the cache.
+      # String not Boolean per heki's String-only serializer.
+      attribute :value, String
+    end
+
+    command "Record" do
+      role "System"
+      description "Append one Voice.Latency event. The runtime dispatches this from rust/src/runtime/voice/latency.rs::record after every Voice.Speak — cache hit or HTTP miss. Pure append-only (heki::append, not upsert) so the audit history grows monotonically."
+      attribute :ts,         Timestamp
+      attribute :text_chars, TextChars
+      attribute :ttfb_ms,    LatencyMs
+      attribute :total_ms,   LatencyMs
+      attribute :cache_hit,  CacheHitFlag
+      emits "Latency"
+    end
+  end
+
+  aggregate "LatencyTelemetry", "Singleton holding the rolling-5-utterance latency ring plus the totals. Every Voice.Speak records here, cache hit or miss ; the statusline reads the rolling average + hit_rate." do
+    identified_by :name
+
+    attribute :name,           Name,         default: "voice_latency"
+    attribute :avg_total_ms,   LatencyMs,    default: 0
+    attribute :avg_ttfb_ms,    LatencyMs,    default: 0
+    attribute :sample_count,   SampleCount,  default: 0
+    attribute :hit_rate_pct,   HitRatePct,   default: 0
+    attribute :last_text_chars, TextChars,   default: 0
+    attribute :last_cache_hit, CacheHitFlag, default: "false"
+    attribute :last_ts,        Timestamp,    default: "—"
+
+    value_object "Name" do
+      # Singleton key — there is one LatencyTelemetry per being.
+      # Default "voice_latency".
+      attribute :value, String
+    end
+
+    value_object "LatencyMs" do
+      # Millisecond measurement — first-token-to-first-sound
+      # (ttfb_ms) or total render+play wall-clock (total_ms).
+      # Integer ms ; sub-ms precision isn't relevant for
+      # human-perceived voice latency.
+      attribute :value, Integer
+    end
+
+    value_object "SampleCount" do
+      # Number of Voice.Speak measurements seen since session
+      # start. The rolling average is computed over the last 5
+      # samples ; the raw count is here so the statusline can
+      # gate the segment (omit until we have ≥1 sample).
+      attribute :value, Integer
+    end
+
+    value_object "HitRatePct" do
+      # Percentage of the last 5 Voice.Speak invocations that hit
+      # the phrase cache (integer 0..100). The statusline
+      # renders this as "<n>%".
+      attribute :value, Integer
+    end
+
+    value_object "TextChars" do
+      # Character count of the last Voice.Speak's text. Recorded
+      # so the audit log can correlate latency with utterance
+      # size (cached acks are short ; one-shot tirades are long).
+      attribute :value, Integer
+    end
+
+    value_object "CacheHitFlag" do
+      # "true" | "false" — whether the last Voice.Speak hit the
+      # cache. Pinned as a String VO (not Boolean) so the heki
+      # serializer's String-only contract holds without a
+      # special-case.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 instant of the last Voice.Speak measurement.
+      attribute :value, String
+    end
+
+    command "Record" do
+      role "System"
+      description "The kernel-floor tts_dispatcher just finished a Voice.Speak. Records the measurement : avg_total_ms / avg_ttfb_ms are the rolling-5 averages (computed by the runtime module before dispatching this command), hit_rate_pct is the rolling-5 hit rate, sample_count is the lifetime tally. Surfaces last_text_chars + last_cache_hit + last_ts on the singleton so the statusline can render the most recent measurement alongside the rolling averages."
+      attribute :avg_total_ms,    LatencyMs
+      attribute :avg_ttfb_ms,     LatencyMs
+      attribute :sample_count,    SampleCount
+      attribute :hit_rate_pct,    HitRatePct
+      attribute :last_text_chars, TextChars
+      attribute :last_cache_hit,  CacheHitFlag
+      attribute :last_ts,         Timestamp
+      then_set :avg_total_ms,    to: :avg_total_ms
+      then_set :avg_ttfb_ms,     to: :avg_ttfb_ms
+      then_set :sample_count,    to: :sample_count
+      then_set :hit_rate_pct,    to: :hit_rate_pct
+      then_set :last_text_chars, to: :last_text_chars
+      then_set :last_cache_hit,  to: :last_cache_hit
+      then_set :last_ts,         to: :last_ts
+      emits "LatencyRecorded"
+    end
+  end
+end
