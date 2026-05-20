@@ -18,6 +18,7 @@
 
 import { z } from "zod";
 import { spawn } from "node:child_process";
+import { parseEvents, composeAutoSummary } from "./dispatch_digest.mjs";
 
 const STOREHOUSE_BIN = process.env.STOREHOUSE_BIN || "storehouse";
 
@@ -55,14 +56,25 @@ function dispatchProcess(aggregatesDir, command, attrArgs) {
           // keep scanning
         }
       }
+      const ok = code === 0 && (parsed?.ok !== false);
+      const events = parseEvents(stdout);
+      const auto_summary = composeAutoSummary({
+        command,
+        exit_code: code,
+        ok,
+        events,
+        stderr,
+      });
       resolve({
-        ok: code === 0 && (parsed?.ok !== false),
+        ok,
         exit_code: code,
         command,
         aggregates_dir: aggregatesDir,
         stdout,
         stderr,
         state: parsed,
+        events,
+        auto_summary,
       });
     });
   });
