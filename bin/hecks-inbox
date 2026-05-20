@@ -1,0 +1,225 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# hecks-inbox — centralized i-number allocator for inbox cards
+#
+# Class : InboxNumberAllocator (this file IS the class — script-shaped)
+# Purpose : end the inbox-number-collision pattern. Tonight (2026-05-20)
+#   two pairs of agents collided on the same i-number — each agent
+#   scanned only its own worktree's inbox dir and picked max+1, so
+#   concurrent local-max picks produced duplicates. This script is the
+#   atomic global allocator. Reads + atomically updates the single
+#   source of truth at `~/.hecks/inbox/next.json` under flock so
+#   concurrent callers from sibling worktrees serialize at the OS level.
+#
+# Usage :
+#   hecks-inbox next [--requester LABEL]
+#       Print the next i-number and advance state by 1.
+#       Default verb. The number is printed on stdout, nothing else.
+#
+#   hecks-inbox allocate --reserve N [--requester LABEL]
+#       Reserve a contiguous range of N i-numbers and advance state
+#       by N. Prints "start count" on stdout (space-separated) so
+#       the caller can shell-parse it. Range is [start, start+count-1].
+#
+#   hecks-inbox recover
+#       Re-scan every known inbox dir on disk, compute max(i*.md)+1,
+#       and re-ground next_number. Idempotent — never decreases.
+#       Prints the new next_number on stdout. Run by hand when
+#       the operator suspects drift.
+#
+#   hecks-inbox show
+#       Print the current next.json on stdout. Read-only — does NOT
+#       advance state. Used by the SessionStart hook to inject the
+#       current next-number into additionalContext.
+#
+# The bluebook IS the contract :
+#   hecks_conception/aggregates/framework/inbox_index/inbox_index.bluebook
+# This script is the impure execution.
+
+require 'fileutils'
+require 'json'
+require 'optparse'
+require 'time'
+
+class InboxNumberAllocator
+  HECKS_DIR    = File.expand_path('~/.hecks/inbox')
+  STATE_FILE   = File.join(HECKS_DIR, 'next.json')
+  PROJECTS_DIR = File.expand_path('~/Projects')
+
+  def self.run(argv)
+    new.run(argv)
+  end
+
+  def run(argv)
+    cmd = argv.shift || 'next'
+    case cmd
+    when 'next'     then cmd_next(argv)
+    when 'allocate' then cmd_allocate(argv)
+    when 'recover'  then cmd_recover
+    when 'show'     then cmd_show
+    when '-h', '--help', 'help' then puts help_text; exit 0
+    else
+      warn "hecks-inbox: unknown subcommand : #{cmd}"
+      warn help_text
+      exit 2
+    end
+  end
+
+  private
+
+  def cmd_next(argv)
+    requester = parse_requester(argv)
+    with_state do |state|
+      n = state['next_number']
+      state['next_number']        = n + 1
+      state['last_allocated_at']  = now_iso
+      state['last_allocated_to']  = requester
+      state['total_allocated']    = (state['total_allocated'] || 0) + 1
+      puts n
+    end
+  end
+
+  def cmd_allocate(argv)
+    count = nil
+    requester = 'unknown'
+    OptionParser.new do |opts|
+      opts.on('--reserve N', Integer) { |n| count = n }
+      opts.on('--requester LABEL')    { |l| requester = l }
+    end.parse!(argv)
+    if count.nil? || count < 1
+      warn 'hecks-inbox allocate : --reserve N (positive integer) is required'
+      exit 2
+    end
+    with_state do |state|
+      start = state['next_number']
+      state['next_number']       = start + count
+      state['last_reserved_at']  = now_iso
+      state['last_allocated_to'] = requester
+      state['total_reserved']    = (state['total_reserved'] || 0) + count
+      puts "#{start} #{count}"
+    end
+  end
+
+  def cmd_recover
+    observed = scan_disk_max
+    with_state do |state|
+      previous = state['next_number']
+      new_next = [observed + 1, previous].max
+      state['next_number']       = new_next
+      state['last_recovered_at'] = now_iso
+      state['recoveries']        = (state['recoveries'] || 0) + 1
+      puts new_next
+    end
+  end
+
+  def cmd_show
+    init_state_if_missing
+    puts File.read(STATE_FILE)
+  end
+
+  # ─── persistence : flock-guarded read-modify-write ─────────────
+
+  def with_state
+    FileUtils.mkdir_p(HECKS_DIR)
+    init_state_if_missing
+    File.open(STATE_FILE, File::RDWR) do |f|
+      f.flock(File::LOCK_EX)
+      raw = f.read
+      state = JSON.parse(raw)
+      yield state
+      f.rewind
+      f.truncate(0)
+      f.write(JSON.pretty_generate(state) + "\n")
+      f.flock(File::LOCK_UN)
+    end
+  end
+
+  def init_state_if_missing
+    return if File.exist?(STATE_FILE)
+    FileUtils.mkdir_p(HECKS_DIR)
+    observed = scan_disk_max
+    initial  = {
+      'next_number'        => observed + 1,
+      'session_started_at' => now_iso,
+      'last_allocated_at'  => nil,
+      'last_allocated_to'  => nil,
+      'last_reserved_at'   => nil,
+      'last_recovered_at'  => now_iso,
+      'total_allocated'    => 0,
+      'total_reserved'     => 0,
+      'recoveries'         => 1,
+      'initialized_from'   => "max(i*.md) on disk = #{observed}"
+    }
+    File.write(STATE_FILE, JSON.pretty_generate(initial) + "\n")
+  end
+
+  # ─── disk scan : the Recover operation's substrate ─────────────
+
+  def scan_disk_max
+    max = 0
+    each_inbox_dir do |dir|
+      Dir.glob(File.join(dir, 'i*.md')).each do |path|
+        base = File.basename(path)
+        m    = base.match(/\Ai(\d+)(?:[-.]|$)/)
+        next unless m
+        n = m[1].to_i
+        max = n if n > max
+      end
+    end
+    max
+  end
+
+  def each_inbox_dir
+    return unless Dir.exist?(PROJECTS_DIR)
+    patterns = [
+      File.join(PROJECTS_DIR, '*', 'inbox'),
+      File.join(PROJECTS_DIR, '*', '*.inbox'),
+      File.join(PROJECTS_DIR, '*', 'hecks_conception', 'inbox'),
+      File.join(PROJECTS_DIR, '*', 'tools', 'inbox'),
+      File.join(PROJECTS_DIR, '*', '.claude', 'worktrees', '*', 'hecks_conception', 'inbox'),
+      File.join(PROJECTS_DIR, '*', '.claude', 'worktrees', '*', 'tools', 'inbox'),
+      File.join(PROJECTS_DIR, 'hecks_worktrees', '*', 'hecks_conception', 'inbox'),
+      File.join(PROJECTS_DIR, 'hecks_worktrees', '*', 'tools', 'inbox')
+    ]
+    seen = {}
+    patterns.each do |pat|
+      Dir.glob(pat).each do |dir|
+        next unless File.directory?(dir)
+        real = File.realpath(dir) rescue dir
+        next if seen[real]
+        seen[real] = true
+        yield dir
+      end
+    end
+  end
+
+  def now_iso
+    Time.now.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+  end
+
+  def parse_requester(argv)
+    requester = 'unknown'
+    OptionParser.new do |opts|
+      opts.on('--requester LABEL') { |l| requester = l }
+    end.parse!(argv)
+    requester
+  end
+
+  def help_text
+    <<~HELP
+      hecks-inbox — centralized i-number allocator
+
+      Usage:
+        hecks-inbox next [--requester LABEL]
+        hecks-inbox allocate --reserve N [--requester LABEL]
+        hecks-inbox recover
+        hecks-inbox show
+
+      Persistence: ~/.hecks/inbox/next.json (flock-guarded)
+      Bluebook:    hecks_conception/aggregates/framework/inbox_index/
+    HELP
+  end
+end
+
+InboxNumberAllocator.run(ARGV) if $PROGRAM_NAME == __FILE__

@@ -1,0 +1,104 @@
+Hecks.behaviors "InboxIndex" do
+  vision "Behavioral tests for the InboxIndex bluebook — the centralized i-number allocator. First-draft placeholder coverage : one test per command on the InboxIndex aggregate (StartSession, Allocate, Reserve, Recover) so the companion-block discipline is satisfied. As the substrate fleshes out (real flock-guarded persistence in bin/hecks-inbox, real disk-scan recovery, real concurrent-Allocate stress tests), these tests grow into operational coverage ; for now they assert the command-records-attribute shape only."
+
+  # ── InboxIndex.StartSession ────────────────────────────────────
+  #
+  # Resets per-session counters at runtime boot. Lifetime totals on
+  # disk in next.json are preserved — this resets only the in-memory
+  # tallies the aggregate exposes for observability.
+
+  test "StartSession records session_started_at" do
+    tests "StartSession", on: "InboxIndex"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-20T00:00:00Z" }
+    expect session_started_at: { value: "2026-05-20T00:00:00Z" }
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "InboxIndex"
+    input  name:               { value: "default" },
+           session_started_at: { value: "2026-05-20T00:00:01Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  # ── InboxIndex.Allocate ────────────────────────────────────────
+  #
+  # The default verb for "give me the next i-number." Atomicity is
+  # enforced by the bin/hecks-inbox shim's flock on next.json — the
+  # bluebook records the post-allocation state ; the shim guarantees
+  # the read-modify-write is serialized at the OS level.
+
+  test "Allocate records last_allocated_at + requester" do
+    tests "Allocate", on: "InboxIndex"
+    input  name:             { value: "default" },
+           allocated_number: { value: 658 },
+           requester:        { value: "inbox-centralized-numbering" },
+           allocated_at:     { value: "2026-05-20T22:14:03Z" }
+    expect last_allocated_at: { value: "2026-05-20T22:14:03Z" },
+           last_allocated_to: { value: "inbox-centralized-numbering" }
+  end
+
+  test "Allocate emits NumberAllocated" do
+    tests "Allocate", on: "InboxIndex"
+    input  name:             { value: "default" },
+           allocated_number: { value: 659 },
+           requester:        { value: "manual" },
+           allocated_at:     { value: "2026-05-20T22:14:04Z" }
+    expect emits: ["NumberAllocated"]
+  end
+
+  # ── InboxIndex.Reserve ─────────────────────────────────────────
+  #
+  # The verb for "I'm spawning N sidequests — give me a contiguous
+  # block of N i-numbers so the children can pick from a known range
+  # without colliding with each other or with anyone else." Returned
+  # as a Range value-object (start + count).
+
+  test "Reserve records last_reserved_at + requester" do
+    tests "Reserve", on: "InboxIndex"
+    input  name:           { value: "default" },
+           reserved_range: { start: 660, count: 5 },
+           requester:      { value: "audit-sidequest" },
+           reserved_at:    { value: "2026-05-20T22:14:05Z" }
+    expect last_reserved_at:  { value: "2026-05-20T22:14:05Z" },
+           last_allocated_to: { value: "audit-sidequest" }
+  end
+
+  test "Reserve emits RangeReserved" do
+    tests "Reserve", on: "InboxIndex"
+    input  name:           { value: "default" },
+           reserved_range: { start: 665, count: 3 },
+           requester:      { value: "autophagy-sidequest" },
+           reserved_at:    { value: "2026-05-20T22:14:06Z" }
+    expect emits: ["RangeReserved"]
+  end
+
+  # ── InboxIndex.Recover ─────────────────────────────────────────
+  #
+  # Re-scan disk and re-ground next_number to max(i*.md) + 1.
+  # Idempotent — never decreases next_number, only advances if
+  # disk reality has overtaken state. The aggregate stores the
+  # post-recovery new_next via then_set ; the audit fields record
+  # the observed_max + previous_next for the trail.
+
+  test "Recover advances next_number to new_next" do
+    tests "Recover", on: "InboxIndex"
+    input  name:          { value: "default" },
+           observed_max:  { value: 670 },
+           previous_next: { value: 668 },
+           new_next:      { value: 671 },
+           recovered_at:  { value: "2026-05-20T22:14:07Z" }
+    expect next_number:      { value: 671 },
+           last_recovered_at: { value: "2026-05-20T22:14:07Z" }
+  end
+
+  test "Recover emits StateRecovered" do
+    tests "Recover", on: "InboxIndex"
+    input  name:          { value: "default" },
+           observed_max:  { value: 700 },
+           previous_next: { value: 700 },
+           new_next:      { value: 701 },
+           recovered_at:  { value: "2026-05-20T22:14:08Z" }
+    expect emits: ["StateRecovered"]
+  end
+end

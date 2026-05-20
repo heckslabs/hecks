@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# hecks-inbox-session-context — SessionStart hook payload
+#
+# Class : InboxIndexSessionContext (this file IS the hook — shell-shaped)
+# Purpose : query the centralized i-number allocator (~/.hecks/inbox/next.json
+#   via bin/hecks-inbox show, read-only) and emit a SessionStart
+#   hookSpecificOutput.additionalContext JSON blob so the next-number is
+#   visible inline at boot. Closes the loop on i658 — agents see the
+#   current next-number before they make any tool call, and the agent-
+#   instruction template names which shim verb to call to obtain a
+#   freshly-allocated number atomically.
+#
+# Install : add to .claude/settings.local.json under hooks.SessionStart[].hooks:
+#
+#   {
+#     "type": "command",
+#     "command": "/Users/christopheryoung/Projects/hecks/bin/hecks-inbox-session-context",
+#     "timeout": 5
+#   }
+#
+# Output : a single JSON object on stdout matching the
+# hookSpecificOutput contract. Silent (exits 0 with no output) if the
+# allocator state file doesn't exist yet — the first
+# `hecks-inbox next|recover` call lazily initialises it.
+
+set -u
+
+NEXT_JSON="$(ruby /Users/christopheryoung/Projects/hecks/bin/hecks-inbox show 2>/dev/null || true)"
+[ -z "$NEXT_JSON" ] && exit 0
+
+NEXT_N="$(printf '%s' "$NEXT_JSON" | jq -r '.next_number // empty' 2>/dev/null || true)"
+[ -z "$NEXT_N" ] && exit 0
+
+CTX="[inbox-index] next i-number for any inbox card you file this session : i${NEXT_N}
+  persistence : ~/.hecks/inbox/next.json (flock-guarded)
+  allocate    : ruby /Users/christopheryoung/Projects/hecks/bin/hecks-inbox next --requester <task-tag>
+  reserve N   : ruby /Users/christopheryoung/Projects/hecks/bin/hecks-inbox allocate --reserve N --requester <task-tag>
+  bluebook    : hecks_conception/aggregates/framework/inbox_index/"
+
+printf '%s' "$CTX" | jq -Rs '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: .}}'
+exit 0
