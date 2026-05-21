@@ -87,17 +87,20 @@ pub fn run(args: &[String]) -> i32 {
     if matches!(first, Some("--help") | Some("-h") | Some("help")) { print_help(); return 0; }
     let opts = parse_opts(args);
     let path = storehouse_log::log_file_path();
-    tail_blocks(&path, &opts);
+    if opts.json { tail_blocks(&path, &opts); } else { tail_lines(&path, &opts); }
     0
 }
 
-fn tail_blocks(path: &Path, opts: &Opts) {
+fn tail_lines(path: &Path, opts: &Opts) {
+    // Default mode : stream every log line live, line by line, exactly
+    // as the runtime writes it (the whole sausage). --exclude drops a
+    // line whose command FQN matches a pattern. Rich-block lines pass
+    // through raw too (the ANSI-stripped JSON), so nothing is hidden.
     let poll = Duration::from_millis(100);
     let mut file = loop { match File::open(path) { Ok(f) => break f, Err(_) => std::thread::sleep(poll) } };
     let _ = file.seek(SeekFrom::End(0));
     let mut reader = BufReader::new(file);
     let mut buf = String::new();
-    let mut para = String::new();
     loop {
         buf.clear();
         match reader.read_line(&mut buf) {
@@ -110,12 +113,68 @@ fn tail_blocks(path: &Path, opts: &Opts) {
             }
             Ok(_) => {
                 let line = buf.trim_end_matches('\n').trim_end_matches('\r');
-                if line.is_empty() { flush_para(&para, opts); para.clear(); }
-                else { if !para.is_empty() { para.push('\n'); } para.push_str(line); }
+                emit_legacy(line, opts);
             }
             Err(_) => std::thread::sleep(poll),
         }
     }
+}
+
+fn tail_blocks(path: &Path, opts: &Opts) {
+    let poll = Duration::from_millis(100);
+    let mut file = loop { match File::open(path) { Ok(f) => break f, Err(_) => std::thread::sleep(poll) } };
+    let _ = file.seek(SeekFrom::End(0));
+    let mut reader = BufReader::new(file);
+    let mut buf = String::new();
+    let mut blk = String::new();
+    let mut in_block = false;
+    loop {
+        buf.clear();
+        match reader.read_line(&mut buf) {
+            Ok(0) => {
+                std::thread::sleep(poll);
+                if !path.exists() {
+                    let nf = loop { match File::open(path) { Ok(f) => break f, Err(_) => std::thread::sleep(poll) } };
+                    reader = BufReader::new(nf);
+                }
+            }
+            Ok(_) => {
+                let line = buf.trim_end_matches('\n').trim_end_matches('\r');
+                let trimmed = line.trim();
+                if in_block {
+                    if !blk.is_empty() { blk.push('\n'); }
+                    blk.push_str(line);
+                    if trimmed == "}" { flush_para(&blk, opts); blk.clear(); in_block = false; }
+                } else if trimmed == "{" {
+                    in_block = true; blk.clear(); blk.push_str(line);
+                } else if !trimmed.is_empty() {
+                    emit_legacy(line, opts);
+                }
+            }
+            Err(_) => std::thread::sleep(poll),
+        }
+    }
+}
+
+/// A legacy single-line entry (`[ts] verb FQN#id ...`). Print it as-is
+/// unless an --exclude pattern matches its FQN. Keeps the constant
+/// daemon flow (Heart.Beat etc.) streaming live between rich blocks.
+fn emit_legacy(line: &str, opts: &Opts) {
+    if !opts.exclude.is_empty() {
+        // FQN is the token after the verb : "[ts] dispatch Heart::Heart.Beat#1".
+        if let Some(rest) = line.split_once("] ").map(|(_, r)| r) {
+            let mut toks = rest.split_whitespace();
+            let _verb = toks.next();
+            if let Some(fqn_id) = toks.next() {
+                let fqn = fqn_id.split('#').next().unwrap_or(fqn_id);
+                if opts.exclude.iter().any(|x| fqn.contains(x.as_str())) { return; }
+            }
+        }
+    }
+    if opts.json { return; }
+    println!("{}", block::colourise_legacy(line));
+    use std::io::Write as _;
+    let _ = std::io::stdout().flush();
 }
 
 fn flush_para(para: &str, opts: &Opts) {

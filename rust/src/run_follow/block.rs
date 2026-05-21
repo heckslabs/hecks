@@ -215,6 +215,32 @@ fn first_quoted_after(line: &str, key: &str) -> Option<String> {
     Some(after[start..end].to_string())
 }
 
+
+/// Colourise a legacy single-line log entry :
+///   `[ts] dispatch Domain::Aggregate.Command#inv ...`
+///   `[ts] cascade X#id ok=true`  /  `[ts] policy P on E -> T`  /  `[ts] event A.B#id`
+/// Timestamp dim, verb coloured by kind (dispatch=cyan, event/cascade-ok=green,
+/// cascade-fail=red, policy=magenta), the FQN token bright. Falls back to the
+/// raw line when the shape doesn't match.
+pub fn colourise_legacy(line: &str) -> String {
+    let (ts, rest) = match line.split_once("] ") {
+        Some((t, r)) => (format!("{}]", t), r),
+        None => return line.to_string(),
+    };
+    let mut toks = rest.splitn(2, ' ');
+    let verb = toks.next().unwrap_or("");
+    let tail = toks.next().unwrap_or("");
+    let ok_fail = line.contains("ok=false");
+    let verb_col = match verb {
+        "dispatch" => CYAN,
+        "event" => GREEN,
+        "cascade" => if ok_fail { BRIGHT_RED } else { GREEN },
+        "policy" => MAGENTA,
+        _ => DIM,
+    };
+    format!("{DIM}{ts}{RESET} {vc}{verb}{RESET} {tail}", vc = verb_col)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
