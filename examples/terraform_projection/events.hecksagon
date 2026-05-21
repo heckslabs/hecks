@@ -1,0 +1,26 @@
+Hecks.hecksagon "Events" do
+  # Three-adapter walking skeleton :
+  #   - :sqs    queue receives inbound events.
+  #   - :lambda function drains the queue.
+  #   - :s3     bucket stores the processed events.
+  #
+  # The wiring (which adapter triggers which) is not modeled here —
+  # i693 Phase 1 emits the three primary resources and leaves
+  # aws_lambda_event_source_mapping wiring for Phase 2. The world
+  # file carries the AWS region + per-adapter property bag.
+
+  adapter :memory
+
+  adapter :sqs,
+          name:               "events_queue",
+          visibility_timeout: 30
+
+  adapter :lambda,
+          name:    "events_worker",
+          handler: "main.handle",
+          runtime: "nodejs20.x"
+
+  adapter :s3,
+          name:       "events_store",
+          versioning: "enabled"
+end

@@ -314,6 +314,31 @@ fn main() {
         return;
     }
 
+    // `storehouse project terraform <hecksagon> [world] [--output <dir>]`
+    //
+    // Hecksagon → Terraform HCL projection (i693 Phase 1). Reads the
+    // .hecksagon, optionally reads the .world, walks every named
+    // adapter, looks up its kind in the AdapterKindMapping table
+    // (storehouse::projection::terraform::mappings), and emits one
+    // `resource` block per adapter that maps to a known resource type.
+    // Adapters with no mapping (:memory, :tts, :llm, :shell, :exec,
+    // :env, :fs, :stdin/out/err, :compute, :web_tool) are silently
+    // skipped — they are runtime-side, not cloud-side.
+    //
+    // --output <dir> writes main.tf into the directory (creating it
+    // if missing) ; without --output the HCL is written to stdout so
+    // the projection can be piped into `terraform fmt -` or diffed
+    // against goldens.
+    //
+    // Bluebook contract :
+    //   hecks_conception/aggregates/framework/projection/terraform.bluebook
+    //
+    // The CLI is the thin file-I/O boundary ; the projection itself
+    // is a pure walk over IR (storehouse::projection::terraform).
+    if command == "project" {
+        std::process::exit(run_project(&args));
+    }
+
     if command == "specialize" {
         run_specialize(&args);
         return;
@@ -729,7 +754,11 @@ fn main() {
                 domain.aggregates.iter().map(|a| a.commands.len()).sum::<usize>(),
                 domain.policies.len());
         }
-        "project" => eprintln!("project is now: storehouse serve <dir-or-file>"),
+        // `project` is now its own subcommand (i693 Phase 1) — dispatched
+        // earlier in main(), handled by run_project. The legacy
+        // "project is now: storehouse serve …" deprecation message was
+        // retired when the keyword was repurposed for hecksagon →
+        // Terraform HCL projection.
         "counts" => {
             let cmds: usize = domain.aggregates.iter().map(|a| a.commands.len()).sum();
             println!("{}|{}|{}|{}|{}", domain.name, domain.aggregates.len(), cmds, domain.policies.len(), domain.fixtures.len());
@@ -1534,6 +1563,91 @@ fn run_check_all(args: &[String]) {
 
 /// `storehouse specialize <target> [--output PATH]`
 ///
+/// `storehouse project <target> <hecksagon> [world] [--output <dir>]`
+///
+/// Hecksagon → cloud-infrastructure-as-code projection (i693 Phase 1).
+/// Target name dispatches to the matching projector under
+/// `storehouse::projection::`. Today only `terraform` is wired ; CDK,
+/// CloudFormation, Pulumi, Kubernetes manifests join in Phase 2.
+///
+/// Reads the .hecksagon and optional .world, hands them to the
+/// projector, and either writes <output>/main.tf or prints the
+/// emitted HCL to stdout. Pure functional walk inside ; the CLI is
+/// the thin file-I/O boundary.
+///
+/// Exit codes :
+///   0 — projection succeeded
+///   1 — file read / parse / write failed
+///   2 — usage error (missing target, unknown target)
+fn run_project(args: &[String]) -> i32 {
+    let target = args.get(2).map(|s| s.as_str()).unwrap_or("");
+    if target.is_empty() {
+        eprintln!("Usage: storehouse project <target> <hecksagon> [world] [--output <dir>]");
+        eprintln!("       targets: terraform");
+        return 2;
+    }
+    if target != "terraform" {
+        eprintln!("project: unknown target '{}' — only 'terraform' is wired (i693 Phase 1)", target);
+        return 2;
+    }
+    let hecksagon_path = match args.get(3) {
+        Some(p) => p.clone(),
+        None => {
+            eprintln!("project terraform: <hecksagon> path is required");
+            return 2;
+        }
+    };
+    // world is optional. If the 4th positional arg starts with --
+    // it's a flag, not a world path.
+    let world_path = args.get(4)
+        .filter(|a| !a.starts_with("--"))
+        .cloned();
+    let output_dir = args.iter().position(|a| a == "--output")
+        .and_then(|i| args.get(i + 1))
+        .cloned();
+
+    let hex_source = match std::fs::read_to_string(&hecksagon_path) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("project: cannot read {}: {}", hecksagon_path, e); return 1; }
+    };
+    let hex = storehouse::hecksagon_parser::parse(&hex_source);
+
+    let world_owned = match world_path.as_deref() {
+        Some(p) => {
+            let src = match std::fs::read_to_string(p) {
+                Ok(s) => s,
+                Err(e) => { eprintln!("project: cannot read {}: {}", p, e); return 1; }
+            };
+            Some(storehouse::world_parser::parse(&src))
+        }
+        None => None,
+    };
+    let result = storehouse::projection::terraform::project_hecksagon(
+        &hex, world_owned.as_ref()
+    );
+
+    match output_dir {
+        Some(dir) => {
+            if let Err(e) = std::fs::create_dir_all(&dir) {
+                eprintln!("project: cannot create {}: {}", dir, e);
+                return 1;
+            }
+            let out_path = format!("{}/main.tf", dir.trim_end_matches('/'));
+            if let Err(e) = std::fs::write(&out_path, &result.hcl) {
+                eprintln!("project: cannot write {}: {}", out_path, e);
+                return 1;
+            }
+            eprintln!("project terraform: wrote {} ({} resource(s))",
+                      out_path, result.adapter_count);
+        }
+        None => {
+            print!("{}", result.hcl);
+            eprintln!("# {} resource(s) emitted", result.adapter_count);
+        }
+    }
+    0
+}
+
 /// i51 Phase D pilot — Rust-native specializer driver. Mirrors
 /// `bin/specialize <target>` on the Ruby side; both runtimes must
 /// produce byte-identical output for every ported target until the

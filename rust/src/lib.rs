@@ -43,6 +43,7 @@ pub mod hecksagon_ir;
 pub mod hecksagon_parser;
 pub mod world_ir;
 pub mod world_parser;
+pub mod projection;
 pub mod run;
 pub mod run_boot;
 pub mod run_follow;

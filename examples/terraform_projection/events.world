@@ -1,0 +1,27 @@
+Hecks.world "Events" do
+  # AWS provider block — region drives the provider stanza in the
+  # emitted HCL. Extra keys (profile, default_tags) are forwarded as
+  # provider attributes.
+  aws do
+    region "us-east-1"
+  end
+
+  # Per-adapter property bags. The block name MUST match the adapter's
+  # `name:` in events.hecksagon. Inline hecksagon options + this block
+  # are merged ; world wins on key collision (it is the deployment-time
+  # override).
+  events_queue do
+    visibility_timeout 60
+    message_retention_seconds 345600
+  end
+
+  events_worker do
+    memory_size 256
+    timeout 30
+    role "arn:aws:iam::123456789012:role/events-worker"
+  end
+
+  events_store do
+    bucket "events-store-2026"
+  end
+end

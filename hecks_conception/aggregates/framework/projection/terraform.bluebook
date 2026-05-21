@@ -1,0 +1,224 @@
+Hecks.bluebook "TerraformProjection", version: "2026.05.21.1" do
+  vision "Project a Hecksagon IR + matching World values to Terraform HCL. Bluebooks already project to two runtimes (Ruby + Rust). Hecksagons declare adapter wiring (which adapters, which providers, which triggers) — the same declaration projects equally well to cloud infrastructure-as-code. This bluebook is the contract for the Terraform target : adapter kinds map to Terraform resource types via a small table (e.g. :s3 → aws_s3_bucket, :lambda → aws_lambda_function, :sqs → aws_sqs_queue), the named adapter instance becomes the resource's logical id, and the world file's per-adapter blocks become the resource's properties. The dispatch IS the projection — ProjectHecksagon walks the IR + World, ProjectAdapter projects a single named adapter, and the emitted HCL string is the deliverable. The Rust arm in storehouse/src/projection/terraform/ implements the walk + emit ; this bluebook IS the contract that arm honors. Forward-compatible with i695 (hecksagon IR → bluebook conversion in flight) : the projection's interface is `walk hecksagon adapters + look up resource type + emit a resource block with options as properties` ; no specific field layout is assumed."
+  category "framework"
+
+  # ============================================================
+  # TERRAFORM PROJECTION — hecksagon → Terraform HCL
+  # ============================================================
+  #
+  # Conceived 2026-05-21 (i693 Phase 1). The vision (i693) :
+  # hecksagons are declarative wiring. Bluebooks project to runtimes ;
+  # hecksagons project to cloud infrastructure. Terraform HCL is the
+  # first target because it is the most-common cloud DSL.
+  #
+  # ── Mapping shape ──
+  #
+  # A .hecksagon declares adapters by kind + name + options :
+  #
+  #   adapter :sqs,    name: "events",        visibility_timeout: 30
+  #   adapter :lambda, name: "events_worker", handler: "main.handle", runtime: "nodejs20.x"
+  #   adapter :s3,     name: "events_store",  versioning: "enabled"
+  #
+  # The companion .world file carries the per-adapter property bag
+  # (region, tags, sizes — the cloud-vendor-shaped values that don't
+  # belong in the hecksagon's wiring DSL) :
+  #
+  #   Hecks.world "Events" do
+  #     aws    do; region "us-east-1" end
+  #     events do; visibility_timeout 60 end
+  #     events_store do; bucket_name "events-2026" end
+  #   end
+  #
+  # The projector :
+  #   1. Reads the hecksagon adapter list (kind + name + options).
+  #   2. Looks up each kind in AdapterKindMapping → Terraform resource_type
+  #      (e.g. :s3 → "aws_s3_bucket"). Unknown kinds (e.g. :tts which has
+  #      no cloud-resource analog) are skipped.
+  #   3. Merges the adapter's inline options with the matching world block
+  #      keyed by the adapter's name. World values win on key collision —
+  #      they are the deployment-time override.
+  #   4. Emits one `resource "<resource_type>" "<adapter_name>" { ... }`
+  #      block per resolved adapter, plus a provider block driven by the
+  #      world's `aws do … end` (or analogous provider block) when present.
+  #
+  # ── Why no separate AdapterMapping entity persisted in state ──
+  #
+  # The mapping table is a closed-set lookup, not domain state. It is
+  # declared INSIDE this aggregate as value_objects so the bluebook IS
+  # the contract (which kinds project, to which resource types). The
+  # Rust arm hardcodes the same table in projection/terraform/mappings.rs ;
+  # parity is enforced by the .behaviors goldens.
+  #
+  # ── Forward-compat with i695 ──
+  #
+  # i695 (hecksagon IR → bluebook conversion) is in parallel flight.
+  # This bluebook deliberately describes the projection contract in
+  # terms of the existing hecksagon DSL surface (`adapter <kind>, name:`
+  # + options block) rather than any concrete IR field layout. When
+  # i695 lands, the same projection contract holds — the IR is just
+  # a different physical representation of the same declarative wiring.
+
+  aggregate "TerraformProjector", "Project a Hecksagon IR + matching World values to Terraform HCL." do
+    identified_by :name
+
+    attribute :name,            ProjectorName,    default: "terraform"
+    attribute :last_projection, ProjectionResult, default: "—"
+
+    # ── Value-objects : the domain's language ──
+
+    value_object "ProjectorName" do
+      # Identifier for the projector instance. Singleton by convention —
+      # one TerraformProjector per process is enough ; the work is in
+      # the per-command projection, not in long-lived projector state.
+      attribute :value, String
+    end
+
+    value_object "HecksagonPath" do
+      # Absolute or relative path to the .hecksagon file whose adapter
+      # wiring is being projected. The projector reads the file and
+      # parses it into the existing Hecksagon IR (rust/src/hecksagon_ir.rs).
+      attribute :value, String
+    end
+
+    value_object "WorldPath" do
+      # Optional path to the matching .world file. When absent the
+      # projection uses adapter inline options only ; when present the
+      # world's per-adapter blocks override / extend the inline options.
+      # Empty string is the convention for "no world file" since the
+      # world contract is optional (the hecksagon alone is enough to
+      # generate a minimally valid HCL output).
+      attribute :value, String
+    end
+
+    value_object "OutputPath" do
+      # Directory where main.tf is written. When absent the projection
+      # is emitted to stdout — useful for piping into terraform fmt or
+      # for round-trip golden testing. When present, the directory is
+      # created if missing and main.tf is the only file emitted.
+      attribute :value, String
+    end
+
+    value_object "AdapterKind" do
+      # The hecksagon adapter kind symbol — :sqs, :lambda, :s3, :dynamodb,
+      # :sns, :api_gateway, :cloudwatch_log_group, ... The value is the
+      # bare identifier (no leading colon). Closed set : see the
+      # AdapterKindMapping table below.
+      attribute :value, String
+    end
+
+    value_object "AdapterName" do
+      # The hecksagon adapter's `name:` attribute. Becomes the Terraform
+      # resource's logical id (the second word in `resource "type" "name"`).
+      # Required for projection ; nameless adapters (like the bare
+      # `adapter :memory` persistence marker) are skipped.
+      attribute :value, String
+    end
+
+    value_object "ResourceType" do
+      # The Terraform resource type the adapter projects to — e.g.
+      # "aws_s3_bucket", "aws_lambda_function", "aws_sqs_queue". Resolved
+      # by the AdapterKindMapping table below. Empty string means the
+      # kind does not project (e.g. :memory, :tts, :stdout).
+      attribute :value, String
+    end
+
+    value_object "ProjectionResult" do
+      # The emitted HCL string from the most recent projection. Captured
+      # on the aggregate for downstream consumers (the storehouse log,
+      # the CLI's --dry-run flag, tests that diff against goldens).
+      attribute :value, String
+    end
+
+    value_object "AdapterCount" do
+      # Number of adapters that successfully projected to a resource
+      # block in the most recent projection. Skipped adapters (no
+      # mapping, no name) are not counted.
+      attribute :value, Integer
+    end
+
+    # ── AdapterKindMapping : the closed-set lookup table ──
+    #
+    # The contract : which hecksagon adapter kinds project, and to which
+    # Terraform resource types. Declared as value_objects so the
+    # bluebook IS the table. The Rust arm in projection/terraform/
+    # mappings.rs holds the same table verbatim ; parity is enforced
+    # by the .behaviors goldens.
+    #
+    # AWS-flavored for Phase 1 (the most common cloud target). Phase 2
+    # adds analogous tables for GCP (google_storage_bucket, etc.) and
+    # Azure (azurerm_storage_account, etc.) sibling projectors.
+    #
+    # Kinds that have no cloud-resource analog (:memory, :stdout, :tts,
+    # :llm, :compute, :exec, :shell, :web_tool, :env, :fs, :stdin)
+    # are deliberately ABSENT from this table — the projector skips
+    # them. The right place to project :lambda's wired :sqs trigger is
+    # an aws_lambda_event_source_mapping resource (Phase 2) ; v1 emits
+    # the three primary resources and leaves wiring to the operator.
+
+    value_object "S3Mapping" do
+      # :s3 → aws_s3_bucket. The adapter's :name becomes the resource
+      # id ; the world's matching block becomes the resource properties
+      # (bucket name, versioning, lifecycle rules, server-side encryption).
+      attribute :kind, String
+      attribute :resource_type, String
+    end
+
+    value_object "SqsMapping" do
+      # :sqs → aws_sqs_queue. The adapter's :name becomes the resource
+      # id ; the world's matching block becomes the queue properties
+      # (visibility timeout, message retention, FIFO flag, dead-letter
+      # arn).
+      attribute :kind, String
+      attribute :resource_type, String
+    end
+
+    value_object "LambdaMapping" do
+      # :lambda → aws_lambda_function. The adapter's :name becomes the
+      # resource id ; the world's matching block becomes the function
+      # properties (handler, runtime, memory, timeout, environment
+      # variables, role arn).
+      attribute :kind, String
+      attribute :resource_type, String
+    end
+
+    value_object "DynamoDbMapping" do
+      # :dynamodb → aws_dynamodb_table. The adapter's :name becomes the
+      # resource id ; the world's matching block becomes the table
+      # properties (hash_key, range_key, billing_mode, attributes).
+      attribute :kind, String
+      attribute :resource_type, String
+    end
+
+    value_object "SnsMapping" do
+      # :sns → aws_sns_topic. The adapter's :name becomes the resource
+      # id ; the world's matching block becomes the topic properties
+      # (display_name, fifo_topic flag, content_based_deduplication).
+      attribute :kind, String
+      attribute :resource_type, String
+    end
+
+    # ── Commands ──
+
+    command "ProjectHecksagon" do
+      role "Framework"
+      description "Project an entire .hecksagon + matching .world to Terraform HCL. Reads the hecksagon at hecksagon_path, optionally reads the world at world_path, walks every named adapter, looks up its kind in the AdapterKindMapping table, merges inline options with the matching world block (world wins on collision), and emits one `resource` block per adapter that maps to a known resource type. Adapters with no mapping (e.g. :memory, :tts, :llm) are silently skipped. When output_path is non-empty the HCL is written to <output_path>/main.tf ; when empty the HCL is captured on the aggregate's last_projection attribute (queryable via storehouse state). Returns AdapterCount = number of resource blocks emitted."
+      attribute :hecksagon_path, HecksagonPath
+      attribute :world_path,     WorldPath
+      attribute :output_path,    OutputPath
+      attribute :hcl,            ProjectionResult
+      attribute :adapter_count,  AdapterCount
+      emits "HecksagonProjected"
+      then_set :last_projection, to: :hcl
+    end
+
+    command "ProjectAdapter" do
+      role "Framework"
+      description "Project a single named adapter to its Terraform resource block. Used for debugging / dry-run / programmatic composition of a multi-resource HCL document by a higher-level pipeline. The adapter's kind + name + inline-options are passed directly ; no hecksagon file read is performed. world_values is the merged property bag (the caller fans out the world block lookup before dispatching). Emits AdapterProjected with the single-resource HCL string."
+      reference_to(TerraformProjector)
+      attribute :adapter_kind, AdapterKind
+      attribute :adapter_name, AdapterName
+      attribute :hcl,          ProjectionResult
+      emits "AdapterProjected"
+    end
+  end
+end
