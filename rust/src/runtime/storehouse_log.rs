@@ -137,10 +137,37 @@ fn emit(line: String) {
     }
 }
 
+/// Emit an ANSI-coloured rich record (i697 rich blocks) to the FILE sink
+/// only — NOT to the dispatching process's stdout.
+///
+/// Why file-only : stdout is the dispatching process's contractual output
+/// (the `{"ok":true,...}` result line the CLI prints, which the MCP
+/// wrapper + golden tests + piped scripts parse). A multi-line pretty
+/// JSON block on stdout contaminates every one of those consumers (it
+/// broke the status_golden smoke). The "live stream" the rich blocks feed
+/// is `storehouse follow` — a SEPARATE tail process that reads this file
+/// and renders it. So the rich block lands in the file ; `follow` / `tail`
+/// surface it ; stdout stays clean.
+///
+/// The COLOURED form is written to the file so `tail -f` / `follow`
+/// render colours natively in the terminal. Callers that need a plain
+/// copy for grep/parse use the public `dispatch_detail::strip_ansi`
+/// stripper (or the `--no-color` follow flag). A trailing blank line
+/// follows each block so `tail` reads one rich object per paragraph.
+pub fn emit_dual(coloured: &str) {
+    if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
+        if let Ok(mut f) = sink.lock() {
+            let _ = writeln!(f, "{}\n", coloured);
+        }
+    }
+}
+
 /// Surface 1 — dispatch entry. Printed when a top-level command enters
 /// the runtime. `description` is optional (the human-readable label
 /// from the command declaration, when known).
 pub fn dispatch_entry(fqn: &str, id: &str, description: Option<&str>) {
+    // i697 — feed the rich-block timeline (no-op outside a dispatch scope).
+    crate::runtime::dispatch_detail::record_event("dispatch", fqn, true);
     if level() == LogLevel::Quiet || level() == LogLevel::Normal || level() == LogLevel::Verbose {
         let desc = description
             .map(|d| format!(" \"{}\"", d))
@@ -152,6 +179,8 @@ pub fn dispatch_entry(fqn: &str, id: &str, description: Option<&str>) {
 /// Surface 2 — event emission. Printed when a dispatch yields its
 /// event. Suppressed at `Quiet`.
 pub fn event_emitted(aggregate: &str, event_name: &str, id: &str) {
+    crate::runtime::dispatch_detail::record_event(
+        "event", &format!("{}.{}", aggregate, event_name), true);
     if level() == LogLevel::Normal || level() == LogLevel::Verbose {
         emit(format!("[{}] event {}.{}#{}", now_iso8601(), aggregate, event_name, id));
     }
@@ -162,6 +191,7 @@ pub fn event_emitted(aggregate: &str, event_name: &str, id: &str) {
 /// `ok` reflects the cascade outcome (`true` on success, `false` on
 /// dispatch error). Suppressed at `Quiet`.
 pub fn cascade_step(fqn: &str, id: &str, ok: bool) {
+    crate::runtime::dispatch_detail::record_event("cascade", fqn, ok);
     if level() == LogLevel::Normal || level() == LogLevel::Verbose {
         emit(format!("[{}] cascade {}#{} ok={}", now_iso8601(), fqn, id, ok));
     }
@@ -177,6 +207,8 @@ pub fn policy_reaction(
     id: &str,
     dispatched_command: &str,
 ) {
+    crate::runtime::dispatch_detail::record_event(
+        "policy", &format!("{} -> {}", policy_name, dispatched_command), true);
     if level() == LogLevel::Quiet || level() == LogLevel::Normal || level() == LogLevel::Verbose {
         emit(format!(
             "[{}] policy {} on {}.{}#{} -> {}",
@@ -188,6 +220,8 @@ pub fn policy_reaction(
 /// Surface 5 — per-attribute trace. Only printed at `Verbose`.
 /// One line per attribute set into aggregate state during a dispatch.
 pub fn attribute_trace(aggregate: &str, id: &str, attr: &str, value: &str) {
+    crate::runtime::dispatch_detail::record_event(
+        "attr", &format!("{}.{}", aggregate, attr), true);
     if level() == LogLevel::Verbose {
         // Truncate noisy values so the verbose trace stays one-line.
         let v_trimmed = if value.len() > 80 {
