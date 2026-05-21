@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""
+dispatch-detail-hook -- Claude Code PostToolUse hook for storehouse MCP tools
+
+[antibody-exempt: bin/dispatch-detail-hook -- minimal Claude Code harness
+ glue at the hook entrypoint. Reads the PostToolUse JSON payload from
+ stdin, extracts the storehouse__dispatch / __query / __state
+ structuredContent, formats verb + adapters + cascades + state +
+ duration into a few human-readable lines, and prints them as
+ hookSpecificOutput.additionalContext so Miette + Chris see the bus
+ working on every dispatch. Mechanical narration : every storehouse
+ call self-announces its events + adapter results + state transition
+ + duration. Retires when Claude Code grows native subscription to
+ the bluebook event stream (storehouse://events). Implements i692.]
+
+Wired in .claude/settings.json under PostToolUse alongside the
+macrophage-hook and read-watcher-log entries. Matcher :
+mcp__storehouse__storehouse__dispatch (and __query, __state).
+
+Behavior :
+  - storehouse__dispatch  -> render verb#inv, adapters, cascades,
+                             state snapshot, duration, event count.
+  - storehouse__query     -> render verb, args, ok, first result line.
+  - storehouse__state     -> render subcmd args, ok, state echo.
+  - Anything else / malformed input -> silent exit (advisory only).
+
+Exit code : always 0 -- never block on a render error.
+Output    : single JSON object with hookSpecificOutput.additionalContext.
+"""
+
+import json
+import sys
+
+
+# ----- helpers -------------------------------------------------------
+
+def fmt_value(v, max_len=80):
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return str(v)
+    if isinstance(v, str):
+        s = v.replace("\n", "\\n")
+        if len(s) > max_len:
+            s = s[:max_len - 1] + "..."
+        return '"' + s + '"'
+    try:
+        s = json.dumps(v, separators=(",", ":"))
+    except Exception:
+        s = str(v)
+    if len(s) > max_len:
+        s = s[:max_len - 1] + "..."
+    return s
+
+
+def fmt_duration(ms):
+    if ms is None:
+        return None
+    try:
+        ms = float(ms)
+    except Exception:
+        return None
+    if ms < 1000:
+        return str(int(ms)) + "ms"
+    return "{:.1f}s".format(ms / 1000)
+
+
+def aggregate_snapshot(state):
+    """
+    storehouse trailing state JSON wraps the actual snapshot under a
+    nested key alongside top-level aggregate / id / ok / error /
+    state. Prefer the literal 'state' nested dict when present (the
+    runtime's canonical shape) ; otherwise fall back to the first
+    nested dict that isn't a bookkeeping key.
+    """
+    if not isinstance(state, dict):
+        return None, None, None
+    agg_name = state.get("aggregate")
+    agg_id = state.get("id")
+    inner = state.get("state")
+    if isinstance(inner, dict):
+        return agg_name, agg_id, inner
+    for k, v in state.items():
+        if k in ("ok", "error", "aggregate", "id"):
+            continue
+        if isinstance(v, dict):
+            return agg_name or k, agg_id, v
+    return agg_name, agg_id, state
+
+
+def find_inv_id(events):
+    if not isinstance(events, list):
+        return None
+    for ev in events:
+        if isinstance(ev, dict) and ev.get("invocation_id"):
+            return ev["invocation_id"]
+    return None
+
+
+def split_state_attrs(snapshot, limit=6):
+    skip = {"events", "event_history", "history", "version", "uncommitted_changes", "id", "uuid"}
+    if not isinstance(snapshot, dict):
+        return []
+    out = []
+    for k, v in snapshot.items():
+        if k in skip:
+            continue
+        out.append((k, v))
+        if len(out) >= limit:
+            break
+    return out
+
+
+# ----- render : dispatch --------------------------------------------
+
+def render_dispatch(sc):
+    lines = []
+    command = sc.get("command") or "<unknown>"
+    events = sc.get("events") or []
+    inv = find_inv_id(events)
+    headline = command + "#" + inv if inv else command
+    lines.append(headline)
+
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        if ev.get("kind") != "adapter":
+            continue
+        channel = ev.get("verb") or "?"
+        bits = []
+        if "ok" in ev:
+            bits.append("ok=" + ("true" if ev["ok"] else "false"))
+        if "exit" in ev:
+            bits.append("exit=" + str(ev["exit"]))
+        if ev.get("error"):
+            bits.append("error=" + fmt_value(ev["error"], 80))
+        tail = " ".join(bits)
+        lines.append("  adapter " + channel + ((" " + tail) if tail else ""))
+
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        if ev.get("kind") != "cascade":
+            continue
+        verb = ev.get("verb") or "?"
+        ok = ev.get("ok")
+        ok_s = "" if ok is None else " (ok=" + ("true" if ok else "false") + ")"
+        lines.append("  cascade " + verb + ok_s)
+
+    agg_name, agg_id, snapshot = aggregate_snapshot(sc.get("state"))
+    attrs = split_state_attrs(snapshot)
+    if attrs or agg_name:
+        agg_label = agg_name or "state"
+        if agg_id is not None:
+            agg_label = agg_label + "/" + str(agg_id)
+        rendered = [k + "=" + fmt_value(v) for k, v in attrs]
+        if rendered:
+            lines.append("  state " + agg_label + " " + " ".join(rendered))
+        else:
+            lines.append("  state " + agg_label)
+
+    dur = fmt_duration(sc.get("duration_ms"))
+    if dur is not None:
+        lines.append("  duration " + dur)
+
+    kinds = {}
+    for ev in events:
+        if not isinstance(ev, dict):
+            continue
+        k = ev.get("kind") or "?"
+        kinds[k] = kinds.get(k, 0) + 1
+    total = sum(kinds.values())
+    pieces = []
+    for label in ("dispatch", "event", "policy", "adapter", "cascade"):
+        n = kinds.get(label, 0)
+        if n:
+            pieces.append(str(n) + " " + label)
+    if total:
+        lines.append("  events: " + str(total) + " (" + " + ".join(pieces) + ")")
+
+    return "\n".join(lines)
+
+
+# ----- render : query / state ---------------------------------------
+
+def render_query(sc, tool_name):
+    subcmd = sc.get("subcommand") or tool_name.split("__")[-1]
+    args = sc.get("args") or []
+    tail = args[1:] if len(args) > 1 else []
+    ok = sc.get("ok")
+    exit_code = sc.get("exit_code")
+    stdout = sc.get("stdout") or ""
+    stderr = sc.get("stderr") or ""
+
+    lines = []
+    headline = subcmd + (" " + " ".join(str(a) for a in tail) if tail else "")
+    lines.append(headline.strip())
+
+    bits = []
+    if ok is not None:
+        bits.append("ok=" + ("true" if ok else "false"))
+    if exit_code is not None:
+        bits.append("exit=" + str(exit_code))
+    if bits:
+        lines.append("  " + " ".join(bits))
+
+    first = ""
+    for ln in (stdout or "").split("\n"):
+        t = ln.strip()
+        if t:
+            first = t
+            break
+    if first:
+        if len(first) > 160:
+            first = first[:159] + "..."
+        lines.append("  result " + first)
+    elif stderr.strip():
+        first_err = stderr.strip().split("\n")[0]
+        if len(first_err) > 160:
+            first_err = first_err[:159] + "..."
+        lines.append("  stderr " + first_err)
+
+    return "\n".join(lines)
+
+
+# ----- main ---------------------------------------------------------
+
+def main():
+    try:
+        payload = json.load(sys.stdin)
+    except Exception:
+        return 0
+
+    tool_name = payload.get("tool_name") or ""
+    tool_response = payload.get("tool_response") or {}
+    sc = tool_response.get("structuredContent")
+    if not isinstance(sc, dict):
+        return 0
+
+    try:
+        if tool_name.endswith("storehouse__dispatch"):
+            text = render_dispatch(sc)
+        elif tool_name.endswith("storehouse__query") or tool_name.endswith("storehouse__state"):
+            text = render_query(sc, tool_name)
+        else:
+            return 0
+    except Exception as exc:
+        text = "[dispatch-detail-hook : render error : " + str(exc) + "]"
+
+    text = (text or "").strip()
+    if not text:
+        return 0
+
+    out = {
+        "hookSpecificOutput": {
+            "hookEventName": "PostToolUse",
+            "additionalContext": text,
+        }
+    }
+    print(json.dumps(out))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

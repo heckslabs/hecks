@@ -49,6 +49,16 @@
       "timeout": 5
      }
     ]
+   },
+   {
+    "matcher": "mcp__storehouse__storehouse__dispatch|mcp__storehouse__storehouse__query|mcp__storehouse__storehouse__state",
+    "hooks": [
+     {
+      "type": "command",
+      "command": "/Users/christopheryoung/Projects/hecks/bin/dispatch-detail-hook",
+      "timeout": 5
+     }
+    ]
    }
   ],
   "Stop": [
