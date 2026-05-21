@@ -1,0 +1,45 @@
+Hecks.behaviors "TerraformProjection" do
+  vision "Behavioral tests for the TerraformProjector aggregate — exercises every command in memory. The actual HCL emission is exercised by the Rust integration test in storehouse/tests/terraform_projection_test.rs against golden files ; this behaviors file pins the bluebook-level dispatch contract (attributes flow, events emit) that the projector's CLI subcommand calls into."
+
+  # ── TerraformProjector : ProjectHecksagon ───────────────────────────
+  #
+  # ProjectHecksagon is the universal door : reads a hecksagon + world,
+  # walks the adapters, looks up resource types, emits HCL. In a behaviors
+  # test we exercise the attribute flow only (the file I/O + HCL emission
+  # is tested in Rust against goldens).
+
+  test "ProjectHecksagon records the emitted HCL" do
+    tests "ProjectHecksagon", on: "TerraformProjector"
+    input  hecksagon_path: { value: "events.hecksagon" },
+           world_path:     { value: "events.world" },
+           output_path:    { value: "" },
+           hcl:            { value: "resource \"aws_s3_bucket\" \"events_store\" {}" },
+           adapter_count:  { value: 1 }
+    expect last_projection: { value: "resource \"aws_s3_bucket\" \"events_store\" {}" }
+  end
+
+  test "ProjectHecksagon emits HecksagonProjected" do
+    tests "ProjectHecksagon", on: "TerraformProjector"
+    input  hecksagon_path: { value: "events.hecksagon" },
+           world_path:     { value: "" },
+           output_path:    { value: "" },
+           hcl:            { value: "# empty" },
+           adapter_count:  { value: 0 }
+    expect emits: ["HecksagonProjected"]
+  end
+
+
+  # ── TerraformProjector : ProjectAdapter ─────────────────────────────
+  #
+  # ProjectAdapter is the per-adapter projection. The caller has already
+  # resolved the kind → resource_type mapping and merged the world block ;
+  # the command captures the single-resource HCL string.
+
+  test "ProjectAdapter emits AdapterProjected" do
+    tests "ProjectAdapter", on: "TerraformProjector"
+    input  adapter_kind: { value: "s3" },
+           adapter_name: { value: "events_store" },
+           hcl:          { value: "resource \"aws_s3_bucket\" \"events_store\" {}" }
+    expect emits: ["AdapterProjected"]
+  end
+end

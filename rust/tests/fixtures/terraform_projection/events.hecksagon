@@ -1,0 +1,16 @@
+Hecks.hecksagon "Events" do
+  adapter :memory
+
+  adapter :sqs,
+          name:               "events_queue",
+          visibility_timeout: 30
+
+  adapter :lambda,
+          name:    "events_worker",
+          handler: "main.handle",
+          runtime: "nodejs20.x"
+
+  adapter :s3,
+          name:       "events_store",
+          versioning: "enabled"
+end

@@ -1,0 +1,17 @@
+Hecks.hecksagon "TerraformProjection" do
+  # TerraformProjector wiring : pure-memory, no external adapters.
+  #
+  # The work the projector does is a pure walk over the Hecksagon IR +
+  # World IR with a closed-set lookup table — file I/O happens at the
+  # caller boundary (the CLI subcommand reads the .hecksagon and .world
+  # files, hands them to the runtime, then writes the emitted HCL to
+  # disk). The aggregate itself stores only the last projection's HCL
+  # so a follow-up `storehouse state aggregates/ TerraformProjector
+  # terraform` query can read it back.
+  #
+  # No persistence needed beyond default memory : there is no long-lived
+  # state to recover across restarts. The projection is the act ; the
+  # captured HCL on the aggregate is courtesy bookkeeping.
+
+  adapter :memory
+end
