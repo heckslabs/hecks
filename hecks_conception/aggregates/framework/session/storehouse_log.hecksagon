@@ -1,0 +1,11 @@
+Hecks.hecksagon "SessionLog" do
+  # StorehouseEntry persists via the :memory adapter (heki-backed).
+  # The PostToolUse dispatch-detail hook (i692) dispatches
+  # StorehouseEntry.Record after each storehouse dispatch ; the records
+  # accumulate as the session's activity log. Pure telemetry — no
+  # external system, no provider, no exec. If a future capability wants
+  # to stream entries to a dashboard or Prometheus, that's a NEW adapter
+  # on this aggregate, not a replacement for :memory.
+
+  adapter :memory
+end

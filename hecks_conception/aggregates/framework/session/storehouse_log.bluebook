@@ -1,0 +1,140 @@
+Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
+  vision "The session's storehouse activity, modelled as domain. Every dispatch through the bus becomes a StorehouseEntry — the command, its args, its result, and the elapsed wall-clock. Synchronous dispatches are one self-contained block (command + result together). Asynchronous outcomes (an adapter that fires later, a cascade that lands after return) reference the calling command by its parent invocation id, so the timeline reconstructs cause→effect. This is the bluebook backing the dispatch-detail display Chris loves : the PostToolUse hook (i692) renders it for the eye ; this domain is the contract those renders honour. Sibling of the Session aggregate (session.bluebook) which owns the session boundary ; SessionLog owns what happened inside it."
+  category "framework"
+
+  # ============================================================
+  # STOREHOUSE LOG — every dispatch as a domain record
+  # ============================================================
+  #
+  # Why this is a bluebook and not just hook output : the dispatch
+  # detail is itself information worth modelling. Once it's a domain,
+  # the timeline is queryable (Recent), the sync/async distinction is
+  # explicit (kind), and async outcomes link back to their cause
+  # (parent_invocation_id). The hook becomes a projection of this
+  # contract, not the source of truth.
+  #
+  # Sync vs async :
+  #   * sync  — the dispatch returns its full result inline. command
+  #             + outcome + result_state + elapsed_ms all land on one
+  #             StorehouseEntry. Most Tools::ShellTool.Bash dispatches.
+  #   * async — the dispatch fires, returns, and an adapter / cascade
+  #             completes later. The later outcome is its own
+  #             StorehouseEntry with parent_invocation_id pointing at
+  #             the original. e.g. Voice.Speak returns, the :tts
+  #             adapter's mp3 lands after ; or a sidequest agent
+  #             launched by a command reports back minutes later.
+
+  aggregate "StorehouseEntry", "One dispatch through the bus, captured as a domain record. Identified by its invocation id. Carries the command FQN, the args, the outcome + result state, the elapsed wall-clock, the sync/async kind, and (for async) the parent invocation that caused it. The PostToolUse dispatch-detail hook renders these ; analysis tools query them ; the timeline reconstructs from them." do
+    identified_by :invocation_id
+
+    value_object "InvocationId" do
+      # The runtime's inv_xxxxxxxx identifier, unique per dispatch.
+      attribute :value, String
+    end
+
+    value_object "Command" do
+      # The fully-qualified verb dispatched — Domain::Aggregate.Command
+      # (e.g. "Voice::Voice.Speak", "Tools::ShellTool.Bash").
+      attribute :value, String
+    end
+
+    value_object "Summary" do
+      # The one-line terse summary the dispatcher carried — what this
+      # dispatch DOES, human-readable (e.g. "merge 8 PRs to main").
+      attribute :value, String
+    end
+
+    value_object "ArgsJson" do
+      # The dispatch args as a JSON string. Free-form ; the renderer
+      # may truncate long values for display.
+      attribute :value, String
+    end
+
+    value_object "Outcome" do
+      # ok | error — whether the dispatch succeeded. Stored as a
+      # closed-set string ; the renderer colours accordingly.
+      attribute :value, String, enum: ["ok", "error"]
+    end
+
+    value_object "ResultState" do
+      # The aggregate state JSON the dispatch returned, or the error
+      # message when outcome=error. The "result" half of the block.
+      attribute :value, String
+    end
+
+    value_object "ElapsedMs" do
+      # Wall-clock duration of the dispatch in milliseconds — the
+      # number Chris especially wants to see.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 UTC instant the dispatch began.
+      attribute :value, String
+    end
+
+    value_object "DispatchKind" do
+      # sync — result inline, one self-contained block.
+      # async — outcome lands later, references parent_invocation_id.
+      attribute :value, String, enum: ["sync", "async"]
+    end
+
+    value_object "EventCount" do
+      # Number of events the dispatch emitted (dispatch + adapter +
+      # cascade + ...). Shown as "events: N" in the render.
+      attribute :value, Integer
+    end
+
+    attribute :invocation_id,        InvocationId
+    attribute :command,              Command
+    attribute :summary,              Summary
+    attribute :args_json,            ArgsJson
+    attribute :outcome,              Outcome
+    attribute :result_state,         ResultState
+    attribute :elapsed_ms,           ElapsedMs
+    attribute :dispatched_at,        Timestamp
+    attribute :kind,                 DispatchKind
+    # For async entries : the invocation_id of the command that caused
+    # this outcome. Empty for sync entries and for top-level dispatches.
+    attribute :parent_invocation_id, InvocationId
+    attribute :event_count,          EventCount
+
+    command "Record" do
+      role "Daemon"
+      description "Capture one completed dispatch. Fired by the PostToolUse dispatch-detail hook (i692) after each storehouse dispatch returns. For sync dispatches all fields land at once ; for async outcomes the parent_invocation_id links back to the originating command so the timeline reconstructs cause→effect."
+      attribute :invocation_id,        InvocationId
+      attribute :command,              Command
+      attribute :summary,              Summary
+      attribute :args_json,            ArgsJson
+      attribute :outcome,              Outcome
+      attribute :result_state,         ResultState
+      attribute :elapsed_ms,           ElapsedMs
+      attribute :dispatched_at,        Timestamp
+      attribute :kind,                 DispatchKind
+      attribute :parent_invocation_id, InvocationId
+      attribute :event_count,          EventCount
+      emits "Recorded"
+      then_set :invocation_id,        to: :invocation_id
+      then_set :command,              to: :command
+      then_set :summary,              to: :summary
+      then_set :args_json,            to: :args_json
+      then_set :outcome,              to: :outcome
+      then_set :result_state,         to: :result_state
+      then_set :elapsed_ms,           to: :elapsed_ms
+      then_set :dispatched_at,        to: :dispatched_at
+      then_set :kind,                 to: :kind
+      then_set :parent_invocation_id, to: :parent_invocation_id
+      then_set :event_count,          to: :event_count
+    end
+
+    query Recent do
+      description "Read the most recent N dispatch entries, newest first by dispatched_at. The dispatch-detail panel + demo timeline read this. Async children sort alongside their parents via parent_invocation_id."
+      attribute :limit, EventCount
+    end
+
+    query ByParent do
+      description "Read all async entries whose parent_invocation_id matches a given invocation — the later outcomes a command caused. Reconstructs the cause→effect chain for one dispatch."
+      attribute :parent_invocation_id, InvocationId
+    end
+  end
+end

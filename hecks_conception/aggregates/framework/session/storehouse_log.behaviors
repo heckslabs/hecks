@@ -1,0 +1,72 @@
+Hecks.behaviors "SessionLog" do
+  vision "Behavioral tests for StorehouseEntry — every dispatch through the bus captured as a domain record. Covers the sync block shape, the async parent-reference shape, and the error outcome. The PostToolUse dispatch-detail hook (i692) produces the real records ; these assert the Record command's state-write + emit contract."
+
+  test "Record captures a synchronous dispatch" do
+    tests "Record", on: "StorehouseEntry"
+    input  invocation_id:        { value: "inv_abc123" },
+           command:              { value: "Tools::ShellTool.Bash" },
+           summary:              { value: "list inbox cards" },
+           args_json:            { value: "{\"shell_command\":\"ls inbox\"}" },
+           outcome:              { value: "ok" },
+           result_state:         { value: "{\"ok\":true}" },
+           elapsed_ms:           { value: 5283 },
+           dispatched_at:        { value: "2026-05-21T18:08:28Z" },
+           kind:                 { value: "sync" },
+           parent_invocation_id: { value: "" },
+           event_count:          { value: 2 }
+    expect command:    { value: "Tools::ShellTool.Bash" },
+           outcome:    { value: "ok" },
+           elapsed_ms: { value: 5283 },
+           kind:       { value: "sync" }
+  end
+
+  test "Record emits Recorded" do
+    tests "Record", on: "StorehouseEntry"
+    input  invocation_id:        { value: "inv_emit" },
+           command:              { value: "Voice::Voice.Speak" },
+           summary:              { value: "speak test" },
+           args_json:            { value: "{}" },
+           outcome:              { value: "ok" },
+           result_state:         { value: "{}" },
+           elapsed_ms:           { value: 1100 },
+           dispatched_at:        { value: "2026-05-21T19:00:00Z" },
+           kind:                 { value: "sync" },
+           parent_invocation_id: { value: "" },
+           event_count:          { value: 1 }
+    expect emits: ["Recorded"]
+  end
+
+  test "Record captures an async outcome referencing its parent" do
+    tests "Record", on: "StorehouseEntry"
+    input  invocation_id:        { value: "inv_tts_late" },
+           command:              { value: "Voice::Voice.Speak" },
+           summary:              { value: "tts adapter mp3 landed" },
+           args_json:            { value: "{}" },
+           outcome:              { value: "ok" },
+           result_state:         { value: "{\"audio_path\":\".../miette.mp3\"}" },
+           elapsed_ms:           { value: 14700 },
+           dispatched_at:        { value: "2026-05-21T19:18:13Z" },
+           kind:                 { value: "async" },
+           parent_invocation_id: { value: "inv_speak_parent" },
+           event_count:          { value: 1 }
+    expect kind:                 { value: "async" },
+           parent_invocation_id: { value: "inv_speak_parent" }
+  end
+
+  test "Record captures an error outcome" do
+    tests "Record", on: "StorehouseEntry"
+    input  invocation_id:        { value: "inv_fail" },
+           command:              { value: "Voice::Voice.Speak" },
+           summary:              { value: "speak failed" },
+           args_json:            { value: "{}" },
+           outcome:              { value: "error" },
+           result_state:         { value: "exit null, no events emitted" },
+           elapsed_ms:           { value: 18748 },
+           dispatched_at:        { value: "2026-05-21T20:12:23Z" },
+           kind:                 { value: "sync" },
+           parent_invocation_id: { value: "" },
+           event_count:          { value: 0 }
+    expect outcome:     { value: "error" },
+           event_count: { value: 0 }
+  end
+end
