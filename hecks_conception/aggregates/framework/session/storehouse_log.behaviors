@@ -13,11 +13,38 @@ Hecks.behaviors "SessionLog" do
            dispatched_at:        { value: "2026-05-21T18:08:28Z" },
            kind:                 { value: "sync" },
            parent_invocation_id: { value: "" },
-           event_count:          { value: 2 }
+           event_count:          { value: 2 },
+           source_tag:           { value: "operator" },
+           metadata_json:        { value: "{\"aggregates_dir\":\"hecks_conception\",\"role\":\"Daemon\"}" },
+           events:               []
     expect command:    { value: "Tools::ShellTool.Bash" },
            outcome:    { value: "ok" },
            elapsed_ms: { value: 5283 },
-           kind:       { value: "sync" }
+           kind:       { value: "sync" },
+           source_tag: { value: "operator" }
+  end
+
+  test "Record captures a process-manager dispatch with an event timeline" do
+    tests "Record", on: "StorehouseEntry"
+    input  invocation_id:        { value: "inv_pm_beat" },
+           command:              { value: "Heartbeat::Heart.Beat" },
+           summary:              { value: "heart beat tick" },
+           args_json:            { value: "{}" },
+           outcome:              { value: "ok" },
+           result_state:         { value: "{\"beats\":42}" },
+           elapsed_ms:           { value: 3 },
+           dispatched_at:        { value: "2026-05-21T18:10:00Z" },
+           kind:                 { value: "sync" },
+           parent_invocation_id: { value: "" },
+           event_count:          { value: 2 },
+           source_tag:           { value: "process-manager" },
+           metadata_json:        { value: "{\"aggregates_dir\":\"hecks_conception\"}" },
+           events:               [
+             { kind: "dispatch", verb: "Heartbeat::Heart.Beat", ok: true },
+             { kind: "event",    verb: "Heart.Beat",            ok: true }
+           ]
+    expect source_tag:  { value: "process-manager" },
+           event_count: { value: 2 }
   end
 
   test "Record emits Recorded" do

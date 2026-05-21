@@ -85,6 +85,49 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
       attribute :value, Integer
     end
 
+    value_object "SourceTag" do
+      # WHO dispatched this command. Derived from the dispatch context :
+      #   * process-manager — heart/breath/circadian/ultradian/inbox/
+      #                       macrophage/speech_stream loops + clock
+      #                       workers (HECKS_DAEMON=1, or a loop/clock
+      #                       CLI entry point).
+      #   * operator        — Miette dispatching via the MCP universal
+      #                       door (storehouse__dispatch).
+      #   * hook            — SessionStart / Stop / PostToolUse hooks.
+      #   * sidequest-agent — a launched sidequest agent reporting back.
+      #   * cascade         — runtime-internal fan-out (policy triggers,
+      #                       adapter result_into chains). Inner steps
+      #                       of one top-level dispatch.
+      #   * daemon          — the legacy Daemon role / unclassified
+      #                       background dispatch.
+      # Chris filters the log by this : "show me everything the process
+      # managers dispatched."
+      attribute :value, String, enum: ["process-manager", "operator", "hook", "sidequest-agent", "cascade", "daemon"]
+    end
+
+    value_object "MetadataJson" do
+      # The command's surfaced metadata as a JSON string — the
+      # aggregates_dir the dispatch ran against, the role allowed to
+      # dispatch the command, the behavior_kind, and any declared tags.
+      # Free-form ; the renderer surfaces it as a labelled block so the
+      # metadata is apparent, not hidden.
+      attribute :value, String
+    end
+
+    value_object "EventTrace" do
+      # One event in the dispatch's execution timeline. kind is the
+      # surface (dispatch | event | cascade | adapter | policy | attr |
+      # error | fallback) ; verb is the FQN / name that fired ; ok is
+      # whether that step succeeded (cascade/adapter steps carry it ;
+      # dispatch/event steps default true). The renderer colours each
+      # line by kind : dispatch=cyan, event=green, cascade-ok=green,
+      # cascade-fail=red, adapter=magenta, error=bright-red,
+      # fallback=yellow.
+      attribute :kind, String, enum: ["dispatch", "event", "cascade", "adapter", "policy", "attr", "error", "fallback"]
+      attribute :verb, String
+      attribute :ok,   Bool
+    end
+
     attribute :invocation_id,        InvocationId
     attribute :command,              Command
     attribute :summary,              Summary
@@ -98,6 +141,14 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
     # this outcome. Empty for sync entries and for top-level dispatches.
     attribute :parent_invocation_id, InvocationId
     attribute :event_count,          EventCount
+    # WHO dispatched this — process-manager / operator / hook / etc.
+    attribute :source_tag,           SourceTag
+    # Surfaced command metadata (aggregates_dir, role, behavior_kind,
+    # declared tags) as a JSON string.
+    attribute :metadata_json,        MetadataJson
+    # The per-event execution timeline : every dispatch/event/cascade/
+    # adapter/policy/attr/error/fallback step this dispatch produced.
+    attribute :events,               list_of(EventTrace)
 
     command "Record" do
       role "Daemon"
@@ -113,6 +164,9 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
       attribute :kind,                 DispatchKind
       attribute :parent_invocation_id, InvocationId
       attribute :event_count,          EventCount
+      attribute :source_tag,           SourceTag
+      attribute :metadata_json,        MetadataJson
+      attribute :events,               list_of(EventTrace)
       emits "Recorded"
       then_set :invocation_id,        to: :invocation_id
       then_set :command,              to: :command
@@ -125,6 +179,9 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
       then_set :kind,                 to: :kind
       then_set :parent_invocation_id, to: :parent_invocation_id
       then_set :event_count,          to: :event_count
+      then_set :source_tag,           to: :source_tag
+      then_set :metadata_json,        to: :metadata_json
+      then_set :events,               to: :events
     end
 
     query Recent do
@@ -135,6 +192,11 @@ Hecks.bluebook "SessionLog", version: "2026.05.21.1" do
     query ByParent do
       description "Read all async entries whose parent_invocation_id matches a given invocation — the later outcomes a command caused. Reconstructs the cause→effect chain for one dispatch."
       attribute :parent_invocation_id, InvocationId
+    end
+
+    query BySource do
+      description "Read all entries dispatched by a given source — process-manager, operator, hook, sidequest-agent, cascade, or daemon. Backs Chris's 'show me everything the process managers dispatched' filter."
+      attribute :source_tag, SourceTag
     end
   end
 end
