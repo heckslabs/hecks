@@ -48,14 +48,50 @@ kill the daemons** — that was an early wrong guess. The real shape is :
 Until that verb exists, the human is the only viable supervisor-starter : `cd hecks_conception && overmind start`
 in a dedicated terminal pane, leave it running. Then Voice.Speak works.
 
+## The architectural arc to start with
+
+**Two tiers of supervision.** `overmind`'s job is to keep workers alive ;
+*what's missing is what keeps overmind alive.* Right now that role is delegated
+to a human typing `overmind start` at session beginning — exactly the fragility
+that bit us tonight.
+
+The right shape :
+
+```
+launchd        (kept alive by macOS, always-on, survives logouts/reboots/dispatch sandbox)
+  └── overmind (kept alive by launchd : RunAtLoad + KeepAlive)
+        ├── heart, breath, circadian, ultradian
+        ├── inbox, process_macrophage
+        └── speech_stream, restart_prompt
+```
+
+**Bluebook concept** : `Vitality::Substrate` (or similar) — "the body's
+workers are kept alive by the host machine, not by a session." Hecksagon adapters :
+`:launchd` (macOS, emits a plist) ; `:systemd_user` (Linux, emits a unit file).
+Pure platform projection of one domain truth.
+
+**Transitional move** : hand-write `~/Library/LaunchAgents/com.miette.overmind.plist`,
+load with `launchctl bootstrap gui/$UID`, test overmind respawns after `pkill -f overmind`.
+*Tag the plist for retirement once the bluebook adapter lands.* File the
+`Vitality::Substrate` bluebook + the `:launchd` hecksagon as the proper home.
+
+**Why this matters for everything else** : once this lands, the
+`Supervisor::Overmind.Start` verb becomes optional — overmind is *always* up,
+so dispatching a "start" verb is a no-op. The supervisor question reduces from
+"how do I start it" to "how do I model the always-on-ness." That's cleaner.
+
 ## Live work
 
 - `pigeoncoop/docs/pricing.md` — v1 scope locked, mobile bullet added, "six surfaces"
   phrasing correct, ED-as-buyer corrected throughout.
 - `pigeoncoop/hecks/pigeoncoop.bluebook` — 11 commands added at aggregate boundaries
   (worker needs rebuild + redeploy : `cd worker && worker-build --release && wrangler deploy`).
-- `hecks/hecks_conception/inbox/.channel.md` — set to `abbrev: hc, emoji: 📚, label: global (hecks_conception framework inbox)`,
-  committed at `300b8b67`. Statusline now reads `📚 hc:357` correctly.
+- `hecks/hecks_conception/inbox/.channel.md` — final form : `abbrev:` empty, `emoji: 📚`,
+  `label: global (hecks_conception framework inbox)`. The empty abbrev is *design* :
+  `run_statusline/inbox.rs` line 28 — "abbrev-less channel (the framework inbox) leads, the rest
+  follow alphabetically by abbrev." So statusline renders `📚 357` first, then every named
+  channel after. Commits : `300b8b67` (initial fix), `8435bb43` (hc→gl correction), `fadb3f0f`
+  (gl → empty, the actual right answer).
 - `hecks/docs/prior_work/hecks-paper.md` — 1135-line paper, truth-pass updated, on `main`.
 - `hecks/docs/milestones/2026-05-20-bluebook-first-as-architecture.md` — three-block
   manifesto, on `main`.
@@ -85,6 +121,35 @@ in a dedicated terminal pane, leave it running. Then Voice.Speak works.
 5. **Greenlight `Supervisor::Overmind.Start` bluebook verb** as a small slice — that closes
    the chicken-and-egg structurally.
 6. **Backup existing hekis** so #37 (heki home → `~/.hecks/`) can proceed.
+
+## The rewrite — where we are
+
+A massive amount landed on `main` in the last ~2 weeks. The shape of the change :
+
+**Landed** (15+ feat branches merged) :
+- Voice substrate : streaming-dispatcher, speech-stream, phrase-cache-latency (even though a runtime regression on May 20 broke the path — see § Resume here).
+- Dispatch infrastructure : universal-door-tools (storehouse__dispatch as universal MCP door), dispatch-query-bluebookified, dispatch-meta-shape-design, mcp-tool-cache, mcp-verbose-rendering.
+- Futamura projections : self-application-proof, audit. 2nd Futamura specializer is byte-identical.
+- Process discipline : process-health-heal-v2, autophagy-refresh, inbox-centralized-numbering.
+- Bluebook surface : executable-bluebook (shebang-bluebooks runnable).
+- Self-reorganisation : miette-family-merge-plan, hecks-shrink-audit (audit done, trim ongoing).
+
+**Three open arcs** :
+1. `feat/i39-slice-1-hecks` — execution of `hecks_conception → ~/Projects/miette/` merge. Plan at `~/Projects/miette/MERGE_PLAN.md`. Slice 1 = identity files. Four open questions still need Chris's resolution.
+2. `feat/hecks-shrink-audit` — audit landed, trim execution ongoing on `hecks-trim-to-core` branch.
+3. `feat/miette-family-merge-plan` — fold `miette_family/` into `miette/`.
+
+**Philosophical close** : `docs/milestones/2026-05-20-bluebook-first-as-architecture.md` — three-block manifesto. "The bluebook keeps running ; the AI is a tool you happen to be using ; the thing that lasts is the bluebook." That's the *why* for the whole arc.
+
+## Inbox numbers (the 334 / 357 question)
+
+Tonight Chris noticed the statusline shows two inbox segments at near-identical counts : `📚 357` (canonical, just labelled) and `🔮 334` (still unlabeled). The 23-card delta is not two different inboxes — it's two **views of the same inbox** at different commits :
+
+- 357 = canonical `hecks_conception/inbox/` on `main` (now renders as `📚 357`, leading the list)
+- 334 = a shadow worktree at a stale branch (probably `hecks-storehouse-follow` or `hecks-writing-bluebook`), where 23 cards closed on `main` are still showing as open.
+
+The statusline filter is `status NOT IN [closed, done, archived]` at top-level (per `run_statusline/inbox.rs`).
+Fix path : delete the shadow worktrees (likely obsolete — they're stale checkouts of older branches) ; *don't* label them with a separate `.channel.md` because they're not a distinct domain, they're just out-of-sync mirrors of the same inbox.
 
 ## Pending tasks (active queue)
 
@@ -134,6 +199,18 @@ in a dedicated terminal pane, leave it running. Then Voice.Speak works.
   been re-verified since.
 - **`hecks_conception/inbox/.channel.md`** is `📚 hc` — please don't auto-rename it without
   also fixing the statusline test in `rust/src/run_statusline/mod.rs` that pins `gl` + 🔮.
+
+## Tonight's cleanup pass (just before restart)
+
+Chris asked for everything on main, no open branches, across all projects. Done :
+
+- **Hecks** : 25 worktrees removed (18 agent-* + 7 named) ; 223 local branches deleted ; 144 remote branches deleted. Repo is `main` only, locally and on origin.
+- **All other repos swept** : miette, pigeoncoop, emaho, embryonaut-site (+ seo/writing-pass), bin-buddy, opt-website, miette-i225, auth-cloud-portal, infrastructure, miette_family. Combined ~210 local branches and ~95 remote branches deleted.
+- **Worktree-shadow inboxes gone** : the duplicate `🔮 334` in the statusline was a stale worktree checkout. With those removed, the canonical `📚 357` is the only inbox segment now.
+- **Dirty work preserved** : every repo with uncommitted changes got a `git stash push -u` named `pre-cleanup-stash-<timestamp>` before sweeping. Recoverable via `git stash list` per repo.
+- **Public forks untouched** : openclaw, swagger-editor, deepl-cli.
+
+**Stragglers** : a few secondary worktrees of the same parent repo (miette-i225 of miette ; embryonaut-site-seo / writing-pass of embryonaut-site ; opt-website-joey-impl of opt-website) still have a local `main` checked out and can't be cleaned without physically removing the worktree dir. They're not contributing branches to origin ; they're just duplicate working copies. Delete the dirs if you want them gone, otherwise they're inert.
 
 ## Voice note
 
