@@ -90,6 +90,7 @@ pub mod framework_registry;
 // (quiet/normal/verbose). All four surfaces and the MCP child stderr
 // route through this module so stdout is the single audit stream.
 pub mod storehouse_log;
+pub mod dispatch_detail;
 
 pub use aggregate_state::AggregateState;
 pub use command_dispatch::CommandResult;
@@ -274,6 +275,18 @@ impl Runtime {
                 let d = crate::heki::now_duration();
                 format!("inv_{:x}", d.subsec_nanos() as u64 ^ d.as_secs())
             });
+
+        // i697 — open the rich dispatch-detail scope BEFORE the terse
+        // dispatch_entry below, so the dispatch line itself is the first
+        // entry in the rich block's event timeline. The scope's Drop
+        // emits the full pretty-JSON block (covers the `?` error path
+        // too). Cascades go through command_dispatch::dispatch_cascade,
+        // not Runtime::dispatch, so exactly one scope is open per
+        // top-level dispatch and the timeline forms one clean tree.
+        let args_json = dispatch_detail_args_json(&attrs);
+        let mut detail_scope =
+            dispatch_detail::DispatchScope::begin(&invocation_id, command_name, args_json);
+
         storehouse_log::dispatch_entry(command_name, &invocation_id, None);
 
         // i622 verbose — per-attribute trace. One line per attr the
@@ -292,8 +305,17 @@ impl Runtime {
         };
         self.middleware.run_before(&ctx);
 
-        // Core dispatch
-        let result = command_dispatch::dispatch(self, command_name, attrs)?;
+        // Core dispatch. On error, feed the scope the error message so
+        // its Drop emits a bright-red error block, THEN propagate.
+        let result = match command_dispatch::dispatch(self, command_name, attrs) {
+            Ok(r) => r,
+            Err(e) => {
+                detail_scope.finish("error", format!("{:?}", e)
+                    .chars().map(|c| if c == '"' { '\'' } else { c }).collect::<String>()
+                    .lines().next().map(|s| format!("\"{}\"", s)).unwrap_or_else(|| "\"error\"".into()));
+                return Err(e);
+            }
+        };
 
         // i622 — event emission log. The dispatch produced an event ;
         // emit a one-liner naming the aggregate, event, and the
@@ -431,6 +453,15 @@ impl Runtime {
         // optionally caches + plays. Fire-and-forget per the family
         // contract (`response_field :none`) - no follow-on cascade.
         self.resolve_tts_adapters(&result, command_name, &ctx.attrs);
+
+        // i697 — feed the rich scope the final result state (the
+        // aggregate's fields JSON after all adapters settle). The scope's
+        // Drop then emits the full coloured block.
+        let result_state_json = self
+            .find(&result.aggregate_type, &result.aggregate_id)
+            .map(dispatch_detail_state_json)
+            .unwrap_or_else(|| "{}".to_string());
+        detail_scope.finish("ok", result_state_json);
 
         Ok(result)
     }
@@ -2120,6 +2151,45 @@ pub enum Value {
     List(Vec<Value>),
     Map(HashMap<String, Value>),
     Null,
+}
+
+/// i697 — serialise dispatch attrs to a compact JSON object string for
+/// the rich dispatch-detail block's `args` field. String/Int/Bool map
+/// cleanly ; lists/maps/null fall back to their Display form as a string.
+fn dispatch_detail_args_json(attrs: &HashMap<String, Value>) -> String {
+    let mut map = serde_json::Map::new();
+    for (k, v) in attrs {
+        map.insert(k.clone(), value_to_json(v));
+    }
+    serde_json::Value::Object(map).to_string()
+}
+
+/// i697 — serialise an aggregate's final state to a compact JSON object
+/// string for the rich block's `result_state` field.
+fn dispatch_detail_state_json(state: &AggregateState) -> String {
+    let mut map = serde_json::Map::new();
+    for (k, v) in &state.fields {
+        map.insert(k.clone(), value_to_json(v));
+    }
+    serde_json::Value::Object(map).to_string()
+}
+
+/// Map a runtime `Value` into a serde_json value for the rich block.
+fn value_to_json(v: &Value) -> serde_json::Value {
+    match v {
+        Value::Str(s) => serde_json::json!(s),
+        Value::Int(n) => serde_json::json!(n),
+        Value::Bool(b) => serde_json::json!(b),
+        Value::List(items) => serde_json::Value::Array(items.iter().map(value_to_json).collect()),
+        Value::Map(m) => {
+            let mut o = serde_json::Map::new();
+            for (k, val) in m {
+                o.insert(k.clone(), value_to_json(val));
+            }
+            serde_json::Value::Object(o)
+        }
+        Value::Null => serde_json::Value::Null,
+    }
 }
 
 impl Value {
