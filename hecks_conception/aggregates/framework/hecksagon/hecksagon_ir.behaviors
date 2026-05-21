@@ -1,0 +1,194 @@
+Hecks.behaviors "HecksagonIr" do
+  vision "Smoke tests for the HecksagonIr bluebook — one Conceive per aggregate, verifying that the parser-shape fields land in state. First-draft coverage matching Phase 1 of i695 (bluebook-only ; Rust parser catches up in Phase 2). Each test mirrors a representative real-world .hecksagon declaration so the assertions double as worked examples."
+
+  # ── Hecksagon root ─────────────────────────────────────────────
+  #
+  # The file-level scalar fields land on the root aggregate ;
+  # the adapter lists are sibling Conceive dispatches on the
+  # adapter aggregates below.
+
+  test "Hecksagon.Conceive records name + scalar fields" do
+    tests "Conceive", on: "Hecksagon"
+    input  name:           { value: "Tools" },
+           framework_kind: { value: "" },
+           persistence:    { value: "memory" },
+           subscriptions:  []
+    expect name:           { value: "Tools" },
+           persistence:    { value: "memory" }
+  end
+
+  test "Hecksagon.Conceive emits Conceived" do
+    tests "Conceive", on: "Hecksagon"
+    input  name:           { value: "Pizzas" },
+           framework_kind: { value: "" },
+           persistence:    { value: "heki" },
+           subscriptions:  []
+    expect emits: ["Conceived"]
+  end
+
+  # ── IoAdapter ──────────────────────────────────────────────────
+
+  test "IoAdapter.Conceive records kind" do
+    tests "Conceive", on: "IoAdapter"
+    input  name:      { value: "stdout" },
+           kind:      { value: "stdout" },
+           options:   [],
+           on_events: []
+    expect kind: { value: "stdout" }
+  end
+
+  test "IoAdapter.Conceive emits Conceived" do
+    tests "Conceive", on: "IoAdapter"
+    input  name:      { value: "env" },
+           kind:      { value: "env" },
+           options:   [],
+           on_events: []
+    expect emits: ["Conceived"]
+  end
+
+  # ── ShellAdapter ───────────────────────────────────────────────
+  #
+  # Sample mirrors a typical declared adapter : a named shell
+  # invocation with a single arg + the default output_format.
+
+  test "ShellAdapter.Conceive records command + output_format" do
+    tests "Conceive", on: "ShellAdapter"
+    input  name:          { value: "list_files" },
+           command:       { value: "ls" },
+           args:          [],
+           output_format: { value: "lines" },
+           timeout:       { value: "" },
+           working_dir:   { value: "" },
+           env:           [],
+           ok_exit:       { value: "" }
+    expect command:       { value: "ls" },
+           output_format: { value: "lines" }
+  end
+
+  test "ShellAdapter.Conceive emits Conceived" do
+    tests "Conceive", on: "ShellAdapter"
+    input  name:          { value: "echo_back" },
+           command:       { value: "echo" },
+           args:          [],
+           output_format: { value: "text" },
+           timeout:       { value: "" },
+           working_dir:   { value: "" },
+           env:           [],
+           ok_exit:       { value: "" }
+    expect emits: ["Conceived"]
+  end
+
+  # ── Gate ───────────────────────────────────────────────────────
+
+  test "Gate.Conceive records aggregate + role" do
+    tests "Conceive", on: "Gate"
+    input  name:             { value: "Inbox:Owner" },
+           aggregate:        { value: "Inbox" },
+           role:             { value: "Owner" },
+           allowed_commands: []
+    expect aggregate: { value: "Inbox" },
+           role:      { value: "Owner" }
+  end
+
+  test "Gate.Conceive emits Conceived" do
+    tests "Conceive", on: "Gate"
+    input  name:             { value: "Dispatch:Caller" },
+           aggregate:        { value: "Dispatch" },
+           role:             { value: "Caller" },
+           allowed_commands: []
+    expect emits: ["Conceived"]
+  end
+
+  # ── LlmAdapter ─────────────────────────────────────────────────
+  #
+  # Sample mirrors the typical self-triggering adapter shape :
+  # empty triggers list falls back to response_into_target.
+
+  test "LlmAdapter.Conceive records name + prompt_template" do
+    tests "Conceive", on: "LlmAdapter"
+    input  name:                 { value: "dream_pm" },
+           prompt_template:      { value: "summarise the day for {{being}}" },
+           model:                { value: "" },
+           max_tokens:           { value: "" },
+           triggers:             [],
+           response_into_target: { value: "Dream.RecordImage" },
+           response_into_attr:   { value: "text" },
+           backend:              { value: "claude" }
+    expect name:                 { value: "dream_pm" },
+           prompt_template:      { value: "summarise the day for {{being}}" },
+           backend:              { value: "claude" }
+  end
+
+  test "LlmAdapter.Conceive emits Conceived" do
+    tests "Conceive", on: "LlmAdapter"
+    input  name:                 { value: "musing_mint" },
+           prompt_template:      { value: "mint a musing from {{recent_summary}}" },
+           model:                { value: "claude-opus-4-7" },
+           max_tokens:           { value: "1024" },
+           triggers:             [],
+           response_into_target: { value: "MusingMint.MintMusing" },
+           response_into_attr:   { value: "text" },
+           backend:              { value: "claude" }
+    expect emits: ["Conceived"]
+  end
+
+  # ── ComputeAdapter ─────────────────────────────────────────────
+
+  test "ComputeAdapter.Conceive records function_name" do
+    tests "Conceive", on: "ComputeAdapter"
+    input  name:                 { value: "recent_musings_summary" },
+           function_name:        { value: "summarize_recent_musings" },
+           triggers:             [],
+           response_into_target: { value: "MusingMint.MintMusing" },
+           response_into_attr:   { value: "recent_musings_summary" }
+    expect function_name:        { value: "summarize_recent_musings" },
+           response_into_target: { value: "MusingMint.MintMusing" }
+  end
+
+  test "ComputeAdapter.Conceive emits Conceived" do
+    tests "Conceive", on: "ComputeAdapter"
+    input  name:                 { value: "tick_diff" },
+           function_name:        { value: "compute_tick_diff" },
+           triggers:             [],
+           response_into_target: { value: "HeartbeatScheduler.Dispatch" },
+           response_into_attr:   { value: "dispatched_tick" }
+    expect emits: ["Conceived"]
+  end
+
+  # ── TtsAdapter ─────────────────────────────────────────────────
+  #
+  # Sample mirrors a fire-and-forget elevenlabs render.
+
+  test "TtsAdapter.Conceive records provider + voice_id" do
+    tests "Conceive", on: "TtsAdapter"
+    input  name:              { value: "miette_voice" },
+           provider:          { value: "elevenlabs" },
+           voice_id:          { value: "abc123" },
+           model:             { value: "" },
+           speed:             { value: "" },
+           stability:         { value: "" },
+           similarity_boost:  { value: "" },
+           style:             { value: "" },
+           triggers:          [],
+           cache_dir:         { value: "" },
+           auto_play:         { value: "" }
+    expect provider: { value: "elevenlabs" },
+           voice_id: { value: "abc123" }
+  end
+
+  test "TtsAdapter.Conceive emits Conceived" do
+    tests "Conceive", on: "TtsAdapter"
+    input  name:              { value: "kokoro_voice" },
+           provider:          { value: "kokoro" },
+           voice_id:          { value: "" },
+           model:             { value: "" },
+           speed:             { value: "" },
+           stability:         { value: "" },
+           similarity_boost:  { value: "" },
+           style:             { value: "" },
+           triggers:          [],
+           cache_dir:         { value: "" },
+           auto_play:         { value: "true" }
+    expect emits: ["Conceived"]
+  end
+end
