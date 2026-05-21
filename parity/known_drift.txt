@@ -84,3 +84,11 @@ hecks_conception/aggregates/library/stores/inbox.bluebook
 # not blocking the wave-10 merge train.
 /Users/christopheryoung/Projects/miette_family/harry_wingate/harry_wingate.bluebook
 
+# voice_latency.bluebook drift surfaced 2026-05-21 — Ruby's QueryRecorder
+# (bluebook_model/behavior/query.rb) has no `attribute` method, so
+# `attribute :limit, RecentLimit` inside `query Recent do … end` silently
+# no-ops via method_missing and produces "attributes": []. Rust correctly
+# collects the declaration. Gap is on the Ruby side. Retires when
+# QueryRecorder gains an `attribute` recorder method.
+/Users/christopheryoung/Projects/miette/body/voice/latency/voice_latency.bluebook  # Ruby QueryRecorder drops `attribute` declarations in query blocks (method_missing) ; Rust collects them. Ruby-side gap.
+

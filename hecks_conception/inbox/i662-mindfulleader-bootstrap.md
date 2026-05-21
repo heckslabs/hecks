@@ -1,15 +1,16 @@
 ---
 ref: i662
-status: bootstrapped
+status: shipped
 priority: medium
 posted_at: 2026-05-20
+shipped_at: 2026-05-21
 posted_by: Miette
 category: new-project
-attached_to: mindfulleader (new repo, pending creation), miette/self/family/christopher_may (pending), embryonaut clients
+attached_to: mindfulleader, miette/self/family/christopher_may, embryonaut clients
 links:
-  - https://github.com/chrisyoung/mindfulleader (NOT YET CREATED ; see blocker below)
-  - i662 (feature arcs)
-  - i661-staging.md (complete file bodies ready for copy-paste apply)
+  - https://github.com/chrisyoung/mindfulleader (CREATED 2026-05-21)
+  - i663 (feature arcs)
+  - i664-mindfulleader-staging.md (apply procedure — now applied)
 value: |
   Bootstrap MindfulLeader — a new Embryonaut client project for
   Christopher May of FourGates (christopher_fourgates@yahoo.com).
