@@ -1,0 +1,20 @@
+Hecks.world "Events" do
+  aws do
+    region "us-east-1"
+  end
+
+  events_queue do
+    visibility_timeout 60
+    message_retention_seconds 345600
+  end
+
+  events_worker do
+    memory_size 256
+    timeout 30
+    role "arn:aws:iam::123456789012:role/events-worker"
+  end
+
+  events_store do
+    bucket "events-store-2026"
+  end
+end
