@@ -1,0 +1,162 @@
+Hecks.behaviors "RustToBluebookMacrophage" do
+  vision "Behavioral tests for the RustToBluebookMacrophage aggregate — covers the four lifecycle commands the i696 card names (RegisterTouch, Sweep, LaunchConversion, CompleteConversion) plus StartSession + Watch/Unwatch configuration. Each test exercises one command's state contract : input attributes recorded onto the aggregate, audit-trail scalars (last_touched_*, last_launched_file, last_completed_*) stamped, the right event emitted. Modeled on the ProcessHealth.ProcessMacrophage pattern (process_health.behaviors) — VO-shaped inputs with { value: ... } and explicit setup via StartSession when state matters."
+
+  # ── StartSession ─────────────────────────────────────────────
+
+  test "StartSession records session_started_at" do
+    tests "StartSession", on: "RustToBluebookMacrophage"
+    input  name:               { value: "rust_to_bluebook_macrophage" },
+           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    expect session_started_at: { value: "2026-05-21T00:00:00Z" }
+  end
+
+  test "StartSession emits SessionStarted" do
+    tests "StartSession", on: "RustToBluebookMacrophage"
+    input  name:               { value: "rust_to_bluebook_macrophage" },
+           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  # ── WatchPath / UnwatchPath ──────────────────────────────────
+
+  test "WatchPath emits PathWatched" do
+    tests "WatchPath", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:      { value: "rust_to_bluebook_macrophage" },
+           file_path: { value: "rust/src/runtime" }
+    expect emits: ["PathWatched"]
+  end
+
+  test "UnwatchPath emits PathUnwatched" do
+    tests "UnwatchPath", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:      { value: "rust_to_bluebook_macrophage" },
+           file_path: { value: "rust/src/runtime" }
+    expect emits: ["PathUnwatched"]
+  end
+
+  # ── RegisterTouch ────────────────────────────────────────────
+
+  test "RegisterTouch stamps last_touched_file" do
+    tests "RegisterTouch", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:       { value: "rust_to_bluebook_macrophage" },
+           file_path:  { value: "rust/src/runtime/exec_dispatcher.rs" },
+           touched_at: { value: "2026-05-21T00:00:15Z" },
+           touched_by: { value: "miette" }
+    expect last_touched_file: { value: "rust/src/runtime/exec_dispatcher.rs" }
+  end
+
+  test "RegisterTouch stamps last_touched_at" do
+    tests "RegisterTouch", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:       { value: "rust_to_bluebook_macrophage" },
+           file_path:  { value: "rust/src/runtime/exec_dispatcher.rs" },
+           touched_at: { value: "2026-05-21T00:00:15Z" },
+           touched_by: { value: "miette" }
+    expect last_touched_at: { value: "2026-05-21T00:00:15Z" }
+  end
+
+  test "RegisterTouch stamps last_touched_by" do
+    tests "RegisterTouch", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:       { value: "rust_to_bluebook_macrophage" },
+           file_path:  { value: "rust/src/runtime/exec_dispatcher.rs" },
+           touched_at: { value: "2026-05-21T00:00:15Z" },
+           touched_by: { value: "miette" }
+    expect last_touched_by: { value: "miette" }
+  end
+
+  test "RegisterTouch emits RustFileTouched" do
+    tests "RegisterTouch", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:       { value: "rust_to_bluebook_macrophage" },
+           file_path:  { value: "rust/src/runtime/exec_dispatcher.rs" },
+           touched_at: { value: "2026-05-21T00:00:15Z" },
+           touched_by: { value: "miette" }
+    expect emits: ["RustFileTouched"]
+  end
+
+  # ── Sweep ────────────────────────────────────────────────────
+
+  test "Sweep stamps last_sweep_at" do
+    tests "Sweep", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:          { value: "rust_to_bluebook_macrophage" },
+           last_sweep_at: { value: "2026-05-21T00:01:00Z" }
+    expect last_sweep_at: { value: "2026-05-21T00:01:00Z" }
+  end
+
+  test "Sweep emits Swept" do
+    tests "Sweep", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:          { value: "rust_to_bluebook_macrophage" },
+           last_sweep_at: { value: "2026-05-21T00:01:00Z" }
+    expect emits: ["Swept"]
+  end
+
+  # ── LaunchConversion ─────────────────────────────────────────
+
+  test "LaunchConversion stamps last_launched_file" do
+    tests "LaunchConversion", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:         { value: "rust_to_bluebook_macrophage" },
+           file_path:    { value: "rust/src/runtime/exec_dispatcher.rs" },
+           launched_at:  { value: "2026-05-21T00:01:30Z" }
+    expect last_launched_file: { value: "rust/src/runtime/exec_dispatcher.rs" }
+  end
+
+  test "LaunchConversion emits ConversionLaunched" do
+    tests "LaunchConversion", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:         { value: "rust_to_bluebook_macrophage" },
+           file_path:    { value: "rust/src/runtime/exec_dispatcher.rs" },
+           launched_at:  { value: "2026-05-21T00:01:30Z" }
+    expect emits: ["ConversionLaunched"]
+  end
+
+  # ── CompleteConversion ───────────────────────────────────────
+
+  test "CompleteConversion stamps last_completed_file" do
+    tests "CompleteConversion", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:         { value: "rust_to_bluebook_macrophage" },
+           file_path:    { value: "rust/src/runtime/exec_dispatcher.rs" },
+           pr_url:       { value: "https://github.com/embryonaut/hecks/pull/696" },
+           completed_at: { value: "2026-05-21T00:30:00Z" }
+    expect last_completed_file: { value: "rust/src/runtime/exec_dispatcher.rs" }
+  end
+
+  test "CompleteConversion stamps last_completed_pr" do
+    tests "CompleteConversion", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:         { value: "rust_to_bluebook_macrophage" },
+           file_path:    { value: "rust/src/runtime/exec_dispatcher.rs" },
+           pr_url:       { value: "https://github.com/embryonaut/hecks/pull/696" },
+           completed_at: { value: "2026-05-21T00:30:00Z" }
+    expect last_completed_pr: { value: "https://github.com/embryonaut/hecks/pull/696" }
+  end
+
+  test "CompleteConversion emits ConversionCompleted" do
+    tests "CompleteConversion", on: "RustToBluebookMacrophage"
+    setup  "StartSession", name:               { value: "rust_to_bluebook_macrophage" },
+                           session_started_at: { value: "2026-05-21T00:00:00Z" }
+    input  name:         { value: "rust_to_bluebook_macrophage" },
+           file_path:    { value: "rust/src/runtime/exec_dispatcher.rs" },
+           pr_url:       { value: "https://github.com/embryonaut/hecks/pull/696" },
+           completed_at: { value: "2026-05-21T00:30:00Z" }
+    expect emits: ["ConversionCompleted"]
+  end
+end

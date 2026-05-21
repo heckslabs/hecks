@@ -1,0 +1,28 @@
+# RustToBluebookMacrophage — Hecksagon
+#
+# Infrastructure declaration for the RustToBluebookMacrophage
+# aggregate (the imperative-creep immune cell — watches *.rs edits
+# and queues bluebook-conversion sidequests). Pairs with
+# rust_to_bluebook_macrophage.bluebook.
+#
+# Phase 1 (i696) : memory adapter only. The aggregate is the
+# declared contract ; the substrate that fulfills the contract is
+# Phase 2/3 (separate cards) :
+#
+#   * Phase 2 — PostToolUse hook on Edit/Write/MultiEdit with a
+#     *.rs matcher that dispatches RegisterTouch through the
+#     storehouse bus + a Procfile worker that dispatches Sweep on
+#     a 60s cadence.
+#
+#   * Phase 3 — The :exec / :claude_tool adapter binding for
+#     LaunchConversion that actually fires `claude --headless` (or
+#     the Agent-tool MCP) with the conversion prompt baked in and
+#     cascades the sidequest's outcome (PR URL) back through
+#     Cascade.RecordResult so CompleteConversion can close the loop.
+#
+# Memory-adapter backed for tests + behaviors ; once Phase 2 lands
+# the .heki binary store will hold the working queues across sessions.
+#
+Hecks.hecksagon "RustToBluebookMacrophage" do
+  adapter :memory
+end

@@ -1,0 +1,252 @@
+Hecks.bluebook "RustToBluebookMacrophage", version: "2026.05.21.1" do
+  vision "Imperative-creep immune cell. Watches *.rs file edits and, on every detected touch, queues a background sidequest that drafts the equivalent bluebook for the touched file. The discipline becomes structural : any Rust file Miette (or any other agent) writes is structurally a confession that the domain wasn't reached for first — the macrophage's job is to surface that gap mechanically. Over time the Rust files shrink as their domain concepts migrate into bluebook ; eventually each Rust file becomes pure projection arm. Sister to ProcessMacrophage (runtime liveness) and the bluebook-first Macrophage family (write-time complaint) — same macrophage pattern, different debris. Phase 1 ships the contract : the aggregate + behaviors + memory hecksagon. Phase 2 wires the PostToolUse hook ; Phase 3 launches the actual conversion sidequest via the :exec / :claude_tool adapter (separate cards)."
+  category "discipline"
+
+  # ============================================================
+  # RUST-TO-BLUEBOOK MACROPHAGE — imperative-creep immune cell
+  # ============================================================
+  #
+  # Filed as i696. Sibling of ProcessMacrophage (process-zombie
+  # reaper) and the existing macrophage-hook discipline (write-time
+  # bluebook-first complaint). This one is narrower than the
+  # BluebookFirst macrophage : it doesn't complain about the Rust
+  # edit ; it ENQUEUES a conversion task. Rust touches are not
+  # forbidden — they are a backlog signal.
+  #
+  # ── The discipline ──────────────────────────────────────────
+  #
+  # Any time a *.rs file is edited the system makes a structural
+  # note : "this file's domain concepts may belong in bluebook".
+  # The macrophage records the touch, holds it on a pending queue,
+  # and a sweep cadence drains pending into in-flight sidequests
+  # that draft a bluebook conversion. When the sidequest reports
+  # back with a PR URL the file moves to completed.
+  #
+  # The mechanism is the discipline. The system recognises when
+  # imperative code creeps in and self-corrects toward bluebook.
+  #
+  # ── Lifecycle ───────────────────────────────────────────────
+  #
+  #   1. PostToolUse hook on Edit/Write/MultiEdit with matcher
+  #      pattern *.rs dispatches RegisterTouch(file_path, ...)
+  #   2. RegisterTouch records the file on pending_conversions
+  #      and emits RustFileTouched.
+  #   3. A Procfile worker dispatches Sweep on cadence ; the
+  #      runtime walks pending and, for each entry not already
+  #      in_flight, dispatches LaunchConversion(file_path).
+  #   4. LaunchConversion moves the file from pending to in_flight
+  #      and emits ConversionLaunched. The :exec adapter (Phase 3)
+  #      catches the dispatch and fires `claude --headless` (or the
+  #      Agent-tool MCP) with the conversion prompt baked in.
+  #   5. The sidequest reports back with CompleteConversion(
+  #      file_path, pr_url) ; the macrophage moves the file from
+  #      in_flight to completed and emits ConversionCompleted.
+  #
+  # ── Phase 1 scope (this bluebook) ───────────────────────────
+  #
+  # Bluebook + behaviors + hecksagon for the aggregate.
+  # NO hook wiring. NO sweep daemon. NO :exec adapter for
+  # LaunchConversion. The aggregate is the declared contract ;
+  # the substrate (hook, daemon, sidequest launcher) is Phase 2/3.
+  #
+  # ── Cross-references ────────────────────────────────────────
+  #
+  #   i696 — this card
+  #   i676 — ProcessMacrophage reap-orphaned-mindstream rule
+  #          (same macrophage pattern, different debris)
+  #   i695 — hecksagon IR → bluebook (the first big Rust file
+  #          to convert ; manual today, this macrophage automates
+  #          the next ones)
+  #   i692 — PostToolUse dispatch-detail hook (same hook system,
+  #          different lifecycle moment)
+
+  aggregate "RustToBluebookMacrophage", "Singleton-shaped macrophage that watches *.rs edits and queues bluebook-conversion sidequests. RegisterTouch enqueues a file on pending_conversions ; Sweep is the recurring tick that drains pending into LaunchConversion dispatches ; LaunchConversion moves a file from pending to in_flight ; CompleteConversion moves a file from in_flight to completed when the sidequest reports back with a PR URL. The aggregate root identifier is :name ; under i611 phase 1 (`singleton: true`) the name VO disappears." do
+    identified_by :name
+
+    # Singleton-shaped via identified_by :name + default name.
+    # Under i611 phase 1 (when `singleton: true` lands) the name
+    # attribute + VO disappear and this becomes a true singleton.
+    attribute :name, Name, default: "rust_to_bluebook_macrophage"
+
+    # Session metadata
+    attribute :session_started_at, Timestamp, default: "—"
+
+    # Configuration — which path roots the macrophage cares about.
+    # Empty means "every *.rs file the hook surfaces" ; populated
+    # entries scope the watch (e.g. ["rust/src/runtime"]). The
+    # PostToolUse hook (Phase 2) reads this to decide whether a
+    # given touch matches the macrophage's beat.
+    attribute :watched_paths, list_of(RustFilePath)
+
+    # The three working queues. A file moves pending → in_flight
+    # → completed exactly once. No back-edges in Phase 1 — a file
+    # that needs re-conversion gets re-registered.
+    attribute :pending_conversions, list_of(RustFilePath)
+    attribute :in_flight,           list_of(RustFilePath)
+    attribute :completed,           list_of(RustFilePath)
+
+    # Tally facet — running counts since session start.
+    attribute :touches_recorded,       TouchCount, default: 0
+    attribute :sweeps_run,             SweepCount, default: 0
+    attribute :conversions_launched,   ConversionCount, default: 0
+    attribute :conversions_completed,  ConversionCount, default: 0
+
+    # Latest-surface — quick read for the statusline / dashboards.
+    attribute :last_touched_at,     Timestamp, default: "—"
+    attribute :last_touched_file,   RustFilePath
+    attribute :last_touched_by,     Agent,     default: "—"
+    attribute :last_sweep_at,       Timestamp, default: "—"
+    attribute :last_launched_file,  RustFilePath
+    attribute :last_completed_file, RustFilePath
+    attribute :last_completed_pr,   PrUrl
+
+    # ── Value-objects : the language of imperative-creep ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage. Default
+      # "rust_to_bluebook_macrophage". Under i611 phase 1
+      # (`singleton: true`) this VO disappears.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock instant. Used for session_started_at,
+      # last_touched_at, last_sweep_at, and the per-event recorded_at
+      # fields. Mirrors the VO on ProcessMacrophage ; duplicated per
+      # the per-aggregate VO rule (CLAUDE.md 2026-05-12).
+      attribute :value, String
+    end
+
+    value_object "RustFilePath" do
+      # Path to a *.rs file. Repository-relative is the convention
+      # (e.g. "rust/src/runtime/exec_dispatcher.rs") so the queue
+      # values survive worktree relocation. The hook normalises the
+      # absolute path before dispatch.
+      attribute :value, String
+    end
+
+    value_object "Agent" do
+      # Who touched the file — typically the Claude-Code session id
+      # or the named being (e.g. "miette"). Free-form String so the
+      # hook can pass whatever attribution it has. Used for the
+      # audit trail more than for control flow.
+      attribute :value, String
+    end
+
+    value_object "PrUrl" do
+      # The pull-request URL the conversion sidequest opened against
+      # main. Stored verbatim ; the macrophage doesn't parse it.
+      # Empty until a CompleteConversion lands.
+      attribute :value, String
+    end
+
+    value_object "TouchCount" do
+      # Tally of RegisterTouch commands fired since session start.
+      # Resets on StartSession.
+      attribute :value, Integer
+    end
+
+    value_object "SweepCount" do
+      # Tally of Sweep commands fired since session start.
+      # Resets on StartSession.
+      attribute :value, Integer
+    end
+
+    value_object "ConversionCount" do
+      # Tally of conversion lifecycle events (launched / completed)
+      # since session start. Resets on StartSession.
+      attribute :value, Integer
+    end
+
+    # ── Session lifecycle ──────────────────────────────────────
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session tallies at boot. watched_paths and the three queues (pending_conversions / in_flight / completed) persist across sessions — they are the macrophage's working state, not session counters. touches_recorded / sweeps_run / conversions_launched / conversions_completed all reset so the statusline reflects today's activity."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at,     to: :session_started_at
+      then_set :touches_recorded,       to: 0
+      then_set :sweeps_run,             to: 0
+      then_set :conversions_launched,   to: 0
+      then_set :conversions_completed,  to: 0
+      emits "SessionStarted"
+    end
+
+    # ── Configuration ──────────────────────────────────────────
+
+    command "WatchPath" do
+      role "System"
+      description "Add a path root to the watched_paths list. Idempotent — adding a path already on the list is a no-op (the runtime de-dupes). Phase 2's PostToolUse hook reads this to decide whether a given *.rs touch matches the macrophage's beat. Empty watched_paths means 'every *.rs touch' — the default during bring-up."
+      attribute :file_path, RustFilePath
+      emits "PathWatched"
+    end
+
+    command "UnwatchPath" do
+      role "System"
+      description "Remove a path root from watched_paths. Entries already on the pending / in_flight / completed queues are not affected — they were enqueued when the path was watched and the audit trail stands."
+      attribute :file_path, RustFilePath
+      emits "PathUnwatched"
+    end
+
+    # ── Touch recording ────────────────────────────────────────
+
+    command "RegisterTouch" do
+      role "Hook"
+      description "A *.rs file was edited. Records the touch on the audit trail (last_touched_*) and enqueues the file on pending_conversions if it isn't already pending, in_flight, or completed. Phase 2's PostToolUse hook fires this on every Edit/Write/MultiEdit against a *.rs file. The file_path is the repository-relative path ; touched_at is the wall-clock ISO instant the hook observed ; touched_by names the agent (Claude session id, or 'miette', etc.). The discipline is structural : every Rust touch produces a queued conversion task ; the system recognises when imperative code creeps in and self-corrects toward bluebook."
+      attribute :file_path,  RustFilePath
+      attribute :touched_at, Timestamp
+      attribute :touched_by, Agent
+      then_set :last_touched_at,   to: :touched_at
+      then_set :last_touched_file, to: :file_path
+      then_set :last_touched_by,   to: :touched_by
+      emits "RustFileTouched"
+    end
+
+    # ── Sweep — the recurring tick ─────────────────────────────
+
+    command "Sweep" do
+      role "System"
+      description "One sweep tick. The runtime (a Procfile worker — Phase 2) walks pending_conversions ; for each entry not already in_flight, it dispatches LaunchConversion(file_path) so the conversion sidequest is launched. Sweep itself only records the tick happened — the per-file fan-out is the runtime's job (mirrors ProcessMacrophage.Sweep which records the poll without expressing per-sentinel fan-out). The cadence dispatcher is a Procfile worker calling Sweep every 60s."
+      attribute :last_sweep_at, Timestamp
+      then_set :last_sweep_at, to: :last_sweep_at
+      emits "Swept"
+    end
+
+    # ── Conversion lifecycle ───────────────────────────────────
+
+    command "LaunchConversion" do
+      role "System"
+      description "Launch a background conversion sidequest for a pending file. Moves file_path from pending_conversions to in_flight and stamps last_launched_file. The bluebook records the dispatch and emits ConversionLaunched ; Phase 3's :exec / :claude_tool adapter catches the dispatch and fires `claude --headless` (or the Agent-tool MCP) with the conversion prompt baked in. The adapter's outcome cascades into Cascade.RecordResult so the sidequest's stdout (the draft bluebook + PR URL it opened) is auditable. The macrophage stays pure — it composes the dispatch, the adapter runs it."
+      attribute :file_path,    RustFilePath
+      attribute :launched_at,  Timestamp
+      then_set :last_launched_file, to: :file_path
+      emits "ConversionLaunched"
+    end
+
+    command "CompleteConversion" do
+      role "Sidequest"
+      description "The conversion sidequest reported back with a PR URL — move file_path from in_flight to completed and stamp the audit-trail surface (last_completed_file, last_completed_pr). pr_url is the GitHub PR the sidequest opened against main ; once the PR merges the Rust file's domain concepts live in the bluebook the sidequest drafted, and the Rust file shrinks toward pure projection arm. The macrophage doesn't validate the PR URL ; it stores the string the sidequest reported and lets the next link in the chain (review, merge) close the loop."
+      attribute :file_path,    RustFilePath
+      attribute :pr_url,       PrUrl
+      attribute :completed_at, Timestamp
+      then_set :last_completed_file, to: :file_path
+      then_set :last_completed_pr,   to: :pr_url
+      emits "ConversionCompleted"
+    end
+  end
+
+  # ── No policies in Phase 1 ─────────────────────────────────
+  #
+  # Sweep is cadence-driven (a Procfile worker dispatches it every
+  # 60s — Phase 2), not event-driven. There is no event arrow
+  # between RegisterTouch and Sweep ; RegisterTouch enqueues, Sweep
+  # drains. The queue mutation (append to pending_conversions on
+  # RegisterTouch, move pending → in_flight on LaunchConversion,
+  # move in_flight → completed on CompleteConversion) is runtime
+  # behaviour of the storehouse adapter, not a bluebook policy.
+  #
+  # If a later phase wants an event-driven path (e.g.
+  # RustFileTouched → LaunchConversion directly, skipping the
+  # cadence sweep) that's a Phase 2/3 design decision — file a
+  # follow-up card rather than baking it in here.
+end
