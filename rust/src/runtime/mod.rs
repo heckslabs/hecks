@@ -69,12 +69,16 @@ pub mod tts_dispatcher;
 // `WEB_TOOL_BEHAVIOR_NAMES` for the registry to consume — `Runtime::
 // dispatch` is deliberately NOT modified to call into it.
 pub mod web_tool_dispatcher;
-// i629 — :exec adapter family kernel hook. One behavior :
-// perform_exec (run a local program, capture stdout/exit, cascade).
-// Wired below via resolve_exec_adapters (mirrors the WIRED
-// :claude_tool arm, not the unwired i557 registry path). Closes
-// i629 : Inbox.Check's :exec binding runs bin/inbox_poll.mjs so the
-// 900s loop dispatch IS the Gmail poll.
+// i629 — the kernel-floor exec leaf. One behavior : perform_exec
+// (run a local program, capture stdout/exit). The bespoke
+// `resolve_exec_adapters` arm that used to drive it is RETIRED
+// (adapters-as-bluebook, plan: structured-pondering-pie) ; this leaf
+// is now reached only through `resolve_primitive_spawn` (the generic
+// `Primitive::Process.Spawn` hook). Every former `:exec` binding —
+// Inbox.Check, ProcessMacrophage.Sweep/Heal, the fibroblast sweep —
+// is now an ordinary aggregate-qualified bluebook policy firing
+// `Primitive::Process.Spawn`. The spawn syscall is the only imperative
+// remainder ; the adapter PROTOCOL is plain bluebook policy/cascade.
 pub mod exec_dispatcher;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
@@ -1105,7 +1109,7 @@ impl Runtime {
     ///  Sibling of exec_dispatcher.rs's existing exemption.]
     ///
     /// The generic process-spawn primitive — the adapters-as-bluebook
-    /// floor tile that does what `resolve_exec_adapters` does, but
+    /// floor tile that replaced the retired `resolve_exec_adapters`,
     /// driven by ordinary bluebook policy/cascade instead of a bespoke
     /// per-family resolver. Fires when a `Primitive::Process.Spawn`
     /// command dispatches (whether from a top-level dispatch or from
@@ -1121,13 +1125,16 @@ impl Runtime {
     /// is the SAME contract the `:exec` resolver honours : the outcome
     /// record joins the originating invocation by id.
     ///
-    /// NOTE : `resolve_exec_adapters` is NOT retired. The fibroblast
-    /// repair sweep is migrated to this primitive (parity verified),
-    /// but three `:exec` bindings remain (Inbox.Check, ProcessMacrophage.
-    /// Sweep, ProcessMacrophage.Heal). Migrating them needs gap #1b
-    /// (trigger-on-command / aggregate-scoped policy events) because
-    /// their event names collide across aggregates (Swept) — the
-    /// resolver's precise Aggregate.Command match still serves them.
+    /// `resolve_exec_adapters` is RETIRED. Every former `:exec` binding
+    /// is now an ordinary bluebook policy firing this primitive : the
+    /// fibroblast repair sweep (`on "SweepRan"`), the Gmail poll
+    /// (`on "Inbox.InboxChecked"`), and the process-health sweep + heal
+    /// (`on "ProcessMacrophage.Swept"` / `on "ProcessMacrophage.HealRequested"`).
+    /// The last two need gap #1b — the aggregate-qualified `on` form —
+    /// because `Swept` is emitted by both ProcessMacrophage and the
+    /// discipline macrophage and is also consumed by the bare
+    /// `MarkHangedOnMissingHeartbeat` policy ; the qualifier fires the
+    /// sweeper ONLY for ProcessMacrophage's Swept.
     ///
     /// This is the ONLY new imperative leaf : the spawn syscall.
     fn resolve_primitive_spawn(

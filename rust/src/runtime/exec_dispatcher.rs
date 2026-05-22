@@ -1,25 +1,24 @@
 //! [antibody-exempt: rust/src/runtime/exec_dispatcher.rs —
-//!  kernel-floor handler for the `:exec` hecksagon adapter family
-//!  (i629). Runs the adapter's `exec:` program on dispatch, captures
-//!  stdout/stderr/exit, caps output. Sibling of claude_tool_dispatcher
-//!  / web_tool_dispatcher ; wired via resolve_exec_adapters in
-//!  runtime/mod.rs (mirrors the WIRED :claude_tool arm, not the
-//!  unwired i557 registry path). This module IS the close of i629 :
-//!  Inbox.Check's :exec binding runs the inbox poller so the 900s
-//!  loop dispatch is the Gmail fetch, retiring the transitional
-//!  inboxpoll Procfile member.]
+//!  the kernel-floor spawn leaf (i629). Runs a literal program string,
+//!  captures stdout/stderr/exit, caps output. The spawn syscall is
+//!  irreducibly imperative ; the surrounding PROTOCOL (fire → run →
+//!  cascade) is now ordinary bluebook policy/cascade. The bespoke
+//!  `resolve_exec_adapters` arm that used to drive this leaf is
+//!  RETIRED — it is now reached ONLY through `resolve_primitive_spawn`
+//!  (the generic `Primitive::Process.Spawn` hook).]
 //!
-//! ExecDispatcher — kernel hook for the :exec adapter family.
+//! ExecDispatcher — the kernel-floor process-spawn leaf.
 //!
-//! When a command with a bound `:exec` adapter dispatches, the
-//! runtime resolves the matching adapter (one whose `command:`
-//! option equals the dispatched Aggregate.Command target), reads its
-//! `exec:` field, runs it to completion inheriting the runtime
-//! process cwd + env (the overmind loop member already runs from
-//! hecks_conception, so relative paths resolve identically whether
-//! the loop or a manual storehouse__dispatch fired it), captures
-//! stdout/stderr/exit, and the resolver cascades the outcome into
-//! the adapter's `result_into` target.
+//! Reached via `resolve_primitive_spawn` when a `Primitive::Process.Spawn`
+//! command dispatches (whether top-level or from a policy/PM cascade).
+//! Reads the literal program string off the dispatch's `cmd` attr, runs
+//! it to completion inheriting the runtime process cwd + env (the
+//! overmind loop member already runs from hecks_conception, so relative
+//! paths resolve identically whether the loop or a manual
+//! storehouse__dispatch fired it), captures stdout/stderr/exit, and the
+//! primitive cascades the outcome into the dispatch's `result_into`
+//! target. Every former `:exec` binding is now a bluebook policy
+//! firing this primitive — see resolve_primitive_spawn's doc comment.
 
 use std::process::Command;
 

@@ -23,11 +23,18 @@ pub fn cascade_emits(domain: &Domain, cmd_name: &str) -> Vec<String> {
 
 fn walk(domain: &Domain, cmd_name: &str, out: &mut Vec<String>,
         policy_stack: &mut Vec<String>) {
-    let Some(cmd) = find_cmd(domain, cmd_name) else { return };
+    let Some((agg_name, cmd)) = find_cmd(domain, cmd_name) else { return };
     let Some(ref ev) = cmd.emits else { return };
     out.push(ev.clone());
     for p in &domain.policies {
-        if &p.on_event != ev { continue; }
+        // gap #1b — match the bare event name, then honour an
+        // aggregate qualifier : a policy declared `on "Agg.Event"`
+        // fires only when the emitting aggregate IS `Agg`. Mirrors
+        // the runtime PolicyEngine::react filter.
+        if p.event_name() != ev { continue; }
+        if let Some(q) = p.event_qualifier() {
+            if q != agg_name { continue; }
+        }
         // Mirror runtime PolicyEngine: skip a policy that is already
         // on the recursion stack (in_flight). Allows diamond fan-in
         // through different policies; blocks self-recursive cycles.
@@ -38,6 +45,8 @@ fn walk(domain: &Domain, cmd_name: &str, out: &mut Vec<String>,
     }
 }
 
-fn find_cmd<'a>(d: &'a Domain, name: &str) -> Option<&'a crate::ir::Command> {
-    d.aggregates.iter().flat_map(|a| a.commands.iter()).find(|c| c.name == name)
+fn find_cmd<'a>(d: &'a Domain, name: &str) -> Option<(&'a str, &'a crate::ir::Command)> {
+    d.aggregates.iter().find_map(|a| {
+        a.commands.iter().find(|c| c.name == name).map(|c| (a.name.as_str(), c))
+    })
 }
