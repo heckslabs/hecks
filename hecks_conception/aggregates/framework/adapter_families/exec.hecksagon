@@ -1,4 +1,18 @@
 Hecks.adapter_family "exec" do
+  # DEPRECATED (adapters-as-bluebook, plan: structured-pondering-pie).
+  # The bespoke `resolve_exec_adapters` runtime arm that drove this
+  # family is RETIRED. Every former `:exec` binding (Inbox.Check,
+  # ProcessMacrophage.Sweep/Heal, the fibroblast sweep) is now an
+  # ordinary bluebook policy firing `Primitive::Process.Spawn` — the
+  # generic process-spawn primitive whose only imperative leaf is the
+  # spawn syscall (runtime/exec_dispatcher.rs, reached via
+  # resolve_primitive_spawn). `adapter :exec, ...` blocks no longer do
+  # anything at runtime ; this family declaration is kept only as a
+  # historical descriptor + the framework-registry index entry. New
+  # side-effects should be expressed as a policy → Primitive::Process.Spawn
+  # → Cascade.RecordResult, NOT as an :exec adapter.
+  #
+  # ── original vision (historical) ──
   # The :exec adapter family — bind one aggregate.command dispatch to
   # one local executable, run it on dispatch, cascade its outcome. The
   # sibling of :claude_tool (fixed harness tool primitives) and
