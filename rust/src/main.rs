@@ -530,6 +530,38 @@ fn main() {
         return;
     }
 
+    // `storehouse serve-socket <agg-dir> [socket-path]` — warm,
+    // resident dispatch server over a UNIX DOMAIN SOCKET. Same boot +
+    // dispatch body as serve-stdio (byte-identical .heki) ; the only
+    // difference is the transport. This is the form that lives as an
+    // overmind DAEMON (body) : the warm runtime is independent of
+    // Claude, so a Claude restart rebuilds only the MCP membrane while
+    // this daemon stays warm. The MCP becomes a thin socket CLIENT
+    // (connect → write request line → read result line). If no
+    // socket-path is given, the daemon binds the deterministic
+    // per-root path the MCP client also computes (see
+    // run_serve::sock_path_for_root). See run_serve/socket.rs.
+    if command == "serve-socket" {
+        let sock_arg = args.get(3).map(|s| s.as_str());
+        run_serve_socket(path, sock_arg);
+        return;
+    }
+
+    // `storehouse sock-path <agg-dir>` — print the deterministic unix
+    // socket path the serve-socket daemon binds for that root, then
+    // exit. ONE source of truth for the address : the MCP socket client
+    // shells this once per root (the JS side can't reproduce Rust's
+    // SipHash DefaultHasher) and caches the answer, so daemon + client
+    // agree without coordination. Pure path derivation — no boot.
+    if command == "sock-path" {
+        if path.is_empty() {
+            eprintln!("usage: storehouse sock-path <aggregates-dir>");
+            std::process::exit(2);
+        }
+        println!("{}", storehouse::run_serve::sock_path_for_root(path).display());
+        return;
+    }
+
     // `storehouse is-dispatched <path>` — IR-query subcommand
     // (i122). Exit 0 + stdout line "<kind> in <source>" if the file
     // is claimed by some adapter / specializer ; exit 1 silently if
@@ -3322,6 +3354,57 @@ fn run_serve_stdio(agg_dir: &str) {
         eprintln!("usage: storehouse serve-stdio <aggregates-dir>");
         std::process::exit(2);
     }
+    let (mut rt, hecksagon_llm, ollama_config) = boot_serve_runtime(agg_dir);
+    let legacy_hook = make_serve_legacy_hook(hecksagon_llm, ollama_config);
+    let code = storehouse::run_serve::run(&mut rt, Some(&legacy_hook));
+    std::process::exit(code);
+}
+
+/// `storehouse serve-socket <agg-dir> [socket-path]` — boot the resident
+/// runtime ONCE then hand off to the unix-socket serve loop. The warm
+/// runtime lives as an overmind daemon (body), so it survives a Claude
+/// restart : the MCP becomes a thin socket client that reconnects
+/// without re-paying the ~660ms boot. Boot + dispatch body are
+/// byte-identical to serve-stdio (shared `boot_serve_runtime` +
+/// `run_serve::handle_request`) ; only the transport differs.
+///
+/// If `socket_path` is `None`, binds the deterministic per-root path the
+/// MCP client also derives (`run_serve::sock_path_for_root(agg_dir)`),
+/// so the daemon and client agree on the address with no coordination.
+///
+/// [antibody-exempt: rust/src/main.rs run_serve_socket — kernel-surface
+///  CLI primitive, sibling of run_serve_stdio. Boots the resident
+///  runtime once and hands off to the warm unix-socket serve loop
+///  (storehouse::run_serve::socket). The serve loop's dispatch is
+///  byte-identical to the one-shot dispatch_hecksagon path. Retires
+///  alongside the rest of the run_* family once cli.bluebook (i80)
+///  lands and CLI routing becomes declarative.]
+fn run_serve_socket(agg_dir: &str, socket_path: Option<&str>) {
+    if agg_dir.is_empty() || !std::path::Path::new(agg_dir).is_dir() {
+        eprintln!("usage: storehouse serve-socket <aggregates-dir> [socket-path]");
+        std::process::exit(2);
+    }
+    let sock_path = match socket_path {
+        Some(p) => std::path::PathBuf::from(p),
+        None => storehouse::run_serve::sock_path_for_root(agg_dir),
+    };
+    let (mut rt, hecksagon_llm, ollama_config) = boot_serve_runtime(agg_dir);
+    let legacy_hook = make_serve_legacy_hook(hecksagon_llm, ollama_config);
+    let code = storehouse::run_serve::socket::run(&mut rt, &sock_path, Some(&legacy_hook));
+    std::process::exit(code);
+}
+
+/// Boot the resident runtime EXACTLY like dispatch_hecksagon
+/// (find_world_heki_dir + load_combined_domain + load_all_hecksagons +
+/// Runtime::boot_with_hecksagons + register_llm_providers) so warm
+/// dispatches produce byte-identical .heki to the cold one-shot path.
+/// Returns the booted runtime plus the resolved legacy conversational-
+/// LLM config (hecksagon :llm triple, else .world ollama pair) so the
+/// caller can build the post-dispatch adapter_llm hook. Shared by both
+/// serve transports.
+fn boot_serve_runtime(
+    agg_dir: &str,
+) -> (Runtime, Option<(String, String, String)>, Option<(String, String)>) {
     // Default the bus log to quiet for the resident process — explicit
     // STOREHOUSE_LOG still wins for debugging.
     if std::env::var("STOREHOUSE_LOG").is_err() {
@@ -3333,14 +3416,20 @@ fn run_serve_stdio(agg_dir: &str) {
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, agg_dir);
-
-    // Resolve the legacy conversational-LLM config once (hecksagon
-    // :llm backend wins, else .world ollama) and close over it so the
-    // serve loop runs the same post-dispatch adapter_llm pass
-    // dispatch_hecksagon does — keeping warm .heki byte-identical.
     let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
     let ollama_config = find_world_ollama_config(agg_dir);
-    let legacy_hook = move |rt: &mut Runtime, agg_type: &str, agg_id: &str, command: &str| {
+    (rt, hecksagon_llm, ollama_config)
+}
+
+/// Build the post-dispatch legacy-LLM hook closure both serve
+/// transports pass to the loop. Mirrors dispatch_hecksagon's
+/// adapter_llm pass (hecksagon :llm backend wins, else .world ollama)
+/// so warm .heki stays byte-identical to the cold path.
+fn make_serve_legacy_hook(
+    hecksagon_llm: Option<(String, String, String)>,
+    ollama_config: Option<(String, String)>,
+) -> impl Fn(&mut Runtime, &str, &str, &str) {
+    move |rt: &mut Runtime, agg_type: &str, agg_id: &str, command: &str| {
         if let Some(state) = rt.find(agg_type, agg_id).cloned() {
             let repo_key = storehouse::runtime::repo_lookup_key(&rt.repositories, agg_type);
             if let Some(repo) = repo_key.as_ref().and_then(|k| rt.repositories.get_mut(k)) {
@@ -3355,10 +3444,7 @@ fn run_serve_stdio(agg_dir: &str) {
                 }
             }
         }
-    };
-
-    let code = storehouse::run_serve::run(&mut rt, Some(&legacy_hook));
-    std::process::exit(code);
+    }
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
