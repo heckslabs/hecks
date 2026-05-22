@@ -138,9 +138,16 @@ export default {
         (result.stdout || result.stderr || `exit=${result.exit_code}`) +
         `\n\n[render error : ${err && err.message ? err.message : err}]`;
     }
+    // NOTE: we deliberately do NOT return structuredContent here. When a
+    // tool returns structuredContent, the Claude Code conversation surfaces
+    // that raw JSON object instead of content[0].text — burying the rich,
+    // scannable render (headline · exit · events · ms, timeline, state)
+    // under an unreadable JSON blob. Chris wants the summary + elapsed, not
+    // the JSON. content[0].text (renderDispatch) IS the human view ; it
+    // carries the State + Raw sections too, so nothing machine-readable is
+    // lost to the eye. No other consumer reads this tool's structuredContent.
     return {
       content: [{ type: "text", text: outputText }],
-      structuredContent: { ...result, summary: trimmedSummary },
       isError: result.ok === false,
     };
   },

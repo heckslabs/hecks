@@ -1,85 +1,66 @@
-//! `storehouse follow [stream] [--json] [--exclude D1,D2,...]` — tail the
-//! storehouse bus log. [antibody-exempt: rust/src/run_follow/mod.rs —
-//! kernel-surface CLI primitive paired with runtime/storehouse_log.rs +
-//! runtime/dispatch_detail.rs ; owns the file-watch + block-assembly +
-//! render loop. Retires with storehouse_log's exemption.]
+//! `storehouse follow [stream] [--quiet] [--json] [--exclude D1,D2,...]` —
+//! watch the JSONL event stream. [antibody-exempt: rust/src/run_follow/mod.rs
+//!  — kernel-surface CLI primitive paired with runtime/storehouse_log.rs +
+//!  runtime/dispatch_detail.rs. A dumb watcher : tail the log, parse one
+//!  JSON object per line, render. Retires with storehouse_log's exemption.]
 //!
-//! Block-driven : assemble each blank-line-separated paragraph ; if it
-//! parses as a rich dispatch block render one terse line (default) or the
-//! full re-colourised block (--json). Stray terse one-liners suppressed.
-//!   storehouse follow                 # terse, one line per dispatch
-//!   storehouse follow --json          # full colourised JSON block
+//! The log is JSONL — one self-contained JSON object per emitted event
+//! (storehouse_log::emit_file, written by dispatch_detail::DispatchScope on
+//! drop). follow tails the file, parses one object per line, and renders it
+//! terse by default or raw (pretty) with --json. One line = one object, so
+//! there is no multi-line block to re-assemble ; pipe to `jq` for anything.
+//!   storehouse follow                 # terse colourised event stream
+//!   storehouse follow --json          # raw JSON object per event (jq-friendly)
+//!   storehouse follow --quiet         # hide process-manager (daemon) events
 //!   storehouse follow --exclude Heart,SpeechStream
-//!   storehouse follow ShellTool       # substring filter on command FQN
+//!   storehouse follow ShellTool       # substring filter on the line
 
+use crate::runtime::dispatch_detail::{colour_for, parse_fqn, BRIGHT_RED, CYAN, DIM, GREEN, MAGENTA, RESET, YELLOW};
 use crate::runtime::storehouse_log;
-mod block;
-use block::Block;
+use serde_json::Value;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::path::Path;
 use std::time::Duration;
 
-#[derive(Debug, Clone)]
-pub enum Filter { All, Surface(&'static str), Substring(String) }
-
-impl Filter {
-    pub fn from_arg(arg: Option<&str>) -> Filter {
-        match arg {
-            None | Some("") | Some("all") => Filter::All,
-            Some("dispatch") => Filter::Surface("dispatch"),
-            Some("event") => Filter::Surface("event"),
-            Some("cascade") => Filter::Surface("cascade"),
-            Some("policy") => Filter::Surface("policy"),
-            Some(s) => Filter::Substring(s.to_string()),
-        }
-    }
-    pub fn accepts_block(&self, b: &Block) -> bool {
-        match self {
-            Filter::All => true,
-            Filter::Surface("dispatch") => true,
-            Filter::Surface(w) => b.command.contains(*w),
-            Filter::Substring(needle) => b.command.contains(needle.as_str()),
-        }
-    }
-}
-
-struct Opts { filter: Filter, json: bool, exclude: Vec<String> }
+struct Opts { needle: Option<String>, quiet: bool, json: bool, exclude: Vec<String> }
 
 fn parse_opts(args: &[String]) -> Opts {
+    let mut quiet = false;
     let mut json = false;
     let mut exclude: Vec<String> = Vec::new();
-    let mut stream: Option<String> = None;
+    let mut needle: Option<String> = None;
     let mut i = 2;
     while i < args.len() {
         let a = args[i].as_str();
-        if a == "--json" { json = true; }
+        if a == "--quiet" || a == "-q" { quiet = true; }
+        else if a == "--json" { json = true; }
         else if a == "--exclude" { if let Some(v) = args.get(i + 1) { exclude = split_csv(v); i += 1; } }
         else if let Some(v) = a.strip_prefix("--exclude=") { exclude = split_csv(v); }
-        else if !a.starts_with('-') && stream.is_none() { stream = Some(a.to_string()); }
+        else if !a.starts_with('-') && needle.is_none() {
+            let s = a.to_string();
+            if s != "all" { needle = Some(s); }
+        }
         i += 1;
     }
-    Opts { filter: Filter::from_arg(stream.as_deref()), json, exclude }
+    Opts { needle, quiet, json, exclude }
 }
 
 fn split_csv(v: &str) -> Vec<String> {
     v.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
 }
 
-fn excluded(b: &Block, exclude: &[String]) -> bool {
-    exclude.iter().any(|x| x == b.domain() || x == b.aggregate() || b.command.contains(x.as_str()))
-}
-
 pub fn print_help() {
     let path = storehouse_log::log_file_path();
-    println!("storehouse follow [stream] [--json] [--exclude D1,D2,...]");
+    println!("storehouse follow [stream] [--quiet] [--json] [--exclude D1,D2,...]");
     println!();
-    println!("  storehouse follow                  # terse, one line per dispatch");
-    println!("  storehouse follow --json           # full colourised JSON block");
+    println!("  storehouse follow                  # terse colourised event stream");
+    println!("  storehouse follow --json           # raw JSON object per event (jq-friendly)");
+    println!("  storehouse follow --quiet          # hide process-manager (daemon) events");
     println!("  storehouse follow --exclude Heart,SpeechStream");
-    println!("  storehouse follow ShellTool        # command FQN substring filter");
+    println!("  storehouse follow ShellTool        # substring filter on the line");
     println!();
-    println!("Log: $STOREHOUSE_LOG_FILE (default {}).", path.display());
+    println!("Log: $STOREHOUSE_LOG_FILE (default {}). JSONL — one event per line.", path.display());
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -87,15 +68,11 @@ pub fn run(args: &[String]) -> i32 {
     if matches!(first, Some("--help") | Some("-h") | Some("help")) { print_help(); return 0; }
     let opts = parse_opts(args);
     let path = storehouse_log::log_file_path();
-    if opts.json { tail_blocks(&path, &opts); } else { tail_lines(&path, &opts); }
+    tail(&path, &opts);
     0
 }
 
-fn tail_lines(path: &Path, opts: &Opts) {
-    // Default mode : stream every log line live, line by line, exactly
-    // as the runtime writes it (the whole sausage). --exclude drops a
-    // line whose command FQN matches a pattern. Rich-block lines pass
-    // through raw too (the ANSI-stripped JSON), so nothing is hidden.
+fn tail(path: &Path, opts: &Opts) {
     let poll = Duration::from_millis(100);
     let mut file = loop { match File::open(path) { Ok(f) => break f, Err(_) => std::thread::sleep(poll) } };
     let _ = file.seek(SeekFrom::End(0));
@@ -113,42 +90,10 @@ fn tail_lines(path: &Path, opts: &Opts) {
             }
             Ok(_) => {
                 let line = buf.trim_end_matches('\n').trim_end_matches('\r');
-                emit_legacy(line, opts);
-            }
-            Err(_) => std::thread::sleep(poll),
-        }
-    }
-}
-
-fn tail_blocks(path: &Path, opts: &Opts) {
-    let poll = Duration::from_millis(100);
-    let mut file = loop { match File::open(path) { Ok(f) => break f, Err(_) => std::thread::sleep(poll) } };
-    let _ = file.seek(SeekFrom::End(0));
-    let mut reader = BufReader::new(file);
-    let mut buf = String::new();
-    let mut blk = String::new();
-    let mut in_block = false;
-    loop {
-        buf.clear();
-        match reader.read_line(&mut buf) {
-            Ok(0) => {
-                std::thread::sleep(poll);
-                if !path.exists() {
-                    let nf = loop { match File::open(path) { Ok(f) => break f, Err(_) => std::thread::sleep(poll) } };
-                    reader = BufReader::new(nf);
-                }
-            }
-            Ok(_) => {
-                let line = buf.trim_end_matches('\n').trim_end_matches('\r');
-                let trimmed = line.trim();
-                if in_block {
-                    if !blk.is_empty() { blk.push('\n'); }
-                    blk.push_str(line);
-                    if trimmed == "}" { flush_para(&blk, opts); blk.clear(); in_block = false; }
-                } else if trimmed == "{" {
-                    in_block = true; blk.clear(); blk.push_str(line);
-                } else if !trimmed.is_empty() {
-                    emit_legacy(line, opts);
+                if let Some(rendered) = render(line, opts) {
+                    println!("{}", rendered);
+                    use std::io::Write as _;
+                    let _ = std::io::stdout().flush();
                 }
             }
             Err(_) => std::thread::sleep(poll),
@@ -156,59 +101,115 @@ fn tail_blocks(path: &Path, opts: &Opts) {
     }
 }
 
-/// A legacy single-line entry (`[ts] verb FQN#id ...`). Print it as-is
-/// unless an --exclude pattern matches its FQN. Keeps the constant
-/// daemon flow (Heart.Beat etc.) streaming live between rich blocks.
-fn emit_legacy(line: &str, opts: &Opts) {
-    if !opts.exclude.is_empty() {
-        // FQN is the token after the verb : "[ts] dispatch Heart::Heart.Beat#1".
-        if let Some(rest) = line.split_once("] ").map(|(_, r)| r) {
-            let mut toks = rest.split_whitespace();
-            let _verb = toks.next();
-            if let Some(fqn_id) = toks.next() {
-                let fqn = fqn_id.split('#').next().unwrap_or(fqn_id);
-                if opts.exclude.iter().any(|x| fqn.contains(x.as_str())) { return; }
-            }
-        }
+/// Parse one JSONL event line, filter, and render. `None` when the line
+/// isn't a JSON object or is filtered out (--quiet / --exclude / needle).
+fn render(line: &str, opts: &Opts) -> Option<String> {
+    let line = line.trim();
+    let v: Value = serde_json::from_str(line).ok()?;
+    let command = v.get("command").and_then(|c| c.as_str())?;
+    let source = v.get("source").and_then(|s| s.as_str()).unwrap_or("");
+    if opts.quiet && source == "process-manager" { return None; }
+    if opts.exclude.iter().any(|x| command.contains(x.as_str())) { return None; }
+    if let Some(n) = &opts.needle { if !line.contains(n.as_str()) { return None; } }
+    if opts.json {
+        return Some(serde_json::to_string_pretty(&v).unwrap_or_else(|_| line.to_string()));
     }
-    if opts.json { return; }
-    println!("{}", block::colourise_legacy(line));
-    use std::io::Write as _;
-    let _ = std::io::stdout().flush();
+    Some(terse(&v, command, source))
 }
 
-fn flush_para(para: &str, opts: &Opts) {
-    let para = para.trim();
-    if para.is_empty() { return; }
-    let Some(b) = Block::parse(para) else { return };
-    if !opts.filter.accepts_block(&b) || excluded(&b, &opts.exclude) { return; }
-    let rendered = if opts.json { format!("{}\n", block::colourise_json(para)) } else { b.terse() };
-    println!("{}", rendered);
-    use std::io::Write as _;
-    let _ = std::io::stdout().flush();
+/// Render the terse colourised line from a parsed event object.
+fn terse(v: &Value, command: &str, source: &str) -> String {
+    let ts = v.get("ts").and_then(|t| t.as_str()).unwrap_or("");
+    let kind = v.get("kind").and_then(|k| k.as_str()).unwrap_or("");
+    let ok = v.get("ok").and_then(|b| b.as_bool()).unwrap_or(true);
+    let dac = dac_label(command);
+    let kind_col = if !ok { BRIGHT_RED } else { colour_for(kind, true) };
+    if kind == "done" {
+        let outcome = v.get("outcome").and_then(|o| o.as_str()).unwrap_or("ok");
+        let ms = v.get("elapsed_ms").and_then(|m| m.as_u64()).unwrap_or(0);
+        let n = v.get("event_count").and_then(|m| m.as_u64()).unwrap_or(0);
+        let oc = if outcome == "error" { BRIGHT_RED } else { GREEN };
+        let plural = if n == 1 { "event" } else { "events" };
+        format!(
+            "{DIM}[{ts}]{RESET} {dac} {kc}done{RESET} {oc}{outcome}{RESET} {YELLOW}{el}{RESET} {DIM}\u{00b7}{RESET} {n} {plural} {DIM}\u{00b7}{RESET} {MAGENTA}{source}{RESET}",
+            ts = ts, dac = dac, kc = kind_col, oc = oc, outcome = outcome,
+            el = human_elapsed(ms), n = n, plural = plural, source = source,
+        )
+    } else {
+        let verb = v.get("verb").and_then(|x| x.as_str()).unwrap_or("");
+        format!(
+            "{DIM}[{ts}]{RESET} {dac} {kc}{kind}{RESET} {verb} {DIM}\u{00b7}{RESET} {MAGENTA}{source}{RESET}",
+            ts = ts, dac = dac, kc = kind_col, kind = kind, verb = verb, source = source,
+        )
+    }
+}
+
+/// `[Domain Aggregate Command]` — command word bright-cyan, the rest dim.
+fn dac_label(command: &str) -> String {
+    let (d, a, c) = parse_fqn(command);
+    let words: Vec<String> = [d, a, c].into_iter().filter(|w| !w.is_empty()).collect();
+    let mut inner = String::new();
+    for (i, w) in words.iter().enumerate() {
+        if i > 0 { inner.push(' '); }
+        if i + 1 == words.len() { inner.push_str(&format!("{CYAN}{w}{RESET}")); }
+        else { inner.push_str(&format!("{DIM}{w}{RESET}")); }
+    }
+    format!("{DIM}[{RESET}{inner}{DIM}]{RESET}")
+}
+
+fn human_elapsed(ms: u64) -> String {
+    if ms < 1000 { format!("{ms}ms") } else { format!("{:.1}s", ms as f64 / 1000.0) }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn opts() -> Opts { Opts { needle: None, quiet: false, json: false, exclude: Vec::new() } }
+    fn strip(s: String) -> String { crate::runtime::dispatch_detail::strip_ansi(&s) }
+
     #[test]
-    fn parse_opts_json_and_exclude() {
-        let args = vec!["s".into(), "follow".into(), "all".into(), "--json".into(), "--exclude".into(), "Heart,SpeechStream".into()];
-        let o = parse_opts(&args);
-        assert!(o.json);
-        assert_eq!(o.exclude, vec!["Heart", "SpeechStream"]);
-        assert!(matches!(o.filter, Filter::All));
+    fn renders_event_terse() {
+        let l = r#"{"ts":"T","command":"Voice::Voice.Speak","kind":"event","verb":"Voice.Spoke","ok":true,"source":"operator"}"#;
+        let out = strip(render(l, &opts()).unwrap());
+        assert!(out.contains("Voice.Spoke"), "{out}");
+        assert!(out.contains("operator"), "{out}");
+        assert!(out.contains("event"), "{out}");
     }
+
     #[test]
-    fn excluded_matches_domain_or_aggregate() {
-        let b = Block { command: "Heart::Heart.Beat".into(), outcome: "ok".into(), elapsed_ms: 3, event_count: 1, source_tag: "x".into() };
-        assert!(excluded(&b, &["Heart".to_string()]));
-        assert!(!excluded(&b, &["Voice".to_string()]));
+    fn renders_done_with_elapsed() {
+        let l = r#"{"ts":"T","command":"Heart::Heart.Beat","kind":"done","outcome":"ok","elapsed_ms":1300,"event_count":2,"source":"process-manager"}"#;
+        let out = strip(render(l, &opts()).unwrap());
+        assert!(out.contains("done"), "{out}");
+        assert!(out.contains("1.3s"), "{out}");
+        assert!(out.contains("2 events"), "{out}");
     }
+
     #[test]
-    fn accepts_block_substring() {
-        let b = Block { command: "Tools::ShellTool.Bash".into(), outcome: "ok".into(), elapsed_ms: 0, event_count: 0, source_tag: "x".into() };
-        assert!(Filter::from_arg(Some("ShellTool")).accepts_block(&b));
-        assert!(!Filter::from_arg(Some("FileTool")).accepts_block(&b));
+    fn quiet_drops_process_manager() {
+        let l = r#"{"command":"Heart::Heart.Beat","kind":"done","source":"process-manager","outcome":"ok","elapsed_ms":1,"event_count":1}"#;
+        let q = Opts { needle: None, quiet: true, json: false, exclude: Vec::new() };
+        assert!(render(l, &q).is_none());
+    }
+
+    #[test]
+    fn exclude_matches_command() {
+        let l = r#"{"command":"Heart::Heart.Beat","kind":"event","verb":"x","ok":true,"source":"process-manager"}"#;
+        let e = Opts { needle: None, quiet: false, json: false, exclude: vec!["Heart".into()] };
+        assert!(render(l, &e).is_none());
+    }
+
+    #[test]
+    fn json_mode_pretty_prints() {
+        let l = r#"{"command":"D::A.C","kind":"event","verb":"v","ok":true,"source":"operator"}"#;
+        let o = Opts { needle: None, quiet: false, json: true, exclude: Vec::new() };
+        let out = render(l, &o).unwrap();
+        assert!(out.contains("\"command\""), "{out}");
+        assert!(out.contains('\n'), "pretty json is multi-line: {out}");
+    }
+
+    #[test]
+    fn non_json_line_ignored() {
+        assert!(render("just some text", &opts()).is_none());
     }
 }

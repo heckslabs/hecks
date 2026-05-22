@@ -76,22 +76,26 @@ pub fn colour_for(kind: &str, ok: bool) -> &'static str {
 /// Strip ANSI SGR escape sequences (`\x1b[...m`) from a string so the
 /// persistent file copy stays plain. Hand-rolled to avoid a dependency.
 pub fn strip_ansi(s: &str) -> String {
+    // Walk by `char`, never by byte. ANSI SGR markers are all ASCII so
+    // the escape scan is byte-equivalent, but the body text carries
+    // multi-byte UTF-8 (the `·` separator, accents in French summaries).
+    // Pushing `byte as char` would split U+00B7 (C2 B7) into two chars
+    // — the mojibake that poisoned the terse render. Iterating chars
+    // keeps every codepoint whole.
     let mut out = String::with_capacity(s.len());
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == 0x1b && i + 1 < bytes.len() && bytes[i + 1] == b'[' {
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' && chars.peek() == Some(&'[') {
+            chars.next(); // consume '['
             // Skip until the final byte of the CSI sequence (a letter).
-            i += 2;
-            while i < bytes.len() && !bytes[i].is_ascii_alphabetic() {
-                i += 1;
-            }
-            if i < bytes.len() {
-                i += 1; // consume the final letter
+            while let Some(&next) = chars.peek() {
+                chars.next();
+                if next.is_ascii_alphabetic() {
+                    break;
+                }
             }
         } else {
-            out.push(bytes[i] as char);
-            i += 1;
+            out.push(c);
         }
     }
     out
@@ -154,38 +158,29 @@ pub struct DispatchScope {
     invocation_id: String,
     command: String,
     args_json: String,
-    summary: String,
-    metadata_json: String,
     source_tag: String,
     dispatched_at: String,
     started: std::time::Duration,
     outcome: String,
     result_state: String,
-    parent_invocation_id: String,
     armed: bool,
 }
 
 impl DispatchScope {
-    /// Begin a scope. Installs a fresh thread-local collector, captures
-    /// the wall-clock start + source_tag. `summary`/`metadata_json` come
-    /// from env (the MCP wrapper sets them) so the rich render surfaces
-    /// the operator's intent + the command metadata.
+    /// Begin a scope. Installs a fresh thread-local event collector and
+    /// captures invocation_id, command, args, source_tag and the
+    /// wall-clock start — everything the JSONL envelope needs.
     pub fn begin(invocation_id: &str, command: &str, args_json: String) -> Self {
         COLLECTOR.with(|c| *c.borrow_mut() = Some(Vec::new()));
-        let summary = std::env::var("STOREHOUSE_DISPATCH_SUMMARY").unwrap_or_default();
-        let metadata_json = std::env::var("STOREHOUSE_DISPATCH_METADATA").unwrap_or_default();
         DispatchScope {
             invocation_id: invocation_id.to_string(),
             command: command.to_string(),
             args_json,
-            summary,
-            metadata_json,
             source_tag: resolve_source_tag(),
             dispatched_at: storehouse_log::now_iso8601(),
             started: crate::heki::now_duration(),
             outcome: "ok".to_string(),
             result_state: String::new(),
-            parent_invocation_id: String::new(),
             armed: true,
         }
     }
@@ -205,8 +200,46 @@ impl Drop for DispatchScope {
             return;
         }
         let events = COLLECTOR.with(|c| c.borrow_mut().take()).unwrap_or_default();
-        let block = render_block(self, &events);
-        storehouse_log::emit_dual(&block);
+        let elapsed_ms = crate::heki::now_duration()
+            .saturating_sub(self.started)
+            .as_millis() as u64;
+        // JSONL event stream : one self-contained JSON object per emitted
+        // event, one per line. The dispatch event carries `args` ; the
+        // final `done` event carries outcome + elapsed_ms + event_count +
+        // result. The watcher (`storehouse follow`) parses one object per
+        // line and renders terse by default or raw with --json. One line =
+        // one object, so there is never a multi-line block to re-assemble.
+        let args: serde_json::Value =
+            serde_json::from_str(&self.args_json).unwrap_or(serde_json::Value::Null);
+        for (i, ev) in events.iter().enumerate() {
+            let mut obj = serde_json::json!({
+                "ts": self.dispatched_at,
+                "invocation_id": self.invocation_id,
+                "command": self.command,
+                "kind": ev.kind,
+                "verb": ev.verb,
+                "ok": ev.ok,
+                "source": self.source_tag,
+            });
+            if i == 0 && ev.kind == "dispatch" && !args.is_null() {
+                obj["args"] = args.clone();
+            }
+            storehouse_log::emit_file(&obj.to_string());
+        }
+        let result: serde_json::Value = serde_json::from_str(&self.result_state)
+            .unwrap_or_else(|_| serde_json::Value::String(self.result_state.clone()));
+        let done = serde_json::json!({
+            "ts": self.dispatched_at,
+            "invocation_id": self.invocation_id,
+            "command": self.command,
+            "kind": "done",
+            "outcome": self.outcome,
+            "elapsed_ms": elapsed_ms,
+            "event_count": events.len(),
+            "result": result,
+            "source": self.source_tag,
+        });
+        storehouse_log::emit_file(&done.to_string());
     }
 }
 
@@ -245,78 +278,6 @@ pub fn header_line(fqn: &str) -> String {
     format!("{}[{}{}{}]{}", DIM, RESET, parts.join(" "), DIM, RESET)
 }
 
-/// Render the rich, pretty-printed (2-space) JSON block for one dispatch,
-/// ANSI-coloured by kind, with a blank line separator for clean `tail`.
-/// A scannable `[Domain Aggregate Command]` header leads each block.
-fn render_block(scope: &DispatchScope, events: &[EventTrace]) -> String {
-    let elapsed_ms = crate::heki::now_duration()
-        .saturating_sub(scope.started)
-        .as_millis() as u64;
-    let outcome_colour = if scope.outcome == "error" { BRIGHT_RED } else { GREEN };
-
-    let mut out = String::new();
-    out.push_str(&header_line(&scope.command));
-    out.push('\n');
-    out.push_str(&format!("{}{{{}\n", DIM, RESET));
-    out.push_str(&format!("  \"invocation_id\": \"{}\",\n", esc(&scope.invocation_id)));
-    out.push_str(&format!("  \"command\": {}\"{}\"{},\n", CYAN, esc(&scope.command), RESET));
-    out.push_str(&format!("  \"source_tag\": {}\"{}\"{},\n", MAGENTA, esc(&scope.source_tag), RESET));
-    if !scope.summary.is_empty() {
-        out.push_str(&format!("  \"summary\": \"{}\",\n", esc(&scope.summary)));
-    }
-    if !scope.args_json.is_empty() {
-        out.push_str(&format!("  \"args\": {},\n", scope.args_json));
-    }
-    out.push_str(&format!("  \"outcome\": {}\"{}\"{},\n", outcome_colour, esc(&scope.outcome), RESET));
-    if !scope.result_state.is_empty() {
-        out.push_str(&format!("  \"result_state\": {},\n", scope.result_state));
-    }
-    if !scope.metadata_json.is_empty() {
-        out.push_str(&format!("  \"metadata\": {},\n", scope.metadata_json));
-    }
-    out.push_str(&format!("  \"elapsed_ms\": {}{}{},\n", YELLOW, elapsed_ms, RESET));
-    out.push_str(&format!("  \"dispatched_at\": \"{}\",\n", esc(&scope.dispatched_at)));
-    if !scope.parent_invocation_id.is_empty() {
-        out.push_str(&format!("  \"parent_invocation_id\": \"{}\",\n", esc(&scope.parent_invocation_id)));
-    }
-    out.push_str(&format!("  \"event_count\": {},\n", events.len()));
-    out.push_str("  \"events\": [");
-    if events.is_empty() {
-        out.push(']');
-    } else {
-        out.push('\n');
-        for (i, ev) in events.iter().enumerate() {
-            let col = colour_for(&ev.kind, ev.ok);
-            let comma = if i + 1 < events.len() { "," } else { "" };
-            out.push_str(&format!(
-                "    {}{{ \"kind\": \"{}\", \"verb\": \"{}\", \"ok\": {} }}{}{}\n",
-                col, ev.kind, esc(&ev.verb), ev.ok, RESET, comma
-            ));
-        }
-        out.push_str("  ]");
-    }
-    out.push('\n');
-    out.push_str(&format!("{}}}{}", DIM, RESET));
-    out
-}
-
-/// Minimal JSON string escaping for the hand-built block — quotes,
-/// backslashes, and the control chars a verb/summary might carry.
-fn esc(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c => out.push(c),
-        }
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -341,11 +302,6 @@ mod tests {
     #[test]
     fn colour_for_adapter_ok_is_magenta() {
         assert_eq!(colour_for("adapter", true), MAGENTA);
-    }
-
-    #[test]
-    fn esc_escapes_quotes_and_newlines() {
-        assert_eq!(esc("a\"b\nc"), "a\\\"b\\nc");
     }
 
     #[test]
@@ -389,30 +345,15 @@ mod tests {
     }
 
     #[test]
-    fn render_block_leads_with_header() {
-        let scope = DispatchScope::begin("inv_h", "Tools::ShellTool.Bash", "{}".to_string());
-        let plain = strip_ansi(&render_block(&scope, &[]));
-        assert!(plain.starts_with("[Tools ShellTool Bash]\n"));
-        // Cleanup so Drop doesn't emit to the real log.
-        let mut scope = scope;
-        scope.armed = false;
-        COLLECTOR.with(|c| *c.borrow_mut() = None);
-    }
-
-    #[test]
-    fn scope_collects_events_into_block() {
+    fn scope_collects_events_into_timeline() {
         let mut scope = DispatchScope::begin("inv_t", "Foo::Bar.Baz", "{}".to_string());
         assert!(is_in_scope());
         record_event("dispatch", "Foo::Bar.Baz", true);
         record_event("event", "Bar.Bazzed", true);
-        scope.finish("ok", "{\"n\":1}".to_string());
+        scope.finish("ok", "{}".to_string());
         let events = COLLECTOR.with(|c| c.borrow().clone()).unwrap();
         assert_eq!(events.len(), 2);
-        let block = render_block(&scope, &events);
-        let plain = strip_ansi(&block);
-        assert!(plain.contains("\"command\": \"Foo::Bar.Baz\""));
-        assert!(plain.contains("\"event_count\": 2"));
-        assert!(plain.contains("\"kind\": \"dispatch\""));
+        assert_eq!(events[0].kind, "dispatch");
         // Disarm so Drop doesn't emit to the real log during the test.
         scope.armed = false;
         COLLECTOR.with(|c| *c.borrow_mut() = None);
