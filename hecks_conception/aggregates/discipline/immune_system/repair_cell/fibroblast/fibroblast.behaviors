@@ -114,4 +114,26 @@ Hecks.behaviors "Fibroblast" do
            recorded_at: { value: "2026-05-16T01:03:00Z" }
     expect emits: ["OutcomeRecorded"]
   end
+
+  # ── Sweep tick (the :exec repair arm) ──
+  #
+  # Sweep is the orchestrator tick bound to bin/fibroblast_sweep.sh
+  # via the :exec adapter (fibroblast.hecksagon). The pure contract
+  # records the tick ; the side-effecting heal/decline lands per
+  # Fibroblast record from inside the script. SweepRan (not "Swept")
+  # avoids the ProcessSentinel.Swept event collision.
+
+  test "Sweep records the tick start" do
+    tests "Sweep", on: "Fibroblast"
+    input  id:       { value: "sweep" },
+           swept_at: { value: "2026-05-22T07:22:00Z" }
+    expect started_at: { value: "2026-05-22T07:22:00Z" }
+  end
+
+  test "Sweep emits SweepRan" do
+    tests "Sweep", on: "Fibroblast"
+    input  id:       { value: "sweep" },
+           swept_at: { value: "2026-05-22T07:22:00Z" }
+    expect emits: ["SweepRan"]
+  end
 end

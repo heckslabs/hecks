@@ -1,0 +1,51 @@
+Hecks.hecksagon "Fibroblast" do
+  # Fibroblast adapter binding : Fibroblast.Sweep dispatch → the real
+  # repair sweep. This is the i629 :exec arm for the repair cell, first
+  # safe vertical slice (i707 v1).
+  #
+  # The Fibroblast bluebook (sibling fibroblast.bluebook) is pure
+  # composition : it names the healing lifecycle (ReceiveSignal,
+  # SelectStrategy, Heal, Decline, RecordOutcome) and the Sweep tick.
+  # This file is the impure layer — the only place a side effect runs.
+  #
+  # The :exec adapter (family framework/adapter_families/exec.hecksagon,
+  # behavior perform_exec, kernel arm runtime/exec_dispatcher.rs +
+  # resolve_exec_adapters) binds Fibroblast.Sweep to the local sweeper.
+  # When Miette dispatches Fibroblast::Fibroblast.Sweep via the
+  # storehouse universal door — OR a future overmind `fibroblast` loop
+  # member dispatches it on a cadence — the kernel runs
+  # bin/fibroblast_sweep.sh and cascades its outcome into
+  # Cascade.RecordResult, joinable by id.
+  #
+  # SAFETY STANCE (the trust-earning slice) : the sweeper auto-APPLIES
+  # only the one mechanical, verifiable strategy — nav_sitemap_close
+  # (write missing sitemap entries / prune dead URLs, then re-Check
+  # NavSitemapParity and confirm the drift cleared before recording
+  # closed). Every ambiguous strategy (bluebook_first_file_gap,
+  # loc_ratchet_extract) is DECLINED with a composed proposed-fix for
+  # human review — it touches no code. The sweeper never commits ; a
+  # human reviews the working-tree change. Over-reaching is the failure
+  # mode the fibroblast disciplines against.
+  #
+  # :exec, not :shell : the parser routes :shell to a legacy
+  # ShellAdapter with different semantics (i629). :exec is the clean
+  # general "run a local program on dispatch" family. The exec string
+  # is `bash bin/fibroblast_sweep.sh` — bash is the program, the script
+  # the arg ; exec_dispatcher does NOT invoke a shell, so all sweep
+  # logic lives inside the script file (no pipes/redirects in the
+  # exec string).
+  #
+  # cwd contract : exec_dispatcher inherits the runtime process cwd.
+  # The script resolves all state paths from $HECKS_INFO (always set by
+  # the runtime) and the aggregates root from $FIBROBLAST_ROOT (set by
+  # the dispatcher's cwd parent), so it works whether a loop member or a
+  # manual dispatch fired it.
+
+  adapter :memory
+
+  adapter :exec,
+          name:        "fibroblast_sweep",
+          command:     "Fibroblast.Sweep",
+          exec:        "bash bin/fibroblast_sweep.sh",
+          result_into: "Cascade.RecordResult"
+end
