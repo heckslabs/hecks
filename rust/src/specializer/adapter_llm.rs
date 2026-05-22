@@ -206,6 +206,6 @@ const HEADER: &str = r#"//! LLM Adapter — driven adapter for language inferenc
 //! so the rem_branch shell script can retire and dream production
 //! runs declaratively from a bluebook + hecksagon pair.
 
-use super::{AggregateState, Value, Repository};
+use super::{AggregateState, Value, LazyRepository};
 
 "#;

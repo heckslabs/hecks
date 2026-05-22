@@ -85,6 +85,19 @@ module Hecks
         # no-op — canonical form is `across "Domain"`
       end
 
+      # Accept-and-ignore: `with "key", "value"` carries literal args the
+      # policy passes to its triggered command (gap #1 of the
+      # adapters-as-bluebook arc — e.g. a policy firing
+      # `Primitive::Process.Spawn` with `cmd` + `result_into`). The Rust
+      # parser stores these in Policy.with, but neither runtime serializes
+      # them into the canonical IR (dump_policy omits the field), so this
+      # accept-and-ignore keeps Ruby/Rust parity. Promote to a real DSL
+      # primitive (and serialize on both sides) when later adapter
+      # families need it.
+      def with(*_args, **_kwargs, &_block)
+        # no-op — literal trigger args ; not part of the canonical IR
+      end
+
       # Set whether this policy runs asynchronously.
       #
       # Async policies are enqueued for background processing rather than

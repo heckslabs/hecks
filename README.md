@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="una.png" width="200" alt="Una, the Embryonaut brand mark">
+  <img src="hecks_logo.png" width="200" alt="Hecks">
 </p>
 
 # What the Hecks?
@@ -22,13 +22,11 @@ Hecks.bluebook "Banking" do
 end
 ```
 
-That's the source of truth. Boot it, dispatch a command, watch an event :
+That's the source of truth. Validate it, dispatch a command against it, watch an event :
 
-```ruby
-require "hecks"
-app = Hecks.boot(__dir__)
-account = app.Account.create
-app.Account.deposit(account_id: account.id, amount: 50.0)
+```bash
+storehouse validate banking.bluebook
+storehouse banking.bluebook Banking::Account.Deposit amount=50.0
 # => DepositedAccount { balance: 50.0 }
 ```
 
@@ -38,43 +36,115 @@ The whole language is five rules. **[Bluebook on a Napkin →](docs/napkin.md)**
 
 ## Quick Start
 
-### 1. Install
+Two implementations, one spec. The same Bluebook runs under the Rust runtime (**`storehouse`**, the default) and the Ruby DSL — pick whichever fits your stack.
 
-```bash
-gem install hecks
-```
+### Rust — `storehouse` (the default runtime)
 
-Or from source :
+`storehouse` is the Rust binary in [`rust/`](rust/). It parses bluebooks, validates them, dispatches commands, runs validators and behavioral tests, and serves MCP — all from the IR.
 
 ```bash
 git clone https://github.com/chrisyoung/hecks.git
-cd hecks
+cd hecks/rust
+cargo build --release
+# binary at target/release/storehouse — put it on your PATH
+```
+
+Validate a domain — every error includes a fix suggestion, and a valid bluebook is a runnable domain :
+
+```bash
+storehouse validate examples/banking/hecks/banking.bluebook
+```
+
+Run a self-contained, shebang-style bluebook end to end :
+
+```bash
+storehouse run examples/executable/hecks/executable.bluebook
+```
+
+Dispatch a command — a fully-qualified verb against an aggregates directory (or a single bluebook file), attributes as `key=value` pairs :
+
+```bash
+storehouse <aggregates_dir> Banking::Account.Deposit amount=50.0
+# => DepositedAccount { balance: 50.0 }
+```
+
+Watch the event stream — every dispatch appends to a flat JSONL bus log ; `follow` is the dumb tail over it :
+
+```bash
+storehouse follow            # tail the whole bus
+storehouse follow ShellTool  # filter to one aggregate
+```
+
+### Ruby — first-class, same Bluebook
+
+The Ruby runtime reads the identical `.bluebook` and boots a domain in one line. Install the gem, or run from source :
+
+```bash
+gem install hecks
+# or, from this repo:
 bundle install
 ```
 
-### 2. Run the pizzas example
+```ruby
+require "hecks"
 
-```bash
-ruby -Iruby examples/pizzas/pizzas.rb
+app = Hecks.boot(__dir__)   # finds the sibling hecks/ dir, defaults to in-memory repos
+
+alice    = Customer.register(name: "Alice", email: "alice@example.com")
+checking = Account.open(customer_id: alice.id, account_type: "checking")
+Account.deposit(account_id: checking.id, amount: 50.0)
 ```
 
-You get a real domain : pizzas with toppings, orders with lifecycle, events streaming, queries running — all from the files in [`examples/pizzas/`](examples/pizzas/). Read on to see what those files are.
+Run a worked example straight from the repo (`-Ilib` points Ruby at the source tree) :
+
+```bash
+ruby -Ilib examples/banking/app.rb
+```
+
+**Wire up SQLite** — swap the default in-memory repositories for persistent SQLite storage (via Sequel) with one keyword. The bluebook and your domain code don't change ; only the boot line does :
+
+```ruby
+require "hecks"
+
+# :sqlite swaps the in-memory repos for Sequel-backed SQLite tables,
+# created from the bluebook's aggregates (including join tables for lists).
+app = Hecks.boot(__dir__, adapter: :sqlite)
+
+Pizza.create(name: "Margherita", description: "Classic")
+found = Pizza.find(pizza.id)   # round-trips through SQLite
+```
+
+The full runnable demo is [`examples/pizzas/sql_app.rb`](examples/pizzas/sql_app.rb).
+
+---
+
+## The Dispatch Convention
+
+One address shape, everywhere :
+
+- **Commands** are `Domain::Aggregate.Command` — PascalCase verb. e.g. `Tools::ShellTool.Bash`, `Primitive::Process.Spawn`, `Voice::Voice.Speak`.
+- **Queries** are `Domain::Aggregate.snake_case` — e.g. `World::Hecks.current_state`.
+
+The fully-qualified address is required at runtime ; short-form (`ShellTool.Bash`) is rejected. The bluebook IS the contract — any command any bluebook declares flows through the same door.
+
+```bash
+storehouse <aggregates_dir> Tools::ShellTool.Bash shell_command='ls -la'
+storehouse <aggregates_dir> Primitive::Process.Spawn program=echo
+```
 
 ---
 
 ## The Shape of a Hecks App
 
-A Hecks app is a small set of declarative DSL files, each guarded by an allow-list. None of them is general-purpose Ruby — the loaders refuse anything outside the surface, so the runtime can parse them in Ruby OR Rust and get the same answer.
+A Hecks app is a small set of declarative DSL files, each guarded by an allow-list. None of them is general-purpose Ruby — the loaders refuse anything outside the surface, so the runtime parses them and gets one canonical answer.
 
 ```
-examples/pizzas/
-├── hecks/
-│   ├── pizzas.bluebook    # the domain — aggregates, commands, events
-│   └── pizzas.hecksagon   # the wiring — which adapters
-└── pizzas.rb              # the boot — one line
+examples/pizzas/hecks/
+├── pizzas.bluebook    # the domain — aggregates, commands, events
+└── pizzas.hecksagon   # the wiring — which adapters
 ```
 
-Larger or multi-deployment domains add a third file alongside the others :
+Larger or multi-deployment domains add a third file — a `.world` for per-deployment values :
 
 ```
 hecks/
@@ -83,9 +153,9 @@ hecks/
 └── voice.world            # the deployment values
 ```
 
-Each file has a single job. Below : what pizzas looks like end-to-end, then the voice pattern for when an adapter has API surface worth declaring.
+Each file has a single job.
 
-### `pizzas.bluebook` — the domain
+### `.bluebook` — the domain
 
 The Bluebook is the contract. It declares aggregates, value objects, commands, lifecycles, validations, queries, policies. No I/O, no config — pure shape.
 
@@ -145,11 +215,9 @@ Hecks.bluebook "Pizzas" do
 end
 ```
 
-Full reference : [`docs/usage/dsl_reference.md`](docs/usage/dsl_reference.md).
+### `.hecksagon` — the wiring
 
-### `pizzas.hecksagon` — the wiring
-
-The hecksagon names *which* adapters the domain uses. No values, no secrets, no environments — just which kinds of I/O, and which capabilities are generated.
+The hecksagon names *which* adapters the domain uses. No values, no secrets, no environments — just which kinds of I/O, and which capabilities are generated. The runtime defaults to in-process memory repositories, so a bluebook runs with no wiring at all ; the hecksagon is override, not substrate.
 
 ```ruby
 Hecks.hecksagon "Pizzas" do
@@ -157,101 +225,46 @@ Hecks.hecksagon "Pizzas" do
 end
 ```
 
-`capabilities :crud` gives Pizza and Order the full create/read/update/delete surface at the bus, backed by in-process memory repositories by default. To swap in a persistence backend at boot time :
+### When an adapter has shape — the `.world`
+
+Adapters with real surface (commands, retry policy, hosted-API config) get a named instance in the hecksagon, bound to a bluebook command via `trigger_on`, with per-deployment values in a sibling `.world`. This is the Miette voice integration :
 
 ```ruby
-app = Hecks.boot(__dir__, adapter: :sqlite)
-```
-
-That's enough for the demo. Real apps usually declare adapters explicitly in the hecksagon ; see the voice pattern below for the wired form.
-
-### `pizzas.rb` — the boot
-
-One line wires it all together :
-
-```ruby
-require "hecks"
-app = Hecks.boot(__dir__)
-```
-
-`Hecks.boot` reads the bluebook and hecksagon in `hecks/`, validates the bluebook, builds the IR, wires the adapters, and returns a running app. From there you dispatch commands and subscribe to events :
-
-```ruby
-pizza = Pizza.create(name: "Margherita", description: "Classic")
-pizza.toppings.create(name: "Mozzarella", amount: 2)
-
-order = Order.place(pizza: pizza.id, customer_name: "Ada", quantity: 1)
-Order.cancel(order: order.id)
-
-Pizza.by_description("Classic").each { |p| puts p.name }
-```
-
-The full demo script is at [`examples/pizzas/pizzas.rb`](examples/pizzas/pizzas.rb).
-
----
-
-## When an Adapter Has Shape
-
-Pizzas only needs the default repository ; its hecksagon is one line. Adapters with surface — commands, retry policy, caching, hosted-API config — deserve to be declared, not buried in source.
-
-The pattern : give the adapter a named instance in the hecksagon, bind it to a bluebook command via `trigger_on`, and keep per-deployment values in a sibling `.world` file. This is the canonical Miette voice integration.
-
-**`voice.bluebook` — what the adapter does (the commands it handles)**
-
-```ruby
-Hecks.bluebook "Voice" do
-  aggregate "Voice" do
-    command "Speak" do
-      attribute :text, String
-    end
-  end
-end
-```
-
-**`voice.hecksagon` — which adapter handles which command**
-
-```ruby
+# voice.hecksagon — which adapter handles which command
 Hecks.hecksagon "Voice" do
   adapter :memory
-
   adapter :tts, name: :miette_speech do
     trigger_on "Voice.Speak"
   end
 end
 ```
 
-**`voice.world` — per-deployment values**
-
 ```ruby
+# voice.world — per-deployment values
 Hecks.world "Voice" do
   miette_speech do
-    provider          :elevenlabs
-    voice_id          "WwS1lF7yiubZWoroH5D5"
-    model             "eleven_turbo_v2_5"
-    stability         0.25
-    cache_dir         "~/.config/miette/audio"
+    provider  :elevenlabs
+    voice_id  "WwS1lF7yiubZWoroH5D5"
+    model     "eleven_turbo_v2_5"
+    cache_dir "~/.config/miette/audio"
   end
 end
 ```
 
-`Voice.Speak` is now a real declared command. It validates like any other command, it shows up in the dispatch log, and the adapter is bound to it by name — not by string convention. Swapping providers between dev and prod is a one-file change to `voice.world` ; the bluebook and hecksagon don't move.
-
-The full version is the Miette voice integration at [`miette/body/voice/`](https://github.com/chrisyoung/miette). For framework-internal examples of the same pattern, see [`adapters/auth/`](adapters/auth/) and [`runtime/server/`](runtime/server/).
+Swapping providers between dev and prod is a one-file change to `voice.world` ; the bluebook and hecksagon don't move. The live version is the Miette voice integration at [`miette/body/voice/`](https://github.com/chrisyoung/miette). For framework-internal examples of the same pattern, see [`adapters/auth/`](adapters/auth/) and [`runtime/server/`](runtime/server/).
 
 ---
 
 ## Two Implementations, One Spec
 
-Hecks ships two parsers for the same Bluebook language — a Ruby DSL (`ruby/`) and a Rust runtime (`rust/`, the `storehouse` binary). Both produce a single canonical IR. A parity suite holds them to **byte-identical IR**, run on every commit ; any drift between Ruby and Rust is a structural bug, not a style difference.
+Hecks ships two parsers for the same Bluebook language — a Rust runtime (`rust/`, the `storehouse` binary) and a Ruby DSL (`ruby/`). Both produce a single canonical IR. A parity suite holds them to **byte-identical IR**, run on every commit ; any drift between Ruby and Rust is a structural bug, not a style difference.
 
 ```bash
-ruby -Iruby parity/parity_test.rb              # Ruby ↔ Rust IR parity
-cargo test --lib --manifest-path rust/Cargo.toml
+cargo test --lib --manifest-path rust/Cargo.toml   # Rust runtime
+ruby -Iruby parity/parity_test.rb                   # Ruby ↔ Rust IR parity
 ```
 
-This matters because it's the proof that one specification can mean exactly the same thing in two languages — which means it can mean the same thing in any language a target generator emits next. A target generator is a function from the IR ; Ruby and Rust are the first two outputs. The Bluebook is the input.
-
-`storehouse` is the canonical runtime today : it parses bluebooks, dispatches commands, runs validators, conceives companions, executes behavioral tests, and runs MCP. The Ruby gem is the convenient embedding for Ruby projects. See [`docs/usage/architecture_tour.md`](docs/usage/architecture_tour.md).
+This is the proof that one specification can mean exactly the same thing in two languages — which means it can mean the same thing in any language a target generator emits next. A target generator is a function from the IR. The Bluebook is the input.
 
 ---
 
@@ -263,19 +276,16 @@ Each construct maps to a real generated thing :
 |----------|------------------|
 | `aggregate` | Business object with typed attributes, identity, repository |
 | `attribute` | Typed field with validation, default, lifecycle hooks |
-| `command` | Class method that emits a domain event when called |
+| `command` | A verb that emits a domain event when dispatched |
 | `lifecycle` / `transition` | State machine with guarded transitions |
 | `value_object` | Frozen, immutable detail embedded in an aggregate |
 | `entity` | Mutable sub-object with its own identity |
-| `validation` | Checked at command time |
 | `invariant` | Enforced on aggregate state after every change |
 | `specification` | Reusable, composable predicate |
 | `query` | Named, chainable query object |
 | `policy` | Reacts to an event by triggering another command |
 | `service` | Orchestrates multiple commands across aggregates |
-| `port` | Role-based access control boundary |
-
-The full reference lives in [`docs/usage/dsl_reference.md`](docs/usage/dsl_reference.md) ; for each construct there's a matching usage doc under [`docs/usage/`](docs/usage/) with runnable examples.
+| `port` | Role-based access-control boundary |
 
 ---
 
@@ -303,60 +313,7 @@ Hecks.behaviors "Bookshelf" do
 end
 ```
 
-References resolve from in-scope — no IDs in test source. See [`docs/usage/behavioral_tests.md`](docs/usage/behavioral_tests.md).
-
----
-
-## Build-Time Validation
-
-Hecks validates your domain before generating anything. Every error includes a fix suggestion.
-
-| Rule | What it checks |
-|------|----------------|
-| `CommandNaming` | Commands start with a verb |
-| `NoBidirectionalReferences` | No circular A→B and B→A references |
-| `ValidReferences` | References point to existing aggregates |
-| `NoImplicitForeignKeys` | Warns when `_id String` should be `reference_to` |
-| `LifecycleReachability` | Every state is reachable from the default |
-| `PolicyWiring` | Triggered commands exist ; emitted events are real |
-| `PortConsistency` | Port-allowed methods exist on the aggregate |
-| + more | Name collisions, reserved words, value-object purity, structural shape |
-
-```bash
-hecks validate
-```
-
-See [`docs/usage/specialize_validator.md`](docs/usage/specialize_validator.md) and the validator entries in [`FEATURES.md`](FEATURES.md).
-
----
-
-## AI-Native
-
-Hecks ships an MCP server so Claude (or any MCP client) can model domains alongside you.
-
-```bash
-hecks mcp
-```
-
-> "Build me a photo gallery. Photos have a title, url, taken_at date, and tags."
-
-Claude generates the Bluebook. Every operation reports its result.
-
-> "Promote `Comment` into its own domain. Wire it into Blog and Photos."
-
-Claude promotes the aggregate, creates the new domain file, wires both consumers through events.
-
-> "When I upload a photo, create a draft blog post automatically."
-
-```ruby
-policy "AutoDraft" do
-  on "UploadedPhoto"
-  trigger "CreateDraftPost"
-  map title: :title
-end
-```
-
-Three domains talking through events. The event log shows the chain : `UploadedPhoto → AutoDraft → CreatedDraftPost`. See [`docs/usage/mcp_runtime_from_ir.md`](docs/usage/mcp_runtime_from_ir.md).
+References resolve from in-scope — no IDs in test source.
 
 ---
 
@@ -364,23 +321,13 @@ Three domains talking through events. The event log shows the chain : `UploadedP
 
 AI is good at writing code. It's bad at maintaining constraints across a codebase over time.
 
-Ask Claude to generate a domain layer and you'll get something that works today. Next week, someone adds a bidirectional reference. The week after, a command gets named "ProcessData." A month later, a value object holds a reference to an aggregate root. None of these are bugs — the code runs. They're architectural violations that compound silently.
+Ask a model to generate a domain layer and you'll get something that works today. Next week, someone adds a bidirectional reference. The week after, a command gets named "ProcessData." A month later, a value object holds a reference to an aggregate root. None of these are bugs — the code runs. They're architectural violations that compound silently.
 
-Hecks catches all of them at build time. The generated output has typed ports, event-driven policies, and bounded-context boundaries that can't be bypassed.
+Hecks catches all of them at validation time. The generated output has typed ports, event-driven policies, and bounded-context boundaries that can't be bypassed.
 
 > Use AI to write the DSL. Use Hecks to guarantee the architecture holds.
 
-For the longer argument, see [`docs/why_hecks.md`](docs/why_hecks.md), [`docs/ddd.md`](docs/ddd.md) (DDD mapping), and [`docs/hexagonal.md`](docs/hexagonal.md) (hexagonal architecture mapping).
-
----
-
-## A Future Where AI Writes in Specs
-
-Today's models are trained on empirical languages — Ruby, Python, Go, JavaScript — discovered through millions of human iterations, full of accidental complexity, unspoken conventions, and behaviour the language itself can't constrain. A specification language flips this. The Bluebook is small enough to learn completely. Its grammar is finite. Its rules — what an aggregate is, why a value object can't reference an aggregate root, what a policy emits — are *declared*, not absorbed.
-
-An AI that writes a Bluebook writes intent directly, then watches that intent compile into Ruby, Rails, Go, or the next runtime someone targets. A bad imperative draft hides its violations inside a 300-line method ; a bad Bluebook gets caught by a validator with a one-line fix. The model doesn't have to be right about generated code. It has to be right about the spec.
-
-Two implementations (Ruby and Rust) held to byte-identical IR are not a curiosity — they're the proof that one specification can mean exactly the same thing in two languages, which means it can mean the same thing in any language a generator targets next. For the technical argument — DDD validation, MCP-native modelling, the Futamura projection that lets Hecks specialize itself, cascade lockdown, language-neutral parity — see [`docs/papers/prior_use/`](docs/papers/prior_use/).
+A bad imperative draft hides its violations inside a 300-line method ; a bad Bluebook gets caught by a validator with a one-line fix. The model doesn't have to be right about generated code. It has to be right about the spec.
 
 ---
 
@@ -392,27 +339,33 @@ Hecks is built around three principles encoded as defaults :
 - **Equity** — systems that serve without clinging. Not extracting engagement, not maximising dependency.
 - **Consent** — design for the beings the software serves, not against them.
 
-The defaults protect people. Overriding them requires a deliberate choice. See [`docs/covenant.md`](docs/covenant.md).
+The defaults protect people. Overriding them requires a deliberate choice.
 
 ---
 
 ## Examples
 
-The [`examples/`](examples/) directory has runnable domains for every target :
+The [`examples/`](examples/) directory has runnable domains :
 
-- [`examples/pizzas`](examples/pizzas) — **start here.** Two aggregates, value objects, lifecycle, queries. The example walked through above.
-- [`examples/banking`](examples/banking) — four aggregates, value objects with invariants (Money is integer-cents, Currency is ISO three-letter code), a policy that cascades `IssuedLoan` into `Deposit`.
-- [`examples/bookshelf`](examples/bookshelf) — Books with lifecycle, Loans with references. The simplest two-aggregate domain.
-- [`examples/governance`](examples/governance) — 5 bounded contexts, 14 aggregates, cross-domain policies.
-- [`examples/pizzas_rails`](examples/pizzas_rails) — same domain, Rails target.
-- [`examples/pizzas_static_go`](examples/pizzas_static_go) — same domain, single Go binary.
-- [`examples/pizzas_static_ruby`](examples/pizzas_static_ruby) — same domain, standalone Ruby.
-- [`examples/sinatra_app`](examples/sinatra_app) — minimal HTTP integration.
-- [`examples/multi_domain`](examples/multi_domain) — cross-context event flow.
-- [`examples/llm_adapter`](examples/llm_adapter) — LLM-backed adapter wired through Hecks ports.
-- [`examples/shell_adapter`](examples/shell_adapter) — shell-command adapter.
+- [`examples/pizzas`](examples/pizzas) — **start here.** Two aggregates, value objects, lifecycle, queries.
+- [`examples/banking`](examples/banking) — four aggregates, value objects with invariants (Money is integer-cents, Currency is an ISO three-letter code), a policy that cascades `IssuedLoan` into `Deposit`.
+- [`examples/executable`](examples/executable) — the minimal shebang-run bluebook (`storehouse run`).
+- [`examples/terraform_projection`](examples/terraform_projection) — a bluebook projected to a non-code target.
 
-Each comes with a README and runs from the project root with one command.
+---
+
+## Documentation
+
+**The bluebook is the documentation.** There are no separate prose docs to drift out of sync — the running spec *is* the reference. To read a domain :
+
+```bash
+storehouse tree    path/to/source.bluebook   # aggregates + commands at a glance
+storehouse inspect path/to/source.bluebook   # the parsed IR
+```
+
+For full IR JSON over a tree, the MCP tools `storehouse__catalog` and `storehouse__describe_aggregate` return the canonical IR for a bluebook or a single aggregate — the same shape the runtime dispatches against.
+
+The one prose artifact that remains is **[Bluebook on a Napkin](docs/napkin.md)** — the five rules on a single page. Everything else lives as bluebook : the framework's own anatomy is described in [`chapters/`](chapters/), parsed by the same parser your domain is, and the [`examples/`](examples/) are runnable spec. Read the corpus, or read the IR.
 
 ---
 
@@ -426,30 +379,16 @@ hecks/
 ├── discipline/      antibody, validators, restructure, security
 ├── codegen/         specializer, meta-shapes, conceivers, target generators
 ├── cli/             argv, banner, console, status, statusline, terminal
-├── integrations/    rails, web components, cloudflare deploy
-├── tools/           inbox, project_management, training, inventions
+├── adapters/        wired adapters — auth and friends
+├── integrations/    rails, web components, deploy
+├── tools/           inbox, project management, training, inventions
 ├── ruby/            Ruby implementation — DSL, IR, runtime, generators, CLI
-├── rust/            Rust implementation — bluebook parser, heki store, daemons
+├── rust/            Rust implementation — storehouse binary, parser, heki store, daemons
 ├── parity/          byte-identical IR proof between Ruby and Rust
-├── examples/        runnable demo domains for every target
+├── examples/        runnable demo domains
 ├── tooling/         git hooks, install scripts
-└── docs/            prose — usage, papers, milestones, decisions
+└── docs/            the napkin + a milestone note + the prior-work paper
 ```
-
-The framework's own anatomy is described in `chapters/` — twelve Bluebook files, parsed by the same parsers your domain is.
-
----
-
-## Documentation
-
-- **[DSL Reference](docs/usage/dsl_reference.md)** — every Bluebook construct
-- **[Bluebook on a Napkin](docs/napkin.md)** — the five rules
-- **[Usage docs](docs/usage/)** — one runnable doc per feature
-- **[Architecture Tour](docs/usage/architecture_tour.md)** — how the pieces fit
-- **[Architecture Decisions](docs/usage/architecture_decisions.md)** — why they fit that way
-- **[Papers](docs/papers/prior_use/)** — DDD validation, MCP, Futamura, cascade lockdown, parity
-- **[Covenant](docs/covenant.md)** — the principles encoded as defaults
-- **[FEATURES.md](FEATURES.md)** — full feature index with usage links
 
 ---
 
@@ -463,7 +402,7 @@ tooling/install-hooks
 
 The pre-commit gate runs in roughly a second and blocks on :
 
-- Test-suite failures (Ruby specs and Rust `cargo test --lib`)
+- Test-suite failures (Rust `cargo test --lib` and Ruby specs)
 - Parity drift between the Ruby and Rust IR (only **unexpected** drift ; known gaps live in `parity/known_drift.txt`)
 - File-size regressions (200-line code-only ceiling)
 - Antibody failures (scripts that should be Bluebook)
@@ -471,13 +410,10 @@ The pre-commit gate runs in roughly a second and blocks on :
 Run the suites manually :
 
 ```bash
-ruby -Iruby parity/parity_test.rb              # Ruby ↔ Rust IR parity
-ruby -Iruby parity/hecksagon_parity_test.rb    # Hecksagon parity
-cargo test --lib --manifest-path rust/Cargo.toml
-ruby -Iruby spec/                              # Ruby behavior
+cargo test --lib --manifest-path rust/Cargo.toml   # Rust runtime
+ruby -Iruby parity/parity_test.rb                  # Ruby ↔ Rust IR parity
+ruby -Iruby spec/                                  # Ruby behavior
 ```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ---
 

@@ -24,7 +24,15 @@ jobs:
         with:
           path: hecks
 
-      - name: Checkout miette (sibling)
+      - name: Checkout miette (sibling, optional)
+        # chrisyoung/miette is PRIVATE ; the default workflow GITHUB_TOKEN
+        # is scoped to this (public) hecks repo and gets "Not Found" on it,
+        # which would otherwise fail the whole job at the checkout step.
+        # The only parity step that reads ../miette is the
+        # system_prompt specializer golden, which skips gracefully when the
+        # sibling is absent. continue-on-error keeps the job alive so the
+        # parser/fixtures/hecksagon/world parity suites + cargo tests run.
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: chrisyoung/miette

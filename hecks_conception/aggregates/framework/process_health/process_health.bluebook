@@ -348,8 +348,8 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
 
   policy "ProposeHealOnDeath" do
     # When a sentinel transitions to dead, dispatch Heal so the
-    # immune cell records the proposal AND the :exec adapter
-    # (process_health.hecksagon) fires bin/process_health_heal.mjs
+    # immune cell records the proposal AND the process-spawn primitive
+    # (RunHealOnHealRequested below) fires bin/process_health_heal.mjs
     # to actually run `overmind restart <process_name>`. The script
     # dispatches MarkAlive on the sentinel after a successful
     # restart, which closes the policy loop — a sentinel that
@@ -357,5 +357,49 @@ Hecks.bluebook "ProcessHealth", version: "2026.05.20.2" do
     # re-fire on the next sweep.
     on "MarkedDead"
     trigger "Heal"
+  end
+
+  # ── The sweep + heal side-effects, as ordinary bluebook (adapters-as-bluebook) ──
+  #
+  # Sweep and Heal are pure commands : Sweep stamps the tick row and
+  # emits Swept ; Heal records the dispatch and emits HealRequested.
+  # The side-effects — running the real sweeper / healer scripts — are
+  # no longer bespoke `:exec` hecksagon adapters resolved by a
+  # hand-written Rust arm (resolve_exec_adapters, retired). They are
+  # these policies : each fires the generic process-spawn primitive
+  # `Primitive::Process.Spawn` with the literal program string + the
+  # cascade landing pad, exactly what the :exec resolver inlined.
+  #
+  #   policy → Primitive::Process.Spawn → Cascade.RecordResult
+  #
+  # CRITICAL — aggregate-qualified `on` (gap #1b). Swept is emitted by
+  # BOTH ProcessMacrophage.Sweep AND the discipline-layer
+  # rust_to_bluebook_macrophage, and the bare `MarkHangedOnMissingHeartbeat`
+  # policy above also consumes `on "Swept"`. A bare `on "Swept"` here
+  # would mis-fire the process-health sweeper on the discipline
+  # macrophage's tick. `on "ProcessMacrophage.Swept"` fires ONLY for
+  # Swept emitted by ProcessMacrophage — the precise Aggregate.Command
+  # match the retired :exec resolver gave us, now declarative.
+  # MarkHangedOnMissingHeartbeat stays bare and unchanged : it still
+  # fires for every Swept exactly as before (backward-compatible).
+  #
+  # cwd contract is unchanged from the :exec arm — the spawn leaf
+  # inherits the runtime process cwd (the overmind process_macrophage
+  # member runs from hecks_conception/, so the relative bin/ paths
+  # resolve identically whether the loop or a manual dispatch fired
+  # them). The cmd strings are byte-identical to the retired :exec
+  # bindings' `exec:` values.
+  policy "RunSweepOnSwept" do
+    on "ProcessMacrophage.Swept"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/process_health_sweep"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunHealOnHealRequested" do
+    on "ProcessMacrophage.HealRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "node bin/process_health_heal.mjs"
+    with "result_into", "Cascade.RecordResult"
   end
 end

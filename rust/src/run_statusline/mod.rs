@@ -96,16 +96,6 @@ fn render_awake(s: &State, now: &Now) -> String {
     if !inboxes.is_empty() {
         out.push_str(&format!("  {}", inboxes));
     }
-    // Voice latency : "🔊 <avg>ms <hit%>" after inboxes when at
-    // least one Voice.Speak has been measured this session.
-    // Omitted on fresh boot (sample_count == 0) so the line stays
-    // compact until there's actually a signal to show.
-    if s.voice_sample_count > 0 {
-        out.push_str(&format!(
-            "  ⏱️ speech:{:.2}s {}%",
-            (s.voice_avg_total_ms as f64) / 1000.0, s.voice_hit_rate_pct
-        ));
-    }
     out
 }
 
@@ -258,32 +248,4 @@ assert!(!line.contains("✉️"), "no envelope expected: {}", line);
         assert!(!line.contains("✉️"), "no drafts glyph when zero: {}", line);
     }
 
-    #[test]
-    fn awake_render_shows_voice_when_measured() {
-        // sample_count > 0 ⇒ "🔊 <avg>ms <hit%>" appears after the
-        // inbox segment. We mirror inbox-test hermeticity by pinning
-        // HOME to a no-inbox tempdir so the voice render is the only
-        // post-heartbeat signal.
-        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
-        let s = State {
-            beats_raw: 100,
-            voice_avg_total_ms: 85,
-            voice_hit_rate_pct: 60,
-            voice_sample_count: 5,
-            ..Default::default()
-        };
-        let now = Now { secs: 0, nanos_total: 0 };
-        let line = render_awake(&s, &now);
-        assert!(line.contains("🔊 85ms 60%"), "voice segment expected: {}", line);
-    }
-
-    #[test]
-    fn awake_render_omits_voice_when_no_samples() {
-        // sample_count == 0 ⇒ no voice segment (fresh session).
-        std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
-        let s = State { beats_raw: 100, ..Default::default() };
-        let now = Now { secs: 0, nanos_total: 0 };
-        let line = render_awake(&s, &now);
-        assert!(!line.contains("🔊"), "no voice glyph when no samples: {}", line);
-    }
 }

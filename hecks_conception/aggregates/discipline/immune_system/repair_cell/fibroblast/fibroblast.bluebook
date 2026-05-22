@@ -49,8 +49,15 @@ Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
     # ── Value-objects : the domain's language ──
 
     value_object "SignalId" do
-      # Stable identifier for the signal being healed. Typically
-      # the complaint id from the originating discipline cell.
+      # Stable identifier for the signal being healed. Doubles as the
+      # work order — the discipline cell emits a SELF-CONTAINED signal
+      # so the :exec sweeper composes the fix without re-reading the
+      # upstream cell (the autophage→fibroblast handoff is async +
+      # indirect ; the signal_id is the trace they share, stigmergy-style).
+      # nav_sitemap_close encodes a parseable URI:
+      #   "nsp:<site_root>:<target_path>"  e.g. "nsp:/srv/site:/contact"
+      # Other strategies carry the upstream complaint id verbatim.
+      # If the sweeper cannot parse the work order, it declines.
       attribute :value, String
     end
 
@@ -151,6 +158,19 @@ Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
       emits "OutcomeRecorded"
     end
 
+    command "Sweep" do
+      role "System"
+      description "Tick the :exec repair arm. Bound to the fibroblast_sweep executable via the :exec adapter family (fibroblast.hecksagon). On dispatch the sweeper reads every open healing from the .heki store, and per record: if the strategy is the mechanical nav_sitemap_close it composes the concrete sitemap fix, dispatches it, re-checks NavSitemapParity to VERIFY, and only on a verified clean re-check chains Heal + RecordOutcome(closed) ; any ambiguous strategy (bluebook_first_file_gap, loc_ratchet_extract) is Declined with a proposed fix for human review, applying nothing. Identified by a synthetic 'sweep' id so the row is a singleton audit trail — the real work lands on each Fibroblast record. This IS the i629 :exec arm, scoped to the one mechanical strategy."
+      attribute :id,       SignalId
+      attribute :swept_at, Timestamp
+      then_set :signal_id, to: :id
+      then_set :started_at, to: :swept_at
+      # SweepRan, not "Swept" — the latter collides with
+      # ProcessSentinel.Swept (process_health), whose
+      # MarkHangedOnMissingHeartbeat policy would mis-fire on a repair tick.
+      emits "SweepRan"
+    end
+
     # ── Queries ──
 
     query "open_healings" do
@@ -162,9 +182,34 @@ Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
     end
   end
 
-  # Strategy selected -> attempt the heal.
-  policy "HealAfterStrategy" do
-    on "StrategySelected"
-    trigger "Heal"
+  # ── The repair arm, as ordinary bluebook (adapters-as-bluebook) ──
+  #
+  # Fibroblast.Sweep is a pure command : it stamps the audit row and
+  # emits SweepRan. The side-effect — running the real sweeper — is no
+  # longer a bespoke `:exec` hecksagon adapter resolved by a
+  # hand-written Rust arm. It is this policy : when SweepRan fires, the
+  # policy triggers the generic process-spawn primitive
+  # `Primitive::Process.Spawn` with the literal program string and the
+  # cascade landing pad. The runtime's one generic primitive hook runs
+  # `bash bin/fibroblast_sweep.sh` and chains (id, output, exit_code,
+  # ok) into Cascade.RecordResult — exactly what resolve_exec_adapters
+  # used to do, now expressed declaratively.
+  #
+  #   policy → Primitive::Process.Spawn → Cascade.RecordResult
+  #
+  # `with` carries the literal args (gap #1 of the arc) : `cmd` is the
+  # program, `result_into` is the cascade target. The script itself
+  # reads the open queue and dispatches SelectStrategy → Heal (verified)
+  # OR Decline per record — so the fibroblast "closed" outcome is
+  # identical no matter which path fired the sweeper. The earlier
+  # StrategySelected→Heal auto-policy was placeholder wiring for the
+  # deferred :exec arm ; it stays retired (an auto-Heal after
+  # SelectStrategy would stamp closed_at before the sweeper can Decline
+  # an ambiguous signal, corrupting the decline-gracefully trace).
+  policy "RunSweepOnSweepRan" do
+    on "SweepRan"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bash bin/fibroblast_sweep.sh"
+    with "result_into", "Cascade.RecordResult"
   end
 end

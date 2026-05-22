@@ -185,4 +185,36 @@ Hecks.bluebook "Inbox", version: "2026.05.17.1" do
   # ComposeWakeReviewOnSessionBegan lives in Wake, not Session
   # (i491 validator gap — triggers resolve within the same bluebook).
   # Inbox stays pure ; the reactors live in their own domains.
+
+  # ── The Gmail poll, as ordinary bluebook (adapters-as-bluebook) ──
+  #
+  # Inbox.Check is a pure command : it stamps the check row and emits
+  # InboxChecked. The side-effect — running the real Gmail poller — is
+  # no longer a bespoke `:exec` hecksagon adapter resolved by a
+  # hand-written Rust arm (resolve_exec_adapters, retired). It is this
+  # policy : when Check emits InboxChecked, the policy fires the generic
+  # process-spawn primitive `Primitive::Process.Spawn` with the literal
+  # program string and the cascade landing pad. The runtime's one
+  # generic primitive hook runs `node bin/inbox_poll.mjs` and chains
+  # (id, output, exit_code, ok) into Cascade.RecordResult — exactly what
+  # the :exec resolver used to do, now expressed declaratively.
+  #
+  #   policy → Primitive::Process.Spawn → Cascade.RecordResult
+  #
+  # `on "Inbox.InboxChecked"` is the aggregate-qualified form (gap #1b) :
+  # it fires only for InboxChecked emitted by the Inbox aggregate. The
+  # bare form would also work today (InboxChecked is unique) ; the
+  # qualified form is the locked convention so a future collision can't
+  # silently mis-fire the poller. `with` carries the literal args
+  # (gap #1) : `cmd` is the program, `result_into` the cascade target.
+  # cwd contract is unchanged from the :exec arm — the spawn leaf
+  # inherits the runtime process cwd (the overmind `inbox` member runs
+  # from hecks_conception/, so `bin/inbox_poll.mjs` resolves identically
+  # whether the loop or a manual dispatch fired it).
+  policy "RunPollOnInboxChecked" do
+    on "Inbox.InboxChecked"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "node bin/inbox_poll.mjs"
+    with "result_into", "Cascade.RecordResult"
+  end
 end

@@ -1,0 +1,36 @@
+Hecks.hecksagon "Fibroblast" do
+  # Fibroblast wiring. The repair sweep's side effect is no longer an
+  # imperative `:exec` adapter resolved by a hand-written Rust arm — it
+  # is ordinary bluebook now. See fibroblast.bluebook's
+  # `RunSweepOnSweepRan` policy : when Fibroblast.Sweep emits SweepRan,
+  # the policy fires the generic process-spawn primitive
+  # `Primitive::Process.Spawn` (literal cmd `bash bin/fibroblast_sweep.sh`,
+  # result_into `Cascade.RecordResult`). The runtime's one generic
+  # primitive hook runs the script and cascades the outcome — the
+  # adapters-as-bluebook first slice (plan: structured-pondering-pie).
+  #
+  # The Fibroblast bluebook (sibling fibroblast.bluebook) names the
+  # healing lifecycle (ReceiveSignal, SelectStrategy, Heal, Decline,
+  # RecordOutcome) plus the Sweep tick and the repair-arm policy. The
+  # script bin/fibroblast_sweep.sh is the impure leaf the primitive
+  # runs ; it reads the open queue and dispatches SelectStrategy → Heal
+  # (verified) OR Decline per record.
+  #
+  # SAFETY STANCE (the trust-earning slice) : the sweeper auto-APPLIES
+  # only the one mechanical, verifiable strategy — nav_sitemap_close
+  # (write missing sitemap entries / prune dead URLs, then re-Check
+  # NavSitemapParity and confirm the drift cleared before recording
+  # closed). Every ambiguous strategy (bluebook_first_file_gap,
+  # loc_ratchet_extract) is DECLINED with a composed proposed-fix for
+  # human review — it touches no code. The sweeper never commits ; a
+  # human reviews the working-tree change. Over-reaching is the failure
+  # mode the fibroblast disciplines against.
+  #
+  # cwd contract : the process-spawn primitive (exec_dispatcher leaf)
+  # inherits the runtime process cwd. The script resolves all state
+  # paths from $HECKS_INFO (always set by the runtime) and the
+  # aggregates root from its own location, so it works whether a loop
+  # member or a manual dispatch fired the sweep.
+
+  adapter :memory
+end

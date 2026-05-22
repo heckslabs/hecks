@@ -137,27 +137,29 @@ fn emit(line: String) {
     }
 }
 
-/// Emit an ANSI-coloured rich record (i697 rich blocks) to the FILE sink
-/// only — NOT to the dispatching process's stdout.
-///
-/// Why file-only : stdout is the dispatching process's contractual output
-/// (the `{"ok":true,...}` result line the CLI prints, which the MCP
-/// wrapper + golden tests + piped scripts parse). A multi-line pretty
-/// JSON block on stdout contaminates every one of those consumers (it
-/// broke the status_golden smoke). The "live stream" the rich blocks feed
-/// is `storehouse follow` — a SEPARATE tail process that reads this file
-/// and renders it. So the rich block lands in the file ; `follow` / `tail`
-/// surface it ; stdout stays clean.
-///
-/// The COLOURED form is written to the file so `tail -f` / `follow`
-/// render colours natively in the terminal. Callers that need a plain
-/// copy for grep/parse use the public `dispatch_detail::strip_ansi`
-/// stripper (or the `--no-color` follow flag). A trailing blank line
-/// follows each block so `tail` reads one rich object per paragraph.
-pub fn emit_dual(coloured: &str) {
+/// Emit a legacy per-event breadcrumb to stdout ONLY — never to the file
+/// sink. The dispatch/event/cascade/policy/attr breadcrumbs are the
+/// dispatching process's stdout contract : the MCP wrapper parses them
+/// into its events[] timeline and the golden smoke asserts them. But in
+/// the FILE they are pure redundancy — every top-level dispatch already
+/// writes a rich i697 block (`emit_dual`) carrying the same event
+/// timeline. Keeping breadcrumbs out of the file makes `storehouse
+/// follow` a clean stream of rich blocks with no legacy-line noise
+/// (Chris : "eliminate the legacy lines — bring them up to date"). The
+/// follow-on (filed inbox) retires breadcrumbs from stdout too, once the
+/// MCP wrapper reads events from the rich block instead of parsing them.
+fn emit_stdout(line: String) {
+    println!("{}", line);
+}
+
+/// Append one plain line to the FILE sink only — the flat event stream
+/// `storehouse follow` watches. stdout is untouched (the breadcrumbs +
+/// the `{"ok":...}` result line own stdout for the MCP wrapper + golden
+/// tests). The file is plain (no ANSI) ; the watcher applies colour.
+pub fn emit_file(line: &str) {
     if let Some(sink) = FILE_SINK.get_or_init(file_sink_init) {
         if let Ok(mut f) = sink.lock() {
-            let _ = writeln!(f, "{}\n", coloured);
+            let _ = writeln!(f, "{}", line);
         }
     }
 }
@@ -172,7 +174,7 @@ pub fn dispatch_entry(fqn: &str, id: &str, description: Option<&str>) {
         let desc = description
             .map(|d| format!(" \"{}\"", d))
             .unwrap_or_default();
-        emit(format!("[{}] dispatch {}#{}{}", now_iso8601(), fqn, id, desc));
+        emit_stdout(format!("[{}] dispatch {}#{}{}", now_iso8601(), fqn, id, desc));
     }
 }
 
@@ -182,7 +184,7 @@ pub fn event_emitted(aggregate: &str, event_name: &str, id: &str) {
     crate::runtime::dispatch_detail::record_event(
         "event", &format!("{}.{}", aggregate, event_name), true);
     if level() == LogLevel::Normal || level() == LogLevel::Verbose {
-        emit(format!("[{}] event {}.{}#{}", now_iso8601(), aggregate, event_name, id));
+        emit_stdout(format!("[{}] event {}.{}#{}", now_iso8601(), aggregate, event_name, id));
     }
 }
 
@@ -193,7 +195,7 @@ pub fn event_emitted(aggregate: &str, event_name: &str, id: &str) {
 pub fn cascade_step(fqn: &str, id: &str, ok: bool) {
     crate::runtime::dispatch_detail::record_event("cascade", fqn, ok);
     if level() == LogLevel::Normal || level() == LogLevel::Verbose {
-        emit(format!("[{}] cascade {}#{} ok={}", now_iso8601(), fqn, id, ok));
+        emit_stdout(format!("[{}] cascade {}#{} ok={}", now_iso8601(), fqn, id, ok));
     }
 }
 
@@ -210,7 +212,7 @@ pub fn policy_reaction(
     crate::runtime::dispatch_detail::record_event(
         "policy", &format!("{} -> {}", policy_name, dispatched_command), true);
     if level() == LogLevel::Quiet || level() == LogLevel::Normal || level() == LogLevel::Verbose {
-        emit(format!(
+        emit_stdout(format!(
             "[{}] policy {} on {}.{}#{} -> {}",
             now_iso8601(), policy_name, aggregate, event_name, id, dispatched_command
         ));
@@ -229,7 +231,7 @@ pub fn attribute_trace(aggregate: &str, id: &str, attr: &str, value: &str) {
         } else {
             value.to_string()
         };
-        emit(format!(
+        emit_stdout(format!(
             "[{}] attr {}#{} {}={}",
             now_iso8601(), aggregate, id, attr, v_trimmed
         ));
