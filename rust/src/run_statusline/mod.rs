@@ -274,7 +274,7 @@ assert!(!line.contains("✉️"), "no envelope expected: {}", line);
         };
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now);
-        assert!(line.contains("🔊 85ms 60%"), "voice segment expected: {}", line);
+        assert!(line.contains("speech:0.09s 60%"), "voice segment expected: {}", line);
     }
 
     #[test]
@@ -284,6 +284,6 @@ assert!(!line.contains("✉️"), "no envelope expected: {}", line);
         let s = State { beats_raw: 100, ..Default::default() };
         let now = Now { secs: 0, nanos_total: 0 };
         let line = render_awake(&s, &now);
-        assert!(!line.contains("🔊"), "no voice glyph when no samples: {}", line);
+        assert!(!line.contains("speech:"), "no voice segment when no samples: {}", line);
     }
 }

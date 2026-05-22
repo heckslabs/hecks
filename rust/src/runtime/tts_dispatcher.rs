@@ -58,6 +58,7 @@
 
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read, Write};
+use std::os::unix::process::CommandExt;
 use std::process::Stdio;
 
 use super::voice::{phrase_cache, latency};
@@ -135,7 +136,7 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
                 .unwrap_or(true);
             if auto_play {
                 let _ = std::process::Command::new("mpg123")
-                    .arg("-q").arg(&cached).spawn();
+                    .arg("-q").arg(&cached).process_group(0).spawn();
             }
             let path_str = cached.to_string_lossy().to_string();
             // ttfb on a hit is effectively zero — the audio file is
@@ -280,6 +281,13 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
+            // Own process group : the player must outlive this dispatch.
+            // Without it, mpg123 sits in storehouse's group and gets
+            // reaped when the dispatch process exits — cutting playback
+            // off mid-stream (the audio is ~5s, the dispatch returns in
+            // ~1s). process_group(0) detaches it so it finishes the
+            // buffered audio after we return.
+            .process_group(0)
             .spawn()
         {
             Ok(c) => Some(c),
