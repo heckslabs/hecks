@@ -45,15 +45,6 @@ pub(super) struct State {
     // composed via inbox_poll.mjs. Upserted as {count: N} after each
     // successful Gmail draft create. Shown as ✉️ N ; omitted when 0.
     pub(super) drafts_count: i64,
-
-    // From voice_latency.heki — Voice.LatencyTelemetry singleton
-    // (rust/src/runtime/voice/latency.rs). Rolling-5-utterance
-    // average + cache hit rate over the same 5 samples. The
-    // statusline shows "🔊 <avg>ms <hit%>" after the inbox segment
-    // when sample_count > 0 ; omitted on a fresh session.
-    pub(super) voice_avg_total_ms: i64,
-    pub(super) voice_hit_rate_pct: i64,
-    pub(super) voice_sample_count: i64,
 }
 
 pub(super) fn read_state(info: &Path) -> State {
@@ -97,20 +88,6 @@ pub(super) fn read_state(info: &Path) -> State {
     if let Ok(store) = heki::read(&heki::path_for_lookup(&info_s, "drafts")) {
         if let Some(rec) = heki::latest(&store) {
             s.drafts_count = int_field(rec, "count");
-        }
-    }
-
-    // voice_latency.heki — singleton upserted by
-    // rust/src/runtime/voice/latency.rs::record. The runtime module
-    // maintains a rolling-5 ring of the last Voice.Speak measurements
-    // and pre-computes avg_total_ms + hit_rate_pct + sample_count
-    // on the singleton, so the statusline render stays pure : read,
-    // format, emit (no aggregation here).
-    if let Ok(store) = heki::read(&heki::path_for_lookup(&info_s, "voice_latency")) {
-        if let Some(rec) = heki::latest(&store) {
-            s.voice_avg_total_ms = int_field(rec, "avg_total_ms");
-            s.voice_hit_rate_pct = int_field(rec, "hit_rate_pct");
-            s.voice_sample_count = int_field(rec, "sample_count");
         }
     }
 
