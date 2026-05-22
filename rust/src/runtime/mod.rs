@@ -37,6 +37,11 @@ mod middleware;
 mod policy_engine;
 mod projection;
 mod repository;
+// i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
+// boot constructs all 458 repos WITHOUT touching disk ; each repo's
+// load_persisted runs on first access. Kills the ~4.2s eager-hydration
+// tax on a single-shot dispatch (which touches exactly one repo).
+mod lazy_repository;
 pub mod seed_loader;
 pub mod llm_dispatcher;
 pub mod llm_providers;
@@ -101,6 +106,7 @@ pub use policy_engine::{PolicyEngine, PolicyTrigger};
 pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
+pub use lazy_repository::LazyRepository;
 
 use crate::ir::Domain;
 use crate::hecksagon_ir::Hecksagon;
@@ -108,7 +114,7 @@ use std::collections::HashMap;
 
 pub struct Runtime {
     pub domain: Domain,
-    pub repositories: HashMap<String, Repository>,
+    pub repositories: HashMap<String, LazyRepository>,
     pub event_bus: EventBus,
     pub policy_engine: PolicyEngine,
     pub pm_engine: PMEngine,
@@ -181,7 +187,11 @@ impl Runtime {
             let key = repo_key(agg.context.as_deref(), &agg.name);
             repositories.insert(
                 key,
-                Repository::new_with_context(
+                // i-lazy — construct lazily : no disk read here. The
+                // repo hydrates (via Repository::new_with_context) on
+                // first find/all/save/etc. Single-shot dispatches touch
+                // one repo ; daemons warm each on first touch.
+                LazyRepository::new(
                     &agg.name,
                     data_dir.clone(),
                     agg.identified_by.clone(),
@@ -2309,7 +2319,7 @@ pub fn repo_key(context: Option<&str>, name: &str) -> String {
 /// case), this is unambiguous. True same-name collisions across
 /// contexts surface as nondeterministic picks here — those callers
 /// should be migrated to keyed lookup as Tier 3 progresses.
-pub fn repo_lookup_key(repositories: &HashMap<String, Repository>, name: &str) -> Option<String> {
+pub fn repo_lookup_key(repositories: &HashMap<String, LazyRepository>, name: &str) -> Option<String> {
     if repositories.contains_key(name) {
         return Some(name.to_string());
     }
