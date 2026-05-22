@@ -20,8 +20,12 @@ import { z } from "zod";
 import { spawn } from "node:child_process";
 import { parseEvents, composeAutoSummary } from "./dispatch_digest.mjs";
 import { renderDispatch } from "./dispatch_render.mjs";
+import { warmDispatch } from "./serve_child.mjs";
 
 const STOREHOUSE_BIN = process.env.STOREHOUSE_BIN || "storehouse";
+// Warm serve is on by default ; set STOREHOUSE_SERVE=0 to force the
+// legacy one-shot spawn (e.g. to A/B the latency or debug the child).
+const WARM_SERVE = process.env.STOREHOUSE_SERVE !== "0";
 
 function encodeAttrs(args) {
   const out = [];
@@ -84,6 +88,43 @@ function dispatchProcess(aggregatesDir, command, attrArgs) {
   });
 }
 
+// Try the warm resident serve child first, synthesizing the SAME
+// result envelope dispatchProcess returns so the downstream render is
+// identical. The warm reply is just the dispatched state JSON (matching
+// the one-shot path's `state` field) ; we wrap it with ok / events /
+// auto_summary the same way. Throws on any serve-child failure so the
+// caller falls back to the one-shot spawn.
+async function warmDispatchEnvelope(aggregatesDir, command, attrArgs) {
+  const startedAt = Date.now();
+  const parsed = await warmDispatch(aggregatesDir, command, attrArgs);
+  const duration_ms = Date.now() - startedAt;
+  const ok = parsed?.ok !== false;
+  // The warm path doesn't stream the per-cascade log lines the one-shot
+  // path scrapes events from ; events come from the structured reply
+  // when present, else empty. The state itself is authoritative.
+  const events = Array.isArray(parsed?.events) ? parsed.events : [];
+  const auto_summary = composeAutoSummary({
+    command,
+    exit_code: ok ? 0 : 1,
+    ok,
+    events,
+    stderr: "",
+  });
+  return {
+    ok,
+    exit_code: ok ? 0 : 1,
+    command,
+    aggregates_dir: aggregatesDir,
+    stdout: JSON.stringify(parsed),
+    stderr: "",
+    state: parsed,
+    events,
+    auto_summary,
+    duration_ms,
+    warm: true,
+  };
+}
+
 export default {
   name: "storehouse__dispatch",
   title: "Dispatch a Bluebook Command or Query",
@@ -124,7 +165,24 @@ export default {
       };
     }
     const attrArgs = encodeAttrs(input.args || {});
-    const result = await dispatchProcess(input.aggregates_dir, input.command, attrArgs);
+    // Warm-first with graceful degradation. The resident serve child
+    // answers in single-digit ms once booted ; on ANY failure (dead
+    // child, timeout, unparseable reply, handled dispatch error) we
+    // fall back to the one-shot spawn so a serve-child fault never
+    // black-holes a dispatch — this is the universal door.
+    let result;
+    if (WARM_SERVE) {
+      try {
+        result = await warmDispatchEnvelope(input.aggregates_dir, input.command, attrArgs);
+      } catch (err) {
+        process.stderr.write(
+          `[storehouse__dispatch] warm serve failed (${err && err.message ? err.message : err}); falling back to one-shot spawn\n`,
+        );
+        result = await dispatchProcess(input.aggregates_dir, input.command, attrArgs);
+      }
+    } else {
+      result = await dispatchProcess(input.aggregates_dir, input.command, attrArgs);
+    }
     // Rich rendering for content[0].text — headline, timeline, state,
     // auto-summary. If anything in the renderer throws, fall back to
     // the raw stdout/stderr so a render bug never costs the operator
