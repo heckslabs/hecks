@@ -28,7 +28,7 @@
 //! so the rem_branch shell script can retire and dream production
 //! runs declaratively from a bluebook + hecksagon pair.
 
-use super::{AggregateState, Value, Repository};
+use super::{AggregateState, Value, LazyRepository};
 
 /// Backend selector carried alongside the (model, url) tuple when
 /// resolving. Kept as &str so the CLI can pass configuration derived
@@ -47,7 +47,7 @@ pub type LlmConfig<'a> = (&'a str, &'a str, &'a str); // (backend, model, url)
 /// records it under the same dispatch banner the runtime already wrote
 /// the rest of the state under.
 pub fn resolve(
-    repo: &mut Repository,
+    repo: &mut LazyRepository,
     state: &AggregateState,
     config: Option<LlmConfig<'_>>,
     aggregate: &str,
@@ -83,7 +83,7 @@ pub fn resolve(
 /// pass (model, url). This forwards to `resolve` with backend set to
 /// "ollama".
 pub fn resolve_ollama(
-    repo: &mut Repository,
+    repo: &mut LazyRepository,
     state: &AggregateState,
     config: Option<(&str, &str)>,
     aggregate: &str,
