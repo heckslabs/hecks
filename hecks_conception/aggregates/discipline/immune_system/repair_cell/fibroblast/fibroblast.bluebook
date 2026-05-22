@@ -182,11 +182,34 @@ Hecks.bluebook "Fibroblast", version: "2026.05.16.1" do
     end
   end
 
-  # The :exec repair arm (Fibroblast.Sweep, bound in fibroblast.hecksagon)
-  # is the orchestrator now : it reads the open queue and dispatches
-  # SelectStrategy → Heal (verified) OR Decline explicitly, per record.
-  # The earlier StrategySelected→Heal auto-policy was placeholder wiring
-  # for the deferred :exec arm ; it is retired here because an auto-Heal
-  # after SelectStrategy would stamp closed_at before the sweeper can
-  # Decline an ambiguous signal, corrupting the decline-gracefully trace.
+  # ── The repair arm, as ordinary bluebook (adapters-as-bluebook) ──
+  #
+  # Fibroblast.Sweep is a pure command : it stamps the audit row and
+  # emits SweepRan. The side-effect — running the real sweeper — is no
+  # longer a bespoke `:exec` hecksagon adapter resolved by a
+  # hand-written Rust arm. It is this policy : when SweepRan fires, the
+  # policy triggers the generic process-spawn primitive
+  # `Primitive::Process.Spawn` with the literal program string and the
+  # cascade landing pad. The runtime's one generic primitive hook runs
+  # `bash bin/fibroblast_sweep.sh` and chains (id, output, exit_code,
+  # ok) into Cascade.RecordResult — exactly what resolve_exec_adapters
+  # used to do, now expressed declaratively.
+  #
+  #   policy → Primitive::Process.Spawn → Cascade.RecordResult
+  #
+  # `with` carries the literal args (gap #1 of the arc) : `cmd` is the
+  # program, `result_into` is the cascade target. The script itself
+  # reads the open queue and dispatches SelectStrategy → Heal (verified)
+  # OR Decline per record — so the fibroblast "closed" outcome is
+  # identical no matter which path fired the sweeper. The earlier
+  # StrategySelected→Heal auto-policy was placeholder wiring for the
+  # deferred :exec arm ; it stays retired (an auto-Heal after
+  # SelectStrategy would stamp closed_at before the sweeper can Decline
+  # an ambiguous signal, corrupting the decline-gracefully trace).
+  policy "RunSweepOnSweepRan" do
+    on "SweepRan"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bash bin/fibroblast_sweep.sh"
+    with "result_into", "Cascade.RecordResult"
+  end
 end
