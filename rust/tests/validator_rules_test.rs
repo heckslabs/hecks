@@ -269,6 +269,7 @@ fn unknown_policy_trigger() {
             on_event: "OrderPlaced".into(),
             trigger_command: "GhostCommand".into(),
             target_domain: None,
+            with: vec![],
         }],
         fixtures: vec![],
         entrypoint: None,
