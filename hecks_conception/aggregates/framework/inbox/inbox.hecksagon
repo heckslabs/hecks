@@ -1,42 +1,33 @@
 Hecks.hecksagon "Inbox" do
-  # Inbox adapter binding : Inbox.Check dispatch → the real Gmail poll.
+  # Inbox wiring. The Gmail poll's side effect is no longer an
+  # imperative `:exec` adapter resolved by a hand-written Rust arm
+  # (resolve_exec_adapters, retired) — it is ordinary bluebook now.
+  # See inbox.bluebook's `RunPollOnInboxChecked` policy : when
+  # Inbox.Check emits InboxChecked, the aggregate-qualified policy
+  # (`on "Inbox.InboxChecked"`, gap #1b) fires the generic
+  # process-spawn primitive `Primitive::Process.Spawn` (literal cmd
+  # `node bin/inbox_poll.mjs`, result_into `Cascade.RecordResult`).
+  # The runtime's one generic primitive hook runs the poller and
+  # cascades the outcome — the adapters-as-bluebook arc (plan:
+  # structured-pondering-pie, gap #1b slice).
   #
   # The Inbox bluebook (sibling inbox.bluebook) locks Check to a
   # multi-step poll : OAuth refresh, Gmail historyId delta since the
   # watermark, known-correspondent filter, per new thread a card
   # write + a drafts-only acknowledgement (never starting the work).
-  # Pure composition — the bluebook names the contract.
+  # Pure composition — the bluebook names the contract. The script
+  # bin/inbox_poll.mjs is the impure leaf the primitive runs.
   #
-  # This file is the impure layer. The :exec adapter (family
-  # framework/adapter_families/exec.hecksagon, behavior
-  # perform_exec, kernel arm runtime/exec_dispatcher.rs +
-  # resolve_exec_adapters) binds Inbox.Check to the local poller.
-  # When the overmind `inbox` loop dispatches Inbox::Inbox.Check
-  # every 900s — OR Miette dispatches it on demand via the
-  # storehouse universal door — the kernel runs bin/inbox_poll.mjs
-  # and cascades its outcome into Cascade.RecordResult, joinable by id.
+  # This closes i629 : the dispatch IS the fetch. When the overmind
+  # `inbox` loop dispatches Inbox::Inbox.Check every 900s — OR Miette
+  # dispatches it on demand via the storehouse universal door — the
+  # poll runs and cascades its outcome, joinable by id. "No new
+  # process" (Chris's locked decision) stays literally true.
   #
-  # :exec, not :shell : the parser already routes :shell to a legacy
-  # ShellAdapter with different semantics (i629). :exec is the clean
-  # general "run a local program on dispatch" family.
-  #
-  # This closes i629 : the dispatch IS the fetch. The transitional
-  # standalone `inboxpoll` Procfile + mindstream member is retired in
-  # the same change — one member (`inbox`), one cadence, the loop's
-  # own dispatch performing the poll. "No new process" (Chris's
-  # locked decision) is now literally true.
-  #
-  # cwd contract : exec_dispatcher inherits the runtime process cwd.
-  # The overmind `inbox` member runs from hecks_conception/, so
-  # `bin/inbox_poll.mjs` resolves identically whether the loop or a
-  # manual dispatch fired it — the same path the (now retired)
-  # transitional Procfile member used.
+  # cwd contract : the process-spawn primitive (exec_dispatcher leaf)
+  # inherits the runtime process cwd. The overmind `inbox` member runs
+  # from hecks_conception/, so `bin/inbox_poll.mjs` resolves identically
+  # whether the loop or a manual dispatch fired it.
 
   adapter :memory
-
-  adapter :exec,
-          name:        "inbox_poll",
-          command:     "Inbox.Check",
-          exec:        "node bin/inbox_poll.mjs",
-          result_into: "Cascade.RecordResult"
 end
