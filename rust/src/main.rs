@@ -509,6 +509,27 @@ fn main() {
         std::process::exit(storehouse::run_follow::run(&args));
     }
 
+    // `storehouse serve-stdio <agg-dir>` — warm, resident dispatch
+    // server over stdin/stdout. The second half of the speed plan :
+    // the first half (lazy repository hydration) cut a COLD single-shot
+    // dispatch from ~5.3s → ~660ms ; this pays that ~660ms boot ONCE
+    // and answers every subsequent dispatch in single-digit ms.
+    //
+    // Distinct name from the HTTP `serve <dir> [port]` arm below
+    // (server::multi::serve_directory) — that one is unchanged.
+    //
+    // Boots EXACTLY like dispatch_hecksagon (load_combined_domain +
+    // load_all_hecksagons + Runtime::boot_with_hecksagons +
+    // register_llm_providers) so warm dispatches produce byte-identical
+    // .heki to the cold one-shot path, then loops in
+    // storehouse::run_serve. Per-dispatch freshness (touched repos
+    // re-read from .heki) lives in the loop ; the MCP child speaks the
+    // sentinel-line protocol back. See run_serve/mod.rs.
+    if command == "serve-stdio" {
+        run_serve_stdio(path);
+        return;
+    }
+
     // `storehouse is-dispatched <path>` — IR-query subcommand
     // (i122). Exit 0 + stdout line "<kind> in <source>" if the file
     // is claimed by some adapter / specializer ; exit 1 silently if
@@ -3266,6 +3287,78 @@ fn collect_sibling_fixtures(
         }
     }
     merged
+}
+
+/// `storehouse serve-stdio <agg-dir>` — boot the resident runtime ONCE
+/// then hand off to the warm serve loop.
+///
+/// The boot is byte-for-byte the dispatch_hecksagon boot
+/// (find_world_heki_dir + load_combined_domain + load_all_hecksagons +
+/// Runtime::boot_with_hecksagons + register_llm_providers) so a warm
+/// dispatch is indistinguishable from a cold one except for latency —
+/// every adapter family (:llm / :claude_tool / :mcp / :exec / :tts) and
+/// the LLM provider registry hang off rt.hecksagons exactly as in the
+/// one-shot path.
+///
+/// Protocol correctness comes from the sentinel-line prefix
+/// (run_serve::RESULT_SENTINEL), NOT from the log level : the serve
+/// child routes every non-sentinel stdout line to its own stderr, so
+/// the result line is always findable amid any incidental log/adapter
+/// output. STOREHOUSE_LOG defaults to quiet here only for log-volume
+/// hygiene (it silences event/cascade chatter ; the terse `dispatch`
+/// line still prints at quiet — the sentinel handles it regardless).
+///
+/// [antibody-exempt: rust/src/main.rs run_serve_stdio — kernel-surface
+///  CLI primitive. Boots the resident runtime once and hands off to the
+///  warm serve loop (storehouse::run_serve). Same i80-family contract as
+///  the sibling run_loop / run_daemon / run_clock / run_follow arms : a
+///  thin file-I/O + boot boundary around a bluebook-described dispatch
+///  body. The serve loop's dispatch is byte-identical to the one-shot
+///  dispatch_hecksagon path ; this just pays the boot once. Retires
+///  alongside the rest of the run_* family once cli.bluebook (i80) lands
+///  and CLI routing becomes declarative.]
+fn run_serve_stdio(agg_dir: &str) {
+    if agg_dir.is_empty() || !std::path::Path::new(agg_dir).is_dir() {
+        eprintln!("usage: storehouse serve-stdio <aggregates-dir>");
+        std::process::exit(2);
+    }
+    // Default the bus log to quiet for the resident process — explicit
+    // STOREHOUSE_LOG still wins for debugging.
+    if std::env::var("STOREHOUSE_LOG").is_err() {
+        std::env::set_var("STOREHOUSE_LOG", "quiet");
+    }
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = load_combined_domain(agg_dir);
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    register_llm_providers(&mut rt, agg_dir);
+
+    // Resolve the legacy conversational-LLM config once (hecksagon
+    // :llm backend wins, else .world ollama) and close over it so the
+    // serve loop runs the same post-dispatch adapter_llm pass
+    // dispatch_hecksagon does — keeping warm .heki byte-identical.
+    let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
+    let ollama_config = find_world_ollama_config(agg_dir);
+    let legacy_hook = move |rt: &mut Runtime, agg_type: &str, agg_id: &str, command: &str| {
+        if let Some(state) = rt.find(agg_type, agg_id).cloned() {
+            let repo_key = storehouse::runtime::repo_lookup_key(&rt.repositories, agg_type);
+            if let Some(repo) = repo_key.as_ref().and_then(|k| rt.repositories.get_mut(k)) {
+                if let Some((backend, model, url)) = hecksagon_llm.as_ref() {
+                    let triple = (backend.as_str(), model.as_str(), url.as_str());
+                    storehouse::runtime::adapter_llm::resolve(
+                        repo, &state, Some(triple), agg_type, command);
+                } else {
+                    let config = ollama_config.as_ref().map(|(m, u)| (m.as_str(), u.as_str()));
+                    storehouse::runtime::adapter_llm::resolve_ollama(
+                        repo, &state, config, agg_type, command);
+                }
+            }
+        }
+    };
+
+    let code = storehouse::run_serve::run(&mut rt, Some(&legacy_hook));
+    std::process::exit(code);
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.

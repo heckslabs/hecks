@@ -15,7 +15,7 @@ pub type LlmConfig<'a> = (&'a str, &'a str, &'a str); // (backend, model, url)
 /// records it under the same dispatch banner the runtime already wrote
 /// the rest of the state under.
 pub fn resolve(
-    repo: &mut Repository,
+    repo: &mut LazyRepository,
     state: &AggregateState,
     config: Option<LlmConfig<'_>>,
     aggregate: &str,
@@ -51,7 +51,7 @@ pub fn resolve(
 /// pass (model, url). This forwards to `resolve` with backend set to
 /// "ollama".
 pub fn resolve_ollama(
-    repo: &mut Repository,
+    repo: &mut LazyRepository,
     state: &AggregateState,
     config: Option<(&str, &str)>,
     aggregate: &str,

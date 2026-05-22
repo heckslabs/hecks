@@ -503,6 +503,40 @@ pub struct Policy {
     pub on_event: String,
     pub trigger_command: String,
     pub target_domain: Option<String>,
+    /// Literal/value-spec args the policy passes to its triggered
+    /// command, on top of the upstream event's data. Ordered
+    /// (key, ValueSpec) pairs parsed from `with key: "literal"` lines.
+    /// The adapters-as-bluebook arc uses this for gap #1 : a policy
+    /// firing `Primitive::Process.Spawn` carries the literal `cmd`
+    /// and `result_into` the retired :exec resolver used to inline.
+    /// For this slice only `ValueSpec::Literal` is produced ; the
+    /// state-aware specs (FromState/templating) are deferred.
+    pub with: Vec<(String, ValueSpec)>,
+}
+
+impl Policy {
+    /// gap #1b (adapters-as-bluebook) — `on "Aggregate.Event"` is an
+    /// aggregate-qualified subscription : the policy fires ONLY for
+    /// events of that name emitted BY that aggregate. The bare form
+    /// `on "Event"` matches by name across every aggregate (the
+    /// historical, backward-compatible behaviour). The qualifier is
+    /// the substring before the first `.` ; absent when the form is
+    /// bare. We split on the first `.` so an event name never contains
+    /// one (they're PascalCase identifiers, so this is safe).
+    pub fn event_qualifier(&self) -> Option<&str> {
+        self.on_event.split_once('.').map(|(agg, _)| agg)
+    }
+
+    /// The bare event name with any `Aggregate.` qualifier stripped.
+    /// Validators + the policy index key on this so a qualified
+    /// subscription still resolves against the corpus's emitted-event
+    /// set (which carries bare names only).
+    pub fn event_name(&self) -> &str {
+        match self.on_event.split_once('.') {
+            Some((_, ev)) => ev,
+            None => self.on_event.as_str(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

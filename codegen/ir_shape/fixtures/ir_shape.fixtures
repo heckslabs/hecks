@@ -77,34 +77,39 @@ Hecks.fixtures "IrShape" do
     # Policy — event → command trigger.
     fixture "Policy", name: "Policy", order: 27, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Policy — on event, trigger command"
 
+    # impl Policy — event_qualifier / event_name accessors for the
+    # aggregate-qualified `on "Aggregate.Event"` subscription form
+    # (adapters-as-bluebook gap #1b).
+    fixture "ImplPolicy", name: "ImplPolicy", order: 28, body_kind: "impl", derives: "", impl_target: "Policy", body_snippet: "codegen/ir_shape/snippets/impls/policy.rs.frag", doc_snippet: "", description: "event_qualifier + event_name accessors"
+
     # Lifecycle — state field + default + transitions list.
-    fixture "Lifecycle", name: "Lifecycle", order: 28, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle — state field, default state, transitions"
+    fixture "Lifecycle", name: "Lifecycle", order: 29, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle — state field, default state, transitions"
 
     # Transition — command + to_state + optional from_state guard.
-    fixture "Transition", name: "Transition", order: 29, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle transition — command takes the aggregate from from_state to to_state"
+    fixture "Transition", name: "Transition", order: 30, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Lifecycle transition — command takes the aggregate from from_state to to_state"
 
     # Fixture — seeded data record bound to an aggregate.
-    fixture "Fixture", name: "Fixture", order: 30, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
+    fixture "Fixture", name: "Fixture", order: 31, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Seeded data record"
 
     # i101 — first-class query IR. WhereClause / WhereOp / OrderBy /
     # Direction / LimitSpec extend Query with structured filter / sort /
     # cap fields so the runtime executor can walk repo.all() without
     # delegating to an opaque Ruby block.
-    fixture "WhereClause", name: "WhereClause", order: 31, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Where clause — field op value tuple, ANDed with siblings"
-    fixture "WhereOp",     name: "WhereOp",     order: 32, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/where_op.rs.frag", description: "Filter operator — Eq / Ne / Gt / Gte / Lt / Lte"
-    fixture "OrderBy",     name: "OrderBy",     order: 33, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Order by clause — field + direction"
-    fixture "Direction",   name: "Direction",   order: 34, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
-    fixture "LimitSpec",   name: "LimitSpec",   order: 35, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
+    fixture "WhereClause", name: "WhereClause", order: 32, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Where clause — field op value tuple, ANDed with siblings"
+    fixture "WhereOp",     name: "WhereOp",     order: 33, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/where_op.rs.frag", description: "Filter operator — Eq / Ne / Gt / Gte / Lt / Lte"
+    fixture "OrderBy",     name: "OrderBy",     order: 34, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Order by clause — field + direction"
+    fixture "Direction",   name: "Direction",   order: 35, body_kind: "enum",   derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/direction.rs.frag", description: "Sort direction — Asc / Desc"
+    fixture "LimitSpec",   name: "LimitSpec",   order: 36, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "", description: "Limit spec — record cap (literal or kwarg-ref)"
 
     # i254 — views per role. View carries a name + an ordered list of
     # field projections ; `show_all` flag means "include every aggregate
     # attribute, then append the listed extras". Different portals
     # (customer / driver / admin) read the same aggregate through
     # different views without per-portal field-list drift.
-    fixture "View", name: "View", order: 36, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/view_type.rs.frag", description: "Named view — ordered field projection of an aggregate, scoped by role"
+    fixture "View", name: "View", order: 37, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/view_type.rs.frag", description: "Named view — ordered field projection of an aggregate, scoped by role"
 
     # Display impl on Domain — pretty-printed aggregate / command tree.
-    fixture "DisplayDomain", name: "DisplayDomain", order: 37, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+    fixture "DisplayDomain", name: "DisplayDomain", order: 38, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -253,11 +258,12 @@ Hecks.fixtures "IrShape" do
     fixture "Reference_target", type_name: "Reference", order: 2, name: "target", field_type: "String",         doc_snippet: ""
     fixture "Reference_domain", type_name: "Reference", order: 3, name: "domain", field_type: "Option<String>", doc_snippet: ""
 
-    # Policy — 4 fields.
+    # Policy — 5 fields (the 5th, `with`, carries literal policy args).
     fixture "Policy_name",            type_name: "Policy", order: 1, name: "name",            field_type: "String",         doc_snippet: ""
     fixture "Policy_on_event",        type_name: "Policy", order: 2, name: "on_event",        field_type: "String",         doc_snippet: ""
     fixture "Policy_trigger_command", type_name: "Policy", order: 3, name: "trigger_command", field_type: "String",         doc_snippet: ""
     fixture "Policy_target_domain",   type_name: "Policy", order: 4, name: "target_domain",   field_type: "Option<String>", doc_snippet: ""
+    fixture "Policy_with",            type_name: "Policy", order: 5, name: "with",            field_type: "Vec<(String, ValueSpec)>", doc_snippet: "codegen/ir_shape/snippets/docs/policy_with.rs.frag"
 
     # Lifecycle — 3 fields.
     fixture "Lifecycle_field",       type_name: "Lifecycle", order: 1, name: "field",       field_type: "String",          doc_snippet: ""

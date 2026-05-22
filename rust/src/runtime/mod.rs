@@ -37,6 +37,11 @@ mod middleware;
 mod policy_engine;
 mod projection;
 mod repository;
+// i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
+// boot constructs all 458 repos WITHOUT touching disk ; each repo's
+// load_persisted runs on first access. Kills the ~4.2s eager-hydration
+// tax on a single-shot dispatch (which touches exactly one repo).
+mod lazy_repository;
 pub mod seed_loader;
 pub mod llm_dispatcher;
 pub mod llm_providers;
@@ -56,12 +61,6 @@ pub mod claude_tool_dispatcher;
 pub mod mcp_dispatcher;
 pub mod sms_dispatcher;
 pub mod tts_dispatcher;
-// i_voice — phrase cache + latency telemetry that wrap the :tts
-// dispatcher. Submodules : phrase_cache (content-addressed mp3 store
-// at ~/.config/miette/audio/phrase_cache/<sha256>.mp3) and latency
-// (per-Speak measurement + rolling-5 ring persisted to
-// voice_latency.heki). Implements miette/body/voice/voice.bluebook.
-pub mod voice;
 // i569 — :web_tool adapter family kernel hook. Two behaviors :
 // perform_web_fetch (curl HTTP GET, URL-safety gated) and
 // perform_web_search (DuckDuckGo HTML-lite). Sibling to
@@ -70,12 +69,16 @@ pub mod voice;
 // `WEB_TOOL_BEHAVIOR_NAMES` for the registry to consume — `Runtime::
 // dispatch` is deliberately NOT modified to call into it.
 pub mod web_tool_dispatcher;
-// i629 — :exec adapter family kernel hook. One behavior :
-// perform_exec (run a local program, capture stdout/exit, cascade).
-// Wired below via resolve_exec_adapters (mirrors the WIRED
-// :claude_tool arm, not the unwired i557 registry path). Closes
-// i629 : Inbox.Check's :exec binding runs bin/inbox_poll.mjs so the
-// 900s loop dispatch IS the Gmail poll.
+// i629 — the kernel-floor exec leaf. One behavior : perform_exec
+// (run a local program, capture stdout/exit). The bespoke
+// `resolve_exec_adapters` arm that used to drive it is RETIRED
+// (adapters-as-bluebook, plan: structured-pondering-pie) ; this leaf
+// is now reached only through `resolve_primitive_spawn` (the generic
+// `Primitive::Process.Spawn` hook). Every former `:exec` binding —
+// Inbox.Check, ProcessMacrophage.Sweep/Heal, the fibroblast sweep —
+// is now an ordinary aggregate-qualified bluebook policy firing
+// `Primitive::Process.Spawn`. The spawn syscall is the only imperative
+// remainder ; the adapter PROTOCOL is plain bluebook policy/cascade.
 pub mod exec_dispatcher;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
@@ -101,6 +104,7 @@ pub use policy_engine::{PolicyEngine, PolicyTrigger};
 pub use pm_engine::{PMBinding, PMEngine, PMInstanceState, PMTrigger};
 pub use projection::Projection;
 pub use repository::Repository;
+pub use lazy_repository::LazyRepository;
 
 use crate::ir::Domain;
 use crate::hecksagon_ir::Hecksagon;
@@ -108,7 +112,7 @@ use std::collections::HashMap;
 
 pub struct Runtime {
     pub domain: Domain,
-    pub repositories: HashMap<String, Repository>,
+    pub repositories: HashMap<String, LazyRepository>,
     pub event_bus: EventBus,
     pub policy_engine: PolicyEngine,
     pub pm_engine: PMEngine,
@@ -181,7 +185,11 @@ impl Runtime {
             let key = repo_key(agg.context.as_deref(), &agg.name);
             repositories.insert(
                 key,
-                Repository::new_with_context(
+                // i-lazy — construct lazily : no disk read here. The
+                // repo hydrates (via Repository::new_with_context) on
+                // first find/all/save/etc. Single-shot dispatches touch
+                // one repo ; daemons warm each on first touch.
+                LazyRepository::new(
                     &agg.name,
                     data_dir.clone(),
                     agg.identified_by.clone(),
@@ -192,7 +200,12 @@ impl Runtime {
 
         let mut policy_engine = PolicyEngine::new();
         for policy in &domain.policies {
-            policy_engine.register(&policy.name, &policy.on_event, &policy.trigger_command);
+            policy_engine.register(
+                &policy.name,
+                &policy.on_event,
+                &policy.trigger_command,
+                policy.with.clone(),
+            );
         }
 
         let mut pm_engine = PMEngine::new();
@@ -435,15 +448,16 @@ impl Runtime {
         // than panic.
         self.resolve_mcp_adapters(&result, command_name, &ctx.attrs);
 
-        // i629 — :exec adapter hook. Sibling to the :claude_tool /
-        // :mcp arms above. Scans loaded hecksagons for `:exec` io
-        // adapters whose `command` option matches the just-dispatched
-        // Aggregate.Command target, runs the adapter's `exec:`
-        // program (cwd inherited from the runtime process), and
-        // cascades (output, exit_code, ok) into `result_into`. This
-        // is what makes `storehouse loop ... Inbox::Inbox.Check` BE
-        // the Gmail poll — the dispatch is the fetch.
-        self.resolve_exec_adapters(&result, command_name, &ctx.attrs);
+        // Process-spawn primitive hook (adapters-as-bluebook). The
+        // retired `:exec` resolver is now this : a generic primitive
+        // that fires when `Primitive::Process.Spawn` dispatches, runs
+        // the literal `cmd` via the kernel-floor exec leaf, and
+        // cascades the outcome into `result_into`. A top-level
+        // `storehouse__dispatch Primitive::Process.Spawn` runs here ;
+        // the policy-driven path runs from the cascade arms in
+        // drain_policies. The adapter PROTOCOL is now ordinary
+        // bluebook policy/cascade — only the spawn syscall is imperative.
+        self.resolve_primitive_spawn(&result, command_name, &ctx.attrs);
 
         // i-tts - :tts adapter hook. Sibling to the :exec / :mcp /
         // :claude_tool resolvers above. Scans loaded hecksagons for
@@ -616,6 +630,42 @@ impl Runtime {
         }
         for repo in self.repositories.values_mut() {
             repo.refresh_from_heki();
+        }
+    }
+
+    /// Warm-serve freshness sweep — refresh ONLY the repos already
+    /// hydrated in this resident process. Sibling to
+    /// `refresh_repositories_from_heki`, with two deliberate
+    /// differences that make it the right primitive for `serve` mode :
+    ///
+    ///   1. **No env gate.** `serve` calls this unconditionally before
+    ///      every dispatch. The `HECKS_REFRESH_REPOS=1` guard on the
+    ///      sibling exists to keep one-shot CLI dispatches and in-memory
+    ///      smoke tests from re-reading mid-cascade ; a resident server
+    ///      that answers from a warm runtime must ALWAYS reconcile with
+    ///      disk first, because daemons (heart/breath) write `.heki`
+    ///      concurrently between requests.
+    ///
+    ///   2. **Hydrated-only.** `LazyRepository::refresh_from_heki` forces
+    ///      `repo_mut()` → `get_or_init` → hydration. Sweeping ALL repos
+    ///      would hydrate every aggregate on the first request and throw
+    ///      away the lazy-boot win this whole feature is built on. We
+    ///      filter on `is_hydrated()` : a repo that's never been touched
+    ///      stays cold (and, when it IS first touched by a later
+    ///      dispatch, the OnceCell init reads current disk by
+    ///      definition — so cold repos are fresh for free). Only the
+    ///      handful of repos this process has actually served pay the
+    ///      one `stat()` per request ; the mtime gate inside
+    ///      `refresh_from_heki` skips the re-read when disk is unchanged.
+    ///
+    /// This is THE correctness crux of warm serve : the IR stays warm
+    /// (the boot is paid once) but the touched aggregate's STATE is
+    /// never stale.
+    pub fn refresh_hydrated_repositories_from_heki(&mut self) {
+        for repo in self.repositories.values_mut() {
+            if repo.is_hydrated() {
+                repo.refresh_from_heki();
+            }
         }
     }
 
@@ -1051,97 +1101,114 @@ impl Runtime {
         }
     }
 
-    /// i629 — :exec adapter resolver. Parallel to
-    /// `resolve_claude_tool_adapters`, different family : `:exec`
-    /// (declared at
-    /// `aggregates/framework/adapter_families/exec.hecksagon`)
-    /// carries `name`, `command`, `exec`, and `result_into`. When a
-    /// loaded binding's `command` option equals the just-dispatched
-    /// `Aggregate.Command` target, run the `exec` program (cwd
-    /// inherited from the runtime process) and cascade (output,
-    /// exit_code, ok) into `result_into`. This is what closes i629 :
-    /// Inbox.Check's :exec binding runs bin/inbox_poll.mjs so the
-    /// 900s loop dispatch IS the Gmail poll.
-    fn resolve_exec_adapters(
+    /// [antibody-exempt: rust/src/runtime/mod.rs (resolve_primitive_spawn) —
+    ///  kernel-floor primitive leaf for the `Primitive::Process.Spawn`
+    ///  bluebook command (adapters-as-bluebook first slice). The spawn
+    ///  syscall is irreducible imperative ; the surrounding PROTOCOL
+    ///  (fire → run → cascade) is now ordinary bluebook policy/cascade.
+    ///  Sibling of exec_dispatcher.rs's existing exemption.]
+    ///
+    /// The generic process-spawn primitive — the adapters-as-bluebook
+    /// floor tile that replaced the retired `resolve_exec_adapters`,
+    /// driven by ordinary bluebook policy/cascade instead of a bespoke
+    /// per-family resolver. Fires when a `Primitive::Process.Spawn`
+    /// command dispatches (whether from a top-level dispatch or from
+    /// inside a policy / PM cascade). Reads the literal program string
+    /// off the dispatch attrs (`cmd`), runs it to completion via the
+    /// kernel-floor exec leaf (`exec_dispatcher::dispatch` — reused
+    /// unchanged), and cascades (id, output, exit_code, ok) into the
+    /// `result_into` target carried on the same dispatch.
+    ///
+    /// The cascade join key is the `id` attr the dispatch carried (the
+    /// originating invocation id, threaded by the firing policy's
+    /// event data) — falling back to the Process record's own id. This
+    /// is the SAME contract the `:exec` resolver honours : the outcome
+    /// record joins the originating invocation by id.
+    ///
+    /// `resolve_exec_adapters` is RETIRED. Every former `:exec` binding
+    /// is now an ordinary bluebook policy firing this primitive : the
+    /// fibroblast repair sweep (`on "SweepRan"`), the Gmail poll
+    /// (`on "Inbox.InboxChecked"`), and the process-health sweep + heal
+    /// (`on "ProcessMacrophage.Swept"` / `on "ProcessMacrophage.HealRequested"`).
+    /// The last two need gap #1b — the aggregate-qualified `on` form —
+    /// because `Swept` is emitted by both ProcessMacrophage and the
+    /// discipline macrophage and is also consumed by the bare
+    /// `MarkHangedOnMissingHeartbeat` policy ; the qualifier fires the
+    /// sweeper ONLY for ProcessMacrophage's Swept.
+    ///
+    /// This is the ONLY new imperative leaf : the spawn syscall.
+    fn resolve_primitive_spawn(
         &mut self,
         result: &CommandResult,
         command_name: &str,
-        _dispatch_attrs: &HashMap<String, Value>,
+        dispatch_attrs: &HashMap<String, Value>,
     ) {
-        if self.hecksagons.is_empty() { return; }
         let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
-        let target = format!("{}.{}", result.aggregate_type, bare_command);
+        // The primitive matches by aggregate + command, not by a
+        // hecksagon binding : the bluebook IS the contract. Anything
+        // that dispatches `Process.Spawn` runs the spawn.
+        if result.aggregate_type != "Process" || bare_command != "Spawn" {
+            return;
+        }
 
-        // Snapshot every `:exec` io adapter whose `command` option
-        // matches the dispatched target. Values come from
-        // parse_options unprocessed — strip quotes/colons before
-        // matching, same as the :claude_tool / :mcp resolvers.
-        let matched: Vec<(String, Option<String>)> = self.hecksagons.iter()
-            .flat_map(|h| h.io_adapters.iter())
-            .filter(|a| a.kind == "exec")
-            .filter_map(|a| {
-                let mut cmd: Option<String> = None;
-                let mut exec: Option<String> = None;
-                let mut result_into: Option<String> = None;
-                for (k, v) in &a.options {
-                    match k.as_str() {
-                        "command"     => cmd = Some(strip_quotes_or_colon(v)),
-                        "exec"        => exec = Some(strip_quotes_or_colon(v)),
-                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
-                        _ => {}
-                    }
-                }
-                match (cmd, exec) {
-                    (Some(c), Some(e)) if c == target => Some((e, result_into)),
-                    _ => None,
-                }
+        let cmd = match dispatch_attrs.get("cmd").map(|v| v.to_string()) {
+            Some(c) if !c.is_empty() => c,
+            _ => {
+                println!(
+                    "[{}] [primitive:spawn] skipped — missing cmd attr",
+                    storehouse_log::now_iso8601(),
+                );
+                return;
+            }
+        };
+        let result_into = dispatch_attrs.get("result_into").map(|v| v.to_string());
+
+        // The cascade join key is the `id` the dispatch carried (the
+        // originating invocation id), falling back to the Process
+        // record's own id. Mirrors the retired :exec resolver's
+        // invocation_id contract.
+        let invocation_id = dispatch_attrs
+            .get("id")
+            .map(|v| v.to_string())
+            .or_else(|| {
+                self.find(&result.aggregate_type, &result.aggregate_id)
+                    .and_then(|s| s.fields.get("id").map(|v| v.to_string()))
             })
-            .collect();
-        if matched.is_empty() { return; }
-
-        // The originating aggregate id is the cascade join key, same
-        // as the :claude_tool arm — the RecordResult lands on the
-        // same invocation record.
-        let invocation_id = self
-            .find(&result.aggregate_type, &result.aggregate_id)
-            .and_then(|s| s.fields.get("id").map(|v| v.to_string()))
             .unwrap_or_else(|| result.aggregate_id.clone());
 
-        for (exec, result_into) in &matched {
-            let exec_result = exec_dispatcher::dispatch(exec);
-            let err_tail = match (&exec_result.ok, &exec_result.error) {
-                (false, Some(msg)) => format!(" error={:?}", msg),
-                _ => String::new(),
-            };
-            println!(
-                "[{}] [exec] ok={} exit={} output={:?}{}",
-                storehouse_log::now_iso8601(),
-                exec_result.ok, exec_result.exit_code, exec_result.output, err_tail
-            );
+        let exec_result = exec_dispatcher::dispatch(&cmd);
+        let err_tail = match (&exec_result.ok, &exec_result.error) {
+            (false, Some(msg)) => format!(" error={:?}", msg),
+            _ => String::new(),
+        };
+        println!(
+            "[{}] [primitive:spawn] ok={} exit={} output={:?}{}",
+            storehouse_log::now_iso8601(),
+            exec_result.ok, exec_result.exit_code, exec_result.output, err_tail
+        );
 
-            let result_into_target = match result_into.as_deref() {
-                Some(s) if !s.is_empty() => s,
-                _ => continue,
-            };
-            let mut record_attrs: HashMap<String, Value> = HashMap::new();
-            record_attrs.insert("id".to_string(), Value::Str(invocation_id.clone()));
-            record_attrs.insert("output".to_string(), Value::Str(exec_result.output.clone()));
-            record_attrs.insert("exit_code".to_string(), Value::Int(exec_result.exit_code as i64));
-            record_attrs.insert("ok".to_string(), Value::Bool(exec_result.ok));
-            let cascade_outcome = command_dispatch::dispatch_cascade(
-                self,
-                result_into_target,
-                record_attrs,
-                &result.aggregate_type,
-                &result.aggregate_id,
-            );
-            storehouse_log::cascade_step(
-                result_into_target,
-                &invocation_id,
-                cascade_outcome.is_ok(),
-            );
-            let _ = cascade_outcome;
-        }
+        let result_into_target = match result_into.as_deref() {
+            Some(s) if !s.is_empty() => s,
+            _ => return,
+        };
+        let mut record_attrs: HashMap<String, Value> = HashMap::new();
+        record_attrs.insert("id".to_string(), Value::Str(invocation_id.clone()));
+        record_attrs.insert("output".to_string(), Value::Str(exec_result.output.clone()));
+        record_attrs.insert("exit_code".to_string(), Value::Int(exec_result.exit_code as i64));
+        record_attrs.insert("ok".to_string(), Value::Bool(exec_result.ok));
+        let cascade_outcome = command_dispatch::dispatch_cascade(
+            self,
+            result_into_target,
+            record_attrs,
+            &result.aggregate_type,
+            &result.aggregate_id,
+        );
+        storehouse_log::cascade_step(
+            result_into_target,
+            &invocation_id,
+            cascade_outcome.is_ok(),
+        );
+        let _ = cascade_outcome;
     }
 
     /// i594 — :mcp adapter resolver. Parallel to
@@ -1587,6 +1654,10 @@ impl Runtime {
                             &event.aggregate_id,
                             &mut data,
                         );
+                        // Clone before the move so the process-spawn
+                        // primitive hook below sees the dispatch attrs
+                        // (a PM could also drive Primitive::Process.Spawn).
+                        let cascade_attrs = data.clone();
                         let inner = command_dispatch::dispatch_cascade(
                             self,
                             &dispatched.command_name,
@@ -1625,6 +1696,11 @@ impl Runtime {
                             self.resolve_llm_adapters(
                                 &inner_result, &dispatched.command_name,
                             );
+                            // Process-spawn primitive on PM cascades —
+                            // same hook as the policy arm below.
+                            self.resolve_primitive_spawn(
+                                &inner_result, &dispatched.command_name, &cascade_attrs,
+                            );
                         }
                     }
                 }
@@ -1636,6 +1712,14 @@ impl Runtime {
                 let policy_name = trigger.policy_name.clone();
                 let cmd = trigger.command_name.clone();
                 let mut data = trigger.event_data.clone();
+                // Gap #1 — merge the policy's `with` literals over the
+                // event data (the policy's explicit args win). This is
+                // how a policy firing `Primitive::Process.Spawn` carries
+                // the literal `cmd` + `result_into` the retired :exec
+                // resolver used to inline.
+                for (k, v) in &trigger.with_data {
+                    data.insert(k.clone(), v.clone());
+                }
 
                 // i622 — policy reaction log. Printed at every level
                 // (including quiet) because policy chains are the
@@ -1666,6 +1750,11 @@ impl Runtime {
                 // on the same row. Cross-type cascades (A → B) and
                 // cases without an existing record fall through to
                 // standard resolution unchanged.
+                // Clone the dispatch data BEFORE the move so the
+                // process-spawn primitive hook below can read `cmd` /
+                // `result_into` / `id` off the just-dispatched command's
+                // attrs (the adapters-as-bluebook policy path).
+                let cascade_attrs = data.clone();
                 let inner = command_dispatch::dispatch_cascade(
                     self, &cmd, data,
                     &event.aggregate_type, &event.aggregate_id,
@@ -1688,6 +1777,13 @@ impl Runtime {
                     // `Dream.RecordImage` (or any other adapter target)
                     // would silently skip Claude.
                     self.resolve_llm_adapters(&inner_result, &cmd);
+                    // Process-spawn primitive on policy cascades. This
+                    // is the path the re-expressed `:exec` adapter takes :
+                    // a policy fires `Primitive::Process.Spawn`, this
+                    // hook runs the literal cmd and cascades into
+                    // result_into. Without it, the policy-driven spawn
+                    // would dispatch the Process record but never run.
+                    self.resolve_primitive_spawn(&inner_result, &cmd, &cascade_attrs);
                 }
                 self.policy_engine.complete(&policy_name);
             }
@@ -2309,7 +2405,7 @@ pub fn repo_key(context: Option<&str>, name: &str) -> String {
 /// case), this is unambiguous. True same-name collisions across
 /// contexts surface as nondeterministic picks here — those callers
 /// should be migrated to keyed lookup as Tier 3 progresses.
-pub fn repo_lookup_key(repositories: &HashMap<String, Repository>, name: &str) -> Option<String> {
+pub fn repo_lookup_key(repositories: &HashMap<String, LazyRepository>, name: &str) -> Option<String> {
     if repositories.contains_key(name) {
         return Some(name.to_string());
     }
