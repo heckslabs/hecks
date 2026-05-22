@@ -61,12 +61,6 @@ pub mod claude_tool_dispatcher;
 pub mod mcp_dispatcher;
 pub mod sms_dispatcher;
 pub mod tts_dispatcher;
-// i_voice — phrase cache + latency telemetry that wrap the :tts
-// dispatcher. Submodules : phrase_cache (content-addressed mp3 store
-// at ~/.config/miette/audio/phrase_cache/<sha256>.mp3) and latency
-// (per-Speak measurement + rolling-5 ring persisted to
-// voice_latency.heki). Implements miette/body/voice/voice.bluebook.
-pub mod voice;
 // i569 — :web_tool adapter family kernel hook. Two behaviors :
 // perform_web_fetch (curl HTTP GET, URL-safety gated) and
 // perform_web_search (DuckDuckGo HTML-lite). Sibling to

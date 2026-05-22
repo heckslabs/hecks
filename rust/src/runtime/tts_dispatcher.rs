@@ -19,68 +19,68 @@
 //!
 //! ── Scope ──
 //!
-//! Real ElevenLabs HTTP integration : POST /v1/text-to-speech/{voice_id}/stream
-//! with a JSON body carrying text + model_id + voice_settings (speed +
-//! stability + similarity_boost + style). The mp3 bytes return as
-//! they generate (TTFB ~860ms vs ~8s for the non-streaming endpoint).
-//! We tee the byte stream inside the dispatch loop : (a) into
-//! `mpg123 -`'s stdin so playback begins as soon as the first MP3
-//! frame lands, and (b) into a cache file at
-//! `cache_dir/miette_{utc}.mp3` so Replay still has a full artifact
-//! after the stream finishes. A pid file at
-//! `~/.config/miette/speak.pid` records the dispatcher pid so a
-//! fresh dispatch cancels the prior in-flight render before starting
-//! a new one (latest-wins semantics ; mirrors the historical
-//! ~/bin/miette-speak shell bridge that this dispatcher retires).
+//! Real ElevenLabs HTTP integration : POST /v1/text-to-speech/{voice_id}
+//! (the standard, NON-streaming endpoint) with a JSON body carrying
+//! text + model_id + voice_settings (speed + stability +
+//! similarity_boost + style). curl writes the COMPLETE mp3 to a cache
+//! file under `cache_dir` keyed by UTC timestamp ; only once the full
+//! artifact is on disk do we hand it to `mpg123` for playback. This
+//! is the simple, robust path : the dispatch does not block on a live
+//! byte stream and is safe against the Stop hook's process lifecycle
+//! (the streaming dispatcher that briefly replaced this blocked until
+//! stream EOF and broke the Stop-hook reading — reverted 2026-05-22).
 //!
-//! Falls back to macOS `say -v Samantha` when the key file is missing,
-//! empty, or the HTTP call delivered zero bytes — same contract as
-//! the shell bridge so a network drop or expired key still produces
-//! audible speech.
+//! `mpg123` is spawned with `.process_group(0)` so the player survives
+//! the dispatch's return (the audio outlives the CLI process). We do
+//! NOT wait for it. A pid file at `~/.config/miette/speak.pid` records
+//! the dispatcher pid so a fresh dispatch cancels the prior in-flight
+//! render (latest-wins ; mirrors the historical ~/bin/miette-speak
+//! shell bridge this dispatcher retires).
 //!
-//! Hand-rolled JSON + spawned `curl` + spawned `mpg123` (no serde,
-//! no reqwest at kernel floor — mirrors the sibling :exec / :llm
-//! dispatchers' substrate discipline). The tee runs in pure Rust
-//! because a shell `curl | tee file | mpg123 -` pipeline truncates
-//! the cache the moment mpg123 closes stdin (tee dies on EPIPE) ;
-//! the in-process loop keeps writing the file even after mpg123
-//! exits or stops accepting bytes.
+//! There is NO macOS `say` / Samantha fallback. Chris's rule is
+//! verbatim : "I'd rather you not speak than use the default." When
+//! synthesis fails (missing key, HTTP error, tiny error-body
+//! response), we stay silent and return `ok: false` with the reason in
+//! `error` for the logs — no audible degraded voice.
 //!
-//! Timing note : dispatch BLOCKS for the duration of the stream
-//! (typically a few seconds end-to-end). Playback begins inside
-//! the first second via mpg123 reading our piped stdin ; mpg123
-//! is reparented to init when the dispatch returns so audio
-//! continues past return. This is a semantic departure from the
-//! pre-streaming dispatcher, which spawned `afplay` detached and
-//! returned immediately. Blocking is necessary because returning
-//! before EOF would tear down the in-process tee loop and truncate
-//! the cache.
+//! Hand-rolled JSON + spawned `curl` (no serde, no reqwest at kernel
+//! floor — mirrors the sibling :exec / :llm dispatchers' substrate
+//! discipline).
 
 use std::collections::HashMap;
-use std::io::{ErrorKind, Read, Write};
+use std::io::Write;
 use std::os::unix::process::CommandExt;
-use std::process::Stdio;
-
-use super::voice::{phrase_cache, latency};
 
 /// What a `:tts` dispatch produced. `audio_path` is the cached
-/// audio file's filesystem location ; empty when the fallback path
-/// (macOS `say`) ran instead of the ElevenLabs render.
+/// audio file's filesystem location ; empty when synthesis failed
+/// before a complete artifact was written.
 #[derive(Debug, Clone, Default)]
 pub struct TtsResult {
     /// Path to the rendered audio file on disk (mp3 today). Empty
-    /// when the dispatch fell back to `say` or returned an error
-    /// before the file was written.
+    /// when the dispatch returned an error before the file was
+    /// written.
     pub audio_path: String,
-    /// True if audio reached the speakers (ElevenLabs render or the
-    /// `say` fallback both count — what matters is that Chris heard
-    /// something). False only on dispatch-shape errors (missing
-    /// `text`, unknown provider) before any audio path is attempted.
+    /// True only when a complete ElevenLabs mp3 was synthesized (and
+    /// played, if auto_play). False on any failure — there is no
+    /// fallback, so a false here means Chris heard nothing.
     pub ok: bool,
-    /// Human-readable error when `ok == false`, or a fallback note
-    /// (`"fellback to say (…)"`) when ElevenLabs failed but `say`
-    /// took over.
+    /// Human-readable reason when `ok == false`, for the logs.
     pub error: Option<String>,
+}
+
+/// Build a silent-failure result : log the reason to stderr (visible
+/// under `HECKS_DEBUG_TTS`, harmless otherwise) and return ok=false.
+/// Replaces the old `fallback_say` — we never speak with the macOS
+/// default voice. Silence + a logged reason is the contract.
+fn silent_fail(reason: &str) -> TtsResult {
+    if std::env::var("HECKS_DEBUG_TTS").is_ok() {
+        eprintln!("[tts:debug] silent failure : {}", reason);
+    }
+    TtsResult {
+        audio_path: String::new(),
+        ok: false,
+        error: Some(reason.to_string()),
+    }
 }
 
 /// Dispatch a `:tts` adapter call. `provider` is the adapter's
@@ -109,60 +109,13 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         },
     };
 
-    // Start the latency measurement window BEFORE any work so cache
-    // hits and HTTP misses share the same start instant.
-    let measurement = latency::start();
-
-    // Resolve the cache-key tuple early so hit + miss paths agree
-    // on the key shape. voice_id may be missing — in that case the
-    // miss path will fall back to `say` ; we still skip the cache
-    // check in that case (no key → no hit).
-    let cache_voice_id = attrs.get("voice_id").cloned().unwrap_or_default();
-    let cache_model = attrs.get("model").cloned().unwrap_or_else(|| "eleven_v3".into());
-    let cache_speed = attrs.get("speed").cloned().unwrap_or_else(|| "1.2".into());
-
-    // Cache hit ? Skip the HTTP roundtrip entirely : pipe the cached
-    // mp3 straight to mpg123, record latency with cache_hit=true,
-    // return. mpg123 over afplay because the task locked it in and
-    // because mpg123's stdin-streaming option (`mpg123 -`) lets us
-    // pipe without an intermediate file dance on a future tightening
-    // pass (v1 just plays the file directly).
-    if !cache_voice_id.is_empty() {
-        if let Some(cached) = phrase_cache::try_hit(
-            &text, &cache_voice_id, &cache_model, &cache_speed
-        ) {
-            let auto_play = attrs.get("auto_play")
-                .map(|s| matches!(s.as_str(), "true" | "1" | "yes"))
-                .unwrap_or(true);
-            if auto_play {
-                let _ = std::process::Command::new("mpg123")
-                    .arg("-q").arg(&cached).process_group(0).spawn();
-            }
-            let path_str = cached.to_string_lossy().to_string();
-            // ttfb on a hit is effectively zero — the audio file is
-            // already on disk and mpg123 spawned in <1ms. Report the
-            // elapsed wall-clock so the rolling average still has a
-            // signal even on the fast path.
-            let ttfb = measurement.started_at.elapsed().as_millis();
-            latency::record(&measurement, text.chars().count(), ttfb, true);
-            if std::env::var("HECKS_DEBUG_TTS").is_ok() {
-                eprintln!("[tts:debug] cache HIT → {}", path_str);
-            }
-            return TtsResult {
-                audio_path: path_str,
-                ok: true,
-                error: None,
-            };
-        }
-    }
-
     let home = std::env::var("HOME").unwrap_or_default();
 
     // Cancel any in-flight prior render. Each invocation supersedes
     // the previous : if the pid file points at a live process, kill
-    // its children first (curl + afplay) then the wrapper. Belt-
-    // and-suspenders also pkill any orphan `afplay` left from a
-    // prior crash. Mirrors ~/bin/miette-speak's identical guard.
+    // its children first (curl + mpg123) then the wrapper. Belt-
+    // and-suspenders also pkill any orphan player left from a prior
+    // crash. Mirrors ~/bin/miette-speak's identical guard.
     let pid_file = format!("{}/.config/miette/speak.pid", home);
     cancel_prior_render(&pid_file);
     let _ = std::fs::create_dir_all(format!("{}/.config/miette", home));
@@ -171,30 +124,35 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
     });
 
     // Provider-side config : voice_id is required ; everything else
-    // falls back to the shell bridge's defaults so a hecksagon that
-    // declares only voice_id still renders.
+    // falls back to a default so a hecksagon that declares only
+    // voice_id still renders the right voice.
     let voice_id = match attrs.get("voice_id") {
         Some(v) if !v.is_empty() => v.clone(),
-        _ => return fallback_say(&text, "no `voice_id` (set it on the :tts adapter)"),
+        _ => return silent_fail("no `voice_id` (set it on the :tts adapter)"),
     };
-    let model = attrs.get("model").cloned().unwrap_or_else(|| "eleven_v3".into());
+    // Default to eleven_turbo_v2_5 : the fast model that preserves the
+    // WwS1 (Björk-tone) voice. The old eleven_v3 default is deprecated
+    // for HTTP synthesis and degraded the voice ; the live voice.hecksagon
+    // overrides this anyway, but the constant on the page should match
+    // reality so a non-overriding caller still gets the right voice.
+    let model = attrs.get("model").cloned().unwrap_or_else(|| "eleven_turbo_v2_5".into());
     let speed = attrs.get("speed").cloned().unwrap_or_else(|| "1.2".into());
 
-    // Optional emotion knobs. The shell bridge omitted these by
-    // default ; we pass them when the adapter declares them so
-    // bluebook-tuned voices ride through without code changes.
+    // Optional emotion knobs. Passed through only when the adapter
+    // declares them so bluebook-tuned voices ride through without
+    // code changes.
     let stability = attrs.get("stability").cloned();
     let similarity = attrs.get("similarity_boost").cloned();
     let style = attrs.get("style").cloned();
 
-    // API key — fallback to `say` when absent, matching the shell.
+    // API key — silent failure when absent (no `say` fallback).
     let key_path = format!("{}/.config/miette/elevenlabs.key", home);
     let api_key = match std::fs::read_to_string(&key_path) {
         Ok(k) => k.trim().to_string(),
-        Err(e) => return fallback_say(&text, &format!("cannot read {} ({})", key_path, e)),
+        Err(e) => return silent_fail(&format!("cannot read {} ({})", key_path, e)),
     };
     if api_key.is_empty() {
-        return fallback_say(&text, &format!("empty api key at {}", key_path));
+        return silent_fail(&format!("empty api key at {}", key_path));
     }
 
     // Cache dir resolves ~/ → $HOME and is created on demand.
@@ -205,15 +163,15 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         None => cache_dir_raw,
     };
     if let Err(e) = std::fs::create_dir_all(&cache_dir) {
-        return fallback_say(&text, &format!("cannot create cache_dir {} ({})", cache_dir, e));
+        return silent_fail(&format!("cannot create cache_dir {} ({})", cache_dir, e));
     }
     // miette_{YYYYMMDDTHHMMSS}.mp3 — UTC, matches the shell bridge's
     // filename convention so audit listings span both eras byte-equal.
     let audio_path = format!("{}/miette_{}.mp3", cache_dir, utc_compact());
 
-    // voice_settings : speed is always present (defaults to 1.2 from
-    // the shell bridge) ; stability / similarity_boost / style are
-    // included only when the adapter declared them.
+    // voice_settings : speed is always present ; stability /
+    // similarity_boost / style are included only when the adapter
+    // declared them.
     let mut settings = format!("\"speed\":{}", parse_float_or(&speed, 1.2));
     if let Some(s) = &stability {
         settings.push_str(&format!(",\"stability\":{}", parse_float_or(s, 0.5)));
@@ -228,12 +186,10 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         "{{\"text\":\"{}\",\"model_id\":\"{}\",\"voice_settings\":{{{}}}}}",
         json_escape(&text), model, settings
     );
-    // Streaming endpoint — bytes flow back as they generate. The
-    // non-streaming sibling endpoint (no `/stream` suffix) returns
-    // the same MP3 but holds it for ~8s end-to-end ; the streaming
-    // path delivers TTFB ~860ms so mpg123 begins playback inside the
-    // first second.
-    let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}/stream", voice_id);
+    // Standard, non-streaming endpoint : curl writes the COMPLETE mp3
+    // to disk before we play it. No `/stream` suffix — that blocked
+    // the dispatch on a live byte stream and broke the Stop hook.
+    let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}", voice_id);
 
     if std::env::var("HECKS_DEBUG_TTS").is_ok() {
         eprintln!("[tts:debug] POST {}", url);
@@ -241,264 +197,68 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         eprintln!("[tts:debug] mp3  {}", audio_path);
     }
 
-    // auto_play decides whether we spawn mpg123 at all. When false,
-    // we still stream-write the cache so Replay has the artifact ;
-    // we just skip the playback child.
-    let auto_play = attrs.get("auto_play")
-        .map(|s| matches!(s.as_str(), "true" | "1" | "yes"))
-        .unwrap_or(true);
-
-    // Spawn curl with stdout piped so we can read MP3 chunks
-    // ourselves. No `--output` here — that would buffer the whole
-    // response to disk before we ever see a byte. `-N` (--no-buffer)
-    // tells curl to flush as bytes arrive ; `--fail` makes a
-    // non-2xx HTTP status surface as a non-zero exit so we can
-    // detect ElevenLabs errors and fall back to `say`.
-    let mut curl = match std::process::Command::new("curl")
-        .arg("-sN").arg("--fail").arg("-X").arg("POST").arg(&url)
+    let out = std::process::Command::new("curl")
+        .arg("-s").arg("-X").arg("POST").arg(&url)
         .arg("-H").arg(format!("xi-api-key: {}", api_key))
         .arg("-H").arg("Content-Type: application/json")
         .arg("-H").arg("Accept: audio/mpeg")
         .arg("-d").arg(&body)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Ok(c) => c,
-        Err(e) => return fallback_say(&text, &format!("curl spawn failed ({})", e)),
-    };
-
-    // Spawn mpg123 reading from stdin. Absolute path avoids PATH
-    // surprises when storehouse is launched from non-login shells
-    // (Claude Code, launchd, hooks). `-q` keeps stderr quiet so the
-    // dispatch's parent doesn't see decoder chatter. `-` reads MP3
-    // frames from stdin. We deliberately don't `.wait()` for mpg123
-    // — playback runs past the dispatch's return so the CLI exits
-    // promptly after the stream finishes.
-    let mpg123 = if auto_play {
-        match std::process::Command::new("/opt/homebrew/bin/mpg123")
-            .arg("-q").arg("-")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            // Own process group : the player must outlive this dispatch.
-            // Without it, mpg123 sits in storehouse's group and gets
-            // reaped when the dispatch process exits — cutting playback
-            // off mid-stream (the audio is ~5s, the dispatch returns in
-            // ~1s). process_group(0) detaches it so it finishes the
-            // buffered audio after we return.
-            .process_group(0)
-            .spawn()
-        {
-            Ok(c) => Some(c),
-            // mpg123 missing → still let the cache write proceed
-            // (Replay works), but log that playback is degraded.
-            Err(e) => {
-                if std::env::var("HECKS_DEBUG_TTS").is_ok() {
-                    eprintln!("[tts:debug] mpg123 spawn failed ({}) ; tee→file only", e);
-                }
-                None
-            }
+        .arg("--output").arg(&audio_path)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => {}
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr).into_owned();
+            return silent_fail(&format!("curl exit {:?} : {}", o.status.code(), stderr));
         }
-    } else {
-        None
-    };
-
-    // Open the cache file. Errors here are fatal for the dispatch :
-    // if we can't write the artifact, fall back to `say` and reap
-    // any half-spawned children.
-    let mut cache_file = match std::fs::File::create(&audio_path) {
-        Ok(f) => f,
-        Err(e) => {
-            let _ = curl.kill();
-            if let Some(mut c) = mpg123 { let _ = c.kill(); }
-            return fallback_say(&text, &format!("cannot create cache file {} ({})", audio_path, e));
-        }
-    };
-
-    // Take ownership of the pipes before the tee loop. curl's stdout
-    // is a `ChildStdout` ; mpg123's stdin is a `ChildStdin`. Both
-    // are owned exactly once, so we move them out of the children
-    // here. The children themselves stay alive (curl until EOF,
-    // mpg123 until we drop its stdin or it finishes playing).
-    let mut mpg123 = mpg123;
-    let mut curl_out = match curl.stdout.take() {
-        Some(s) => s,
-        None => {
-            let _ = curl.kill();
-            if let Some(mut c) = mpg123 { let _ = c.kill(); }
-            return fallback_say(&text, "curl stdout pipe vanished");
-        }
-    };
-    let mut mpg_in = mpg123.as_mut().and_then(|c| c.stdin.take());
-
-    // Tee loop. Read up to 4 KiB at a time so we don't block waiting
-    // for a fat buffer to fill ; mpg123 starts decoding the first
-    // MP3 frame inside the first chunk. Cache write errors are
-    // fatal (the artifact is the whole point of caching) ; mpg123
-    // write errors are not — if the user kills playback or mpg123
-    // dies mid-stream, we keep feeding the cache so Replay still
-    // has the full file.
-    let mut buf = [0u8; 4096];
-    let mut total_bytes: u64 = 0;
-    loop {
-        match curl_out.read(&mut buf) {
-            Ok(0) => break, // EOF — curl finished
-            Ok(n) => {
-                if let Err(e) = cache_file.write_all(&buf[..n]) {
-                    let _ = curl.kill();
-                    if let Some(mut c) = mpg123.take() { let _ = c.kill(); }
-                    return fallback_say(&text, &format!("cache write failed ({})", e));
-                }
-                total_bytes += n as u64;
-                // Write to mpg123 if it's still attached.
-                // BrokenPipe just means mpg123 stopped reading (user
-                // killed it, or it finished decoding). Drop our
-                // handle so we don't keep trying ; the file write
-                // continues normally. Use a `take` + restore dance
-                // so the borrow on `mpg_in` ends before we possibly
-                // reassign it.
-                let drop_pipe = if let Some(stdin) = mpg_in.as_mut() {
-                    match stdin.write_all(&buf[..n]) {
-                        Ok(()) => false,
-                        Err(e) => {
-                            if e.kind() != ErrorKind::BrokenPipe
-                                && std::env::var("HECKS_DEBUG_TTS").is_ok()
-                            {
-                                eprintln!("[tts:debug] mpg123 stdin write : {}", e);
-                            }
-                            true
-                        }
-                    }
-                } else {
-                    false
-                };
-                if drop_pipe {
-                    mpg_in = None;
-                }
-            }
-            Err(e) => {
-                let _ = curl.kill();
-                if let Some(mut c) = mpg123.take() { let _ = c.kill(); }
-                return fallback_say(&text, &format!("curl stdout read failed ({})", e));
-            }
-        }
+        Err(e) => return silent_fail(&format!("curl spawn failed ({})", e)),
     }
-    // Flush + close the cache file deterministically before we look
-    // at curl's exit status, so even on a partial stream the artifact
-    // on disk reflects exactly the bytes we received.
-    let _ = cache_file.flush();
-    drop(cache_file);
-    // Close mpg123's stdin so it knows the stream ended and can
-    // finish decoding the tail. We do NOT wait for it to exit —
-    // playback continues past the dispatch's return.
-    drop(mpg_in);
-
-    // Inspect curl's exit. `--fail` makes a 4xx/5xx surface here.
-    // If curl errored AND we never forwarded any bytes, treat it as
-    // a hard failure and fall back to `say`. If we forwarded some
-    // bytes (network drop mid-stream, partial render), keep the
-    // partial cache and report success — the user already heard the
-    // first part of the utterance, downgrading to `say` would talk
-    // over the playback.
-    let status = curl.wait();
-    let curl_stderr = curl.stderr.take()
-        .map(|mut s| {
-            let mut buf = Vec::new();
-            let _ = s.read_to_end(&mut buf);
-            String::from_utf8_lossy(&buf).into_owned()
-        })
-        .unwrap_or_default();
-    match status {
-        Ok(st) if st.success() => {
-            // Happy path : full stream delivered, playback in
-            // progress, cache complete.
-        }
-        Ok(st) if total_bytes == 0 => {
-            // curl errored before any bytes ; remove the empty cache
-            // file and fall back so Chris still hears something.
+    // ElevenLabs returns a small JSON error body (not audio) on
+    // failure. Treat a too-small file as an error, surface the body
+    // for diagnosis, and stay silent (no fallback voice).
+    match std::fs::metadata(&audio_path) {
+        Ok(m) if m.len() > 1024 => {}
+        Ok(m) => {
+            let snippet = std::fs::read_to_string(&audio_path).unwrap_or_default();
             let _ = std::fs::remove_file(&audio_path);
-            return fallback_say(&text, &format!(
-                "curl exit {:?} (zero bytes) : {}",
-                st.code(),
-                curl_stderr.lines().take(3).collect::<Vec<_>>().join(" / ")
-            ));
+            return silent_fail(&format!(
+                "response too small ({} bytes) : {}",
+                m.len(), snippet.chars().take(200).collect::<String>()));
         }
-        Ok(_) => {
-            // Partial stream — leave the cache, surface the warning
-            // in `error` but report ok=true since audio was heard.
-            return TtsResult {
-                audio_path,
-                ok: true,
-                error: Some(format!(
-                    "partial stream ({} bytes) : {}",
-                    total_bytes,
-                    curl_stderr.lines().take(3).collect::<Vec<_>>().join(" / ")
-                )),
-            };
-        }
-        Err(e) => {
-            if total_bytes == 0 {
-                let _ = std::fs::remove_file(&audio_path);
-                return fallback_say(&text, &format!("curl wait failed ({})", e));
-            }
-            return TtsResult {
-                audio_path,
-                ok: true,
-                error: Some(format!("curl wait failed after {} bytes ({})", total_bytes, e)),
-            };
-        }
+        Err(e) => return silent_fail(&format!("no audio file written ({})", e)),
     }
 
-    // Cache miss : save the freshly rendered mp3 under its content
-    // hash so the next Speak with the same (text, voice_id, model,
-    // speed) tuple hits. Best-effort — a copy failure doesn't
-    // invalidate the dispatch (the timestamped audit file already
-    // played).
-    if !cache_voice_id.is_empty() {
-        let _ = phrase_cache::save(
-            &text, &cache_voice_id, &cache_model, &cache_speed, &audio_path
-        );
+    // Play the finished audio file. auto_play defaults true — the
+    // dispatch is a one-shot voice command. mpg123 with an explicit
+    // path (the complete mp3 already on disk) ; absolute binary path
+    // avoids PATH surprises when storehouse is launched from
+    // non-login shells (Claude Code, launchd, hooks). `-q` keeps the
+    // decoder quiet. `.process_group(0)` detaches the player into its
+    // own group so it survives this dispatch's return and finishes
+    // the audio — the supervised pid file lets the next call cancel
+    // it if a fresher Speak arrives. We deliberately do NOT wait.
+    let auto_play = attrs.get("auto_play")
+        .map(|s| matches!(s.as_str(), "true" | "1" | "yes"))
+        .unwrap_or(true);
+    if auto_play {
+        let _ = std::process::Command::new("/opt/homebrew/bin/mpg123")
+            .arg("-q").arg(&audio_path)
+            .process_group(0)
+            .spawn();
     }
-    let ttfb = measurement.started_at.elapsed().as_millis();
-    latency::record(&measurement, text.chars().count(), ttfb, false);
 
     TtsResult { audio_path, ok: true, error: None }
 }
 
-/// Fallback : run macOS `say -v Samantha "{text}"` and report it as a
-/// successful dispatch (audio reached Chris's ears) with the reason
-/// folded into the error field so logs can still attribute the
-/// downgrade. Mirrors miette-speak's `fallback()` shell function.
-fn fallback_say(text: &str, reason: &str) -> TtsResult {
-    let _ = std::process::Command::new("say")
-        .arg("-v").arg("Samantha")
-        .arg(text)
-        .spawn();
-    TtsResult {
-        audio_path: String::new(),
-        ok: true,
-        error: Some(format!("fellback to say ({})", reason)),
-    }
-}
-
-/// Kill the prior `miette-speak` / `tts dispatch` wrapper recorded in
-/// the pid file, plus its children (curl, mpg123, afplay), plus any
-/// orphan mpg123 / afplay processes from a crashed run. Best-effort :
-/// missing or invalid pid files are silently ignored. Mirrors the
-/// shell bridge's identical guard.
-///
-/// `afplay` lingers in the kill list because Replay (cached playback
-/// after the streaming render is gone) still uses it ; both players
-/// must die when a fresh Speak supersedes them. mpg123 is the new
-/// streaming player ; afplay is the legacy / Replay player. The
-/// transitional double-pkill is intentional and removed only when
-/// Replay also moves off afplay.
+/// Kill the prior `tts dispatch` wrapper recorded in the pid file,
+/// plus its children (curl, mpg123), plus any orphan mpg123 from a
+/// crashed run. Best-effort : missing or invalid pid files are
+/// silently ignored. Mirrors the shell bridge's identical guard.
 fn cancel_prior_render(pid_file: &str) {
     if let Ok(s) = std::fs::read_to_string(pid_file) {
         if let Ok(pid) = s.trim().parse::<i32>() {
-            // Kill children first so the wrapper doesn't dive into its
-            // fallback path on signal ; then the wrapper itself.
+            // Kill children first so the wrapper doesn't dive into a
+            // late code path on signal ; then the wrapper itself.
             let _ = std::process::Command::new("pkill")
                 .arg("-P").arg(pid.to_string()).output();
             let _ = std::process::Command::new("kill")
@@ -507,7 +267,6 @@ fn cancel_prior_render(pid_file: &str) {
     }
     // Belt-and-suspenders : reap any orphan player from a crashed run.
     let _ = std::process::Command::new("pkill").arg("-9").arg("mpg123").output();
-    let _ = std::process::Command::new("pkill").arg("-9").arg("afplay").output();
 }
 
 /// UTC compact timestamp (YYYYMMDDTHHMMSS) — matches the shell
