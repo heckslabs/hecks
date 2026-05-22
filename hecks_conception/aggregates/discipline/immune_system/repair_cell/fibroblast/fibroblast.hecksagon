@@ -1,21 +1,20 @@
 Hecks.hecksagon "Fibroblast" do
-  # Fibroblast adapter binding : Fibroblast.Sweep dispatch → the real
-  # repair sweep. This is the i629 :exec arm for the repair cell, first
-  # safe vertical slice (i707 v1).
+  # Fibroblast wiring. The repair sweep's side effect is no longer an
+  # imperative `:exec` adapter resolved by a hand-written Rust arm — it
+  # is ordinary bluebook now. See fibroblast.bluebook's
+  # `RunSweepOnSweepRan` policy : when Fibroblast.Sweep emits SweepRan,
+  # the policy fires the generic process-spawn primitive
+  # `Primitive::Process.Spawn` (literal cmd `bash bin/fibroblast_sweep.sh`,
+  # result_into `Cascade.RecordResult`). The runtime's one generic
+  # primitive hook runs the script and cascades the outcome — the
+  # adapters-as-bluebook first slice (plan: structured-pondering-pie).
   #
-  # The Fibroblast bluebook (sibling fibroblast.bluebook) is pure
-  # composition : it names the healing lifecycle (ReceiveSignal,
-  # SelectStrategy, Heal, Decline, RecordOutcome) and the Sweep tick.
-  # This file is the impure layer — the only place a side effect runs.
-  #
-  # The :exec adapter (family framework/adapter_families/exec.hecksagon,
-  # behavior perform_exec, kernel arm runtime/exec_dispatcher.rs +
-  # resolve_exec_adapters) binds Fibroblast.Sweep to the local sweeper.
-  # When Miette dispatches Fibroblast::Fibroblast.Sweep via the
-  # storehouse universal door — OR a future overmind `fibroblast` loop
-  # member dispatches it on a cadence — the kernel runs
-  # bin/fibroblast_sweep.sh and cascades its outcome into
-  # Cascade.RecordResult, joinable by id.
+  # The Fibroblast bluebook (sibling fibroblast.bluebook) names the
+  # healing lifecycle (ReceiveSignal, SelectStrategy, Heal, Decline,
+  # RecordOutcome) plus the Sweep tick and the repair-arm policy. The
+  # script bin/fibroblast_sweep.sh is the impure leaf the primitive
+  # runs ; it reads the open queue and dispatches SelectStrategy → Heal
+  # (verified) OR Decline per record.
   #
   # SAFETY STANCE (the trust-earning slice) : the sweeper auto-APPLIES
   # only the one mechanical, verifiable strategy — nav_sitemap_close
@@ -27,25 +26,11 @@ Hecks.hecksagon "Fibroblast" do
   # human reviews the working-tree change. Over-reaching is the failure
   # mode the fibroblast disciplines against.
   #
-  # :exec, not :shell : the parser routes :shell to a legacy
-  # ShellAdapter with different semantics (i629). :exec is the clean
-  # general "run a local program on dispatch" family. The exec string
-  # is `bash bin/fibroblast_sweep.sh` — bash is the program, the script
-  # the arg ; exec_dispatcher does NOT invoke a shell, so all sweep
-  # logic lives inside the script file (no pipes/redirects in the
-  # exec string).
-  #
-  # cwd contract : exec_dispatcher inherits the runtime process cwd.
-  # The script resolves all state paths from $HECKS_INFO (always set by
-  # the runtime) and the aggregates root from $FIBROBLAST_ROOT (set by
-  # the dispatcher's cwd parent), so it works whether a loop member or a
-  # manual dispatch fired it.
+  # cwd contract : the process-spawn primitive (exec_dispatcher leaf)
+  # inherits the runtime process cwd. The script resolves all state
+  # paths from $HECKS_INFO (always set by the runtime) and the
+  # aggregates root from its own location, so it works whether a loop
+  # member or a manual dispatch fired the sweep.
 
   adapter :memory
-
-  adapter :exec,
-          name:        "fibroblast_sweep",
-          command:     "Fibroblast.Sweep",
-          exec:        "bash bin/fibroblast_sweep.sh",
-          result_into: "Cascade.RecordResult"
 end

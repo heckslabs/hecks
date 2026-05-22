@@ -1,0 +1,128 @@
+Hecks.bluebook "Primitive", version: "2026.05.22.1" do
+  vision "The irreducible primitive standard library — the small closed set of bluebook commands bound to real side-effects, the ONLY hand-written imperative leaves in the runtime (later specializer-generated). This bluebook starts the floor with Process.Spawn : run a literal program to completion, capture (ok, output, exit_code), and chain the outcome into a result_into target (typically Cascade.RecordResult). It proves the bluebook path matches :exec semantics : instead of a hand-written resolve_exec_adapters arm, an ordinary bluebook policy fires Process.Spawn on a command's emitted event and the runtime's one generic primitive hook performs the spawn. The fibroblast repair sweep is migrated to this path (parity verified). resolve_exec_adapters STAYS for the un-migrated :exec bindings (Inbox.Check, ProcessMacrophage.Sweep, ProcessMacrophage.Heal) until trigger-on-command (gap #1b) lands — those commands emit events whose names collide across aggregates (Swept), so a name-matched policy can't disambiguate them yet. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it."
+  category "framework"
+
+  # ============================================================
+  # PRIMITIVE — the irreducible side-effect floor
+  # ============================================================
+  #
+  # The adapters-as-bluebook arc (plan: structured-pondering-pie)
+  # aims to reduce six hand-written imperative Rust resolvers
+  # (resolve_*_adapters) to ONE policy/cascade pattern bottoming out
+  # in a small primitive stdlib. This bluebook is the first floor
+  # tile : Process.Spawn, the generic process-spawn primitive that
+  # does what the :exec adapter family's resolver does — proven on
+  # the fibroblast repair sweep (the :exec family's simplest member).
+  #
+  # ── How it fits ──
+  #
+  # Before : `adapter :exec, command: "Agg.Cmd", exec: "...", result_into:
+  #   "Cascade.RecordResult"` in a hecksagon, resolved by a bespoke
+  #   resolve_exec_adapters arm in runtime/mod.rs.
+  #
+  # After (for migrated bindings — fibroblast today) : an ordinary
+  #   bluebook `policy` fires on the command's emitted event and
+  #   triggers `Primitive::Process.Spawn` with a literal `cmd` +
+  #   `result_into`. The runtime's single generic primitive hook
+  #   (resolve_primitive_spawn) detects the dispatched `Process.Spawn`,
+  #   runs the literal program via the kernel-floor exec leaf
+  #   (runtime/exec_dispatcher.rs — reused unchanged), and cascades
+  #   (id, output, exit_code, ok) into `result_into`. The adapter
+  #   PROTOCOL is now declarative bluebook ; only the spawn syscall
+  #   stays imperative.
+  #
+  # ── Why the resolver stays (the wall) ──
+  #
+  # resolve_exec_adapters is NOT retired yet. Three :exec bindings
+  # remain (Inbox.Check, ProcessMacrophage.Sweep, ProcessMacrophage.
+  # Heal). Migrating them needs gap #1b — trigger-on-COMMAND, or
+  # aggregate-scoped policy events. Policies today match by event NAME
+  # globally, and `Swept` (ProcessMacrophage.Sweep's event) is ALSO
+  # emitted by rust_to_bluebook_macrophage AND already consumed by the
+  # MarkHangedOnMissingHeartbeat policy — a name-matched policy can't
+  # fire ONLY for ProcessMacrophage.Sweep. The :exec resolver matches
+  # the precise Aggregate.Command, so it stays for those bindings until
+  # gap #1b lands. The fibroblast event was deliberately named SweepRan
+  # (not Swept) precisely to dodge that collision, which is why it
+  # could migrate first.
+  #
+  # ── Why no entities, why minimal state ──
+  #
+  # Each Spawn is an independent side-effect keyed by id ; no
+  # sub-concept persists across commands. State stays tiny : id, the
+  # command string, and the captured outcome. The outcome ALSO
+  # cascades into `result_into` (the real landing pad) so the
+  # Process record itself is just an audit row of the spawn.
+  #
+  # ── The cascade join key ──
+  #
+  # Process.Spawn carries an `id` — the originating invocation id (the
+  # aggregate id of the command whose event the firing policy reacted
+  # to). The primitive hook threads that same id into the
+  # `result_into` cascade so the outcome record joins the originating
+  # invocation by id, exactly as the retired :exec resolver did.
+
+  aggregate "Process", "One process-spawn side-effect. Runs a literal program to completion, captures (ok, output, exit_code), records an audit row, and the primitive hook chains the outcome into result_into (typically Cascade.RecordResult), joinable by id." do
+    identified_by :id
+
+    attribute :id,        Id
+    attribute :cmd,       Cmd
+    attribute :output,    Output
+    attribute :exit_code, ExitCode
+    attribute :ok_status, Ok
+
+    value_object "Id" do
+      # Invocation id — the originating command's aggregate id (the
+      # aggregate whose emitted event the firing policy reacted to).
+      # The primitive hook threads this same id into the result_into
+      # cascade so the outcome joins the originating invocation by id.
+      attribute :value, String
+    end
+
+    value_object "Cmd" do
+      # The literal program string to run, verbatim — e.g.
+      # "bash bin/fibroblast_sweep.sh". Split on whitespace into
+      # program + args by the exec leaf (no shell ; no pipes /
+      # redirects — put compound logic inside a script file). cwd +
+      # env are inherited from the runtime process.
+      attribute :value, String
+    end
+
+    value_object "Output" do
+      # Captured stdout from the spawn ; on non-zero exit the leaf
+      # appends stderr so the failure is legible. Capped at 100 KB by
+      # the leaf, same as the web_tool / exec dispatchers.
+      attribute :value, String
+    end
+
+    value_object "ExitCode" do
+      # Process exit code. 0 conventionally means success.
+      attribute :value, Integer
+    end
+
+    value_object "Ok" do
+      # Coarse-grained success flag — true iff exit_code == 0.
+      attribute :value, Boolean
+    end
+
+    # ── Process : Spawn (the generic process-spawn primitive) ──
+    command "Spawn" do
+      role "System"
+      description "Run a literal program to completion, capture (ok, output, exit_code), and chain the outcome into result_into. The runtime's generic primitive hook (resolve_primitive_spawn) performs the spawn via the kernel-floor exec leaf and cascades the captured outcome into the result_into target carrying the same id. Emits Spawned so the audit row is a first-class event."
+      attribute :id,          Id
+      attribute :cmd,         Cmd
+      attribute :result_into, ResultInto
+      emits "Spawned"
+      then_set :id,  to: :id
+      then_set :cmd, to: :cmd
+    end
+
+    value_object "ResultInto" do
+      # The cascade landing target — the FQN-or-short-form command the
+      # primitive hook chains the captured outcome into (typically
+      # "Cascade.RecordResult"). Carried on the Spawn command only ;
+      # not persisted onto Process state (it is routing, not data).
+      attribute :value, String
+    end
+  end
+end
