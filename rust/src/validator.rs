@@ -208,7 +208,14 @@ fn valid_policy_triggers(domain: &Domain) -> Vec<String> {
     domain
         .policies
         .iter()
-        .filter(|p| p.target_domain.is_none()) // skip cross-domain
+        .filter(|p| p.target_domain.is_none()) // skip cross-domain (`across`)
+        // Skip `Domain::Aggregate.Command` FQN triggers : a `::` prefix
+        // names another bluebook, which a single-file validate cannot
+        // see (same rationale as the cross-domain skip above). The
+        // adapters-as-bluebook policies trigger `Primitive::Process.Spawn`,
+        // which lives in the primitive stdlib bluebook ; whole-tree load
+        // resolves it at dispatch time.
+        .filter(|p| !p.trigger_command.contains("::"))
         .filter(|p| !trigger_resolves(&p.trigger_command))
         .map(|p| {
             format!(
