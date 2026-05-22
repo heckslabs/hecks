@@ -82,3 +82,15 @@ green.
   VOICE only — it does not record turns into any domain. So i717's claim that
   "conversation.heki already logs the raw stream" is WRONG ; the capture hook is
   the unbuilt gap, and i717 is the real fix.
+
+## UPDATE — v2 LANDED (don't re-launch it)
+The serve-socket daemon sidequest COMPLETED and merged (`6e26283b` → main `caf205b0`).
+NOT in-flight — do NOT re-launch. Cross-restart warmth PROVEN: a client exited
+(simulated Claude restart), the daemon PID stayed alive, a fresh client reconnected
+at ~4ms warm, ONE boot ever. Freshness + one-shot fallback verified ; zero warnings ;
+256 tests pass.
+**TO ACTIVATE:** run `overmind restart` once (in hecks_conception) to launch the new
+`serve_socket` Procfile member — the boot's `overmind start` is a no-op if overmind is
+already running, so it won't add the member on its own. After that, warm dispatch
+survives Claude restarts (MCP connects to the socket ; falls back to one-shot if the
+daemon is down, so nothing breaks before the overmind restart).
