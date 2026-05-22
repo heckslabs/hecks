@@ -51,3 +51,24 @@ A `Fibroblast` aggregate in the immune / tissue domain :
 The immune family then reads : antibody (block) · macrophage (detect) ·
 fibroblast (repair) · autophagy (self-digest). Detection without repair is half
 a system ; this closes the loop.
+
+## Consolidation directive (2026-05-22) — one immune_system.bluebook
+
+The immune family already lives, but scattered under `aggregates/discipline/` :
+- `immunity/` — antibody / immunity core (immunity, rule, violation, rename_drift)
+- `macrophage/` — the detect cell (PostToolUse gate ; per-rule siblings :
+  BluebookFirst, AntibodyExemption, Warnings, LineCount, TestSpeed, …)
+- `repair_cell/fibroblast/` — the repair cell ALREADY conceived (2026.05.16.1) :
+  "closes what the above cells find" when the fix is unambiguous ; RepairStrategy
+  names nav_sitemap_close / bluebook_first_file_gap / loc_ratchet_extract ; the
+  runtime :exec arm (signal reader → fix composer → dispatch executor) was
+  deferred to i629.
+- `autophage/` — the self-eat cells (deploy_parity, nav_sitemap_parity)
+- `rust_to_bluebook_macrophage/`
+
+Chris's directive : consolidate ALL of it under a single `immune_system.bluebook`
+— one domain whose aggregates are Antibody/Immunity · Macrophage · Fibroblast ·
+Autophage. The background-agent repair behaviour above IS the fibroblast :exec
+arm (i629) made real : on a macrophage complaint, launch a repair agent through
+the bus ; when idle, claim the next antibody exemption. The "Fibroblast aggregate"
+sketch above should fold INTO the existing fibroblast.bluebook, not duplicate it.
