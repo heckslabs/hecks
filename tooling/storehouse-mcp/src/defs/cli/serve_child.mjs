@@ -1,198 +1,142 @@
-// serve_child.mjs — long-lived `storehouse serve-stdio` child manager.
+// serve_child.mjs — warm unix-socket CLIENT for the storehouse daemon.
 //
 // The universal door (storehouse__dispatch) used to spawn a fresh
-// `storehouse <root> <cmd> …` process per call, paying the ~660ms
-// lazy-IR boot EVERY time. This module keeps ONE resident
-// `storehouse serve-stdio <root>` child per aggregates root : the boot
-// is paid once, every subsequent request is a stdin line → stdout line
-// round-trip in single-digit ms.
+// `storehouse <root> <cmd> …` process per call (~660ms boot every time).
+// The first speedup spawned ONE resident `storehouse serve-stdio` child
+// per MCP server — but Claude Code starts the MCP, so the warm child
+// died on every Claude restart and re-paid the boot.
 //
-// ## Protocol (must match rust/src/run_serve/mod.rs)
+// This module is the fix : the warm process now lives as an OVERMIND
+// DAEMON (`storehouse serve-socket <root>`), independent of Claude, on a
+// unix domain socket. This module is a thin CLIENT that CONNECTS per
+// dispatch — so a Claude/MCP restart rebuilds only this membrane while
+// the daemon stays warm. No persistent child is spawned here anymore.
 //
-// Request : one line on the child's stdin — `Command k=v k=v …`
+// ## Socket address — one source of truth
+//
+// The daemon binds a deterministic per-root path (Rust SipHash of the
+// canonical root). The JS side can't reproduce that hash, so we shell
+// `storehouse sock-path <root>` ONCE per root (~600ms cold) and cache
+// it. Every subsequent dispatch is a pure socket round-trip.
+//
+// ## Protocol (must match rust/src/run_serve/)
+//
+// Request : one line written to the socket — `Command k=v k=v …`
 //           (the same positional shape the one-shot CLI takes).
-// Reply   : the child writes a SENTINEL-prefixed line on stdout :
+// Reply   : the daemon writes ONE sentinel-prefixed line back :
 //             "\x1eRESULT " + json     — the answer
 //             "\x1eERROR "  + json     — a handled dispatch error
-//           Any OTHER stdout line is incidental adapter/log output and
-//           is forwarded to this process's stderr, never treated as a
-//           reply. The child emits one `\x1eRESULT {"ready":true}` line
-//           when its boot finishes.
+//           then closes the connection. (The daemon's free-form
+//           adapter/log output goes to ITS stdout, never the socket, so
+//           the stream carries only the result line.)
 //
-// ## Robustness (mandatory — this is the universal door)
+// ## Fallback policy (mandatory — this is the universal door)
 //
-// A request is serialized through a per-child queue (one in flight at a
-// time) so concurrent dispatches can't interleave reads on the shared
-// stdout stream. On ANY failure — spawn error, child exit, write
-// error, timeout, or a `\x1eERROR` sentinel — the child is killed and
-// `warmDispatch` rejects ; the caller (dispatch.mjs) falls back to a
-// one-shot spawn for that request and the next request respawns a
-// fresh child. A serve-child failure NEVER black-holes a dispatch.
+// CONNECT failure (daemon down : ENOENT / ECONNREFUSED) → reject so the
+// caller falls back to a one-shot `storehouse <root> <cmd>` spawn. A
+// connected-then-`\x1eERROR` reply is a REAL dispatch error, not a
+// transport fault — surfaced as a rejection too (the caller's one-shot
+// fallback reproduces the same error cleanly). A warm-path fault NEVER
+// black-holes a dispatch.
 
 import { spawn } from "node:child_process";
+import net from "node:net";
 
 const STOREHOUSE_BIN = process.env.STOREHOUSE_BIN || "storehouse";
 const RESULT_SENTINEL = "\x1eRESULT ";
 const ERROR_SENTINEL = "\x1eERROR ";
 // Dispatches can be slow when LLM / tool adapters fire ; generous cap.
 const REQUEST_TIMEOUT_MS = Number(process.env.STOREHOUSE_SERVE_TIMEOUT_MS || 30000);
-// How long to wait for the child's initial "ready" line after spawn.
-const READY_TIMEOUT_MS = Number(process.env.STOREHOUSE_SERVE_READY_MS || 15000);
 
-// One child per aggregates root. A Map keyed by absolute root path.
-const children = new Map();
+// Cache of resolved socket paths, keyed by aggregates root. The value is
+// a Promise<string> so concurrent first-dispatches share ONE sock-path
+// spawn. A failed resolution clears the entry so the next call retries.
+const sockPaths = new Map();
 
-class ServeChild {
-  constructor(aggregatesDir) {
-    this.aggregatesDir = aggregatesDir;
-    this.proc = null;
-    this.ready = false;
-    this.dead = false;
-    this.buf = "";
-    // Single in-flight request : { resolve, reject, timer }.
-    this.pending = null;
-    // Serialize requests so only one is in flight at a time.
-    this.queue = Promise.resolve();
-  }
-
-  spawnIfNeeded() {
-    if (this.proc && !this.dead) return;
-    this.dead = false;
-    this.ready = false;
-    this.buf = "";
-    const child = spawn(STOREHOUSE_BIN, ["serve-stdio", this.aggregatesDir], {
+// Shell `storehouse sock-path <root>` once per root, caching the result.
+function sockPathFor(aggregatesDir) {
+  let p = sockPaths.get(aggregatesDir);
+  if (p) return p;
+  p = new Promise((resolve, reject) => {
+    const child = spawn(STOREHOUSE_BIN, ["sock-path", aggregatesDir], {
       env: process.env,
-      stdio: ["pipe", "pipe", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    this.proc = child;
-
-    child.stdout.on("data", (d) => this._onStdout(d.toString()));
-    child.stderr.on("data", (d) => {
-      // Incidental child stderr — surface for debugging, never a reply.
-      process.stderr.write(d);
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (d) => (out += d.toString()));
+    child.stderr.on("data", (d) => (err += d.toString()));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      const path = out.trim();
+      if (code === 0 && path) resolve(path);
+      else reject(new Error(`sock-path failed (code ${code}): ${err.trim()}`));
     });
-    const die = (why) => this._die(why);
-    child.on("error", (err) => die(`spawn error: ${err && err.message ? err.message : err}`));
-    child.on("close", (code) => die(`child exited (code ${code})`));
-    child.on("exit", (code) => die(`child exited (code ${code})`));
-  }
+  });
+  // Drop the cache entry on failure so a later call can retry.
+  p.catch(() => sockPaths.delete(aggregatesDir));
+  sockPaths.set(aggregatesDir, p);
+  return p;
+}
 
-  _onStdout(chunk) {
-    this.buf += chunk;
-    let nl;
-    while ((nl = this.buf.indexOf("\n")) !== -1) {
-      const line = this.buf.slice(0, nl);
-      this.buf = this.buf.slice(nl + 1);
-      this._onLine(line);
-    }
-  }
+// Connect to the socket, send ONE request line, await the single
+// sentinel-prefixed reply line. Resolves with the parsed state object on
+// `\x1eRESULT` ; REJECTS on connect failure (daemon down → caller falls
+// back) and on `\x1eERROR` (real dispatch error → caller's one-shot
+// fallback reproduces it cleanly).
+function socketRequest(sockPath, requestLine) {
+  return new Promise((resolve, reject) => {
+    let buf = "";
+    let settled = false;
+    const conn = net.createConnection(sockPath);
 
-  _onLine(line) {
-    if (line.startsWith(RESULT_SENTINEL)) {
-      const json = line.slice(RESULT_SENTINEL.length);
-      // The boot-complete handshake : mark ready, don't resolve a
-      // request (there is none yet).
-      if (!this.ready) {
-        try {
-          const parsed = JSON.parse(json);
-          if (parsed && parsed.ready === true) {
-            this.ready = true;
+    const timer = setTimeout(() => fail(new Error("socket request timeout")), REQUEST_TIMEOUT_MS);
+
+    const done = (fn, arg) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { conn.destroy(); } catch { /* already gone */ }
+      fn(arg);
+    };
+    const fail = (e) => done(reject, e);
+
+    conn.on("connect", () => {
+      conn.write(requestLine + "\n");
+    });
+    conn.on("data", (d) => {
+      buf += d.toString();
+      let nl;
+      while ((nl = buf.indexOf("\n")) !== -1) {
+        const line = buf.slice(0, nl);
+        buf = buf.slice(nl + 1);
+        if (line.startsWith(RESULT_SENTINEL)) {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(line.slice(RESULT_SENTINEL.length));
+          } catch (e) {
+            fail(new Error(`unparseable socket reply: ${e.message}`));
             return;
           }
-        } catch {
-          /* fall through — treat as a reply */
+          done(resolve, parsed);
+          return;
         }
+        if (line.startsWith(ERROR_SENTINEL)) {
+          // A handled dispatch error — reject so the caller falls back
+          // to a clean one-shot spawn rather than returning a partial.
+          fail(new Error(`daemon returned error: ${line.slice(ERROR_SENTINEL.length)}`));
+          return;
+        }
+        // Any other line would be incidental — the daemon shouldn't emit
+        // any over the socket, but tolerate + forward to stderr.
+        if (line.length) process.stderr.write(line + "\n");
       }
-      this._settle(json, false);
-      return;
-    }
-    if (line.startsWith(ERROR_SENTINEL)) {
-      this._settle(line.slice(ERROR_SENTINEL.length), true);
-      return;
-    }
-    // Any other line is incidental log/adapter output from the
-    // resident process — forward to stderr, never a reply.
-    if (line.length) process.stderr.write(line + "\n");
-  }
-
-  _settle(json, isError) {
-    const p = this.pending;
-    if (!p) return; // stray line ; ignore.
-    this.pending = null;
-    clearTimeout(p.timer);
-    if (isError) {
-      // A handled dispatch error — reject so the caller falls back to
-      // a clean one-shot spawn rather than returning a partial answer.
-      p.reject(new Error(`serve child returned error: ${json}`));
-      return;
-    }
-    let parsed = null;
-    try {
-      parsed = JSON.parse(json);
-    } catch (e) {
-      p.reject(new Error(`unparseable serve reply: ${e.message}`));
-      this._die("unparseable reply");
-      return;
-    }
-    p.resolve(parsed);
-  }
-
-  _die(why) {
-    if (this.dead) return;
-    this.dead = true;
-    const p = this.pending;
-    this.pending = null;
-    if (this.proc) {
-      try { this.proc.kill(); } catch { /* already gone */ }
-    }
-    this.proc = null;
-    this.ready = false;
-    if (p) {
-      clearTimeout(p.timer);
-      p.reject(new Error(`serve child died: ${why}`));
-    }
-  }
-
-  async _waitReady() {
-    if (this.ready) return;
-    const deadline = Date.now() + READY_TIMEOUT_MS;
-    while (!this.ready && !this.dead && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 5));
-    }
-    if (this.dead) throw new Error("serve child died before ready");
-    if (!this.ready) {
-      this._die("ready timeout");
-      throw new Error("serve child boot timed out");
-    }
-  }
-
-  // Send ONE request line, await the matching reply. Serialized via the
-  // queue so reads on the shared stdout stream never interleave.
-  request(requestLine) {
-    const run = async () => {
-      this.spawnIfNeeded();
-      await this._waitReady();
-      return await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-          this._die("request timeout");
-        }, REQUEST_TIMEOUT_MS);
-        this.pending = { resolve, reject, timer };
-        try {
-          const ok = this.proc.stdin.write(requestLine + "\n");
-          if (!ok) {
-            // Backpressure is fine ; a hard write failure throws below.
-          }
-        } catch (e) {
-          this._die(`write error: ${e.message}`);
-        }
-      });
-    };
-    // Chain on the queue ; clear the chain's rejection so one failed
-    // request doesn't poison the next (which respawns a fresh child).
-    const result = this.queue.then(run, run);
-    this.queue = result.then(() => {}, () => {});
-    return result;
-  }
+    });
+    // Connect failure (ENOENT / ECONNREFUSED) or premature close — the
+    // daemon is down. Reject so the caller falls back to a one-shot.
+    conn.on("error", (err) => fail(err));
+    conn.on("close", () => fail(new Error("socket closed before reply")));
+  });
 }
 
 // Build the `Command k=v …` request line from command + attr-arg array
@@ -201,16 +145,12 @@ export function buildRequestLine(command, attrArgs) {
   return [command, ...attrArgs].join(" ");
 }
 
-// Try a warm dispatch through the resident child for this root. Resolves
-// with the parsed state object on success ; REJECTS on any failure so
-// the caller falls back to a one-shot spawn. The child is keyed by
-// aggregatesDir and lazily spawned on first use.
+// Try a warm dispatch through the resident DAEMON for this root. Resolves
+// with the parsed state object on success ; REJECTS on any failure so the
+// caller falls back to a one-shot spawn. Resolves the socket path once
+// per root (cached), then connects per dispatch.
 export async function warmDispatch(aggregatesDir, command, attrArgs) {
-  let child = children.get(aggregatesDir);
-  if (!child) {
-    child = new ServeChild(aggregatesDir);
-    children.set(aggregatesDir, child);
-  }
+  const sockPath = await sockPathFor(aggregatesDir);
   const line = buildRequestLine(command, attrArgs);
-  return await child.request(line);
+  return await socketRequest(sockPath, line);
 }

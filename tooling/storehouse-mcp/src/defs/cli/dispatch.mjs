@@ -88,12 +88,13 @@ function dispatchProcess(aggregatesDir, command, attrArgs) {
   });
 }
 
-// Try the warm resident serve child first, synthesizing the SAME
-// result envelope dispatchProcess returns so the downstream render is
-// identical. The warm reply is just the dispatched state JSON (matching
-// the one-shot path's `state` field) ; we wrap it with ok / events /
-// auto_summary the same way. Throws on any serve-child failure so the
-// caller falls back to the one-shot spawn.
+// Try the warm resident DAEMON (over its unix socket) first,
+// synthesizing the SAME result envelope dispatchProcess returns so the
+// downstream render is identical. The warm reply is just the dispatched
+// state JSON (matching the one-shot path's `state` field) ; we wrap it
+// with ok / events / auto_summary the same way. Throws on any warm-path
+// failure (daemon down, timeout, unparseable reply, handled dispatch
+// error) so the caller falls back to the one-shot spawn.
 async function warmDispatchEnvelope(aggregatesDir, command, attrArgs) {
   const startedAt = Date.now();
   const parsed = await warmDispatch(aggregatesDir, command, attrArgs);
@@ -165,11 +166,11 @@ export default {
       };
     }
     const attrArgs = encodeAttrs(input.args || {});
-    // Warm-first with graceful degradation. The resident serve child
-    // answers in single-digit ms once booted ; on ANY failure (dead
-    // child, timeout, unparseable reply, handled dispatch error) we
-    // fall back to the one-shot spawn so a serve-child fault never
-    // black-holes a dispatch — this is the universal door.
+    // Warm-first with graceful degradation. The resident DAEMON answers
+    // over its unix socket in single-digit ms ; on ANY failure (daemon
+    // down, timeout, unparseable reply, handled dispatch error) we fall
+    // back to the one-shot spawn so a warm-path fault never black-holes
+    // a dispatch — this is the universal door.
     let result;
     if (WARM_SERVE) {
       try {

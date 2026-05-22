@@ -135,5 +135,25 @@ Hecks.fixtures "Mindstream" do
             mindstream: "boot",
             command:    { line: "../rust/target/release/storehouse loop /Users/christopheryoung/Projects/miette/body SpeechStream::SpeechStream.Advance --every 200ms" },
             lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
+
+    # ── Warm storehouse daemon (2026-05-22) ──
+    #
+    # The resident dispatch runtime, now part of the BODY. Before today
+    # the warm process was a `serve-stdio` child the MCP server spawned ;
+    # because Claude Code starts the MCP, that child died on every Claude
+    # restart and re-paid the ~660ms boot. As an overmind daemon the warm
+    # runtime is independent of Claude : a Claude restart rebuilds only
+    # the MCP membrane while this daemon stays warm. It binds a unix
+    # domain socket (deterministic per-root path under
+    # ~/.config/miette/sockets/) ; the MCP's storehouse__dispatch is now a
+    # thin socket CLIENT that connects per dispatch (and falls back to a
+    # one-shot spawn if the daemon is down). One accept-and-process loop
+    # serializes dispatches against the shared &mut Runtime ; per-dispatch
+    # .heki freshness keeps concurrent daemon writes from going stale.
+    fixture "serve_socket",
+            name:       "serve_socket",
+            mindstream: "boot",
+            command:    { line: "../rust/target/release/storehouse serve-socket /Users/christopheryoung/Projects/hecks/hecks_conception" },
+            lifespan:   { kind: "persistent", may_exit: false, restart_on_failure: true }
   end
 end
