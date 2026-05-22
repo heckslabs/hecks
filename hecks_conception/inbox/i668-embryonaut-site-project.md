@@ -32,7 +32,7 @@ Formed 2026-05-05.
 ## Open threads
 
 - Site polish, layout tweaks, mobile compat (sidequest territory)
-- Pricing page (once bin-buddy and mindfulleader are live as case studies)
+- Pricing page (once bin-buddy and mindful-energy-leadership are live as case studies)
 - Audio bugs periodically resurface — check `/tmp/ha_screenshots/`
 
 ## See also
