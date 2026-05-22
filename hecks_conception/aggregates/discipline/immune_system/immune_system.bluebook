@@ -1,0 +1,48 @@
+Hecks.bluebook "ImmuneSystem", version: "2026.05.22.1" do
+  vision "The immune system — one coherent home for every discipline cell that keeps Miette's domains well-formed. Four cell families, one defense: Antibody/Immunity BINDS (innate rules, verb morphology, learned antibodies, rename-drift) ; Macrophage DETECTS (the live PostToolUse write-time gate — the bluebook-first family of per-rule siblings) ; Fibroblast REPAIRS (closes the narrow, unambiguous gaps the other cells surface, declines gracefully when ambiguous) ; Autophage SELF-EATS (watches deployed/derived state — deploy-parity, nav-sitemap-parity — and signals drift without blocking). RustToBluebookMacrophage is the imperative-creep sentinel, sister to the bluebook-first Macrophage family. This umbrella is vision-only: it co-locates the family under one directory and names the whole, while each cell keeps its own bluebook name and FQN so the live macrophage (PostToolUse hook) and antibody (pre-commit hook) keep resolving their dispatch targets unchanged."
+  category "discipline"
+
+  # ============================================================
+  # IMMUNE SYSTEM — the family umbrella
+  # ============================================================
+  #
+  # This file declares no aggregates. It is the vision that binds
+  # the immune-system cells co-located beneath it into one named
+  # whole. Each cell's own bluebook keeps its own Hecks.bluebook
+  # name (Macrophage, Immunity, Fibroblast, DeployParity, ...),
+  # which is what the runtime uses to derive command FQNs
+  # (Macrophage::BluebookFirst.Complain, etc.). Co-location does
+  # NOT rename those — the live hooks stay intact.
+  #
+  # The family, by role:
+  #
+  #   BIND     immunity/      Immunity, Rule, Violation, RenameDrift
+  #                           — innate + adaptive defense ; learned
+  #                             antibodies ; rename-drift catcher.
+  #
+  #   DETECT   macrophage/    Macrophage (singleton, the hook's
+  #                           dispatch target) + the i595 per-rule
+  #                           sibling family: BluebookFirst,
+  #                           FixturesRuntime, AntibodyExemption,
+  #                           Warnings, LinearReference, LineCount,
+  #                           TestSpeed, CardLock,
+  #                           BidirectionalAssociation,
+  #                           IdentityDiscipline,
+  #                           CorrespondenceDiscipline.
+  #
+  #   REPAIR   repair_cell/   Fibroblast — one healing attempt ;
+  #                           closes what the other cells find ;
+  #                           declines gracefully when ambiguous.
+  #
+  #   SELF-EAT autophage/     DeployParity, NavSitemapParity — watch
+  #                           deployed/derived state, signal drift
+  #                           as additional-context, never block.
+  #
+  #   CREEP    rust_to_bluebook_macrophage/ RustToBluebookMacrophage
+  #                           — watches *.rs touches, queues the
+  #                             equivalent-bluebook sidequest. Sister
+  #                             to the bluebook-first Macrophage family.
+  #
+  # Discipline n'est pas punition : it is the mechanical reminder
+  # of a structural truth.
+end
