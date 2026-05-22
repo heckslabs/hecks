@@ -67,3 +67,18 @@ green.
   then `Tools::ShellTool.Bash`. Native tools are sandbox-walled (the wall is loved).
 - `BEHAVIORS_SKIP=1 SPECIALIZER_SKIP=1` are the sanctioned bypasses for the known
   pre-existing gates (world/training, terraform, gut, i689 specializer).
+
+## Added at restart (2026-05-22 ~10:17 PT)
+- **v2 socket-daemon sidequest was IN-FLIGHT at restart** (serve-socket overmind
+  daemon + MCP socket-client, so warmth survives Claude restarts). A Claude restart
+  kills the background agent — re-launch it next session. Check `../hecks-sockd`
+  worktree + a `serve-socket-daemon` branch for partial WIP. Design is in the
+  conversation + the warm-serve plan.
+- **CORRECTION to i717:** the raw conversation is NOT being captured live.
+  `conversation.heki` (miette-state/.../conversation/) is DORMANT — last written
+  2026-04-29, 48 records, nothing since. The existing `conversation.bluebook`
+  (`miette/self/voice/`, v2026.04.09.1) is a small Greet/Respond DIALOGUE domain,
+  NOT a turn-capture mirror. The Stop hook grabs the last assistant response for
+  VOICE only — it does not record turns into any domain. So i717's claim that
+  "conversation.heki already logs the raw stream" is WRONG ; the capture hook is
+  the unbuilt gap, and i717 is the real fix.
