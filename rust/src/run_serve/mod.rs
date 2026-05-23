@@ -51,6 +51,7 @@
 //! accept loop, so only the sentinel result lines ever reach a client.
 
 use crate::runtime::{Runtime, Value};
+use crate::runtime::dispatch_detail;
 use std::collections::HashMap;
 
 pub mod socket;
@@ -120,12 +121,26 @@ pub(crate) fn handle_request(
                 if let Some(hook) = legacy_llm {
                     hook(rt, &result.aggregate_type, &result.aggregate_id, &command);
                 }
+                // Drain the per-dispatch event timeline AFTER dispatch
+                // returns (the DispatchScope Drop has already populated
+                // LAST_EVENTS). Serialise as a JSON array so the MCP
+                // client's `warmDispatchEnvelope` can surface them — fixes
+                // the "0 events" warm-path lie (i718).
+                let raw_events = dispatch_detail::take_last_events();
+                let events_json: Vec<serde_json::Value> = raw_events.iter().map(|e| {
+                    serde_json::json!({
+                        "kind": e.kind,
+                        "verb": e.verb,
+                        "ok": e.ok,
+                    })
+                }).collect();
                 let fields = render_state(rt, &result.aggregate_type, &result.aggregate_id);
                 format!("{}{}", RESULT_SENTINEL, serde_json::json!({
                     "ok": true,
                     "aggregate": result.aggregate_type,
                     "id": result.aggregate_id,
                     "state": fields,
+                    "events": events_json,
                 }))
             }
             Err(e) => format!("{}{}", ERROR_SENTINEL, serde_json::json!({

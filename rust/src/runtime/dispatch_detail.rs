@@ -114,6 +114,13 @@ pub struct EventTrace {
 
 thread_local! {
     static COLLECTOR: RefCell<Option<Vec<EventTrace>>> = const { RefCell::new(None) };
+    /// Holds the event timeline from the most-recently-completed dispatch
+    /// scope. Written by `DispatchScope::drop` immediately after the
+    /// thread-local collector is drained. Callers (e.g. the warm serve
+    /// path) call `take_last_events()` after `Runtime::dispatch` returns to
+    /// retrieve the events for inclusion in the wire reply. A subsequent
+    /// dispatch overwrites it ; `take_last_events` clears it on read.
+    static LAST_EVENTS: RefCell<Vec<EventTrace>> = const { RefCell::new(Vec::new()) };
 }
 
 /// True when a `DispatchScope` is currently open on this thread.
@@ -131,6 +138,15 @@ pub fn record_event(kind: &str, verb: &str, ok: bool) {
             v.push(EventTrace { kind: kind.to_string(), verb: verb.to_string(), ok });
         }
     });
+}
+
+/// Return and clear the event timeline from the most-recently-completed
+/// dispatch scope. Called by the warm serve path immediately after
+/// `Runtime::dispatch` returns so it can include the events in the RESULT
+/// envelope. Returns an empty Vec when no dispatch has run yet (or after
+/// a second call drains the same scope). Idempotent after drain.
+pub fn take_last_events() -> Vec<EventTrace> {
+    LAST_EVENTS.with(|s| std::mem::take(&mut *s.borrow_mut()))
 }
 
 // ── DispatchScope : RAII guard, emits the rich block on drop ────────
@@ -200,6 +216,9 @@ impl Drop for DispatchScope {
             return;
         }
         let events = COLLECTOR.with(|c| c.borrow_mut().take()).unwrap_or_default();
+        // Snapshot the events for the warm serve path BEFORE serialising
+        // the file block. `take_last_events()` drains this after dispatch.
+        LAST_EVENTS.with(|s| *s.borrow_mut() = events.clone());
         let elapsed_ms = crate::heki::now_duration()
             .saturating_sub(self.started)
             .as_millis() as u64;
@@ -357,5 +376,22 @@ mod tests {
         // Disarm so Drop doesn't emit to the real log during the test.
         scope.armed = false;
         COLLECTOR.with(|c| *c.borrow_mut() = None);
+    }
+
+    #[test]
+    fn take_last_events_returns_events_after_scope_drop() {
+        // Verify LAST_EVENTS is populated by Drop and drained by
+        // take_last_events() — the i718 warm-serve fix.
+        let mut scope = DispatchScope::begin("inv_u", "A::B.C", "{}".to_string());
+        record_event("dispatch", "A::B.C", true);
+        record_event("event", "B.Cd", true);
+        scope.finish("ok", "{}".to_string());
+        drop(scope); // triggers LAST_EVENTS write
+        let taken = take_last_events();
+        assert_eq!(taken.len(), 2);
+        assert_eq!(taken[0].kind, "dispatch");
+        assert_eq!(taken[1].kind, "event");
+        // Second call must drain (idempotent — returns empty Vec).
+        assert!(take_last_events().is_empty());
     }
 }
