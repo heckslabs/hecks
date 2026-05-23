@@ -1,0 +1,34 @@
+Hecks.behaviors "Story" do
+  vision "Behavioral tests for the Story domain — Conceive mints a draft Story from a card_ref, ComposeStep appends ordered steps, Run flips the Story complete."
+
+  # ── Story aggregate ──────────────────────────────────────────
+
+  test "Conceive mints a draft Story keyed on the card_ref" do
+    tests "Conceive", on: "Story"
+    input  id: "i724", title: "Explicit cascade as storehouse entity"
+    expect title: "Explicit cascade as storehouse entity", status: "draft"
+  end
+
+  test "ComposeStep appends one ordered step" do
+    tests "ComposeStep", on: "Story"
+    setup  "Conceive", id: "i724", title: "Explicit cascade as storehouse entity"
+    input  order: 0, phrase: "Voice::Voice.Speak", args: "{\"text\":\"hi\"}"
+    expect steps_size: 1
+  end
+
+  test "ComposeStep accretes two steps in order" do
+    tests "ComposeStep", on: "Story"
+    setup  "Conceive", id: "i724", title: "Explicit cascade as storehouse entity"
+    setup  "ComposeStep", order: 0, phrase: "Voice::Voice.Speak", args: "{}"
+    input  order: 1, phrase: "Inbox::Inbox.Check", args: "{}"
+    expect steps_size: 2
+  end
+
+  test "Run flips the Story complete" do
+    tests "Run", on: "Story"
+    setup  "Conceive", id: "i724", title: "Explicit cascade as storehouse entity"
+    input  step_count: 2
+    expect status: "complete"
+  end
+
+end
