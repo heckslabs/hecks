@@ -47,9 +47,21 @@ pub struct Hecksagon {
     /// Phase 2 will add a richer payload (fields, providers list,
     /// request_body wire shape) so the runtime can drive dispatch.
     pub framework_kind: Option<String>,
-    /// `adapter :memory` or `adapter :heki` — persistence wiring. None
-    /// means the bluebook's runtime default (memory repository) applies.
+    /// `adapter :memory` / `:heki` / `:sqlite` / `:postgres` / `:mysql`
+    /// — persistence wiring (the adapter kind as a string). None means
+    /// the bluebook's runtime default (memory repository) applies. Only
+    /// the kind crosses the Ruby↔Rust canonical-IR parity boundary
+    /// (`canonical_ir.rb :: hecksagon_persistence` emits this string) ;
+    /// the connection options below stay Rust-runtime-local.
     pub persistence: Option<String>,
+    /// Connection options for a SQL persistence kind — e.g. `db:` for
+    /// `adapter :sqlite, db: "app.db"`, or `host:`/`user:`/`name:` for
+    /// postgres/mysql. Raw key→value pairs lifted off the adapter line,
+    /// keyed without the trailing colon. Empty for `:memory` / `:heki`
+    /// (which carry no connection target). NOT part of the canonical
+    /// parity shape — both parsers route SQL kinds into `persistence`
+    /// identically, and the path is a runtime concern, not a contract.
+    pub persistence_options: Vec<(String, String)>,
     /// Non-persistence adapter bindings (:stdout, :stderr, :stdin, :env,
     /// :fs) keyed by their symbol name. Each adapter may carry a block
     /// or options hash; serialized here as key/value pairs.
@@ -268,5 +280,16 @@ impl Hecksagon {
 
     pub fn gate_for(&self, aggregate: &str, role: &str) -> Option<&Gate> {
         self.gates.iter().find(|g| g.aggregate == aggregate && g.role == role)
+    }
+
+    /// Look up a persistence connection option by key (without the
+    /// trailing colon) — e.g. `persistence_option("db")` for the
+    /// `adapter :sqlite, db: "app.db"` path. Returns None when the key
+    /// wasn't declared or the persistence kind carries no options.
+    pub fn persistence_option(&self, key: &str) -> Option<&str> {
+        self.persistence_options
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.as_str())
     }
 }

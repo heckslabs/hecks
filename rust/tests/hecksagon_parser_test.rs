@@ -133,3 +133,21 @@ end
     assert!(env.options.iter().any(|(k, _)| k == "keys"));
     assert_eq!(hex.subscriptions, vec!["Heartbeat".to_string()]);
 }
+
+#[test]
+fn routes_sqlite_adapter_into_persistence_with_db_option() {
+    // `adapter :sqlite, db: "..."` must land in persistence (kind +
+    // options), NOT in io_adapters. Mirrors Ruby's HecksagonBuilder,
+    // which folds :sqlite/:postgres/:mysql into @persistence.
+    let src = r#"Hecks.hecksagon "DailyMusing" do
+  adapter :sqlite, db: "/tmp/yc_demo/daily_musing.db"
+end
+"#;
+    let hex = hecksagon_parser::parse(src);
+    assert_eq!(hex.persistence.as_deref(), Some("sqlite"));
+    assert!(hex.io_adapter("sqlite").is_none(), "sqlite must not be an io_adapter");
+    assert_eq!(
+        hex.persistence_option("db").map(|s| s.trim_matches('"')),
+        Some("/tmp/yc_demo/daily_musing.db"),
+    );
+}
