@@ -9,16 +9,24 @@
 # container. The runtime + storehouse + the embedded bluebook /
 # hecksagon / fixtures are bundled into one wasm artifact.
 #
-# Memory-first : NO [[r2_buckets]] binding. Each request boots a fresh
-# in-memory runtime seeded from the embedded fixtures ; a live POST
-# appears in that request's cascade but does not persist into the next
-# request. Persistence (heki -> R2) is a later phase — adding the
-# binding here (and r2_binding / r2_bucket in cloudflare.bluebook) is
-# the seam.
+# Persisted (heki -> R2). Each request still boots a fresh in-memory
+# runtime, but it now hydrates from the R2 bucket bound below before
+# serving and persists every dispatch back to R2 after, so a live POST
+# survives into the next request. The binding here is the seam ; its
+# source of truth is the r2_binding / r2_bucket fields on the
+# DailyMusingWorker fixture in ../cloudflare.bluebook.
 
 name               = "daily-musing-worker"
 main               = "build/worker/shim.mjs"
 compatibility_date = "2026-05-10"
+
+# heki -> R2 persistence binding. lib.rs reads this binding by name
+# (env.bucket("DAILY_MUSING_R2_BUCKET")) to hydrate state on boot and
+# persist every dispatch back. Created with
+# `wrangler r2 bucket create daily-musing-heki`.
+[[r2_buckets]]
+binding     = "DAILY_MUSING_R2_BUCKET"
+bucket_name = "daily-musing-heki"
 
 # workers-rs standard build flow — compiles ./src/lib.rs to WASM and
 # emits build/worker/shim.mjs as the entrypoint above. rust-toolchain.toml
