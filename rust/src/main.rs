@@ -5309,7 +5309,7 @@ fn print_usage() {
 
 fn run_storehouse(args: &[String]) -> i32 {
     let verb = args.get(2).map(|s| s.as_str()).unwrap_or("");
-    let rest = &args[3..];
+    let rest: &[String] = if args.len() > 3 { &args[3..] } else { &[] };
     match verb {
         "route"   => storehouse_route(rest),
         "compile" => storehouse_compile(rest),
