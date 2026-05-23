@@ -102,7 +102,7 @@ Hecks.bluebook "DomainCell", version: "2026.04.28.1" do
   # Successful digestion triggers conception
   policy "ConceiveOnAbsorption" do
     on "DomainAbsorbed"
-    trigger "Conceive"
+    trigger "DomainCell.Conceive"
   end
 
   # Validation is a checkpoint
