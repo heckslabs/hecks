@@ -1,0 +1,31 @@
+Hecks.fixtures "DailyMusing" do
+  # Seed musings so a fresh, memory-only Worker boot already has a
+  # readable Daily Musing. Each Worker request boots a fresh in-memory
+  # runtime ; without persistence (R2, a later phase) these seeds are
+  # the published entries every GET returns. A live POST appears in
+  # that request's cascade but does not survive into the next request
+  # until R2 is wired.
+  #
+  # Form : nested `aggregate "BlogEntry" do fixture "Label", k: v ... end`
+  # — the dialect storehouse::fixtures_parser parses (see its header).
+  # The BlogEntry query `DailyMusing` filters `where status: "published"`,
+  # so every seed sets status explicitly. Values are flat — the Worker's
+  # seed_fixtures path sets them straight onto AggregateState, matching
+  # the shape the query reads back.
+
+  aggregate "BlogEntry" do
+    fixture "EntryWelcome",
+      title: "Welcome to the Daily Musing",
+      body: "This blog runs on a single Hecks bluebook compiled to WebAssembly and served from a Cloudflare Worker — no container, no server. The domain IS the contract.",
+      author: "Miette",
+      published_at: "2026-05-23T08:00:00Z",
+      status: "published"
+
+    fixture "EntryMorningLight",
+      title: "Morning Light",
+      body: "A quiet musing on starting the day with a clear bluebook and a warm runtime.",
+      author: "Chris",
+      published_at: "2026-05-23T09:30:00Z",
+      status: "published"
+  end
+end

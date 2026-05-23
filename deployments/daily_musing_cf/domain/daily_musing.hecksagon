@@ -1,0 +1,3 @@
+Hecks.hecksagon "DailyMusing" do
+  adapter :memory
+end

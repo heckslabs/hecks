@@ -1,0 +1,31 @@
+# DERIVED from ../cloudflare.bluebook (the WorkerConfig
+# `DailyMusingWorker` fixture). The bluebook is the source of truth ;
+# keep this file in sync with it (a `storehouse specialize
+# wrangler_toml` emitter is filed as a follow-up — see the bluebook
+# header). Hand-maintained until that codegen lands.
+#
+# This is the Daily Musing WASM Worker — the DailyMusing bluebook
+# compiled to WebAssembly and served from a Cloudflare Worker. No
+# container. The runtime + storehouse + the embedded bluebook /
+# hecksagon / fixtures are bundled into one wasm artifact.
+#
+# Memory-first : NO [[r2_buckets]] binding. Each request boots a fresh
+# in-memory runtime seeded from the embedded fixtures ; a live POST
+# appears in that request's cascade but does not persist into the next
+# request. Persistence (heki -> R2) is a later phase — adding the
+# binding here (and r2_binding / r2_bucket in cloudflare.bluebook) is
+# the seam.
+
+name               = "daily-musing-worker"
+main               = "build/worker/shim.mjs"
+compatibility_date = "2026-05-10"
+
+# workers-rs standard build flow — compiles ./src/lib.rs to WASM and
+# emits build/worker/shim.mjs as the entrypoint above. rust-toolchain.toml
+# beside this file pins the rustup toolchain so wasm32 std is available.
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
+# Observability on so the first deploys are debuggable.
+[observability]
+enabled = true

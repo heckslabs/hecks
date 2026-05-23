@@ -1,0 +1,47 @@
+Hecks.bluebook "DailyMusing", version: "2026.05.23.2" do
+  vision "An author posts blog entries to the Daily Musing so readers can read them."
+  category "blog"
+
+  aggregate "BlogEntry", "A single post in the Daily Musing — its title, body, author, and published state" do
+    attribute :title, Title
+    attribute :body, Body
+    attribute :author, AuthorName
+    attribute :published_at, PublishedAt
+
+    value_object "Title" do
+      attribute :value, String
+    end
+    value_object "Body" do
+      attribute :value, String
+    end
+    value_object "AuthorName" do
+      attribute :value, String
+    end
+    value_object "PublishedAt" do
+      attribute :value, String
+    end
+
+    command "Post" do
+      role "Author"
+      description "Publish a blog entry to the Daily Musing so readers can read it"
+      attribute :title, Title
+      attribute :body, Body
+      attribute :author, AuthorName
+      attribute :published_at, PublishedAt
+      then_set :title, to: :title
+      then_set :body, to: :body
+      then_set :author, to: :author
+      then_set :published_at, to: :published_at
+      emits "EntryPosted"
+    end
+
+    lifecycle :status, default: "draft" do
+      transition "Post" => "published", from: "draft"
+    end
+
+    query "DailyMusing" do
+      description "Readers' view — every published entry in the Daily Musing"
+      where status: "published"
+    end
+  end
+end

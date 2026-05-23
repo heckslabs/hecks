@@ -1,0 +1,93 @@
+Hecks.bluebook "DailyMusingCloudflare", version: "2026.05.23.1" do
+  vision "The Cloudflare deploy config for the Daily Musing WASM Worker, expressed as a bluebook. The wrangler.toml beside this file is DERIVED from this declaration — the bluebook is the source of truth, the toml is the artifact (the way the Procfile derives from mindstream)."
+  category "deploy"
+
+  # ============================================================
+  # CLOUDFLARE WORKER CONFIG — config-as-bluebook
+  # ============================================================
+  #
+  # This is NOT the deploy lifecycle (that lives in
+  # integrations/cloudflare_deploy/cloudflare_deploy.bluebook). This
+  # is the static configuration a `wrangler.toml` carries : worker
+  # name, compatibility date, account, build command, and the
+  # (memory-first : currently absent) R2 binding.
+  #
+  # Derivation is a follow-up specializer (filed as an inbox card) —
+  # `storehouse specialize wrangler_toml --config cloudflare.bluebook`
+  # would emit deployments/daily_musing_cf/worker/wrangler.toml from
+  # the WorkerConfig fixture below, a sibling of the existing
+  # wasm_worker / embedded_bluebooks emitters. Until that lands the
+  # wrangler.toml is hand-kept in sync with this declaration.
+
+  aggregate "WorkerConfig", "One Cloudflare Worker's deploy configuration" do
+    identified_by :name
+    attribute :name, WorkerName, default: "daily-musing-worker"
+    attribute :compatibility_date, CompatibilityDate, default: "2026-05-10"
+    attribute :account_id, AccountId
+    attribute :main_entrypoint, MainEntrypoint, default: "build/worker/shim.mjs"
+    attribute :build_command, BuildCommand, default: "cargo install -q worker-build && worker-build --release"
+    # Memory-first : no R2 binding yet. When persistence (heki -> R2)
+    # lands, set r2_binding + r2_bucket and the derived wrangler.toml
+    # grows a [[r2_buckets]] block.
+    attribute :r2_binding, R2Binding, default: ""
+    attribute :r2_bucket, R2Bucket, default: ""
+    attribute :observability, Observability, default: "enabled"
+
+    value_object "WorkerName" do
+      attribute :value, String
+    end
+    value_object "CompatibilityDate" do
+      attribute :value, String
+    end
+    value_object "AccountId" do
+      attribute :value, String
+    end
+    value_object "MainEntrypoint" do
+      attribute :value, String
+    end
+    value_object "BuildCommand" do
+      attribute :value, String
+    end
+    value_object "R2Binding" do
+      attribute :value, String
+    end
+    value_object "R2Bucket" do
+      attribute :value, String
+    end
+    value_object "Observability" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "System"
+      description "Declare the worker config (worker name, account, build)"
+      attribute :name, WorkerName
+      attribute :account_id, AccountId
+      then_set :name, to: :name
+      then_set :account_id, to: :account_id
+      emits "ConfigDeclared"
+    end
+
+    query "WorkerConfigs" do
+      description "Every declared Cloudflare Worker config"
+    end
+  end
+
+  fixture "DailyMusingWorker", on: "WorkerConfig" do
+    name               "daily-musing-worker"
+    compatibility_date "2026-05-10"
+    account_id         "d64266851dc554da77687e13c058917c"
+    main_entrypoint    "build/worker/shim.mjs"
+    build_command      "cargo install -q worker-build && worker-build --release"
+    r2_binding         ""
+    r2_bucket          ""
+    observability      "enabled"
+  end
+
+  glossary do
+    define "worker", as: "Cloudflare Worker — the WASM dispatch surface, the bluebook command bus over HTTP"
+    define "compatibility date", as: "The Workers runtime API version the deploy pins to"
+    define "memory-first", as: "No persistence binding ; each request boots a fresh in-memory runtime seeded from embedded fixtures"
+    prefer "worker", not: ["function", "lambda"]
+  end
+end
