@@ -39,24 +39,52 @@
 
 
 use super::repository::Repository;
+use super::sqlite_repository::SqliteRepository;
 use super::AggregateState;
 use super::Value;
 use crate::heki;
 use std::cell::OnceCell;
 use std::collections::HashMap;
 
+/// SQL-backend construction params. Carried (not opened) until first
+/// access — the same defer-the-disk-read discipline the heki backend
+/// uses, so a single-shot dispatch only opens the one db it touches.
+#[derive(Clone)]
+pub struct SqliteConfig {
+    pub aggregate_type: String,
+    pub db_path: String,
+    pub identified_by: Option<String>,
+    /// `(attribute_name, sql_type)` pairs for the typed columns,
+    /// derived from the bluebook IR by the runtime boot loop.
+    pub columns: Vec<(String, String)>,
+}
+
+/// Which storage substrate a repository wraps. Chosen at construction
+/// from the hecksagon's `persistence` declaration — heki/memory is the
+/// default ; `adapter :sqlite, db:` selects Sql. Both variants defer
+/// their first disk touch to first access via a OnceCell.
+enum Backend {
+    Heki {
+        aggregate_type: String,
+        data_dir: Option<String>,
+        identified_by: Option<String>,
+        context: Option<String>,
+        cell: OnceCell<Repository>,
+    },
+    Sql {
+        config: SqliteConfig,
+        cell: OnceCell<SqliteRepository>,
+    },
+}
+
 pub struct LazyRepository {
-    aggregate_type: String,
-    data_dir: Option<String>,
-    identified_by: Option<String>,
-    context: Option<String>,
-    cell: OnceCell<Repository>,
+    backend: Backend,
 }
 
 impl LazyRepository {
-    /// Construct a lazy wrapper. Stores the params ; does NOT touch
-    /// disk. The first `repo()` / `repo_mut()` call materialises the
-    /// real Repository via `Repository::new_with_context`, which runs
+    /// Construct a heki/memory-backed lazy wrapper. Stores the params ;
+    /// does NOT touch disk. The first access materialises the real
+    /// Repository via `Repository::new_with_context`, which runs
     /// `load_persisted` then.
     pub fn new(
         aggregate_type: &str,
@@ -65,90 +93,146 @@ impl LazyRepository {
         context: Option<String>,
     ) -> Self {
         LazyRepository {
-            aggregate_type: aggregate_type.to_string(),
-            data_dir,
-            identified_by,
-            context,
-            cell: OnceCell::new(),
+            backend: Backend::Heki {
+                aggregate_type: aggregate_type.to_string(),
+                data_dir,
+                identified_by,
+                context,
+                cell: OnceCell::new(),
+            },
         }
     }
 
-    /// Hydrate-on-first-access. `OnceCell::get_or_init` takes `&self`,
-    /// so this is callable from `&self` runtime paths (find/all/query).
+    /// Construct a SQLite-backed lazy wrapper. The `SqliteRepository`
+    /// (and its CREATE TABLE + eager row-load) materialises on first
+    /// access, same defer-to-first-touch contract as the heki path.
+    pub fn new_sqlite(config: SqliteConfig) -> Self {
+        LazyRepository {
+            backend: Backend::Sql {
+                config,
+                cell: OnceCell::new(),
+            },
+        }
+    }
+
+    /// Hydrate-on-first-access for the heki backend. `OnceCell::get_or_init`
+    /// takes `&self`, so this is callable from `&self` runtime paths.
     fn repo(&self) -> &Repository {
-        self.cell.get_or_init(|| {
-            Repository::new_with_context(
-                &self.aggregate_type,
-                self.data_dir.clone(),
-                self.identified_by.clone(),
-                self.context.clone(),
-            )
-        })
+        match &self.backend {
+            Backend::Heki { aggregate_type, data_dir, identified_by, context, cell } => {
+                cell.get_or_init(|| {
+                    Repository::new_with_context(
+                        aggregate_type,
+                        data_dir.clone(),
+                        identified_by.clone(),
+                        context.clone(),
+                    )
+                })
+            }
+            Backend::Sql { .. } => unreachable!("repo() on a SQL-backed LazyRepository"),
+        }
     }
 
-    /// Mutable hydrate-on-first-access. Forces the cell (via the `&self`
-    /// initialiser) then hands back the `&mut` — `get_mut` returns the
-    /// already-initialised value.
+    /// Hydrate-on-first-access for the SQL backend. Same `&self`
+    /// OnceCell contract as `repo()`.
+    fn sql(&self) -> &SqliteRepository {
+        match &self.backend {
+            Backend::Sql { config, cell } => cell.get_or_init(|| {
+                SqliteRepository::new(
+                    &config.aggregate_type,
+                    &config.db_path,
+                    config.identified_by.clone(),
+                    config.columns.clone(),
+                )
+            }),
+            Backend::Heki { .. } => unreachable!("sql() on a heki-backed LazyRepository"),
+        }
+    }
+
+    /// True when this wrapper is SQL-backed (selected by `adapter
+    /// :sqlite`). Read methods branch on it to route to the right cell.
+    fn is_sql(&self) -> bool {
+        matches!(self.backend, Backend::Sql { .. })
+    }
+
+    /// Mutable hydrate-on-first-access (heki). Forces the cell via the
+    /// `&self` initialiser then hands back the `&mut`.
     fn repo_mut(&mut self) -> &mut Repository {
-        // Ensure initialised. `get_or_init` only needs `&self` ; the
-        // subsequent `get_mut().unwrap()` is infallible because the
-        // cell is now populated.
         let _ = self.repo();
-        self.cell.get_mut().expect("cell initialised by repo() above")
+        match &mut self.backend {
+            Backend::Heki { cell, .. } => cell.get_mut().expect("cell initialised by repo() above"),
+            Backend::Sql { .. } => unreachable!("repo_mut() on a SQL-backed LazyRepository"),
+        }
     }
 
-    /// Whether the underlying Repository has been hydrated yet. Used by
+    /// Mutable hydrate-on-first-access (SQL). Mirror of `repo_mut`.
+    fn sql_mut(&mut self) -> &mut SqliteRepository {
+        let _ = self.sql();
+        match &mut self.backend {
+            Backend::Sql { cell, .. } => cell.get_mut().expect("cell initialised by sql() above"),
+            Backend::Heki { .. } => unreachable!("sql_mut() on a heki-backed LazyRepository"),
+        }
+    }
+
+    /// Whether the underlying repository has been hydrated yet. Used by
     /// `hydrate_all` to skip already-warm repos and by the teardown
     /// story (un-hydrated cells drop for free).
     pub fn is_hydrated(&self) -> bool {
-        self.cell.get().is_some()
+        match &self.backend {
+            Backend::Heki { cell, .. } => cell.get().is_some(),
+            Backend::Sql { cell, .. } => cell.get().is_some(),
+        }
     }
 
-    // ----- forwarded Repository surface (read : &self) -----
+    // ----- forwarded repository surface (read : &self) -----
 
     pub fn find(&self, id: &str) -> Option<&AggregateState> {
-        self.repo().find(id)
+        if self.is_sql() { self.sql().find(id) } else { self.repo().find(id) }
     }
 
     pub fn all(&self) -> Vec<&AggregateState> {
-        self.repo().all()
+        if self.is_sql() { self.sql().all() } else { self.repo().all() }
     }
 
     pub fn count(&self) -> usize {
-        self.repo().count()
+        if self.is_sql() { self.sql().count() } else { self.repo().count() }
     }
 
     pub fn next_id_value(&self) -> u64 {
-        self.repo().next_id_value()
+        if self.is_sql() { self.sql().next_id_value() } else { self.repo().next_id_value() }
     }
 
-    // ----- forwarded Repository surface (mutate : &mut self) -----
+    // ----- forwarded repository surface (mutate : &mut self) -----
 
     pub fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> {
-        self.repo_mut().find_mut(id)
+        if self.is_sql() { self.sql_mut().find_mut(id) } else { self.repo_mut().find_mut(id) }
     }
 
     pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String {
-        self.repo_mut().id_for_command(attrs)
+        if self.is_sql() { self.sql_mut().id_for_command(attrs) } else { self.repo_mut().id_for_command(attrs) }
     }
 
     pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) {
-        self.repo_mut().save(state, ctx)
+        if self.is_sql() { self.sql_mut().save(state, ctx) } else { self.repo_mut().save(state, ctx) }
     }
 
     pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) {
-        self.repo_mut().delete(id, ctx)
+        if self.is_sql() { self.sql_mut().delete(id, ctx) } else { self.repo_mut().delete(id, ctx) }
     }
 
+    /// Re-read from disk when a sibling process advanced the store.
+    /// No-op for the SQL backend — every read goes to the live db
+    /// connection, so there's no stale in-memory snapshot to refresh
+    /// against (the heki cross-process freshness concern doesn't apply).
     pub fn refresh_from_heki(&mut self) {
-        self.repo_mut().refresh_from_heki()
+        if !self.is_sql() { self.repo_mut().refresh_from_heki() }
     }
 
     pub fn seed_record(&mut self, state: AggregateState) {
-        self.repo_mut().seed_record(state)
+        if self.is_sql() { self.sql_mut().seed_record(state) } else { self.repo_mut().seed_record(state) }
     }
 
     pub fn set_next_id(&mut self, value: u64) {
-        self.repo_mut().set_next_id(value)
+        if self.is_sql() { self.sql_mut().set_next_id(value) } else { self.repo_mut().set_next_id(value) }
     }
 }
