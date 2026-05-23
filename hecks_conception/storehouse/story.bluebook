@@ -1,0 +1,189 @@
+Hecks.bluebook "Story", version: "2026.05.23.1" do
+  vision "A Story is a first-class storehouse command that maps an inbox card to an ordered sequence of bluebook commands. It references the card (card_ref, e.g. 'i724') — the card stays as markdown in hecks_conception/inbox/, the Story links to it, it does not replace it. Conceive mints a Story from a card_ref + title ; ComposeStep appends one ordered Step (a fully-qualified bluebook command phrase + its k=v args carried as one JSON string) ; Run records the act of executing the whole sequence. The actual execution — looping each Step's phrase through the same Dispatch.Route resolution the rest of the bus uses — is the runtime's projection of Run, exactly as Inbox.Check's Gmail poll is a projection of InboxChecked. The Story IS executable composition : the dispatch of one Story is the dispatch of its mapped commands, in order. See i528 for the storehouse arc and i724 for the entity-within-aggregate reasoning this mirrors."
+  category "storehouse"
+
+  # ============================================================
+  # STORY — executable composition over the bus
+  # ============================================================
+  #
+  # An inbox card describes a unit of work in prose. A Story makes
+  # that work *runnable* : it references the card (provenance) and
+  # carries the ordered list of bluebook commands the card resolves
+  # into. Dispatching the Story dispatches each mapped command in
+  # order — a multi-step storehouse route.
+  #
+  # ── The shape (locked with Chris) ──
+  #
+  #   Story          aggregate, identified_by StoryId. One Story per
+  #                  card. The StoryId IS the card_ref ("i724") — one
+  #                  story per card, dispatch is Story.Run id=i724.
+  #                  Letting story-id and card-ref diverge buys nothing
+  #                  and costs a join, so they are the same handle.
+  #
+  #   Step           an entity within Story (identity + order + a
+  #                  command phrase + args ⇒ entity, not value object —
+  #                  same reasoning as i724's CascadeNode). Each Step =
+  #                  (order, phrase, args). `order` is the Step's
+  #                  identity-by-position : the sequence is the meaning,
+  #                  so position is identity. Reordering moves identity,
+  #                  by design — a Story is its ordered steps.
+  #
+  # ── Why args is a JSON string, not typed attributes ──
+  #
+  # Each Step carries variable-shape k=v args (Voice::Voice.Speak wants
+  # `text=…` ; Inbox::Inbox.Check wants `checked_at=… history_id=…`).
+  # The append-map mutation resolver (`then_set :steps, append: {…}`)
+  # binds a fixed set of entity-attribute → command-attribute keys ; it
+  # cannot carry a variable bag. So `args` is one opaque JSON-object
+  # string on the Step, unpacked into the route argv at execution time
+  # (the runner splits it into k=v tokens before dispatching the
+  # phrase). This is a runtime constraint on the append shape, not a
+  # domain wish : the domain would prefer typed per-step attributes ;
+  # the flat-append resolver forces the JSON-string carrier. Same
+  # Params-as-JSON-string convention Dispatch.Params already uses.
+  #
+  # ── Lifecycle (v1, deliberately minimal) ──
+  #
+  #   draft     — Conceive mints the Story here.
+  #   complete  — Run flips it here on a successful full-sequence
+  #               dispatch.
+  #
+  # No per-step status tracking inside a single Run. If a step fails,
+  # the runner stops and surfaces the error ; partial-run heki write
+  # semantics are a trap deferred to a later iteration (a candidate
+  # inbox card, not v1 scope).
+  #
+  # ── How Run actually executes (the runtime projection) ──
+  #
+  # Run is a pure command : it stamps the Story complete and emits
+  # StoryRan with the step count. The side-effect — running the mapped
+  # commands — is the runtime's job, the same separation Inbox.Check
+  # draws between the pure InboxChecked event and the Gmail poll. The
+  # CLI verb `storehouse play <story_id>` reads the Story's steps back
+  # from heki, and for each step in `order` sequence resolves the
+  # phrase via the same storehouse_resolve the rest of the bus uses and
+  # dispatches it through run_script — exactly one Dispatch.Route per
+  # step, looped. The runner is NOT in the core dispatch loop ; it is a
+  # separate storehouse subcommand alongside route/compile/read.
+  #
+  # Companion to dispatch.bluebook (each step re-enters through the same
+  # resolution), lexicon.bluebook (the phrases a step names live there),
+  # and command_bus.bluebook (the app-scoped surface).
+
+  aggregate "Story", "An inbox card mapped to an ordered, runnable command sequence" do
+    identified_by :id
+
+    value_object "StoryId" do
+      # The card_ref this Story references AND its own identity — one
+      # Story per card. Form is the inbox card slug ("i724", "i528").
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "Title" do
+      # A human-readable one-line summary of what the Story does.
+      # Mirrors the card's title ; duplicated here so the Story reads
+      # standalone without re-opening the card.
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "Status" do
+      # draft (Conceive) → complete (successful Run). No richer
+      # lifecycle in v1 ; per-step status is deferred.
+      attribute :value, String, enum: ["draft", "complete"]
+    end
+
+    value_object "StepCount" do
+      # How many steps the Story ran. Carried on StoryRan so a
+      # downstream reactor (voicing, tracing) knows the sequence length
+      # without re-reading the steps list.
+      attribute :value, Integer
+      rule "must be non-negative" do
+        requires { value >= 0 }
+      end
+    end
+
+    value_object "StepOrder" do
+      # 0-based position of a Step in the sequence. The Step's
+      # identity-by-position : the runner sorts by this before
+      # dispatching.
+      attribute :value, Integer
+      rule "must be non-negative" do
+        requires { value >= 0 }
+      end
+    end
+
+    value_object "Phrase" do
+      # A fully-qualified bluebook command phrase the Step dispatches —
+      # e.g. "Voice::Voice.Speak" or the Domain.Aggregate.Command form
+      # storehouse_resolve accepts. Same role as Dispatch.Phrase ; the
+      # runner feeds it straight into storehouse_resolve.
+      attribute :value, String
+      rule "must be non-empty" do
+        requires { !value.empty? }
+      end
+    end
+
+    value_object "Args" do
+      # The Step's k=v argument bag, carried as one JSON-object string
+      # ("{}" for no args). Unpacked into route argv tokens at execution
+      # time. Same opaque-JSON convention as Dispatch.Params — keeps any
+      # command's attribute set fitting one append shape.
+      attribute :value, String
+      rule "must be a JSON object" do
+        requires { value.start_with?("{") && value.end_with?("}") }
+      end
+    end
+
+    # ── Step : the ordered, runnable unit of the sequence ──
+    # Identity + order + a command phrase + args ⇒ entity (i724's
+    # CascadeNode reasoning). The list is ordered ; `order` is identity.
+    entity "Step" do
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
+    end
+
+    attribute :id,     StoryId
+    attribute :title,  Title
+    attribute :status, Status, default: "draft"
+    attribute :steps,  list_of(Step)
+
+    # ── Commands ──
+
+    command "Conceive" do
+      role "Caller"
+      description "Mint a Story from a card_ref + title. The StoryId IS the card_ref, so the Story references the inbox card that stays as markdown in hecks_conception/inbox/. Starts in the draft status with an empty steps list ; ComposeStep accretes the sequence, Run executes it. Idempotent on the card_ref id."
+      attribute StoryId, as: :id
+      attribute Title,   as: :title
+      emits "StoryConceived"
+      then_set :title,  to: :title
+      then_set :status, to: "draft"
+    end
+
+    command "ComposeStep" do
+      role "Caller"
+      description "Append one ordered Step to a conceived Story — a (order, phrase, args) triple. Called once per command in the sequence, in order. `phrase` is the fully-qualified bluebook command storehouse_resolve accepts ; `args` is the step's k=v bag as a JSON-object string ('{}' for none). The runner sorts by order before dispatching, so out-of-call-order ComposeStep still runs in `order` sequence."
+      reference_to(Story)
+      attribute StepOrder, as: :order
+      attribute Phrase,    as: :phrase
+      attribute Args,      as: :args
+      emits "StepComposed"
+      then_set :steps, append: { order: :order, phrase: :phrase, args: :args }
+    end
+
+    command "Run" do
+      role "Caller"
+      description "Execute the Story — dispatch every mapped Step in `order` sequence through the bus. This command is pure : it stamps the Story complete and emits StoryRan with the step count. The actual per-step dispatch is the runtime's projection of StoryRan, performed by the `storehouse play <story_id>` verb, which reads the steps back from heki and loops storehouse_resolve + run_script once per step — exactly one Dispatch.Route per step. The dispatch of one Story IS the dispatch of its mapped commands, in order."
+      reference_to(Story)
+      attribute StepCount, as: :step_count
+      emits "StoryRan"
+      then_set :status, to: "complete"
+    end
+  end
+end
