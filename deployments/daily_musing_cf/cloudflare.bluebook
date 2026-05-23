@@ -10,7 +10,7 @@ Hecks.bluebook "DailyMusingCloudflare", version: "2026.05.23.1" do
   # integrations/cloudflare_deploy/cloudflare_deploy.bluebook). This
   # is the static configuration a `wrangler.toml` carries : worker
   # name, compatibility date, account, build command, and the
-  # (memory-first : currently absent) R2 binding.
+  # R2 persistence binding (heki -> R2).
   #
   # Derivation is a follow-up specializer (filed as an inbox card) —
   # `storehouse specialize wrangler_toml --config cloudflare.bluebook`
@@ -26,9 +26,10 @@ Hecks.bluebook "DailyMusingCloudflare", version: "2026.05.23.1" do
     attribute :account_id, AccountId
     attribute :main_entrypoint, MainEntrypoint, default: "build/worker/shim.mjs"
     attribute :build_command, BuildCommand, default: "cargo install -q worker-build && worker-build --release"
-    # Memory-first : no R2 binding yet. When persistence (heki -> R2)
-    # lands, set r2_binding + r2_bucket and the derived wrangler.toml
-    # grows a [[r2_buckets]] block.
+    # Persisted (heki -> R2). r2_binding is the env binding name lib.rs
+    # reads (env.bucket("DAILY_MUSING_R2_BUCKET")) ; r2_bucket is the
+    # R2 bucket those bytes live in. The derived wrangler.toml carries
+    # the matching [[r2_buckets]] block.
     attribute :r2_binding, R2Binding, default: ""
     attribute :r2_bucket, R2Bucket, default: ""
     attribute :observability, Observability, default: "enabled"
@@ -79,8 +80,8 @@ Hecks.bluebook "DailyMusingCloudflare", version: "2026.05.23.1" do
     account_id         "d64266851dc554da77687e13c058917c"
     main_entrypoint    "build/worker/shim.mjs"
     build_command      "cargo install -q worker-build && worker-build --release"
-    r2_binding         ""
-    r2_bucket          ""
+    r2_binding         "DAILY_MUSING_R2_BUCKET"
+    r2_bucket          "daily-musing-heki"
     observability      "enabled"
   end
 
