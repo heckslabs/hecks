@@ -1557,5 +1557,300 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     end
   end
 
+  # ──── Aggregate: GitTool ────
+  #
+  # GitTool wraps local git porcelain as first-class dispatched
+  # commands. Every command carries `repo` — the working directory,
+  # absolute path. THIS is how "change directory" flows through the
+  # bus : the directory is a typed dispatch parameter, never a shell
+  # `cd`. The :exec adapter family runs git inside `repo` and chains
+  # the captured outcome into Cascade.RecordResult.
+  #
+  # ── Safety is STRUCTURAL ──
+  #
+  # The git-safety protocol is enforced by what the contract OMITS,
+  # not by validation rules : the dangerous operations are simply not
+  # representable.
+  #   * Add / Commit take an explicit `files` list (list_of FilePath) —
+  #     there is no "stage everything" flag, so `git add -A` / `git add .`
+  #     cannot be dispatched.
+  #   * Commit carries only `message` + `files` — no `amend`, no
+  #     `no_verify`, no `no_gpg_sign` attributes exist, so those bypasses
+  #     are unreachable.
+  #   * Push carries `remote` + `branch` and NO `force` attribute — a
+  #     force-push is unrepresentable. If a force-push is ever genuinely
+  #     needed it becomes a deliberate, named future addition.
+  #
+  # ── Runtime substrate (phase 2) ──
+  #
+  # The bluebook is the contract. The :exec adapter family (sibling of
+  # claude_tool / web_tool) composes the git command from the
+  # attributes, runs it with cwd = repo, and chains stdout/exit-code
+  # through `result_into:` Cascade.RecordResult. Until that :git arm of
+  # the exec dispatcher lands, these commands are a declared contract —
+  # same posture as the EmailTool :mcp bindings and Sidequest.SendMessage.
+  aggregate "GitTool", "Local git porcelain invocations as first-class dispatched commands. Every command carries repo — the working directory — so directory context is a typed dispatch parameter, never a shell cd. The :exec adapter runs git in repo and chains the outcome into Cascade.RecordResult. Safety is structural : add -A, --amend, --no-verify, and force-push are simply not representable." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :repo, RepoPath
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # The git outcome flows back through Cascade.RecordResult sharing
+      # this id, joinable against the originating *Ran event.
+      attribute :value, String
+    end
+
+    value_object "RepoPath" do
+      # The working directory git runs in — absolute path. This is the
+      # bus-native answer to "changing directory" : instead of `cd repo
+      # && git …`, the directory is this typed attribute, auditable in
+      # the event stream and replayable.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # A single named path, relative to repo. Add/Commit take a
+      # list_of(FilePath) — naming files explicitly is what makes
+      # `git add -A` structurally impossible.
+      attribute :value, String
+    end
+
+    value_object "CommitMessage" do
+      # The commit message, verbatim. Multi-line allowed (title +
+      # body). Lives in both state and the event payload — commit
+      # messages are small.
+      attribute :value, String
+    end
+
+    value_object "Remote" do
+      # The git remote name (e.g. "origin"). Push names it explicitly
+      # rather than relying on an ambient default.
+      attribute :value, String
+    end
+
+    value_object "BranchName" do
+      # The branch name for Push. Named explicitly ; combined with the
+      # absence of a force attribute, this keeps pushes deliberate.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice. Duplicated per locked
+      # convention (VOs live inside the aggregate that uses them).
+      attribute :value, String
+    end
+
+    # ── Status ──
+    command "Status" do
+      role "Miette"
+      description "Show the working-tree status of repo. Records the dispatch as a GitTool record and emits GitStatusRan ; the status output rides through Cascade.RecordResult. Pure observation — no mutation."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :description, Description
+      emits "GitStatusRan"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── Diff ──
+    command "Diff" do
+      role "Miette"
+      description "Show changes in repo, optionally scoped to named paths. Records the dispatch as a GitTool record and emits GitDiffRan ; the diff rides through Cascade.RecordResult. Pure observation."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :paths, list_of(FilePath)
+      attribute :description, Description
+      emits "GitDiffRan"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── Add ── (named files only — no -A / no .)
+    command "Add" do
+      role "Miette"
+      description "Stage specific named files in repo. Records the dispatch as a GitTool record and emits GitStaged carrying the file list. files is a required list_of(FilePath) — there is no stage-everything flag, so git add -A / git add . are structurally impossible."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :files, list_of(FilePath)
+      attribute :description, Description
+      emits "GitStaged"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── Commit ── (message + named files ; no amend / no-verify / no-gpg-sign)
+    command "Commit" do
+      role "Miette"
+      description "Create a NEW commit in repo from explicitly named files with a message. Records the dispatch as a GitTool record and emits GitCommitted. Carries only message + files — no amend, no_verify, or no_gpg_sign attributes exist, so those bypasses cannot be dispatched. A failed hook means a fresh re-commit, never an amend."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :message, CommitMessage
+      attribute :files, list_of(FilePath)
+      attribute :description, Description
+      emits "GitCommitted"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── Log ──
+    command "Log" do
+      role "Miette"
+      description "Show recent commit history for repo. Records the dispatch as a GitTool record and emits GitLogRan ; the log rides through Cascade.RecordResult. Pure observation."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :description, Description
+      emits "GitLogRan"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── Mv ── (history-preserving rename)
+    command "Mv" do
+      role "Miette"
+      description "Rename or move a tracked file in repo, preserving history. Records the dispatch as a GitTool record and emits GitMoved carrying from_path + to_path."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :from_path, FilePath
+      attribute :to_path, FilePath
+      attribute :description, Description
+      emits "GitMoved"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── Push ── (no force attribute — force-push is unrepresentable)
+    command "Push" do
+      role "Miette"
+      description "Push repo's named branch to a named remote. Records the dispatch as a GitTool record and emits GitPushed carrying remote + branch. There is NO force attribute, so a force-push cannot be dispatched through this contract."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :remote, Remote
+      attribute :branch, BranchName
+      attribute :description, Description
+      emits "GitPushed"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+  end
+
+  # ──── Aggregate: GitHubTool ────
+  #
+  # GitHubTool wraps the GitHub CLI (gh) as first-class dispatched
+  # commands. RepoView / RepoRename act on a repo slug (owner/name) ;
+  # PrCreate / PrView act within a repo working directory. The :exec
+  # adapter runs gh and chains the outcome into Cascade.RecordResult.
+  # Same phase-2 substrate note as GitTool : the contract is live now,
+  # the :gh exec arm wires execution later.
+  aggregate "GitHubTool", "GitHub (gh CLI) invocations as first-class dispatched commands. RepoView/RepoRename act on a repo slug ; PrCreate/PrView act within a repo working directory. The :exec adapter runs gh and chains the outcome into Cascade.RecordResult." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :repo_slug, RepoSlug
+    attribute :description, Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      attribute :value, String
+    end
+
+    value_object "RepoSlug" do
+      # The GitHub repository slug, "owner/name" (e.g.
+      # "chrisyoung/mindful-energy-leadership"). Distinct from a local
+      # RepoPath : RepoSlug names the remote repo, RepoPath names a
+      # local working directory.
+      attribute :value, String
+    end
+
+    value_object "RepoPath" do
+      # Local working directory for gh commands that operate within a
+      # checkout (PrCreate / PrView resolve the repo from cwd). Absolute
+      # path — same directory-through-the-bus principle as GitTool.
+      attribute :value, String
+    end
+
+    value_object "NewName" do
+      # The new repository name for RepoRename (the bare name, not the
+      # owner/name slug — gh renames within the same owner).
+      attribute :value, String
+    end
+
+    value_object "PrTitle" do
+      # The pull-request title. Short ; rides in both state and event.
+      attribute :value, String
+    end
+
+    value_object "PrBody" do
+      # The pull-request body (markdown). Can be long — rides in the
+      # event payload only.
+      attribute :value, String
+    end
+
+    value_object "PrRef" do
+      # A pull-request reference for PrView — a PR number or URL. When
+      # absent, PrView resolves the PR for the current branch.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice.
+      attribute :value, String
+    end
+
+    # ── RepoView ──
+    command "RepoView" do
+      role "Miette"
+      description "View a GitHub repository's metadata by slug. Records the dispatch as a GitHubTool record and emits RepoViewed carrying the repo_slug ; the repo JSON rides through Cascade.RecordResult. Pure observation."
+      attribute :id, Id
+      attribute :repo_slug, RepoSlug
+      attribute :description, Description
+      emits "RepoViewed"
+      then_set :repo_slug,   to: :repo_slug
+      then_set :description, to: :description
+    end
+
+    # ── RepoRename ──
+    command "RepoRename" do
+      role "Miette"
+      description "Rename a GitHub repository. Records the dispatch as a GitHubTool record and emits RepoRenamed carrying the repo_slug + new_name. GitHub keeps a redirect from the old name. The caller is responsible for updating the local remote URL (a GitTool concern) afterward."
+      attribute :id, Id
+      attribute :repo_slug, RepoSlug
+      attribute :new_name, NewName
+      attribute :description, Description
+      emits "RepoRenamed"
+      then_set :repo_slug,   to: :repo_slug
+      then_set :description, to: :description
+    end
+
+    # ── PrCreate ──
+    command "PrCreate" do
+      role "Miette"
+      description "Open a pull request from the current branch of a local repo checkout. Records the dispatch as a GitHubTool record and emits PrCreated carrying the title ; the body rides in the event payload. The created PR URL rides through Cascade.RecordResult."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :title, PrTitle
+      attribute :body, PrBody
+      attribute :description, Description
+      emits "PrCreated"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+
+    # ── PrView ──
+    command "PrView" do
+      role "Miette"
+      description "View a pull request (by ref, or the current branch's PR) from a local repo checkout. Records the dispatch as a GitHubTool record and emits PrViewed ; the PR detail rides through Cascade.RecordResult. Pure observation."
+      attribute :id, Id
+      attribute :repo, RepoPath
+      attribute :pr_ref, PrRef
+      attribute :description, Description
+      emits "PrViewed"
+      then_set :repo,        to: :repo
+      then_set :description, to: :description
+    end
+  end
+
   # Cascade moved to framework/cascade/cascade.bluebook (i609 phase 1, 2026-05-14)
 end

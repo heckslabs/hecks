@@ -818,4 +818,219 @@ Hecks.behaviors "Tools" do
            description:  { value: "issue a refund" }
     expect emits: ["TriggerFired"]
   end
+
+  # ── GitTool : Status, Diff, Add, Commit, Log, Mv, Push ───────────
+
+  test "Status records repo + description on GitTool" do
+    tests "Status", on: "GitTool"
+    input  id:           { value: "git-status-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "check working-tree status" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "check working-tree status" }
+  end
+
+  test "Status emits GitStatusRan" do
+    tests "Status", on: "GitTool"
+    input  id:           { value: "git-status-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "another status check" }
+    expect emits: ["GitStatusRan"]
+  end
+
+  test "Diff records repo + description on GitTool" do
+    tests "Diff", on: "GitTool"
+    input  id:           { value: "git-diff-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           paths:        [],
+           description:  { value: "diff the whole tree" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "diff the whole tree" }
+  end
+
+  test "Diff emits GitDiffRan" do
+    tests "Diff", on: "GitTool"
+    input  id:           { value: "git-diff-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           paths:        [{ value: "lib/foo.rb" }],
+           description:  { value: "diff a single file" }
+    expect emits: ["GitDiffRan"]
+  end
+
+  test "Add records repo + description on GitTool" do
+    tests "Add", on: "GitTool"
+    input  id:           { value: "git-add-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           files:        [{ value: "lib/foo.rb" }],
+           description:  { value: "stage foo.rb" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "stage foo.rb" }
+  end
+
+  test "Add emits GitStaged" do
+    tests "Add", on: "GitTool"
+    input  id:           { value: "git-add-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           files:        [{ value: "lib/bar.rb" }, { value: "lib/baz.rb" }],
+           description:  { value: "stage two files" }
+    expect emits: ["GitStaged"]
+  end
+
+  test "Commit records repo + description on GitTool" do
+    tests "Commit", on: "GitTool"
+    input  id:           { value: "git-commit-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           message:      { value: "feat(parser): handle edge case" },
+           files:        [{ value: "lib/parser.rb" }],
+           description:  { value: "commit parser fix" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "commit parser fix" }
+  end
+
+  test "Commit emits GitCommitted" do
+    tests "Commit", on: "GitTool"
+    input  id:           { value: "git-commit-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           message:      { value: "fix(bluebook): correct validator meta-shape" },
+           files:        [{ value: "aggregates/foo.bluebook" }],
+           description:  { value: "commit bluebook fix" }
+    expect emits: ["GitCommitted"]
+  end
+
+  test "Log records repo + description on GitTool" do
+    tests "Log", on: "GitTool"
+    input  id:           { value: "git-log-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "show recent commits" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "show recent commits" }
+  end
+
+  test "Log emits GitLogRan" do
+    tests "Log", on: "GitTool"
+    input  id:           { value: "git-log-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "another log pass" }
+    expect emits: ["GitLogRan"]
+  end
+
+  test "Mv records repo + description on GitTool" do
+    tests "Mv", on: "GitTool"
+    input  id:           { value: "git-mv-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           from_path:    { value: "lib/old_name.rb" },
+           to_path:      { value: "lib/new_name.rb" },
+           description:  { value: "rename old_name to new_name" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "rename old_name to new_name" }
+  end
+
+  test "Mv emits GitMoved" do
+    tests "Mv", on: "GitTool"
+    input  id:           { value: "git-mv-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           from_path:    { value: "lib/a.rb" },
+           to_path:      { value: "lib/b.rb" },
+           description:  { value: "move a to b" }
+    expect emits: ["GitMoved"]
+  end
+
+  test "Push records repo + description on GitTool" do
+    tests "Push", on: "GitTool"
+    input  id:           { value: "git-push-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           remote:       { value: "origin" },
+           branch:       { value: "main" },
+           description:  { value: "push main to origin" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "push main to origin" }
+  end
+
+  test "Push emits GitPushed" do
+    tests "Push", on: "GitTool"
+    input  id:           { value: "git-push-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           remote:       { value: "origin" },
+           branch:       { value: "feature/x" },
+           description:  { value: "push feature branch" }
+    expect emits: ["GitPushed"]
+  end
+
+  # ── GitHubTool : RepoView, RepoRename, PrCreate, PrView ──────────
+
+  test "RepoView records repo_slug + description on GitHubTool" do
+    tests "RepoView", on: "GitHubTool"
+    input  id:           { value: "gh-repo-view-1" },
+           repo_slug:    { value: "chrisyoung/hecks" },
+           description:  { value: "view hecks repo metadata" }
+    expect repo_slug:    { value: "chrisyoung/hecks" },
+           description:  { value: "view hecks repo metadata" }
+  end
+
+  test "RepoView emits RepoViewed" do
+    tests "RepoView", on: "GitHubTool"
+    input  id:           { value: "gh-repo-view-2" },
+           repo_slug:    { value: "chrisyoung/embryonaut-site" },
+           description:  { value: "view embryonaut-site metadata" }
+    expect emits: ["RepoViewed"]
+  end
+
+  test "RepoRename records repo_slug + description on GitHubTool" do
+    tests "RepoRename", on: "GitHubTool"
+    input  id:           { value: "gh-rename-1" },
+           repo_slug:    { value: "chrisyoung/old-name" },
+           new_name:     { value: "new-name" },
+           description:  { value: "rename old-name to new-name" }
+    expect repo_slug:    { value: "chrisyoung/old-name" },
+           description:  { value: "rename old-name to new-name" }
+  end
+
+  test "RepoRename emits RepoRenamed" do
+    tests "RepoRename", on: "GitHubTool"
+    input  id:           { value: "gh-rename-2" },
+           repo_slug:    { value: "chrisyoung/another-repo" },
+           new_name:     { value: "better-name" },
+           description:  { value: "another rename" }
+    expect emits: ["RepoRenamed"]
+  end
+
+  test "PrCreate records repo + description on GitHubTool" do
+    tests "PrCreate", on: "GitHubTool"
+    input  id:           { value: "gh-pr-create-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           title:        { value: "feat(tools): GitTool + GitHubTool" },
+           body:         { value: "Adds git and gh CLI as dispatched commands." },
+           description:  { value: "open PR for git tool suite" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "open PR for git tool suite" }
+  end
+
+  test "PrCreate emits PrCreated" do
+    tests "PrCreate", on: "GitHubTool"
+    input  id:           { value: "gh-pr-create-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           title:        { value: "fix(storehouse): warm dispatch fallback" },
+           body:         { value: "Rejects whitespace args on warm path." },
+           description:  { value: "open PR for storehouse fix" }
+    expect emits: ["PrCreated"]
+  end
+
+  test "PrView records repo + description on GitHubTool" do
+    tests "PrView", on: "GitHubTool"
+    input  id:           { value: "gh-pr-view-1" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           pr_ref:       { value: "42" },
+           description:  { value: "view PR #42" }
+    expect repo:         { value: "/Users/me/proj/hecks" },
+           description:  { value: "view PR #42" }
+  end
+
+  test "PrView emits PrViewed" do
+    tests "PrView", on: "GitHubTool"
+    input  id:           { value: "gh-pr-view-2" },
+           repo:         { value: "/Users/me/proj/hecks" },
+           pr_ref:       { value: "" },
+           description:  { value: "view current branch PR" }
+    expect emits: ["PrViewed"]
+  end
 end
