@@ -711,6 +711,31 @@ fn main() {
         return;
     }
 
+    // `storehouse query <root-or-bluebook> <Domain::Aggregate.snake> [k=v]`
+    // Route through dispatch_hecksagon, which is FQN-query-aware and reads
+    // from the same data dir the matching dispatch wrote to. Without this
+    // the query subcommand fell through to the single-file read path below
+    // and died on a directory root ("Is a directory").
+    if command == "query" {
+        let root = path;
+        let verb = args.get(3).cloned().unwrap_or_default();
+        if verb.is_empty() {
+            eprintln!("Usage: storehouse query <root-or-bluebook> <Domain::Aggregate.snake_case> [k=v ...]");
+            std::process::exit(1);
+        }
+        let attrs: std::collections::HashMap<String, serde_json::Value> = args.get(4..)
+            .unwrap_or(&[]).iter()
+            .filter_map(|a| {
+                let mut parts = a.splitn(2, '=');
+                let key = parts.next()?;
+                let val = parts.next()?;
+                Some((key.to_string(), serde_json::Value::String(val.to_string())))
+            })
+            .collect();
+        dispatch_hecksagon(root, &verb, attrs);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3428,7 +3453,15 @@ fn boot_serve_runtime(
     }
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
-    let combined = load_combined_domain(agg_dir);
+    // Accept a single bluebook file as well as a directory root, so
+    // `storehouse query <file.bluebook> <verb>` works (MCP doc says
+    // "root-or-bluebook"). A file parses to its own domain ; a directory
+    // loads the combined domain.
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, agg_dir);
@@ -3467,10 +3500,45 @@ fn make_serve_legacy_hook(
 fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
-    let combined = load_combined_domain(agg_dir);
+    // Accept a single bluebook file as well as a directory root, so
+    // `storehouse query <file.bluebook> <verb>` works (MCP doc says
+    // "root-or-bluebook"). A file parses to its own domain ; a directory
+    // loads the combined domain.
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, agg_dir);
+
+    // FQN-aware query resolution. Commands resolve their
+    // Domain::Aggregate.Command form inside command_dispatch::resolve ;
+    // queries need the same parsing here, else a
+    // `Domain::Aggregate.snake_query` verb falls through to command
+    // resolution and fails with UnknownCommand. Parse the FQN, match the
+    // dot-tail against each aggregate's query names by snake_case, and
+    // resolve through resolve_query_qualified (which targets the right
+    // repo by context+aggregate).
+    if let Some((head, tail)) = command.rsplit_once('.') {
+        let segments: Vec<&str> = head.split("::").collect();
+        if segments.len() == 2 {
+            let agg = segments[1];
+            let q_match = rt.domain.aggregates.iter()
+                .filter(|a| a.name == agg)
+                .find_map(|a| a.queries.iter()
+                    .find(|q| storehouse::heki::snake_case(&q.name) == tail || q.name == tail)
+                    .map(|q| (a.context.clone(), a.name.clone(), q.name.clone())));
+            if let Some((ctx, agg_name, q_name)) = q_match {
+                let str_attrs: std::collections::HashMap<String, String> = attrs.iter()
+                    .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string()))
+                    .collect();
+                println!("{}", rt.resolve_query_qualified(ctx.as_deref(), &agg_name, &q_name, &str_attrs));
+                return;
+            }
+        }
+    }
 
     // Check if this is a query — find the aggregate and check its queries
     let is_query = rt.domain.aggregates.iter().any(|a|
