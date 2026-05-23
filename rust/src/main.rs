@@ -2971,13 +2971,29 @@ fn load_combined_domain(agg_dir: &str) -> storehouse::ir::Domain {
         // current_exe finds the canonical hecks/ root. (i117 Round 4
         // follow-on : Chris's "no inbox row, just fix it" call after
         // the Wave 2 agent's worktree-path-resolution false-failure.)
+        // Isolation gate (production) — the global roots below (Miette's
+        // conception via ../miette and the repo's framework buckets) join
+        // the dispatch domain ONLY when agg_dir is itself inside the hecks
+        // repo, i.e. Miette dispatching against her own conception. A
+        // standalone domain (a user's project, an isolated root) loads in
+        // isolation : only its own bluebooks + sibling capabilities.
+        // Without this gate every external dispatch dragged in Miette's
+        // whole conception, so a foreign domain's events collided with her
+        // policies (a demo `Greeted` fired memory's RecallOnGreet).
+        let within_repo = std::fs::canonicalize(agg_dir).ok()
+            .zip(storehouse::heki::repo_root()
+                .and_then(|r| std::fs::canonicalize(&r).ok()))
+            .map(|(a, r)| a.starts_with(&r))
+            .unwrap_or(false);
         let canonical_miette = storehouse::heki::repo_root()
             .map(|r| r.join("../miette"))
             .filter(|p| p.is_dir())
             .and_then(|p| std::fs::canonicalize(&p).ok());
-        if let Some(canonical) = canonical_miette {
-            if canonical != std::path::Path::new(agg_dir) {
-                collect_bluebooks(&canonical, 1, &mut found);
+        if within_repo {
+            if let Some(canonical) = canonical_miette {
+                if canonical != std::path::Path::new(agg_dir) {
+                    collect_bluebooks(&canonical, 1, &mut found);
+                }
             }
         }
         // i118 Round 3 (capabilities reorg) — the 58 framework
@@ -2990,7 +3006,7 @@ fn load_combined_domain(agg_dir: &str) -> storehouse::ir::Domain {
         // depth 1 so the dispatch domain still resolves them. The legacy
         // hecks_conception/capabilities/ walk above keeps working for caps
         // that haven't been lifted yet (the deferred codegen + statusline).
-        if let Some(repo_root) = storehouse::heki::repo_root() {
+        if let Some(repo_root) = storehouse::heki::repo_root().filter(|_| within_repo) {
             // Runtime buckets only — chapters/ and bluebook/ are
             // descriptive (the framework's self-description and
             // language definition) and intentionally excluded from
