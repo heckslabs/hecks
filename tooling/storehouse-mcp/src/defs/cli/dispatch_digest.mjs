@@ -44,9 +44,11 @@ const ADAPTER_RE = new RegExp(
   TS.source + /\[(?<channel>(?:claude_tool|mcp):[^\]]+)\]\s+(?<rest>.*)$/.source,
 );
 
-// Parse `key="value"` and `key=value` tokens out of an adapter rest tail.
-// Used to lift `ok=`, `exit=`, `error=` off claude_tool adapter lines so
-// the digest can spot per-step failures cleanly.
+// Lift `ok=` `exit=` `error=` `output=` off claude_tool/mcp adapter
+// lines — per-step failure detection AND the tool's actual stdout.
+// Quoted values unescape `\n`→newline, `\t`→tab, `\r`→CR, `\"`→`"`,
+// `\\`→`\` ; the newline mapping matters because storehouse_log.rs
+// escapes embedded newlines to keep each log line on one row.
 function parseKvTail(rest) {
   const out = {};
   const re = /(\w+)=("(?:[^"\\]|\\.)*"|\S+)/g;
@@ -54,7 +56,8 @@ function parseKvTail(rest) {
   while ((m = re.exec(rest)) !== null) {
     let v = m[2];
     if (v.startsWith('"') && v.endsWith('"')) {
-      v = v.slice(1, -1).replace(/\\(.)/g, "$1");
+      v = v.slice(1, -1).replace(/\\(.)/g, (_, c) =>
+        c === "n" ? "\n" : c === "t" ? "\t" : c === "r" ? "\r" : c);
     }
     out[m[1]] = v;
   }
@@ -141,6 +144,7 @@ export function parseEvents(stdout) {
         ...(kv.ok !== undefined ? { ok: kv.ok === "true" } : {}),
         ...(kv.exit !== undefined ? { exit: Number(kv.exit) } : {}),
         ...(kv.error ? { error: kv.error } : {}),
+        ...(kv.output ? { output: kv.output } : {}),
       });
       continue;
     }

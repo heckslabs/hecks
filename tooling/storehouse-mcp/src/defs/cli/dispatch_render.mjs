@@ -19,8 +19,12 @@
 //   2. Failure block — only when ok=false. stderr + adapter cause.
 //   3. Timeline tree — invocation chains in box-drawing form.
 //   4. State block — flat post-state attribute list.
-//   5. Auto-summary — digest one-liner as TL;DR (leading `—`).
-//   6. Raw appendix — unparsed stdout (e.g. [tts:…] lines).
+//   5. Tool output — the actual stdout/result payload of each
+//      claude_tool:* / mcp:* adapter call (so a bus-dispatched
+//      ShellTool.Bash / SearchTool.Grep / FileTool.Read returns its
+//      OUTPUT to the agent, not just the echoed command state).
+//   6. Auto-summary — digest one-liner as TL;DR (leading `—`).
+//   7. Raw appendix — unparsed stdout (e.g. [tts:…] lines).
 //
 // Section renderers + helpers are split into sibling modules to
 // honour the 200-LOC rule (CLAUDE.md). This file owns the composer
@@ -113,6 +117,36 @@ function renderState(result) {
   return [`State (${aggregateName})`, ...entries.map(([k, v]) => `  ${formatAttr(k, v)}`)].join("\n");
 }
 
+// ----- section : tool output -----------------------------------------
+//
+// Each adapter event (claude_tool:* / mcp:*) carrying a non-empty
+// `output` is rendered under its channel label. `output` is a real
+// multi-line string (the digest unescapes \n) ; lines indent to nest
+// under the header. Capped at 200 lines / 8 KB — generous for grep/read
+// results, unlike the Raw appendix's 12-line noise cap.
+
+const TOOL_OUTPUT_MAX_LINES = 200;
+const TOOL_OUTPUT_MAX_CHARS = 8192;
+
+function renderToolOutput(result) {
+  const events = Array.isArray(result.events) ? result.events : [];
+  const withOutput = events.filter(
+    (e) => e.kind === "adapter" && typeof e.output === "string" && e.output.length > 0,
+  );
+  if (withOutput.length === 0) return null;
+  const out = ["Tool output"];
+  for (const ev of withOutput) {
+    out.push(`  ${ev.verb}`);
+    const body = ev.output.slice(0, TOOL_OUTPUT_MAX_CHARS);
+    const lines = body.split("\n");
+    const capped = lines.slice(0, TOOL_OUTPUT_MAX_LINES);
+    for (const ln of capped) out.push(`    ${ln}`);
+    const more = lines.length - capped.length;
+    if (more > 0) out.push(`    … (+${more} more line${more === 1 ? "" : "s"})`);
+  }
+  return out.join("\n");
+}
+
 // ----- section : raw appendix ----------------------------------------
 
 function renderRaw(result) {
@@ -143,6 +177,8 @@ export function renderDispatch(result) {
   if (timeline) sections.push(timeline);
   const state = renderState(result);
   if (state) sections.push(state);
+  const toolOutput = renderToolOutput(result);
+  if (toolOutput) sections.push(toolOutput);
   const raw = renderRaw(result);
   if (raw) sections.push(raw);
   if (result.auto_summary) sections.push(`— ${result.auto_summary}`);
@@ -155,5 +191,6 @@ export const __internals = {
   renderHeadline,
   renderFailure,
   renderState,
+  renderToolOutput,
   renderRaw,
 };

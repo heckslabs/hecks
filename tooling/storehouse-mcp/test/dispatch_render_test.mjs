@@ -18,6 +18,8 @@
 
 import { renderDispatch } from "../src/defs/cli/dispatch_render.mjs";
 import { unrecognisedLines } from "../src/defs/cli/dispatch_render/util.mjs";
+import { parseEvents } from "../src/defs/cli/dispatch_digest.mjs";
+import { warmDispatch } from "../src/defs/cli/serve_child.mjs";
 
 let failed = 0;
 function ok(label) { process.stderr.write(`ok   ${label}\n`); }
@@ -199,6 +201,60 @@ const tts = {
   contains(text, "Raw output", "tts: raw appendix surfaces unparsed lines");
   contains(text, "tts:elevenlabs", "tts: appendix carries the tts adapter line");
   notContains(text, '{"ok":true,"Voice"', "tts: trailing JSON state filtered from raw appendix");
+}
+
+// ---- 6. adapter output surfaces in Tool output section ---------------
+//
+// The motivating bug : a ShellTool.Bash / SearchTool.Grep / FileTool.Read
+// dispatched through the bus ran fine but its stdout never reached the
+// agent — only the echoed command state did. parseEvents must lift
+// `output=` off the [claude_tool:…] line (unescaping \n to a real
+// newline), and the renderer must surface it under a "Tool output"
+// section.
+
+{
+  const stdout =
+    `[2026-05-23T16:00:00Z] dispatch Tools::SearchTool.Grep#inv_g1\n` +
+    `[2026-05-23T16:00:00Z] event SearchTool.Grepped#7\n` +
+    `[2026-05-23T16:00:00Z] [claude_tool:grep] ok=true exit=0 output="match one\\nmatch two\\n"\n` +
+    `{"ok":true,"SearchTool":{"id":"7","pattern":"foo"}}\n`;
+  const events = parseEvents(stdout);
+  const adapter = events.find((e) => e.kind === "adapter");
+  truthy(adapter, "toolOutput: adapter event parsed from [claude_tool:…] line");
+  truthy(adapter && adapter.output === "match one\nmatch two\n",
+    "toolOutput: output captured with \\n unescaped to real newline");
+
+  const result = {
+    ok: true, exit_code: 0, command: "Tools::SearchTool.Grep",
+    stdout, stderr: "",
+    state: { ok: true, SearchTool: { id: "7", pattern: "foo" } },
+    events,
+    auto_summary: "Tools::SearchTool.Grep → exit 0, 1 event (Grepped), 0 policies fired",
+    duration_ms: 30,
+  };
+  const text = renderDispatch(result);
+  contains(text, "Tool output", "toolOutput: section header present");
+  contains(text, "claude_tool:grep", "toolOutput: section labels the channel");
+  contains(text, "match one", "toolOutput: first output line surfaced");
+  contains(text, "match two", "toolOutput: second output line surfaced");
+}
+
+// ---- 7. Tools:: commands force the cold path -------------------------
+//
+// Adapter-bearing commands carry no whitespace in a no-arg / short-arg
+// shape (e.g. FileTool.Read file_path=/no/space/path), so the
+// whitespace guard alone would route them warm — where the adapter
+// output is dropped. warmDispatch must reject any Tools:: command so the
+// caller falls back to the cold one-shot that renders Tool output.
+
+{
+  let threw = false;
+  try {
+    await warmDispatch("/x", "Tools::FileTool.Read", ["file_path=/tmp/x"]);
+  } catch (e) {
+    threw = /adapter-bearing/.test(e.message);
+  }
+  truthy(threw, "forceCold: warmDispatch throws for Tools:: command (no-whitespace args)");
 }
 
 // ---- internals : unrecognisedLines ----------------------------------

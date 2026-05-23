@@ -167,6 +167,19 @@ export async function warmDispatch(aggregatesDir, command, attrArgs) {
       `warm-unsafe arg (whitespace in value: "${unsafe.slice(0, 40)}…") — falling back to one-shot`,
     );
   }
+  // Adapter-bearing commands (Tools::ShellTool / FileTool / SearchTool /
+  // WebTool …) need the cold one-shot path : their value is the adapter
+  // OUTPUT (tool stdout, file content, grep matches), which the runtime
+  // streams as `[claude_tool:…]` cascade-log lines the cold path scrapes
+  // into the Tool-output render. The warm reply carries only the echoed
+  // command state (no adapter event, no output), so a warm Tools:: call
+  // surfaces a useless `file_path=…` echo with the content dropped. Warm
+  // stays the fast path for pure domain mutations + queries.
+  if (command.startsWith("Tools::")) {
+    throw new Error(
+      `adapter-bearing command (${command}) needs cold-path cascade rendering — falling back to one-shot`,
+    );
+  }
   const sockPath = await sockPathFor(aggregatesDir);
   const line = buildRequestLine(command, attrArgs);
   return await socketRequest(sockPath, line);

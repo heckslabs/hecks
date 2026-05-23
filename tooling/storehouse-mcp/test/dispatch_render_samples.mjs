@@ -21,7 +21,7 @@ const simple = {
   events: [
     { ts: "2026-05-20T18:00:00Z", kind: "dispatch", verb: "Tools::ShellTool.Bash", target: null, invocation_id: "inv_a1", description: "cli smoke" },
     { ts: "2026-05-20T18:00:00Z", kind: "event", verb: "ShellTool.BashRan", target: "ShellTool#cli-smoke-bash", invocation_id: "inv_a1" },
-    { ts: "2026-05-20T18:00:00Z", kind: "adapter", verb: "claude_tool:bash", target: null, invocation_id: "inv_a1", ok: true, exit: 0 },
+    { ts: "2026-05-20T18:00:00Z", kind: "adapter", verb: "claude_tool:bash", target: null, invocation_id: "inv_a1", ok: true, exit: 0, output: "hi\n" },
   ],
   auto_summary: "Tools::ShellTool.Bash → exit 0, 1 event (BashRan), 0 policies fired",
   duration_ms: 124,
