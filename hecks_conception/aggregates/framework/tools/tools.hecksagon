@@ -42,6 +42,7 @@ Hecks.hecksagon "Tools" do
   adapter :claude_tool, command: "FileTool.Read",    tool: :read,  result_into: "Cascade.RecordResult"
   adapter :claude_tool, command: "FileTool.Edit",    tool: :edit,  result_into: "Cascade.RecordResult"
   adapter :claude_tool, command: "FileTool.Update",  tool: :write, result_into: "Cascade.RecordResult"
+  adapter :claude_tool, command: "FileTool.Write",   tool: :write, result_into: "Cascade.RecordResult"
 
   # ── SearchTool ──
   adapter :claude_tool, command: "SearchTool.Grep",  tool: :grep,  result_into: "Cascade.RecordResult"
