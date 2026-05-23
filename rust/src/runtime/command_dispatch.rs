@@ -56,6 +56,38 @@ fn cmd_for<'a>(rt: &'a Runtime, res: Resolution) -> &'a Command {
     }
 }
 
+/// Reject k=v args that aren't declared attributes of the command.
+/// The legitimate non-attribute inputs all name the *target record* :
+///   - the universal `id` self-ref key,
+///   - the self-ref kwarg (snake-cased aggregate name),
+///   - the aggregate's `identified_by` natural key (e.g. `move_id` for
+///     `Move identified_by :move_id` — a transition command identifies
+///     its record by that key without redeclaring it as an attribute).
+/// Direct-dispatch guard only ; the caller gates on `cascade_hint.is_none()`.
+fn reject_unexpected_attrs(
+    cmd: &Command,
+    attrs: &HashMap<String, Value>,
+    self_ref: Option<&str>,
+    identity_key: Option<&str>,
+) -> Result<(), RuntimeError> {
+    let mut unknown: Vec<String> = attrs.keys()
+        .filter(|k| {
+            k.as_str() != "id"
+                && Some(k.as_str()) != self_ref
+                && Some(k.as_str()) != identity_key
+                && !cmd.attributes.iter().any(|a| a.name == **k)
+        })
+        .cloned()
+        .collect();
+    if unknown.is_empty() {
+        return Ok(());
+    }
+    unknown.sort();
+    let mut declared: Vec<String> = cmd.attributes.iter().map(|a| a.name.clone()).collect();
+    declared.sort();
+    Err(RuntimeError::UnexpectedAttribute { command: cmd.name.clone(), unknown, declared })
+}
+
 /// Borrow the lifecycle that gates the resolved command : the entity's
 /// own lifecycle when present, otherwise the parent aggregate's.
 fn lifecycle_for<'a>(rt: &'a Runtime, res: Resolution) -> Option<&'a Lifecycle> {
@@ -130,6 +162,20 @@ fn dispatch_inner(
         || command_name.starts_with("Open");
 
     let self_ref = find_self_ref_res(rt, res);
+
+    // Strict arg validation — direct dispatch only. A k=v arg that
+    // isn't a declared attribute of the command (nor the universal
+    // `id` self-ref key, nor the self-ref kwarg) is almost always a
+    // caller typo — e.g. `path=` for SearchTool.Grep whose attribute
+    // is `search_path`. Reject it at the door rather than silently
+    // dropping it, the old behavior that masked typos. Cascades are
+    // exempt: dispatch_cascade forwards upstream event payloads that
+    // legitimately carry keys the downstream command doesn't declare.
+    if cascade_hint.is_none() {
+        let identity_key = rt.domain.aggregates[agg_idx].identified_by.clone();
+        reject_unexpected_attrs(cmd_for(rt, res), &attrs, self_ref.as_deref(), identity_key.as_deref())?;
+    }
+
     let aggregate_name = rt.domain.aggregates[agg_idx].name.clone();
     let aggregate_context = rt.domain.aggregates[agg_idx].context.clone();
     let repo_hash_key = super::repo_key(aggregate_context.as_deref(), &aggregate_name);

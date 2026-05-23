@@ -123,6 +123,10 @@ pub fn run_script(args: &[String]) -> i32 {
         let mut parts = a.splitn(2, '=');
         let k = parts.next()?;
         let v = parts.next()?;
+        // `entrypoint=` is meta-routing (consumed above), not a command
+        // attribute. Drop it so strict arg validation in dispatch_inner
+        // doesn't reject the runner's own injection.
+        if k == "entrypoint" { return None; }
         Some((k.to_string(), Value::Str(v.to_string())))
     }).collect();
 
