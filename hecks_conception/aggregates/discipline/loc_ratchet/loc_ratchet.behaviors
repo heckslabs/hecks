@@ -1,0 +1,26 @@
+Hecks.behaviors "LocRatchet" do
+  vision "Behavioral tests for the Concern aggregate — the loc-ratchet's concerns as data, each with its own direction. RegisterConcern sets the shape ; ListConcerns surfaces the seeded set the script gates by."
+
+  test "RegisterConcern sets name + path + extensions + direction + baseline" do
+    tests "RegisterConcern", on: "Concern"
+    input  name: "core_runtime", path: "rust/src", extensions: "rs", direction: "shrink", baseline: ""
+    expect name: "core_runtime", path: "rust/src", extensions: "rs", direction: "shrink", baseline: ""
+  end
+
+  test "RegisterConcern records a grow direction for codegen" do
+    tests "RegisterConcern", on: "Concern"
+    input  name: "codegen", path: "rust/src/specializer", extensions: "rs", direction: "grow", baseline: ""
+    expect name: "codegen", path: "rust/src/specializer", extensions: "rs", direction: "grow"
+  end
+
+  test "ListConcerns surfaces every seeded concern" do
+    tests "ListConcerns", on: "Concern", kind: :query
+    expect count: 3
+  end
+
+  test "ListConcerns includes the codegen grow concern carving the specializer out of core_runtime" do
+    tests "ListConcerns", on: "Concern", kind: :query
+    setup  "RegisterConcern", name: "codegen", path: "rust/src/specializer", extensions: "rs", direction: "grow", baseline: ""
+    expect includes: { name: "codegen", direction: "grow" }
+  end
+end
