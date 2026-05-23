@@ -59,22 +59,33 @@ fn cmd_for<'a>(rt: &'a Runtime, res: Resolution) -> &'a Command {
 /// Reject k=v args that aren't declared attributes of the command.
 /// The legitimate non-attribute inputs all name the *target record* :
 ///   - the universal `id` self-ref key,
-///   - the self-ref kwarg (snake-cased aggregate name),
 ///   - the aggregate's `identified_by` natural key (e.g. `move_id` for
 ///     `Move identified_by :move_id` — a transition command identifies
-///     its record by that key without redeclaring it as an attribute).
+///     its record by that key without redeclaring it as an attribute),
+///   - any reference key the command declares via `reference_to`, in
+///     every form callers use : the reference name, the snake-cased
+///     target, and the `<snake>_id` self-ref convention the behaviors
+///     corpus relies on (e.g. `writing_id` for `reference_to(Writing)`).
 /// Direct-dispatch guard only ; the caller gates on `cascade_hint.is_none()`.
 fn reject_unexpected_attrs(
     cmd: &Command,
     attrs: &HashMap<String, Value>,
-    self_ref: Option<&str>,
     identity_key: Option<&str>,
 ) -> Result<(), RuntimeError> {
+    // Every key form a declared reference legitimately accepts.
+    let mut ref_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for r in &cmd.references {
+        let target_snake = to_snake_case(&r.target);
+        ref_keys.insert(r.name.clone());
+        ref_keys.insert(format!("{}_id", r.name));
+        ref_keys.insert(target_snake.clone());
+        ref_keys.insert(format!("{}_id", target_snake));
+    }
     let mut unknown: Vec<String> = attrs.keys()
         .filter(|k| {
             k.as_str() != "id"
-                && Some(k.as_str()) != self_ref
                 && Some(k.as_str()) != identity_key
+                && !ref_keys.contains(*k)
                 && !cmd.attributes.iter().any(|a| a.name == **k)
         })
         .cloned()
@@ -173,7 +184,7 @@ fn dispatch_inner(
     // legitimately carry keys the downstream command doesn't declare.
     if cascade_hint.is_none() {
         let identity_key = rt.domain.aggregates[agg_idx].identified_by.clone();
-        reject_unexpected_attrs(cmd_for(rt, res), &attrs, self_ref.as_deref(), identity_key.as_deref())?;
+        reject_unexpected_attrs(cmd_for(rt, res), &attrs, identity_key.as_deref())?;
     }
 
     let aggregate_name = rt.domain.aggregates[agg_idx].name.clone();
