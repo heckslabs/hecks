@@ -150,6 +150,23 @@ export function buildRequestLine(command, attrArgs) {
 // caller falls back to a one-shot spawn. Resolves the socket path once
 // per root (cached), then connects per dispatch.
 export async function warmDispatch(aggregatesDir, command, attrArgs) {
+  // The warm socket protocol sends ONE whitespace-delimited line
+  // (`Command k=v k=v …`) that the Rust daemon RE-SPLITS on whitespace —
+  // so any attr value containing whitespace (a shell command, a commit
+  // message, a description, an LLM prompt) is truncated at its first
+  // space (`shell_command=cd /x && find …` arrives as `shell_command=cd`).
+  // The one-shot path is immune because `spawn` passes each arg as a
+  // distinct argv element. So : reject warm-unsafe args here and let the
+  // caller fall back to the cold one-shot spawn — which preserves the
+  // spaces AND streams the cascade log lines the warm reply omits. Warm
+  // stays the fast path for simple-valued domain dispatches ; anything
+  // carrying free text degrades cleanly to cold.
+  const unsafe = attrArgs.find((a) => /\s/.test(a));
+  if (unsafe) {
+    throw new Error(
+      `warm-unsafe arg (whitespace in value: "${unsafe.slice(0, 40)}…") — falling back to one-shot`,
+    );
+  }
   const sockPath = await sockPathFor(aggregatesDir);
   const line = buildRequestLine(command, attrArgs);
   return await socketRequest(sockPath, line);
