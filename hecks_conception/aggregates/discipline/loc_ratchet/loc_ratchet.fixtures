@@ -1,0 +1,31 @@
+Hecks.fixtures "LocRatchet" do
+  # The three seeded concerns. core_runtime + shell preserve today's
+  # shrink pressure exactly ; codegen carves the specializer emitters
+  # out of core_runtime (longest-prefix-match) and lets them grow,
+  # because the shape (codegen/*_shape/*.bluebook) is the contract and
+  # the emitter Rust is a mechanical projection of it.
+  #
+  # Leave room for a future `deploy` grow concern alongside these.
+  aggregate "Concern" do
+    fixture "core_runtime",
+            name:       "core_runtime",
+            path:       "rust/src",
+            extensions: "rs",
+            direction:  "shrink",
+            baseline:   ""
+
+    fixture "codegen",
+            name:       "codegen",
+            path:       "rust/src/specializer",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
+
+    fixture "shell",
+            name:       "shell",
+            path:       "hecks_conception",
+            extensions: "sh",
+            direction:  "shrink",
+            baseline:   ""
+  end
+end

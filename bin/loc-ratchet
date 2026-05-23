@@ -1,54 +1,101 @@
 #!/usr/bin/env ruby
-# loc-ratchet — the non-bluebook LoC may not increase in a PR.
+# loc-ratchet — gate each counted tree (CONCERN) by its DIRECTION.
 #
-# Counts `*.rs` under rust/src/ and `*.sh` under hecks_conception/
-# on HEAD vs the base branch. If HEAD's total exceeds base's total, the
-# PR fails — unless the increase is authorised by a commit carrying
-# a [loc-ratchet-override: <reason>] marker. (Commit signing dropped
-# 2026-05-18 ; the operator commits the marker — that authorises.)
+# The concerns are no longer hard-coded here. They live in a
+# bluebook — hecks_conception/aggregates/discipline/loc_ratchet/
+# loc_ratchet.bluebook (the Concern aggregate) seeded by its sibling
+# loc_ratchet.fixtures. The gate that enforces bluebook-first is now
+# itself bluebook-configured : "split it by concern" done bluebook-
+# first. Each Concern carries :
 #
-# i118 renamed storehouse/ → rust/ ; the path here was updated 2026-05-01
-# to match. Before that, the scan returned 0 trivially because the old
-# path didn't exist post-rename, so the ratchet was a no-op gate.
+#   name        stable slug (e.g. core_runtime)
+#   path        repo-relative tree anchor (e.g. rust/src)
+#   extensions  comma-separated, no dots (e.g. rs)
+#   direction   shrink | hold | grow
+#   baseline    optional pinned floor ("" = compare against base ref)
 #
-# Why this exists : Phase F shipped eleven PRs that declared bluebooks
-# + hecksagons WITHOUT deleting the corresponding Rust (see i62 in the
-# inbox). The resulting drift left the stated direction "no Rust"
-# unenforced. This check creates the monotonic pressure : new non-
-# bluebook code must either replace more non-bluebook code than it
-# adds, or carry an override from the operator. Declaration
-# without deletion stops being a silent habit.
+# Direction is the per-concern pressure on the delta (head - base) :
+#   shrink — delta may not increase (delta > 0 fails)  ← today's rule
+#   hold   — delta must stay equal  (delta != 0 fails)
+#   grow   — increases allowed       (positive delta never fails)
+#
+# ── Classification : longest-prefix-match wins ──
+#
+# Concerns are DISJOINT. A scanned file belongs to the concern whose
+# `path` is the LONGEST matching prefix of its own path. So with
+# core_runtime (rust/src, shrink) and codegen (rust/src/specializer,
+# grow), a specializer .rs lands in CODEGEN — it carves itself out of
+# core_runtime by being a longer anchor. That is the root-cause fix
+# for codegen tripping the ratchet : specializer emitters are
+# mechanical projections of bluebook shapes (codegen/*_shape/*.bluebook
+# is the contract), so emitter Rust must not fight the shrink gate.
+#
+# ── Reading the concerns ──
+#
+# The script reads the Concern fixtures via the storehouse binary :
+#   storehouse dump-fixtures <loc_ratchet.fixtures>  → JSON
+# The fixtures file IS the source of truth ; dump-fixtures is the
+# IR-aware read of it (the behaviors runner reads the same file for
+# the ListConcerns spec). If the binary is missing, the fixtures file
+# is missing, the dump fails to parse, or it yields no Concern records,
+# the script FALLS BACK to the historical hard-coded concerns so the
+# gate never silently no-ops on a fresh clone. Fallback is announced
+# on stderr.
+#
+# In a worktree without a built binary, point HECKS_BIN at the main
+# checkout's storehouse (rust/target/release/storehouse) — that is the
+# worktree-development read path.
+#
+# An i122 `ir_claimed?` skip still drops files the corpus claims (a
+# hecksagon adapter / specializer dispatches them) from the count, and
+# a [loc-ratchet-override: <reason>] commit marker still authorises
+# ANY concern's failure.
 #
 # Usage:
 #   bin/loc-ratchet --base origin/main
 #   bin/loc-ratchet --base origin/main --verbose
 #
 # Exit codes:
-#   0  HEAD's non-bluebook LoC is <= base's
-#   1  HEAD's total exceeded base's without an override
-#   2  Git / filesystem error during counting
+#   0  every concern satisfies its direction (or override present)
+#   1  some concern violated its direction without an override
+#   2  git / filesystem error during counting
 
 require "optparse"
 require "open3"
+require "json"
 
-# Paths the ratchet scans. Each is a (directory, extensions) tuple —
-# the directory anchors the walk, the extension list filters files.
-# Intentionally narrow : the point is to ratchet THE CATEGORIES Phase
-# F aims to shrink, not every line of code in the repo.
-COUNTED_TREES = [
-  ["rust/src",           %w[rs]],
-  ["hecks_conception",   %w[sh]],
-].freeze
-
-# Paths the ratchet IGNORES even under the counted trees above. Tests
-# don't count toward the deletion pressure (they're discipline, not
-# runtime) ; vendor / target / node_modules are build artefacts.
+# Paths the ratchet IGNORES even under the counted trees. Tests don't
+# count toward deletion pressure (discipline, not runtime) ; vendor /
+# target / node_modules are build artefacts.
 IGNORED_SEGMENTS = %w[
   tests/
   /target/
   /node_modules/
   /vendor/
 ].freeze
+
+# The historical hard-coded concerns — the fallback set used when the
+# bluebook-seeded concerns can't be read. Preserves pre-bluebook
+# behavior exactly : rust/src .rs and hecks_conception .sh, both shrink.
+FALLBACK_CONCERNS = [
+  { "name" => "core_runtime", "path" => "rust/src",         "extensions" => "rs", "direction" => "shrink", "baseline" => "" },
+  { "name" => "shell",        "path" => "hecks_conception", "extensions" => "sh", "direction" => "shrink", "baseline" => "" },
+].freeze
+
+# Where the Concern fixtures live, relative to this script's parent.
+CONCERN_FIXTURES = File.expand_path(
+  "../hecks_conception/aggregates/discipline/loc_ratchet/loc_ratchet.fixtures", __dir__
+)
+
+# Locate the storehouse binary — same lookup the i122 ir_claimed? path
+# uses. Reused here to ALSO read the Concern fixtures via dump-fixtures.
+# Without it we fall back to counting every file under the hard-coded
+# concerns (preserves pre-i122 behavior on a fresh clone).
+STOREHOUSE_BIN = [
+  ENV["HECKS_BIN"],
+  File.expand_path("../rust/target/release/storehouse", __dir__),
+  File.expand_path("../rust/target/debug/storehouse",   __dir__),
+].compact.find { |p| File.executable?(p) }
 
 def run(cmd)
   out, _, status = Open3.capture3(*cmd)
@@ -59,23 +106,42 @@ def ignored?(path)
   IGNORED_SEGMENTS.any? { |seg| path.include?(seg) }
 end
 
-# Locate the storehouse binary so the ratchet can ask the IR-query
-# substrate (i122) whether each scanned file is dispatched by some
-# adapter / specializer / runner. Files that ARE dispatched stop
-# counting toward the non-bluebook budget — the inversion in
-# measurement form. Without the binary we fall back to counting
-# every file (preserves pre-i122 behavior on a fresh clone before
-# `cargo build --release` runs).
-STOREHOUSE_BIN = [
-  ENV["HECKS_BIN"],
-  File.expand_path("../rust/target/release/storehouse", __dir__),
-  File.expand_path("../rust/target/debug/storehouse",   __dir__),
-].compact.find { |p| File.executable?(p) }
+def fallback(reason)
+  warn "loc-ratchet: falling back to hard-coded concerns — #{reason}"
+  FALLBACK_CONCERNS
+end
 
-# Memo cache : file path → boolean. The CLI is fast (~5ms per call)
-# but a full ratchet run touches hundreds of files across two
-# treeish snapshots ; caching cuts that in half (the same path
-# appears in base and head when only the file's contents change).
+# Read the seeded concerns from the bluebook fixtures via the IR.
+# Returns the FALLBACK_CONCERNS (announced on stderr) on any failure so
+# the gate never silently no-ops. Normalises baseline to "" when absent.
+def load_concerns
+  reason =
+    if STOREHOUSE_BIN.nil?               then "no storehouse binary (set HECKS_BIN?)"
+    elsif !File.exist?(CONCERN_FIXTURES) then "concern fixtures not found at #{CONCERN_FIXTURES}"
+    end
+  return fallback(reason) if reason
+
+  out, ok = run([STOREHOUSE_BIN, "dump-fixtures", CONCERN_FIXTURES])
+  return fallback("dump-fixtures failed") unless ok
+
+  parsed = begin
+    JSON.parse(out)
+  rescue JSON::ParserError
+    nil
+  end
+  return fallback("dump-fixtures output was not valid JSON") if parsed.nil?
+
+  concerns = (parsed["fixtures"] || [])
+             .select { |f| f["aggregate"] == "Concern" }
+             .map { |f| f["attrs"] || {} }
+             .map { |a| a.merge("baseline" => a.fetch("baseline", "")) }
+  return fallback("no Concern records in fixtures") if concerns.empty?
+  concerns
+end
+
+# Memo cache : file path → boolean. The CLI is fast (~5ms/call) but a
+# full run touches hundreds of files across two treeish snapshots ;
+# caching cuts that in half (same path appears in base and head).
 $dispatch_cache = {}
 
 def ir_claimed?(path)
@@ -85,31 +151,42 @@ def ir_claimed?(path)
   $dispatch_cache[path] = status.exitstatus == 0
 end
 
-def count_at(tree, exts, treeish)
-  # `git ls-tree --name-only -r <treeish> -- <tree>` lists every file
-  # under the given tree at the given commit. We pipe each line
-  # through an extension filter, a path-ignore filter, and the i122
-  # IR-query (skip files the corpus claims) ; the survivors get
-  # `git show` to count non-blank lines.
-  out, ok = run(["git", "ls-tree", "--name-only", "-r", treeish, "--", tree])
-  return 0 unless ok
-  total = 0
-  files = out.lines.map(&:strip).reject(&:empty?)
-  files.each do |path|
-    next if ignored?(path)
-    ext = File.extname(path).delete_prefix(".").downcase
-    next unless exts.include?(ext)
-    # i122 — skip files claimed by some hecksagon adapter or
-    # specializer. The IR's claim IS the structural justification
-    # the override marker used to provide manually.
-    next if ir_claimed?(path)
-    content, cok = run(["git", "show", "#{treeish}:#{path}"])
-    next unless cok
-    # Non-blank lines only — whitespace additions shouldn't fail the
-    # ratchet. Using wc -l would count blanks ; we want code-like LoC.
-    total += content.lines.count { |l| !l.strip.empty? }
+# Classify a file path into the concern whose `path` is its LONGEST
+# matching prefix AND whose extension list includes the file's ext.
+# Returns the concern's name, or nil if no concern claims the file.
+def concern_for(path, concerns)
+  ext = File.extname(path).delete_prefix(".").downcase
+  candidates = concerns.select do |c|
+    exts = c["extensions"].to_s.split(",").map { |e| e.strip.downcase }
+    exts.include?(ext) && path.start_with?("#{c["path"]}/")
   end
-  total
+  return nil if candidates.empty?
+  candidates.max_by { |c| c["path"].length }["name"]
+end
+
+# Count non-blank LoC per concern at the given treeish, classifying each
+# scanned file by longest-prefix-match. One git ls-tree per distinct
+# concern path keeps the walk narrow ; a file is only counted once,
+# against its winning concern.
+def counts_at(concerns, treeish)
+  totals = Hash.new(0)
+  seen = {}
+  concerns.map { |c| c["path"] }.uniq.each do |tree|
+    out, ok = run(["git", "ls-tree", "--name-only", "-r", treeish, "--", tree])
+    next unless ok
+    out.lines.map(&:strip).reject(&:empty?).each do |path|
+      next if seen[path]
+      seen[path] = true
+      next if ignored?(path)
+      name = concern_for(path, concerns)
+      next if name.nil?
+      next if ir_claimed?(path)
+      content, cok = run(["git", "show", "#{treeish}:#{path}"])
+      next unless cok
+      totals[name] += content.lines.count { |l| !l.strip.empty? }
+    end
+  end
+  totals
 end
 
 def overrides_present?(base_ref)
@@ -118,52 +195,68 @@ def overrides_present?(base_ref)
   !out.to_s.match(/^\s*\[loc-ratchet-override:\s*[^\]]+\]/i).nil?
 end
 
+# Does this concern's delta violate its direction?
+#   shrink → delta > 0   hold → delta != 0   grow → never
+def violates?(direction, delta)
+  case direction
+  when "shrink" then delta > 0
+  when "hold"   then delta != 0
+  when "grow"   then false
+  else delta > 0 # unknown direction defaults to shrink — fail closed
+  end
+end
+
 options = { base: nil, verbose: false }
 OptionParser.new do |opts|
-  opts.on("--base REF",   "Base ref to compare HEAD against")    { |v| options[:base] = v }
-  opts.on("--verbose",    "Print per-tree counts for both sides") { options[:verbose] = true }
+  opts.on("--base REF",   "Base ref to compare HEAD against")        { |v| options[:base] = v }
+  opts.on("--verbose",    "Print per-concern counts + directions")    { options[:verbose] = true }
 end.parse!
 
 base_ref = options[:base] || "origin/main"
+concerns = load_concerns
 
-base_total = 0
-head_total = 0
-per_tree = []
-COUNTED_TREES.each do |tree, exts|
-  b = count_at(tree, exts, base_ref)
-  h = count_at(tree, exts, "HEAD")
-  base_total += b
-  head_total += h
-  per_tree << [tree, exts, b, h]
+base = counts_at(concerns, base_ref)
+head = counts_at(concerns, "HEAD")
+
+rows = concerns.map do |c|
+  name = c["name"]
+  b = c["baseline"].to_s.empty? ? base[name] : c["baseline"].to_i
+  h = head[name]
+  { name: name, dir: c["direction"], base: b, head: h, delta: h - b }
 end
 
 if options[:verbose]
-  puts "ratchet report (base #{base_ref} vs HEAD)"
-  per_tree.each do |tree, exts, b, h|
-    puts "  #{tree.ljust(25)} #{exts.join(",").ljust(10)} base=#{b.to_s.rjust(6)} head=#{h.to_s.rjust(6)} delta=#{(h - b).to_s.rjust(5)}"
+  puts "ratchet report (base #{base_ref} vs HEAD) — per concern, gated by direction"
+  rows.each do |r|
+    flag = violates?(r[:dir], r[:delta]) ? "✗" : "✓"
+    puts "  #{flag} #{r[:name].ljust(16)} #{r[:dir].ljust(7)} base=#{r[:base].to_s.rjust(6)} head=#{r[:head].to_s.rjust(6)} delta=#{r[:delta].to_s.rjust(5)}"
   end
-  puts "  #{"TOTAL".ljust(36)} base=#{base_total.to_s.rjust(6)} head=#{head_total.to_s.rjust(6)} delta=#{(head_total - base_total).to_s.rjust(5)}"
 end
 
-delta = head_total - base_total
-if delta <= 0
-  puts "✓ loc-ratchet: #{delta <= 0 ? delta : "+#{delta}"} (base=#{base_total}, head=#{head_total})"
+failures = rows.select { |r| violates?(r[:dir], r[:delta]) }
+
+if failures.empty?
+  puts "✓ loc-ratchet: every concern satisfies its direction"
   exit 0
 end
 
-# Delta is positive — must be authorised by an override marker.
 if overrides_present?(base_ref)
-  puts "✓ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total}) — authorised by [loc-ratchet-override]"
+  summary = failures.map { |r| "#{r[:name]} (#{r[:dir]} +#{r[:delta]})" }.join(", ")
+  puts "✓ loc-ratchet: #{summary} — authorised by [loc-ratchet-override]"
   exit 0
 end
 
-puts "✗ loc-ratchet: +#{delta} (base=#{base_total}, head=#{head_total})"
-puts "    non-bluebook LoC increased ; no authorisation marker present"
+puts "✗ loc-ratchet: #{failures.size} concern(s) violated their direction without an override"
+failures.each do |r|
+  puts "    #{r[:name]} (#{r[:dir]}): base=#{r[:base]} head=#{r[:head]} delta=#{r[:delta]}"
+end
 puts ""
-puts "  The direction is 'no Rust / no shell' — increases need an override."
-puts "  If this PR legitimately adds non-bluebook code (e.g. kernel primitive,"
-puts "  transitional adapter), add a commit on the branch whose"
-puts "  message contains [loc-ratchet-override: <concrete reason>]."
+puts "  Each concern has a direction. A 'shrink' concern may not grow ; a 'hold'"
+puts "  concern must stay equal. If this PR legitimately adds non-bluebook code to"
+puts "  a shrink/hold concern (e.g. a kernel primitive, a transitional adapter),"
+puts "  add a commit on the branch whose message contains"
+puts "  [loc-ratchet-override: <concrete reason>]. To let a tree grow by design,"
+puts "  set its Concern direction to 'grow' in loc_ratchet.fixtures."
 puts ""
-puts "  Run bin/loc-ratchet --base #{base_ref} --verbose for per-tree counts."
+puts "  Run bin/loc-ratchet --base #{base_ref} --verbose for per-concern counts."
 exit 1

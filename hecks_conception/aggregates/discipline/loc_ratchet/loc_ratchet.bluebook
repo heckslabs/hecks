@@ -1,0 +1,113 @@
+Hecks.bluebook "LocRatchet", version: "2026.05.23.1" do
+  vision "The loc-ratchet's concerns as data — each a Concern record with its own DIRECTION. The gate that enforces bluebook-first becomes bluebook-configured itself. bin/loc-ratchet reads these records via the storehouse IR and gates each tree by its direction instead of summing every counted tree into one shrink-only total."
+  category "discipline"
+
+  # ============================================================
+  # LOC RATCHET — concerns as a bluebook (split it by concern)
+  # ============================================================
+  #
+  # bin/loc-ratchet used to hard-code its concerns :
+  #
+  #   COUNTED_TREES = [["rust/src", %w[rs]], ["hecks_conception", %w[sh]]]
+  #
+  # — and sum ALL trees into ONE total, gated shrink-only (the
+  # PR total may not increase vs base). That conflated two
+  # different pressures under one rule and had no way to say
+  # "this tree is ALLOWED to grow".
+  #
+  # Now each concern is a Concern record with a DIRECTION :
+  #
+  #   shrink — delta may not increase (today's rule ; delta > 0 fails)
+  #   hold   — delta must stay equal (delta != 0 fails)
+  #   grow   — increases allowed (a positive delta never fails)
+  #
+  # The script reads these records with
+  #   storehouse query <root> Discipline::Concern.list_concerns
+  # and gates each concern by its direction. The [loc-ratchet-
+  # override: <reason>] marker still authorises ANY concern's
+  # failure. On a fresh clone (no built binary / no records) the
+  # script FALLS BACK to the historical hard-coded concerns so the
+  # gate never silently no-ops.
+  #
+  # ── Classification : longest-prefix-match wins ──
+  #
+  # Concerns are DISJOINT by construction. A scanned file belongs
+  # to the concern whose `path` is the longest matching prefix of
+  # the file's path. So with
+  #
+  #   core_runtime  path = "rust/src"            direction shrink
+  #   codegen       path = "rust/src/specializer" direction grow
+  #
+  # `rust/src/specializer/foo.rs` lands in CODEGEN (longer prefix)
+  # and `rust/src/runtime/bar.rs` lands in CORE_RUNTIME. No
+  # explicit exclude list is needed — the codegen concern carves
+  # itself out of core_runtime by being a longer anchor. This is
+  # the root-cause fix for codegen tripping the ratchet : the
+  # specializer EMITTERS are mechanical projections of bluebook
+  # shapes (codegen/*_shape/*.bluebook is the source of truth), so
+  # emitter Rust must not fight the shrink gate.
+
+  aggregate "Concern", "One counted tree the loc-ratchet gates, with its own direction. Concerns are disjoint by longest-prefix-match : a scanned file belongs to the concern whose path is the longest matching prefix of its own path." do
+    identified_by :name
+
+    attribute :name,       Name
+    attribute :path,       Path
+    attribute :extensions, Extensions
+    attribute :direction,  Direction
+    attribute :baseline,   Baseline
+
+    value_object "Name" do
+      # Stable slug identifying the concern (e.g. 'core_runtime').
+      attribute :value, String
+    end
+
+    value_object "Path" do
+      # The tree anchor — a repo-relative directory prefix the
+      # ratchet walks (e.g. 'rust/src' or 'rust/src/specializer').
+      # Longest matching prefix wins when classifying a file.
+      attribute :value, String
+    end
+
+    value_object "Extensions" do
+      # Comma-separated file extensions (no dots) this concern
+      # counts, e.g. 'rs' or 'sh'. A scanned file only counts
+      # toward the concern if its extension is in this list.
+      attribute :value, String
+    end
+
+    value_object "Direction" do
+      # The gate's pressure on this concern's delta (head - base) :
+      #   'shrink' — delta may not increase (delta > 0 fails)
+      #   'hold'   — delta must stay equal (delta != 0 fails)
+      #   'grow'   — increases allowed (positive delta never fails)
+      attribute :value, String
+    end
+
+    value_object "Baseline" do
+      # Optional pinned base count. Empty string means "compare
+      # against the base ref" (the default). A non-empty integer
+      # string pins the comparison floor regardless of base ref.
+      attribute :value, String
+    end
+
+    command "RegisterConcern" do
+      role "System"
+      description "Declare a counted tree the loc-ratchet gates. name is a stable slug ; path is the repo-relative tree anchor ; extensions is a comma-separated extension list (no dots) ; direction is 'shrink' | 'hold' | 'grow' ; baseline optionally pins a comparison floor (empty = compare against the base ref)."
+      attribute :name,       Name
+      attribute :path,       Path
+      attribute :extensions, Extensions
+      attribute :direction,  Direction
+      attribute :baseline,   Baseline
+      then_set :name,       to: :name
+      then_set :path,       to: :path
+      then_set :extensions, to: :extensions
+      then_set :direction,  to: :direction
+      then_set :baseline,   to: :baseline
+      emits "ConcernRegistered"
+    end
+
+    query ListConcerns do
+      description "Which trees does the loc-ratchet gate, and by what direction? The script reads this to know what to count and how to judge each delta."
+    end
+  end
+end
