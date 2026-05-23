@@ -31,6 +31,10 @@ mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
 pub mod adapter_registry;
+// adapter_terminal — host-only stdin/stdout REPL shim (drives
+// `crate::run_stdin_loop`, which is gated out of wasm). The Worker
+// has no terminal.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod adapter_terminal;
 pub mod shell_dispatcher;
 mod middleware;
@@ -43,8 +47,50 @@ mod repository;
 // multiplexes heki vs sqlite behind one forwarding surface.
 // `sqlite_mapping` holds the IR→SQL type map + Value↔cell translation
 // (extracted to keep each file single-concern + under the LoC cap).
+// sqlite_mapping / sqlite_repository — host-only (they import
+// `rusqlite`, which compiles C SQLite and has no wasm32 target).
+// Gated out of the Cloudflare Worker build alongside the rusqlite
+// dep in Cargo.toml ; the Worker uses the in-memory Repository.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod sqlite_mapping;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod sqlite_repository;
+// wasm32 : a never-constructed stub so `lazy_repository`'s
+// heki/sqlite multiplexer compiles unchanged. The Worker only ever
+// builds the heki/memory backend (is_sql() is const-false on wasm),
+// so every method here is `unreachable!`. Keeps the substrate switch
+// in one place rather than cfg-splitting every forwarding method.
+#[cfg(target_arch = "wasm32")]
+pub mod sqlite_repository {
+    //! wasm32 stub — see the comment at the cfg gate in runtime/mod.rs.
+    use super::{AggregateState, Value};
+    use crate::heki;
+    use std::collections::HashMap;
+
+    pub struct SqliteRepository;
+
+    #[allow(unused_variables, clippy::new_ret_no_self)]
+    impl SqliteRepository {
+        pub fn new(
+            aggregate_type: &str,
+            db_path: &str,
+            identified_by: Option<String>,
+            columns: Vec<(String, String)>,
+        ) -> Self {
+            unreachable!("SqliteRepository is host-only — wasm uses the heki/memory backend")
+        }
+        pub fn id_for_command(&mut self, attrs: &HashMap<String, Value>) -> String { unreachable!() }
+        pub fn save(&mut self, state: AggregateState, ctx: heki::WriteContext<'_>) { unreachable!() }
+        pub fn delete(&mut self, id: &str, ctx: heki::WriteContext<'_>) { unreachable!() }
+        pub fn find(&self, id: &str) -> Option<&AggregateState> { unreachable!() }
+        pub fn find_mut(&mut self, id: &str) -> Option<&mut AggregateState> { unreachable!() }
+        pub fn all(&self) -> Vec<&AggregateState> { unreachable!() }
+        pub fn count(&self) -> usize { unreachable!() }
+        pub fn seed_record(&mut self, state: AggregateState) { unreachable!() }
+        pub fn next_id_value(&self) -> u64 { unreachable!() }
+        pub fn set_next_id(&mut self, value: u64) { unreachable!() }
+    }
+}
 // i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
 // boot constructs all 458 repos WITHOUT touching disk ; each repo's
 // load_persisted runs on first access. Kills the ~4.2s eager-hydration
@@ -68,6 +114,10 @@ pub mod claude_tool_dispatcher;
 // `storehouse mcp` subcommand family in main.rs.
 pub mod mcp_dispatcher;
 pub mod sms_dispatcher;
+// tts_dispatcher — host-only (it sets `process_group` on a spawned
+// `std::process::Command` and reads `std::os::unix`, neither of
+// which exist on wasm32). The Worker never speaks.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod tts_dispatcher;
 // i569 — :web_tool adapter family kernel hook. Two behaviors :
 // perform_web_fetch (curl HTTP GET, URL-safety gated) and
@@ -176,6 +226,9 @@ impl Runtime {
         // the heki-backed repos built by boot_with_data_dir untouched.
         // Runs AFTER hecksagons attach because boot_with_data_dir has no
         // hecksagon in scope to read the override from.
+        // sqlite override is host-only ; on wasm32 the Worker always
+        // runs the in-memory repository (the rusqlite dep is gated out).
+        #[cfg(not(target_arch = "wasm32"))]
         rt.apply_sqlite_persistence();
         rt
     }
@@ -186,6 +239,7 @@ impl Runtime {
     /// attribute, types via `sqlite_repository::sql_type`). The db path
     /// comes from the hecksagon's `db:` option. Idempotent and a no-op
     /// when no sqlite override is present.
+    #[cfg(not(target_arch = "wasm32"))]
     fn apply_sqlite_persistence(&mut self) {
         let Some(db_path) = self.sqlite_db_path() else { return };
         let mut repositories = HashMap::new();
@@ -221,6 +275,7 @@ impl Runtime {
     /// Resolve the SQLite db path from the attached hecksagons : the
     /// first hecksagon whose `persistence == "sqlite"` and that carries
     /// a `db:` option. None when no sqlite override is declared.
+    #[cfg(not(target_arch = "wasm32"))]
     fn sqlite_db_path(&self) -> Option<String> {
         self.hecksagons.iter().find_map(|hex| {
             (hex.persistence.as_deref() == Some("sqlite"))
@@ -534,6 +589,9 @@ impl Runtime {
         // audio via the resolved provider (ElevenLabs today),
         // optionally caches + plays. Fire-and-forget per the family
         // contract (`response_field :none`) - no follow-on cascade.
+        // :tts is host-only (spawns an audio player process). The
+        // Worker never speaks.
+        #[cfg(not(target_arch = "wasm32"))]
         self.resolve_tts_adapters(&result, command_name, &ctx.attrs);
 
         // i697 — feed the rich scope the final result state (the
@@ -1097,6 +1155,7 @@ impl Runtime {
     /// the typed `tts_adapters` list by `effective_trigger() ==
     /// target` (mirrors the LLM/compute resolvers' typed walk, not
     /// the claude_tool io_adapters string-kind walk).
+    #[cfg(not(target_arch = "wasm32"))]
     fn resolve_tts_adapters(
         &mut self,
         result: &CommandResult,
@@ -2328,6 +2387,7 @@ impl Runtime {
     }
 
     /// Run interactively — the terminal adapter drives the runtime.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn run_interactive(&mut self) {
         let name = self.domain.name.clone();
         adapter_terminal::run(self, &name);

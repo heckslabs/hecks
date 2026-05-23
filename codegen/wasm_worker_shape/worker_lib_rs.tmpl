@@ -323,8 +323,54 @@ pub async fn main(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/domains", domains_index)
         .get_async("/domains/:domain", walking_skeleton)
         .post_async("/domains/:domain/dispatch", walking_skeleton_dispatch)
+        .get_async("/domains/:domain/query/:verb", domain_query)
         .run(req, env)
         .await
+}
+
+/// Read-side twin of `walking_skeleton_dispatch`, addressed the same
+/// way the local dev server addresses it (storehouse::server::routes
+/// `GET /query/:verb`, lifted under the multi-domain `/domains/:name/`
+/// prefix). Resolves a read-only query by its verb — matched against
+/// each aggregate's query names by exact or snake_case form, so
+/// `/domains/DailyMusing/query/daily_musing` finds the `DailyMusing`
+/// query. Extra ?k=v pairs become structured query attrs (i101). A
+/// query never mutates, so R2 is read (through boot) but never
+/// written back.
+async fn domain_query(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let name = ctx.param("domain").cloned().unwrap_or_default();
+    let verb = ctx.param("verb").cloned().unwrap_or_default();
+    let mut attrs: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    if let Ok(url) = req.url() {
+        for (k, v) in url.query_pairs() {
+            attrs.insert(k.into_owned(), v.into_owned());
+        }
+    }
+    let bucket = ctx.env.bucket("__R2_BINDING__").ok();
+    let (runtimes, _) = boot_runtimes(bucket.as_ref()).await;
+    let rt = match runtimes.get(&name) {
+        Some(r) => r,
+        None => return Response::error(format!("unknown domain : {}", name), 404),
+    };
+    let rt = rt.borrow();
+    // Resolve the query name by exact or snake_case match (mirrors
+    // storehouse::server::routes::query).
+    let qname = rt.domain.aggregates.iter()
+        .flat_map(|a| a.queries.iter())
+        .find(|q| q.name == verb || storehouse::heki::snake_case(&q.name) == verb)
+        .map(|q| q.name.clone());
+    match qname {
+        Some(qn) => {
+            let result = rt.resolve_query(&qn, &attrs);
+            Response::from_json(&serde_json::json!({
+                "ok":     true,
+                "domain": name,
+                "verb":   verb,
+                "result": result,
+            }))
+        }
+        None => Response::error(format!("unknown query : {} in {}", verb, name), 404),
+    }
 }
 
 fn health(_req: Request, _ctx: RouteContext<()>) -> Result<Response> {
