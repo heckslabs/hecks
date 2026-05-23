@@ -5316,6 +5316,7 @@ fn run_storehouse(args: &[String]) -> i32 {
         "read"    => storehouse_read(rest),
         "list"    => storehouse_list(rest),
         "lookup"  => storehouse_lookup(rest),
+        "play"    => storehouse_play(rest),
         "" | "--help" | "-h" => {
             eprintln!("Usage: storehouse storehouse <verb> [args]\n");
             eprintln!("Verbs:");
@@ -5324,6 +5325,7 @@ fn run_storehouse(args: &[String]) -> i32 {
             eprintln!("  read    <Aggregate.attribute> Query.Read — project attribute from heki");
             eprintln!("  list    [filter]             Lexicon.List — browse phrases (substring filter)");
             eprintln!("  lookup  <phrase>             Lexicon.Lookup — print resolved target as JSON");
+            eprintln!("  play    <story_id>           Story.Run — dispatch a Story's mapped steps in order");
             1
         }
         other => {
@@ -5386,6 +5388,122 @@ fn storehouse_route(args: &[String]) -> i32 {
         eprintln!("[storehouse] Dispatched");
     }
     exit
+}
+
+/// Story.Run — execute a Story's mapped command sequence in order.
+///
+/// `storehouse storehouse play <story_id>` is the runtime projection of
+/// the pure `Story.Run` bluebook command (see
+/// hecks_conception/storehouse/story.bluebook). It is a SEPARATE runner
+/// from the core dispatch loop : the dispatch of one Story is the
+/// dispatch of its mapped commands, in order, each re-entering the bus
+/// through the same `storehouse_resolve` + `run_script` machinery that
+/// `storehouse_route` uses for a single phrase.
+///
+/// Flow :
+///   1. Read the Story record back from its heki store.
+///   2. Walk its `steps` list (a JSON array of {order, phrase, args}),
+///      sort by `order` so call-order doesn't determine run-order.
+///   3. For each step, unpack `args` (a JSON-object string) into k=v
+///      tokens and dispatch the phrase via storehouse_route. If any step
+///      fails (non-zero exit), stop and propagate — no partial-complete.
+///   4. On full success, dispatch `Story.Run` with the step count so the
+///      bluebook stamps the Story complete and emits StoryRan.
+fn storehouse_play(args: &[String]) -> i32 {
+    let story_id = match args.first() {
+        Some(p) => p.clone(),
+        None => { eprintln!("storehouse storehouse play: missing story_id"); return 1; }
+    };
+    let info_dir = match resolve_storehouse_info_dir() {
+        Some(p) => p,
+        None => { eprintln!("storehouse storehouse play: cannot resolve info dir"); return 3; }
+    };
+    let heki_path = storehouse::heki::path_for_lookup(&info_dir, "story");
+    let store = match storehouse::heki::read(&heki_path) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("storehouse storehouse play: {}", e); return 3; }
+    };
+    let record = match store.get(&story_id) {
+        Some(r) => r,
+        None => { eprintln!("storehouse storehouse play: no Story '{}' in {}", story_id, heki_path); return 4; }
+    };
+    let steps = story_sorted_steps(record);
+    if steps.is_empty() {
+        eprintln!("storehouse storehouse play: Story '{}' has no steps", story_id);
+        return 4;
+    }
+    let total = steps.len();
+    for (idx, step) in steps.iter().enumerate() {
+        let mut route_args: Vec<String> = vec![step.phrase.clone()];
+        route_args.extend(story_args_to_tokens(&step.args));
+        eprintln!("[story:{}] step {}/{} → {}", story_id, idx + 1, total, step.phrase);
+        let exit = storehouse_route(&route_args);
+        if exit != 0 {
+            eprintln!("[story:{}] step {}/{} ({}) failed (exit {}) — stopping", story_id, idx + 1, total, step.phrase, exit);
+            return exit;
+        }
+    }
+    // All steps ran. Flip the Story complete via the pure bluebook command.
+    let run_args: Vec<String> = vec![
+        "Story.Run".to_string(),
+        format!("id={}", story_id),
+        format!("step_count={}", total),
+    ];
+    storehouse_route(&run_args)
+}
+
+/// One executable step of a Story, read back from heki.
+struct StoryStep {
+    order: i64,
+    phrase: String,
+    args: String,
+}
+
+/// Extract a Story record's `steps` array, sorted ascending by `order`.
+/// Tolerant of order stored as either a JSON number or a numeric string
+/// (heki round-trips entity-list ints as strings, see repository.rs
+/// to_json/from_json). Missing or malformed steps are skipped.
+fn story_sorted_steps(record: &storehouse::heki::Record) -> Vec<StoryStep> {
+    let mut steps: Vec<StoryStep> = Vec::new();
+    if let Some(serde_json::Value::Array(items)) = record.get("steps") {
+        for item in items {
+            let obj = match item.as_object() { Some(o) => o, None => continue };
+            let phrase = match obj.get("phrase").and_then(|v| v.as_str()) {
+                Some(s) if !s.is_empty() => s.to_string(),
+                _ => continue,
+            };
+            let order = match obj.get("order") {
+                Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(0),
+                Some(serde_json::Value::String(s)) => s.parse::<i64>().unwrap_or(0),
+                _ => 0,
+            };
+            let args = obj.get("args").and_then(|v| v.as_str()).unwrap_or("{}").to_string();
+            steps.push(StoryStep { order, phrase, args });
+        }
+    }
+    steps.sort_by_key(|s| s.order);
+    steps
+}
+
+/// Unpack a step's `args` (a JSON-object string like `{"text":"hi"}`)
+/// into the `k=v` argv tokens storehouse_route expects. An empty object
+/// or unparseable string yields no tokens. Non-string scalar values are
+/// stringified so any JSON-object arg bag survives the round-trip.
+fn story_args_to_tokens(args: &str) -> Vec<String> {
+    let parsed: serde_json::Value = match serde_json::from_str(args) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+    let obj = match parsed.as_object() { Some(o) => o, None => return Vec::new() };
+    obj.iter()
+        .map(|(k, v)| {
+            let val = match v {
+                serde_json::Value::String(s) => s.clone(),
+                other => other.to_string(),
+            };
+            format!("{}={}", k, val)
+        })
+        .collect()
 }
 
 fn storehouse_compile(args: &[String]) -> i32 {
