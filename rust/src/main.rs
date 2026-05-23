@@ -2809,6 +2809,23 @@ fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
     Some((model, url))
 }
 
+/// Read the SQLite db path from the project's *.world `sqlite` block.
+/// The db FILENAME is environment config, not adapter wiring, so it
+/// lives in `.world` (sibling to heki's `dir`) — the hecksagon declares
+/// only `adapter :sqlite`. Checks agg_dir itself then its parent (the
+/// .world may sit next to the aggregates or one level up). Routes
+/// through world_parser, the one canonical shape for .world consumers.
+fn find_world_sqlite_path(agg_dir: &str) -> Option<String> {
+    let p = std::path::Path::new(agg_dir);
+    let world_path = find_world_file(p)
+        .or_else(|| p.parent().and_then(find_world_file))?;
+    let content = fs::read_to_string(&world_path).ok()?;
+    let world = storehouse::world_parser::parse(&content);
+    let cfg = world.config_for("sqlite")?;
+    cfg.get("path").or_else(|| cfg.get("file")).or_else(|| cfg.get("db"))
+        .map(|s| s.to_string())
+}
+
 /// Scan every `*.hecksagon` in `agg_dir` for an `adapter :llm,
 /// backend: :X` declaration. Returns the (backend, model, url) triple
 /// the LLM adapter expects — model and url are pulled from the world's
@@ -3192,6 +3209,22 @@ fn load_all_hecksagons(agg_dir: &str) -> Vec<storehouse::hecksagon_ir::Hecksagon
             let bucket_dir = repo_root.join(bucket);
             if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
                 walk(&bucket_dir, &mut out, &mut seen);
+            }
+        }
+    }
+    // World-config sqlite path (2026-05-23) — the db FILENAME is
+    // environment config, not adapter wiring, so it lives in the
+    // `.world` `sqlite` block (next to heki's `dir`), not hardcoded in
+    // the hecksagon. The hecksagon declares only `adapter :sqlite` ;
+    // here we fill its `db` option from `.world` so sqlite_db_path()
+    // resolves it downstream. Only fills when the hecksagon hasn't
+    // already set one (explicit hecksagon db: still wins, for tests).
+    if let Some(db) = find_world_sqlite_path(agg_dir) {
+        for hex in out.iter_mut() {
+            if hex.persistence.as_deref() == Some("sqlite")
+                && hex.persistence_option("db").is_none()
+            {
+                hex.persistence_options.push(("db".to_string(), db.clone()));
             }
         }
     }
