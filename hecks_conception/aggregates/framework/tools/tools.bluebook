@@ -757,12 +757,13 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
   # rather than a task with a lifecycle. The sub-agent's
   # transcript lands through Cascade.RecordResult with
   # tool_kind "sidequest".
-  aggregate "Sidequest", "Sub-agent dispatches as first-class dispatched commands. One Sidequest record per dispatch ; the agent's transcript rides through Cascade.RecordResult. State carries the description and subagent_type ; large prompts ride in the event payload." do
+  aggregate "Sidequest", "Sub-agent dispatches as first-class dispatched commands. One Sidequest record per dispatch ; the agent's transcript rides through Cascade.RecordResult. State carries the description, subagent_type, and prompt — the prompt persists to state (i707) so the RunSidequestOnDispatch policy's spawn leaf (bin/sidequest_run.mjs) can read it back from the heki and actually run the agent." do
     identified_by :id
 
     attribute :id, Id
     attribute :subagent_type, SubagentType
     attribute :description, Description
+    attribute :prompt, PromptText
 
     value_object "Id" do
       # Stable invocation id, minted by the caller before
@@ -827,6 +828,7 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       emits "SidequestDispatched"
       then_set :subagent_type, to: :subagent_type
       then_set :description,   to: :description
+      then_set :prompt,        to: :prompt
     end
 
     value_object "AgentMessage" do
@@ -862,6 +864,26 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       emits "SidequestMessageSent"
       then_set :description, to: :description
     end
+  end
+
+  # ── RunSidequestOnDispatch (i707) — the bus actually spawns the agent ──
+  #
+  # Mirrors ProcessHealth's RunHealOnHealRequested byte-for-byte in shape :
+  # a dispatched sidequest fires the generic process-spawn primitive with a
+  # literal runner + the cascade landing pad. bin/sidequest_run.mjs reads
+  # the latest Sidequest record from the heki (the prompt persists to state
+  # on Dispatch above), runs `claude -p <prompt>` headless — the walled
+  # sub-agent reaches storehouse the same way every tool does — and the
+  # transcript lands through Cascade.RecordResult. Idempotent : the runner
+  # claims each id once (a marker), so the policy can never re-spawn an old
+  # dispatch in a loop. This is the execution arm that makes
+  # "sidequest through the bus" real (i707/i708), the analogue of the
+  # retired :exec resolver, now ordinary bluebook.
+  policy "RunSidequestOnDispatch" do
+    on "Sidequest.SidequestDispatched"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "node bin/sidequest_run.mjs"
+    with "result_into", "Cascade.RecordResult"
   end
 
   # ──── Aggregate: WakeupTool ────
