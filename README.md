@@ -287,6 +287,18 @@ Each construct maps to a real generated thing :
 | `service` | Orchestrates multiple commands across aggregates |
 | `port` | Role-based access-control boundary |
 
+### Every keyword
+
+The full authoring surface, grouped by where it appears :
+
+- **Domain root** — `Hecks.bluebook` · `vision` · `category` · `entrypoint`
+- **Aggregate** — `aggregate` · `identified_by` · `attribute` · `list_of(T)` · `value_object` · `entity` · `reference_to` · `command` · `query` · `view` · `lifecycle`
+- **Command** — `role` · `goal` · `description` · `requires` · `given` · `emits` · `then_set` (`to:` `plus:` `append:` `increment:` `decrement:` `clamp:` `decay:` `default:`) · `then_toggle` · `then_delete`
+- **Lifecycle** — `state` · `transition "Cmd" => "state", from:`
+- **Policy** — `policy` · `on` · `trigger` · `correlates_by` · `from_event`
+- **Query / view** — `where` · `order_by` · `limit` · `show` · `show_all` · `across` · `with`
+- **Scheduled / iterating** — `every` · `starts_on` · `ends_on` · `from_iter` · `from_pm` · `dispatch` · `for_each`
+
 ---
 
 ## Behavioral Tests, For Free
