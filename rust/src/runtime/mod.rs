@@ -2381,17 +2381,6 @@ pub enum RuntimeError {
         name: String,
         candidates: Vec<String>,
     },
-    /// A direct dispatch carried a k=v arg that isn't a declared
-    /// attribute of the command. Almost always a caller typo (e.g.
-    /// `path=` for SearchTool.Grep whose attribute is `search_path`).
-    /// Rejected at the door so the mistake surfaces instead of being
-    /// silently dropped. Cascades are exempt — they forward upstream
-    /// event payloads with keys the downstream command needn't declare.
-    UnexpectedAttribute {
-        command: String,
-        unknown: Vec<String>,
-        declared: Vec<String>,
-    },
 }
 
 impl std::fmt::Display for RuntimeError {
@@ -2409,10 +2398,6 @@ impl std::fmt::Display for RuntimeError {
             RuntimeError::AmbiguousCommand { name, candidates } => {
                 write!(f, "ambiguous bare-name dispatch: '{}' is declared on aggregates {:?} — qualify with `Aggregate.{}`",
                     name, candidates, name)
-            }
-            RuntimeError::UnexpectedAttribute { command, unknown, declared } => {
-                write!(f, "unexpected arg(s) {:?} for command '{}' — not declared attributes (a typo?). Declared: {:?}",
-                    unknown, command, declared)
             }
         }
     }
