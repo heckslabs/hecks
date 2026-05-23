@@ -85,17 +85,6 @@ RSpec.describe Hecksagon::DSL::HecksagonBuilder do
       expect(hecksagon.io_adapters).to be_empty
     end
 
-    it "routes :sqlite to io_adapters, not persistence" do
-      builder = described_class.new("App")
-      builder.adapter :sqlite, database: "pizzas.db"
-      hecksagon = builder.build
-      expect(hecksagon.persistence).to be_nil
-      expect(hecksagon.io_adapters.size).to eq(1)
-      io = hecksagon.io_adapters.first
-      expect(io.kind).to eq(:sqlite)
-      expect(io.options).to eq(database: "pizzas.db")
-    end
-
     it "routes :fs to io_adapters with options" do
       builder = described_class.new("App")
       builder.adapter :fs, root: "."
@@ -131,17 +120,6 @@ RSpec.describe Hecksagon::DSL::HecksagonBuilder do
       expect {
         builder.persistence :sqlite, database: "x.db"
       }.to output(/deprecated/).to_stderr
-    end
-
-    it "routes non-persistence kinds through to io_adapter (same as #adapter)" do
-      # Post-i67 the deprecated alias still delegates to #adapter, which
-      # now does the three-way split. :sqlite is an io kind, so it goes
-      # to io_adapters rather than setting @persistence.
-      builder = described_class.new("App")
-      silence_stderr { builder.persistence :sqlite, database: "x.db" }
-      hecksagon = builder.build
-      expect(hecksagon.persistence).to be_nil
-      expect(hecksagon.io_adapters.first.kind).to eq(:sqlite)
     end
 
     it "routes :memory through to persistence" do
