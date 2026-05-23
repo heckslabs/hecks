@@ -106,7 +106,8 @@ fn render(app: &str, primary_basename: &str, files: &[(String, String)]) -> Stri
     s.push_str(&format!(
         "// AUTO-GENERATED — {app} bluebooks embedded into the Worker WASM.\n\
          // To regenerate (until `hecks-life compile` ships per inbox/i103) :\n\
-         //   python3 worker/scripts/regenerate-embedded.py\n\
+         //   storehouse specialize embedded_bluebooks --app {app}\n\
+         // [antibody-exempt: {app}/worker/src/embedded.rs — generated embedded bluebook bytes ; codegen output of the embedded_bluebooks specializer (codegen/embedded_bluebooks_shape/), no hand-written source.]\n\
          //\n\
          // Embedded files : {count}\n\
          // Primary        : {primary}\n\
@@ -168,6 +169,23 @@ mod tests {
         );
         assert!(rs.starts_with("// AUTO-GENERATED — bin-buddy bluebooks embedded into the Worker WASM.\n"));
         assert!(rs.contains("pub const PRIMARY_BASENAME: &str = \"bin-buddy.bluebook\";"));
+    }
+
+    #[test]
+    fn header_carries_antibody_exempt_marker() {
+        let rs = emit_embedded_rs(
+            &bin_buddy_root(),
+            "bin-buddy",
+            "bin-buddy.bluebook",
+            &["bluebook", "hecksagon", "world", "fixtures"],
+        );
+        // The exempt marker must appear within the first 30 lines so the
+        // dispatch_query antibody detector honors it (it scans .take(30)).
+        let head: String = rs.lines().take(30).collect::<Vec<_>>().join("\n");
+        assert!(
+            head.contains("[antibody-exempt: bin-buddy/worker/src/embedded.rs"),
+            "generated embedded.rs head must carry its own antibody-exempt marker"
+        );
     }
 
     #[test]
