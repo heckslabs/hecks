@@ -32,6 +32,12 @@ pub fn route(
 
         ("POST", ["dispatch"]) => dispatch(body, rt),
 
+        // Read side — `GET /query/:verb` resolves a read-only query by
+        // its snake_case verb (e.g. /query/daily_musing). Lets the blog
+        // be read over HTTP, not just written : dispatch is commands,
+        // this is queries.
+        ("GET", ["query", verb]) => query(verb, rt),
+
         ("GET", ["aggregates"]) => {
             let rt = rt.borrow();
             ("200 OK", domain_json(&rt))
@@ -65,6 +71,26 @@ pub fn route(
         }
 
         _ => ("404 Not Found", r#"{"error":"not found"}"#.into()),
+    }
+}
+
+/// Resolve a read-only query by its verb — matched against each
+/// aggregate's query names by exact or snake_case form (so `daily_musing`
+/// finds the `DailyMusing` query). Returns the query's JSON result.
+pub fn query(verb: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
+    let rt = rt.borrow();
+    let qname = rt.domain.aggregates.iter()
+        .flat_map(|a| a.queries.iter())
+        .find(|q| q.name == verb || crate::heki::snake_case(&q.name) == verb)
+        .map(|q| q.name.clone());
+    match qname {
+        Some(name) => {
+            let result = rt.resolve_query(&name, &std::collections::HashMap::new());
+            ("200 OK", result.to_string())
+        }
+        None => ("404 Not Found", format!(
+            r#"{{"error":"unknown query","verb":"{}"}}"#, verb
+        )),
     }
 }
 
