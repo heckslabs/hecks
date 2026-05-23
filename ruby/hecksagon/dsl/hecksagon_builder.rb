@@ -90,7 +90,13 @@ module Hecksagon
           _build_llm_adapter(name, opts, &block)
         when :compute
           _build_compute_adapter(name, opts, &block)
-        when :memory, :heki
+        when :memory, :heki, :sqlite, :postgres, :mysql
+          # SQL persistence kinds carry connection options (db:/host:/
+          # user:/name:) alongside the type. Only the type crosses the
+          # canonical-IR parity boundary (canonical_ir.rb dumps
+          # persistence[:type]) ; the options are the runtime's
+          # SQL-connect concern. Mirrors Rust's absorb_adapter, which
+          # routes these kinds into persistence + persistence_options.
           @persistence = { type: k }.merge(opts)
         else
           # Preserve name: in opts so the canonical IO adapter dump
