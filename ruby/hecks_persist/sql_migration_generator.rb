@@ -125,7 +125,7 @@ module Hecks
         lines = []
         lines << "CREATE TABLE #{child_table} ("
         lines << "  id VARCHAR(36) PRIMARY KEY,"
-        lines << "  #{domain_snake_name(domain_constant_name(parent_agg.name))}_id VARCHAR(36) NOT NULL REFERENCES #{parent_table}(id),"
+        lines << "  #{bluebook_snake_name(bluebook_constant_name(parent_agg.name))}_id VARCHAR(36) NOT NULL REFERENCES #{parent_table}(id),"
 
         child.attributes.each_with_index do |attr, idx|
           comma = idx < child.attributes.size - 1 ? "," : ""
@@ -157,7 +157,7 @@ module Hecks
       # @param name [String] the element name (e.g., "Pizza")
       # @return [String] the table name (e.g., "pizzas")
       def table_name(name)
-        domain_aggregate_slug(name)
+        bluebook_aggregate_slug(name)
       end
     end
     end

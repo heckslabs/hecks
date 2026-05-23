@@ -37,6 +37,14 @@ mod middleware;
 mod policy_engine;
 mod projection;
 mod repository;
+// SQLite persistence backend — the SQL mirror of the heki Repository,
+// activated by `adapter :sqlite, db:` in a hecksagon. Typed columns
+// from the bluebook IR, one table per aggregate. LazyRepository
+// multiplexes heki vs sqlite behind one forwarding surface.
+// `sqlite_mapping` holds the IR→SQL type map + Value↔cell translation
+// (extracted to keep each file single-concern + under the LoC cap).
+pub mod sqlite_mapping;
+pub mod sqlite_repository;
 // i-lazy — boot-map lazy hydration. Wraps Repository in a OnceCell so
 // boot constructs all 458 repos WITHOUT touching disk ; each repo's
 // load_persisted runs on first access. Kills the ~4.2s eager-hydration
@@ -162,7 +170,67 @@ impl Runtime {
     ) -> Self {
         let mut rt = Self::boot_with_data_dir(domain, data_dir);
         rt.hecksagons = hecksagons;
+        // Persistence override (i642) — when a hecksagon declares
+        // `adapter :sqlite, db: "..."`, rebuild every repository on the
+        // SQL backend pointed at that db. Default (memory/heki) leaves
+        // the heki-backed repos built by boot_with_data_dir untouched.
+        // Runs AFTER hecksagons attach because boot_with_data_dir has no
+        // hecksagon in scope to read the override from.
+        rt.apply_sqlite_persistence();
         rt
+    }
+
+    /// If any attached hecksagon declares a `:sqlite` persistence kind,
+    /// swap every aggregate's repository to the SQL backend, with typed
+    /// columns derived from the bluebook IR (one column per scalar
+    /// attribute, types via `sqlite_repository::sql_type`). The db path
+    /// comes from the hecksagon's `db:` option. Idempotent and a no-op
+    /// when no sqlite override is present.
+    fn apply_sqlite_persistence(&mut self) {
+        let Some(db_path) = self.sqlite_db_path() else { return };
+        let mut repositories = HashMap::new();
+        for agg in &self.domain.aggregates {
+            let mut columns: Vec<(String, String)> = agg
+                .attributes
+                .iter()
+                .filter(|a| !a.list)
+                .map(|a| (a.name.clone(), sqlite_mapping::sql_type(&a.attr_type).to_string()))
+                .collect();
+            // The lifecycle state field (e.g. `status`) is set on the
+            // AggregateState at dispatch but is not a declared
+            // attribute. The heki backend persists every field ; the
+            // typed-columns backend must give it a column too, else a
+            // cold-process query filtering on it (`where status:
+            // "published"`) reads back nothing. TEXT — it holds a
+            // state-name string.
+            if let Some(lc) = &agg.lifecycle {
+                columns.push((lc.field.clone(), "TEXT".to_string()));
+            }
+            let config = lazy_repository::SqliteConfig {
+                aggregate_type: agg.name.clone(),
+                db_path: db_path.clone(),
+                identified_by: agg.identified_by.clone(),
+                columns,
+            };
+            let key = repo_key(agg.context.as_deref(), &agg.name);
+            repositories.insert(key, LazyRepository::new_sqlite(config));
+        }
+        self.repositories = repositories;
+    }
+
+    /// Resolve the SQLite db path from the attached hecksagons : the
+    /// first hecksagon whose `persistence == "sqlite"` and that carries
+    /// a `db:` option. None when no sqlite override is declared.
+    fn sqlite_db_path(&self) -> Option<String> {
+        self.hecksagons.iter().find_map(|hex| {
+            (hex.persistence.as_deref() == Some("sqlite"))
+                .then(|| hex.persistence_option("db"))
+                .flatten()
+                // parse_options keeps the raw token (quotes included, as
+                // io_adapter options do) ; strip the surrounding string
+                // quotes to get the bare filesystem path.
+                .map(|s| s.trim_matches('"').to_string())
+        })
     }
 
     /// i221 — register an LLM provider under a backend name. Lets the

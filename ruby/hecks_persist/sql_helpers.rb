@@ -15,7 +15,7 @@ module Hecks
         # @param aggregate_name [String] the aggregate name (e.g., "Pizza")
         # @return [String] the table name (e.g., "pizzas")
         def table_name(aggregate_name)
-          domain_aggregate_slug(aggregate_name)
+          bluebook_aggregate_slug(aggregate_name)
         end
 
         # Computes the join table name for a value object on an aggregate.
@@ -24,7 +24,7 @@ module Hecks
         # @param vo_name [String] the value object name
         # @return [String] the join table name (e.g., "pizzas_toppings")
         def join_table_name(aggregate_name, vo_name)
-          "#{table_name(aggregate_name)}_#{domain_snake_name(vo_name)}s"
+          "#{table_name(aggregate_name)}_#{bluebook_snake_name(vo_name)}s"
         end
 
         # Computes an index name from aggregate and field names.

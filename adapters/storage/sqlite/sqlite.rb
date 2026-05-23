@@ -36,9 +36,19 @@ Hecks.describe_extension(:sqlite,
 Hecks.register_extension(:sqlite) do |domain_mod, domain, runtime|
   require "sequel"
   require "sqlite3"
-  world = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
-  config = world&.config_for(:sqlite) || {}
-  db_path = config[:database]
+  # Resolution order for the db path :
+  #   1. The hecksagon's `adapter :sqlite, db: "..."` override — the
+  #      bluebook-first contract (mirrors the Rust runtime, which reads
+  #      hecksagon.persistence_options["db"]). This is what makes Ruby
+  #      and Rust write to the SAME daily_musing.db.
+  #   2. The .world's config_for(:sqlite)[:database] (legacy path).
+  #   3. In-memory (no path) — dev/test default.
+  hecksagon = runtime.instance_variable_get(:@hecksagon)
+  db_path = hecksagon&.persistence&.dig(:db)
+  unless db_path
+    world = Hecks.respond_to?(:last_world) ? Hecks.last_world : nil
+    db_path = (world&.config_for(:sqlite) || {})[:database]
+  end
   db = db_path ? Sequel.sqlite(db_path) : Sequel.sqlite
   adapters = Hecks::Boot::SqlBoot.setup(domain, db)
   adapters.each { |name, repo| runtime.swap_adapter(name, repo) }
