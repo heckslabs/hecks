@@ -1,0 +1,26 @@
+[package]
+name = "daily-musing-worker"
+version = "0.1.0"
+edition = "2021"
+description = "Daily-Musing command bus — WASM Cloudflare Worker exposing the bluebook Dispatch over HTTP."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker                    = "0.8.3"
+console_error_panic_hook  = "0.1"
+serde                     = { version = "1", features = ["derive"] }
+serde_json                = "1"
+
+# Path-dep on the storehouse library so the worker has the same
+# parser / validator / heki / runtime modules the standalone binary
+# does. Filed in inbox/i105 to switch to a published-crate dependency
+# once storehouse publishes.
+storehouse                = { path = "../../../rust", default-features = false }
+
+[profile.release]
+opt-level     = "s"      # optimise for binary size, not speed — fits the CF Worker 1MB compressed limit
+strip         = true
+lto           = true
+codegen-units = 1

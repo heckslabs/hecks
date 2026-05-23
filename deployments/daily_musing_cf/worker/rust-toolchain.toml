@@ -1,0 +1,8 @@
+# Pin the worker build to the rustup-managed stable toolchain, which
+# carries the wasm32-unknown-unknown std/core. The repo's default
+# `cargo` on PATH is Homebrew's rustc, which has NO wasm32 target —
+# worker-build would fail with "can't find crate for `core`" without
+# this pin. `targets` ensures the wasm std component is present.
+[toolchain]
+channel = "stable"
+targets = ["wasm32-unknown-unknown"]

@@ -6,8 +6,17 @@ description = "Bluebook compiler — reads domain declarations, emits any target
 
 [dependencies]
 flate2 = "1"
-rusqlite = { version = "0.39.0", features = ["bundled"] }
 serde_json = "1"
+
+# rusqlite — the SQLite-backed repository (rust/src/runtime/sqlite_*.rs).
+# Host-only : `bundled` compiles C SQLite, which has no
+# wasm32-unknown-unknown target, so the dep is gated to non-wasm.
+# Inside the Cloudflare Worker the runtime uses the in-memory
+# repository (and, later, the R2 heki adapter) ; sqlite_repository.rs
+# + sqlite_mapping.rs are correspondingly cfg-gated out in lib.rs /
+# runtime/mod.rs.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rusqlite = { version = "0.39.0", features = ["bundled"] }
 
 # wasm32-only : the Cloudflare Worker R2 binding. Used by
 # rust/src/heki_r2.rs (cfg-gated to target_arch = "wasm32") for the
