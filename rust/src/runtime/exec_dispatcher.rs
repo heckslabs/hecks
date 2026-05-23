@@ -51,8 +51,10 @@ fn truncate(s: String) -> String {
 
 /// Run the adapter's `exec` string. Split on whitespace into
 /// program + args (same convenience split parse_shell_adapter uses).
-/// cwd + env inherited from the runtime process.
-pub fn dispatch(exec: &str) -> ExecResult {
+/// cwd + env inherited from the runtime process. Any entries in
+/// `extra_env` are added to the child's environment (useful for
+/// passing event payload to the spawned process).
+pub fn dispatch(exec: &str, extra_env: &[(String, String)]) -> ExecResult {
     let mut parts = exec.split_whitespace();
     let program = match parts.next() {
         Some(p) => p,
@@ -66,7 +68,12 @@ pub fn dispatch(exec: &str) -> ExecResult {
         }
     };
     let args: Vec<&str> = parts.collect();
-    match Command::new(program).args(&args).output() {
+    let mut cmd = Command::new(program);
+    cmd.args(&args);
+    for (k, v) in extra_env {
+        cmd.env(k, v);
+    }
+    match cmd.output() {
         Ok(out) => {
             let code = out.status.code().unwrap_or(-1);
             let ok = code == 0;

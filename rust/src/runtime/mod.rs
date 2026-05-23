@@ -457,7 +457,7 @@ impl Runtime {
         // the policy-driven path runs from the cascade arms in
         // drain_policies. The adapter PROTOCOL is now ordinary
         // bluebook policy/cascade — only the spawn syscall is imperative.
-        self.resolve_primitive_spawn(&result, command_name, &ctx.attrs);
+        self.resolve_primitive_spawn(&result, command_name, &ctx.attrs, None);
 
         // i-tts - :tts adapter hook. Sibling to the :exec / :mcp /
         // :claude_tool resolvers above. Scans loaded hecksagons for
@@ -1142,6 +1142,7 @@ impl Runtime {
         result: &CommandResult,
         command_name: &str,
         dispatch_attrs: &HashMap<String, Value>,
+        trigger_event: Option<&event_bus::Event>,
     ) {
         let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
         // The primitive matches by aggregate + command, not by a
@@ -1176,7 +1177,33 @@ impl Runtime {
             })
             .unwrap_or_else(|| result.aggregate_id.clone());
 
-        let exec_result = exec_dispatcher::dispatch(&cmd);
+        // Inject the triggering event's payload into the child's
+        // environment so the spawned process can read the prompt/id
+        // without needing to hit the disk heki (which may be stale
+        // when the runtime is warm/in-memory). Generic — passes the
+        // whole event, not sidequest-specific fields.
+        let extra_env: Vec<(String, String)> = if let Some(ev) = trigger_event {
+            let mut data_map = serde_json::Map::new();
+            for (k, v) in &ev.data {
+                data_map.insert(k.clone(), match v {
+                    Value::Str(s) => serde_json::json!(s),
+                    Value::Int(n) => serde_json::json!(n),
+                    Value::Bool(b) => serde_json::json!(b),
+                    _ => serde_json::json!(v.to_string()),
+                });
+            }
+            let payload = serde_json::json!({
+                "name": ev.name,
+                "aggregate_type": ev.aggregate_type,
+                "aggregate_id": ev.aggregate_id,
+                "data": serde_json::Value::Object(data_map),
+            });
+            vec![("STOREHOUSE_TRIGGER_EVENT".to_string(), payload.to_string())]
+        } else {
+            vec![]
+        };
+
+        let exec_result = exec_dispatcher::dispatch(&cmd, &extra_env);
         let err_tail = match (&exec_result.ok, &exec_result.error) {
             (false, Some(msg)) => format!(" error={:?}", msg),
             _ => String::new(),
@@ -1700,6 +1727,7 @@ impl Runtime {
                             // same hook as the policy arm below.
                             self.resolve_primitive_spawn(
                                 &inner_result, &dispatched.command_name, &cascade_attrs,
+                                Some(event),
                             );
                         }
                     }
@@ -1783,7 +1811,7 @@ impl Runtime {
                     // hook runs the literal cmd and cascades into
                     // result_into. Without it, the policy-driven spawn
                     // would dispatch the Process record but never run.
-                    self.resolve_primitive_spawn(&inner_result, &cmd, &cascade_attrs);
+                    self.resolve_primitive_spawn(&inner_result, &cmd, &cascade_attrs, Some(event));
                 }
                 self.policy_engine.complete(&policy_name);
             }
