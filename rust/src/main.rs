@@ -1811,6 +1811,7 @@ fn run_specialize(args: &[String]) {
         eprintln!("       storehouse specialize wasm_worker --app <app> --host <host> --auth-scheme <scheme> --auth-secret-env <env> --storehouse-path <path> [--output-dir <dir>]");
         eprintln!("       storehouse specialize cf_function_proxy --app <app> --worker-url-env <env> --auth-secret-env <env> [--auth-mode inject|enforce] [--allow-methods <json>] [--output <path>]");
         eprintln!("       storehouse specialize embedded_bluebooks --app <app> --root <path> --primary <basename> [--extensions <csv>] --output <path>");
+        eprintln!("       storehouse specialize wrangler_toml --config <cloudflare.bluebook> --output <wrangler.toml>");
         std::process::exit(2);
     }
 
@@ -1829,6 +1830,10 @@ fn run_specialize(args: &[String]) {
     }
     if target == "embedded_bluebooks" {
         run_specialize_embedded_bluebooks(args);
+        return;
+    }
+    if target == "wrangler_toml" {
+        run_specialize_wrangler_toml(args);
         return;
     }
 
@@ -2093,6 +2098,69 @@ fn run_specialize_embedded_bluebooks(args: &[String]) {
         tuple_count,
         out_path.display()
     );
+}
+
+/// `storehouse specialize wrangler_toml --config <cloudflare.bluebook>
+///   --output <wrangler.toml>`
+///
+/// Reads the `WorkerConfig` fixture out of a deployment's
+/// `cloudflare.bluebook` and emits the matching `wrangler.toml`, so the
+/// toml is DERIVED from the bluebook (the source of truth) rather than
+/// hand-synced. Required flags : `--config`, `--output`.
+///
+/// Re-runs against the same bluebook produce byte-identical output.
+fn run_specialize_wrangler_toml(args: &[String]) {
+    fn flag(args: &[String], name: &str) -> Option<String> {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1).cloned())
+    }
+    let config = match flag(args, "--config") {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize wrangler_toml : missing --config <cloudflare.bluebook>");
+            std::process::exit(2);
+        }
+    };
+    let output = match flag(args, "--output").or_else(|| flag(args, "-o")) {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            eprintln!("specialize wrangler_toml : missing --output <wrangler.toml>");
+            std::process::exit(2);
+        }
+    };
+
+    let source = match std::fs::read_to_string(&config) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("cannot read {}: {}", config, e);
+            std::process::exit(1);
+        }
+    };
+    let cfg = match storehouse::specializer::wrangler_toml::read_worker_config(&source) {
+        Some(c) => c,
+        None => {
+            eprintln!(
+                "specialize wrangler_toml : no WorkerConfig fixture in {}",
+                config
+            );
+            std::process::exit(1);
+        }
+    };
+    let toml = storehouse::specializer::wrangler_toml::emit_wrangler_toml(&cfg);
+
+    let out_path = std::path::PathBuf::from(&output);
+    if let Some(parent) = out_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("cannot create {}: {}", parent.display(), e);
+            std::process::exit(1);
+        }
+    }
+    if let Err(e) = std::fs::write(&out_path, &toml) {
+        eprintln!("cannot write {}: {}", out_path.display(), e);
+        std::process::exit(1);
+    }
+    eprintln!("wrote {} bytes to {}", toml.len(), out_path.display());
 }
 
 /// Locate the repository root for the `specialize` subcommand.

@@ -923,3 +923,43 @@ fn rust_specializer_produces_byte_identical_lifecycle_validator_rs() {
         .expect("lifecycle_validator.rs missing");
     assert_eq!(generated, tracked, "Rust specializer output drifted from tracked file");
 }
+
+#[test]
+fn wrangler_toml_emitter_matches_committed_deployment_toml() {
+    // Per-deployment emitter golden — unlike the tracked rust/src/*.rs
+    // goldens above, the wrangler_toml emitter reads a deployment's
+    // cloudflare.bluebook (the WorkerConfig fixture) and emits the
+    // matching wrangler.toml. This golden regenerates into a tmp file
+    // and asserts byte-identity against the committed
+    // deployments/daily_musing_cf/worker/wrangler.toml — proving the
+    // toml IS derived from the bluebook, not hand-synced. Sibling to
+    // the cf_function_proxy / embedded_bluebooks emitters, which are
+    // likewise per-deployment (no arm in the generic emit() dispatch).
+    let root = repo_root();
+    let bin = root.join("rust/target/release/storehouse");
+    assert!(bin.exists(), "storehouse binary missing — build release first");
+    let config = root.join("deployments/daily_musing_cf/cloudflare.bluebook");
+    let committed = root.join("deployments/daily_musing_cf/worker/wrangler.toml");
+    let out = std::env::temp_dir().join("wrangler_toml_golden.toml");
+    let output = Command::new(&bin)
+        .args([
+            "specialize",
+            "wrangler_toml",
+            "--config",
+            config.to_str().unwrap(),
+            "--output",
+            out.to_str().unwrap(),
+        ])
+        .current_dir(&root)
+        .output()
+        .expect("storehouse specialize wrangler_toml failed");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let generated = fs::read_to_string(&out).expect("generated wrangler.toml missing");
+    let tracked = fs::read_to_string(&committed).expect("committed wrangler.toml missing");
+    assert_eq!(
+        generated, tracked,
+        "wrangler.toml drifted from what cloudflare.bluebook would emit — regenerate with \
+         `storehouse specialize wrangler_toml --config deployments/daily_musing_cf/cloudflare.bluebook \
+         --output deployments/daily_musing_cf/worker/wrangler.toml`",
+    );
+}
