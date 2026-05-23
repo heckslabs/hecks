@@ -214,7 +214,6 @@ Hecks.bluebook "TerraformProjection", version: "2026.05.21.1" do
     command "ProjectAdapter" do
       role "Framework"
       description "Project a single named adapter to its Terraform resource block. Used for debugging / dry-run / programmatic composition of a multi-resource HCL document by a higher-level pipeline. The adapter's kind + name + inline-options are passed directly ; no hecksagon file read is performed. world_values is the merged property bag (the caller fans out the world block lookup before dispatching). Emits AdapterProjected with the single-resource HCL string."
-      reference_to(TerraformProjector)
       attribute :adapter_kind, AdapterKind
       attribute :adapter_name, AdapterName
       attribute :hcl,          ProjectionResult
