@@ -283,6 +283,7 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         commands: vec![], queries: vec![], value_objects: vec![],
         entities: vec![],
         references: vec![], lifecycle: None, identified_by: None,
+        invariants: vec![],
         views: vec![],
     };
 
@@ -339,6 +340,16 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 agg.lifecycle = Some(lc);
+                i += consumed;
+                continue;
+            } else if line.starts_with("invariant") {
+                // f4 — `invariant "name" do holds_when { <predicate> } end`.
+                // An aggregate-level rule checked on the resulting state
+                // after every command, using the same predicate grammar as
+                // a `given`. parse_invariant returns the Invariant IR + the
+                // line count consumed (block-form only).
+                let (inv, consumed) = parse_invariant(&lines[i..]);
+                if let Some(inv) = inv { agg.invariants.push(inv); }
                 i += consumed;
                 continue;
             } else if line.starts_with("identified_by") {

@@ -220,6 +220,18 @@ fn run_one(
                         format!("expected refused: {:?}, got: {:?}", expected_msg, message))
                 }
             }
+            // f4 — an InvariantViolation rejects a command the same way a
+            // failed `given` does (0 events, no save), so `refused` matches
+            // it too. The invariant's rule name is the comparand, mirroring
+            // how the given-clause message is matched above.
+            Err(RuntimeError::InvariantViolation { name, .. }) => {
+                if name == *expected_msg {
+                    TestRun::pass(&test.description)
+                } else {
+                    TestRun::fail(&test.description,
+                        format!("expected refused: {:?}, got: {:?}", expected_msg, name))
+                }
+            }
             Err(other) => TestRun::fail(&test.description,
                 format!("expected refused: {:?}, got error: {}", expected_msg, other)),
             Ok(_) => TestRun::fail(&test.description,

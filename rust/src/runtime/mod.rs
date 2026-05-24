@@ -27,7 +27,7 @@ pub(crate) mod command_dispatch;
 mod event_bus;
 pub mod loop_driver;
 pub mod pm_engine;
-mod interpreter;
+pub(crate) mod interpreter;
 pub mod adapter_io;
 pub mod adapter_llm;
 pub mod adapter_registry;
@@ -2521,6 +2521,11 @@ pub enum RuntimeError {
     UnknownCommand(String),
     UnknownAggregate(String),
     GivenFailed { message: String, expression: String },
+    /// f4 — an aggregate-level invariant's `holds_when` predicate was false
+    /// on the resulting state after a command's mutations. The command is
+    /// rejected with 0 events, the same shape as a failed `given`. `name`
+    /// is the invariant's rule name ; `expression` is its predicate source.
+    InvariantViolation { name: String, expression: String },
     AggregateNotFound(String),
     MissingAttribute(String),
     LifecycleViolation {
@@ -2546,6 +2551,7 @@ impl std::fmt::Display for RuntimeError {
             RuntimeError::UnknownCommand(c) => write!(f, "unknown command: {}", c),
             RuntimeError::UnknownAggregate(a) => write!(f, "unknown aggregate: {}", a),
             RuntimeError::GivenFailed { message, .. } => write!(f, "given failed: {}", message),
+            RuntimeError::InvariantViolation { name, .. } => write!(f, "invariant violation: {}", name),
             RuntimeError::AggregateNotFound(id) => write!(f, "aggregate not found: {}", id),
             RuntimeError::MissingAttribute(a) => write!(f, "missing attribute: {}", a),
             RuntimeError::LifecycleViolation { command, field, current, allowed } => {

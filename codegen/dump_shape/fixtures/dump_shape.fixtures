@@ -47,6 +47,10 @@ Hecks.fixtures "DumpShape" do
     # natively via json! (Serde's Serialize impl) so `fields` uses the
     # `direct` mapping_kind.
     fixture "DumpView", name: "dump_view", target_type: "View", input_binding: "v", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 26
+    # f4 — dump_invariant serialises an aggregate-level Invariant as
+    # { name, expression }. Emitted last (highest order) ; the Aggregate
+    # serializer references it by helper_fn for the invariants key.
+    fixture "DumpInvariant", name: "dump_invariant", target_type: "Invariant", input_binding: "inv", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 27
   end
 
   # ── JsonField — one row per JSON key in each json_object serializer ──
@@ -88,8 +92,9 @@ Hecks.fixtures "DumpShape" do
     fixture "Agg_commands",      serializer: "dump_aggregate", order: 8,  key: "commands",      source: "commands",      mapping_kind: "recurse_list",     helper_fn: "dump_command"
     fixture "Agg_queries",       serializer: "dump_aggregate", order: 9,  key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
     fixture "Agg_lifecycle",     serializer: "dump_aggregate", order: 10, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
+    fixture "Agg_invariants",    serializer: "dump_aggregate", order: 11, key: "invariants",    source: "invariants",    mapping_kind: "recurse_list",     helper_fn: "dump_invariant"
     # i254 — views per role.
-    fixture "Agg_views",         serializer: "dump_aggregate", order: 11, key: "views",         source: "views",         mapping_kind: "recurse_list",     helper_fn: "dump_view"
+    fixture "Agg_views",         serializer: "dump_aggregate", order: 12, key: "views",         source: "views",         mapping_kind: "recurse_list",     helper_fn: "dump_view"
 
     # dump_attribute — 4 fields (one rename: attr_type → "type")
     fixture "Attr_name",    serializer: "dump_attribute", order: 1, key: "name",    source: "name",      mapping_kind: "direct", helper_fn: ""
@@ -183,6 +188,10 @@ Hecks.fixtures "DumpShape" do
     fixture "View_name",     serializer: "dump_view", order: 1, key: "name",     source: "name",     mapping_kind: "direct", helper_fn: ""
     fixture "View_show_all", serializer: "dump_view", order: 2, key: "show_all", source: "show_all", mapping_kind: "direct", helper_fn: ""
     fixture "View_fields",   serializer: "dump_view", order: 3, key: "fields",   source: "fields",   mapping_kind: "direct", helper_fn: ""
+
+    # dump_invariant — 2 fields (f4)
+    fixture "Inv_name",       serializer: "dump_invariant", order: 1, key: "name",       source: "name",       mapping_kind: "direct", helper_fn: ""
+    fixture "Inv_expression", serializer: "dump_invariant", order: 2, key: "expression", source: "expression", mapping_kind: "direct", helper_fn: ""
   end
 
   # ── EnumCase — variants of dump_mutation_op ───────────────────────
