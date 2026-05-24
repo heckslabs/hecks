@@ -1,4 +1,4 @@
-Hecks.bluebook "Story", version: "2026.05.24.4" do
+Hecks.bluebook "Story", version: "2026.05.24.5" do
   vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
   category "planning"
 
@@ -36,6 +36,12 @@ Hecks.bluebook "Story", version: "2026.05.24.4" do
     # ---- Composition ----
     attribute :subsumes,       list_of(CardRef)
     attribute :steps,          list_of(Step)
+
+    # ---- Artifacts ----
+    # Files the story produced or consumed: a downloaded graphic, a
+    # generated bluebook, a screenshot. The Story records the reference
+    # (path + filename + kind + note); the bytes live on disk or in a store.
+    attribute :attachments,    list_of(Attachment)
 
     # ── Value objects ──────────────────────────────────────────────
 
@@ -122,6 +128,27 @@ Hecks.bluebook "Story", version: "2026.05.24.4" do
       attribute :value, Integer
     end
 
+    value_object "AttachmentPath" do
+      # Filesystem path (or store URI) where the attached file lives.
+      # E.g. "/Users/.../emaho/public/uploads/about-volunteer/image0.jpeg".
+      attribute :value, String
+    end
+
+    value_object "AttachmentName" do
+      # Human-facing filename. E.g. "image0.jpeg".
+      attribute :value, String
+    end
+
+    value_object "AttachmentKind" do
+      # MIME type or kind token. E.g. "image/jpeg", "text/markdown", "bluebook".
+      attribute :value, String
+    end
+
+    value_object "AttachmentNote" do
+      # Short prose: what this file is and where it came from.
+      attribute :value, String
+    end
+
     # ── Step entity ────────────────────────────────────────────────
     # Identity + order + a command phrase + args => entity.
     # The list is ordered; order is identity within the Story boundary.
@@ -129,6 +156,17 @@ Hecks.bluebook "Story", version: "2026.05.24.4" do
       attribute :order,   StepOrder
       attribute :command, CommandPhrase
       attribute :args,    Args
+    end
+
+    # ── Attachment entity ──────────────────────────────────────────
+    # A file the story carries: path + filename + kind + note. Listed;
+    # appended by AttachFile. The bytes live on disk; the Story holds
+    # the reference so the work unit owns the artifacts it touched.
+    entity "Attachment" do
+      attribute :path,     AttachmentPath
+      attribute :filename, AttachmentName
+      attribute :kind,     AttachmentKind
+      attribute :note,     AttachmentNote
     end
 
     # ── Commands ──────────────────────────────────────────────────
@@ -189,6 +227,18 @@ Hecks.bluebook "Story", version: "2026.05.24.4" do
       attribute :args,    Args
       then_set :steps, append: { order: :order, command: :command, args: :args }
       emits "StepComposed"
+    end
+
+    command "AttachFile" do
+      role "Miette"
+      description "Attach a file to the story — append an Attachment (path, filename, kind, note) to the attachments list. The file lives on disk or in a store; the Story records the reference so the work unit carries the artifacts it produced or consumed (a downloaded graphic, a generated bluebook, a screenshot). No lifecycle change — a story can gain attachments in any state."
+      reference_to(Story)
+      attribute :path,     AttachmentPath
+      attribute :filename, AttachmentName
+      attribute :kind,     AttachmentKind
+      attribute :note,     AttachmentNote
+      then_set :attachments, append: { path: :path, filename: :filename, kind: :kind, note: :note }
+      emits "FileAttached"
     end
 
     command "Start" do

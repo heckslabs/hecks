@@ -120,4 +120,18 @@ Hecks.behaviors "Story" do
     input  ref: "f1"
     expect emits: ["StoryRemovedFromSprint"]
   end
+
+  test "AttachFile appends an attachment" do
+    tests "AttachFile", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  ref: "f1", path: "/tmp/img.jpeg", filename: "img.jpeg", kind: "image/jpeg", note: "a downloaded graphic"
+    expect ref: "f1"
+  end
+
+  test "AttachFile emits FileAttached" do
+    tests "AttachFile", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  ref: "f1", path: "/tmp/img.jpeg", filename: "img.jpeg", kind: "image/jpeg", note: "n"
+    expect emits: ["FileAttached"]
+  end
 end
