@@ -49,4 +49,13 @@ Hecks.behaviors "Backlog" do
     tests "ListOrdered", on: "Backlog", kind: :query
     expect count: 0
   end
+
+  # ── ForProject ────────────────────────────────────────────────────
+
+  test "ForProject filters backlogs by project" do
+    tests "ForProject", on: "Backlog", kind: :query
+    setup  "Capture", story_ref: { value: "i1" }
+    input  project: "framework"
+    expect count: 0
+  end
 end

@@ -1,28 +1,41 @@
-Hecks.bluebook "Story", version: "2026.05.24.1" do
-  vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story's Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → done, with deferred as a side exit from backlog. Stories are first-class — captured, composed, forwarded, and completed as domain records, not hand-written briefs."
+Hecks.bluebook "Story", version: "2026.05.24.4" do
+  vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
   category "planning"
 
   aggregate "Story", "A user story with an ordered list of forwarded commands — the work unit of the Planning domain" do
     identified_by :ref
 
     # ---- Identity ----
-    attribute :ref,      Ref
+    attribute :ref,            Ref
 
     # ---- Content ----
-    attribute :title,    Title
-    attribute :tier,     Tier
-    attribute :summary,  Summary
-    attribute :target,   Target
+    attribute :title,          Title
+    attribute :tier,           Tier
+    attribute :summary,        Summary
+    attribute :target,         Target
+
+    # ---- Project assignment ----
+    attribute :project,        Project
 
     # ---- Sprint assignment ----
-    attribute :sprint,   SprintRef
+    attribute :sprint,         SprintRef
 
     # ---- Lifecycle ----
-    attribute :state,    State, default: "backlog"
+    attribute :state,          State, default: "backlog"
+
+    # ---- Definition of done ----
+    # The done_criterion declares WHAT must be true before MarkReady is valid:
+    #   "callable"  — the story target verb resolves + dispatches through storehouse
+    #   "deployed"  — the target app/service is deployed and reachable
+    # Enforcement (storehouse-resolution check + UseCase.ForStory completeness)
+    # lands with the f4 rule construct. Until then this is the documented UL
+    # contract: MarkReady MUST NOT be called unless the criterion is satisfied
+    # and all story use cases have been generated and run.
+    attribute :done_criterion, DoneCriterion, default: "callable"
 
     # ---- Composition ----
-    attribute :subsumes, list_of(CardRef)
-    attribute :steps,    list_of(Step)
+    attribute :subsumes,       list_of(CardRef)
+    attribute :steps,          list_of(Step)
 
     # ── Value objects ──────────────────────────────────────────────
 
@@ -53,13 +66,29 @@ Hecks.bluebook "Story", version: "2026.05.24.1" do
       attribute :value, String
     end
 
+    value_object "Project" do
+      # The project this story belongs to. E.g. "framework", "mel", "opt",
+      # "pigeoncoop", "bin-buddy", "embryonaut".
+      # Optional — stories with no project set default to the framework project.
+      attribute :value, String
+    end
+
     value_object "SprintRef" do
       # The sprint this story is assigned to. E.g. "s1", "s2".
       attribute :value, String
     end
 
     value_object "State" do
-      # Lifecycle token : backlog / in_sprint / started / done / deferred.
+      # Lifecycle token: backlog / in_sprint / started / ready_for_review / done / deferred.
+      attribute :value, String
+    end
+
+    value_object "DoneCriterion" do
+      # The definition-of-done primitive. Allowed values:
+      #   "callable" — the story target verb resolves through storehouse
+      #   "deployed" — the app/service is deployed and reachable
+      # MarkReady REQUIRES this criterion to be satisfied before the call.
+      # Cross-aggregate enforcement via f4 rule construct — declared intent.
       attribute :value, String
     end
 
@@ -82,7 +111,7 @@ Hecks.bluebook "Story", version: "2026.05.24.1" do
     end
 
     value_object "Args" do
-      # The Step's k=v argument bag as a JSON-object string ("{}") for no
+      # The Step k=v argument bag as a JSON-object string ("{}") for no
       # args). Unpacked into route argv tokens at execution time.
       attribute :value, String
     end
@@ -94,29 +123,31 @@ Hecks.bluebook "Story", version: "2026.05.24.1" do
     end
 
     # ── Step entity ────────────────────────────────────────────────
-    # Identity + order + a command phrase + args ⇒ entity.
-    # The list is ordered ; order is identity within the Story boundary.
+    # Identity + order + a command phrase + args => entity.
+    # The list is ordered; order is identity within the Story boundary.
     entity "Step" do
       attribute :order,   StepOrder
       attribute :command, CommandPhrase
       attribute :args,    Args
     end
 
-    # ── Commands ───────────────────────────────────────────────────
+    # ── Commands ──────────────────────────────────────────────────
 
     command "Capture" do
       role "Miette"
-      description "Mint a new Story from a ref + title + tier + summary + target. Starts in backlog status with an empty steps list. The ref IS the story's identity — one Story per ref."
+      description "Mint a new Story from a ref + title + tier + summary + target. Starts in backlog status with an empty steps list. The ref IS the story identity — one Story per ref."
       attribute :ref,     Ref
       attribute :title,   Title
       attribute :tier,    Tier
       attribute :summary, Summary
       attribute :target,  Target
+      attribute :project, Project
       then_set :ref,      to: :ref
       then_set :title,    to: :title
       then_set :tier,     to: :tier
       then_set :summary,  to: :summary
       then_set :target,   to: :target
+      then_set :project,  to: :project
       then_set :state,    to: "backlog"
       emits "StoryCaptured"
     end
@@ -129,6 +160,24 @@ Hecks.bluebook "Story", version: "2026.05.24.1" do
       then_set :sprint,      to: :sprint_ref
       then_set :state,       to: "in_sprint"
       emits "StoryAssignedToSprint"
+    end
+
+    command "MoveToSprint" do
+      role "Miette"
+      description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints whether it is in_sprint or started. Closes the re-sprinting gap: AssignToSprint is allowed only from backlog, so a committed story could not otherwise change sprints."
+      reference_to(Story)
+      attribute :sprint_ref, SprintRef
+      then_set :sprint, to: :sprint_ref
+      emits "StoryMovedToSprint"
+    end
+
+    command "RemoveFromSprint" do
+      role "Miette"
+      description "Pull a story back out of its sprint — clears the sprint ref and returns lifecycle state to backlog. Valid from in_sprint or started. Closes the gap where a committed story could be assigned but never un-assigned."
+      reference_to(Story)
+      then_set :sprint, to: ""
+      then_set :state,  to: "backlog"
+      emits "StoryRemovedFromSprint"
     end
 
     command "ComposeStep" do
@@ -151,17 +200,24 @@ Hecks.bluebook "Story", version: "2026.05.24.1" do
 
     command "Forward" do
       role "Miette"
-      description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure : it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime's projection of StoryForwarded."
+      description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure: it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime projection of StoryForwarded."
       reference_to(Story)
       attribute :step_count, StepCount
       emits "StoryForwarded"
     end
 
-    command "Complete" do
+    command "MarkReady" do
       role "Miette"
-      description "Mark a started story as done. The work is finished."
+      description "Signal that a started story is ready for human review: moves started to ready_for_review and emits StoryReadyForReview. MarkReady gate (enforced by the f4 rule construct, documented UL contract until f4 lands): done_criterion satisfied (callable = target verb resolves through storehouse; deployed = app/service reachable), all use cases ran, and all tests pass."
       reference_to(Story)
-      emits "StoryCompleted"
+      emits "StoryReadyForReview"
+    end
+
+    command "Approve" do
+      role "Operator"
+      description "Human gate: move a ready_for_review story to done. Only Operator may Approve. Emits StoryApproved. Done is only reachable via this command — there is no direct path from started to done."
+      reference_to(Story)
+      emits "StoryApproved"
     end
 
     command "Defer" do
@@ -171,28 +227,47 @@ Hecks.bluebook "Story", version: "2026.05.24.1" do
       emits "StoryDeferred"
     end
 
-    # ── Lifecycle ──────────────────────────────────────────────────
+    # ── Lifecycle ─────────────────────────────────────────────────
+    #
+    # backlog → in_sprint → started → ready_for_review → done
+    #                                              deferred (from backlog)
+    #
+    # Done is ONLY reachable via Approve (Operator) from ready_for_review.
+    # MarkReady is the author signal; Approve is the human gate.
 
     lifecycle :state, default: "backlog" do
-      transition "Capture"        => "backlog",   from: "backlog"
-      transition "AssignToSprint" => "in_sprint", from: "backlog"
-      transition "Start"          => "started",   from: "in_sprint"
-      transition "Complete"       => "done",      from: "started"
-      transition "Defer"          => "deferred",  from: "backlog"
+      transition "Capture"        => "backlog",          from: "backlog"
+      transition "AssignToSprint" => "in_sprint",        from: "backlog"
+      transition "Start"          => "started",          from: "in_sprint"
+      transition "MarkReady"      => "ready_for_review", from: "started"
+      transition "Approve"        => "done",             from: "ready_for_review"
+      transition "Defer"          => "deferred",         from: "backlog"
+      transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
+      transition "RemoveFromSprint" => "backlog",         from: "started"
     end
 
-    # ── Queries ────────────────────────────────────────────────────
+    # ── Queries ─────────────────────────────────────────────────
 
     query "Runnable" do
       description "Stories with composed steps, ready to forward through the bus."
       where state: "started"
     end
+
+    query "ReadyForReview" do
+      description "Stories awaiting Operator approval before they can be marked done."
+      where state: "ready_for_review"
+    end
+
+    query "ByProject" do
+      description "All stories belonging to a given project. Pass project: <slug> to filter."
+      where project: :project
+    end
   end
 
-  # ── Policy ───────────────────────────────────────────────────────
+  # ── Policies ──────────────────────────────────────────────────
   # The "Start generates use cases + bluebooks" decision, wired as a
-  # policy → generator command. On StoryStarted the cascade fires
-  # UseCase.Generate ; the Start transition marks the story started.
+  # policy -> generator command. On StoryStarted the cascade fires
+  # UseCase.Generate; the Start transition marks the story started.
   # (Second hop — Bluebook.Scaffold on UseCaseGenerated — lands once a
   # codegen adapter backs it.)
   policy "GenerateOnStart" do

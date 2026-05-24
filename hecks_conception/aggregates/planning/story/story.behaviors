@@ -7,11 +7,25 @@ Hecks.behaviors "Story" do
     expect ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
   end
 
+  test "Capture defaults done_criterion to callable" do
+    tests "Capture", on: "Story"
+    input  ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    expect done_criterion: "callable"
+  end
+
   test "AssignToSprint sets sprint ref" do
     tests "AssignToSprint", on: "Story"
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
     input  sprint_ref: "s1"
     expect sprint: "s1"
+  end
+
+  test "MoveToSprint re-assigns the sprint ref" do
+    tests "MoveToSprint", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    input  ref: "f1", sprint_ref: "s2"
+    expect sprint: "s2"
   end
 
   test "ComposeStep appends a step" do
@@ -38,11 +52,21 @@ Hecks.behaviors "Story" do
     expect ref: "f1"
   end
 
-  test "Complete marks story as done" do
-    tests "Complete", on: "Story"
+  test "MarkReady moves started story to ready_for_review" do
+    tests "MarkReady", on: "Story"
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
     setup  "AssignToSprint", sprint_ref: "s1"
     setup  "Start"
+    input  ref: "f1"
+    expect state: "ready_for_review"
+  end
+
+  test "Approve moves ready_for_review story to done" do
+    tests "Approve", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    setup  "MarkReady"
     input  ref: "f1"
     expect state: "done"
   end
@@ -57,5 +81,43 @@ Hecks.behaviors "Story" do
   test "Runnable lists started stories" do
     tests "Runnable", on: "Story", kind: :query
     expect count: 0
+  end
+
+  test "ReadyForReview lists ready_for_review stories" do
+    tests "ReadyForReview", on: "Story", kind: :query
+    expect count: 0
+  end
+
+  test "ByProject filters stories by project" do
+    tests "ByProject", on: "Story", kind: :query
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy", project: "framework"
+    setup  "Capture", ref: "f2", title: "MelFeature", tier: 2, summary: "mel thing", target: "mel/thing", project: "mel"
+    input  project: "framework"
+    expect count: 1
+  end
+
+  test "RemoveFromSprint clears sprint and returns story to backlog from in_sprint" do
+    tests "RemoveFromSprint", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    input  ref: "f1"
+    expect state: "backlog"
+  end
+
+  test "RemoveFromSprint clears sprint and returns story to backlog from started" do
+    tests "RemoveFromSprint", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    input  ref: "f1"
+    expect state: "backlog"
+  end
+
+  test "RemoveFromSprint emits StoryRemovedFromSprint" do
+    tests "RemoveFromSprint", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    input  ref: "f1"
+    expect emits: ["StoryRemovedFromSprint"]
   end
 end

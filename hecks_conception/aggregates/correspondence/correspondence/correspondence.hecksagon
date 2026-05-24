@@ -1,0 +1,15 @@
+# Correspondent — Hecksagon
+#
+# Infrastructure declaration for the Correspondent aggregate
+# (per-correspondent draft and sent ledger — i633 dedup substrate).
+# Pairs with correspondence.bluebook.
+#
+# heki adapter: this ledger must persist across sessions. The
+# 21-duplicate-draft problem (i633) happened because there was no
+# durable record of what had already been drafted. With :heki,
+# AlreadyDrafted / Outstanding survive session restarts and
+# correctly report outstanding drafts at boot.
+#
+Hecks.hecksagon "Correspondent" do
+  adapter :heki
+end

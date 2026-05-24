@@ -1,0 +1,226 @@
+Hecks.bluebook "Correspondence", version: "2026.05.24.1" do
+  vision "Durable ledger of drafted and sent correspondence, keyed per correspondent. The inbox poll feeds ReceiveInbound to record that someone wrote in — this sets awaiting_reply on the Correspondent. Drafting is operator-initiated: the operator calls NeedingResponse to see who awaits a reply, then triggers ComposeDraft for each. This is the autodraft-retire design (i633 follow-up): the poll no longer auto-drafts; it only records inbound. AlreadyDrafted still guards against duplicate drafts. The CorrespondenceDiscipline macrophage (i624) will read this ledger when it enforces the full compose-then-send flow."
+  category "correspondence"
+
+  # ============================================================
+  # CORRESPONDENCE — per-correspondent inbound + draft + sent ledger
+  # ============================================================
+  #
+  # Origin : i633, 2026-05-16.
+  #
+  #   "inbox poll has no per-thread draft dedupe — 21 dup drafts"
+  #
+  # The poll re-drafted the same acknowledgement 21 times to Joey
+  # because nothing recorded that a draft already existed. This
+  # domain is the memory that prevents that.
+  #
+  # ── Inbound tracking (added 2026-05-24) ─────────────────────
+  #
+  # The inbox poll now calls ReceiveInbound when a new message
+  # arrives. That sets awaiting_reply = true on the Correspondent
+  # and records last_inbound_at. The operator reads NeedingResponse
+  # to see who needs a reply, then triggers ComposeDraft per person.
+  # This is the autodraft-retire pattern: the poll records inbound,
+  # the operator decides when to draft.
+  #
+  # ── The dedup rule (explicit in the UL) ─────────────────────
+  #
+  #   1. Operator reads NeedingResponse — sees who awaits a reply.
+  #   2. For each person P, call AlreadyDrafted with person = P.
+  #   3. If AlreadyDrafted returns a non-empty set, STOP.
+  #      Surface the existing draft(s) to the operator instead
+  #      of creating a new one.
+  #   4. Only if AlreadyDrafted is empty: call ComposeDraft,
+  #      then proceed to create the Gmail draft.
+  #
+  # When MarkSent fires, awaiting_reply is cleared to false.
+  #
+  # The Outstanding query gives the full view across all people
+  # with an un-sent active draft — useful for a session-start
+  # sweep so Miette knows what is already in flight.
+  #
+  # The CorrespondenceDiscipline macrophage (i624) is a future
+  # companion that enforces the Writing.Compose → CreateDraft
+  # flow-order rule. This domain is the ledger substrate it reads.
+  #
+  # ── Identity ─────────────────────────────────────────────────
+  #
+  # Aggregate root is keyed by :person (the stable email address
+  # or handle of the correspondent). Thread ids are NOT the key —
+  # per i633, drafts do not have to be threaded. One correspondent,
+  # one aggregate root, many Letters.
+  #
+  # ── Cross-references ─────────────────────────────────────────
+  #
+  # i633 : the seed card for this domain (21 dup drafts to Joey).
+  # i624 : CorrespondenceDiscipline macrophage — reads this ledger
+  #        to enforce the compose-then-send discipline.
+  # i623 / writing.bluebook : prose flows through Writing.Compose
+  #        BEFORE ComposeDraft is called here. This domain records
+  #        that the draft was composed ; the Writing domain records
+  #        the text and its style discipline.
+
+  aggregate "Correspondent", "One person Miette corresponds with. Holds the full history of drafted and sent letters as a Letter entity collection. The draft_status root attribute is the quick-read surface for the dedup check: none (no draft in flight), drafting (an active un-sent draft exists), sent (last correspondence was sent), discarded (last draft was discarded). The awaiting_reply flag is set by ReceiveInbound and cleared by MarkSent — it drives the NeedingResponse query that the operator reads before triggering drafts." do
+    identified_by :person
+
+    attribute :person,          Person
+    attribute :draft_status,    DraftStatus
+    attribute :last_draft_at,   Timestamp
+    attribute :last_sent_at,    Timestamp
+    attribute :awaiting_reply,  AwaitingReply,  default: false
+    attribute :last_inbound_at, Timestamp
+
+    # ── Value-objects : the correspondence vocabulary ──
+
+    value_object "Person" do
+      # The stable identifier for a correspondent. Typically an
+      # email address (beyondfitaz@gmail.com) but may be a name
+      # handle for non-email channels. The key that never changes.
+      attribute :value, String
+    end
+
+    value_object "DraftStatus" do
+      # Quick-read surface for the dedup gate. One of :
+      #   "none"      : no correspondence in flight for this person.
+      #   "drafting"  : an active un-sent draft exists. Stop before
+      #                 composing another ; surface the existing one.
+      #   "sent"      : most recent correspondence was sent.
+      #   "discarded" : most recent draft was explicitly discarded.
+      attribute :value, String, enum: ["none", "drafting", "sent", "discarded"]
+    end
+
+    value_object "LetterId" do
+      # Stable identifier for one Letter. A ULID minted at compose
+      # time. The caller supplies this so the Gmail draft id and
+      # this id can be correlated in external tooling.
+      attribute :value, String
+    end
+
+    value_object "Subject" do
+      # The email subject line or a one-line description of the
+      # draft when a formal subject line is not applicable.
+      attribute :value, String
+    end
+
+    value_object "Summary" do
+      # A one-line gist of the letter body. Surfaced in the dedup
+      # check so the operator can decide whether the existing draft
+      # is already what they need.
+      attribute :value, String
+    end
+
+    value_object "ThreadRef" do
+      # Optional Gmail thread id this draft belongs to. Absent for
+      # unsolicited outbound drafts or non-Gmail correspondence.
+      attribute :value, String
+    end
+
+    value_object "LetterStatus" do
+      # One of: "draft", "sent", "discarded".
+      attribute :value, String, enum: ["draft", "sent", "discarded"]
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 UTC timestamp.
+      attribute :value, String
+    end
+
+    value_object "AwaitingReply" do
+      # Whether this correspondent has sent an inbound message that
+      # has not yet received a sent response. Set true by
+      # ReceiveInbound; cleared to false by MarkSent.
+      attribute :value, Boolean
+    end
+
+    # ── Entities : the per-person letter history ──
+
+    entity "Letter" do
+      description "One piece of correspondence — a drafted, sent, or discarded letter. Accumulates as the audit trail for a correspondent. The latest Letter with status draft is the active outstanding draft that AlreadyDrafted surfaces."
+      attribute :letter_id,    LetterId
+      attribute :subject,      Subject
+      attribute :summary,      Summary
+      attribute :thread_ref,   ThreadRef
+      attribute :composed_at,  Timestamp
+      attribute :status,       LetterStatus
+      attribute :sent_at,      Timestamp
+    end
+
+    # ── Commands ─────────────────────────────────────────────────
+
+    command "ReceiveInbound" do
+      role "Miette"
+      description "Record that an inbound message arrived from this person. Sets awaiting_reply to true and records last_inbound_at. Creates the Correspondent aggregate if it does not yet exist. Called by the inbox poll — this is how the ledger learns who needs a reply. Emits InboundReceived."
+      attribute :person,       Person
+      attribute :received_at,  Timestamp
+      then_set :person,           to: :person
+      then_set :awaiting_reply,   to: true
+      then_set :last_inbound_at,  to: :received_at
+      emits "InboundReceived"
+    end
+
+    command "ComposeDraft" do
+      role "Miette"
+      description "Record that a draft was composed for this correspondent. Call ONLY after AlreadyDrafted returns empty — if an active draft already exists, surface it instead. Inputs: the person (creates the aggregate if it does not exist), letter_id (fresh ULID), subject, summary (one-line gist of the body), optional thread_ref, composed_at. Appends a Letter(status=draft) to the history. Sets draft_status to drafting and last_draft_at. Emits DraftComposed."
+      attribute :person,       Person
+      attribute :letter_id,    LetterId
+      attribute :subject,      Subject
+      attribute :summary,      Summary
+      attribute :thread_ref,   ThreadRef
+      attribute :composed_at,  Timestamp
+      then_set :person,         to: :person
+      then_set :draft_status,   to: "drafting"
+      then_set :last_draft_at,  to: :composed_at
+      emits "DraftComposed"
+    end
+
+    command "MarkSent" do
+      role "Miette"
+      description "Record that a response was actually sent for this correspondent. Transitions the most recent active draft to sent. Sets draft_status to sent, last_sent_at, and clears awaiting_reply to false. Emits ResponseSent."
+      reference_to(Correspondent)
+      attribute :letter_id,  LetterId
+      attribute :sent_at,    Timestamp
+      then_set :draft_status,    to: "sent"
+      then_set :last_sent_at,    to: :sent_at
+      then_set :awaiting_reply,  to: false
+      emits "ResponseSent"
+    end
+
+    command "Discard" do
+      role "Miette"
+      description "Record that a draft was discarded without being sent. Sets draft_status to discarded. Emits DraftDiscarded. Use when cleaning up a pile of duplicate or stale drafts — after running Discard, AlreadyDrafted will return empty for this person."
+      reference_to(Correspondent)
+      attribute :letter_id,  LetterId
+      then_set :draft_status, to: "discarded"
+      emits "DraftDiscarded"
+    end
+
+    # ── Queries ──────────────────────────────────────────────────
+    #
+    # NeedingResponse is the operator entry point for
+    # operator-initiated drafting (autodraft-retire pattern).
+    # AlreadyDrafted is the i633 dedup gate. Always consult it
+    # before dispatching ComposeDraft. The discipline is:
+    #   empty result  → safe to compose
+    #   non-empty result → surface the existing draft, stop
+
+    query "NeedingResponse" do
+      description "Correspondents awaiting a reply — awaiting_reply is true. The operator draft-for-everyone trigger reads this query to discover who needs a response before dispatching ComposeDraft. Autodraft-retire contract: the inbox poll records inbound via ReceiveInbound; the operator decides when to draft by reading NeedingResponse. AlreadyDrafted still guards against dups (i633)."
+      where awaiting_reply: true
+    end
+
+    query "ForPerson" do
+      description "Full draft and sent history for one correspondent. Returns the Correspondent aggregate (including all Letter entities) for the given person handle. Use for a complete audit view of what has been drafted and sent."
+      where person: :person
+    end
+
+    query "Outstanding" do
+      description "Every correspondent who has an active un-sent draft right now — draft_status is drafting. The session-start sweep query: Miette checks this at boot to know what correspondence is already in flight before starting a new inbox poll cycle."
+      where draft_status: "drafting"
+    end
+
+    query "AlreadyDrafted" do
+      description "The i633 dedup gate. Returns every Correspondent whose draft_status is drafting — i.e. every person with an active un-sent draft. Callers MUST consult this (or Outstanding) before dispatching ComposeDraft. If the result includes the target person, the caller surfaces the existing draft to the operator instead of silently creating another. This is the contract that prevents the 21-duplicate-draft pattern. Callers who want to narrow to a single person first call ForPerson, then check draft_status == drafting on the returned record."
+      where draft_status: "drafting"
+    end
+  end
+end

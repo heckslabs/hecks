@@ -1,4 +1,4 @@
-Hecks.bluebook "Backlog", version: "2026.05.24.1" do
+Hecks.bluebook "Backlog", version: "2026.05.24.2" do
   vision "The ordered intake pool. A singleton holding the priority order of un-sprinted story refs — it owns the one thing a query can't cheaply own: manual priority order."
   category "planning"
 
@@ -13,11 +13,19 @@ Hecks.bluebook "Backlog", version: "2026.05.24.1" do
     identified_by :name
 
     attribute :name,         Name,            default: "main"
+    attribute :project,      Project
     attribute :ordered_refs, list_of(StoryRef)
 
     value_object "Name" do
       # The singleton key. Always "main" in practice ; kept as a VO
       # so the identifier is typed and traceable.
+      attribute :value, String
+    end
+
+    value_object "Project" do
+      # The project this backlog belongs to. E.g. "framework", "mel",
+      # "opt". Optional — the existing "main" backlog is the framework
+      # project's backlog and does not require this field to be set.
       attribute :value, String
     end
 
@@ -59,6 +67,11 @@ Hecks.bluebook "Backlog", version: "2026.05.24.1" do
 
     query "ListOrdered" do
       description "The prioritized pool of un-sprinted stories, in order."
+    end
+
+    query "ForProject" do
+      description "The backlogs belonging to a given project. Pass project: <slug> to filter."
+      where project: :project
     end
   end
 end

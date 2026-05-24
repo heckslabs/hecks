@@ -1,0 +1,253 @@
+Hecks.behaviors "Correspondence" do
+  vision "Behavioral tests for the Correspondent aggregate. Covers every command (ReceiveInbound, ComposeDraft, MarkSent, Discard) and every query (NeedingResponse, ForPerson, Outstanding, AlreadyDrafted). The NeedingResponse query is the operator entry point for the autodraft-retire pattern: the poll records inbound via ReceiveInbound, the operator reads NeedingResponse, then drafts. AlreadyDrafted is the i633 dedup gate."
+
+  # -- ReceiveInbound -----------------------------------------------
+
+  test "ReceiveInbound sets awaiting_reply to true" do
+    tests "ReceiveInbound", on: "Correspondent"
+    input  person:      { value: "beyondfitaz@gmail.com" },
+           received_at: { value: "2026-05-24T09:00:00Z" }
+    expect awaiting_reply: true
+  end
+
+  test "ReceiveInbound sets last_inbound_at" do
+    tests "ReceiveInbound", on: "Correspondent"
+    input  person:      { value: "beyondfitaz@gmail.com" },
+           received_at: { value: "2026-05-24T09:00:00Z" }
+    expect last_inbound_at: { value: "2026-05-24T09:00:00Z" }
+  end
+
+  test "ReceiveInbound emits InboundReceived" do
+    tests "ReceiveInbound", on: "Correspondent"
+    input  person:      { value: "meredith@example.com" },
+           received_at: { value: "2026-05-24T10:00:00Z" }
+    expect emits: ["InboundReceived"]
+  end
+
+  # -- ComposeDraft -------------------------------------------------
+
+  test "ComposeDraft records draft_status as drafting" do
+    tests "ComposeDraft", on: "Correspondent"
+    input  person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0001" },
+           subject:     { value: "Re: Website updates" },
+           summary:     { value: "Got your updates, will follow up properly shortly." },
+           thread_ref:  { value: "19e2efeb3b7f2109" },
+           composed_at: { value: "2026-05-16T10:00:00Z" }
+    expect draft_status: "drafting"
+  end
+
+  test "ComposeDraft sets last_draft_at" do
+    tests "ComposeDraft", on: "Correspondent"
+    input  person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0002" },
+           subject:     { value: "Re: Update 2" },
+           summary:     { value: "Acknowledged, logged on our side." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T10:01:00Z" }
+    expect last_draft_at: { value: "2026-05-16T10:01:00Z" }
+  end
+
+  test "ComposeDraft emits DraftComposed" do
+    tests "ComposeDraft", on: "Correspondent"
+    input  person:      { value: "meredith@example.com" },
+           letter_id:   { value: "01JCKCORR0003" },
+           subject:     { value: "Bicho Bolita feedback" },
+           summary:     { value: "Thanks for the bug report, tracking it now." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T11:00:00Z" }
+    expect emits: ["DraftComposed"]
+  end
+
+  # -- MarkSent -----------------------------------------------------
+
+  test "MarkSent transitions draft_status to sent" do
+    tests "MarkSent", on: "Correspondent"
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0010" },
+           subject:     { value: "Re: Website updates" },
+           summary:     { value: "Full reply to Joey." },
+           thread_ref:  { value: "19e2efeb3b7f2109" },
+           composed_at: { value: "2026-05-16T10:00:00Z" }
+    input  correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0010" },
+           sent_at:          { value: "2026-05-16T10:30:00Z" }
+    expect draft_status: "sent"
+  end
+
+  test "MarkSent sets last_sent_at" do
+    tests "MarkSent", on: "Correspondent"
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0011" },
+           subject:     { value: "Re: Update 3" },
+           summary:     { value: "Sending proper reply now." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T10:05:00Z" }
+    input  correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0011" },
+           sent_at:          { value: "2026-05-16T10:35:00Z" }
+    expect last_sent_at: { value: "2026-05-16T10:35:00Z" }
+  end
+
+  test "MarkSent clears awaiting_reply to false" do
+    tests "MarkSent", on: "Correspondent"
+    setup  "ReceiveInbound",
+           person:      { value: "beyondfitaz@gmail.com" },
+           received_at: { value: "2026-05-24T09:00:00Z" }
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0013" },
+           subject:     { value: "Re: Website updates" },
+           summary:     { value: "Clearing the awaiting flag." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-24T09:30:00Z" }
+    input  correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0013" },
+           sent_at:          { value: "2026-05-24T10:00:00Z" }
+    expect awaiting_reply: false
+  end
+
+  test "MarkSent emits ResponseSent" do
+    tests "MarkSent", on: "Correspondent"
+    setup  "ComposeDraft",
+           person:      { value: "meredith@example.com" },
+           letter_id:   { value: "01JCKCORR0012" },
+           subject:     { value: "Bicho Bolita reply" },
+           summary:     { value: "Full response to Meredith." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T11:00:00Z" }
+    input  correspondent_id: "meredith@example.com",
+           letter_id:        { value: "01JCKCORR0012" },
+           sent_at:          { value: "2026-05-16T11:20:00Z" }
+    expect emits: ["ResponseSent"]
+  end
+
+  # -- Discard ------------------------------------------------------
+
+  test "Discard transitions draft_status to discarded" do
+    tests "Discard", on: "Correspondent"
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0020" },
+           subject:     { value: "Stale ack" },
+           summary:     { value: "Got this - one of the 21 dups." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T09:00:00Z" }
+    input  correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0020" }
+    expect draft_status: "discarded"
+  end
+
+  test "Discard emits DraftDiscarded" do
+    tests "Discard", on: "Correspondent"
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0021" },
+           subject:     { value: "Another stale ack" },
+           summary:     { value: "Duplicate ack draft to be discarded." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T09:05:00Z" }
+    input  correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0021" }
+    expect emits: ["DraftDiscarded"]
+  end
+
+  # -- Queries ------------------------------------------------------
+
+  test "NeedingResponse returns correspondents where awaiting_reply is true" do
+    tests "NeedingResponse", on: "Correspondent", kind: :query
+    setup  "ReceiveInbound",
+           person:      { value: "beyondfitaz@gmail.com" },
+           received_at: { value: "2026-05-24T09:00:00Z" }
+    expect includes: { awaiting_reply: true }
+  end
+
+  test "NeedingResponse returns empty after MarkSent clears awaiting_reply" do
+    tests "NeedingResponse", on: "Correspondent", kind: :query
+    setup  "ReceiveInbound",
+           person:      { value: "beyondfitaz@gmail.com" },
+           received_at: { value: "2026-05-24T09:00:00Z" }
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0060" },
+           subject:     { value: "Re: Website updates" },
+           summary:     { value: "Sending the reply now." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-24T09:30:00Z" }
+    setup  "MarkSent",
+           correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0060" },
+           sent_at:          { value: "2026-05-24T10:00:00Z" }
+    expect count: 0
+  end
+
+  test "ForPerson returns the correspondent record" do
+    tests "ForPerson", on: "Correspondent", kind: :query
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0030" },
+           subject:     { value: "Re: Website updates" },
+           summary:     { value: "Full reply." },
+           thread_ref:  { value: "19e2efeb3b7f2109" },
+           composed_at: { value: "2026-05-16T10:00:00Z" }
+    input  person: { value: "beyondfitaz@gmail.com" }
+    expect includes: { draft_status: "drafting" }
+  end
+
+  test "Outstanding returns correspondents with active drafts" do
+    tests "Outstanding", on: "Correspondent", kind: :query
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0040" },
+           subject:     { value: "Re: Website updates" },
+           summary:     { value: "Ack waiting to be sent." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T10:00:00Z" }
+    expect includes: { draft_status: "drafting" }
+  end
+
+  test "AlreadyDrafted returns the correspondent when a draft is in flight" do
+    tests "AlreadyDrafted", on: "Correspondent", kind: :query
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0050" },
+           subject:     { value: "Re: Update 4" },
+           summary:     { value: "Ack - already drafted, do not duplicate." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T10:00:00Z" }
+    expect includes: { draft_status: "drafting" }
+  end
+
+  test "AlreadyDrafted returns empty after a draft is sent" do
+    tests "AlreadyDrafted", on: "Correspondent", kind: :query
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0051" },
+           subject:     { value: "Re: Update 5" },
+           summary:     { value: "Reply that was actually sent." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T10:00:00Z" }
+    setup  "MarkSent",
+           correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0051" },
+           sent_at:          { value: "2026-05-16T10:30:00Z" }
+    expect count: 0
+  end
+
+  test "AlreadyDrafted returns empty after a draft is discarded" do
+    tests "AlreadyDrafted", on: "Correspondent", kind: :query
+    setup  "ComposeDraft",
+           person:      { value: "beyondfitaz@gmail.com" },
+           letter_id:   { value: "01JCKCORR0052" },
+           subject:     { value: "Stale dup" },
+           summary:     { value: "Discarded dup - clears the dedup gate." },
+           thread_ref:  { value: "" },
+           composed_at: { value: "2026-05-16T09:00:00Z" }
+    setup  "Discard",
+           correspondent_id: "beyondfitaz@gmail.com",
+           letter_id:        { value: "01JCKCORR0052" }
+    expect count: 0
+  end
+end

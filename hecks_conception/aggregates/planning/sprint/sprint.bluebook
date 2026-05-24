@@ -1,4 +1,4 @@
-Hecks.bluebook "Sprint", version: "2026.05.24.1" do
+Hecks.bluebook "Sprint", version: "2026.05.24.2" do
   vision "A time-box that committed stories are promoted into. Sprints walk planned → active → completed; stories accumulate via AddStory. Seed three; more are addable."
   category "planning"
 
@@ -17,6 +17,9 @@ Hecks.bluebook "Sprint", version: "2026.05.24.1" do
 
     # ---- Content ----
     attribute :goal,       Goal
+
+    # ---- Project assignment ----
+    attribute :project,    Project
 
     # ---- Membership ----
     # story_refs : committed stories promoted into this sprint.
@@ -49,6 +52,13 @@ Hecks.bluebook "Sprint", version: "2026.05.24.1" do
 
     value_object "State" do
       # Lifecycle token: planned / active / completed.
+      attribute :value, String
+    end
+
+    value_object "Project" do
+      # The project this sprint belongs to. E.g. "framework", "mel",
+      # "opt". Optional — existing sprints 1–3 are the framework
+      # project's sprints and do not require this field to be set.
       attribute :value, String
     end
 
@@ -123,6 +133,11 @@ Hecks.bluebook "Sprint", version: "2026.05.24.1" do
 
     query "ListAll" do
       description "Every sprint and its lifecycle state — the sprint rail. Returns all sprints regardless of state."
+    end
+
+    query "ForProject" do
+      description "Sprints belonging to a given project. Pass project: <slug> to filter."
+      where project: :project
     end
   end
 end

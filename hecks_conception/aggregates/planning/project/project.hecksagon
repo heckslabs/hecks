@@ -1,0 +1,3 @@
+Hecks.hecksagon "Project" do
+  adapter :heki
+end

@@ -57,4 +57,11 @@ Hecks.behaviors "Sprint" do
     expect count: 0
   end
 
+  test "ForProject filters sprints by project" do
+    tests "ForProject", on: "Sprint", kind: :query
+    setup  "Plan", number: "1", goal: "Foundations"
+    input  project: "framework"
+    expect count: 0
+  end
+
 end

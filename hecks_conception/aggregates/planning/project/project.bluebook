@@ -1,0 +1,94 @@
+Hecks.bluebook "Project", version: "2026.05.24.1" do
+  vision "The project registry. A Project is a named initiative that groups stories, backlogs, and sprints. The registry holds every project (framework, MEL, OPT, PigeonCoop, Bin-buddy, Embryonaut) and their lifecycle state. Projects walk active -> paused | done."
+  category "planning"
+
+  aggregate "Project", "A named initiative in the project registry — groups planning work across stories, backlogs, and sprints." do
+    identified_by :name
+
+    # ---- Identity ----
+    attribute :name,        Name
+
+    # ---- Content ----
+    attribute :description, Description
+
+    # ---- Lifecycle ----
+    attribute :status,      Status, default: "active"
+
+    # ── Value objects ──────────────────────────────────────────────
+
+    value_object "Name" do
+      # The project slug / identifier. E.g. "framework", "mel", "opt",
+      # "pigeoncoop", "bin-buddy", "embryonaut". Stable for the lifetime
+      # of the record — this is the key other aggregates reference by.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Short prose description of the project's purpose.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token: active | paused | done.
+      attribute :value, String
+    end
+
+    # ── Commands ──────────────────────────────────────────────────
+
+    command "Register" do
+      role "Miette"
+      description "Mint a new Project in the registry. Starts in active status. The name IS the project identity — one Project per name slug."
+      attribute :name,        Name
+      attribute :description, Description
+      then_set :name,         to: :name
+      then_set :description,  to: :description
+      then_set :status,       to: "active"
+      emits "ProjectRegistered"
+    end
+
+    command "Activate" do
+      role "Miette"
+      description "Return a paused project to active. Work resumes on this project."
+      reference_to(Project)
+      given("must be paused") { status == "paused" }
+      then_set :status, to: "active"
+      emits "ProjectActivated"
+    end
+
+    command "Pause" do
+      role "Miette"
+      description "Park an active project — work is not currently in progress but the project is not finished. The project is not deleted."
+      reference_to(Project)
+      given("must be active") { status == "active" }
+      then_set :status, to: "paused"
+      emits "ProjectPaused"
+    end
+
+    command "Complete" do
+      role "Operator"
+      description "Mark a project as done. Only Operator may complete a project. Done is a terminal state."
+      reference_to(Project)
+      given("must be active or paused") { status == "active" || status == "paused" }
+      then_set :status, to: "done"
+      emits "ProjectCompleted"
+    end
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+    #
+    # active <-> paused; done is terminal (via Operator only).
+    # Register has no from: — it is the creation command.
+
+    lifecycle :status, default: "active" do
+      transition "Register"  => "active"
+      transition "Activate"  => "active",  from: "paused"
+      transition "Pause"     => "paused",  from: "active"
+      transition "Complete"  => "done",    from: "active"
+    end
+
+    # ── Queries ─────────────────────────────────────────────────
+
+    query "ListAll" do
+      description "Every project in the registry, regardless of status."
+    end
+  end
+end

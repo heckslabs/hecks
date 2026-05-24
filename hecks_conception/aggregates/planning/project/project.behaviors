@@ -1,0 +1,82 @@
+Hecks.behaviors "Project" do
+  vision "Behavioral tests for the Project aggregate — the project registry that groups planning work across stories, backlogs, and sprints."
+
+  # ── Register ──────────────────────────────────────────────────────
+
+  test "Register sets name and description" do
+    tests "Register", on: "Project"
+    input  name: "framework", description: "The core Hecks framework project"
+    expect name: "framework", description: "The core Hecks framework project"
+  end
+
+  test "Register defaults status to active" do
+    tests "Register", on: "Project"
+    input  name: "mel", description: "MEL initiative"
+    expect status: "active"
+  end
+
+  test "Register emits ProjectRegistered" do
+    tests "Register", on: "Project"
+    input  name: "opt", description: "OPT initiative"
+    expect emits: ["ProjectRegistered"]
+  end
+
+  # ── Pause ─────────────────────────────────────────────────────────
+
+  test "Pause moves active project to paused" do
+    tests "Pause", on: "Project"
+    setup  "Register", name: "pigeoncoop", description: "PigeonCoop project"
+    input  name: "pigeoncoop"
+    expect status: "paused"
+  end
+
+  test "Pause emits ProjectPaused" do
+    tests "Pause", on: "Project"
+    setup  "Register", name: "bin-buddy", description: "Bin-buddy project"
+    input  name: "bin-buddy"
+    expect emits: ["ProjectPaused"]
+  end
+
+  # ── Activate ──────────────────────────────────────────────────────
+
+  test "Activate returns paused project to active" do
+    tests "Activate", on: "Project"
+    setup  "Register", name: "embryonaut", description: "Embryonaut project"
+    setup  "Pause", name: "embryonaut"
+    input  name: "embryonaut"
+    expect status: "active"
+  end
+
+  test "Activate emits ProjectActivated" do
+    tests "Activate", on: "Project"
+    setup  "Register", name: "framework", description: "The core Hecks framework project"
+    setup  "Pause", name: "framework"
+    input  name: "framework"
+    expect emits: ["ProjectActivated"]
+  end
+
+  # ── Complete ──────────────────────────────────────────────────────
+
+  test "Complete moves active project to done" do
+    tests "Complete", on: "Project"
+    setup  "Register", name: "mel", description: "MEL initiative"
+    input  name: "mel"
+    expect status: "done"
+  end
+
+  test "Complete emits ProjectCompleted" do
+    tests "Complete", on: "Project"
+    setup  "Register", name: "opt", description: "OPT initiative"
+    input  name: "opt"
+    expect emits: ["ProjectCompleted"]
+  end
+
+  # ── ListAll ───────────────────────────────────────────────────────
+
+  test "ListAll returns all projects" do
+    tests "ListAll", on: "Project", kind: :query
+    setup  "Register", name: "framework", description: "The core Hecks framework project"
+    setup  "Register", name: "mel", description: "MEL initiative"
+    expect count: 2
+  end
+end
