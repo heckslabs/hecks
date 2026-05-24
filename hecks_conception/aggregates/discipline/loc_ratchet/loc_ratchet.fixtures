@@ -7,12 +7,19 @@ Hecks.fixtures "LocRatchet" do
   #
   # Leave room for a future `deploy` grow concern alongside these.
   aggregate "Concern" do
+    # core_runtime baseline re-based from "" (compare-against-base-ref) to a
+    # pinned floor of 31460 — the f4 invariant wiring (ec1b2edf + the
+    # `pub mod invariants;` crate decl) grows core_runtime by an irreducible
+    # +31 of call-site / IR / parser-branch wiring (the evaluator itself lives
+    # in the `invariants` GROW concern below). Owner-blessed as the new floor
+    # rather than a [loc-ratchet-override:] : the shrink gate now ratchets
+    # down from 31460, so future growth past it still fails.
     fixture "core_runtime",
             name:       "core_runtime",
             path:       "rust/src",
             extensions: "rs",
             direction:  "shrink",
-            baseline:   ""
+            baseline:   "31460"
 
     fixture "codegen",
             name:       "codegen",

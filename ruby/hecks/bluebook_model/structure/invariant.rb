@@ -31,6 +31,13 @@ module Hecks
       #   When nil, the invariant is documentation-only.
       attr_reader :block
 
+      # @return [String, nil] the source text of the `holds_when { ... }`
+      #   predicate (f4). Carried so the canonical IR dumps the same
+      #   single-line predicate the Rust parser stores, keeping Ruby/Rust
+      #   parity. nil for documentation-only invariants declared without a
+      #   holds_when predicate.
+      attr_reader :expression
+
       # Creates a new Invariant.
       #
       # @param message [String] human-readable description of the business rule
@@ -40,9 +47,10 @@ module Hecks
       #   of the domain object instance.
       #
       # @return [Invariant] a new Invariant instance
-      def initialize(message:, block: nil)
+      def initialize(message:, block: nil, expression: nil)
         @message = message
         @block = block
+        @expression = expression
       end
     end
     end

@@ -15,13 +15,53 @@ module Hecks
           @validations << BluebookModel::Structure::Validation.new(field: field, rules: rules)
         end
 
-        # Define an aggregate-level invariant.
+        # Define an aggregate-level invariant (f4).
         #
-        # @param message [String] human-readable invariant description
-        # @yield block that returns true when the invariant holds
+        # The f4 form declares a named rule whose `holds_when { ... }`
+        # predicate the runtime evaluates on the RESULTING state after
+        # EVERY command, before save :
+        #
+        #   invariant "ready_means_verified" do
+        #     holds_when { state != "done" || verified == true }
+        #   end
+        #
+        # The legacy direct-block form (`invariant("msg") { ... }`) still
+        # works — documentation-only, no captured predicate.
+        #
+        # @param message [String] the rule name / human-readable description
+        # @yield block declaring `holds_when { <predicate> }`, or a direct
+        #   predicate (legacy)
         # @return [void]
         def invariant(message, &block)
-          @invariants << BluebookModel::Structure::Invariant.new(message: message, block: block)
+          capture = HoldsWhenCapture.new
+          capture.instance_eval(&block) if block
+          @invariants << BluebookModel::Structure::Invariant.new(
+            message: message,
+            block: capture.predicate || block,
+            expression: capture.expression
+          )
+        end
+
+        # Captures the `holds_when { ... }` predicate inside an `invariant`
+        # block (f4), reading its source text the same way CommandBuilder
+        # reads a `given` predicate — so the canonical IR carries the
+        # single-line expression byte-identically with the Rust parser.
+        class HoldsWhenCapture
+          attr_reader :predicate, :expression
+
+          def holds_when(&block)
+            @predicate = block
+            @expression = extract_predicate_source(block)
+          end
+
+          private
+
+          def extract_predicate_source(block)
+            file, line = block.source_location
+            return nil unless file && File.exist?(file)
+            source_line = File.readlines(file)[line - 1].to_s.strip
+            source_line =~ /\{(.+)\}/ ? Regexp.last_match(1).strip : source_line
+          end
         end
 
         # Deprecated: ports moved to Hecksagon as gates. Kept as no-op for compatibility.
