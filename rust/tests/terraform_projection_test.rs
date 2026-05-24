@@ -8,7 +8,7 @@
 //! When the projection logic changes, the goldens move WITH the
 //! intent, not as a drive-by.
 
-use storehouse::{hecksagon_parser, projection, world_parser};
+use storehouse::{hecksagon_parser, projection, world::parser as world_parser};
 
 const FIXTURE_DIR: &str = "tests/fixtures/terraform_projection";
 

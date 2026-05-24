@@ -301,7 +301,7 @@ fn main() {
     if command == "dump-world" {
         let path = args.get(2).expect("usage: storehouse dump-world <file.world>");
         let source = std::fs::read_to_string(path).expect("cannot read");
-        let world = storehouse::world_parser::parse(&source);
+        let world = storehouse::world::parser::parse(&source);
         println!("{}", serde_json::to_string_pretty(&dump_world_json(&world)).unwrap());
         return;
     }
@@ -1696,7 +1696,7 @@ fn run_project(args: &[String]) -> i32 {
                 Ok(s) => s,
                 Err(e) => { eprintln!("project: cannot read {}: {}", p, e); return 1; }
             };
-            Some(storehouse::world_parser::parse(&src))
+            Some(storehouse::world::parser::parse(&src))
         }
         None => None,
     };
@@ -2742,7 +2742,7 @@ fn dump_hecksagon_json(hex: &storehouse::hecksagon_ir::Hecksagon) -> serde_json:
 
 /// Canonical JSON for a `.world` file — matches the shape the Ruby
 /// parity harness emits for `Hecksagon::Structure::World#to_canonical_h`.
-fn dump_world_json(world: &storehouse::world_ir::World) -> serde_json::Value {
+fn dump_world_json(world: &storehouse::world::ir::World) -> serde_json::Value {
     let concerns: Vec<serde_json::Value> = world.concerns.iter().map(|c| {
         serde_json::json!({
             "name": c.name,
@@ -2757,6 +2757,7 @@ fn dump_world_json(world: &storehouse::world_ir::World) -> serde_json::Value {
         }
         configs.insert(cfg.name.clone(), serde_json::Value::Object(obj));
     }
+    let servers = storehouse::world::attach::dump_servers_json(world);
     serde_json::json!({
         "name":     world.name,
         "purpose":  world.purpose,
@@ -2764,6 +2765,7 @@ fn dump_world_json(world: &storehouse::world_ir::World) -> serde_json::Value {
         "audience": world.audience,
         "concerns": concerns,
         "configs":  configs,
+        "servers":  servers,
     })
 }
 
@@ -2802,7 +2804,7 @@ fn find_world_ollama_config(agg_path: &str) -> Option<(String, String)> {
     let parent = std::path::Path::new(agg_path).parent()?;
     let world_path = find_world_file(parent)?;
     let content = fs::read_to_string(&world_path).ok()?;
-    let world = storehouse::world_parser::parse(&content);
+    let world = storehouse::world::parser::parse(&content);
     let cfg = world.config_for("ollama")?;
     let model = cfg.get("model")?.to_string();
     let url   = cfg.get("url")?.to_string();
@@ -2820,7 +2822,7 @@ fn find_world_sqlite_path(agg_dir: &str) -> Option<String> {
     let world_path = find_world_file(p)
         .or_else(|| p.parent().and_then(find_world_file))?;
     let content = fs::read_to_string(&world_path).ok()?;
-    let world = storehouse::world_parser::parse(&content);
+    let world = storehouse::world::parser::parse(&content);
     let cfg = world.config_for("sqlite")?;
     cfg.get("path").or_else(|| cfg.get("file")).or_else(|| cfg.get("db"))
         .map(|s| s.to_string())
@@ -3131,7 +3133,7 @@ fn read_world_heki_dir(aggregates_path: &str) -> Option<String> {
         .find(|e| e.path().extension().map_or(false, |ext| ext == "world"))?
         .path();
     let source = std::fs::read_to_string(&world_file).ok()?;
-    let world = storehouse::world_parser::parse(&source);
+    let world = storehouse::world::parser::parse(&source);
     let dir_value = world.config_for("heki").and_then(|c| c.get("dir"))?;
     let resolved = world_dir.join(dir_value);
     if resolved.exists() {
@@ -3498,6 +3500,7 @@ fn boot_serve_runtime(
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
     let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
     let ollama_config = find_world_ollama_config(agg_dir);
     (rt, hecksagon_llm, ollama_config)
@@ -3545,6 +3548,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
 
     // FQN-aware query resolution. Commands resolve their
     // Domain::Aggregate.Command form inside command_dispatch::resolve ;
@@ -4615,6 +4619,7 @@ fn run_loop(args: &[String]) {
     // would never populate. Mirrors the dispatch_hecksagon path.
     let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, target);
+    storehouse::world::attach::attach_world_servers(&mut rt, target);
     let mut idx: usize = 0;
     loop {
         let gate_open = match &gate {
@@ -4817,6 +4822,7 @@ fn run_pm_loop(args: &[String]) {
     // PM-cascade dispatches. Same wiring as run_loop / dispatch_hecksagon.
     let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, target);
+    storehouse::world::attach::attach_world_servers(&mut rt, target);
     let mut driver = LoopDriver::new(rt, interval);
     for (ev, ty, id) in emits {
         driver.add_emit(&ev, &ty, &id, std::collections::HashMap::new());

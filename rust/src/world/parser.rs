@@ -18,7 +18,7 @@
 //! out of the nested blocks the DSL builder supports.
 
 use crate::hecksagon_helpers::{between_quotes, strip_quotes};
-use crate::world_ir::*;
+use crate::world::ir::*;
 
 /// Lowest-cost source detection — skip blank lines and `#` comments,
 /// then check the first non-empty line.
@@ -75,10 +75,18 @@ pub fn parse(source: &str) -> World {
             continue;
         }
 
-        // Extension block: IDENT do ... end
+        // Block header: `mcp` opens MCP servers (i610) ; any other IDENT
+        // opens a flat extension config block.
         if let Some(ext_name) = extension_block_header(line) {
-            let (cfg, consumed) = parse_extension_block(&raw[i..], &ext_name);
-            if let Some(c) = cfg { world.configs.push(c); }
+            let consumed = if ext_name == "mcp" {
+                let (servers, n) = crate::world::parser_mcp::parse_mcp_block(&raw[i..]);
+                world.servers.extend(servers);
+                n
+            } else {
+                let (cfg, n) = parse_extension_block(&raw[i..], &ext_name);
+                if let Some(c) = cfg { world.configs.push(c); }
+                n
+            };
             i += consumed;
             continue;
         }
@@ -196,7 +204,7 @@ fn parse_extension_block(lines: &[&str], name: &str) -> (Option<ExtensionConfig>
 }
 
 /// Does this line end with `do` (trailing whitespace ignored)?
-fn ends_with_do(line: &str) -> bool {
+pub(crate) fn ends_with_do(line: &str) -> bool {
     let t = line.trim_end();
     t == "do" || t.ends_with(" do")
 }
@@ -207,7 +215,7 @@ fn ends_with_do(line: &str) -> bool {
 ///   - floats          1.5
 ///   - booleans        true/false
 ///   - arrays          ["a", "b"]
-fn parse_kv_line(line: &str) -> Option<(String, String)> {
+pub(crate) fn parse_kv_line(line: &str) -> Option<(String, String)> {
     let t = line.trim().trim_end_matches(';');
     let ident_end = t.find(|c: char| !c.is_alphanumeric() && c != '_')?;
     if ident_end == 0 { return None; }
@@ -249,7 +257,7 @@ fn is_single_quoted_string(t: &str) -> bool {
 /// Walk an inline `do; k v; k v end` body and invoke `visitor(k, v)` for
 /// each pair. The body is whatever sits between `do` and the trailing
 /// `end` on a single line.
-fn absorb_inline_block_body(line: &str, visitor: &mut dyn FnMut(String, String)) {
+pub(crate) fn absorb_inline_block_body(line: &str, visitor: &mut dyn FnMut(String, String)) {
     let t = line.trim();
     let Some(after_do_idx) = find_do_keyword(t) else { return; };
     let after_do = &t[after_do_idx..];

@@ -3,7 +3,7 @@
 //! Covers both families: runtime/extension config (heki, ollama, …) and
 //! strategic descriptors (purpose, vision, audience, concern).
 
-use storehouse::world_parser;
+use storehouse::world::parser as world_parser;
 
 const MIETTE: &str = r#"Hecks.world "Miette" do
   heki do
@@ -79,6 +79,49 @@ fn parses_empty_world() {
     assert!(w.configs.is_empty());
     assert!(w.concerns.is_empty());
     assert!(w.purpose.is_none());
+}
+
+#[test]
+fn parses_mcp_server_block() {
+    let src = r#"Hecks.world "Tools" do
+  mcp do
+    server :gmail do
+      token_env "MIETTE_GMAIL_ACCESS_TOKEN"
+    end
+  end
+end
+"#;
+    let w = world_parser::parse(src);
+    assert_eq!(w.name, "Tools");
+    assert_eq!(w.servers.len(), 1);
+    let gmail = w.server_for("gmail").expect("gmail server");
+    assert_eq!(gmail.name, "gmail");
+    assert_eq!(gmail.token_env.as_deref(), Some("MIETTE_GMAIL_ACCESS_TOKEN"));
+    // server_for trims a leading colon, matching the adapter `server: :x` form.
+    assert!(w.server_for(":gmail").is_some());
+    // mcp block is not an extension config
+    assert!(w.config_for("mcp").is_none());
+}
+
+#[test]
+fn parses_inline_server_in_mcp_block() {
+    // Inline `server ... end` line inside a multi-line mcp block, plus a
+    // quoted (rather than symbol) server name + multiple servers.
+    let src = r#"Hecks.world "Tools" do
+  mcp do
+    server :gdrive do; token_env "DRIVE_TOK" end
+    server "linear" do
+      token_env "LINEAR_TOK"
+    end
+  end
+end
+"#;
+    let w = world_parser::parse(src);
+    assert_eq!(w.servers.len(), 2);
+    let gdrive = w.server_for("gdrive").expect("gdrive server");
+    assert_eq!(gdrive.token_env.as_deref(), Some("DRIVE_TOK"));
+    let linear = w.server_for("linear").expect("linear server");
+    assert_eq!(linear.token_env.as_deref(), Some("LINEAR_TOK"));
 }
 
 #[test]
