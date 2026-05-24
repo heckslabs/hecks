@@ -168,7 +168,7 @@ pub(super) fn count_md_inbox_active(inbox_dir: &Path) -> i64 {
 fn md_status_is_active(text: &str) -> bool {
     for line in frontmatter_lines(text) {
         if let Some(rest) = line.trim().strip_prefix("status:") {
-            return !matches!(rest.trim(), "closed" | "done" | "archived");
+            return !matches!(rest.trim(), "closed" | "done" | "archived" | "planning");
         }
     }
     false
