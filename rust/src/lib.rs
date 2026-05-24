@@ -72,6 +72,11 @@ pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
 pub mod hecksagon_parser;
 pub mod world;
+// f4 — aggregate-level invariant evaluation. Carved into its own dir as a
+// GROW concern in loc_ratchet.fixtures (same pattern as world /
+// adapter_resolution) : the invariant evaluator grows with the f4 rule
+// surface rather than fighting core_runtime's shrink pressure.
+pub mod invariants;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod adapter_resolution;
 pub mod projection;
