@@ -52,13 +52,33 @@ Hecks.behaviors "Story" do
     expect ref: "f1"
   end
 
-  test "MarkReady moves started story to ready_for_review" do
+  test "MarkReady moves started story to ready_for_review after Verify" do
+    tests "MarkReady", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    setup  "Verify"
+    input  ref: "f1"
+    expect state: "ready_for_review"
+  end
+
+  # f4 — the ready_means_verified invariant gives done-is-done teeth.
+  test "MarkReady is rejected by the invariant when verified is false" do
     tests "MarkReady", on: "Story"
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
     setup  "AssignToSprint", sprint_ref: "s1"
     setup  "Start"
     input  ref: "f1"
-    expect state: "ready_for_review"
+    expect refused: "ready_means_verified"
+  end
+
+  test "Verify sets verified to true" do
+    tests "Verify", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    input  ref: "f1"
+    expect verified: true
   end
 
   test "Approve moves ready_for_review story to done" do
@@ -66,6 +86,7 @@ Hecks.behaviors "Story" do
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
     setup  "AssignToSprint", sprint_ref: "s1"
     setup  "Start"
+    setup  "Verify"
     setup  "MarkReady"
     input  ref: "f1"
     expect state: "done"
@@ -146,6 +167,7 @@ Hecks.behaviors "Story" do
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
     setup  "AssignToSprint", sprint_ref: "s1"
     setup  "Start"
+    setup  "Verify"
     setup  "MarkReady"
     input  ref: "f1"
     expect state: "started"

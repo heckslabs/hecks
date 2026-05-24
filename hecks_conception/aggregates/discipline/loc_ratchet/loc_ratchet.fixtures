@@ -50,5 +50,17 @@ Hecks.fixtures "LocRatchet" do
             extensions: "rs",
             direction:  "grow",
             baseline:   ""
+
+    # invariants — the f4 aggregate-level invariant evaluator. Carved out
+    # of core_runtime (longest-prefix-match) and allowed to grow, because
+    # the invariant DSL is the contract and the evaluator Rust is a thin
+    # mechanical reuse of the existing `given` predicate machinery. Grows
+    # with the f4 rule surface rather than fighting core_runtime's shrink.
+    fixture "invariants",
+            name:       "invariants",
+            path:       "rust/src/invariants",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
   end
 end

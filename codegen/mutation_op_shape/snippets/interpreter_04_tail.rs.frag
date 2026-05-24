@@ -1,3 +1,15 @@
+/// f4 — evaluate a single predicate against state + attrs, returning its
+/// truth value. Public wrapper over the `given` evaluator so the invariants
+/// module can reuse the exact same predicate machinery a `given` uses ; an
+/// invariant IS a `given` checked on every command's resulting state.
+pub fn evaluate_predicate(
+    expr: &str,
+    state: &AggregateState,
+    attrs: &HashMap<String, Value>,
+) -> bool {
+    evaluate_given(expr, state, attrs)
+}
+
 fn evaluate_given(
     expr: &str,
     state: &AggregateState,

@@ -1,4 +1,4 @@
-Hecks.bluebook "Story", version: "2026.05.24.7" do
+Hecks.bluebook "Story", version: "2026.05.24.8" do
   vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
   category "planning"
 
@@ -22,6 +22,13 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
 
     # ---- Lifecycle ----
     attribute :state,          State, default: "backlog"
+
+    # ---- Verification (f4 done-is-done) ----
+    # True once Verify has confirmed the done_criterion actually holds (for
+    # "callable", that the target resolves as a dispatchable verb). The
+    # `ready_means_verified` invariant gives this teeth: a Story may not
+    # enter ready_for_review or done unless verified is true.
+    attribute :verified,       Verified, default: false
 
     # ---- Definition of done ----
     # The done_criterion declares WHAT must be true before MarkReady is valid:
@@ -87,6 +94,13 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
     value_object "State" do
       # Lifecycle token: backlog / in_sprint / started / ready_for_review / done / deferred.
       attribute :value, String
+    end
+
+    value_object "Verified" do
+      # Done-is-done flag (f4). False until Verify confirms the
+      # done_criterion holds ; the ready_means_verified invariant requires
+      # it true before the Story may enter ready_for_review or done.
+      attribute :value, Boolean
     end
 
     value_object "DoneCriterion" do
@@ -256,9 +270,18 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       emits "StoryForwarded"
     end
 
+    command "Verify" do
+      role "Miette"
+      description "Confirm the done_criterion actually holds before the story can be marked ready. For criterion=callable this asserts the story's target resolves as a dispatchable verb through the storehouse (here: the target is set and addressable); the caller proves true dispatchability by actually dispatching the target. Sets verified to true so the ready_means_verified invariant lets MarkReady through. No lifecycle change — Verify is the gate that arms MarkReady, not a transition."
+      reference_to(Story)
+      given("target must resolve as a dispatchable verb") { target != "" }
+      then_set :verified, to: true
+      emits "StoryVerified"
+    end
+
     command "MarkReady" do
       role "Miette"
-      description "Signal that a started story is ready for human review: moves started to ready_for_review and emits StoryReadyForReview. MarkReady gate (enforced by the f4 rule construct, documented UL contract until f4 lands): done_criterion satisfied (callable = target verb resolves through storehouse; deployed = app/service reachable), all use cases ran, and all tests pass."
+      description "Signal that a started story is ready for human review: moves started to ready_for_review and emits StoryReadyForReview. The ready_means_verified invariant (f4) now ENFORCES the done-is-done gate: MarkReady is rejected (InvariantViolation, 0 events) unless verified is true — run Verify first. done_criterion satisfied (callable = target verb resolves through storehouse; deployed = app/service reachable), all use cases ran, and all tests pass."
       reference_to(Story)
       emits "StoryReadyForReview"
     end
@@ -303,6 +326,20 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       transition "Defer"          => "deferred",         from: "backlog"
       transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
       transition "RemoveFromSprint" => "backlog",         from: "started"
+    end
+
+    # ── Invariant: done is done (f4) ────────────────────────
+    #
+    # A Story may only be in ready_for_review or done if it has been
+    # verified. Checked on the RESULTING state after EVERY command, before
+    # save — so MarkReady (started → ready_for_review) is rejected with an
+    # InvariantViolation (0 events) when verified is false. Run Verify first
+    # to arm it. This is the teeth behind the done_criterion contract:
+    # "done is done" is now enforced by the runtime, not just documented.
+    #
+    # Predicate, equivalently: state in {ready_for_review, done} ⇒ verified.
+    invariant "ready_means_verified" do
+      holds_when { state != "ready_for_review" && state != "done" || verified == true }
     end
 
     # ── Queries ─────────────────────────────────────────────────

@@ -163,6 +163,18 @@ module Hecks
           "commands"      => (agg.commands || []).map { |c| dump_command(c) },
           "queries"       => (agg.queries || []).map { |q| dump_query(q) },
           "lifecycle"     => agg.lifecycle && dump_lifecycle(agg.lifecycle),
+          # f4 — aggregate-level invariants. Mirrors dump.rs's
+          # `invariants: Vec<Invariant>` projection. Each Invariant
+          # serialises as { name, expression } in declaration order so the
+          # canonical JSON round-trips byte-identically with the Rust dumper.
+          # Only the f4 `holds_when { ... }` form carries a machine predicate ;
+          # the Rust parser captures ONLY that form (legacy doc-only
+          # `invariant("msg") do ... end` blocks have no single-line
+          # predicate and parse to nothing), so the Ruby side filters to
+          # invariants with a captured expression to stay byte-identical.
+          "invariants"    => (agg.respond_to?(:invariants) ? (agg.invariants || []) : [])
+                               .select { |inv| inv.respond_to?(:expression) && !inv.expression.nil? }
+                               .map { |inv| dump_invariant(inv) },
           # i254 — views per role. Mirrors dump.rs's
           # `views: Vec<View>` projection. Each View serialises as
           # { name, show_all, fields: [str, ...] } ; declaration order
@@ -283,6 +295,17 @@ module Hecks
         {
           "expression" => g.respond_to?(:expression) ? g.expression : g.to_s,
           "message"    => g.respond_to?(:message) ? g.message : nil,
+        }
+      end
+
+      # f4 — mirror Rust's dump_invariant. Invariant has two canonical
+      # fields : name (the rule identifier / message) and expression (the
+      # `holds_when { ... }` predicate source). Both stringify so the shape
+      # matches the Rust JSON byte-for-byte.
+      def dump_invariant(inv)
+        {
+          "name"       => inv.respond_to?(:message) ? inv.message.to_s : inv.to_s,
+          "expression" => (inv.respond_to?(:expression) ? inv.expression : nil).to_s,
         }
       end
 
