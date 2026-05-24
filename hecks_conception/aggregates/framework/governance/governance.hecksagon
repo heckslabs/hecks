@@ -5,5 +5,14 @@ Hecks.hecksagon "Governance" do
   # the same Policy. Absolute db path so the store resolves the same
   # regardless of the storehouse process cwd. Mirrors vindiction /
   # bin-buddy (i76). Tests ignore this file and run memory-only.
-  adapter :sqlite, db: "/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/framework/governance/data/governance.db"
+  #
+  # heki, not sqlite : the prior `adapter :sqlite` was inert for its
+  # whole life (governance.db never existed — governance ran on heki).
+  # When :sqlite became real, this declaration started sqlite-ifying the
+  # WHOLE combined conception (apply_sqlite_persistence is domain-wide)
+  # and panicked on the first SQL-incompatible column. heki preserves
+  # the actual behaviour (state across dispatches, file-backed). Re-enable
+  # :sqlite once apply_sqlite_persistence is scoped to the declaring
+  # hecksagon's own aggregates + create_table degrades gracefully.
+  adapter :heki
 end
