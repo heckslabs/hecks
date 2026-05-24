@@ -49,6 +49,7 @@ module Hecksagon
         @configs = {}
         @concerns = []
         @scalars = {}
+        @servers = []
       end
 
       # Top-level `purpose "..."` — strategic intent.
@@ -63,6 +64,16 @@ module Hecksagon
         builder = ConcernBuilder.new(name)
         builder.instance_eval(&block) if block
         @concerns << builder.to_h
+      end
+
+      # `mcp do; server :name do; token_env "..." end end` — MCP server
+      # declarations (i610). Routes to McpConfigBuilder, whose collected
+      # servers become the World's `servers` list. Intercepted explicitly
+      # so method_missing doesn't treat `mcp` as a flat extension config.
+      def mcp(&block)
+        builder = McpConfigBuilder.new
+        builder.instance_eval(&block) if block
+        @servers.concat(builder.servers)
       end
 
       def method_missing(ext_name, *args, &block)
@@ -90,6 +101,7 @@ module Hecksagon
           audience: @scalars[:audience],
           concerns: @concerns,
           configs:  @configs,
+          servers:  @servers,
         )
       end
     end
@@ -132,6 +144,46 @@ module Hecksagon
 
       def to_h
         { name: @name, description: @description }
+      end
+    end
+
+    # Collects MCP server declarations from an `mcp do ... end` block (i610):
+    #
+    #   mcp do
+    #     server :gmail do
+    #       token_env "MIETTE_GMAIL_ACCESS_TOKEN"
+    #     end
+    #   end
+    #
+    # Each `server` opens a ServerBuilder; `servers` returns the collected
+    # list of { name:, token_env: } hashes the World IR carries.
+    class McpConfigBuilder
+      attr_reader :servers
+
+      def initialize
+        @servers = []
+      end
+
+      def server(name, &block)
+        builder = ServerBuilder.new(name)
+        builder.instance_eval(&block) if block
+        @servers << builder.to_h
+      end
+    end
+
+    # One `server :name do; token_env "..." end` block. Captures the server
+    # name plus the env var its auth token is read from. token_env stays
+    # nil when unset so the canonical shape matches Rust's Option<String>.
+    class ServerBuilder
+      def initialize(name)
+        @name = name
+        @token_env = nil
+      end
+
+      def token_env(value) = @token_env = value
+
+      def to_h
+        { name: @name, token_env: @token_env }
       end
     end
   end

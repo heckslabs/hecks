@@ -18,7 +18,7 @@
 //! write ; tests diff it against golden fixtures.
 
 use crate::hecksagon_ir::Hecksagon;
-use crate::world_ir::World;
+use crate::world::ir::World;
 
 pub mod hcl;
 pub mod mappings;

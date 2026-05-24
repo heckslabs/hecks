@@ -54,13 +54,15 @@ use crate::runtime::storehouse_log;
 //  Server registry
 // ─────────────────────────────────────────────────────────────────────
 
-/// True when `server` names a registered MCP server. Lets callers
-/// (e.g. `Runtime::resolve_mcp_adapters`, i594) validate the binding's
-/// `:server` field at dispatch time and emit a warning rather than
-/// silently failing when an unregistered server (e.g. `:gmail`,
-/// pending i610's bridge) appears. Trims a leading `:` so both
-/// `:storehouse` and `storehouse` answer truthy ; matches the same
-/// rule `resolve_server_spawn` follows.
+/// True when `server` names a LOCALLY-SPAWNABLE MCP server. The only such
+/// server today is `:storehouse` (the local stdio Node server). World-
+/// declared servers (e.g. `:gmail`, i610) are resolved by
+/// `Runtime::resolve_mcp_adapters` from the `.world` file's `mcp` block
+/// BEFORE this gate — they carry a `token_env` and a harness-owned
+/// transport, so they never reach `resolve_server_spawn`. This predicate
+/// remains the fallback gate for servers that are neither world-declared
+/// nor spawnable. Trims a leading `:` so both `:storehouse` and
+/// `storehouse` answer truthy ; matches `resolve_server_spawn`.
 pub fn server_is_registered(server: &str) -> bool {
     let name = server.trim_start_matches(':');
     matches!(name, "storehouse")

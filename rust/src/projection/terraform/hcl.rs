@@ -12,7 +12,7 @@
 //! equal-sign-separated key/value, alphabetically sorted property keys
 //! so the output is deterministic for golden testing.
 
-use crate::world_ir::World;
+use crate::world::ir::World;
 
 /// Emit a single `resource "<type>" "<name>" { ... }` block. Property
 /// keys are sorted alphabetically so the output is byte-stable across

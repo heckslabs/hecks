@@ -1,0 +1,19 @@
+Hecks.world "Tools" do
+  # MCP server connection details for the framework/tools domain (i610).
+  #
+  # Same canonical-block shape as `heki do; dir "..." end` : a declarative
+  # adapter block the runtime resolves at dispatch time. Each `server`
+  # names an MCP server the EmailTool / future tool aggregates bind to via
+  # `adapter :mcp, server: :name`, plus the environment variable its auth
+  # token is read from — the token itself never lives in the bluebook.
+  #
+  # Resolved relative to this file's dir (framework/) when the tools domain
+  # is dispatched at framework/tools. The runtime reads token_env and pulls
+  # the live token from ENV at dispatch ; absent ENV means the call is
+  # recorded but the MCP transport is skipped (honest gating).
+  mcp do
+    server :gmail do
+      token_env "MIETTE_GMAIL_ACCESS_TOKEN"
+    end
+  end
+end

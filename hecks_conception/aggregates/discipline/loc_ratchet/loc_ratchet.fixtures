@@ -27,5 +27,28 @@ Hecks.fixtures "LocRatchet" do
             extensions: "sh",
             direction:  "shrink",
             baseline:   ""
+
+    # world — the `.world` grammar (IR + parser + boot attach). Carved
+    # out of core_runtime (longest-prefix-match) and allowed to grow,
+    # because the grammar is the contract and the parser/IR Rust is a
+    # mechanical projection of the `.world` shape (i610 mcp block).
+    fixture "world",
+            name:       "world",
+            path:       "rust/src/world",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
+
+    # adapter_resolution — the post-dispatch named-adapter arms
+    # (:web_tool i569, :mcp world-server i610). Each is a mechanical
+    # projection of its framework/adapter_families/<name>.hecksagon
+    # shape, so the resolver Rust grows with the families rather than
+    # fighting core_runtime's shrink pressure.
+    fixture "adapter_resolution",
+            name:       "adapter_resolution",
+            path:       "rust/src/adapter_resolution",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
   end
 end

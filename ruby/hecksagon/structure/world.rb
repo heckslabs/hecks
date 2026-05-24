@@ -18,16 +18,26 @@
 module Hecksagon
   module Structure
     class World
-      attr_reader :name, :purpose, :vision, :audience, :concerns, :configs
+      attr_reader :name, :purpose, :vision, :audience, :concerns, :configs,
+                  :servers
 
       def initialize(name:, purpose: nil, vision: nil, audience: nil,
-                     concerns: [], configs: {})
+                     concerns: [], configs: {}, servers: [])
         @name     = name
         @purpose  = purpose
         @vision   = vision
         @audience = audience
         @concerns = concerns
         @configs  = configs
+        @servers  = servers
+      end
+
+      # Look up an MCP server declaration by name (i610). Accepts both
+      # `:gmail` and `"gmail"` so callers don't carry the symbol/string
+      # ambiguity the .world DSL leaves open.
+      def server_for(name)
+        want = name.to_s
+        @servers.find { |s| s[:name].to_s == want }
       end
 
       # Return the config hash for a specific extension.
@@ -63,6 +73,11 @@ module Hecksagon
             inner[k.to_s] = canonical_value(v)
           end
         end
+        # i610 — MCP servers. token_env stays nil (JSON null) when absent
+        # so the shape matches Rust's Option<String> serialization.
+        servers_h = @servers.map do |s|
+          { "name" => s[:name].to_s, "token_env" => s[:token_env] }
+        end
         {
           "name"     => @name,
           "purpose"  => @purpose,
@@ -70,6 +85,7 @@ module Hecksagon
           "audience" => @audience,
           "concerns" => concerns_h,
           "configs"  => configs_h,
+          "servers"  => servers_h,
         }
       end
 

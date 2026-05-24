@@ -23,7 +23,7 @@
 //!  arc, no bluebook can describe its own driver.]
 
 mod aggregate_state;
-mod command_dispatch;
+pub(crate) mod command_dispatch;
 mod event_bus;
 pub mod loop_driver;
 pub mod pm_engine;
@@ -203,6 +203,17 @@ pub struct Runtime {
     /// supply one. Read only by part 2 ; `Runtime::dispatch` still
     /// uses the hardcoded `:claude_tool` path in part 1.
     pub framework_registry: framework_registry::FrameworkRegistry,
+    /// i610 — MCP servers declared across the project's `*.world` files,
+    /// unioned at boot by `attach_world_servers`. `resolve_mcp_adapters`
+    /// looks a binding's `server` up here to read its `token_env`; the
+    /// auth token itself is read from that env var at dispatch. Empty when
+    /// the runtime boots without a world walk (tests / library callers) —
+    /// the `:storehouse` spawn server stays resolvable regardless.
+    pub world_servers: Vec<crate::world::ir::McpServer>,
+    /// i610 — absolute path of the `*.world` file the gmail (or other)
+    /// server was resolved from, for the resolve-log line. None until a
+    /// world walk attaches servers.
+    pub world_servers_path: Option<String>,
 }
 
 impl Runtime {
@@ -365,6 +376,8 @@ impl Runtime {
             framework_registry: framework_registry::FrameworkRegistry::build_from_dir(
                 std::path::Path::new("/nonexistent")
             ),
+            world_servers: Vec::new(),
+            world_servers_path: None,
         }
     }
 
@@ -1376,149 +1389,6 @@ impl Runtime {
         let _ = cascade_outcome;
     }
 
-    /// i569 — :web_tool adapter resolver. Parallel to
-    /// `resolve_claude_tool_adapters` ; same field shape (`command`,
-    /// `tool`, `result_into` — no `server`), different adapter family :
-    /// the `:web_tool` family declared at
-    /// `aggregates/framework/adapter_families/web_tool.hecksagon`.
-    ///
-    /// When a hecksagon-loaded `:web_tool` binding's `command` matches
-    /// the just-dispatched `Aggregate.Command` (WebTool.WebFetch /
-    /// WebTool.WebSearch), this arm reads the binding's `tool` field
-    /// (`web_fetch` / `web_search`), calls the kernel-floor
-    /// `web_tool_dispatcher::dispatch` which runs the real HTTP GET
-    /// (curl) / DuckDuckGo query, surfaces the outcome on stdout (same
-    /// `[web_tool:<tool>] ok=… output=…` shape the claude_tool arm
-    /// prints), and chains the fetched body into `result_into` as a
-    /// `dispatch_cascade` carrying `id`, `tool`, `output`, `exit_code`
-    /// (HTTP status), and `ok`.
-    ///
-    /// HECKS_DEBUG_WEB_TOOL=1 surfaces the resolution + per-binding
-    /// fire trace ; same shape as HECKS_DEBUG_CLAUDE_TOOL.
-    fn resolve_web_tool_adapters(
-        &mut self,
-        result: &CommandResult,
-        command_name: &str,
-        dispatch_attrs: &HashMap<String, Value>,
-    ) {
-        if self.hecksagons.is_empty() { return; }
-        let debug = std::env::var("HECKS_DEBUG_WEB_TOOL").is_ok();
-        let bare_command = command_name.rsplit('.').next().unwrap_or(command_name);
-        let target = format!("{}.{}", result.aggregate_type, bare_command);
-        if debug {
-            eprintln!("[web_tool:debug] resolve cmd={} target={} hecksagons={}",
-                command_name, target, self.hecksagons.len());
-        }
-
-        // Snapshot every `:web_tool` io adapter whose `command` option
-        // matches the dispatched target. Same parse-noise stripping as
-        // the claude_tool arm (quotes around strings, leading colon on
-        // symbols). `result_into` carries the follow-on cascade target.
-        let matched: Vec<(String, String, Option<String>)> = self.hecksagons.iter()
-            .flat_map(|h| h.io_adapters.iter())
-            .filter(|a| a.kind == "web_tool")
-            .filter_map(|a| {
-                let mut cmd: Option<String> = None;
-                let mut tool: Option<String> = None;
-                let mut result_into: Option<String> = None;
-                for (k, v) in &a.options {
-                    match k.as_str() {
-                        "command"     => cmd = Some(strip_quotes_or_colon(v)),
-                        "tool"        => tool = Some(strip_quotes_or_colon(v)),
-                        "result_into" => result_into = Some(strip_quotes_or_colon(v)),
-                        _ => {}
-                    }
-                }
-                match (cmd, tool) {
-                    (Some(c), Some(t)) if c == target => Some((c, t, result_into)),
-                    _ => None,
-                }
-            })
-            .collect();
-        if debug {
-            eprintln!("[web_tool:debug] matched {} adapter(s) for target={}",
-                matched.len(), target);
-        }
-        if matched.is_empty() { return; }
-
-        // Build the attrs map (state ∪ dispatch ; dispatch wins) so the
-        // web primitive sees `url` / `query` whether they landed on
-        // aggregate state or only rode in the event payload. The `id`
-        // flows through so the RecordResult cascade joins the same
-        // invocation record.
-        let state_clone: Option<AggregateState> = self
-            .find(&result.aggregate_type, &result.aggregate_id)
-            .cloned();
-        let mut attrs: HashMap<String, String> = HashMap::new();
-        if let Some(s) = state_clone.as_ref() {
-            for (k, v) in &s.fields {
-                attrs.insert(k.clone(), v.to_string());
-            }
-        }
-        for (k, v) in dispatch_attrs {
-            attrs.insert(k.clone(), v.to_string());
-        }
-        let invocation_id = attrs
-            .get("id")
-            .cloned()
-            .unwrap_or_else(|| result.aggregate_id.clone());
-
-        for (_cmd, tool, result_into) in &matched {
-            let tool_result = web_tool_dispatcher::dispatch(tool, &attrs);
-            let err_tail = match (&tool_result.ok, &tool_result.error) {
-                (false, Some(msg)) => format!(" error={:?}", msg),
-                _ => String::new(),
-            };
-            // Mirror the claude_tool arm : one stdout line per
-            // invocation on the single audit stream. This IS the raw
-            // binary's “Tool output” surface — the fetched body shows
-            // here even when no result_into cascade is declared.
-            println!(
-                "[{}] [web_tool:{}] ok={} exit={} output={:?}{}",
-                storehouse_log::now_iso8601(),
-                tool_result.tool, tool_result.ok, tool_result.exit_code,
-                tool_result.output, err_tail
-            );
-
-            let result_into_target = match result_into.as_deref() {
-                Some(s) if !s.is_empty() => s,
-                _ => {
-                    if debug {
-                        eprintln!("[web_tool:debug] no result_into on adapter — skipping cascade");
-                    }
-                    continue;
-                }
-            };
-
-            let mut record_attrs: HashMap<String, Value> = HashMap::new();
-            record_attrs.insert("id".to_string(), Value::Str(invocation_id.clone()));
-            record_attrs.insert("tool".to_string(), Value::Str(tool_result.tool.clone()));
-            record_attrs.insert("output".to_string(), Value::Str(tool_result.output.clone()));
-            record_attrs.insert("exit_code".to_string(), Value::Int(tool_result.exit_code as i64));
-            record_attrs.insert("ok".to_string(), Value::Bool(tool_result.ok));
-
-            let cascade_outcome = command_dispatch::dispatch_cascade(
-                self,
-                result_into_target,
-                record_attrs,
-                &result.aggregate_type,
-                &result.aggregate_id,
-            );
-            storehouse_log::cascade_step(
-                result_into_target,
-                &invocation_id,
-                cascade_outcome.is_ok(),
-            );
-            if debug {
-                match &cascade_outcome {
-                    Ok(_)  => eprintln!("[web_tool:debug] cascaded into {} ok", result_into_target),
-                    Err(e) => eprintln!("[web_tool:debug] cascade into {} failed: {:?}", result_into_target, e),
-                }
-            }
-            let _ = cascade_outcome;
-        }
-    }
-
     /// i594 — :mcp adapter resolver. Parallel to
     /// `resolve_claude_tool_adapters`, different adapter family : the
     /// `:mcp` family (declared at
@@ -1609,15 +1479,20 @@ impl Runtime {
             .unwrap_or_else(|| result.aggregate_id.clone());
 
         for (_cmd, server, tool, args_raw, result_into) in &matched {
-            // i594 — graceful guard. i610 will register :gmail (and
-            // future MCP servers) ; until then, log + skip rather
-            // than panic so EmailTool dispatches still land in the
-            // heki and the rest of the cascade can proceed.
+            // i610 — resolve the server from the project's `*.world` files
+            // (attached at boot into `world_servers`). Logs + skips the
+            // harness-injected transport gap when matched. See
+            // `adapter_resolution::mcp::resolve_world_server`.
+            if crate::adapter_resolution::mcp::resolve_world_server(self, server) {
+                continue;
+            }
+            // i594 — graceful guard for servers neither world-declared nor
+            // locally spawnable. Log + skip rather than panic so the
+            // dispatch still lands in the heki and the cascade proceeds.
             if !mcp_dispatcher::server_is_registered(server) {
                 eprintln!(
-                    "[mcp:warn] adapter for {} declares server={} which is not yet registered \
-                    (v1 supports :storehouse only ; :gmail and others land via i610). \
-                    Dispatch recorded ; MCP call skipped.",
+                    "[mcp:warn] adapter for {} declares server={} which is neither \
+                    world-declared nor a spawnable server. Dispatch recorded ; MCP call skipped.",
                     target, server
                 );
                 continue;
@@ -2804,7 +2679,7 @@ fn trigram_sim(a: &str, b: &str) -> f64 {
 /// to be reduced to their bare identifier before matching against
 /// runtime targets / dispatcher tool names. Whitespace is trimmed
 /// because parse_options preserves it from the source.
-fn strip_quotes_or_colon(raw: &str) -> String {
+pub(crate) fn strip_quotes_or_colon(raw: &str) -> String {
     let t = raw.trim();
     if t.len() >= 2 && t.starts_with('"') && t.ends_with('"') {
         return t[1..t.len() - 1].to_string();

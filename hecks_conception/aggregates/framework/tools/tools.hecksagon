@@ -58,8 +58,9 @@ Hecks.hecksagon "Tools" do
   # perform_web_search hook), and `result_into` chains the kernel-
   # hook output back into Cascade.RecordResult.
   #
-  # Runtime status (2026-05-12) : these bindings are declared NOW
-  # but won't auto-dispatch until i557's framework_registry lands.
+  # Runtime status : i594 has landed — the runtime auto-dispatches these
+  # :web_tool bindings after a matching command via
+  # `Runtime::resolve_web_tool_adapters`, chaining into Cascade.RecordResult.
   adapter :web_tool, command: "WebTool.WebFetch",  tool: :web_fetch,  result_into: "Cascade.RecordResult"
   adapter :web_tool, command: "WebTool.WebSearch", tool: :web_search, result_into: "Cascade.RecordResult"
 
@@ -92,31 +93,25 @@ Hecks.hecksagon "Tools" do
   #   CreateDraft   : to → to, subject → subject, body → body_markdown
   #   ListDrafts    : (no args)
   #
-  # Runtime status (2026-05-14) : these bindings declare the CONTRACT,
-  # matching the bluebook-first principle ("wiring is override, not
-  # substrate"). Two runtime gaps remain before the dispatch IS the
-  # fetch end-to-end :
+  # Runtime status : i594 has landed — the runtime auto-fires these :mcp
+  # bindings after a matching command via `Runtime::resolve_mcp_adapters`
+  # (parallel to `resolve_claude_tool_adapters` / `resolve_web_tool_adapters`),
+  # chaining the result into Cascade.RecordResult.
   #
-  #   1. i594 — bluebook-driven kernel-hook registration. Until that
-  #      lands, `framework_registry::seed_kernel_hooks` does not seed
-  #      `invoke_mcp_tool` and the runtime has no `resolve_mcp_adapters`
-  #      arm parallel to `resolve_claude_tool_adapters`. So a matching
-  #      :mcp binding parses into IR cleanly but the runtime does not
-  #      auto-fire it after a dispatch.
+  # i610 closed the server-resolution gap : the :gmail server is resolved
+  # FROM the world file (framework/tools.world declares `server :gmail`
+  # with `token_env "MIETTE_GMAIL_ACCESS_TOKEN"`), and the auth token is
+  # read from that env var at dispatch — no longer a hardcoded
+  # :storehouse-only registry.
   #
-  #   2. The :gmail server in the kernel hook's `resolve_server_spawn`
-  #      registry. Today only :storehouse is registered. Adding :gmail
-  #      needs a spawn target — and the Claude harness's Gmail MCP is
-  #      exposed through the harness itself, not as an independently-
-  #      spawnable stdio server. The right path is a harness-side
-  #      bridge (or a thin proxy that re-exports the harness's Gmail
-  #      tools as a local stdio server) ; that bridge lands in a
-  #      sibling card.
-  #
-  # In the meantime the bindings ARE the contract — the bluebook says
-  # which MCP tool a given EmailTool command flows to, with which args.
-  # When (1) and (2) close, the dispatch becomes the fetch with no
-  # further bluebook edits.
+  # One honest gap remains : the live Gmail HTTP transport. The Claude
+  # harness exposes Gmail tools through its own MCP surface, not as an
+  # independently-spawnable stdio server, so `resolve_server_spawn` has
+  # no spawn target for :gmail. The runtime resolves the server + reads
+  # the token, logs the resolve, then records-but-skips the live call
+  # (a harness-side bridge / stdio proxy is the remaining work, sibling
+  # card). The bluebook + world ARE the contract today ; when the bridge
+  # lands the dispatch becomes the fetch with no further bluebook edits.
   #
   # NB : `args` is declared as a JSON-encoded STRING literal rather
   # than a Ruby/Rust hash literal. Two reasons :
@@ -188,7 +183,8 @@ Hecks.hecksagon "Tools" do
   #   3. base64url-decode the `data` field ; write bytes to save_path.
   # attrs (message_id / attachment_id / save_path) flow from the
   # dispatched command's attrs, same as web_fetch reads attrs.url.
-  # Runtime arm + i594/i557 gating tracked in the sibling inbox card.
+  # The runtime arm (i594) has landed ; this binding auto-fires via
+  # `Runtime::resolve_web_tool_adapters`.
   adapter :web_tool,
     command: "EmailTool.GetAttachment",
     tool:    "gmail_attachment",

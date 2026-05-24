@@ -71,9 +71,9 @@ pub mod fixtures_parser;
 pub mod hecksagon_helpers;
 pub mod hecksagon_ir;
 pub mod hecksagon_parser;
-pub mod world_ir;
+pub mod world;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod world_parser;
+pub mod adapter_resolution;
 pub mod projection;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod run;

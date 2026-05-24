@@ -15,7 +15,7 @@ Hecks.behaviors "LocRatchet" do
 
   test "ListConcerns surfaces every seeded concern" do
     tests "ListConcerns", on: "Concern", kind: :query
-    expect count: 3
+    expect count: 5
   end
 
   test "ListConcerns includes the codegen grow concern carving the specializer out of core_runtime" do

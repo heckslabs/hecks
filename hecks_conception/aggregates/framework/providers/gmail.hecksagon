@@ -46,8 +46,8 @@ Hecks.provider "gmail" do
   vision "Gmail MCP server provider for the :mcp adapter family. Names
           the harness-exposed Gmail tools (search_threads, get_thread,
           create_draft, list_drafts, plus the broader label-management
-          family), the auth path (harness-injected ; no per-provider
-          key file — the Claude harness owns the OAuth token surface),
+          family), the auth path (an OAuth access token read from the
+          env var the .world file's token_env names — no per-provider key),
           and the per-tool response handling. Each :mcp adapter binding
           with server: :gmail resolves here for the wire shape."
 
@@ -76,16 +76,19 @@ Hecks.provider "gmail" do
 
   # ── Auth ─────────────────────────────────────────────────────────
   #
-  # Gmail MCP calls authenticate via OAuth tokens the Claude harness
-  # owns — the user has authorized the Claude Gmail integration
-  # in the harness's settings. The provider does NOT manage tokens ;
-  # it declares that the harness is the auth boundary.
+  # Gmail MCP calls authenticate via an OAuth access token sourced from
+  # an environment variable (i610). The `.world` file (framework/tools.world)
+  # declares `server :gmail do; token_env "MIETTE_GMAIL_ACCESS_TOKEN" end` ;
+  # the runtime reads that env var at dispatch. The provider does NOT
+  # manage or store tokens — it declares the env var is the auth boundary
+  # and the world file names which one. Absent env means the dispatch is
+  # recorded but the MCP call is skipped (honest gating).
   #
   # Distinct from EmailTool.GetAttachment which uses a custom Google
   # app's OAuth token (~/.config/miette/google-oauth-token.json) via
   # the :web_tool family — that path is documented in i645 and binds
   # under :web_tool, not :mcp.
-  auth_scheme :harness_injected
+  auth_scheme :env_token
 
   # ── Tool list (the wire shape per command) ───────────────────────
   #

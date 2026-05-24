@@ -44,6 +44,23 @@ pub struct World {
     /// (heki, ollama, sqlite, claude, websocket, static_assets, ...).
     /// Order preserved from source.
     pub configs: Vec<ExtensionConfig>,
+    /// MCP server declarations from the `mcp do; server :name do; ... end end`
+    /// block (i610). Each names a server the runtime resolves at dispatch
+    /// time plus the environment variable its auth token is read from.
+    /// Order preserved from source.
+    pub servers: Vec<McpServer>,
+}
+
+/// `server :name do; token_env "ENV_VAR" end` inside an `mcp do ... end`
+/// block (i610). Declares one MCP server's connection details: its name —
+/// the symbol an `adapter :mcp, server: :name` binding references — and the
+/// environment variable the runtime reads the auth token from at dispatch.
+#[derive(Debug, Default, Clone)]
+pub struct McpServer {
+    /// Server symbol the `adapter :mcp, server: :x` binding names (`gmail`).
+    pub name: String,
+    /// Environment variable the auth token is read from at dispatch time.
+    pub token_env: Option<String>,
 }
 
 /// `concern "Name" do; description "..." end`.
@@ -68,6 +85,14 @@ impl World {
     /// Look up an extension config block by name.
     pub fn config_for(&self, name: &str) -> Option<&ExtensionConfig> {
         self.configs.iter().find(|c| c.name == name)
+    }
+
+    /// Look up an MCP server declaration by name (i610). Trims a leading
+    /// `:` so both `:gmail` and `gmail` answer — same rule the dispatcher's
+    /// `resolve_server_spawn` follows for the `server` adapter field.
+    pub fn server_for(&self, name: &str) -> Option<&McpServer> {
+        let want = name.trim_start_matches(':');
+        self.servers.iter().find(|s| s.name == want)
     }
 }
 
