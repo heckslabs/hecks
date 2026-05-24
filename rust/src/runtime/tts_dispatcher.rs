@@ -26,7 +26,7 @@
 //! file under `cache_dir` keyed by UTC timestamp ; only once the full
 //! artifact is on disk is it handed to `mpg123` for playback.
 //!
-//! ── Non-blocking : the dispatch returns in milliseconds ──
+//! ── Non-blocking dispatch, serial playback ──
 //!
 //! Synthesis + playback (~11s wall-clock) is NOT run inline. After the
 //! cheap synchronous pre-flight (provider / text / voice_id / api key /
@@ -45,13 +45,14 @@
 //! for exactly this survival — that pattern now wraps the whole
 //! synth+play pipeline.)
 //!
-//! Why no pid file / no latest-wins cancel : Miette is "selective" —
-//! she controls how often she speaks. If a second Speak fires while the
-//! first is still playing, the first MUST NOT be cut off. So there is
-//! no kill of a prior render and no shared pid file ; close-together
-//! Speaks simply overlap, which is acceptable. (The historical pid-file
-//! latest-wins guard was removed 2026-05-22 because it cut the voice
-//! off mid-sentence.)
+//! Serial playback : two close Speaks must NOT overlap audibly (f16).
+//! Each child acquires a `mkdir`-based lock at
+//! `$cache_dir/.tts_play.lock` before calling mpg123, and releases it
+//! on exit via a trap. Synthesis (the network leg) is NOT gated —
+//! children can pipeline curl in parallel. Only the final mpg123 step
+//! serializes. Stale-lock recovery: if the lock dir exists but the PID
+//! written inside is no longer alive, the waiting child steals the
+//! lock. Unbounded FIFO queue — Miette controls speak frequency.
 //!
 //! There is NO macOS `say` / Samantha fallback. Chris's rule is
 //! verbatim : "I'd rather you not speak than use the default." Pre-
@@ -221,8 +222,9 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
     //      on failure (a real mp3 is comfortably > 1024 bytes) ; on a
     //      too-small file it removes it and exits silently — no play,
     //      no fallback voice.
-    //   3. Plays the finished file with mpg123 (unless auto_play off),
-    //      `exec`'d so the shell becomes the player (one fewer process).
+    //   3. Acquires a mkdir-based serial playback lock (f16) then plays
+    //      the finished file with mpg123 (unless auto_play off) and
+    //      releases the lock on EXIT/signal via a trap.
     //
     // text + api key + url + out path travel via env (`Command::env`),
     // never interpolated into the shell string — `text`'s quotes /
@@ -231,12 +233,38 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
     // names, so it is a constant string with nothing to escape.
     //
     // `.process_group(0)` puts the child in its own session so it
-    // survives this storehouse process exiting (cold MCP dispatch) AND
-    // is never killed by a later Speak — overlapping playback is fine.
-    // stdio is nulled so the detached child holds no handles on the
-    // parent's pipes.
+    // survives this storehouse process exiting (cold MCP dispatch).
+    // Playback is serialized via a mkdir lock inside the child shell
+    // so concurrent dispatches queue at the mpg123 step rather than
+    // overlapping. stdio is nulled so the detached child holds no
+    // handles on the parent's pipes.
+
+    // Serial playback lock path — stable across all concurrent children.
+    let lock_dir = format!("{}/.tts_play.lock", cache_dir);
+    let lock_pid_file = format!("{}/pid", lock_dir);
+
     let play_step = if auto_play {
-        "exec /opt/homebrew/bin/mpg123 -q \"$TTS_OUT\""
+        // Lock acquisition: mkdir is atomic on macOS HFS+/APFS.
+        // We spin in 100ms increments, checking each time whether the
+        // PID inside the lock is still alive (stale-lock recovery). On
+        // owning the lock we write our PID so a later child can steal
+        // a stale one. The trap releases the lock on any exit — normal,
+        // signal, or error — so mpg123 can be a plain call (not exec)
+        // and the trap fires reliably.
+        "TTS_LOCK=\"$TTS_LOCK_DIR\"; \
+         TTS_PID_FILE=\"$TTS_LOCK_PID\"; \
+         while ! mkdir \"$TTS_LOCK\" 2>/dev/null; do \
+           if [ -f \"$TTS_PID_FILE\" ]; then \
+             lp=$(cat \"$TTS_PID_FILE\" 2>/dev/null); \
+             if [ -n \"$lp\" ] && ! kill -0 \"$lp\" 2>/dev/null; then \
+               rm -rf \"$TTS_LOCK\"; continue; \
+             fi; \
+           fi; \
+           sleep 0.1; \
+         done; \
+         echo $$ > \"$TTS_PID_FILE\"; \
+         trap 'rm -rf \"$TTS_LOCK\"' EXIT INT TERM HUP; \
+         /opt/homebrew/bin/mpg123 -q \"$TTS_OUT\""
     } else {
         ":"
     };
@@ -259,6 +287,8 @@ pub fn dispatch(provider: &str, attrs: &HashMap<String, String>) -> TtsResult {
         .env("XI_API_KEY", &api_key)
         .env("TTS_BODY", &body)
         .env("TTS_OUT", &audio_path)
+        .env("TTS_LOCK_DIR", &lock_dir)
+        .env("TTS_LOCK_PID", &lock_pid_file)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

@@ -4,49 +4,38 @@
 //  (framework/inbox/inbox.hecksagon, resolve_exec_adapters in
 //  rust/src/runtime/mod.rs) invokes when Inbox::Inbox.Check dispatches.
 //  The Inbox bluebook names the contract ; this Node script is its
-//  impure executor (Gmail OAuth + historyId delta + card + draft).
+//  impure executor (Gmail OAuth + historyId delta + card).
 //  NOT transitional : i629 closed end-to-end 2026-05-16, the loop
 //  dispatch IS the poll. No bluebook can hold an OAuth/HTTP poller
 //  body - kernel-adjacent by nature.]
 
 //
-// Locked spec (2026-05-15, amended 2026-05-19) :
+// Locked spec (2026-05-15, amended 2026-05-23) :
 //   - OAuth refresh (same mechanism proven by EmailTool.GetAttachment)
 //   - Gmail historyId watermark : exact delta, no reprocessing, no
 //     window blind spot ; clean start on first run (no backfill)
 //   - known-correspondents-only (inbox_correspondents.json)
-//   - per new inbound thread : ATOMIC ON DRAFT SUCCESS.
-//     - compose draft FIRST.
-//     - on dr.id truthy : write card + mark thread seen + bump heki.
-//     - on draft failure : surface error to stderr, do NOT write the
-//       card, do NOT mark seen, do NOT advance historyId watermark
-//       past this poll ; next poll re-attempts the same thread.
-//   - never starts the work the mail requests : drafts + surfaces.
-//
-// (i26 2026-05-19) Status-decoupled-from-truth was the bug : the card
-// claimed "Draft acknowledgement composed" before the draft existed.
-// Atomic-on-success guarantees the card only ever lands AFTER dr.id.
+//   - per new inbound thread : write card + mark thread seen.
+//   - never starts the work the mail requests : surfaces only.
+//   - DRAFTING IS OPERATOR-INITIATED (i633 autodraft-retire) :
+//     the poll no longer composes acknowledgement drafts automatically.
+//     Drafting was the source of 21 duplicate acks to the same thread
+//     (i633). The batch-draft flow over NeedingResponse is the correct
+//     home once that correspondence ledger is built. Until then, Miette
+//     drafts replies manually after reviewing the surfaced cards.
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 
 const HOME = process.env.HOME;
 const TOKEN_PATH = HOME + "/.config/miette/google-oauth-token.json";
 const STATE_PATH = HOME + "/miette-state/information/inbox_poll_state.json";
-// drafts.heki : durable running total of email drafts Miette has composed.
-// Upserted here (count += 1) after each successful Gmail draft create so
-// the awake statusline can show ✉\u{fe0f} N. Path mirrors heki::resolve_info_dir().
-const DRAFTS_HEKI = HOME + "/miette-state/information/drafts.heki";
-const STOREHOUSE  = path.join(path.dirname(new URL(import.meta.url).pathname),
-                              "../rust/target/release/storehouse");
 const REGISTRY  = path.join(path.dirname(new URL(import.meta.url).pathname), "inbox_correspondents.json");
 const API = "https://gmail.googleapis.com/gmail/v1/users/me";
 
 function readJson(p, dflt) { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch { return dflt; } }
 function writeJson(p, o) { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, JSON.stringify(o, null, 2)); }
 function log(...a) { console.log("[inbox_poll]", ...a); }
-function errlog(...a) { process.stderr.write("[inbox_poll] " + a.join(" ") + "\n"); }
 
 async function accessToken() {
   const t = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
@@ -75,9 +64,6 @@ function headerVal(msg, name) {
 function addrOf(from) {
   const m = from.match(/<([^>]+)>/);
   return (m ? m[1] : from).trim().toLowerCase();
-}
-function b64url(s) {
-  return Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 function nextCardId(dir) {
   let max = 0;
@@ -118,11 +104,10 @@ async function main() {
 
   const seen = new Set(state.seen_threads);
   const attemptedThisPoll = new Set();
-  let failuresThisPoll = false;
   let carded = 0;
   for (const id of [...new Set(added)]) {
     const msg = await api(tok, "/messages/" + id +
-      "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID&metadataHeaders=Date");
+      "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date");
     if (msg.error) continue;
     const labels = msg.labelIds || [];
     if (!labels.includes("INBOX") || labels.includes("DRAFT") || labels.includes("SENT")) continue;
@@ -134,67 +119,26 @@ async function main() {
     attemptedThisPoll.add(msg.threadId);
 
     const subject = headerVal(msg, "Subject") || "(no subject)";
-    const reSub = /^re:/i.test(subject) ? subject : "Re: " + subject;
-    const msgId = headerVal(msg, "Message-ID");
-    const first = corr.name.split(" ")[0];
-    const bodyText =
-      `${first},\n\nGot this, and it is logged on our side. Nothing is lost. ` +
-      `I will follow up properly with a full reply shortly.\n\nWarmly,\nMiette\n`;
-    const mime =
-      `To: ${email}\r\nSubject: ${reSub}\r\n` +
-      (msgId ? `In-Reply-To: ${msgId}\r\nReferences: ${msgId}\r\n` : "") +
-      `Content-Type: text/plain; charset=UTF-8\r\n\r\n${bodyText}`;
 
-    // Draft FIRST. Card + seen + heki only land on dr.id truthy.
-    const dr = await fetch(API + "/drafts", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" },
-      body: JSON.stringify({ message: { raw: b64url(mime), threadId: msg.threadId } }),
-    }).then(r => r.json());
-
-    if (!dr.id) {
-      // Surface the API error body so overmind / macrophage sees it.
-      errlog(`DRAFT_FAILED thread=${msg.threadId} from=${corr.name} <${email}> subject=${JSON.stringify(subject)} body=${JSON.stringify(dr).slice(0,400)}`);
-      log(`draft FAILED ${corr.name} : ${subject} — thread NOT marked seen ; watermark held ; next poll retries`);
-      failuresThisPoll = true;
-      continue;
-    }
-
-    // Draft confirmed. Atomic block : seen + card + heki.
+    // Card + seen : unconditional (no longer gated on draft success).
+    // DRAFTING IS OPERATOR-INITIATED (i633 autodraft-retire 2026-05-23).
+    // The poll surfaces ; Miette drafts replies consciously after review.
+    // The batch-draft flow over NeedingResponse is the future home once
+    // the correspondence ledger is built.
     seen.add(msg.threadId);
     const dir = path.join(HOME, corr.inbox);
     const n = nextCardId(dir);
     const today = new Date().toISOString().slice(0, 10);
-    const card = `---\nref: i${n}\nstatus: open\npriority: normal\nposted_at: ${today}\nsource: inbox-poll\nfrom: ${corr.name} <${email}>\nthread: ${msg.threadId}\ndraft_id: ${dr.id}\nvalue: 'Inbound from ${corr.name} : ${subject.replace(/'/g, "")}. Draft acknowledgement composed (id=${dr.id}) ; full reply + any work pending conscious review.'\n---\n\n# i${n} — ${corr.name} : ${subject}\n\nArrived ${today} via the inbox poll (thread \`${msg.threadId}\`).\nA draft acknowledgement is in Drafts (id \`${dr.id}\`). The full reply,\nand any work this asks for, are pending conscious review : the poll\ndrafts and surfaces, it does not start the work.\n`;
+    const card = `---\nref: i${n}\nstatus: open\npriority: normal\nposted_at: ${today}\nsource: inbox-poll\nfrom: ${corr.name} <${email}>\nthread: ${msg.threadId}\nvalue: 'Inbound from ${corr.name} : ${subject.replace(/'/g, "")}. Pending conscious review — reply drafted by operator, not by the poll.'\n---\n\n# i${n} — ${corr.name} : ${subject}\n\nArrived ${today} via the inbox poll (thread \`${msg.threadId}\`).\nPending conscious review. The poll surfaces ; it does not draft or\nstart work. Draft and reply when reviewing this card.\n`;
     fs.writeFileSync(path.join(dir, `i${n}.md`), card);
-    log(`card i${n} -> ${corr.inbox} ; draft ok (${dr.id}) ; ${corr.name} : ${subject}`);
-
-    // Bump drafts.heki counter (non-fatal on failure).
-    try {
-      const prev = (() => {
-        try {
-          return parseInt(
-            execFileSync(STOREHOUSE, ["heki", "latest-field", DRAFTS_HEKI, "count"],
-                         { encoding: "utf8" }).trim(), 10) || 0;
-        } catch { return 0; }
-      })();
-      execFileSync(STOREHOUSE,
-        ["heki", "upsert", DRAFTS_HEKI, "--reason", "inbox poll drafted reply",
-         `count=${prev + 1}`],
-        { encoding: "utf8" });
-      log(`drafts.heki updated : count=${prev + 1}`);
-    } catch (e) {
-      log("[warn] drafts.heki upsert failed (non-fatal):", e.message);
-    }
+    log(`card i${n} -> ${corr.inbox} ; ${corr.name} : ${subject}`);
     carded++;
   }
 
-  // Watermark advance ONLY if no failures ; otherwise next poll re-reads
-  // the same history range and seen-set short-circuits the successes.
-  state.last_history_id = failuresThisPoll ? state.last_history_id : newHistoryId;
+  state.last_history_id = newHistoryId;
   state.seen_threads = [...seen].slice(-500);
   writeJson(STATE_PATH, state);
-  log(`done : ${carded} new thread(s) carded+drafted${failuresThisPoll ? " ; some drafts failed, watermark held" : ""} ; watermark ${state.last_history_id}`);
+  log(`done : ${carded} new thread(s) carded ; watermark ${state.last_history_id}`);
 }
 
 // --loop <secs> : run forever on a cadence (overmind-supervised

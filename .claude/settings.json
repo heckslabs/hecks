@@ -140,15 +140,16 @@
    "WebSearch"
   ],
   "allow": [
-   "mcp__storehouse__storehouse__bash",
-   "mcp__storehouse__storehouse__read",
-   "mcp__storehouse__storehouse__edit",
-   "mcp__storehouse__storehouse__update",
-   "mcp__storehouse__storehouse__grep",
-   "mcp__storehouse__storehouse__glob",
-   "mcp__storehouse__storehouse__web_fetch",
-   "mcp__storehouse__storehouse__web_search",
-   "mcp__storehouse__storehouse__record_result"
+   "mcp__storehouse__storehouse__dispatch",
+   "mcp__storehouse__storehouse__catalog",
+   "mcp__storehouse__storehouse__describe_aggregate",
+   "mcp__storehouse__storehouse__query",
+   "mcp__storehouse__storehouse__state",
+   "mcp__storehouse__storehouse__validate",
+   "mcp__storehouse__storehouse__macrophage_check",
+   "mcp__storehouse__storehouse__behaviors",
+   "mcp__storehouse__storehouse__conceive_behaviors",
+   "mcp__storehouse__storehouse__list_aggregates"
   ]
  },
  "enableAllProjectMcpServers": true
