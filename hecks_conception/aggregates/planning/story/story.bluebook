@@ -1,4 +1,4 @@
-Hecks.bluebook "Story", version: "2026.05.24.5" do
+Hecks.bluebook "Story", version: "2026.05.24.7" do
   vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
   category "planning"
 
@@ -270,6 +270,14 @@ Hecks.bluebook "Story", version: "2026.05.24.5" do
       emits "StoryApproved"
     end
 
+    command "Reopen" do
+      role "Operator"
+      description "Reject a ready_for_review story back to started — the reviewer found it not actually done, work resumes. The reverse of MarkReady; valid only from ready_for_review."
+      reference_to(Story)
+      then_set :state, to: "started"
+      emits "StoryReopened"
+    end
+
     command "Defer" do
       role "Miette"
       description "Park a backlog story that is not yet scheduled — move it to deferred so the active backlog stays clean."
@@ -291,6 +299,7 @@ Hecks.bluebook "Story", version: "2026.05.24.5" do
       transition "Start"          => "started",          from: "in_sprint"
       transition "MarkReady"      => "ready_for_review", from: "started"
       transition "Approve"        => "done",             from: "ready_for_review"
+      transition "Reopen"         => "started",          from: "ready_for_review"
       transition "Defer"          => "deferred",         from: "backlog"
       transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
       transition "RemoveFromSprint" => "backlog",         from: "started"
@@ -311,6 +320,10 @@ Hecks.bluebook "Story", version: "2026.05.24.5" do
     query "ByProject" do
       description "All stories belonging to a given project. Pass project: <slug> to filter."
       where project: :project
+    end
+
+    query "ListAll" do
+      description "Every story regardless of state — the full board, for the turn-end pulse."
     end
   end
 

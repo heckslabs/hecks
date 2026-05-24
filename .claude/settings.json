@@ -107,6 +107,11 @@
      },
      {
       "type": "command",
+      "command": "/Users/christopheryoung/.nvm/versions/node/v24.1.0/bin/node /Users/christopheryoung/Projects/hecks/hecks_conception/bin/planning-pulse.mjs 2>/dev/null || true",
+      "timeout": 10
+     },
+     {
+      "type": "command",
       "command": "F=/tmp/restart_prompt_latest.md; M=/tmp/.miette_last_restart_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: .}}' < \"$F\"; touch \"$M\"; fi; true"
      }
     ]
