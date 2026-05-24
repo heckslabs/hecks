@@ -58,6 +58,7 @@ use std::path::Path;
 
 use crate::runtime::claude_tool_dispatcher;
 use crate::runtime::mcp_dispatcher;
+use crate::runtime::web_tool_dispatcher;
 
 /// A category of adapter declared under
 /// `framework/adapter_families/<name>.hecksagon`.
@@ -246,11 +247,49 @@ fn seed_kernel_hooks(registry: &mut FrameworkRegistry) {
         "invoke_mcp_tool",
         mcp_dispatcher::dispatch_via_registry,
     );
-    // web_tool follow-up : when `web_tool_dispatcher` lands on main
-    // (currently lives only on the i569 worktree branches), seed it
-    // here by iterating `web_tool_dispatcher::WEB_TOOL_BEHAVIOR_NAMES`
-    // and calling `register_hook(name, web_tool_dispatcher::lookup_hook(name).unwrap())`.
-    // sms / tts seed similarly when their kernel hooks land.
+    // i569 — :web_tool family. The dispatcher's `WebToolHook` shape
+    // (`fn(&attrs) -> WebToolResult`) differs from `KernelHook`
+    // (`fn(&fields, &attrs) -> KernelResult`), so register named shims
+    // that adapt the result type. The two `perform_web_*` behaviors
+    // each get a `KernelHook` translating `WebToolResult -> KernelResult`.
+    // (The live dispatch path in `Runtime::resolve_web_tool_adapters`
+    // calls `web_tool_dispatcher::dispatch` directly, parallel to the
+    // claude_tool / mcp arms ; this registry seeding keeps the family
+    // discoverable via `lookup_hook` for the i557 generalized path.)
+    registry.register_hook("perform_web_fetch", web_fetch_kernel_hook);
+    registry.register_hook("perform_web_search", web_search_kernel_hook);
+}
+
+/// `KernelHook` shim for the :web_tool `perform_web_fetch` behavior.
+/// Runs the dispatcher's web-fetch primitive over `command_attrs`
+/// (the dispatched command's attrs) and folds its `WebToolResult` into
+/// the generic `KernelResult` the registry's hook table expects.
+fn web_fetch_kernel_hook(
+    _adapter_fields: &HashMap<String, String>,
+    command_attrs: &HashMap<String, String>,
+) -> KernelResult {
+    web_tool_result_to_kernel(web_tool_dispatcher::dispatch("web_fetch", command_attrs))
+}
+
+/// `KernelHook` shim for the :web_tool `perform_web_search` behavior.
+fn web_search_kernel_hook(
+    _adapter_fields: &HashMap<String, String>,
+    command_attrs: &HashMap<String, String>,
+) -> KernelResult {
+    web_tool_result_to_kernel(web_tool_dispatcher::dispatch("web_search", command_attrs))
+}
+
+/// Translate the dispatcher-local `WebToolResult` into the generic
+/// `KernelResult` envelope. `tool` → `kind`, body → `output`, HTTP
+/// status → `exit_code`.
+fn web_tool_result_to_kernel(r: web_tool_dispatcher::WebToolResult) -> KernelResult {
+    KernelResult {
+        kind: r.tool,
+        ok: r.ok,
+        output: r.output,
+        exit_code: r.exit_code,
+        error: r.error,
+    }
 }
 
 // ── Dedicated readers for framework hecksagons ──────────────────────
