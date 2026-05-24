@@ -1,0 +1,3 @@
+Hecks.hecksagon "Backlog" do
+  adapter :heki
+end

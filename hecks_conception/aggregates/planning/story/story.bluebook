@@ -1,0 +1,202 @@
+Hecks.bluebook "Story", version: "2026.05.24.1" do
+  vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story's Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → done, with deferred as a side exit from backlog. Stories are first-class — captured, composed, forwarded, and completed as domain records, not hand-written briefs."
+  category "planning"
+
+  aggregate "Story", "A user story with an ordered list of forwarded commands — the work unit of the Planning domain" do
+    identified_by :ref
+
+    # ---- Identity ----
+    attribute :ref,      Ref
+
+    # ---- Content ----
+    attribute :title,    Title
+    attribute :tier,     Tier
+    attribute :summary,  Summary
+    attribute :target,   Target
+
+    # ---- Sprint assignment ----
+    attribute :sprint,   SprintRef
+
+    # ---- Lifecycle ----
+    attribute :state,    State, default: "backlog"
+
+    # ---- Composition ----
+    attribute :subsumes, list_of(CardRef)
+    attribute :steps,    list_of(Step)
+
+    # ── Value objects ──────────────────────────────────────────────
+
+    value_object "Ref" do
+      # Short story identifier — "f1", "f15". Stable for the lifetime
+      # of the record.
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # One-line human-readable name for the story.
+      attribute :value, String
+    end
+
+    value_object "Tier" do
+      # Priority tier (Integer). Lower number = higher priority.
+      attribute :value, Integer
+    end
+
+    value_object "Summary" do
+      # Short prose description of what the story accomplishes.
+      attribute :value, String
+    end
+
+    value_object "Target" do
+      # The aggregate or bluebook this story builds — bluebook-awareness
+      # field. E.g. "storehouse/deploy" or "planning/story".
+      attribute :value, String
+    end
+
+    value_object "SprintRef" do
+      # The sprint this story is assigned to. E.g. "s1", "s2".
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # Lifecycle token : backlog / in_sprint / started / done / deferred.
+      attribute :value, String
+    end
+
+    value_object "CardRef" do
+      # Reference to an inbox card this story subsumes. E.g. "i42".
+      attribute :value, String
+    end
+
+    value_object "StepOrder" do
+      # 0-based position of a Step in the sequence. Identity by position —
+      # the runner sorts by this before dispatching.
+      attribute :value, Integer
+    end
+
+    value_object "CommandPhrase" do
+      # A fully-qualified bluebook command phrase this Step dispatches —
+      # e.g. "Planning::Story.Forward". Fed into storehouse_resolve at
+      # execution time.
+      attribute :value, String
+    end
+
+    value_object "Args" do
+      # The Step's k=v argument bag as a JSON-object string ("{}") for no
+      # args). Unpacked into route argv tokens at execution time.
+      attribute :value, String
+    end
+
+    value_object "StepCount" do
+      # How many steps this Story forwarded. Carried on StoryForwarded so
+      # downstream reactors know the sequence length without re-reading steps.
+      attribute :value, Integer
+    end
+
+    # ── Step entity ────────────────────────────────────────────────
+    # Identity + order + a command phrase + args ⇒ entity.
+    # The list is ordered ; order is identity within the Story boundary.
+    entity "Step" do
+      attribute :order,   StepOrder
+      attribute :command, CommandPhrase
+      attribute :args,    Args
+    end
+
+    # ── Commands ───────────────────────────────────────────────────
+
+    command "Capture" do
+      role "Miette"
+      description "Mint a new Story from a ref + title + tier + summary + target. Starts in backlog status with an empty steps list. The ref IS the story's identity — one Story per ref."
+      attribute :ref,     Ref
+      attribute :title,   Title
+      attribute :tier,    Tier
+      attribute :summary, Summary
+      attribute :target,  Target
+      then_set :ref,      to: :ref
+      then_set :title,    to: :title
+      then_set :tier,     to: :tier
+      then_set :summary,  to: :summary
+      then_set :target,   to: :target
+      then_set :state,    to: "backlog"
+      emits "StoryCaptured"
+    end
+
+    command "AssignToSprint" do
+      role "Miette"
+      description "Move a backlog story into a sprint. Records the sprint_ref so the story is owned by a sprint slot."
+      reference_to(Story)
+      attribute :sprint_ref, SprintRef
+      then_set :sprint,      to: :sprint_ref
+      then_set :state,       to: "in_sprint"
+      emits "StoryAssignedToSprint"
+    end
+
+    command "ComposeStep" do
+      role "Miette"
+      description "Append one ordered Step to the Story — a (order, command, args) triple. Called once per command in the sequence. The runner sorts by order before dispatching, so out-of-call-order ComposeStep still executes in order sequence."
+      reference_to(Story)
+      attribute :order,   StepOrder
+      attribute :command, CommandPhrase
+      attribute :args,    Args
+      then_set :steps, append: { order: :order, command: :command, args: :args }
+      emits "StepComposed"
+    end
+
+    command "Start" do
+      role "Miette"
+      description "Begin work on a story that has been assigned to a sprint. Moves it from in_sprint to started."
+      reference_to(Story)
+      emits "StoryStarted"
+    end
+
+    command "Forward" do
+      role "Miette"
+      description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure : it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime's projection of StoryForwarded."
+      reference_to(Story)
+      attribute :step_count, StepCount
+      emits "StoryForwarded"
+    end
+
+    command "Complete" do
+      role "Miette"
+      description "Mark a started story as done. The work is finished."
+      reference_to(Story)
+      emits "StoryCompleted"
+    end
+
+    command "Defer" do
+      role "Miette"
+      description "Park a backlog story that is not yet scheduled — move it to deferred so the active backlog stays clean."
+      reference_to(Story)
+      emits "StoryDeferred"
+    end
+
+    # ── Lifecycle ──────────────────────────────────────────────────
+
+    lifecycle :state, default: "backlog" do
+      transition "Capture"        => "backlog",   from: "backlog"
+      transition "AssignToSprint" => "in_sprint", from: "backlog"
+      transition "Start"          => "started",   from: "in_sprint"
+      transition "Complete"       => "done",      from: "started"
+      transition "Defer"          => "deferred",  from: "backlog"
+    end
+
+    # ── Queries ────────────────────────────────────────────────────
+
+    query "Runnable" do
+      description "Stories with composed steps, ready to forward through the bus."
+      where state: "started"
+    end
+  end
+
+  # ── Policy ───────────────────────────────────────────────────────
+  # The "Start generates use cases + bluebooks" decision, wired as a
+  # policy → generator command. On StoryStarted the cascade fires
+  # UseCase.Generate ; the Start transition marks the story started.
+  # (Second hop — Bluebook.Scaffold on UseCaseGenerated — lands once a
+  # codegen adapter backs it.)
+  policy "GenerateOnStart" do
+    on "StoryStarted"
+    trigger "Planning::UseCase.Generate"
+  end
+end

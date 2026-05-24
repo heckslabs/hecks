@@ -1,0 +1,26 @@
+Hecks.behaviors "UseCase" do
+  vision "Behavioral tests for the UseCase aggregate — the generator the Story Start-policy triggers. Generate records the use case on the bus; ForStory surfaces the generated set."
+
+  test "Generate records a use case for a story" do
+    tests "Generate", on: "UseCase"
+    input  id: "uc1", story_ref: "f1", title: "Deploy the warm runtime", narrative: "As an operator I deploy the warm runtime so that dispatch latency drops below 100ms."
+    expect story_ref: "f1", title: "Deploy the warm runtime", status: "generated"
+  end
+
+  test "Generate sets narrative and id" do
+    tests "Generate", on: "UseCase"
+    input  id: "uc2", story_ref: "f1", title: "Observe cascade events", narrative: "As a developer I observe cascade events so that I can confirm policies fire correctly."
+    expect id: "uc2", narrative: "As a developer I observe cascade events so that I can confirm policies fire correctly."
+  end
+
+  test "ForStory returns generated use cases" do
+    tests "ForStory", on: "UseCase", kind: :query
+    expect count: 0
+  end
+
+  test "ForStory includes a use case after Generate" do
+    tests "ForStory", on: "UseCase", kind: :query
+    setup  "Generate", id: "uc3", story_ref: "f2", title: "Run warm-path deploy", narrative: "As an operator I run the warm-path deploy so that latency is observable."
+    expect includes: { story_ref: "f2", status: "generated" }
+  end
+end

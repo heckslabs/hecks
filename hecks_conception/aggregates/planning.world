@@ -1,0 +1,16 @@
+Hecks.world "Planning" do
+  # WHERE the planning domain's heki store lives.
+  #
+  # Three-layer persistence (the locked convention):
+  #   1. memory  — the runtime default ; behaviors run here, no disk.
+  #   2. :heki    — the production override, wired per-aggregate in each
+  #                 story/sprint/backlog/use_case .hecksagon (adapter :heki).
+  #   3. .world   — supplies the LOCATION the :heki adapter writes to.
+  #
+  # Resolved relative to this file's dir (aggregates/) when planning is
+  # dispatched at its own root (aggregates/planning). The dir must already
+  # exist or the runtime falls back to the info dir (cold-path leak, i732).
+  heki do
+    dir "planning/.heki"
+  end
+end

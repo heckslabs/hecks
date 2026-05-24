@@ -1,0 +1,61 @@
+Hecks.behaviors "Story" do
+  vision "Behavioral tests for the Story aggregate — the work unit whose steps are forwarded commands dispatched through the storehouse."
+
+  test "Capture sets ref + title + tier + summary + target" do
+    tests "Capture", on: "Story"
+    input  ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    expect ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+  end
+
+  test "AssignToSprint sets sprint ref" do
+    tests "AssignToSprint", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  sprint_ref: "s1"
+    expect sprint: "s1"
+  end
+
+  test "ComposeStep appends a step" do
+    tests "ComposeStep", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  order: 0, command: "Planning::Story.Forward", args: "{}"
+    expect ref: "f1"
+  end
+
+  test "Start moves story to started" do
+    tests "Start", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    input  ref: "f1"
+    expect state: "started"
+  end
+
+  test "Forward records step count" do
+    tests "Forward", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    input  step_count: 1
+    expect ref: "f1"
+  end
+
+  test "Complete marks story as done" do
+    tests "Complete", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    input  ref: "f1"
+    expect state: "done"
+  end
+
+  test "Defer moves story to deferred" do
+    tests "Defer", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  ref: "f1"
+    expect state: "deferred"
+  end
+
+  test "Runnable lists started stories" do
+    tests "Runnable", on: "Story", kind: :query
+    expect count: 0
+  end
+end
