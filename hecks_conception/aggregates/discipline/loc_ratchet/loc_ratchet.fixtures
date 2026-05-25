@@ -69,5 +69,17 @@ Hecks.fixtures "LocRatchet" do
             extensions: "rs",
             direction:  "grow",
             baseline:   ""
+
+    # corpus_loader — the bluebook-discovery walk (collect_bluebooks) and
+    # organ-wins merge (i108/i126/i143). Carved out of core_runtime so the
+    # walk can evolve alongside the bluebook tree layout (sibling roots,
+    # bucket walk, miette inclusion) without fighting the shrink gate.
+    # The contract IS the bluebook tree shape ; the loader is its reader.
+    fixture "corpus_loader",
+            name:       "corpus_loader",
+            path:       "rust/src/corpus_loader",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
   end
 end
