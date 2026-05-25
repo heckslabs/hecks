@@ -1,0 +1,92 @@
+Hecks.bluebook "Board", version: "2026.05.25.1" do
+  vision "The working board — the active sprint's cards in the manual order the operator placed them. A singleton-per-sprint that owns the one thing a query can't derive : in-board card order (and the sprint it is pinned to). Columns are NOT stored : a card's column IS its Story.state, grouped at render time, so the board never duplicates the Story lifecycle (one source of truth — Story owns STATE, Board owns ORDER). The BoardMarkdownProjector joins them (order × state) into a columned table ; per-column order falls out of the global order filtered to that column's members. Mirrors Backlog (the intake board) : Backlog owns the order of un-sprinted refs, Board owns the order of the active sprint's cards. The turn-pulse injects this board (rendered) into the session on AiTurn.TurnFinished — the board-status-into-the-turn act, made structural."
+  category "plan"
+
+  # ── Board aggregate ───────────────────────────────────────────────
+  #
+  # Singleton-per-sprint (identified_by :sprint_ref). No lifecycle —
+  # it's a surface, not a state machine (cf. Backlog, the intake pool).
+  # Open creates the board for a sprint ; PlaceCard / Reorder / RemoveCard
+  # manage the ordered card refs. Column membership is a render-time
+  # grouping by Story.state (a cross-aggregate join — f5) ; the board
+  # itself stores only the manual order. The "current board" (board for
+  # the active sprint) is composed by the runtime : Sprint.board gives the
+  # active number, Board.ForSprint gives that board.
+
+  aggregate "Board", "The active sprint's working board — owns the manual order of cards on it, pinned to one sprint. Columns derive from Story.state at render ; the board stores order, not state. Singleton-per-sprint, keyed by sprint_ref." do
+    identified_by :sprint_ref
+
+    attribute :sprint_ref,   SprintRef
+    attribute :project,      Project
+    attribute :ordered_refs, list_of(CardRef)
+
+    value_object "SprintRef" do
+      # The sprint this board surfaces — its identity. One board per
+      # sprint. String-valued for safe id resolution across tools.
+      attribute :value, String
+    end
+
+    value_object "Project" do
+      # The project this board belongs to. E.g. "framework", "mel".
+      # Optional — mirrors Backlog/Sprint ; the framework board needs
+      # no explicit project.
+      attribute :value, String
+    end
+
+    value_object "CardRef" do
+      # An opaque reference to a story on the board, e.g. "i608" or "f4".
+      # The board owns the card's position, not its content or state —
+      # state lives on Story, joined in at render time.
+      attribute :value, String
+    end
+
+    # ── Commands ──────────────────────────────────────────────────
+
+    command "Open" do
+      role "Miette"
+      description "Open the board for a sprint — the creation command. Pins the board to sprint_ref ; the record does not exist until Open fires."
+      attribute :sprint_ref, SprintRef
+      attribute :project,    Project
+      then_set :sprint_ref, to: :sprint_ref
+      then_set :project,    to: :project
+      emits "BoardOpened"
+    end
+
+    command "PlaceCard" do
+      role "Miette"
+      description "Append a card ref to the board — a story pulled into the sprint lands at the end of the order. The board must already be open."
+      reference_to(Board)
+      attribute :card_ref, CardRef
+      then_set :ordered_refs, append: :card_ref
+      emits "CardPlaced"
+    end
+
+    command "Reorder" do
+      role "Miette"
+      description "Replace the entire ordered_refs list with a new card order. The caller supplies the full desired sequence ; columns re-group by Story.state at render."
+      reference_to(Board)
+      attribute :ordered_refs, list_of(CardRef)
+      then_set :ordered_refs, to: :ordered_refs
+      emits "BoardReordered"
+    end
+
+    command "RemoveCard" do
+      role "Miette"
+      description "Signal that a card has left the board (sprint completed, card dropped). Removal from ordered_refs is a runtime projection ; the command is a pure domain intent signal."
+      reference_to(Board)
+      attribute :card_ref, CardRef
+      emits "CardRemoved"
+    end
+
+    # ── Queries ───────────────────────────────────────────────────
+
+    query "ForSprint" do
+      description "The board pinned to a given sprint. Pass sprint_ref: <number> to filter."
+      where sprint_ref: :sprint_ref
+    end
+
+    query "ListAll" do
+      description "Every sprint board and its pinned sprint — all boards regardless of sprint state. The rail of boards."
+    end
+  end
+end
