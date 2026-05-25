@@ -47,4 +47,18 @@ Hecks.bluebook "AiSession", version: "2026.05.25.1" do
       then_set :last_injection, to: :content
     end
   end
+
+  # Auto-trigger : when a turn finishes, inject the turn pulse. Fires on the
+  # cross-bluebook event AiTurn.TurnFinished and triggers the LOCAL Inject
+  # command — the Wake-on-SessionBegan pattern (on cross-event, trigger local
+  # validates ; i491 is only about qualified triggers). Neither domain imports
+  # the other : ai_session reacts to the turn EVENT. The content here is a
+  # placeholder ; the report adapter (board_markdown projection) feeds the real
+  # rendered board when the render execution lands (f4/i557 emit).
+  policy "InjectOnTurnFinished" do
+    on "AiTurn.TurnFinished"
+    trigger "Inject"
+    with "id", "current"
+    with "content", "[turn pulse — board rendered by the report adapter on TurnFinished]"
+  end
 end
