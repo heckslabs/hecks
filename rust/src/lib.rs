@@ -100,3 +100,5 @@ pub mod run_stdin_loop;
 pub mod run_wake;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod specializer;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod corpus_loader;
