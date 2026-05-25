@@ -425,6 +425,15 @@ fn extract_where_value(raw: &str, param_names: &[String]) -> String {
     let raw = raw.trim();
     if raw.starts_with('"') {
         extract_string(raw).unwrap_or_default()
+    } else if raw.starts_with('\'') {
+        // Single-quoted string literal — strip enclosing quotes.
+        // Used in multi-key where conditions that mix a runtime-param key
+        // with a literal value, e.g. `where person: :person, status: 'drafting'`.
+        // Without this branch the quotes are carried into the IR and the
+        // runtime comparison `"drafting" == "'drafting'"` always fails.
+        let inner = raw.trim_start_matches('\'');
+        let close = inner.rfind('\'').unwrap_or(inner.len());
+        inner[..close].to_string()
     } else if raw.starts_with(':') {
         raw.split(|c: char| c == ',' || c.is_whitespace())
             .next().unwrap_or("").to_string()
@@ -892,13 +901,15 @@ fn split_top_level_commas(s: &str) -> Vec<&str> {
     let mut parts = Vec::new();
     let mut depth = 0i32;
     let mut in_str = false;
+    let mut in_single = false;
     let mut start = 0;
     for (i, c) in s.char_indices() {
         match c {
-            '"' if !escaped_at(s, i) => in_str = !in_str,
-            '[' | '{' | '(' if !in_str => depth += 1,
-            ']' | '}' | ')' if !in_str => depth -= 1,
-            ',' if !in_str && depth == 0 => {
+            '"' if !in_single && !escaped_at(s, i) => in_str = !in_str,
+            '\'' if !in_str => in_single = !in_single,
+            '[' | '{' | '(' if !in_str && !in_single => depth += 1,
+            ']' | '}' | ')' if !in_str && !in_single => depth -= 1,
+            ',' if !in_str && !in_single && depth == 0 => {
                 parts.push(&s[start..i]);
                 start = i + 1;
             }
