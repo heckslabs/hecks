@@ -323,6 +323,7 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       transition "MarkReady"      => "ready_for_review", from: "started"
       transition "Approve"        => "done",             from: "ready_for_review"
       transition "Reopen"         => "started",          from: "ready_for_review"
+      transition "Reopen"         => "ready_for_review", from: "done"
       transition "Defer"          => "deferred",         from: "backlog"
       transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
       transition "RemoveFromSprint" => "backlog",         from: "started"

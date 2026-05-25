@@ -1,33 +1,50 @@
-Hecks.bluebook "Sprint", version: "2026.05.25.1" do
-  vision "A time-box that committed stories are promoted into. Sprints walk planned → active → completed; stories accumulate via AddStory. Seed three; more are addable."
+Hecks.bluebook "Sprint", version: "2026.05.25.2" do
+  vision "A time-box that committed stories are promoted into. Sprints walk planned → active → ready_for_closure → completed; stories accumulate via AddStory. Completed is only reachable through Approve (Operator role) from ready_for_closure. RequestClosure is the Miette signal that all closure criteria are satisfied; Approve is the gated human confirmation. Seed three; more are addable."
   category "plan"
 
   # ── Sprint aggregate ──────────────────────────────────────────────
   #
   # One row per sprint. Identified by a string number ("1","2","3").
   # String-valued for safe id resolution across tools.
-  # Lifecycle: planned → active → completed.
+  # Lifecycle: planned → active → ready_for_closure → completed.
   # Story membership: list_of(StoryRef) grows via AddStory.
+  #
+  # Done-is-done gate (mirror of Story.ready_means_verified):
+  # A Sprint may not enter ready_for_closure or completed unless ALL six
+  # closure_criteria flags are true. Each flag is set by its own Mark*
+  # command (per-flag audit trail). The `closure_criteria_met` invariant
+  # enforces this — RequestClosure is refused with InvariantViolation when
+  # any flag is still false.
 
-  aggregate "Sprint", "One time-boxed sprint — a number, a goal, a list of committed stories, and a lifecycle state." do
+  aggregate "Sprint", "One time-boxed sprint — a number, a goal, a list of committed stories, a closure checklist, and a lifecycle state." do
     identified_by :number
 
     # ---- Identity ----
-    attribute :number,     Number
+    attribute :number,              Number
 
     # ---- Content ----
-    attribute :goal,       Goal
+    attribute :goal,                Goal
 
     # ---- Project assignment ----
-    attribute :project,    Project
+    attribute :project,             Project
 
     # ---- Membership ----
     # story_refs : committed stories promoted into this sprint.
-    attribute :story_refs, list_of(StoryRef)
+    attribute :story_refs,          list_of(StoryRef)
 
     # ---- Lifecycle ----
-    # state: planned | active | completed
-    attribute :state,      State, default: "planned"
+    # state: planned | active | ready_for_closure | completed
+    attribute :state,               State, default: "planned"
+
+    # ---- Closure criteria (Sprint DoD) ----
+    # Six operator/runtime-confirmed flags. All must be true before
+    # RequestClosure may fire. Each is armed by its own Mark* command.
+    attribute :all_stories_done,    AllStoriesDone,    default: false
+    attribute :merged_to_main,      MergedToMain,      default: false
+    attribute :ci_passing,          CiPassing,         default: false
+    attribute :summary_drafted,     SummaryDrafted,    default: false
+    attribute :worktrees_pruned,    WorktreesPruned,   default: false
+    attribute :prs_for_open_branches, PrsForOpenBranches, default: false
 
     # ── Value-objects : the sprint's vocabulary ──
 
@@ -51,7 +68,7 @@ Hecks.bluebook "Sprint", version: "2026.05.25.1" do
     end
 
     value_object "State" do
-      # Lifecycle token: planned / active / completed.
+      # Lifecycle token: planned / active / ready_for_closure / completed.
       attribute :value, String
     end
 
@@ -60,6 +77,42 @@ Hecks.bluebook "Sprint", version: "2026.05.25.1" do
       # "opt". Optional — existing sprints 1–3 are the framework
       # project's sprints and do not require this field to be set.
       attribute :value, String
+    end
+
+    value_object "AllStoriesDone" do
+      # True once the caller has confirmed every committed story reached
+      # the done state. Armed by MarkAllStoriesDone.
+      attribute :value, Boolean
+    end
+
+    value_object "MergedToMain" do
+      # True once the sprint branch (if any) has been merged to main.
+      # Armed by MarkMergedToMain.
+      attribute :value, Boolean
+    end
+
+    value_object "CiPassing" do
+      # True once CI is green on main after the sprint's work landed.
+      # Armed by MarkCiPassing.
+      attribute :value, Boolean
+    end
+
+    value_object "SummaryDrafted" do
+      # True once a written retrospective / summary has been drafted.
+      # Armed by MarkSummaryDrafted.
+      attribute :value, Boolean
+    end
+
+    value_object "WorktreesPruned" do
+      # True once all sprint worktrees have been pruned / removed.
+      # Armed by MarkWorktreesPruned.
+      attribute :value, Boolean
+    end
+
+    value_object "PrsForOpenBranches" do
+      # True once open branches have PRs filed so nothing is lost.
+      # Armed by MarkPrsForOpenBranches.
+      attribute :value, Boolean
     end
 
     # ============================================================
@@ -111,13 +164,73 @@ Hecks.bluebook "Sprint", version: "2026.05.25.1" do
       emits "SprintActivated"
     end
 
-    command "Complete" do
+    # ── Closure criteria setters ─────────────────────────────────
+    # Each command arms one flag in the Sprint DoD checklist.
+    # No lifecycle change — flags can be set in any order while active.
+    # All six must be true before RequestClosure may fire.
+
+    command "MarkAllStoriesDone" do
       role "Miette"
-      description "Transition the sprint from active to completed. The time-box closes."
+      description "Confirm every committed story in this sprint has reached done state. Sets all_stories_done to true. Does not change lifecycle — this arms one flag in the closure checklist."
       reference_to(Sprint)
-      given("must be active") { state == "active" }
-      then_set :state, to: "completed"
-      emits "SprintCompleted"
+      then_set :all_stories_done, to: true
+      emits "AllStoriesMarkedDone"
+    end
+
+    command "MarkMergedToMain" do
+      role "Miette"
+      description "Confirm the sprint's branch (if any) has been merged to main. Sets merged_to_main to true."
+      reference_to(Sprint)
+      then_set :merged_to_main, to: true
+      emits "MergedToMainMarked"
+    end
+
+    command "MarkCiPassing" do
+      role "Miette"
+      description "Confirm CI is green on main after the sprint's work landed. Sets ci_passing to true."
+      reference_to(Sprint)
+      then_set :ci_passing, to: true
+      emits "CiPassingMarked"
+    end
+
+    command "MarkSummaryDrafted" do
+      role "Miette"
+      description "Confirm a retrospective / summary has been drafted for this sprint. Sets summary_drafted to true."
+      reference_to(Sprint)
+      then_set :summary_drafted, to: true
+      emits "SummaryDraftedMarked"
+    end
+
+    command "MarkWorktreesPruned" do
+      role "Miette"
+      description "Confirm all sprint worktrees have been pruned and removed. Sets worktrees_pruned to true."
+      reference_to(Sprint)
+      then_set :worktrees_pruned, to: true
+      emits "WorktreesPrunedMarked"
+    end
+
+    command "MarkPrsForOpenBranches" do
+      role "Miette"
+      description "Confirm open branches have PRs filed so no work is lost at sprint close. Sets prs_for_open_branches to true."
+      reference_to(Sprint)
+      then_set :prs_for_open_branches, to: true
+      emits "PrsForOpenBranchesMarked"
+    end
+
+    # ── Closure gate ─────────────────────────────────────────────
+
+    command "RequestClosure" do
+      role "Miette"
+      description "Signal that all closure criteria are satisfied and the sprint is ready for human sign-off. Moves active to ready_for_closure. The closure_criteria_met invariant enforces the DoD gate: RequestClosure is refused (InvariantViolation, 0 events) unless all six criteria flags are true. Arm each flag with its Mark* command first."
+      reference_to(Sprint)
+      emits "SprintClosureRequested"
+    end
+
+    command "Approve" do
+      role "Operator"
+      description "Human gate: move a ready_for_closure sprint to completed. Only Operator may Approve. Emits SprintApproved. Completed is only reachable via this command — there is no direct path from active to completed."
+      reference_to(Sprint)
+      emits "SprintApproved"
     end
 
     # ── Lifecycle state machine ──────────────────────────────────
@@ -126,9 +239,24 @@ Hecks.bluebook "Sprint", version: "2026.05.25.1" do
     # does not exist until Plan fires.
 
     lifecycle :state, default: "planned" do
-      transition "Plan"     => "planned"
-      transition "Activate" => "active",    from: "planned"
-      transition "Complete" => "completed", from: "active"
+      transition "Plan"           => "planned"
+      transition "Activate"       => "active",           from: "planned"
+      transition "RequestClosure" => "ready_for_closure", from: "active"
+      transition "Approve"        => "completed",        from: "ready_for_closure"
+    end
+
+    # ── Invariant: done is done (Sprint closure) ─────────────────
+    #
+    # A Sprint may only be in ready_for_closure or completed if ALL six
+    # closure criteria flags are true. Checked on the RESULTING state
+    # after EVERY command, before save — so RequestClosure
+    # (active → ready_for_closure) is rejected with InvariantViolation
+    # (0 events) when any flag is false. Arm each with its Mark* command.
+    #
+    # Predicate, equivalently:
+    #   state in {ready_for_closure, completed} ⇒ all criteria true.
+    invariant "closure_criteria_met" do
+      holds_when { state != "ready_for_closure" && state != "completed" || all_stories_done == true && merged_to_main == true && ci_passing == true && summary_drafted == true && worktrees_pruned == true && prs_for_open_branches == true }
     end
 
     # ============================================================

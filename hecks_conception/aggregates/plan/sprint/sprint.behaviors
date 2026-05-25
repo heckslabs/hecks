@@ -16,14 +16,6 @@ Hecks.behaviors "Sprint" do
     expect state: "active"
   end
 
-  test "Complete transitions state to completed" do
-    tests "Complete", on: "Sprint"
-    setup  "Plan", number: "1", goal: "Foundations"
-    setup  "Activate", number: "1"
-    input  number: "1"
-    expect state: "completed"
-  end
-
   test "AddStory appends a story ref" do
     tests "AddStory", on: "Sprint"
     setup  "Plan", number: "1", goal: "Foundations"
@@ -54,6 +46,139 @@ Hecks.behaviors "Sprint" do
     input  number: "1"
     expect number: "1", goal: "Foundations"
   end
+
+  # ── Closure criteria setters ──────────────────────────────────
+
+  test "MarkAllStoriesDone sets all_stories_done to true" do
+    tests "MarkAllStoriesDone", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect all_stories_done: true
+  end
+
+  test "MarkMergedToMain sets merged_to_main to true" do
+    tests "MarkMergedToMain", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect merged_to_main: true
+  end
+
+  test "MarkCiPassing sets ci_passing to true" do
+    tests "MarkCiPassing", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect ci_passing: true
+  end
+
+  test "MarkSummaryDrafted sets summary_drafted to true" do
+    tests "MarkSummaryDrafted", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect summary_drafted: true
+  end
+
+  test "MarkWorktreesPruned sets worktrees_pruned to true" do
+    tests "MarkWorktreesPruned", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect worktrees_pruned: true
+  end
+
+  test "MarkPrsForOpenBranches sets prs_for_open_branches to true" do
+    tests "MarkPrsForOpenBranches", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect prs_for_open_branches: true
+  end
+
+  # ── Closure gate ─────────────────────────────────────────────
+  # RequestClosure is gated by the closure_criteria_met invariant.
+  # All six flags must be true — mirrors Story.ready_means_verified.
+
+  test "RequestClosure is refused when criteria are not all met" do
+    tests "RequestClosure", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1"
+    expect refused: "closure_criteria_met"
+  end
+
+  test "RequestClosure is refused when only some criteria are met" do
+    tests "RequestClosure", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    setup  "MarkAllStoriesDone", number: "1"
+    setup  "MarkMergedToMain", number: "1"
+    setup  "MarkCiPassing", number: "1"
+    input  number: "1"
+    expect refused: "closure_criteria_met"
+  end
+
+  test "RequestClosure succeeds when all criteria are met" do
+    tests "RequestClosure", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    setup  "MarkAllStoriesDone", number: "1"
+    setup  "MarkMergedToMain", number: "1"
+    setup  "MarkCiPassing", number: "1"
+    setup  "MarkSummaryDrafted", number: "1"
+    setup  "MarkWorktreesPruned", number: "1"
+    setup  "MarkPrsForOpenBranches", number: "1"
+    input  number: "1"
+    expect state: "ready_for_closure"
+  end
+
+  test "RequestClosure emits SprintClosureRequested" do
+    tests "RequestClosure", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    setup  "MarkAllStoriesDone", number: "1"
+    setup  "MarkMergedToMain", number: "1"
+    setup  "MarkCiPassing", number: "1"
+    setup  "MarkSummaryDrafted", number: "1"
+    setup  "MarkWorktreesPruned", number: "1"
+    setup  "MarkPrsForOpenBranches", number: "1"
+    input  number: "1"
+    expect emits: ["SprintClosureRequested"]
+  end
+
+  test "Approve moves ready_for_closure sprint to completed" do
+    tests "Approve", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    setup  "MarkAllStoriesDone", number: "1"
+    setup  "MarkMergedToMain", number: "1"
+    setup  "MarkCiPassing", number: "1"
+    setup  "MarkSummaryDrafted", number: "1"
+    setup  "MarkWorktreesPruned", number: "1"
+    setup  "MarkPrsForOpenBranches", number: "1"
+    setup  "RequestClosure", number: "1"
+    input  number: "1"
+    expect state: "completed"
+  end
+
+  test "Approve emits SprintApproved" do
+    tests "Approve", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    setup  "MarkAllStoriesDone", number: "1"
+    setup  "MarkMergedToMain", number: "1"
+    setup  "MarkCiPassing", number: "1"
+    setup  "MarkSummaryDrafted", number: "1"
+    setup  "MarkWorktreesPruned", number: "1"
+    setup  "MarkPrsForOpenBranches", number: "1"
+    setup  "RequestClosure", number: "1"
+    input  number: "1"
+    expect emits: ["SprintApproved"]
+  end
+
+  # ── Queries ──────────────────────────────────────────────────
 
   test "ListAll returns sprints" do
     tests "ListAll", on: "Sprint", kind: :query
