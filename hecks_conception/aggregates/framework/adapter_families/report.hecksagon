@@ -1,0 +1,26 @@
+Hecks.adapter_family "report" do
+  # The report adapter family : render an aggregate/query result as markdown
+  # and chain it onward. A consumer hecksagon declares
+  #   adapter :report, name: :turn_pulse,
+  #           query: "Plan::Story.board",
+  #           trigger_on: "AiTurn.TurnFinished",
+  #           result_into: "AiSession.Inject"
+  # No layout logic on the adapter ; the kernel renders the records
+  # generically as markdown. Reusable : any query becomes a markdown report
+  # by declaring this adapter. Behavior_kind = render_to_markdown.
+
+  vision "Render a query result to markdown and chain it to a follow-on
+          command. Each instance carries the query to run, the event that
+          fires it, and the result_into target the markdown is dispatched
+          into. Behavior_kind = render_to_markdown."
+
+  fields  :name,         # symbolic adapter name in the consumer's hecksagon
+          :query,        # the query verb to render (Domain::Aggregate.snake_case)
+          :trigger_on,   # "Aggregate.Event" — what fires this adapter
+          :result_into   # "Aggregate.Command" — follow-on dispatch carrying the markdown
+
+  trigger_field :trigger_on
+  response_field :result_into
+
+  behavior :render_to_markdown
+end
