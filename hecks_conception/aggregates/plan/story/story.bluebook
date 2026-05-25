@@ -1,6 +1,6 @@
-Hecks.bluebook "Story", version: "2026.05.24.8" do
+Hecks.bluebook "Story", version: "2026.05.25.1" do
   vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
-  category "planning"
+  category "plan"
 
   aggregate "Story", "A user story with an ordered list of forwarded commands — the work unit of the Planning domain" do
     identified_by :ref
@@ -125,7 +125,7 @@ Hecks.bluebook "Story", version: "2026.05.24.8" do
 
     value_object "CommandPhrase" do
       # A fully-qualified bluebook command phrase this Step dispatches —
-      # e.g. "Planning::Story.Forward". Fed into storehouse_resolve at
+      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
       # execution time.
       attribute :value, String
     end
@@ -359,8 +359,8 @@ Hecks.bluebook "Story", version: "2026.05.24.8" do
       where project: :project
     end
 
-    query "ListAll" do
-      description "Every story regardless of state — the full board, for the turn-end pulse."
+    query "Board" do
+      description "Every story with its lifecycle state — the full planning board. The turn-inject adapter reads this query and injects it after the turn ; distinct from a future Summary (whole-client-project stats)."
     end
   end
 
@@ -372,6 +372,6 @@ Hecks.bluebook "Story", version: "2026.05.24.8" do
   # codegen adapter backs it.)
   policy "GenerateOnStart" do
     on "StoryStarted"
-    trigger "Planning::UseCase.Generate"
+    trigger "Plan::UseCase.Generate"
   end
 end

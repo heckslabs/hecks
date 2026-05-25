@@ -1,6 +1,6 @@
 Hecks.bluebook "UseCase", version: "2026.05.24.1" do
   vision "The generator the Story Start-policy triggers. When a Story is started, the first thing that happens is generating use cases — this aggregate records one generated use case for a story. The LLM/codegen content behind generation is an adapter hook (TBD, future); v1 records the use case via the bus so the cascade is real and observable."
-  category "planning"
+  category "plan"
 
   # ============================================================
   # USE CASE — one generated use case anchored to a Story

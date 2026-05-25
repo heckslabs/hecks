@@ -1,6 +1,6 @@
 Hecks.bluebook "Backlog", version: "2026.05.24.2" do
   vision "The ordered intake pool. A singleton holding the priority order of un-sprinted story refs — it owns the one thing a query can't cheaply own: manual priority order."
-  category "planning"
+  category "plan"
 
   # ── Backlog aggregate ─────────────────────────────────────────────
   #

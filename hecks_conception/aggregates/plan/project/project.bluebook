@@ -1,6 +1,6 @@
 Hecks.bluebook "Project", version: "2026.05.24.1" do
   vision "The project registry. A Project is a named initiative that groups stories, backlogs, and sprints. The registry holds every project (framework, MEL, OPT, PigeonCoop, Bin-buddy, Embryonaut) and their lifecycle state. Projects walk active -> paused | done."
-  category "planning"
+  category "plan"
 
   aggregate "Project", "A named initiative in the project registry — groups planning work across stories, backlogs, and sprints." do
     identified_by :name

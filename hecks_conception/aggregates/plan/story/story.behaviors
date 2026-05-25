@@ -31,7 +31,7 @@ Hecks.behaviors "Story" do
   test "ComposeStep appends a step" do
     tests "ComposeStep", on: "Story"
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
-    input  order: 0, command: "Planning::Story.Forward", args: "{}"
+    input  order: 0, command: "Plan::Story.Forward", args: "{}"
     expect ref: "f1"
   end
 
@@ -156,8 +156,8 @@ Hecks.behaviors "Story" do
     expect emits: ["FileAttached"]
   end
 
-  test "ListAll returns every story" do
-    tests "ListAll", on: "Story", kind: :query
+  test "Board returns every story" do
+    tests "Board", on: "Story", kind: :query
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
     expect count: 1
   end

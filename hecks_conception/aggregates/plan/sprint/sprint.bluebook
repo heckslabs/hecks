@@ -1,6 +1,6 @@
 Hecks.bluebook "Sprint", version: "2026.05.24.2" do
   vision "A time-box that committed stories are promoted into. Sprints walk planned → active → completed; stories accumulate via AddStory. Seed three; more are addable."
-  category "planning"
+  category "plan"
 
   # ── Sprint aggregate ──────────────────────────────────────────────
   #

@@ -107,3 +107,6 @@ hecks_conception/capabilities/boot/data/
 
 # Governance runtime sqlite store (i-gov) — runtime state, not source
 hecks_conception/aggregates/framework/governance/data/
+
+# Runtime heki stores under aggregates (per-domain .heki dirs) — runtime state, not source.
+hecks_conception/aggregates/**/.heki/
