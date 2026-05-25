@@ -211,6 +211,7 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       attribute :sprint_ref, SprintRef
       then_set :sprint,      to: :sprint_ref
       then_set :state,       to: "in_sprint"
+      given("sprint_ref must be named") { sprint_ref != "" }
       emits "StoryAssignedToSprint"
     end
 
@@ -259,6 +260,7 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       role "Miette"
       description "Begin work on a story that has been assigned to a sprint. Moves it from in_sprint to started."
       reference_to(Story)
+      given("story must be on a sprint board") { sprint != "" }
       emits "StoryStarted"
     end
 
@@ -267,6 +269,7 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure: it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime projection of StoryForwarded."
       reference_to(Story)
       attribute :step_count, StepCount
+      given("story must be on a sprint board") { sprint != "" }
       emits "StoryForwarded"
     end
 
