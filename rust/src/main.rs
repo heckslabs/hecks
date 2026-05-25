@@ -2930,7 +2930,9 @@ fn load_combined_domain(agg_dir: &str) -> storehouse::ir::Domain {
             // SAME-context still dedupes (organ-wins, the i108 case
             // for capability-redeclaration of an organ aggregate).
             if c.aggregates.iter().any(|existing|
-                existing.name == agg.name && existing.context == agg.context
+                existing.name == agg.name
+                    && existing.context == agg.context
+                    && existing.category == agg.category
             ) {
                 continue;
             }
@@ -3499,6 +3501,7 @@ fn boot_serve_runtime(
     };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
     let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
@@ -3547,6 +3550,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
 
