@@ -1,31 +1,24 @@
-Hecks.bluebook "Backlog", version: "2026.05.24.2" do
-  vision "The ordered intake pool. A singleton holding the priority order of un-sprinted story refs — it owns the one thing a query can't cheaply own: manual priority order."
+Hecks.bluebook "Backlog", version: "2026.05.25.1" do
+  vision "The ordered intake pool. One backlog per project, keyed by project slug — it owns the one thing a query can't cheaply own: manual priority order."
   category "plan"
 
   # ── Backlog aggregate ─────────────────────────────────────────────
   #
-  # Singleton-shaped (identified_by :name, name defaults to "main").
+  # Identified by project slug (e.g. "framework", "mel", "opt").
   # No lifecycle — it's a pool, not a state machine. Commands append
   # to, replace, or emit pulls from the ordered_refs list. The removal
   # projection on PullToSprint is the runtime's job ; the command is pure.
 
-  aggregate "Backlog", "The ordered intake pool of un-sprinted story refs. Singleton — one backlog per planning context, keyed by name='main'." do
-    identified_by :name
+  aggregate "Backlog", "The ordered intake pool of un-sprinted story refs. One per project, identified by project slug." do
+    identified_by :project
 
-    attribute :name,         Name,            default: "main"
     attribute :project,      Project
     attribute :ordered_refs, list_of(StoryRef)
 
-    value_object "Name" do
-      # The singleton key. Always "main" in practice ; kept as a VO
-      # so the identifier is typed and traceable.
-      attribute :value, String
-    end
-
     value_object "Project" do
       # The project this backlog belongs to. E.g. "framework", "mel",
-      # "opt". Optional — the existing "main" backlog is the framework
-      # project's backlog and does not require this field to be set.
+      # "opt". This is the identity of the backlog — each project gets
+      # exactly one backlog keyed by its slug.
       attribute :value, String
     end
 
@@ -39,9 +32,10 @@ Hecks.bluebook "Backlog", version: "2026.05.24.2" do
 
     command "Capture" do
       role "Miette"
-      description "Append a story ref to the ordered pool. Sets name to 'main' so the singleton is addressable on first creation."
+      description "Append a story ref to the ordered pool. Project identifies which backlog receives it — creates the backlog on first dispatch."
+      attribute :project,   Project
       attribute :story_ref, StoryRef
-      then_set :name,         to: "main"
+      then_set :project,      to: :project
       then_set :ordered_refs, append: :story_ref
       emits "StoryBacklogged"
     end
@@ -67,11 +61,6 @@ Hecks.bluebook "Backlog", version: "2026.05.24.2" do
 
     query "ListOrdered" do
       description "The prioritized pool of un-sprinted stories, in order."
-    end
-
-    query "ForProject" do
-      description "The backlogs belonging to a given project. Pass project: <slug> to filter."
-      where project: :project
     end
   end
 end

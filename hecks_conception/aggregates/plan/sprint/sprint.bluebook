@@ -1,4 +1,4 @@
-Hecks.bluebook "Sprint", version: "2026.05.24.2" do
+Hecks.bluebook "Sprint", version: "2026.05.25.1" do
   vision "A time-box that committed stories are promoted into. Sprints walk planned → active → completed; stories accumulate via AddStory. Seed three; more are addable."
   category "plan"
 
@@ -84,6 +84,15 @@ Hecks.bluebook "Sprint", version: "2026.05.24.2" do
       attribute :story_ref, StoryRef
       then_set :story_refs, append: :story_ref
       emits "StoryAddedToSprint"
+    end
+
+    command "Reorder" do
+      role "Miette"
+      description "Replace the entire story_refs list with a new sequence. The caller supplies the full desired membership order — use this to remove, reorder, or swap stories out of a sprint."
+      reference_to(Sprint)
+      attribute :story_refs, list_of(StoryRef)
+      then_set :story_refs, to: :story_refs
+      emits "SprintReordered"
     end
 
     command "Groom" do

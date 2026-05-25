@@ -31,6 +31,23 @@ Hecks.behaviors "Sprint" do
     expect number: "1"
   end
 
+  test "Reorder replaces story_refs list" do
+    tests "Reorder", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "AddStory", number: "1", story_ref: { value: "f4" }
+    setup  "AddStory", number: "1", story_ref: { value: "my-miette" }
+    input  number: "1", story_refs: [{ value: "my-miette" }]
+    expect ok: "true"
+  end
+
+  test "Reorder emits SprintReordered" do
+    tests "Reorder", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "AddStory", number: "1", story_ref: { value: "f1" }
+    input  number: "1", story_refs: [{ value: "f1" }]
+    expect emits: ["SprintReordered"]
+  end
+
   test "Groom emits without mutation" do
     tests "Groom", on: "Sprint"
     setup  "Plan", number: "1", goal: "Foundations"
