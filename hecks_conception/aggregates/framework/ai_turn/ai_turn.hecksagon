@@ -1,0 +1,7 @@
+Hecks.hecksagon "AiTurn" do
+  # The turn boundary persists via :heki — a record per turn, keyed by id.
+  # Inject adapters that want to push into the turn (the planning pulse,
+  # closing summaries) attach to the TurnFinished event ; that wiring lives
+  # on the consuming aggregate's hecksagon, not here.
+  adapter :heki
+end
