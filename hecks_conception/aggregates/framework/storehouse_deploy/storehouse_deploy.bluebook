@@ -1,0 +1,192 @@
+Hecks.bluebook "StorehouseDeploy", version: "2026.05.25.1" do
+  vision "Model a storehouse binary deploy as domain. The product is the storehouse binary running serve-socket against an aggregates root, holding a being's domain warm — in-memory state hydrated from .heki stores, reachable by clients via the unix-domain socket. A Deploy record captures one deploy attempt from build through verified: build (binary compiled), packaged (binary + aggregates root + heki stores staged), shipped (running on target, serve-socket bound), verified (warm dispatch confirmed). This is the deploy-as-domain contract; the artifacts that execute it (Dockerfile, deploy script, env template) are scaffolded alongside."
+  category "framework"
+
+  # ============================================================
+  # STOREHOUSDEPLOY — one warm-runtime deploy attempt
+  # ============================================================
+  #
+  # The product shape:
+  #   storehouse serve-socket <aggregates-root>
+  #   → reads all .bluebook files under aggregates-root
+  #   → hydrates .heki stores from information/
+  #   → binds ~/.config/miette/sockets/<hash>-<basename>.sock
+  #   → accepts dispatches from MCP client (thin connector)
+  #
+  # The payload that must travel together:
+  #   1. storehouse binary (compiled for target arch)
+  #   2. aggregates root directory (all .bluebook files)
+  #   3. information/ tree (.heki stores — the warm state)
+  #
+  # Transport constraint (blocking unknown for remote deploy):
+  #   The socket is a unix-domain socket — local host only.
+  #   Serving remote clients requires a TCP transport that does
+  #   not yet exist in run_serve/. Until that lands, "deploy"
+  #   means "install on the same host as the client" (Mac Studio
+  #   + overmind, or a container co-located with the MCP process).
+  #
+  # Target candidates (see deploy-readiness checklist):
+  #   A. Mac Studio — overmind process, already runs locally
+  #   B. Linux container (Docker + PaaS: Fly, Render, Railway)
+  #   C. CF Worker wasm32 — different product shape (stateless);
+  #      out of scope for this story
+  #
+  # Status lifecycle:
+  #   new → building → packaged → shipped → verified → failed
+  #   (failed is a terminal state; start a fresh Deploy to retry)
+
+  aggregate "Deploy", "One storehouse warm-runtime deploy attempt. Tracks the binary + aggregates root + heki stores from build through verified-live. Identified by id for audit-trail across attempts." do
+    identified_by :id
+
+    # ── Value-objects ──
+
+    value_object "DeployId" do
+      # Stable identifier for this deploy attempt (UUID or CalVer stamp).
+      attribute :value, String
+    end
+
+    value_object "AggregatesRoot" do
+      # Absolute path to the aggregates root directory the runtime
+      # will serve. Determines which .bluebook + .heki files are loaded.
+      attribute :value, String
+    end
+
+    value_object "BinaryPath" do
+      # Filesystem path to the compiled storehouse binary that will be
+      # shipped. Absent until the Build command succeeds.
+      attribute :value, String
+    end
+
+    value_object "TargetArch" do
+      # Compilation target (e.g. "aarch64-apple-darwin", "x86_64-unknown-linux-gnu").
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle state of this deploy attempt.
+      #   new       — record created, build not started
+      #   building  — cargo build running
+      #   packaged  — binary + aggregates + heki stores staged
+      #   shipped   — binary running on target, serve-socket bound
+      #   verified  — warm dispatch confirmed (round-trip succeeded)
+      #   failed    — any step failed; terminal, start a new Deploy
+      attribute :value, String, enum: ["new", "building", "packaged", "shipped", "verified", "failed"]
+    end
+
+    value_object "SocketPath" do
+      # The unix-domain socket the warm daemon bound.
+      # Derived: ~/.config/miette/sockets/<hash>-<basename>.sock
+      # Populated after the Ship command confirms binding.
+      attribute :value, String
+    end
+
+    value_object "FailReason" do
+      # Human-readable reason for the failed state.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    # ── Attributes ──
+
+    attribute :id,              DeployId
+    attribute :aggregates_root, AggregatesRoot
+    attribute :binary_path,     BinaryPath
+    attribute :target_arch,     TargetArch
+    attribute :status,          Status
+    attribute :socket_path,     SocketPath
+    attribute :fail_reason,     FailReason
+    attribute :started_at,      Timestamp
+    attribute :shipped_at,      Timestamp
+    attribute :verified_at,     Timestamp
+
+    # ── Commands ──
+
+    command "Begin" do
+      role "Operator"
+      description "Start a new deploy attempt. Records the aggregates root and target arch. Status transitions to 'new'. The binary does not exist yet — Build follows."
+      attribute :id,              DeployId
+      attribute :aggregates_root, AggregatesRoot
+      attribute :target_arch,     TargetArch
+      attribute :started_at,      Timestamp
+      emits "DeployBegun"
+      then_set :id,              to: :id
+      then_set :aggregates_root, to: :aggregates_root
+      then_set :target_arch,     to: :target_arch
+      then_set :started_at,      to: :started_at
+      then_set :status,          to: "new"
+    end
+
+    command "Build" do
+      role "Operator"
+      description "Record that the storehouse binary was compiled for the target arch. binary_path is the path to the compiled artifact. Status transitions to 'building' (call when build starts) or 'packaged' (call when binary is confirmed on disk). In the scaffolded script, Build is dispatched once with the release binary path after cargo build --release completes."
+      reference_to Deploy
+      attribute :binary_path, BinaryPath
+      emits "Built"
+      then_set :binary_path, to: :binary_path
+      then_set :status,      to: "building"
+    end
+
+    command "Package" do
+      role "Operator"
+      description "Record that the binary, aggregates root, and heki stores are staged together as a coherent deployable unit. In the Mac Studio target this is a no-op filesystem step (files are already co-located); in a container target this is the docker build that COPYs all three. Status transitions to 'packaged'."
+      reference_to Deploy
+      emits "Packaged"
+      then_set :status, to: "packaged"
+    end
+
+    command "Ship" do
+      role "Operator"
+      description "Record that the warm runtime is running on the target host and the unix-domain socket is bound. socket_path is the path the daemon bound (derived from aggregates-root per sock_path_for_root). In the Mac Studio target, Ship means overmind started serve_socket. In a container target, Ship means the container is up and the socket is reachable from the co-located MCP client."
+      reference_to Deploy
+      attribute :socket_path, SocketPath
+      attribute :shipped_at,  Timestamp
+      emits "Shipped"
+      then_set :socket_path, to: :socket_path
+      then_set :shipped_at,  to: :shipped_at
+      then_set :status,      to: "shipped"
+    end
+
+    command "Verify" do
+      role "Operator"
+      description "Record that a round-trip warm dispatch succeeded against the running socket. Confirmation that the runtime is live and accepting commands. Status transitions to 'verified' — the terminal success state."
+      reference_to Deploy
+      attribute :verified_at, Timestamp
+      emits "Verified"
+      then_set :verified_at, to: :verified_at
+      then_set :status,      to: "verified"
+    end
+
+    command "Fail" do
+      role "Operator"
+      description "Record a fatal failure at any step. fail_reason describes what broke. Terminal state — start a new Deploy to retry."
+      reference_to Deploy
+      attribute :fail_reason, FailReason
+      emits "DeployFailed"
+      then_set :fail_reason, to: :fail_reason
+      then_set :status,      to: "failed"
+    end
+
+    # ── Queries ──
+
+    query "live_deploys" do
+      description "Every Deploy with status 'verified' — the confirmed live runtimes."
+    end
+
+    query "in_flight" do
+      description "Every Deploy with status in (new, building, packaged, shipped) — deploys that haven't reached a terminal state."
+    end
+
+    query "failed_deploys" do
+      description "Every Deploy with status 'failed' — the audit trail of broken attempts."
+    end
+  end
+
+  # When a deploy ships, attempt verification automatically.
+  policy "VerifyOnShip" do
+    on "Shipped"
+    trigger "Verify"
+  end
+end
