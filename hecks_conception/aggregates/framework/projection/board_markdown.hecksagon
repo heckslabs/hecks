@@ -1,0 +1,5 @@
+Hecks.hecksagon "BoardMarkdownProjector" do
+  # last_render persists via :memory — a pure render capture, not an external
+  # system. The board arrives via the bus query ; the projector never reads heki.
+  adapter :memory
+end
