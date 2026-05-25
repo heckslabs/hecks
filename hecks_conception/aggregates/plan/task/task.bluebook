@@ -1,6 +1,6 @@
 Hecks.bluebook "Task", version: "2026.05.25.1" do
   vision "A Task is a tracked step of work under a Story — the how beneath the what. Instead of dumping a new Story onto the board for every step taken, a Story accrues Tasks : ordered, described units of work that walk todo -> done. Tasks reference their Story by story_ref (the lazy string-match cross-ref, like Story references Sprint and Project) so Story stays lean and tasks are independently queryable (Open, ByStory). Capturing a session's steps as Tasks under one Story keeps the board uncluttered and hands the next session a precise pick-up list."
-  category "planning"
+  category "plan"
 
   aggregate "Task", "A tracked step of work belonging to a Story. Identified by ref. Carries story_ref (which Story it serves), an order for sequencing, a description, and a status (todo -> done). AddTask captures it ; CompleteTask closes it ; Reopen returns a done task to todo. Self-referencing ref on the transitions." do
     identified_by :ref
