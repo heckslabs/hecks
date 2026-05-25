@@ -152,6 +152,7 @@ Hecks.bluebook "Correspondence", version: "2026.05.24.1" do
       description "Record that an inbound message arrived from this person. Sets awaiting_reply to true and records last_inbound_at. Creates the Correspondent aggregate if it does not yet exist. Called by the inbox poll — this is how the ledger learns who needs a reply. Emits InboundReceived."
       attribute :person,       Person
       attribute :received_at,  Timestamp
+      given("person must not be empty") { person != "" }
       then_set :person,           to: :person
       then_set :awaiting_reply,   to: true
       then_set :last_inbound_at,  to: :received_at
@@ -167,6 +168,7 @@ Hecks.bluebook "Correspondence", version: "2026.05.24.1" do
       attribute :summary,      Summary
       attribute :thread_ref,   ThreadRef
       attribute :composed_at,  Timestamp
+      given("person must not be empty") { person != "" }
       then_set :person,         to: :person
       then_set :draft_status,   to: "drafting"
       then_set :last_draft_at,  to: :composed_at
