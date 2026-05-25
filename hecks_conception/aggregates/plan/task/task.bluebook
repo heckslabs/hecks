@@ -1,0 +1,75 @@
+Hecks.bluebook "Task", version: "2026.05.25.1" do
+  vision "A Task is a tracked step of work under a Story — the how beneath the what. Instead of dumping a new Story onto the board for every step taken, a Story accrues Tasks : ordered, described units of work that walk todo -> done. Tasks reference their Story by story_ref (the lazy string-match cross-ref, like Story references Sprint and Project) so Story stays lean and tasks are independently queryable (Open, ByStory). Capturing a session's steps as Tasks under one Story keeps the board uncluttered and hands the next session a precise pick-up list."
+  category "planning"
+
+  aggregate "Task", "A tracked step of work belonging to a Story. Identified by ref. Carries story_ref (which Story it serves), an order for sequencing, a description, and a status (todo -> done). AddTask captures it ; CompleteTask closes it ; Reopen returns a done task to todo. Self-referencing ref on the transitions." do
+    identified_by :ref
+
+    attribute :ref, Ref
+    attribute :story_ref, StoryRef
+    attribute :order, Order
+    attribute :description, Description
+    attribute :status, Status, default: "todo"
+
+    value_object "Ref" do
+      # Stable task key, e.g. "turn-pulse-1".
+      attribute :value, String
+    end
+    value_object "StoryRef" do
+      # The Story this task serves, by ref (lazy string-match cross-ref).
+      attribute :value, String
+    end
+    value_object "Order" do
+      # Sequencing within the story's task list.
+      attribute :value, Integer
+    end
+    value_object "Description" do
+      # The step, in plain words ("Board query on Story", "wire Stop hook").
+      attribute :value, String
+    end
+    value_object "Status" do
+      # todo -> done. Open filters to todo ; the pick-up list.
+      attribute :value, String
+    end
+
+    command "AddTask" do
+      role "Miette"
+      description "Capture a step of work under a Story. Records story_ref, order, description ; status starts todo. Emits TaskAdded."
+      attribute :ref, Ref
+      attribute :story_ref, StoryRef
+      attribute :order, Order
+      attribute :description, Description
+      emits "TaskAdded"
+      then_set :story_ref,   to: :story_ref
+      then_set :order,       to: :order
+      then_set :description, to: :description
+      then_set :status,      to: "todo"
+    end
+
+    command "CompleteTask" do
+      role "Miette"
+      description "Mark a task done — the step is taken. Self-ref by ref. Emits TaskCompleted."
+      attribute :ref, Ref
+      emits "TaskCompleted"
+      then_set :status, to: "done"
+    end
+
+    command "Reopen" do
+      role "Miette"
+      description "Return a done task to todo — the step needs more work. Self-ref by ref. Emits TaskReopened."
+      attribute :ref, Ref
+      emits "TaskReopened"
+      then_set :status, to: "todo"
+    end
+
+    query "ByStory" do
+      description "All tasks for a story. Pass story_ref: <ref> to filter."
+      where story_ref: :story_ref
+    end
+
+    query "Open" do
+      description "Tasks still to do (status todo) — the pick-up list."
+      where status: "todo"
+    end
+  end
+end
