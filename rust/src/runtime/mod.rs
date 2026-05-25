@@ -1479,25 +1479,11 @@ impl Runtime {
             .unwrap_or_else(|| result.aggregate_id.clone());
 
         for (_cmd, server, tool, args_raw, result_into) in &matched {
-            // i610 — resolve the server from the project's `*.world` files
-            // (attached at boot into `world_servers`). Logs + skips the
-            // harness-injected transport gap when matched. See
-            // `adapter_resolution::mcp::resolve_world_server`.
-            if crate::adapter_resolution::mcp::resolve_world_server(self, server) {
-                continue;
-            }
-            // i594 — graceful guard for servers neither world-declared nor
-            // locally spawnable. Log + skip rather than panic so the
-            // dispatch still lands in the heki and the cascade proceeds.
-            if !mcp_dispatcher::server_is_registered(server) {
-                eprintln!(
-                    "[mcp:warn] adapter for {} declares server={} which is neither \
-                    world-declared nor a spawnable server. Dispatch recorded ; MCP call skipped.",
-                    target, server
-                );
-                continue;
-            }
-
+            // Parse + substitute args before the world-server check so the
+            // resolved payload (tool name, substituted args, result_into) can
+            // be forwarded into the transport-C event emit inside
+            // `resolve_world_server`. JSON parse failure skips the whole
+            // binding — no point resolving the server for an unparseable args.
             let args_value: serde_json::Value = if args_raw.is_empty() {
                 serde_json::Value::Object(Default::default())
             } else {
@@ -1513,6 +1499,29 @@ impl Runtime {
                 }
             };
             let args_substituted = mcp_dispatcher::substitute_value(args_value, &attrs);
+
+            // i610 — resolve the server from the project's `*.world` files
+            // (attached at boot into `world_servers`). Emits an
+            // `mcp_dispatch_requested` event on the storehouse follow stream
+            // and continues — the harness-side subscriber owns the transport.
+            // See `adapter_resolution::mcp::resolve_world_server`.
+            if crate::adapter_resolution::mcp::resolve_world_server(
+                self, server, tool, &args_substituted,
+                result_into.as_deref(), &invocation_id, &target,
+            ) {
+                continue;
+            }
+            // i594 — graceful guard for servers neither world-declared nor
+            // locally spawnable. Log + skip rather than panic so the
+            // dispatch still lands in the heki and the cascade proceeds.
+            if !mcp_dispatcher::server_is_registered(server) {
+                eprintln!(
+                    "[mcp:warn] adapter for {} declares server={} which is neither \
+                    world-declared nor a spawnable server. Dispatch recorded ; MCP call skipped.",
+                    target, server
+                );
+                continue;
+            }
 
             let tool_result = mcp_dispatcher::dispatch(server, tool, &args_substituted);
             let err_tail = if tool_result.error.is_empty() {
