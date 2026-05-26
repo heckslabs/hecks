@@ -102,3 +102,7 @@ pub mod run_wake;
 pub mod specializer;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod corpus_loader;
+
+pub mod story_runtime;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod storehouse_router;
