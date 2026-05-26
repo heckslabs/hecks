@@ -44,4 +44,11 @@ Hecks.behaviors "UseCase" do
     setup  "Generate", id: "uc3", story_ref: "f2", title: "Run warm-path deploy", narrative: "As an operator I run the warm-path deploy so that latency is observable."
     expect includes: { story_ref: "f2", status: "generated" }
   end
+
+  test "ClearSteps resets the steps list to empty" do
+    tests "ClearSteps", on: "UseCase"
+    setup  "Generate", id: "uc-c1", story_ref: "f5", title: "Clear test", narrative: "As an author I clear steps so that I can re-compose a use case with a real proof."
+    input  id: "uc-c1"
+    expect_event "UseCaseStepsCleared"
+  end
 end

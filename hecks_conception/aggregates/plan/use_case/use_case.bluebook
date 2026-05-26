@@ -124,6 +124,14 @@ Hecks.bluebook "UseCase", version: "2026.05.25.1" do
       emits "UseCaseStepComposed"
     end
 
+    command "ClearSteps" do
+      role "Miette"
+      description "Reset the use case's steps list to empty so it can be re-composed. ComposeStep only appends ; ClearSteps is the amend primitive that lets an author replace a use case's step sequence — e.g. swap a proxy step for one that genuinely exercises the card. No lifecycle change."
+      reference_to(UseCase)
+      then_set :steps, to: []
+      emits "UseCaseStepsCleared"
+    end
+
     command "Run" do
       role "System"
       description "Stamp this use case as ran and emit UseCaseRan with step_count. Pure command — the actual per-step dispatch is the runtime's projection (storehouse execute). Called by the runtime after all steps complete successfully."

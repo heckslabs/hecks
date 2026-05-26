@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+# Macrophage — GovernedDoor complaint (PostToolUse, always-on visibility).
+# Bluebook of record: aggregates/discipline/immune_system/macrophage/governed_door.bluebook
+# Fires AFTER a native IO tool ran (can't undo it), prints a complaint to
+# stderr (surfaced to the model) and best-effort records the block to the
+# GovernedDoor audit trail. This is the layer that works even where the
+# harness ignores PreToolUse hard-blocks: nothing hidden, every ungoverned
+# act made loud. Deny-list mirrors bin/governed-door-hook.
+import json, sys, subprocess, datetime, os
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+t = d.get('tool_name', '')
+door = {
+    'Bash': 'Tools::ShellTool.Bash', 'Edit': 'Tools::FileTool.Edit',
+    'Write': 'Tools::FileTool.Update', 'Read': 'Tools::FileTool.Read',
+    'MultiEdit': 'Tools::FileTool.Edit', 'NotebookEdit': 'Tools::FileTool.Edit',
+    'Grep': 'Tools::SearchTool.Grep', 'Glob': 'Tools::SearchTool.Glob',
+    'WebFetch': 'Tools::WebTool.WebFetch', 'WebSearch': 'Tools::WebTool.WebSearch',
+}
+if t not in door:
+    sys.exit(0)
+bin_ = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
+root = '/Users/christopheryoung/Projects/hecks/hecks_conception'
+ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+if os.path.exists(bin_):
+    try:
+        subprocess.Popen([bin_, root, 'Discipline::GovernedDoor.RecordBlock', 'tool=' + t, 'last_blocked_at=' + ts],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
+    except Exception:
+        pass
+sys.stderr.write('GOVERNANCE (macrophage): you used native ' + t + ' — ungoverned, no bus event. '
+    'Route through the storehouse door next time: mcp__storehouse__storehouse__dispatch ' + door[t] + '. '
+    'Recorded to the GovernedDoor audit trail.')
+sys.exit(2)
