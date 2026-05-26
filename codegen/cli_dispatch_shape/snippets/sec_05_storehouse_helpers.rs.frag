@@ -57,6 +57,13 @@ fn storehouse_route(args: &[String]) -> i32 {
         Some(p) => p.clone(),
         None => { eprintln!("storehouse storehouse route: missing phrase"); return 1; }
     };
+    // A query-tail phrase (snake_case tail, e.g. `Plan::Story.by_sprint`)
+    // can't resolve through the command lexicon — route it through the
+    // read-only query path so query steps run from the CLI too. Mirrors
+    // storehouse_router::route (GAP 3 — usecase-query-steps).
+    if storehouse::storehouse_query::is_query_phrase(&phrase) {
+        return storehouse::storehouse_query::query_route(&phrase, &args[1..]);
+    }
     let conception = storehouse_conception_root();
     let target = match storehouse_resolve(&phrase, &conception) {
         Some(t) => t,

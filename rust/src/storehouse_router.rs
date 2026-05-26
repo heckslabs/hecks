@@ -36,6 +36,14 @@ pub fn route(args: &[String]) -> i32 {
         Some(p) => p.clone(),
         None => { eprintln!("storehouse route: missing phrase"); return 1; }
     };
+    // A step phrase whose dot-tail is snake_case (e.g. `Plan::Story.by_sprint`)
+    // is a QUERY, not a command. Commands resolve via the lexicon
+    // (walk_phrases collects only commands) ; queries can't, so route them
+    // through the read-only query path. Lets use-case steps assert
+    // read / grouping cards by execution (GAP 3 — usecase-query-steps).
+    if crate::storehouse_query::is_query_phrase(&phrase) {
+        return crate::storehouse_query::query_route(&phrase, &args[1..]);
+    }
     let conception = conception_root();
     let target = match resolve(&phrase, &conception) {
         Some(t) => t,
