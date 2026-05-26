@@ -117,6 +117,14 @@ Hecks.behaviors "Story" do
     expect count: 1
   end
 
+  test "BySprint filters stories by sprint" do
+    tests "BySprint", on: "Story", kind: :query
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", ref: "f1", sprint_ref: "s1"
+    input  sprint: "s1"
+    expect count: 1
+  end
+
   test "RemoveFromSprint clears sprint and returns story to backlog from in_sprint" do
     tests "RemoveFromSprint", on: "Story"
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"

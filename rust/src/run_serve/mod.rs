@@ -121,25 +121,31 @@ pub(crate) fn handle_request(
                 if let Some(hook) = legacy_llm {
                     hook(rt, &result.aggregate_type, &result.aggregate_id, &command);
                 }
-                // StoryExecuted projection (i528) - run the story use cases when
+                // StoryExecuted / SprintExecuted projections (i528) - run the
+                // story use cases (or fan out over a sprint's stories) when
                 // executed THROUGH THE DOOR, mirroring the main.rs / run.rs hook.
                 // route() cold-boots per step (no warm-rt borrow); serve must NOT
                 // process::exit on a failing step - it is a resident server.
                 if let Some(ref ev) = result.event {
-                    if ev.name == "StoryExecuted" {
-                        let story_ref = ev.aggregate_id.clone();
+                    if ev.name == "StoryExecuted" || ev.name == "SprintExecuted" {
+                        let agg_id = ev.aggregate_id.clone();
                         let root = crate::storehouse_router::conception_root();
                         let heki_dir = crate::world::attach::collect_world_heki_dirs(&root)
                             .get("plan").cloned()
                             .or_else(crate::storehouse_router::info_dir);
                         if let Some(dir) = heki_dir {
-                            let code = crate::story_runtime::storehouse_execute(
-                                &story_ref, &dir, crate::storehouse_router::route);
+                            let code = if ev.name == "SprintExecuted" {
+                                crate::story_runtime::sprint_execute(
+                                    &agg_id, &dir, crate::storehouse_router::route)
+                            } else {
+                                crate::story_runtime::storehouse_execute(
+                                    &agg_id, &dir, crate::storehouse_router::route)
+                            };
                             if code != 0 {
-                                eprintln!("[StoryExecuted] use cases for {} exited {} (server continues)", story_ref, code);
+                                eprintln!("[{}] projection for {} exited {} (server continues)", ev.name, agg_id, code);
                             }
                         } else {
-                            eprintln!("[StoryExecuted] cannot resolve plan heki dir - use cases not run");
+                            eprintln!("[{}] cannot resolve plan heki dir - projection skipped", ev.name);
                         }
                     }
                 }

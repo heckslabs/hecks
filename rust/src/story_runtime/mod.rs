@@ -162,3 +162,47 @@ pub fn storehouse_execute(story_ref: &str, info_dir: &str, router: fn(&[String])
     // (the caller of this projection) — do not re-dispatch it here.
     0
 }
+
+/// Fan a sprint's stories out and run every story's use cases.
+///
+/// The runtime projection of `SprintExecuted`. Dispatching
+/// `Plan::Sprint.Execute` is the operator entry — the emitted event
+/// triggers this fn. It reads all Plan::Story records whose `sprint`
+/// field matches `sprint_ref` (the Story.sprint field is the reliable
+/// source of truth ; Sprint.story_refs can drift), then calls
+/// `storehouse_execute` DIRECTLY per story. It does NOT re-dispatch
+/// `Plan::Story.Execute` per story — that would re-trigger the
+/// StoryExecuted projection and double-run the use cases.
+///
+/// Parameters mirror `storehouse_execute`: `info_dir` is the resolved
+/// plan-domain heki dir, `router` the phrase dispatcher.
+///
+/// Returns 0 on success, the first non-zero story exit on failure.
+pub fn sprint_execute(sprint_ref: &str, info_dir: &str, router: fn(&[String]) -> i32) -> i32 {
+    let heki_path = heki::path_for_lookup(info_dir, "story");
+    let store = match heki::read(&heki_path) {
+        Ok(s) => s,
+        Err(e) => { eprintln!("sprint execute: {}", e); return 3; }
+    };
+    let mut story_refs: Vec<String> = store
+        .into_iter()
+        .filter(|(_, rec)| matches!(rec.get("sprint"),
+            Some(serde_json::Value::String(s)) if s == sprint_ref))
+        .map(|(id, _)| id)
+        .collect();
+    if story_refs.is_empty() {
+        eprintln!("sprint execute: no stories with sprint '{}' in {}", sprint_ref, heki_path);
+        return 4;
+    }
+    story_refs.sort();
+    let total = story_refs.len();
+    for (idx, story_ref) in story_refs.iter().enumerate() {
+        eprintln!("[sprint:{}] story {}/{} → {}", sprint_ref, idx + 1, total, story_ref);
+        let exit = storehouse_execute(story_ref, info_dir, router);
+        if exit != 0 {
+            eprintln!("[sprint:{}] story '{}' failed (exit {}) — stopping", sprint_ref, story_ref, exit);
+            return exit;
+        }
+    }
+    0
+}

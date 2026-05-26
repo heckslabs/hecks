@@ -206,4 +206,11 @@ Hecks.behaviors "Sprint" do
     expect count: 0
   end
 
+  test "Execute emits SprintExecuted" do
+    tests "Execute", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    input  number: "1", story_count: 2
+    expect emits: ["SprintExecuted"]
+  end
+
 end

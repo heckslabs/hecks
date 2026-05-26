@@ -115,6 +115,13 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       attribute :value, Boolean
     end
 
+    value_object "StoryCount" do
+      # How many stories the sprint fanned out over. Carried on
+      # SprintExecuted so downstream reactors know the fan-out width
+      # without re-querying the Story store.
+      attribute :value, Integer
+    end
+
     # ============================================================
     # COMMANDS
     # ============================================================
@@ -231,6 +238,14 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       description "Human gate: move a ready_for_closure sprint to completed. Only Operator may Approve. Emits SprintApproved. Completed is only reachable via this command — there is no direct path from active to completed."
       reference_to(Sprint)
       emits "SprintApproved"
+    end
+
+    command "Execute" do
+      role "System"
+      description "The operator entry for fanning out a sprint's stories. Dispatching Plan::Sprint.Execute through the bus emits SprintExecuted with story_count; the runtime projection of SprintExecuted queries Plan::Story.BySprint to find every story committed to this sprint, then runs each story's use cases directly (the same step-execution path StoryExecuted uses). It does NOT re-dispatch Plan::Story.Execute per story — that would re-trigger the StoryExecuted projection and double-run. Pure signal: no state transition, valid from any state."
+      reference_to(Sprint)
+      attribute :story_count, StoryCount
+      emits "SprintExecuted"
     end
 
     # ── Lifecycle state machine ──────────────────────────────────

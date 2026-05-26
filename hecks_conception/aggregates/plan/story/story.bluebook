@@ -389,6 +389,11 @@ Hecks.bluebook "Story", version: "2026.05.25.3" do
       where project: :project
     end
 
+    query "BySprint" do
+      description "All stories committed to a given sprint, by the Story.sprint field — the reliable source of truth (Sprint.story_refs can drift). The Plan::Sprint.Execute projection reads this to fan out over a sprint's stories. Pass sprint: <ref> to filter."
+      where sprint: :sprint
+    end
+
     query "Board" do
       description "Every story with its lifecycle state — the full planning board. The turn-inject adapter reads this query and injects it after the turn ; distinct from a future Summary (whole-client-project stats)."
     end
