@@ -3418,10 +3418,10 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 // both main.rs direct dispatch and the storehouse_route
                 // path both fire the projection.
                 if let Some(ref ev) = result.event {
-                    if ev.name == "StoryExecuted" {
-                        let story_ref = ev.aggregate_id.clone();
-                        // Use the plan domain's world-declared heki dir so
-                        // ForStory finds use_case records in plan/.heki, not
+                    if ev.name == "StoryExecuted" || ev.name == "SprintExecuted" {
+                        let agg_id = ev.aggregate_id.clone();
+                        // Use the plan domain's world-declared heki dir so the
+                        // projection's reads find records in plan/.heki, not
                         // miette-state/information. collect_world_heki_dirs
                         // walks *.world files adjacent to agg_dir and maps
                         // category → resolved heki path.
@@ -3429,14 +3429,20 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                         let heki_dir = world_dirs.get("plan").cloned()
                             .or_else(|| storehouse::storehouse_router::info_dir());
                         if let Some(info_dir) = heki_dir {
-                            let exit = storehouse::story_runtime::storehouse_execute(
-                                &story_ref,
-                                &info_dir,
-                                storehouse_route,
-                            );
+                            // SprintExecuted fans out over the sprint's stories
+                            // and runs each story's use cases DIRECTLY (not by
+                            // re-dispatching Story.Execute, which would double-
+                            // run). StoryExecuted runs one story's use cases.
+                            let exit = if ev.name == "SprintExecuted" {
+                                storehouse::story_runtime::sprint_execute(
+                                    &agg_id, &info_dir, storehouse_route)
+                            } else {
+                                storehouse::story_runtime::storehouse_execute(
+                                    &agg_id, &info_dir, storehouse_route)
+                            };
                             if exit != 0 { std::process::exit(exit); }
                         } else {
-                            eprintln!("[StoryExecuted] cannot resolve heki dir — use cases not run");
+                            eprintln!("[{}] cannot resolve heki dir — projection skipped", ev.name);
                         }
                     }
                 }

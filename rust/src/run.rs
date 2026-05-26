@@ -194,23 +194,39 @@ pub fn run_script(args: &[String]) -> i32 {
             // inside the runner — that command is already done.
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ref ev) = result.event {
+                // Prefer the world-declared heki dir (the plan domain's
+                // .heki) over the global info dir so the projection's reads
+                // find the records the plan world persists. Falls back to
+                // global info_dir when no adjacent .world file is found.
+                let heki_dir = || crate::storehouse_router::world_heki_dir(path)
+                    .or_else(crate::storehouse_router::info_dir);
+                // Runtime projection of StoryExecuted — dispatching
+                // `Plan::Story.Execute` runs the story's use cases. The
+                // story_ref IS event.aggregate_id (Story is identified_by
+                // :ref). No Story.Execute tail-call — that command is done.
                 if ev.name == "StoryExecuted" {
-                    let story_ref = ev.aggregate_id.clone();
-                    // Prefer the world-declared heki dir (the plan domain's
-                    // .heki) over the global info dir so ForStory finds the
-                    // use_case records the plan world persists. Falls back to
-                    // global info_dir when no adjacent .world file is found.
-                    let heki_dir = crate::storehouse_router::world_heki_dir(path)
-                        .or_else(crate::storehouse_router::info_dir);
-                    if let Some(info_dir) = heki_dir {
-                        let exit = crate::story_runtime::storehouse_execute(
-                            &story_ref,
-                            &info_dir,
-                            crate::storehouse_router::route,
-                        );
-                        if exit != 0 { return exit; }
-                    } else {
-                        eprintln!("[StoryExecuted] cannot resolve heki dir — use cases not run");
+                    match heki_dir() {
+                        Some(dir) => {
+                            let exit = crate::story_runtime::storehouse_execute(
+                                &ev.aggregate_id, &dir, crate::storehouse_router::route);
+                            if exit != 0 { return exit; }
+                        }
+                        None => eprintln!("[StoryExecuted] cannot resolve heki dir — use cases not run"),
+                    }
+                }
+                // Runtime projection of SprintExecuted — fan out over the
+                // sprint's stories (Story.sprint == sprint number) and run
+                // each story's use cases DIRECTLY (not by re-dispatching
+                // Plan::Story.Execute, which would double-run). The sprint
+                // number IS event.aggregate_id (Sprint identified_by :number).
+                else if ev.name == "SprintExecuted" {
+                    match heki_dir() {
+                        Some(dir) => {
+                            let exit = crate::story_runtime::sprint_execute(
+                                &ev.aggregate_id, &dir, crate::storehouse_router::route);
+                            if exit != 0 { return exit; }
+                        }
+                        None => eprintln!("[SprintExecuted] cannot resolve heki dir — stories not run"),
                     }
                 }
             }
