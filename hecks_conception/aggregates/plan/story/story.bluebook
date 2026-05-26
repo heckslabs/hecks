@@ -1,4 +1,4 @@
-Hecks.bluebook "Story", version: "2026.05.25.1" do
+Hecks.bluebook "Story", version: "2026.05.25.3" do
   vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
   category "plan"
 
@@ -142,6 +142,13 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       attribute :value, Integer
     end
 
+    value_object "UseCaseCount" do
+      # How many use cases were executed. Carried on StoryExecuted so
+      # downstream reactors know the acceptance scenario count without
+      # re-reading the UseCase store.
+      attribute :value, Integer
+    end
+
     value_object "AttachmentPath" do
       # Filesystem path (or store URI) where the attached file lives.
       # E.g. "/Users/.../emaho/public/uploads/about-volunteer/image0.jpeg".
@@ -202,6 +209,17 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       then_set :project,  to: :project
       then_set :state,    to: "backlog"
       emits "StoryCaptured"
+    end
+
+    command "Reword" do
+      role "Miette"
+      description "Amend a story's content — re-describe its title and summary — without touching its lifecycle. Capture is gated to backlog (it mints + resets state), so once a story is in_sprint/started its description was un-editable ; Reword closes that gap. Pure content mutation : no state transition, valid from any state. Used to update a card's title/summary as the design firms up."
+      reference_to(Story)
+      attribute :title,   Title
+      attribute :summary, Summary
+      then_set :title,   to: :title
+      then_set :summary, to: :summary
+      emits "StoryReworded"
     end
 
     command "AssignToSprint" do
@@ -271,6 +289,14 @@ Hecks.bluebook "Story", version: "2026.05.25.1" do
       attribute :step_count, StepCount
       given("story must be on a sprint board") { sprint != "" }
       emits "StoryForwarded"
+    end
+
+    command "Execute" do
+      role "System"
+      description "The operator entry for running a story's use-case acceptance scenarios. Dispatching Plan::Story.Execute through the bus emits StoryExecuted with use_case_count; the runtime projection of StoryExecuted reads Plan::UseCase.ForStory, sorts each use case's steps, dispatches each step, and calls UseCase.Run per use case. Dispatch IS the act — no CLI side-channel. Orthogonal to Forward: Forward runs the story's own work-steps; Execute runs the use-case acceptance layer."
+      reference_to(Story)
+      attribute :use_case_count, UseCaseCount
+      emits "StoryExecuted"
     end
 
     command "Verify" do

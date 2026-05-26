@@ -1,5 +1,5 @@
 Hecks.behaviors "UseCase" do
-  vision "Behavioral tests for the UseCase aggregate — the generator the Story Start-policy triggers. Generate records the use case on the bus; ForStory surfaces the generated set."
+  vision "Behavioral tests for the UseCase aggregate — the generator the Story Start-policy triggers. Generate records the use case on the bus; ComposeStep appends steps; Run stamps it executed; ForStory surfaces the generated set."
 
   test "Generate records a use case for a story" do
     tests "Generate", on: "UseCase"
@@ -11,6 +11,27 @@ Hecks.behaviors "UseCase" do
     tests "Generate", on: "UseCase"
     input  id: "uc2", story_ref: "f1", title: "Observe cascade events", narrative: "As a developer I observe cascade events so that I can confirm policies fire correctly."
     expect id: "uc2", narrative: "As a developer I observe cascade events so that I can confirm policies fire correctly."
+  end
+
+  test "ComposeStep appends a step to the use case" do
+    tests "ComposeStep", on: "UseCase"
+    setup  "Generate", id: "uc-s1", story_ref: "f3", title: "Scenario step test", narrative: "As a tester I compose steps so that the use case is runnable."
+    input  id: "uc-s1", order: 0, phrase: "Plan::Story.Board", args: "{}"
+    expect_event "UseCaseStepComposed"
+  end
+
+  test "Run stamps use case as ran" do
+    tests "Run", on: "UseCase"
+    setup  "Generate", id: "uc-r1", story_ref: "f4", title: "Run test", narrative: "As a tester I run the use case so that it is stamped complete."
+    input  id: "uc-r1", step_count: 1
+    expect status: "ran"
+  end
+
+  test "Run emits UseCaseRan" do
+    tests "Run", on: "UseCase"
+    setup  "Generate", id: "uc-r2", story_ref: "f4", title: "Ran event test", narrative: "As a tester I confirm the event fires."
+    input  id: "uc-r2", step_count: 2
+    expect_event "UseCaseRan"
   end
 
   test "ForStory returns generated use cases" do

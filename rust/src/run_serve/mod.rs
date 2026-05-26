@@ -121,6 +121,28 @@ pub(crate) fn handle_request(
                 if let Some(hook) = legacy_llm {
                     hook(rt, &result.aggregate_type, &result.aggregate_id, &command);
                 }
+                // StoryExecuted projection (i528) - run the story use cases when
+                // executed THROUGH THE DOOR, mirroring the main.rs / run.rs hook.
+                // route() cold-boots per step (no warm-rt borrow); serve must NOT
+                // process::exit on a failing step - it is a resident server.
+                if let Some(ref ev) = result.event {
+                    if ev.name == "StoryExecuted" {
+                        let story_ref = ev.aggregate_id.clone();
+                        let root = crate::storehouse_router::conception_root();
+                        let heki_dir = crate::world::attach::collect_world_heki_dirs(&root)
+                            .get("plan").cloned()
+                            .or_else(crate::storehouse_router::info_dir);
+                        if let Some(dir) = heki_dir {
+                            let code = crate::story_runtime::storehouse_execute(
+                                &story_ref, &dir, crate::storehouse_router::route);
+                            if code != 0 {
+                                eprintln!("[StoryExecuted] use cases for {} exited {} (server continues)", story_ref, code);
+                            }
+                        } else {
+                            eprintln!("[StoryExecuted] cannot resolve plan heki dir - use cases not run");
+                        }
+                    }
+                }
                 // Drain the per-dispatch event timeline AFTER dispatch
                 // returns (the DispatchScope Drop has already populated
                 // LAST_EVENTS). Serialise as a JSON array so the MCP

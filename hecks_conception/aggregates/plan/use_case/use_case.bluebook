@@ -1,5 +1,5 @@
-Hecks.bluebook "UseCase", version: "2026.05.24.1" do
-  vision "The generator the Story Start-policy triggers. When a Story is started, the first thing that happens is generating use cases — this aggregate records one generated use case for a story. The LLM/codegen content behind generation is an adapter hook (TBD, future); v1 records the use case via the bus so the cascade is real and observable."
+Hecks.bluebook "UseCase", version: "2026.05.25.1" do
+  vision "The generator the Story Start-policy triggers. When a Story is started, the first thing that happens is generating use cases — this aggregate records one generated use case for a story. A UseCase carries an ordered list of Steps (phrase + args), composed via ComposeStep and executed via Run. The LLM/codegen content behind generation is an adapter hook (TBD, future); v1 records the use case via the bus so the cascade is real and observable. Execute a whole story's use cases via `storehouse execute <story_ref>`."
   category "plan"
 
   # ============================================================
@@ -15,11 +15,15 @@ Hecks.bluebook "UseCase", version: "2026.05.24.1" do
   #   story_ref  — the Story this use case was generated for
   #   title      — one-line description of the scenario
   #   narrative  — structured "As a … I … so that …" text
-  #   status     — "generated" (only value in v1)
+  #   status     — "generated" | "ran"
+  #   steps      — ordered list of Steps (phrase + args)
   #
-  # Query ForStory surfaces all generated use cases for a story.
+  # Query ForStory surfaces all use cases for a story (by story_ref).
+  # ComposeStep appends a step; Run stamps status=ran and emits UseCaseRan.
+  # The runtime `storehouse execute <story_ref>` reads ForStory, sorts each
+  # use case's steps, dispatches each step, then calls Run per use case.
   #
-  aggregate "UseCase", "One generated use case anchored to a Story — records the scenario title, narrative, and generation status so the cascade is real and observable." do
+  aggregate "UseCase", "One generated use case anchored to a Story — records the scenario title, narrative, generation status, and an ordered list of runnable Steps so the cascade is real and observable." do
     identified_by :id
 
     attribute :id,        Id
@@ -27,6 +31,7 @@ Hecks.bluebook "UseCase", version: "2026.05.24.1" do
     attribute :title,     Title
     attribute :narrative, Narrative
     attribute :status,    Status, default: "generated"
+    attribute :steps,     list_of(Step)
 
     value_object "Id" do
       # Caller-minted UUID identifying this use case. The storehouse
@@ -52,9 +57,45 @@ Hecks.bluebook "UseCase", version: "2026.05.24.1" do
     end
 
     value_object "Status" do
-      # Lifecycle marker. "generated" is the only value in v1.
-      # Future adapters may add "reviewed" / "accepted" / "rejected".
+      # Lifecycle marker. "generated" → "ran" after Run executes.
       attribute :value, String
+    end
+
+    value_object "StepOrder" do
+      # 0-based position of a Step in the sequence. The runner sorts
+      # by this before dispatching, so out-of-order ComposeStep calls
+      # still execute in correct sequence.
+      attribute :value, Integer
+    end
+
+    value_object "Phrase" do
+      # A fully-qualified bluebook command phrase this Step dispatches —
+      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
+      # execution time. Byte-identical to Storehouse::Story.Phrase so
+      # story_sorted_steps/story_args_to_tokens helpers work across both.
+      attribute :value, String
+    end
+
+    value_object "Args" do
+      # The Step k=v argument bag as a JSON-object string ("{}") for no
+      # args). Unpacked into route argv tokens at execution time.
+      attribute :value, String
+    end
+
+    value_object "StepCount" do
+      # How many steps this UseCase executed. Carried on UseCaseRan so
+      # downstream reactors know the sequence length without re-reading.
+      attribute :value, Integer
+    end
+
+    # ── Step entity ─────────────────────────────────────────────
+    # Byte-identical shape to Storehouse::Story.Step so the shared
+    # story_runtime helpers (story_sorted_steps, story_args_to_tokens)
+    # work without modification: reads "phrase" key from heki JSON.
+    entity "Step" do
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
     end
 
     command "Generate" do
@@ -72,9 +113,29 @@ Hecks.bluebook "UseCase", version: "2026.05.24.1" do
       emits "UseCaseGenerated"
     end
 
+    command "ComposeStep" do
+      role "Miette"
+      description "Append one ordered Step to the UseCase — a (order, phrase, args) triple. The runner sorts by order before dispatching, so out-of-order ComposeStep calls still execute in correct sequence."
+      reference_to(UseCase)
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
+      then_set :steps, append: { order: :order, phrase: :phrase, args: :args }
+      emits "UseCaseStepComposed"
+    end
+
+    command "Run" do
+      role "System"
+      description "Stamp this use case as ran and emit UseCaseRan with step_count. Pure command — the actual per-step dispatch is the runtime's projection (storehouse execute). Called by the runtime after all steps complete successfully."
+      reference_to(UseCase)
+      attribute :step_count, StepCount
+      then_set :status, to: "ran"
+      emits "UseCaseRan"
+    end
+
     query "ForStory" do
-      description "Use cases generated for a given story. Returns all UseCase records with status 'generated', scoped by the caller-supplied story_ref."
-      where status: "generated"
+      description "All use cases for a given story. Returns UseCase records scoped by the caller-supplied story_ref — allows many use cases per story."
+      where story_ref: :story_ref
     end
   end
 end

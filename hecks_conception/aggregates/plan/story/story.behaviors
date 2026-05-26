@@ -172,4 +172,18 @@ Hecks.behaviors "Story" do
     input  ref: "f1"
     expect state: "started"
   end
+
+  test "Execute emits StoryExecuted" do
+    tests "Execute", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  ref: "f1", use_case_count: 3
+    expect emits: ["StoryExecuted"]
+  end
+
+  test "Reword amends title and summary without a state change" do
+    tests "Reword", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  ref: "f1", title: "StorehouseDeploy v2", summary: "ship the warm runtime, deploy edition"
+    expect title: "StorehouseDeploy v2", summary: "ship the warm runtime, deploy edition"
+  end
 end

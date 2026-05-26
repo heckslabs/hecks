@@ -66,6 +66,7 @@ use storehouse::{parser, validator, validator_warnings, server, conceiver, heki,
                  behaviors_parser, behaviors_dump};
 use storehouse::runtime::Runtime;
 use storehouse::corpus_loader::load_combined_domain;
+use storehouse::story_runtime::{story_sorted_steps, story_args_to_tokens};
 
 use std::env;
 use std::fs;
@@ -3410,6 +3411,35 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             .collect();
         match rt.dispatch(command, rt_attrs) {
             Ok(result) => {
+                // Runtime projection of StoryExecuted — dispatching
+                // Plan::Story.Execute through the door triggers the
+                // use-case runner as the projection of the emitted event.
+                // Mirrors the same hook in run.rs (run_script path) so
+                // both main.rs direct dispatch and the storehouse_route
+                // path both fire the projection.
+                if let Some(ref ev) = result.event {
+                    if ev.name == "StoryExecuted" {
+                        let story_ref = ev.aggregate_id.clone();
+                        // Use the plan domain's world-declared heki dir so
+                        // ForStory finds use_case records in plan/.heki, not
+                        // miette-state/information. collect_world_heki_dirs
+                        // walks *.world files adjacent to agg_dir and maps
+                        // category → resolved heki path.
+                        let world_dirs = storehouse::world::attach::collect_world_heki_dirs(agg_dir);
+                        let heki_dir = world_dirs.get("plan").cloned()
+                            .or_else(|| storehouse::storehouse_router::info_dir());
+                        if let Some(info_dir) = heki_dir {
+                            let exit = storehouse::story_runtime::storehouse_execute(
+                                &story_ref,
+                                &info_dir,
+                                storehouse_route,
+                            );
+                            if exit != 0 { std::process::exit(exit); }
+                        } else {
+                            eprintln!("[StoryExecuted] cannot resolve heki dir — use cases not run");
+                        }
+                    }
+                }
                 // Run LLM adapter if configured
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
                     let repo_key = storehouse::runtime::repo_lookup_key(&rt.repositories, &result.aggregate_type);
@@ -5376,60 +5406,6 @@ fn storehouse_play(args: &[String]) -> i32 {
         format!("step_count={}", total),
     ];
     storehouse_route(&run_args)
-}
-
-/// One executable step of a Story, read back from heki.
-struct StoryStep {
-    order: i64,
-    phrase: String,
-    args: String,
-}
-
-/// Extract a Story record's `steps` array, sorted ascending by `order`.
-/// Tolerant of order stored as either a JSON number or a numeric string
-/// (heki round-trips entity-list ints as strings, see repository.rs
-/// to_json/from_json). Missing or malformed steps are skipped.
-fn story_sorted_steps(record: &storehouse::heki::Record) -> Vec<StoryStep> {
-    let mut steps: Vec<StoryStep> = Vec::new();
-    if let Some(serde_json::Value::Array(items)) = record.get("steps") {
-        for item in items {
-            let obj = match item.as_object() { Some(o) => o, None => continue };
-            let phrase = match obj.get("phrase").and_then(|v| v.as_str()) {
-                Some(s) if !s.is_empty() => s.to_string(),
-                _ => continue,
-            };
-            let order = match obj.get("order") {
-                Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(0),
-                Some(serde_json::Value::String(s)) => s.parse::<i64>().unwrap_or(0),
-                _ => 0,
-            };
-            let args = obj.get("args").and_then(|v| v.as_str()).unwrap_or("{}").to_string();
-            steps.push(StoryStep { order, phrase, args });
-        }
-    }
-    steps.sort_by_key(|s| s.order);
-    steps
-}
-
-/// Unpack a step's `args` (a JSON-object string like `{"text":"hi"}`)
-/// into the `k=v` argv tokens storehouse_route expects. An empty object
-/// or unparseable string yields no tokens. Non-string scalar values are
-/// stringified so any JSON-object arg bag survives the round-trip.
-fn story_args_to_tokens(args: &str) -> Vec<String> {
-    let parsed: serde_json::Value = match serde_json::from_str(args) {
-        Ok(v) => v,
-        Err(_) => return Vec::new(),
-    };
-    let obj = match parsed.as_object() { Some(o) => o, None => return Vec::new() };
-    obj.iter()
-        .map(|(k, v)| {
-            let val = match v {
-                serde_json::Value::String(s) => s.clone(),
-                other => other.to_string(),
-            };
-            format!("{}={}", k, val)
-        })
-        .collect()
 }
 
 fn storehouse_compile(args: &[String]) -> i32 {
