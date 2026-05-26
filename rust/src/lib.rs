@@ -106,3 +106,5 @@ pub mod corpus_loader;
 pub mod story_runtime;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod storehouse_router;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod storehouse_query;
