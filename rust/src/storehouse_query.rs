@@ -45,12 +45,20 @@ pub fn query_route(phrase: &str, args: &[String]) -> i32 {
         Some(parts) => parts,
         None => { eprintln!("storehouse query: '{}' is not Domain::Aggregate.query", phrase); return 1; }
     };
+    // Accept both the FQN head (`Domain::Aggregate`) and the BARE head
+    // (`Aggregate`) — mirroring command resolution, which resolves a bare
+    // `Aggregate.Command` as well as the qualified form. The aggregate name
+    // is the last `::` segment in either case ; the query match below filters
+    // by `a.name == agg` across the combined domain.
     let segments: Vec<&str> = head.split("::").collect();
-    if segments.len() != 2 {
-        eprintln!("storehouse query: '{}' is not a fully-qualified Domain::Aggregate.query phrase", phrase);
-        return 1;
-    }
-    let agg = segments[1];
+    let agg = match segments.as_slice() {
+        [_domain, aggregate] => *aggregate,
+        [aggregate] => *aggregate,
+        _ => {
+            eprintln!("storehouse query: '{}' is not an Aggregate.query or Domain::Aggregate.query phrase", phrase);
+            return 1;
+        }
+    };
 
     // Boot the conception's combined domain against per-domain world stores
     // so the query reads the same heki the matching command wrote.
@@ -109,5 +117,13 @@ mod tests {
     #[test]
     fn no_dot_is_not_a_query() {
         assert!(!is_query_phrase("NotAPhrase"));
+    }
+
+    #[test]
+    fn bare_aggregate_query_phrase_is_recognized() {
+        // A bare `Aggregate.query` (no Domain::) is still a query — query_route
+        // resolves it by aggregate name, mirroring bare command resolution.
+        assert!(is_query_phrase("Correspondent.needing_response"));
+        assert!(is_query_phrase("Story.runnable"));
     }
 }

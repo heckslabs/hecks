@@ -3423,9 +3423,13 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                         // Use the plan domain's world-declared heki dir so the
                         // projection's reads find records in plan/.heki, not
                         // miette-state/information. collect_world_heki_dirs
-                        // walks *.world files adjacent to agg_dir and maps
-                        // category → resolved heki path.
-                        let world_dirs = storehouse::world::attach::collect_world_heki_dirs(agg_dir);
+                        // must be rooted at the conception (it walks *.world
+                        // files recursively); plan.world is a SIBLING of the
+                        // dispatch root aggregates/plan, so rooting at agg_dir
+                        // misses it and falls back to the global info dir.
+                        // Mirrors run.rs + run_serve (both root at conception).
+                        let world_dirs = storehouse::world::attach::collect_world_heki_dirs(
+                            &storehouse::storehouse_router::conception_root());
                         let heki_dir = world_dirs.get("plan").cloned()
                             .or_else(|| storehouse::storehouse_router::info_dir());
                         if let Some(info_dir) = heki_dir {
