@@ -112,11 +112,20 @@ fn collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehousePhrase>) {
                     let domain = crate::parser::parse(&src);
                     if domain.name.is_empty() { continue; }
                     let path_str = p.to_string_lossy().into_owned();
+                    // The canonical runtime FQN uses the bluebook's CATEGORY
+                    // (e.g. "plan" → "Plan"), not its bluebook NAME (e.g.
+                    // "Story"). A use-case step phrase is `Plan::Story.Execute`
+                    // → normalized to `Plan.Story.Execute`, so domain_phrase
+                    // must lead with PascalCase(category) to ever match. Fall
+                    // back to the bluebook name when no category is declared.
+                    let domain_seg = domain.category.as_deref()
+                        .map(pascal_case_segments)
+                        .unwrap_or_else(|| domain.name.clone());
                     for agg in &domain.aggregates {
                         for cmd in &agg.commands {
                             out.push(StorehousePhrase {
                                 phrase: format!("{}.{}", agg.name, cmd.name),
-                                domain_phrase: format!("{}.{}.{}", domain.name, agg.name, cmd.name),
+                                domain_phrase: format!("{}.{}.{}", domain_seg, agg.name, cmd.name),
                                 bluebook_path: path_str.clone(),
                                 aggregate: agg.name.clone(),
                                 command: cmd.name.clone(),
@@ -127,6 +136,24 @@ fn collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehousePhrase>) {
             }
         }
     }
+}
+
+/// PascalCase a category slug: split on `_`, capitalize each segment,
+/// concatenate. `"plan" → "Plan"`, `"use_case" → "UseCase"`. The category
+/// is the runtime's domain segment in a fully-qualified phrase
+/// (`Plan::Story.Execute`), so the lexicon must build `domain_phrase` with
+/// this form for FQN step phrases to resolve.
+pub fn pascal_case_segments(slug: &str) -> String {
+    slug.split('_')
+        .filter(|s| !s.is_empty())
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_ascii_uppercase().to_string() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect()
 }
 
 /// Resolve the conception root (`hecks_conception/` directory).
@@ -195,4 +222,65 @@ pub fn world_heki_dir(bluebook_path: &str) -> Option<String> {
         .unwrap_or(resolved)
         .to_string_lossy()
         .into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pascal_case_single_word() {
+        assert_eq!(pascal_case_segments("plan"), "Plan");
+    }
+
+    #[test]
+    fn pascal_case_underscored() {
+        assert_eq!(pascal_case_segments("use_case"), "UseCase");
+    }
+
+    #[test]
+    fn pascal_case_empty_segments_skipped() {
+        assert_eq!(pascal_case_segments("_a__b_"), "AB");
+    }
+
+    #[test]
+    fn collect_builds_category_domain_phrase() {
+        // A bluebook with category "plan" and a "Story" aggregate must
+        // yield the FQN domain_phrase "Plan.Story.Execute" (the runtime's
+        // canonical form, written `Plan::Story.Execute` in step phrases),
+        // NOT the bluebook-name form "Story.Story.Execute".
+        let dir = std::env::temp_dir().join(format!("hecks_router_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let bb = dir.join("story.bluebook");
+        std::fs::write(&bb,
+            "Hecks.bluebook \"Story\" do\n  category \"plan\"\n  aggregate \"Story\", \"x\" do\n    command \"Execute\" do\n      emits \"StoryExecuted\"\n    end\n  end\nend\n").unwrap();
+        let mut out = Vec::new();
+        collect_recursive(&dir, &mut out);
+        let _ = std::fs::remove_dir_all(&dir);
+        let phrase = out.iter().find(|p| p.command == "Execute")
+            .expect("Execute phrase collected");
+        assert_eq!(phrase.domain_phrase, "Plan.Story.Execute");
+        assert_eq!(phrase.phrase, "Story.Execute");
+    }
+
+    #[test]
+    fn resolve_fqn_phrase_with_double_colon() {
+        // `Plan::Story.Execute` (the runtime FQN) normalizes to
+        // `Plan.Story.Execute` and resolves against the category-built
+        // domain_phrase. This is the GAP-1 acceptance: a 3-segment FQN
+        // step phrase resolves. Uses an isolated temp conception so the
+        // test never depends on the live tree's contents.
+        let root = std::env::temp_dir().join(format!("hecks_router_conc_{}", std::process::id()));
+        let agg_dir = root.join("aggregates").join("plan").join("story");
+        std::fs::create_dir_all(&agg_dir).unwrap();
+        std::fs::write(agg_dir.join("story.bluebook"),
+            "Hecks.bluebook \"Story\" do\n  category \"plan\"\n  aggregate \"Story\", \"x\" do\n    command \"Execute\" do\n      emits \"StoryExecuted\"\n    end\n  end\nend\n").unwrap();
+        let conception = root.to_string_lossy().into_owned();
+        let resolved = resolve("Plan::Story.Execute", &conception);
+        let _ = std::fs::remove_dir_all(&root);
+        let target = resolved.expect("Plan::Story.Execute resolves");
+        assert_eq!(target.aggregate, "Story");
+        assert_eq!(target.command, "Execute");
+        assert_eq!(target.domain_phrase, "Plan.Story.Execute");
+    }
 }

@@ -218,13 +218,17 @@ fn storehouse_lookup(args: &[String]) -> i32 {
 ///   "Domain.Aggregate.Command"    — three-segment, always specific
 fn storehouse_resolve(phrase: &str, conception: &str) -> Option<StorehousePhrase> {
     let phrases = storehouse_walk_phrases(conception);
-    let segments: Vec<&str> = phrase.split('.').collect();
+    // Normalize the canonical FQN Domain::Aggregate.Command (the runtime's
+    // form, e.g. use-case step phrases) to the dotted Domain.Aggregate.Command
+    // the lexicon stores as domain_phrase. Mirrors storehouse_router::resolve.
+    let normalized = phrase.replace("::", ".");
+    let segments: Vec<&str> = normalized.split('.').collect();
     if segments.len() == 2 {
         // Aggregate.Command — match against two-segment form
-        phrases.into_iter().find(|p| p.phrase == phrase)
+        phrases.into_iter().find(|p| p.phrase == normalized)
     } else if segments.len() == 3 {
         // Domain.Aggregate.Command — match against three-segment form
-        phrases.into_iter().find(|p| p.domain_phrase == phrase)
+        phrases.into_iter().find(|p| p.domain_phrase == normalized)
     } else {
         None
     }
@@ -262,11 +266,17 @@ fn storehouse_collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehouseP
                     let domain = storehouse::parser::parse(&src);
                     if domain.name.is_empty() { continue; }
                     let path_str = p.to_string_lossy().into_owned();
+                    // FQN phrases lead with the bluebook CATEGORY (e.g.
+                    // "plan" → "Plan"), not its NAME ("Story"). See the
+                    // identical fix in storehouse_router::collect_recursive.
+                    let domain_seg = domain.category.as_deref()
+                        .map(storehouse::storehouse_router::pascal_case_segments)
+                        .unwrap_or_else(|| domain.name.clone());
                     for agg in &domain.aggregates {
                         for cmd in &agg.commands {
                             out.push(StorehousePhrase {
                                 phrase: format!("{}.{}", agg.name, cmd.name),
-                                domain_phrase: format!("{}.{}.{}", domain.name, agg.name, cmd.name),
+                                domain_phrase: format!("{}.{}.{}", domain_seg, agg.name, cmd.name),
                                 bluebook_path: path_str.clone(),
                                 aggregate: agg.name.clone(),
                                 command: cmd.name.clone(),
