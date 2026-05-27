@@ -245,4 +245,11 @@ Hecks.behaviors "Sprint" do
     input  number: "7"
     expect state: "planned"
   end
+
+  test "SetWipLimit sets the sprint wip_limit" do
+    tests "SetWipLimit", on: "Sprint"
+    setup  "Plan", number: "6", goal: "WipTest"
+    input  number: "6", wip_limit: 3
+    expect wip_limit: 3
+  end
 end
