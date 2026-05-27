@@ -31,10 +31,11 @@ Hecks.bluebook "Session", version: "2026.05.13.1" do
   aggregate "Session", "A being-session — the bounded conversation that opens on SessionStart and closes on SessionEnd. Singleton-per-session ; the id identifies which conversation this is." do
     identified_by :id
 
-    attribute :id,         SessionId
-    attribute :state,      SessionState, default: "pending"
-    attribute :began_at,   Timestamp,    default: "—"
-    attribute :ended_at,   Timestamp,    default: "—"
+    attribute :id,              SessionId
+    attribute :state,           SessionState, default: "pending"
+    attribute :began_at,        Timestamp,    default: "—"
+    attribute :ended_at,        Timestamp,    default: "—"
+    attribute :last_rebuilt_at, Timestamp,    default: "—"
 
     # ── Value-objects : the domain's language ──
 
@@ -84,10 +85,47 @@ Hecks.bluebook "Session", version: "2026.05.13.1" do
       then_set :state,    to: "ended"
     end
 
+    command "RebuildContext" do
+      role "Framework"
+      description "Reconstruct working session context by QUERYING the storehouse — active sprint + board, in-progress cards, discipline decisions (which are cards), and recent commits — into the /tmp/session_recall.md surface the UserPromptSubmit hook reads on the next turn. The wake-ritual pattern extended from boot to mid-session : a /clear or compaction is RECOVERABLE because context is regenerated from durable state, not the lossy conversation window. Pure command — it stamps last_rebuilt_at and emits ContextRebuilt ; the RunRecallOnContextRebuilt policy fans out the actual reconstruction to the session-recall program via the generic Process.Spawn primitive (adapters-as-bluebook, the same shape Inbox.Check uses). Callable on demand through the door (storehouse__dispatch Session::Session.RebuildContext) AND fired by the SessionStart hook on every clear/restart. Identity-light : it does not depend on a prior Begin, so it works on a cold boot before any session lifecycle exists."
+      attribute :rebuilt_at, Timestamp
+      emits "ContextRebuilt"
+      then_set :last_rebuilt_at, to: :rebuilt_at
+    end
+
     lifecycle :state, default: "pending" do
       transition "Begin" => "active", from: ["pending", "ended"]
       transition "End"   => "ended",  from: "active"
     end
+  end
+
+  # ── Context rebuild, as ordinary bluebook (adapters-as-bluebook) ──
+  #
+  # RebuildContext is a pure command : it stamps last_rebuilt_at and
+  # emits ContextRebuilt. The side-effect — running the real recall
+  # reconstruction — is the same Process.Spawn pattern Inbox uses for
+  # its Gmail poll. When RebuildContext emits ContextRebuilt, this
+  # policy fires the generic process-spawn primitive with the literal
+  # program string and the cascade landing pad. The runtime's one
+  # generic primitive hook runs bin/session-recall — which itself
+  # QUERIES the storehouse (Plan::Sprint.list_all, Plan::Story.board)
+  # and renders /tmp/session_recall.md — and chains (id, output,
+  # exit_code, ok) into Cascade.RecordResult.
+  #
+  #   policy → Primitive::Process.Spawn → Cascade.RecordResult
+  #
+  # Unlike ComposeWakeReviewOnSessionBegan (which targets a Rust route
+  # that is not a bluebook command and so cannot be qualified-resolved),
+  # the trigger here is Primitive::Process.Spawn — a real bluebook
+  # command in the Primitive domain — so the qualified cross-bluebook
+  # trigger resolves cleanly, exactly as Inbox's RunPollOnInboxChecked
+  # does. cmd is an absolute path so the spawn resolves identically
+  # whichever cwd the SessionStart hook or a manual dispatch fires from.
+  policy "RunRecallOnContextRebuilt" do
+    on "Session.ContextRebuilt"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "/Users/christopheryoung/Projects/hecks/bin/session-recall"
+    with "result_into", "Cascade.RecordResult"
   end
 
   # ── Reactor wiring ──
