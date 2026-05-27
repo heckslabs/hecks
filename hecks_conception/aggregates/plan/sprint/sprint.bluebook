@@ -29,8 +29,13 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
     attribute :project,             Project
 
     # ---- Membership ----
-    # story_refs : committed stories promoted into this sprint.
+    # story_refs    : committed (planned) stories promoted into this sprint
+    #                 while it is planned. Frozen once active (rule #5).
+    # unplanned_refs: explicit preempts added WHILE active (AddUnplanned).
+    # Completion reads both lists — the record distinguishes planned from
+    # unplanned work done in the sprint.
     attribute :story_refs,          list_of(StoryRef)
+    attribute :unplanned_refs,      list_of(StoryRef)
 
     # ---- Lifecycle ----
     # state: planned | active | ready_for_closure | completed
@@ -148,8 +153,19 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       description "Append a story ref to the sprint's committed membership list. The sprint must exist; the story is promoted into this sprint."
       reference_to(Sprint)
       attribute :story_ref, StoryRef
+      given("planned scope freezes once active — only AddUnplanned may add to an active sprint (rule #5)") { state == "planned" }
       then_set :story_refs, append: :story_ref
       emits "StoryAddedToSprint"
+    end
+
+    command "AddUnplanned" do
+      role "Miette"
+      description "Attach an UNPLANNED story to the active sprint — an explicit preempt. Recorded on unplanned_refs (separate from the planned story_refs) so the completion record distinguishes planned from unplanned work. Allowed ONLY while the sprint is active : the sanctioned way work enters an active sprint, counterpart to AddStory's planned-scope freeze (rule #5)."
+      reference_to(Sprint)
+      attribute :story_ref, StoryRef
+      given("unplanned work preempts only an active sprint") { state == "active" }
+      then_set :unplanned_refs, append: :story_ref
+      emits "UnplannedStoryAdded"
     end
 
     command "Reorder" do
