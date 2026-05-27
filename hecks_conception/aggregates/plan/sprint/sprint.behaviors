@@ -213,4 +213,20 @@ Hecks.behaviors "Sprint" do
     expect emits: ["SprintExecuted"]
   end
 
+
+  test "Reopen un-closes a completed sprint and resets criteria" do
+    tests "Reopen", on: "Sprint"
+    setup  "Plan", number: "9", goal: "ReopenTest"
+    setup  "Activate", number: "9"
+    setup  "MarkAllStoriesDone", number: "9"
+    setup  "MarkMergedToMain", number: "9"
+    setup  "MarkCiPassing", number: "9"
+    setup  "MarkSummaryDrafted", number: "9"
+    setup  "MarkWorktreesPruned", number: "9"
+    setup  "MarkPrsForOpenBranches", number: "9"
+    setup  "RequestClosure", number: "9"
+    setup  "Approve", number: "9"
+    input  number: "9"
+    expect state: "active", all_stories_done: false
+  end
 end
