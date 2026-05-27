@@ -237,4 +237,12 @@ Hecks.behaviors "Sprint" do
     input  number: "8"
     expect state: "cancelled"
   end
+
+  test "Deactivate returns an active sprint to planned" do
+    tests "Deactivate", on: "Sprint"
+    setup  "Plan", number: "7", goal: "DeactTest"
+    setup  "Activate", number: "7"
+    input  number: "7"
+    expect state: "planned"
+  end
 end
