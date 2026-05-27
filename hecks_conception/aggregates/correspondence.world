@@ -1,0 +1,22 @@
+Hecks.world "Correspondence" do
+  # WHERE the correspondence domain's heki store lives.
+  #
+  # Three-layer persistence (the locked convention):
+  #   1. memory  — the runtime default ; behaviors run here, no disk.
+  #   2. :heki    — the production override, wired in
+  #                correspondence.hecksagon (adapter :heki).
+  #   3. .world   — supplies the LOCATION the :heki adapter writes to.
+  #
+  # Pin: the per-domain resolver in find_world_heki_dir maps
+  # category "correspondence" (declared in correspondence.bluebook)
+  # to this file, so the ledger lands in the same .heki dir regardless
+  # of which dispatch root triggered the command. That is the
+  # corr-single-store fix (i732).
+  #
+  # The dir must already exist or the runtime falls back to the info
+  # dir (cold-path leak, i732 — requires the unstaged find_world_heki_dir
+  # fix to land before this pin is fully active).
+  heki do
+    dir "correspondence/.heki"
+  end
+end

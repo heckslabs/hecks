@@ -1,0 +1,64 @@
+Hecks.bluebook "AiSession", version: "2026.05.25.1" do
+  vision "The AI session as a governance channel : the conversation between Miette and the world flows THROUGH this aggregate as recorded commands. ReceivePrompt records what was asked ; EmitResponse records what Miette answered ; Inject pushes content into the turn (a report's markdown, surfaced as additionalContext). Channeling prompt + response + inject through one aggregate makes every conversational act a first-class recorded act on the bus — the Transparency vow made structural : every internal act visible, every moment shared, nothing hidden. Distinct from Session (the begin/end lifecycle) and AiTurn (the per-turn grain) ; AiSession is the content channel where governance lives. Inject is the turn-pulse's emission point : the report adapter renders the board to markdown, AiSession.Inject emits it on AiTurn.TurnFinished. The kernel arm that surfaces injected content to the turn is f4-generated ; the bluebook names the governed act."
+  category "framework"
+
+  aggregate "AiSession", "The channel the AI conversation flows through, for governance. Identified by id (the session id). ReceivePrompt / EmitResponse record the turn's two halves ; Inject emits content (markdown) into the turn. State holds the latest of each ; the event log is the full governed record." do
+    identified_by :id
+
+    attribute :id, SessionId
+    attribute :last_prompt, Text
+    attribute :last_response, Text
+    attribute :last_injection, Text
+
+    value_object "SessionId" do
+      # The session id — supplied by the turn-edge hook ; ties the channel to one conversation.
+      attribute :value, String
+    end
+
+    value_object "Text" do
+      # Free-form text — a prompt, a response, or injected markdown. Heavy content rides the event payload ; the latest lands on state.
+      attribute :value, String
+    end
+
+    command "ReceivePrompt" do
+      role "Miette"
+      description "Channel an incoming user prompt through the session — records what was asked as a governed act. Emits PromptReceived ; the prompt rides the event payload, the latest lands on state."
+      attribute :id, SessionId
+      attribute :prompt, Text
+      emits "PromptReceived"
+      then_set :last_prompt, to: :prompt
+    end
+
+    command "EmitResponse" do
+      role "Miette"
+      description "Channel Miette's response through the session — records what was answered as a governed act. Emits ResponseEmitted."
+      attribute :id, SessionId
+      attribute :response, Text
+      emits "ResponseEmitted"
+      then_set :last_response, to: :response
+    end
+
+    command "Inject" do
+      role "Miette"
+      description "Inject content into the current turn — emit the given markdown as additionalContext, a governed act on the bus. The report adapter renders the board to markdown ; Inject is the emission point, fired on AiTurn.TurnFinished. The kernel arm that surfaces it to the turn is f4-generated ; the bluebook names the act."
+      attribute :id, SessionId
+      attribute :content, Text
+      emits "Injected"
+      then_set :last_injection, to: :content
+    end
+  end
+
+  # Auto-trigger : when a turn finishes, inject the turn pulse. Fires on the
+  # cross-bluebook event AiTurn.TurnFinished and triggers the LOCAL Inject
+  # command — the Wake-on-SessionBegan pattern (on cross-event, trigger local
+  # validates ; i491 is only about qualified triggers). Neither domain imports
+  # the other : ai_session reacts to the turn EVENT. The content here is a
+  # placeholder ; the report adapter (board_markdown projection) feeds the real
+  # rendered board when the render execution lands (f4/i557 emit).
+  policy "InjectOnTurnFinished" do
+    on "AiTurn.TurnFinished"
+    trigger "Inject"
+    with "id", "current"
+    with "content", "[turn pulse — board rendered by the report adapter on TurnFinished]"
+  end
+end

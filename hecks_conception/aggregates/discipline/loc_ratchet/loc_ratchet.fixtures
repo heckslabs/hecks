@@ -7,12 +7,19 @@ Hecks.fixtures "LocRatchet" do
   #
   # Leave room for a future `deploy` grow concern alongside these.
   aggregate "Concern" do
+    # core_runtime baseline re-based from "" (compare-against-base-ref) to a
+    # pinned floor of 31460 — the f4 invariant wiring (ec1b2edf + the
+    # `pub mod invariants;` crate decl) grows core_runtime by an irreducible
+    # +31 of call-site / IR / parser-branch wiring (the evaluator itself lives
+    # in the `invariants` GROW concern below). Owner-blessed as the new floor
+    # rather than a [loc-ratchet-override:] : the shrink gate now ratchets
+    # down from 31460, so future growth past it still fails.
     fixture "core_runtime",
             name:       "core_runtime",
             path:       "rust/src",
             extensions: "rs",
             direction:  "shrink",
-            baseline:   ""
+            baseline:   "31460"
 
     fixture "codegen",
             name:       "codegen",
@@ -47,6 +54,30 @@ Hecks.fixtures "LocRatchet" do
     fixture "adapter_resolution",
             name:       "adapter_resolution",
             path:       "rust/src/adapter_resolution",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
+
+    # invariants — the f4 aggregate-level invariant evaluator. Carved out
+    # of core_runtime (longest-prefix-match) and allowed to grow, because
+    # the invariant DSL is the contract and the evaluator Rust is a thin
+    # mechanical reuse of the existing `given` predicate machinery. Grows
+    # with the f4 rule surface rather than fighting core_runtime's shrink.
+    fixture "invariants",
+            name:       "invariants",
+            path:       "rust/src/invariants",
+            extensions: "rs",
+            direction:  "grow",
+            baseline:   ""
+
+    # corpus_loader — the bluebook-discovery walk (collect_bluebooks) and
+    # organ-wins merge (i108/i126/i143). Carved out of core_runtime so the
+    # walk can evolve alongside the bluebook tree layout (sibling roots,
+    # bucket walk, miette inclusion) without fighting the shrink gate.
+    # The contract IS the bluebook tree shape ; the loader is its reader.
+    fixture "corpus_loader",
+            name:       "corpus_loader",
+            path:       "rust/src/corpus_loader",
             extensions: "rs",
             direction:  "grow",
             baseline:   ""

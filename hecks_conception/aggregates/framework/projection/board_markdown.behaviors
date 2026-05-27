@@ -1,0 +1,15 @@
+Hecks.behaviors "BoardMarkdownProjector" do
+  vision "Behavioral tests for the board markdown projector — RenderBoard captures the emitted markdown on last_render and emits BoardRendered. The render walk is the emitted arm ; these assert the contract's record + emit shape."
+
+  test "RenderBoard records the markdown" do
+    tests "RenderBoard", on: "BoardMarkdownProjector"
+    input markdown: "board-md", record_count: 2
+    expect last_render: "board-md"
+  end
+
+  test "RenderBoard emits BoardRendered" do
+    tests "RenderBoard", on: "BoardMarkdownProjector"
+    input markdown: "x", record_count: 1
+    expect emits: ["BoardRendered"]
+  end
+end

@@ -1,4 +1,4 @@
-Hecks.world "Planning" do
+Hecks.world "Plan" do
   # WHERE the planning domain's heki store lives.
   #
   # Three-layer persistence (the locked convention):
@@ -11,6 +11,6 @@ Hecks.world "Planning" do
   # dispatched at its own root (aggregates/planning). The dir must already
   # exist or the runtime falls back to the info dir (cold-path leak, i732).
   heki do
-    dir "planning/.heki"
+    dir "plan/.heki"
   end
 end

@@ -1,0 +1,43 @@
+Hecks.behaviors "Task" do
+  vision "Behavioral tests for Task — tracked steps under a Story. AddTask captures (todo) ; CompleteTask closes (done) ; ByStory / Open query the task list."
+
+  test "AddTask captures a step as todo" do
+    tests "AddTask", on: "Task"
+    input ref: "tp-1", story_ref: "turn-pulse", order: 1, description: "Board query on Story"
+    expect status: "todo"
+  end
+
+  test "AddTask emits TaskAdded" do
+    tests "AddTask", on: "Task"
+    input ref: "tp-1", story_ref: "turn-pulse", order: 1, description: "Board query on Story"
+    expect emits: ["TaskAdded"]
+  end
+
+  test "CompleteTask marks done" do
+    tests "CompleteTask", on: "Task"
+    setup "AddTask", ref: "tp-1", story_ref: "turn-pulse", order: 1, description: "Board query on Story"
+    input ref: "tp-1"
+    expect status: "done"
+  end
+
+  test "ByStory returns tasks for a story" do
+    tests "ByStory", on: "Task", kind: :query
+    setup "AddTask", ref: "tp-1", story_ref: "turn-pulse", order: 1, description: "Board query on Story"
+    input story_ref: "turn-pulse"
+    expect count: 1
+  end
+
+  test "Open returns todo tasks" do
+    tests "Open", on: "Task", kind: :query
+    setup "AddTask", ref: "tp-1", story_ref: "turn-pulse", order: 1, description: "Board query on Story"
+    expect count: 1
+  end
+
+  test "Reopen returns a done task to todo" do
+    tests "Reopen", on: "Task"
+    setup "AddTask", ref: "tp-1", story_ref: "turn-pulse", order: 1, description: "x"
+    setup "CompleteTask", ref: "tp-1"
+    input ref: "tp-1"
+    expect status: "todo"
+  end
+end

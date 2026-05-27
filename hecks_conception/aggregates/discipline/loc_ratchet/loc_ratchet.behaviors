@@ -15,12 +15,18 @@ Hecks.behaviors "LocRatchet" do
 
   test "ListConcerns surfaces every seeded concern" do
     tests "ListConcerns", on: "Concern", kind: :query
-    expect count: 5
+    expect count: 7
   end
 
   test "ListConcerns includes the codegen grow concern carving the specializer out of core_runtime" do
     tests "ListConcerns", on: "Concern", kind: :query
     setup  "RegisterConcern", name: "codegen", path: "rust/src/specializer", extensions: "rs", direction: "grow", baseline: ""
     expect includes: { name: "codegen", direction: "grow" }
+  end
+
+  test "ListConcerns includes the invariants grow concern carving the f4 evaluator out of core_runtime" do
+    tests "ListConcerns", on: "Concern", kind: :query
+    setup  "RegisterConcern", name: "invariants", path: "rust/src/invariants", extensions: "rs", direction: "grow", baseline: ""
+    expect includes: { name: "invariants", direction: "grow" }
   end
 end

@@ -1,0 +1,149 @@
+Hecks.bluebook "UseCase", version: "2026.05.25.1" do
+  vision "The generator the Story Start-policy triggers. When a Story is started, the first thing that happens is generating use cases — this aggregate records one generated use case for a story. A UseCase carries an ordered list of Steps (phrase + args), composed via ComposeStep and executed via Run. The LLM/codegen content behind generation is an adapter hook (TBD, future); v1 records the use case via the bus so the cascade is real and observable. Execute a whole story's use cases via `storehouse execute <story_ref>`."
+  category "plan"
+
+  # ============================================================
+  # USE CASE — one generated use case anchored to a Story
+  # ============================================================
+  #
+  # A UseCase is created when the GenerateOnStart policy fires in
+  # response to a StoryStarted event. The parent wires that policy
+  # centrally; this aggregate has no policy block itself.
+  #
+  # Shape:
+  #   id         — caller-minted UUID (fallback to storehouse UUID)
+  #   story_ref  — the Story this use case was generated for
+  #   title      — one-line description of the scenario
+  #   narrative  — structured "As a … I … so that …" text
+  #   status     — "generated" | "ran"
+  #   steps      — ordered list of Steps (phrase + args)
+  #
+  # Query ForStory surfaces all use cases for a story (by story_ref).
+  # ComposeStep appends a step; Run stamps status=ran and emits UseCaseRan.
+  # The runtime `storehouse execute <story_ref>` reads ForStory, sorts each
+  # use case's steps, dispatches each step, then calls Run per use case.
+  #
+  aggregate "UseCase", "One generated use case anchored to a Story — records the scenario title, narrative, generation status, and an ordered list of runnable Steps so the cascade is real and observable." do
+    identified_by :id
+
+    attribute :id,        Id
+    attribute :story_ref, StoryRef
+    attribute :title,     Title
+    attribute :narrative, Narrative
+    attribute :status,    Status, default: "generated"
+    attribute :steps,     list_of(Step)
+
+    value_object "Id" do
+      # Caller-minted UUID identifying this use case. The storehouse
+      # provides a UUID fallback when the caller omits the field.
+      attribute :value, String
+    end
+
+    value_object "StoryRef" do
+      # The id of the Story this use case was generated for.
+      # Used by ForStory to group related use cases together.
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # One-line scenario title, e.g. "Deploy the warm runtime".
+      attribute :value, String
+    end
+
+    value_object "Narrative" do
+      # Structured scenario text, typically
+      # "As a <role> I <action> so that <outcome>."
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle marker. "generated" → "ran" after Run executes.
+      attribute :value, String
+    end
+
+    value_object "StepOrder" do
+      # 0-based position of a Step in the sequence. The runner sorts
+      # by this before dispatching, so out-of-order ComposeStep calls
+      # still execute in correct sequence.
+      attribute :value, Integer
+    end
+
+    value_object "Phrase" do
+      # A fully-qualified bluebook command phrase this Step dispatches —
+      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
+      # execution time. Byte-identical to Storehouse::Story.Phrase so
+      # story_sorted_steps/story_args_to_tokens helpers work across both.
+      attribute :value, String
+    end
+
+    value_object "Args" do
+      # The Step k=v argument bag as a JSON-object string ("{}") for no
+      # args). Unpacked into route argv tokens at execution time.
+      attribute :value, String
+    end
+
+    value_object "StepCount" do
+      # How many steps this UseCase executed. Carried on UseCaseRan so
+      # downstream reactors know the sequence length without re-reading.
+      attribute :value, Integer
+    end
+
+    # ── Step entity ─────────────────────────────────────────────
+    # Byte-identical shape to Storehouse::Story.Step so the shared
+    # story_runtime helpers (story_sorted_steps, story_args_to_tokens)
+    # work without modification: reads "phrase" key from heki JSON.
+    entity "Step" do
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
+    end
+
+    command "Generate" do
+      role "System"
+      description "Record a generated use case for a story. Called by the GenerateOnStart policy when a StoryStarted event fires. Sets all fields and emits UseCaseGenerated so downstream policies can react."
+      attribute :id,        Id
+      attribute :story_ref, StoryRef
+      attribute :title,     Title
+      attribute :narrative, Narrative
+      then_set :id,        to: :id
+      then_set :story_ref, to: :story_ref
+      then_set :title,     to: :title
+      then_set :narrative, to: :narrative
+      then_set :status,    to: "generated"
+      emits "UseCaseGenerated"
+    end
+
+    command "ComposeStep" do
+      role "Miette"
+      description "Append one ordered Step to the UseCase — a (order, phrase, args) triple. The runner sorts by order before dispatching, so out-of-order ComposeStep calls still execute in correct sequence."
+      reference_to(UseCase)
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
+      then_set :steps, append: { order: :order, phrase: :phrase, args: :args }
+      emits "UseCaseStepComposed"
+    end
+
+    command "ClearSteps" do
+      role "Miette"
+      description "Reset the use case's steps list to empty so it can be re-composed. ComposeStep only appends ; ClearSteps is the amend primitive that lets an author replace a use case's step sequence — e.g. swap a proxy step for one that genuinely exercises the card. No lifecycle change."
+      reference_to(UseCase)
+      then_set :steps, to: []
+      emits "UseCaseStepsCleared"
+    end
+
+    command "Run" do
+      role "System"
+      description "Stamp this use case as ran and emit UseCaseRan with step_count. Pure command — the actual per-step dispatch is the runtime's projection (storehouse execute). Called by the runtime after all steps complete successfully."
+      reference_to(UseCase)
+      attribute :step_count, StepCount
+      then_set :status, to: "ran"
+      emits "UseCaseRan"
+    end
+
+    query "ForStory" do
+      description "All use cases for a given story. Returns UseCase records scoped by the caller-supplied story_ref — allows many use cases per story."
+      where story_ref: :story_ref
+    end
+  end
+end

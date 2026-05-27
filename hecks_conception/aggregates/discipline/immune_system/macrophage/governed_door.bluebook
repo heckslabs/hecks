@@ -1,0 +1,65 @@
+Hecks.bluebook "GovernedDoor", version: "2026.05.26.1" do
+  vision "The GovernedDoor rule of the immune system — the macrophage sibling that makes governance structural instead of vigilant. A native harness tool (Bash, Edit, Write, Read, Grep, Glob, MultiEdit, NotebookEdit, WebFetch, WebSearch) emits NO bus event, so an act made through it is ungoverned — invisible to the dispatch log, outside the Transparency vow. Each such tool has a storehouse-door equivalent (Tools::ShellTool.Bash, Tools::FileTool.Edit/Update/Read, Tools::SearchTool.Grep/Glob, Tools::WebTool.WebFetch/WebSearch). This aggregate is the registry of that mapping and the audit trail of blocks. Its enforcement SURFACE is the PreToolUse hook bin/governed-door-hook, which hard-blocks a native IO tool (exit 2) and redirects the caller to the door. Control-plane tools (Agent, Task*, advisor, AskUserQuestion, ToolSearch) and mcp__storehouse__* are NOT governed here — they orchestrate, they do not act on the world."
+  category "discipline"
+
+  aggregate "GovernedDoor", "One governed native tool, its storehouse-door equivalent, and the running count of times the macrophage blocked it. The bluebook of record for what bin/governed-door-hook enforces." do
+    identified_by :tool
+
+    attribute :tool,            ToolName
+    attribute :door_equivalent, DoorPhrase
+    attribute :severity,        Severity,     default: "block"
+    attribute :blocked_count,   BlockedCount, default: 0
+    attribute :last_blocked_at, Timestamp
+
+    value_object "ToolName" do
+      # The native harness tool name as it arrives in the PreToolUse
+      # payload's tool_name field (e.g. "Bash", "Edit", "Read").
+      attribute :value, String
+    end
+
+    value_object "DoorPhrase" do
+      # The fully-qualified storehouse-door command the caller must use
+      # instead (e.g. "Tools::ShellTool.Bash").
+      attribute :value, String
+    end
+
+    value_object "Severity" do
+      # "block" (hard-stop via PreToolUse exit 2) or "warn" (surface a
+      # complaint without stopping). GovernedDoor rules are "block".
+      attribute :value, String
+    end
+
+    value_object "BlockedCount" do
+      # How many times the hook blocked this native tool — the audit tally.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "Miette"
+      description "Register a native tool as governed, with the storehouse-door command that replaces it. The creation command — the rule does not exist until Register fires."
+      attribute :tool,            ToolName
+      attribute :door_equivalent, DoorPhrase
+      then_set :tool,            to: :tool
+      then_set :door_equivalent, to: :door_equivalent
+      then_set :severity,        to: "block"
+      emits "GovernedToolRegistered"
+    end
+
+    command "RecordBlock" do
+      role "Hook"
+      description "The PreToolUse hook recorded a block of this native tool. Increments blocked_count and stamps last_blocked_at — the audit trail of ungoverned attempts. No lifecycle change."
+      reference_to(GovernedDoor)
+      attribute :last_blocked_at, Timestamp
+      then_set :last_blocked_at, to: :last_blocked_at
+      emits "NativeToolBlocked"
+    end
+
+    query "ListAll" do
+      description "Every governed native tool and its door equivalent — the mapping bin/governed-door-hook enforces."
+    end
+  end
+end

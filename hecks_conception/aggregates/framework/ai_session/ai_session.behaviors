@@ -1,0 +1,39 @@
+Hecks.behaviors "AiSession" do
+  vision "Behavioral tests for AiSession — the governance channel. ReceivePrompt / EmitResponse / Inject each record their text and emit their event ; the assertions cover the state-write + emit contract that makes every conversational act a recorded act on the bus."
+
+  test "ReceivePrompt records the prompt" do
+    tests "ReceivePrompt", on: "AiSession"
+    input id: "s1", prompt: "whats on the board?"
+    expect last_prompt: "whats on the board?"
+  end
+
+  test "ReceivePrompt emits PromptReceived" do
+    tests "ReceivePrompt", on: "AiSession"
+    input id: "s1", prompt: "x"
+    expect emits: ["PromptReceived"]
+  end
+
+  test "EmitResponse records the response" do
+    tests "EmitResponse", on: "AiSession"
+    input id: "s1", response: "44 stories on the board"
+    expect last_response: "44 stories on the board"
+  end
+
+  test "EmitResponse emits ResponseEmitted" do
+    tests "EmitResponse", on: "AiSession"
+    input id: "s1", response: "x"
+    expect emits: ["ResponseEmitted"]
+  end
+
+  test "Inject records the injected content" do
+    tests "Inject", on: "AiSession"
+    input id: "s1", content: "## pulse"
+    expect last_injection: "## pulse"
+  end
+
+  test "Inject emits Injected" do
+    tests "Inject", on: "AiSession"
+    input id: "s1", content: "x"
+    expect emits: ["Injected"]
+  end
+end

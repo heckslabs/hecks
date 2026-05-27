@@ -127,7 +127,15 @@ pub fn run_script(args: &[String]) -> i32 {
     }).collect();
 
     let registry = AdapterRegistry::from_hecksagon(hex);
-    let data_dir = infer_data_dir(path);
+    // Resolve the per-domain world store by the bluebook category (the same
+    // mapping the StoryExecuted projection uses) so a step dispatched here
+    // boots against e.g. plan/.heki, not the global info dir - else a command
+    // targeting plan-store data cannot find its aggregate. Falls back to
+    // infer_data_dir when the bluebook declares no world store.
+    let data_dir = domain.category.as_ref()
+        .and_then(|cat| crate::world::attach::collect_world_heki_dirs(
+            &crate::storehouse_router::conception_root()).get(cat).cloned())
+        .or_else(|| infer_data_dir(path));
     let mut rt = Runtime::boot_with_data_dir(domain, data_dir);
 
     // Stdin-loop capability detection: when the hecksagon declares both
@@ -177,7 +185,53 @@ pub fn run_script(args: &[String]) -> i32 {
     }
 
     match rt.dispatch(&entrypoint, attrs) {
-        Ok(_) => ExitKind::Ok.code(),
+        Ok(result) => {
+            // Runtime projection of StoryExecuted — the operator dispatches
+            // `Plan::Story.Execute` through the door; when it emits
+            // `StoryExecuted` the projection runs the story's use cases.
+            // The story_ref lives on event.aggregate_id (Story is identified_by
+            // :ref, so aggregate_id IS the ref). No Story.Execute tail-call
+            // inside the runner — that command is already done.
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(ref ev) = result.event {
+                // Prefer the world-declared heki dir (the plan domain's
+                // .heki) over the global info dir so the projection's reads
+                // find the records the plan world persists. Falls back to
+                // global info_dir when no adjacent .world file is found.
+                let heki_dir = || crate::storehouse_router::world_heki_dir(path)
+                    .or_else(crate::storehouse_router::info_dir);
+                // Runtime projection of StoryExecuted — dispatching
+                // `Plan::Story.Execute` runs the story's use cases. The
+                // story_ref IS event.aggregate_id (Story is identified_by
+                // :ref). No Story.Execute tail-call — that command is done.
+                if ev.name == "StoryExecuted" {
+                    match heki_dir() {
+                        Some(dir) => {
+                            let exit = crate::story_runtime::storehouse_execute(
+                                &ev.aggregate_id, &dir, crate::storehouse_router::route);
+                            if exit != 0 { return exit; }
+                        }
+                        None => eprintln!("[StoryExecuted] cannot resolve heki dir — use cases not run"),
+                    }
+                }
+                // Runtime projection of SprintExecuted — fan out over the
+                // sprint's stories (Story.sprint == sprint number) and run
+                // each story's use cases DIRECTLY (not by re-dispatching
+                // Plan::Story.Execute, which would double-run). The sprint
+                // number IS event.aggregate_id (Sprint identified_by :number).
+                else if ev.name == "SprintExecuted" {
+                    match heki_dir() {
+                        Some(dir) => {
+                            let exit = crate::story_runtime::sprint_execute(
+                                &ev.aggregate_id, &dir, crate::storehouse_router::route);
+                            if exit != 0 { return exit; }
+                        }
+                        None => eprintln!("[SprintExecuted] cannot resolve heki dir — stories not run"),
+                    }
+                }
+            }
+            ExitKind::Ok.code()
+        }
         Err(crate::runtime::RuntimeError::UnknownCommand(_)) => {
             eprintln!("storehouse run: entrypoint {} not found in {}", entrypoint, path);
             ExitKind::CommandNotFound.code()

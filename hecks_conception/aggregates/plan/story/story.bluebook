@@ -1,6 +1,6 @@
-Hecks.bluebook "Story", version: "2026.05.24.7" do
+Hecks.bluebook "Story", version: "2026.05.25.3" do
   vision "A Story is the work unit of the Planning domain — a user story whose ordered steps are forwarded commands dispatched through the storehouse. Each Story references an inbox card (via target) and carries a sequence of Steps (entity: order + command phrase + args). Dispatching the Story Forward command is the act of running its mapped steps through the bus in order. The lifecycle walks backlog → in_sprint → started → ready_for_review → done, with deferred as a side exit from backlog. Done is only reachable through Approve (Operator role) from ready_for_review. MarkReady is the author signal that the done_criterion is satisfied and all use cases ran; Approve is the gated human confirmation. Stories are first-class — captured, composed, forwarded, marked ready, approved, and done as domain records, not hand-written briefs."
-  category "planning"
+  category "plan"
 
   aggregate "Story", "A user story with an ordered list of forwarded commands — the work unit of the Planning domain" do
     identified_by :ref
@@ -22,6 +22,13 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
 
     # ---- Lifecycle ----
     attribute :state,          State, default: "backlog"
+
+    # ---- Verification (f4 done-is-done) ----
+    # True once Verify has confirmed the done_criterion actually holds (for
+    # "callable", that the target resolves as a dispatchable verb). The
+    # `ready_means_verified` invariant gives this teeth: a Story may not
+    # enter ready_for_review or done unless verified is true.
+    attribute :verified,       Verified, default: false
 
     # ---- Definition of done ----
     # The done_criterion declares WHAT must be true before MarkReady is valid:
@@ -89,6 +96,13 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       attribute :value, String
     end
 
+    value_object "Verified" do
+      # Done-is-done flag (f4). False until Verify confirms the
+      # done_criterion holds ; the ready_means_verified invariant requires
+      # it true before the Story may enter ready_for_review or done.
+      attribute :value, Boolean
+    end
+
     value_object "DoneCriterion" do
       # The definition-of-done primitive. Allowed values:
       #   "callable" — the story target verb resolves through storehouse
@@ -111,7 +125,7 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
 
     value_object "CommandPhrase" do
       # A fully-qualified bluebook command phrase this Step dispatches —
-      # e.g. "Planning::Story.Forward". Fed into storehouse_resolve at
+      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
       # execution time.
       attribute :value, String
     end
@@ -125,6 +139,13 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
     value_object "StepCount" do
       # How many steps this Story forwarded. Carried on StoryForwarded so
       # downstream reactors know the sequence length without re-reading steps.
+      attribute :value, Integer
+    end
+
+    value_object "UseCaseCount" do
+      # How many use cases were executed. Carried on StoryExecuted so
+      # downstream reactors know the acceptance scenario count without
+      # re-reading the UseCase store.
       attribute :value, Integer
     end
 
@@ -190,6 +211,17 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       emits "StoryCaptured"
     end
 
+    command "Reword" do
+      role "Miette"
+      description "Amend a story's content — re-describe its title and summary — without touching its lifecycle. Capture is gated to backlog (it mints + resets state), so once a story is in_sprint/started its description was un-editable ; Reword closes that gap. Pure content mutation : no state transition, valid from any state. Used to update a card's title/summary as the design firms up."
+      reference_to(Story)
+      attribute :title,   Title
+      attribute :summary, Summary
+      then_set :title,   to: :title
+      then_set :summary, to: :summary
+      emits "StoryReworded"
+    end
+
     command "AssignToSprint" do
       role "Miette"
       description "Move a backlog story into a sprint. Records the sprint_ref so the story is owned by a sprint slot."
@@ -197,6 +229,7 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       attribute :sprint_ref, SprintRef
       then_set :sprint,      to: :sprint_ref
       then_set :state,       to: "in_sprint"
+      given("sprint_ref must be named") { sprint_ref != "" }
       emits "StoryAssignedToSprint"
     end
 
@@ -245,6 +278,7 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       role "Miette"
       description "Begin work on a story that has been assigned to a sprint. Moves it from in_sprint to started."
       reference_to(Story)
+      given("story must be on a sprint board") { sprint != "" }
       emits "StoryStarted"
     end
 
@@ -253,12 +287,30 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure: it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime projection of StoryForwarded."
       reference_to(Story)
       attribute :step_count, StepCount
+      given("story must be on a sprint board") { sprint != "" }
       emits "StoryForwarded"
+    end
+
+    command "Execute" do
+      role "System"
+      description "The operator entry for running a story's use-case acceptance scenarios. Dispatching Plan::Story.Execute through the bus emits StoryExecuted with use_case_count; the runtime projection of StoryExecuted reads Plan::UseCase.ForStory, sorts each use case's steps, dispatches each step, and calls UseCase.Run per use case. Dispatch IS the act — no CLI side-channel. Orthogonal to Forward: Forward runs the story's own work-steps; Execute runs the use-case acceptance layer."
+      reference_to(Story)
+      attribute :use_case_count, UseCaseCount
+      emits "StoryExecuted"
+    end
+
+    command "Verify" do
+      role "Miette"
+      description "Confirm the done_criterion actually holds before the story can be marked ready. For criterion=callable this asserts the story's target resolves as a dispatchable verb through the storehouse (here: the target is set and addressable); the caller proves true dispatchability by actually dispatching the target. Sets verified to true so the ready_means_verified invariant lets MarkReady through. No lifecycle change — Verify is the gate that arms MarkReady, not a transition."
+      reference_to(Story)
+      given("target must resolve as a dispatchable verb") { target != "" }
+      then_set :verified, to: true
+      emits "StoryVerified"
     end
 
     command "MarkReady" do
       role "Miette"
-      description "Signal that a started story is ready for human review: moves started to ready_for_review and emits StoryReadyForReview. MarkReady gate (enforced by the f4 rule construct, documented UL contract until f4 lands): done_criterion satisfied (callable = target verb resolves through storehouse; deployed = app/service reachable), all use cases ran, and all tests pass."
+      description "Signal that a started story is ready for human review: moves started to ready_for_review and emits StoryReadyForReview. The ready_means_verified invariant (f4) now ENFORCES the done-is-done gate: MarkReady is rejected (InvariantViolation, 0 events) unless verified is true — run Verify first. done_criterion satisfied (callable = target verb resolves through storehouse; deployed = app/service reachable), all use cases ran, and all tests pass."
       reference_to(Story)
       emits "StoryReadyForReview"
     end
@@ -300,9 +352,24 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       transition "MarkReady"      => "ready_for_review", from: "started"
       transition "Approve"        => "done",             from: "ready_for_review"
       transition "Reopen"         => "started",          from: "ready_for_review"
+      transition "Reopen"         => "ready_for_review", from: "done"
       transition "Defer"          => "deferred",         from: "backlog"
       transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
       transition "RemoveFromSprint" => "backlog",         from: "started"
+    end
+
+    # ── Invariant: done is done (f4) ────────────────────────
+    #
+    # A Story may only be in ready_for_review or done if it has been
+    # verified. Checked on the RESULTING state after EVERY command, before
+    # save — so MarkReady (started → ready_for_review) is rejected with an
+    # InvariantViolation (0 events) when verified is false. Run Verify first
+    # to arm it. This is the teeth behind the done_criterion contract:
+    # "done is done" is now enforced by the runtime, not just documented.
+    #
+    # Predicate, equivalently: state in {ready_for_review, done} ⇒ verified.
+    invariant "ready_means_verified" do
+      holds_when { state != "ready_for_review" && state != "done" || verified == true }
     end
 
     # ── Queries ─────────────────────────────────────────────────
@@ -322,8 +389,13 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
       where project: :project
     end
 
-    query "ListAll" do
-      description "Every story regardless of state — the full board, for the turn-end pulse."
+    query "BySprint" do
+      description "All stories committed to a given sprint, by the Story.sprint field — the reliable source of truth (Sprint.story_refs can drift). The Plan::Sprint.Execute projection reads this to fan out over a sprint's stories. Pass sprint: <ref> to filter."
+      where sprint: :sprint
+    end
+
+    query "Board" do
+      description "Every story with its lifecycle state — the full planning board. The turn-inject adapter reads this query and injects it after the turn ; distinct from a future Summary (whole-client-project stats)."
     end
   end
 
@@ -335,6 +407,6 @@ Hecks.bluebook "Story", version: "2026.05.24.7" do
   # codegen adapter backs it.)
   policy "GenerateOnStart" do
     on "StoryStarted"
-    trigger "Planning::UseCase.Generate"
+    trigger "Plan::UseCase.Generate"
   end
 end

@@ -1,0 +1,27 @@
+Hecks.behaviors "AiTurn" do
+  vision "Behavioral tests for AiTurn — the turn boundary. Start opens a turn (TurnStarted) ; Finish closes it (TurnFinished). The turn-edge hooks dispatch these ; the assertions cover the state-write + emit contract that inject adapters hang off TurnFinished."
+
+  test "Start opens the turn" do
+    tests "Start", on: "AiTurn"
+    input id: "turn-1", started_at: "2026-05-25T05:00:00Z"
+    expect state: "open"
+  end
+
+  test "Start emits TurnStarted" do
+    tests "Start", on: "AiTurn"
+    input id: "turn-1", started_at: "2026-05-25T05:00:00Z"
+    expect emits: ["TurnStarted"]
+  end
+
+  test "Finish closes the turn" do
+    tests "Finish", on: "AiTurn"
+    input id: "turn-1", finished_at: "2026-05-25T05:01:00Z"
+    expect state: "finished"
+  end
+
+  test "Finish emits TurnFinished" do
+    tests "Finish", on: "AiTurn"
+    input id: "turn-1", finished_at: "2026-05-25T05:01:00Z"
+    expect emits: ["TurnFinished"]
+  end
+end

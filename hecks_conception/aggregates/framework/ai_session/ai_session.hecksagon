@@ -1,0 +1,5 @@
+Hecks.hecksagon "AiSession" do
+  # The governed conversation record persists via :heki — prompt / response /
+  # inject events accumulate as the session's transparent log.
+  adapter :heki
+end

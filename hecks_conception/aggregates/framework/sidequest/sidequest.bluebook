@@ -1,0 +1,109 @@
+Hecks.bluebook "Sidequest", version: "2026.05.22.1" do
+  vision "A unit of interruptive work, modelled as domain. A sidequest is PROPOSED (by Miette, or by a warm worker watching the main session and self-authoring), VOLUNTEERED for by an idle worker that claims it, EXECUTED through the bus, then COMPLETED or FAILED. The open queue IS the event stream : a SidequestProposed event is an open call ; a worker dispatches Volunteer to claim it. Because every step is a dispatch, the whole swarm is logged, auditable, and replayable in `storehouse follow`. The warm long-lived runtime makes the workers cheap (no per-task boot) ; this domain makes the work first-class (no per-task hand-written prompt) — the worker reads the description, not a 200-word brief. Workers act only through storehouse, same wall as everyone."
+  category "framework"
+
+  aggregate "Sidequest", "One unit of interruptive work, captured as a domain record. Identified by its id. Carries what to do (description), who raised it (source : operator / worker-watch / self-volunteer), its lifecycle status, the worker that claimed it, and the result. Workers subscribe to SidequestProposed, Volunteer to claim, and Complete/Fail when done." do
+    identified_by :id
+
+    value_object "SidequestId" do
+      # Stable identifier for this unit of work.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # What to do, in plain language — the worker reads this instead of a
+      # hand-written prompt.
+      attribute :value, String
+    end
+
+    value_object "Source" do
+      # Who raised it : operator (Miette dispatched it), worker-watch (a
+      # warm worker saw it in the main session stream), self-volunteer
+      # (a worker proposed its own task).
+      attribute :value, String, enum: ["operator", "worker-watch", "self-volunteer"]
+    end
+
+    value_object "Status" do
+      # proposed — open, unclaimed. claimed — a worker owns it.
+      # done — completed ok. failed — worker reported failure.
+      attribute :value, String, enum: ["proposed", "claimed", "done", "failed"]
+    end
+
+    value_object "WorkerId" do
+      # The warm worker that volunteered for this sidequest.
+      attribute :value, String
+    end
+
+    value_object "Result" do
+      # The worker's outcome report (or the failure reason).
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String
+    end
+
+    attribute :id,           SidequestId
+    attribute :description,  Description
+    attribute :proposed_by,  Source
+    attribute :status,       Status
+    attribute :claimed_by,   WorkerId
+    attribute :result,       Result
+    attribute :proposed_at,  Timestamp
+
+    command "Propose" do
+      role "System"
+      description "Raise a new sidequest onto the open queue. Fired by Miette (operator) or by a warm worker that watched the main session and self-authored the task. Emits SidequestProposed — the open call idle workers react to."
+      attribute :id,          SidequestId
+      attribute :description, Description
+      attribute :proposed_by, Source
+      attribute :proposed_at, Timestamp
+      emits "SidequestProposed"
+      then_set :id,          to: :id
+      then_set :description, to: :description
+      then_set :proposed_by, to: :proposed_by
+      then_set :proposed_at, to: :proposed_at
+      then_set :status,      to: "proposed"
+    end
+
+    command "Volunteer" do
+      role "System"
+      description "An idle warm worker claims an open sidequest. The first worker to Volunteer owns it ; the queue is the event stream, so claiming is just a dispatch reacting to SidequestProposed."
+      reference_to Sidequest
+      attribute :claimed_by, WorkerId
+      emits "SidequestClaimed"
+      then_set :claimed_by, to: :claimed_by
+      then_set :status,     to: "claimed"
+    end
+
+    command "Complete" do
+      role "System"
+      description "The worker finished the sidequest successfully and reports its result."
+      reference_to Sidequest
+      attribute :result, Result
+      emits "SidequestCompleted"
+      then_set :result, to: :result
+      then_set :status, to: "done"
+    end
+
+    command "Fail" do
+      role "System"
+      description "The worker could not complete the sidequest ; result carries the reason."
+      reference_to Sidequest
+      attribute :result, Result
+      emits "SidequestFailed"
+      then_set :result, to: :result
+      then_set :status, to: "failed"
+    end
+
+    query "Open" do
+      description "Proposed-but-unclaimed sidequests — the open call warm workers pull from."
+      where status: "proposed"
+    end
+
+    query "Mine" do
+      description "Sidequests a given worker has claimed."
+      where status: "claimed"
+    end
+  end
+end

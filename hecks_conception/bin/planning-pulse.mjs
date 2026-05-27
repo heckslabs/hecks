@@ -2,14 +2,14 @@
 //
 // [antibody-exempt: bin/planning-pulse.mjs - the impure hook executor for
 //  the "Planning pushes a turn-end pulse" concept. The bluebook part is
-//  Planning::Story.ListAll (the query) ; this Node script is the surface
+//  Plan::Story.ListAll (the query) ; this Node script is the surface
 //  glue the UserPromptSubmit hook runs: it queries the board and formats
 //  it for additionalContext. Kernel-adjacent hook bridge, like inbox_poll.]
 import { execSync } from "node:child_process";
 const B = "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse";
-const R = "/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/planning";
+const R = "/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/plan";
 let out;
-try { out = execSync(`${B} query ${R} Planning::Story.list_all`, { encoding: "utf8", timeout: 8000 }); }
+try { out = execSync(`${B} query ${R} Plan::Story.board`, { encoding: "utf8", timeout: 8000 }); }
 catch (e) { process.exit(0); }
 let j; try { j = JSON.parse(out); } catch (e) { process.exit(0); }
 const s = Array.isArray(j.state) ? j.state : [];

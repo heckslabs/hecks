@@ -238,3 +238,102 @@ end"#;
     assert_eq!(records[0]["title"].as_str(), Some("Alpha"));
     assert_eq!(records[1]["title"].as_str(), Some("Bravo"));
 }
+
+// ---- Sprint-1 where-multikey: mixed param+literal where conditions ----
+//
+// Bug: a multi-key `where` that mixes a runtime-param key (`:person`)
+// with a single-quoted literal (`'drafting'`) stored the literal with
+// its quotes intact (`'drafting'`). The runtime comparison
+// `"drafting" == "'drafting'"` always failed, so the condition appeared
+// silently dropped. Fix: extract_where_value now strips single quotes
+// the same way it strips double quotes.
+
+#[test]
+fn where_multikey_double_quoted_literal_both_compile() {
+    // Baseline: double-quoted literal was already handled correctly.
+    use storehouse::parse_blocks::parse_where_line;
+    let clauses = parse_where_line(
+        r#"where person: :person, draft_status: "drafting""#,
+        &["person".to_string()],
+    );
+    assert_eq!(clauses.len(), 2, "both conditions must compile");
+    let person = clauses.iter().find(|c| c.field == "person").expect("person clause");
+    assert_eq!(person.value, ":person", "kwarg-ref preserved");
+    let ds = clauses.iter().find(|c| c.field == "draft_status").expect("draft_status clause");
+    assert_eq!(ds.value, "drafting", "double-quoted value unquoted");
+}
+
+#[test]
+fn where_multikey_single_quoted_literal_strips_quotes() {
+    // Regression guard for the where-multikey bug: single-quoted literal
+    // must be stripped so the runtime comparison succeeds.
+    use storehouse::parse_blocks::parse_where_line;
+    let clauses = parse_where_line(
+        "where person: :person, draft_status: 'drafting'",
+        &["person".to_string()],
+    );
+    assert_eq!(clauses.len(), 2, "both conditions must compile");
+    let person = clauses.iter().find(|c| c.field == "person").expect("person clause");
+    assert_eq!(person.value, ":person", "kwarg-ref preserved");
+    let ds = clauses.iter().find(|c| c.field == "draft_status").expect("draft_status clause");
+    assert_eq!(ds.value, "drafting", "single-quoted value must have quotes stripped");
+}
+
+#[test]
+fn where_multikey_runtime_both_conditions_applied() {
+    // End-to-end: the AlreadyDrafted query pattern — `where` on both a
+    // kwarg-ref (person) and a single-quoted literal (draft_status).
+    // Only records matching BOTH conditions are returned.
+    let source = r#"Hecks.bluebook "Correspondence" do
+  aggregate "Correspondent" do
+    attribute :person,       String
+    attribute :draft_status, String, default: "none"
+
+    command "Register" do
+      attribute :person, String
+    end
+
+    command "SetDrafting" do
+      reference_to Correspondent
+      then_set :draft_status, to: "drafting"
+    end
+
+    query "AlreadyDrafted" do |person|
+      where person: :person, draft_status: 'drafting'
+    end
+  end
+end"#;
+    let domain = storehouse::parser::parse(source);
+    let mut rt = Runtime::boot(domain);
+
+    // alice — drafting
+    let mut a = HashMap::new();
+    a.insert("person".to_string(), Value::Str("alice".to_string()));
+    let r_alice = rt.dispatch("Register", a).unwrap();
+    let mut sd = HashMap::new();
+    sd.insert("correspondent".to_string(), Value::Str(r_alice.aggregate_id.clone()));
+    rt.dispatch("SetDrafting", sd).unwrap();
+
+    // bob — not drafting
+    let mut b = HashMap::new();
+    b.insert("person".to_string(), Value::Str("bob".to_string()));
+    rt.dispatch("Register", b).unwrap();
+
+    // Query for alice — matches both conditions → returns one record
+    let mut attrs = HashMap::new();
+    attrs.insert("person".to_string(), "alice".to_string());
+    let result = rt.resolve_query("AlreadyDrafted", &attrs);
+    let state = &result["state"];
+    // Single-record result renders as a bare object (not an array)
+    assert!(!state.is_array(), "alice is drafting — should return exactly one record");
+    assert_eq!(state["person"].as_str(), Some("alice"));
+    assert_eq!(state["draft_status"].as_str(), Some("drafting"));
+
+    // Query for bob — draft_status is "none", not "drafting" → empty
+    let mut attrs2 = HashMap::new();
+    attrs2.insert("person".to_string(), "bob".to_string());
+    let result2 = rt.resolve_query("AlreadyDrafted", &attrs2);
+    let empty = serde_json::Value::Array(vec![]);
+    let records2 = result2["state"].as_array().unwrap_or(empty.as_array().unwrap());
+    assert!(records2.is_empty(), "bob has no draft — query must return empty");
+}

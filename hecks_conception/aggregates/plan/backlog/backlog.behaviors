@@ -1,17 +1,19 @@
 Hecks.behaviors "Backlog" do
-  vision "Behavioral tests for the Backlog aggregate — the ordered intake pool of un-sprinted stories."
+  vision "Behavioral tests for the Backlog aggregate — the ordered intake pool of un-sprinted stories, one per project."
 
   # ── Capture ───────────────────────────────────────────────────────
 
   test "Capture appends a story ref to the pool" do
     tests "Capture", on: "Backlog"
-    input  story_ref: { value: "i42" }
-    expect name: "main"
+    input  project:   { value: "framework" },
+           story_ref: { value: "i42" }
+    expect project: { value: "framework" }
   end
 
   test "Capture emits StoryBacklogged" do
     tests "Capture", on: "Backlog"
-    input  story_ref: { value: "i43" }
+    input  project:   { value: "framework" },
+           story_ref: { value: "i43" }
     expect emits: ["StoryBacklogged"]
   end
 
@@ -19,16 +21,16 @@ Hecks.behaviors "Backlog" do
 
   test "Reorder replaces the full ordered_refs list" do
     tests "Reorder", on: "Backlog"
-    setup  "Capture", story_ref: { value: "i1" }
-    input  name:         { value: "main" },
+    setup  "Capture", project: { value: "framework" }, story_ref: { value: "i1" }
+    input  project:      { value: "framework" },
            ordered_refs: [{ value: "i2" }, { value: "i1" }]
     expect ok: "true"
   end
 
   test "Reorder emits BacklogReordered" do
     tests "Reorder", on: "Backlog"
-    setup  "Capture", story_ref: { value: "i5" }
-    input  name:         { value: "main" },
+    setup  "Capture", project: { value: "framework" }, story_ref: { value: "i5" }
+    input  project:      { value: "framework" },
            ordered_refs: [{ value: "i5" }]
     expect emits: ["BacklogReordered"]
   end
@@ -37,8 +39,8 @@ Hecks.behaviors "Backlog" do
 
   test "PullToSprint emits StoryPulledToSprint" do
     tests "PullToSprint", on: "Backlog"
-    setup  "Capture", story_ref: { value: "i10" }
-    input  name:      { value: "main" },
+    setup  "Capture", project: { value: "framework" }, story_ref: { value: "i10" }
+    input  project:   { value: "framework" },
            story_ref: { value: "i10" }
     expect emits: ["StoryPulledToSprint"]
   end
@@ -47,15 +49,6 @@ Hecks.behaviors "Backlog" do
 
   test "ListOrdered returns the pool" do
     tests "ListOrdered", on: "Backlog", kind: :query
-    expect count: 0
-  end
-
-  # ── ForProject ────────────────────────────────────────────────────
-
-  test "ForProject filters backlogs by project" do
-    tests "ForProject", on: "Backlog", kind: :query
-    setup  "Capture", story_ref: { value: "i1" }
-    input  project: "framework"
     expect count: 0
   end
 end

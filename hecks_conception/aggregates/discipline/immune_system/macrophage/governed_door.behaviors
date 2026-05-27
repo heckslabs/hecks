@@ -1,0 +1,34 @@
+Hecks.behaviors "GovernedDoor" do
+  vision "Behavioral tests for the GovernedDoor macrophage rule — the registry of native tools that must route through the storehouse door, and the audit trail of blocked direct calls. Register seeds a governed tool with its door equivalent; RecordBlock tallies a blocked attempt; ListAll surfaces the mapping the PreToolUse hook enforces."
+
+  test "Register seeds a governed tool with its door equivalent" do
+    tests "Register", on: "GovernedDoor"
+    input  tool: "Bash", door_equivalent: "Tools::ShellTool.Bash"
+    expect tool: "Bash", door_equivalent: "Tools::ShellTool.Bash", severity: "block"
+  end
+
+  test "Register emits GovernedToolRegistered" do
+    tests "Register", on: "GovernedDoor"
+    input  tool: "Edit", door_equivalent: "Tools::FileTool.Edit"
+    expect_event "GovernedToolRegistered"
+  end
+
+  test "RecordBlock stamps the last blocked time" do
+    tests "RecordBlock", on: "GovernedDoor"
+    setup  "Register", tool: "Read", door_equivalent: "Tools::FileTool.Read"
+    input  tool: "Read", last_blocked_at: "2026-05-26T05:00:00Z"
+    expect last_blocked_at: "2026-05-26T05:00:00Z"
+  end
+
+  test "RecordBlock emits NativeToolBlocked" do
+    tests "RecordBlock", on: "GovernedDoor"
+    setup  "Register", tool: "Grep", door_equivalent: "Tools::SearchTool.Grep"
+    input  tool: "Grep", last_blocked_at: "2026-05-26T05:01:00Z"
+    expect_event "NativeToolBlocked"
+  end
+
+  test "ListAll returns the governed registry" do
+    tests "ListAll", on: "GovernedDoor", kind: :query
+    expect count: 0
+  end
+end

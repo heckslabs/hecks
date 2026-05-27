@@ -1,0 +1,200 @@
+Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
+  vision "An explicit, first-class cascade run — an ordered pipeline of steps that the runtime (or an agent) declares and then executes. Addresses f6: 'Cascade aggregate with failure, retry, ordering.' The implicit policy-engine cascade fires-and-forgets with no record, no failure capture, no retry surface. CascadeRun makes each chain a queryable domain object: a run has ordered steps, per-step status, a retry policy, and an overall lifecycle (running → completed | failed). The existing Cascade.RecordResult aggregate (tool-outcome capture for :claude_tool / :web_tool adapters) remains a sibling concern — CascadeRun is the orchestration layer above it."
+  category "framework"
+
+  # ── CascadeRun ─────────────────────────────────────────────────────
+  #
+  # Conceived 2026-05-25 for Sprint 1 story f6 (explicit cascade).
+  #
+  # ── How it fits ──
+  #
+  # Today's implicit cascade: PolicyEngine registers (on_event →
+  # trigger_command) bindings; `drain_policies` fires and forgets.
+  # Nothing is recorded, retried, or ordered beyond registration order.
+  #
+  # CascadeRun promotes each pipeline to a named record:
+  #   1. Begin(run_id, trigger_event, steps, retry_policy) — the runtime
+  #      (or an agent) declares the run before draining.
+  #   2. RecordStepStarted / RecordStepCompleted / RecordStepFailed —
+  #      each step transition is an event; downstream policies can react.
+  #   3. Retry(run_id, step_ref) — re-enqueue a failed step within the
+  #      retry policy envelope.
+  #   4. Complete / Fail — terminal transitions.
+  #
+  # ── Open question for Chris ──
+  #
+  # Are CascadeRun records written BY the runtime as it drains policies
+  # (introspection), or declared BY agents/humans before execution
+  # (orchestration-first)? The commands support both shapes.
+  # The runtime path requires a Begin call at the start of drain_policies
+  # and RecordStep* calls around each trigger dispatch — that is runtime
+  # plumbing, not bluebook scope. The bluebook is the contract; the
+  # adapter (runtime or agent) is what writes to it.
+
+  aggregate "CascadeRun", "An explicit, ordered pipeline of step-commands with per-step status, failure capture, and retry. Identified by run_id. Lifecycle: running → completed | failed." do
+    identified_by :run_id
+
+    attribute :run_id,        RunId
+    attribute :trigger_event, TriggerEvent
+    attribute :steps,         list_of(Step)
+    attribute :retry_policy,  RetryPolicy
+    attribute :status,        Status, default: "running"
+    attribute :failure_reason, FailureReason
+
+    # ── Value objects ──────────────────────────────────────────────
+
+    value_object "RunId" do
+      # Stable run identifier. Set by the caller at Begin — typically
+      # the originating invocation id from the dispatch that triggered
+      # the cascade (matches Cascade.RecordResult.id convention).
+      attribute :value, String
+    end
+
+    value_object "TriggerEvent" do
+      # The event that caused this run — e.g. "ShellTool.BashCompleted".
+      # Opaque string; the runtime can join against the event log by value.
+      attribute :value, String
+    end
+
+    value_object "Step" do
+      # One ordered step in the pipeline.
+      #   ref        — stable key, e.g. "step-1" or the command name.
+      #   command    — the command to dispatch, e.g. "Tools::ShellTool.Bash".
+      #   order      — integer sequencing; lower runs first.
+      #   status     — pending | running | completed | failed.
+      #   attempt    — how many times this step has been attempted.
+      #   last_error — captured failure message from the most recent attempt.
+      attribute :ref,        String
+      attribute :command,    String
+      attribute :order,      Integer
+      attribute :status,     String
+      attribute :attempt,    Integer
+      attribute :last_error, String
+    end
+
+    value_object "RetryPolicy" do
+      # Governs how many times a failed step may be retried and the
+      # backoff strategy. max_attempts=0 means no retry.
+      # backoff is a strategy token: "none" | "linear" | "exponential".
+      attribute :max_attempts, Integer
+      attribute :backoff,      String
+    end
+
+    value_object "Status" do
+      # Overall lifecycle token: running | completed | failed.
+      attribute :value, String
+    end
+
+    value_object "StepRef" do
+      # Opaque reference to a step within this run, by its ref string.
+      attribute :value, String
+    end
+
+    value_object "ErrorMessage" do
+      # Captured failure message from a step or the overall run.
+      attribute :value, String
+    end
+
+    value_object "FailureReason" do
+      # Why the run as a whole failed — typically the last step's error.
+      attribute :value, String
+    end
+
+    # ── Commands ──────────────────────────────────────────────────
+
+    command "Begin" do
+      role "System"
+      description "Declare a new cascade run. Sets the run_id, records the triggering event, the ordered step list, and the retry policy. Status starts running. The caller (runtime or agent) invokes this before any step dispatch begins."
+      attribute :run_id,        RunId
+      attribute :trigger_event, TriggerEvent
+      attribute :steps,         list_of(Step)
+      attribute :retry_policy,  RetryPolicy
+      then_set :run_id,        to: :run_id
+      then_set :trigger_event, to: :trigger_event
+      then_set :steps,         to: :steps
+      then_set :retry_policy,  to: :retry_policy
+      then_set :status,        to: "running"
+      emits "CascadeRunBegun"
+    end
+
+    command "RecordStepStarted" do
+      role "System"
+      description "Mark a step as running. Called by the runtime just before dispatching the step's command. The step ref identifies which step in the ordered list is starting."
+      attribute :run_id,   RunId
+      attribute :step_ref, StepRef
+      then_set :status, to: "running"
+      emits "StepStarted"
+    end
+
+    command "RecordStepCompleted" do
+      role "System"
+      description "Mark a step as completed. Called by the runtime after the step's command dispatch returns successfully. If all steps are completed, the run transitions to completed."
+      attribute :run_id,   RunId
+      attribute :step_ref, StepRef
+      emits "StepCompleted"
+    end
+
+    command "RecordStepFailed" do
+      role "System"
+      description "Capture a step failure. Records the error message on the step. If the step has exhausted its retry budget (attempt >= retry_policy.max_attempts), the run transitions to failed. Otherwise the step returns to pending for a Retry dispatch."
+      attribute :run_id,   RunId
+      attribute :step_ref, StepRef
+      attribute :error,    ErrorMessage
+      emits "StepFailed"
+    end
+
+    command "Retry" do
+      role "System"
+      description "Re-enqueue a failed step. Increments the step's attempt count and sets its status back to pending. Valid only while the run is running and the step's attempt < retry_policy.max_attempts."
+      attribute :run_id,   RunId
+      attribute :step_ref, StepRef
+      given("run must be running") { status == "running" }
+      emits "StepRetried"
+    end
+
+    command "Complete" do
+      role "System"
+      description "Transition the run to completed. All steps must have reached completed status before the runtime calls this. Emits CascadeRunCompleted so downstream policies can react to a fully-resolved pipeline."
+      attribute :run_id, RunId
+      given("run must be running") { status == "running" }
+      then_set :status, to: "completed"
+      emits "CascadeRunCompleted"
+    end
+
+    command "Fail" do
+      role "System"
+      description "Transition the run to failed. Called when a step exhausts retries or an unrecoverable error occurs. Records the failure reason. Emits CascadeRunFailed so policies can react to a broken pipeline."
+      attribute :run_id,  RunId
+      attribute :reason,  FailureReason
+      given("run must be running") { status == "running" }
+      then_set :status,         to: "failed"
+      then_set :failure_reason, to: :reason
+      emits "CascadeRunFailed"
+    end
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+
+    lifecycle :status, default: "running" do
+      transition "Begin"    => "running"
+      transition "Complete" => "completed", from: "running"
+      transition "Fail"     => "failed",    from: "running"
+    end
+
+    # ── Queries ───────────────────────────────────────────────────
+
+    query "Active" do
+      description "All cascade runs currently in the running state — the live pipeline queue."
+      where status: "running"
+    end
+
+    query "Failed" do
+      description "All cascade runs that reached the failed terminal state. Useful for surfacing broken pipelines to an operator or repair agent."
+      where status: "failed"
+    end
+
+    query "ByTrigger" do
+      description "Cascade runs that were triggered by a specific event. Pass trigger_event: <event_name> to filter."
+      where trigger_event: :trigger_event
+    end
+  end
+end

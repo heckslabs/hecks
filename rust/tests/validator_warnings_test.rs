@@ -36,7 +36,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
         queries: vec![],
         value_objects: vec![], entities: vec![], context: None, category: None,
         references: refs,
-        lifecycle: None,
+        lifecycle: None, invariants: vec![],
         identified_by: None,
         views: vec![],
     }

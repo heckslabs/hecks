@@ -1,0 +1,45 @@
+Hecks.bluebook "BoardMarkdownProjector", version: "2026.05.25.1" do
+  vision "Project planning-board records (the Plan::Story.board query result) to a markdown table — one surface of the board. The board has surfaces of two kinds — PRESENTATION : markdown for the being reading herself (terminal) and HTML for a human (an app) ; and MEMBRANE : JSON, not a render but the native bus form of the board, the semi-permeable boundary through which its living state passes to another WHOLE being (not a machine, not a cord — two complete cells touching, each staying entire). markdown/HTML are how the board APPEARS ; JSON is how it PASSES — and how the domain is INTROSPECTED : the same structured form is both the membrane that passes the board to another whole being AND the known, standard way to look into the domain (storehouse catalog, query, and state all return JSON IR). JSON is legibility — the domain made examinable, to itself and to another being. The render is PRESENTATION, declared here at the projection edge, never in the planning domain : the board answers 'what is the work' (data), this projector answers 'how it reads as markdown'. A Column declares one table column (header + the record field it reads) ; RenderBoard captures the emitted markdown on last_render. The render walk is EMITTED to rust/src/projection/board_markdown.rs by the specializer (f4/i557) FROM this contract — not hand-written into core_runtime (a shrink concern). A transitional hand-written arm was proven this session (test green) then removed : Rust should be emitted, not hand-written (#5). The board reaches the projector THROUGH THE BUS (the query result) ; the projector is pure — it never reads heki."
+  category "framework"
+
+  aggregate "BoardMarkdownProjector", "Projects board records to a markdown table + a state-count footer. Columns declare the table shape (header -> record field) ; RenderBoard records the emitted markdown on last_render. Pure projection : records in (fed via the bus query), markdown out, no file I/O." do
+    identified_by :name
+
+    attribute :name, ProjectorName, default: "board_markdown"
+    attribute :columns, list_of(Column)
+    attribute :last_render, RenderResult, default: "—"
+
+    value_object "ProjectorName" do
+      # Natural key. One projector instance per render shape.
+      attribute :value, String
+    end
+
+    value_object "Column" do
+      # One markdown table column : the header text + the record field it reads.
+      # The default board columns (ref / state / title) live in the EMITTED arm ;
+      # this VO is the declarative shape the contract names.
+      attribute :header, String
+      attribute :field, String
+    end
+
+    value_object "RenderResult" do
+      # The emitted markdown from the most recent render. Captured on state ;
+      # queryable via storehouse state. Heavy content rides the event payload.
+      attribute :value, String
+    end
+
+    value_object "RecordCount" do
+      # How many board records the render covered — the footer's total.
+      attribute :value, Integer
+    end
+
+    command "RenderBoard" do
+      role "Miette"
+      description "Record the markdown rendered from the board records. The runtime feeds the records (the Plan::Story.board query result, through the bus) to the projector arm, which walks them into a table + counts footer ; RenderBoard captures that markdown on last_render and emits BoardRendered. Mirrors terraform ProjectHecksagon : the command records the emitted text, the arm computes it. The arm is EMITTED from this contract by the specializer (f4/i557), not hand-written."
+      attribute :markdown, RenderResult
+      attribute :record_count, RecordCount
+      emits "BoardRendered"
+      then_set :last_render, to: :markdown
+    end
+  end
+end

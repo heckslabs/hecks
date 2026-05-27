@@ -64,5 +64,9 @@ Hecks.fixtures "ParseBlocksShape" do
     # block stays at the file's tail so cargo test pulls them with the
     # rest of parse_blocks.
     fixture "DispatchTestsSection",             name: "dispatch_tests",              order: 33, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/30_dispatch_tests.rs.frag",              description: "#[cfg(test)] mod dispatch_tests — Phase 2.b/2.c parser unit tests"
+    # f4 — parse_invariant : aggregate-level `invariant "name" do holds_when
+    # { <pred> } end` block reader. Emitted last (order 34) so it needs no
+    # renumber cascade ; mirrors the given block-extraction grammar.
+    fixture "ParseInvariantSection",            name: "parse_invariant",            order: 34, body_kind: "verbatim_section", snippet_path: "codegen/parse_blocks_shape/snippets/32_parse_invariant.rs.frag",            description: "pub fn parse_invariant — aggregate-level invariant block reader (holds_when predicate)"
   end
 end

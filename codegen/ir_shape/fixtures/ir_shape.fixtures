@@ -110,6 +110,12 @@ Hecks.fixtures "IrShape" do
 
     # Display impl on Domain — pretty-printed aggregate / command tree.
     fixture "DisplayDomain", name: "DisplayDomain", order: 38, body_kind: "impl", derives: "", impl_target: "fmt::Display for Domain", body_snippet: "codegen/ir_shape/snippets/impls/display_for_domain.rs.frag", doc_snippet: "", description: "Display impl — pretty-prints Domain as a tree"
+
+    # f4 — Invariant struct. Emitted last (order 39) so adding it needs no
+    # renumber cascade. An aggregate-level rule : name + holds_when
+    # predicate expression, checked on the resulting state after every
+    # command. Mirrors the Given struct's 2-field shape.
+    fixture "Invariant", name: "Invariant", order: 39, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/invariant_type.rs.frag", description: "Invariant — aggregate-level rule name + holds_when predicate"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -199,9 +205,12 @@ Hecks.fixtures "IrShape" do
     fixture "Aggregate_entities",      type_name: "Aggregate", order: 10, name: "entities",      field_type: "Vec<Entity>",     doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_entities.rs.frag"
     fixture "Aggregate_references",    type_name: "Aggregate", order: 11, name: "references",    field_type: "Vec<Reference>",  doc_snippet: ""
     fixture "Aggregate_lifecycle",     type_name: "Aggregate", order: 12, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: ""
+    # f4 — aggregate-level invariants, checked on the resulting state after
+    # every command. Sits between lifecycle and views, mirroring ir.rs.
+    fixture "Aggregate_invariants",    type_name: "Aggregate", order: 13, name: "invariants",    field_type: "Vec<Invariant>",   doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_invariants.rs.frag"
     # i254 — views per role. Ordered Vec ; declaration order survives
     # JSON round-trip so portal renderers can iterate views deterministically.
-    fixture "Aggregate_views",         type_name: "Aggregate", order: 13, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
+    fixture "Aggregate_views",         type_name: "Aggregate", order: 14, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
 
     # Attribute — 4 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
@@ -233,6 +242,10 @@ Hecks.fixtures "IrShape" do
     # Given — 2 fields.
     fixture "Given_expression", type_name: "Given", order: 1, name: "expression", field_type: "String",         doc_snippet: ""
     fixture "Given_message",    type_name: "Given", order: 2, name: "message",    field_type: "Option<String>", doc_snippet: ""
+
+    # Invariant — 2 fields (f4).
+    fixture "Invariant_name",       type_name: "Invariant", order: 1, name: "name",       field_type: "String", doc_snippet: ""
+    fixture "Invariant_expression", type_name: "Invariant", order: 2, name: "expression", field_type: "String", doc_snippet: ""
 
     # Mutation — 3 fields.
     fixture "Mutation_field",     type_name: "Mutation", order: 1, name: "field",     field_type: "String",      doc_snippet: ""

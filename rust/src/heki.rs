@@ -490,8 +490,14 @@ mod path_tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn tempdir() -> std::path::PathBuf {
+        // Unique per call: nanos can collide across parallel test threads
+        // (same instant), so an atomic counter guarantees isolation and
+        // kills the nested-vs-flat path-lookup race.
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
         let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-        let p = std::env::temp_dir().join(format!("heki_path_test_{}", nanos));
+        let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+        let p = std::env::temp_dir().join(format!("heki_path_test_{}_{}", nanos, seq));
         fs::create_dir_all(&p).unwrap();
         p
     }

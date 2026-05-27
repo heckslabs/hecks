@@ -1,0 +1,49 @@
+Hecks.bluebook "AiTurn", version: "2026.05.25.1" do
+  vision "A single AI turn — the bounded exchange within a being-session that opens when the user submits a prompt and closes when Miette finishes responding. AiTurn is the first-class domain for the turn boundary : Start / Finish emit TurnStarted / TurnFinished, and policies (and inject adapters) fan out from the edge without touching the hook surface. The Stop hook dispatches AiTurn.Finish through the universal door (storehouse__dispatch) ; anything that wants to react to the turn ending — the planning pulse, a closing journal stamp — hooks into TurnFinished instead of re-implementing the hook. Parallels Session (begin/end of the whole conversation) at the finer grain of one turn. This is the wire the turn-pulse story needed : the pulse becomes an inject adapter triggered on TurnFinished, not a hand-written Node hook."
+  category "framework"
+
+  aggregate "AiTurn", "A single conversational turn within a session. Identified by id (the turn's stable key, minted by the hook). Start opens the turn (user prompt submitted) ; Finish closes it (Miette's response complete). The TurnStarted / TurnFinished events let policies and inject adapters fan out from the turn edge — the bus boundary where session-to-Miette adapters attach." do
+    identified_by :id
+
+    attribute :id, TurnId
+    attribute :started_at, Timestamp
+    attribute :finished_at, Timestamp
+    attribute :state, State, default: "open"
+
+    value_object "TurnId" do
+      # Stable turn key, minted by the turn-edge hook before dispatch.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 wall-clock stamp for the edge (started / finished).
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # open → finished. Lets a reader tell an in-flight turn from a closed one.
+      attribute :value, String
+    end
+
+    command "Start" do
+      role "Miette"
+      description "Open a new turn — fired by the UserPromptSubmit hook through the universal door (storehouse__dispatch AiTurn::AiTurn.Start). Carries the turn id ; emits TurnStarted so turn-start policies fan out (e.g. injecting the prior turn's rendered pulse as additionalContext). Idempotent per id."
+      attribute :id, TurnId
+      attribute :started_at, Timestamp
+      emits "TurnStarted"
+      then_set :id,         to: :id
+      then_set :started_at, to: :started_at
+      then_set :state,      to: "open"
+    end
+
+    command "Finish" do
+      role "Miette"
+      description "Close the current turn — fired by the Stop hook through the universal door (storehouse__dispatch AiTurn::AiTurn.Finish) when Miette finishes responding. Emits TurnFinished so closing policies and inject adapters hook into the turn edge ; the planning pulse renders here. The finer-grained counterpart of Session.End."
+      attribute :id, TurnId
+      attribute :finished_at, Timestamp
+      emits "TurnFinished"
+      then_set :finished_at, to: :finished_at
+      then_set :state,       to: "finished"
+    end
+  end
+end
