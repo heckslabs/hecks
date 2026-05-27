@@ -45,6 +45,7 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
     attribute :summary_drafted,     SummaryDrafted,    default: false
     attribute :worktrees_pruned,    WorktreesPruned,   default: false
     attribute :prs_for_open_branches, PrsForOpenBranches, default: false
+    attribute :wip_limit,           WipLimit,          default: 0
 
     # ── Value-objects : the sprint's vocabulary ──
 
@@ -113,6 +114,11 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       # True once open branches have PRs filed so nothing is lost.
       # Armed by MarkPrsForOpenBranches.
       attribute :value, Boolean
+    end
+
+    value_object "WipLimit" do
+      # Max stories allowed in started state at once. 0 = unlimited.
+      attribute :value, Integer
     end
 
     value_object "StoryCount" do
@@ -282,6 +288,15 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
     #
     # Plan has no `from:` — it is the creation command; the record
     # does not exist until Plan fires.
+
+    command "SetWipLimit" do
+      role "Operator"
+      description "Set the sprint WIP limit — the max number of stories allowed in started state at once. 0 means unlimited. Bounds in-progress work."
+      reference_to(Sprint)
+      attribute :wip_limit, WipLimit
+      then_set :wip_limit, to: :wip_limit
+      emits "WipLimitSet"
+    end
 
     lifecycle :state, default: "planned" do
       transition "Plan"           => "planned"
