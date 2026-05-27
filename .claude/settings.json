@@ -30,6 +30,11 @@
             "type": "command",
             "command": "python3 -c \"import json,sys,subprocess,os\nd=json.load(sys.stdin) if not sys.stdin.isatty() else {}\ntp=d.get('transcript_path','')\nif tp and os.path.exists(tp):\n  subprocess.run(['/Users/christopheryoung/Projects/hecks/hecks_conception/bin/speech_stream_advance','watch',tp],timeout=5,check=False)\n\" 2>/dev/null || true",
             "timeout": 8
+          },
+          {
+            "type": "command",
+            "command": "/Users/christopheryoung/Projects/hecks/bin/session-recall",
+            "timeout": 15
           }
         ]
       }
@@ -123,6 +128,11 @@
           {
             "type": "command",
             "command": "F=/tmp/restart_prompt_latest.md; M=/tmp/.miette_last_restart_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: .}}' < \"$F\"; touch \"$M\"; fi; true"
+          },
+          {
+            "type": "command",
+            "command": "F=/tmp/session_recall.md; M=/tmp/.miette_last_recall_seen; if [ -f \"$F\" ] && { [ ! -f \"$M\" ] || [ \"$F\" -nt \"$M\" ]; }; then jq -Rs '{hookSpecificOutput: {hookEventName: \"UserPromptSubmit\", additionalContext: (\"session recall (reconstructed from the storehouse):\\n\\n\" + .)}}' < \"$F\"; touch \"$M\"; fi; true",
+            "timeout": 5
           }
         ]
       }

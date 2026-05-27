@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+# session-recall — reconstruct working session context from the STOREHOUSE
+# (durable state), not the conversation window. Retires the hand-written
+# restart prompt: a /clear or compaction is recoverable because context is
+# regenerated from the plan board + commits. Wired on SessionStart (fires on
+# clear/compact); surfaced via UserPromptSubmit. Card: session-context-recall.
+import json, subprocess, datetime, pathlib
+B='/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
+R='/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/plan'
+def q(verb):
+    try:
+        return json.loads(subprocess.run([B,R,verb],capture_output=True,text=True,timeout=20).stdout)
+    except Exception:
+        return {}
+sprints=q('Plan::Sprint.list_all').get('state',[])
+board=q('Plan::Story.board').get('state',[])
+active=[s for s in sprints if isinstance(s,dict) and s.get('state')=='active']
+ts=datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+L=['# Session recall — reconstructed from the storehouse ('+ts+')','']
+L.append('## The board = active sprint (LOCKED) + unplanned')
+for s in active:
+    L.append('- ACTIVE sprint '+str(s.get('number'))+' — '+str(s.get('goal',''))+'  [locked while active]')
+L.append('')
+L.append('## In-progress / on-board cards')
+for r in board:
+    if isinstance(r,dict) and r.get('state') in ('started','in_sprint'):
+        L.append('- '+str(r.get('ref'))+' ['+str(r.get('state'))+'] sprint='+str(r.get('sprint'))+' : '+str(r.get('title',''))[:70])
+L.append('')
+L.append('## Discipline established (decision cards)')
+rules={r.get('ref'):r for r in board if isinstance(r,dict)}
+for k in ['one-active-sprint-rule','all-work-in-sprints','sprint-done-is-done-verified','sprint-ready-all-accepted','storehouse-exceedingly-simple','async-log-write']:
+    if k in rules: L.append('- '+k+' : '+str(rules[k].get('title',''))[:72])
+git=subprocess.run(['git','-C','/Users/christopheryoung/Projects/hecks','log','--oneline','-12'],capture_output=True,text=True).stdout
+L+=['','## Recent commits (the work)',git.rstrip()]
+pathlib.Path('/tmp/session_recall.md').write_text(chr(10).join(L))
+print('session-recall written ('+str(len(L))+' lines)')
