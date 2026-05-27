@@ -1,60 +1,120 @@
-Hecks.bluebook "Board", version: "2026.05.25.1" do
-  vision "The working board — the active sprint's cards in the manual order the operator placed them. A singleton-per-sprint that owns the one thing a query can't derive : in-board card order (and the sprint it is pinned to). Columns are NOT stored : a card's column IS its Story.state, grouped at render time, so the board never duplicates the Story lifecycle (one source of truth — Story owns STATE, Board owns ORDER). The BoardMarkdownProjector joins them (order × state) into a columned table ; per-column order falls out of the global order filtered to that column's members. Mirrors Backlog (the intake board) : Backlog owns the order of un-sprinted refs, Board owns the order of the active sprint's cards. The turn-pulse injects this board (rendered) into the session on AiTurn.TurnFinished — the board-status-into-the-turn act, made structural."
+Hecks.bluebook "Board", version: "2026.05.27.1" do
+  vision "The one working board (singleton). It owns two things a query cannot derive: the sprint ROSTER (which sprints are placed and which single sprint is active) and the active sprint's manual card ORDER. There is exactly ONE board. It tracks one active sprint per project; in the current default-project context that is a single active_sprint_ref scalar (the per-project map is the documented next iteration, pending runtime support for list-quantifying guards). Sprint scheduling discipline lives here because a Sprint cannot see other Sprints (guards read only own scalar state): the Board is the only place that can enforce 'one active sprint' and 'only a placed sprint can be activated'. Columns are NOT stored: a card's column IS its Story.state, grouped at render time by the BoardMarkdownProjector, so the board never duplicates the Story lifecycle (Story owns STATE, Board owns ORDER + ROSTER). Activation never starts cards: ActivateSprint only moves the active slot; Story.Start is a separate, deliberate act (rule #3)."
   category "plan"
 
-  # ── Board aggregate ───────────────────────────────────────────────
+  # ── Board aggregate (singleton) ───────────────────────────────────
   #
-  # Singleton-per-sprint (identified_by :sprint_ref). No lifecycle —
-  # it's a surface, not a state machine (cf. Backlog, the intake pool).
-  # Open creates the board for a sprint ; PlaceCard / Reorder / RemoveCard
-  # manage the ordered card refs. Column membership is a render-time
-  # grouping by Story.state (a cross-aggregate join — f5) ; the board
-  # itself stores only the manual order. The "current board" (board for
-  # the active sprint) is composed by the runtime : Sprint.board gives the
-  # active number, Board.ForSprint gives that board.
+  # ONE board per Hecks runtime (identified_by :name, conventional
+  # singleton shape — converts to singleton:true when the parser lands
+  # it, cf. HandlerRegistry). Open mints it. The board owns:
+  #   * queued_sprint_refs — sprints PLACED on the board, awaiting
+  #     activation (PlaceSprint). 'On the board' = in this list.
+  #   * active_sprint_ref   — the ONE active sprint ("" = none).
+  #     ActivateSprint refuses unless none is active (one-active rule)
+  #     and the sprint is placed (on-board rule). DeactivateSprint
+  #     clears it + the card order.
+  #   * ordered_refs        — the active sprint's manual card order.
+  #     PlaceCard / Reorder / RemoveCard manage it. Column membership
+  #     is a render-time grouping by Story.state (cross-aggregate join).
+  #
+  # Scheduling rules enforced here (scalar guards over own state):
+  #   #4 only a placed sprint can be activated
+  #   one-active: refuse Activate when a sprint is already active
+  #   #5 freeze (planned adds) lives on Sprint.AddStory ; the Board
+  #      owns the active-slot truth that rule reads.
 
-  aggregate "Board", "The active sprint's working board — owns the manual order of cards on it, pinned to one sprint. Columns derive from Story.state at render ; the board stores order, not state. Singleton-per-sprint, keyed by sprint_ref." do
-    identified_by :sprint_ref
+  aggregate "Board", "The one working board — singleton. Owns the sprint roster (queued + the single active slot) and the active sprint's card order. Enforces one-active + on-board activation, the rules a Sprint cannot enforce about itself." do
+    identified_by :name
 
-    attribute :sprint_ref,   SprintRef
-    attribute :project,      Project
-    attribute :ordered_refs, list_of(CardRef)
+    # ---- Identity (singleton) ----
+    attribute :name,               Name
 
-    value_object "SprintRef" do
-      # The sprint this board surfaces — its identity. One board per
-      # sprint. String-valued for safe id resolution across tools.
+    # ---- Active project context ----
+    attribute :project,            Project
+
+    # ---- Sprint roster ----
+    attribute :queued_sprint_refs, list_of(SprintRef)
+    attribute :active_sprint_ref,  ActiveSprintRef, default: ""
+
+    # ---- Active sprint's card order ----
+    attribute :ordered_refs,       list_of(CardRef)
+
+    value_object "Name" do
+      # Singleton identity. Conventionally "board" — there is one.
       attribute :value, String
     end
 
     value_object "Project" do
-      # The project this board belongs to. E.g. "framework", "mel".
-      # Optional — mirrors Backlog/Sprint ; the framework board needs
-      # no explicit project.
+      # The active project context. E.g. "framework". One active sprint
+      # per project; the default/framework project needs no explicit set.
+      attribute :value, String
+    end
+
+    value_object "SprintRef" do
+      # A sprint placed on the board, by sprint number ("1", "2", "3").
+      # String-valued for safe id resolution across tools.
+      attribute :value, String
+    end
+
+    value_object "ActiveSprintRef" do
+      # The single active sprint's number, or "" when none is active.
       attribute :value, String
     end
 
     value_object "CardRef" do
-      # An opaque reference to a story on the board, e.g. "i608" or "f4".
-      # The board owns the card's position, not its content or state —
-      # state lives on Story, joined in at render time.
+      # An opaque reference to a story on the active sprint's board,
+      # e.g. "i608". The board owns position, not content or state.
       attribute :value, String
     end
 
-    # ── Commands ──────────────────────────────────────────────────
+    # ── Commands : creation ───────────────────────────────────────
 
     command "Open" do
       role "Miette"
-      description "Open the board for a sprint — the creation command. Pins the board to sprint_ref ; the record does not exist until Open fires."
-      attribute :sprint_ref, SprintRef
-      attribute :project,    Project
-      then_set :sprint_ref, to: :sprint_ref
-      then_set :project,    to: :project
+      description "Open the one board — the creation command. Mints the singleton with its name + active project. The record does not exist until Open fires."
+      attribute :name,    Name
+      attribute :project, Project
+      then_set :name,    to: :name
+      then_set :project, to: :project
       emits "BoardOpened"
     end
 
+    # ── Commands : sprint roster (scheduling) ─────────────────────
+
+    command "PlaceSprint" do
+      role "Miette"
+      description "Place a planned sprint onto the board — it joins the queued roster, becoming activatable. The deliberate step between Sprint.Plan and Sprint.Activate. 'On the board' means a member of this list."
+      reference_to(Board)
+      attribute :sprint_ref, SprintRef
+      then_set :queued_sprint_refs, append: :sprint_ref
+      emits "SprintPlacedOnBoard"
+    end
+
+    command "ActivateSprint" do
+      role "Miette"
+      description "Move a sprint into the single active slot. Refused unless NO sprint is currently active (one-active rule). Does NOT start any cards (rule #3) — it only sets the active slot. RULE #4 (only a sprint ON THE BOARD may be activated) is NOT yet enforced as a guard : the runtime does not evaluate list-membership predicates in `given` and fails OPEN (an un-evaluable guard silently passes). Until the runtime grows collection predicates in guards, PlaceSprint records membership but on-board activation is convention-only. Gap filed : runtime-list-membership-guards."
+      reference_to(Board)
+      attribute :sprint_ref, SprintRef
+      given("no sprint may already be active") { active_sprint_ref == "" }
+      then_set :active_sprint_ref, to: :sprint_ref
+      emits "SprintActivatedOnBoard"
+    end
+
+    command "DeactivateSprint" do
+      role "Miette"
+      description "Clear the active slot — the active sprint is closed or paused. Refused when no sprint is active. Clears the active sprint's card order too."
+      reference_to(Board)
+      given("a sprint must be active") { active_sprint_ref != "" }
+      then_set :active_sprint_ref, to: ""
+      then_set :ordered_refs,      to: []
+      emits "SprintDeactivatedOnBoard"
+    end
+
+    # ── Commands : card order (the active sprint's cards) ─────────
+
     command "PlaceCard" do
       role "Miette"
-      description "Append a card ref to the board — a story pulled into the sprint lands at the end of the order. The board must already be open."
+      description "Append a card ref to the active sprint's board — a story pulled in lands at the end of the order. The board must be open."
       reference_to(Board)
       attribute :card_ref, CardRef
       then_set :ordered_refs, append: :card_ref
@@ -63,7 +123,7 @@ Hecks.bluebook "Board", version: "2026.05.25.1" do
 
     command "Reorder" do
       role "Miette"
-      description "Replace the entire ordered_refs list with a new card order. The caller supplies the full desired sequence ; columns re-group by Story.state at render."
+      description "Replace the entire ordered_refs list with a new card order. Columns re-group by Story.state at render."
       reference_to(Board)
       attribute :ordered_refs, list_of(CardRef)
       then_set :ordered_refs, to: :ordered_refs
@@ -72,7 +132,7 @@ Hecks.bluebook "Board", version: "2026.05.25.1" do
 
     command "RemoveCard" do
       role "Miette"
-      description "Signal that a card has left the board (sprint completed, card dropped). Removal from ordered_refs is a runtime projection ; the command is a pure domain intent signal."
+      description "Signal that a card has left the board (card dropped or moved). Removal from ordered_refs is a runtime projection ; the command is a pure domain intent signal."
       reference_to(Board)
       attribute :card_ref, CardRef
       emits "CardRemoved"
@@ -80,13 +140,12 @@ Hecks.bluebook "Board", version: "2026.05.25.1" do
 
     # ── Queries ───────────────────────────────────────────────────
 
-    query "ForSprint" do
-      description "The board pinned to a given sprint. Pass sprint_ref: <number> to filter."
-      where sprint_ref: :sprint_ref
+    query "Current" do
+      description "The one board — its roster (queued + active) and the active sprint's card order."
     end
 
-    query "ListAll" do
-      description "Every sprint board and its pinned sprint — all boards regardless of sprint state. The rail of boards."
+    query "ActiveSprint" do
+      description "The number of the currently active sprint (\"\" when none)."
     end
   end
 end
