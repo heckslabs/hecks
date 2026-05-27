@@ -1,0 +1,267 @@
+Hecks.bluebook "StatusCoherence", version: "2026.05.23.1" do
+  vision "Runtime-coherence declaration for the six body-state invariants that must hold at render time. The source-of-truth replacement for status_coherence.sh (inbox i35 / i498). Encodes which state combinations are legal — not as running code, but as domain fact. The script reads mood, fatigue, consciousness, tick, and lucid_dream from five separate .heki stores ; this bluebook is the declared contract for what those five snapshots must satisfy together. A RecordSnapshot command feeds the current field values in ; the six Violation* queries surface any invariants that are broken."
+  category "discipline"
+
+  # ============================================================
+  # STATUS COHERENCE — the six body-state invariants
+  # ============================================================
+  #
+  # The live script (status_coherence.sh) reads five .heki stores
+  # and checks six invariants numbered from inbox i35 (#6 added
+  # i498). This bluebook is the DECLARATIVE form of that contract.
+  #
+  # ── Runtime-gap note ──
+  #
+  # The DSL's query ... where form filters WITHIN a single
+  # aggregate's own state. There is no cross-aggregate read today
+  # (i101 tracks predicate-returning queries as the follow-on).
+  # The StatusCoherence aggregate resolves this by OWNING a snapshot:
+  # the runner dispatches RecordSnapshot once per render cycle,
+  # feeding all five source fields into one record. The six
+  # Violation* queries then read only this aggregate's own state —
+  # no cross-aggregate reads required. This is "wiring is override,
+  # not substrate": the shell runner is the temporary substrate;
+  # the bluebook is the contract.
+  #
+  # ── Source-field mapping ──
+  #
+  # Script reads            Bluebook aggregate          Attribute
+  # ─────────────────────── ─────────────────────────── ─────────────
+  # mood.heki current_state MietteBody::Mood            current_state
+  # heartbeat.heki fatigue_state Mind::Fatigue           state
+  # heartbeat.heki pulses_since_sleep Mind::Fatigue     pulses_since_sleep
+  # consciousness.heki state Mind::Consciousness         state
+  # consciousness.heki sleep_stage  (runtime-only field — no bluebook decl.)
+  # consciousness.heki is_lucid     (runtime-only field — no bluebook decl.)
+  # lucid_dream.heki latest_narrative Mind::LucidDream  (field not in bluebook)
+  # tick.heki cycle             NO bluebook aggregate — tick.heki is unregistered
+  #
+  # Three gaps surface from this mapping:
+  #   GAP-1. sleep_stage + is_lucid — present in consciousness.heki
+  #           at runtime but not declared as attributes on the
+  #           Mind::Consciousness bluebook aggregate. The Consciousness
+  #           lifecycle handles EnterSleep / WakeUp but not sleep stage
+  #           progression (light / rem / deep / lucid_rem). Those
+  #           are SleepCycle concern fields, not surfaced on Consciousness.
+  #           Fix: add sleep_stage + is_lucid to Consciousness, or
+  #           read from a SleepCycle query.
+  #   GAP-2. latest_narrative — present in lucid_dream.heki at runtime
+  #           but Mind::LucidDream does not declare a latest_narrative
+  #           attribute. Fix: add latest_narrative to LucidDream.
+  #   GAP-3. Tick aggregate — tick.heki with a cycle field is written
+  #           by mindstream.sh but has no bluebook aggregate at all.
+  #           Invariant 4 (tick cadence monotonicity) also requires
+  #           wall-clock baseline state (a .tick_baseline file the
+  #           script writes), which is inherently a cross-run
+  #           persistence concern that demands its own aggregate.
+  #           Fix: declare a Tick aggregate with cycle + baseline.
+  #
+  # Invariant 4 (tick cadence) is declared here but is NOTE:
+  # the ViolationFour query cannot be evaluated purely from the
+  # snapshot until GAP-3 is closed AND baseline-comparison is
+  # added to RecordSnapshot. The field is carried in the snapshot
+  # so the shape is stable; the query returns empty until the
+  # runner feeds both current and prev_cycle + prev_ts.
+  #
+  # ── The six invariants ──
+  #
+  #   1. mood=refreshed → fatigue_state ∈ {limber, tuned}
+  #   2. consciousness=sleeping → mood ∉ {refreshed, focused}
+  #   3. pulses_since_sleep must match fatigue_state rung
+  #      (0..249 limber, 250..499 tuned, 500..999 normal,
+  #       1000..1399 tired, 1400..1799 exhausted, 1800+ spent)
+  #      Rung may lag by at most one; must not skip ahead.
+  #   4. tick.cycle is monotonic ≤ 1 Hz (with 5s tolerance).
+  #      Requires baseline from prior run — see GAP-3.
+  #   5. sleep_stage ∈ {rem, lucid_rem} ↔ latest_narrative present.
+  #      Both directions. If sleeping + non-REM, narrative being
+  #      set is a stale-render bug.
+  #   6. fatigue_state=spent → consciousness ∈ {sleeping, napping}.
+  #      "Alert and delirious" is the contradiction this closes.
+
+  aggregate "StatusCoherence", "A point-in-time snapshot of all body-state fields relevant to the six runtime coherence invariants. The shell runner feeds a snapshot in via RecordSnapshot ; the Violation* queries surface which invariants are broken." do
+    identified_by :name
+
+    # Singleton key — one record per runtime instance.
+    attribute :name, Name
+
+    # Snapshot fields — the five source stores collapsed into one record.
+    # Empty string means the field was absent / null in the source store.
+
+    attribute :mood_state,         MoodState
+    attribute :fatigue_state,      FatigueState
+    attribute :pulses_since_sleep, PulsesSinceSleep
+    attribute :consciousness_state, ConsciousnessState
+    attribute :sleep_stage,        SleepStage
+    attribute :is_lucid,           IsLucid
+    attribute :lucid_narrative,    LucidNarrative
+    attribute :tick_cycle,         TickCycle
+    attribute :tick_prev_cycle,    TickCycle
+    attribute :tick_prev_ts,       TickTimestamp
+    attribute :tick_current_ts,    TickTimestamp
+
+    # Violation surface — running count + latest message for each invariant.
+    # Queries below re-derive from snapshot fields; these scalars let the
+    # statusline show "3 coherence violations" without a query round-trip.
+    attribute :violation_count,    ViolationCount
+    attribute :last_violation,     ViolationMessage
+    attribute :last_checked_at,    Timestamp
+
+    # ── Value-objects : the coherence domain's language ──
+
+    value_object "Name" do
+      # Singleton slug, e.g. "miette".
+      attribute :value, String
+    end
+
+    value_object "MoodState" do
+      # The body's current mood as recorded by MietteBody::Mood.
+      # Legal values: refreshed | focused | curious | excited | … | ""
+      attribute :value, String
+    end
+
+    value_object "FatigueState" do
+      # The fatigue rung from Mind::Fatigue.state.
+      # Legal values: limber | tuned | normal | tired | exhausted | spent | ""
+      attribute :value, String
+    end
+
+    value_object "PulsesSinceSleep" do
+      # Raw pulse count from Mind::Fatigue.pulses_since_sleep.
+      # Empty string means absent (coherence skips check rather than false-flag).
+      attribute :value, String
+    end
+
+    value_object "ConsciousnessState" do
+      # Mind::Consciousness.state.
+      # Legal values: attentive | daydreaming | sleeping | napping | waking | ""
+      attribute :value, String
+    end
+
+    value_object "SleepStage" do
+      # Runtime-only field from consciousness.heki (GAP-1 — not yet
+      # declared on Mind::Consciousness). Legal values: light | rem |
+      # deep | final_light | lucid_rem | "" (when awake).
+      attribute :value, String
+    end
+
+    value_object "IsLucid" do
+      # Runtime-only field from consciousness.heki (GAP-1).
+      # "yes" when is_lucid=yes; "" or "no" otherwise.
+      attribute :value, String
+    end
+
+    value_object "LucidNarrative" do
+      # latest_narrative from lucid_dream.heki (GAP-2 — field not yet
+      # declared on Mind::LucidDream). Empty when no narrative is set.
+      attribute :value, String
+    end
+
+    value_object "TickCycle" do
+      # tick.heki cycle counter (GAP-3 — Tick has no bluebook aggregate).
+      # Empty string means absent.
+      attribute :value, String
+    end
+
+    value_object "TickTimestamp" do
+      # Unix epoch seconds, stored as a string to match the .tick_baseline
+      # format the shell script writes. Empty string = no baseline yet.
+      attribute :value, String
+    end
+
+    value_object "ViolationCount" do
+      # Running count of invariant violations detected.
+      attribute :value, Integer
+    end
+
+    value_object "ViolationMessage" do
+      # Human-readable description of the most recent violation,
+      # mirroring the "INVARIANT N: <reason>" format from the shell script.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp of when the snapshot was recorded.
+      attribute :value, String
+    end
+
+    # ── Snapshot lifecycle ──
+
+    command "RecordSnapshot" do
+      role "System"
+      description "Feed the current body-state values into the coherence record. Called once per render cycle by the statusline runner or mindstream tick. All fields default to empty string if the source store is absent — the invariant checks skip rather than false-flag on missing data. tick_prev_cycle and tick_prev_ts carry the prior baseline for invariant 4; the runner reads .tick_baseline and passes both old and new values here so the aggregate is self-contained."
+      attribute :name,                Name
+      attribute :mood_state,          MoodState
+      attribute :fatigue_state,       FatigueState
+      attribute :pulses_since_sleep,  PulsesSinceSleep
+      attribute :consciousness_state, ConsciousnessState
+      attribute :sleep_stage,         SleepStage
+      attribute :is_lucid,            IsLucid
+      attribute :lucid_narrative,     LucidNarrative
+      attribute :tick_cycle,          TickCycle
+      attribute :tick_prev_cycle,     TickCycle
+      attribute :tick_prev_ts,        TickTimestamp
+      attribute :tick_current_ts,     TickTimestamp
+      attribute :last_checked_at,     Timestamp
+      then_set :name,                to: :name
+      then_set :mood_state,          to: :mood_state
+      then_set :fatigue_state,       to: :fatigue_state
+      then_set :pulses_since_sleep,  to: :pulses_since_sleep
+      then_set :consciousness_state, to: :consciousness_state
+      then_set :sleep_stage,         to: :sleep_stage
+      then_set :is_lucid,            to: :is_lucid
+      then_set :lucid_narrative,     to: :lucid_narrative
+      then_set :tick_cycle,          to: :tick_cycle
+      then_set :tick_prev_cycle,     to: :tick_prev_cycle
+      then_set :tick_prev_ts,        to: :tick_prev_ts
+      then_set :tick_current_ts,     to: :tick_current_ts
+      then_set :last_checked_at,     to: :last_checked_at
+      emits "SnapshotRecorded"
+    end
+
+    command "RecordViolation" do
+      role "System"
+      description "Record that an invariant check produced a violation message. Increments violation_count and sets last_violation so the statusline can surface the breach without a query round-trip. The six Violation* queries remain the authoritative re-derivation from snapshot fields."
+      attribute :message, ViolationMessage
+      then_set :violation_count, increment: 1
+      then_set :last_violation,  to: :message
+      emits "ViolationRecorded"
+    end
+
+    command "ResetViolations" do
+      role "System"
+      description "Clear the violation counter at the start of a new coherence pass. Called immediately before RecordSnapshot so the count reflects the current snapshot, not an accumulation across snapshots."
+      then_set :violation_count, to: 0
+      emits "ViolationsReset"
+    end
+
+    # ── Violation queries — one per invariant ──
+    #
+    # Each query surfaces records where the named invariant is broken.
+    # "where" filters on a single field value; compound predicate
+    # evaluation (e.g. "mood=refreshed AND fatigue ∉ {limber,tuned}")
+    # is not yet expressible in the DSL without runtime predicate support
+    # (i101). These query declarations name the invariant checks as
+    # first-class domain facts; the evaluation logic lives in the runner
+    # until i101 lands.
+
+    query "ViolationOne" do
+      description "Invariant 1: mood=refreshed but fatigue_state is NOT limber or tuned. Surfaces snapshots where the refreshed mood is paired with a fatigue rung that contradicts it."
+      where mood_state: "refreshed"
+    end
+
+    query "ViolationTwo" do
+      description "Invariant 2: consciousness=sleeping but mood is refreshed or focused — sleep-incompatible. Surfaces snapshots where sleeping consciousness coexists with a wakeful-quality mood."
+      where consciousness_state: "sleeping"
+    end
+
+    query "ViolationSix" do
+      description "Invariant 6: fatigue_state=spent but consciousness is NOT sleeping or napping. The bottom of the fatigue ladder is phenomenologically incompatible with a wakeful state. Surfaces snapshots where spent fatigue coexists with an alert consciousness."
+      where fatigue_state: "spent"
+    end
+
+    query "CurrentSnapshot" do
+      description "The most recently recorded coherence snapshot — all fields including the violation count and last_checked_at. Used by the statusline renderer and the coherence runner to confirm what was last fed in."
+    end
+  end
+end

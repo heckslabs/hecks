@@ -1,0 +1,102 @@
+Hecks.bluebook "ForwarderPoc", version: "2026.05.22.1" do
+  # ============================================================
+  # COMMAND FORWARDING — proof of concept (command-forwarding-poc)
+  # ============================================================
+  #
+  # Question (Chris): can a storehouse command at an OLD address
+  # forward / chain to the real implementation at a NEW address,
+  # so that callers of the old FQN keep working after a rename?
+  #
+  # Answer this PoC proves: YES, via the existing policy primitive.
+  # A forwarder command emits a uniquely-named event; a top-level
+  # policy reacts to that event and triggers the real command via
+  # the runtime's dispatch_cascade (with inject_refs threading the
+  # id and event.data carrying the args).
+  #
+  # Two aggregates stand in for the immune-system rename:
+  #
+  #   NewHome  — the REAL command lives here. This stands in for the
+  #              renamed address ImmuneSystem::BluebookFirst.* (the
+  #              renamed target the macrophage's RecordImperativeEdit
+  #              would move to). It does the actual work: increments a
+  #              counter and records the file path. FQN dispatch reads
+  #              ForwarderPoc::NewHome.RecordImperativeEdit.
+  #
+  #   OldHome  — the FORWARDER lives here. This stands in for the OLD
+  #              address callers still hold. Its RecordImperativeEdit
+  #              does NO domain work — it only emits a uniquely-named
+  #              forward-request event the policy catches. This is the
+  #              "wrap / chain the call" Chris described.
+  #
+  # NOTE ON THE FQN SHAPE (runtime constraint discovered during this
+  # PoC): parse_fqn in command_dispatch.rs caps at exactly TWO
+  # ::-separated segments before the dot (lines 498-504). So Chris's
+  # literal example ImmuneSystem::Macrophage::BluebookFirst.Record...
+  # (three segments) will NOT parse. The achievable rename is
+  # ImmuneSystem::BluebookFirst.RecordImperativeEdit — i.e. set the
+  # bluebook's `context` to "ImmuneSystem". This PoC uses 2-segment
+  # FQNs (ForwarderPoc::NewHome.* and ForwarderPoc::OldHome.*) which
+  # is the same shape the real rename would take.
+
+  category "discipline"
+
+  # ── NEW HOME : the real command (rename target) ──
+  aggregate "NewHome", "Stands in for the renamed ImmuneSystem::BluebookFirst address — holds the real RecordImperativeEdit implementation" do
+    identified_by :name
+
+    attribute :name,             Name
+    attribute :imperative_edits, EditCount
+    attribute :last_file,        FilePath
+
+    value_object "Name" do
+      attribute :value, String
+    end
+    value_object "EditCount" do
+      attribute :value, Integer
+    end
+    value_object "FilePath" do
+      attribute :value, String
+    end
+
+    command "RecordImperativeEdit" do
+      role "Hook"
+      description "THE REAL COMMAND. An imperative-language file was written. Records the file path on the root. This is the implementation the OldHome forwarder chains into."
+      attribute :file_path, FilePath
+      then_set :last_file, to: :file_path
+      emits "ImperativeEdited"
+    end
+  end
+
+  # ── OLD HOME : the forwarder (the address callers still hold) ──
+  aggregate "OldHome", "Stands in for the OLD pre-rename address — its RecordImperativeEdit is a pure forwarder that chains to NewHome via a policy" do
+    identified_by :name
+
+    attribute :name, Name
+
+    value_object "Name" do
+      attribute :value, String
+    end
+    value_object "FilePath" do
+      attribute :value, String
+    end
+
+    command "RecordImperativeEdit" do
+      role "Hook"
+      description "THE FORWARDER. Callers of the old FQN land here. It does NO domain work — it only emits a uniquely-named forward-request event. The ForwardRecordImperativeEdit policy catches that event and triggers the real NewHome.RecordImperativeEdit, threading file_path through event.data and the id through inject_refs. This is the wrap/chain Chris described."
+      attribute :file_path, FilePath
+      emits "OldRecordImperativeEditRequested"
+    end
+  end
+
+  # ── THE FORWARDER WIRE : old event → new command ──
+  #
+  # The policy is the forwarding primitive. on the forwarder's unique
+  # event; trigger the real command at its NEW (FQN) address. The
+  # trigger string is the full Domain::Aggregate.Command so resolution
+  # is unambiguous even though RecordImperativeEdit also exists on
+  # OldHome (and, in the real corpus, on several macrophage siblings).
+  policy "ForwardRecordImperativeEdit" do
+    on "OldRecordImperativeEditRequested"
+    trigger "ForwarderPoc::NewHome.RecordImperativeEdit"
+  end
+end

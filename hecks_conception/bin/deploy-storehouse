@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# deploy-storehouse — one-command deploy runner for the warm storehouse runtime
+#
+# Usage:
+#   bin/deploy-storehouse [TARGET]
+#
+# Targets:
+#   mac    (default) — install on Mac Studio via overmind (requires overmind)
+#   docker           — build a Docker image + run it with the socket mapped
+#
+# What it does (follows the StorehouseDeploy bluebook):
+#   1. Begin   — records the deploy attempt
+#   2. Build   — waits for the pre-built release binary (does NOT run cargo build)
+#   3. Package — stages binary + aggregates + heki stores
+#   4. Ship    — starts serve-socket (overmind restart or docker run)
+#   5. Verify  — round-trip warm dispatch to confirm the socket is live
+#
+# PRECONDITION: cargo build --release must have already run.
+# Run: cd /Users/christopheryoung/Projects/hecks/rust && cargo build --release
+# before invoking this script.
+
+set -euo pipefail
+
+BINARY=/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse
+AGGREGATES_ROOT=/Users/christopheryoung/Projects/hecks/hecks_conception
+HEKI_DIR="${AGGREGATES_ROOT}/information"
+TARGET="${1:-mac}"
+DEPLOY_ID="deploy-$(date -u +%Y%m%dT%H%M%SZ)"
+STOREHOUSE="${BINARY}"
+
+log() { echo "[deploy-storehouse] $*" >&2; }
+
+# ── 1. Pre-flight ──────────────────────────────────────────────────────────
+
+if [[ ! -f "${BINARY}" ]]; then
+  log "ERROR: binary not found at ${BINARY}"
+  log "Run: cd /Users/christopheryoung/Projects/hecks/rust && cargo build --release"
+  exit 1
+fi
+
+if [[ ! -d "${AGGREGATES_ROOT}/aggregates" ]]; then
+  log "ERROR: aggregates root missing expected aggregates/ sub-dir at ${AGGREGATES_ROOT}"
+  exit 1
+fi
+
+log "deploy-id: ${DEPLOY_ID}  target: ${TARGET}"
+
+# ── 2. Record Begin ────────────────────────────────────────────────────────
+
+"${STOREHOUSE}" dispatch "${AGGREGATES_ROOT}" \
+  --command "StorehouseDeploy::Deploy.Begin" \
+  --args "id=${DEPLOY_ID},aggregates_root=${AGGREGATES_ROOT},target_arch=$(uname -m),started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  2>/dev/null || true   # dispatch may fail if runtime not up yet; not fatal at Begin
+
+# ── 3. Build (confirm binary exists) ──────────────────────────────────────
+
+log "binary OK at ${BINARY} ($(du -sh "${BINARY}" | cut -f1))"
+
+"${STOREHOUSE}" dispatch "${AGGREGATES_ROOT}" \
+  --command "StorehouseDeploy::Deploy.Build" \
+  --args "id=${DEPLOY_ID},binary_path=${BINARY}" \
+  2>/dev/null || true
+
+# ── 4. Package ────────────────────────────────────────────────────────────
+
+if [[ "${TARGET}" == "docker" ]]; then
+  log "building Docker image..."
+  docker build \
+    --file "$(dirname "$0")/../Dockerfile.storehouse" \
+    --tag "storehouse:latest" \
+    /Users/christopheryoung/Projects/hecks
+fi
+
+"${STOREHOUSE}" dispatch "${AGGREGATES_ROOT}" \
+  --command "StorehouseDeploy::Deploy.Package" \
+  --args "id=${DEPLOY_ID}" \
+  2>/dev/null || true
+
+# ── 5. Ship ───────────────────────────────────────────────────────────────
+
+SOCK_PARENT="${HOME}/.config/miette/sockets"
+mkdir -p "${SOCK_PARENT}"
+
+if [[ "${TARGET}" == "mac" ]]; then
+  log "restarting serve_socket via overmind..."
+  # Overmind restart sends SIGTERM to the named process and relaunches it.
+  # Working directory must be the hecks_conception dir where .overmind.sock lives.
+  (cd "${AGGREGATES_ROOT}" && overmind restart serve_socket)
+elif [[ "${TARGET}" == "docker" ]]; then
+  log "running Docker container..."
+  docker run -d \
+    --name storehouse-warm \
+    --rm \
+    -v "${AGGREGATES_ROOT}:${AGGREGATES_ROOT}:ro" \
+    -v "${HEKI_DIR}:${HEKI_DIR}" \
+    -v "${SOCK_PARENT}:${SOCK_PARENT}" \
+    -e HOME="${HOME}" \
+    storehouse:latest \
+    serve-socket "${AGGREGATES_ROOT}"
+else
+  log "ERROR: unknown target '${TARGET}' — use 'mac' or 'docker'"
+  exit 1
+fi
+
+# Give the daemon a moment to bind the socket.
+sleep 1
+
+# Compute socket path (mirrors sock_path_for_root logic — just find the sock).
+SOCK=$(ls "${SOCK_PARENT}"/*hecks_conception.sock 2>/dev/null | head -1 || true)
+if [[ -z "${SOCK}" ]]; then
+  log "WARNING: socket not found in ${SOCK_PARENT} — daemon may still be starting"
+  SOCK="${SOCK_PARENT}/unknown.sock"
+fi
+
+"${STOREHOUSE}" dispatch "${AGGREGATES_ROOT}" \
+  --command "StorehouseDeploy::Deploy.Ship" \
+  --args "id=${DEPLOY_ID},socket_path=${SOCK},shipped_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  2>/dev/null || true
+
+# ── 6. Verify ─────────────────────────────────────────────────────────────
+
+log "verifying warm dispatch via socket..."
+if [[ -S "${SOCK}" ]]; then
+  # Send a minimal dispatch over the socket and check for a response line.
+  RESULT=$(echo '{"command":"StorehouseDeploy::Deploy.live_deploys"}' | \
+    nc -U "${SOCK}" 2>/dev/null | head -1 || true)
+  if [[ -n "${RESULT}" ]]; then
+    log "socket live — got: ${RESULT:0:80}"
+    "${STOREHOUSE}" dispatch "${AGGREGATES_ROOT}" \
+      --command "StorehouseDeploy::Deploy.Verify" \
+      --args "id=${DEPLOY_ID},verified_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      2>/dev/null || true
+    log "DEPLOY VERIFIED — ${DEPLOY_ID}"
+  else
+    log "WARNING: socket exists but returned empty — daemon may still be warming up"
+  fi
+else
+  log "WARNING: socket not a socket — verify manually: ls ${SOCK_PARENT}"
+fi
+
+log "done. socket: ${SOCK:-none}"
