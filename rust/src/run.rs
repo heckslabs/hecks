@@ -126,7 +126,7 @@ pub fn run_script(args: &[String]) -> i32 {
         Some((k.to_string(), Value::Str(v.to_string())))
     }).collect();
 
-    let registry = AdapterRegistry::from_hecksagon(hex);
+    let registry = AdapterRegistry::from_hecksagon(hex.clone());
     // Resolve the per-domain world store by the bluebook category (the same
     // mapping the StoryExecuted projection uses) so a step dispatched here
     // boots against e.g. plan/.heki, not the global info dir - else a command
@@ -136,7 +136,24 @@ pub fn run_script(args: &[String]) -> i32 {
         .and_then(|cat| crate::world::attach::collect_world_heki_dirs(
             &crate::storehouse_router::conception_root()).get(cat).cloned())
         .or_else(|| infer_data_dir(path));
-    let mut rt = Runtime::boot_with_data_dir(domain, data_dir);
+    // Boot WITH the companion hecksagon attached (not just used for
+    // capability detection). The `:claude_tool` / `:mcp` / `:web_tool`
+    // adapter-resolution arms in Runtime::dispatch scan `rt.hecksagons`
+    // and early-return when it's empty — so a use-case step whose phrase
+    // is a tool command (ShellTool.Bash, FileTool.Edit, …) recorded its
+    // event but never fired the side-effect adapter. The tool adapter
+    // declarations live in the bluebook's companion `.hecksagon`
+    // (framework/tools/tools.hecksagon for the Tools.* family), which the
+    // `route`→`run_script` step path already resolves alongside the
+    // bluebook. Attaching it here makes the step-runner dispatch fire
+    // adapters identically to the direct main.rs dispatch path.
+    let mut rt = Runtime::boot_with_hecksagons(domain, data_dir, vec![hex]);
+    // `:mcp` adapters (EmailTool, …) resolve through world servers walked
+    // from `.world` files ; root at the conception so a step that
+    // dispatches an :mcp tool command can reach its server, mirroring the
+    // direct dispatch_hecksagon path's attach_world_servers call.
+    crate::world::attach::attach_world_servers(
+        &mut rt, &crate::storehouse_router::conception_root());
 
     // Stdin-loop capability detection: when the hecksagon declares both
     // :stdin and :stdout AND the bluebook's Session aggregate exposes
