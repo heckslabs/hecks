@@ -354,6 +354,13 @@ pub struct Aggregate {
     pub entities: Vec<Entity>,
     pub references: Vec<Reference>,
     pub lifecycle: Option<Lifecycle>,
+    /// f4 — aggregate-level invariants. Each is a predicate the runtime
+    /// evaluates on the RESULTING state after EVERY command's mutations,
+    /// before save. A `given` is checked on one command ; an invariant is
+    /// checked on all of them. When any invariant's predicate is false the
+    /// command is rejected (InvariantViolation, 0 events) — the same way a
+    /// failed `given` rejects. Empty for aggregates that declare none.
+    pub invariants: Vec<Invariant>,
     /// i254 — views per role. Each `View` declares a named projection
     /// of this aggregate's fields ; portals consume views by name
     /// (`record.view("for_customer")`) so role-scoped renderers all
@@ -647,4 +654,17 @@ impl fmt::Display for Domain {
         }
         Ok(())
     }
+}
+
+/// f4 — one declared aggregate-level invariant. `name` is the rule's
+/// stable identifier (the string passed to `invariant "..."`) ; it doubles
+/// as the human-readable message when the rule is violated. `expression`
+/// is the source text of the `holds_when { ... }` predicate — the same
+/// single-line predicate grammar a `given` carries, evaluated against the
+/// post-mutation state. Round-trips byte-identically through
+/// canonical_ir.rb / dump.rs.
+#[derive(Debug, Clone)]
+pub struct Invariant {
+    pub name: String,
+    pub expression: String,
 }

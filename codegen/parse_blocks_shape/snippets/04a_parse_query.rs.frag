@@ -153,6 +153,15 @@ fn extract_where_value(raw: &str, param_names: &[String]) -> String {
     let raw = raw.trim();
     if raw.starts_with('"') {
         extract_string(raw).unwrap_or_default()
+    } else if raw.starts_with('\'') {
+        // Single-quoted string literal — strip enclosing quotes.
+        // Used in multi-key where conditions that mix a runtime-param key
+        // with a literal value, e.g. `where person: :person, status: 'drafting'`.
+        // Without this branch the quotes are carried into the IR and the
+        // runtime comparison `"drafting" == "'drafting'"` always fails.
+        let inner = raw.trim_start_matches('\'');
+        let close = inner.rfind('\'').unwrap_or(inner.len());
+        inner[..close].to_string()
     } else if raw.starts_with(':') {
         raw.split(|c: char| c == ',' || c.is_whitespace())
             .next().unwrap_or("").to_string()

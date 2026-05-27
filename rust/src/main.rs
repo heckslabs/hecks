@@ -65,6 +65,8 @@
 use storehouse::{parser, validator, validator_warnings, server, conceiver, heki, heki_query, dump,
                  behaviors_parser, behaviors_dump};
 use storehouse::runtime::Runtime;
+use storehouse::corpus_loader::load_combined_domain;
+use storehouse::story_runtime::{story_sorted_steps, story_args_to_tokens};
 
 use std::env;
 use std::fs;
@@ -2886,206 +2888,6 @@ fn run_terminal(project_dir: &str, being: &str) {
     storehouse::runtime::adapter_terminal::run(&mut rt, being);
 }
 
-/// Load every `.bluebook` under `<agg_dir>/` (organs) and under sibling
-/// `<agg_dir>/../capabilities/*/` (capability bluebooks) into a single
-/// merged Domain. Closes inbox i108 — capability bluebooks were
-/// previously skipped, so any aggregate declared in a capability bluebook
-/// (e.g. Antibody.ExemptRegistry, MusingMint.Mint, ConsolidationSweep)
-/// raised UnknownCommand on dispatch. Now they're auto-loaded alongside
-/// the organ aggregates and dispatch resolves them through the standard
-/// runtime path.
-///
-/// **Organ-wins dedupe.** When a capability bluebook re-declares an
-/// aggregate already defined under aggregates/ (e.g. self_checkin.bluebook
-/// declared a second `Heartbeat` without identified_by, which silently
-/// overwrote body.bluebook's canonical one), the organ definition wins
-/// and the capability copy is dropped. Capabilities can REFERENCE organ
-/// aggregates ; redeclaration is a name conflict, not an extension.
-fn load_combined_domain(agg_dir: &str) -> storehouse::ir::Domain {
-    let mut combined = storehouse::ir::Domain {
-        name: "Hecksagon".into(),
-        category: None, vision: None,
-        aggregates: vec![], policies: vec![],
-        fixtures: vec![],
-        entrypoint: None,
-        sections: vec![],
-        process_managers: vec![],
-        cadences: vec![],
-        block_grammars: vec![],
-    };
-    // Organ-wins dedupe (i108) — when two bluebooks declare the same
-    // aggregate, the one closest to the dispatch root wins. Recursive
-    // walk (i126) collects bluebooks with their depth ; we sort
-    // shallowest-first and merge in that order so the deeper duplicate
-    // is dropped by the existing any(existing.name == agg.name) check.
-    let merge = |dom: storehouse::ir::Domain, c: &mut storehouse::ir::Domain| {
-        for agg in dom.aggregates {
-            // i143 — dedupe by (context, name), not name alone. i142
-            // Tier 1 added Context.Aggregate.Command resolution but
-            // didn't update this merge ; same-name-different-context
-            // aggregates were silently dropped here, defeating the
-            // dispatch path's ability to disambiguate. Now Boot.Identity,
-            // Being.Identity, FirstBreath.Identity all survive merge ;
-            // the resolver picks the right one by context. Same-name
-            // SAME-context still dedupes (organ-wins, the i108 case
-            // for capability-redeclaration of an organ aggregate).
-            if c.aggregates.iter().any(|existing|
-                existing.name == agg.name && existing.context == agg.context
-            ) {
-                continue;
-            }
-            c.aggregates.push(agg);
-        }
-        c.policies.extend(dom.policies);
-        c.fixtures.extend(dom.fixtures);
-        // i75-pulse-organs : process_managers + cadences + block_grammars
-        // were dropped by the merge function — load_combined_domain only
-        // ever surfaced the FIRST merged file's PMs, silently swallowing
-        // every subsequent bluebook's process_manager declarations. The
-        // Pulse / SleepCycle / Dream / Mind / Lucidity PMs that the
-        // dream-study branch declares all hit this — registered in Ruby
-        // specs (which load files individually), inert in `storehouse
-        // run-loop` (which load_combined_domain's the directory). i75
-        // closes this so the PMs reach PMEngine when run-loop boots.
-        c.process_managers.extend(dom.process_managers);
-        c.cadences.extend(dom.cadences);
-        c.block_grammars.extend(dom.block_grammars);
-    };
-
-    // Recursive bluebook discovery (i126). Walk agg_dir at any depth.
-    // Skip directories that are known not to contain domain content :
-    // .git, target, information (heki stores), .claude (worktree
-    // state), node_modules, generated, fixtures (test data),
-    // snippets, behaviors (test fixtures, distinct from .behaviors
-    // files which are picked up by their extension separately).
-    // Symlinks not followed.
-    fn collect_bluebooks(dir: &std::path::Path, depth: usize,
-                          out: &mut Vec<(usize, std::path::PathBuf)>) {
-        let Ok(entries) = fs::read_dir(dir) else { return };
-        for entry in entries.flatten() {
-            let p = entry.path();
-            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if matches!(name, ".git" | "target" | "information" | ".claude"
-                | "node_modules" | "generated" | "fixtures" | "snippets"
-                | "behaviors" | "behaviours") {
-                continue;
-            }
-            if p.is_dir() {
-                collect_bluebooks(&p, depth + 1, out);
-            } else if p.extension().map(|e| e == "bluebook").unwrap_or(false) {
-                out.push((depth, p));
-            }
-        }
-    }
-
-    let mut found: Vec<(usize, std::path::PathBuf)> = Vec::new();
-    collect_bluebooks(std::path::Path::new(agg_dir), 0, &mut found);
-
-    // Backward compat : the historic two-root model has organ
-    // bluebooks under aggregates/ and capability shapes under sibling
-    // capabilities/. The recursive walk above already finds children
-    // of agg_dir ; we extend it to the sibling capabilities/ directory
-    // when agg_dir's parent has one, so existing
-    // `storehouse aggregates/ Cmd ...` invocations keep working.
-    // Capability bluebooks land at depth 1 (a level below organs) so
-    // the organ-wins dedupe rule is preserved.
-    if let Some(parent) = std::path::Path::new(agg_dir).parent() {
-        let cap_dir = parent.join("capabilities");
-        if cap_dir.exists() && cap_dir != std::path::Path::new(agg_dir) {
-            collect_bluebooks(&cap_dir, 1, &mut found);
-        }
-        // i117 Round 4 — Miette's body lives in the sibling miette/
-        // repo (chrisyoung/miette) post-split. Walk ../miette as an
-        // additional bluebook root at depth 1 so all of Miette's
-        // self/mind/body/library/surface aggregates participate in
-        // the same dispatch domain even though they live outside
-        // hecks_conception. The pre-push behaviors gate already
-        // scans this root ; the runtime now does too. Skipped
-        // silently when the sibling repo isn't checked out (e.g. CI
-        // running on hecks alone).
-        //
-        // Use heki::repo_root() (walks up from the executable) rather
-        // than `parent.parent()` because `agg_dir` can be a relative
-        // path (e.g. "hecks_conception/aggregates") whose parent.parent()
-        // is empty/relative — `..` from there points to cwd's parent,
-        // not the repo's parent. From a worktree under
-        // `.claude/worktrees/agent-XXX/` that breaks reach to the real
-        // `~/Projects/miette/`. The executable lives in the main
-        // checkout's `storehouse/target/release/`, so walk-up from
-        // current_exe finds the canonical hecks/ root. (i117 Round 4
-        // follow-on : Chris's "no inbox row, just fix it" call after
-        // the Wave 2 agent's worktree-path-resolution false-failure.)
-        // Isolation gate (production) — the global roots below (Miette's
-        // conception via ../miette and the repo's framework buckets) join
-        // the dispatch domain ONLY when agg_dir is itself inside the hecks
-        // repo, i.e. Miette dispatching against her own conception. A
-        // standalone domain (a user's project, an isolated root) loads in
-        // isolation : only its own bluebooks + sibling capabilities.
-        // Without this gate every external dispatch dragged in Miette's
-        // whole conception, so a foreign domain's events collided with her
-        // policies (a demo `Greeted` fired memory's RecallOnGreet).
-        let within_repo = std::fs::canonicalize(agg_dir).ok()
-            .zip(storehouse::heki::repo_root()
-                .and_then(|r| std::fs::canonicalize(&r).ok()))
-            .map(|(a, r)| a.starts_with(&r))
-            .unwrap_or(false);
-        let canonical_miette = storehouse::heki::repo_root()
-            .map(|r| r.join("../miette"))
-            .filter(|p| p.is_dir())
-            .and_then(|p| std::fs::canonicalize(&p).ok());
-        if within_repo {
-            if let Some(canonical) = canonical_miette {
-                if canonical != std::path::Path::new(agg_dir) {
-                    collect_bluebooks(&canonical, 1, &mut found);
-                }
-            }
-        }
-        // i118 Round 3 (capabilities reorg) — the 58 framework
-        // capabilities that used to live under hecks_conception/capabilities/
-        // are being lifted into top-level buckets at the hecks repo root :
-        // runtime/, discipline/, codegen/, cli/, integrations/, tools/.
-        // Wave 1 of the lift moves 33 caps ; codegen/ + statusline land in
-        // Wave 2 (specializer-fed paths require golden regeneration). For
-        // each known bucket directory at the repo root, collect bluebooks at
-        // depth 1 so the dispatch domain still resolves them. The legacy
-        // hecks_conception/capabilities/ walk above keeps working for caps
-        // that haven't been lifted yet (the deferred codegen + statusline).
-        if let Some(repo_root) = storehouse::heki::repo_root().filter(|_| within_repo) {
-            // Runtime buckets only — chapters/ and bluebook/ are
-            // descriptive (the framework's self-description and
-            // language definition) and intentionally excluded from
-            // the dispatch domain. Walking them in would surface
-            // documentation-level Compile / Build / etc. commands
-            // that collide with runtime-level same-named commands
-            // (e.g. language/grammar's Compile gets shadowed by
-            // chapters/cli.bluebook's Compile via depth-sort).
-            for bucket in &["runtime", "discipline", "codegen", "cli",
-                            "integrations", "tools"] {
-                let bucket_dir = repo_root.join(bucket);
-                if bucket_dir.is_dir() && bucket_dir != std::path::Path::new(agg_dir) {
-                    collect_bluebooks(&bucket_dir, 1, &mut found);
-                }
-            }
-        }
-    }
-
-    // Shallowest first — root-level bluebooks beat deeper ones on
-    // name collision (i126). Within a depth, sort by path
-    // lexicographically so the dedupe is reproducible across
-    // filesystems (i141). Without the path tiebreaker, three
-    // depth-0 bluebooks declaring the same aggregate (e.g. boot,
-    // being, first_breath all declaring Identity) resolve by
-    // fs::read_dir() inode order — which is undefined across
-    // filesystems. The tiebreaker makes organ-wins deterministic.
-    found.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
-
-    for (_, path) in found {
-        if let Ok(source) = fs::read_to_string(&path) {
-            merge(parser::parse(&source), &mut combined);
-        }
-    }
-    combined
-}
 
 /// Find the info dir for run_loop / run_clock / dispatch_hecksagon.
 ///
@@ -3499,6 +3301,7 @@ fn boot_serve_runtime(
     };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
     let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
@@ -3547,6 +3350,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     };
     let hecksagons = load_all_hecksagons(agg_dir);
     let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
 
@@ -3607,6 +3411,45 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             .collect();
         match rt.dispatch(command, rt_attrs) {
             Ok(result) => {
+                // Runtime projection of StoryExecuted — dispatching
+                // Plan::Story.Execute through the door triggers the
+                // use-case runner as the projection of the emitted event.
+                // Mirrors the same hook in run.rs (run_script path) so
+                // both main.rs direct dispatch and the storehouse_route
+                // path both fire the projection.
+                if let Some(ref ev) = result.event {
+                    if ev.name == "StoryExecuted" || ev.name == "SprintExecuted" {
+                        let agg_id = ev.aggregate_id.clone();
+                        // Use the plan domain's world-declared heki dir so the
+                        // projection's reads find records in plan/.heki, not
+                        // miette-state/information. collect_world_heki_dirs
+                        // must be rooted at the conception (it walks *.world
+                        // files recursively); plan.world is a SIBLING of the
+                        // dispatch root aggregates/plan, so rooting at agg_dir
+                        // misses it and falls back to the global info dir.
+                        // Mirrors run.rs + run_serve (both root at conception).
+                        let world_dirs = storehouse::world::attach::collect_world_heki_dirs(
+                            &storehouse::storehouse_router::conception_root());
+                        let heki_dir = world_dirs.get("plan").cloned()
+                            .or_else(|| storehouse::storehouse_router::info_dir());
+                        if let Some(info_dir) = heki_dir {
+                            // SprintExecuted fans out over the sprint's stories
+                            // and runs each story's use cases DIRECTLY (not by
+                            // re-dispatching Story.Execute, which would double-
+                            // run). StoryExecuted runs one story's use cases.
+                            let exit = if ev.name == "SprintExecuted" {
+                                storehouse::story_runtime::sprint_execute(
+                                    &agg_id, &info_dir, storehouse_route)
+                            } else {
+                                storehouse::story_runtime::storehouse_execute(
+                                    &agg_id, &info_dir, storehouse_route)
+                            };
+                            if exit != 0 { std::process::exit(exit); }
+                        } else {
+                            eprintln!("[{}] cannot resolve heki dir — projection skipped", ev.name);
+                        }
+                    }
+                }
                 // Run LLM adapter if configured
                 if let Some(state) = rt.find(&result.aggregate_type, &result.aggregate_id).cloned() {
                     let repo_key = storehouse::runtime::repo_lookup_key(&rt.repositories, &result.aggregate_type);
@@ -5472,6 +5315,13 @@ fn storehouse_route(args: &[String]) -> i32 {
         Some(p) => p.clone(),
         None => { eprintln!("storehouse storehouse route: missing phrase"); return 1; }
     };
+    // A query-tail phrase (snake_case tail, e.g. `Plan::Story.by_sprint`)
+    // can't resolve through the command lexicon — route it through the
+    // read-only query path so query steps run from the CLI too. Mirrors
+    // storehouse_router::route (GAP 3 — usecase-query-steps).
+    if storehouse::storehouse_query::is_query_phrase(&phrase) {
+        return storehouse::storehouse_query::query_route(&phrase, &args[1..]);
+    }
     let conception = storehouse_conception_root();
     let target = match storehouse_resolve(&phrase, &conception) {
         Some(t) => t,
@@ -5573,60 +5423,6 @@ fn storehouse_play(args: &[String]) -> i32 {
         format!("step_count={}", total),
     ];
     storehouse_route(&run_args)
-}
-
-/// One executable step of a Story, read back from heki.
-struct StoryStep {
-    order: i64,
-    phrase: String,
-    args: String,
-}
-
-/// Extract a Story record's `steps` array, sorted ascending by `order`.
-/// Tolerant of order stored as either a JSON number or a numeric string
-/// (heki round-trips entity-list ints as strings, see repository.rs
-/// to_json/from_json). Missing or malformed steps are skipped.
-fn story_sorted_steps(record: &storehouse::heki::Record) -> Vec<StoryStep> {
-    let mut steps: Vec<StoryStep> = Vec::new();
-    if let Some(serde_json::Value::Array(items)) = record.get("steps") {
-        for item in items {
-            let obj = match item.as_object() { Some(o) => o, None => continue };
-            let phrase = match obj.get("phrase").and_then(|v| v.as_str()) {
-                Some(s) if !s.is_empty() => s.to_string(),
-                _ => continue,
-            };
-            let order = match obj.get("order") {
-                Some(serde_json::Value::Number(n)) => n.as_i64().unwrap_or(0),
-                Some(serde_json::Value::String(s)) => s.parse::<i64>().unwrap_or(0),
-                _ => 0,
-            };
-            let args = obj.get("args").and_then(|v| v.as_str()).unwrap_or("{}").to_string();
-            steps.push(StoryStep { order, phrase, args });
-        }
-    }
-    steps.sort_by_key(|s| s.order);
-    steps
-}
-
-/// Unpack a step's `args` (a JSON-object string like `{"text":"hi"}`)
-/// into the `k=v` argv tokens storehouse_route expects. An empty object
-/// or unparseable string yields no tokens. Non-string scalar values are
-/// stringified so any JSON-object arg bag survives the round-trip.
-fn story_args_to_tokens(args: &str) -> Vec<String> {
-    let parsed: serde_json::Value = match serde_json::from_str(args) {
-        Ok(v) => v,
-        Err(_) => return Vec::new(),
-    };
-    let obj = match parsed.as_object() { Some(o) => o, None => return Vec::new() };
-    obj.iter()
-        .map(|(k, v)| {
-            let val = match v {
-                serde_json::Value::String(s) => s.clone(),
-                other => other.to_string(),
-            };
-            format!("{}={}", k, val)
-        })
-        .collect()
 }
 
 fn storehouse_compile(args: &[String]) -> i32 {
@@ -5749,13 +5545,17 @@ fn storehouse_lookup(args: &[String]) -> i32 {
 ///   "Domain.Aggregate.Command"    — three-segment, always specific
 fn storehouse_resolve(phrase: &str, conception: &str) -> Option<StorehousePhrase> {
     let phrases = storehouse_walk_phrases(conception);
-    let segments: Vec<&str> = phrase.split('.').collect();
+    // Normalize the canonical FQN Domain::Aggregate.Command (the runtime's
+    // form, e.g. use-case step phrases) to the dotted Domain.Aggregate.Command
+    // the lexicon stores as domain_phrase. Mirrors storehouse_router::resolve.
+    let normalized = phrase.replace("::", ".");
+    let segments: Vec<&str> = normalized.split('.').collect();
     if segments.len() == 2 {
         // Aggregate.Command — match against two-segment form
-        phrases.into_iter().find(|p| p.phrase == phrase)
+        phrases.into_iter().find(|p| p.phrase == normalized)
     } else if segments.len() == 3 {
         // Domain.Aggregate.Command — match against three-segment form
-        phrases.into_iter().find(|p| p.domain_phrase == phrase)
+        phrases.into_iter().find(|p| p.domain_phrase == normalized)
     } else {
         None
     }
@@ -5793,11 +5593,17 @@ fn storehouse_collect_recursive(dir: &std::path::Path, out: &mut Vec<StorehouseP
                     let domain = storehouse::parser::parse(&src);
                     if domain.name.is_empty() { continue; }
                     let path_str = p.to_string_lossy().into_owned();
+                    // FQN phrases lead with the bluebook CATEGORY (e.g.
+                    // "plan" → "Plan"), not its NAME ("Story"). See the
+                    // identical fix in storehouse_router::collect_recursive.
+                    let domain_seg = domain.category.as_deref()
+                        .map(storehouse::storehouse_router::pascal_case_segments)
+                        .unwrap_or_else(|| domain.name.clone());
                     for agg in &domain.aggregates {
                         for cmd in &agg.commands {
                             out.push(StorehousePhrase {
                                 phrase: format!("{}.{}", agg.name, cmd.name),
-                                domain_phrase: format!("{}.{}.{}", domain.name, agg.name, cmd.name),
+                                domain_phrase: format!("{}.{}.{}", domain_seg, agg.name, cmd.name),
                                 bluebook_path: path_str.clone(),
                                 aggregate: agg.name.clone(),
                                 command: cmd.name.clone(),

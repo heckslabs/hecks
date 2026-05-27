@@ -24,7 +24,7 @@
 
 use crate::ir::{
     Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
-    Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
+    Invariant, Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
     DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
     ValueObject, View, WhereClause, WhereOp,
 };
@@ -131,6 +131,7 @@ fn dump_aggregate(agg: &Aggregate) -> Value {
         "commands": agg.commands.iter().map(dump_command).collect::<Vec<_>>(),
         "queries": agg.queries.iter().map(dump_query).collect::<Vec<_>>(),
         "lifecycle": agg.lifecycle.as_ref().map(dump_lifecycle),
+        "invariants": agg.invariants.iter().map(dump_invariant).collect::<Vec<_>>(),
         "views": agg.views.iter().map(dump_view).collect::<Vec<_>>(),
     })
 }
@@ -331,6 +332,13 @@ fn dump_view(v: &View) -> Value {
         "name": v.name,
         "show_all": v.show_all,
         "fields": v.fields,
+    })
+}
+
+fn dump_invariant(inv: &Invariant) -> Value {
+    json!({
+        "name": inv.name,
+        "expression": inv.expression,
     })
 }
 
