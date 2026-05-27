@@ -95,6 +95,44 @@ fn spaced_arg_value_survives_dispatch_end_to_end() {
 }
 
 #[test]
+fn run_script_fires_claude_tool_adapter_side_effect() {
+    // Regression for the use-case step-runner adapter gap : a step whose
+    // phrase is a `:claude_tool` command (e.g. ShellTool.Bash) recorded its
+    // event but never fired the side-effect adapter, because run_script
+    // booted with an EMPTY `rt.hecksagons` and the
+    // `resolve_claude_tool_adapters` arm early-returns on empty hecksagons.
+    // After the fix run_script attaches the companion hecksagon, so the
+    // adapter fires and the shell command's side effect (a touched file)
+    // becomes observable — mirroring the direct main.rs dispatch path.
+    let dir = tempdir_with("claude-tool-fire");
+    let probe = dir.join("adapter_fired.txt");
+    let _ = std::fs::remove_file(&probe);
+
+    let bb = dir.join("shell.bluebook");
+    std::fs::write(&bb,
+        "Hecks.bluebook \"Shell\" do\n  entrypoint \"Bash\"\n  aggregate \"ShellTool\" do\n    identified_by :id\n    attribute :id, String\n    attribute :shell_command, String\n    command \"Bash\" do\n      attribute :id, String\n      attribute :shell_command, String\n      then_set :shell_command, to: :shell_command\n      emits \"BashRan\"\n    end\n  end\nend\n").unwrap();
+    // Companion hecksagon carries the :claude_tool adapter binding —
+    // command "ShellTool.Bash" → tool :bash. The bash dispatcher reads the
+    // `shell_command` attr and shells out, so the touch creates the probe.
+    let hex = dir.join("shell.hecksagon");
+    std::fs::write(&hex,
+        "Hecks.hecksagon \"Shell\" do\n  adapter :memory\n  adapter :claude_tool, command: \"ShellTool.Bash\", tool: :bash\nend\n").unwrap();
+
+    let args = vec![
+        "storehouse".into(),
+        "run".into(),
+        bb.to_string_lossy().into(),
+        "id=fire1".into(),
+        format!("shell_command=touch {}", probe.to_string_lossy()),
+    ];
+    let code = run::run_script(&args);
+    assert_eq!(code, ExitKind::Ok.code(), "dispatch should succeed");
+    assert!(probe.exists(),
+        "the :claude_tool adapter must fire on the run_script path and create {}",
+        probe.display());
+}
+
+#[test]
 fn companion_hecksagon_is_loaded_when_sibling_exists() {
     let dir = tempdir_with("sibling");
     let bb = dir.join("greet.bluebook");

@@ -35,7 +35,7 @@
 //!  registry key.]
 
 /// A .hecksagon file parsed into IR. Name echoes the Ruby class name.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Hecksagon {
     /// Declared inside `Hecks.hecksagon "Name" do`.
     pub name: String,
