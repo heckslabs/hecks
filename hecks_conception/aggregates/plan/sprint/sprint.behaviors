@@ -23,6 +23,39 @@ Hecks.behaviors "Sprint" do
     expect number: "1"
   end
 
+  # ── Rule #5 : planned scope freezes once active ; AddUnplanned preempts ──
+
+  test "AddStory is refused once the sprint is active (rule #5 freeze)" do
+    tests "AddStory", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1", story_ref: "f9"
+    expect refused: "planned scope freezes once active — only AddUnplanned may add to an active sprint (rule #5)"
+  end
+
+  test "AddUnplanned succeeds on an active sprint" do
+    tests "AddUnplanned", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1", story_ref: "hooks-to-bluebook"
+    expect ok: "true"
+  end
+
+  test "AddUnplanned emits UnplannedStoryAdded" do
+    tests "AddUnplanned", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    setup  "Activate", number: "1"
+    input  number: "1", story_ref: "hooks-to-bluebook"
+    expect emits: ["UnplannedStoryAdded"]
+  end
+
+  test "AddUnplanned is refused on a planned (not yet active) sprint" do
+    tests "AddUnplanned", on: "Sprint"
+    setup  "Plan", number: "1", goal: "Foundations"
+    input  number: "1", story_ref: "hooks-to-bluebook"
+    expect refused: "unplanned work preempts only an active sprint"
+  end
+
   test "Reorder replaces story_refs list" do
     tests "Reorder", on: "Sprint"
     setup  "Plan", number: "1", goal: "Foundations"
