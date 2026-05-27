@@ -64,6 +64,14 @@ Hecks.bluebook "Project", version: "2026.05.24.1" do
       emits "ProjectPaused"
     end
 
+        command "Cancel" do
+          role "Miette"
+          description "Soft-delete a project: set status to cancelled. For removing phantom or erroneous projects (e.g. demo projects flows leave behind). Mirrors Sprint.Cancel / Story.Cancel ; valid from any status."
+          reference_to(Project)
+          then_set :status, to: "cancelled"
+          emits "ProjectCancelled"
+        end
+
     command "Complete" do
       role "Operator"
       description "Mark a project as done. Only Operator may complete a project. Done is a terminal state."
