@@ -1,0 +1,18 @@
+# StatusCoherence — Hecksagon
+#
+# Infrastructure declaration for the StatusCoherence aggregate.
+# This is a derived view / coherence checker — it owns no source
+# truth, only a snapshot fed in by the runner. Memory adapter is
+# correct: the snapshot is per-render-cycle state, not persistent
+# history. The shell runner (status_coherence.sh) is the temporary
+# substrate until the runtime hosts RecordSnapshot dispatch and
+# predicate-returning queries natively (i101).
+#
+# When i101 lands and GAP-1 / GAP-2 / GAP-3 are closed, the runner
+# becomes a simple:
+#   storehouse dispatch StatusCoherence::StatusCoherence.RecordSnapshot …
+# followed by querying ViolationOne through ViolationSix.
+#
+Hecks.hecksagon "StatusCoherence" do
+  adapter :memory
+end

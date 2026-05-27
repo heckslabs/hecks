@@ -1,0 +1,84 @@
+Hecks.bluebook "Drafting", version: "2026.05.24.1" do
+  vision "Collaborative document drafting — track a document and its revisions as we co-edit. The current text lives in a markdown main file ; each change is recorded as a Revision (a summary plus a unified diff), so we always know what changed, in what order, and can read the document evolve. Bluebook-first revision control for prose."
+  category "drafting"
+
+  aggregate "Document", "A document we are drafting together — its markdown main file and its revision history" do
+    identified_by :ref
+
+    attribute :ref,       Ref
+    attribute :title,     Title
+    attribute :main_file, MainFile
+    attribute :revision,  RevisionNumber, default: 0
+    attribute :revisions, list_of(Revision)
+
+    value_object "Ref" do
+      # Short document id — e.g. "yc-application".
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # Human title of the document.
+      attribute :value, String
+    end
+
+    value_object "MainFile" do
+      # Absolute path to the current markdown text — the main file. The
+      # document's body lives here (markdown handles multi-line prose) ;
+      # the domain tracks the revision ledger around it.
+      attribute :value, String
+    end
+
+    value_object "RevisionNumber" do
+      # Monotonic revision counter. 0 at Draft, +1 per Revise.
+      attribute :value, Integer
+    end
+
+    value_object "Summary" do
+      # One line describing what a revision changed.
+      attribute :value, String
+    end
+
+    value_object "Diff" do
+      # The change as a unified diff (or before/after snippet) — what moved.
+      attribute :value, String
+    end
+
+    entity "Revision" do
+      attribute :number,  RevisionNumber
+      attribute :summary, Summary
+      attribute :diff,    Diff
+    end
+
+    command "Draft" do
+      role "Miette"
+      description "Start a document — the original text goes into the main file (a markdown path). Sets revision 0 with an empty history. The ref is the identity."
+      attribute :ref,       Ref
+      attribute :title,     Title
+      attribute :main_file, MainFile
+      then_set :ref,       to: :ref
+      then_set :title,     to: :title
+      then_set :main_file, to: :main_file
+      then_set :revision,  to: 0
+      emits "DocumentDrafted"
+    end
+
+    command "Revise" do
+      role "Miette"
+      description "Record a revision — a summary and the unified diff of a change made to the main file. Bumps the revision number, then appends the revision to history. The main file is edited to match ; this records what changed."
+      reference_to(Document)
+      attribute :summary, Summary
+      attribute :diff,    Diff
+      then_set :revision,  increment: 1
+      then_set :revisions, append: { number: :revision, summary: :summary, diff: :diff }
+      emits "DocumentRevised"
+    end
+
+    query "Current" do
+      description "The document and its main-file path — what to read right now, and which revision it is at."
+    end
+
+    query "History" do
+      description "Every revision in order — the summary and diff of each change."
+    end
+  end
+end

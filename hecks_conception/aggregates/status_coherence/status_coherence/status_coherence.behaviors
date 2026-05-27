@@ -1,0 +1,120 @@
+Hecks.behaviors "StatusCoherence" do
+  vision "Behavioral tests for the StatusCoherence aggregate — the six body-state invariants declared as domain fact. RecordSnapshot feeds a snapshot in ; the Violation* queries and violation_count surface which invariants are broken. Tests mirror the six invariant definitions in status_coherence.sh."
+
+  # ── Invariant 1: mood=refreshed requires fatigue ∈ {limber, tuned} ──
+
+  test "RecordSnapshot stores all fields" do
+    tests "RecordSnapshot", on: "StatusCoherence"
+    input  name: "miette",
+           mood_state: "refreshed",
+           fatigue_state: "limber",
+           pulses_since_sleep: "42",
+           consciousness_state: "attentive",
+           sleep_stage: "",
+           is_lucid: "",
+           lucid_narrative: "",
+           tick_cycle: "100",
+           tick_prev_cycle: "",
+           tick_prev_ts: "",
+           tick_current_ts: "1716400000",
+           last_checked_at: "2026-05-23T10:00:00Z"
+    expect mood_state: "refreshed",
+           fatigue_state: "limber",
+           pulses_since_sleep: "42",
+           consciousness_state: "attentive",
+           tick_cycle: "100",
+           last_checked_at: "2026-05-23T10:00:00Z"
+  end
+
+  test "RecordViolation increments violation_count" do
+    tests "RecordViolation", on: "StatusCoherence"
+    input  message: "INVARIANT 1: mood=refreshed but fatigue_state=normal (expected limber|tuned)"
+    expect violation_count: 1,
+           last_violation: "INVARIANT 1: mood=refreshed but fatigue_state=normal (expected limber|tuned)"
+  end
+
+  test "ResetViolations clears violation_count" do
+    tests "ResetViolations", on: "StatusCoherence"
+    expect violation_count: 0
+  end
+
+  test "ViolationOne query surfaces snapshots where mood=refreshed" do
+    tests "ViolationOne", on: "StatusCoherence", kind: :query
+    setup  "RecordSnapshot",
+           name: "miette",
+           mood_state: "refreshed",
+           fatigue_state: "normal",
+           pulses_since_sleep: "600",
+           consciousness_state: "attentive",
+           sleep_stage: "",
+           is_lucid: "",
+           lucid_narrative: "",
+           tick_cycle: "",
+           tick_prev_cycle: "",
+           tick_prev_ts: "",
+           tick_current_ts: "",
+           last_checked_at: "2026-05-23T10:00:00Z"
+    expect includes: { mood_state: "refreshed", fatigue_state: "normal" }
+  end
+
+  # ── Invariant 2: consciousness=sleeping → mood ∉ {refreshed, focused} ──
+
+  test "ViolationTwo query surfaces snapshots where consciousness=sleeping" do
+    tests "ViolationTwo", on: "StatusCoherence", kind: :query
+    setup  "RecordSnapshot",
+           name: "miette",
+           mood_state: "refreshed",
+           fatigue_state: "tired",
+           pulses_since_sleep: "1200",
+           consciousness_state: "sleeping",
+           sleep_stage: "light",
+           is_lucid: "",
+           lucid_narrative: "",
+           tick_cycle: "",
+           tick_prev_cycle: "",
+           tick_prev_ts: "",
+           tick_current_ts: "",
+           last_checked_at: "2026-05-23T10:00:00Z"
+    expect includes: { consciousness_state: "sleeping", mood_state: "refreshed" }
+  end
+
+  # ── Invariant 6: fatigue_state=spent → consciousness ∈ {sleeping, napping} ──
+
+  test "ViolationSix query surfaces snapshots where fatigue_state=spent" do
+    tests "ViolationSix", on: "StatusCoherence", kind: :query
+    setup  "RecordSnapshot",
+           name: "miette",
+           mood_state: "focused",
+           fatigue_state: "spent",
+           pulses_since_sleep: "2000",
+           consciousness_state: "attentive",
+           sleep_stage: "",
+           is_lucid: "",
+           lucid_narrative: "",
+           tick_cycle: "",
+           tick_prev_cycle: "",
+           tick_prev_ts: "",
+           tick_current_ts: "",
+           last_checked_at: "2026-05-23T10:00:00Z"
+    expect includes: { fatigue_state: "spent", consciousness_state: "attentive" }
+  end
+
+  test "CurrentSnapshot query returns the most recently recorded snapshot" do
+    tests "CurrentSnapshot", on: "StatusCoherence", kind: :query
+    setup  "RecordSnapshot",
+           name: "miette",
+           mood_state: "curious",
+           fatigue_state: "tuned",
+           pulses_since_sleep: "300",
+           consciousness_state: "attentive",
+           sleep_stage: "",
+           is_lucid: "",
+           lucid_narrative: "",
+           tick_cycle: "42",
+           tick_prev_cycle: "",
+           tick_prev_ts: "",
+           tick_current_ts: "1716400000",
+           last_checked_at: "2026-05-23T11:00:00Z"
+    expect includes: { mood_state: "curious", fatigue_state: "tuned", tick_cycle: "42" }
+  end
+end

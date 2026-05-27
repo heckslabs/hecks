@@ -1,0 +1,35 @@
+Hecks.behaviors "Drafting" do
+  vision "Behavioral tests for the Drafting domain — a document main file plus a revision ledger."
+
+  test "Draft starts a document at revision 0" do
+    tests "Draft", on: "Document"
+    input  ref: "doc1", title: "Doc One", main_file: "/tmp/doc1.md"
+    expect ref: "doc1", revision: 0
+  end
+
+  test "Revise bumps the revision number" do
+    tests "Revise", on: "Document"
+    setup  "Draft", ref: "doc1", title: "Doc One", main_file: "/tmp/doc1.md"
+    input  ref: "doc1", summary: "fix a typo", diff: "-corectly +correctly"
+    expect revision: 1
+  end
+
+  test "Revise emits DocumentRevised" do
+    tests "Revise", on: "Document"
+    setup  "Draft", ref: "doc1", title: "Doc One", main_file: "/tmp/doc1.md"
+    input  ref: "doc1", summary: "s", diff: "d"
+    expect emits: ["DocumentRevised"]
+  end
+
+  test "Current returns the document" do
+    tests "Current", on: "Document", kind: :query
+    setup  "Draft", ref: "doc1", title: "Doc One", main_file: "/tmp/doc1.md"
+    expect count: 1
+  end
+
+  test "History lists revisions" do
+    tests "History", on: "Document", kind: :query
+    setup  "Draft", ref: "doc1", title: "Doc One", main_file: "/tmp/doc1.md"
+    expect count: 1
+  end
+end

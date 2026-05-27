@@ -1,0 +1,56 @@
+# Dockerfile.storehouse — container image for the warm storehouse runtime
+#
+# IMPORTANT: This Dockerfile does NOT run cargo build.
+# The storehouse binary must be built for the container target BEFORE
+# calling docker build. The container target is x86_64-unknown-linux-gnu
+# or aarch64-unknown-linux-gnu depending on host.
+#
+# Build the cross-compiled binary first:
+#   cd rust && cargo build --release --target x86_64-unknown-linux-gnu
+#
+# Then build the image (from the hecks/ repo root):
+#   docker build -f Dockerfile.storehouse -t storehouse:latest .
+#
+# The image bundles:
+#   1. storehouse binary (pre-built, host-side)
+#   2. aggregates root (all .bluebook files)
+#   3. information/ tree (.heki stores — the warm state)
+#
+# The container runs serve-socket, which binds a unix-domain socket.
+# UNIX-DOMAIN SOCKET CONSTRAINT: serve-socket binds a local socket;
+# remote clients cannot reach it over TCP. The container must share
+# the socket path with the MCP client process (e.g. via a shared
+# Docker volume or by running both in the same container/pod).
+# Until a TCP transport lands in run_serve/, remote deploy = blocked.
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Binary (pre-built, not compiled here)
+COPY rust/target/release/storehouse /usr/local/bin/storehouse
+RUN chmod +x /usr/local/bin/storehouse
+
+# Aggregates root and heki state
+COPY hecks_conception/aggregates /conception/aggregates
+COPY hecks_conception/catalog     /conception/catalog
+# information/ (.heki stores) is volume-mounted at runtime so state
+# persists across container restarts. If you want a sealed image
+# (stateless), COPY it here instead.
+# COPY hecks_conception/information /conception/information
+
+# Socket directory (shared volume mount point)
+RUN mkdir -p /root/.config/miette/sockets
+
+ENV HOME=/root
+
+EXPOSE 0
+# No TCP port — access is via unix-domain socket at
+#   /root/.config/miette/sockets/<hash>-conception.sock
+# Mount that socket dir from the host or a shared volume.
+
+# The aggregates root must be volume-mounted at /conception if you
+# want live bluebook reloads; the COPY above is for sealed deploys.
+CMD ["storehouse", "serve-socket", "/conception"]
