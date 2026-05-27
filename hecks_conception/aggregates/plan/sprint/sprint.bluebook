@@ -254,6 +254,22 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       emits "SprintReopened"
     end
 
+    command "Cancel" do
+      role "Miette"
+      description "Soft-delete a sprint: move it to the terminal `cancelled` state. For removing phantom or erroneous sprints — e.g. the demo sprints flows leave behind when run against the live store. Cancelled sprints drop out of Board (which is active-only). Hard record removal is a separate runtime concern (no Delete primitive yet) ; Cancel is the bluebook-first way to take an unwanted sprint out of circulation."
+      reference_to(Sprint)
+      then_set :state, to: "cancelled"
+      emits "SprintCancelled"
+    end
+
+    command "Deactivate" do
+      role "Miette"
+      description "Return an active sprint to planned — the legitimate way to step a sprint back out of active (e.g. it was activated before the current sprint was closed). The missing reverse of Activate ; enables the one-active-sprint rule (close-before-activate) to be honoured without cancelling real work."
+      reference_to(Sprint)
+      then_set :state, to: "planned"
+      emits "SprintDeactivated"
+    end
+
     command "Execute" do
       role "System"
       description "The operator entry for fanning out a sprint's stories. Dispatching Plan::Sprint.Execute through the bus emits SprintExecuted with story_count; the runtime projection of SprintExecuted queries Plan::Story.BySprint to find every story committed to this sprint, then runs each story's use cases directly (the same step-execution path StoryExecuted uses). It does NOT re-dispatch Plan::Story.Execute per story — that would re-trigger the StoryExecuted projection and double-run. Pure signal: no state transition, valid from any state."
@@ -273,6 +289,10 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       transition "RequestClosure" => "ready_for_closure", from: "active"
       transition "Approve"        => "completed",        from: "ready_for_closure"
       transition "Reopen"         => "active",           from: "completed"
+      transition "Cancel"         => "cancelled",        from: "active"
+      transition "Cancel"         => "cancelled",        from: "planned"
+      transition "Cancel"         => "cancelled",        from: "completed"
+      transition "Deactivate"     => "planned",          from: "active"
     end
 
     # ── Invariant: done is done (Sprint closure) ─────────────────

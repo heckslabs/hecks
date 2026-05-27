@@ -79,4 +79,11 @@ Hecks.behaviors "Project" do
     setup  "Register", name: "mel", description: "MEL initiative"
     expect count: 2
   end
+
+  test "Cancel soft-deletes a project to cancelled" do
+    tests "Cancel", on: "Project"
+    setup  "Register", name: "pc1", description: "x"
+    input  id: "pc1"
+    expect status: "cancelled"
+  end
 end

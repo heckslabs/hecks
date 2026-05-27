@@ -337,6 +337,14 @@ Hecks.bluebook "Story", version: "2026.05.25.3" do
       emits "StoryDeferred"
     end
 
+    command "Cancel" do
+      role "Miette"
+      description "Soft-delete a story: move it to the terminal `cancelled` state. For removing phantom or erroneous stories — e.g. demo stories flows leave behind when run against the live store. Mirrors Sprint.Cancel ; valid from any state. Hard record removal is a separate runtime concern (no Delete primitive yet)."
+      reference_to(Story)
+      then_set :state, to: "cancelled"
+      emits "StoryCancelled"
+    end
+
     # ── Lifecycle ─────────────────────────────────────────────────
     #
     # backlog → in_sprint → started → ready_for_review → done

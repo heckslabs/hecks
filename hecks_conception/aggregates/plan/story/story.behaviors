@@ -194,4 +194,11 @@ Hecks.behaviors "Story" do
     input  ref: "f1", title: "StorehouseDeploy v2", summary: "ship the warm runtime, deploy edition"
     expect title: "StorehouseDeploy v2", summary: "ship the warm runtime, deploy edition"
   end
+
+  test "Cancel soft-deletes a story to cancelled" do
+    tests "Cancel", on: "Story"
+    setup  "Capture", ref: "ct1", title: "x", tier: 5, summary: "x", target: "x", project: "framework"
+    input  id: "ct1"
+    expect state: "cancelled"
+  end
 end

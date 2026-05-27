@@ -229,4 +229,20 @@ Hecks.behaviors "Sprint" do
     input  number: "9"
     expect state: "active", all_stories_done: false
   end
+
+  test "Cancel soft-deletes a sprint to cancelled" do
+    tests "Cancel", on: "Sprint"
+    setup  "Plan", number: "8", goal: "CancelTest"
+    setup  "Activate", number: "8"
+    input  number: "8"
+    expect state: "cancelled"
+  end
+
+  test "Deactivate returns an active sprint to planned" do
+    tests "Deactivate", on: "Sprint"
+    setup  "Plan", number: "7", goal: "DeactTest"
+    setup  "Activate", number: "7"
+    input  number: "7"
+    expect state: "planned"
+  end
 end
