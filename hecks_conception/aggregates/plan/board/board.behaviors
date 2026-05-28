@@ -79,4 +79,14 @@ Hecks.behaviors "Board" do
     input  name: "board", card_ref: "i608"
     expect ok: "true"
   end
+
+  test "ReorderSprints replaces queued_sprint_refs list" do
+    tests "ReorderSprints", on: "Board"
+    setup  "Open", name: "the-board", project: "framework"
+    setup  "PlaceSprint", sprint_ref: "a"
+    setup  "PlaceSprint", sprint_ref: "b"
+    setup  "PlaceSprint", sprint_ref: "c"
+    input  name: "the-board", queued_sprint_refs: ["c", "a", "b"]
+    expect queued_sprint_refs: ["c", "a", "b"]
+  end
 end
