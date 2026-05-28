@@ -31,4 +31,11 @@ Hecks.behaviors "GovernedDoor" do
     tests "ListAll", on: "GovernedDoor", kind: :query
     expect count: 0
   end
+
+  test "LookupDoor returns the registered door for the queried tool" do
+    tests "LookupDoor", on: "GovernedDoor", kind: :query
+    setup  "Register", tool: "Bash", door_equivalent: "Tools::ShellTool.Bash"
+    input  tool: "Bash"
+    expect count: 1
+  end
 end
