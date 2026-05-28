@@ -43,6 +43,15 @@ Hecks.behaviors "Story" do
     expect state: "started"
   end
 
+  test "Unstart returns a started story to in_sprint" do
+    tests "Unstart", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    setup  "AssignToSprint", sprint_ref: "s1"
+    setup  "Start"
+    input  ref: "f1"
+    expect state: "in_sprint"
+  end
+
   test "Forward records step count" do
     tests "Forward", on: "Story"
     setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
