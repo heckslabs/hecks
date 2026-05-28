@@ -210,4 +210,11 @@ Hecks.behaviors "Story" do
     input  id: "ct1"
     expect state: "cancelled"
   end
+
+  test "AssignToProject assigns a story to a project" do
+    tests "AssignToProject", on: "Story"
+    setup  "Capture", ref: "f1", title: "StorehouseDeploy", tier: 1, summary: "ship the warm runtime", target: "storehouse/deploy"
+    input  ref: "f1", project: "harness-portability"
+    expect project: "harness-portability"
+  end
 end
