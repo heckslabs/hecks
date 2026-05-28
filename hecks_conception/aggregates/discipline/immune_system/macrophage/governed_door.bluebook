@@ -59,7 +59,12 @@ Hecks.bluebook "GovernedDoor", version: "2026.05.26.1" do
     end
 
     query "ListAll" do
-      description "Every governed native tool and its door equivalent — the mapping bin/governed-door-hook enforces."
+      description "Every governed native tool and its door equivalent — the mapping the PreToolUse hook enforces."
+    end
+
+    query "LookupDoor" do
+      description "Look up the storehouse-door equivalent for one native tool by name. Returns the GovernedDoor record (with door_equivalent) when registered, or empty when the tool is not governed (control-plane tools, mcp__storehouse__*, etc.). The PreToolUse hook calls this query per dispatch to render the redirect message."
+      where tool: :tool
     end
   end
 end

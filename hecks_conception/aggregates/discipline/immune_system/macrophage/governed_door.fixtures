@@ -1,0 +1,43 @@
+Hecks.fixtures "GovernedDoor", version: "2026.05.28.1" do
+  vision "The 10 native harness tools and their storehouse-door equivalents — the bluebook-of-record for the PreToolUse macrophage. Each row is a Register dispatch ; the fixtures fire at session boot so the registry is always populated from the bluebook itself, not from a hardcoded dict in a hook script."
+
+  fixture "Bash door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "Bash",         door_equivalent: "Tools::ShellTool.Bash"
+  end
+
+  fixture "Edit door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "Edit",         door_equivalent: "Tools::FileTool.Edit"
+  end
+
+  fixture "Write door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "Write",        door_equivalent: "Tools::FileTool.Update"
+  end
+
+  fixture "Read door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "Read",         door_equivalent: "Tools::FileTool.Read"
+  end
+
+  fixture "MultiEdit door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "MultiEdit",    door_equivalent: "Tools::FileTool.Edit"
+  end
+
+  fixture "NotebookEdit door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "NotebookEdit", door_equivalent: "Tools::FileTool.Edit"
+  end
+
+  fixture "Grep door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "Grep",         door_equivalent: "Tools::SearchTool.Grep"
+  end
+
+  fixture "Glob door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "Glob",         door_equivalent: "Tools::SearchTool.Glob"
+  end
+
+  fixture "WebFetch door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "WebFetch",     door_equivalent: "Tools::WebTool.WebFetch"
+  end
+
+  fixture "WebSearch door" do
+    dispatch "Discipline::GovernedDoor.Register", tool: "WebSearch",    door_equivalent: "Tools::WebTool.WebSearch"
+  end
+end
