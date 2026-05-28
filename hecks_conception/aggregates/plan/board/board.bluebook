@@ -130,6 +130,15 @@ Hecks.bluebook "Board", version: "2026.05.27.1" do
       emits "BoardReordered"
     end
 
+    command "ReorderSprints" do
+      role "Miette"
+      description "Replace the queued_sprint_refs list with a new order. The active sprint and completed sprints are separate concerns ; this orders the queue only — i.e. which planned sprint activates next."
+      reference_to(Board)
+      attribute :queued_sprint_refs, list_of(SprintRef)
+      then_set :queued_sprint_refs, to: :queued_sprint_refs
+      emits "SprintsReordered"
+    end
+
     command "RemoveCard" do
       role "Miette"
       description "Signal that a card has left the board (card dropped or moved). Removal from ordered_refs is a runtime projection ; the command is a pure domain intent signal."
