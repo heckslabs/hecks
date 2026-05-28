@@ -285,4 +285,11 @@ Hecks.behaviors "Sprint" do
     input  number: "6", wip_limit: 3
     expect wip_limit: 3
   end
+
+  test "UpdateGoal amends the sprint goal" do
+    tests "UpdateGoal", on: "Sprint"
+    setup  "Plan", number: "99", goal: "Original Goal"
+    input  number: "99", goal: "New Goal"
+    expect goal: "New Goal"
+  end
 end

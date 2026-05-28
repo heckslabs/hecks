@@ -148,6 +148,16 @@ Hecks.bluebook "Sprint", version: "2026.05.25.2" do
       emits "SprintPlanned"
     end
 
+    command "UpdateGoal" do
+      role "Miette"
+      description "Amend the sprint's goal text — pure metadata, no lifecycle change. Used to rename a sprint whose theme has clarified since it was planned (e.g. sprint 2 'Product Executor' → 'Decomposition' once the cards revealed the real shape). Valid from any state."
+      reference_to(Sprint)
+      attribute :goal, Goal
+      then_set :goal, to: :goal
+      given("goal must be non-empty") { goal != "" }
+      emits "SprintGoalUpdated"
+    end
+
     command "AddStory" do
       role "Miette"
       description "Append a story ref to the sprint's committed membership list. The sprint must exist; the story is promoted into this sprint."
