@@ -233,6 +233,16 @@ Hecks.bluebook "Story", version: "2026.05.25.3" do
       emits "StoryAssignedToSprint"
     end
 
+    command "AssignToProject" do
+      role "Miette"
+      description "Assign a story to a Project (the initiative grouping). Pure metadata mutation — no lifecycle change. Valid from any state. Mirrors AssignToSprint but for the project axis : a story belongs to one Project and one Sprint independently."
+      reference_to(Story)
+      attribute :project, Project
+      then_set :project, to: :project
+      given("project must be named") { project != "" }
+      emits "StoryAssignedToProject"
+    end
+
     command "MoveToSprint" do
       role "Miette"
       description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints whether it is in_sprint or started. Closes the re-sprinting gap: AssignToSprint is allowed only from backlog, so a committed story could not otherwise change sprints."
