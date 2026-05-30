@@ -1,0 +1,130 @@
+Hecks.bluebook "Bluebook", version: "2026.05.28.1" do
+  vision "The meta-bluebook : aggregates that work ON Hecks bluebooks themselves. Every bluebook IS a domain (Evans : a bounded context with a Ubiquitous Language) ; this bluebook holds the framework aggregates that read, render, and reason over that language. Diagram carries the six surfaces by which a bluebook reads itself aloud : five mermaid diagrams (structure / behavior / flow / slice / ports) and one prose surface (sentences — 'A Sprint has many Stories.' — the model reading itself out loud). All six are projections of the same source : pure functions of the bluebook IR, computed by the EMITTED render arm, recorded on last_render via the matching Render* command. Mirrors BoardMarkdownProjector — the caller reads the source through the bus, the arm computes the markdown, then the caller dispatches the matching Render* command which records the output on last_render and emits the *Rendered event. Pure projection : the projector never reads heki ; the source arrives through the bus query result. The render walks are emitted to rust/src/projection/bluebook.rs by the specializer (f4/i557). Edge style in the mermaid output encodes cardinality from the has_many / has_one / belongs_to primitives (sprint 7) : --> for max==1 ; ==>|N..M| for has_many with arity bounds. If a sentence reads wrong, the model IS wrong."
+  category "framework"
+
+  aggregate "Diagram", "Records the markdown rendered from a bluebook — either as a mermaid diagram (structure / behavior / flow / slice / ports) or as natural-language readings (sentences). Six commands : one per surface. Each command captures the pre-computed output on last_render and emits its *Rendered event. Pure projection : the arm computes outside, the command records inside." do
+    identified_by :name
+
+    attribute :name,        ProjectorName, default: "diagram"
+    attribute :last_render, RenderResult,  default: "—"
+    attribute :last_type,   SurfaceType,   default: "—"
+
+    value_object "ProjectorName" do
+      # Natural key. One projector instance per render shape.
+      attribute :value, String
+    end
+
+    value_object "RenderResult" do
+      # The emitted markdown from the most recent render (mermaid for the
+      # diagram surfaces, prose for sentences). Captured on state ;
+      # queryable via storehouse state. Heavy markdown rides the event payload.
+      attribute :value, String
+    end
+
+    value_object "SurfaceType" do
+      # Which surface was last rendered :
+      # structure | behavior | flow | slice | ports | sentences.
+      attribute :value, String
+    end
+
+    value_object "AggregateCount" do
+      # How many aggregates the render walked — footer/log metadata.
+      attribute :value, Integer
+    end
+
+    value_object "EdgeCount" do
+      # How many edges (references) the render emitted — useful for the
+      # render's own integrity check (zero edges on a known-related
+      # domain is a smell).
+      attribute :value, Integer
+    end
+
+    value_object "ReferenceCount" do
+      # How many references became sentences — the count of natural-language
+      # readings in the most recent RenderSentences output.
+      attribute :value, Integer
+    end
+
+    # ── Commands : one per surface ───────────────────────────────
+    #
+    # Each command RECORDS the rendered output ; the arm that walks the
+    # bluebook IR and produces the markdown is EMITTED from this contract
+    # by the specializer (f4/i557). Caller path : read source → run
+    # emitted arm → dispatch Render* with the result. Bluebook = Final
+    # Rewrite.
+
+    command "RenderStructure" do
+      role "Miette"
+      description "Record the mermaid classDiagram rendered from a bluebook — with validating sentences embedded as a mermaid `note` inside the diagram itself, so one rendered image carries the model AND its readings. The diagram wraps each aggregate in a `namespace` block (the DDD boundary) ; root + owned entities live inside. Edge style encodes cardinality : --> for max==1 (has_one / belongs_to / reference_to) ; ==> for has_many. Edge labels carry the reference name and arity bounds (0..N / N..* / N..M) when set. Caller computes both pieces via the emitted arm ; this command captures the composed markdown on last_render."
+      attribute :mermaid,         RenderResult
+      attribute :sentences,       RenderResult
+      attribute :aggregate_count, AggregateCount
+      attribute :edge_count,      EdgeCount
+      attribute :reference_count, ReferenceCount
+      emits "StructureRendered"
+      then_set :last_render, to: :mermaid
+      then_set :last_type,   to: "structure"
+    end
+
+    command "RenderBehavior" do
+      role "Miette"
+      description "Record the mermaid sequence diagram of command flow : how commands emit events that drive policies that trigger more commands. The bus journey of a bluebook."
+      attribute :mermaid,         RenderResult
+      attribute :aggregate_count, AggregateCount
+      attribute :edge_count,      EdgeCount
+      emits "BehaviorRendered"
+      then_set :last_render, to: :mermaid
+      then_set :last_type,   to: "behavior"
+    end
+
+    command "RenderFlow" do
+      role "Miette"
+      description "Record the mermaid graph of the cross-aggregate event / policy cascade : every Policy node wires upstream event to downstream command, showing how a single dispatch can fan out across aggregates."
+      attribute :mermaid,         RenderResult
+      attribute :aggregate_count, AggregateCount
+      attribute :edge_count,      EdgeCount
+      emits "FlowRendered"
+      then_set :last_render, to: :mermaid
+      then_set :last_type,   to: "flow"
+    end
+
+    command "RenderSlice" do
+      role "Miette"
+      description "Record the mermaid per-feature slice diagram : groups aggregates / commands / events / policies by feature seam (vertical slice). Useful for onboarding and per-story review."
+      attribute :mermaid,         RenderResult
+      attribute :aggregate_count, AggregateCount
+      attribute :edge_count,      EdgeCount
+      emits "SliceRendered"
+      then_set :last_render, to: :mermaid
+      then_set :last_type,   to: "slice"
+    end
+
+    command "RenderPorts" do
+      role "Miette"
+      description "Record the mermaid hexagonal port diagram : domain core in the centre, adapters at the boundary, named ports (driving / driven) on each edge. The Cockburn-style hex render."
+      attribute :mermaid,         RenderResult
+      attribute :aggregate_count, AggregateCount
+      attribute :edge_count,      EdgeCount
+      emits "PortsRendered"
+      then_set :last_render, to: :mermaid
+      then_set :last_type,   to: "ports"
+    end
+
+    command "RenderSentences" do
+      role "Miette"
+      description "Record the natural-language readings (one sentence per reference) rendered from a bluebook — the model reading itself out loud. Example : 'A Sprint has many Stories.' Caller computes the prose via the emitted arm (render_structure_sentences) ; this command captures it on last_render. If a sentence reads wrong, the model IS wrong."
+      attribute :sentences,        RenderResult
+      attribute :aggregate_count,  AggregateCount
+      attribute :reference_count,  ReferenceCount
+      emits "SentencesRendered"
+      then_set :last_render, to: :sentences
+      then_set :last_type,   to: "sentences"
+    end
+
+    # ── Queries ────────────────────────────────────────
+
+    query "LastRender" do
+      description "The most recently captured markdown (any surface) and the type that produced it."
+    end
+  end
+end

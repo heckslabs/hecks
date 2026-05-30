@@ -1,0 +1,21 @@
+Hecks.hecksagon "Git" do
+  # Git tool adapter bindings — bind each Git.X command to the
+  # :git_tool adapter family declared at
+  # framework/adapter_families/git_tool.hecksagon.
+  #
+  # Same pattern as the :web_tool bindings in tools.hecksagon :
+  # `command` names the dispatch target, `tool` selects the
+  # behavior (git_status / git_log / ...), and `result_into`
+  # chains the kernel-hook output back into Cascade.RecordResult.
+  #
+  # Sprint 7 done-is-done gates consume Git.CurrentBranch and
+  # Git.WorktreeList to self-verify (worktree clean, merged to main).
+
+  adapter :memory
+
+  adapter :git_tool, command: "Git.Status",        tool: :git_status,         result_into: "Cascade.RecordResult"
+  adapter :git_tool, command: "Git.Log",           tool: :git_log,            result_into: "Cascade.RecordResult"
+  adapter :git_tool, command: "Git.Diff",          tool: :git_diff,           result_into: "Cascade.RecordResult"
+  adapter :git_tool, command: "Git.CurrentBranch", tool: :git_current_branch, result_into: "Cascade.RecordResult"
+  adapter :git_tool, command: "Git.WorktreeList",  tool: :git_worktree_list,  result_into: "Cascade.RecordResult"
+end

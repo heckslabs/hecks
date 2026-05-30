@@ -88,7 +88,10 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     } else {
                         to_snake_case(&target)
                     };
-                    cmd.references.push(Reference { name, target, domain: None });
+                    // Reference::single defaults to LegacyReferenceTo + single
+                    // cardinality ; cardinality + kind ride into the IR via
+                    // the impl helpers added by ImplReference fixture.
+                    cmd.references.push(Reference::single(name, target, None));
                 }
             } else if line.starts_with("given") {
                 // Two forms:

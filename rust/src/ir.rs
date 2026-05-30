@@ -502,6 +502,17 @@ pub struct Reference {
     pub name: String,
     pub target: String,
     pub domain: Option<String>,
+    /// Multiplicity range. Defaults to Cardinality { min: 0, max: Some(1) }
+    /// for `reference_to(X)` / has_one / belongs_to ; `has_many` produces
+    /// Cardinality { min: 0, max: None } (unbounded) or { min: 0, max: Some(N) }
+    /// when the DSL passes `max: N`. See Reference::single / belongs_to /
+    /// has_one / many / many_with_max constructors for the canonical builders.
+    pub cardinality: Cardinality,
+    /// Which DSL keyword produced this Reference. Preserves authored
+    /// intent (has_one vs belongs_to vs has_many vs reference_to) past
+    /// parsing ; round-trips via ReferenceKind::as_str into the
+    /// canonical IR dump.
+    pub kind: ReferenceKind,
 }
 
 #[derive(Debug, Clone)]
@@ -667,4 +678,118 @@ impl fmt::Display for Domain {
 pub struct Invariant {
     pub name: String,
     pub expression: String,
+}
+
+/// Multiplicity bounds for a Reference. `min` is the inclusive lower
+/// bound (0 for optional, 1+ for required at_least). `max` is the
+/// inclusive upper bound when Some, or `None` for unbounded collections.
+///
+/// Defaults per DSL keyword :
+///   reference_to / has_one / belongs_to → { min: 0, max: Some(1) }
+///   has_many                            → { min: 0, max: None }
+///   has_many _, max: N                  → { min: 0, max: Some(N) }
+///   has_many _, at_least: K, max: N     → { min: K, max: Some(N) }
+///
+/// Mirrors Ruby's Reference#cardinality { min:, max: } hash shape so
+/// the parity contract dumps byte-identically across both parsers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cardinality {
+    pub min: usize,
+    pub max: Option<usize>,
+}
+
+/// Which DSL keyword produced this Reference. The IR carries the
+/// authored intent past parsing so projections (mermaid diagram,
+/// macrophage validators) can honor the original declaration rather
+/// than collapsing all forms onto a single multiplicity shape.
+///
+/// Variants :
+///   BelongsTo          — `belongs_to X` ; dependent side, single.
+///   HasOne             — `has_one X` ; owner side, single.
+///   HasMany            — `has_many Xs` ; owner side, collection.
+///   LegacyReferenceTo  — `reference_to(X)` ; pre-Sprint-7 unidir form,
+///                          treated as BelongsTo for IR shape but kept
+///                          distinct so the retire-reference-to-keyword
+///                          macrophage can flag call sites.
+///
+/// Round-trips through `ReferenceKind::as_str()` for serde / canonical-
+/// IR dump. Ruby's reference.rb mirrors via `attr_reader :kind`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReferenceKind {
+    BelongsTo,
+    HasOne,
+    HasMany,
+    /// `reference_to(X)` — pre-Sprint-7 unidir form. Treated as BelongsTo
+    /// for IR shape but kept distinct so the retire-reference-to-keyword
+    /// macrophage can identify legacy call sites for migration.
+    LegacyReferenceTo,
+}
+
+impl ReferenceKind {
+    /// Canonical keyword string for round-trip / serialization. Mirrors
+    /// BlockParser::name pattern — each variant carries the DSL keyword
+    /// that authored it, so dump.rs / canonical_ir.rb can emit the
+    /// authored intent rather than a Rust-internal enum tag.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ReferenceKind::BelongsTo => "belongs_to",
+            ReferenceKind::HasOne => "has_one",
+            ReferenceKind::HasMany => "has_many",
+            ReferenceKind::LegacyReferenceTo => "reference_to",
+        }
+    }
+}
+
+impl Reference {
+    /// Construct a single-cardinality Reference defaulting to
+    /// LegacyReferenceTo — kept for existing call sites that pre-date
+    /// the kind field. New code should use belongs_to() / has_one() /
+    /// has_many() / many_with_max() explicitly so the authored intent
+    /// rides into the IR.
+    pub fn single(name: String, target: String, domain: Option<String>) -> Self {
+        Reference {
+            name, target, domain,
+            cardinality: Cardinality { min: 0, max: Some(1) },
+            kind: ReferenceKind::LegacyReferenceTo,
+        }
+    }
+
+    /// Construct a Reference from `belongs_to X`. Single cardinality on
+    /// the dependent side ; identity-only ; cross-aggregate.
+    pub fn belongs_to(name: String, target: String, domain: Option<String>) -> Self {
+        Reference {
+            name, target, domain,
+            cardinality: Cardinality { min: 0, max: Some(1) },
+            kind: ReferenceKind::BelongsTo,
+        }
+    }
+
+    /// Construct a Reference from `has_one X`. Single cardinality on
+    /// the owner side ; mirrors belongs_to in shape, differs in intent.
+    pub fn has_one(name: String, target: String, domain: Option<String>) -> Self {
+        Reference {
+            name, target, domain,
+            cardinality: Cardinality { min: 0, max: Some(1) },
+            kind: ReferenceKind::HasOne,
+        }
+    }
+
+    /// Construct an unbounded `has_many Xs` Reference — max: None means
+    /// the collection has no declared upper bound.
+    pub fn many(name: String, target: String, domain: Option<String>) -> Self {
+        Reference {
+            name, target, domain,
+            cardinality: Cardinality { min: 0, max: None },
+            kind: ReferenceKind::HasMany,
+        }
+    }
+
+    /// Construct a `has_many Xs, max: N` Reference — bounded collection.
+    pub fn many_with_max(name: String, target: String, domain: Option<String>, max: usize) -> Self {
+        Reference {
+            name, target, domain,
+            cardinality: Cardinality { min: 0, max: Some(max) },
+            kind: ReferenceKind::HasMany,
+        }
+    }
 }

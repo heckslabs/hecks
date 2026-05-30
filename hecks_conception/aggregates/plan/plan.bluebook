@@ -1,0 +1,1361 @@
+Hecks.bluebook "Plan", version: "2026.05.28.4" do
+  vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit + owned Task entity), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task is an owned entity inside Story (composition, not aggregation)."
+  category "plan"
+
+  aggregate "Plan", "The Planning bounded context as a singleton aggregate. Owns the Board (the one working surface) and the registry of Projects. Sprints live under Projects ; Stories live under Sprints ; UseCases live under Stories. The top of the Plan domain tree." do
+    identified_by :name
+
+    attribute :name, Name, default: "plan"
+
+    has_one Board
+    has_many Projects
+
+    value_object "Name" do
+      # Singleton key — conventionally "plan". There is one Plan.
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Miette"
+      description "Open the Plan singleton. The creation command — there is only one Plan."
+      attribute :name, Name
+      then_set :name, to: :name
+      emits "PlanOpened"
+    end
+  end
+
+  # ===== from sprint/sprint.bluebook =====
+  aggregate "Sprint", "One time-boxed sprint — a number, a goal, a list of committed stories, a closure checklist, and a lifecycle state." do
+    identified_by :number
+
+    # ---- Identity ----
+    attribute :number,              Number
+
+    # ---- Content ----
+    attribute :goal,                Goal
+
+    # ---- Project assignment ----
+    # Reverse navigation only — Project.has_many Sprints (owner side).
+
+    # ---- Membership ----
+    has_many Stories
+    # Sprint does NOT own a list of its committed stories (legacy comment retained below) — that is the
+    # Story aggregate's concern. Story.sprint + Story.BySprint(sprint=N)
+    # are the single source of truth for 'which stories are committed to
+    # this sprint' (see story.bluebook). The drift gap between a stored
+    # Sprint.story_refs and Story.sprint is closed by retiring the list
+    # entirely (fix-sprint-story-refs-drift, sprint 7).
+    #
+    # unplanned_refs STAYS — it's audit, not membership. It records the
+    # FACT that a story was added to this sprint as an explicit mid-sprint
+    # preempt (vs. committed during planning). That sprint-time knowledge
+    # isn't on Story itself ; it lives here as a per-sprint audit trail.
+    attribute :unplanned_refs,      list_of(Story)
+
+    # ---- Lifecycle ----
+    # state: planned | active | ready_for_closure | completed
+    attribute :state,               State, default: "planned"
+
+    # ---- Closure criteria (Sprint DoD) ----
+    # Six operator/runtime-confirmed flags. All must be true before
+    # RequestClosure may fire. Each is armed by its own Mark* command.
+    attribute :all_stories_done,    AllStoriesDone,    default: false
+    attribute :merged_to_main,      MergedToMain,      default: false
+    attribute :ci_passing,          CiPassing,         default: false
+    attribute :summary_drafted,     SummaryDrafted,    default: false
+    attribute :worktrees_pruned,    WorktreesPruned,   default: false
+    attribute :prs_for_open_branches, PrsForOpenBranches, default: false
+
+    # wip_limit is RETIRED from Sprint — moved to Board.wip_limit (board-level
+    # discipline ; WIP crosses sprints when several are active). See
+    # board.bluebook + fix-sprint-story-refs-drift (sprint 7).
+
+    # ── Value-objects : the sprint's vocabulary ──
+
+    value_object "Number" do
+      # String-valued sprint identifier ("1", "2", "3"). String form
+      # keeps id resolution safe regardless of caller type coercion.
+      attribute :value, String
+    end
+
+    value_object "Goal" do
+      # One-line description of the sprint's intention — what the
+      # team commits to delivering by the end of the time-box.
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # Lifecycle token: planned / active / ready_for_closure / completed.
+      attribute :value, String
+    end
+
+    value_object "AllStoriesDone" do
+      # True once the caller has confirmed every committed story reached
+      # the done state. Armed by MarkAllStoriesDone.
+      attribute :value, Boolean
+    end
+
+    value_object "MergedToMain" do
+      # True once the sprint branch (if any) has been merged to main.
+      # Armed by MarkMergedToMain.
+      attribute :value, Boolean
+    end
+
+    value_object "CiPassing" do
+      # True once CI is green on main after the sprint's work landed.
+      # Armed by MarkCiPassing.
+      attribute :value, Boolean
+    end
+
+    value_object "SummaryDrafted" do
+      # True once a written retrospective / summary has been drafted.
+      # Armed by MarkSummaryDrafted.
+      attribute :value, Boolean
+    end
+
+    value_object "WorktreesPruned" do
+      # True once all sprint worktrees have been pruned / removed.
+      # Armed by MarkWorktreesPruned.
+      attribute :value, Boolean
+    end
+
+    value_object "PrsForOpenBranches" do
+      # True once open branches have PRs filed so nothing is lost.
+      # Armed by MarkPrsForOpenBranches.
+      attribute :value, Boolean
+    end
+
+    # WipLimit value object RETIRED — see Board::WipLimit (sprint 7).
+
+
+    value_object "Ref" do
+      # The Story.ref this Slot represents.
+      attribute :value, String
+    end
+
+    value_object "StoryCount" do
+      # How many stories the sprint fanned out over. Carried on
+      # SprintExecuted so downstream reactors know the fan-out width
+      # without re-querying the Story store.
+      attribute :value, Integer
+    end
+
+    # ============================================================
+    # COMMANDS
+    # ============================================================
+
+    command "Plan" do
+      role "Miette"
+      description "Create a new sprint with a number and a goal. Sets state to planned. This is the creation command — the record does not exist yet."
+      attribute :number, Number
+      attribute :goal,   Goal
+      then_set :number, to: :number
+      then_set :goal,   to: :goal
+      then_set :state,  to: "planned"
+      emits "SprintPlanned"
+    end
+
+    command "UpdateGoal" do
+      role "Miette"
+      description "Amend the sprint's goal text — pure metadata, no lifecycle change. Used to rename a sprint whose theme has clarified since it was planned (e.g. sprint 2 'Product Executor' → 'Decomposition' once the cards revealed the real shape). Valid from any state."
+      reference_to(Sprint)
+      attribute :goal, Goal
+      then_set :goal, to: :goal
+      given("goal must be non-empty") { goal != "" }
+      emits "SprintGoalUpdated"
+    end
+
+    command "AddStory" do
+      role "Miette"
+      description "Commit a story to the sprint during planning. Sprint.stories owns the membership truth ; Story has no back-pointer. Allowed while the sprint is planned (planned scope freeze ; rule #5) ; use AddUnplanned for active-sprint preempts."
+      reference_to(Sprint)
+      attribute :story, Story
+      given("planned scope freezes once active") { state == "planned" }
+      then_set :stories, append: :story
+      emits "StoryAddedToSprint"
+    end
+
+    # Legacy AddStory comment retained below for historical context :
+    # Rule #5 (planned scope freezes once active) was previously enforced
+    # here as a `given state == "planned"` guard. With AddStory gone, the
+    # freeze becomes a cross-aggregate rule — Story.AssignToSprint would
+    # need to read Sprint.state to enforce it (runtime gap : cross-aggregate
+    # guards). For now : convention-only ; AddUnplanned remains the
+    # sanctioned way to add scope to an active sprint.
+
+    command "AddUnplanned" do
+      role "Miette"
+      description "Attach an UNPLANNED story to the active sprint — an explicit preempt. Recorded on unplanned_refs (separate from the planned story_refs) so the completion record distinguishes planned from unplanned work. Allowed ONLY while the sprint is active : the sanctioned way work enters an active sprint, counterpart to AddStory's planned-scope freeze (rule #5)."
+      reference_to(Sprint)
+      attribute :story_ref, Story
+      given("unplanned work preempts only an active sprint") { state == "active" }
+      then_set :unplanned_refs, append: :story_ref
+      emits "UnplannedStoryAdded"
+    end
+
+    # Reorder is RETIRED — Sprint no longer carries an ordered membership
+    # list to reorder. The Board owns the manual card order (Board.ordered_refs)
+    # across all active sprints ; reordering within or across sprints is a
+    # Board.Reorder concern, not a Sprint one.
+
+    command "Groom" do
+      role "Miette"
+      description "Mark the sprint's committed stories as expressed in the bluebook — a pure signal, no state mutation. Emits SprintGroomed so downstream policies can react."
+      reference_to(Sprint)
+      emits "SprintGroomed"
+    end
+
+    command "Activate" do
+      role "Miette"
+      description "Transition the sprint from planned to active. Work begins."
+      reference_to(Sprint)
+      given("must be planned") { state == "planned" }
+      then_set :state, to: "active"
+      emits "SprintActivated"
+    end
+
+    # ── Closure criteria setters ─────────────────────────────────
+    # Each command arms one flag in the Sprint DoD checklist.
+    # No lifecycle change — flags can be set in any order while active.
+    # All six must be true before RequestClosure may fire.
+
+    command "MarkAllStoriesDone" do
+      role "Miette"
+      description "Confirm every committed story in this sprint has reached done state. Sets all_stories_done to true. Does not change lifecycle — this arms one flag in the closure checklist."
+      reference_to(Sprint)
+      then_set :all_stories_done, to: true
+      emits "AllStoriesMarkedDone"
+    end
+
+    command "MarkMergedToMain" do
+      role "Miette"
+      description "Confirm the sprint's branch (if any) has been merged to main. Sets merged_to_main to true."
+      reference_to(Sprint)
+      then_set :merged_to_main, to: true
+      emits "MergedToMainMarked"
+    end
+
+    command "MarkCiPassing" do
+      role "Miette"
+      description "Confirm CI is green on main after the sprint's work landed. Sets ci_passing to true."
+      reference_to(Sprint)
+      then_set :ci_passing, to: true
+      emits "CiPassingMarked"
+    end
+
+    command "MarkSummaryDrafted" do
+      role "Miette"
+      description "Confirm a retrospective / summary has been drafted for this sprint. Sets summary_drafted to true."
+      reference_to(Sprint)
+      then_set :summary_drafted, to: true
+      emits "SummaryDraftedMarked"
+    end
+
+    command "MarkWorktreesPruned" do
+      role "Miette"
+      description "Confirm all sprint worktrees have been pruned and removed. Sets worktrees_pruned to true."
+      reference_to(Sprint)
+      then_set :worktrees_pruned, to: true
+      emits "WorktreesPrunedMarked"
+    end
+
+    command "MarkPrsForOpenBranches" do
+      role "Miette"
+      description "Confirm open branches have PRs filed so no work is lost at sprint close. Sets prs_for_open_branches to true."
+      reference_to(Sprint)
+      then_set :prs_for_open_branches, to: true
+      emits "PrsForOpenBranchesMarked"
+    end
+
+    # ── Closure gate ─────────────────────────────────────────────
+
+    command "RequestClosure" do
+      role "Miette"
+      description "Signal that all closure criteria are satisfied and the sprint is ready for human sign-off. Moves active to ready_for_closure. The closure_criteria_met invariant enforces the DoD gate: RequestClosure is refused (InvariantViolation, 0 events) unless all six criteria flags are true. Arm each flag with its Mark* command first."
+      reference_to(Sprint)
+      emits "SprintClosureRequested"
+    end
+
+    command "Approve" do
+      role "Operator"
+      description "Human gate: move a ready_for_closure sprint to completed. Only Operator may Approve. Emits SprintApproved. Completed is only reachable via this command — there is no direct path from active to completed."
+      reference_to(Sprint)
+      emits "SprintApproved"
+    end
+
+    command "Reopen" do
+      role "Operator"
+      description "Un-close a sprint: move completed back to active and RESET all six closure criteria to false, so the Done-is-Done gate must be genuinely re-satisfied before it can close again. The missing lifecycle exit from completed — closes the gap where a sprint approved on incomplete criteria could not be corrected. Only Operator may Reopen."
+      reference_to(Sprint)
+      then_set :state, to: "active"
+      then_set :all_stories_done, to: false
+      then_set :merged_to_main, to: false
+      then_set :ci_passing, to: false
+      then_set :summary_drafted, to: false
+      then_set :worktrees_pruned, to: false
+      then_set :prs_for_open_branches, to: false
+      emits "SprintReopened"
+    end
+
+    command "Cancel" do
+      role "Miette"
+      description "Soft-delete a sprint: move it to the terminal `cancelled` state. For removing phantom or erroneous sprints — e.g. the demo sprints flows leave behind when run against the live store. Cancelled sprints drop out of Board (which is active-only). Hard record removal is a separate runtime concern (no Delete primitive yet) ; Cancel is the bluebook-first way to take an unwanted sprint out of circulation."
+      reference_to(Sprint)
+      then_set :state, to: "cancelled"
+      emits "SprintCancelled"
+    end
+
+    command "Deactivate" do
+      role "Miette"
+      description "Return an active sprint to planned — the legitimate way to step a sprint back out of active (e.g. it was activated before the current sprint was closed). The missing reverse of Activate ; enables the one-active-sprint rule (close-before-activate) to be honoured without cancelling real work."
+      reference_to(Sprint)
+      then_set :state, to: "planned"
+      emits "SprintDeactivated"
+    end
+
+    command "Execute" do
+      role "System"
+      description "The operator entry for fanning out a sprint's stories. Dispatching Plan::Sprint.Execute through the bus emits SprintExecuted with story_count; the runtime projection of SprintExecuted queries Plan::Story.BySprint to find every story committed to this sprint, then runs each story's use cases directly (the same step-execution path StoryExecuted uses). It does NOT re-dispatch Plan::Story.Execute per story — that would re-trigger the StoryExecuted projection and double-run. Pure signal: no state transition, valid from any state."
+      reference_to(Sprint)
+      attribute :story_count, StoryCount
+      emits "SprintExecuted"
+    end
+
+    # ── Lifecycle state machine ──────────────────────────────────
+    #
+    # Plan has no `from:` — it is the creation command; the record
+    # does not exist until Plan fires.
+
+    # SetWipLimit is RETIRED — moved to Plan::Board.SetWipLimit (sprint 7).
+    # WIP discipline is board-level, not sprint-level.
+
+    lifecycle :state, default: "planned" do
+      transition "Plan"           => "planned"
+      transition "Activate"       => "active",           from: "planned"
+      transition "RequestClosure" => "ready_for_closure", from: "active"
+      transition "Approve"        => "completed",        from: "ready_for_closure"
+      transition "Reopen"         => "active",           from: "completed"
+      transition "Cancel"         => "cancelled",        from: "active"
+      transition "Cancel"         => "cancelled",        from: "planned"
+      transition "Cancel"         => "cancelled",        from: "completed"
+      transition "Deactivate"     => "planned",          from: "active"
+    end
+
+    # ── Invariant: done is done (Sprint closure) ─────────────────
+    #
+    # A Sprint may only be in ready_for_closure or completed if ALL six
+    # closure criteria flags are true. Checked on the RESULTING state
+    # after EVERY command, before save — so RequestClosure
+    # (active → ready_for_closure) is rejected with InvariantViolation
+    # (0 events) when any flag is false. Arm each with its Mark* command.
+    #
+    # Predicate, equivalently:
+    #   state in {ready_for_closure, completed} ⇒ all criteria true.
+    invariant "closure_criteria_met" do
+      holds_when { state != "ready_for_closure" && state != "completed" || all_stories_done == true && merged_to_main == true && ci_passing == true && summary_drafted == true && worktrees_pruned == true && prs_for_open_branches == true }
+    end
+
+    # ============================================================
+    # QUERIES
+    # ============================================================
+
+    query "Board" do
+      description "The working context — the active sprint with its committed stories. Filters to state: active so 'the board' means what is being worked on right now, not the whole rail (ListAll is the rail)."
+      where state: "active"
+    end
+
+    query "ListAll" do
+      description "Every sprint and its lifecycle state — the sprint rail. Returns all sprints regardless of state."
+    end
+
+    query "ForProject" do
+      description "Sprints belonging to a given project. Pass project: <slug> to filter."
+      where project: :project
+    end
+  end
+
+  # ===== from story/story.bluebook =====
+  aggregate "Story", "A user story with an ordered list of forwarded commands — the work unit of the Planning domain" do
+    identified_by :ref
+
+    # ── Audit: unidir-heki-per-relationship (Sprint 7) ─────────────────────
+    # Verdict: COMPLIANT. The heki layout is one file per aggregate-instance
+    # (plan/.heki/story/story.heki, plan/.heki/sprint/sprint.heki, etc.).
+    # There are no separate relationship-index files. The Story-to-Sprint
+    # relationship rides the event payload: AssignToSprint carries
+    # attribute :sprint_ref, Sprint and then_set :sprint, to: :sprint_ref —
+    # the sprint ref is a scalar field on the Story record, not a join table.
+    # Two layout anomalies noted but not gaps: (1) plan/.heki/plan/ contains
+    # symlinks back to the canonical per-aggregate files (compat layer, not a
+    # second store); (2) demo/.heki/demo.heki sits at the root alongside
+    # demo/.heki/demo/demo.heki (stale or duplicate, not a relationship
+    # store). Event payload inspection was blocked by binary HEKI format
+    # (zlib-compressed); conclusion rests on bluebook declarations.
+    # ───────────────────────────────────────────────────────────────────────
+
+    # ---- Identity ----
+    attribute :ref,            Ref
+
+    # ---- Content ----
+    attribute :title,          Title
+    attribute :tier,           Tier
+    attribute :summary,        Summary
+    attribute :target,         Target
+
+    # ---- Sprint membership ----
+    # Reverse navigation only — Sprint.has_many Stories (owner side).
+
+    # ---- Project assignment ----
+    # Story is the dependent side — it navigates TO Project by carrying the
+    # project slug. Project does NOT declare has_many Stories (no genuine
+    # consumer of that traversal). Story.ByProject (where project: :project)
+    # is the query that justifies this field's existence.
+    attribute :project,        Project
+
+    # ---- Owned use cases ----
+    has_many UseCases
+
+    # ---- Lifecycle ----
+    attribute :state,          State, default: "backlog"
+
+    # ---- Done-is-done gate flags (auto-set by cascade, NEVER by Mark*) ----
+    # Each flag is set true only when the corresponding bin/ script returns
+    # ok via the Story.Record<Verb>CheckResult command, which is the
+    # `result_into` target of the Run<Check>OnChecksRequested policy. There
+    # is no manual setter ; lying requires lying to the bin script's actual
+    # git/cargo invocation. Workflow : RunCheck → cascade fires → flags
+    # update → MarkReady invariants gate the transition.
+    attribute :verified,       Verified,      default: false
+    attribute :merged_to_main, MergedToMain,  default: false
+    attribute :worktree_clean, WorktreeClean, default: false
+    attribute :tests_passing,  TestsPassing,  default: false
+
+    # ---- Definition of done ----
+    # The done_criterion declares WHAT must be true before MarkReady is valid:
+    #   "callable"  — the story target verb resolves + dispatches through storehouse
+    #   "deployed"  — the target app/service is deployed and reachable
+    # Enforcement (storehouse-resolution check + UseCase.ForStory completeness)
+    # lands with the f4 rule construct. Until then this is the documented UL
+    # contract: MarkReady MUST NOT be called unless the criterion is satisfied
+    # and all story use cases have been generated and run.
+    attribute :done_criterion, DoneCriterion, default: "callable"
+
+    # ---- Composition ----
+    attribute :subsumes,       list_of(Story)
+    attribute :tasks,          list_of(Task)
+
+    # ---- Artifacts ----
+    # Files the story produced or consumed: a downloaded graphic, a
+    # generated bluebook, a screenshot. The Story records the reference
+    # (path + filename + kind + note); the bytes live on disk or in a store.
+    attribute :attachments,    list_of(Attachment)
+
+    # ── Value objects ──────────────────────────────────────────────
+
+    value_object "Ref" do
+      # Short story identifier — "f1", "f15". Stable for the lifetime
+      # of the record.
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # One-line human-readable name for the story.
+      attribute :value, String
+    end
+
+    value_object "Tier" do
+      # Priority tier (Integer). Lower number = higher priority.
+      attribute :value, Integer
+    end
+
+    value_object "Summary" do
+      # Short prose description of what the story accomplishes.
+      attribute :value, String
+    end
+
+    value_object "Target" do
+      # The aggregate or bluebook this story builds — bluebook-awareness
+      # field. E.g. "storehouse/deploy" or "planning/story".
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # Lifecycle token: backlog / in_sprint / started / ready_for_review / done / deferred.
+      attribute :value, String
+    end
+
+    value_object "Verified" do
+      # Set true when bin/story_verb_resolves_check returns ok via the
+      # Run<Verb>CheckOnChecksRequested cascade. No manual setter.
+      attribute :value, Boolean
+    end
+
+    value_object "MergedToMain" do
+      # Set true when bin/story_merged_check returns ok via cascade.
+      attribute :value, Boolean
+    end
+
+    value_object "WorktreeClean" do
+      # Set true when bin/story_worktree_check returns ok via cascade.
+      attribute :value, Boolean
+    end
+
+    value_object "TestsPassing" do
+      # Set true when bin/story_tests_check returns ok via cascade.
+      attribute :value, Boolean
+    end
+
+    value_object "CheckOk" do
+      # The Boolean-valued attribute on each Record*CheckResult command.
+      # Carried by the cascade from Primitive::Process.Spawn's outcome.
+      attribute :value, Boolean
+    end
+
+    value_object "DoneCriterion" do
+      # The definition-of-done primitive. Allowed values:
+      #   "callable" — the story target verb resolves through storehouse
+      #   "deployed" — the app/service is deployed and reachable
+      # MarkReady REQUIRES this criterion to be satisfied before the call.
+      # Cross-aggregate enforcement via f4 rule construct — declared intent.
+      attribute :value, String
+    end
+
+    value_object "StepOrder" do
+      # 0-based position of a Step in the sequence. Identity by position —
+      # the runner sorts by this before dispatching.
+      attribute :value, Integer
+    end
+
+    value_object "CommandPhrase" do
+      # A fully-qualified bluebook command phrase this Step dispatches —
+      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
+      # execution time.
+      attribute :value, String
+    end
+
+    value_object "Args" do
+      # The Step k=v argument bag as a JSON-object string ("{}") for no
+      # args). Unpacked into route argv tokens at execution time.
+      attribute :value, String
+    end
+
+    value_object "StepCount" do
+      # How many steps this Story forwarded. Carried on StoryForwarded so
+      # downstream reactors know the sequence length without re-reading steps.
+      attribute :value, Integer
+    end
+
+    value_object "UseCaseCount" do
+      # How many use cases were executed. Carried on StoryExecuted so
+      # downstream reactors know the acceptance scenario count without
+      # re-reading the UseCase store.
+      attribute :value, Integer
+    end
+
+    value_object "AttachmentPath" do
+      # Filesystem path (or store URI) where the attached file lives.
+      # E.g. "/Users/.../emaho/public/uploads/about-volunteer/image0.jpeg".
+      attribute :value, String
+    end
+
+    value_object "AttachmentName" do
+      # Human-facing filename. E.g. "image0.jpeg".
+      attribute :value, String
+    end
+
+    value_object "AttachmentKind" do
+      # MIME type or kind token. E.g. "image/jpeg", "text/markdown", "bluebook".
+      attribute :value, String
+    end
+
+    value_object "AttachmentNote" do
+      # Short prose: what this file is and where it came from.
+      attribute :value, String
+    end
+
+    # ── Step entity ────────────────────────────────────────────────
+    # Identity + order + a command phrase + args => entity.
+    # The list is ordered; order is identity within the Story boundary.
+    # ── Task entity ────────────────────────────────
+    # Owned step of work under this Story — the how beneath the what.
+    # No identity outside the Story boundary. Status walks todo → done.
+
+    value_object "TaskOrder" do
+      attribute :value, Integer
+    end
+
+    value_object "TaskDescription" do
+      attribute :value, String
+    end
+
+    value_object "TaskStatus" do
+      attribute :value, String
+    end
+
+    entity "Task" do
+      attribute :order,       TaskOrder
+      attribute :description, TaskDescription
+      attribute :status,      TaskStatus
+    end
+
+    # ── Attachment entity ──────────────────────────────────────────
+    # A file the story carries: path + filename + kind + note. Listed;
+    # appended by AttachFile. The bytes live on disk; the Story holds
+    # the reference so the work unit owns the artifacts it touched.
+    entity "Attachment" do
+      attribute :path,     AttachmentPath
+      attribute :filename, AttachmentName
+      attribute :kind,     AttachmentKind
+      attribute :note,     AttachmentNote
+    end
+
+    # ── Commands ──────────────────────────────────────────────────
+
+    command "Capture" do
+      role "Miette"
+      description "Mint a new Story from a ref + title + tier + summary + target. Starts in backlog status with an empty steps list. The ref IS the story identity — one Story per ref."
+      attribute :ref,     Ref
+      attribute :title,   Title
+      attribute :tier,    Tier
+      attribute :summary, Summary
+      attribute :target,  Target
+      attribute :project, Project
+      then_set :ref,      to: :ref
+      then_set :title,    to: :title
+      then_set :tier,     to: :tier
+      then_set :summary,  to: :summary
+      then_set :target,   to: :target
+      then_set :project,  to: :project
+      then_set :state,    to: "backlog"
+      emits "StoryCaptured"
+    end
+
+    command "Reword" do
+      role "Miette"
+      description "Amend a story's content — re-describe its title and summary — without touching its lifecycle. Capture is gated to backlog (it mints + resets state), so once a story is in_sprint/started its description was un-editable ; Reword closes that gap. Pure content mutation : no state transition, valid from any state. Used to update a card's title/summary as the design firms up."
+      reference_to(Story)
+      attribute :title,   Title
+      attribute :summary, Summary
+      then_set :title,   to: :title
+      then_set :summary, to: :summary
+      emits "StoryReworded"
+    end
+
+    command "AssignToSprint" do
+      role "Miette"
+      description "Move a backlog story into a sprint. Records the sprint_ref so the story is owned by a sprint slot."
+      reference_to(Story)
+      attribute :sprint_ref, Sprint
+      then_set :sprint,      to: :sprint_ref
+      then_set :state,       to: "in_sprint"
+      given("sprint_ref must be named") { sprint_ref != "" }
+      emits "StoryAssignedToSprint"
+    end
+
+    command "AssignToProject" do
+      role "Miette"
+      description "Assign a story to a Project (the initiative grouping). Pure metadata mutation — no lifecycle change. Valid from any state. Mirrors AssignToSprint but for the project axis : a story belongs to one Project and one Sprint independently."
+      reference_to(Story)
+      attribute :project, Project
+      then_set :project, to: :project
+      given("project must be named") { project != "" }
+      emits "StoryAssignedToProject"
+    end
+
+    command "MoveToSprint" do
+      role "Miette"
+      description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints whether it is in_sprint or started. Closes the re-sprinting gap: AssignToSprint is allowed only from backlog, so a committed story could not otherwise change sprints."
+      reference_to(Story)
+      attribute :sprint_ref, Sprint
+      then_set :sprint, to: :sprint_ref
+      emits "StoryMovedToSprint"
+    end
+
+    command "RemoveFromSprint" do
+      role "Miette"
+      description "Pull a story back out of its sprint — clears the sprint ref and returns lifecycle state to backlog. Valid from in_sprint or started. Closes the gap where a committed story could be assigned but never un-assigned."
+      reference_to(Story)
+      then_set :sprint, to: ""
+      then_set :state,  to: "backlog"
+      emits "StoryRemovedFromSprint"
+    end
+
+    command "ComposeStep" do
+      role "Miette"
+      description "Append one ordered Step to the Story — a (order, command, args) triple. Called once per command in the sequence. The runner sorts by order before dispatching, so out-of-call-order ComposeStep still executes in order sequence."
+      reference_to(Story)
+      attribute :order,   StepOrder
+      attribute :command, CommandPhrase
+      attribute :args,    Args
+      then_set :steps, append: { order: :order, command: :command, args: :args }
+      emits "StepComposed"
+    end
+
+    command "AttachFile" do
+      role "Miette"
+      description "Attach a file to the story — append an Attachment (path, filename, kind, note) to the attachments list. The file lives on disk or in a store; the Story records the reference so the work unit carries the artifacts it produced or consumed (a downloaded graphic, a generated bluebook, a screenshot). No lifecycle change — a story can gain attachments in any state."
+      reference_to(Story)
+      attribute :path,     AttachmentPath
+      attribute :filename, AttachmentName
+      attribute :kind,     AttachmentKind
+      attribute :note,     AttachmentNote
+      then_set :attachments, append: { path: :path, filename: :filename, kind: :kind, note: :note }
+      emits "FileAttached"
+    end
+
+    command "Start" do
+      role "Miette"
+      description "Begin work on a story that has been assigned to a sprint AND whose sprint is the board's active sprint. The active-sprint guard would live in `given` if the runtime evaluated cross-aggregate predicates ; it does not today (same family as board.bluebook rule #4 fail-open) — the rule is enforced reactively by Plan::Story.Unstart until cross-aggregate guards land. Moves from in_sprint to started."
+      reference_to(Story)
+      given("story must be on a sprint board") { sprint != "" }
+      emits "StoryStarted"
+    end
+
+    command "Forward" do
+      role "Miette"
+      description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure: it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime projection of StoryForwarded."
+      reference_to(Story)
+      attribute :step_count, StepCount
+      given("story must be on a sprint board") { sprint != "" }
+      emits "StoryForwarded"
+    end
+
+    command "Execute" do
+      role "System"
+      description "The operator entry for running a story's use-case acceptance scenarios. Dispatching Plan::Story.Execute through the bus emits StoryExecuted with use_case_count; the runtime projection of StoryExecuted reads Plan::UseCase.ForStory, sorts each use case's steps, dispatches each step, and calls UseCase.Run per use case. Dispatch IS the act — no CLI side-channel. Orthogonal to Forward: Forward runs the story's own work-steps; Execute runs the use-case acceptance layer."
+      reference_to(Story)
+      attribute :use_case_count, UseCaseCount
+      emits "StoryExecuted"
+    end
+
+    command "RunCheck" do
+      role "Miette"
+      description "Fire the four done-is-done live checks for this story. Each check is a cascade : Primitive::Process.Spawn runs bin/story_*_check, the script returns ok/not-ok, the cascade routes the outcome to Story.RecordXxxCheckResult which sets the corresponding gate flag. No lifecycle transition ; this command exists to arm the flags before MarkReady. Re-run any time to refresh the gate state."
+      reference_to(Story)
+      emits "StoryChecksRequested"
+    end
+
+    command "RecordVerbResolvesCheckResult" do
+      role "System"
+      description "Cascade-internal : record the verb_resolves_check outcome. Fired by the RunVerbResolvesCheckOnChecksRequested policy via Primitive::Process.Spawn → result_into Story.RecordVerbResolvesCheckResult. Must NOT be dispatched manually."
+      reference_to(Story)
+      attribute :ok, CheckOk
+      then_set :verified, to: :ok
+      emits "VerbResolvesCheckRecorded"
+    end
+
+    command "RecordMergedCheckResult" do
+      role "System"
+      description "Cascade-internal : record the merged_check outcome on Story.merged_to_main. Must NOT be dispatched manually."
+      reference_to(Story)
+      attribute :ok, CheckOk
+      then_set :merged_to_main, to: :ok
+      emits "MergedCheckRecorded"
+    end
+
+    command "RecordWorktreeCheckResult" do
+      role "System"
+      description "Cascade-internal : record the worktree_check outcome on Story.worktree_clean. Must NOT be dispatched manually."
+      reference_to(Story)
+      attribute :ok, CheckOk
+      then_set :worktree_clean, to: :ok
+      emits "WorktreeCheckRecorded"
+    end
+
+    command "RecordTestsCheckResult" do
+      role "System"
+      description "Cascade-internal : record the tests_check outcome on Story.tests_passing. Must NOT be dispatched manually."
+      reference_to(Story)
+      attribute :ok, CheckOk
+      then_set :tests_passing, to: :ok
+      emits "TestsCheckRecorded"
+    end
+
+    invariant "ready_means_verified" do
+      holds_when { state != "ready_for_review" && state != "done" || verified == true }
+    end
+
+    invariant "merged_means_ready" do
+      holds_when { state != "ready_for_review" && state != "done" || merged_to_main == true }
+    end
+
+    invariant "clean_means_ready" do
+      holds_when { state != "ready_for_review" && state != "done" || worktree_clean == true }
+    end
+
+    invariant "tests_pass_means_ready" do
+      holds_when { state != "ready_for_review" && state != "done" || tests_passing == true }
+    end
+
+    command "MarkReady" do
+      role "Miette"
+      description "Mark a started story as ready for review : transitions started → ready_for_review. The runtime kicks off the four done-is-done live checks (Git.Status / Git.Log main..HEAD / Cargo.Test / target-verb-resolves-through-storehouse) as cascaded policies ; their outcomes record on a Cascade aggregate. Approve is gated on the operator role + the cascade outcomes (wiring lands with policy-cmd-needs-interpolation-or-bin-scripts)."
+      reference_to(Story)
+      emits "StoryReadyForReview"
+    end
+
+    command "Approve" do
+      role "Operator"
+      description "Human gate: move a ready_for_review story to done. Only Operator may Approve. Emits StoryApproved. Done is only reachable via this command — there is no direct path from started to done."
+      reference_to(Story)
+      emits "StoryApproved"
+    end
+
+    command "Reopen" do
+      role "Operator"
+      description "Reject a ready_for_review story back to started — the reviewer found it not actually done, work resumes. The reverse of MarkReady; valid only from ready_for_review."
+      reference_to(Story)
+      then_set :state, to: "started"
+      emits "StoryReopened"
+    end
+
+    command "Unstart" do
+      role "Miette"
+      description "Reverse Start — move a started story back to in_sprint. Honors the active-sprint discipline : only stories whose sprint is the board's active sprint may stay started. The cross-aggregate guard that would forbid an off-active-sprint Start at all is not runtime-evaluable today (gap : cross-aggregate-guards) ; Unstart is the corrective verb that closes the drift. Pure state reversal : the story remains committed to its sprint ; only its lifecycle state moves back."
+      reference_to(Story)
+      emits "StoryUnstarted"
+    end
+
+    command "Defer" do
+      role "Miette"
+      description "Park a backlog story that is not yet scheduled — move it to deferred so the active backlog stays clean."
+      reference_to(Story)
+      emits "StoryDeferred"
+    end
+
+    command "Cancel" do
+      role "Miette"
+      description "Soft-delete a story: move it to the terminal `cancelled` state. For removing phantom or erroneous stories — e.g. demo stories flows leave behind when run against the live store. Mirrors Sprint.Cancel ; valid from any state. Hard record removal is a separate runtime concern (no Delete primitive yet)."
+      reference_to(Story)
+      then_set :state, to: "cancelled"
+      emits "StoryCancelled"
+    end
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+    #
+    # backlog → in_sprint → started → ready_for_review → done
+    #                                              deferred (from backlog)
+    #
+    # Done is ONLY reachable via Approve (Operator) from ready_for_review.
+    # MarkReady is the author signal; Approve is the human gate.
+
+    lifecycle :state, default: "backlog" do
+      transition "Capture"        => "backlog",          from: "backlog"
+      transition "AssignToSprint" => "in_sprint",        from: "backlog"
+      transition "Start"          => "started",          from: "in_sprint"
+      transition "Unstart"        => "in_sprint",        from: "started"
+      transition "MarkReady"      => "ready_for_review", from: "started"
+      transition "Approve"        => "done",             from: "ready_for_review"
+      transition "Reopen"         => "started",          from: "ready_for_review"
+      transition "Reopen"         => "ready_for_review", from: "done"
+      transition "Defer"          => "deferred",         from: "backlog"
+      transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
+      transition "RemoveFromSprint" => "backlog",         from: "started"
+    end
+
+    # ── Done-is-done : LIVE CHECKS (replacing stored flags) ──────────
+    # The four gates (verified / merged_to_main / worktree_clean /
+    # tests_passing) were retired this card. They were stored Boolean
+    # attributes armed by Mark* commands and consulted by *_means_ready
+    # invariants — lieable by construction. The replacement architecture
+    # has the gates as LIVE bus dispatches the runtime evaluates at
+    # transition time : MarkReady triggers Git.Status / Git.Log /
+    # Cargo.Test / target-verb-resolves dispatches, and the transition
+    # only commits if each returns ok. That wiring is the next card —
+    # see policy-cmd-needs-interpolation-or-bin-scripts for the DSL gap
+    # that has to land first (policy `with cmd` is a static string).
+    # Until then, MarkReady is unguarded ; Approve gates only on the
+    # operator role, as it always did.
+    # Policies above declare the cascade ; enforcement (Approve refusing until each Cascade outcome is ok) lands when the policy-cmd interpolation/bin-scripts gap closes.
+
+    # exclusive_sprint_or_backlog invariant : RETIRED pending
+    # done-is-done-as-live-checks. Two earlier attempts (string-equality
+    # vs empty, .nil? vs empty-list shape) both rejected legitimate
+    # lifecycle states. The deeper rule — "a Story can only be in one
+    # of Backlog OR Sprint" — is genuinely cross-aggregate and wants
+    # a bus-dispatched query, not a local boolean expression. Will be
+    # restored as a live-check policy once that pattern lands.
+
+    # ── Queries ─────────────────────────────────────────────────
+
+    query "Runnable" do
+      description "Stories with composed steps, ready to forward through the bus."
+      where state: "started"
+    end
+
+    query "ReadyForReview" do
+      description "Stories awaiting Operator approval before they can be marked done."
+      where state: "ready_for_review"
+    end
+
+    query "ByProject" do
+      description "All stories belonging to a given project. Pass project: <slug> to filter."
+      where project: :project
+    end
+
+    query "BySprint" do
+      description "All stories committed to a given sprint, by the Story.sprint field — the SOLE source of truth for sprint membership. Sprint no longer carries a story_refs list (retired in fix-sprint-story-refs-drift, sprint 7) ; this query is how Sprint, projections, and the planning pulse learn which stories belong to a given sprint. Pass sprint: <ref> to filter."
+      where sprint: :sprint
+    end
+
+    query "Board" do
+      description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is in_sprint / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in) and cross-aggregate set-membership is not yet evaluated in queries (gap : runtime-cross-aggregate-where). Both gaps will replace this with a proper where clause when they land."
+    end
+  end
+
+  # ── Done-is-done cascade policies — fire on StoryReadyForReview ─────────
+  #
+  # Each policy kicks off one live check when MarkReady transitions a story
+  # to ready_for_review. Outcomes record on a Cascade aggregate. Mirrors the
+  # RunStatusOnStatusChecked / RunTestOnTestsRun precedent in git.bluebook /
+  # cargo.bluebook exactly. Event is Story.StoryReadyForReview (the actual
+  # emitted event from MarkReady) — task spec said StoryReadyMarked but the
+  # command emits StoryReadyForReview ; using the real event name.
+
+  # All four triggers route through Primitive::Process.Spawn to satisfy
+  # the single-file validator (it does not see Git.Status / Cargo.Test
+  # declared in sibling bluebooks). Each spawn invokes a bin/ wrapper
+  # script ; those scripts don't exist yet — see
+  # policy-cmd-needs-interpolation-or-bin-scripts in Sprint 7.
+
+  policy "RunWorktreeCheckOnChecksRequested" do
+    on "Story.StoryChecksRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/story_worktree_check"
+    with "result_into", "Story.RecordWorktreeCheckResult"
+  end
+
+  policy "RunMergedCheckOnChecksRequested" do
+    on "Story.StoryChecksRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/story_merged_check"
+    with "result_into", "Story.RecordMergedCheckResult"
+  end
+
+  policy "RunTestsCheckOnChecksRequested" do
+    on "Story.StoryChecksRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/story_tests_check"
+    with "result_into", "Story.RecordTestsCheckResult"
+  end
+
+  policy "RunVerbResolvesCheckOnChecksRequested" do
+    on "Story.StoryChecksRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/story_verb_resolves_check"
+    with "result_into", "Story.RecordVerbResolvesCheckResult"
+  end
+
+  # ===== from board/board.bluebook =====
+  aggregate "Board", "The one working board — singleton. Owns the sprint roster (queued + the active set, one sprint per project) and the manual card order across the board. Enforces on-board activation conventions (cross-aggregate uniqueness pending runtime support)." do
+    identified_by :name
+
+    # ---- Identity (singleton) ----
+    attribute :name,                Name
+
+    # ---- Active project context (RETIRED) ----
+    # Board is the singleton of the Plan domain ; it does not belong to one
+    # Project. Each active sprint in active_sprints carries its own
+    # project assignment ; the legacy belongs_to Project here was a
+    # projector-compat shim and has been removed.
+
+    # ---- Sprint roster ----
+    # Owner-side : the Board holds the sprints currently scheduled (placed + active).
+    # Distinct from Project.has_many Sprints (which is the lifecycle ownership).
+    has_many Sprints, as: :queued_sprints
+    has_many Sprints, as: :active_sprints
+
+    # ---- Manual card order across the board ----
+    has_many Stories, as: :cards
+
+    # ---- Work-in-progress limit (across all active sprints) ----
+    # Max number of stories allowed in `started` state on the board at once.
+    # Lives on the Board because WIP discipline is about the work crossing
+    # the board, not a property of any one sprint. 0 = unlimited.
+    attribute :wip_limit,           WipLimit, default: 0
+
+    value_object "Name" do
+      # Singleton identity. Conventionally "board" — there is one.
+      attribute :value, String
+    end
+
+    value_object "WipLimit" do
+      # Max stories allowed in started state across the board at once.
+      # 0 = unlimited. Set via SetWipLimit ; enforced as a board-level
+      # discipline (currently convention-only ; the cross-aggregate guard
+      # that would forbid Story.Start when WIP is at the limit is a
+      # runtime gap : cross-aggregate guards).
+      attribute :value, Integer
+    end
+
+    # ── Commands : creation ──────────────────────────────────
+
+    command "Open" do
+      role "Miette"
+      description "Open the one board — the creation command. Mints the singleton with its name + initial project context. The record does not exist until Open fires."
+      attribute :name,    Name
+      attribute :project, Project
+      then_set :name,    to: :name
+      then_set :project, to: :project
+      emits "BoardOpened"
+    end
+
+    # ── Commands : sprint roster (scheduling) ─────────────────────
+
+    command "PlaceSprint" do
+      role "Miette"
+      description "Place a planned sprint onto the board — it joins the queued roster, becoming activatable. The deliberate step between Sprint.Plan and Sprint.Activate. 'On the board' means a member of this list."
+      reference_to(Board)
+      attribute :sprint_ref, Sprint
+      then_set :queued_sprints, append: :sprint_ref
+      emits "SprintPlacedOnBoard"
+    end
+
+    command "ActivateSprint" do
+      role "Miette"
+      description "Add a sprint to the active set. The model is one-active-per-project (e.g. an emaho sprint AND an opt sprint can both be in active_sprints simultaneously, but two emaho sprints cannot). The command takes BOTH sprint_ref (the new activation, carried on the emitted event) AND active_sprints (the new list including it) for symmetry with DeactivateSprint and Reorder ; caller computes current_list + [sprint_ref]. That uniqueness rule is cross-aggregate — Board would have to read each Sprint.project to enforce — and the runtime does not yet evaluate cross-aggregate guards ; convention-only until then (gap : runtime-cross-aggregate-guards). RULE #4 (only a sprint ON THE BOARD may be activated) is similarly convention-only — list-membership predicates in `given` are not yet evaluated (gap : runtime-list-membership-guards). Does NOT start any cards (rule #3) — it only records the new active set."
+      reference_to(Board)
+      attribute :sprint_ref, Sprint
+      attribute :active_sprints, list_of(Sprint)
+      then_set :active_sprints, to: :active_sprints
+      emits "SprintActivatedOnBoard"
+    end
+
+    command "DeactivateSprint" do
+      role "Miette"
+      description "Remove a sprint from the active set — that sprint is closed or paused. Other sprints in the active set are unaffected (their cards stay on the board). The command takes BOTH sprint_ref (what was deactivated, carried on the emitted event) AND active_sprints (the new list after removal) because the bluebook DSL has no list-remove primitive yet ; the caller computes current_list - [sprint_ref] and passes it as the new list. Mirrors Reorder / ReorderSprints (whole-list replace) ; gap filed : runtime-list-remove-primitive. Cards belonging to the deactivated sprint may be cleaned from cards as a separate Sprint.Complete / RemoveCard projection."
+      reference_to(Board)
+      attribute :sprint_ref, Sprint
+      attribute :active_sprints, list_of(Sprint)
+      then_set :active_sprints, to: :active_sprints
+      emits "SprintDeactivatedOnBoard"
+    end
+
+    # ── Commands : card order ────────────────────────────────
+
+    command "PlaceCard" do
+      role "Miette"
+      description "Append a card ref to the board's manual card order. A story pulled in lands at the end. Cards from any active sprint share this single ordered list ; columns re-group by Story.state at render."
+      reference_to(Board)
+      attribute :card_ref, Story
+      then_set :cards, append: :card_ref
+      emits "CardPlaced"
+    end
+
+    command "Reorder" do
+      role "Miette"
+      description "Replace the entire cards list with a new card order. Columns re-group by Story.state at render."
+      reference_to(Board)
+      attribute :cards, list_of(Story)
+      then_set :cards, to: :cards
+      emits "BoardReordered"
+    end
+
+    command "ReorderSprints" do
+      role "Miette"
+      description "Replace the queued_sprints list with a new order. The active set and completed sprints are separate concerns ; this orders the queue only — i.e. which planned sprint activates next."
+      reference_to(Board)
+      attribute :queued_sprints, list_of(Sprint)
+      then_set :queued_sprints, to: :queued_sprints
+      emits "SprintsReordered"
+    end
+
+    command "RemoveCard" do
+      role "Miette"
+      description "Signal that a card has left the board (card dropped or moved). Removal from cards is a runtime projection ; the command is a pure domain intent signal."
+      reference_to(Board)
+      attribute :card_ref, Story
+      emits "CardRemoved"
+    end
+
+    command "SetWipLimit" do
+      role "Miette"
+      description "Set the board's work-in-progress limit — max stories allowed in started state at once across all active sprints. 0 = unlimited. WIP is a board-level discipline ; one limit per board, not per sprint (moved from Sprint in sprint 7 — fix-sprint-story-refs-drift)."
+      reference_to(Board)
+      attribute :wip_limit, WipLimit
+      then_set :wip_limit, to: :wip_limit
+      emits "WipLimitSet"
+    end
+
+    # ── Queries ────────────────────────────────────────
+
+    query "Current" do
+      description "The one board — its roster (queued + the active set) and the manual card order."
+    end
+
+    query "ActiveSprints" do
+      description "The list of currently active sprints (one per project, by convention). Empty list when nothing is active."
+    end
+  end
+
+  # ===== from backlog/backlog.bluebook =====
+  aggregate "Backlog", "The ordered intake pool of un-sprinted story refs. One per project, identified by project slug." do
+    identified_by :project
+
+    attribute :project,      Project
+    has_many Stories
+    attribute :ordered_refs, list_of(Story)  # legacy ordering carrier ; the has_many declares the relationship, ordered_refs retains position semantics until the DSL supports `has_many Stories, ordered: true`
+
+    # ── Commands ──────────────────────────────────────────────────
+
+    command "Capture" do
+      role "Miette"
+      description "Append a story ref to the ordered pool. Project identifies which backlog receives it — creates the backlog on first dispatch."
+      attribute :project,   Project
+      attribute :story_ref, Story
+      then_set :project,      to: :project
+      then_set :ordered_refs, append: :story_ref
+      emits "StoryBacklogged"
+    end
+
+    command "Reorder" do
+      role "Miette"
+      description "Replace the entire ordered_refs list with a new priority sequence. The caller supplies the full desired order."
+      reference_to(Backlog)
+      attribute :ordered_refs, list_of(Story)
+      then_set :ordered_refs, to: :ordered_refs
+      emits "BacklogReordered"
+    end
+
+    command "PullToSprint" do
+      role "Miette"
+      description "Signal that a story ref has been pulled into an active sprint. Removal from the pool is a runtime projection; the command is a pure domain intent signal."
+      reference_to(Backlog)
+      attribute :story_ref, Story
+      emits "StoryPulledToSprint"
+    end
+
+    # ── Queries ───────────────────────────────────────────────────
+
+    query "ListOrdered" do
+      description "The prioritized pool of un-sprinted stories, in order."
+    end
+  end
+
+  # ===== from use_case/use_case.bluebook =====
+  aggregate "UseCase", "One generated use case anchored to a Story — records the scenario title, narrative, generation status, and an ordered list of runnable Steps so the cascade is real and observable." do
+    identified_by :id
+
+    attribute :id,        Id
+    attribute :title,     Title
+    attribute :narrative, Narrative
+    attribute :status,    Status, default: "generated"
+    attribute :steps,     list_of(Step)
+
+    value_object "Id" do
+      # Caller-minted UUID identifying this use case. The storehouse
+      # provides a UUID fallback when the caller omits the field.
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # One-line scenario title, e.g. "Deploy the warm runtime".
+      attribute :value, String
+    end
+
+    value_object "Narrative" do
+      # Structured scenario text, typically
+      # "As a <role> I <action> so that <outcome>."
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle marker. "generated" → "ran" after Run executes.
+      attribute :value, String
+    end
+
+    value_object "StepOrder" do
+      # 0-based position of a Step in the sequence. The runner sorts
+      # by this before dispatching, so out-of-order ComposeStep calls
+      # still execute in correct sequence.
+      attribute :value, Integer
+    end
+
+    value_object "Phrase" do
+      # A fully-qualified bluebook command phrase this Step dispatches —
+      # e.g. "Plan::Story.Forward". Fed into storehouse_resolve at
+      # execution time. Byte-identical to Storehouse::Story.Phrase so
+      # story_sorted_steps/story_args_to_tokens helpers work across both.
+      attribute :value, String
+    end
+
+    value_object "Args" do
+      # The Step k=v argument bag as a JSON-object string ("{}") for no
+      # args). Unpacked into route argv tokens at execution time.
+      attribute :value, String
+    end
+
+    value_object "StepCount" do
+      # How many steps this UseCase executed. Carried on UseCaseRan so
+      # downstream reactors know the sequence length without re-reading.
+      attribute :value, Integer
+    end
+
+    # ── Step entity ─────────────────────────────────────────────
+    # Byte-identical shape to Storehouse::Story.Step so the shared
+    # story_runtime helpers (story_sorted_steps, story_args_to_tokens)
+    # work without modification: reads "phrase" key from heki JSON.
+    entity "Step" do
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
+    end
+
+    command "Generate" do
+      role "System"
+      description "Record a generated use case for a story. Called by the GenerateOnStart policy when a StoryStarted event fires. Sets all fields and emits UseCaseGenerated so downstream policies can react."
+      attribute :id,        Id
+      attribute :story_ref, Story
+      attribute :title,     Title
+      attribute :narrative, Narrative
+      then_set :id,        to: :id
+      then_set :story_ref, to: :story_ref
+      then_set :title,     to: :title
+      then_set :narrative, to: :narrative
+      then_set :status,    to: "generated"
+      emits "UseCaseGenerated"
+    end
+
+    command "ComposeStep" do
+      role "Miette"
+      description "Append one ordered Step to the UseCase — a (order, phrase, args) triple. The runner sorts by order before dispatching, so out-of-order ComposeStep calls still execute in correct sequence."
+      reference_to(UseCase)
+      attribute :order,  StepOrder
+      attribute :phrase, Phrase
+      attribute :args,   Args
+      then_set :steps, append: { order: :order, phrase: :phrase, args: :args }
+      emits "UseCaseStepComposed"
+    end
+
+    command "ClearSteps" do
+      role "Miette"
+      description "Reset the use case's steps list to empty so it can be re-composed. ComposeStep only appends ; ClearSteps is the amend primitive that lets an author replace a use case's step sequence — e.g. swap a proxy step for one that genuinely exercises the card. No lifecycle change."
+      reference_to(UseCase)
+      then_set :steps, to: []
+      emits "UseCaseStepsCleared"
+    end
+
+    command "Run" do
+      role "System"
+      description "Stamp this use case as ran and emit UseCaseRan with step_count. Pure command — the actual per-step dispatch is the runtime's projection (storehouse execute). Called by the runtime after all steps complete successfully."
+      reference_to(UseCase)
+      attribute :step_count, StepCount
+      then_set :status, to: "ran"
+      emits "UseCaseRan"
+    end
+
+    query "ForStory" do
+      description "All use cases for a given story. Returns UseCase records scoped by the caller-supplied story_ref — allows many use cases per story."
+      where story_ref: :story_ref
+    end
+  end
+
+  # ===== from project/project.bluebook =====
+  aggregate "Project", "A named initiative in the project registry — groups planning work across stories, backlogs, and sprints." do
+    identified_by :name
+
+    # ---- Identity ----
+    attribute :name,        Name
+
+    # ---- Content ----
+    attribute :description, Description
+
+    # ---- Owned planning structure ----
+    has_one Backlog
+    has_many Sprints
+
+    # ---- Lifecycle ----
+    attribute :status,      Status, default: "active"
+
+    # ── Value objects ──────────────────────────────────────────────
+
+    value_object "Name" do
+      # The project slug / identifier. E.g. "framework", "mel", "opt",
+      # "pigeoncoop", "bin-buddy", "embryonaut". Stable for the lifetime
+      # of the record — this is the key other aggregates reference by.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Short prose description of the project's purpose.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token: active | paused | done.
+      attribute :value, String
+    end
+
+    # ── Commands ──────────────────────────────────────────────────
+
+    command "Register" do
+      role "Miette"
+      description "Mint a new Project in the registry. Starts in active status. The name IS the project identity — one Project per name slug."
+      attribute :name,        Name
+      attribute :description, Description
+      then_set :name,         to: :name
+      then_set :description,  to: :description
+      then_set :status,       to: "active"
+      emits "ProjectRegistered"
+    end
+
+    command "Activate" do
+      role "Miette"
+      description "Return a paused project to active. Work resumes on this project."
+      reference_to(Project)
+      given("must be paused") { status == "paused" }
+      then_set :status, to: "active"
+      emits "ProjectActivated"
+    end
+
+    command "Pause" do
+      role "Miette"
+      description "Park an active project — work is not currently in progress but the project is not finished. The project is not deleted."
+      reference_to(Project)
+      given("must be active") { status == "active" }
+      then_set :status, to: "paused"
+      emits "ProjectPaused"
+    end
+
+        command "Cancel" do
+          role "Miette"
+          description "Soft-delete a project: set status to cancelled. For removing phantom or erroneous projects (e.g. demo projects flows leave behind). Mirrors Sprint.Cancel / Story.Cancel ; valid from any status."
+          reference_to(Project)
+          then_set :status, to: "cancelled"
+          emits "ProjectCancelled"
+        end
+
+    command "Complete" do
+      role "Operator"
+      description "Mark a project as done. Only Operator may complete a project. Done is a terminal state."
+      reference_to(Project)
+      given("must be active or paused") { status == "active" || status == "paused" }
+      then_set :status, to: "done"
+      emits "ProjectCompleted"
+    end
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+    #
+    # active <-> paused; done is terminal (via Operator only).
+    # Register has no from: — it is the creation command.
+
+    lifecycle :status, default: "active" do
+      transition "Register"  => "active"
+      transition "Activate"  => "active",  from: "paused"
+      transition "Pause"     => "paused",  from: "active"
+      transition "Complete"  => "done",    from: "active"
+    end
+
+    # ── Queries ─────────────────────────────────────────────────
+
+    query "ListAll" do
+      description "Every project in the registry, regardless of status."
+    end
+
+    query "ByStatus" do
+      description "Projects filtered by lifecycle status. Pass status: active | paused | done to narrow the registry view."
+      where status: :status
+    end
+  end
+
+end

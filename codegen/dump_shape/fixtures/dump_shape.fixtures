@@ -22,6 +22,11 @@ Hecks.fixtures "DumpShape" do
     fixture "DumpValueObject", name: "dump_value_object", target_type: "ValueObject", input_binding: "vo", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 8
     fixture "DumpEntity", name: "dump_entity", target_type: "Entity", input_binding: "ent", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 20
     fixture "DumpReference", name: "dump_reference", target_type: "Reference", input_binding: "r", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 9
+    # Sprint-7 relationship DSL helpers — dump_reference's kind + cardinality
+    # fields route through these so the canonical IR carries the authored
+    # keyword (belongs_to/has_one/has_many/reference_to) + multiplicity bounds.
+    fixture "DumpReferenceKind", name: "dump_reference_kind", target_type: "ReferenceKind", input_binding: "k", return_type: "Value", is_entry: false, body_kind: "embedded_helper", snippet_path: "codegen/dump_shape/snippets/dump_reference_kind.rs.frag", order: 16
+    fixture "DumpCardinality",   name: "dump_cardinality",   target_type: "Cardinality",   input_binding: "c", return_type: "Value", is_entry: false, body_kind: "embedded_helper", snippet_path: "codegen/dump_shape/snippets/dump_cardinality.rs.frag",   order: 17
     fixture "DumpCommand", name: "dump_command", target_type: "Command", input_binding: "cmd", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 10
     fixture "DumpQuery", name: "dump_query", target_type: "Query", input_binding: "q", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 11
     fixture "DumpGiven", name: "dump_given", target_type: "Given", input_binding: "g", return_type: "Value", is_entry: false, body_kind: "json_object", snippet_path: "", order: 12
@@ -117,10 +122,14 @@ Hecks.fixtures "DumpShape" do
     fixture "Ent_queries",       serializer: "dump_entity", order: 6, key: "queries",       source: "queries",       mapping_kind: "recurse_list",     helper_fn: "dump_query"
     fixture "Ent_lifecycle",     serializer: "dump_entity", order: 7, key: "lifecycle",     source: "lifecycle",     mapping_kind: "recurse_optional", helper_fn: "dump_lifecycle"
 
-    # dump_reference — 3 fields
-    fixture "Ref_name",   serializer: "dump_reference", order: 1, key: "name",   source: "name",   mapping_kind: "direct", helper_fn: ""
-    fixture "Ref_target", serializer: "dump_reference", order: 2, key: "target", source: "target", mapping_kind: "direct", helper_fn: ""
-    fixture "Ref_domain", serializer: "dump_reference", order: 3, key: "domain", source: "domain", mapping_kind: "direct", helper_fn: ""
+    # dump_reference — 5 fields. cardinality + kind ride into the canonical
+    # IR via helper_call mapping (dump_cardinality + dump_reference_kind
+    # serializers, defined as embedded_helper snippets below).
+    fixture "Ref_name",        serializer: "dump_reference", order: 1, key: "name",        source: "name",        mapping_kind: "direct",      helper_fn: ""
+    fixture "Ref_target",      serializer: "dump_reference", order: 2, key: "target",      source: "target",      mapping_kind: "direct",      helper_fn: ""
+    fixture "Ref_domain",      serializer: "dump_reference", order: 3, key: "domain",      source: "domain",      mapping_kind: "direct",      helper_fn: ""
+    fixture "Ref_kind",        serializer: "dump_reference", order: 4, key: "kind",        source: "kind",        mapping_kind: "helper_call", helper_fn: "dump_reference_kind"
+    fixture "Ref_cardinality", serializer: "dump_reference", order: 5, key: "cardinality", source: "cardinality", mapping_kind: "helper_call", helper_fn: "dump_cardinality"
 
     # dump_command — 9 fields (i250 added emits_identified_by)
     fixture "Cmd_name",                 serializer: "dump_command", order: 1, key: "name",                 source: "name",                 mapping_kind: "direct",       helper_fn: ""

@@ -175,11 +175,89 @@ module Hecks
         name = (alias_name || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                                .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
         @references << BluebookModel::Structure::Reference.new(
-          name: name, type: target, domain: domain
+          name: name, type: target, domain: domain,
+          kind: :reference_to
         )
       end
 
       def ref(type, **opts) = reference_to(type, **opts)
+
+      # Plural relationship : the aggregate has many of `type`. Plural
+      # convention — caller passes the plural form (Stories) ; the target
+      # aggregate name is singularized (Story). Attribute name is the
+      # snake_case plural ("stories"). Optional arity bounds : `max:` and
+      # `at_least:` carry through to Reference#cardinality.
+      #
+      #   has_many Stories                      # 0..unbounded
+      #   has_many Tasks, max: 5                # 0..5
+      #   has_many Stories, at_least: 1, max: 5 # 1..5
+      def has_many(type, max: nil, at_least: 0, as: nil)
+        raise ArgumentError, "has_many requires a constant, not a string: #{type.inspect}" if type.class == String
+        plural = type.to_s.split("::").last
+        domain = type.to_s.split("::")[0..-2].join("::")
+        domain = nil if domain.empty?
+        singular = singularize(plural)
+        # `as: :alias` overrides the derived snake_case plural so an aggregate
+        # can hold multiple collections of the same target type under distinct
+        # names (Board has_many Sprints, as: :queued_sprints +
+        # has_many Sprints, as: :active_sprints). Mirrors has_one /
+        # belongs_to / reference_to and the Rust parser's parse_as_alias.
+        attr_name = (as || plural.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                                 .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
+        @references << BluebookModel::Structure::Reference.new(
+          name: attr_name, type: singular, domain: domain,
+          kind: :has_many,
+          cardinality: { min: at_least, max: max }
+        )
+      end
+
+      # Single relationship from owner side. IR-equivalent to belongs_to
+      # and reference_to (Cardinality { min: 0, max: 1 }) ; the distinction
+      # is intent-only at the bluebook level.
+      def has_one(type, as: nil, at_least: 0)
+        raise ArgumentError, "has_one requires a constant, not a string: #{type.inspect}" if type.class == String
+        target = type.to_s.split("::").last
+        domain = type.to_s.split("::")[0..-2].join("::")
+        domain = nil if domain.empty?
+        attr_name = (as || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                                 .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
+        @references << BluebookModel::Structure::Reference.new(
+          name: attr_name, type: target, domain: domain,
+          kind: :has_one,
+          cardinality: { min: at_least, max: 1 }
+        )
+      end
+
+      # Dependent side reference — IR-equivalent to has_one. Strict-Evans
+      # warns against denormalizing the parent identity onto the child ;
+      # use sparingly, only when the dependent genuinely needs the owner's
+      # identity for its own behavior.
+      def belongs_to(type, as: nil, at_least: 0)
+        raise ArgumentError, "belongs_to requires a constant, not a string: #{type.inspect}" if type.class == String
+        target = type.to_s.split("::").last
+        domain = type.to_s.split("::")[0..-2].join("::")
+        domain = nil if domain.empty?
+        attr_name = (as || target.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                                 .gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase).to_sym
+        @references << BluebookModel::Structure::Reference.new(
+          name: attr_name, type: target, domain: domain,
+          kind: :belongs_to,
+          cardinality: { min: at_least, max: 1 }
+        )
+      end
+
+      # Simple English singularization : ies → y ; drop trailing s.
+      # Irregular plurals (Sheep, Children) round-trip unchanged ;
+      # callers may pass the singular form directly when the rule fails.
+      private def singularize(plural)
+        if plural.end_with?("ies") && plural.length > 3
+          "#{plural[0..-4]}y"
+        elsif plural.end_with?("s") && plural.length > 1
+          plural[0..-2]
+        else
+          plural
+        end
+      end
 
       # Declare a factory for complex aggregate construction.
       #   factory "BuildFromCart" do

@@ -137,6 +137,22 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
       attribute :value, String
     end
 
+    value_object "Offset" do
+      # Optional 1-based line offset for Read — begin returning content
+      # at this line. Nil/0 means read from the start. Used together
+      # with Limit to read a window of a large file without loading it
+      # whole. Same shape as the underlying claude_tool:read offset.
+      attribute :value, Integer
+    end
+
+    value_object "Limit" do
+      # Optional max-line count for Read. Nil means read to EOF (subject
+      # to the runtime's safety cap). Combined with Offset to express a
+      # bounded window. Same shape as the underlying claude_tool:read
+      # limit.
+      attribute :value, Integer
+    end
+
     value_object "OldString" do
       # The substring Edit replaces. Lives in the EditApplied event
       # payload only ; not persisted to aggregate state, so the
@@ -203,10 +219,12 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     # ── Read ──
     command "Read" do
       role "Miette"
-      description "Read a file's contents. Records the dispatch as a FileTool record and emits FileRead carrying the file_path and description. The actual file contents flow through the event payload (filled by the runtime substrate after the read completes) ; aggregate state only records what was looked at and why."
+      description "Read a file's contents. Records the dispatch as a FileTool record and emits FileRead carrying the file_path and description. The actual file contents flow through the event payload (filled by the runtime substrate after the read completes) ; aggregate state only records what was looked at and why. Optional offset+limit narrow the read to a window so callers don't have to slurp large files — the runtime adapter (claude_tool:read) passes them straight through to the underlying Read tool."
       attribute :id, Id
       attribute :file_path, FilePath
       attribute :description, Description
+      attribute :offset, Offset
+      attribute :limit,  Limit
       emits "FileRead"
       then_set :file_path,   to: :file_path
       then_set :description, to: :description

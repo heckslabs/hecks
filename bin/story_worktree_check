@@ -1,0 +1,11 @@
+#!/bin/bash
+# Honest worktree-clean check. Exit 0 if git worktree is clean.
+cd /Users/christopheryoung/Projects/hecks || exit 1
+if [ -z "$(git status --porcelain 2>/dev/null)" ]; then
+  echo '{"check": "worktree", "ok": true, "status": "clean"}'
+  exit 0
+else
+  count=$(git status --porcelain | wc -l | tr -d ' ')
+  echo "{\"check\": \"worktree\", \"ok\": false, \"status\": \"dirty\", \"file_count\": $count}"
+  exit 1
+fi

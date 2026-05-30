@@ -1,3 +1,0 @@
-Hecks.hecksagon "Story" do
-  adapter :heki
-end

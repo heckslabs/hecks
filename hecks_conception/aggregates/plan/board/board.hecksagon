@@ -1,3 +1,0 @@
-Hecks.hecksagon "Board" do
-  adapter :heki
-end

@@ -1,0 +1,178 @@
+Hecks.bluebook "Filesystem", version: "2026.05.29.1" do
+  vision "Filesystem tool invocations as typed Door commands -- mv, rm, read-range, mkdir, rmdir, ls become first-class dispatched commands. Each command records its output on state via a RenderResult VO, mirroring the Cargo/Git tool pattern. The :filesystem_tool adapter family wires these commands to the underlying OS calls at dispatch time. Per-verb bin/ scripts handle the actual shell-out (static-cmd DSL constraint tracked by policy-cmd-needs-interpolation-or-bin-scripts). Conceived 2026-05-29 to close the filesystem-manipulation gap in the i528 StoreHouse arc."
+  category "framework"
+
+  # ============================================================
+  # FILESYSTEM -- OS filesystem operations as first-class dispatches
+  # ============================================================
+  #
+  # Six commands today :
+  #   * File.Move        -- move/rename a file (mv)
+  #   * File.Remove      -- delete a file (rm)
+  #   * File.ReadRange   -- read a byte/line range from a file
+  #   * Directory.Create -- create a directory (mkdir -p)
+  #   * Directory.Remove -- remove a directory tree (rm -rf)
+  #   * Directory.List   -- list directory contents (ls)
+  #
+  # Each command shells out via the :filesystem_tool adapter family
+  # and cascades its captured output into Cascade.RecordResult via
+  # the `result_into` field -- same shape as :cargo_tool / :git_tool.
+  # RenderResult captures the last invocation output on state so
+  # downstream policies can inspect results without re-running.
+  #
+  # -- Static cmd constraint --
+  #
+  # The policy DSL `with "cmd", "..."` accepts only static strings.
+  # Per-verb wrapper scripts in bin/ carry the dynamic arguments
+  # (from, to, path, offset, length) read from dispatched command state.
+  # Tracked by policy-cmd-needs-interpolation-or-bin-scripts card.
+
+  aggregate "Filesystem", "Filesystem operation invocations as typed Door commands. State carries the last output via last_output so downstream policies can read results without re-running. Pure invocation record: each command mints a fresh record keyed by id. Mirrors Cargo aggregate shape." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :last_output, RenderResult, default: ""
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Same ULID convention as Tools/ShellTool -- joinable against
+      # the corresponding Cascade.RecordResult by id.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # Absolute or relative path to a file on disk.
+      # Passed verbatim to the bin/ wrapper script.
+      attribute :value, String
+    end
+
+    value_object "DirPath" do
+      # Absolute or relative path to a directory on disk.
+      # Passed verbatim to the bin/ wrapper script.
+      attribute :value, String
+    end
+
+    value_object "RangeOffset" do
+      # Zero-based byte or line offset for File.ReadRange.
+      # Interpreted by bin/filesystem_file_read_range per its convention.
+      attribute :value, String
+    end
+
+    value_object "RangeLength" do
+      # Number of bytes or lines to read for File.ReadRange.
+      # Interpreted by bin/filesystem_file_read_range per its convention.
+      attribute :value, String
+    end
+
+    value_object "RenderResult" do
+      # Captured stdout from the most recent filesystem invocation.
+      # Stored on state so downstream policies can inspect results
+      # without re-running the operation.
+      # Mirrors Cargo.RenderResult in shape.
+      attribute :value, String
+    end
+
+    command "File.Move" do
+      role "Miette"
+      description "Move or rename a file. Passes `from` and `to` paths to bin/filesystem_file_move. Captures stdout on last_output and emits FileMoved so downstream policies can confirm the move completed."
+      attribute :id, Id
+      attribute :from, FilePath
+      attribute :to, FilePath
+      emits "FileMoved"
+    end
+
+    command "File.Remove" do
+      role "Miette"
+      description "Delete a file. Passes `path` to bin/filesystem_file_remove. Captures stdout on last_output and emits FileRemoved so downstream policies can confirm the deletion."
+      attribute :id, Id
+      attribute :path, FilePath
+      emits "FileRemoved"
+    end
+
+    command "File.ReadRange" do
+      role "Miette"
+      description "Read a range of lines or bytes from a file. Passes path, offset, and length to bin/filesystem_file_read_range. Captures the range content on last_output and emits FileRangeRead."
+      attribute :id, Id
+      attribute :path, FilePath
+      attribute :offset, RangeOffset
+      attribute :length, RangeLength
+      emits "FileRangeRead"
+    end
+
+    command "Directory.Create" do
+      role "Miette"
+      description "Create a directory (mkdir -p). Passes `path` to bin/filesystem_directory_create. Captures stdout on last_output and emits DirectoryCreated."
+      attribute :id, Id
+      attribute :path, DirPath
+      emits "DirectoryCreated"
+    end
+
+    command "Directory.Remove" do
+      role "Miette"
+      description "Remove a directory tree (rm -rf). Passes `path` to bin/filesystem_directory_remove. Captures stdout on last_output and emits DirectoryRemoved."
+      attribute :id, Id
+      attribute :path, DirPath
+      emits "DirectoryRemoved"
+    end
+
+    command "Directory.List" do
+      role "Miette"
+      description "List directory contents (ls). Passes `path` to bin/filesystem_directory_list. Captures the listing on last_output and emits DirectoryListed so downstream policies can inspect directory state."
+      attribute :id, Id
+      attribute :path, DirPath
+      emits "DirectoryListed"
+    end
+  end
+
+  # -- Spawn policies -- bluebook owns the wiring --
+  #
+  # Each policy fires on the command's emitted event and triggers
+  # Primitive::Process.Spawn with the matching filesystem script.
+  # The script reads from, to, path, offset, length from the dispatched
+  # command's state and executes the OS call independently.
+  # Mirrors the RunSweepOnSwept / RunPollOnInboxChecked precedent exactly.
+  # Static cmd strings are unavoidable per the DSL gap tracked by
+  # policy-cmd-needs-interpolation-or-bin-scripts.
+
+  policy "RunFileMoveOnFileMoved" do
+    on "Filesystem.FileMoved"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/filesystem_file_move"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunFileRemoveOnFileRemoved" do
+    on "Filesystem.FileRemoved"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/filesystem_file_remove"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunFileReadRangeOnFileRangeRead" do
+    on "Filesystem.FileRangeRead"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/filesystem_file_read_range"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunDirectoryCreateOnDirectoryCreated" do
+    on "Filesystem.DirectoryCreated"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/filesystem_directory_create"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunDirectoryRemoveOnDirectoryRemoved" do
+    on "Filesystem.DirectoryRemoved"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/filesystem_directory_remove"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunDirectoryListOnDirectoryListed" do
+    on "Filesystem.DirectoryListed"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/filesystem_directory_list"
+    with "result_into", "Cascade.RecordResult"
+  end
+end

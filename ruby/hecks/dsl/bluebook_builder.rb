@@ -533,6 +533,12 @@ module Hecks
         domain.aggregates.each do |agg|
           local_types = agg.value_objects.map(&:name) + agg.entities.map(&:name)
           (agg.references || []).each do |ref|
+            # DSL keywords (has_one / has_many / belongs_to / reference_to)
+            # set ref.kind at construction — that authored intent IS the
+            # canonical IR kind (matches Rust's ReferenceKind exactly).
+            # Legacy composition / aggregation / cross_context derivation
+            # only runs when no DSL keyword has tagged the ref.
+            next unless ref.kind.nil?
             ref.kind = if ref.domain
                          :cross_context
                        elsif local_types.include?(ref.type)

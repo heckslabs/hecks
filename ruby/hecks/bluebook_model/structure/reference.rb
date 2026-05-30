@@ -33,12 +33,25 @@ module Hecks
       #   true also checks authorization, false skips all (eventual consistency)
       attr_reader :validate
 
-      def initialize(name:, type:, domain: nil, kind: nil, validate: :exists)
+      # @return [Hash{Symbol => Integer, nil}] cardinality bounds for the reference :
+      #   { min: Integer, max: Integer | nil }
+      #   - reference_to / has_one / belongs_to default to { min: 0, max: 1 }
+      #   - has_many defaults to { min: 0, max: nil } (unbounded)
+      #   - has_many Things, max: 5 produces { min: 0, max: 5 }
+      # Mirrors Rust's ir::Cardinality for JSON parity (codegen/ir_shape
+      # Cardinality + ReferenceKind fixtures land the structural side ;
+      # this attr ports the Ruby side).
+      attr_reader :cardinality
+
+      def initialize(name:, type:, domain: nil, kind: nil, validate: :exists, cardinality: nil)
         @name = name.to_sym
         @type = type.to_s
         @domain = domain
         @kind = kind
         @validate = validate
+        # Default to singular (max: 1) when no explicit cardinality is
+        # passed — keeps reference_to call sites working unchanged.
+        @cardinality = cardinality || { min: 0, max: 1 }
       end
 
       # Returns true if this is a cross-context reference.
