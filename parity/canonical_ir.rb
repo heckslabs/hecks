@@ -230,10 +230,20 @@ module Hecks
       end
 
       def dump_reference(ref)
+        # Mirrors Rust's dump_reference exactly : name, target, domain, kind,
+        # cardinality (in that order ; the parity contract is string-diffed so
+        # key order matters).
+        card = ref.respond_to?(:cardinality) && ref.cardinality ? ref.cardinality : { min: 0, max: 1 }
+        kind = ref.respond_to?(:kind) && ref.kind ? ref.kind.to_s : "reference_to"
         {
-          "name"   => ref.name.to_s,
-          "target" => ref.type, # Ruby calls it `type`, canonical is `target`
-          "domain" => ref.domain,
+          "name"        => ref.name.to_s,
+          "target"      => ref.type, # Ruby calls it `type`, canonical is `target`
+          "domain"      => ref.domain,
+          "kind"        => kind,
+          "cardinality" => {
+            "min" => card[:min],
+            "max" => card[:max],
+          },
         }
       end
 

@@ -96,7 +96,11 @@ pub fn parse_shorthand_reference(line: &str) -> Option<crate::ir::Reference> {
         None
     };
 
-    Some(crate::ir::Reference { name, target, domain })
+    // Reference gained `cardinality` and `kind` fields; the shorthand
+    // parser routes through Reference::single (LegacyReferenceTo,
+    // single cardinality) so the construction stays valid as the
+    // struct grows.
+    Some(crate::ir::Reference::single(name, target, domain))
 }
 
 /// Unified shorthand dispatcher — keeps call sites to a 3-line match.

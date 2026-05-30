@@ -1,3 +1,0 @@
-Hecks.hecksagon "Task" do
-  adapter :heki
-end

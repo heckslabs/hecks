@@ -1,0 +1,8 @@
+#!/bin/bash
+# Honest verb-resolves check. The story's target verb requires interpolation
+# from story.target attribute, which the policy DSL doesn't support yet
+# (see policy-cmd-needs-interpolation-or-bin-scripts). Until that gap closes,
+# this check exits 1 ; no story can pass until the verb-resolves path is
+# wired with real per-story dispatch.
+echo '{"check": "verb_resolves", "ok": false, "status": "blocked", "reason": "awaiting policy-cmd interpolation gap"}'
+exit 1

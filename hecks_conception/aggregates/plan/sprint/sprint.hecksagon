@@ -1,3 +1,0 @@
-Hecks.hecksagon "Sprint" do
-  adapter :heki
-end
