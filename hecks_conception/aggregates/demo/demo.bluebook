@@ -1,0 +1,157 @@
+Hecks.bluebook "Demo", version: "2026.05.28.1" do
+  vision "The agile activity of SHOWING shipped work. A Demo is tied to a specific Story (the work being demoed) and walks through it slide by slide. Each slide is a template : title + optional body, optional source_path + diagram_surface for projected diagrams/sentences. Sits BESIDE the Plan domain — references Story without being inside Plan."
+  category "demo"
+
+  aggregate "Demo", "The act of showing shipped work. Tied to a Story ; slides walk through what landed. Each slide carries title + optional body ; slides MAY also name a source bluebook + diagram surface, in which case the runtime renders the diagram + validating sentences fresh on display. Navigation via Next / Back / GoTo." do
+    identified_by :name
+
+    # ---- Identity ----
+    attribute :name,                 Name
+
+    # ---- Content ----
+    attribute :title,                Title
+    attribute :description,          Description
+
+    # ---- Navigation ----
+    attribute :current_slide_number, SlideNumber, default: 1
+
+    # ---- The work being demoed (cross-bluebook reference) ----
+    # Demo lives BESIDE Plan and references a Story by identity. The
+    # qualified Plan::Story routes through belongs_to so the unidir
+    # discipline (owner-side declaration, identity-string carrying) is
+    # honored. The previous `attribute Story` shape erred in Ruby
+    # (`undefined method to_sym for module Story`) ; bare-constant
+    # attribute is not a supported DSL form for cross-bluebook refs.
+    belongs_to Plan::Story
+
+    # ---- Composition ----
+    # Slides are OWNED entities (no identity outside this Demo).
+    attribute :slides,               list_of(Slide)
+
+    value_object "Name" do
+      # Slug, e.g. "add-relationship-dsl-demo".
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # Human-readable title for the demo or for one slide.
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # One-line description of what the demo is showing.
+      attribute :value, String
+    end
+
+    value_object "SlideNumber" do
+      # 1-based slide position. Used both for entity identity within
+      # the demo and as the current_slide pointer.
+      attribute :value, Integer
+    end
+
+    value_object "SlideBody" do
+      # Optional markdown prose for the slide. Empty when the slide is
+      # purely a rendered diagram + sentences. Mermaid blocks inside the
+      # body render in any markdown+mermaid consumer.
+      attribute :value, String
+    end
+
+    value_object "SourcePath" do
+      # Optional : filesystem path to a bluebook this slide projects.
+      # When set, the runtime renders the chosen diagram surface AND the
+      # validating sentences fresh each time the slide is shown. Empty
+      # for slides that are just prose.
+      attribute :value, String
+    end
+
+    value_object "DiagramSurface" do
+      # Optional : which mermaid surface from Bluebook::Diagram to render
+      # alongside the source bluebook — structure | behavior | flow |
+      # slice | ports. Empty when no diagram is wanted. Validating
+      # sentences are always rendered when source_path is present ; the
+      # diagram is opt-in by surface.
+      attribute :value, String
+    end
+
+    # ── Slide entity ──────────────────────────────────────
+    #
+    # One slide = number + title (always) + body (optional prose) +
+    # source_path + diagram_surface (both optional). When source_path is
+    # set, the runtime renders the validating sentences fresh on display.
+    # When diagram_surface is also set, the runtime additionally renders
+    # that mermaid surface. Slides without source_path are pure prose.
+
+    entity "Slide" do
+      attribute :number,          SlideNumber
+      attribute :title,           Title
+      attribute :body,            SlideBody,      default: ""
+      attribute :source_path,     SourcePath,     default: ""
+      attribute :diagram_surface, DiagramSurface, default: ""
+    end
+
+    # ── Commands ─────────────────────────────────────────
+
+    command "Conceive" do
+      role "Miette"
+      description "Create a new Demo with a name, title, and description. Starts with no slides and current_slide_number = 1."
+      attribute :name,        Name
+      attribute :title,       Title
+      attribute :description, Description
+      then_set :name,                 to: :name
+      then_set :title,                to: :title
+      then_set :description,          to: :description
+      then_set :current_slide_number, to: 1
+      emits "DemoConceived"
+    end
+
+    command "AddSlide" do
+      role "Miette"
+      description "Append a slide to the demo. Required : number + title. Optional : body (prose markdown), source_path (a bluebook to project), diagram_surface (which mermaid surface to render). When source_path is set, the runtime renders validating sentences fresh on display ; diagram_surface picks the mermaid surface to also render. The slide is a template — use what you need."
+      reference_to(Demo)
+      attribute :number,          SlideNumber
+      attribute :title,           Title
+      attribute :body,            SlideBody,      default: ""
+      attribute :source_path,     SourcePath,     default: ""
+      attribute :diagram_surface, DiagramSurface, default: ""
+      then_set :slides, append: { number: :number, title: :title, body: :body, source_path: :source_path, diagram_surface: :diagram_surface }
+      emits "SlideAdded"
+    end
+
+    command "GoTo" do
+      role "Miette"
+      description "Move the current_slide pointer to a specific slide number."
+      reference_to(Demo)
+      attribute :slide_number, SlideNumber
+      then_set :current_slide_number, to: :slide_number
+      emits "SlideShown"
+    end
+
+    command "Next" do
+      role "Miette"
+      description "Advance to the next slide. Caller supplies the target slide_number (current + 1)."
+      reference_to(Demo)
+      attribute :slide_number, SlideNumber
+      then_set :current_slide_number, to: :slide_number
+      emits "SlideShown"
+    end
+
+    command "Back" do
+      role "Miette"
+      description "Move to the previous slide. Caller supplies the target slide_number (current - 1)."
+      reference_to(Demo)
+      attribute :slide_number, SlideNumber
+      then_set :current_slide_number, to: :slide_number
+      emits "SlideShown"
+    end
+
+    # ── Queries ────────────────────────────────────────
+
+    query "CurrentSlide" do
+      description "The slide at the current_slide_number pointer — number, title, body, and (when set) source_path + diagram_surface. The runtime renders the diagram + validating sentences fresh on read when source_path is present."
+    end
+
+    query "AllSlides" do
+      description "Every slide in declaration order — the full demo."
+    end
+  end
+end

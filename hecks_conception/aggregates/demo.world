@@ -1,0 +1,8 @@
+Hecks.world "Demo" do
+  # WHERE the Demo domain's heki store lives.
+  # Resolved relative to this file's dir (aggregates/). Created when Demo
+  # was extracted from Plan as its own bounded context (sprint 7).
+  heki do
+    dir "demo/.heki"
+  end
+end
