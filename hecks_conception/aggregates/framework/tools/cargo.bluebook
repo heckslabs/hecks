@@ -1,0 +1,148 @@
+Hecks.bluebook "Cargo", version: "2026.05.29.1" do
+  vision "Cargo tool invocations as typed Door commands — cargo build / test / check / clippy become first-class dispatched commands so the done-is-done tests_passing gate can self-verify by dispatch. Each command records its output on state via a RenderResult VO, mirroring the BoardMarkdownProjector pattern. The :cargo_tool adapter family (adapter_families/cargo_tool.hecksagon) wires these commands to the cargo binary at dispatch time. Conceived 2026-05-29 to close the self-verification gap in the i528 StoreHouse arc."
+  category "framework"
+
+  # ============================================================
+  # CARGO — cargo CLI invocations as first-class dispatches
+  # ============================================================
+  #
+  # Four commands today :
+  #   * Build  — compile the workspace (release or debug profile)
+  #   * Test   — run the test suite (optionally scoped to a target)
+  #   * Check  — fast type-check without producing a binary
+  #   * Clippy — lint the workspace via cargo clippy
+  #
+  # Each command shells out via the :cargo_tool adapter family and
+  # cascades its captured output into Cascade.RecordResult via the
+  # `result_into` field, the same shape as :web_tool / :git_tool.
+  # RenderResult captures the last invocation's output on state so
+  # downstream policies can gate on it (tests_passing, clean build, etc.).
+  #
+  # ── Profile VO ──
+  #
+  # Build takes a profile attribute (release / debug). Bluebook VOs
+  # hold String values ; the adapter reads the string and passes
+  # --release when value == "release", omits the flag otherwise.
+  #
+  # ── TargetSpec VO ──
+  #
+  # Test takes an optional target (a test name / module path fragment
+  # passed directly to `cargo test <target>`). Empty string means
+  # run all tests.
+  #
+  # ── repo_root convention ──
+  #
+  # All four commands read the `repo_root` attr at dispatch time.
+  # The adapter passes it as `current_dir` to the cargo process.
+  # Callers supply it ; the adapter errors cleanly if absent.
+
+  aggregate "Cargo", "Cargo CLI invocations as typed Door commands. State carries the last output via last_output so downstream policies can read build / test results without re-running. Pure invocation record : each Build / Test / Check / Clippy mints a fresh record keyed by id." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :last_output, RenderResult, default: ""
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Same ULID convention as Tools/ShellTool — joinable against
+      # the corresponding Cascade.RecordResult by id.
+      attribute :value, String
+    end
+
+    value_object "Profile" do
+      # Compilation profile for Build. "release" passes --release to
+      # cargo ; any other value (conventionally "debug") omits the flag.
+      attribute :value, String
+    end
+
+    value_object "TargetSpec" do
+      # Optional test target passed as the positional argument to
+      # `cargo test <target>`. Empty string runs the full suite.
+      attribute :value, String
+    end
+
+    value_object "RenderResult" do
+      # Captured stdout + stderr from the most recent cargo invocation.
+      # Stored on state so downstream policies can inspect the last
+      # build / test / check / clippy output without re-running cargo.
+      # Mirrors BoardMarkdownProjector.RenderResult in shape.
+      attribute :value, String
+    end
+
+    value_object "RepoRoot" do
+      # Absolute path to the repository root. Passed as current_dir
+      # to the cargo process. Required ; the adapter errors if absent.
+      attribute :value, String
+    end
+
+    command "Build" do
+      role "Miette"
+      description "Compile the workspace. Passes --release when profile == 'release', omits the flag for debug. Captures stdout+stderr on last_output and emits BuildCompleted so downstream policies can gate on a clean build."
+      attribute :id, Id
+      attribute :profile, Profile
+      attribute :repo_root, RepoRoot
+      emits "BuildCompleted"
+    end
+
+    command "Test" do
+      role "Miette"
+      description "Run the test suite. Passes target as a positional argument when non-empty (scoping to a module / test name). Captures stdout+stderr on last_output and emits TestsRun. The tests_passing gate dispatches this to self-verify."
+      attribute :id, Id
+      attribute :target, TargetSpec
+      attribute :repo_root, RepoRoot
+      emits "TestsRun"
+    end
+
+    command "Check" do
+      role "Miette"
+      description "Fast type-check without producing a binary (cargo check). Cheaper than Build for verifying compilation ; useful in tight feedback loops. Captures stdout+stderr on last_output and emits CheckCompleted."
+      attribute :id, Id
+      attribute :repo_root, RepoRoot
+      emits "CheckCompleted"
+    end
+
+    command "Clippy" do
+      role "Miette"
+      description "Lint the workspace via cargo clippy. Captures stdout+stderr on last_output and emits ClippyCompleted so downstream policies can gate on a clean lint pass."
+      attribute :id, Id
+      attribute :repo_root, RepoRoot
+      emits "ClippyCompleted"
+    end
+  end
+
+  # ── Spawn policies — bluebook owns the wiring ──
+  #
+  # Each policy fires on the command's emitted event and triggers
+  # Primitive::Process.Spawn with the matching cargo script. The script
+  # reads profile, target, and repo_root from the dispatched command's
+  # state and invokes the cargo binary accordingly.
+  # Mirrors the RunSweepOnSwept / RunPollOnInboxChecked precedent exactly.
+
+  policy "RunBuildOnBuildCompleted" do
+    on "Cargo.BuildCompleted"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/cargo_build"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunTestOnTestsRun" do
+    on "Cargo.TestsRun"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/cargo_test"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunCheckOnCheckCompleted" do
+    on "Cargo.CheckCompleted"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/cargo_check"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunClippyOnClippyCompleted" do
+    on "Cargo.ClippyCompleted"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/cargo_clippy"
+    with "result_into", "Cascade.RecordResult"
+  end
+end

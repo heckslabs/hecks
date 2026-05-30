@@ -1,0 +1,148 @@
+Hecks.bluebook "Git", version: "2026.05.29.1" do
+  vision "Git tool invocations as typed Door commands — each verb a first-class dispatch. The caller computes and attaches results (branch name, log output, diff text, worktree list) as value objects; the command records them on state and emits a typed event. Mirrors the board_markdown.bluebook pattern: caller computes, command records. The :git_tool adapter family (framework/adapter_families/git_tool.hecksagon) binds each command to the matching kernel-floor shell-out; the result chains back via Cascade.RecordResult. Sprint 7 done-is-done gates lean on this aggregate — WorktreeList lets a gate confirm worktree clean; CurrentBranch confirms merged-to-main."
+  category "framework"
+
+  aggregate "Git", "Git command invocations as first-class dispatches. Each command records its captured output on state and emits a typed event. The :git_tool adapter family shells out and cascades the result back; this bluebook is the pure contract, not the execution." do
+    identified_by :id
+
+    attribute :id, Id
+    attribute :status_output,       StatusOutput,       default: ""
+    attribute :log_output,          LogOutput,          default: ""
+    attribute :diff_output,         DiffOutput,         default: ""
+    attribute :current_branch,      CurrentBranch,      default: ""
+    attribute :worktree_list_output, WorktreeListOutput, default: ""
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller before dispatch.
+      # Same ULID convention as ShellTool / FileTool / WebTool records.
+      attribute :value, String
+    end
+
+    value_object "RangeSpec" do
+      # A git range or revision spec passed to Log / Diff — e.g. "HEAD~5..HEAD",
+      # "main..feat/foo", or a single SHA. Free-form string; the kernel-floor
+      # dispatcher passes it verbatim to the git invocation.
+      attribute :value, String
+    end
+
+    value_object "StatusOutput" do
+      # Captured stdout from `git status --short`. Empty string until
+      # StatusChecked fires and the :git_tool adapter cascades the result back.
+      attribute :value, String
+    end
+
+    value_object "LogOutput" do
+      # Captured stdout from `git log <range>`. Rides the event payload
+      # for large histories; state stores the most-recent result.
+      attribute :value, String
+    end
+
+    value_object "DiffOutput" do
+      # Captured stdout from `git diff <range>`. Same event-payload-first
+      # treatment as LogOutput — state stays small for large diffs.
+      attribute :value, String
+    end
+
+    value_object "CurrentBranch" do
+      # Captured output of `git rev-parse --abbrev-ref HEAD` — the bare
+      # branch name (e.g. "feat/ai-turn-pulse") or "HEAD" when detached.
+      attribute :value, String
+    end
+
+    value_object "WorktreeListOutput" do
+      # Captured stdout from `git worktree list --porcelain`. Parsed
+      # downstream by the done-is-done gate to confirm worktree clean.
+      attribute :value, String
+    end
+
+    command "Status" do
+      role "Miette"
+      description "Record the output of `git status`. The :git_tool adapter shells out, captures stdout, and cascades the result back via Cascade.RecordResult which drives a follow-on Git.Status dispatch carrying the captured text on status_output. The command records the result and emits StatusChecked."
+      attribute :id, Id
+      attribute :status_output, StatusOutput
+      emits "StatusChecked"
+      then_set :status_output, to: :status_output
+    end
+
+    command "Log" do
+      role "Miette"
+      description "Record the output of `git log <range>`. RangeSpec is required; pass an empty string to default to the full log. The :git_tool adapter shells out and cascades the captured log text back via Cascade.RecordResult. Emits LogRead."
+      attribute :id, Id
+      attribute :range, RangeSpec
+      attribute :log_output, LogOutput
+      emits "LogRead"
+      then_set :log_output, to: :log_output
+    end
+
+    command "Diff" do
+      role "Miette"
+      description "Record the output of `git diff <range>`. RangeSpec is required; pass an empty string for the working-tree diff. The :git_tool adapter shells out and cascades the captured diff text back via Cascade.RecordResult. Emits DiffRead."
+      attribute :id, Id
+      attribute :range, RangeSpec
+      attribute :diff_output, DiffOutput
+      emits "DiffRead"
+      then_set :diff_output, to: :diff_output
+    end
+
+    command "CurrentBranch" do
+      role "Miette"
+      description "Record the current git branch name from `git rev-parse --abbrev-ref HEAD`. The :git_tool adapter shells out and cascades the branch name back via Cascade.RecordResult. Emits CurrentBranchRead."
+      attribute :id, Id
+      attribute :current_branch, CurrentBranch
+      emits "CurrentBranchRead"
+      then_set :current_branch, to: :current_branch
+    end
+
+    command "WorktreeList" do
+      role "Miette"
+      description "Record the output of `git worktree list --porcelain`. Downstream done-is-done gates parse this to confirm the worktree is clean and merged to main. The :git_tool adapter shells out and cascades back via Cascade.RecordResult. Emits WorktreeListRead."
+      attribute :id, Id
+      attribute :worktree_list_output, WorktreeListOutput
+      emits "WorktreeListRead"
+      then_set :worktree_list_output, to: :worktree_list_output
+    end
+  end
+
+  # ── Spawn policies — bluebook owns the wiring ──
+  #
+  # Each policy fires on the command's emitted event and triggers
+  # Primitive::Process.Spawn with the matching git script. The script
+  # reads any parameterized inputs (range, etc.) from the dispatched
+  # command's state and executes the git shell-out independently.
+  # Mirrors the RunSweepOnSwept / RunPollOnInboxChecked precedent exactly.
+
+  policy "RunStatusOnStatusChecked" do
+    on "Git.StatusChecked"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/git_status"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunLogOnLogRead" do
+    on "Git.LogRead"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/git_log"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunDiffOnDiffRead" do
+    on "Git.DiffRead"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/git_diff"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunCurrentBranchOnCurrentBranchRead" do
+    on "Git.CurrentBranchRead"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/git_current_branch"
+    with "result_into", "Cascade.RecordResult"
+  end
+
+  policy "RunWorktreeListOnWorktreeListRead" do
+    on "Git.WorktreeListRead"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/git_worktree_list"
+    with "result_into", "Cascade.RecordResult"
+  end
+end
