@@ -23,9 +23,9 @@
 //!   # → JSON to stdout, exit 0
 
 use crate::ir::{
-    Aggregate, Attribute, Command, Direction, Domain, Entity, Fixture, Given,
+    Aggregate, Attribute, Cardinality, Command, Direction, Domain, Entity, Fixture, Given,
     Invariant, Lifecycle, LimitSpec, Mutation, MutationOp, OrderBy, Policy,
-    DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, Transition, ValueSpec,
+    DispatchSpec, ProcessManager, ProcessManagerHandler, Query, Reference, ReferenceKind, Transition, ValueSpec,
     ValueObject, View, WhereClause, WhereOp,
 };
 use serde_json::{json, Value};
@@ -158,6 +158,8 @@ fn dump_reference(r: &Reference) -> Value {
         "name": r.name,
         "target": r.target,
         "domain": r.domain,
+        "kind": dump_reference_kind(&r.kind),
+        "cardinality": dump_cardinality(&r.cardinality),
     })
 }
 
@@ -239,11 +241,22 @@ fn dump_mutation_op(op: &MutationOp) -> &'static str {
     }
 }
 
+fn dump_reference_kind(k: &ReferenceKind) -> Value {
+    json!(k.as_str())
+}
+
 fn dump_lifecycle(lc: &Lifecycle) -> Value {
     json!({
         "field": lc.field,
         "default": lc.default,
         "transitions": lc.transitions.iter().map(dump_transition).collect::<Vec<_>>(),
+    })
+}
+
+fn dump_cardinality(c: &Cardinality) -> Value {
+    json!({
+        "min": c.min,
+        "max": c.max,
     })
 }
 
