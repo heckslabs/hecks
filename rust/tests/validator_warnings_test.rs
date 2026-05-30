@@ -43,11 +43,11 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
 }
 
 fn reference_to(target: &str) -> Reference {
-    Reference {
-        name: target.to_lowercase(),
-        target: target.to_string(),
-        domain: None,
-    }
+    // Reference gained `cardinality` and `kind` via the relationship-DSL
+    // shape sweep ; route construction through Reference::single
+    // (LegacyReferenceTo + single cardinality defaults) so this helper
+    // stays semantically equivalent as the struct evolves.
+    Reference::single(target.to_lowercase(), target.to_string(), None)
 }
 
 fn empty_domain(name: &str, aggregates: Vec<Aggregate>) -> Domain {

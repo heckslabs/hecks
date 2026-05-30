@@ -13,7 +13,10 @@ fn absorb_reference_to(line: &str, agg: &mut Aggregate) {
         } else {
             to_snake_case(&target)
         };
-        agg.references.push(Reference { name, target, domain: None });
+        // Reference::single defaults to LegacyReferenceTo + single
+        // cardinality ; cardinality + kind ride into the IR via the
+        // impl helpers added by ImplReference fixture.
+        agg.references.push(Reference::single(name, target, None));
     }
 }
 

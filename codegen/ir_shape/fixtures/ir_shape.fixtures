@@ -116,6 +116,24 @@ Hecks.fixtures "IrShape" do
     # predicate expression, checked on the resulting state after every
     # command. Mirrors the Given struct's 2-field shape.
     fixture "Invariant", name: "Invariant", order: 39, body_kind: "struct", derives: "Debug, Clone", impl_target: "", body_snippet: "", doc_snippet: "codegen/ir_shape/snippets/docs/invariant_type.rs.frag", description: "Invariant — aggregate-level rule name + holds_when predicate"
+
+    # Cardinality — multiplicity bounds for a Reference (orders 40–43 form the
+    # "relationship DSL" group). Defaults : Cardinality::single() for
+    # reference_to / has_one / belongs_to ; Cardinality::many() for has_many.
+    fixture "Cardinality",       name: "Cardinality",       order: 40, body_kind: "struct", derives: "Debug, Clone, PartialEq, Eq", impl_target: "",              body_snippet: "",                                                          doc_snippet: "codegen/ir_shape/snippets/docs/cardinality_type.rs.frag",    description: "Multiplicity bounds for a Reference — min + optional max"
+
+    # ReferenceKind — which DSL keyword authored the Reference. The IR carries
+    # this so projections + validators can honor the original intent rather
+    # than collapsing all forms onto a single multiplicity shape.
+    fixture "ReferenceKind",     name: "ReferenceKind",     order: 41, body_kind: "enum",   derives: "Debug, Clone, PartialEq, Eq", impl_target: "",              body_snippet: "",                                                          doc_snippet: "codegen/ir_shape/snippets/docs/reference_kind_type.rs.frag", description: "Which DSL keyword produced a Reference — belongs_to / has_one / has_many / reference_to"
+
+    # impl ReferenceKind — stable string round-trip mirrors BlockParser's pattern.
+    fixture "ImplReferenceKind", name: "ImplReferenceKind", order: 42, body_kind: "impl",   derives: "",                            impl_target: "ReferenceKind", body_snippet: "codegen/ir_shape/snippets/impls/reference_kind.rs.frag",      doc_snippet: "",                                                          description: "as_str canonical keyword for ReferenceKind"
+
+    # impl Reference — ergonomic constructors (single / belongs_to / has_one /
+    # many / many_with_max) so call sites don't repeat the cardinality+kind
+    # boilerplate. The bare struct literal is still valid for tests + tooling.
+    fixture "ImplReference",     name: "ImplReference",     order: 43, body_kind: "impl",   derives: "",                            impl_target: "Reference",     body_snippet: "codegen/ir_shape/snippets/impls/reference.rs.frag",           doc_snippet: "",                                                          description: "Reference constructors keyed by DSL keyword"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -266,10 +284,20 @@ Hecks.fixtures "IrShape" do
     fixture "Entity_lifecycle",     type_name: "Entity", order: 6, name: "lifecycle",     field_type: "Option<Lifecycle>", doc_snippet: "codegen/ir_shape/snippets/docs/entity_lifecycle.rs.frag"
     fixture "Entity_identified_by", type_name: "Entity", order: 7, name: "identified_by", field_type: "Option<String>",    doc_snippet: "codegen/ir_shape/snippets/docs/entity_identified_by.rs.frag"
 
-    # Reference — 3 fields.
-    fixture "Reference_name",   type_name: "Reference", order: 1, name: "name",   field_type: "String",         doc_snippet: ""
-    fixture "Reference_target", type_name: "Reference", order: 2, name: "target", field_type: "String",         doc_snippet: ""
-    fixture "Reference_domain", type_name: "Reference", order: 3, name: "domain", field_type: "Option<String>", doc_snippet: ""
+    # Reference — 5 fields. The first 3 are the historical shape (name, target,
+    # domain) ; cardinality + kind were added to carry the Sprint 7 relationship
+    # DSL (has_many / has_one / belongs_to / reference_to) into the IR. The order
+    # matches dump_reference's serde shape.
+    fixture "Reference_name",        type_name: "Reference", order: 1, name: "name",        field_type: "String",         doc_snippet: ""
+    fixture "Reference_target",      type_name: "Reference", order: 2, name: "target",      field_type: "String",         doc_snippet: ""
+    fixture "Reference_domain",      type_name: "Reference", order: 3, name: "domain",      field_type: "Option<String>", doc_snippet: ""
+    fixture "Reference_cardinality", type_name: "Reference", order: 4, name: "cardinality", field_type: "Cardinality",    doc_snippet: "codegen/ir_shape/snippets/docs/reference_cardinality.rs.frag"
+    fixture "Reference_kind",        type_name: "Reference", order: 5, name: "kind",        field_type: "ReferenceKind", doc_snippet: "codegen/ir_shape/snippets/docs/reference_kind.rs.frag"
+
+    # Cardinality — 2 fields. usize for min, Option<usize> for max (None means
+    # unbounded). Mirrors Ruby Reference#cardinality { min:, max: } shape.
+    fixture "Cardinality_min", type_name: "Cardinality", order: 1, name: "min", field_type: "usize",         doc_snippet: ""
+    fixture "Cardinality_max", type_name: "Cardinality", order: 2, name: "max", field_type: "Option<usize>", doc_snippet: ""
 
     # Policy — 5 fields (the 5th, `with`, carries literal policy args).
     fixture "Policy_name",            type_name: "Policy", order: 1, name: "name",            field_type: "String",         doc_snippet: ""
@@ -322,6 +350,13 @@ Hecks.fixtures "IrShape" do
     fixture "BlockParser_Cadence",         type_name: "BlockParser", order: 4, name: "Cadence",        body: "", doc_snippet: ""
     fixture "BlockParser_Section",         type_name: "BlockParser", order: 5, name: "Section",        body: "", doc_snippet: ""
     fixture "BlockParser_Fixture",         type_name: "BlockParser", order: 6, name: "Fixture",        body: "", doc_snippet: ""
+
+    # ReferenceKind — 4 bare variants. The order matches as_str's canonical
+    # keyword shape (belongs_to / has_one / has_many / reference_to).
+    fixture "ReferenceKind_BelongsTo",          type_name: "ReferenceKind", order: 1, name: "BelongsTo",          body: "", doc_snippet: ""
+    fixture "ReferenceKind_HasOne",             type_name: "ReferenceKind", order: 2, name: "HasOne",             body: "", doc_snippet: ""
+    fixture "ReferenceKind_HasMany",            type_name: "ReferenceKind", order: 3, name: "HasMany",            body: "", doc_snippet: ""
+    fixture "ReferenceKind_LegacyReferenceTo",  type_name: "ReferenceKind", order: 4, name: "LegacyReferenceTo",  body: "", doc_snippet: "codegen/ir_shape/snippets/docs/reference_kind_legacy.rs.frag"
 
     # ValueSpec — 3 struct-variants (i221 / Phase 2.b).
     fixture "ValueSpec_Literal",   type_name: "ValueSpec", order: 1, name: "Literal",   body: "{ value: String }",                           doc_snippet: ""

@@ -178,7 +178,10 @@ pub fn parse_command(lines: &[&str]) -> (Command, usize) {
                     } else {
                         to_snake_case(&target)
                     };
-                    cmd.references.push(Reference { name, target, domain: None });
+                    // Reference::single defaults to LegacyReferenceTo + single
+                    // cardinality ; cardinality + kind ride into the IR via
+                    // the impl helpers added by ImplReference fixture.
+                    cmd.references.push(Reference::single(name, target, None));
                 }
             } else if line.starts_with("given") {
                 // Two forms:
@@ -257,7 +260,12 @@ fn parse_inline_command(line: &str, cmd: &mut Command) {
             } else if part.starts_with("reference_to") {
                 if let Some(target) = extract_word_after(part, "reference_to") {
                     let snake = to_snake_case(&target);
-                    cmd.references.push(Reference { name: snake, target, domain: None });
+                    // Reference gained `cardinality` + `kind` for the
+                    // Sprint 7 relationship DSL ; the inline command
+                    // path constructs via Reference::single (LegacyReferenceTo
+                    // + single cardinality defaults) so the new fields
+                    // are populated without per-callsite repetition.
+                    cmd.references.push(Reference::single(snake, target, None));
                 }
             } else if is_shorthand_line(part) {
                 match parse_shorthand(part) {
