@@ -1,4 +1,4 @@
-Hecks.bluebook "Plan", version: "2026.05.28.4" do
+Hecks.bluebook "Plan", version: "2026.05.31.1" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit + owned Task entity), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task is an owned entity inside Story (composition, not aggregation)."
   category "plan"
 
@@ -416,7 +416,7 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
     has_many UseCases
 
     # ---- Lifecycle ----
-    attribute :state,          State, default: "backlog"
+    attribute :state,          State, default: "untasked"
 
     # ---- Done-is-done gate flags (auto-set by cascade, NEVER by Mark*) ----
     # Each flag is set true only when the corresponding bin/ script returns
@@ -490,7 +490,14 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
     end
 
     value_object "State" do
-      # Lifecycle token: backlog / in_sprint / started / ready_for_review / done / deferred.
+      # Lifecycle token: untasked / tasked / started / ready_for_review / done / deferred / cancelled.
+      # untasked — fresh story, no tasks yet (the new initial state, retired backlog + in_sprint)
+      # tasked   — tasks have been added + the operator flipped Tasked ; ready for Start
+      # started  — Start fired ; work is in progress
+      # ready_for_review — MarkReady fired ; waiting on Operator.Approve
+      # done     — Approve fired (Operator-only terminal except for Reopen)
+      # deferred — parked from untasked
+      # cancelled — soft-deleted, terminal
       attribute :value, String
     end
 
@@ -633,7 +640,7 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "Capture" do
       role "Miette"
-      description "Mint a new Story from a ref + title + tier + summary + target. Starts in backlog status with an empty steps list. The ref IS the story identity — one Story per ref."
+      description "Mint a new Story from a ref + title + tier + summary + target. Starts in untasked status with an empty tasks list — the new initial state introduced by lifecycle-tasked-state (sprint 14). The ref IS the story identity — one Story per ref."
       attribute :ref,     Ref
       attribute :title,   Title
       attribute :tier,    Tier
@@ -646,13 +653,13 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
       then_set :summary,  to: :summary
       then_set :target,   to: :target
       then_set :project,  to: :project
-      then_set :state,    to: "backlog"
+      then_set :state,    to: "untasked"
       emits "StoryCaptured"
     end
 
     command "Reword" do
       role "Miette"
-      description "Amend a story's content — re-describe its title and summary — without touching its lifecycle. Capture is gated to backlog (it mints + resets state), so once a story is in_sprint/started its description was un-editable ; Reword closes that gap. Pure content mutation : no state transition, valid from any state. Used to update a card's title/summary as the design firms up."
+      description "Amend a story's content — re-describe its title and summary — without touching its lifecycle. Capture is the creation command (it mints + resets state), so once a story has moved past untasked its description was un-editable ; Reword closes that gap. Pure content mutation : no state transition, valid from any state. Used to update a card's title/summary as the design firms up."
       reference_to(Story)
       attribute :title,   Title
       attribute :summary, Summary
@@ -663,11 +670,10 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "AssignToSprint" do
       role "Miette"
-      description "Move a backlog story into a sprint. Records the sprint_ref so the story is owned by a sprint slot."
+      description "Assign a story to a sprint — records the sprint_ref so the story is owned by a sprint slot. Since lifecycle-tasked-state (sprint 14), this is pure metadata : it does NOT transition state. A story remains `untasked` (or whatever it was) until Tasked is dispatched. Sprint membership and tasking-readiness are independent axes."
       reference_to(Story)
       attribute :sprint_ref, Sprint
       then_set :sprint,      to: :sprint_ref
-      then_set :state,       to: "in_sprint"
       given("sprint_ref must be named") { sprint_ref != "" }
       emits "StoryAssignedToSprint"
     end
@@ -693,7 +699,7 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "MoveToSprint" do
       role "Miette"
-      description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints whether it is in_sprint or started. Closes the re-sprinting gap: AssignToSprint is allowed only from backlog, so a committed story could not otherwise change sprints."
+      description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints in any state (untasked, tasked, started). Since lifecycle-tasked-state (sprint 14) AssignToSprint is pure metadata too, so the re-sprinting gap MoveToSprint originally closed is no longer about a state guard ; MoveToSprint stays as the named verb for the act of swapping sprint membership."
       reference_to(Story)
       attribute :sprint_ref, Sprint
       then_set :sprint, to: :sprint_ref
@@ -702,10 +708,10 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "RemoveFromSprint" do
       role "Miette"
-      description "Pull a story back out of its sprint — clears the sprint ref and returns lifecycle state to backlog. Valid from in_sprint or started. Closes the gap where a committed story could be assigned but never un-assigned."
+      description "Pull a story back out of its sprint — clears the sprint ref and returns lifecycle state to untasked. Valid from tasked or started. Closes the gap where a committed story could be assigned but never un-assigned. Since lifecycle-tasked-state (sprint 14) the unsprinted state is untasked, not backlog."
       reference_to(Story)
       then_set :sprint, to: ""
-      then_set :state,  to: "backlog"
+      then_set :state,  to: "untasked"
       emits "StoryRemovedFromSprint"
     end
 
@@ -734,7 +740,7 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "AddTask" do
       role "Miette"
-      description "Add a planned task to the story during the tasking phase. Tasks are the discrete sub-units of work the operator and Miette agree on before Start. Valid only while the story is in_sprint (or backlog, before assignment) — tasks freeze once Start fires. Each task carries a description ; order is implicit by append position."
+      description "Add a planned task to the story during the tasking phase. Tasks are the discrete sub-units of work the operator and Miette agree on before Start. Valid in any pre-approval state — typically untasked or tasked (sprint 14 vocab) but the guard accepts every state except approved / cancelled / deferred so a story under review can still have tasks adjusted. Each task carries a description ; order is implicit by append position."
       reference_to(Story)
       attribute :description, TaskDescription
       given("tasks can be added any time before final approval") { state != "approved" && state != "cancelled" && state != "deferred" }
@@ -744,9 +750,9 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "Tasked" do
       role "Miette"
-      description "Operator-flippable signal that the story has been tasked enough — enough atomic tasks added, conversation done, ready for Start. No threshold, no auto-transition, no tasks-count given. Pure operator judgment. Transitions in_sprint → tasked. Start's only gate becomes `state == tasked`. Bootstrap of lifecycle-tasked-state ; the full story will also add `untasked` as the initial state on Capture."
+      description "Operator-flippable signal that the story has been tasked enough — enough atomic tasks added, conversation done, ready for Start. No threshold, no auto-transition, no tasks-count given. Pure operator judgment. Transitions untasked → tasked. Start's only gate becomes `state == tasked`. Completes lifecycle-tasked-state (sprint 14) : `untasked` is now the Capture default and Tasked is its single exit toward Start."
       reference_to(Story)
-      given("can only flip to tasked from in_sprint") { state == "in_sprint" }
+      given("can only flip to tasked from untasked") { state == "untasked" }
       then_set :state, to: "tasked"
       emits "StoryTasked"
     end
@@ -860,14 +866,14 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     command "Unstart" do
       role "Miette"
-      description "Reverse Start — move a started story back to in_sprint. Honors the active-sprint discipline : only stories whose sprint is the board's active sprint may stay started. The cross-aggregate guard that would forbid an off-active-sprint Start at all is not runtime-evaluable today (gap : cross-aggregate-guards) ; Unstart is the corrective verb that closes the drift. Pure state reversal : the story remains committed to its sprint ; only its lifecycle state moves back."
+      description "Reverse Start — move a started story back to tasked. Honors the active-sprint discipline : only stories whose sprint is the board's active sprint may stay started. The cross-aggregate guard that would forbid an off-active-sprint Start at all is not runtime-evaluable today (gap : cross-aggregate-guards) ; Unstart is the corrective verb that closes the drift. Pure state reversal : the story remains committed to its sprint ; only its lifecycle state moves back. Since lifecycle-tasked-state (sprint 14) the prior-to-started state is tasked, not in_sprint."
       reference_to(Story)
       emits "StoryUnstarted"
     end
 
     command "Defer" do
       role "Miette"
-      description "Park a backlog story that is not yet scheduled — move it to deferred so the active backlog stays clean."
+      description "Park an untasked story that is not yet scheduled — move it to deferred so the active intake stays clean. Since lifecycle-tasked-state (sprint 14) the pre-sprint state is untasked, not backlog."
       reference_to(Story)
       emits "StoryDeferred"
     end
@@ -882,24 +888,27 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
 
     # ── Lifecycle ─────────────────────────────────────────────────
     #
-    # backlog → in_sprint → started → ready_for_review → done
-    #                                              deferred (from backlog)
+    # untasked → tasked → started → ready_for_review → done
+    #                                              deferred (from untasked)
     #
     # Done is ONLY reachable via Approve (Operator) from ready_for_review.
     # MarkReady is the author signal; Approve is the human gate.
+    # untasked is the initial state on Capture (lifecycle-tasked-state, sprint 14) ;
+    # Tasked is its single exit toward Start. AssignToSprint is pure metadata since
+    # sprint 14 — sprint-membership and tasking-readiness are independent axes.
 
-    lifecycle :state, default: "backlog" do
-      transition "Capture"        => "backlog",          from: "backlog"
-      transition "AssignToSprint" => "in_sprint",        from: "backlog"
-      transition "Start"          => "started",          from: "in_sprint"
-      transition "Unstart"        => "in_sprint",        from: "started"
-      transition "MarkReady"      => "ready_for_review", from: "started"
-      transition "Approve"        => "done",             from: "ready_for_review"
-      transition "Reopen"         => "started",          from: "ready_for_review"
-      transition "Reopen"         => "ready_for_review", from: "done"
-      transition "Defer"          => "deferred",         from: "backlog"
-      transition "RemoveFromSprint" => "backlog",         from: "in_sprint"
-      transition "RemoveFromSprint" => "backlog",         from: "started"
+    lifecycle :state, default: "untasked" do
+      transition "Capture"          => "untasked",         from: "untasked"
+      transition "Tasked"           => "tasked",           from: "untasked"
+      transition "Start"            => "started",          from: "tasked"
+      transition "Unstart"          => "tasked",           from: "started"
+      transition "MarkReady"        => "ready_for_review", from: "started"
+      transition "Approve"          => "done",             from: "ready_for_review"
+      transition "Reopen"           => "started",          from: "ready_for_review"
+      transition "Reopen"           => "ready_for_review", from: "done"
+      transition "Defer"            => "deferred",         from: "untasked"
+      transition "RemoveFromSprint" => "untasked",         from: "tasked"
+      transition "RemoveFromSprint" => "untasked",         from: "started"
     end
 
     # ── Done-is-done : LIVE CHECKS (replacing stored flags) ──────────
@@ -953,7 +962,7 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
     end
 
     query "Board" do
-      description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is in_sprint / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in) and cross-aggregate set-membership is not yet evaluated in queries (gap : runtime-cross-aggregate-where). Both gaps will replace this with a proper where clause when they land."
+      description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is untasked / tasked / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. Since lifecycle-tasked-state (sprint 14) the pre-Start states split into untasked + tasked, both surfaced on the board so the operator can see what is queued for tasking vs. tasked and Start-ready. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in) and cross-aggregate set-membership is not yet evaluated in queries (gap : runtime-cross-aggregate-where). Both gaps will replace this with a proper where clause when they land."
     end
   end
 
