@@ -139,6 +139,14 @@ pub mod web_tool_dispatcher;
 // remainder ; the adapter PROTOCOL is plain bluebook policy/cascade.
 pub mod exec_dispatcher;
 pub mod driven_adapter_resolver;
+// Sprint 14 actor-model quartet — per-aggregate-instance mailboxes,
+// async event delivery, per-actor failure isolation, causal ordering.
+// The mailbox layer wraps (not replaces) the existing synchronous
+// dispatch path : command dispatch still returns synchronously (sync
+// feel), event-driven cascades route through the registry. See
+// `actor/mod.rs` for the architectural shape ; the 4 smoke tests in
+// `actor::tests` flip each story's DiD gate.
+pub mod actor;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
 // `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
