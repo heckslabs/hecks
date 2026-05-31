@@ -19,8 +19,21 @@
 //! primitive cascades the outcome into the dispatch's `result_into`
 //! target. Every former `:exec` binding is now a bluebook policy
 //! firing this primitive — see resolve_primitive_spawn's doc comment.
+//!
+//! Bin-wrapper convention (sq/policy-cmd-bin-wrappers):
+//!   * `AGG_ID`     — the triggering event's aggregate_id (the join key
+//!                    a `Record*` cascade lands back on).
+//!   * `AGG_TYPE`   — the triggering event's aggregate_type.
+//!   * `EVENT_NAME` — the triggering event's name.
+//!   * stdin        — the full event payload JSON (same shape
+//!                    `STOREHOUSE_TRIGGER_EVENT` carries, for scripts
+//!                    that want to read it without parsing env).
+//! Scripts are declarative bluebook policies' tooling arm : they live
+//! in bin/, read AGG_ID + optional stdin JSON, print one JSON line,
+//! exit 0 on ok / non-zero on not-ok.
 
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 /// What an :exec dispatch produced. `output` is stdout ; on non-zero
 /// exit the stderr is appended so the failure is legible in the
@@ -53,8 +66,14 @@ fn truncate(s: String) -> String {
 /// program + args (same convenience split parse_shell_adapter uses).
 /// cwd + env inherited from the runtime process. Any entries in
 /// `extra_env` are added to the child's environment (useful for
-/// passing event payload to the spawned process).
-pub fn dispatch(exec: &str, extra_env: &[(String, String)]) -> ExecResult {
+/// passing event payload to the spawned process). `stdin_payload`,
+/// when non-empty, is piped to the child's stdin and stdin is then
+/// closed so the script can drain to EOF.
+pub fn dispatch(
+    exec: &str,
+    extra_env: &[(String, String)],
+    stdin_payload: Option<&str>,
+) -> ExecResult {
     let mut parts = exec.split_whitespace();
     let program = match parts.next() {
         Some(p) => p,
@@ -73,7 +92,38 @@ pub fn dispatch(exec: &str, extra_env: &[(String, String)]) -> ExecResult {
     for (k, v) in extra_env {
         cmd.env(k, v);
     }
-    match cmd.output() {
+    // Always pipe stdout/stderr ; pipe stdin only when we have a
+    // payload (an explicit None lets the child inherit, matching the
+    // pre-stdin behaviour for callers that don't need it).
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    if stdin_payload.is_some() {
+        cmd.stdin(Stdio::piped());
+    }
+
+    let mut child = match cmd.spawn() {
+        Ok(c) => c,
+        Err(e) => {
+            return ExecResult {
+                ok: false,
+                output: String::new(),
+                exit_code: -1,
+                error: Some(format!("failed to spawn {}: {}", program, e)),
+            }
+        }
+    };
+
+    if let Some(payload) = stdin_payload {
+        if let Some(mut sin) = child.stdin.take() {
+            // Best-effort write ; if the child closed stdin early, we
+            // still want to collect its exit + stdout, not panic. The
+            // write error rides on the ExecResult only if the wait
+            // also fails downstream.
+            let _ = sin.write_all(payload.as_bytes());
+            // dropping `sin` closes stdin so the child sees EOF.
+        }
+    }
+
+    match child.wait_with_output() {
         Ok(out) => {
             let code = out.status.code().unwrap_or(-1);
             let ok = code == 0;
@@ -96,7 +146,7 @@ pub fn dispatch(exec: &str, extra_env: &[(String, String)]) -> ExecResult {
             ok: false,
             output: String::new(),
             exit_code: -1,
-            error: Some(format!("failed to spawn {}: {}", program, e)),
+            error: Some(format!("failed to wait on {}: {}", program, e)),
         },
     }
 }

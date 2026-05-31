@@ -495,23 +495,23 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
     end
 
     value_object "Verified" do
-      # Set true when bin/story_verb_resolves_check returns ok via the
+      # Set true when bin/check-verb-resolves returns ok via the
       # Run<Verb>CheckOnChecksRequested cascade. No manual setter.
       attribute :value, Boolean
     end
 
     value_object "MergedToMain" do
-      # Set true when bin/story_merged_check returns ok via cascade.
+      # Set true when bin/check-merged returns ok via cascade.
       attribute :value, Boolean
     end
 
     value_object "WorktreeClean" do
-      # Set true when bin/story_worktree_check returns ok via cascade.
+      # Set true when bin/check-worktree returns ok via cascade.
       attribute :value, Boolean
     end
 
     value_object "TestsPassing" do
-      # Set true when bin/story_tests_check returns ok via cascade.
+      # Set true when bin/check-tests returns ok via cascade.
       attribute :value, Boolean
     end
 
@@ -960,34 +960,40 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
   # All four triggers route through Primitive::Process.Spawn to satisfy
   # the single-file validator (it does not see Git.Status / Cargo.Test
   # declared in sibling bluebooks). Each spawn invokes a bin/ wrapper
-  # script ; those scripts don't exist yet — see
-  # policy-cmd-needs-interpolation-or-bin-scripts in Sprint 7.
+  # script. Wrappers follow the sq/policy-cmd-bin-wrappers convention :
+  # they receive AGG_ID + AGG_TYPE + EVENT_NAME as env vars (lifted by
+  # the spawn primitive from the triggering event) and the full event
+  # payload as JSON on stdin. Each script prints one JSON line, exits
+  # 0 on ok / non-zero on not-ok. The cascade lifts (ok, exit_code,
+  # output) back into the Record*CheckResult command. Tooling lives in
+  # bin/ rather than as DSL interpolation : bluebook stays declarative,
+  # the act of measuring is imperative bash.
 
   policy "RunWorktreeCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
     trigger "Primitive::Process.Spawn"
-    with "cmd", "bin/story_worktree_check"
+    with "cmd", "bin/check-worktree"
     with "result_into", "Story.RecordWorktreeCheckResult"
   end
 
   policy "RunMergedCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
     trigger "Primitive::Process.Spawn"
-    with "cmd", "bin/story_merged_check"
+    with "cmd", "bin/check-merged"
     with "result_into", "Story.RecordMergedCheckResult"
   end
 
   policy "RunTestsCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
     trigger "Primitive::Process.Spawn"
-    with "cmd", "bin/story_tests_check"
+    with "cmd", "bin/check-tests"
     with "result_into", "Story.RecordTestsCheckResult"
   end
 
   policy "RunVerbResolvesCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"
     trigger "Primitive::Process.Spawn"
-    with "cmd", "bin/story_verb_resolves_check"
+    with "cmd", "bin/check-verb-resolves"
     with "result_into", "Story.RecordVerbResolvesCheckResult"
   end
 

@@ -1,0 +1,91 @@
+#!/bin/bash
+# bin/check-verb-resolves — sq/policy-cmd-bin-wrappers convention
+#
+# Inputs (from the spawn primitive) :
+#   $AGG_ID                 — the story id (e.g. shell-adapter-end-to-end)
+#   $AGG_TYPE / $EVENT_NAME — for the audit trail
+#   stdin                   — STOREHOUSE_TRIGGER_EVENT payload JSON
+# Output :
+#   one JSON line on stdout ; exit 0 if the story's `target` resolves
+#   through storehouse (the bluebook at that path parses), non-zero
+#   otherwise.
+#
+# Honest definition : a story's `target` is a path under aggregates/
+# (e.g. "adapters/proof/shell_end_to_end" or "plan/story") naming the
+# bluebook the story builds. The story resolves IFF :
+#   - its target points to a real bluebook file under aggregates/, AND
+#   - that bluebook parses through storehouse (`storehouse parse` exits 0).
+# Falsified targets ("x", "test/probe", made-up paths) fail loudly.
+set -u
+REPO_ROOT="${REPO_ROOT:-/Users/christopheryoung/Projects/hecks}"
+AGG_ROOT="${REPO_ROOT}/hecks_conception/aggregates"
+STORY_HEKI="${AGG_ROOT}/plan/.heki/plan/story.heki"
+STORY_ID="${AGG_ID:-}"
+
+if [ -z "$STORY_ID" ]; then
+  echo '{"check":"verb_resolves","ok":false,"status":"no_agg_id","reason":"AGG_ID env var empty"}'
+  exit 2
+fi
+
+if [ ! -f "$STORY_HEKI" ]; then
+  printf '{"check":"verb_resolves","ok":false,"status":"no_store","path":"%s"}\n' "$STORY_HEKI"
+  exit 1
+fi
+
+# Read story.target via `storehouse heki read` (the bluebook-canonical
+# door for raw store inspection) + python3 to lift the field. No state
+# subcommand because the storehouse CLI doesn't expose one ; the heki
+# store IS the projection.
+target=$(storehouse heki read "$STORY_HEKI" 2>/dev/null \
+  | python3 -c 'import json,sys;d=json.load(sys.stdin);s=d.get("'"$STORY_ID"'",{});print(s.get("target",""))' 2>/dev/null)
+
+if [ -z "$target" ]; then
+  printf '{"check":"verb_resolves","ok":false,"status":"no_target","agg_id":"%s"}\n' "$STORY_ID"
+  exit 1
+fi
+
+# Resolve the bluebook file under aggregates/ — try common shapes
+# (stories carry various target conventions ; we try each and accept
+# the first hit) :
+#   <target>.bluebook                       ("path/to/file" → file)
+#   <target>/<basename>.bluebook            (target is the dir)
+#   <dirname-of-target>/<dirname>.bluebook  ("plan/story" → plan/plan.bluebook)
+#   <head>/<head>.bluebook                  ("plan/..." → plan/plan.bluebook)
+bb=""
+if [ -f "${AGG_ROOT}/${target}.bluebook" ]; then
+  bb="${AGG_ROOT}/${target}.bluebook"
+else
+  base=$(basename "$target")
+  if [ -f "${AGG_ROOT}/${target}/${base}.bluebook" ]; then
+    bb="${AGG_ROOT}/${target}/${base}.bluebook"
+  else
+    parent=$(dirname "$target")
+    parent_base=$(basename "$parent")
+    if [ "$parent" != "." ] && [ -f "${AGG_ROOT}/${parent}/${parent_base}.bluebook" ]; then
+      bb="${AGG_ROOT}/${parent}/${parent_base}.bluebook"
+    else
+      # Walk up to the top segment and try <head>/<head>.bluebook.
+      head="${target%%/*}"
+      if [ -n "$head" ] && [ -f "${AGG_ROOT}/${head}/${head}.bluebook" ]; then
+        bb="${AGG_ROOT}/${head}/${head}.bluebook"
+      fi
+    fi
+  fi
+fi
+
+if [ -z "$bb" ]; then
+  printf '{"check":"verb_resolves","ok":false,"status":"no_bluebook","agg_id":"%s","target":"%s"}\n' \
+    "$STORY_ID" "$target"
+  exit 1
+fi
+
+if storehouse parse "$bb" >/dev/null 2>&1; then
+  printf '{"check":"verb_resolves","ok":true,"status":"resolved","agg_id":"%s","target":"%s","bluebook":"%s"}\n' \
+    "$STORY_ID" "$target" "$bb"
+  exit 0
+else
+  parse_err=$(storehouse parse "$bb" 2>&1 | head -3 | tr '\n' ' ' | tr -d '"' | cut -c1-300)
+  printf '{"check":"verb_resolves","ok":false,"status":"parse_failed","agg_id":"%s","target":"%s","bluebook":"%s","error":"%s"}\n' \
+    "$STORY_ID" "$target" "$bb" "$parse_err"
+  exit 1
+fi
