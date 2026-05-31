@@ -233,6 +233,14 @@ impl LoopDriver {
                 }
             }
         }
+        // Sprint 14 — fire every attached `driving on cron` adapter
+        // handler once per tick. v1 doesn't evaluate the cron
+        // expression : every tick fires every cron handler. A follow-up
+        // card adds expression-aware scheduling (parse 5-field cron,
+        // keep last-fire-at per handler, fire only when due). No-op
+        // when no hecksagons are attached or no cron handlers declared,
+        // so this stays free for the historical `storehouse loop` path.
+        self.runtime.fire_driving_cron_ticks();
     }
 
     /// i223 — evaluate a bootstrap's predicate against the current

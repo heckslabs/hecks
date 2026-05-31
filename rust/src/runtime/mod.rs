@@ -147,6 +147,11 @@ pub mod driven_adapter_resolver;
 // `actor/mod.rs` for the architectural shape ; the 4 smoke tests in
 // `actor::tests` flip each story's DiD gate.
 pub mod actor;
+// Sprint 14 — sibling of driven_adapter_resolver. Fires `driving on`
+// adapter handlers triggered by EXTERNAL signals (cron tick first ;
+// http_post / file_watch parse but are runtime stubs pending listener
+// wiring). See module-level doc for v1 scope.
+pub mod driving_adapter_resolver;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
 // `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
@@ -295,6 +300,17 @@ impl Runtime {
             if agg.name == aggregate_type { return agg.delivery; }
         }
         crate::ir::DeliveryMode::Sync
+    }
+
+    /// Sprint 14 — fire every `driving on cron` adapter handler attached
+    /// to this runtime. v1 fires every cron handler unconditionally on
+    /// each call (no expression evaluation yet) ; live `storehouse loop`
+    /// runs invoke this from `LoopDriver::tick_once`, behaviors tests
+    /// invoke it via `kind: :driving_tick`. Pure delegation to the
+    /// resolver module ; kept on Runtime so callers don't need to import
+    /// the resolver path.
+    pub fn fire_driving_cron_ticks(&mut self) {
+        driving_adapter_resolver::fire_driving_cron_ticks(self);
     }
 
     /// If any attached hecksagon declares a `:sqlite` persistence kind,
