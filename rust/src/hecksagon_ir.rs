@@ -92,6 +92,57 @@ pub struct Hecksagon {
     /// `subscribe "OtherDomain"` — reads a directed edge into the
     /// runtime so cross-domain policy routing can fire.
     pub subscriptions: Vec<String>,
+    /// Sprint 14 — `adapter "Name" do ; driven on "Event" do |e|
+    /// dispatch "Other.Cmd", k: v ; end ; end` entries. Each adapter
+    /// declares one or more event handlers ; each handler runs a
+    /// follow-on bluebook dispatch when the named event fires.
+    pub driven_adapters: Vec<DrivenAdapter>,
+}
+
+/// Sprint 14 first-adapter slice — event-subscribed adapter declared
+/// in `<bluebook>/hecksagons/<service>.hecksagon` as :
+///
+/// ```text
+/// adapter "Name" do
+///   driven on "Context::Aggregate.Event" do |event|
+///     dispatch "Context::Aggregate.Command", attr: "value"
+///   end
+/// end
+/// ```
+///
+/// Each handler binds one event → one follow-on dispatch. The runtime's
+/// `resolve_driven_adapters` fires the dispatch when the named event
+/// appears on the bus.
+#[derive(Debug, Clone, Default)]
+pub struct DrivenAdapter {
+    /// Adapter name (between the quotes after `adapter`).
+    pub name: String,
+    /// One handler per `driven on "..." do |e| ... end` block.
+    pub handlers: Vec<DrivenHandler>,
+}
+
+/// One `driven on "Event" do |e| dispatch "X.Y", k: v end` block.
+#[derive(Debug, Clone, Default)]
+pub struct DrivenHandler {
+    /// Full event reference as declared, e.g. "Tools::ShellTool.BashRan".
+    /// Stored verbatim so the resolver can split context/aggregate/event
+    /// at match time.
+    pub event_ref: String,
+    /// Follow-on dispatches declared inside the handler body. Each is
+    /// a `(command_fqn, attrs)` pair.
+    pub dispatches: Vec<DrivenDispatch>,
+}
+
+/// One `dispatch "Context::Aggregate.Command", k: v, k2: v2` line.
+#[derive(Debug, Clone, Default)]
+pub struct DrivenDispatch {
+    /// Full command FQN, e.g. "Tools::TaskTool.Get".
+    pub command: String,
+    /// Static attribute pairs declared on the dispatch line. Values are
+    /// the source-token form (strings still carry surrounding quotes,
+    /// integers stay as digit strings) so the resolver can convert
+    /// per-attr at fire time.
+    pub attrs: Vec<(String, String)>,
 }
 
 /// :stdout / :stderr / :stdin / :env / :fs adapters. Carries whatever

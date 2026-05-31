@@ -86,3 +86,28 @@
 # and the Ruby side dispatches `adapter :tts` through it instead of
 # IoAdapterBuilder.
 ../miette/body/voice/voice.hecksagon  # i239 Phase 2 (FamilyAdapterBuilder) — drift retires when registry-driven builder lands
+
+# ── 2026-05-30 — sprint 14 first-adapter slice (shell_adapter.hecksagon) ──
+# The new event-subscription form lands today as :
+#
+#     adapter "ShellAdapter" do
+#       driven on "Tools::ShellTool.BashRan" do |event|
+#         dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
+#       end
+#     end
+#
+# Rust hecksagon_parser captures it as a typed DrivenAdapter / DrivenHandler /
+# DrivenDispatch tuple on `Hecksagon`. The runtime's `resolve_driven_adapters`
+# fires the follow-on dispatch when the named event reaches the bus.
+#
+# Ruby HecksagonBuilder doesn't yet know the quoted-name `adapter "X" do ... end`
+# block form or the `driven on` keyword inside it ; the builder's `adapter`
+# entry method dispatches on a kind SYMBOL and routes the inner block through
+# IoAdapterBuilder, which only recognises `on :Event` hooks (not `driven on`).
+#
+# Drift retires when the Ruby side gains either : (a) a DrivenAdapterBuilder
+# sibling of IoAdapterBuilder / ShellAdapterBuilder that captures driven-on
+# handlers + inner dispatches into an equivalent Structure::DrivenAdapter ;
+# or (b) the FamilyAdapterBuilder lift (i239) reaches `driven on` as a
+# first-class adapter-family keyword.
+hecks_conception/aggregates/framework/tools/hecksagons/shell_adapter.hecksagon  # Sprint 14 first-adapter slice : Ruby HecksagonBuilder doesn't yet recognise the quoted-name `adapter "X" do ... driven on ... end` form ; Rust captures it as a typed DrivenAdapter. Ruby-side gap, retires when DrivenAdapterBuilder lands.
