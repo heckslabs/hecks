@@ -2069,18 +2069,25 @@ fn run_specialize_embedded_bluebooks(args: &[String]) {
 /// the projects root that holds sibling miette/. Going through
 /// heki::repo_root() finds the canonical checkout regardless.
 fn specialize_repo_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    // Prefer cwd when it's a Hecks tree (worktree-aware) — heki::repo_root
+    // intentionally skips `.claude/worktrees/*` to find sibling checkouts
+    // (miette/, miette_family/), but `specialize` must operate on the
+    // worktree's OWN codegen so the worktree's tracked .rs / shape snippet
+    // pair stays in lockstep. When the cwd is the canonical main checkout
+    // the answers match ; when off-tree we fall through to heki and then
+    // the legacy error.
+    let cwd = env::current_dir()?;
+    if cwd.join("hecks_conception").is_dir() {
+        return Ok(cwd);
+    }
     if let Some(root) = storehouse::heki::repo_root() {
         return Ok(root);
     }
-    let cwd = env::current_dir()?;
-    if !cwd.join("hecks_conception").is_dir() {
-        return Err(format!(
-            "expected to run `specialize` from the repo root (cwd={}, no hecks_conception/ sibling)",
-            cwd.display()
-        )
-        .into());
-    }
-    Ok(cwd)
+    Err(format!(
+        "expected to run `specialize` from the repo root (cwd={}, no hecks_conception/ sibling)",
+        cwd.display()
+    )
+    .into())
 }
 
 /// Find the source bluebook for a behaviors file.
@@ -3328,6 +3335,7 @@ fn boot_serve_runtime(
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
     let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
     let ollama_config = find_world_ollama_config(agg_dir);
     (rt, hecksagon_llm, ollama_config)
@@ -3377,6 +3385,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
     storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
     register_llm_providers(&mut rt, agg_dir);
     storehouse::world::attach::attach_world_servers(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
 
     // FQN-aware query resolution. Commands resolve their
     // Domain::Aggregate.Command form inside command_dispatch::resolve ;
@@ -4487,6 +4496,7 @@ fn run_loop(args: &[String]) {
     let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, target);
     storehouse::world::attach::attach_world_servers(&mut rt, target);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, target);
     let mut idx: usize = 0;
     loop {
         let gate_open = match &gate {
@@ -4690,6 +4700,7 @@ fn run_pm_loop(args: &[String]) {
     let mut rt = Runtime::boot_with_hecksagons(domain, Some(data_dir), hecksagons);
     register_llm_providers(&mut rt, target);
     storehouse::world::attach::attach_world_servers(&mut rt, target);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, target);
     let mut driver = LoopDriver::new(rt, interval);
     for (ev, ty, id) in emits {
         driver.add_emit(&ev, &ty, &id, std::collections::HashMap::new());

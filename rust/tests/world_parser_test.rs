@@ -149,3 +149,54 @@ end
     let lr = w.config_for("live_reload").unwrap();
     assert_eq!(lr.get("debounce"), Some("0.5"));
 }
+
+#[test]
+fn parses_adapter_binding_block_form() {
+    // Sprint 14 world-wires-real-adapters — top-level
+    // `adapter "Name" do; key value end` parses into an AdapterBinding
+    // on World. Presence of the binding IS the signal that wires this
+    // adapter to a real backend ; the values carry the per-deployment
+    // config (no `backend:` flag).
+    let src = r#"Hecks.world "Deployment" do
+  adapter "Shell" do
+    output "real-ack"
+    exit_code 7
+  end
+end
+"#;
+    let w = world_parser::parse(src);
+    assert_eq!(w.adapter_bindings.len(), 1);
+    let binding = w.adapter_binding_for("Shell").expect("Shell binding");
+    assert_eq!(binding.name, "Shell");
+    assert_eq!(binding.get("output"), Some("real-ack"));
+    assert_eq!(binding.get("exit_code"), Some("7"));
+    assert!(w.adapter_binding_for("Missing").is_none());
+    // adapter binding is not an extension config
+    assert!(w.config_for("adapter").is_none());
+}
+
+#[test]
+fn parses_inline_adapter_binding() {
+    // Sprint 14 — the inline form `adapter "X" do; key value end`
+    // matches the same kv shape as the block form.
+    let src = r#"Hecks.world "Deployment" do
+  adapter "Shell" do; output "real-ack" end
+end
+"#;
+    let w = world_parser::parse(src);
+    let binding = w.adapter_binding_for("Shell").expect("inline binding");
+    assert_eq!(binding.get("output"), Some("real-ack"));
+}
+
+#[test]
+fn world_without_adapter_bindings_leaves_empty_vec() {
+    // Sprint 14 — a world that declares no adapter bindings keeps the
+    // vec empty so the resolver's lookup returns None and the canned
+    // default fires for every driven adapter.
+    let src = r#"Hecks.world "NoBindings" do
+  purpose "runtime config only"
+end
+"#;
+    let w = world_parser::parse(src);
+    assert!(w.adapter_bindings.is_empty());
+}

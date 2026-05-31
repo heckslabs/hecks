@@ -49,6 +49,16 @@ pub struct World {
     /// time plus the environment variable its auth token is read from.
     /// Order preserved from source.
     pub servers: Vec<McpServer>,
+    /// Sprint 14 world-wires-real-adapters — top-level
+    /// `adapter "Name" do; <key> <value>; ... end` entries. Each binds a
+    /// driven-adapter (declared by name in a .hecksagon) to its real
+    /// backend in this deployment. Presence of the binding IS the signal :
+    /// when the driven_adapter_resolver finds an entry with this name, it
+    /// uses the binding's values as the wrapped-call return instead of
+    /// the canned default ; absent, it falls back to canned. No `backend:`
+    /// flag — the values themselves carry the per-deployment config
+    /// (URL, env-var, output overrides, etc.).
+    pub adapter_bindings: Vec<AdapterBinding>,
 }
 
 /// `server :name do; token_env "ENV_VAR" end` inside an `mcp do ... end`
@@ -68,6 +78,22 @@ pub struct McpServer {
 pub struct Concern {
     pub name: String,
     pub description: Option<String>,
+}
+
+/// Sprint 14 world-wires-real-adapters — a top-level
+/// `adapter "Name" do; <key> <value>; ... end` entry inside a `.world`
+/// file. Binds a driven-adapter (declared by name in a `.hecksagon`)
+/// to its real backend for this deployment. Values keep the same
+/// source-token form used by ExtensionConfig so `build_attr_map` in
+/// the resolver can apply the same conversion rule.
+#[derive(Debug, Default, Clone)]
+pub struct AdapterBinding {
+    /// Adapter name as quoted in the `.hecksagon` declaration. The
+    /// resolver matches a driven-adapter against this name verbatim.
+    pub name: String,
+    /// Ordered key/value pairs declared inside the binding block.
+    /// Merged onto the follow-on dispatch's attrs at fire time.
+    pub values: Vec<(String, String)>,
 }
 
 /// `ext_name do; key value; ... end` — a single extension config block.
@@ -93,6 +119,25 @@ impl World {
     pub fn server_for(&self, name: &str) -> Option<&McpServer> {
         let want = name.trim_start_matches(':');
         self.servers.iter().find(|s| s.name == want)
+    }
+
+    /// Sprint 14 world-wires-real-adapters — look up an adapter binding
+    /// by name. The driven-adapter resolver calls this for each handler ;
+    /// `Some(binding)` means "use binding.values as the wrapped-call
+    /// return", `None` means "fall back to the canned default". Names
+    /// match the quoted name from the `.hecksagon`'s
+    /// `adapter "Name" do ...` declaration verbatim.
+    pub fn adapter_binding_for(&self, name: &str) -> Option<&AdapterBinding> {
+        self.adapter_bindings.iter().find(|b| b.name == name)
+    }
+}
+
+impl AdapterBinding {
+    /// Look up a value by key within this binding. Mirrors
+    /// `ExtensionConfig::get` so consumers can probe binding values the
+    /// same way they probe extension config values.
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.values.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
     }
 }
 
