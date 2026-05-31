@@ -1,0 +1,59 @@
+#!/bin/bash
+# bin/check-tests — sq/policy-cmd-bin-wrappers convention
+#
+# Inputs (from the spawn primitive) :
+#   $AGG_ID                 — the story id (for the audit trail)
+#   $AGG_TYPE / $EVENT_NAME — for the audit trail
+#   stdin                   — STOREHOUSE_TRIGGER_EVENT payload JSON
+# Output :
+#   one JSON line on stdout ; exit 0 if `cargo test --release` passes
+#   in the story's worktree (or in the main rust/ tree if no
+#   story-specific worktree exists), non-zero otherwise.
+#
+# Convention : prefer the story's worktree (.claude/worktrees/<branch>)
+# so a story's tests can be checked locally without disturbing other
+# in-flight work ; fall back to the main repo's rust/ tree.
+set -u
+REPO_ROOT="${REPO_ROOT:-/Users/christopheryoung/Projects/hecks}"
+STORY_ID="${AGG_ID:-}"
+
+branch="sq/${STORY_ID}"
+target_root="$REPO_ROOT"
+scope="main_repo"
+if [ -n "$STORY_ID" ]; then
+  while IFS= read -r line; do
+    case "$line" in
+      worktree*) cur_path="${line#worktree }" ;;
+      "branch refs/heads/${branch}")
+        target_root="$cur_path"
+        scope="branch_worktree"
+        break
+        ;;
+    esac
+  done < <(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null)
+fi
+
+rust_dir="${target_root}/rust"
+if [ ! -d "$rust_dir" ]; then
+  printf '{"check":"tests","ok":false,"status":"no_rust_dir","path":"%s"}\n' "$rust_dir"
+  exit 1
+fi
+
+cd "$rust_dir" || {
+  printf '{"check":"tests","ok":false,"status":"cd_failed","path":"%s"}\n' "$rust_dir"
+  exit 1
+}
+
+log="$(mktemp)"
+if cargo test --release --quiet >"$log" 2>&1; then
+  printf '{"check":"tests","ok":true,"status":"passed","scope":"%s","path":"%s","agg_id":"%s"}\n' \
+    "$scope" "$rust_dir" "${STORY_ID:-}"
+  rm -f "$log"
+  exit 0
+else
+  fail_tail=$(tail -10 "$log" 2>/dev/null | tr '\n' ' ' | tr -d '"' | cut -c1-300)
+  printf '{"check":"tests","ok":false,"status":"failed_or_did_not_run","scope":"%s","path":"%s","agg_id":"%s","tail":"%s"}\n' \
+    "$scope" "$rust_dir" "${STORY_ID:-}" "$fail_tail"
+  rm -f "$log"
+  exit 1
+fi

@@ -1,0 +1,61 @@
+#!/bin/bash
+# bin/check-worktree — sq/policy-cmd-bin-wrappers convention
+#
+# Inputs (from the spawn primitive) :
+#   $AGG_ID                 — the story id (e.g. shell-adapter-end-to-end)
+#   $AGG_TYPE / $EVENT_NAME — for the audit trail
+#   stdin                   — STOREHOUSE_TRIGGER_EVENT payload JSON
+# Output :
+#   one JSON line on stdout ; exit 0 if the story's worktree is clean,
+#   non-zero otherwise. The cascade lifts (ok, exit_code, output) back
+#   into the Record*CheckResult command.
+#
+# Convention : the story's worktree lives at
+# .claude/worktrees/<branch> where the branch follows the sq/<id>
+# convention. If no matching worktree exists, fall back to the main
+# repo root — lying becomes "the main repo is dirty".
+set -u
+REPO_ROOT="${REPO_ROOT:-/Users/christopheryoung/Projects/hecks}"
+STORY_ID="${AGG_ID:-}"
+
+if [ -z "$STORY_ID" ]; then
+  echo '{"check":"worktree","ok":false,"status":"no_agg_id","reason":"AGG_ID env var empty"}'
+  exit 2
+fi
+
+# Find the worktree for sq/$STORY_ID, if any.
+branch="sq/${STORY_ID}"
+target_path=""
+while IFS= read -r line; do
+  case "$line" in
+    worktree*) cur_path="${line#worktree }" ;;
+    "branch refs/heads/${branch}")
+      target_path="$cur_path"
+      break
+      ;;
+  esac
+done < <(git -C "$REPO_ROOT" worktree list --porcelain 2>/dev/null)
+
+if [ -z "$target_path" ]; then
+  target_path="$REPO_ROOT"
+  worktree_scope="main_repo_no_branch_worktree"
+else
+  worktree_scope="branch_worktree"
+fi
+
+if [ ! -d "$target_path" ]; then
+  printf '{"check":"worktree","ok":false,"status":"missing","path":%s}\n' "\"$target_path\""
+  exit 1
+fi
+
+porcelain="$(git -C "$target_path" status --porcelain 2>/dev/null)"
+if [ -z "$porcelain" ]; then
+  printf '{"check":"worktree","ok":true,"status":"clean","scope":"%s","path":"%s","agg_id":"%s"}\n' \
+    "$worktree_scope" "$target_path" "$STORY_ID"
+  exit 0
+else
+  count=$(printf '%s\n' "$porcelain" | wc -l | tr -d ' ')
+  printf '{"check":"worktree","ok":false,"status":"dirty","scope":"%s","path":"%s","agg_id":"%s","file_count":%s}\n' \
+    "$worktree_scope" "$target_path" "$STORY_ID" "$count"
+  exit 1
+fi

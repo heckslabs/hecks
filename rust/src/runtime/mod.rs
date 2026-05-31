@@ -1348,28 +1348,50 @@ impl Runtime {
         // without needing to hit the disk heki (which may be stale
         // when the runtime is warm/in-memory). Generic — passes the
         // whole event, not sidequest-specific fields.
-        let extra_env: Vec<(String, String)> = if let Some(ev) = trigger_event {
-            let mut data_map = serde_json::Map::new();
-            for (k, v) in &ev.data {
-                data_map.insert(k.clone(), match v {
-                    Value::Str(s) => serde_json::json!(s),
-                    Value::Int(n) => serde_json::json!(n),
-                    Value::Bool(b) => serde_json::json!(b),
-                    _ => serde_json::json!(v.to_string()),
+        //
+        // sq/policy-cmd-bin-wrappers lifts three commonly-needed
+        // fields out of the event payload into top-level env vars so
+        // wrappers can read them with a bare `$AGG_ID` rather than
+        // parse JSON :
+        //   AGG_ID     = ev.aggregate_id  (the join key the Record*
+        //                cascade lands back on)
+        //   AGG_TYPE   = ev.aggregate_type
+        //   EVENT_NAME = ev.name
+        // The full payload still rides on STOREHOUSE_TRIGGER_EVENT AND
+        // on stdin as JSON so scripts that want the whole event can
+        // drain it without re-parsing env.
+        let (extra_env, stdin_payload): (Vec<(String, String)>, Option<String>) =
+            if let Some(ev) = trigger_event {
+                let mut data_map = serde_json::Map::new();
+                for (k, v) in &ev.data {
+                    data_map.insert(k.clone(), match v {
+                        Value::Str(s) => serde_json::json!(s),
+                        Value::Int(n) => serde_json::json!(n),
+                        Value::Bool(b) => serde_json::json!(b),
+                        _ => serde_json::json!(v.to_string()),
+                    });
+                }
+                let payload = serde_json::json!({
+                    "name": ev.name,
+                    "aggregate_type": ev.aggregate_type,
+                    "aggregate_id": ev.aggregate_id,
+                    "data": serde_json::Value::Object(data_map),
                 });
-            }
-            let payload = serde_json::json!({
-                "name": ev.name,
-                "aggregate_type": ev.aggregate_type,
-                "aggregate_id": ev.aggregate_id,
-                "data": serde_json::Value::Object(data_map),
-            });
-            vec![("STOREHOUSE_TRIGGER_EVENT".to_string(), payload.to_string())]
-        } else {
-            vec![]
-        };
+                let payload_str = payload.to_string();
+                (
+                    vec![
+                        ("STOREHOUSE_TRIGGER_EVENT".to_string(), payload_str.clone()),
+                        ("AGG_ID".to_string(), ev.aggregate_id.clone()),
+                        ("AGG_TYPE".to_string(), ev.aggregate_type.clone()),
+                        ("EVENT_NAME".to_string(), ev.name.clone()),
+                    ],
+                    Some(payload_str),
+                )
+            } else {
+                (vec![], None)
+            };
 
-        let exec_result = exec_dispatcher::dispatch(&cmd, &extra_env);
+        let exec_result = exec_dispatcher::dispatch(&cmd, &extra_env, stdin_payload.as_deref());
         let err_tail = match (&exec_result.ok, &exec_result.error) {
             (false, Some(msg)) => format!(" error={:?}", msg),
             _ => String::new(),

@@ -1,0 +1,57 @@
+#!/bin/bash
+# bin/check-merged — sq/policy-cmd-bin-wrappers convention
+#
+# Inputs (from the spawn primitive) :
+#   $AGG_ID                 — the story id (e.g. shell-adapter-end-to-end)
+#   $AGG_TYPE / $EVENT_NAME — for the audit trail
+#   stdin                   — STOREHOUSE_TRIGGER_EVENT payload JSON
+# Output :
+#   one JSON line on stdout ; exit 0 if no commits ahead of main on the
+#   story's branch, non-zero otherwise.
+#
+# Convention : story branches follow sq/<id>. If the branch doesn't
+# exist locally we look at the remote (origin/sq/<id>). If neither
+# exists the story has nothing to merge and we report not-merged
+# (the operator hasn't even started a branch yet).
+set -u
+REPO_ROOT="${REPO_ROOT:-/Users/christopheryoung/Projects/hecks}"
+STORY_ID="${AGG_ID:-}"
+
+if [ -z "$STORY_ID" ]; then
+  echo '{"check":"merged","ok":false,"status":"no_agg_id","reason":"AGG_ID env var empty"}'
+  exit 2
+fi
+
+branch="sq/${STORY_ID}"
+remote_branch="origin/${branch}"
+
+cd "$REPO_ROOT" || {
+  echo '{"check":"merged","ok":false,"status":"no_repo","path":"'"$REPO_ROOT"'"}'
+  exit 1
+}
+
+# Pick the first ref that resolves : local branch → remote branch → nothing.
+ref=""
+scope=""
+if git rev-parse --verify --quiet "$branch" >/dev/null 2>&1; then
+  ref="$branch"
+  scope="local_branch"
+elif git rev-parse --verify --quiet "$remote_branch" >/dev/null 2>&1; then
+  ref="$remote_branch"
+  scope="remote_branch"
+else
+  printf '{"check":"merged","ok":false,"status":"no_branch","branch":"%s","agg_id":"%s"}\n' \
+    "$branch" "$STORY_ID"
+  exit 1
+fi
+
+ahead=$(git log main.."$ref" --oneline 2>/dev/null | wc -l | tr -d ' ')
+if [ "$ahead" = "0" ]; then
+  printf '{"check":"merged","ok":true,"status":"all_on_main","branch":"%s","scope":"%s","agg_id":"%s"}\n' \
+    "$branch" "$scope" "$STORY_ID"
+  exit 0
+else
+  printf '{"check":"merged","ok":false,"status":"ahead_of_main","branch":"%s","scope":"%s","agg_id":"%s","commits":%s}\n' \
+    "$branch" "$scope" "$STORY_ID" "$ahead"
+  exit 1
+fi
