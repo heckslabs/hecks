@@ -500,12 +500,24 @@ fn parse_driven_adapter(lines: &[&str]) -> (Option<DrivenAdapter>, usize) {
 fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
     let first = lines[0].trim();
     let event_ref = match between_quotes(first) { Some(e) => e, None => return (None, 1) };
-    let mut handler = DrivenHandler { event_ref, dispatches: Vec::new() };
+    let mut handler = DrivenHandler { event_ref, canned: None, dispatches: Vec::new() };
     let mut i = 1;
     while i < lines.len() {
         let t = lines[i].trim();
         if t == "end" { return (Some(handler), i + 1); }
         if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        // Sprint 14 memory-canned-defaults — `canned do ... end` block
+        // declares the wrapped-call return value(s) the resolver hands
+        // to the follow-on dispatch when no `.world` adapter entry
+        // makes this adapter real. The block body is the same k/v shape
+        // a hecksagon extension config uses ; `parse_canned_block`
+        // collects (key, raw-token) pairs into CannedResponse.values.
+        if t == "canned do" || t.starts_with("canned do ") || t.starts_with("canned do;") {
+            let (canned, consumed) = parse_canned_block(&lines[i..]);
+            if let Some(c) = canned { handler.canned = Some(c); }
+            i += consumed;
+            continue;
+        }
         if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
             let (joined, consumed) = join_dispatch_lines(&lines[i..]);
             if let Some(d) = parse_driven_dispatch(&joined) {
@@ -584,4 +596,55 @@ fn parse_driven_dispatch(joined: &str) -> Option<DrivenDispatch> {
         None => Vec::new(),
     };
     Some(DrivenDispatch { command, attrs })
+}
+
+/// Sprint 14 memory-canned-defaults — parse a `canned do ... end`
+/// block inside a `driven on` handler. Captures inner `key value` lines
+/// (e.g. `output "ack"`, `exit_code 0`) into CannedResponse.values
+/// verbatim ; the resolver translates per-attr at fire time.
+fn parse_canned_block(lines: &[&str]) -> (Option<CannedResponse>, usize) {
+    let first = lines[0].trim();
+    let mut canned = CannedResponse { values: Vec::new() };
+
+    // Inline form : `canned do; output "ack"; exit_code 0 end`
+    if first.ends_with("end") && first.contains("do") {
+        let body = first
+            .trim_start_matches("canned")
+            .trim()
+            .trim_start_matches("do")
+            .trim_start_matches(|c: char| c == ';' || c.is_whitespace())
+            .trim_end()
+            .trim_end_matches("end")
+            .trim();
+        for piece in body.split(';') {
+            let p = piece.trim();
+            if p.is_empty() { continue; }
+            if let Some(kv) = parse_canned_kv(p) { canned.values.push(kv); }
+        }
+        return (Some(canned), 1);
+    }
+
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(canned), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if let Some(kv) = parse_canned_kv(t) { canned.values.push(kv); }
+        i += 1;
+    }
+    (Some(canned), i)
+}
+
+/// Sprint 14 memory-canned-defaults — parse one `key value` line
+/// from inside a `canned do ... end` block. Keeps the raw value-token
+/// so the resolver's build_attr_map applies the same conversion rule
+/// the dispatch attrs already use.
+fn parse_canned_kv(line: &str) -> Option<(String, String)> {
+    let t = line.trim().trim_end_matches(';');
+    let ident_end = t.find(|c: char| !c.is_alphanumeric() && c != '_')?;
+    if ident_end == 0 { return None; }
+    let key = t[..ident_end].to_string();
+    let rest = t[ident_end..].trim().trim_end_matches(';').trim();
+    if rest.is_empty() { return None; }
+    Some((key, rest.to_string()))
 }

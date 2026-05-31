@@ -6,6 +6,10 @@
 //! ```text
 //! adapter "ShellAdapter" do
 //!   driven on "Tools::ShellTool.BashRan" do |event|
+//!     canned do
+//!       output "ack"
+//!       exit_code 0
+//!     end
 //!     dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
 //!   end
 //! end
@@ -17,6 +21,24 @@
 //! every attached hecksagon for handlers whose `event_ref` matches
 //! the just-emitted event, then dispatches each handler's follow-on
 //! commands through `command_dispatch::dispatch_cascade`.
+//!
+//! Sprint 14 memory-canned-defaults + world-wires-real-adapters — the
+//! resolver picks the wrapped-call return value for each fire :
+//!
+//!   - `.world` declares `adapter "Name" do; <key> <value> end`
+//!     → use the binding's values ("real backend with config from
+//!     that entry")
+//!   - no `.world` entry, but the handler has `canned do ... end`
+//!     → use the canned values (memory + canned default)
+//!   - neither → dispatch only the declared static attrs (legacy)
+//!
+//! In all three cases the chosen value-source is merged into the
+//! follow-on dispatch's attr map ; declared dispatch attrs win on
+//! conflict (a literal `dispatch "Y", id: "fixed"` overrides any
+//! canned/world `id`). Presence of a `.world` adapter entry IS the
+//! signal that switches canned→real ; there is no `backend:` flag
+//! and no fake-vs-real adapter distinction. The adapter declaration
+//! is identical across deployments ; only `.world` differs.
 //!
 //! Sibling of `resolve_claude_tool_adapters` / `resolve_web_tool_adapters`
 //! / `resolve_mcp_adapters` — same registration shape, but triggered by
@@ -43,22 +65,55 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
     if rt.hecksagons.is_empty() { return; }
     let debug = std::env::var("HECKS_DEBUG_DRIVEN").is_ok();
 
-    // Snapshot matching dispatches up-front. The follow-on dispatch
-    // takes `&mut Runtime`, so we can't keep an immutable borrow of
-    // `rt.hecksagons` open across the call. Clone is cheap : driven
-    // adapter declarations are small static IR.
-    let matched: Vec<(String, Vec<(String, String)>)> = rt.hecksagons.iter()
-        .flat_map(|h| h.driven_adapters.iter())
-        .flat_map(|a| a.handlers.iter())
-        .filter(|h| event_ref_matches(&h.event_ref, event))
-        .flat_map(|h| h.dispatches.iter())
-        .map(|d| (d.command.clone(), d.attrs.clone()))
-        .collect();
+    // Snapshot matching fires up-front. The follow-on dispatch takes
+    // `&mut Runtime`, so we can't keep an immutable borrow of
+    // `rt.hecksagons` / `rt.world_adapter_bindings` open across the
+    // call. Clone is cheap : driven adapter declarations are small
+    // static IR. For each fire we capture (command, declared_attrs,
+    // wrapped_call_values) so the merge happens once at the snapshot
+    // boundary — the resolver doesn't re-walk the world list per
+    // dispatch.
+    let mut matched: Vec<(String, Vec<(String, String)>, Vec<(String, String)>)> = Vec::new();
+    for hex in rt.hecksagons.iter() {
+        for adapter in hex.driven_adapters.iter() {
+            // Sprint 14 world-wires-real-adapters — presence of a
+            // `.world` adapter binding with this adapter's name IS the
+            // signal to use the binding's values as the wrapped-call
+            // return. Absent : fall back to the handler's `canned do`
+            // block. Both absent : empty merge (legacy behaviour). The
+            // pick is factored into `pick_wrapped_values` so the choice
+            // is unit-testable without booting a Runtime.
+            let world_values: Option<Vec<(String, String)>> = rt
+                .world_adapter_bindings
+                .iter()
+                .find(|b| b.name == adapter.name)
+                .map(|b| b.values.clone());
+            for handler in adapter.handlers.iter() {
+                if !event_ref_matches(&handler.event_ref, event) { continue; }
+                let wrapped = pick_wrapped_values(
+                    world_values.as_deref(),
+                    handler.canned.as_ref(),
+                );
+                for dispatch in handler.dispatches.iter() {
+                    matched.push((
+                        dispatch.command.clone(),
+                        dispatch.attrs.clone(),
+                        wrapped.clone(),
+                    ));
+                }
+            }
+        }
+    }
 
     if matched.is_empty() { return; }
 
-    for (command, attrs) in matched {
-        let attr_map = build_attr_map(&attrs);
+    for (command, declared_attrs, wrapped_values) in matched {
+        // Merge order : wrapped values first, then declared attrs
+        // override on key collision. A literal `dispatch "Y", id: "x"`
+        // pins `id` regardless of what canned/world declared. The
+        // merge is factored into `merge_wrapped_and_declared` so the
+        // override semantics are unit-testable.
+        let attr_map = merge_wrapped_and_declared(&wrapped_values, &declared_attrs);
         // Cascade dispatch so the follow-on's emit reaches the bus AND
         // depth / cycle protection from the dispatch_inner stack apply.
         // Same shape as the claude_tool resolver's chain into
@@ -121,4 +176,110 @@ fn build_attr_map(attrs: &[(String, String)]) -> HashMap<String, Value> {
         }
     }
     out
+}
+
+/// Sprint 14 — pick the wrapped-call return value source for a fire.
+/// World binding wins (when `.world` declares an adapter binding for
+/// this adapter's name) ; canned is the memory-default (when the
+/// `driven on` handler declares a `canned do ... end` block) ;
+/// neither = empty. Factored out of `resolve_driven_adapters` so the
+/// canned-vs-real switch is unit-testable without booting a Runtime.
+pub fn pick_wrapped_values(
+    world: Option<&[(String, String)]>,
+    canned: Option<&crate::hecksagon_ir::CannedResponse>,
+) -> Vec<(String, String)> {
+    if let Some(w) = world { return w.to_vec(); }
+    if let Some(c) = canned { return c.values.clone(); }
+    Vec::new()
+}
+
+/// Sprint 14 — merge a fire's wrapped-call values with the declared
+/// dispatch attrs. Wrapped values fill the slot the adapter's wrapped
+/// call would produce ; declared attrs override on key collision so a
+/// literal `dispatch "Y", id: "fixed"` pins `id` regardless of what
+/// canned/world declared. Factored out of `resolve_driven_adapters`
+/// so the override semantics are unit-testable.
+pub fn merge_wrapped_and_declared(
+    wrapped: &[(String, String)],
+    declared: &[(String, String)],
+) -> HashMap<String, Value> {
+    let mut out = build_attr_map(wrapped);
+    for (k, v) in build_attr_map(declared) {
+        out.insert(k, v);
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hecksagon_ir::CannedResponse;
+
+    fn canned(pairs: &[(&str, &str)]) -> CannedResponse {
+        CannedResponse {
+            values: pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        }
+    }
+
+    fn raw_pairs(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+    }
+
+    // Sprint 14 memory-canned-defaults : adapter with `canned do` and no
+    // `.world` entry → the canned values ARE the wrapped-call return.
+    #[test]
+    fn pick_returns_canned_when_no_world_binding() {
+        let c = canned(&[("output", "\"canned-ack\""), ("exit_code", "0")]);
+        let picked = pick_wrapped_values(None, Some(&c));
+        assert_eq!(
+            picked,
+            raw_pairs(&[("output", "\"canned-ack\""), ("exit_code", "0")]),
+        );
+    }
+
+    // Sprint 14 world-wires-real-adapters : adapter with `canned do` AND
+    // a `.world` entry → the .world binding's values ARE the wrapped-call
+    // return ; canned is bypassed.
+    #[test]
+    fn pick_returns_world_when_binding_present_canned_ignored() {
+        let c = canned(&[("output", "\"canned-ack\"")]);
+        let world = raw_pairs(&[("output", "\"real-ack\"")]);
+        let picked = pick_wrapped_values(Some(&world), Some(&c));
+        assert_eq!(picked, raw_pairs(&[("output", "\"real-ack\"")]));
+    }
+
+    // Sprint 14 legacy : adapter with neither canned nor world → empty
+    // wrapped-call return ; only the declared dispatch attrs reach the
+    // follow-on.
+    #[test]
+    fn pick_returns_empty_when_neither_present() {
+        let picked = pick_wrapped_values(None, None);
+        assert!(picked.is_empty());
+    }
+
+    // Sprint 14 — declared dispatch attrs override on key collision so
+    // `dispatch "Y", id: "fixed"` pins `id` regardless of the canned or
+    // world source.
+    #[test]
+    fn merge_declared_wins_over_wrapped_on_key_collision() {
+        let wrapped = raw_pairs(&[("id", "\"canned-id\""), ("output", "\"ack\"")]);
+        let declared = raw_pairs(&[("id", "\"fixed\"")]);
+        let merged = merge_wrapped_and_declared(&wrapped, &declared);
+        // declared wins for `id` ...
+        assert_eq!(merged.get("id"), Some(&Value::Str("fixed".to_string())));
+        // ... and wrapped survives for keys declared doesn't shadow.
+        assert_eq!(merged.get("output"), Some(&Value::Str("ack".to_string())));
+    }
+
+    // Sprint 14 — wrapped value reaches the follow-on when declared
+    // doesn't shadow the key, so the canned/world source actually wires
+    // through to the dispatch.
+    #[test]
+    fn merge_wrapped_keys_reach_follow_on_when_declared_silent() {
+        let wrapped = raw_pairs(&[("output", "\"real-ack\""), ("exit_code", "0")]);
+        let declared = raw_pairs(&[]);
+        let merged = merge_wrapped_and_declared(&wrapped, &declared);
+        assert_eq!(merged.get("output"), Some(&Value::Str("real-ack".to_string())));
+        assert_eq!(merged.get("exit_code"), Some(&Value::Int(0)));
+    }
 }
