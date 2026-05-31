@@ -20,7 +20,12 @@ const withTitle = (st) => s.filter(x => x.state === st).map(x => `${x.ref} ${tru
 const lines = ["planning pulse — on the board:"];
 const started = withTitle("started"); if (started.length) lines.push("  started ▸ " + started.join(" · "));
 const ready = withTitle("ready_for_review"); if (ready.length) lines.push("  ready ▸ " + ready.join(" · "));
-const queued = s.filter(x => x.state === "in_sprint").map(x => x.ref); if (queued.length) lines.push("  queued ▸ " + queued.join(" · "));
-const order = ["done", "started", "ready_for_review", "in_sprint", "backlog", "deferred"];
+// lifecycle-tasked-state (sprint 14) : pre-Start splits into untasked (no tasks yet)
+// vs tasked (operator has flipped Tasked, Start is the only outstanding signal).
+// Both surface in the queued region of the pulse — callers can see what is awaiting tasking
+// and what is awaiting Start.
+const tasked = s.filter(x => x.state === "tasked").map(x => x.ref); if (tasked.length) lines.push("  tasked ▸ " + tasked.join(" · "));
+const untasked = s.filter(x => x.state === "untasked").map(x => x.ref); if (untasked.length) lines.push("  untasked ▸ " + untasked.join(" · "));
+const order = ["done", "started", "ready_for_review", "tasked", "untasked", "deferred"];
 lines.push("  ── " + order.filter(k => c[k]).map(k => `${c[k]} ${k}`).join(" · "));
 process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: lines.join("\n") } }));

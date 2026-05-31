@@ -1,0 +1,68 @@
+Hecks.behaviors "Plan" do
+  vision "Behavioral tests for the Plan domain — the Story lifecycle introduced by lifecycle-tasked-state (sprint 14). New stories spawn untasked ; AddTask leaves them untasked ; Tasked moves them to tasked ; Start (now gated on state == tasked) moves them to started."
+
+  test "Capture mints a story in the untasked state" do
+    tests "Capture", on: "Story"
+    input  ref: "l1", title: "Lifecycle one", tier: 1, summary: "sample", target: "plan/story", project: "plan"
+    expect ref: "l1", state: "untasked"
+  end
+
+  test "Capture emits StoryCaptured" do
+    tests "Capture", on: "Story"
+    input  ref: "l2", title: "Lifecycle two", tier: 1, summary: "sample", target: "plan/story", project: "plan"
+    expect emits: ["StoryCaptured"]
+  end
+
+  test "AddTask on an untasked story keeps it untasked" do
+    tests "AddTask", on: "Story"
+    setup  "Capture", ref: "l3", title: "L3", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "l3", description: "do the thing"
+    expect ref: "l3", state: "untasked"
+  end
+
+  test "AddTask emits StoryTaskAdded" do
+    tests "AddTask", on: "Story"
+    setup  "Capture", ref: "l4", title: "L4", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "l4", description: "first task"
+    expect emits: ["StoryTaskAdded"]
+  end
+
+  test "Tasked flips an untasked story to tasked" do
+    tests "Tasked", on: "Story"
+    setup  "Capture", ref: "l5", title: "L5", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "l5"
+    expect ref: "l5", state: "tasked"
+  end
+
+  test "Tasked emits StoryTasked" do
+    tests "Tasked", on: "Story"
+    setup  "Capture", ref: "l6", title: "L6", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "l6"
+    expect emits: ["StoryTasked"]
+  end
+
+  test "Start moves a tasked story to started" do
+    tests "Start", on: "Story"
+    setup  "Capture",        ref: "l7", title: "L7", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "l7", sprint_ref: "1"
+    setup  "Tasked",         ref: "l7"
+    input  ref: "l7"
+    expect ref: "l7", state: "started"
+  end
+
+  test "Start emits StoryStarted" do
+    tests "Start", on: "Story"
+    setup  "Capture",        ref: "l8", title: "L8", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "l8", sprint_ref: "1"
+    setup  "Tasked",         ref: "l8"
+    input  ref: "l8"
+    expect emits: ["StoryStarted"]
+  end
+
+  test "AssignToSprint keeps state untasked (metadata-only since sprint 14)" do
+    tests "AssignToSprint", on: "Story"
+    setup  "Capture", ref: "l9", title: "L9", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "l9", sprint_ref: "1"
+    expect ref: "l9", state: "untasked", sprint: "1"
+  end
+end
