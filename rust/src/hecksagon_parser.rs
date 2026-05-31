@@ -464,11 +464,13 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
 
 /// Sprint 14 first-adapter slice — parse the block form :
 ///
-///     adapter "Name" do
-///       driven on "Context::Aggregate.Event" do |event|
-///         dispatch "Context::Aggregate.Command", attr: "value"
-///       end
-///     end
+/// ```text
+/// adapter "Name" do
+///   driven on "Context::Aggregate.Event" do |event|
+///     dispatch "Context::Aggregate.Command", attr: "value"
+///   end
+/// end
+/// ```
 ///
 /// Returns (Some(DrivenAdapter), lines_consumed). When the block is
 /// malformed (no name, no closing end) returns None plus a best-effort
