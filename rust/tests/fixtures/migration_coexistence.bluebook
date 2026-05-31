@@ -1,0 +1,36 @@
+Hecks.bluebook "MigrationCoexistence" do
+  vision "Sprint-14 migration-coexistence proof : one aggregate per delivery mode, both alive in the same runtime, both dispatchable without sync vs actor leaking across the boundary. Sync stays on the historical inline event_bus.publish path ; Actor routes through `Runtime::enqueue_and_drain` (the mailbox stub). See `DeliveryMode` in rust/src/ir.rs for the full contract."
+
+  # ---- LegacyAggregate — the historical default ----------------------
+  aggregate "LegacyAggregate" do
+    description "Sync delivery (default) — proves the historical inline path is untouched"
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    attribute :note, Note
+
+    command "Note" do
+      attribute :note, Note
+      emits "NoteRecorded"
+    end
+  end
+
+  # ---- ActorAggregate — sprint-14 actor-mode opt-in ------------------
+  aggregate "ActorAggregate" do
+    description "Actor delivery (sprint-14 opt-in) — routes through the mailbox stub"
+    delivery :actor
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    attribute :note, Note
+
+    command "Note" do
+      attribute :note, Note
+      emits "NoteRecorded"
+    end
+  end
+end
