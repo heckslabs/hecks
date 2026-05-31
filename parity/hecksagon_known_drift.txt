@@ -132,3 +132,21 @@ hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter
 # decision #5 (two adapters, one event, both fire). Same Ruby-side gap
 # as shell_adapter ; retires under the same DrivenAdapterBuilder PR.
 hecks_conception/aggregates/framework/tools/hecksagons/sprint14_smoke_fanout.hecksagon  # Sprint 14 fan-out fixture : same Ruby-side `adapter "X" do ... driven on ... end` gap as shell_adapter ; retires under the same DrivenAdapterBuilder PR.
+
+# ── 2026-05-31 — sprint 14 driving-on-grammar-v2 (cron_adapter.hecksagon) ──
+# Sibling of the shell_adapter drift above. The new external-trigger form :
+#
+#     adapter "CronAdapter" do
+#       driving on cron "*/5 * * * *" do |signal|
+#         dispatch "Tools::TaskTool.Get", id: "cron-adapter-smoke"
+#       end
+#     end
+#
+# Rust hecksagon_parser captures it as a typed DrivingAdapter / DrivingHandler /
+# DrivenDispatch tuple on `Hecksagon`. The runtime's `fire_driving_cron_ticks`
+# fires the follow-on dispatch on every `storehouse loop` tick.
+#
+# Ruby HecksagonBuilder doesn't know the `driving on` keyword either ; same
+# IoAdapterBuilder symbol-dispatch limitation as the shell_adapter case.
+# Drift retires when the Ruby side gains a DrivingAdapterBuilder sibling.
+hecks_conception/aggregates/framework/tools/hecksagons/cron_adapter.hecksagon  # Sprint 14 driving-on-grammar-v2 : Ruby HecksagonBuilder doesn't yet recognise the `driving on <kind> "<arg>" do ... end` inner form ; Rust captures it as a typed DrivingAdapter. Ruby-side gap, retires when DrivingAdapterBuilder lands.

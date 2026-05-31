@@ -1,0 +1,22 @@
+Hecks.hecksagon "CronAdapter" do
+  # ============================================================
+  # CRON ADAPTER (sprint 14 — driving-on-grammar story)
+  # ============================================================
+  #
+  # Sibling of shell_adapter.hecksagon. Where ShellAdapter
+  # subscribes to a BUS EVENT (driven on), CronAdapter subscribes to
+  # an EXTERNAL TRIGGER (driving on cron). The runtime's
+  # `fire_driving_cron_ticks` fires the declared dispatch on every
+  # `storehouse loop` tick ; the behaviors-test path fires it on
+  # `kind: :driving_tick` so the cascade is deterministic.
+  #
+  # v1 fires every tick. Expression-aware scheduling (parse 5-field
+  # cron, only fire when due) is a follow-up card.
+
+  adapter "CronAdapter" do
+    driving on cron "*/5 * * * *" do |signal|
+      dispatch "Tools::TaskTool.Get",
+               id: "cron-adapter-smoke"
+    end
+  end
+end
