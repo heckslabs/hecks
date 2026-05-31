@@ -266,6 +266,31 @@ fn dispatch_body_lines(dispatch: &Fixture) -> Vec<String> {
             format!("{helper}(&joined, &mut hex);"),
             "i += consumed;".to_string(),
         ],
+        // Sprint 14 sibling of `multiline_block` — same block boundary,
+        // but parses it TWICE so the two adapter forms (`driven on`
+        // and `driving on`) can share one `adapter "Name" do ... end`
+        // outer envelope without a second top-level dispatch. The
+        // fixture carries `helper_fn` (the driven parser) ;
+        // `helper_fn_secondary` (the driving parser) and
+        // `target_field_secondary` (`driving_adapters`) supply the
+        // sibling half. Empty handlers from either parser are dropped
+        // — a pure-driven or pure-driving block produces exactly one
+        // IR entry.
+        "multiline_adapter_pair" => {
+            let helper_secondary = util::attr(dispatch, "helper_fn_secondary");
+            let field_secondary = util::attr(dispatch, "target_field_secondary");
+            vec![
+                format!("let (driven, consumed_driven) = {helper}(&raw[i..]);"),
+                format!("let (driving, _consumed_driving) = {helper_secondary}(&raw[i..]);"),
+                "if let Some(d) = driven {".to_string(),
+                format!("    if !d.handlers.is_empty() {{ hex.{field}.push(d); }}"),
+                "}".to_string(),
+                "if let Some(d) = driving {".to_string(),
+                format!("    if !d.handlers.is_empty() {{ hex.{field_secondary}.push(d); }}"),
+                "}".to_string(),
+                "i += consumed_driven;".to_string(),
+            ]
+        }
         other => panic!("unknown handler_kind: {:?}", other),
     }
 }
