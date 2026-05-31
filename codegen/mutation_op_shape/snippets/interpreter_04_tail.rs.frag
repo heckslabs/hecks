@@ -79,6 +79,16 @@ fn evaluate_given(
 }
 
 fn resolve_expr(expr: &str, state: &AggregateState, attrs: &HashMap<String, Value>) -> Value {
+    // `field.length` is the Ruby-flavoured alias for `field.size` — both
+    // resolve to a collection's element count. Bluebook authors reach for
+    // `.length` interchangeably (e.g. `given { tasks.length >= 3 }`) ; the
+    // `.size` branch below is the single source of truth, so normalize
+    // here at the entry point. Without this the `.length` form falls
+    // through to the literal-field lookup, returns Null, numeric-coerces
+    // to 0, and silently breaks the predicate.
+    if let Some(field) = expr.strip_suffix(".length") {
+        return resolve_expr(&format!("{}.size", field.trim()), state, attrs);
+    }
     if let Ok(n) = expr.parse::<i64>() {
         return Value::Int(n);
     }
