@@ -1,0 +1,27 @@
+Hecks.hecksagon "ShellAdapter" do
+  # ============================================================
+  # SHELL ADAPTER (first-adapter slice, sprint 14)
+  # ============================================================
+  #
+  # Wrapped in `Hecks.hecksagon` because the parser's is_hecksagon
+  # check requires that header (hecksagon_parser.rs:44). The new
+  # `adapter "X" do ; driven on ... ; end` shape lives INSIDE the
+  # hecksagon container ; top-level Hecks.adapter is a future
+  # extension if Chris wants it.
+  #
+  # Coexists with the existing `adapter :claude_tool, command:
+  # "ShellTool.Bash", ...` binding in sibling tools.hecksagon.
+  #
+  # The bus must learn to recognise this declarative `driven on`
+  # form and register the subscription against the EventBus at
+  # boot. That's the work behind stories #1 (grammar) and #4
+  # (discovery) ; the smoke in tools.behaviors goes green when
+  # both land.
+
+  adapter "ShellAdapter" do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      dispatch "Tools::TaskTool.Get",
+               id: "shell-adapter-smoke"
+    end
+  end
+end

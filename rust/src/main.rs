@@ -1004,9 +1004,22 @@ fn run_behaviors(args: &[String]) {
     // cross-cascade tests opt in via the kind flag.
     let combined = behaviors_aggregates_root(suite_path)
         .map(|root| load_combined_domain(&root));
+    // Sprint 14 first-adapter slice — when the conception aggregates
+    // root is recognisable, ALSO walk for *.hecksagon files (the
+    // adapter wiring) so attached `driven on` handlers can fire on
+    // event emission. Mirrors `dispatch_hecksagon` (main.rs ~3300)
+    // which has been doing this for full-domain dispatch all along ;
+    // the behaviors runner is the last untenanted loader. The 97
+    // pre-sprint tools.behaviors tests use `dispatch_isolated`, which
+    // skips every other resolver (claude_tool / mcp / web_tool / tts /
+    // primitive_spawn) and only fires the new driven adapter resolver,
+    // so wiring hecksagons here doesn't reach for shells / HTTP / MCP.
+    let hecksagons = behaviors_aggregates_root(suite_path)
+        .map(|root| load_all_hecksagons(&root))
+        .unwrap_or_default();
     let result = match combined.as_ref() {
-        Some(d) => storehouse::behaviors_runner::run_suite_with_domain(
-            &source_text, d, &suite, fixtures.as_ref(),
+        Some(d) => storehouse::behaviors_runner::run_suite_with_domain_and_hecksagons(
+            &source_text, d, &suite, fixtures.as_ref(), &hecksagons,
         ),
         None    => storehouse::behaviors_runner::run_suite_with_fixtures(
             &source_text, &suite, fixtures.as_ref(),
@@ -1199,9 +1212,20 @@ fn run_one_suite(suite_path: &str, opts: &TestOpts) -> SuiteRunReport {
         Some(root) => Some(load_combined_domain(root)),
         None => behaviors_aggregates_root(suite_path).map(|root| load_combined_domain(&root)),
     };
+    // Sprint 14 first-adapter slice — mirror run_behaviors : walk
+    // `*.hecksagon` files alongside the bluebooks so attached
+    // `driven on` adapters can fire on event emission. The 97 pre-
+    // sprint tools.behaviors tests use `dispatch_isolated` and stay
+    // unaffected ; only `kind: :cascade` tests reach the resolvers.
+    let hecksagons = match &opts.corpus {
+        Some(root) => load_all_hecksagons(root),
+        None => behaviors_aggregates_root(suite_path)
+            .map(|root| load_all_hecksagons(&root))
+            .unwrap_or_default(),
+    };
     let result = match combined.as_ref() {
-        Some(d) => storehouse::behaviors_runner::run_suite_with_domain(
-            &source_text, d, &suite, fixtures.as_ref(),
+        Some(d) => storehouse::behaviors_runner::run_suite_with_domain_and_hecksagons(
+            &source_text, d, &suite, fixtures.as_ref(), &hecksagons,
         ),
         None => storehouse::behaviors_runner::run_suite_with_fixtures(
             &source_text, &suite, fixtures.as_ref(),

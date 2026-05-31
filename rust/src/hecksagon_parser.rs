@@ -103,6 +103,25 @@ pub fn parse(source: &str) -> Hecksagon {
             continue;
         }
 
+        // Sprint 14 first-adapter slice — the event-subscription form
+        //   adapter "Name" do
+        //     driven on "Context::Aggregate.Event" do |event|
+        //       dispatch "Context::Aggregate.Command", attr: value
+        //     end
+        //   end
+        // Starts with `adapter "` (quoted name). Captured as a typed
+        // DrivenAdapter so the runtime's `resolve_driven_adapters` can
+        // fire the follow-on dispatch when the bus publishes the named
+        // event. Coexists with the legacy `adapter :symbol, ...` form
+        // handled by `absorb_adapter` below ; the two are dispatched on
+        // the very first character after `adapter ` (quote vs colon).
+        if line.starts_with("adapter \"") {
+            let (da, consumed) = parse_driven_adapter(&raw[i..]);
+            if let Some(adapter) = da { hex.driven_adapters.push(adapter); }
+            i += consumed;
+            continue;
+        }
+
         if line.starts_with("adapter ") || line.starts_with("adapter(") {
             let (joined, consumed) = join_adapter_lines(&raw[i..]);
             absorb_adapter(&joined, &mut hex);
@@ -441,4 +460,126 @@ fn join_adapter_lines(lines: &[&str]) -> (String, usize) {
         }
     }
     (joined, consumed)
+}
+
+/// Sprint 14 first-adapter slice — parse the block form :
+///
+///     adapter "Name" do
+///       driven on "Context::Aggregate.Event" do |event|
+///         dispatch "Context::Aggregate.Command", attr: "value"
+///       end
+///     end
+///
+/// Returns (Some(DrivenAdapter), lines_consumed). When the block is
+/// malformed (no name, no closing end) returns None plus a best-effort
+/// consumed count so the caller advances past the noise.
+fn parse_driven_adapter(lines: &[&str]) -> (Option<DrivenAdapter>, usize) {
+    let first = lines[0].trim();
+    let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
+    let mut adapter = DrivenAdapter { name, handlers: Vec::new() };
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(adapter), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if t.starts_with("driven on") {
+            let (handler, consumed) = parse_driven_handler(&lines[i..]);
+            if let Some(h) = handler { adapter.handlers.push(h); }
+            i += consumed;
+            continue;
+        }
+        i += 1;
+    }
+    (Some(adapter), i)
+}
+
+/// Parse one `driven on "Event" do |e| dispatch "X.Y", k: v ... end`
+/// block. Returns (Some(DrivenHandler), lines_consumed).
+fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
+    let first = lines[0].trim();
+    let event_ref = match between_quotes(first) { Some(e) => e, None => return (None, 1) };
+    let mut handler = DrivenHandler { event_ref, dispatches: Vec::new() };
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(handler), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
+            let (joined, consumed) = join_dispatch_lines(&lines[i..]);
+            if let Some(d) = parse_driven_dispatch(&joined) {
+                handler.dispatches.push(d);
+            }
+            i += consumed;
+            continue;
+        }
+        i += 1;
+    }
+    (Some(handler), i)
+}
+
+/// Join continuation lines for a `dispatch` call until a top-level
+/// non-comma terminator. Mirrors `join_adapter_lines` but stops at the
+/// natural end of one call (no `do`/`end` block ; dispatch is a single
+/// expression).
+fn join_dispatch_lines(lines: &[&str]) -> (String, usize) {
+    let mut joined = String::new();
+    let mut consumed = 0;
+    let mut depth: i32 = 0;
+    let mut in_str = false;
+    for raw in lines.iter() {
+        let t = raw.trim();
+        consumed += 1;
+        if t.is_empty() || t.starts_with('#') {
+            if joined.is_empty() { continue; }
+            continue;
+        }
+        if !joined.is_empty() { joined.push(' '); }
+        joined.push_str(t);
+        let mut prev = '\0';
+        for c in t.chars() {
+            match c {
+                '"' if prev != '\\' => in_str = !in_str,
+                '(' | '[' | '{' if !in_str => depth += 1,
+                ')' | ']' | '}' if !in_str => depth -= 1,
+                _ => {}
+            }
+            prev = c;
+        }
+        let ends_comma = t.trim_end().ends_with(',');
+        if depth <= 0 && !ends_comma { break; }
+    }
+    (joined, consumed)
+}
+
+/// Parse a joined `dispatch "FQN", k1: v1, k2: v2` line into a
+/// DrivenDispatch. The first quoted string is the command FQN ; the
+/// remaining options are the static attrs. Returns None when no FQN.
+fn parse_driven_dispatch(joined: &str) -> Option<DrivenDispatch> {
+    let body = joined.trim()
+        .strip_prefix("dispatch")
+        .map(|s| s.trim_start_matches('(').trim())
+        .unwrap_or(joined);
+    let command = between_quotes(body)?;
+    // After the first quoted token (`"FQN"`), the attrs start at the
+    // following comma. Find that comma at top level and parse the tail
+    // as `parse_options` does.
+    let mut depth = 0i32;
+    let mut in_str = false;
+    let mut prev = '\0';
+    let mut split_at: Option<usize> = None;
+    for (idx, c) in body.char_indices() {
+        match c {
+            '"' if prev != '\\' => in_str = !in_str,
+            '(' | '[' | '{' if !in_str => depth += 1,
+            ')' | ']' | '}' if !in_str => depth -= 1,
+            ',' if !in_str && depth == 0 => { split_at = Some(idx); break; }
+            _ => {}
+        }
+        prev = c;
+    }
+    let attrs = match split_at {
+        Some(idx) => parse_options(body[idx + 1..].trim_end_matches(')').trim()),
+        None => Vec::new(),
+    };
+    Some(DrivenDispatch { command, attrs })
 }

@@ -1033,4 +1033,21 @@ Hecks.behaviors "Tools" do
            description:  { value: "view current branch PR" }
     expect emits: ["PrViewed"]
   end
+
+  # ── ShellAdapter (first-adapter slice, sprint 14) ────────────────
+  #
+  # Proves the NEW adapter shape : declaration at
+  # hecksagons/shell_adapter.hecksagon ; subscribes to BashRan via
+  # `driven on` ; dispatches Tools::TaskTool.Get as the follow-on.
+  # When this test goes green, four stories are simultaneously
+  # satisfied : adapter-block-grammar-v2, convention-discovery-v2,
+  # adapter-internally-synchronous, shell-adapter-end-to-end.
+
+  test "ShellAdapter dispatches TaskTool.Get when ShellTool.BashRan fires" do
+    tests "Bash", on: "ShellTool", kind: :cascade
+    input  id:             { value: "shell-adapter-smoke-1" },
+           shell_command:  { value: "echo smoke" },
+           description:    { value: "first-adapter slice smoke" }
+    expect emits: ["BashRan", "TaskFetched"]
+  end
 end
