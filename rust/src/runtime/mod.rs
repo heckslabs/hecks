@@ -138,6 +138,7 @@ pub mod web_tool_dispatcher;
 // `Primitive::Process.Spawn`. The spawn syscall is the only imperative
 // remainder ; the adapter PROTOCOL is plain bluebook policy/cascade.
 pub mod exec_dispatcher;
+pub mod driven_adapter_resolver;
 pub mod compute_functions;
 // i557 — Phase-2 framework runtime. Walks
 // `hecks_conception/aggregates/framework/{adapter_families,behavior_kinds}/`
@@ -617,6 +618,20 @@ impl Runtime {
         // Worker never speaks.
         #[cfg(not(target_arch = "wasm32"))]
         self.resolve_tts_adapters(&result, command_name, &ctx.attrs);
+
+        // Sprint 14 first-adapter slice — fire `driven on` handlers
+        // attached via `<bluebook>/hecksagons/*.hecksagon`. Same shape
+        // as the dispatch_isolated arm : run only when the dispatched
+        // command produced an event, scan attached hecksagons for
+        // matching handlers, dispatch the follow-on through the cascade
+        // path so its emit reaches the bus. No-op when no driven
+        // adapters are declared (the default for every existing
+        // bluebook), so the 97 pre-sprint tools.behaviors tests stay
+        // green.
+        if let Some(ref event) = result.event {
+            let event_clone = event.clone();
+            driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
+        }
 
         // i697 — feed the rich scope the final result state (the
         // aggregate's fields JSON after all adapters settle). The scope's
