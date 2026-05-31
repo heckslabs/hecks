@@ -102,11 +102,13 @@ pub struct Hecksagon {
 /// Sprint 14 first-adapter slice — event-subscribed adapter declared
 /// in `<bluebook>/hecksagons/<service>.hecksagon` as :
 ///
-///     adapter "Name" do
-///       driven on "Context::Aggregate.Event" do |event|
-///         dispatch "Context::Aggregate.Command", attr: "value"
-///       end
-///     end
+/// ```text
+/// adapter "Name" do
+///   driven on "Context::Aggregate.Event" do |event|
+///     dispatch "Context::Aggregate.Command", attr: "value"
+///   end
+/// end
+/// ```
 ///
 /// Each handler binds one event → one follow-on dispatch. The runtime's
 /// `resolve_driven_adapters` fires the dispatch when the named event

@@ -216,7 +216,13 @@ fn emit_dispatch_block(dispatch: &Fixture) -> String {
 fn dispatch_condition(starts_with: &str) -> String {
     starts_with
         .split(',')
-        .map(|p| format!("line.starts_with(\"{p}\")"))
+        .map(|p| {
+            // Escape embedded `"` so prefixes like `adapter "` (the Sprint
+            // 14 quoted-name DrivenAdapter form) emit as valid Rust string
+            // literals : `line.starts_with("adapter \"")`.
+            let escaped = p.replace('"', "\\\"");
+            format!("line.starts_with(\"{escaped}\")")
+        })
         .collect::<Vec<_>>()
         .join(" || ")
 }
