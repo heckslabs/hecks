@@ -215,6 +215,14 @@ pub struct Runtime {
     /// server was resolved from, for the resolve-log line. None until a
     /// world walk attaches servers.
     pub world_servers_path: Option<String>,
+    /// Sprint 14 world-wires-real-adapters — adapter bindings declared
+    /// in `*.world` files, unioned at boot by
+    /// `attach_world_adapter_bindings`. The driven_adapter_resolver
+    /// looks each handler's adapter name up here to decide canned
+    /// (no entry) vs real (entry's values stand in for the wrapped-call
+    /// return). Empty when the runtime boots without a world walk —
+    /// every adapter falls back to canned (memory-by-default).
+    pub world_adapter_bindings: Vec<crate::world::ir::AdapterBinding>,
 }
 
 impl Runtime {
@@ -379,6 +387,7 @@ impl Runtime {
             ),
             world_servers: Vec::new(),
             world_servers_path: None,
+            world_adapter_bindings: Vec::new(),
         }
     }
 

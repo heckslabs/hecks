@@ -128,9 +128,41 @@ pub struct DrivenHandler {
     /// Stored verbatim so the resolver can split context/aggregate/event
     /// at match time.
     pub event_ref: String,
+    /// Sprint 14 memory-canned-defaults — optional `canned do ... end`
+    /// block declared inside the handler body. The canned values stand
+    /// in for the wrapped call's return when no `.world` adapter entry
+    /// binds this adapter to a real backend ; the resolver merges them
+    /// into the follow-on dispatch's attrs (declared dispatch attrs
+    /// win on conflict). When a `.world` adapter binding IS present,
+    /// the world binding's values take the canned slot instead — same
+    /// merge code path, different source. Presence of a `.world` adapter
+    /// entry IS the signal ; there is no `backend:` flag.
+    pub canned: Option<CannedResponse>,
     /// Follow-on dispatches declared inside the handler body. Each is
     /// a `(command_fqn, attrs)` pair.
     pub dispatches: Vec<DrivenDispatch>,
+}
+
+/// Sprint 14 memory-canned-defaults — the wrapped-call return declared
+/// inline as :
+///
+/// ```text
+/// driven on "X" do |e|
+///   canned do
+///     output "ack"
+///     exit_code 0
+///   end
+///   dispatch "Y", attr: "value"
+/// end
+/// ```
+///
+/// Stored as ordered key/value pairs (values keep their source-token
+/// form — quoted strings retain their quotes, ints stay as digit
+/// strings — so `build_attr_map` in the resolver applies the same
+/// conversion rule the dispatch attrs already use).
+#[derive(Debug, Clone, Default)]
+pub struct CannedResponse {
+    pub values: Vec<(String, String)>,
 }
 
 /// One `dispatch "Context::Aggregate.Command", k: v, k2: v2` line.

@@ -44,6 +44,37 @@ pub fn attach_world_servers(rt: &mut Runtime, agg_dir: &str) {
     }
 }
 
+/// Sprint 14 world-wires-real-adapters — walk `agg_dir` for `*.world`
+/// files and union every top-level `adapter "Name" do; ... end` binding
+/// onto the runtime. Sibling of `attach_world_servers` ; presence of
+/// a binding here IS the signal that switches a driven adapter from
+/// canned (memory by default) to real (config from the binding). No
+/// `backend:` flag : the binding's values themselves carry the
+/// per-deployment config (URL, env-var, output overrides, etc.).
+pub fn attach_world_adapter_bindings(rt: &mut Runtime, agg_dir: &str) {
+    let root = std::path::Path::new(agg_dir);
+    let mut stack = vec![root.to_path_buf()];
+    let mut worlds: Vec<std::path::PathBuf> = vec![];
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.extension().map(|e| e == "world").unwrap_or(false) {
+                worlds.push(p);
+            }
+        }
+    }
+    worlds.sort();
+    for wp in &worlds {
+        let Ok(src) = fs::read_to_string(wp) else { continue };
+        let world = crate::world::parser::parse(&src);
+        if world.adapter_bindings.is_empty() { continue; }
+        rt.world_adapter_bindings.extend(world.adapter_bindings);
+    }
+}
+
 /// Walk `agg_dir` (and its `aggregates/` subdirectory when present) for
 /// `*.world` files that declare `heki do dir "…" end`. Returns a map of
 /// `category → canonical_heki_dir` resolved relative to each world file's
