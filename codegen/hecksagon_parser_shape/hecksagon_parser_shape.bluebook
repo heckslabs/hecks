@@ -83,6 +83,19 @@ Hecks.bluebook "HecksagonParserShape", version: "2026.05.01.1" do
       # helper_fn: name of the helper this dispatch delegates to
       # (parse_gate, absorb_adapter, ...). Empty for trivial handlers.
       attribute :helper_fn,     String, default: ""
+      # Sprint 14 — `multiline_adapter_pair` second-half helper. Empty /
+      # absent for every other handler_kind. The pair handler parses one
+      # block boundary twice (once with `helper_fn`, once with
+      # `helper_fn_secondary`) so the same `adapter "Name" do ... end`
+      # envelope can host both `driven on` (driven_adapters) and
+      # `driving on` (driving_adapters) inner forms.
+      attribute :helper_fn_secondary, String, default: ""
+      # Sprint 14 — `multiline_adapter_pair` second-half target field.
+      # Empty / absent for every other handler_kind. Names the
+      # Hecksagon struct field that receives the secondary parser's
+      # output (`driving_adapters` for the adapter envelope ; reserved
+      # for future pair dispatches).
+      attribute :target_field_secondary, String, default: ""
       # framework_kind: meta-layer discriminator value the dispatch
       # stamps on the IR. Only consulted by handler_kind ==
       # capture_quoted_with_framework_kind. Empty / absent for every
