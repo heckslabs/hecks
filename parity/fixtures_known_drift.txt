@@ -4,6 +4,16 @@
 # semantic edge (escape sequences, unicode in source tokens, etc.) —
 # do NOT use this as a way to silence regressions.
 
+# Pre-existing drift (not introduced by Sprint 14 first-adapter work) :
+#   - hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.fixtures
+#     Ruby FixturesBuilder returns nil for this file ; Rust parses it as
+#     GovernedDoor with empty fixtures list. Introduced in commit e31c4053
+#     (feat(governance): bluebook-it the PreToolUse hook) ; pre-dates Sprint 14.
+#     Needs Ruby-parser investigation as its own follow-up card ; retirement
+#     condition : Ruby FixturesBuilder accepts the file and returns the same
+#     7 fixtures Rust does.
+hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.fixtures
+
 # (empty — full parity 375/375 as of 2026-04-30 ; drift retired by :
 #   - to_bluebook_source helper in fixtures_parity_test.rb that
 #     re-renders Ruby's parsed Hash/Array values into bluebook source
