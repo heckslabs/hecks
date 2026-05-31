@@ -1056,4 +1056,18 @@ Hecks.behaviors "Tools" do
            description:    { value: "sprint 14 fan-out smoke" }
     expect emits: ["BashRan", "TaskFetched", "TaskFetched"]
   end
+
+  # ── CronAdapter (sprint 14 — driving-on-grammar story) ───────────
+  #
+  # Sibling of ShellAdapter. CronAdapter (at hecksagons/cron_adapter.
+  # hecksagon) subscribes to the EXTERNAL cron trigger via `driving on
+  # cron "<expr>"` and dispatches Tools::TaskTool.Get as the follow-on.
+  # `kind: :driving_tick` is the deterministic test path : the runner
+  # fires every cron handler once and asserts on the emitted cascade.
+  # When this test goes green, `driving on cron` is wired end-to-end.
+
+  test "CronAdapter dispatches TaskTool.Get when cron fires" do
+    tests "", on: "TaskTool", kind: :driving_tick
+    expect emits: ["TaskFetched"]
+  end
 end
