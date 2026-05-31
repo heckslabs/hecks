@@ -75,6 +75,22 @@ pub fn parse(source: &str) -> World {
             continue;
         }
 
+        // Sprint 14 world-wires-real-adapters — top-level
+        //   adapter "Name" do
+        //     <key> <value>
+        //     ...
+        //   end
+        // Mirrors the `concern "Name" do ... end` arm above. Presence
+        // of an entry IS the signal that wires this adapter to a real
+        // backend ; the driven_adapter_resolver consults
+        // World::adapter_binding_for(name) at fire time.
+        if line.starts_with("adapter \"") {
+            let (binding, consumed) = parse_adapter_binding(&raw[i..]);
+            if let Some(b) = binding { world.adapter_bindings.push(b); }
+            i += consumed;
+            continue;
+        }
+
         // Block header: `mcp` opens MCP servers (i610) ; any other IDENT
         // opens a flat extension config block.
         if let Some(ext_name) = extension_block_header(line) {
@@ -139,6 +155,38 @@ fn extension_block_header(line: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Sprint 14 world-wires-real-adapters — parse a top-level
+/// `adapter "Name" do; <key> <value>; ... end` block. Mirrors
+/// `parse_concern` ; the inner k/v form is the same
+/// `parse_kv_line`-driven shape used by extension config blocks.
+fn parse_adapter_binding(lines: &[&str]) -> (Option<AdapterBinding>, usize) {
+    let first = lines[0].trim();
+    let mut binding = AdapterBinding::default();
+    if let Some(n) = between_quotes(first) { binding.name = n; }
+
+    // Inline form : `adapter "Name" do; output "real-ack" end`
+    if first.ends_with("end") && first.contains("do") {
+        absorb_inline_block_body(first, &mut |k, v| {
+            binding.values.push((k, v));
+        });
+        return (if binding.name.is_empty() { None } else { Some(binding) }, 1);
+    }
+
+    let mut i = 1;
+    let mut depth = if ends_with_do(first) { 1 } else { 0 };
+    while i < lines.len() && depth > 0 {
+        let t = lines[i].trim();
+        if t == "end" { depth -= 1; i += 1; continue; }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if ends_with_do(t) { depth += 1; i += 1; continue; }
+        if let Some((k, v)) = parse_kv_line(t) {
+            binding.values.push((k, v));
+        }
+        i += 1;
+    }
+    (if binding.name.is_empty() { None } else { Some(binding) }, i)
 }
 
 /// Parse `concern "Name" do; description "..." end`. Returns the concern

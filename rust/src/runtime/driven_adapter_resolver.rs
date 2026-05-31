@@ -6,6 +6,10 @@
 //! ```text
 //! adapter "ShellAdapter" do
 //!   driven on "Tools::ShellTool.BashRan" do |event|
+//!     canned do
+//!       output "ack"
+//!       exit_code 0
+//!     end
 //!     dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
 //!   end
 //! end
@@ -17,6 +21,24 @@
 //! every attached hecksagon for handlers whose `event_ref` matches
 //! the just-emitted event, then dispatches each handler's follow-on
 //! commands through `command_dispatch::dispatch_cascade`.
+//!
+//! Sprint 14 memory-canned-defaults + world-wires-real-adapters — the
+//! resolver picks the wrapped-call return value for each fire :
+//!
+//!   - `.world` declares `adapter "Name" do; <key> <value> end`
+//!     → use the binding's values ("real backend with config from
+//!     that entry")
+//!   - no `.world` entry, but the handler has `canned do ... end`
+//!     → use the canned values (memory + canned default)
+//!   - neither → dispatch only the declared static attrs (legacy)
+//!
+//! In all three cases the chosen value-source is merged into the
+//! follow-on dispatch's attr map ; declared dispatch attrs win on
+//! conflict (a literal `dispatch "Y", id: "fixed"` overrides any
+//! canned/world `id`). Presence of a `.world` adapter entry IS the
+//! signal that switches canned→real ; there is no `backend:` flag
+//! and no fake-vs-real adapter distinction. The adapter declaration
+//! is identical across deployments ; only `.world` differs.
 //!
 //! Sibling of `resolve_claude_tool_adapters` / `resolve_web_tool_adapters`
 //! / `resolve_mcp_adapters` — same registration shape, but triggered by
@@ -43,22 +65,54 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
     if rt.hecksagons.is_empty() { return; }
     let debug = std::env::var("HECKS_DEBUG_DRIVEN").is_ok();
 
-    // Snapshot matching dispatches up-front. The follow-on dispatch
-    // takes `&mut Runtime`, so we can't keep an immutable borrow of
-    // `rt.hecksagons` open across the call. Clone is cheap : driven
-    // adapter declarations are small static IR.
-    let matched: Vec<(String, Vec<(String, String)>)> = rt.hecksagons.iter()
-        .flat_map(|h| h.driven_adapters.iter())
-        .flat_map(|a| a.handlers.iter())
-        .filter(|h| event_ref_matches(&h.event_ref, event))
-        .flat_map(|h| h.dispatches.iter())
-        .map(|d| (d.command.clone(), d.attrs.clone()))
-        .collect();
+    // Snapshot matching fires up-front. The follow-on dispatch takes
+    // `&mut Runtime`, so we can't keep an immutable borrow of
+    // `rt.hecksagons` / `rt.world_adapter_bindings` open across the
+    // call. Clone is cheap : driven adapter declarations are small
+    // static IR. For each fire we capture (command, declared_attrs,
+    // wrapped_call_values) so the merge happens once at the snapshot
+    // boundary — the resolver doesn't re-walk the world list per
+    // dispatch.
+    let mut matched: Vec<(String, Vec<(String, String)>, Vec<(String, String)>)> = Vec::new();
+    for hex in rt.hecksagons.iter() {
+        for adapter in hex.driven_adapters.iter() {
+            // Sprint 14 world-wires-real-adapters — presence of a
+            // `.world` adapter binding with this adapter's name IS the
+            // signal to use the binding's values as the wrapped-call
+            // return. Absent : fall back to the handler's `canned do`
+            // block. Both absent : empty merge (legacy behaviour).
+            let world_values: Option<Vec<(String, String)>> = rt
+                .world_adapter_bindings
+                .iter()
+                .find(|b| b.name == adapter.name)
+                .map(|b| b.values.clone());
+            for handler in adapter.handlers.iter() {
+                if !event_ref_matches(&handler.event_ref, event) { continue; }
+                let wrapped: Vec<(String, String)> = world_values
+                    .clone()
+                    .or_else(|| handler.canned.as_ref().map(|c| c.values.clone()))
+                    .unwrap_or_default();
+                for dispatch in handler.dispatches.iter() {
+                    matched.push((
+                        dispatch.command.clone(),
+                        dispatch.attrs.clone(),
+                        wrapped.clone(),
+                    ));
+                }
+            }
+        }
+    }
 
     if matched.is_empty() { return; }
 
-    for (command, attrs) in matched {
-        let attr_map = build_attr_map(&attrs);
+    for (command, declared_attrs, wrapped_values) in matched {
+        // Merge order : wrapped values first, then declared attrs
+        // override on key collision. A literal `dispatch "Y", id: "x"`
+        // pins `id` regardless of what canned/world declared.
+        let mut attr_map = build_attr_map(&wrapped_values);
+        for (k, v) in build_attr_map(&declared_attrs) {
+            attr_map.insert(k, v);
+        }
         // Cascade dispatch so the follow-on's emit reaches the bus AND
         // depth / cycle protection from the dispatch_inner stack apply.
         // Same shape as the claude_tool resolver's chain into

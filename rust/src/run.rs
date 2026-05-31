@@ -154,6 +154,11 @@ pub fn run_script(args: &[String]) -> i32 {
     // direct dispatch_hecksagon path's attach_world_servers call.
     crate::world::attach::attach_world_servers(
         &mut rt, &crate::storehouse_router::conception_root());
+    // Sprint 14 — union top-level `adapter "Name" do ... end` bindings
+    // from the same `*.world` walk so the driven_adapter_resolver can
+    // pick canned (no binding) vs real (binding present) at fire time.
+    crate::world::attach::attach_world_adapter_bindings(
+        &mut rt, &crate::storehouse_router::conception_root());
 
     // Stdin-loop capability detection: when the hecksagon declares both
     // :stdin and :stdout AND the bluebook's Session aggregate exposes

@@ -151,3 +151,79 @@ end
         Some("/tmp/yc_demo/daily_musing.db"),
     );
 }
+
+#[test]
+fn parses_canned_block_inside_driven_handler() {
+    // Sprint 14 memory-canned-defaults — `canned do ... end` declared
+    // inside a `driven on` handler captures key/value pairs that stand
+    // in for the wrapped call's return when no `.world` adapter entry
+    // binds this adapter. The values keep their source-token form
+    // (quoted strings retain their quotes, ints stay as digit strings)
+    // so the resolver applies build_attr_map at fire time.
+    let src = r#"Hecks.hecksagon "Tools" do
+  adapter "Shell" do
+    driven on "Tools::ShellTool.BashRan" do |e|
+      canned do
+        output "ack"
+        exit_code 0
+      end
+      dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
+    end
+  end
+end
+"#;
+    let hex = hecksagon_parser::parse(src);
+    assert_eq!(hex.driven_adapters.len(), 1, "expected one DrivenAdapter");
+    let adapter = &hex.driven_adapters[0];
+    assert_eq!(adapter.name, "Shell");
+    assert_eq!(adapter.handlers.len(), 1);
+    let handler = &adapter.handlers[0];
+    assert_eq!(handler.event_ref, "Tools::ShellTool.BashRan");
+    let canned = handler.canned.as_ref().expect("canned block parsed");
+    assert_eq!(canned.values.len(), 2);
+    assert_eq!(canned.values[0], ("output".to_string(), "\"ack\"".to_string()));
+    assert_eq!(canned.values[1], ("exit_code".to_string(), "0".to_string()));
+    // The dispatch survives the canned block.
+    assert_eq!(handler.dispatches.len(), 1);
+    assert_eq!(handler.dispatches[0].command, "Tools::TaskTool.Get");
+}
+
+#[test]
+fn handler_without_canned_block_leaves_canned_none() {
+    // Sprint 14 — backwards-compat : a `driven on` handler without a
+    // `canned do` block leaves DrivenHandler::canned as None, and the
+    // existing dispatch parsing keeps working unchanged.
+    let src = r#"Hecks.hecksagon "Tools" do
+  adapter "Shell" do
+    driven on "Tools::ShellTool.BashRan" do |e|
+      dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
+    end
+  end
+end
+"#;
+    let hex = hecksagon_parser::parse(src);
+    let handler = &hex.driven_adapters[0].handlers[0];
+    assert!(handler.canned.is_none());
+    assert_eq!(handler.dispatches.len(), 1);
+}
+
+#[test]
+fn parses_inline_canned_block() {
+    // Sprint 14 — inline form `canned do; key value; key value end`
+    // matches the same kv shape as the block form.
+    let src = r#"Hecks.hecksagon "Tools" do
+  adapter "Shell" do
+    driven on "X.Y" do |e|
+      canned do; output "ack"; exit_code 0 end
+      dispatch "X.Z"
+    end
+  end
+end
+"#;
+    let hex = hecksagon_parser::parse(src);
+    let canned = hex.driven_adapters[0].handlers[0]
+        .canned.as_ref().expect("inline canned");
+    assert_eq!(canned.values.len(), 2);
+    assert_eq!(canned.values[0].0, "output");
+    assert_eq!(canned.values[1].0, "exit_code");
+}
