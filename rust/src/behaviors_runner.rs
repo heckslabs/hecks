@@ -216,6 +216,18 @@ fn run_one(
         return run_query(&rt, test);
     }
 
+    // Sprint 14 — `kind: :driving_tick` is the deterministic test path
+    // for `driving on cron "<expr>"` adapters. There's no daemon in a
+    // pure-memory test, so instead of dispatching a command we fire
+    // every cron handler attached to the runtime once and assert
+    // against the emitted events. The cascade flows through
+    // `command_dispatch::dispatch_cascade` just as the live `storehouse
+    // loop` tick does (LoopDriver::tick_once invokes the same resolver)
+    // so the test path is byte-equivalent to the live trigger.
+    if test.kind == "driving_tick" {
+        return run_driving_tick(&mut rt, test);
+    }
+
     // Snapshot the event bus boundary so the `emits:` assertion only
     // compares events produced by THIS dispatch, not events from setup.
     let pre_dispatch_event_count = rt.event_bus.events().len();
@@ -395,6 +407,64 @@ fn run_one(
         }
     }
 
+    TestRun::pass(&test.description)
+}
+
+/// Sprint 14 — `kind: :driving_tick` driver. Fires every cron handler
+/// attached via `<bluebook>/hecksagons/*.hecksagon` once, then runs
+/// the test's `emits:` assertion against the events the cascade
+/// produced. v1 honours `emits` / `emits_prefix` / `emits_subset`,
+/// which is the same triumvirate the regular dispatch path supports.
+fn run_driving_tick(rt: &mut Runtime, test: &Test) -> TestRun {
+    let pre_tick_event_count = rt.event_bus.events().len();
+    rt.fire_driving_cron_ticks();
+
+    for (key, expected) in &test.expect {
+        if key == "emits" {
+            let expected_events = parse_event_list(expected);
+            let actual: Vec<String> = rt.event_bus.events()
+                .iter()
+                .skip(pre_tick_event_count)
+                .map(|e| e.name.clone())
+                .collect();
+            if actual != expected_events {
+                return TestRun::fail(&test.description,
+                    format!("expected emits: {:?}, got {:?}", expected_events, actual));
+            }
+        }
+        if key == "emits_prefix" {
+            let expected_events = parse_event_list(expected);
+            let actual: Vec<String> = rt.event_bus.events()
+                .iter()
+                .skip(pre_tick_event_count)
+                .map(|e| e.name.clone())
+                .collect();
+            if actual.len() < expected_events.len()
+                || actual[..expected_events.len()] != expected_events[..]
+            {
+                return TestRun::fail(&test.description,
+                    format!("expected emits_prefix: {:?}, got {:?}", expected_events, actual));
+            }
+        }
+        if key == "emits_subset" {
+            let expected_events = parse_event_list(expected);
+            let actual: Vec<String> = rt.event_bus.events()
+                .iter()
+                .skip(pre_tick_event_count)
+                .map(|e| e.name.clone())
+                .collect();
+            let mut i = 0;
+            for ev in &expected_events {
+                while i < actual.len() && &actual[i] != ev { i += 1; }
+                if i >= actual.len() {
+                    return TestRun::fail(&test.description,
+                        format!("expected emits_subset: {:?}, got {:?} (missing {})",
+                            expected_events, actual, ev));
+                }
+                i += 1;
+            }
+        }
+    }
     TestRun::pass(&test.description)
 }
 
