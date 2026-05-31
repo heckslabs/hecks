@@ -97,6 +97,54 @@ pub struct Hecksagon {
     /// declares one or more event handlers ; each handler runs a
     /// follow-on bluebook dispatch when the named event fires.
     pub driven_adapters: Vec<DrivenAdapter>,
+    /// Sprint 14 sibling of `driven_adapters` — `adapter "Name" do ;
+    /// driving on <kind> "<arg>" do |signal| ; dispatch "X.Y", k: v ;
+    /// end ; end` entries. Where `driven on` subscribes to bus events,
+    /// `driving on` subscribes to EXTERNAL triggers (cron tick, HTTP
+    /// POST, file watch). v1 implements `kind == "cron"` end-to-end ;
+    /// `http_post` and `file_watch` parse but are runtime stubs (see
+    /// runtime/driving_adapter_resolver.rs follow-up cards).
+    pub driving_adapters: Vec<DrivingAdapter>,
+}
+
+/// Sprint 14 sibling of `DrivenAdapter` — externally-triggered adapter
+/// declared in `<bluebook>/hecksagons/<service>.hecksagon` as :
+///
+/// ```text
+/// adapter "Name" do
+///   driving on cron "*/5 * * * *" do |signal|
+///     dispatch "Context::Aggregate.Command", attr: "value"
+///   end
+/// end
+/// ```
+///
+/// Each handler binds one external trigger → one follow-on dispatch.
+/// The runtime's `fire_driving_cron_ticks` (and future `http_post` /
+/// `file_watch` resolvers) fire the dispatch when the trigger fires.
+#[derive(Debug, Clone, Default)]
+pub struct DrivingAdapter {
+    /// Adapter name (between the quotes after `adapter`).
+    pub name: String,
+    /// One handler per `driving on <kind> "<arg>" do |s| ... end` block.
+    pub handlers: Vec<DrivingHandler>,
+}
+
+/// One `driving on <kind> "<arg>" do |signal| dispatch "X.Y", k: v end`
+/// block.
+#[derive(Debug, Clone, Default)]
+pub struct DrivingHandler {
+    /// Trigger kind verbatim — `"cron"`, `"http_post"`, `"file_watch"`.
+    /// The resolver dispatches on this string ; unknown kinds are no-ops.
+    pub kind: String,
+    /// Trigger argument verbatim — a cron expression like `"*/5 * * * *"`,
+    /// a URL path like `"/webhooks/stripe"`, a filesystem path like
+    /// `"/tmp/inbox/*.json"`. Stored verbatim so each resolver can parse
+    /// it per its own grammar.
+    pub arg: String,
+    /// Follow-on dispatches declared inside the handler body. Reuses
+    /// `DrivenDispatch` — the dispatch line shape is identical to the
+    /// `driven on` form.
+    pub dispatches: Vec<DrivenDispatch>,
 }
 
 /// Sprint 14 first-adapter slice — event-subscribed adapter declared
