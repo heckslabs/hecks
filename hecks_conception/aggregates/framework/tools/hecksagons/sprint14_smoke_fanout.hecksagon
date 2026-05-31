@@ -1,0 +1,24 @@
+Hecks.hecksagon "Sprint14SmokeFanout" do
+  # ============================================================
+  # SPRINT-14 FAN-OUT FIXTURE — sibling of shell_adapter.hecksagon
+  # ============================================================
+  #
+  # Lives in the conventional `<bluebook>/hecksagons/` folder beside
+  # tools.bluebook (decision #6). Subscribed to the SAME event the
+  # neighbouring ShellAdapter listens to — `Tools::ShellTool.BashRan` —
+  # so a single Bash dispatch fans out to BOTH adapters (decision #5).
+  #
+  # The follow-on dispatch lands on a different aggregate so the
+  # sprint14 smoke can assert both effects independently :
+  #   ShellAdapter → Tools::TaskTool.Get  (id: "shell-adapter-smoke")
+  #   here         → Tools::TaskTool.Get  (id: "sprint14-fanout-smoke")
+  #
+  # Two records, one event — proof of fan-out at the runtime level.
+
+  adapter "Sprint14SmokeFanout" do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      dispatch "Tools::TaskTool.Get",
+               id: "sprint14-fanout-smoke"
+    end
+  end
+end
