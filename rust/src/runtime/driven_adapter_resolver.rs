@@ -3,11 +3,13 @@
 //!
 //! Shape:
 //!
-//!     adapter "ShellAdapter" do
-//!       driven on "Tools::ShellTool.BashRan" do |event|
-//!         dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
-//!       end
-//!     end
+//! ```text
+//! adapter "ShellAdapter" do
+//!   driven on "Tools::ShellTool.BashRan" do |event|
+//!     dispatch "Tools::TaskTool.Get", id: "shell-adapter-smoke"
+//!   end
+//! end
+//! ```
 //!
 //! The parser captures these as `DrivenAdapter` IR entries on each
 //! attached `Hecksagon`. This resolver runs after `Runtime::dispatch`
