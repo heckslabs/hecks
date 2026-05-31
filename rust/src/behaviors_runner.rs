@@ -21,6 +21,7 @@
 use crate::behaviors_ir::{Test, TestSuite};
 use crate::behaviors_fixtures;
 use crate::fixtures_ir::FixturesFile;
+use crate::hecksagon_ir::Hecksagon;
 use crate::ir::Domain;
 use crate::parser;
 use crate::runtime::{Runtime, RuntimeError, Value};
@@ -73,7 +74,7 @@ pub fn run_suite_with_fixtures(
     fixtures: Option<&FixturesFile>,
 ) -> SuiteResult {
     let runs = suite.tests.iter()
-        .map(|t| run_one(source_text, t, fixtures, None))
+        .map(|t| run_one(source_text, t, fixtures, None, None))
         .collect();
     SuiteResult { runs }
 }
@@ -94,7 +95,26 @@ pub fn run_suite_with_domain(
     fixtures: Option<&FixturesFile>,
 ) -> SuiteResult {
     let runs = suite.tests.iter()
-        .map(|t| run_one(source_text, t, fixtures, Some(domain_template)))
+        .map(|t| run_one(source_text, t, fixtures, Some(domain_template), None))
+        .collect();
+    SuiteResult { runs }
+}
+
+/// Sprint 14 first-adapter slice — hecksagons-aware variant. When
+/// `hecksagons` is non-empty, every fresh runtime is built with
+/// `Runtime::boot_with_hecksagons` so attached `driven on` adapters
+/// can fire on event emission. Falls back to the historical
+/// `Runtime::boot` path when the slice is empty so non-conception
+/// callers stay byte-identical.
+pub fn run_suite_with_domain_and_hecksagons(
+    source_text: &str,
+    domain_template: &Domain,
+    suite: &TestSuite,
+    fixtures: Option<&FixturesFile>,
+    hecksagons: &[Hecksagon],
+) -> SuiteResult {
+    let runs = suite.tests.iter()
+        .map(|t| run_one(source_text, t, fixtures, Some(domain_template), Some(hecksagons)))
         .collect();
     SuiteResult { runs }
 }
@@ -104,6 +124,7 @@ fn run_one(
     test: &Test,
     fixtures: Option<&FixturesFile>,
     full_domain: Option<&Domain>,
+    hecksagons: Option<&[Hecksagon]>,
 ) -> TestRun {
     // `kind: :pending` — runner-level skip for tests known to be stale
     // or blocked on out-of-scope work. Counted as a Pass with the
@@ -131,7 +152,17 @@ fn run_one(
     } else {
         parser::parse(source_text)
     };
-    let mut rt = Runtime::boot(domain);
+    // Sprint 14 first-adapter slice — when hecksagons are supplied
+    // (the conception-aware caller in run_behaviors), boot with them
+    // attached so `driven on` adapter handlers fire on event emission.
+    // The pre-sprint path (Runtime::boot, no hecksagons) is preserved
+    // for direct/library callers that don't supply any.
+    let mut rt = match hecksagons {
+        Some(hs) if !hs.is_empty() => {
+            Runtime::boot_with_hecksagons(domain, None, hs.to_vec())
+        }
+        _ => Runtime::boot(domain),
+    };
 
     // The translation layer between the bluebook (refs only) and the
     // runtime (ids). Maps an aggregate type → the id of the most
