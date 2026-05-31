@@ -450,6 +450,16 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
     # (path + filename + kind + note); the bytes live on disk or in a store.
     attribute :attachments,    list_of(Attachment)
 
+    # ---- Theme ----
+    # Cross-sprint clustering label. A free-form string the Story carries to
+    # mark which broader thread it serves (e.g. "first-adapter" covers the 6
+    # critical-path cards for the new adapter architecture, regardless of
+    # which sprint they live in). No registry, no aggregate, no lifecycle —
+    # themes come into being by being assigned, retire when no Story carries
+    # them. Set via AssignToTheme ; cluster via the Story.ByTheme query ;
+    # the set of themes that exist = distinct(Story.theme).
+    attribute :theme,          Theme
+
     # ── Value objects ──────────────────────────────────────────────
 
     value_object "Ref" do
@@ -517,6 +527,16 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
       #   "deployed" — the app/service is deployed and reachable
       # MarkReady REQUIRES this criterion to be satisfied before the call.
       # Cross-aggregate enforcement via f4 rule construct — declared intent.
+      attribute :value, String
+    end
+
+    value_object "Theme" do
+      # Cross-sprint clustering label — a free-form string carried on the
+      # Story. Stories with the same theme are siblings in the planning
+      # pulse regardless of which sprint they live in. No registry —
+      # themes exist by being assigned (Story.AssignToTheme) ; the set of
+      # themes that exist = distinct(Story.theme) ; retire by reassigning
+      # the last carrier away.
       attribute :value, String
     end
 
@@ -662,6 +682,15 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
       emits "StoryAssignedToProject"
     end
 
+    command "AssignToTheme" do
+      role "Miette"
+      description "Tag the story with a Theme — a cross-sprint clustering label. Pure metadata mutation, no lifecycle change, valid from any state. Themes have no aggregate ; they exist by being assigned. Re-assignment overwrites the previous theme (one theme per story). Pass an empty string to clear."
+      reference_to(Story)
+      attribute :theme, Theme
+      then_set :theme, to: :theme
+      emits "StoryThemeAssigned"
+    end
+
     command "MoveToSprint" do
       role "Miette"
       description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints whether it is in_sprint or started. Closes the re-sprinting gap: AssignToSprint is allowed only from backlog, so a committed story could not otherwise change sprints."
@@ -703,11 +732,22 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
       emits "FileAttached"
     end
 
+    command "AddTask" do
+      role "Miette"
+      description "Add a planned task to the story during the tasking phase. Tasks are the discrete sub-units of work the operator and Miette agree on before Start. Valid only while the story is in_sprint (or backlog, before assignment) — tasks freeze once Start fires. Each task carries a description ; order is implicit by append position."
+      reference_to(Story)
+      attribute :description, TaskDescription
+      given("tasking is part of planning — valid only before Start") { state == "in_sprint" || state == "backlog" }
+      then_set :tasks, append: { description: :description }
+      emits "StoryTaskAdded"
+    end
+
     command "Start" do
       role "Miette"
-      description "Begin work on a story that has been assigned to a sprint AND whose sprint is the board's active sprint. The active-sprint guard would live in `given` if the runtime evaluated cross-aggregate predicates ; it does not today (same family as board.bluebook rule #4 fail-open) — the rule is enforced reactively by Plan::Story.Unstart until cross-aggregate guards land. Moves from in_sprint to started."
+      description "Begin work on a story that has been assigned to a sprint AND whose sprint is the board's active sprint. Story must have at least 3 tasks (the tasking-done-when threshold). The active-sprint guard would live in `given` if the runtime evaluated cross-aggregate predicates ; it does not today (same family as board.bluebook rule #4 fail-open) — the rule is enforced reactively by Plan::Story.Unstart until cross-aggregate guards land. Moves from in_sprint to started."
       reference_to(Story)
       given("story must be on a sprint board") { sprint != "" }
+      given("story must have at least 3 tasks before starting") { tasks.length >= 3 }
       emits "StoryStarted"
     end
 
@@ -891,6 +931,11 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
     query "ByProject" do
       description "All stories belonging to a given project. Pass project: <slug> to filter."
       where project: :project
+    end
+
+    query "ByTheme" do
+      description "All stories carrying a given theme — the cross-sprint cluster. Pass theme: <name> to filter. The set of distinct themes is whatever Stories carry (no theme registry)."
+      where theme: :theme
     end
 
     query "BySprint" do
