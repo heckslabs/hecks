@@ -1,0 +1,33 @@
+Hecks.hecksagon "MisplacedAdapter" do
+  # NEGATIVE FIXTURE — adapter-location violation (sprint 14)
+  #
+  # This file demonstrates the AdapterLocation macrophage's primary
+  # failure mode. The body of the adapter is otherwise canonical
+  # (paired Completed/Failed dispatches, no bus callback, no opt-in)
+  # — the violation is filesystem-discipline only : the file lives
+  # OUTSIDE the conventional <bluebook>/hecksagons/<service>.hecksagon
+  # path (it would be placed adjacent to a .bluebook with no
+  # hecksagons/ directory, or at the repo root, or under a legacy
+  # framework/adapter_families/ slot).
+  #
+  # When AdapterLocation.Check runs against this file's path :
+  #   expected → emits FileScanned
+  #   then     → emits ViolationRecorded (because path is misplaced)
+  #   then     → emits ComplaintIssued via Complain
+  #
+  # The body itself is correct, so SuccessFailurePairing,
+  # InvocationPrinciple, and IdempotentByConstruction must all
+  # pass cleanly against the same source — isolating the
+  # location-only nature of this violation.
+
+  adapter "MisplacedAdapter" do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      dispatch "Tools::ShellTool.BashCompleted",
+               invocation_id: event.invocation_id,
+               output: event.stdout
+      dispatch "Tools::ShellTool.BashFailed",
+               invocation_id: event.invocation_id,
+               error: event.stderr
+    end
+  end
+end

@@ -1,0 +1,35 @@
+Hecks.hecksagon "CallbackAdapter" do
+  # NEGATIVE FIXTURE — invocation-principle violation (sprint 14)
+  #
+  # This adapter reaches BACK into the bus synchronously to fetch
+  # state instead of reading from the event payload. The synchronous
+  # callback re-couples the actor mode and breaks the fire-and-forget
+  # contract that the sprint-14 architecture relies on.
+  #
+  # Forbidden calls demonstrated below :
+  #   rt.find("Tools::ShellTool", event.invocation_id)
+  #   rt.resolve_query("Tools::ShellTool.find_by_invocation_id", ...)
+  #
+  # When InvocationPrinciple.Check runs against this file :
+  #   expected → emits FileScanned
+  #   then     → emits ViolationRecorded (forbidden_call = "rt.find(")
+  #   then     → emits ComplaintIssued via Complain
+  #
+  # The other three macrophages (AdapterLocation, SuccessFailurePairing,
+  # IdempotentByConstruction) all pass cleanly — isolating the
+  # callback-only nature of this violation.
+
+  adapter "CallbackAdapter" do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      shell_tool = rt.find("Tools::ShellTool", event.invocation_id)
+      previous_state = rt.resolve_query("Tools::ShellTool.find_by_invocation_id", id: event.invocation_id)
+      dispatch "Tools::ShellTool.BashCompleted",
+               invocation_id: event.invocation_id,
+               output: shell_tool.stdout,
+               previous: previous_state.exit_code
+      dispatch "Tools::ShellTool.BashFailed",
+               invocation_id: event.invocation_id,
+               error: shell_tool.stderr
+    end
+  end
+end
