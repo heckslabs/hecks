@@ -1034,20 +1034,26 @@ Hecks.behaviors "Tools" do
     expect emits: ["PrViewed"]
   end
 
-  # ── ShellAdapter (first-adapter slice, sprint 14) ────────────────
+  # ── ShellAdapter + Sprint14SmokeFanout (sprint 12 + 14) ──────────
   #
-  # Proves the NEW adapter shape : declaration at
-  # hecksagons/shell_adapter.hecksagon ; subscribes to BashRan via
-  # `driven on` ; dispatches Tools::TaskTool.Get as the follow-on.
-  # When this test goes green, four stories are simultaneously
-  # satisfied : adapter-block-grammar-v2, convention-discovery-v2,
-  # adapter-internally-synchronous, shell-adapter-end-to-end.
+  # Two adapters subscribe to the SAME Tools::ShellTool.BashRan event,
+  # both declared in the conventional location
+  # (framework/tools/hecksagons/). One Bash dispatch fans out to BOTH
+  # adapter cascades — each dispatches Tools::TaskTool.Get with a
+  # distinct id, producing two TaskFetched events in the cascade.
+  #
+  # When this test goes green, FIVE stories are simultaneously satisfied :
+  #   - adapter-block-grammar-v2          (driven on grammar parses)
+  #   - convention-discovery-v2           (hecksagons/ folder discovered)
+  #   - adapter-internally-synchronous    (cascade runs)
+  #   - shell-adapter-end-to-end          (one full event-in-event-out chain)
+  #   - sprint14-smoke-acceptance         (fan-out : multiple subscribers)
 
-  test "ShellAdapter dispatches TaskTool.Get when ShellTool.BashRan fires" do
+  test "ShellAdapter + Sprint14SmokeFanout both dispatch TaskTool.Get on BashRan" do
     tests "Bash", on: "ShellTool", kind: :cascade
     input  id:             { value: "shell-adapter-smoke-1" },
            shell_command:  { value: "echo smoke" },
-           description:    { value: "first-adapter slice smoke" }
-    expect emits: ["BashRan", "TaskFetched"]
+           description:    { value: "sprint 14 fan-out smoke" }
+    expect emits: ["BashRan", "TaskFetched", "TaskFetched"]
   end
 end
