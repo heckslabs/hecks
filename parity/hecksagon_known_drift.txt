@@ -111,3 +111,18 @@
 # or (b) the FamilyAdapterBuilder lift (i239) reaches `driven on` as a
 # first-class adapter-family keyword.
 hecks_conception/aggregates/framework/tools/hecksagons/shell_adapter.hecksagon  # Sprint 14 first-adapter slice : Ruby HecksagonBuilder doesn't yet recognise the quoted-name `adapter "X" do ... driven on ... end` form ; Rust captures it as a typed DrivenAdapter. Ruby-side gap, retires when DrivenAdapterBuilder lands.
+
+# ── 2026-05-31 — sprint 14 adapter-discipline macrophage fixtures ──
+# Demonstrative .hecksagon samples for the four sprint-14 adapter-discipline
+# macrophages (AdapterLocation, SuccessFailurePairing, InvocationPrinciple,
+# IdempotentByConstruction). Each uses the same new `adapter "X" do ... driven
+# on ... end` shape as the first-adapter slice above and hits the SAME Ruby
+# HecksagonBuilder gap (IoAdapterBuilder doesn't know `driven on`). Rust
+# captures each as a typed DrivenAdapter / DrivenHandler / DrivenDispatch.
+# Drift retires alongside shell_adapter.hecksagon when DrivenAdapterBuilder
+# lands on the Ruby side.
+hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/positive_compliant_adapter.hecksagon  # Sprint 14 adapter-discipline fixture (positive) ; same DrivenAdapter shape as shell_adapter slice.
+hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_misplaced_adapter.hecksagon  # Sprint 14 adapter-discipline fixture (negative : AdapterLocation) ; same DrivenAdapter shape.
+hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_success_only_adapter.hecksagon  # Sprint 14 adapter-discipline fixture (negative : SuccessFailurePairing) ; same DrivenAdapter shape.
+hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_callback_adapter.hecksagon  # Sprint 14 adapter-discipline fixture (negative : InvocationPrinciple) ; same DrivenAdapter shape.
+hecks_conception/aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_opt_in_idempotent.hecksagon  # Sprint 14 adapter-discipline fixture (negative : IdempotentByConstruction) ; same DrivenAdapter shape ; also carries forbidden `idempotent` keyword — self-exempted by IdempotentByConstruction once the Rust scanner lands.

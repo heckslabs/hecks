@@ -1,0 +1,31 @@
+Hecks.hecksagon "OptInIdempotentAdapter" do
+  # NEGATIVE FIXTURE — idempotent-by-construction violation (sprint 14)
+  #
+  # This adapter attempts to opt into idempotency at the user-space
+  # level — either via an `idempotent` keyword on the declaration
+  # or via a `dedup_by` parameter. The sprint-14 locked decision is
+  # that idempotency is a RUNTIME guarantee, universal and free,
+  # handled in driven_adapter_resolver before the handler body fires.
+  # Any user-space opt-in fights that guarantee, duplicates state,
+  # and signals an architectural misunderstanding.
+  #
+  # When IdempotentByConstruction.Check runs against this file :
+  #   expected → emits FileScanned
+  #   then     → emits ViolationRecorded (forbidden_pattern = "idempotent")
+  #   then     → emits ComplaintIssued via Complain
+  #
+  # The other three macrophages (AdapterLocation, SuccessFailurePairing,
+  # InvocationPrinciple) all pass cleanly — isolating the opt-in-only
+  # nature of this violation.
+
+  adapter "OptInIdempotentAdapter", idempotent: true, dedup_by: :invocation_id do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      dispatch "Tools::ShellTool.BashCompleted",
+               invocation_id: event.invocation_id,
+               output: event.stdout
+      dispatch "Tools::ShellTool.BashFailed",
+               invocation_id: event.invocation_id,
+               error: event.stderr
+    end
+  end
+end

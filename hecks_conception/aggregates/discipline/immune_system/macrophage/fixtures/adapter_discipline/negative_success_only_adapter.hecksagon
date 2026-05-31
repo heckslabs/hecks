@@ -1,0 +1,26 @@
+Hecks.hecksagon "SuccessOnlyAdapter" do
+  # NEGATIVE FIXTURE — success-failure-pairing violation (sprint 14)
+  #
+  # This adapter dispatches ONLY a success event — the failure
+  # branch is silently swallowed. The bus only ever observes the
+  # happy path ; any actor downstream waiting on the failure event
+  # waits forever.
+  #
+  # When SuccessFailurePairing.Check runs against this file :
+  #   expected → emits FileScanned
+  #   then     → emits ViolationRecorded (found_pair = "success-only : BashCompleted")
+  #   then     → emits ComplaintIssued via Complain
+  #
+  # AdapterLocation and InvocationPrinciple and IdempotentByConstruction
+  # all pass cleanly against this file — isolating the pairing-only
+  # nature of this violation.
+
+  adapter "SuccessOnlyAdapter" do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      dispatch "Tools::ShellTool.BashCompleted",
+               invocation_id: event.invocation_id,
+               output: event.stdout
+      # MISSING : dispatch "Tools::ShellTool.BashFailed", ...
+    end
+  end
+end

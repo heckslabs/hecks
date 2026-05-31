@@ -1,5 +1,5 @@
 Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
-  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirst, FixturesRuntime, AntibodyExemption, Warnings, LinearReference, LineCount, TestSpeed, CardLock, BidirectionalAssociation, IdentityDiscipline, CorrespondenceDiscipline) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. FQN dispatch reads Macrophage::BluebookFirst.Command etc. — the domain prefix already says 'macrophage', no suffix needed."
+  vision "The Macrophage domain — umbrella for the singleton Macrophage aggregate and the i595 family of per-rule sibling aggregates. The singleton (Macrophage) is the hook's current dispatch target and the historical root; the per-rule siblings (BluebookFirst, FixturesRuntime, AntibodyExemption, Warnings, LinearReference, LineCount, TestSpeed, CardLock, BidirectionalAssociation, IdentityDiscipline, WritingDiscipline, CorrespondenceDiscipline, AdapterLocation, SuccessFailurePairing, InvocationPrinciple, IdempotentByConstruction) each enforce exactly one discipline rule with their own counters, entity collections, and complaint history. The last four are the sprint-14 adapter-discipline family : they enforce that adapters live under <bluebook>/hecksagons/<service>.hecksagon, dispatch both success and failure events, never synchronously query the bus from adapter bodies, and never opt in to idempotency at user-space (the runtime handles dedup universally by event-id). FQN dispatch reads Macrophage::BluebookFirst.Command etc. — the domain prefix already says 'macrophage', no suffix needed."
   category "discipline"
 
   # ============================================================
@@ -2679,6 +2679,792 @@ Hecks.bluebook "Macrophage", version: "2026.05.14.1" do
       then_set :last_offending_surface,     to: :surface
       then_set :last_offending_invocation,  to: :invocation_id
       emits "ComplaintIssued"
+    end
+  end
+
+  # ============================================================
+  # ADAPTER LOCATION — one macrophage, one rule (sprint 14)
+  # ============================================================
+  #
+  # The driven-adapter shape lives at a conventional filesystem
+  # location : <bluebook>/hecksagons/<service>.hecksagon. The
+  # convention-discovery contract (i595, sprint 14) reads that
+  # path at boot to register subscriptions. If adapter declarations
+  # drift to other locations (top-level *.hecksagon files, sibling
+  # bluebook directories, ad-hoc placement under random aggregate
+  # roots) the discovery contract breaks silently — nothing fires.
+  #
+  # This macrophage scans the corpus for declarations of the new
+  # adapter shape (Hecks.adapter "Name" do ; driven on ... ; end ;
+  # end, or the inner adapter "Name" do ... end inside a
+  # Hecks.hecksagon block) and flags any that land outside
+  # <bluebook>/hecksagons/<service>.hecksagon.
+  #
+  # Compliant location :
+  #   <any-bluebook-dir>/hecksagons/<service>.hecksagon
+  #
+  # Non-compliant locations (will fire) :
+  #   <any-bluebook-dir>/<random-name>.hecksagon  (not under hecksagons/)
+  #   <any-bluebook-dir>/<service>.hecksagon      (sibling to bluebook, no hecksagons/ dir)
+  #   framework/adapter_families/<x>.hecksagon    (legacy retired location, per sprint-14 lock)
+  #
+  # The reference implementation is the first-adapter slice (PR
+  # #697) — framework/tools/hecksagons/shell_adapter.hecksagon is
+  # the canonical example.
+  #
+  # Complaint voice :
+  #   "The AdapterLocation macrophage expected the adapter declared
+  #   in <file_path> to live at <expected_path>. Adapters must live
+  #   under <bluebook>/hecksagons/<service>.hecksagon so the
+  #   convention-discovery contract (sprint 14) can register their
+  #   subscriptions at boot. Move the file and update any references."
+  #
+  # Filed as the fourteenth per-rule macrophage sibling (sprint 14,
+  # i595 family). The existing Macrophage aggregate is NOT retired
+  # here — this aggregate is a sibling.
+
+  aggregate "AdapterLocation", "Per-rule macrophage for the adapter-location enforcement — adapters must live at <bluebook>/hecksagons/<service>.hecksagon so the convention-discovery contract can find them. Tracks scanned files, records misplaced declarations, and maintains the complaint history for this rule alone." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Scan tallies — scoped to this rule.
+    attribute :files_scanned,         FileCount
+    attribute :misplaced_declarations, FileCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,        ComplaintText
+    attribute :last_complaint_at,     Timestamp
+    attribute :last_offending_file,   FilePath
+    attribute :last_expected_path,    FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-entity recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an adapter declaration (offending or compliant).
+      attribute :value, String
+    end
+
+    value_object "AdapterName" do
+      # The PascalCase name of an adapter as declared in its
+      # `adapter "Name" do` header. Used to build the expected
+      # location and to identify the violation in the audit trail.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The AdapterLocation macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "FileCount" do
+      # Count of files scanned or misplaced declarations detected
+      # in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ExemptionReason" do
+      # Human-readable rationale for why a specific adapter file
+      # is explicitly exempted from the location check.
+      # Required — a blank exemption is itself a violation of the
+      # exemption discipline.
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "LocationViolation" do
+      description "One historical adapter-location violation event. Records the offending file path, the adapter name declared inside, the expected canonical path, and the full complaint text. The last_complaint / last_complaint_at / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :adapter_name,   AdapterName
+      attribute :expected_path,  FilePath
+      attribute :complaint_text, ComplaintText
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "Exemption" do
+      description "An explicitly named exemption for an adapter declaration that is legitimately allowed to live outside the canonical hecksagons/ directory (typically the legacy framework/adapter_families/ shims during the sprint-14 migration). Exemptions must name a concrete rationale; a vague reason is itself a macrophage violation."
+      attribute :file_path,   FilePath
+      attribute :reason,      ExemptionReason
+      attribute :exempted_at, Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was scanned today, not lifetime totals. The LocationViolation and Exemption entity collections are NOT reset — they are audit trail and standing rules respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Check surface ──
+
+    command "Check" do
+      role "Hook"
+      description "Run the adapter-location check against a single .hecksagon file. The hook reads the file looking for the new adapter declaration shape ; if any are found and the file path is NOT under <some-bluebook>/hecksagons/<service>.hecksagon, chains into RecordViolation + Complain. Files listed in the Exemption collection are skipped silently. Increments files_scanned regardless of outcome."
+      attribute :file_path, FilePath
+      emits "FileScanned"
+    end
+
+    command "RecordViolation" do
+      role "Hook"
+      description "Record a detected misplaced adapter declaration in the violation audit trail. Appends a LocationViolation entity, increments misplaced_declarations, and updates the last_offending_* scalars on the root. Called by the Check command for each offending file before Complain fires — this command records the fact; Complain records the reaction."
+      attribute :file_path,     FilePath
+      attribute :adapter_name,  AdapterName
+      attribute :expected_path, FilePath
+      attribute :recorded_at,   Timestamp
+      then_set :last_offending_file, to: :file_path
+      then_set :last_expected_path,  to: :expected_path
+      emits "ViolationRecorded"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The AdapterLocation macrophage detected an adapter declaration outside <bluebook>/hecksagons/<service>.hecksagon. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline. Complaint text begins 'The AdapterLocation macrophage expected the adapter declared in <file_path> to live at <expected_path>. Adapters must live under <bluebook>/hecksagons/<service>.hecksagon so the convention-discovery contract (sprint 14) can register their subscriptions at boot. Move the file and update any references.' so the rule name and corrective action are both visible."
+      attribute :file_path,         FilePath
+      attribute :adapter_name,      AdapterName
+      attribute :expected_path,     FilePath
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    # ── Exemption surface ──
+
+    command "Exempt" do
+      role "System"
+      description "Grant a named exemption for an adapter file that is legitimately allowed to live outside the canonical hecksagons/ directory — typically the legacy framework/adapter_families/ shims during the sprint-14 migration. The reason attribute must name a concrete, per-file rationale — not a generic phrase. Once an Exemption entity exists for a file, Check silently skips it on future runs. Exemptions are standing rules (not per-session) and survive session resets."
+      attribute :file_path,   FilePath
+      attribute :reason,      ExemptionReason
+      attribute :exempted_at, Timestamp
+      emits "ExemptionGranted"
+    end
+  end
+
+  # ============================================================
+  # SUCCESS-FAILURE PAIRING — one macrophage, one rule (sprint 14)
+  # ============================================================
+  #
+  # Driven adapters wrap an outside call (shell, http, mcp, bluebook
+  # command, whatever) and ALWAYS produce a follow-up dispatch with
+  # the result. The contract is bidirectional : every adapter must
+  # dispatch BOTH a success and a failure event. No silent swallow ;
+  # no exception bubble out of the adapter into the bus.
+  #
+  # Pair-naming convention : <X>.Completed (success) and
+  # <X>.Failed (failure), where <X> is the adapter's operation
+  # name. Picked because Completed/Failed reads naturally in the
+  # event-name surface (Sprint.Completed / Plan.Completed already
+  # established) and matches the BashRan-style past-tense
+  # convention without ambiguity. Reasonable alternatives
+  # (Succeeded/Failed, Ok/Err) are equally legitimate — what the
+  # macrophage enforces is the PAIRING, not the specific words,
+  # so any (success_event, failure_event) pair declared together
+  # is accepted. The .Completed/.Failed names are the default
+  # surfaced in complaint text and the convention documented in
+  # the PR description.
+  #
+  # What this macrophage checks :
+  #   For every `adapter "X" do ... end` block inside a .hecksagon
+  #   file : count the `dispatch "...event_name..."` calls reachable
+  #   from the adapter body (including from inside `driven on` and
+  #   `driving on` handlers). If only one dispatch is present, OR
+  #   if two dispatches share a single naming polarity (both look
+  #   like success, both look like failure), the adapter is flagged.
+  #
+  # Complaint voice :
+  #   "The SuccessFailurePairing macrophage expected the adapter
+  #   <adapter_name> in <file_path> to dispatch both a success
+  #   and a failure event. Found <found_pair>. Add the missing
+  #   dispatch — the bus must observe both outcomes so downstream
+  #   actors can wait on either. Default convention :
+  #   <X>.Completed for success, <X>.Failed for failure."
+  #
+  # Filed as the fifteenth per-rule macrophage sibling (sprint 14,
+  # i595 family). The existing Macrophage aggregate is NOT retired
+  # here — this aggregate is a sibling.
+
+  aggregate "SuccessFailurePairing", "Per-rule macrophage for the success-failure-pairing enforcement — every driven adapter body must dispatch both a success and a failure event. Tracks scanned adapters, records pairing violations, and maintains the complaint history for this rule alone." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Scan tallies — scoped to this rule.
+    attribute :adapters_checked,    AdapterCount
+    attribute :pairing_violations,  AdapterCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_adapter, AdapterName
+    attribute :last_offending_file,    FilePath
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string. Used for session_started_at,
+      # last_complaint_at, and per-entity recorded_at fields.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an adapter declaration.
+      attribute :value, String
+    end
+
+    value_object "AdapterName" do
+      # The PascalCase name of an adapter as declared in its
+      # `adapter "Name" do` header. Used to identify the violation
+      # in the audit trail and in the complaint text.
+      attribute :value, String
+    end
+
+    value_object "EventName" do
+      # The fully-qualified name of a bus event dispatched from
+      # the adapter body — e.g. "Tools::ShellTool.BashCompleted"
+      # or "Tools::ShellTool.BashFailed". Stored on each
+      # PairingViolation entity so the missing-or-present pair
+      # is self-documenting in the audit trail.
+      attribute :value, String
+    end
+
+    value_object "FoundPair" do
+      # Human-readable description of what the macrophage actually
+      # found in the adapter body — e.g. "success-only :
+      # BashCompleted", "two successes : BashCompleted, BashRan",
+      # "no dispatches at all". Used directly inside the
+      # complaint text so the rule's diagnosis is verbatim in the
+      # statusline message.
+      attribute :value, String
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The SuccessFailurePairing macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "AdapterCount" do
+      # Count of adapters checked or pairing violations detected
+      # in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ExemptionReason" do
+      # Human-readable rationale for why a specific adapter is
+      # explicitly exempted from the pairing check.
+      # Required — a blank exemption is itself a violation of the
+      # exemption discipline.
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "PairingViolation" do
+      description "One historical pairing-violation event. Records which adapter in which file lacks a complete success/failure dispatch pair, what was found (verbatim FoundPair text), and the full complaint text. The last_complaint / last_complaint_at / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :adapter_name,   AdapterName
+      attribute :found_pair,     FoundPair
+      attribute :complaint_text, ComplaintText
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "Exemption" do
+      description "An explicitly named exemption for an adapter that is legitimately allowed to dispatch only one outcome — e.g. a fire-and-forget broadcast adapter, or an adapter wrapping an operation that cannot fail by construction. Exemptions must name a concrete rationale; a vague reason is itself a macrophage violation."
+      attribute :file_path,    FilePath
+      attribute :adapter_name, AdapterName
+      attribute :reason,       ExemptionReason
+      attribute :exempted_at,  Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was scanned today, not lifetime totals. The PairingViolation and Exemption entity collections are NOT reset — they are audit trail and standing rules respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Check surface ──
+
+    command "Check" do
+      role "Hook"
+      description "Run the success-failure-pairing check against a single .hecksagon file. The hook parses each adapter block, enumerates the dispatch calls reachable from the body, and applies the pairing heuristic : both a success-shaped and a failure-shaped event name must be present (default convention <X>.Completed and <X>.Failed, alternatives Succeeded/Failed, Ok/Err accepted as long as both polarities appear). On violation, chains into RecordViolation + Complain. Adapters listed in the Exemption collection are skipped silently. Increments adapters_checked once per adapter in the file."
+      attribute :file_path, FilePath
+      emits "FileScanned"
+    end
+
+    command "RecordViolation" do
+      role "Hook"
+      description "Record a detected pairing violation in the audit trail. Appends a PairingViolation entity, increments pairing_violations, and updates the last_offending_* scalars on the root. Called by the Check command for each offending adapter before Complain fires — this command records the fact; Complain records the reaction."
+      attribute :file_path,    FilePath
+      attribute :adapter_name, AdapterName
+      attribute :found_pair,   FoundPair
+      attribute :recorded_at,  Timestamp
+      then_set :last_offending_adapter, to: :adapter_name
+      then_set :last_offending_file,    to: :file_path
+      emits "ViolationRecorded"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The SuccessFailurePairing macrophage detected an adapter that does not dispatch both a success and a failure event. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline. Complaint text begins 'The SuccessFailurePairing macrophage expected the adapter <adapter_name> in <file_path> to dispatch both a success and a failure event. Found <found_pair>. Add the missing dispatch — the bus must observe both outcomes so downstream actors can wait on either. Default convention : <X>.Completed for success, <X>.Failed for failure.' so the rule name, the diagnosis, and the corrective action are all visible."
+      attribute :file_path,         FilePath
+      attribute :adapter_name,      AdapterName
+      attribute :found_pair,        FoundPair
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    # ── Exemption surface ──
+
+    command "Exempt" do
+      role "System"
+      description "Grant a named exemption for an adapter that is legitimately allowed to dispatch only one outcome — fire-and-forget broadcasts, infallible operations. The reason attribute must name a concrete, per-adapter rationale — not a generic phrase. Once an Exemption entity exists, Check silently skips that adapter on future runs. Exemptions are standing rules (not per-session) and survive session resets."
+      attribute :file_path,    FilePath
+      attribute :adapter_name, AdapterName
+      attribute :reason,       ExemptionReason
+      attribute :exempted_at,  Timestamp
+      emits "ExemptionGranted"
+    end
+  end
+
+  # ============================================================
+  # NO CALLBACK TO BUS FROM ADAPTER BODY — one macrophage, one rule
+  # ============================================================
+  #
+  # Cockburn's Invocation Principle as it lands in Hecks :
+  # adapter bodies dispatch new events (fire-and-forget) but DO
+  # NOT make synchronous queries back into the bus. The driven_on
+  # handler receives a fat event payload that carries everything
+  # the adapter needs ; if it needs more, the upstream emitter
+  # should put it in the event. Back-querying breaks the
+  # asynchronous actor-mode contract and reintroduces the
+  # synchronous-callback coupling the hexagonal pattern is meant
+  # to eliminate.
+  #
+  # Forbidden calls (grep-checked inside adapter bodies) :
+  #   rt.find(           — synchronous aggregate lookup
+  #   rt.resolve_query(  — synchronous query dispatch
+  #   rt.state_of(       — synchronous state fetch
+  #   bus.query(         — alias for the above
+  #   runtime.find(      — long-form alias
+  #
+  # Allowed calls :
+  #   dispatch "X.Y", ...  — fire-and-forget event emission
+  #   event.<attr>          — reading the event payload
+  #   normal Ruby/Rust expression evaluation
+  #
+  # What this macrophage checks :
+  #   For every `adapter "X" do ... end` block inside a .hecksagon
+  #   file : scan the body source for forbidden-call substrings.
+  #   On any match, chains into RecordViolation + Complain.
+  #
+  # Complaint voice :
+  #   "The InvocationPrinciple macrophage expected the adapter
+  #   <adapter_name> in <file_path> to read its inputs from the
+  #   event payload, not from the bus. Found <forbidden_call> at
+  #   line <line_number>. Move the data into the upstream event,
+  #   or split the dependency into a new dispatched command.
+  #   Adapter bodies are fire-and-forget — no synchronous bus
+  #   queries (Cockburn Invocation Principle)."
+  #
+  # Filed as the sixteenth per-rule macrophage sibling (sprint 14,
+  # i595 family). The existing Macrophage aggregate is NOT retired
+  # here — this aggregate is a sibling.
+
+  aggregate "InvocationPrinciple", "Per-rule macrophage for the no-callback-to-bus-from-adapter-body enforcement — adapter bodies must not synchronously query the bus. Tracks scanned adapters, records callback violations, and maintains the complaint history for this rule alone." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Scan tallies — scoped to this rule.
+    attribute :adapters_checked,   AdapterCount
+    attribute :callback_violations, AdapterCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,         ComplaintText
+    attribute :last_complaint_at,      Timestamp
+    attribute :last_offending_adapter, AdapterName
+    attribute :last_offending_file,    FilePath
+    attribute :last_forbidden_call,    ForbiddenCall
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an adapter declaration.
+      attribute :value, String
+    end
+
+    value_object "AdapterName" do
+      # The PascalCase name of an adapter as declared in its
+      # `adapter "Name" do` header.
+      attribute :value, String
+    end
+
+    value_object "ForbiddenCall" do
+      # The verbatim source-text fragment that triggered the
+      # violation — e.g. "rt.find(", "rt.resolve_query(",
+      # "bus.query(". Stored as-found so the complaint can quote
+      # the exact site, making the corrective action obvious.
+      attribute :value, String
+    end
+
+    value_object "LineNumber" do
+      # 1-based line number inside the .hecksagon file where the
+      # forbidden call was detected. Recorded so the complaint
+      # can point the developer at the exact site.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The InvocationPrinciple macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "AdapterCount" do
+      # Count of adapters checked or callback violations detected
+      # in the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ExemptionReason" do
+      # Human-readable rationale for why a specific adapter is
+      # explicitly exempted from the no-callback check.
+      # Required — a blank exemption is itself a violation of the
+      # exemption discipline.
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "CallbackViolation" do
+      description "One historical callback-violation event. Records which adapter in which file made a forbidden synchronous bus query, the verbatim forbidden-call text, the line number, and the full complaint text. The last_complaint / last_complaint_at / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,    Timestamp
+      attribute :file_path,      FilePath
+      attribute :adapter_name,   AdapterName
+      attribute :forbidden_call, ForbiddenCall
+      attribute :line_number,    LineNumber
+      attribute :complaint_text, ComplaintText
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "Exemption" do
+      description "An explicitly named exemption for an adapter that is legitimately allowed to synchronously query the bus (typically migration shims that wrap legacy synchronous-query call sites during the sprint-14 cutover). Exemptions must name a concrete rationale; a vague reason is itself a macrophage violation."
+      attribute :file_path,    FilePath
+      attribute :adapter_name, AdapterName
+      attribute :reason,       ExemptionReason
+      attribute :exempted_at,  Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was scanned today, not lifetime totals. The CallbackViolation and Exemption entity collections are NOT reset — they are audit trail and standing rules respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Check surface ──
+
+    command "Check" do
+      role "Hook"
+      description "Run the no-callback-to-bus check against a single .hecksagon file. The hook parses each adapter block and scans the body source for forbidden synchronous-bus-query substrings (rt.find(, rt.resolve_query(, rt.state_of(, bus.query(, runtime.find(). On any match, chains into RecordViolation + Complain. Adapters listed in the Exemption collection are skipped silently. Increments adapters_checked once per adapter in the file."
+      attribute :file_path, FilePath
+      emits "FileScanned"
+    end
+
+    command "RecordViolation" do
+      role "Hook"
+      description "Record a detected callback violation in the audit trail. Appends a CallbackViolation entity, increments callback_violations, and updates the last_offending_* and last_forbidden_call scalars on the root. Called by the Check command for each offending adapter before Complain fires — this command records the fact; Complain records the reaction."
+      attribute :file_path,      FilePath
+      attribute :adapter_name,   AdapterName
+      attribute :forbidden_call, ForbiddenCall
+      attribute :line_number,    LineNumber
+      attribute :recorded_at,    Timestamp
+      then_set :last_offending_adapter, to: :adapter_name
+      then_set :last_offending_file,    to: :file_path
+      then_set :last_forbidden_call,    to: :forbidden_call
+      emits "ViolationRecorded"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The InvocationPrinciple macrophage detected an adapter body that synchronously queries the bus. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline. Complaint text begins 'The InvocationPrinciple macrophage expected the adapter <adapter_name> in <file_path> to read its inputs from the event payload, not from the bus. Found <forbidden_call> at line <line_number>. Move the data into the upstream event, or split the dependency into a new dispatched command. Adapter bodies are fire-and-forget — no synchronous bus queries (Cockburn Invocation Principle).' so the rule name, the diagnosis, and the corrective action are all visible."
+      attribute :file_path,         FilePath
+      attribute :adapter_name,      AdapterName
+      attribute :forbidden_call,    ForbiddenCall
+      attribute :line_number,       LineNumber
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    # ── Exemption surface ──
+
+    command "Exempt" do
+      role "System"
+      description "Grant a named exemption for an adapter that is legitimately allowed to synchronously query the bus — typically a migration shim wrapping a legacy synchronous call site during the sprint-14 cutover. The reason attribute must name a concrete, per-adapter rationale — not a generic phrase. Once an Exemption entity exists, Check silently skips that adapter on future runs. Exemptions are standing rules (not per-session) and survive session resets."
+      attribute :file_path,    FilePath
+      attribute :adapter_name, AdapterName
+      attribute :reason,       ExemptionReason
+      attribute :exempted_at,  Timestamp
+      emits "ExemptionGranted"
+    end
+  end
+
+  # ============================================================
+  # IDEMPOTENT BY CONSTRUCTION — one macrophage, one rule (sprint 14)
+  # ============================================================
+  #
+  # Sprint-14 locked decision : adapter idempotency lives in the
+  # RUNTIME, not in the domain. The driven_adapter_resolver dedups
+  # universally by bus event-id BEFORE firing the handler body —
+  # every adapter is idempotent for free, and the domain stays
+  # id-free. Retry semantics are NEW event-ids dispatched by the
+  # caller, not the same event re-delivered.
+  #
+  # The corollary discipline is that nothing in user-space (bluebook
+  # or hecksagon source) should attempt to opt into idempotency — no
+  # `idempotent` keyword in the adapter DSL, no `dedup_by` parameter,
+  # no per-adapter idempotency log. Any such attempt fights the
+  # runtime guarantee, adds duplicate state, and signals that the
+  # author misunderstands the locked architecture.
+  #
+  # Forbidden user-space patterns (grep-checked across .hecksagon
+  # AND .bluebook files) :
+  #   idempotent             — opt-in keyword on adapter declaration
+  #   dedup_by               — adapter-side dedup-key parameter
+  #   idempotency_key        — per-event key attempt
+  #   if_not_already_dispatched — guard pattern that fakes dedup
+  #   adapter_idempotency_log   — per-adapter log attempt
+  #
+  # Allowed patterns :
+  #   anything else — the runtime handles dedup universally
+  #
+  # What this macrophage checks :
+  #   For every .hecksagon or .bluebook file : scan source for
+  #   the forbidden-pattern substrings. On any match, chains into
+  #   RecordViolation + Complain.
+  #
+  # Complaint voice :
+  #   "The IdempotentByConstruction macrophage expected zero
+  #   user-space idempotency opt-in. Found <forbidden_pattern>
+  #   in <file_path> at line <line_number>. Idempotency lives in
+  #   the runtime — the driven_adapter_resolver dedups every
+  #   event by bus event-id automatically. Remove the opt-in ;
+  #   if you need retry semantics, dispatch a new event-id."
+  #
+  # Filed as the seventeenth per-rule macrophage sibling (sprint 14,
+  # i595 family). The existing Macrophage aggregate is NOT retired
+  # here — this aggregate is a sibling.
+
+  aggregate "IdempotentByConstruction", "Per-rule macrophage for the runtime-universal-idempotency lock — bans user-space idempotency opt-in in .hecksagon and .bluebook source so the runtime's universal event-id dedup remains the single mechanism. Tracks scanned files, records opt-in violations, and maintains the complaint history for this rule alone." do
+    identified_by :name
+
+    attribute :name, Name
+
+    # Session metadata
+    attribute :session_started_at, Timestamp
+
+    # Scan tallies — scoped to this rule.
+    attribute :files_scanned,    FileCount
+    attribute :opt_in_violations, FileCount
+
+    # Latest-violation surface — quick read for the statusline.
+    attribute :last_complaint,           ComplaintText
+    attribute :last_complaint_at,        Timestamp
+    attribute :last_offending_file,      FilePath
+    attribute :last_forbidden_pattern,   ForbiddenPattern
+
+    # ── Value-objects : this rule's language ──
+
+    value_object "Name" do
+      # Singleton key for this macrophage.
+      attribute :value, String
+    end
+
+    value_object "Timestamp" do
+      # ISO-8601 timestamp string.
+      attribute :value, String
+    end
+
+    value_object "FilePath" do
+      # An absolute or relative filesystem path recorded as the
+      # site of an opt-in violation or a clean scan.
+      attribute :value, String
+    end
+
+    value_object "ForbiddenPattern" do
+      # The verbatim source-text fragment that triggered the
+      # violation — e.g. "idempotent", "dedup_by",
+      # "idempotency_key", "if_not_already_dispatched",
+      # "adapter_idempotency_log". Stored as-found so the
+      # complaint can quote the exact site.
+      attribute :value, String
+    end
+
+    value_object "LineNumber" do
+      # 1-based line number inside the source file where the
+      # forbidden pattern was detected.
+      attribute :value, Integer
+    end
+
+    value_object "ComplaintText" do
+      # The body of a complaint — the stderr text the hook emits.
+      # Includes the rule name so complaint attribution is clear :
+      # "The IdempotentByConstruction macrophage expected ..."
+      attribute :value, String
+    end
+
+    value_object "FileCount" do
+      # Count of files scanned or opt-in violations detected in
+      # the current session.
+      attribute :value, Integer
+    end
+
+    value_object "ExemptionReason" do
+      # Human-readable rationale for why a specific file is
+      # explicitly exempted from the no-opt-in check.
+      # Required — a blank exemption is itself a violation of
+      # the exemption discipline.
+      attribute :value, String
+    end
+
+    # ── Entity — violation audit trail ──
+
+    entity "OptInViolation" do
+      description "One historical idempotency-opt-in violation event. Records which file attempted to opt into idempotency, the verbatim forbidden-pattern text, the line number, and the full complaint text. The last_complaint / last_complaint_at / last_offending_* scalars on the root mirror the most recent entry; this collection holds the full audit trail."
+      attribute :recorded_at,       Timestamp
+      attribute :file_path,         FilePath
+      attribute :forbidden_pattern, ForbiddenPattern
+      attribute :line_number,       LineNumber
+      attribute :complaint_text,    ComplaintText
+    end
+
+    # ── Entity — named exemptions ──
+
+    entity "Exemption" do
+      description "An explicitly named exemption for a file that is legitimately allowed to use idempotency-opt-in vocabulary in non-architectural contexts (typically documentation files describing the runtime mechanism, or test fixtures negative-testing the macrophage itself). Exemptions must name a concrete rationale; a vague reason is itself a macrophage violation."
+      attribute :file_path,   FilePath
+      attribute :reason,      ExemptionReason
+      attribute :exempted_at, Timestamp
+    end
+
+    # ── Session lifecycle ──
+
+    command "StartSession" do
+      role "System"
+      description "Reset per-session counters at boot. The macrophage keeps a per-session tally so the discipline scoreboard reflects what was scanned today, not lifetime totals. The OptInViolation and Exemption entity collections are NOT reset — they are audit trail and standing rules respectively."
+      attribute :session_started_at, Timestamp
+      then_set :session_started_at, to: :session_started_at
+      emits "SessionStarted"
+    end
+
+    # ── Check surface ──
+
+    command "Check" do
+      role "Hook"
+      description "Run the no-idempotency-opt-in check against a single .hecksagon or .bluebook file. The hook scans source for forbidden user-space idempotency opt-in patterns (idempotent, dedup_by, idempotency_key, if_not_already_dispatched, adapter_idempotency_log). On any match, chains into RecordViolation + Complain. Files listed in the Exemption collection are skipped silently. Increments files_scanned regardless of outcome."
+      attribute :file_path, FilePath
+      emits "FileScanned"
+    end
+
+    command "RecordViolation" do
+      role "Hook"
+      description "Record a detected opt-in violation in the audit trail. Appends an OptInViolation entity, increments opt_in_violations, and updates the last_offending_* and last_forbidden_pattern scalars on the root. Called by the Check command for each offending site before Complain fires — this command records the fact; Complain records the reaction."
+      attribute :file_path,         FilePath
+      attribute :forbidden_pattern, ForbiddenPattern
+      attribute :line_number,       LineNumber
+      attribute :recorded_at,       Timestamp
+      then_set :last_offending_file,    to: :file_path
+      then_set :last_forbidden_pattern, to: :forbidden_pattern
+      emits "ViolationRecorded"
+    end
+
+    command "Complain" do
+      role "Hook"
+      description "The IdempotentByConstruction macrophage detected user-space code attempting to opt into idempotency. Records the complaint text and timestamp on the root for fast statusline reads. The hook ALSO prints to stderr so Claude Code surfaces the complaint as a system reminder on the next turn — the feedback loop that closes the discipline. Complaint text begins 'The IdempotentByConstruction macrophage expected zero user-space idempotency opt-in. Found <forbidden_pattern> in <file_path> at line <line_number>. Idempotency lives in the runtime — the driven_adapter_resolver dedups every event by bus event-id automatically. Remove the opt-in ; if you need retry semantics, dispatch a new event-id.' so the rule name, the diagnosis, and the corrective action are all visible."
+      attribute :file_path,         FilePath
+      attribute :forbidden_pattern, ForbiddenPattern
+      attribute :line_number,       LineNumber
+      attribute :complaint,         ComplaintText
+      attribute :last_complaint_at, Timestamp
+      then_set :last_complaint,    to: :complaint
+      then_set :last_complaint_at, to: :last_complaint_at
+      emits "ComplaintIssued"
+    end
+
+    # ── Exemption surface ──
+
+    command "Exempt" do
+      role "System"
+      description "Grant a named exemption for a file that is legitimately allowed to use idempotency-opt-in vocabulary — typically documentation describing the runtime mechanism, or test fixtures negative-testing the macrophage itself. The reason attribute must name a concrete, per-file rationale — not a generic phrase. Once an Exemption entity exists, Check silently skips that file on future runs. Exemptions are standing rules (not per-session) and survive session resets."
+      attribute :file_path,   FilePath
+      attribute :reason,      ExemptionReason
+      attribute :exempted_at, Timestamp
+      emits "ExemptionGranted"
     end
   end
 end

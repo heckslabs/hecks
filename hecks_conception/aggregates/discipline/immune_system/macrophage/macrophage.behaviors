@@ -300,4 +300,250 @@ Hecks.behaviors "Macrophage" do
            retired_at: { value: "2026-05-15T09:04:00Z" }
     expect emits: ["SurfaceUnwatched"]
   end
+
+  # ── AdapterLocation aggregate (sprint 14) ──────────────────────
+  #
+  # Companion-block coverage for the AdapterLocation macrophage.
+  # Each test exercises one command's state contract : input attributes
+  # recorded onto the aggregate, lifecycle counters incremented,
+  # ComplaintIssued / ViolationRecorded emitted.
+
+  test "AdapterLocation StartSession records session_started_at" do
+    tests "StartSession", on: "AdapterLocation"
+    input  session_started_at: { value: "2026-05-30T10:00:00Z" }
+    expect session_started_at: { value: "2026-05-30T10:00:00Z" }
+  end
+
+  test "AdapterLocation StartSession emits SessionStarted" do
+    tests "StartSession", on: "AdapterLocation"
+    input  session_started_at: { value: "2026-05-30T10:00:00Z" }
+    expect emits: ["SessionStarted"]
+  end
+
+  test "AdapterLocation Check records a clean run" do
+    tests "Check", on: "AdapterLocation"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:00:00Z" }
+    input  file_path: { value: "aggregates/framework/tools/hecksagons/shell_adapter.hecksagon" }
+    expect emits: ["FileScanned"]
+  end
+
+  test "AdapterLocation RecordViolation appends a LocationViolation entity" do
+    tests "RecordViolation", on: "AdapterLocation"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:00:00Z" }
+    input  file_path:     { value: "aggregates/framework/misplaced.hecksagon" },
+           adapter_name:  { value: "MisplacedAdapter" },
+           expected_path: { value: "aggregates/framework/hecksagons/misplaced.hecksagon" },
+           recorded_at:   { value: "2026-05-30T10:00:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "AdapterLocation Complain sets last_complaint" do
+    tests "Complain", on: "AdapterLocation"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:00:00Z" }
+    input  file_path:         { value: "aggregates/framework/misplaced.hecksagon" },
+           adapter_name:      { value: "MisplacedAdapter" },
+           expected_path:     { value: "aggregates/framework/hecksagons/misplaced.hecksagon" },
+           complaint:         { value: "The AdapterLocation macrophage expected the adapter declared in aggregates/framework/misplaced.hecksagon to live at aggregates/framework/hecksagons/misplaced.hecksagon." },
+           last_complaint_at: { value: "2026-05-30T10:00:02Z" }
+    expect last_complaint: { value: "The AdapterLocation macrophage expected the adapter declared in aggregates/framework/misplaced.hecksagon to live at aggregates/framework/hecksagons/misplaced.hecksagon." }
+  end
+
+  test "AdapterLocation Complain emits ComplaintIssued" do
+    tests "Complain", on: "AdapterLocation"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:00:00Z" }
+    input  file_path:         { value: "aggregates/framework/misplaced.hecksagon" },
+           adapter_name:      { value: "MisplacedAdapter" },
+           expected_path:     { value: "aggregates/framework/hecksagons/misplaced.hecksagon" },
+           complaint:         { value: "The AdapterLocation macrophage expected the adapter declared in aggregates/framework/misplaced.hecksagon to live at aggregates/framework/hecksagons/misplaced.hecksagon." },
+           last_complaint_at: { value: "2026-05-30T10:00:02Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "AdapterLocation Exempt records a named exemption" do
+    tests "Exempt", on: "AdapterLocation"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:00:00Z" }
+    input  file_path:   { value: "aggregates/framework/adapter_families/claude_tool.hecksagon" },
+           reason:      { value: "legacy adapter_families shim queued for sprint-14 cutover" },
+           exempted_at: { value: "2026-05-30T10:00:03Z" }
+    expect emits: ["ExemptionGranted"]
+  end
+
+  # ── SuccessFailurePairing aggregate (sprint 14) ──────────────────
+  #
+  # Companion-block coverage for the SuccessFailurePairing macrophage.
+
+  test "SuccessFailurePairing StartSession records session_started_at" do
+    tests "StartSession", on: "SuccessFailurePairing"
+    input  session_started_at: { value: "2026-05-30T10:10:00Z" }
+    expect session_started_at: { value: "2026-05-30T10:10:00Z" }
+  end
+
+  test "SuccessFailurePairing Check records a clean run" do
+    tests "Check", on: "SuccessFailurePairing"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:10:00Z" }
+    input  file_path: { value: "aggregates/framework/tools/hecksagons/shell_adapter.hecksagon" }
+    expect emits: ["FileScanned"]
+  end
+
+  test "SuccessFailurePairing RecordViolation appends a PairingViolation entity" do
+    tests "RecordViolation", on: "SuccessFailurePairing"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:10:00Z" }
+    input  file_path:    { value: "aggregates/framework/tools/hecksagons/success_only.hecksagon" },
+           adapter_name: { value: "SuccessOnlyAdapter" },
+           found_pair:   { value: "success-only : BashCompleted" },
+           recorded_at:  { value: "2026-05-30T10:10:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "SuccessFailurePairing Complain sets last_complaint" do
+    tests "Complain", on: "SuccessFailurePairing"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:10:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/success_only.hecksagon" },
+           adapter_name:      { value: "SuccessOnlyAdapter" },
+           found_pair:        { value: "success-only : BashCompleted" },
+           complaint:         { value: "The SuccessFailurePairing macrophage expected SuccessOnlyAdapter to dispatch both a success and a failure event." },
+           last_complaint_at: { value: "2026-05-30T10:10:02Z" }
+    expect last_complaint: { value: "The SuccessFailurePairing macrophage expected SuccessOnlyAdapter to dispatch both a success and a failure event." }
+  end
+
+  test "SuccessFailurePairing Complain emits ComplaintIssued" do
+    tests "Complain", on: "SuccessFailurePairing"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:10:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/success_only.hecksagon" },
+           adapter_name:      { value: "SuccessOnlyAdapter" },
+           found_pair:        { value: "success-only : BashCompleted" },
+           complaint:         { value: "The SuccessFailurePairing macrophage expected SuccessOnlyAdapter to dispatch both a success and a failure event." },
+           last_complaint_at: { value: "2026-05-30T10:10:02Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "SuccessFailurePairing Exempt records a named exemption" do
+    tests "Exempt", on: "SuccessFailurePairing"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:10:00Z" }
+    input  file_path:    { value: "aggregates/framework/tools/hecksagons/broadcast.hecksagon" },
+           adapter_name: { value: "BroadcastAdapter" },
+           reason:       { value: "fire-and-forget telemetry broadcast — no failure semantics by design" },
+           exempted_at:  { value: "2026-05-30T10:10:03Z" }
+    expect emits: ["ExemptionGranted"]
+  end
+
+  # ── InvocationPrinciple aggregate (sprint 14) ─────────────────────
+  #
+  # Companion-block coverage for the InvocationPrinciple macrophage.
+
+  test "InvocationPrinciple StartSession records session_started_at" do
+    tests "StartSession", on: "InvocationPrinciple"
+    input  session_started_at: { value: "2026-05-30T10:20:00Z" }
+    expect session_started_at: { value: "2026-05-30T10:20:00Z" }
+  end
+
+  test "InvocationPrinciple Check records a clean run" do
+    tests "Check", on: "InvocationPrinciple"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:20:00Z" }
+    input  file_path: { value: "aggregates/framework/tools/hecksagons/shell_adapter.hecksagon" }
+    expect emits: ["FileScanned"]
+  end
+
+  test "InvocationPrinciple RecordViolation appends a CallbackViolation entity" do
+    tests "RecordViolation", on: "InvocationPrinciple"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:20:00Z" }
+    input  file_path:      { value: "aggregates/framework/tools/hecksagons/callback.hecksagon" },
+           adapter_name:   { value: "CallbackAdapter" },
+           forbidden_call: { value: "rt.find(" },
+           line_number:    { value: 12 },
+           recorded_at:    { value: "2026-05-30T10:20:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "InvocationPrinciple Complain sets last_complaint" do
+    tests "Complain", on: "InvocationPrinciple"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:20:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/callback.hecksagon" },
+           adapter_name:      { value: "CallbackAdapter" },
+           forbidden_call:    { value: "rt.find(" },
+           line_number:       { value: 12 },
+           complaint:         { value: "The InvocationPrinciple macrophage expected CallbackAdapter to read its inputs from the event payload, not from the bus." },
+           last_complaint_at: { value: "2026-05-30T10:20:02Z" }
+    expect last_complaint: { value: "The InvocationPrinciple macrophage expected CallbackAdapter to read its inputs from the event payload, not from the bus." }
+  end
+
+  test "InvocationPrinciple Complain emits ComplaintIssued" do
+    tests "Complain", on: "InvocationPrinciple"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:20:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/callback.hecksagon" },
+           adapter_name:      { value: "CallbackAdapter" },
+           forbidden_call:    { value: "rt.find(" },
+           line_number:       { value: 12 },
+           complaint:         { value: "The InvocationPrinciple macrophage expected CallbackAdapter to read its inputs from the event payload, not from the bus." },
+           last_complaint_at: { value: "2026-05-30T10:20:02Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "InvocationPrinciple Exempt records a named exemption" do
+    tests "Exempt", on: "InvocationPrinciple"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:20:00Z" }
+    input  file_path:    { value: "aggregates/framework/tools/hecksagons/legacy_shim.hecksagon" },
+           adapter_name: { value: "LegacyShim" },
+           reason:       { value: "transitional bridge around an unmigrated synchronous query call site — retires at sprint-14 cutover" },
+           exempted_at:  { value: "2026-05-30T10:20:03Z" }
+    expect emits: ["ExemptionGranted"]
+  end
+
+  # ── IdempotentByConstruction aggregate (sprint 14) ─────────────────
+  #
+  # Companion-block coverage for the IdempotentByConstruction macrophage.
+
+  test "IdempotentByConstruction StartSession records session_started_at" do
+    tests "StartSession", on: "IdempotentByConstruction"
+    input  session_started_at: { value: "2026-05-30T10:30:00Z" }
+    expect session_started_at: { value: "2026-05-30T10:30:00Z" }
+  end
+
+  test "IdempotentByConstruction Check records a clean run" do
+    tests "Check", on: "IdempotentByConstruction"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:30:00Z" }
+    input  file_path: { value: "aggregates/framework/tools/hecksagons/shell_adapter.hecksagon" }
+    expect emits: ["FileScanned"]
+  end
+
+  test "IdempotentByConstruction RecordViolation appends an OptInViolation entity" do
+    tests "RecordViolation", on: "IdempotentByConstruction"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:30:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/opt_in.hecksagon" },
+           forbidden_pattern: { value: "idempotent" },
+           line_number:       { value: 22 },
+           recorded_at:       { value: "2026-05-30T10:30:01Z" }
+    expect emits: ["ViolationRecorded"]
+  end
+
+  test "IdempotentByConstruction Complain sets last_complaint" do
+    tests "Complain", on: "IdempotentByConstruction"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:30:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/opt_in.hecksagon" },
+           forbidden_pattern: { value: "idempotent" },
+           line_number:       { value: 22 },
+           complaint:         { value: "The IdempotentByConstruction macrophage expected zero user-space idempotency opt-in." },
+           last_complaint_at: { value: "2026-05-30T10:30:02Z" }
+    expect last_complaint: { value: "The IdempotentByConstruction macrophage expected zero user-space idempotency opt-in." }
+  end
+
+  test "IdempotentByConstruction Complain emits ComplaintIssued" do
+    tests "Complain", on: "IdempotentByConstruction"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:30:00Z" }
+    input  file_path:         { value: "aggregates/framework/tools/hecksagons/opt_in.hecksagon" },
+           forbidden_pattern: { value: "idempotent" },
+           line_number:       { value: 22 },
+           complaint:         { value: "The IdempotentByConstruction macrophage expected zero user-space idempotency opt-in." },
+           last_complaint_at: { value: "2026-05-30T10:30:02Z" }
+    expect emits: ["ComplaintIssued"]
+  end
+
+  test "IdempotentByConstruction Exempt records a named exemption" do
+    tests "Exempt", on: "IdempotentByConstruction"
+    setup  "StartSession", session_started_at: { value: "2026-05-30T10:30:00Z" }
+    input  file_path:   { value: "aggregates/discipline/immune_system/macrophage/fixtures/adapter_discipline/negative_opt_in_idempotent.hecksagon" },
+           reason:      { value: "negative fixture demonstrating the violation — macrophage-own test surface" },
+           exempted_at: { value: "2026-05-30T10:30:03Z" }
+    expect emits: ["ExemptionGranted"]
+  end
 end

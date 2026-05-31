@@ -1,0 +1,26 @@
+Hecks.hecksagon "CompliantAdapter" do
+  # POSITIVE FIXTURE (sprint 14 macrophage suite)
+  #
+  # This file is the canonical-shape exemplar — placed at
+  # <bluebook>/hecksagons/<service>.hecksagon, declaring a paired
+  # success/failure dispatch, reading inputs only from the event
+  # payload, and carrying NO idempotency opt-in vocabulary.
+  #
+  # All four sprint-14 adapter-discipline macrophages must pass
+  # cleanly when run against this file :
+  #   AdapterLocation         → location-compliant
+  #   SuccessFailurePairing   → Completed + Failed pair present
+  #   InvocationPrinciple     → no rt.find / rt.resolve_query / bus.query
+  #   IdempotentByConstruction → no `idempotent` / `dedup_by` / etc.
+
+  adapter "CompliantAdapter" do
+    driven on "Tools::ShellTool.BashRan" do |event|
+      dispatch "Tools::ShellTool.BashCompleted",
+               invocation_id: event.invocation_id,
+               output: event.stdout
+      dispatch "Tools::ShellTool.BashFailed",
+               invocation_id: event.invocation_id,
+               error: event.stderr
+    end
+  end
+end
