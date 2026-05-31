@@ -231,6 +231,15 @@ pub struct Runtime {
     /// return). Empty when the runtime boots without a world walk —
     /// every adapter falls back to canned (memory-by-default).
     pub world_adapter_bindings: Vec<crate::world::ir::AdapterBinding>,
+    /// Sprint 14 (migration-coexistence) — monotonic counter of events
+    /// that traversed the actor-mode mailbox stub. Increments only for
+    /// aggregates declaring `delivery :actor` in their bluebook ; stays
+    /// at zero for the historical sync-cascade default. Read by behaviors
+    /// tests + the storehouse log to assert the per-aggregate delivery
+    /// fork actually fired. Per-aggregate mailboxes / real async drain
+    /// are the sibling sprint-14 stories `actor-per-aggregate-instance`
+    /// and `async-event-delivery-bus` ; this counter is the wiring proof.
+    pub mailbox_drained: usize,
 }
 
 impl Runtime {
@@ -259,6 +268,33 @@ impl Runtime {
         #[cfg(not(target_arch = "wasm32"))]
         rt.apply_sqlite_persistence();
         rt
+    }
+
+    /// Sprint 14 (migration-coexistence) — publish an event through the
+    /// per-aggregate mailbox stub. Today this is a no-op fork :
+    /// `enqueue_and_drain` increments the `mailbox_drained` counter
+    /// (so behaviors tests can prove the actor arm fired) and then
+    /// publishes synchronously on the existing event bus. Real per-actor
+    /// mailboxes + async drain land under sibling sprint-14 stories
+    /// `actor-per-aggregate-instance` and `async-event-delivery-bus` ;
+    /// when they ship, only the body of this method changes — every
+    /// caller (command_dispatch.rs) and every bluebook (`delivery :actor`)
+    /// keeps working unchanged. That's the coexistence contract.
+    pub fn enqueue_and_drain(&mut self, event: Event) {
+        self.mailbox_drained = self.mailbox_drained.saturating_add(1);
+        self.event_bus.publish(event);
+    }
+
+    /// Sprint 14 (migration-coexistence) — lookup the declared delivery
+    /// mode for an aggregate by name. Returns `Sync` for unknown names so
+    /// the runtime conservatively falls back to the existing inline
+    /// publish path when the dispatch references something the IR can't
+    /// resolve (synthetic events, cross-context cascades, etc.).
+    pub fn delivery_for(&self, aggregate_type: &str) -> crate::ir::DeliveryMode {
+        for agg in &self.domain.aggregates {
+            if agg.name == aggregate_type { return agg.delivery; }
+        }
+        crate::ir::DeliveryMode::Sync
     }
 
     /// If any attached hecksagon declares a `:sqlite` persistence kind,
@@ -396,6 +432,7 @@ impl Runtime {
             world_servers: Vec::new(),
             world_servers_path: None,
             world_adapter_bindings: Vec::new(),
+            mailbox_drained: 0,
         }
     }
 

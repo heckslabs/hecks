@@ -1,0 +1,45 @@
+Hecks.bluebook "MigrationCoexistence" do
+  vision "Sprint-14 migration plan : every existing aggregate is currently on `delivery :sync` (the implicit default). Each row below opts ONE aggregate into `delivery :actor` once its behaviors stay green under the actor stub. Lifecycle moves pending → actor_eligible → flipped → verified through the Register command — callers re-Register with the next state when an aggregate progresses. The fork is in the runtime today (`Runtime::delivery_for` + `enqueue_and_drain`) ; this aggregate tracks the rollout state per bluebook so the actor migration is auditable through the bus, not a wiki page."
+
+  # ---- AggregateMigration --------------------------------------------
+  #
+  # One row per real aggregate that opts into actor delivery. State
+  # tracks the rollout : pending (filed but not yet eligible) →
+  # actor_eligible (behaviors green under the stub) → flipped (the
+  # bluebook gained `delivery :actor`) → verified (the aggregate's
+  # behaviors stay green under the new path with no regression). The
+  # Sync default applies to every aggregate without a row here.
+  #
+  # ID is the FQN aggregate address (`Domain::Aggregate`) so a query by
+  # name is unambiguous across contexts. The Register command is
+  # upsert-style (identified_by :fqn) : re-registering the same fqn with
+  # a new state advances the row through the rollout lifecycle.
+
+  aggregate "AggregateMigration" do
+    description "One row per aggregate flipping from delivery :sync to delivery :actor as sprint 14 rolls out"
+    identified_by :fqn
+
+    value_object "Fqn" do
+      attribute :value, String
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    value_object "State" do
+      attribute :value, String
+    end
+
+    attribute :fqn,   Fqn
+    attribute :note,  Note
+    attribute :state, State, default: "pending"
+
+    command "Register" do
+      attribute :fqn,   Fqn
+      attribute :note,  Note
+      attribute :state, State
+      emits "MigrationRegistered"
+    end
+  end
+end

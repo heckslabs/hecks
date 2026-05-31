@@ -1,0 +1,37 @@
+Hecks.behaviors "MigrationCoexistence" do
+  vision "Behaviors for the sprint-14 migration plan aggregate. The full runtime fork is covered by rust/tests/migration_coexistence_test.rs (boots a domain with one Sync + one Actor aggregate, asserts mailbox_drained increments only for the Actor dispatch). These behaviors prove the audit-trail aggregate's emit shape across the four rollout states."
+
+  test "Register records fqn + note + state" do
+    tests "Register", on: "AggregateMigration"
+    input  fqn:   { value: "Hecks::ShellTool" },
+           note:  { value: "first candidate per sprint-14 slice" },
+           state: { value: "pending" }
+    expect fqn:   { value: "Hecks::ShellTool" },
+           note:  { value: "first candidate per sprint-14 slice" },
+           state: { value: "pending" }
+  end
+
+  test "Register emits MigrationRegistered" do
+    tests "Register", on: "AggregateMigration"
+    input  fqn:   { value: "Hecks::FileTool" },
+           note:  { value: "second candidate" },
+           state: { value: "actor_eligible" }
+    expect emits: ["MigrationRegistered"]
+  end
+
+  test "Register upserts state to flipped on rollout" do
+    tests "Register", on: "AggregateMigration"
+    input  fqn:   { value: "Hecks::WebTool" },
+           note:  { value: "flipped to delivery :actor" },
+           state: { value: "flipped" }
+    expect state: { value: "flipped" }
+  end
+
+  test "Register upserts state to verified once behaviors green" do
+    tests "Register", on: "AggregateMigration"
+    input  fqn:   { value: "Hecks::EmailTool" },
+           note:  { value: "verified clean on actor mode" },
+           state: { value: "verified" }
+    expect state: { value: "verified" }
+  end
+end
