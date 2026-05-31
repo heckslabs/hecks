@@ -19,6 +19,16 @@
             i += consumed;
             continue;
         }
+        // Sprint 14 sibling block — skip past `driving on` blocks (the
+        // sibling parse_driving_adapter captures them) while keeping the
+        // line cursor aligned with the outer parse() loop's consumed
+        // count. Without this skip the inner `dispatch` lines inside a
+        // driving block would be misinterpreted as standalone tokens.
+        if t.starts_with("driving on") {
+            let (_, consumed) = parse_driving_handler(&lines[i..]);
+            i += consumed;
+            continue;
+        }
         i += 1;
     }
     (Some(adapter), i)
