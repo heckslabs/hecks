@@ -134,6 +134,12 @@ Hecks.fixtures "IrShape" do
     # many / many_with_max) so call sites don't repeat the cardinality+kind
     # boilerplate. The bare struct literal is still valid for tests + tooling.
     fixture "ImplReference",     name: "ImplReference",     order: 43, body_kind: "impl",   derives: "",                            impl_target: "Reference",     body_snippet: "codegen/ir_shape/snippets/impls/reference.rs.frag",           doc_snippet: "",                                                          description: "Reference constructors keyed by DSL keyword"
+
+    # Sprint 14 — DeliveryMode enum (migration-coexistence). Order 44 + an
+    # Default impl at 45. Declared in the bluebook as `delivery :sync` (default)
+    # or `delivery :actor` ; the runtime forks event publishing on this flag.
+    fixture "DeliveryMode",     name: "DeliveryMode",     order: 44, body_kind: "enum",   derives: "Debug, Clone, Copy, PartialEq, Eq", impl_target: "",             body_snippet: "",                                                          doc_snippet: "codegen/ir_shape/snippets/docs/delivery_mode_type.rs.frag",   description: "Sprint 14 — per-aggregate event-delivery mode (Sync default, Actor stub)"
+    fixture "ImplDeliveryMode", name: "ImplDeliveryMode", order: 45, body_kind: "impl",   derives: "",                                  impl_target: "Default for DeliveryMode", body_snippet: "codegen/ir_shape/snippets/impls/delivery_mode_default.rs.frag", doc_snippet: "",                                                          description: "Default impl — DeliveryMode::Sync"
   end
 
   # ── Field — pub fields of every struct row, sorted by `order` ──────────
@@ -229,6 +235,9 @@ Hecks.fixtures "IrShape" do
     # i254 — views per role. Ordered Vec ; declaration order survives
     # JSON round-trip so portal renderers can iterate views deterministically.
     fixture "Aggregate_views",         type_name: "Aggregate", order: 14, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
+    # Sprint 14 — delivery mode (migration-coexistence). Order 15 keeps the
+    # field at the tail of the struct so the renumber cost is zero.
+    fixture "Aggregate_delivery",      type_name: "Aggregate", order: 15, name: "delivery",      field_type: "DeliveryMode",    doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_delivery.rs.frag"
 
     # Attribute — 4 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
@@ -386,5 +395,11 @@ Hecks.fixtures "IrShape" do
     # Direction — 2 variants (i101).
     fixture "Direction_Asc",  type_name: "Direction", order: 1, name: "Asc",  doc_snippet: ""
     fixture "Direction_Desc", type_name: "Direction", order: 2, name: "Desc", doc_snippet: ""
+
+    # Sprint 14 — DeliveryMode variants (migration-coexistence). Order 1 = Sync
+    # so the default-emit (Default::default() → Sync) matches `impl Default for
+    # DeliveryMode { fn default() -> Self { DeliveryMode::Sync } }`.
+    fixture "DeliveryMode_Sync",  type_name: "DeliveryMode", order: 1, name: "Sync",  doc_snippet: ""
+    fixture "DeliveryMode_Actor", type_name: "DeliveryMode", order: 2, name: "Actor", doc_snippet: ""
   end
 end

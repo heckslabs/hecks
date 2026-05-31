@@ -39,6 +39,7 @@ fn agg(name: &str, refs: Vec<Reference>) -> Aggregate {
         lifecycle: None, invariants: vec![],
         identified_by: None,
         views: vec![],
+        delivery: storehouse::ir::DeliveryMode::Sync,
     }
 }
 
