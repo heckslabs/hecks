@@ -737,17 +737,26 @@ Hecks.bluebook "Plan", version: "2026.05.28.4" do
       description "Add a planned task to the story during the tasking phase. Tasks are the discrete sub-units of work the operator and Miette agree on before Start. Valid only while the story is in_sprint (or backlog, before assignment) — tasks freeze once Start fires. Each task carries a description ; order is implicit by append position."
       reference_to(Story)
       attribute :description, TaskDescription
-      given("tasking is part of planning — valid only before Start") { state == "in_sprint" || state == "backlog" }
+      given("tasks can be added any time before final approval") { state != "approved" && state != "cancelled" && state != "deferred" }
       then_set :tasks, append: { description: :description }
       emits "StoryTaskAdded"
     end
 
+    command "Tasked" do
+      role "Miette"
+      description "Operator-flippable signal that the story has been tasked enough — enough atomic tasks added, conversation done, ready for Start. No threshold, no auto-transition, no tasks-count given. Pure operator judgment. Transitions in_sprint → tasked. Start's only gate becomes `state == tasked`. Bootstrap of lifecycle-tasked-state ; the full story will also add `untasked` as the initial state on Capture."
+      reference_to(Story)
+      given("can only flip to tasked from in_sprint") { state == "in_sprint" }
+      then_set :state, to: "tasked"
+      emits "StoryTasked"
+    end
+
     command "Start" do
       role "Miette"
-      description "Begin work on a story that has been assigned to a sprint AND whose sprint is the board's active sprint. Story must have at least 3 tasks (the tasking-done-when threshold). The active-sprint guard would live in `given` if the runtime evaluated cross-aggregate predicates ; it does not today (same family as board.bluebook rule #4 fail-open) — the rule is enforced reactively by Plan::Story.Unstart until cross-aggregate guards land. Moves from in_sprint to started."
+      description "Begin work on a tasked story. The active-sprint guard would live in `given` if the runtime evaluated cross-aggregate predicates ; it does not today (same family as board.bluebook rule #4 fail-open) — the rule is enforced reactively by Plan::Story.Unstart until cross-aggregate guards land. Moves from tasked to started."
       reference_to(Story)
       given("story must be on a sprint board") { sprint != "" }
-      given("story must have at least 3 tasks before starting") { tasks.length >= 3 }
+      given("story must be tasked before starting") { state == "tasked" }
       emits "StoryStarted"
     end
 
