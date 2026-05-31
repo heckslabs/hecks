@@ -116,8 +116,8 @@ pub fn parse(source: &str) -> Hecksagon {
         // handled by `absorb_adapter` below ; the two are dispatched on
         // the very first character after `adapter ` (quote vs colon).
         if line.starts_with("adapter \"") {
-            let (da, consumed) = parse_driven_adapter(&raw[i..]);
-            if let Some(adapter) = da { hex.driven_adapters.push(adapter); }
+            let (gate, consumed) = parse_driven_adapter(&raw[i..]);
+            if let Some(g) = gate { hex.driven_adapters.push(g); }
             i += consumed;
             continue;
         }

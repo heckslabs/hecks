@@ -53,79 +53,91 @@ Hecks.fixtures "BehaviorsRunnerShape" do
       has_fixtures: "true",
       description: "run_suite_with_domain — cross-bluebook variant ; iter().map(run_one).collect() with domain_template"
 
+    fixture "RunSuiteWithDomainAndHecksagonsSection",
+      name: "run_suite_with_domain_and_hecksagons",
+      order: 5,
+      body_kind: "suite_overload",
+      fn_name: "run_suite_with_domain_and_hecksagons",
+      doc_path: "codegen/behaviors_runner_shape/docs/run_suite_with_domain_and_hecksagons.frag",
+      kind: "iter",
+      has_domain: "true",
+      has_fixtures: "true",
+      has_hecksagons: "true",
+      description: "run_suite_with_domain_and_hecksagons — Sprint 14 ; iter().map(run_one).collect() threading attached hecksagons into Runtime::boot_with_hecksagons"
+
     fixture "RunOneSection",
       name: "run_one",
-      order: 5,
+      order: 6,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/05_run_one.rs.frag",
       description: "run_one — per-test executor (boot runtime, seed fixtures, replay setups, dispatch input, assert state/events)"
 
     fixture "RunQuerySection",
       name: "run_query",
-      order: 6,
+      order: 7,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/06_run_query.rs.frag",
       description: "run_query — query-kind dispatch via resolve_query, count assertion only"
 
     fixture "ToRuntimeAttrsSection",
       name: "to_runtime_attrs",
-      order: 7,
+      order: 8,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/07_to_runtime_attrs.rs.frag",
       description: "to_runtime_attrs — convert behaviors-IR string args to runtime Value map"
 
     fixture "BuildAttrsSection",
       name: "build_attrs",
-      order: 8,
+      order: 9,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/08_build_attrs.rs.frag",
       description: "build_attrs — kwargs + auto-injected reference ids from in_scope"
 
     fixture "FindCommandSection",
       name: "find_command",
-      order: 9,
+      order: 10,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/09_find_command.rs.frag",
       description: "find_command — Context.Aggregate.Command / Aggregate.Command / bare-name resolver"
 
     fixture "PreSeedSingletonsSection",
       name: "pre_seed_singletons",
-      order: 10,
+      order: 11,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/10_pre_seed_singletons.rs.frag",
       description: "pre_seed_singletons — seed virgin AggregateState at id=1 for self-ref-only aggregates"
 
     fixture "AggHasNoBootstrapSection",
       name: "agg_has_no_bootstrap",
-      order: 11,
+      order: 12,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/11_agg_has_no_bootstrap.rs.frag",
       description: "agg_has_no_bootstrap — predicate : every command on the aggregate self-refs"
 
     fixture "ToSnakeSection",
       name: "to_snake",
-      order: 12,
+      order: 13,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/12_to_snake.rs.frag",
       description: "to_snake — CamelCase → snake_case helper"
 
     fixture "ParseValueSection",
       name: "parse_value",
-      order: 13,
+      order: 14,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/13_parse_value.rs.frag",
       description: "parse_value — int / bool / string token parser"
 
     fixture "ParseEventListSection",
       name: "parse_event_list",
-      order: 14,
+      order: 15,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/14_parse_event_list.rs.frag",
       description: "parse_event_list — `[E1, E2]` source-token list → Vec<String>"
 
     fixture "CountQueryRecordsSection",
       name: "count_query_records",
-      order: 15,
+      order: 16,
       body_kind: "verbatim_section",
       snippet_path: "codegen/behaviors_runner_shape/snippets/15_count_query_records.rs.frag",
       description: "count_query_records — count records in a resolve_query result envelope"

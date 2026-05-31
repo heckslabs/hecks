@@ -109,6 +109,14 @@ fn emit_suite_overload(repo_root: &Path, sec: &Fixture) -> Result<String, Box<dy
     let kind = util::attr(sec, "kind");
     let has_domain = util::attr(sec, "has_domain") == "true";
     let has_fixtures = util::attr(sec, "has_fixtures") == "true";
+    // Sprint 14 first-adapter slice — a fourth iter overload
+    // (`run_suite_with_domain_and_hecksagons`) threads an attached
+    // hecksagon slice into `run_one` so `driven on` adapters fire.
+    // has_hecksagons = `true` adds `hecksagons: &[Hecksagon]` to the
+    // signature and passes `Some(hecksagons)` as run_one's 5th arg ;
+    // the three pre-sprint overloads (has_hecksagons = empty) pass
+    // `None` so their behaviour is unchanged.
+    let has_hecksagons = util::attr(sec, "has_hecksagons") == "true";
 
     let mut out = String::new();
     out.push_str(&doc);
@@ -137,12 +145,16 @@ fn emit_suite_overload(repo_root: &Path, sec: &Fixture) -> Result<String, Box<dy
             if has_fixtures {
                 out.push_str("    fixtures: Option<&FixturesFile>,\n");
             }
+            if has_hecksagons {
+                out.push_str("    hecksagons: &[Hecksagon],\n");
+            }
             out.push_str(") -> SuiteResult {\n");
             out.push_str("    let runs = suite.tests.iter()\n");
             let domain_arg = if has_domain { "Some(domain_template)" } else { "None" };
+            let hecksagons_arg = if has_hecksagons { "Some(hecksagons)" } else { "None" };
             out.push_str(&format!(
-                "        .map(|t| run_one(source_text, t, fixtures, {}))\n",
-                domain_arg,
+                "        .map(|t| run_one(source_text, t, fixtures, {}, {}))\n",
+                domain_arg, hecksagons_arg,
             ));
             out.push_str("        .collect();\n");
             out.push_str("    SuiteResult { runs }\n");
@@ -181,6 +193,7 @@ const HEADER: &str = r#"//! Behaviors test runner — executes a TestSuite again
 use crate::behaviors_ir::{Test, TestSuite};
 use crate::behaviors_fixtures;
 use crate::fixtures_ir::FixturesFile;
+use crate::hecksagon_ir::Hecksagon;
 use crate::ir::Domain;
 use crate::parser;
 use crate::runtime::{Runtime, RuntimeError, Value};

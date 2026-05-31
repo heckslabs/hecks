@@ -3,6 +3,7 @@ fn run_one(
     test: &Test,
     fixtures: Option<&FixturesFile>,
     full_domain: Option<&Domain>,
+    hecksagons: Option<&[Hecksagon]>,
 ) -> TestRun {
     // `kind: :pending` — runner-level skip for tests known to be stale
     // or blocked on out-of-scope work. Counted as a Pass with the
@@ -30,7 +31,17 @@ fn run_one(
     } else {
         parser::parse(source_text)
     };
-    let mut rt = Runtime::boot(domain);
+    // Sprint 14 first-adapter slice — when hecksagons are supplied
+    // (the conception-aware caller in run_behaviors), boot with them
+    // attached so `driven on` adapter handlers fire on event emission.
+    // The pre-sprint path (Runtime::boot, no hecksagons) is preserved
+    // for direct/library callers that don't supply any.
+    let mut rt = match hecksagons {
+        Some(hs) if !hs.is_empty() => {
+            Runtime::boot_with_hecksagons(domain, None, hs.to_vec())
+        }
+        _ => Runtime::boot(domain),
+    };
 
     // The translation layer between the bluebook (refs only) and the
     // runtime (ids). Maps an aggregate type → the id of the most
