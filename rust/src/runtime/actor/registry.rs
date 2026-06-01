@@ -59,6 +59,11 @@ pub type ActorAddress = (String, String);
 /// only across the brief synchronous critical section that pops one
 /// envelope or appends to a counter ; no `.await` is held across the
 /// lock so a sync mutex is correct AND faster.
+/// Backwards-compat alias for callers still using the old name
+/// during the MailboxRegistry → Mailboxes rename (see follow-up
+/// card finish-mailbox-registry-rename).
+pub type MailboxRegistry = Mailboxes;
+
 pub struct Mailboxes {
     mailboxes: HashMap<ActorAddress, Arc<Mutex<Mailbox>>>,
 }
