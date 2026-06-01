@@ -146,6 +146,12 @@ pub mod driven_adapter_resolver;
 // feel), event-driven cascades route through the registry. See
 // `actor/mod.rs` for the architectural shape ; the 4 smoke tests in
 // `actor::tests` flip each story's DiD gate.
+//
+// Host-only : the tokio substrate (sprint-14 tokio-mailbox-substrate)
+// is cfg-gated on non-wasm32. tokio has no wasm32-unknown-unknown
+// target ; the Cloudflare-worker build never reaches the actor
+// dispatch path so the gate is structurally safe.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod actor;
 // Sprint 14 — sibling of driven_adapter_resolver. Fires `driving on`
 // adapter handlers triggered by EXTERNAL signals (cron tick first ;

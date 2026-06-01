@@ -15,8 +15,17 @@ serde_json = "1"
 # repository (and, later, the R2 heki adapter) ; sqlite_repository.rs
 # + sqlite_mapping.rs are correspondingly cfg-gated out in lib.rs /
 # runtime/mod.rs.
+#
+# tokio — async substrate for the actor model (sprint-14
+# tokio-mailbox-substrate). Replaces the std::thread-per-mailbox
+# substrate PR #702 landed ; mailbox abstraction unchanged. Full
+# features for now ; trim later via a feature-flag audit card.
+# Host-only for the same reason as rusqlite — the actor module is
+# cfg-gated out on wasm32 (see runtime/mod.rs) so the wasm build does
+# not pull tokio.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rusqlite = { version = "0.39.0", features = ["bundled"] }
+tokio = { version = "1", features = ["full"] }
 
 # wasm32-only : the Cloudflare Worker R2 binding. Used by
 # rust/src/heki_r2.rs (cfg-gated to target_arch = "wasm32") for the
