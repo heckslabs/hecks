@@ -1,1 +1,16 @@
-{}
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/christopheryoung/Projects/hecks/bin/agent-discipline-check",
+            "timeout": 6
+          }
+        ]
+      }
+    ]
+  }
+}

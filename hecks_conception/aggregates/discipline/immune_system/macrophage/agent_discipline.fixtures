@@ -1,0 +1,11 @@
+Hecks.fixtures "AgentDiscipline", version: "2026.05.31.1" do
+  vision "The two violation kinds the AgentDiscipline macrophage enforces — the bluebook-of-record for the agent-discipline-check hook. Each row is a Register dispatch ; the fixtures fire at session boot so the registry is always populated from the bluebook itself, not from a hardcoded list in a hook script."
+
+  fixture "skip_env_var violation kind" do
+    dispatch "Discipline::AgentDiscipline.Register", kind: "skip_env_var"
+  end
+
+  fixture "ignored_isolation violation kind" do
+    dispatch "Discipline::AgentDiscipline.Register", kind: "ignored_isolation"
+  end
+end
