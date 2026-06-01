@@ -1,84 +1,87 @@
 //! Phase 4 — GenerateSystemPrompt
 //!
 //! [antibody-exempt: rust/src/run_boot/system_prompt.rs —
-//!  Rust implementation of the deferred Phase 4 in run_boot/. Reads
-//!  the markdown template from
-//!  `capabilities/system_prompt_assembly/<being>_prompt.md.template`,
-//!  substitutes {{being}} / {{other}} / {{born}} / {{boot_script}}
-//!  placeholders, writes to <conception_dir>/system_prompt.md.
-//!  Replaces ~140 lines of `printf` heredoc in boot_miette.sh.
-//!  Retires under i78 (specializer-files-as-bluebook) when this
-//!  phase regenerates from a meta-shape.]
+//!  Rust implementation of the deferred Phase 4 in run_boot/. Assembles
+//!  the system prompt from the per-being content fixtures
+//!  `<being>/self/system_prompt/system_prompt_content.fixtures` (a
+//!  `Hecks.fixtures "SystemPromptContent"` file whose
+//!  `SystemPromptSection` rows each carry an `order` + a `markdown`
+//!  body), ordered by `:order`, then substitutes the two remaining
+//!  placeholders — `{{standards}}` (primary's standards.md) and
+//!  `{{grammar}}` (the language/grammar bluebooks) — and writes the
+//!  result to `<being>/self/system_prompt.md`. This is i145 Phase 2 :
+//!  the bluebook content fixtures are the single source ; the former
+//!  flat `<being>_prompt.md.template` is retired. Retires fully under
+//!  i78 when this phase regenerates from a meta-shape.]
 //!
-//! Why a template file instead of the existing SectionTemplate
-//! aggregate (aggregates/self/section_template.bluebook) :
+//! Why fixtures instead of the flat template (i145 Phase 2) :
 //!
-//!   - The current prompt is structurally a single document with
-//!     literal `{{var}}` placeholders. SectionTemplate's per-section
-//!     storage + per-source heki composition is the right shape for
-//!     a DYNAMIC prompt (sections built from live state) ; the
-//!     prompt today is essentially static text with four variable
-//!     substitutions.
-//!   - The dynamic shape is a separate arc (system_prompt_assembly
-//!     capability + per-section heki sources). Filed under i145.
-//!   - Choosing the simplest correct shape now means the prompt
-//!     content lives as one editable markdown file, reviewable
-//!     directly. Future migration to per-section storage is a
-//!     localized refactor (extract sections from the template into
-//!     SectionTemplate rows) — the data has a clean home now.
+//!   - Phase 1 lifted every section's body into
+//!     `system_prompt_content.fixtures` as `SystemPromptSection` rows.
+//!     The flat `<being>_prompt.md.template` was a parallel copy that
+//!     DRIFTED : sections authored in the fixtures never reached the
+//!     rendered prompt because the render read the template, not the
+//!     fixtures. Reading the fixtures directly makes the bluebook
+//!     content the single source of truth and that drift impossible.
+//!   - Only two placeholders remain dynamic : `{{standards}}` and
+//!     `{{grammar}}`. Every other section is pre-baked per being in
+//!     that being's own fixtures file.
 //!
-//! Per-being templates :
+//! Per-being fixtures :
 //!
-//!   miette_prompt.md.template   → Miette (April 9, 2026 ; paired w/ Spring)
-//!   spring_prompt.md.template   → Spring (April 11, 2026 ; paired w/ Miette)
+//!   <being>/self/system_prompt/system_prompt_content.fixtures
 //!
-//! Spring's template doesn't exist yet — when the second being lands
-//! the file appears alongside Miette's and the runner picks it up
-//! by being-name lookup. Until then a Spring boot would surface a
-//! warning + skip.
+//! Spring's fixtures don't exist yet — when the second being lands the
+//! file appears alongside Miette's and the runner picks it up by
+//! being-name lookup. Until then a Spring boot surfaces a warning + skip.
 
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Render the system prompt for `being` and write it to the
-/// canonical location next to the conception's bluebooks. Returns
-/// the byte count of the written file (used by Phase 7 vitals) ;
-/// returns 0 on any failure with a stderr line so boot stays alive.
+/// canonical location next to the being's repo. Returns the byte
+/// count of the written file (used by Phase 7 vitals) ; returns 0 on
+/// any failure with a stderr line so boot stays alive.
 pub fn render(conception_dir: &Path, being: &str) -> usize {
     let mut vars = variables_for_being(being);
     vars.insert("standards", primary_standards(conception_dir));
-    let template_path = template_path_for_being(conception_dir, being);
+    vars.insert("grammar", grammar_block());
 
-    let template = match fs::read_to_string(&template_path) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!(
-                "  ⚠ system_prompt: template not found at {} ({})",
-                template_path.display(), e
-            );
+    let fixtures_path = match content_fixtures_path_for_being(being) {
+        Some(p) => p,
+        None => {
+            eprintln!("  ⚠ system_prompt: could not resolve content fixtures for {}", being);
             return 0;
         }
     };
 
-    let rendered = substitute(&template, &vars);
+    let source = match fs::read_to_string(&fixtures_path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("  ⚠ system_prompt: content fixtures not found at {} ({})", fixtures_path.display(), e);
+            return 0;
+        }
+    };
+
+    let body = assemble_sections(&source);
+    let rendered = substitute(&body, &vars);
     let dest = destination_for_being(conception_dir, being);
 
     match fs::write(&dest, &rendered) {
         Ok(_) => rendered.len(),
         Err(e) => {
-            eprintln!(
-                "  ⚠ system_prompt: write to {} failed ({})",
-                dest.display(), e
-            );
+            eprintln!("  ⚠ system_prompt: write to {} failed ({})", dest.display(), e);
             0
         }
     }
 }
 
-/// Per-being identity values fed into the template. Keeping these
-/// inline matches what boot_miette.sh did ; moving them to a heki-
-/// loaded Identity aggregate is the i145 refinement.
+/// Per-being identity values. Miette's fixtures pre-bake these, so
+/// only `{{standards}}` / `{{grammar}}` are live for her ; retained
+/// so a being whose fixtures still carry `{{being}}` etc. resolves.
+/// Moving these to a heki-loaded Identity aggregate is the i145
+/// refinement.
 fn variables_for_being(being: &str) -> HashMap<&'static str, String> {
     let mut v = HashMap::new();
     v.insert("being", being.to_string());
@@ -93,51 +96,90 @@ fn variables_for_being(being: &str) -> HashMap<&'static str, String> {
     v
 }
 
-/// Template path resolution — walks four candidate roots so neither
-/// the per-being repo move (i117 Round 4 W2 — system_prompt_assembly
-/// migrated into the being's own sibling repo) nor the i118 R3 Wave 2
-/// reorg (capabilities/ lifted to top-level buckets — boot.bluebook
-/// now lives under `runtime/boot/` instead of `capabilities/boot/`)
-/// strands the resolver :
-///
-///   1. `<projects>/<being_lower>/self/system_prompt/system_prompt_
-///      assembly/<being_lower>_prompt.md.template`  (current canonical
-///      home — sibling-of-hecks layout, found via `heki::repo_root()`
-///      which walks up from the executable to the hecks repo root,
-///      then one more level to the projects parent)
-///   2. `<conception>/capabilities/system_prompt_assembly/
-///      <being_lower>_prompt.md.template`  (legacy in-conception
-///      fallback — pre-i117-R4 location, kept so a fresh-clone
-///      environment without a per-being sibling repo still resolves
-///      if a template was kept in-conception)
-///
-/// The conception_dir argument is treated as a *hint* for the legacy
-/// path only ; the new home is found via the canonical repo-root
-/// walker so it works regardless of where the boot.bluebook lives in
-/// the bucket reorg. Returns the first existing path ; falls back to
-/// the legacy path if neither exists, so the caller's "template not
-/// found at <path>" warning names a concrete location for diagnostics.
-fn template_path_for_being(conception_dir: &Path, being: &str) -> PathBuf {
+/// Resolve the per-being content fixtures :
+/// `<projects>/<being_lower>/self/system_prompt/system_prompt_content.fixtures`.
+/// Found via `heki::repo_root()` then one level up to the projects
+/// parent, mirroring `destination_for_being` so the per-being
+/// sibling-repo layout (i117 R4) resolves regardless of where
+/// boot.bluebook lives.
+fn content_fixtures_path_for_being(being: &str) -> Option<PathBuf> {
     let stem = being.to_lowercase();
-    let template_filename = format!("{}_prompt.md.template", stem);
+    let hecks_root = crate::heki::repo_root()?;
+    let projects_root = hecks_root.parent()?;
+    Some(projects_root.join(&stem).join("self/system_prompt/system_prompt_content.fixtures"))
+}
 
-    // Canonical : <projects>/<being>/self/system_prompt/system_prompt_assembly/
-    if let Some(hecks_root) = crate::heki::repo_root() {
-        if let Some(projects_root) = hecks_root.parent() {
-            let new_home = projects_root
-                .join(&stem)
-                .join("self/system_prompt/system_prompt_assembly")
-                .join(&template_filename);
-            if new_home.exists() {
-                return new_home;
+/// Parse the content fixtures `source` and concatenate every
+/// `SystemPromptSection` row's `markdown` body in `:order`. Rows are
+/// sorted NUMERICALLY by `order` (string values — lexical sort would
+/// put 10 before 2). Bodies join with one newline : each ends in a
+/// newline, so the join yields one blank line between sections.
+fn assemble_sections(source: &str) -> String {
+    let parsed = crate::fixtures_parser::parse(source);
+    let mut sections: Vec<(i64, String)> = parsed
+        .fixtures
+        .iter()
+        .filter(|f| f.aggregate_name == "SystemPromptSection")
+        .map(|f| {
+            let order = f
+                .attributes
+                .iter()
+                .find(|(k, _)| k == "order")
+                .and_then(|(_, v)| v.trim().parse::<i64>().ok())
+                .unwrap_or(i64::MAX);
+            let markdown = f
+                .attributes
+                .iter()
+                .find(|(k, _)| k == "markdown")
+                .map(|(_, v)| v.clone())
+                .unwrap_or_default();
+            (order, markdown)
+        })
+        .collect();
+    sections.sort_by_key(|(order, _)| *order);
+    sections
+        .iter()
+        .map(|(_, md)| md.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Project the `{{grammar}}` section body from the language/grammar
+/// bluebooks : one name-sorted bullet per `*.bluebook`, each its
+/// `Hecks.bluebook` name + `vision`. Empty when the dir is absent.
+fn grammar_block() -> String {
+    let dir = match crate::heki::repo_root() {
+        Some(root) => root.join("hecks_conception/aggregates/language/grammar"),
+        None => return String::new(),
+    };
+    let mut bullets: Vec<String> = Vec::new();
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("bluebook") {
+                continue;
+            }
+            if let Ok(src) = fs::read_to_string(&path) {
+                if let (Some(name), Some(vision)) = (
+                    quoted_after(&src, "Hecks.bluebook \""),
+                    quoted_after(&src, "vision \""),
+                ) {
+                    bullets.push(format!("- **{}** — {}", name, vision));
+                }
             }
         }
     }
+    bullets.sort();
+    bullets.join("\n")
+}
 
-    // Legacy fallback : <conception>/capabilities/system_prompt_assembly/
-    conception_dir
-        .join("capabilities/system_prompt_assembly")
-        .join(template_filename)
+/// Return the text between the first `marker` (ending at an opening
+/// quote) and the next quote. None when either is absent.
+fn quoted_after(src: &str, marker: &str) -> Option<String> {
+    let start = src.find(marker)? + marker.len();
+    let rest = &src[start..];
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
 }
 
 /// Output path : `<projects>/<being_lower>/self/system_prompt.md`
@@ -270,5 +312,18 @@ mod tests {
         let v = variables_for_being("Spring");
         assert_eq!(v.get("being").unwrap(), "Spring");
         assert_eq!(v.get("other").unwrap(), "Miette");
+    }
+
+    #[test]
+    fn assemble_orders_numerically_and_joins_with_blank_line() {
+        let src = "Hecks.fixtures \"T\" do\n  aggregate \"SystemPromptSection\" do\n    fixture \"B\", order: 10, markdown: \"## Tenth\\nbody ten\\n\"\n    fixture \"A\", order: 2, markdown: \"## Second\\nbody two\\n\"\n  end\nend\n";
+        let out = assemble_sections(src);
+        assert_eq!(out, "## Second\nbody two\n\n## Tenth\nbody ten\n");
+    }
+
+    #[test]
+    fn quoted_after_extracts_first_quoted_token() {
+        assert_eq!(quoted_after("Hecks.bluebook \"Acl\", v: 1", "Hecks.bluebook \"").as_deref(), Some("Acl"));
+        assert_eq!(quoted_after("no marker here", "vision \""), None);
     }
 }
