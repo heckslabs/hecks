@@ -1,17 +1,17 @@
-//! `storehouse actors` — debug command for the actor-model surface
+//! `storehouse mailboxes` — debug command for the actor-model surface
 //! (sprint 14 — story `storehouse-actors-debug-command`).
 //!
 //! Three subcommands ; one mechanism :
-//!   storehouse actors list             — every active mailbox, table or JSON
-//!   storehouse actors show <type> <id> — detail on one mailbox
-//!   storehouse actors poisoned         — filter to poisoned mailboxes only
+//!   storehouse mailboxes list             — every active mailbox, table or JSON
+//!   storehouse mailboxes show <type> <id> — detail on one mailbox
+//!   storehouse mailboxes poisoned         — filter to poisoned mailboxes only
 //!
 //! All three accept `--json` for tooling consumers ; the human form
 //! prints a fixed-width table. The data axes are queue_depth, status
 //! (live/poisoned), events_processed, dropped_duplicates, last_error.
 //!
 //! Today's surface : the live runtime does not yet hold a global
-//! `MailboxRegistry` (sprint 14 cards #03–#08 build the registry ; the
+//! `Mailboxes` (sprint 14 cards #03–#08 build the registry ; the
 //! event-bus integration is a follow-up sprint per `runtime/actor/mod.rs`
 //! header). So `list` against an idle runtime prints an empty table.
 //! The `--fixture` flag (used by the behavior test and by humans
@@ -24,12 +24,12 @@
 //! real registry without touching the rendering code.
 
 use crate::runtime::actor::{
-    ActorAddress, Envelope, MailboxRegistry, MailboxStatusLabel, MailboxSummary,
+    ActorAddress, Envelope, Mailboxes, MailboxStatusLabel, MailboxSummary,
 };
 use crate::runtime::Event;
 use std::collections::HashMap;
 
-/// Entry-point — invoked from `main.rs` when `command == "actors"`.
+/// Entry-point — invoked from `main.rs` when `command == "mailboxes"`.
 /// Returns the process exit code so main.rs can pass it to `std::process::exit`.
 pub fn run(args: &[String]) -> i32 {
     let verb = args.get(2).map(|s| s.as_str()).unwrap_or("");
@@ -42,14 +42,14 @@ pub fn run(args: &[String]) -> i32 {
         "poisoned" => cmd_poisoned(json, fixture),
         "" | "--help" | "-h" => { print_help(); 0 }
         other => {
-            eprintln!("storehouse actors : unknown verb '{}' (try --help)", other);
+            eprintln!("storehouse mailboxes : unknown verb '{}' (try --help)", other);
             2
         }
     }
 }
 
 fn print_help() {
-    eprintln!("Usage : storehouse actors <verb> [args] [--json] [--fixture]\n");
+    eprintln!("Usage : storehouse mailboxes <verb> [args] [--json] [--fixture]\n");
     eprintln!("Verbs :");
     eprintln!("  list                          — every active mailbox, table or JSON");
     eprintln!("  show <type> <id>              — detail on one mailbox");
@@ -91,7 +91,7 @@ fn cmd_poisoned(json: bool, fixture: bool) -> i32 {
 
 fn cmd_show(positional: &[String], json: bool, fixture: bool) -> i32 {
     if positional.len() < 2 {
-        eprintln!("usage : storehouse actors show <type> <id> [--json] [--fixture]");
+        eprintln!("usage : storehouse mailboxes show <type> <id> [--json] [--fixture]");
         return 2;
     }
     let addr: ActorAddress = (positional[0].clone(), positional[1].clone());
@@ -122,12 +122,12 @@ fn cmd_show(positional: &[String], json: bool, fixture: bool) -> i32 {
 /// from CLI and from the behaviors test. When the live runtime grows
 /// a shared registry (separate sprint card), this function swaps in
 /// the live source without touching anything else.
-fn gather_registry(fixture: bool) -> MailboxRegistry {
-    if fixture { fixture_registry() } else { MailboxRegistry::new() }
+fn gather_registry(fixture: bool) -> Mailboxes {
+    if fixture { fixture_registry() } else { Mailboxes::new() }
 }
 
-fn fixture_registry() -> MailboxRegistry {
-    let mut reg = MailboxRegistry::new();
+fn fixture_registry() -> Mailboxes {
+    let mut reg = Mailboxes::new();
     // (1) Idle mailbox — one event delivered + drained cleanly. Queue
     //     depth 0, status live, events_processed 1.
     let idle = ("Sprint".to_string(), "idle".to_string());
@@ -173,7 +173,7 @@ fn render_rows(rows: &[MailboxSummary], json: bool) {
         return;
     }
     if rows.is_empty() {
-        println!("no mailboxes registered (try `storehouse actors list --fixture` for a demo)");
+        println!("no mailboxes registered (try `storehouse mailboxes list --fixture` for a demo)");
         return;
     }
     println!("{:<18} {:<14} {:<10} {:>6} {:>10}  {}",

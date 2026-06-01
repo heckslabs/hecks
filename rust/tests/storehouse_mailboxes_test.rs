@@ -1,4 +1,4 @@
-//! `storehouse actors` CLI integration test
+//! `storehouse mailboxes` CLI integration test
 //! (sprint 14 — story `storehouse-actors-debug-command`).
 //!
 //! Shells out to the built `storehouse` binary, runs each verb against
@@ -9,7 +9,7 @@
 //!   - `list --json --fixture` emits a stable JSON array of summaries
 //!
 //! Task #08 from the story plan : "Behavior fixture : spawn 3 mailboxes,
-//! run storehouse actors list, verify output shape."
+//! run storehouse mailboxes list, verify output shape."
 //!
 //! Same CARGO_BIN_EXE_storehouse + std::process::Command idiom the
 //! existing `duplicate_policy_validator_test.rs` uses for sibling CLI
@@ -30,9 +30,9 @@ fn run(args: &[&str]) -> (i32, String, String) {
 }
 
 #[test]
-fn actors_list_fixture_renders_three_mailboxes() {
-    let (code, stdout, stderr) = run(&["actors", "list", "--fixture"]);
-    assert_eq!(code, 0, "actors list --fixture must exit 0 ; stderr: {}", stderr);
+fn mailboxes_list_fixture_renders_three_mailboxes() {
+    let (code, stdout, stderr) = run(&["mailboxes", "list", "--fixture"]);
+    assert_eq!(code, 0, "mailboxes list --fixture must exit 0 ; stderr: {}", stderr);
     assert!(stdout.contains("TYPE"), "table header missing : {}", stdout);
     assert!(stdout.contains("idle"), "idle mailbox row missing : {}", stdout);
     assert!(stdout.contains("running"), "running mailbox row missing : {}", stdout);
@@ -42,8 +42,8 @@ fn actors_list_fixture_renders_three_mailboxes() {
 }
 
 #[test]
-fn actors_poisoned_filters_to_one_row() {
-    let (code, stdout, _) = run(&["actors", "poisoned", "--fixture"]);
+fn mailboxes_poisoned_filters_to_one_row() {
+    let (code, stdout, _) = run(&["mailboxes", "poisoned", "--fixture"]);
     assert_eq!(code, 0);
     assert!(stdout.contains("poisoned"),
         "poisoned status must appear : {}", stdout);
@@ -55,8 +55,8 @@ fn actors_poisoned_filters_to_one_row() {
 }
 
 #[test]
-fn actors_show_renders_detail_for_known_mailbox() {
-    let (code, stdout, _) = run(&["actors", "show", "Sprint", "running", "--fixture"]);
+fn mailboxes_show_renders_detail_for_known_mailbox() {
+    let (code, stdout, _) = run(&["mailboxes", "show", "Sprint", "running", "--fixture"]);
     assert_eq!(code, 0);
     assert!(stdout.contains("address"), "show output missing address line : {}", stdout);
     assert!(stdout.contains("queue_depth"), "show output missing queue_depth : {}", stdout);
@@ -65,14 +65,14 @@ fn actors_show_renders_detail_for_known_mailbox() {
 }
 
 #[test]
-fn actors_show_unknown_address_exits_nonzero() {
-    let (code, _stdout, _stderr) = run(&["actors", "show", "Sprint", "ghost", "--fixture"]);
+fn mailboxes_show_unknown_address_exits_nonzero() {
+    let (code, _stdout, _stderr) = run(&["mailboxes", "show", "Sprint", "ghost", "--fixture"]);
     assert_ne!(code, 0, "unknown address must exit non-zero");
 }
 
 #[test]
-fn actors_list_json_emits_array_with_three_rows() {
-    let (code, stdout, _) = run(&["actors", "list", "--json", "--fixture"]);
+fn mailboxes_list_json_emits_array_with_three_rows() {
+    let (code, stdout, _) = run(&["mailboxes", "list", "--json", "--fixture"]);
     assert_eq!(code, 0);
     let value: serde_json::Value = serde_json::from_str(stdout.trim())
         .expect("--json output must parse as JSON");
@@ -91,14 +91,29 @@ fn actors_list_json_emits_array_with_three_rows() {
 }
 
 #[test]
-fn actors_advertised_in_top_level_help() {
+fn mailboxes_advertised_in_top_level_help() {
     // `storehouse` with no args triggers print_usage on stderr (binary
     // invoked as plain `storehouse` — the named-being branch only fires
     // when argv[0] is `miette`/`summer`).
     let (_, _, stderr) = run(&[]);
     let stderr_lower = stderr.to_lowercase();
     assert!(
-        stderr_lower.contains("actors")
+        stderr_lower.contains("mailboxes")
             && stderr_lower.contains("inspect the actor model"),
-        "top-level help must advertise the new actors subcommand : {}", stderr);
+        "top-level help must advertise the new mailboxes subcommand : {}", stderr);
+}
+
+#[test]
+fn legacy_actors_subcommand_is_unknown() {
+    // The retired `storehouse actors` CLI must fail with an explicit
+    // `Unknown command: actors` and point users at the new verb. The
+    // rename is a hard switch, not a deprecated alias — main.rs has an
+    // explicit reject arm so the error message is friendly instead of
+    // the generic "Cannot read list" fallthrough.
+    let (code, _stdout, stderr) = run(&["actors", "list"]);
+    assert_ne!(code, 0, "`storehouse actors` must NOT be a recognised subcommand any more");
+    assert!(stderr.contains("Unknown command"),
+        "stderr must say `Unknown command` : {}", stderr);
+    assert!(stderr.contains("actors") && stderr.contains("mailboxes"),
+        "reject message must point at the new name : {}", stderr);
 }

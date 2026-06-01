@@ -1,14 +1,14 @@
-//! MailboxSummary — read-only snapshot row for the `storehouse actors`
+//! MailboxSummary — read-only snapshot row for the `storehouse mailboxes`
 //! debug command (sprint 14 — story `storehouse-actors-debug-command`)
 //!
-//! `MailboxRegistry::snapshot()` returns one of these per registered
+//! `Mailboxes::snapshot()` returns one of these per registered
 //! mailbox, locking each Mailbox just long enough to copy the four
 //! observability axes (status, queue depth, handled count, last error).
-//! The CLI consumes the Vec without holding any of the registry's
+//! The CLI consumes the Vec without holding any of the Mailboxes table's
 //! mutexes — render is fully decoupled from drain.
 //!
 //! Usage :
-//!   let rows = registry.snapshot();
+//!   let rows = mailboxes.snapshot();
 //!   for row in &rows { println!("{} {} {:?}", row.aggregate_type, row.aggregate_id, row.status); }
 //!
 //! The struct exposes a `to_json` helper that returns a `serde_json::Value`
@@ -16,7 +16,7 @@
 //! as the lowercase tag ("live" / "poisoned") for tooling-stable
 //! consumption — the runtime enum stays internal.
 
-use super::{ActorAddress, Mailbox, MailboxRegistry, MailboxStatus};
+use super::{ActorAddress, Mailbox, Mailboxes, MailboxStatus};
 
 #[derive(Debug, Clone)]
 pub struct MailboxSummary {
@@ -93,7 +93,7 @@ impl MailboxSummary {
     }
 }
 
-impl MailboxRegistry {
+impl Mailboxes {
     /// Snapshot every registered mailbox into a flat Vec of summaries.
     /// Each mailbox is locked briefly in turn ; the lock order is the
     /// HashMap's iteration order (undefined but stable within a single
@@ -111,7 +111,7 @@ impl MailboxRegistry {
     }
 
     /// Filter to only poisoned mailboxes — convenience for the
-    /// `storehouse actors poisoned` subcommand. Equivalent to
+    /// `storehouse mailboxes poisoned` subcommand. Equivalent to
     /// `snapshot().into_iter().filter(MailboxSummary::is_poisoned)`
     /// but spelled out so the call-site reads as the intent.
     pub fn snapshot_poisoned(&self) -> Vec<MailboxSummary> {
@@ -120,7 +120,7 @@ impl MailboxRegistry {
 
     /// Snapshot a single mailbox by address. Returns None when the
     /// address has never received a delivery (no mailbox exists yet).
-    /// Used by `storehouse actors show <type> <id>`.
+    /// Used by `storehouse mailboxes show <type> <id>`.
     pub fn snapshot_one(&self, addr: &ActorAddress) -> Option<MailboxSummary> {
         let mb = self.mailbox_for(addr)?;
         let guard = mb.lock().expect("mailbox mutex poisoned");

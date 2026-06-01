@@ -4,7 +4,7 @@
 //! Each test exercises the public registry surface end-to-end, NOT
 //! the mailbox in isolation — the advisor's caution "a Mailbox::push
 //! ; Mailbox::drain unit test doesn't prove parallelism" is the
-//! reason the tests route through `MailboxRegistry::deliver` +
+//! reason the tests route through `Mailboxes::deliver` +
 //! `drain_all_in_parallel`. Synchronization uses Barrier / Condvar
 //! — no sleeps — so the suite stays well under the 1-second hook.
 //!
@@ -25,7 +25,7 @@
 //!   (Idempotency is universal)   → duplicate_event_id_handled_once
 //!   (No task leak ; tokio sub.)  → tokio_task_count_matches_active_mailboxes
 
-use super::{Envelope, MailboxRegistry};
+use super::{Envelope, Mailboxes};
 use crate::runtime::event_bus::Event;
 use std::collections::HashMap;
 use std::sync::{Arc, Barrier, Mutex};
@@ -48,7 +48,7 @@ fn env(agg_type: &str, agg_id: &str, evt_name: &str, event_id: &str) -> Envelope
 /// observes the same sequence the deliver calls used.
 #[test]
 fn same_aggregate_events_handled_in_order() {
-    let mut reg = MailboxRegistry::new();
+    let mut reg = Mailboxes::new();
     let addr = ("Sprint".to_string(), "14".to_string());
     reg.deliver(addr.clone(), env("Sprint", "14", "Planned", "e1"));
     reg.deliver(addr.clone(), env("Sprint", "14", "Activated", "e2"));
@@ -77,6 +77,10 @@ fn same_aggregate_events_handled_in_order() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parallel_across_aggregates_no_block() {
     let mut reg = MailboxRegistry::new();
+/// — we cap the test with a join inside std::thread::spawn pattern.
+#[test]
+fn parallel_across_aggregates_no_block() {
+    let mut reg = Mailboxes::new();
     let addr_a = ("Sprint".to_string(), "A".to_string());
     let addr_b = ("Sprint".to_string(), "B".to_string());
     reg.deliver(addr_a, env("Sprint", "A", "X", "a1"));
@@ -106,6 +110,10 @@ async fn parallel_across_aggregates_no_block() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn panic_in_one_actor_doesnt_block_others() {
     let mut reg = MailboxRegistry::new();
+/// the drain the registry reports 1 poisoned, 1 handled.
+#[test]
+fn panic_in_one_actor_doesnt_block_others() {
+    let mut reg = Mailboxes::new();
     let good = ("Sprint".to_string(), "GOOD".to_string());
     let bad  = ("Sprint".to_string(), "BAD".to_string());
     reg.deliver(good, env("Sprint", "GOOD", "X", "g1"));
@@ -137,7 +145,7 @@ async fn panic_in_one_actor_doesnt_block_others() {
 /// counter exposes the dedup for the storehouse audit trail.
 #[test]
 fn duplicate_event_id_handled_once() {
-    let mut reg = MailboxRegistry::new();
+    let mut reg = Mailboxes::new();
     let addr = ("Sprint".to_string(), "14".to_string());
     let accepted_1 = reg.deliver(addr.clone(), env("Sprint", "14", "Planned", "evt-7"));
     let accepted_2 = reg.deliver(addr.clone(), env("Sprint", "14", "Planned", "evt-7"));
@@ -162,7 +170,7 @@ fn duplicate_event_id_handled_once() {
 /// trail intact) but the handler is never re-invoked on them.
 #[test]
 fn poisoned_mailbox_drops_new_envelopes_silently() {
-    let mut reg = MailboxRegistry::new();
+    let mut reg = Mailboxes::new();
     let addr = ("Sprint".to_string(), "14".to_string());
     reg.deliver(addr.clone(), env("Sprint", "14", "X", "p1"));
     // Drain ONCE with a panic so the mailbox flips Poisoned.

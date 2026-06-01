@@ -511,17 +511,31 @@ fn main() {
         std::process::exit(storehouse::run_follow::run(&args));
     }
 
-    // `storehouse actors` — debug observability for the actor model
+    // `storehouse mailboxes` — debug observability for the actor model
     // (sprint 14 — story `storehouse-actors-debug-command`). Three
     // verbs : list / show / poisoned, each with optional `--json`.
-    // The live runtime does not yet hold a process-wide MailboxRegistry
+    // The live runtime does not yet hold a process-wide Mailboxes table
     // (separate sprint-14 wiring card) ; `--fixture` builds a
     // deterministic 3-mailbox demo so the rendering shape is
     // exerciseable from CLI and from the behavior test before the bus
     // wires through. Same kernel-surface family as `follow` and
-    // `statusline` — thin main.rs delegate to the run_actors module.
+    // `statusline` — thin main.rs delegate to the run_mailboxes module.
+    //
+    // The conceptual "actor" stays a bluebook concept (every aggregate
+    // is an actor) ; this CLI observes runtime *mailbox* state. The
+    // HashMap IS the lookup table — no separate registry concept.
+    if command == "mailboxes" {
+        std::process::exit(storehouse::run_mailboxes::run(&args));
+    }
+
+    // Retired `storehouse actors` CLI — hard switch, no deprecated
+    // alias. Without this explicit reject arm the args fall through to
+    // the generic single-file parse path which would emit a confusing
+    // "Cannot read <verb>" message ; the explicit arm makes the rename
+    // visible to humans and CI alike.
     if command == "actors" {
-        std::process::exit(storehouse::run_actors::run(&args));
+        eprintln!("Unknown command: actors — renamed to `mailboxes` (try `storehouse mailboxes list`)");
+        std::process::exit(1);
     }
 
     // `storehouse serve-stdio <agg-dir>` — warm, resident dispatch
@@ -5276,7 +5290,7 @@ fn print_usage() {
     eprintln!("  sleep      Dispatch EnterSleep, stream stage/dream changes, print wake report");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
     eprintln!("  heki       Read/write .heki binary stores");
-    eprintln!("  actors     Inspect the actor model (mailboxes, queue depths, poisoned)");
+    eprintln!("  mailboxes  Inspect the actor model (mailboxes, queue depths, poisoned)");
     eprintln!("  dump-world Parse a .world file and emit canonical JSON");
     eprintln!("  dump-hecksagon  Parse a .hecksagon file and emit canonical JSON\n");
     eprintln!("Heki subcommands (read-only ; direct writes were retired in sprint-14):");
@@ -5285,6 +5299,11 @@ fn print_usage() {
     eprintln!("  actors show <type> <id>              Detail on one mailbox");
     eprintln!("  actors poisoned                      Only poisoned mailboxes");
     eprintln!("  actors <verb> --json                 Tooling-stable JSON output\n");
+    eprintln!("Mailboxes subcommands:");
+    eprintln!("  mailboxes list                       List active mailboxes");
+    eprintln!("  mailboxes show <type> <id>           Detail on one mailbox");
+    eprintln!("  mailboxes poisoned                   Only poisoned mailboxes");
+    eprintln!("  mailboxes <verb> --json              Tooling-stable JSON output\n");
     eprintln!("Heki subcommands:");
     eprintln!("  heki read   <file>           Dump store as JSON");
     eprintln!("  heki latest <file>           Show latest record");
