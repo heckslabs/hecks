@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# seed-subcommand-registry — BUS-routed materialiser for SubcommandRegistry heki.
+#
+# Restores the script deleted in PR #717 (sprint-14
+# make-heki-direct-write-impossible). The original drove 30 raw
+# `storehouse heki upsert` calls. With direct heki writes retired,
+# each row now flows through the bus :
+#
+#   storehouse <aggregates_root> SubcommandRegistry::Subcommand.Register \
+#     name=X handler=Y exit_kind_default=Z deprecated=W \
+#     argv_shape='{ ... }' dispatch_address='{ value: "" }'
+#
+# Source of truth is cli/subcommand/subcommand.fixtures (30 rows as of
+# i80 Unit D, parsed via `storehouse dump-fixtures`). Each fixture row
+# becomes one bus dispatch of the SubcommandRegistry::Subcommand.Register
+# command — the same command Chris uses to add a new subcommand at the
+# command line.
+#
+# Usage:
+#   bin/seed-subcommand-registry            # uses HECKS_HOME or ~/Projects/hecks
+#   HECKS_HOME=/path/to/hecks bin/seed-subcommand-registry
+
+set -euo pipefail
+
+REPO="${HECKS_HOME:-$HOME/Projects/hecks}"
+FIXTURES="${REPO}/cli/subcommand/subcommand.fixtures"
+AGG_ROOT="${REPO}/cli/subcommand"
+HECKS="${STOREHOUSE:-$(command -v storehouse || echo "$REPO/rust/target/release/storehouse")}"
+
+if [ ! -f "$FIXTURES" ]; then
+  echo "[seed-subcommand-registry] fixtures missing : $FIXTURES" >&2
+  exit 2
+fi
+if [ ! -x "$HECKS" ]; then
+  echo "[seed-subcommand-registry] storehouse not executable at $HECKS" >&2
+  exit 2
+fi
+
+echo "[seed-subcommand-registry] routing $FIXTURES through bus dispatch"
+echo "[seed-subcommand-registry] aggregates root : $AGG_ROOT"
+
+# dump-fixtures emits canonical JSON. python3 walks the rows and shells
+# one Register dispatch per row. Quoting the value-object strings
+# (argv_shape, dispatch_address) preserves the embedded JSON shape the
+# bluebook attribute expects.
+ROW_COUNT=0
+while IFS=$'\t' read -r name handler exit_kind deprecated argv_shape dispatch_address; do
+  [ -z "$name" ] && continue
+  "$HECKS" "$AGG_ROOT" SubcommandRegistry::Subcommand.Register \
+    name="$name" \
+    handler="$handler" \
+    exit_kind_default="$exit_kind" \
+    deprecated="$deprecated" \
+    argv_shape="$argv_shape" \
+    dispatch_address="$dispatch_address" >/dev/null 2>&1 \
+    || echo "[seed-subcommand-registry] WARN dispatch failed for name=$name" >&2
+  ROW_COUNT=$((ROW_COUNT + 1))
+done < <(
+  "$HECKS" dump-fixtures "$FIXTURES" \
+    | python3 -c '
+import sys, json
+d = json.load(sys.stdin)
+for row in d.get("fixtures", []):
+    a = row.get("attrs", {})
+    cols = [
+      a.get("name", ""),
+      a.get("handler", ""),
+      a.get("exit_kind_default", "ok"),
+      a.get("deprecated", "no"),
+      a.get("argv_shape", ""),
+      a.get("dispatch_address", ""),
+    ]
+    print("\t".join(cols))
+'
+)
+
+echo "[seed-subcommand-registry] dispatched $ROW_COUNT Register commands via bus"
+echo "[seed-subcommand-registry] done — SubcommandRegistry hydrated through the door"
