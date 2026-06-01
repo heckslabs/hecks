@@ -16,6 +16,22 @@
 //! flipped. `drain_all_in_parallel` is now an `async fn` ; sync
 //! callers that need a non-async drain still have `drain_all_blocking`.
 //!
+//! Bluebook contract (sprint-14 threading-bluebook) : the concurrency
+//! primitives this module reaches for are declared in
+//! hecks_conception/aggregates/framework/threading/threading.bluebook
+//! as Threading.Thread (Spawn / Drain / Join / MarkPoisoned) and
+//! Threading.Mailbox (Register / Enqueue / StartDraining / MarkIdle /
+//! MarkPoisoned ; StartDraining is named to avoid colliding with
+//! Thread.Drain in the same bluebook). Today the rust side still calls tokio::spawn and
+//! std::thread::spawn inline ; the bluebook is the AUDIT trail of
+//! what was spawned and the named seam where the recursive bus-
+//! through-self binding (every spawn dispatches Threading.Thread.Spawn,
+//! the adapter in framework/threading/hecksagons/threading_adapter.hecksagon
+//! drives the syscall) lands next. The drain path here corresponds
+//! 1:1 to Threading.Mailbox.Drain ; per-actor failure isolation is
+//! Threading.Mailbox.MarkPoisoned ; the tokio vs std substrate split
+//! is the Threading.Thread.kind value object ("tokio" | "std").
+//!
 //! Four facets, one mechanism :
 //! - actor-per-aggregate-instance — mailbox keyed by (type, id)
 //! - async-event-delivery-bus     — emit is fire-and-forget enqueue
@@ -45,7 +61,6 @@ pub mod supervisor;
 
 pub use envelope::Envelope;
 pub use mailbox::{Mailbox, MailboxStatus};
-pub use registry::{Mailboxes, ActorAddress, DrainSummary};
 pub use registry::{Mailboxes, MailboxRegistry, ActorAddress, DrainSummary};
 pub use registry::{Mailboxes, ActorAddress, DrainSummary};
 pub use snapshot::{MailboxStatusLabel, MailboxSummary};
