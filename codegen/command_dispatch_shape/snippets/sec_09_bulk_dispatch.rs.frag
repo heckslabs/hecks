@@ -87,14 +87,12 @@ fn dispatch_bulk(
             aggregate_id: row_id.clone(),
             data: row_attrs,
         };
-        // Sprint 14 (migration-coexistence) — same fork as the single-
-        // event site in phase_11_emit ; many-form (`list_of(VO)`) inputs
-        // publish one event per row and each row obeys the aggregate's
-        // delivery mode.
-        match rt.delivery_for(&event.aggregate_type) {
-            crate::ir::DeliveryMode::Sync => rt.event_bus.publish(event.clone()),
-            crate::ir::DeliveryMode::Actor => rt.enqueue_and_drain(event.clone()),
-        }
+        // Sprint 14 (retire-sync-cascade-pipeline) — many-form
+        // (`list_of(VO)`) inputs publish one event per row through the
+        // bus, just like the single-event site in phase_11_emit. The
+        // legacy delivery-mode fork retired with the sync-cascade
+        // pipeline ; every event flows through `event_bus.publish`.
+        rt.event_bus.publish(event.clone());
         last_id = row_id;
         last_event = Some(event);
     }
