@@ -1,5 +1,5 @@
 Hecks.bluebook "MigrationCoexistence" do
-  vision "Sprint-14 migration plan : every existing aggregate is currently on `delivery :sync` (the implicit default). Each row below opts ONE aggregate into `delivery :actor` once its behaviors stay green under the actor stub. Lifecycle moves pending → actor_eligible → flipped → verified through the Register command — callers re-Register with the next state when an aggregate progresses. The fork is in the runtime today (`Runtime::delivery_for` + `enqueue_and_drain`) ; this aggregate tracks the rollout state per bluebook so the actor migration is auditable through the bus, not a wiki page."
+  vision "Sprint-14 migration plan : the sync-cascade pipeline retired (retire-sync-cascade-pipeline) so every existing aggregate publishes through the event bus unconditionally — there is no longer a `delivery :sync` vs `delivery :actor` fork to track. This aggregate stays as the historical audit trail of which aggregates moved through pending → actor_eligible → flipped → verified while the fork existed ; new entries are unnecessary because per-aggregate mailboxes (actor-per-aggregate-instance + async-event-delivery-bus) will rewire publishing without a bluebook-visible flag."
 
   # ---- AggregateMigration --------------------------------------------
   #
