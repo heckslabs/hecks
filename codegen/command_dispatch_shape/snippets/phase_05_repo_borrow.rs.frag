@@ -13,7 +13,12 @@
     // TaskCompleted -> Story.DropPendingTaskCount finds the Story via Task.story.
     let cascade_fk_id: Option<String> = cascade_hint.as_ref().and_then(|(up_type, up_id)| {
         if up_type == &aggregate_name { return None; }
-        let up_agg = rt.domain.aggregates.iter().find(|a| &a.name == up_type)?;
+        // same-context upstream first : in combined-domain mode several
+        // domains may share an aggregate name (e.g. Task), so prefer the one
+        // in the target's context before falling back to any match.
+        let up_agg = rt.domain.aggregates.iter()
+            .find(|a| &a.name == up_type && a.context == aggregate_context)
+            .or_else(|| rt.domain.aggregates.iter().find(|a| &a.name == up_type))?;
         let fname = up_agg.attributes.iter()
             .find(|at| at.attr_type == aggregate_name)
             .map(|at| at.name.clone())?;
