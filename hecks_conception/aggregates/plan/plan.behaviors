@@ -1,5 +1,5 @@
 Hecks.behaviors "Plan" do
-  vision "Behavioral tests for the Plan domain — the Story lifecycle introduced by lifecycle-tasked-state (sprint 14). New stories spawn untasked ; AddTask leaves them untasked ; Tasked moves them to tasked ; Start (now gated on state == tasked) moves them to started."
+  vision "Behavioral tests for the Plan domain — the Story lifecycle introduced by lifecycle-tasked-state (sprint 14) plus the Task aggregate (task-completion-state, sprint 14). Stories spawn untasked ; Tasked moves them to tasked ; Start (gated on state == tasked) moves them to started. Task is now its own aggregate with Add / Complete / Cancel / Reopen ; cascade policies maintain Story.pending_task_count ; the ready_means_all_tasks_resolved invariant gates MarkReady on pending_task_count == 0."
 
   test "Capture mints a story in the untasked state" do
     tests "Capture", on: "Story"
@@ -11,20 +11,6 @@ Hecks.behaviors "Plan" do
     tests "Capture", on: "Story"
     input  ref: "l2", title: "Lifecycle two", tier: 1, summary: "sample", target: "plan/story", project: "plan"
     expect emits: ["StoryCaptured"]
-  end
-
-  test "AddTask on an untasked story keeps it untasked" do
-    tests "AddTask", on: "Story"
-    setup  "Capture", ref: "l3", title: "L3", tier: 1, summary: "s", target: "t", project: "plan"
-    input  ref: "l3", description: "do the thing"
-    expect ref: "l3", state: "untasked"
-  end
-
-  test "AddTask emits StoryTaskAdded" do
-    tests "AddTask", on: "Story"
-    setup  "Capture", ref: "l4", title: "L4", tier: 1, summary: "s", target: "t", project: "plan"
-    input  ref: "l4", description: "first task"
-    expect emits: ["StoryTaskAdded"]
   end
 
   test "Tasked flips an untasked story to tasked" do
@@ -64,5 +50,126 @@ Hecks.behaviors "Plan" do
     setup  "Capture", ref: "l9", title: "L9", tier: 1, summary: "s", target: "t", project: "plan"
     input  ref: "l9", sprint_ref: "1"
     expect ref: "l9", state: "untasked", sprint: "1"
+  end
+
+  # ── task-completion-state (sprint 14) ───────────────────────────────
+
+  test "Task.Add mints a Task in pending status" do
+    tests "Add", on: "Task"
+    input  id: "l10-t0", story: "l10", order: 0, description: "first thing"
+    expect id: "l10-t0", status: "pending", story: "l10"
+  end
+
+  test "Task.Add emits TaskAdded" do
+    tests "Add", on: "Task"
+    input  id: "l11-t0", story: "l11", order: 0, description: "a thing"
+    expect emits: ["TaskAdded"]
+  end
+
+  test "Task.Complete moves a pending task to done" do
+    tests "Complete", on: "Task"
+    setup  "Add", id: "l12-t0", story: "l12", order: 0, description: "do it"
+    input  id: "l12-t0"
+    expect id: "l12-t0", status: "done"
+  end
+
+  test "Task.Complete emits TaskCompleted" do
+    tests "Complete", on: "Task"
+    setup  "Add", id: "l13-t0", story: "l13", order: 0, description: "do it"
+    input  id: "l13-t0"
+    expect emits: ["TaskCompleted"]
+  end
+
+  test "Task.Cancel moves a pending task to cancelled" do
+    tests "Cancel", on: "Task"
+    setup  "Add", id: "l14-t0", story: "l14", order: 0, description: "drop it"
+    input  id: "l14-t0"
+    expect id: "l14-t0", status: "cancelled"
+  end
+
+  test "Task.Cancel emits TaskCancelled" do
+    tests "Cancel", on: "Task"
+    setup  "Add", id: "l15-t0", story: "l15", order: 0, description: "drop it"
+    input  id: "l15-t0"
+    expect emits: ["TaskCancelled"]
+  end
+
+  test "Task.Complete on an already-done task is refused" do
+    tests "Complete", on: "Task"
+    setup  "Add",      id: "l16-t0", story: "l16", order: 0, description: "x"
+    setup  "Complete", id: "l16-t0"
+    input  id: "l16-t0"
+    expect refused: "task must not already be resolved"
+  end
+
+  test "Task.Reopen returns a done task to pending" do
+    tests "Reopen", on: "Task"
+    setup  "Add",      id: "l17-t0", story: "l17", order: 0, description: "x"
+    setup  "Complete", id: "l17-t0"
+    input  id: "l17-t0"
+    expect id: "l17-t0", status: "pending"
+  end
+
+  test "BumpPendingTaskCount emits PendingTaskCountBumped" do
+    tests "BumpPendingTaskCount", on: "Story"
+    setup  "Capture", ref: "l20", title: "L20", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "l20"
+    expect emits: ["PendingTaskCountBumped"]
+  end
+
+  test "Task.Add cascades through BumpOnTaskAdded and emits PendingTaskCountBumped" do
+    # The load-bearing end-to-end : Task.Add fires TaskAdded, the
+    # BumpOnTaskAdded policy dispatches Story.BumpPendingTaskCount on
+    # the owning Story (routed by the event payload's story field),
+    # which emits PendingTaskCountBumped. Verified empirically against
+    # a live store : pending_task_count moves from 0 → 1.
+    tests "Add", on: "Task", kind: :cascade
+    setup  "Capture", ref: "l22", title: "L22", tier: 1, summary: "s", target: "t", project: "plan"
+    input  id: "l22-t0", story: "l22", order: 0, description: "cascade probe"
+    expect emits: ["TaskAdded", "PendingTaskCountBumped"]
+  end
+
+  test "DropPendingTaskCount emits PendingTaskCountDropped" do
+    tests "DropPendingTaskCount", on: "Story"
+    setup  "Capture",              ref: "l21", title: "L21", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "BumpPendingTaskCount", ref: "l21"
+    input  ref: "l21"
+    expect emits: ["PendingTaskCountDropped"]
+  end
+
+  # MarkReady has four pre-existing live-check invariants in addition to
+  # ready_means_all_tasks_resolved — verified / merged_to_main / worktree_clean /
+  # tests_passing. The two tests below arm the four flag-recorders first so the
+  # only invariant we are exercising is the task-count one ; the rejection test
+  # then leaves pending_task_count > 0, the success test cancels it back to 0.
+  test "Story.MarkReady on a started story with an outstanding task is refused" do
+    tests "MarkReady", on: "Story"
+    setup  "Capture",                         ref: "l18", title: "L18", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                  ref: "l18", sprint_ref: "1"
+    setup  "Tasked",                          ref: "l18"
+    setup  "Start",                           ref: "l18"
+    setup  "RecordVerbResolvesCheckResult",   ref: "l18", ok: true
+    setup  "RecordMergedCheckResult",         ref: "l18", ok: true
+    setup  "RecordWorktreeCheckResult",       ref: "l18", ok: true
+    setup  "RecordTestsCheckResult",          ref: "l18", ok: true
+    setup  "BumpPendingTaskCount",            ref: "l18"
+    input  ref: "l18"
+    expect refused: "ready_means_all_tasks_resolved"
+  end
+
+  test "Story.MarkReady succeeds once pending_task_count is 0" do
+    tests "MarkReady", on: "Story"
+    setup  "Capture",                         ref: "l19", title: "L19", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                  ref: "l19", sprint_ref: "1"
+    setup  "Tasked",                          ref: "l19"
+    setup  "Start",                           ref: "l19"
+    setup  "RecordVerbResolvesCheckResult",   ref: "l19", ok: true
+    setup  "RecordMergedCheckResult",         ref: "l19", ok: true
+    setup  "RecordWorktreeCheckResult",       ref: "l19", ok: true
+    setup  "RecordTestsCheckResult",          ref: "l19", ok: true
+    setup  "BumpPendingTaskCount",            ref: "l19"
+    setup  "DropPendingTaskCount",            ref: "l19"
+    input  ref: "l19"
+    expect ref: "l19", state: "ready_for_review"
   end
 end

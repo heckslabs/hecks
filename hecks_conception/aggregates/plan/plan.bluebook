@@ -1,5 +1,5 @@
-Hecks.bluebook "Plan", version: "2026.05.31.1" do
-  vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit + owned Task entity), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task is an owned entity inside Story (composition, not aggregation)."
+Hecks.bluebook "Plan", version: "2026.05.31.2" do
+  vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
   aggregate "Plan", "The Planning bounded context as a singleton aggregate. Owns the Board (the one working surface) and the registry of Projects. Sprints live under Projects ; Stories live under Sprints ; UseCases live under Stories. The top of the Plan domain tree." do
@@ -442,7 +442,15 @@ Hecks.bluebook "Plan", version: "2026.05.31.1" do
 
     # ---- Composition ----
     attribute :subsumes,       list_of(Story)
-    attribute :tasks,          list_of(Task)
+
+    # ---- Task accounting (task-completion-state, sprint 14) ----
+    # Pending-task count is maintained by cascade policies on the Task
+    # aggregate : TaskAdded bumps ; TaskCompleted / TaskCancelled drop ;
+    # TaskReopened bumps. The ready_means_all_tasks_resolved invariant
+    # gates MarkReady on pending_task_count == 0. Task is now its
+    # own aggregate (sibling of Story in this bluebook) ; the legacy
+    # `list_of(Task)` entity composition retired sprint 14.
+    attribute :pending_task_count, PendingTaskCount, default: 0
 
     # ---- Artifacts ----
     # Files the story produced or consumed: a downloaded graphic, a
@@ -600,30 +608,24 @@ Hecks.bluebook "Plan", version: "2026.05.31.1" do
       attribute :value, String
     end
 
-    # ── Step entity ────────────────────────────────────────────────
-    # Identity + order + a command phrase + args => entity.
-    # The list is ordered; order is identity within the Story boundary.
-    # ── Task entity ────────────────────────────────
-    # Owned step of work under this Story — the how beneath the what.
-    # No identity outside the Story boundary. Status walks todo → done.
-
-    value_object "TaskOrder" do
+    value_object "PendingTaskCount" do
+      # Integer counter — how many Plan::Task records this Story has in
+      # status `pending`. Maintained by cascade policies on Task.TaskAdded /
+      # TaskCompleted / TaskCancelled / TaskReopened. Consulted by the
+      # ready_means_all_tasks_resolved invariant to gate MarkReady.
       attribute :value, Integer
     end
 
-    value_object "TaskDescription" do
-      attribute :value, String
-    end
-
-    value_object "TaskStatus" do
-      attribute :value, String
-    end
-
-    entity "Task" do
-      attribute :order,       TaskOrder
-      attribute :description, TaskDescription
-      attribute :status,      TaskStatus
-    end
+    # ── Step entity ────────────────────────────────────────────────
+    # Identity + order + a command phrase + args => entity.
+    # The list is ordered; order is identity within the Story boundary.
+    #
+    # ── Task ────────────────────────────────────────────────────────
+    # Promoted to a first-class aggregate this sprint (task-completion-state,
+    # sprint 14) — see the Task aggregate below. The legacy entity-in-Story
+    # shape + Story.AddTask command retired ; pending_task_count attribute
+    # + Story.IncrementPendingTaskCount / DecrementPendingTaskCount commands
+    # carry the accounting via cascade policy.
 
     # ── Attachment entity ──────────────────────────────────────────
     # A file the story carries: path + filename + kind + note. Listed;
@@ -738,14 +740,20 @@ Hecks.bluebook "Plan", version: "2026.05.31.1" do
       emits "FileAttached"
     end
 
-    command "AddTask" do
-      role "Miette"
-      description "Add a planned task to the story during the tasking phase. Tasks are the discrete sub-units of work the operator and Miette agree on before Start. Valid in any pre-approval state — typically untasked or tasked (sprint 14 vocab) but the guard accepts every state except approved / cancelled / deferred so a story under review can still have tasks adjusted. Each task carries a description ; order is implicit by append position."
+    command "BumpPendingTaskCount" do
+      role "System"
+      description "Cascade-internal : bump pending_task_count by 1. Fired by the BumpOnTaskAdded / BumpOnTaskReopened policies on the Task aggregate. Pure counter mutation, no lifecycle change. Must NOT be dispatched manually."
       reference_to(Story)
-      attribute :description, TaskDescription
-      given("tasks can be added any time before final approval") { state != "approved" && state != "cancelled" && state != "deferred" }
-      then_set :tasks, append: { description: :description }
-      emits "StoryTaskAdded"
+      then_set :pending_task_count, increment: 1
+      emits "PendingTaskCountBumped"
+    end
+
+    command "DropPendingTaskCount" do
+      role "System"
+      description "Cascade-internal : drop pending_task_count by 1. Fired by the DropOnTaskCompleted / DropOnTaskCancelled policies on the Task aggregate. Pure counter mutation, no lifecycle change. Must NOT be dispatched manually."
+      reference_to(Story)
+      then_set :pending_task_count, decrement: 1
+      emits "PendingTaskCountDropped"
     end
 
     command "Tasked" do
@@ -840,6 +848,15 @@ Hecks.bluebook "Plan", version: "2026.05.31.1" do
 
     invariant "tests_pass_means_ready" do
       holds_when { state != "ready_for_review" && state != "done" || tests_passing == true }
+    end
+
+    invariant "ready_means_all_tasks_resolved" do
+      # The done-is-done task gate (task-completion-state, sprint 14).
+      # MarkReady is refused when the Story still has pending Tasks ;
+      # every task must walk to done or cancelled before the Story can
+      # transition to ready_for_review or done. Same gate-pattern as
+      # the four live-check invariants above.
+      holds_when { state != "ready_for_review" && state != "done" || pending_task_count == 0 }
     end
 
     command "MarkReady" do
@@ -1013,6 +1030,152 @@ Hecks.bluebook "Plan", version: "2026.05.31.1" do
     trigger "Primitive::Process.Spawn"
     with "cmd", "bin/check-verb-resolves"
     with "result_into", "Story.RecordVerbResolvesCheckResult"
+  end
+
+  # ===== Task aggregate (task-completion-state, sprint 14) =====
+  #
+  # Task was an entity-in-Story until sprint 14. Promoted to its own
+  # first-class aggregate so the four lifecycle verbs (Add / Complete /
+  # Cancel / Reopen) become real bus dispatches with their own events.
+  # Story carries an integer pending_task_count maintained by the four
+  # cascade policies below ; the ready_means_all_tasks_resolved invariant
+  # gates Story.MarkReady on pending_task_count == 0.
+  aggregate "Task", "One unit of work under a Story. Status walks pending → done | cancelled, with Reopen to return to pending. Counting is maintained reactively on Story via cascade policies on TaskAdded / TaskCompleted / TaskCancelled / TaskReopened." do
+    identified_by :id
+
+    # ---- Identity ----
+    attribute :id,          TaskId
+
+    # ---- Membership ----
+    attribute :story,       Story
+
+    # ---- Content ----
+    attribute :order,       TaskOrder
+    attribute :description, TaskDescription
+
+    # ---- Lifecycle ----
+    # status: pending | done | cancelled
+    attribute :status,      TaskStatus, default: "pending"
+
+    # ── Value objects ─────────────────────────────────────────
+
+    value_object "TaskId" do
+      # Stable identifier for the task — conventionally <story_ref>-t<order>
+      # (e.g. "lifecycle-tasked-state-t0"). Generated by the caller at Add.
+      attribute :value, String
+    end
+
+    value_object "TaskOrder" do
+      # 0-based position within the Story's task list — records the order
+      # the operator added tasks. Identity-by-position retired with the
+      # entity-in-Story shape ; the Story can now have non-contiguous task
+      # orders after deletions.
+      attribute :value, Integer
+    end
+
+    value_object "TaskDescription" do
+      # One-line description of the unit of work.
+      attribute :value, String
+    end
+
+    value_object "TaskStatus" do
+      # Lifecycle token: pending | done | cancelled.
+      attribute :value, String
+    end
+
+    # ── Commands ───────────────────────────────────────────────────
+
+    command "Add" do
+      role "Miette"
+      description "Mint a new Task under a Story. id IS the task identity — one Task per id, conventionally <story_ref>-t<order>. Carries the story ref so the IncrementOnTaskAdded policy can route the pending-count bump to the right Story."
+      attribute :id,          TaskId
+      attribute :story,       Story
+      attribute :order,       TaskOrder
+      attribute :description, TaskDescription
+      then_set :id,          to: :id
+      then_set :story,       to: :story
+      then_set :order,       to: :order
+      then_set :description, to: :description
+      then_set :status,      to: "pending"
+      emits "TaskAdded"
+    end
+
+    command "Complete" do
+      role "Miette"
+      description "Resolve a pending Task by marking it done. The cascade DecrementOnTaskCompleted policy bumps the owning Story's pending_task_count down so the ready_means_all_tasks_resolved gate can clear."
+      reference_to(Task)
+      given("task must not already be resolved") { status != "done" && status != "cancelled" }
+      then_set :status, to: "done"
+      emits "TaskCompleted"
+    end
+
+    command "Cancel" do
+      role "Operator"
+      description "Drop a pending Task as no-longer-needed. Operator-only ; like Story.Cancel this is the soft-delete path. The cascade DecrementOnTaskCancelled policy decrements the owning Story's pending_task_count."
+      reference_to(Task)
+      given("task must not already be resolved") { status != "done" && status != "cancelled" }
+      then_set :status, to: "cancelled"
+      emits "TaskCancelled"
+    end
+
+    command "Reopen" do
+      role "Miette"
+      description "Return a done or cancelled Task to pending — the work was prematurely resolved and is needed again. The cascade IncrementOnTaskReopened policy bumps the owning Story's pending_task_count back up."
+      reference_to(Task)
+      given("task must currently be resolved") { status == "done" || status == "cancelled" }
+      then_set :status, to: "pending"
+      emits "TaskReopened"
+    end
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+    #
+    # pending → done | cancelled ; Reopen returns either to pending.
+    # Add is the creation command; the record does not exist until Add fires.
+    lifecycle :status, default: "pending" do
+      transition "Add"      => "pending"
+      transition "Complete" => "done",      from: "pending"
+      transition "Cancel"   => "cancelled", from: "pending"
+      transition "Reopen"   => "pending",   from: "done"
+      transition "Reopen"   => "pending",   from: "cancelled"
+    end
+
+    # ── Queries ───────────────────────────────────────────────────
+
+    query "ForStory" do
+      description "Every task owned by a given story — the membership lookup the planning-pulse renderer uses to compute done/total per Story."
+      where story: :story
+    end
+
+    query "Pending" do
+      description "Tasks still in pending status — the work outstanding across all stories."
+      where status: "pending"
+    end
+  end
+
+  # ── Task-count cascade policies ─────────────────────────────────────
+  #
+  # The Story-side accounting (pending_task_count) reacts to Task
+  # lifecycle events. Each policy routes the bump through the Task's
+  # `story` payload field, dispatching the right Story instance's
+  # counter command.
+  policy "BumpOnTaskAdded" do
+    on "Task.TaskAdded"
+    trigger "Story.BumpPendingTaskCount"
+  end
+
+  policy "DropOnTaskCompleted" do
+    on "Task.TaskCompleted"
+    trigger "Story.DropPendingTaskCount"
+  end
+
+  policy "DropOnTaskCancelled" do
+    on "Task.TaskCancelled"
+    trigger "Story.DropPendingTaskCount"
+  end
+
+  policy "BumpOnTaskReopened" do
+    on "Task.TaskReopened"
+    trigger "Story.BumpPendingTaskCount"
   end
 
   # ===== from board/board.bluebook =====
