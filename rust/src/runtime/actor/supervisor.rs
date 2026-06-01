@@ -1,12 +1,20 @@
 //! Supervisor — per-actor failure isolation helpers
 //!
-//! When a mailbox handler panics, `std::panic::catch_unwind` catches
-//! the unwind. The supervisor's job here is just to translate the
-//! panic payload into a stringly reason and report the outcome up
-//! to the registry's drain loop. The registry uses `SupervisorOutcome`
-//! to decide whether to count this mailbox as poisoned in the
-//! `DrainSummary` — letting tests assert "one mailbox crashed, the
-//! other N continued."
+//! When a mailbox handler panics, `std::panic::catch_unwind` (run
+//! inside each spawn_blocking task) catches the unwind. The
+//! supervisor's job here is just to translate the panic payload into
+//! a stringly reason and report the outcome up to the registry's
+//! drain loop. The registry uses `SupervisorOutcome` to decide
+//! whether to count this mailbox as poisoned in the `DrainSummary` —
+//! letting tests assert "one mailbox crashed, the other N continued."
+//!
+//! Tokio teardown : panics that ESCAPE the inner catch_unwind surface
+//! as `JoinError::is_panic()` when the JoinSet awaits the task. The
+//! registry's drain loop catches that path too, falling back through
+//! `stringify_panic` on the panic payload extracted from the JoinError.
+//! No explicit CancellationToken is required because the JoinSet is
+//! drained to completion in the same scope ; dropping the registry
+//! drops the JoinSet which aborts any tasks still in flight.
 //!
 //! No retry. No replay. A panicked mailbox is poisoned ; new
 //! envelopes still enqueue (audit trail) but the handler is never
