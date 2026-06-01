@@ -27,6 +27,11 @@ module Hecksagon
         @io_adapters = []
         @llm_adapters = []
         @compute_adapters = []
+        # Sprint 14 — quoted-name `adapter "X" do ; driven on ... ; end`
+        # form. Mirrors rust/src/hecksagon_ir.rs::Hecksagon.driven_adapters
+        # / driving_adapters.
+        @driven_adapters = []
+        @driving_adapters = []
       end
 
       # Declare context map relationships between bounded contexts.
@@ -82,6 +87,19 @@ module Hecksagon
       # @yield optional block — ShellAdapterBuilder for :shell ;
       #        IoAdapterBuilder for io kinds (collects `on :Event`)
       def adapter(kind, name: nil, **opts, &block)
+        # Sprint 14 — quoted-name form `adapter "X" do ; driven on ... ; end`.
+        # When `kind` is a String the adapter is a typed DrivenAdapter /
+        # DrivingAdapter container ; the quoted name doubles as the
+        # adapter's identifier. Extra one-liner kwargs (`idempotent:`,
+        # `dedup_by:`) are ignored — the Rust parser's header captures only
+        # the quoted name, and the macrophage `IdempotentByConstruction`
+        # flags those keywords as discipline violations rather than
+        # accepting them. Mirrors rust/src/hecksagon_parser.rs
+        # parse_driven_adapter + parse_driving_adapter.
+        if kind.is_a?(String)
+          _build_driven_adapter(kind, &block)
+          return
+        end
         k = kind.to_sym
         case k
         when :shell
@@ -178,6 +196,31 @@ module Hecksagon
         @compute_adapters << builder.build
       end
       private :_build_compute_adapter
+
+      # Internal — Sprint 14 quoted-name `adapter "X" do ... end` branch.
+      # Collects driven-on / driving-on handlers via DrivenAdapterBuilder,
+      # then splits the result into Structure::DrivenAdapter (if any
+      # `driven on` handlers were declared) and Structure::DrivingAdapter
+      # (if any `driving on` handlers were declared). Mirrors Rust's
+      # parse_driven_adapter / parse_driving_adapter, which run the same
+      # source twice to populate both buckets independently.
+      def _build_driven_adapter(name, &block)
+        builder = DrivenAdapterBuilder.new
+        builder.instance_eval(&block) if block
+        unless builder.driven_handlers.empty?
+          @driven_adapters << Structure::DrivenAdapter.new(
+            name: name,
+            handlers: builder.driven_handlers,
+          )
+        end
+        unless builder.driving_handlers.empty?
+          @driving_adapters << Structure::DrivingAdapter.new(
+            name: name,
+            handlers: builder.driving_handlers,
+          )
+        end
+      end
+      private :_build_driven_adapter
 
       # Internal — io adapter branch of the three-way dispatch. Optional
       # block runs in an IoAdapterBuilder to collect `on :Event` hooks.
@@ -393,7 +436,9 @@ module Hecksagon
           shell_adapters: @shell_adapters,
           io_adapters: @io_adapters,
           llm_adapters: @llm_adapters,
-          compute_adapters: @compute_adapters
+          compute_adapters: @compute_adapters,
+          driven_adapters: @driven_adapters,
+          driving_adapters: @driving_adapters
         )
       end
 
