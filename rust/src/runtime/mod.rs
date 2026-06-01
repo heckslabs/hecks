@@ -391,18 +391,6 @@ impl Runtime {
         }
     }
 
-    /// Sprint 14 (migration-coexistence) — lookup the declared delivery
-    /// mode for an aggregate by name. Returns `Sync` for unknown names so
-    /// the runtime conservatively falls back to the existing inline
-    /// publish path when the dispatch references something the IR can't
-    /// resolve (synthetic events, cross-context cascades, etc.).
-    pub fn delivery_for(&self, aggregate_type: &str) -> crate::ir::DeliveryMode {
-        for agg in &self.domain.aggregates {
-            if agg.name == aggregate_type { return agg.delivery; }
-        }
-        crate::ir::DeliveryMode::Sync
-    }
-
     /// Sprint 14 — fire every `driving on cron` adapter handler attached
     /// to this runtime. v1 fires every cron handler unconditionally on
     /// each call (no expression evaluation yet) ; live `storehouse loop`

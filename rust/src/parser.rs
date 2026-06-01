@@ -285,9 +285,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
         references: vec![], lifecycle: None, identified_by: None,
         invariants: vec![],
         views: vec![],
-        // sprint 14 migration-coexistence — default sync, `delivery :actor`
-        // flips it (parsed below). DeliveryMode::default() == Sync.
-        delivery: crate::ir::DeliveryMode::Sync,
     };
 
     let mut i = 1;
@@ -357,14 +354,6 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 continue;
             } else if line.starts_with("identified_by") {
                 agg.identified_by = extract_symbol(line);
-            } else if line.starts_with("delivery") {
-                // Sprint 14 (migration-coexistence) — `delivery :sync` (default)
-                // or `delivery :actor`. Unknown symbols stay on `Sync` ; the
-                // contract is conservative so a typo never silently routes
-                // an aggregate through the actor stub.
-                if let Some(sym) = extract_symbol(line) {
-                    if sym == "actor" { agg.delivery = crate::ir::DeliveryMode::Actor; }
-                }
             } else if line.starts_with("view") && ends_with_do_block(line) {
                 // i254 — `view "for_customer" do show :a, :b end` declares
                 // a named projection. parse_view returns the View IR + the
