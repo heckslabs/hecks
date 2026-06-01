@@ -47,6 +47,7 @@ pub use envelope::Envelope;
 pub use mailbox::{Mailbox, MailboxStatus};
 pub use registry::{Mailboxes, ActorAddress, DrainSummary};
 pub use registry::{Mailboxes, MailboxRegistry, ActorAddress, DrainSummary};
+pub use registry::{Mailboxes, ActorAddress, DrainSummary};
 pub use snapshot::{MailboxStatusLabel, MailboxSummary};
 pub use supervisor::SupervisorOutcome;
 
