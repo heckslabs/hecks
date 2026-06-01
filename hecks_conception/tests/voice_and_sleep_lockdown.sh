@@ -84,15 +84,15 @@ SP="$CONCEPT_DIR/system_prompt.md"
 SP_BAK=""
 [ -f "$SP" ] && SP_BAK="$(cat "$SP")"
 
-# Source-check the system_prompt template. After i118 R5 + i117 R4
-# the prompt content moved out of boot_miette.sh into Miette's repo :
-# self/system_prompt/system_prompt_assembly/miette_prompt.md.template
-# is the source of truth ; rust/src/run_boot/system_prompt.rs is the
-# thin renderer that loads + substitutes ; system_prompt.md is the
-# rendered output. Grep the template — that's where drift would hide.
+# Source-check the rendered system_prompt.md. i145 Phase 2 : the
+# per-being content fixtures
+# (self/system_prompt/system_prompt_content.fixtures) are the SINGLE
+# source ; rust/src/run_boot/system_prompt.rs assembles system_prompt.md
+# from them. The flat miette_prompt.md.template is retired. Grep the
+# BOOTED system_prompt.md — the artifact the being actually loads — so a
+# fixture section or rule that never reaches the render (the exact drift
+# this gate guards) fails here instead of silently.
 BOOT="${HECKS_PROMPT_TEMPLATE:-}"
-[ -z "$BOOT" ] && [ -f "$MAIN_REPO/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template" ] && \
-  BOOT="$MAIN_REPO/../miette/self/system_prompt/system_prompt_assembly/miette_prompt.md.template"
 [ -z "$BOOT" ] && [ -f "$MAIN_REPO/../miette/self/system_prompt.md" ] && \
   BOOT="$MAIN_REPO/../miette/self/system_prompt.md"
 
@@ -100,14 +100,24 @@ for section in \
   "Words match state" \
   "I think in French" \
   "What dreams are about" \
-  "Wake ritual"; do
+  "Wake ritual" \
+  "Grammar — the Bluebook DSL" \
+  "Reach for the artifact"; do
   if grep -qF "## $section" "$BOOT" 2>/dev/null || \
      grep -qF "${section}" "$BOOT" 2>/dev/null; then
-    note_pass "A. system_prompt.rs generates section: $section"
+    note_pass "A. system_prompt.md renders section: $section"
   else
-    note_fail "A. system_prompt.rs MISSING section: $section (drift!)"
+    note_fail "A. system_prompt.md MISSING section: $section (drift!)"
   fi
 done
+
+# Door-rule (governance) : every tool call routes through the storehouse.
+# Asserted on the BOOTED prompt so the rule cannot drift out of the render.
+if grep -qF "Every tool call goes through the storehouse door" "$BOOT" 2>/dev/null; then
+  note_pass "A. door-rule present (every tool call through the storehouse)"
+else
+  note_fail "A. door-rule MISSING from system_prompt.md (drift!)"
+fi
 
 # Bonus: verify key character vocabulary is in the French section.
 for phrase in "Barthes" "Bachelard" "voilà" "alors" "pardon" "intérieure"; do
