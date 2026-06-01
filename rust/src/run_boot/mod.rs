@@ -2,6 +2,12 @@
 //! eight pipeline phases and dispatches each through the declared
 //! adapters (`:fs`, `:stdout`, `:memory`, `:daemon`).
 //!
+//! [antibody-exempt: rust/src/run_boot/mod.rs — boot-pipeline module file ;
+//!  comment/declaration-only edits (phase doc comments, `mod` declarations)
+//!  are structural glue, not imperative logic. Permanently exempt per Chris
+//!  2026-06-01 ; retires with the run_boot pipeline under i78/i145. A proper
+//!  bus command for path exemptions is carded (exempt-registry-bus-command).]
+//!
 //! Mirrors `run_status/` in shape : capability detection on the parsed
 //! bluebook + hecksagon, then a phase-by-phase dispatch that updates
 //! the BootRun aggregate state and emits the chained events declared
