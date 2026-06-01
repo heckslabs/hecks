@@ -76,10 +76,6 @@ fn same_aggregate_events_handled_in_order() {
 /// threads to make progress.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parallel_across_aggregates_no_block() {
-    let mut reg = MailboxRegistry::new();
-/// — we cap the test with a join inside std::thread::spawn pattern.
-#[test]
-fn parallel_across_aggregates_no_block() {
     let mut reg = Mailboxes::new();
     let addr_a = ("Sprint".to_string(), "A".to_string());
     let addr_b = ("Sprint".to_string(), "B".to_string());
@@ -109,10 +105,6 @@ fn parallel_across_aggregates_no_block() {
 /// flavor required so both spawn_blocking tasks can run independently.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn panic_in_one_actor_doesnt_block_others() {
-    let mut reg = MailboxRegistry::new();
-/// the drain the registry reports 1 poisoned, 1 handled.
-#[test]
-fn panic_in_one_actor_doesnt_block_others() {
     let mut reg = Mailboxes::new();
     let good = ("Sprint".to_string(), "GOOD".to_string());
     let bad  = ("Sprint".to_string(), "BAD".to_string());
@@ -196,7 +188,7 @@ fn poisoned_mailbox_drops_new_envelopes_silently() {
 /// holding undrained envelopes.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tokio_task_count_matches_active_mailboxes() {
-    let mut reg = MailboxRegistry::new();
+    let mut reg = Mailboxes::new();
     let addrs: Vec<(String, String)> = (0..5)
         .map(|i| ("Sprint".to_string(), format!("S{}", i)))
         .collect();

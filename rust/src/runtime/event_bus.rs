@@ -9,7 +9,7 @@
 //! (the historical path). For `delivery :actor` aggregates the
 //! dispatcher calls `Runtime::enqueue_and_drain(event)`, which
 //! enqueues the envelope into the per-aggregate mailbox in the
-//! `MailboxRegistry` and synchronously drains that mailbox into THIS
+//! `Mailboxes` and synchronously drains that mailbox into THIS
 //! `publish` method — so every subscriber sees every event the same
 //! way regardless of delivery mode. The actor side gains causal-
 //! ordering-per-aggregate (mailbox FIFO) and idempotency-by-event-id
