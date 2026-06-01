@@ -29,7 +29,7 @@
 //! short synchronous critical sections.
 //!
 //! Usage :
-//!   let mut reg = MailboxRegistry::new();
+//!   let mut reg = Mailboxes::new();
 //!   reg.deliver(("Sprint".into(), "14".into()), envelope);
 //!   reg.drain_all_in_parallel(handler).await;
 //!   let mut mailboxes = Mailboxes::new();
@@ -59,7 +59,6 @@ pub type ActorAddress = (String, String);
 /// only across the brief synchronous critical section that pops one
 /// envelope or appends to a counter ; no `.await` is held across the
 /// lock so a sync mutex is correct AND faster.
-pub struct MailboxRegistry {
 pub struct Mailboxes {
     mailboxes: HashMap<ActorAddress, Arc<Mutex<Mailbox>>>,
 }

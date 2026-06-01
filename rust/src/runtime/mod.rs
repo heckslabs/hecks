@@ -263,10 +263,10 @@ pub struct Runtime {
     /// ordering is now mailbox-FIFO + idempotency dedup runs at the
     /// mailbox boundary instead of being absent. Cross-aggregate
     /// parallelism (event on A while slow handler runs on B → A not
-    /// blocked) is proven by `MailboxRegistry::drain_all_in_parallel`
+    /// blocked) is proven by `Mailboxes::drain_all_in_parallel`
     /// in the actor unit tests ; the bus-level entry point keeps the
     /// sync-feel contract so callers don't fork.
-    pub mailbox_registry: actor::MailboxRegistry,
+    pub mailbox_registry: actor::Mailboxes,
 }
 
 impl Runtime {
@@ -305,7 +305,7 @@ impl Runtime {
     ///   1. Wrap the event in an `Envelope`. The bus-side event_id is
     ///      the event-name + aggregate-id + monotonic counter so the
     ///      mailbox's seen-set can dedupe duplicates by construction.
-    ///   2. `MailboxRegistry::deliver` enqueues the envelope at address
+    ///   2. `Mailboxes::deliver` enqueues the envelope at address
     ///      `(aggregate_type, aggregate_id)`, lazy-creating the mailbox
     ///      on first delivery (per actor-per-aggregate-instance). The
     ///      return value tells us whether the event_id was fresh ; a
@@ -526,7 +526,7 @@ impl Runtime {
             world_servers_path: None,
             world_adapter_bindings: Vec::new(),
             mailbox_drained: 0,
-            mailbox_registry: actor::MailboxRegistry::new(),
+            mailbox_registry: actor::Mailboxes::new(),
         }
     }
 

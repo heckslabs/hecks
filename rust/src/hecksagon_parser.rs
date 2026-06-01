@@ -103,24 +103,25 @@ pub fn parse(source: &str) -> Hecksagon {
             continue;
         }
 
-        // Sprint 14 — the block-form adapter envelope hosts BOTH
+        // Sprint 14 first-adapter slice — the event-subscription form
         //   adapter "Name" do
         //     driven on "Context::Aggregate.Event" do |event|
         //       dispatch "Context::Aggregate.Command", attr: value
         //     end
         //   end
-        // AND the externally-triggered sibling :
-        //   adapter "Name" do
-        //     driving on cron "*/5 * * * *" do |signal|
-        //       dispatch "Context::Aggregate.Command", attr: value
-        //     end
-        //   end
-        // Starts with `adapter "` (quoted name). The block is parsed twice :
-        // once as a DrivenAdapter (event-subscriber), once as a DrivingAdapter
-        // (external trigger). Empty siblings drop ; mixed blocks emit one of
-        // each. Coexists with the legacy `adapter :symbol, ...` form handled
-        // by `absorb_adapter` below ; the two are dispatched on the very
-        // first character after `adapter ` (quote vs colon).
+        // Starts with `adapter "` (quoted name). Captured as a typed
+        // DrivenAdapter so the runtime's `resolve_driven_adapters` can
+        // fire the follow-on dispatch when the bus publishes the named
+        // event. Coexists with the legacy `adapter :symbol, ...` form
+        // handled by `absorb_adapter` below ; the two are dispatched on
+        // the very first character after `adapter ` (quote vs colon).
+        // Sprint 14 — the block-form adapter envelope hosts BOTH
+        // `driven on` (event subscriber) AND `driving on` (external
+        // trigger : cron / http_post / file_watch) inner forms in one
+        // `adapter "Name" do ... end` outer block. The block is parsed
+        // twice ; each parser keeps only its own handlers and skips past
+        // the OTHER form's blocks so the consumed-line count stays in
+        // sync. Empty siblings drop ; mixed blocks emit one of each.
         if line.starts_with("adapter \"") {
             let (driven, consumed_driven) = parse_driven_adapter(&raw[i..]);
             let (driving, _consumed_driving) = parse_driving_adapter(&raw[i..]);
@@ -517,6 +518,87 @@ fn parse_driven_adapter(lines: &[&str]) -> (Option<DrivenAdapter>, usize) {
     (Some(adapter), i)
 }
 
+/// Sprint 14 sibling of `parse_driven_adapter` — parses the externally-
+/// triggered shape :
+///
+/// ```text
+/// adapter "Name" do
+///   driving on cron "*/5 * * * *" do |signal|
+///     dispatch "Context::Aggregate.Command", attr: "value"
+///   end
+/// end
+/// ```
+///
+/// Returns (Some(DrivingAdapter), lines_consumed). When the block is
+/// malformed (no name, no closing end) returns None plus a best-effort
+/// consumed count so the caller advances past the noise. Mixed adapters
+/// (containing both `driven on` and `driving on` blocks) are parsed
+/// twice — once into a DrivenAdapter, once here — so callers should
+/// push the result into the hecksagon's `driving_adapters` bucket only.
+fn parse_driving_adapter(lines: &[&str]) -> (Option<DrivingAdapter>, usize) {
+    let first = lines[0].trim();
+    let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
+    let mut adapter = DrivingAdapter { name, handlers: Vec::new() };
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(adapter), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if t.starts_with("driving on") {
+            let (handler, consumed) = parse_driving_handler(&lines[i..]);
+            if let Some(h) = handler { adapter.handlers.push(h); }
+            i += consumed;
+            continue;
+        }
+        // Driven blocks already consumed by parse_driven_adapter on the
+        // first pass ; skip past them here without double-handling.
+        if t.starts_with("driven on") {
+            let (_, consumed) = parse_driven_handler(&lines[i..]);
+            i += consumed;
+            continue;
+        }
+        i += 1;
+    }
+    (Some(adapter), i)
+}
+
+/// Parse one `driving on <kind> "<arg>" do |signal| dispatch "X.Y",
+/// k: v ... end` block. Returns (Some(DrivingHandler), lines_consumed).
+///
+/// The grammar reuses `dispatch` for the body, so the inner parser is
+/// the same `join_dispatch_lines` + `parse_driven_dispatch` pair the
+/// `driven on` form uses. Only the header differs : here we capture
+/// `kind` (the first whitespace-delimited token after `driving on`)
+/// and `arg` (the first quoted string on the same line).
+fn parse_driving_handler(lines: &[&str]) -> (Option<DrivingHandler>, usize) {
+    let first = lines[0].trim();
+    let after = match first.strip_prefix("driving on") {
+        Some(s) => s.trim(),
+        None => return (None, 1),
+    };
+    let kind_end = after.find(|c: char| c.is_whitespace() || c == '"').unwrap_or(after.len());
+    let kind = after[..kind_end].trim().to_string();
+    if kind.is_empty() { return (None, 1); }
+    let arg = between_quotes(after).unwrap_or_default();
+    let mut handler = DrivingHandler { kind, arg, dispatches: Vec::new() };
+    let mut i = 1;
+    while i < lines.len() {
+        let t = lines[i].trim();
+        if t == "end" { return (Some(handler), i + 1); }
+        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
+        if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
+            let (joined, consumed) = join_dispatch_lines(&lines[i..]);
+            if let Some(d) = parse_driven_dispatch(&joined) {
+                handler.dispatches.push(d);
+            }
+            i += consumed;
+            continue;
+        }
+        i += 1;
+    }
+    (Some(handler), i)
+}
+
 /// Parse one `driven on "Event" do |e| dispatch "X.Y", k: v ... end`
 /// block. Returns (Some(DrivenHandler), lines_consumed).
 fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
@@ -657,46 +739,6 @@ fn parse_canned_block(lines: &[&str]) -> (Option<CannedResponse>, usize) {
     (Some(canned), i)
 }
 
-/// Sprint 14 sibling of `parse_driven_adapter` — parses the externally-
-/// triggered shape :
-///
-/// ```text
-/// adapter "Name" do
-///   driving on cron "*/5 * * * *" do |signal|
-///     dispatch "Context::Aggregate.Command", attr: "value"
-///   end
-/// end
-/// ```
-///
-/// Returns (Some(DrivingAdapter), lines_consumed). Mixed adapters
-/// (containing both `driven on` and `driving on` blocks) are parsed
-/// twice — once into a DrivenAdapter, once here — so callers should
-/// push the result into the hecksagon's `driving_adapters` bucket only.
-fn parse_driving_adapter(lines: &[&str]) -> (Option<DrivingAdapter>, usize) {
-    let first = lines[0].trim();
-    let name = match between_quotes(first) { Some(n) => n, None => return (None, 1) };
-    let mut adapter = DrivingAdapter { name, handlers: Vec::new() };
-    let mut i = 1;
-    while i < lines.len() {
-        let t = lines[i].trim();
-        if t == "end" { return (Some(adapter), i + 1); }
-        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
-        if t.starts_with("driving on") {
-            let (handler, consumed) = parse_driving_handler(&lines[i..]);
-            if let Some(h) = handler { adapter.handlers.push(h); }
-            i += consumed;
-            continue;
-        }
-        if t.starts_with("driven on") {
-            let (_, consumed) = parse_driven_handler(&lines[i..]);
-            i += consumed;
-            continue;
-        }
-        i += 1;
-    }
-    (Some(adapter), i)
-}
-
 /// Sprint 14 memory-canned-defaults — parse one `key value` line
 /// from inside a `canned do ... end` block. Keeps the raw value-token
 /// so the resolver's build_attr_map applies the same conversion rule
@@ -709,41 +751,4 @@ fn parse_canned_kv(line: &str) -> Option<(String, String)> {
     let rest = t[ident_end..].trim().trim_end_matches(';').trim();
     if rest.is_empty() { return None; }
     Some((key, rest.to_string()))
-}
-
-/// Parse one `driving on <kind> "<arg>" do |signal| dispatch "X.Y",
-/// k: v ... end` block. Returns (Some(DrivingHandler), lines_consumed).
-///
-/// The grammar reuses `dispatch` for the body, so the inner parser is
-/// the same `join_dispatch_lines` + `parse_driven_dispatch` pair the
-/// `driven on` form uses. Only the header differs : here we capture
-/// `kind` (the first whitespace-delimited token after `driving on`)
-/// and `arg` (the first quoted string on the same line).
-fn parse_driving_handler(lines: &[&str]) -> (Option<DrivingHandler>, usize) {
-    let first = lines[0].trim();
-    let after = match first.strip_prefix("driving on") {
-        Some(s) => s.trim(),
-        None => return (None, 1),
-    };
-    let kind_end = after.find(|c: char| c.is_whitespace() || c == '"').unwrap_or(after.len());
-    let kind = after[..kind_end].trim().to_string();
-    if kind.is_empty() { return (None, 1); }
-    let arg = between_quotes(after).unwrap_or_default();
-    let mut handler = DrivingHandler { kind, arg, dispatches: Vec::new() };
-    let mut i = 1;
-    while i < lines.len() {
-        let t = lines[i].trim();
-        if t == "end" { return (Some(handler), i + 1); }
-        if t.is_empty() || t.starts_with('#') { i += 1; continue; }
-        if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
-            let (joined, consumed) = join_dispatch_lines(&lines[i..]);
-            if let Some(d) = parse_driven_dispatch(&joined) {
-                handler.dispatches.push(d);
-            }
-            i += consumed;
-            continue;
-        }
-        i += 1;
-    }
-    (Some(handler), i)
 }
