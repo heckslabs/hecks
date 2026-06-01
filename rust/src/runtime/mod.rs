@@ -166,6 +166,14 @@ pub mod compute_functions;
 // boot wiring + kernel-hook seed for `invoke_claude_tool` ; part 2
 // retires the hardcoded `:claude_tool` shortcut in `Runtime::dispatch`.
 pub mod framework_registry;
+// sprint-14 (storehouse-primitive-conception) — runtime index of the
+// imperative kernel-floor leaves. Mirrors the Storehouse::Primitive
+// bluebook records ; seeded at boot with the current hand-coded
+// primitives (Process.Spawn / ClaudeTool.Invoke / WebTool.* / Compute /
+// Llm / Shell / Sms / Tts). The runtime consults it BEFORE running its
+// hard-coded match arms so a macrophage check can confirm every
+// imperative leaf has a matching declaration.
+pub mod primitive_registry;
 // i622 — StoreHouse stdout logger. One-line records on stdout per
 // dispatch, event, cascade, policy. Level gated by STOREHOUSE_LOG
 // (quiet/normal/verbose). All four surfaces and the MCP child stderr
@@ -223,6 +231,15 @@ pub struct Runtime {
     /// supply one. Read only by part 2 ; `Runtime::dispatch` still
     /// uses the hardcoded `:claude_tool` path in part 1.
     pub framework_registry: framework_registry::FrameworkRegistry,
+    /// sprint-14 (storehouse-primitive-conception) — runtime index of
+    /// the imperative kernel-floor leaves. Mirrors `Storehouse::Primitive`
+    /// records ; populated by `seed_builtins` at boot so every runtime
+    /// (test or production) starts with the current hand-coded
+    /// primitives registered. The runtime consults it BEFORE running its
+    /// hard-coded `resolve_primitive_*` arm — the lookup gives the
+    /// macrophage a single source of truth and lays the substrate for
+    /// future bluebook-overlay (Conceive adds entries on next boot).
+    pub primitive_registry: primitive_registry::PrimitiveRegistry,
     /// i610 — MCP servers declared across the project's `*.world` files,
     /// unioned at boot by `attach_world_servers`. `resolve_mcp_adapters`
     /// looks a binding's `server` up here to read its `token_env`; the
@@ -522,6 +539,18 @@ impl Runtime {
             framework_registry: framework_registry::FrameworkRegistry::build_from_dir(
                 std::path::Path::new("/nonexistent")
             ),
+            primitive_registry: {
+                // sprint-14 — seed every runtime with the current
+                // kernel-floor primitives. Boot-without-framework still
+                // gets the imperative-leaf index because the seed list
+                // is structural to the runtime (the dispatchers ship in
+                // the binary), not contingent on a framework conception
+                // path. Future overlay from the Storehouse::Primitive
+                // .heki store can layer on top here.
+                let mut reg = primitive_registry::PrimitiveRegistry::new();
+                reg.seed_builtins();
+                reg
+            },
             world_servers: Vec::new(),
             world_servers_path: None,
             world_adapter_bindings: Vec::new(),
@@ -1464,6 +1493,33 @@ impl Runtime {
         // that dispatches `Process.Spawn` runs the spawn.
         if result.aggregate_type != "Process" || bare_command != "Spawn" {
             return;
+        }
+
+        // sprint-14 (storehouse-primitive-conception) — consult the
+        // PrimitiveRegistry BEFORE running. The registry's
+        // `Storehouse::Primitive` records are the bluebook ground truth
+        // for which imperative leaves the runtime carries ; the lookup
+        // is logged so a smoke trace can confirm the dispatch routed
+        // through it. A miss here is the macrophage's signal that the
+        // imperative leaf has no declaration. The hard-coded arm below
+        // STAYS in place — the registry is an overlay, not yet a
+        // replacement.
+        let registry_key = format!("{}.{}", result.aggregate_type, bare_command);
+        match self.primitive_registry.lookup(&registry_key) {
+            Some(spec) => {
+                println!(
+                    "[{}] [primitive:registry] routed name={} kind={} impl={}",
+                    storehouse_log::now_iso8601(),
+                    spec.name, spec.kind, spec.implementation,
+                );
+            }
+            None => {
+                println!(
+                    "[{}] [primitive:registry] miss name={} — Storehouse::Primitive declaration absent",
+                    storehouse_log::now_iso8601(),
+                    registry_key,
+                );
+            }
         }
 
         let cmd = match dispatch_attrs.get("cmd").map(|v| v.to_string()) {
