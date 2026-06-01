@@ -193,4 +193,24 @@ Hecks.behaviors "Plan" do
     input  number: "42", story_refs: "only-one"
     expect refused: "story_refs must be a permutation of stories"
   end
+
+  # pending-task-count-default-zero (sprint 14) — proves the load-bearing
+  # default. A freshly-Captured story has pending_task_count = 0 by
+  # attribute default ; the ready_means_all_tasks_resolved invariant must
+  # clear on MarkReady WITHOUT any Bump/Drop interaction. Regression guard
+  # for the bug where the default was missing and the invariant rejected
+  # MarkReady because None != 0.
+  test "Story.MarkReady succeeds on a freshly-Captured story without any task interactions" do
+    tests "MarkReady", on: "Story"
+    setup  "Capture",                         ref: "l23", title: "L23", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                  ref: "l23", sprint_ref: "1"
+    setup  "Tasked",                          ref: "l23"
+    setup  "Start",                           ref: "l23"
+    setup  "RecordVerbResolvesCheckResult",   ref: "l23", ok: true
+    setup  "RecordMergedCheckResult",         ref: "l23", ok: true
+    setup  "RecordWorktreeCheckResult",       ref: "l23", ok: true
+    setup  "RecordTestsCheckResult",          ref: "l23", ok: true
+    input  ref: "l23"
+    expect ref: "l23", state: "ready_for_review", pending_task_count: 0
+  end
 end
