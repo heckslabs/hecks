@@ -1,11 +1,12 @@
-//! MailboxRegistry — `HashMap<(type, id), Mailbox>` keyed by address
+//! Mailboxes — `HashMap<(type, id), Mailbox>` keyed by address
 //!
 //! The address `(aggregate_type, aggregate_id)` IS the actor — there
-//! is no separate registry of "which actors exist." When the bus has
-//! an envelope addressed to `(Sprint, 14)` the registry's `deliver`
-//! call lazily creates the mailbox if missing then enqueues the
-//! envelope. Subsequent envelopes for the same address reuse the
-//! existing mailbox so causal ordering holds.
+//! is no separate registry of "which actors exist." The HashMap IS
+//! the lookup table. When the bus has an envelope addressed to
+//! `(Sprint, 14)` the wrapper's `deliver` call lazily creates the
+//! mailbox if missing then enqueues the envelope. Subsequent
+//! envelopes for the same address reuse the existing mailbox so
+//! causal ordering holds.
 //!
 //! Parallelism : `drain_all_in_parallel` spawns one tokio task per
 //! non-empty mailbox into a `JoinSet` and awaits them. Different
@@ -31,6 +32,9 @@
 //!   let mut reg = MailboxRegistry::new();
 //!   reg.deliver(("Sprint".into(), "14".into()), envelope);
 //!   reg.drain_all_in_parallel(handler).await;
+//!   let mut mailboxes = Mailboxes::new();
+//!   mailboxes.deliver(("Sprint".into(), "14".into()), envelope);
+//!   mailboxes.drain_all_in_parallel(handler);
 
 use super::{Envelope, Mailbox, MailboxStatus, supervisor};
 use std::collections::HashMap;
@@ -46,7 +50,7 @@ pub type ActorAddress = (String, String);
 /// the parallel drain take exclusive access to each mailbox for the
 /// duration of its handler invocation while leaving sibling mailboxes
 /// freely accessible. The outer HashMap is held by &mut so deliver
-/// + drain are serialized at the registry boundary — concurrent
+/// + drain are serialized at the Mailboxes boundary — concurrent
 /// `deliver` calls from external threads would need a different
 /// shape (separate enqueue ports per mailbox) but the sync-runtime
 /// caller doesn't have that need.
@@ -56,11 +60,12 @@ pub type ActorAddress = (String, String);
 /// envelope or appends to a counter ; no `.await` is held across the
 /// lock so a sync mutex is correct AND faster.
 pub struct MailboxRegistry {
+pub struct Mailboxes {
     mailboxes: HashMap<ActorAddress, Arc<Mutex<Mailbox>>>,
 }
 
-impl MailboxRegistry {
-    pub fn new() -> Self { MailboxRegistry { mailboxes: HashMap::new() } }
+impl Mailboxes {
+    pub fn new() -> Self { Mailboxes { mailboxes: HashMap::new() } }
 
     /// Enqueue `env` into the mailbox at `addr`, creating the mailbox
     /// lazily on first delivery. Returns `true` when the envelope was
@@ -79,10 +84,13 @@ impl MailboxRegistry {
     /// and are translated into `SupervisorOutcome::Poisoned` so the
     /// affected mailbox is marked Poisoned without unwinding the
     /// registry. Returns when every spawned task has been joined.
+    /// Mailboxes table. Returns when every spawned thread joins.
     ///
     /// The handler must be `Send + Sync + 'static` so it can cross
     /// the task boundary. The runtime's actual cascade handler is
     /// not Send (it borrows &mut Runtime) ; the registry-level smoke
+    /// the thread boundary. The runtime's actual cascade handler is
+    /// not Send (it borrows &mut Runtime) ; the Mailboxes-level smoke
     /// proof uses a pure closure. Production wiring will route
     /// through a message-passing shim in event_bus.rs (separate card).
     ///
@@ -169,7 +177,7 @@ impl MailboxRegistry {
     }
 }
 
-impl Default for MailboxRegistry { fn default() -> Self { Self::new() } }
+impl Default for Mailboxes { fn default() -> Self { Self::new() } }
 
 #[derive(Debug, Clone, Copy)]
 pub struct DrainSummary {

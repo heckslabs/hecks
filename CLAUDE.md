@@ -46,3 +46,8 @@
 - **New `storehouse` CLI subcommands** — `describe <bluebook> <aggregate>`, `query <root> <Domain::Aggregate.snake_case> k=v ...`, `state <root> <aggregate> <id>`
 - **FQN required at runtime** — `Domain::Aggregate.Command` for commands, `Domain::Aggregate.snake_case` for queries. Short-form `Tools.Bash` is rejected
 - **Macrophage hook live on PostToolUse** — `bin/macrophage-hook` wired alongside `read-watcher-log`. Fresh complaints surface as `hookSpecificOutput.additionalContext`. `[enforcer]` stderr labels are now `[macrophage]` ; complaint text reads "The macrophage expected"
+
+## Sprint 14 actor model observability (2026-05-31)
+
+- **`storehouse mailboxes` debug subcommand** — inspect the actor-model surface from the CLI. Three verbs : `mailboxes list` (every active mailbox with status/queue_depth/events_processed), `mailboxes show <type> <id>` (per-mailbox detail), `mailboxes poisoned` (filter to poisoned). All accept `--json` for tooling consumers and `--fixture` to render against a deterministic 3-mailbox demo (idle/running/poisoned) — useful before the live runtime wires a process-wide `Mailboxes` table through the bus. The conceptual *actor* stays a bluebook concept (every aggregate is an actor) ; this CLI observes runtime *mailbox* state. The HashMap IS the lookup table — no separate registry concept.
+- **Mailbox getters** — `queue_depth()`, `status()`, `events_processed_count()`, `last_error()` on `runtime::actor::Mailbox` ; `Mailboxes::snapshot()` returns `Vec<MailboxSummary>` for the CLI to render without touching the Mailboxes-table's mutexes.

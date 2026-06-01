@@ -102,9 +102,35 @@ impl Mailbox {
         self.queue.pop_front()
     }
 
-    /// Mailbox depth — exposed for the `storehouse actors` debug
+    /// Mailbox depth — exposed for the `storehouse mailboxes` debug
     /// command (sprint 14 follow-up). Always read-only.
     pub fn depth(&self) -> usize { self.queue.len() }
+
+    // ── `storehouse mailboxes` debug accessors ───────────────────────
+    //
+    // These getters expose the four observability axes the debug CLI
+    // renders : queue depth, lifecycle status, events-processed count,
+    // and (when poisoned) the recorded panic reason. They are read-only
+    // alternates to the pub fields so external callers don't take a
+    // direct reference into the mailbox interior — handy when the
+    // mailbox eventually moves behind an Arc<Mutex<_>>-only surface.
+
+    /// Number of envelopes waiting in the FIFO queue. Same value as
+    /// `depth()` ; named to match the debug-CLI vocabulary.
+    pub fn queue_depth(&self) -> usize { self.queue.len() }
+
+    /// Lifecycle status (Live | Poisoned). Read-only.
+    pub fn status(&self) -> MailboxStatus { self.status }
+
+    /// Total envelopes the handler has run for this mailbox since boot.
+    /// Sibling of `dropped_duplicates` (suppressed at the boundary) and
+    /// of the live queue depth.
+    pub fn events_processed_count(&self) -> usize { self.handled_count }
+
+    /// Last recorded panic reason, if this mailbox is poisoned. Returns
+    /// `None` for a Live mailbox or a Poisoned mailbox that recorded no
+    /// reason (defensive — `mark_poisoned` always supplies one).
+    pub fn last_error(&self) -> Option<&str> { self.last_panic.as_deref() }
 
     pub fn mark_poisoned(&mut self, reason: impl Into<String>) {
         self.status = MailboxStatus::Poisoned;
