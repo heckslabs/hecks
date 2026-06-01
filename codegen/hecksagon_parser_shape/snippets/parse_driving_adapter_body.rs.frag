@@ -19,6 +19,8 @@
             i += consumed;
             continue;
         }
+        // Driven blocks already consumed by parse_driven_adapter on the
+        // first pass ; skip past them here without double-handling.
         if t.starts_with("driven on") {
             let (_, consumed) = parse_driven_handler(&lines[i..]);
             i += consumed;
