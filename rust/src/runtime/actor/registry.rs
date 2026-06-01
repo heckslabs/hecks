@@ -68,6 +68,12 @@ pub struct Mailboxes {
     mailboxes: HashMap<ActorAddress, Arc<Mutex<Mailbox>>>,
 }
 
+/// Compat alias for the pre-rename name. Callers still reach for
+/// `MailboxRegistry`; the canonical type is `Mailboxes`. Retained as a
+/// type alias so the rename can finish in a follow-up sweep without
+/// breaking downstream sites mid-flight.
+pub type MailboxRegistry = Mailboxes;
+
 impl Mailboxes {
     pub fn new() -> Self { Mailboxes { mailboxes: HashMap::new() } }
 
