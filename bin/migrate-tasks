@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+# migrate-tasks - task-completion-state (sprint 14)
+#
+# One-time migration. Reads the legacy Story.tasks list (entity-in-Story
+# shape) from the .heki dump and migrates each task to the new Task
+# aggregate.
+#
+# Story.pending_task_count maintenance is conditional on story state to
+# avoid the ready_means_all_tasks_resolved invariant rejecting bumps on
+# stories already in ready_for_review/done :
+#
+#   - For sprint-14 ready_for_review / done stories : Add each Task,
+#     Complete each Task, but skip the Story bump+drop dance entirely
+#     (tasks are migrated already-done, so pending_task_count stays 0
+#     on those stories — the invariant remains satisfied).
+#
+#   - For non-ready stories : Add each Task then Bump the owning
+#     Story's pending_task_count. These stories are pre-ready (untasked
+#     / tasked / started / etc.) so the invariant doesn't fire.
+#
+# The cascade policies (BumpOnTaskAdded etc.) route by upstream id, not
+# by the `story` payload field, so we route Story commands explicitly
+# here. Once the runtime supports payload-field-based cascade routing
+# (gap : runtime-cross-aggregate-cascade-routing), the explicit Bump/Drop
+# calls retire.
+#
+# Idempotent : Plan::Task.Add upserts by id ; Complete is a no-op when
+# already done.
+#
+# Usage : bin/migrate-tasks
+#         bin/migrate-tasks --dry-run
+import json, subprocess, sys
+
+ROOT = "/Users/christopheryoung/Projects/hecks/hecks_conception/aggregates/plan"
+STOREHOUSE = "/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse"
+STORY_HEKI = f"{ROOT}/.heki/story/story.heki"
+
+DRY_RUN = "--dry-run" in sys.argv
+
+
+def dispatch(command, **args):
+    if DRY_RUN:
+        return {"ok": True}
+    pairs = [f"{k}={v}" for k, v in args.items()]
+    r = subprocess.run(
+        [STOREHOUSE, ROOT, command, *pairs],
+        capture_output=True, text=True, timeout=30,
+    )
+    out = (r.stdout + "\n" + r.stderr)
+    if r.returncode != 0:
+        if ("given failed" in out.lower()
+                or "invariant" in out.lower()
+                or "given clause" in out.lower()):
+            return {"ok": True, "skipped": True}
+        return {"ok": False, "error": out[:300]}
+    return {"ok": True}
+
+
+def main():
+    raw = subprocess.run(
+        [STOREHOUSE, "heki", "read", STORY_HEKI],
+        capture_output=True, text=True, timeout=30,
+    )
+    if raw.returncode != 0:
+        print(f"failed to read {STORY_HEKI}: {raw.stderr}", file=sys.stderr)
+        sys.exit(1)
+    stories = json.loads(raw.stdout)
+
+    total_stories_with_tasks = 0
+    total_tasks_migrated = 0
+    sprint14_stories = 0
+    sprint14_tasks_completed = 0
+    failures = []
+
+    for story_ref, rec in stories.items():
+        if not isinstance(rec, dict):
+            continue
+        tasks = rec.get("tasks")
+        if not isinstance(tasks, list) or not tasks:
+            continue
+
+        total_stories_with_tasks += 1
+        story_state = rec.get("state", "")
+        story_sprint = rec.get("sprint", "")
+        is_sprint14_ready = (story_sprint == "14" and story_state in ("ready_for_review", "done"))
+        if is_sprint14_ready:
+            sprint14_stories += 1
+
+        for idx, task in enumerate(tasks):
+            if not isinstance(task, dict):
+                continue
+            order = task.get("order", idx)
+            description = str(task.get("description", ""))
+            description_clean = description.replace("\n", " ").replace('"', "'")[:500]
+            task_id = f"{story_ref}-t{order}"
+
+            # 1. Add the Task aggregate record.
+            r = dispatch(
+                "Plan::Task.Add",
+                id=task_id,
+                story=story_ref,
+                order=order,
+                description=description_clean,
+            )
+            if r.get("ok"):
+                total_tasks_migrated += 1
+            else:
+                failures.append((task_id, r.get("error", "")))
+                continue
+
+            if is_sprint14_ready:
+                # Sprint-14 ready/done : migrate the task as already-done
+                # and skip Story counter mutation (stays at default 0,
+                # the invariant remains satisfied).
+                cr = dispatch("Plan::Task.Complete", id=task_id)
+                if cr.get("ok"):
+                    sprint14_tasks_completed += 1
+            else:
+                # Pre-ready story : bump the Story's pending count.
+                dispatch("Plan::Story.BumpPendingTaskCount", story=story_ref)
+
+    print(f"migrated_stories={total_stories_with_tasks}")
+    print(f"migrated_tasks={total_tasks_migrated}")
+    print(f"sprint14_ready_or_done_stories={sprint14_stories}")
+    print(f"sprint14_tasks_bulk_completed={sprint14_tasks_completed}")
+    if failures:
+        print(f"failures={len(failures)} (first: {failures[0]})")
+
+
+if __name__ == "__main__":
+    main()

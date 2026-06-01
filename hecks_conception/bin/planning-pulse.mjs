@@ -16,7 +16,33 @@ const s = Array.isArray(j.state) ? j.state : [];
 if (!s.length) process.exit(0);
 const c = {}; for (const x of s) { const st = x.state || "?"; c[st] = (c[st] || 0) + 1; }
 const trunc = (t) => { t = t || ""; return t.length > 30 ? t.slice(0, 29) + "…" : t; };
-const withTitle = (st) => s.filter(x => x.state === st).map(x => `${x.ref} ${trunc(x.title)}`);
+
+// task-completion-state (sprint 14) : Task is now its own aggregate. Read
+// every Task record via the heki store + bucket by Story ref so each row can
+// carry a done/total annotation. Goes through the heki path because the
+// `for_story` query requires a story filter ; the only other listing query
+// (`pending`) drops done tasks, which the total/done column needs.
+let tasksByStory = {};
+try {
+  const tout = execSync(`${B} heki read ${R}/.heki/plan/task.heki`, { encoding: "utf8", timeout: 8000 });
+  const tj = JSON.parse(tout);
+  for (const k of Object.keys(tj)) {
+    const t = tj[k];
+    if (!t || typeof t !== "object") continue;
+    const sref = t.story || "";
+    if (!sref) continue;
+    (tasksByStory[sref] = tasksByStory[sref] || { done: 0, total: 0 });
+    tasksByStory[sref].total += 1;
+    if (t.status === "done") tasksByStory[sref].done += 1;
+  }
+} catch (e) { /* no Task store yet — fall open */ }
+const taskTag = (ref) => {
+  const tc = tasksByStory[ref];
+  if (!tc || tc.total === 0) return "";
+  return ` [${tc.done}/${tc.total}]`;
+};
+
+const withTitle = (st) => s.filter(x => x.state === st).map(x => `${x.ref}${taskTag(x.ref)} ${trunc(x.title)}`);
 const lines = ["planning pulse — on the board:"];
 const started = withTitle("started"); if (started.length) lines.push("  started ▸ " + started.join(" · "));
 const ready = withTitle("ready_for_review"); if (ready.length) lines.push("  ready ▸ " + ready.join(" · "));
