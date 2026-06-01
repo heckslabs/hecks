@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+# Macrophage — AgentDiscipline check (PostToolUse, always-on visibility).
+#
+# [antibody-exempt: bin/agent-discipline-check — minimal harness-edge glue
+#  at the Claude Code hook boundary. The discipline lives in the
+#  Discipline::AgentDiscipline aggregate ; this script is the bridge that
+#  reads the PostToolUse JSON payload and dispatches RecordSkipEnvBypass /
+#  RecordIsolationBypass through the storehouse door. Retires when
+#  Claude Code grows native ability to subscribe to bluebook events.]
+#
+# Bluebook of record :
+#   aggregates/discipline/immune_system/macrophage/agent_discipline.bluebook
+#
+# Detects two violation kinds :
+#
+#   (a) skip_env_var   — the tool_input embeds *_SKIP=1 in a shell
+#                        command without a justification field. The
+#                        justification convention is a same-line shell
+#                        comment after the env assignment, e.g.
+#                        `SKIP=loc cargo run  # SKIP=loc — sprint-12 LoC
+#                        ratchet override authorised by Chris`. Any
+#                        SKIP=1 without a `# SKIP=` justification on the
+#                        same line is a complaint.
+#
+#   (b) ignored_isolation — the tool was an Edit / Write / MultiEdit
+#                           whose file_path was NOT under
+#                           .claude/worktrees/agent-<id>/, AND the
+#                           caller's cwd (from the payload) reveals it
+#                           IS launched inside an agent worktree (the
+#                           cwd has .claude/worktrees/agent-<id>/ in its
+#                           prefix). Cross-worktree edits silently
+#                           pollute parallel work.
+#
+# On detection : write a stderr complaint (surfaced to the model),
+# best-effort dispatch the matching Record*Bypass command to keep the
+# audit trail honest, and exit 2 to signal the violation. Exit 0 when
+# the tool is uninteresting or the dispatch is justified.
+import json, sys, subprocess, datetime, os, re
+
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+
+tool      = payload.get('tool_name', '')
+tool_in   = payload.get('tool_input', {}) or {}
+cwd       = payload.get('cwd') or os.getcwd()
+
+# Skip everything not on the IO-acting surface.
+if tool not in ('Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit'):
+    sys.exit(0)
+
+storehouse_bin = '/Users/christopheryoung/Projects/hecks/rust/target/release/storehouse'
+conception_root = '/Users/christopheryoung/Projects/hecks/hecks_conception'
+ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+# Extract the agent-id from cwd if we're inside an agent worktree.
+m = re.search(r'\.claude/worktrees/(agent-[a-z0-9]+)/?', cwd)
+agent_id = m.group(1) if m else ''
+worktree_root = ''
+if m:
+    worktree_root = cwd[:m.end()].rstrip('/')
+
+def dispatch(cmd, **kw):
+    if not os.path.exists(storehouse_bin):
+        return
+    argv = [storehouse_bin, conception_root, cmd]
+    for k, v in kw.items():
+        argv.append(f'{k}={v}')
+    try:
+        subprocess.Popen(argv, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+            start_new_session=True)
+    except Exception:
+        pass
+
+violations = []
+
+# ---- (a) SKIP env var without justification ----
+if tool == 'Bash':
+    cmd = tool_in.get('command', '') or ''
+    # Match *_SKIP=1 (or SKIP=1) anywhere ; require a justification on
+    # the same line as a shell comment like `# SKIP=...` or
+    # `# justification: ...`.
+    skip_match = re.search(r'(?:^|\s)([A-Z_]*SKIP)=\S+', cmd)
+    if skip_match:
+        var = skip_match.group(1)
+        # Justification convention : the same line carries a comment that
+        # explains the override. Either a `# SKIP=...` echo or any of
+        # the words justif / authorised / authorized / sprint-<n> / red-gate.
+        justified = bool(re.search(
+            r'#.*(SKIP=|justif|authori[sz]ed|red[- ]gate|sprint-\d+|override)',
+            cmd))
+        if not justified:
+            violations.append(('skip_env_var', var,
+                f'used {var}=1 without an explicit red-gate justification on the same line. '
+                f'Convention : `{var}=1 cmd  # SKIP={var} — <reason> authorised by Chris ; <card-id>`.'))
+            dispatch('Discipline::AgentDiscipline.RecordSkipEnvBypass',
+                kind='skip_env_var', last_detected_at=ts,
+                last_agent_id=agent_id or 'unknown', last_justification='')
+        else:
+            # Record the justified override too — audit trail still wants it.
+            justification = re.search(r'#\s*(.*)$', cmd)
+            justification_text = (justification.group(1) if justification else '').strip()
+            dispatch('Discipline::AgentDiscipline.RecordSkipEnvBypass',
+                kind='skip_env_var', last_detected_at=ts,
+                last_agent_id=agent_id or 'unknown',
+                last_justification=justification_text or 'authorised')
+
+# ---- (b) Isolation bypass : the agent is in a worktree but the edit isn't ----
+if tool in ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') and worktree_root:
+    file_path = tool_in.get('file_path', '') or ''
+    if file_path and not file_path.startswith(worktree_root):
+        # The agent is in worktree X but writing to a file outside X.
+        # That's the ignored-isolation breach — unless the path is
+        # ~/Projects/miette/ or another sanctioned cross-tree edit. The
+        # bluebook-first rule already routes those through the storehouse
+        # door ; this hook only complains when the edit lands in the main
+        # checkout under /Users/.../Projects/hecks/ without the worktree
+        # prefix (i.e. you're shadow-editing the main tree).
+        is_main_hecks_edit = file_path.startswith('/Users/christopheryoung/Projects/hecks/') \
+            and '.claude/worktrees/' not in file_path
+        if is_main_hecks_edit:
+            violations.append(('ignored_isolation', file_path,
+                f'edited {file_path} (in the main checkout) while running in worktree {worktree_root}. '
+                f'Isolation:"worktree" means edits MUST stay under {worktree_root}/. '
+                f'STOP and resume inside the worktree.'))
+            dispatch('Discipline::AgentDiscipline.RecordIsolationBypass',
+                kind='ignored_isolation', last_detected_at=ts,
+                last_agent_id=agent_id or 'unknown')
+
+if not violations:
+    sys.exit(0)
+
+for kind, ref, msg in violations:
+    sys.stderr.write(f'DISCIPLINE (macrophage:agent_discipline:{kind}): {msg} '
+        f'Recorded to the AgentDiscipline audit trail.\n')
+sys.exit(2)
