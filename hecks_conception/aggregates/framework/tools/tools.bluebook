@@ -434,6 +434,120 @@ Hecks.bluebook "Tools", version: "2026.05.14.1" do
     end
   end
 
+  # ============================================================
+  # AGENT TOOL — agent-resume as a first-class dispatched command
+  # ============================================================
+  #
+  # Conceived sprint 14 (sendmessage-on-bus) to lift agent-resume out
+  # of harness-private surface area and onto the bus. Before this card,
+  # one agent waking another was a side-channel call that produced no
+  # bus event, no audit trail, no replay record. With Tools::AgentTool
+  # in place, every agent message is a dispatched command — the bus
+  # records what was sent, to whom, with what preserve-context choice,
+  # and (via the Cascade chain) what the adapter returned. The same
+  # "dispatch IS the act" principle that ShellTool.Bash applies to
+  # shell exec, AgentTool.SendMessage applies to agent control.
+  #
+  # ── Shape (sibling pattern) ──
+  #
+  # Mirrors ShellTool exactly :
+  #   * identified_by :id ; the harness mints a ULID per dispatch
+  #   * value objects are per-aggregate (AgentId, Message) per the
+  #     2026-05-12 locked convention (i555 — VOs live INSIDE the
+  #     aggregate that uses them ; duplication across aggregates
+  #     such as Id / Description is fine)
+  #   * exactly one command — SendMessage — emits AgentMessageSent
+  #   * the :agent_tool adapter family carries the side-effect ;
+  #     this bluebook is the contract, not the execution
+  #
+  # ── State versus event payload ──
+  #
+  # The message body can be long (kilobytes of prompt). Following the
+  # FileTool precedent, the message lives in BOTH state and event
+  # payload for now — agent messages are typically one-shot and the
+  # operator wants to inspect what was sent without replaying the
+  # event log. Revisit if message bodies routinely exceed ~10 KB.
+  #
+  # ── Runtime substrate ──
+  #
+  # The :agent_tool adapter family is declared inline in the sibling
+  # framework/tools/hecksagons/agent_tool.hecksagon. The runtime
+  # agent-resume API (resume_agent / agent_resume) is NOT yet present
+  # in the storehouse runtime (verified by grep at conception time) ;
+  # the adapter binds with a canned output "agent resumed" outcome
+  # until that API lands. The follow-up card to wire the real resume
+  # path is filed as `agent-tool-runtime-resume-api` (sprint 15).
+
+  aggregate "AgentTool", "Agent-control tool invocations as first-class dispatched commands. SendMessage delivers a Message to a named AgentId ; preserve_context selects whether the recipient continues its current transcript or boots fresh. Carries the message + recipient + preserve flag ; the :agent_tool adapter family (sibling hecksagon) routes the AgentMessageSent event to the runtime's resume surface and cascades the outcome into Cascade.RecordResult." do
+    identified_by :id
+
+    attribute :id,                Id
+    attribute :to,                AgentId
+    attribute :message,           Message
+    attribute :preserve_context,  PreserveContext, default: true
+    attribute :description,       Description
+
+    value_object "Id" do
+      # Stable invocation id, minted by the caller (the harness) before
+      # dispatch. The caller chooses the id form ; for the Claude harness
+      # it's a ULID. The aggregate persists by id so the AgentMessageSent
+      # event carries an identifier that downstream listeners (and the
+      # Cascade.RecordResult follow-on) can join against. Same shape as
+      # ShellTool::Id / FileTool::Id — per-aggregate VO is the locked
+      # convention (i555).
+      attribute :value, String
+    end
+
+    value_object "AgentId" do
+      # The recipient agent's identifier — the addressable handle the
+      # runtime resume surface uses to find which running agent should
+      # receive the message. The shape is a free-form string ; current
+      # callers pass agent-resume IDs (e.g. "agent-a520d31eb366365bc") or
+      # named mailbox handles. Per-aggregate VO per i555 — distinct from
+      # any other AgentId VO in sibling aggregates by namespace.
+      attribute :value, String
+    end
+
+    value_object "Message" do
+      # The message body delivered to the recipient agent. Free-form
+      # string — typically a prompt continuation, a steering directive,
+      # or a task spec. Carried in both state and event payload until
+      # message sizes routinely exceed ~10 KB ; revisit then.
+      attribute :value, String
+    end
+
+    value_object "PreserveContext" do
+      # When true, the recipient agent continues its existing transcript
+      # (resume). When false, the recipient boots fresh against the
+      # message as its initial prompt (cold start). Default true — the
+      # common case is steering an already-running agent.
+      attribute :value, Boolean
+    end
+
+    value_object "Description" do
+      # One-line caption in active voice, captioning what the send is
+      # trying to do. Stays under 80 characters by convention so it
+      # reads cleanly in the statusline and event-stream surfaces.
+      # Same shape as ShellTool::Description / FileTool::Description.
+      attribute :value, String
+    end
+
+    command "SendMessage" do
+      role "Miette"
+      description "Send a message to a named running agent. Records the dispatch as an AgentTool record and emits AgentMessageSent carrying the recipient agent id, the message body, the preserve_context flag, and the invocation id so the :agent_tool adapter family can route the message to the runtime's resume surface (and downstream policies — including Cascade.RecordResult — can react to the call). The dispatch IS the act ; the bluebook names the contract, the sibling hecksagon names the execution."
+      attribute :id,                Id
+      attribute :to,                AgentId
+      attribute :message,           Message
+      attribute :preserve_context,  PreserveContext
+      attribute :description,       Description
+      then_set :to,               to: :to
+      then_set :message,          to: :message
+      then_set :preserve_context, to: :preserve_context
+      then_set :description,      to: :description
+      emits "AgentMessageSent"
+    end
+  end
+
   # ──── Aggregate: EmailTool ────
   #
   # EmailTool wraps Claude Code's Gmail MCP surface as a first-class

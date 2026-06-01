@@ -1070,4 +1070,48 @@ Hecks.behaviors "Tools" do
     tests "", on: "TaskTool", kind: :driving_tick
     expect emits: ["TaskFetched"]
   end
+
+  # ── AgentTool : SendMessage (sendmessage-on-bus, sprint 14) ─────────
+  #
+  # AgentTool.SendMessage lifts agent-resume onto the bus. The dispatch
+  # records the message + recipient + preserve_context flag on state and
+  # emits AgentMessageSent ; the sibling agent_tool.hecksagon adapter
+  # (driven on Tools::AgentTool.AgentMessageSent) routes the message to
+  # the runtime's agent-resume surface (canned `agent resumed` outcome
+  # until that runtime API lands — follow-up agent-tool-runtime-resume-api).
+  # First two fixtures cover state + event emission ; the third stress-
+  # tests a long message body the way the Bash long-shell-command test does.
+
+  test "SendMessage records to + message + preserve_context + description" do
+    tests "SendMessage", on: "AgentTool"
+    input  id:                { value: "send-1" },
+           to:                { value: "agent-x" },
+           message:           { value: "resume the worktree" },
+           preserve_context:  { value: true },
+           description:       { value: "wake worktree agent" }
+    expect to:                { value: "agent-x" },
+           message:           { value: "resume the worktree" },
+           preserve_context:  { value: true },
+           description:       { value: "wake worktree agent" }
+  end
+
+  test "SendMessage emits AgentMessageSent" do
+    tests "SendMessage", on: "AgentTool"
+    input  id:                { value: "send-2" },
+           to:                { value: "agent-y" },
+           message:           { value: "check the build" },
+           preserve_context:  { value: false },
+           description:       { value: "cold-start the build checker" }
+    expect emits: ["AgentMessageSent"]
+  end
+
+  test "SendMessage carries a long message body in state" do
+    tests "SendMessage", on: "AgentTool"
+    input  id:                { value: "send-3" },
+           to:                { value: "agent-z" },
+           message:           { value: "prompt " + ("x" * 2000) },
+           preserve_context:  { value: true },
+           description:       { value: "stress-test long agent message" }
+    expect description:       { value: "stress-test long agent message" }
+  end
 end

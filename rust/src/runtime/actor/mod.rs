@@ -42,13 +42,10 @@ mod mailbox;
 mod registry;
 pub mod supervisor;
 mod snapshot;
-mod supervisor;
 
 pub use envelope::Envelope;
 pub use mailbox::{Mailbox, MailboxStatus};
-pub use registry::{MailboxRegistry, ActorAddress, DrainSummary};
-pub use registry::{MailboxRegistry, ActorAddress};
-pub use registry::{Mailboxes, ActorAddress};
+pub use registry::{Mailboxes, ActorAddress, DrainSummary};
 pub use snapshot::{MailboxStatusLabel, MailboxSummary};
 pub use supervisor::SupervisorOutcome;
 

@@ -1,0 +1,47 @@
+Hecks.hecksagon "AgentToolAdapter" do
+  # ============================================================
+  # AGENT TOOL ADAPTER (sendmessage-on-bus, sprint 14)
+  # ============================================================
+  #
+  # Sibling of shell_adapter.hecksagon. Subscribes to the bus event
+  # `Tools::AgentTool.AgentMessageSent` (emitted by
+  # Tools::AgentTool.SendMessage) and routes the message to the runtime's
+  # agent-resume API.
+  #
+  # ── Runtime resume API NOT YET PRESENT ──
+  #
+  # The storehouse runtime does not (as of sprint 14) expose a
+  # resume_agent / agent_resume call ; greps the codebase turn up
+  # nothing. Per the sendmessage-on-bus card's wiring discipline, the
+  # adapter is bound to a canned outcome until that API lands :
+  # it dispatches `Tools::Cascade.RecordResult` carrying
+  # `output: "agent resumed"`, `ok: true`, `exit_code: 0`, `tool: "agent_resume"`,
+  # and the originating invocation id so the cascade chain joins.
+  #
+  # Follow-up card filed : `agent-tool-runtime-resume-api` (sprint 15)
+  # — swap the canned dispatch for the real resume call once the
+  # runtime surface lands. The bluebook contract does not change ;
+  # only the substrate behind this adapter changes.
+  #
+  # ── Why driven-on, not adapter-family ──
+  #
+  # The :claude_tool / :web_tool families bind one COMMAND to a
+  # native kernel hook (bash / read / edit / web_fetch). Agent
+  # resume isn't a kernel hook — it's a runtime-internal API call.
+  # The `driven on` shape (sibling shell_adapter precedent) is the
+  # right fit : the adapter is a runtime listener that reacts to a
+  # bus event by issuing a follow-on dispatch, not a kernel-hook
+  # invocation. When the runtime resume API lands, this adapter's
+  # body grows the real call ; the bluebook contract stays put.
+
+  adapter "AgentToolAdapter" do
+    driven on "Tools::AgentTool.AgentMessageSent" do |event|
+      dispatch "Tools::Cascade.RecordResult",
+               id: event.id,
+               tool: "agent_resume",
+               output: "agent resumed",
+               exit_code: 0,
+               ok: true
+    end
+  end
+end
