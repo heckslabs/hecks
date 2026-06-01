@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+# migrate-pending-task-count-default-zero - sprint 14
+#
+# One-time backfill. Story.pending_task_count gained `default: 0` (sprint 14)
+# but stored stories created before the default exists carry the attribute
+# as None. The ready_means_all_tasks_resolved invariant compares None != 0
+# and rejects MarkReady on freshly-untouched stories.
+#
+# Fix : for every NON-READY/DONE Story whose pending_task_count is None,
+# dispatch Plan::Story.BumpPendingTaskCount + Plan::Story.DropPendingTaskCount
+# in sequence — bumps None to 1, drops 1 back to 0. After the pair the
+# field is an honest integer 0 and the invariant passes.
+#
+# Scoping : stories already in ready_for_review / done with ptc=None are
+# SKIPPED. Those records pre-date the default ; the invariant is satisfied
+# lazily at-mutation time, not at-rest, so they entered ready/done before
+# the rule could fire. Any bus dispatch on them now would itself violate
+# the invariant (None != 0). They're already past the MarkReady gate ;
+# whether their stored ptc is None or 0 is academic. Direct heki repair
+# is forbidden post-#717.
+#
+# Bus dispatch only — no raw heki writes (heki append/upsert/delete are
+# retired post-#717). The cascade-internal Bump/Drop commands carry the
+# `must not be dispatched manually` doc-note ; this script is the one
+# sanctioned exception (a backfill migration is exactly the seam they
+# describe).
+#
+# Idempotent : a story already at pending_task_count = 0 stays at 0
+# (Bump moves 0→1, Drop moves 1→0). Running it twice does no harm
+# beyond extra bus events.
+#
+# Usage : bin/migrate-pending-task-count-default-zero
+#         bin/migrate-pending-task-count-default-zero --dry-run
+import json, subprocess, sys
+
+ROOT = "/Users/christopheryoung/Projects/hecks/hecks_conception"
+STORY_HEKI = f"{ROOT}/aggregates/plan/.heki/plan/story.heki"
+STOREHOUSE = "storehouse"
+SKIP_STATES = {"ready_for_review", "done"}
+
+DRY_RUN = "--dry-run" in sys.argv
+
+
+def read_stories():
+    r = subprocess.run([STOREHOUSE, "heki", "read", STORY_HEKI], capture_output=True, text=True)
+    if r.returncode != 0:
+        print("heki read failed :", r.stderr.strip(), file=sys.stderr)
+        sys.exit(2)
+    return json.loads(r.stdout)
+
+
+def dispatch(cmd, ref):
+    args = [STOREHOUSE, ROOT, cmd, f"story={ref}"]
+    if DRY_RUN:
+        print("  DRY:", " ".join(args))
+        return True
+    r = subprocess.run(args, capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"  FAIL {cmd} story={ref} : {r.stderr.strip()}")
+        return False
+    return True
+
+
+def main():
+    stories = read_stories()
+
+    none_all  = [r for r, v in stories.items() if v.get("pending_task_count") is None]
+    eligible  = [r for r in none_all if stories[r].get("state") not in SKIP_STATES]
+    skipped   = [r for r in none_all if stories[r].get("state") in SKIP_STATES]
+
+    print(f"total stories         : {len(stories)}")
+    print(f"None-ptc total        : {len(none_all)}")
+    print(f"  eligible (backfill) : {len(eligible)}")
+    print(f"  skipped (ready/done): {len(skipped)}  — past MarkReady gate ; cannot bus-touch")
+
+    if DRY_RUN:
+        print("--dry-run : would Bump+Drop each eligible story")
+
+    ok, fail = 0, 0
+    for i, ref in enumerate(eligible, 1):
+        if i % 25 == 0:
+            print(f"  ...{i}/{len(eligible)}")
+        b = dispatch("Plan::Story.BumpPendingTaskCount", ref)
+        d = dispatch("Plan::Story.DropPendingTaskCount", ref) if b else False
+        if b and d:
+            ok += 1
+        else:
+            fail += 1
+
+    print(f"\ndone : {ok} backfilled, {fail} failed, {len(skipped)} skipped")
+    return 0 if fail == 0 else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
