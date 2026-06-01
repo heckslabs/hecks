@@ -31,11 +31,13 @@
 mod envelope;
 mod mailbox;
 mod registry;
+mod snapshot;
 mod supervisor;
 
 pub use envelope::Envelope;
 pub use mailbox::{Mailbox, MailboxStatus};
 pub use registry::{MailboxRegistry, ActorAddress};
+pub use snapshot::{MailboxStatusLabel, MailboxSummary};
 pub use supervisor::SupervisorOutcome;
 
 #[cfg(test)]
