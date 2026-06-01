@@ -29,9 +29,9 @@
 //! across aggregate instances without breaking the sync command contract.
 //!
 //! Usage :
-//!   let mut registry = MailboxRegistry::new();
-//!   registry.deliver(("Sprint".into(), "14".into()), envelope, handler);
-//!   registry.drain_all();  // testing utility — block until idle
+//!   let mut mailboxes = Mailboxes::new();
+//!   mailboxes.deliver(("Sprint".into(), "14".into()), envelope, handler);
+//!   mailboxes.drain_all();  // testing utility — block until idle
 //!
 //! See `runtime/event_bus.rs` for how the bus enqueues envelopes and
 //! the four behaviors fixtures (`actor_model.behaviors`) for the
@@ -48,6 +48,7 @@ pub use envelope::Envelope;
 pub use mailbox::{Mailbox, MailboxStatus};
 pub use registry::{MailboxRegistry, ActorAddress, DrainSummary};
 pub use registry::{MailboxRegistry, ActorAddress};
+pub use registry::{Mailboxes, ActorAddress};
 pub use snapshot::{MailboxStatusLabel, MailboxSummary};
 pub use supervisor::SupervisorOutcome;
 
