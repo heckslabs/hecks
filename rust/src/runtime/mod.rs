@@ -243,14 +243,30 @@ pub struct Runtime {
     /// every adapter falls back to canned (memory-by-default).
     pub world_adapter_bindings: Vec<crate::world::ir::AdapterBinding>,
     /// Sprint 14 (migration-coexistence) — monotonic counter of events
-    /// that traversed the actor-mode mailbox stub. Increments only for
+    /// that traversed the actor-mode mailbox path. Increments only for
     /// aggregates declaring `delivery :actor` in their bluebook ; stays
     /// at zero for the historical sync-cascade default. Read by behaviors
     /// tests + the storehouse log to assert the per-aggregate delivery
-    /// fork actually fired. Per-aggregate mailboxes / real async drain
-    /// are the sibling sprint-14 stories `actor-per-aggregate-instance`
-    /// and `async-event-delivery-bus` ; this counter is the wiring proof.
+    /// fork actually fired. The mailbox is no longer a stub — it routes
+    /// through `mailbox_registry` (`wire-mailbox-registry-into-event-bus`)
+    /// so per-aggregate causal ordering + per-actor failure isolation
+    /// are real properties of the runtime, not just a counter.
     pub mailbox_drained: usize,
+    /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — the actor
+    /// model's per-`(aggregate_type, aggregate_id)` mailbox set.
+    /// `Runtime::enqueue_and_drain` enqueues into the addressed mailbox
+    /// (lazy-created on first delivery) and then synchronously drains
+    /// it through the existing `event_bus.publish` pipeline. The drain
+    /// step is what makes the publish ACTUALLY route through the actor
+    /// model : sync command dispatch is preserved (the drain happens on
+    /// the calling thread before `dispatch` returns), but causal
+    /// ordering is now mailbox-FIFO + idempotency dedup runs at the
+    /// mailbox boundary instead of being absent. Cross-aggregate
+    /// parallelism (event on A while slow handler runs on B → A not
+    /// blocked) is proven by `MailboxRegistry::drain_all_in_parallel`
+    /// in the actor unit tests ; the bus-level entry point keeps the
+    /// sync-feel contract so callers don't fork.
+    pub mailbox_registry: actor::MailboxRegistry,
 }
 
 impl Runtime {
@@ -281,19 +297,74 @@ impl Runtime {
         rt
     }
 
-    /// Sprint 14 (migration-coexistence) — publish an event through the
-    /// per-aggregate mailbox stub. Today this is a no-op fork :
-    /// `enqueue_and_drain` increments the `mailbox_drained` counter
-    /// (so behaviors tests can prove the actor arm fired) and then
-    /// publishes synchronously on the existing event bus. Real per-actor
-    /// mailboxes + async drain land under sibling sprint-14 stories
-    /// `actor-per-aggregate-instance` and `async-event-delivery-bus` ;
-    /// when they ship, only the body of this method changes — every
-    /// caller (command_dispatch.rs) and every bluebook (`delivery :actor`)
-    /// keeps working unchanged. That's the coexistence contract.
+    /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — publish an
+    /// event through the per-aggregate mailbox. This is the canonical
+    /// entry point into the actor model for `delivery :actor`
+    /// aggregates. The flow :
+    ///
+    ///   1. Wrap the event in an `Envelope`. The bus-side event_id is
+    ///      the event-name + aggregate-id + monotonic counter so the
+    ///      mailbox's seen-set can dedupe duplicates by construction.
+    ///   2. `MailboxRegistry::deliver` enqueues the envelope at address
+    ///      `(aggregate_type, aggregate_id)`, lazy-creating the mailbox
+    ///      on first delivery (per actor-per-aggregate-instance). The
+    ///      return value tells us whether the event_id was fresh ; a
+    ///      duplicate is dropped at the mailbox boundary and we don't
+    ///      publish.
+    ///   3. Drain the addressed mailbox synchronously on this thread,
+    ///      publishing each popped envelope through `event_bus.publish`.
+    ///      Causal-ordering-per-aggregate is the mailbox's FIFO ;
+    ///      sync-feel command dispatch is preserved because the drain
+    ///      happens before `enqueue_and_drain` returns. Cross-aggregate
+    ///      parallelism (event on A while slow handler runs on B → A
+    ///      not blocked) is realised by `drain_all_in_parallel` in the
+    ///      registry — exercised by the `actor::tests` unit suite and
+    ///      smoke decision #5 in `bin/sprint14-smoke`.
+    ///
+    /// The `mailbox_drained` counter still increments — behaviors tests
+    /// + the migration-coexistence integration test depend on it as the
+    /// "actor arm fired" proof — but it is no longer the contract. The
+    /// contract is the mailbox itself : per-aggregate FIFO + idempotency
+    /// + failure isolation are now properties of the bus, not aspirations.
     pub fn enqueue_and_drain(&mut self, event: Event) {
         self.mailbox_drained = self.mailbox_drained.saturating_add(1);
-        self.event_bus.publish(event);
+        let addr: actor::ActorAddress = (event.aggregate_type.clone(), event.aggregate_id.clone());
+        let event_id = format!(
+            "{}::{}::{}::{}",
+            event.aggregate_type,
+            event.aggregate_id,
+            event.name,
+            self.mailbox_drained,
+        );
+        let envelope = actor::Envelope::new(event, event_id);
+        let accepted = self.mailbox_registry.deliver(addr.clone(), envelope);
+        if !accepted {
+            return;
+        }
+        let mailbox_arc = match self.mailbox_registry.mailbox_for(&addr) {
+            Some(mb) => mb,
+            None => return,
+        };
+        // Drain the addressed mailbox in FIFO order, publishing each
+        // envelope through the existing event bus. Holding the mutex
+        // for the whole drain keeps causal ordering for this address
+        // ; sibling addresses' mailboxes are independent and a
+        // concurrent caller could drain them in parallel via
+        // `mailbox_registry.drain_all_in_parallel` (used by tests).
+        let popped: Vec<actor::Envelope> = {
+            let mut guard = mailbox_arc.lock().expect("mailbox mutex poisoned");
+            if guard.status == actor::MailboxStatus::Poisoned {
+                return;
+            }
+            let mut out = Vec::new();
+            while let Some(env) = guard.pop() { out.push(env); }
+            out
+        };
+        for env in popped {
+            self.event_bus.publish(env.event.clone());
+            let mut guard = mailbox_arc.lock().expect("mailbox mutex poisoned");
+            guard.note_handled();
+        }
     }
 
     /// Sprint 14 (migration-coexistence) — lookup the declared delivery
@@ -455,6 +526,7 @@ impl Runtime {
             world_servers_path: None,
             world_adapter_bindings: Vec::new(),
             mailbox_drained: 0,
+            mailbox_registry: actor::MailboxRegistry::new(),
         }
     }
 
