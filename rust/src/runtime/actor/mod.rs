@@ -1,11 +1,20 @@
 //! Actor-per-aggregate-instance — sprint 14 actor model quartet
 //!
 //! Each `(aggregate_type, aggregate_id)` pair has its own mailbox.
-//! Events delivered to a mailbox process in FIFO order on a dedicated
-//! OS thread ; different mailboxes process in parallel. A panic in one
-//! mailbox does not poison the others ; the panicked mailbox is marked
-//! poisoned, the runtime continues. Duplicate event-ids are deduped at
-//! the mailbox boundary so handlers run once even if the bus emits twice.
+//! Events delivered to a mailbox process in FIFO order on a tokio
+//! task spawned via `JoinSet::spawn_blocking` ; different mailboxes
+//! process in parallel on the tokio worker pool. A panic in one
+//! mailbox does not poison the others ; the panicked mailbox is
+//! marked poisoned, the runtime continues. Duplicate event-ids are
+//! deduped at the mailbox boundary so handlers run once even if the
+//! bus emits twice.
+//!
+//! Substrate : tokio tasks (sprint-14 tokio-mailbox-substrate, this
+//! sprint). The previous substrate was std::thread::spawn per active
+//! mailbox (PR #702) ; tokio tasks are lighter and reuse the runtime
+//! pool. The mailbox abstraction is unchanged ; only the spawn target
+//! flipped. `drain_all_in_parallel` is now an `async fn` ; sync
+//! callers that need a non-async drain still have `drain_all_blocking`.
 //!
 //! Four facets, one mechanism :
 //! - actor-per-aggregate-instance — mailbox keyed by (type, id)
