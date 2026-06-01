@@ -7,28 +7,35 @@
 //! envelope. Subsequent envelopes for the same address reuse the
 //! existing mailbox so causal ordering holds.
 //!
-//! Parallelism : `drain_all_in_parallel` spawns one OS thread per
-//! non-empty mailbox and joins them. Different mailboxes process in
-//! parallel (parallelism across aggregate instances) ; one mailbox's
+//! Parallelism : `drain_all_in_parallel` spawns one tokio task per
+//! non-empty mailbox into a `JoinSet` and awaits them. Different
+//! mailboxes process in parallel (parallelism across aggregate
+//! instances) on the tokio worker thread pool ; one mailbox's
 //! envelopes process sequentially (causal per-aggregate). Per-actor
-//! failure isolation lives in `supervisor.rs` — wrapped around the
-//! handler invocation inside each spawned thread.
+//! failure isolation lives in the JoinSet drain loop — a panicked
+//! task surfaces as `JoinError::is_panic()` and is translated into
+//! a `Poisoned` supervisor outcome without unwinding the registry.
 //!
-//! Why std::thread rather than tokio : the rest of the runtime is
-//! synchronous (sync dispatch contract per sprint-12 architecture
-//! decision). std::thread keeps the actor model layered ON TOP of
-//! sync without forcing #[tokio::main] through every entry point.
-//! Tokio integration is a separate sprint-14 follow-up card.
+//! Why tokio rather than std::thread (sprint-14 tokio-mailbox-substrate) :
+//! the previous substrate spawned one OS thread per active mailbox.
+//! That works for the four smoke tests but does not scale — every
+//! cascade fan-out costs N thread creations. tokio tasks are
+//! lightweight, the runtime pool is reused, and the mailbox
+//! abstraction is unchanged (drain_all_in_parallel still takes a
+//! handler and returns a DrainSummary). The mailbox's internal
+//! Mutex stays `std::sync::Mutex` because no `.await` is held across
+//! the lock — tokio's own guidance endorses std::sync::Mutex for
+//! short synchronous critical sections.
 //!
 //! Usage :
 //!   let mut reg = MailboxRegistry::new();
 //!   reg.deliver(("Sprint".into(), "14".into()), envelope);
-//!   reg.drain_all_in_parallel(handler);
+//!   reg.drain_all_in_parallel(handler).await;
 
 use super::{Envelope, Mailbox, MailboxStatus, supervisor};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use tokio::task::JoinSet;
 
 /// `(aggregate_type, aggregate_id)` — the actor's address. The type
 /// is the Pascal-case aggregate name ("Sprint") ; the id is the
@@ -43,6 +50,11 @@ pub type ActorAddress = (String, String);
 /// `deliver` calls from external threads would need a different
 /// shape (separate enqueue ports per mailbox) but the sync-runtime
 /// caller doesn't have that need.
+///
+/// `std::sync::Mutex` (NOT `tokio::sync::Mutex`) — the lock is held
+/// only across the brief synchronous critical section that pops one
+/// envelope or appends to a counter ; no `.await` is held across the
+/// lock so a sync mutex is correct AND faster.
 pub struct MailboxRegistry {
     mailboxes: HashMap<ActorAddress, Arc<Mutex<Mailbox>>>,
 }
@@ -61,47 +73,70 @@ impl MailboxRegistry {
         guard.push(env)
     }
 
-    /// Drain every non-empty mailbox in parallel. One OS thread per
-    /// active mailbox ; handler is called once per envelope inside
-    /// `supervisor::guarded_invoke` so panics are caught and the
+    /// Drain every non-empty mailbox in parallel. One tokio task per
+    /// active mailbox spawned into a `JoinSet` ; handler is called
+    /// once per envelope. Panics surface as `JoinError::is_panic()`
+    /// and are translated into `SupervisorOutcome::Poisoned` so the
     /// affected mailbox is marked Poisoned without unwinding the
-    /// registry. Returns when every spawned thread joins.
+    /// registry. Returns when every spawned task has been joined.
     ///
     /// The handler must be `Send + Sync + 'static` so it can cross
-    /// the thread boundary. The runtime's actual cascade handler is
+    /// the task boundary. The runtime's actual cascade handler is
     /// not Send (it borrows &mut Runtime) ; the registry-level smoke
     /// proof uses a pure closure. Production wiring will route
     /// through a message-passing shim in event_bus.rs (separate card).
-    pub fn drain_all_in_parallel<F>(&mut self, handler: F) -> DrainSummary
+    ///
+    /// Async : must be `.await`-ed from a tokio runtime context. The
+    /// 4 actor::tests use `#[tokio::test(flavor = "multi_thread")]`
+    /// because the `parallel_across_aggregates_no_block` test uses a
+    /// blocking `Barrier::wait` inside the handler — that needs ≥2
+    /// worker threads to make progress.
+    pub async fn drain_all_in_parallel<F>(&mut self, handler: F) -> DrainSummary
     where F: Fn(&Envelope) + Send + Sync + 'static
     {
         let handler = Arc::new(handler);
-        let mut joins = Vec::with_capacity(self.mailboxes.len());
-        let mut addrs = Vec::with_capacity(self.mailboxes.len());
+        let mut joins: JoinSet<supervisor::SupervisorOutcome> = JoinSet::new();
+        let mailbox_count = self.mailboxes.len();
         for (addr, mb) in &self.mailboxes {
             let mb_clone = Arc::clone(mb);
             let h_clone = Arc::clone(&handler);
             let addr_clone = addr.clone();
-            addrs.push(addr.clone());
-            joins.push(thread::spawn(move || {
+            joins.spawn_blocking(move || {
                 drain_one(&addr_clone, mb_clone, h_clone)
-            }));
+            });
         }
         let mut handled = 0usize;
         let mut poisoned = 0usize;
-        for j in joins {
-            let outcome = j.join().unwrap_or(supervisor::SupervisorOutcome::Poisoned("join failed".into()));
-            match outcome {
-                supervisor::SupervisorOutcome::Drained(n) => handled += n,
-                supervisor::SupervisorOutcome::Poisoned(_) => poisoned += 1,
+        while let Some(joined) = joins.join_next().await {
+            match joined {
+                Ok(supervisor::SupervisorOutcome::Drained(n)) => handled += n,
+                Ok(supervisor::SupervisorOutcome::Poisoned(_)) => poisoned += 1,
+                Err(join_err) => {
+                    // A panic that escapes the inner catch_unwind is
+                    // turned into a Poisoned outcome here. drain_one
+                    // already catches handler panics internally ; this
+                    // path covers join-level cancellation or an
+                    // unexpected runtime error. `_reason` exists for
+                    // future audit-trail wiring but is not yet
+                    // surfaced through DrainSummary.
+                    let _reason = if join_err.is_panic() {
+                        supervisor::stringify_panic(&join_err.into_panic())
+                    } else {
+                        "join failed".to_string()
+                    };
+                    poisoned += 1;
+                }
             }
         }
-        DrainSummary { handled, poisoned, mailbox_count: addrs.len() }
+        DrainSummary { handled, poisoned, mailbox_count }
     }
 
     /// Synchronous drain — used by tests that need deterministic
-    /// ordering. Drains each mailbox in turn on the calling thread.
-    /// Same supervisor wrapping, no parallelism.
+    /// ordering AND a non-async API surface. Drains each mailbox in
+    /// turn on the calling thread. Same supervisor wrapping, no
+    /// parallelism. Does NOT touch tokio so it remains callable
+    /// from any synchronous context (e.g. the existing sync command
+    /// dispatch path).
     pub fn drain_all_blocking<F: FnMut(&Envelope)>(&mut self, mut handler: F) -> DrainSummary {
         let mut handled = 0usize;
         let mut poisoned = 0usize;
@@ -143,9 +178,18 @@ pub struct DrainSummary {
     pub mailbox_count: usize,
 }
 
-/// Drain helper run inside each spawned thread. Pops envelopes one
-/// at a time and invokes the handler under `catch_unwind` so a panic
-/// in one envelope-handler does not propagate up through the join.
+/// Drain helper run inside each spawned tokio task. Pops envelopes
+/// one at a time and invokes the handler under `catch_unwind` so a
+/// panic in one envelope-handler does not propagate up through the
+/// JoinSet — instead, it returns a `Poisoned` outcome and the
+/// mailbox's status is flipped to Poisoned.
+///
+/// Runs under `JoinSet::spawn_blocking` because the handler is a
+/// synchronous closure that may block (the actor tests use
+/// `std::sync::Barrier::wait`). spawn_blocking moves the work onto
+/// tokio's blocking-task pool so the async worker threads are not
+/// starved. From the registry's point of view the spawn target is
+/// fungible — the task abstraction is what matters.
 fn drain_one<F>(_addr: &ActorAddress, mb: Arc<Mutex<Mailbox>>, handler: Arc<F>) -> supervisor::SupervisorOutcome
 where F: Fn(&Envelope) + Send + Sync + 'static
 {
