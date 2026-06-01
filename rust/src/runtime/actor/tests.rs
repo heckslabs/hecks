@@ -74,6 +74,7 @@ fn same_aggregate_events_handled_in_order() {
 /// Tokio multi-thread flavor required : the blocking `Barrier::wait`
 /// inside each spawn_blocking task needs two independent worker
 /// threads to make progress.
+/// — we cap the test with a join inside std::thread::spawn pattern.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parallel_across_aggregates_no_block() {
     let mut reg = Mailboxes::new();
@@ -103,6 +104,7 @@ async fn parallel_across_aggregates_no_block() {
 /// handler does NOT prevent actor A's handler from completing. After
 /// the drain the registry reports 1 poisoned, 1 handled. Multi-thread
 /// flavor required so both spawn_blocking tasks can run independently.
+/// the drain the registry reports 1 poisoned, 1 handled.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn panic_in_one_actor_doesnt_block_others() {
     let mut reg = Mailboxes::new();
