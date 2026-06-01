@@ -40,11 +40,11 @@
 mod envelope;
 mod mailbox;
 mod registry;
-mod supervisor;
+pub mod supervisor;
 
 pub use envelope::Envelope;
 pub use mailbox::{Mailbox, MailboxStatus};
-pub use registry::{MailboxRegistry, ActorAddress};
+pub use registry::{MailboxRegistry, ActorAddress, DrainSummary};
 pub use supervisor::SupervisorOutcome;
 
 #[cfg(test)]
