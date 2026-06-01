@@ -156,6 +156,23 @@ fn dispatch_inner(
     } else {
         unknown_aggregate_message(rt, &aggregate_name)
     };
+    // i-cascade-fk : a cross-aggregate cascade (cascade_hint upstream type
+    // differs from this aggregate) driving a self-ref command carries the
+    // upstream event's leaked `id`, which names the UPSTREAM record, not one
+    // of this type. Resolve the owning record from the upstream record's FK
+    // (its attribute whose declared type IS this aggregate) so e.g.
+    // TaskCompleted -> Story.DropPendingTaskCount finds the Story via Task.story.
+    let cascade_fk_id: Option<String> = cascade_hint.as_ref().and_then(|(up_type, up_id)| {
+        if up_type == &aggregate_name { return None; }
+        let up_agg = rt.domain.aggregates.iter().find(|a| &a.name == up_type)?;
+        let fname = up_agg.attributes.iter()
+            .find(|at| at.attr_type == aggregate_name)
+            .map(|at| at.name.clone())?;
+        rt.repositories.get(&super::repo_key(up_agg.context.as_deref(), up_type))
+            .and_then(|up| up.find(up_id))
+            .and_then(|rec| rec.fields.get(&fname))
+            .and_then(|v| v.as_str().map(str::to_string))
+    });
     let repo = rt.repositories.get_mut(&repo_hash_key)
         .ok_or(RuntimeError::UnknownAggregate(unknown_agg_msg))?;
 
@@ -173,8 +190,10 @@ fn dispatch_inner(
         // command declares its own `id` attribute alongside a self-ref.
         // The corpus contract is enforceable by a validator if it ever
         // drifts.
-        if let Some(id_val) = attrs.get(ref_name).or_else(|| attrs.get("id")) {
-            let id = id_val.to_string();
+        let self_ref_id = attrs.get(ref_name).map(|v| v.to_string())
+            .or_else(|| cascade_fk_id.clone())
+            .or_else(|| attrs.get("id").map(|v| v.to_string()));
+        if let Some(id) = self_ref_id {
             match repo.find(&id).cloned() {
                 Some(s) => (s, false),
                 None => return Err(RuntimeError::AggregateNotFound(
