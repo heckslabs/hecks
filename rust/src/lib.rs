@@ -87,6 +87,8 @@ pub mod run_boot;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod run_follow;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod run_mailboxes;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod run_restructure;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod run_serve;
