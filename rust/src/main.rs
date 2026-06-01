@@ -511,6 +511,19 @@ fn main() {
         std::process::exit(storehouse::run_follow::run(&args));
     }
 
+    // `storehouse actors` — debug observability for the actor model
+    // (sprint 14 — story `storehouse-actors-debug-command`). Three
+    // verbs : list / show / poisoned, each with optional `--json`.
+    // The live runtime does not yet hold a process-wide MailboxRegistry
+    // (separate sprint-14 wiring card) ; `--fixture` builds a
+    // deterministic 3-mailbox demo so the rendering shape is
+    // exerciseable from CLI and from the behavior test before the bus
+    // wires through. Same kernel-surface family as `follow` and
+    // `statusline` — thin main.rs delegate to the run_actors module.
+    if command == "actors" {
+        std::process::exit(storehouse::run_actors::run(&args));
+    }
+
     // `storehouse serve-stdio <agg-dir>` — warm, resident dispatch
     // server over stdin/stdout. The second half of the speed plan :
     // the first half (lazy repository hydration) cut a COLD single-shot
@@ -5275,8 +5288,14 @@ fn print_usage() {
     eprintln!("  sleep      Dispatch EnterSleep, stream stage/dream changes, print wake report");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
     eprintln!("  heki       Read/write .heki binary stores");
+    eprintln!("  actors     Inspect the actor model (mailboxes, queue depths, poisoned)");
     eprintln!("  dump-world Parse a .world file and emit canonical JSON");
     eprintln!("  dump-hecksagon  Parse a .hecksagon file and emit canonical JSON\n");
+    eprintln!("Actors subcommands:");
+    eprintln!("  actors list                          List active mailboxes");
+    eprintln!("  actors show <type> <id>              Detail on one mailbox");
+    eprintln!("  actors poisoned                      Only poisoned mailboxes");
+    eprintln!("  actors <verb> --json                 Tooling-stable JSON output\n");
     eprintln!("Heki subcommands:");
     eprintln!("  heki read   <file>           Dump store as JSON");
     eprintln!("  heki latest <file>           Show latest record");
