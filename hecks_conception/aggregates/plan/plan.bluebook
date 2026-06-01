@@ -1,4 +1,4 @@
-Hecks.bluebook "Plan", version: "2026.05.31.2" do
+Hecks.bluebook "Plan", version: "2026.05.31.3" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
@@ -193,10 +193,29 @@ Hecks.bluebook "Plan", version: "2026.05.31.2" do
       emits "UnplannedStoryAdded"
     end
 
-    # Reorder is RETIRED — Sprint no longer carries an ordered membership
-    # list to reorder. The Board owns the manual card order (Board.ordered_refs)
-    # across all active sprints ; reordering within or across sprints is a
-    # Board.Reorder concern, not a Sprint one.
+    # Reorder (whole-membership replacement) is RETIRED. ReorderStories
+    # below replaces the stories list with a permutation of the SAME set
+    # — pure ordering, no add/remove. Cross-sprint card ordering on the
+    # board surface remains a Board.Reorder concern. The size-equality
+    # given() catches pure add or pure remove (size delta) ; it cannot
+    # catch swap-with-add+remove (same size, different elements) — that
+    # requires set-equality which the predicate language lacks today
+    # (gap : runtime-set-equality-predicate). Strictly tighter than the
+    # Board.ReorderSprints precedent which ships with NO validator.
+    # Behavior fixtures DEFERRED — behaviors_runner.rs : parse_value has
+    # no list-literal branch, so `input story_refs: ["a", "b"]` becomes
+    # a Value::Str and story_refs.size returns the string length, not
+    # the list arity (gap : runtime-list-input-in-behaviors).
+
+    command "ReorderStories" do
+      role "Miette"
+      description "Replace the sprint's stories list with a new order — mirror of Board.ReorderSprints at the Sprint→Stories level. story_refs must be a permutation of the current stories set (same membership, new order) ; add/remove is the AddStory / cancel path. Valid from any state — reordering is pure metadata. Emits StoriesReordered carrying the new ordering."
+      reference_to(Sprint)
+      attribute :story_refs, list_of(Story)
+      given("story_refs must be a permutation of stories") { story_refs.size == stories.size }
+      then_set :stories, to: :story_refs
+      emits "StoriesReordered"
+    end
 
     command "Groom" do
       role "Miette"
