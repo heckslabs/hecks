@@ -47,4 +47,17 @@ mod tests {
         assert_eq!(v.get("being").unwrap(), "Spring");
         assert_eq!(v.get("other").unwrap(), "Miette");
     }
+
+    #[test]
+    fn assemble_orders_numerically_and_joins_with_blank_line() {
+        let src = "Hecks.fixtures \"T\" do\n  aggregate \"SystemPromptSection\" do\n    fixture \"B\", order: 10, markdown: \"## Tenth\\nbody ten\\n\"\n    fixture \"A\", order: 2, markdown: \"## Second\\nbody two\\n\"\n  end\nend\n";
+        let out = assemble_sections(src);
+        assert_eq!(out, "## Second\nbody two\n\n## Tenth\nbody ten\n");
+    }
+
+    #[test]
+    fn quoted_after_extracts_first_quoted_token() {
+        assert_eq!(quoted_after("Hecks.bluebook \"Acl\", v: 1", "Hecks.bluebook \"").as_deref(), Some("Acl"));
+        assert_eq!(quoted_after("no marker here", "vision \""), None);
+    }
 }
