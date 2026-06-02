@@ -1,0 +1,43 @@
+Hecks.hecksagon "Threading" do
+  # Threading wiring — the adapter that drives the spawn syscall on
+  # Thread.SpawnRequested. Bluebook stays pure (records the intent +
+  # emits) ; this adapter is the impure leaf where the runtime calls
+  # tokio::spawn / std::thread::spawn.
+  #
+  # Mirrors the ProcessHealth arc : Sweep + Heal record on the
+  # bluebook ; Primitive::Process.Spawn is the syscall leaf the
+  # hecksagon binds. Here the leaf IS the spawn syscall itself, so
+  # the rust actor module (rust/src/runtime/actor/registry.rs)
+  # treats Threading.Thread.Spawn as the canonical entry point and
+  # the substrate dispatch (tokio task vs std::thread) lives behind
+  # the kind attribute.
+  #
+  # ── Driven on Thread.SpawnRequested ──
+  #
+  # When a policy or the actor registry dispatches Threading.Thread.Spawn,
+  # the bluebook emits SpawnRequested. The adapter is the runtime hook
+  # that : (a) looks up the kind, (b) calls the matching syscall
+  # (tokio::spawn for kind=tokio, std::thread::spawn for kind=std),
+  # (c) stashes the real handle in a side-table keyed by Thread.name,
+  # (d) dispatches Thread.Drain back through the bus once the substrate
+  # accepted the task so the bluebook reflects state=running, and
+  # (e) on completion dispatches Thread.Join (happy path) or
+  # Thread.MarkPoisoned (supervisor caught a panic).
+  #
+  # Sister event Mailbox.MailboxDraining is the runtime audit trail of
+  # the actor registry's drain_all_in_parallel walk (the Mailbox-side
+  # command is named StartDraining to avoid colliding with Thread.Drain
+  # in the same bluebook) — same adapter,
+  # different leaf (the mailbox queue drain). Both events fan out
+  # through this hecksagon today as :memory while the rust side still
+  # owns the spawn / drain syscalls inline ; the adapter is the
+  # declared seam where the recursive bus-through-self binding lands
+  # next (deferred from sprint 14 ; see threading.bluebook vision).
+  #
+  # cwd contract : tokio tasks inherit the runtime process cwd ;
+  # std::thread spawns inherit the same. No script invocation here —
+  # the syscall is a Rust function call, not a process spawn, so the
+  # exec_dispatcher path (Primitive::Process.Spawn) is NOT reused.
+
+  adapter :memory
+end

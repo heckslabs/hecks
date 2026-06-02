@@ -186,4 +186,45 @@ Hecks.behaviors "Plan" do
     expect emits: ["TaskCompleted", "PendingTaskCountDropped"]
   end
 
+
+  # ── sprint-reorder-stories (sprint 14) ───────────────────────
+  # Sprint.ReorderStories fixtures DEFERRED — the behaviors runner's
+  # parse_value (behaviors_runner.rs : parse_value) lacks list-literal
+  # support : `input story_refs: ["a", "b", "c"]` is stored as a single
+  # Value::Str("[\"a\", \"b\", \"c\"]"), so story_refs.size returns the
+  # string-byte length, not the list arity. The size-equality given() on
+  # ReorderStories is correct DSL ; it will exercise correctly once the
+  # runner gains list parsing (gap : runtime-list-input-in-behaviors).
+  # Board.ReorderSprints shipped with zero fixtures by the same precedent.
+  # The companion-ratchet test below exercises the command-existence +
+  # size-equality given() on the refusal branch.
+  test "Sprint.ReorderStories refuses a size-mismatch input" do
+    tests "ReorderStories", on: "Sprint"
+    setup  "Plan",     number: "42", goal: "reorder reject"
+    setup  "AddStory", number: "42", story: "a"
+    setup  "AddStory", number: "42", story: "b"
+    setup  "AddStory", number: "42", story: "c"
+    input  number: "42", story_refs: "only-one"
+    expect refused: "story_refs must be a permutation of stories"
+  end
+
+  # pending-task-count-default-zero (sprint 14) — proves the load-bearing
+  # default. A freshly-Captured story has pending_task_count = 0 by
+  # attribute default ; the ready_means_all_tasks_resolved invariant must
+  # clear on MarkReady WITHOUT any Bump/Drop interaction. Regression guard
+  # for the bug where the default was missing and the invariant rejected
+  # MarkReady because None != 0.
+  test "Story.MarkReady succeeds on a freshly-Captured story without any task interactions" do
+    tests "MarkReady", on: "Story"
+    setup  "Capture",                         ref: "l23", title: "L23", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                  ref: "l23", sprint_ref: "1"
+    setup  "Tasked",                          ref: "l23"
+    setup  "Start",                           ref: "l23"
+    setup  "RecordVerbResolvesCheckResult",   ref: "l23", ok: true
+    setup  "RecordMergedCheckResult",         ref: "l23", ok: true
+    setup  "RecordWorktreeCheckResult",       ref: "l23", ok: true
+    setup  "RecordTestsCheckResult",          ref: "l23", ok: true
+    input  ref: "l23"
+    expect ref: "l23", state: "ready_for_review", pending_task_count: 0
+  end
 end

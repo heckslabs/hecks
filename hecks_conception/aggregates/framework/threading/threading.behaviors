@@ -1,0 +1,78 @@
+Hecks.behaviors "Threading" do
+  vision "Behavioral tests for the Threading aggregates — Thread (Spawn / Drain / Join / MarkPoisoned) and Mailbox (Register / Enqueue / Drain / MarkIdle / MarkPoisoned). Smoke coverage matching the threading-bluebook first-draft (sprint 14) ; deeper substrate-binding tests follow when the threading_adapter.hecksagon binds Thread.SpawnRequested to the real spawn syscall."
+
+  # ── Thread.Spawn ─────────────────────────────────────────
+
+  test "Spawn records the thread identity and substrate kind" do
+    tests "Spawn", on: "Thread"
+    input  name: "actor-drain-Sprint-14",
+           kind: "tokio",
+           runtime_handle: "tokio-handle-001"
+    expect name: "actor-drain-Sprint-14", kind: "tokio", state: "idle"
+  end
+
+  # ── Thread.Drain ─────────────────────────────────────────
+
+  test "Drain transitions an idle thread to running" do
+    tests "Drain", on: "Thread"
+    setup "Spawn", name: "t-drain", kind: "tokio", runtime_handle: "h-drain"
+    input thread: "t-drain"
+    expect state: "running"
+  end
+
+  # ── Thread.Join ───────────────────────────────────────────
+
+  test "Join transitions a running thread to joined" do
+    tests "Join", on: "Thread"
+    setup "Spawn", name: "t-join", kind: "tokio", runtime_handle: "h-join"
+    setup "Drain", thread: "t-join"
+    input thread: "t-join"
+    expect state: "joined"
+  end
+
+  # ── Thread.MarkPoisoned ─────────────────────────────────────
+
+  test "MarkPoisoned moves a thread to terminal poisoned state" do
+    tests "MarkPoisoned", on: "Thread"
+    setup "Spawn", name: "t-poison", kind: "tokio", runtime_handle: "h-poison"
+    setup "Drain", thread: "t-poison"
+    input thread: "t-poison"
+    expect state: "poisoned"
+  end
+
+  # ── Mailbox.Register ─────────────────────────────────────────
+
+  test "Register stamps the mailbox name and owner aggregate" do
+    tests "Register", on: "Mailbox"
+    input  name: "Sprint:14", owner_aggregate: "Sprint:14"
+    expect name: "Sprint:14", owner_aggregate: "Sprint:14", state: "idle"
+  end
+
+  # ── Mailbox.Enqueue ─────────────────────────────────────────
+
+  test "Enqueue bumps pending by one" do
+    tests "Enqueue", on: "Mailbox"
+    setup "Register", name: "Mbox:1", owner_aggregate: "X:1"
+    input mailbox: "Mbox:1"
+    expect pending: 1
+  end
+
+  # ── Mailbox.StartDraining ───────────────────────────────────────
+
+  test "StartDraining moves an idle mailbox to draining" do
+    tests "StartDraining", on: "Mailbox"
+    setup "Register", name: "Mbox:3", owner_aggregate: "X:3"
+    input mailbox: "Mbox:3"
+    expect state: "draining"
+  end
+
+  # ── Mailbox.MarkIdle ─────────────────────────────────────────
+
+  test "MarkIdle returns a draining mailbox to idle" do
+    tests "MarkIdle", on: "Mailbox"
+    setup "Register",      name: "Mbox:2", owner_aggregate: "X:2"
+    setup "StartDraining", mailbox: "Mbox:2"
+    input mailbox: "Mbox:2"
+    expect state: "idle"
+  end
+end

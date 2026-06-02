@@ -1,0 +1,86 @@
+Hecks.behaviors "Storehouse" do
+  vision "Behavioral tests for Storehouse::Primitive — the META aggregate that registers runtime imperative leaves as first-class bluebook citizens. Covers Conceive (mint a declaration), Amend (re-describe), and Retire (soft-delete). Each test exercises one command's state contract : attributes recorded on the aggregate, the lifecycle token settled, the PrimitiveConceived / Amended / Retired event emitted."
+
+  # ── Storehouse::Primitive — Conceive ───────────────────────────
+
+  test "Conceive mints a Primitive in active status" do
+    tests "Conceive", on: "Primitive"
+    input  name:           { value: "Process.Spawn" },
+           kind:           { value: "process" },
+           signature:      { value: "id:String,cmd:String,result_into:String" },
+           implementation: { value: "exec_dispatcher::dispatch" }
+    expect status: "active"
+  end
+
+  test "Conceive emits PrimitiveConceived" do
+    tests "Conceive", on: "Primitive"
+    input  name:           { value: "Process.Spawn" },
+           kind:           { value: "process" },
+           signature:      { value: "id:String,cmd:String,result_into:String" },
+           implementation: { value: "exec_dispatcher::dispatch" }
+    expect emits: ["PrimitiveConceived"]
+  end
+
+  test "Conceive records the implementation key on state" do
+    tests "Conceive", on: "Primitive"
+    input  name:           { value: "WebTool.Fetch" },
+           kind:           { value: "web_tool" },
+           signature:      { value: "url:String" },
+           implementation: { value: "web_tool_dispatcher::web_fetch" }
+    expect implementation: { value: "web_tool_dispatcher::web_fetch" }
+  end
+
+  # ── Storehouse::Primitive — Amend ──────────────────────────────
+
+  test "Amend updates the implementation key" do
+    tests "Amend", on: "Primitive"
+    setup  "Conceive",
+           name:           { value: "Compute.Invoke" },
+           kind:           { value: "compute" },
+           signature:      { value: "function_name:String" },
+           implementation: { value: "old::path" }
+    input  name:           { value: "Compute.Invoke" },
+           kind:           { value: "compute" },
+           signature:      { value: "function_name:String" },
+           implementation: { value: "compute_dispatcher::dispatch" }
+    expect implementation: { value: "compute_dispatcher::dispatch" }
+  end
+
+  test "Amend emits PrimitiveAmended" do
+    tests "Amend", on: "Primitive"
+    setup  "Conceive",
+           name:           { value: "Compute.Invoke" },
+           kind:           { value: "compute" },
+           signature:      { value: "function_name:String" },
+           implementation: { value: "old::path" }
+    input  name:           { value: "Compute.Invoke" },
+           kind:           { value: "compute" },
+           signature:      { value: "function_name:String" },
+           implementation: { value: "compute_dispatcher::dispatch" }
+    expect emits: ["PrimitiveAmended"]
+  end
+
+  # ── Storehouse::Primitive — Retire ─────────────────────────────
+
+  test "Retire moves status to retired" do
+    tests "Retire", on: "Primitive"
+    setup  "Conceive",
+           name:           { value: "Sms.Send" },
+           kind:           { value: "sms" },
+           signature:      { value: "to:String,body:String" },
+           implementation: { value: "sms_dispatcher::send_message" }
+    input  name: { value: "Sms.Send" }
+    expect status: "retired"
+  end
+
+  test "Retire emits PrimitiveRetired" do
+    tests "Retire", on: "Primitive"
+    setup  "Conceive",
+           name:           { value: "Sms.Send" },
+           kind:           { value: "sms" },
+           signature:      { value: "to:String,body:String" },
+           implementation: { value: "sms_dispatcher::send_message" }
+    input  name: { value: "Sms.Send" }
+    expect emits: ["PrimitiveRetired"]
+  end
+end

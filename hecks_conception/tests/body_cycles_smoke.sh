@@ -1,46 +1,33 @@
 #!/bin/bash
-# body_cycles_smoke.sh — smoke test for the body-cycle cadence
-# primitives that replaced the ultradian.sh / sleep_cycle.sh shells :
+# body_cycles_smoke.sh — bus-routed smoke for the body-cycle cadence primitives.
 #
-#   • i106 multi-command rotation : `storehouse loop A,B,C --every <dur>`
-#   • i108 gated cadence loop     : `storehouse loop ... --gate <store>:<field>=<value>`
+# Restores the coverage deleted in PR #717 (sprint-14
+# make-heki-direct-write-impossible). The original drove `storehouse loop`
+# and seeded the Consciousness gate via raw `heki upsert`. The bus is
+# now the only writer, so seeding flows through bus dispatch instead :
 #
-# The 90-minute cadence of the body cycles makes real-time testing
-# impractical. The runtime accepts sub-second `--every`, so this test
-# drives the loops at 1s and verifies the phase transitions land.
+#   - Mind::Consciousness.EnterDaydream + .EnterSleep (one-shot dispatch)
+#     replace the raw upsert that pinned consciousness.state=sleeping.
+#   - `storehouse loop` is unchanged — it dispatches the loop command
+#     through the runtime, never through raw heki writes.
 #
-# ultradian (i106): storehouse loop AGG Ultradian.EnterPeak,Ultradian.EnterTrough
-#                   --every 1s rotates and we expect peak+trough in ~2.5s.
-# sleep_cycle (i108): seeds consciousness.state=sleeping, runs the gated
-#                     loop EnterNREMLight,EnterNREMDeep,EnterREM
-#                     --every 1s --gate ...:state=sleeping
-#                     and expects the three phases in ~3.5s. Re-seeded
-#                     to attentive, the gate closes and dispatches stop.
+# Verifies :
+#   1. i106 multi-command rotation — `storehouse loop A,B --every 1s` :
+#      Body::Ultradian.EnterPeak,EnterTrough rotates phase peak ↔ trough
+#      and cycle_count advances in ~2.5s of live cadence.
+#   2. i108 gated cadence — `storehouse loop X --every 500ms --gate ...` :
+#      Body::Heart.Beat ticks while consciousness.state=sleeping (gate open),
+#      holds while consciousness.state=attentive (gate closed).
 #
 # Exit 0 on pass, non-zero on fail.
-#
-# [antibody-exempt: smoke-test shell harness for the i106/i107/i108
-#  body-cycle primitives. Drives `storehouse loop --gate` and verifies
-#  cycle_count advances under gate=open and holds under gate=closed.
-#  Retires under i499 Phase B once the `.behaviors` runner can drive
-#  the `storehouse loop --gate` invocation declaratively and assert on
-#  cycle_count / beat_count growth ; i499 archived 2026-05-08 enumerates
-#  this shell as a Phase B target.]
 
 set -u
-set -m  # enable job control (process groups) for daemon isolation
+set -m
 
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONCEPT_DIR="$(cd "$TEST_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$CONCEPT_DIR/.." && pwd)"
 
-# i565 — worktree-aware anchor. When the test runs inside a
-# .claude/worktrees/* checkout, `REPO_ROOT/../miette` doesn't exist
-# (the worktree has no sibling miette repo, and no rust/target/).
-# Resolve the MAIN checkout via git-common-dir so both the sibling-
-# repo body link and the storehouse binary resolve to the same place
-# regardless of which worktree fires the test. Same pattern as i561's
-# landed fix on pulse_fanout_smoke + voice_and_sleep_lockdown.
 GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --git-common-dir 2>/dev/null)"
 case "$GIT_COMMON" in
   /*) MAIN_REPO="$(cd "$(dirname "$GIT_COMMON")" && pwd)" ;;
@@ -60,20 +47,11 @@ else
 fi
 
 TMP=$(mktemp -d -t body_cycles_smoke.XXXXXX)
-# Process-group cleanup : kill the entire group on EXIT so any daemon
-# spawned during the test can't survive into the next test in a
-# pre-commit gate batch. Combined with the tmpdir cleanup.
 trap 'kill -- -$$ 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 mkdir -p "$TMP/hecks_conception/information" "$TMP/hecks_conception/aggregates"
-mkdir -p "$TMP/rust/target/release"
-ln -sf "$HECKS" "$TMP/rust/target/release/storehouse"
 find "$CONCEPT_DIR/aggregates" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
-# Body cycles (Ultradian, SleepCycle, Pulse, etc.) live in the miette
-# sibling repo at ../miette/body/. The test dispatches Ultradian.* and
-# SleepCycle.* commands so those bluebooks must be reachable. Link from
-# the sibling when present.
-# i565 — use MAIN_REPO so the sibling resolves from worktree contexts too.
+
 MIETTE_BODY="$MAIN_REPO/../miette/body"
 if [ -d "$MIETTE_BODY" ]; then
   find "$MIETTE_BODY" -name "*.bluebook" -exec ln -sf {} "$TMP/hecks_conception/aggregates/" \;
@@ -82,8 +60,6 @@ fi
 INFO="$TMP/hecks_conception/information"
 AGG="$TMP/hecks_conception/aggregates"
 
-# Force every storehouse invocation in this test to use our isolated
-# information dir — keeps the smoke test from touching real Miette state.
 export HECKS_INFO="$INFO"
 
 fail() { echo "FAIL — $1"; "$HECKS" heki read "$STORE" 2>/dev/null | sed 's/^/    /'; exit 1; }
@@ -104,16 +80,14 @@ phase=$("$HECKS" heki latest-field "$STORE" phase 2>/dev/null || echo "")
 echo "ultradian fast-forward (i106): cycle_count=$cycle_count, phase=$phase"
 
 # ── 2. Heart.Beat gated cadence — open gate (i108) ───────────────
-# The gated-cadence primitive (i108) is verified via Heart.Beat — a
-# simple single-command primitive that increments beat_count. Original
-# smoke used SleepCycle.EnterNREM* commands which were retired by the
-# dream-study refactor (SleepCycle is now a process_manager driven by
-# Body.Advance* events, not a cadence target). Heart.Beat covers the
-# i108 contract cleanly without depending on retired commands.
-mkdir -p "$INFO/consciousness"
-"$HECKS" heki upsert "$INFO/consciousness/consciousness.heki" \
-  --reason "test setup : set consciousness asleep so the gated-cadence test opens" \
-  id=1 state=sleeping >/dev/null 2>&1
+#
+# Seed consciousness=sleeping via BUS dispatch (i717 retirement of raw
+# heki writes). EnterDaydream then EnterSleep lands the state on "sleeping"
+# through the lifecycle gate the bluebook declares.
+"$HECKS" "$AGG" Mind::Consciousness.EnterDaydream >/dev/null 2>&1 \
+  || fail "EnterDaydream dispatch failed"
+"$HECKS" "$AGG" Mind::Consciousness.EnterSleep >/dev/null 2>&1 \
+  || fail "EnterSleep dispatch failed"
 
 "$HECKS" loop "$AGG" Body::Heart.Beat \
   --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &
@@ -127,14 +101,15 @@ heart_count=$("$HECKS" heki latest-field "$STORE" beat_count 2>/dev/null || echo
 [ "$heart_count" -ge 1 ] || fail "heart: expected beat_count ≥1 while sleeping, got $heart_count"
 echo "heart gated fast-forward (i108 gate=open): beat_count=$heart_count"
 
-# Capture the count after the sleeping phase ; it must NOT advance once
-# the gate is closed (state=attentive).
 gated_baseline="$heart_count"
 
 # ── 3. Heart.Beat awake gate — no dispatches fire (i108 gate=closed) ─
-"$HECKS" heki upsert "$INFO/consciousness/consciousness.heki" \
-  --reason "test setup : set consciousness attentive so the gate closes for the awake-gate proof" \
-  id=1 state=attentive >/dev/null 2>&1
+# WakeUp cascades through WitnessWake / SelfModel / StatusOnSelfModel
+# policies, landing consciousness.state="attentive" via BecomeAttentive
+# without a second explicit dispatch (which the lifecycle gate now
+# refuses once state has already advanced past waking).
+"$HECKS" "$AGG" Mind::Consciousness.WakeUp >/dev/null 2>&1 \
+  || fail "WakeUp dispatch failed"
 
 "$HECKS" loop "$AGG" Body::Heart.Beat \
   --every 500ms --gate "$INFO/consciousness/consciousness.heki:state=sleeping" >/dev/null 2>&1 &

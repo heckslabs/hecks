@@ -1,0 +1,85 @@
+Hecks.behaviors "AgentDiscipline" do
+  vision "Behavioral tests for the AgentDiscipline macrophage rule — covers the two violation kinds (skip_env_var, ignored_isolation), the Register seeding command, both RecordXxxBypass detection commands, and the ListAll / ForKind queries. These are the synthetic agent-run gate fixtures the agent-discipline-bypass story (sprint 14) demands."
+
+  test "Register seeds the skip_env_var violation kind" do
+    tests "Register", on: "AgentDiscipline"
+    input  kind: "skip_env_var"
+    expect kind: "skip_env_var", severity: "block", requires_justification: "true"
+  end
+
+  test "Register seeds the ignored_isolation violation kind" do
+    tests "Register", on: "AgentDiscipline"
+    input  kind: "ignored_isolation"
+    expect kind: "ignored_isolation", severity: "block"
+  end
+
+  test "Register emits ViolationKindRegistered" do
+    tests "Register", on: "AgentDiscipline"
+    input  kind: "skip_env_var"
+    expect_event "ViolationKindRegistered"
+  end
+
+  test "RecordSkipEnvBypass captures the audit fields when unjustified" do
+    tests "RecordSkipEnvBypass", on: "AgentDiscipline"
+    setup  "Register", kind: "skip_env_var"
+    input  kind: "skip_env_var",
+           last_detected_at: "2026-05-31T18:00:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c",
+           last_justification: ""
+    expect last_detected_at: "2026-05-31T18:00:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c",
+           last_justification: ""
+  end
+
+  test "RecordSkipEnvBypass emits SkipEnvBypassDetected" do
+    tests "RecordSkipEnvBypass", on: "AgentDiscipline"
+    setup  "Register", kind: "skip_env_var"
+    input  kind: "skip_env_var",
+           last_detected_at: "2026-05-31T18:01:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c",
+           last_justification: ""
+    expect_event "SkipEnvBypassDetected"
+  end
+
+  test "RecordSkipEnvBypass records a card-authorised justification" do
+    tests "RecordSkipEnvBypass", on: "AgentDiscipline"
+    setup  "Register", kind: "skip_env_var"
+    input  kind: "skip_env_var",
+           last_detected_at: "2026-05-31T18:02:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c",
+           last_justification: "loc-ratchet override authorised by Chris ; sprint-12 commit 3775aec0"
+    expect last_justification: "loc-ratchet override authorised by Chris ; sprint-12 commit 3775aec0"
+  end
+
+  test "RecordIsolationBypass captures cwd-vs-worktree breach" do
+    tests "RecordIsolationBypass", on: "AgentDiscipline"
+    setup  "Register", kind: "ignored_isolation"
+    input  kind: "ignored_isolation",
+           last_detected_at: "2026-05-31T18:03:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c"
+    expect last_detected_at: "2026-05-31T18:03:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c",
+           last_justification: ""
+  end
+
+  test "RecordIsolationBypass emits IsolationBypassDetected" do
+    tests "RecordIsolationBypass", on: "AgentDiscipline"
+    setup  "Register", kind: "ignored_isolation"
+    input  kind: "ignored_isolation",
+           last_detected_at: "2026-05-31T18:04:00Z",
+           last_agent_id:    "a900987e4b8e7eb2c"
+    expect_event "IsolationBypassDetected"
+  end
+
+  test "ListAll returns the registered violation-kind registry" do
+    tests "ListAll", on: "AgentDiscipline", kind: :query
+    expect count: 0
+  end
+
+  test "ForKind returns the registered record for the queried kind" do
+    tests "ForKind", on: "AgentDiscipline", kind: :query
+    setup  "Register", kind: "skip_env_var"
+    input  kind: "skip_env_var"
+    expect count: 1
+  end
+end

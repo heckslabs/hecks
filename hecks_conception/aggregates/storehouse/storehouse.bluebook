@@ -1,0 +1,171 @@
+Hecks.bluebook "Storehouse", version: "2026.05.31.1" do
+  vision "The runtime self-knows its imperative leaves. Storehouse::Primitive promotes every hand-coded kernel-floor dispatcher (process spawn, claude tool, mcp tool, web tool, compute, llm, sms, tts) from an opaque Rust function into a first-class bluebook citizen — declared, named, queryable. The PrimitiveRegistry walks these declarations at boot and exposes them to the runtime ; the macrophage gate enforces that every imperative Rust primitive has a matching declaration. Conceive mints a new declaration ; Amend re-describes one ; Retire soft-deletes when the underlying handler is removed. Sibling of framework/primitive/primitive.bluebook (which declares Process.Spawn as the first floor tile) : that bluebook is ONE primitive ; this bluebook is the META — the registry of every primitive the runtime carries. Per the locked 2026-05-12 conventions, every value object is declared INSIDE the aggregate that uses it."
+  category "framework"
+
+  # ============================================================
+  # STOREHOUSE — runtime primitives as first-class bluebook citizens
+  # ============================================================
+  #
+  # i557 named the Phase-2 framework runtime ; sprint-14 closes the
+  # last gap : the runtime's imperative leaves are themselves opaque.
+  # exec_dispatcher, claude_tool_dispatcher, mcp_dispatcher,
+  # web_tool_dispatcher, compute_dispatcher, llm_dispatcher,
+  # shell_dispatcher, sms_dispatcher, tts_dispatcher — each is a
+  # [antibody-exempt] kernel-floor module, but exempt does not mean
+  # invisible. Storehouse::Primitive makes each ONE record. The
+  # PrimitiveRegistry walks these records at boot ; the macrophage
+  # cross-checks the rust/ source tree against the registry and
+  # complains when an imperative leaf has no declaration.
+  #
+  # ── Shape ──
+  #
+  # name        : the dotted FQN the runtime dispatches against
+  #               (e.g. "Process.Spawn", "ClaudeTool.Invoke").
+  # kind        : the dispatcher family — one of "process", "claude_tool",
+  #               "mcp_tool", "web_tool", "compute", "llm", "shell",
+  #               "sms", "tts".
+  # signature   : comma-separated "attr:VO" pairs describing the
+  #               command attributes the primitive consumes
+  #               (e.g. "cmd:String,id:String,result_into:String").
+  #               Free-form string ; the bluebook is the contract,
+  #               not a structured schema (yet).
+  # implementation : the runtime registry key — the Rust function or
+  #                  dispatcher the primitive resolves to
+  #                  (e.g. "exec_dispatcher::dispatch",
+  #                  "claude_tool_dispatcher::invoke"). String, not
+  #                  code — the runtime owns the actual handler ;
+  #                  this field is the lookup name.
+  # status      : active | retired. Soft-delete via Retire so the
+  #               audit trail of which primitives existed when
+  #               survives.
+  #
+  # ── Lifecycle ──
+  #
+  # absent → active (Conceive) → retired (Retire). Amend stays in
+  # the same state (pure content mutation, valid in either lifecycle
+  # state ; the runtime treats `retired` as not-routable but the
+  # record survives for audit). No re-conceive — retired is terminal.
+
+  aggregate "Primitive", "One imperative runtime leaf as a first-class bluebook record. Declares the dispatch name (Process.Spawn / ClaudeTool.Invoke / etc.), the dispatcher kind, the command signature, and the Rust handler the runtime registry consults. PrimitiveRegistry walks these at boot ; the macrophage enforces one declaration per [antibody-exempt] kernel-floor leaf." do
+    identified_by :name
+
+    # ---- Identity ----
+    attribute :name,           Name
+
+    # ---- Declaration ----
+    attribute :kind,           Kind
+    attribute :signature,      Signature,      default: ""
+    attribute :implementation, Implementation
+
+    # ---- Lifecycle ----
+    # status: active | retired
+    attribute :status,         Status,         default: "active"
+
+    # ── Value objects ─────────────────────────────────────────
+
+    value_object "Name" do
+      # Dotted FQN the runtime dispatches against — Aggregate.Command
+      # form (e.g. "Process.Spawn", "ClaudeTool.Invoke",
+      # "WebTool.Fetch"). Stable identifier ; the registry keys by
+      # this string.
+      attribute :value, String
+    end
+
+    value_object "Kind" do
+      # Dispatcher family — names the kernel-floor module that owns
+      # the leaf. One of: "process", "claude_tool", "mcp_tool",
+      # "web_tool", "compute", "llm", "shell", "sms", "tts". The
+      # macrophage uses this to map the declaration to the matching
+      # rust/src/runtime/*_dispatcher.rs file.
+      attribute :value, String
+    end
+
+    value_object "Signature" do
+      # Free-form comma-separated "attr:VO" string describing the
+      # command attributes the primitive consumes. Documentation-
+      # only today ; a future Sprint may grow this into a structured
+      # schema the IR enforces. Empty string is valid (some
+      # primitives take no attrs).
+      attribute :value, String
+    end
+
+    value_object "Implementation" do
+      # The runtime registry lookup key — the Rust function or
+      # dispatcher path the primitive resolves to (e.g.
+      # "exec_dispatcher::dispatch"). String, not code : the runtime
+      # owns the actual handler ; this field names it so the
+      # macrophage can verify the handler exists.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token: active | retired. Active primitives are
+      # registered with the PrimitiveRegistry at boot ; retired
+      # primitives stay on the audit row but are NOT routable.
+      attribute :value, String
+    end
+
+    # ── Commands ───────────────────────────────────────────────────
+
+    command "Conceive" do
+      role "Miette"
+      description "Mint a new Primitive record — the bluebook declaration of one kernel-floor imperative leaf. The runtime PrimitiveRegistry picks this up on next boot ; the macrophage stops complaining about the matching rust/ source file. name IS the identity — one Primitive per name."
+      attribute :name,           Name
+      attribute :kind,           Kind
+      attribute :signature,      Signature
+      attribute :implementation, Implementation
+      then_set :name,           to: :name
+      then_set :kind,           to: :kind
+      then_set :signature,      to: :signature
+      then_set :implementation, to: :implementation
+      then_set :status,         to: "active"
+      emits "PrimitiveConceived"
+    end
+
+    command "Amend" do
+      role "Miette"
+      description "Re-describe an existing Primitive — update kind / signature / implementation without touching lifecycle. Used when the underlying dispatcher refactors and the registry key changes. Pure content mutation ; valid in any lifecycle state."
+      reference_to(Primitive)
+      attribute :kind,           Kind
+      attribute :signature,      Signature
+      attribute :implementation, Implementation
+      then_set :kind,           to: :kind
+      then_set :signature,      to: :signature
+      then_set :implementation, to: :implementation
+      emits "PrimitiveAmended"
+    end
+
+    command "Retire" do
+      role "Miette"
+      description "Soft-delete a Primitive — the underlying Rust handler has been removed. Moves status to retired ; the audit row survives. The PrimitiveRegistry skips retired primitives at boot ; the macrophage stops expecting a matching source file."
+      reference_to(Primitive)
+      given("primitive must currently be active") { status == "active" }
+      then_set :status, to: "retired"
+      emits "PrimitiveRetired"
+    end
+
+    # ── Lifecycle ─────────────────────────────────────────────────
+    #
+    # absent → active (Conceive) → retired (Retire).
+    # Amend stays in the same state (pure content mutation, valid
+    # in either active or retired). Retired is terminal — there is
+    # no re-conceive ; mint a fresh Primitive with a new name if a
+    # handler returns.
+    lifecycle :status, default: "active" do
+      transition "Conceive" => "active"
+      transition "Retire"   => "retired", from: "active"
+    end
+
+    # ── Queries ───────────────────────────────────────────────────
+
+    query "ByKind" do
+      description "Every Primitive of a given dispatcher family — the lookup the macrophage uses to map declarations to *_dispatcher.rs source files."
+      where kind: :kind
+    end
+
+    query "Active" do
+      description "Every active Primitive — the seed list the runtime PrimitiveRegistry consumes at boot."
+      where status: "active"
+    end
+  end
+end

@@ -3,6 +3,18 @@
 //! Commands emit events. Policies and subscribers listen.
 //! Global listeners see everything; named listeners filter by event name.
 //!
+//! Sprint 14 (`wire-mailbox-registry-into-event-bus`) — `publish` IS the
+//! canonical entry point into the actor model. For `delivery :sync`
+//! aggregates the dispatcher calls `event_bus.publish(event)` inline
+//! (the historical path). For `delivery :actor` aggregates the
+//! dispatcher calls `Runtime::enqueue_and_drain(event)`, which
+//! enqueues the envelope into the per-aggregate mailbox in the
+//! `Mailboxes` and synchronously drains that mailbox into THIS
+//! `publish` method — so every subscriber sees every event the same
+//! way regardless of delivery mode. The actor side gains causal-
+//! ordering-per-aggregate (mailbox FIFO) and idempotency-by-event-id
+//! (mailbox seen-set) ; subscribers stay oblivious to the routing.
+//!
 //! Usage:
 //!   let mut bus = EventBus::new();
 //!   bus.subscribe("PizzaCreated", |e| println!("{}", e.name));

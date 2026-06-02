@@ -102,11 +102,11 @@ impl Mailbox {
         self.queue.pop_front()
     }
 
-    /// Mailbox depth — exposed for the `storehouse actors` debug
+    /// Mailbox depth — exposed for the `storehouse mailboxes` debug
     /// command (sprint 14 follow-up). Always read-only.
     pub fn depth(&self) -> usize { self.queue.len() }
 
-    // ── `storehouse actors` debug accessors ───────────────────────
+    // ── `storehouse mailboxes` debug accessors ───────────────────────
     //
     // These getters expose the four observability axes the debug CLI
     // renders : queue depth, lifecycle status, events-processed count,

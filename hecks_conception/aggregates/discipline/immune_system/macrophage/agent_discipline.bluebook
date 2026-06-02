@@ -1,0 +1,133 @@
+Hecks.bluebook "AgentDiscipline", version: "2026.05.31.1" do
+  vision "The AgentDiscipline rule of the immune system — the macrophage sibling that enforces the two structural ways a sub-agent dodges discipline : (a) reaching for SKIP env vars to bypass pre-commit / CI / LoC-ratchet gates without an explicit red-gate justification, (b) ignoring isolation:\"worktree\" and editing in the main checkout instead of the .claude/worktrees/<agent-id>/ that was created for it. Both bypasses are silent in git history ; both pollute the merge geometry the sprint depended on. This aggregate is the registry of the two violation kinds and the running audit trail of each detection — the PostToolUse / agent-launch hook bin/agent-discipline-check records into it."
+  category "discipline"
+
+  # ============================================================
+  # AgentDiscipline — one aggregate, two violation kinds
+  # ============================================================
+  #
+  # Conceived sprint-14 (agent-discipline-bypass card). Sits alongside
+  # GovernedDoor as a sibling macrophage rule : GovernedDoor catches
+  # native-tool bypasses on the IO surface ; AgentDiscipline catches
+  # the agent-orchestration bypasses one layer up.
+  #
+  # Modeled on GovernedDoor (governed_door.bluebook) : one aggregate
+  # holding the violation-kind registry + audit counters. The hook
+  # surface lives in bin/agent-discipline-check ; the bluebook is the
+  # record of what gets caught and the running counters.
+  #
+  # ── Two violation kinds (closed set) ──
+  #
+  # 1. skip_env_var — the agent process set or attempted to set an
+  #    *_SKIP=1 environment variable (SKIP=1, RSPEC_SKIP=1, LOC_SKIP=1,
+  #    PRE_COMMIT_SKIP=1, etc.) without an accompanying justification
+  #    field. Discipline is : a red gate can be overridden only with
+  #    a card-authorised reason recorded in the commit ; the SKIP=1
+  #    alone reframes the gate as paperwork.
+  #
+  # 2. ignored_isolation — the agent was launched with
+  #    isolation:"worktree" (meaning a worktree was created at
+  #    .claude/worktrees/agent-<id>/) but the agent's cwd was NOT
+  #    under that path when its first edit fired. Working in the main
+  #    checkout corrupts the parallel-merge geometry the sprint depends
+  #    on.
+  #
+  aggregate "AgentDiscipline", "The two structural agent-bypass kinds (skip_env_var, ignored_isolation), their justification requirements, and the audit tally of each detection. The bluebook of record for what bin/agent-discipline-check enforces." do
+    identified_by :kind
+
+    attribute :kind,                ViolationKind
+    attribute :requires_justification, Severity,        default: "true"
+    attribute :severity,            Severity,            default: "block"
+    attribute :detected_count,      DetectedCount,       default: 0
+    attribute :last_detected_at,    Timestamp
+    attribute :last_agent_id,       AgentId
+    attribute :last_justification,  Justification
+
+    value_object "ViolationKind" do
+      # Closed set : "skip_env_var" | "ignored_isolation".
+      # The kind drives which payload fields the hook records :
+      # skip_env_var carries the var-name + value ; ignored_isolation
+      # carries the agent's cwd + the expected worktree path.
+      attribute :value, String, enum: ["skip_env_var", "ignored_isolation"]
+    end
+
+    value_object "Severity" do
+      # "block" (hard-stop at the hook surface) or "warn" (surface a
+      # complaint without stopping). AgentDiscipline rules are "block"
+      # by default — a card may downgrade to warn while a justification
+      # is being authored.
+      attribute :value, String
+    end
+
+    value_object "DetectedCount" do
+      # How many times this violation kind has been detected — the
+      # running tally for the audit trail.
+      attribute :value, Integer
+    end
+
+    value_object "Timestamp" do
+      # UTC ISO-8601 instant of the most recent detection.
+      attribute :value, String
+    end
+
+    value_object "AgentId" do
+      # The launching agent's id (e.g. "a900987e4b8e7eb2c") — captured
+      # so the audit trail names which agent tripped the rule.
+      attribute :value, String
+    end
+
+    value_object "Justification" do
+      # The card-authorised reason supplied alongside the override.
+      # Empty string when the violation was unjustified (the discipline
+      # failure) ; non-empty string when present (the legitimate override
+      # path — still recorded, but not a complaint).
+      attribute :value, String
+    end
+
+    # ── Commands ───────────────────────────────────────────────
+
+    command "Register" do
+      role "Miette"
+      description "Register a violation kind — the creation command. Seeded by fixtures at session boot so the registry mirrors the bluebook (not a hardcoded list in the hook script). The rule does not exist until Register fires."
+      attribute :kind, ViolationKind
+      then_set :kind,                   to: :kind
+      then_set :requires_justification, to: "true"
+      then_set :severity,               to: "block"
+      emits "ViolationKindRegistered"
+    end
+
+    command "RecordSkipEnvBypass" do
+      role "Hook"
+      description "bin/agent-discipline-check detected an agent process that set or attempted to set an *_SKIP=1 environment variable without a justification field. Increments detected_count, stamps last_detected_at, captures the agent id. If a justification was supplied (card-authorised red-gate override) it is recorded too — the dispatch is informational ; if empty the dispatch is a complaint and the hook surfaces a block to the model. No lifecycle change."
+      reference_to(AgentDiscipline)
+      attribute :last_detected_at,   Timestamp
+      attribute :last_agent_id,      AgentId
+      attribute :last_justification, Justification
+      then_set :last_detected_at,   to: :last_detected_at
+      then_set :last_agent_id,      to: :last_agent_id
+      then_set :last_justification, to: :last_justification
+      emits "SkipEnvBypassDetected"
+    end
+
+    command "RecordIsolationBypass" do
+      role "Hook"
+      description "bin/agent-discipline-check detected an agent launched with isolation:\"worktree\" whose cwd was NOT under .claude/worktrees/agent-<id>/ at the time of its first edit. Increments detected_count and stamps the audit fields. Justification is always empty for this kind — there is no card-authorised path to ignore isolation ; the only fix is to STOP and resume inside the worktree."
+      reference_to(AgentDiscipline)
+      attribute :last_detected_at, Timestamp
+      attribute :last_agent_id,    AgentId
+      then_set :last_detected_at, to: :last_detected_at
+      then_set :last_agent_id,    to: :last_agent_id
+      then_set :last_justification, to: ""
+      emits "IsolationBypassDetected"
+    end
+
+    query "ListAll" do
+      description "Every registered violation kind — the registry the agent-discipline-check hook enforces."
+    end
+
+    query "ForKind" do
+      description "Look up the registry record for one violation kind by name. Returns the AgentDiscipline record (with detected_count + last_detected_at) when registered, or empty when the kind is not enforced."
+      where kind: :kind
+    end
+  end
+end
