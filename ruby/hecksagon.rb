@@ -29,6 +29,12 @@ module Hecksagon
     autoload :LlmAdapterBuilder,    "hecksagon/dsl/llm_adapter_builder"
     autoload :ComputeAdapterBuilder, "hecksagon/dsl/compute_adapter_builder"
     autoload :FrameworkDeclarationBuilder, "hecksagon/dsl/framework_declaration_builder"
+    # Sprint 14 — quoted-name `adapter "X" do ... driven on ... end` form.
+    autoload :DrivenAdapterBuilder,   "hecksagon/dsl/driven_adapter_builder"
+    autoload :DrivenHandlerBuilder,   "hecksagon/dsl/driven_adapter_builder"
+    autoload :DrivingHandlerBuilder,  "hecksagon/dsl/driven_adapter_builder"
+    autoload :CannedResponseBuilder,  "hecksagon/dsl/driven_adapter_builder"
+    autoload :DrivenAdapterValueRepr, "hecksagon/dsl/driven_adapter_builder"
   end
 
   module Structure
@@ -39,6 +45,14 @@ module Hecksagon
     autoload :IoAdapter,      "hecksagon/structure/io_adapter"
     autoload :LlmAdapter,     "hecksagon/structure/llm_adapter"
     autoload :ComputeAdapter, "hecksagon/structure/compute_adapter"
+    # Sprint 14 — typed IR for the `adapter "X" do ... driven on ... end`
+    # form. Mirrors rust/src/hecksagon_ir.rs DrivenAdapter / DrivingAdapter.
+    autoload :DrivenAdapter,   "hecksagon/structure/driven_adapter"
+    autoload :DrivenHandler,   "hecksagon/structure/driven_adapter"
+    autoload :DrivenDispatch,  "hecksagon/structure/driven_adapter"
+    autoload :CannedResponse,  "hecksagon/structure/driven_adapter"
+    autoload :DrivingAdapter,  "hecksagon/structure/driven_adapter"
+    autoload :DrivingHandler,  "hecksagon/structure/driven_adapter"
   end
 
   # Guarded loader for .hecksagon / .world files (retires Kernel.load
