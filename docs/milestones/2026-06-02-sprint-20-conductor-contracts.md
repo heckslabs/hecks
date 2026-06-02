@@ -20,6 +20,8 @@ never re-state the shape.
 4. **Does NOT depend on `hex-runtime-port-eval-hook`** (a runtime mod). Synchronous gates
    use the existing cascade → RecordResult → flag → invariant pattern that already gates
    the four Story DoD checks (worktree_clean et al.).
+5. **Two adapter kinds, never conflated** (hex-invocation-principle) : LIVE-CHECK adapters `satisfy` a port and answer INLINE — return ok/fail, never dispatch, never call back into the bus ; ORCHESTRATION adapters are `driven on` an event and DISPATCH a follow-on command. A gate that dispatches, or an orchestrator that answers inline, is mis-modelled.
+6. **Reads go through aggregate queries, never storage** — observability/projections read via Story/Worker/Claim/Lease/MergeQueue queries, never `.heki` directly (persistence-is-aggregate-only). Associations use the relationship DSL (belongs_to/has_one/has_many), never list-of-ref or `*_ref`.
 
 ## 1. Worker — the fleet member  (conductor/worker.bluebook)
 - identity: worker_id
