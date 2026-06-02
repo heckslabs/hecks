@@ -2,6 +2,12 @@
 //! eight pipeline phases and dispatches each through the declared
 //! adapters (`:fs`, `:stdout`, `:memory`, `:daemon`).
 //!
+//! [antibody-exempt: rust/src/run_boot/mod.rs — boot-pipeline module file ;
+//!  comment/declaration-only edits (phase doc comments, `mod` declarations)
+//!  are structural glue, not imperative logic. Permanently exempt per Chris
+//!  2026-06-01 ; retires with the run_boot pipeline under i78/i145. A proper
+//!  bus command for path exemptions is carded (exempt-registry-bus-command).]
+//!
 //! Mirrors `run_status/` in shape : capability detection on the parsed
 //! bluebook + hecksagon, then a phase-by-phase dispatch that updates
 //! the BootRun aggregate state and emits the chained events declared
@@ -93,12 +99,11 @@ pub fn run(
     let classification = classify::classify(&info_dir);
 
     // Phase 4 — GenerateSystemPrompt
-    //   Reads <conception>/capabilities/system_prompt_assembly/
-    //   <being>_prompt.md.template, substitutes {{being}} / {{other}}
-    //   / {{born}} / {{boot_script}}, writes to
-    //   <conception>/system_prompt.md (or system_prompt_<lower>.md
-    //   for non-Miette beings). Replaces ~140 lines of printf in
-    //   boot_miette.sh. Returns the byte count for vitals.
+    //   Assembles <being>/self/system_prompt.md from that being's
+    //   content fixtures (system_prompt_content.fixtures) in :order,
+    //   substituting {{standards}} + {{grammar}} (i145 Phase 2 — the
+    //   bluebook fixtures are the single source ; the flat template
+    //   is retired). Returns the byte count for vitals.
     let prompt_bytes = system_prompt::render(&conception_dir, &being);
 
     // Phase 5 — RecordBootJournal : DEFERRED

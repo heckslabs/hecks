@@ -12,8 +12,10 @@
         // command declares its own `id` attribute alongside a self-ref.
         // The corpus contract is enforceable by a validator if it ever
         // drifts.
-        if let Some(id_val) = attrs.get(ref_name).or_else(|| attrs.get("id")) {
-            let id = id_val.to_string();
+        let self_ref_id = attrs.get(ref_name).map(|v| v.to_string())
+            .or_else(|| cascade_fk_id.clone())
+            .or_else(|| attrs.get("id").map(|v| v.to_string()));
+        if let Some(id) = self_ref_id {
             match repo.find(&id).cloned() {
                 Some(s) => (s, false),
                 None => return Err(RuntimeError::AggregateNotFound(

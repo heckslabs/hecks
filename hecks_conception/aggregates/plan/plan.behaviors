@@ -172,6 +172,20 @@ Hecks.behaviors "Plan" do
     input  ref: "l19"
     expect ref: "l19", state: "ready_for_review"
   end
+  test "Task.Complete cascades through DropOnTaskCompleted to the owning story" do
+    # Regression (cascade-cross-aggregate-persist) : TaskCompleted carries only
+    # the task id, not the story FK. The cascade must resolve the owning Story
+    # from Task.story (the attribute whose declared type IS Story) ; resolving
+    # by the leaked task id names no Story and made the cascade silently error,
+    # so pending_task_count never dropped. Add bumps to 1 ; Complete must emit
+    # PendingTaskCountDropped (proof it found the owning Story).
+    tests "Complete", on: "Task", kind: :cascade
+    setup "Capture", ref: "l24", title: "L24", tier: 1, summary: "s", target: "t", project: "plan"
+    setup "Add",     id: "l24-t0", story: "l24", order: 0, description: "drop probe"
+    input id: "l24-t0"
+    expect emits: ["TaskCompleted", "PendingTaskCountDropped"]
+  end
+
 
   # ── sprint-reorder-stories (sprint 14) ───────────────────────
   # Sprint.ReorderStories fixtures DEFERRED — the behaviors runner's
