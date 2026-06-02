@@ -259,15 +259,18 @@ pub struct Runtime {
     /// return). Empty when the runtime boots without a world walk —
     /// every adapter falls back to canned (memory-by-default).
     pub world_adapter_bindings: Vec<crate::world::ir::AdapterBinding>,
-    /// Sprint 14 (migration-coexistence) — monotonic counter of events
-    /// that traversed the actor-mode mailbox path. Increments only for
-    /// aggregates declaring `delivery :actor` in their bluebook ; stays
-    /// at zero for the historical sync-cascade default. Read by behaviors
-    /// tests + the storehouse log to assert the per-aggregate delivery
-    /// fork actually fired. The mailbox is no longer a stub — it routes
-    /// through `mailbox_registry` (`wire-mailbox-registry-into-event-bus`)
-    /// so per-aggregate causal ordering + per-actor failure isolation
-    /// are real properties of the runtime, not just a counter.
+    /// Sprint 14 (retire-sync-cascade-pipeline) — monotonic counter of
+    /// events that traversed `enqueue_and_drain`. The dispatch-time
+    /// Sync/Actor fork retired with the sync-cascade pipeline ; every
+    /// dispatch now publishes inline through the event bus. The
+    /// mailbox-registry wiring tests in `migration_coexistence_test.rs`
+    /// drive `enqueue_and_drain` directly to pin the per-mailbox FIFO +
+    /// cross-aggregate parallelism preconditions that the actor-per-
+    /// aggregate-instance + async-event-delivery-bus stories will lift
+    /// back into dispatch later. The mailbox routes through
+    /// `mailbox_registry` (`wire-mailbox-registry-into-event-bus`) so
+    /// per-aggregate causal ordering + per-actor failure isolation are
+    /// real properties of the runtime, not just a counter.
     pub mailbox_drained: usize,
     /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — the actor
     /// model's per-`(aggregate_type, aggregate_id)` mailbox set.
@@ -315,9 +318,13 @@ impl Runtime {
     }
 
     /// Sprint 14 (`wire-mailbox-registry-into-event-bus`) — publish an
-    /// event through the per-aggregate mailbox. This is the canonical
-    /// entry point into the actor model for `delivery :actor`
-    /// aggregates. The flow :
+    /// event through the per-aggregate mailbox. After
+    /// `retire-sync-cascade-pipeline`, dispatch publishes inline rather
+    /// than calling this entry point ; the mailbox-registry wiring
+    /// tests still drive it directly to pin the per-mailbox FIFO +
+    /// cross-aggregate parallelism contract that the actor-per-
+    /// aggregate-instance + async-event-delivery-bus stories will lift
+    /// back into dispatch. The flow :
     ///
     ///   1. Wrap the event in an `Envelope`. The bus-side event_id is
     ///      the event-name + aggregate-id + monotonic counter so the
@@ -382,18 +389,6 @@ impl Runtime {
             let mut guard = mailbox_arc.lock().expect("mailbox mutex poisoned");
             guard.note_handled();
         }
-    }
-
-    /// Sprint 14 (migration-coexistence) — lookup the declared delivery
-    /// mode for an aggregate by name. Returns `Sync` for unknown names so
-    /// the runtime conservatively falls back to the existing inline
-    /// publish path when the dispatch references something the IR can't
-    /// resolve (synthetic events, cross-context cascades, etc.).
-    pub fn delivery_for(&self, aggregate_type: &str) -> crate::ir::DeliveryMode {
-        for agg in &self.domain.aggregates {
-            if agg.name == aggregate_type { return agg.delivery; }
-        }
-        crate::ir::DeliveryMode::Sync
     }
 
     /// Sprint 14 — fire every `driving on cron` adapter handler attached
