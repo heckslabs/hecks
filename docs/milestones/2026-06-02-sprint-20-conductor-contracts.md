@@ -6,6 +6,8 @@ fans out in parallel : a story depends on the CONTRACT (which exists from this
 agreement), never on another story finishing. File-per-aggregate so parallel
 writers never touch the same file.
 
+**This doc is the single source of truth for these shapes.** Task descriptions POINT at it (“implement the Worker contract §1”) ; they never re-state the shape. A task that duplicates a contract is a pre-contract artifact — slim it to a pointer.
+
 Decisions locked: Claim identity = story (mutex by identity) ; MergeQueue is a
 singleton-per-branch (default "main").
 
@@ -51,6 +53,23 @@ singleton-per-branch (default "main").
   - FailMerge(branch, story, reason) → idle, bounces entry (stale/conflict) ; emits MergeFailed
 - invariant: at most one current merge (serialized)
 - ownership: conductor-domain writes the skeleton ; pr-delivery-merge-on-accept + stale-pr-recheck-rebase write the merge behavior
+
+## Plan-side contracts (owned by Plan stories, the other half of the seam)
+
+### Story.depends_on / Claimable  (owned by story-dependency-dag)
+- attr: depends_on : list_of(Story), default empty
+- commands: AddDependency(self, dep_ref) → DependencyAdded ; RemoveDependency(self, dep_ref) → DependencyRemoved
+- derived: blocked = any depends_on story not done
+- query: Claimable = state == tasked AND not blocked (projection-side until runtime-cross-aggregate-where ; bluebook documents the contract)
+- consumed by: volunteer-pull-protocol (pulls Claimable work)
+
+### Story.pr_mergeable + the PR-delivery DoD shape  (owned by pr-delivery-merge-on-accept)
+- attr: pr_mergeable (replaces merged_to_main as the MarkReady gate)
+- meaning: branch pushed + PR open + checks green + conflict-free vs CURRENT main
+- MarkReady gates on pr_mergeable (NOT merged_to_main) — at ready_for_review the work is a green PR, not on main
+- Approve cascade → MergeQueue.Enqueue → (StartMerge → CompleteMerge) → Story done
+- re-checked vs current main at Approve time (owned by stale-pr-recheck-rebase + ci-fence-main-up-to-date)
+- consumed by: the Approve→merge seam below
 
 ## The seams (Conductor ↔ Plan)
 - ClaimAcquired → Plan::Story.Start  (claim a story → it starts)
