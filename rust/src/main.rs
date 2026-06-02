@@ -511,17 +511,31 @@ fn main() {
         std::process::exit(storehouse::run_follow::run(&args));
     }
 
-    // `storehouse actors` — debug observability for the actor model
+    // `storehouse mailboxes` — debug observability for the actor model
     // (sprint 14 — story `storehouse-actors-debug-command`). Three
     // verbs : list / show / poisoned, each with optional `--json`.
-    // The live runtime does not yet hold a process-wide MailboxRegistry
+    // The live runtime does not yet hold a process-wide Mailboxes table
     // (separate sprint-14 wiring card) ; `--fixture` builds a
     // deterministic 3-mailbox demo so the rendering shape is
     // exerciseable from CLI and from the behavior test before the bus
     // wires through. Same kernel-surface family as `follow` and
-    // `statusline` — thin main.rs delegate to the run_actors module.
+    // `statusline` — thin main.rs delegate to the run_mailboxes module.
+    //
+    // The conceptual "actor" stays a bluebook concept (every aggregate
+    // is an actor) ; this CLI observes runtime *mailbox* state. The
+    // HashMap IS the lookup table — no separate registry concept.
+    if command == "mailboxes" {
+        std::process::exit(storehouse::run_mailboxes::run(&args));
+    }
+
+    // Retired `storehouse actors` CLI — hard switch, no deprecated
+    // alias. Without this explicit reject arm the args fall through to
+    // the generic single-file parse path which would emit a confusing
+    // "Cannot read <verb>" message ; the explicit arm makes the rename
+    // visible to humans and CI alike.
     if command == "actors" {
-        std::process::exit(storehouse::run_actors::run(&args));
+        eprintln!("Unknown command: actors — renamed to `mailboxes` (try `storehouse mailboxes list`)");
+        std::process::exit(1);
     }
 
     // `storehouse serve-stdio <agg-dir>` — warm, resident dispatch
@@ -2116,13 +2130,24 @@ fn source_for_suite(suite_path: &str) -> String {
     parent.join(format!("{}.bluebook", source_stem)).to_string_lossy().into_owned()
 }
 
-/// heki subcommands — read/write + query shapes the shell scripts need.
+/// heki subcommands — read + query shapes the shell scripts need.
 ///
-/// Write/read (original):
+/// Direct-write subcommands (append / upsert / delete) were retired
+/// in sprint-14 (`make-heki-direct-write-impossible`) after an agent's
+/// `storehouse heki upsert` corrupted a live planning store and lost
+/// 71+ Story records. The underlying `heki::append/upsert/delete`
+/// functions remain — they are the only legitimate write path used
+/// internally by the bus dispatcher (repository.rs, run_wake, etc.) —
+/// but the CLI surface no longer exposes them. To mutate state, use a
+/// bluebook command : `storehouse <root> Domain::Aggregate.Command k=v`.
+/// The `retain` subcommand survives as an emergency singleton-cleanup
+/// tool (i151) ; if it grows into a footgun, retire it the same way.
+///
+/// Read-only subcommands (read / latest / get / list / count / etc.)
+/// are unchanged.
+///
+/// Read:
 ///   storehouse heki read   <file.heki>
-///   storehouse heki append <file.heki> key=val key2=val2
-///   storehouse heki upsert <file.heki> key=val key2=val2
-///   storehouse heki delete <file.heki> <id>
 ///   storehouse heki latest <file.heki>
 ///
 /// Query shapes (i37 Phase A — replace python3 -c invocations):
@@ -2147,8 +2172,8 @@ fn source_for_suite(suite_path: &str) -> String {
 fn run_heki(args: &[String]) {
     if args.len() < 4 {
         eprintln!("Usage: storehouse heki <cmd> <file.heki> [args...]");
-        eprintln!("Commands: read latest append upsert delete snapshot");
-        eprintln!("          get list count next-ref latest-field values mark seconds-since");
+        eprintln!("Commands: read latest snapshot retain");
+        eprintln!("          get list count ids next-ref latest-field values mark seconds-since");
         std::process::exit(1);
     }
 
@@ -2159,9 +2184,20 @@ fn run_heki(args: &[String]) {
     match sub {
         "read"          => heki_cmd_read(file),
         "latest"        => heki_cmd_latest(file),
-        "append"        => heki_cmd_append(file, rest),
-        "upsert"        => heki_cmd_upsert(file, rest),
-        "delete"        => heki_cmd_delete(file, rest),
+        // append / upsert / delete were retired in sprint-14
+        // (`make-heki-direct-write-impossible`). Use a bluebook
+        // command via `storehouse <root> Domain::Aggregate.Command`
+        // instead — the bus dispatcher is the only sanctioned path
+        // for state mutation. See the doc comment on run_heki above.
+        "append" | "upsert" | "delete" => {
+            eprintln!("Unknown heki command: {}", sub);
+            eprintln!("`heki {}` was retired in sprint-14 (make-heki-direct-write-impossible).", sub);
+            eprintln!("Direct heki writes from the CLI bypassed the bus dispatcher's audit log");
+            eprintln!("and could corrupt live stores. Use a bluebook command instead :");
+            eprintln!("  storehouse <root> Domain::Aggregate.Command k=v ...");
+            eprintln!("Read-only subcommands (read latest get list count ...) are unchanged.");
+            std::process::exit(1);
+        }
         "retain"        => heki_cmd_retain(file, rest),
         "snapshot"      => heki_cmd_snapshot(file),
         "get"           => heki_cmd_get(file, rest),
@@ -2175,7 +2211,7 @@ fn run_heki(args: &[String]) {
         "seconds-since" => heki_cmd_seconds_since(file, rest),
         _ => {
             eprintln!("Unknown heki command: {}", sub);
-            eprintln!("Available: read latest append upsert delete snapshot get list count ids \
+            eprintln!("Available: read latest snapshot retain get list count ids \
                        next-ref latest-field values mark seconds-since");
             std::process::exit(1);
         }
@@ -2254,46 +2290,12 @@ fn require_reason(op: &str, rest: &[String]) -> (String, Vec<String>) {
     }
 }
 
-fn heki_cmd_append(file: &str, rest: &[String]) {
-    let (reason, remaining) = require_reason("append", rest);
-    let attrs = heki::parse_attrs(&remaining);
-    match heki::append(file, &attrs, heki::WriteContext::OutOfBand { reason: &reason }) {
-        Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
-        Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
-    }
-}
-
-fn heki_cmd_upsert(file: &str, rest: &[String]) {
-    let (reason, remaining) = require_reason("upsert", rest);
-    let attrs = heki::parse_attrs(&remaining);
-    match heki::upsert(file, &attrs, heki::WriteContext::OutOfBand { reason: &reason }) {
-        Ok(rec) => println!("{}", serde_json::to_string_pretty(&rec).unwrap_or_default()),
-        Err(e)  => { eprintln!("{}", e); std::process::exit(1); }
-    }
-}
-
-fn heki_cmd_delete(file: &str, rest: &[String]) {
-    let (reason, remaining) = require_reason("delete", rest);
-    let id = match remaining.first() {
-        Some(s) => s.as_str(),
-        None => {
-            eprintln!("Usage: storehouse heki delete <file.heki> <id> --reason \"<why>\"");
-            std::process::exit(1);
-        }
-    };
-    // Snapshot before destructive op — out-of-band deletes are exactly
-    // the case we want backup evidence for.
-    match heki::snapshot(file) {
-        Ok(Some(snap)) => eprintln!("[heki:snapshot] {} → {}", file, snap),
-        Ok(None) => {}
-        Err(e) => eprintln!("[heki:snapshot] warning: {}", e),
-    }
-    match heki::delete(file, id, heki::WriteContext::OutOfBand { reason: &reason }) {
-        Ok(true)  => println!("deleted {}", id),
-        Ok(false) => { eprintln!("not found: {}", id); std::process::exit(1); }
-        Err(e)    => { eprintln!("{}", e); std::process::exit(1); }
-    }
-}
+// heki_cmd_append / heki_cmd_upsert / heki_cmd_delete were retired in
+// sprint-14 (`make-heki-direct-write-impossible`). An agent's
+// `storehouse heki upsert` corrupted the live planning store and lost
+// 71+ Story records ; the safest fix is to remove the CLI surface
+// entirely. The bus-internal `heki::append/upsert/delete` functions
+// remain in storehouse::heki and are the only sanctioned write path.
 
 /// `heki retain <file> <id> --reason "<why>"` — filter-rewrite a store
 /// to keep only the named record. Used to clean up i151 singleton-leak
@@ -5288,20 +5290,25 @@ fn print_usage() {
     eprintln!("  sleep      Dispatch EnterSleep, stream stage/dream changes, print wake report");
     eprintln!("  hydrate    Load .heki stores and print vital signs");
     eprintln!("  heki       Read/write .heki binary stores");
-    eprintln!("  actors     Inspect the actor model (mailboxes, queue depths, poisoned)");
+    eprintln!("  mailboxes  Inspect the actor model (mailboxes, queue depths, poisoned)");
     eprintln!("  dump-world Parse a .world file and emit canonical JSON");
     eprintln!("  dump-hecksagon  Parse a .hecksagon file and emit canonical JSON\n");
+    eprintln!("Heki subcommands (read-only ; direct writes were retired in sprint-14):");
     eprintln!("Actors subcommands:");
     eprintln!("  actors list                          List active mailboxes");
     eprintln!("  actors show <type> <id>              Detail on one mailbox");
     eprintln!("  actors poisoned                      Only poisoned mailboxes");
     eprintln!("  actors <verb> --json                 Tooling-stable JSON output\n");
+    eprintln!("Mailboxes subcommands:");
+    eprintln!("  mailboxes list                       List active mailboxes");
+    eprintln!("  mailboxes show <type> <id>           Detail on one mailbox");
+    eprintln!("  mailboxes poisoned                   Only poisoned mailboxes");
+    eprintln!("  mailboxes <verb> --json              Tooling-stable JSON output\n");
     eprintln!("Heki subcommands:");
     eprintln!("  heki read   <file>           Dump store as JSON");
     eprintln!("  heki latest <file>           Show latest record");
-    eprintln!("  heki append <file> k=v ...   Append new record");
-    eprintln!("  heki upsert <file> k=v ...   Upsert singleton");
-    eprintln!("  heki delete <file> <id>      Delete record by ID\n");
+    eprintln!("  To mutate state, use a bluebook command :");
+    eprintln!("    storehouse <root> Domain::Aggregate.Command k=v ...\n");
     eprintln!("Options:");
     eprintln!("  --seed <file>      Load seed commands at boot (run/serve)");
     eprintln!("  --corpus <dirs>    Corpus directories (conceive/develop)");
