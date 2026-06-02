@@ -227,4 +227,66 @@ Hecks.behaviors "Plan" do
     input  ref: "l23"
     expect ref: "l23", state: "ready_for_review", pending_task_count: 0
   end
+
+  # ── Worktree lifecycle (worktree-removal-is-story-done-gate) ──
+  test "LockWorktree claims the worktree and locks it" do
+    tests "LockWorktree", on: "Story"
+    setup  "Capture", ref: "wt1", title: "WT", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "wt1", worktree_path: "/tmp/wt/wt1"
+    expect ref: "wt1", worktree_locked: true, worktree_path: "/tmp/wt/wt1"
+  end
+
+  test "LockWorktree is refused when the worktree is already locked" do
+    tests "LockWorktree", on: "Story"
+    setup  "Capture", ref: "wt2", title: "WT", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "LockWorktree", ref: "wt2", worktree_path: "/tmp/wt/wt2"
+    input  ref: "wt2", worktree_path: "/tmp/other"
+    expect refused: "worktree not already locked"
+  end
+
+  test "UnlockWorktree releases the worktree lock" do
+    tests "UnlockWorktree", on: "Story"
+    setup  "Capture", ref: "wt3", title: "WT", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "LockWorktree", ref: "wt3", worktree_path: "/tmp/wt/wt3"
+    input  ref: "wt3"
+    expect ref: "wt3", worktree_locked: false
+  end
+
+  test "RecordWorktreeRemovedCheckResult sets worktree_removed" do
+    tests "RecordWorktreeRemovedCheckResult", on: "Story"
+    setup  "Capture", ref: "wr1", title: "WR", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "wr1", ok: true
+    expect ref: "wr1", worktree_removed: true
+  end
+
+  test "Approve is refused when the worktree has not been removed" do
+    tests "Approve", on: "Story"
+    setup  "Capture",                       ref: "wr2", title: "WR", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                ref: "wr2", sprint_ref: "1"
+    setup  "Tasked",                        ref: "wr2"
+    setup  "Start",                         ref: "wr2"
+    setup  "RecordVerbResolvesCheckResult", ref: "wr2", ok: true
+    setup  "RecordMergedCheckResult",       ref: "wr2", ok: true
+    setup  "RecordWorktreeCheckResult",     ref: "wr2", ok: true
+    setup  "RecordTestsCheckResult",        ref: "wr2", ok: true
+    setup  "MarkReady",                     ref: "wr2"
+    input  story: "wr2"
+    expect refused: "removed_means_done"
+  end
+
+  test "Approve succeeds once the worktree is removed" do
+    tests "Approve", on: "Story"
+    setup  "Capture",                          ref: "wr3", title: "WR", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                   ref: "wr3", sprint_ref: "1"
+    setup  "Tasked",                           ref: "wr3"
+    setup  "Start",                            ref: "wr3"
+    setup  "RecordVerbResolvesCheckResult",    ref: "wr3", ok: true
+    setup  "RecordMergedCheckResult",          ref: "wr3", ok: true
+    setup  "RecordWorktreeCheckResult",        ref: "wr3", ok: true
+    setup  "RecordTestsCheckResult",           ref: "wr3", ok: true
+    setup  "RecordWorktreeRemovedCheckResult", ref: "wr3", ok: true
+    setup  "MarkReady",                        ref: "wr3"
+    input  story: "wr3"
+    expect ref: "wr3", state: "done"
+  end
 end

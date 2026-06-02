@@ -1,0 +1,24 @@
+Hecks.hecksagon "WorktreeRemovedCheck" do
+  # ============================================================
+  # WORKTREE-REMOVED CHECK — LiveCheckAdapter slice (hex-live-check-adapter)
+  # ============================================================
+  #
+  # The worktree-removed DoD gate (worktree-removal-is-story-done-gate) as an
+  # ADAPTER, not a bin/ script. The other four story checks (verified, merged,
+  # worktree_clean, tests) still use the legacy policy + Primitive::Process.Spawn
+  # + bin/check-* pattern ; this is the FIRST converted to the sprint-14 adapter
+  # model and the template for converting the rest (hex-live-check-adapter).
+  #
+  # On WorktreeUnlocked the adapter records whether the story git worktree is
+  # gone via Story.RecordWorktreeRemovedCheckResult. Canned ok:true by default
+  # (sprint-14 memory+canned floor) ; world.bluebook wires the real
+  # `git worktree list` probe once adapter-invocation-with-result lands
+  # (hex-invocation-principle / hex-runtime-port-eval-hook).
+  adapter "WorktreeRemovedCheck" do
+    driven on "Story.WorktreeUnlocked" do |event|
+      dispatch "Plan::Story.RecordWorktreeRemovedCheckResult",
+               story: event.story,
+               ok: true
+    end
+  end
+end

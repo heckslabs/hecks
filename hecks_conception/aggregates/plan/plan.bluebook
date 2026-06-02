@@ -449,6 +449,14 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     attribute :worktree_clean, WorktreeClean, default: false
     attribute :tests_passing,  TestsPassing,  default: false
 
+    # ---- Worktree lifecycle (worktree-removal-is-story-done-gate) ----
+    # A story claims its git worktree on Start (LockWorktree) and releases
+    # + removes it before done (UnlockWorktree). Locking keeps concurrent
+    # stories from clobbering the same tree.
+    attribute :worktree_locked, WorktreeLocked, default: false
+    attribute :worktree_path,   WorktreePath,   default: ""
+    attribute :worktree_removed, WorktreeRemoved, default: false
+
     # ---- Definition of done ----
     # The done_criterion declares WHAT must be true before MarkReady is valid:
     #   "callable"  — the story target verb resolves + dispatches through storehouse
@@ -541,6 +549,22 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
 
     value_object "WorktreeClean" do
       # Set true when bin/check-worktree returns ok via cascade.
+      attribute :value, Boolean
+    end
+
+    value_object "WorktreeLocked" do
+      # True while this story holds its git worktree claim.
+      attribute :value, Boolean
+    end
+
+    value_object "WorktreePath" do
+      # Filesystem path of the story git worktree.
+      attribute :value, String
+    end
+
+    value_object "WorktreeRemoved" do
+      # True once the story git worktree has been removed (live-checked by
+      # bin/check-worktree-removed via cascade). Gates the done transition.
       attribute :value, Boolean
     end
 
@@ -844,6 +868,34 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "WorktreeCheckRecorded"
     end
 
+    command "LockWorktree" do
+      role "Miette"
+      description "Claim a git worktree for this story so concurrent stories do not clobber each other. Records worktree_path and sets worktree_locked. Dispatched when work begins (alongside Start). Refused if the story already holds a lock. Part of the story-level worktree lifecycle (worktree-removal-is-story-done-gate)."
+      reference_to(Story)
+      attribute :worktree_path, WorktreePath
+      given("worktree not already locked") { worktree_locked == false }
+      then_set :worktree_locked, to: true
+      then_set :worktree_path, to: :worktree_path
+      emits "WorktreeLocked"
+    end
+
+    command "UnlockWorktree" do
+      role "Miette"
+      description "Release the story git worktree claim when work is done and the tree is being removed. Clears worktree_locked and emits WorktreeUnlocked (which triggers the worktree-removed live check). Part of the story-level worktree lifecycle."
+      reference_to(Story)
+      then_set :worktree_locked, to: false
+      emits "WorktreeUnlocked"
+    end
+
+    command "RecordWorktreeRemovedCheckResult" do
+      role "System"
+      description "Cascade-internal : record the worktree-removed check outcome on Story.worktree_removed. Triggered by RunWorktreeRemovedCheckOnUnlocked (bin/check-worktree-removed). Manual dispatch is allowed only to backfill stories whose worktrees were removed before this gate existed."
+      reference_to(Story)
+      attribute :ok, CheckOk
+      then_set :worktree_removed, to: :ok
+      emits "WorktreeRemovedCheckRecorded"
+    end
+
     command "RecordTestsCheckResult" do
       role "System"
       description "Cascade-internal : record the tests_check outcome on Story.tests_passing. Must NOT be dispatched manually."
@@ -876,6 +928,14 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       # transition to ready_for_review or done. Same gate-pattern as
       # the four live-check invariants above.
       holds_when { state != "ready_for_review" && state != "done" || pending_task_count == 0 }
+    end
+
+    invariant "removed_means_done" do
+      # Worktree removal is a story-level done gate (worktree-removal-is-story-done-gate).
+      # Binds done only — the worktree still exists at ready_for_review (pre-merge)
+      # and is removed before Approve. Set true by bin/check-worktree-removed via the
+      # RunWorktreeRemovedCheckOnUnlocked cascade ; lying requires lying to git worktree list.
+      holds_when { state != "done" || worktree_removed == true }
     end
 
     command "MarkReady" do
