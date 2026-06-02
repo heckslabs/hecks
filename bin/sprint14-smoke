@@ -188,7 +188,7 @@ if [[ -f "$FANOUT_ADAPTER" ]]; then
 fi
 
 # Parallel execution proof : the `wire-mailbox-registry-into-event-bus`
-# PR lands the `MailboxRegistry` as a Runtime field and routes
+# PR lands the `Mailboxes` as a Runtime field and routes
 # `delivery :actor` aggregates through it. Cross-aggregate parallelism
 # is now a real property of the runtime — `drain_all_in_parallel`
 # spawns one OS thread per non-empty mailbox and the
@@ -198,16 +198,16 @@ fi
 #
 # Structural assertion : the runtime source carries the `mailbox_registry`
 # field on `Runtime` AND the `enqueue_and_drain` body routes through
-# `MailboxRegistry::deliver`. Checking the source (not the binary) keeps
+# `Mailboxes::deliver`. Checking the source (not the binary) keeps
 # the smoke worktree-aware — the installed `storehouse` binary may be
 # stale during a PR, but the source tree is the contract surface.
 RUNTIME_MOD="$REPO_ROOT/rust/src/runtime/mod.rs"
 if [[ -f "$RUNTIME_MOD" ]] \
-   && grep -q 'pub mailbox_registry: actor::MailboxRegistry' "$RUNTIME_MOD" \
+   && grep -q 'pub mailbox_registry: actor::Mailboxes' "$RUNTIME_MOD" \
    && grep -q 'self.mailbox_registry.deliver' "$RUNTIME_MOD"; then
-  pass "mailbox_registry wired into Runtime ; enqueue_and_drain routes through MailboxRegistry::deliver (drain_all_in_parallel available for cross-aggregate non-blocking — proven by integration test event_on_a_while_slow_handler_on_b_is_not_blocked)"
+  pass "mailbox_registry wired into Runtime ; enqueue_and_drain routes through Mailboxes::deliver (drain_all_in_parallel available for cross-aggregate non-blocking — proven by integration test event_on_a_while_slow_handler_on_b_is_not_blocked)"
 else
-  fail "Runtime missing mailbox_registry field or enqueue_and_drain not wired through MailboxRegistry (expected at $RUNTIME_MOD)"
+  fail "Runtime missing mailbox_registry field or enqueue_and_drain not wired through Mailboxes (expected at $RUNTIME_MOD)"
 fi
 
 # ----------------------------------------------------------------------
