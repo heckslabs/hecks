@@ -4,7 +4,7 @@ The agreed interfaces for the Conductor (Workforce) domain. Stories write to the
 shapes independently, in parallel — a story depends on the CONTRACT, never on another
 story finishing. File-per-aggregate so parallel writers never touch the same file.
 
-**This doc is the single source of truth for these shapes.** Tasks POINT at it ; they
+**The `conductor.bluebook` aggregate stubs ARE the ratified contract and the single source of truth** (this markdown is a throwaway planning aid — documentation is the bluebook). Tasks POINT at it ; they
 never re-state the shape.
 
 ## Architecture constraints (both axes, born clean)
@@ -16,7 +16,7 @@ never re-state the shape.
 2. **Relationships, not FK ids.** Use the relationship DSL (`belongs_to` / `has_many`).
    The association is owned in ONE direction ; the reverse is a DERIVED QUERY, never a
    stored mirrored FK. No `*_ref` attributes, no mirror cascades.
-3. **Depends on `add-relationship-dsl`** (belongs_to/has_many must exist to write these).
+3. **Uses the existing relationship DSL** — belongs_to/has_many/has_one are already in production ; add-relationship-dsl is canonicalization, NOT a prerequisite.
 4. **Does NOT depend on `hex-runtime-port-eval-hook`** (a runtime mod). Synchronous gates
    use the existing cascade → RecordResult → flag → invariant pattern that already gates
    the four Story DoD checks (worktree_clean et al.).
