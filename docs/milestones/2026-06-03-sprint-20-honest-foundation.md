@@ -3,8 +3,9 @@
 ## TL;DR for a compacted continuation (READ THIS FIRST)
 - `origin/main` @ `43cc635e` + this doc. Four engine commits landed the real adapter runtime + done-is-done enforcement. Sprint 20 went from gamed-skeleton to a real foundation.
 - The board is HONEST now: sprint-20 stories all `started` (conductor-claim may be `checking` — a test artifact, reset with `ChecksFailed` or `Start`), **0 ready_for_review**. DO NOT re-game it. Never report done without showing it run.
-- NEXT STEP (in progress): prove ONE honest fleet seam end-to-end — SEAM 2 (downstream): `Claim.Acquire(explicit story)` → `ClaimAcquired` → `Lease.Grant` → `LeaseGranted` → `worktree_create` (real git, already proven). Hand the story in EXPLICITLY — do NOT auto-select it (SEAM 1 needs cross-aggregate-where, a real gap; faking lives there).
-  - The one constraint that decides if SEAM 2 runs today: can `worktree_path` be DERIVED from `event.story` on the DISPATCH path? If `worktree_path: event.story` (or sanitized) passes raw like `story: event.story` already does → whole chain runs, real worktree on disk, zero canned. If it needs template interpolation (`"worktrees/{story}"`) and dispatch doesn't support it → that IS `policy-cmd-needs-interpolation`; bound it honestly, don't sentinel past it.
+- DONE 6/3 (commit `20ff371e`): closed `policy-cmd-needs-interpolation` — driven-dispatch attr values now interpolate `{field}`/`{id}` from the event (reuses `interpolate_event`, the run/check mechanism). PROVEN live: `Claim.Acquire story=story-42` cascades into `Lease.Grant` id=`worktrees/story-42` (real interpolated value, no sentinel). volunteer_pull SEAM 2 rewritten to real `{story}` values; dead FK `worker_ref` dropped.
+- BOTH HOPS PROVEN INDEPENDENTLY: (hop1) Claim.Acquire → Lease.Grant with real worktree_path ✓ ; (hop2) top-level Lease.Grant → `git worktree add` → REAL worktree on disk ✓.
+- THE REMAINING GAP for full end-to-end chaining: the driven resolver fires ONLY on TOP-LEVEL dispatch (`rust/src/runtime/mod.rs` ~805), NOT on `dispatch_cascade`. So a cascaded `Lease.Grant` does not re-trigger `worktree_create`. There is NO depth counter in `dispatch_inner` (`rust/src/runtime/command_dispatch.rs`) — cycle protection is purely structural (resolver just isn't called on the cascade path). NEXT RUNTIME CARD: resolver-on-cascade WITH a depth guard. Do NOT rush it — infinite-loop risk on cyclic adapter graphs ; build the depth bound first, test loop-safety, THEN enable.
 
 ## CORRECTION (the earlier draft of this doc was wrong)
 - `volunteer_pull.hecksagon` is ALREADY `dispatch`-based to real Conductor commands. Its real problems are: (a) canned SENTINELS (`NEXT_CLAIMABLE`, `NEXT_FREE_WORKTREE`, `TTL_FROM_NOW`, `CLAIM_FOR_WORKER`, `LEASE_FOR_WORKER`) and (b) dead/FK-shaped `*_ref` kwargs — behind two GENUINE runtime gaps (cross-aggregate-where, interpolation). It does NOT use canned RecordResult.
@@ -44,7 +45,7 @@
 - MISSING: full fleet loop end-to-end ; `pr_mergeable`/`main_up_to_date` real checks ; FK-shaped kwarg cleanup ; hollow worker_ref join.
 
 ## Next steps (honest order)
-1. Prove SEAM 2 end-to-end (Claim.Acquire explicit story → Lease.Grant → real worktree) OR honestly bound it on the worktree_path-interpolation constraint.
-2. Convert the 5 canned-RecordResult adapters to real `run`/dispatch.
+1. resolver-on-cascade WITH depth guard — add a depth counter to `dispatch_inner`, fire `resolve_driven_adapters` on cascaded events up to the bound. This is what makes Claim.Acquire → Lease.Grant → worktree-on-disk run as ONE chain. Loop-safety first ; test before enabling.
+2. Convert the 5 canned-RecordResult adapters to real `run`/dispatch (agent_tool/stale_pr/pr_delivery/expiry_sweep/story_worktree_sync).
 3. Inline live-checks for `pr_mergeable` + `main_up_to_date` (`done-is-done-as-live-checks`).
-4. `references-not-ids`: retire FK-shaped `*_ref` kwargs ; close the hollow join. (Big, deliberate, NOT over a compaction boundary.)
+4. `references-not-ids`: retire FK-shaped `*_ref` kwargs ; close the hollow worker_ref join. (Big, deliberate, NOT over a compaction boundary.)
