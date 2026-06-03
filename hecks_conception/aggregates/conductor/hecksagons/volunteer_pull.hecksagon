@@ -87,18 +87,33 @@ Hecks.hecksagon "VolunteerPull" do
   # (policy-cmd-needs-interpolation — no dynamic interpolation yet).
   adapter "GrantAndStartOnClaimAcquired" do
     driven on "Conductor::Claim.ClaimAcquired" do |event|
-      # Grant the worktree lease for this story.
-      # GAP: worktree_path should be next free path from Lease pool;
-      #      expires_at should be now + TTL. Both are policy-cmd-needs-interpolation.
+      # SEAM 2 HOP 1 — RUNS for real (no canned sentinels, no FK kwargs).
+      # worktree_path is DERIVED from the story identity via {story}
+      # interpolation : policy-cmd-needs-interpolation is CLOSED — declared
+      # dispatch attrs now interpolate {field}/{id} from the event, the same
+      # mechanism as the run/check leaves. PROVEN : a single Claim.Acquire
+      # cascades into Lease.Grant with a REAL id=worktrees/<story>.
+      #
+      # HONEST LIMIT (do not overclaim) : the worktree itself is NOT created
+      # by THIS chain yet. worktree_create fires on LeaseGranted, but the
+      # driven resolver runs only on TOP-LEVEL dispatch (mod.rs ~805), NOT on
+      # the cascade path — so a cascaded Lease.Grant does not re-trigger
+      # worktree_create. The worktree hop is proven REAL independently (a
+      # top-level Lease.Grant runs `git worktree add` and the worktree lands
+      # on disk). Closing the full chain needs resolver-on-cascade with a
+      # depth guard (the next runtime card) — NOT faked here.
+      #
+      # worker_ref is OMITTED : it was a dead FK kwarg (never then_set ; the
+      # Worker association is references-not-ids territory). expires_at is a
+      # placeholder — no clock on the dispatch path yet (real remaining gap,
+      # honestly placeholdered, not faked).
       dispatch "Conductor::Lease.Grant",
-               worktree_path: "NEXT_FREE_WORKTREE",
-               story_ref:     event.story,
-               worker_ref:    event.worker_ref,
-               expires_at:    "TTL_FROM_NOW"
-      # Start the story — ClaimAcquired→Start seam.
-      # story ref flows cleanly from the event payload.
+               worktree_path: "worktrees/{story}",
+               story_ref:     "{story}",
+               expires_at:    "PENDING_NO_CLOCK"
+      # Start the story — ClaimAcquired→Start seam ; {story} carries the id.
       dispatch "Plan::Story.Start",
-               story: event.story
+               story: "{story}"
     end
   end
 
