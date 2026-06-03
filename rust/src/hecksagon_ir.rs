@@ -194,8 +194,18 @@ pub struct DrivenHandler {
     /// interpolate from the triggering event. Spawned by the resolver ;
     /// no bin script, no canned. Identity/event fields only — never FK refs.
     pub runs: Vec<String>,
-}
+    /// Live-check leaves : `run "cmd", result_into: "Cmd"` — spawned in-process,
+    /// arm the flag with ok=(exit==0). No FK ; no bin script.
+    pub checks: Vec<CheckLeaf>,}
 
+/// A `run "<cmd>", result_into: "<Command>"` leaf — a live check. The
+/// runtime spawns <cmd> in-process and dispatches <Command> with
+/// ok=(exit==0). Replaces bin/check-* with an inline adapter declaration.
+#[derive(Debug, Clone, Default)]
+pub struct CheckLeaf {
+    pub cmd: String,
+    pub result_into: String,
+}
 /// Sprint 14 memory-canned-defaults — the wrapped-call return declared
 /// inline as :
 ///
