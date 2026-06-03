@@ -1249,22 +1249,14 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     with "result_into", "Story.RecordMergedCheckResult"
   end
 
-  # ci-fence-main-up-to-date (sprint 20): live check that origin/main is in sync.
-  # Check semantics: passes only when BOTH rev-list commands return empty output —
-  #   git rev-list origin/main..HEAD  (no commits on HEAD not yet pushed to origin/main)
-  #   git rev-list HEAD..origin/main  (no commits on origin/main not yet pulled into HEAD)
-  # A divergent branch (unpushed work) OR a stale local main (unpulled origin commits) both fail.
-  # This guards the pr_mergeable assessment: closure must never be computed against a local main
-  # that is missing origin's commits. bin/check-pr-mergeable is expected to include the
-  # main_up_to_date condition as a precondition (projection-side AND with its own PR checks).
-  # NOTE: upgrade path — when the hex-live-check-adapter card lands, replace this Process.Spawn
-  # pair with a LiveCheckAdapter that short-circuits the bus round-trip.
-  policy "RunMainUpToDateCheckOnChecksRequested" do
-    on "Story.StoryChecksRequested"
-    trigger "Primitive::Process.Spawn"
-    with "cmd", "bin/check-main-uptodate"
-    with "result_into", "Story.RecordMainUpToDateCheckResult"
-  end
+  # ci-fence-main-up-to-date (sprint 20): main_up_to_date is now a REAL inline
+  # live-check — plan/hecksagons/main_uptodate_check.hecksagon runs the
+  # run/result_into leaf `git diff --quiet main origin/main` (exit 0 iff local
+  # main matches origin/main — the "both rev-lists empty" intent in one argv) and
+  # arms main_up_to_date via RecordMainUpToDateCheckResult. The old Process.Spawn
+  # -> bin/check-main-uptodate policy is RETIRED (the script never existed, so the
+  # check could never pass). Freshness of the origin/main ref is the runtime's
+  # fetch concern ; the leaf evaluates against the last-known remote.
 
   policy "RunTestsCheckOnChecksRequested" do
     on "Story.StoryChecksRequested"

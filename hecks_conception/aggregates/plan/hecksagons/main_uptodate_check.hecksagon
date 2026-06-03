@@ -1,0 +1,15 @@
+Hecks.hecksagon "Plan" do
+  # ci-fence-main-up-to-date (sprint 20) : main_up_to_date as a REAL inline
+  # live-check, replacing the missing bin/check-main-uptodate. On every
+  # StoryChecksRequested (fired by RunCheck), run a read-only git compare of
+  # local main against origin/main ; the run/result_into leaf arms
+  # main_up_to_date = (exit == 0). `git diff --quiet main origin/main` exits 0
+  # iff the trees are identical — the single-argv expression of the card's
+  # "both rev-lists empty" (no unpushed AND no unpulled). A divergent or stale
+  # local main produces a non-empty diff → exit 1 → main_up_to_date = false.
+  adapter "MainUpToDateLiveCheck" do
+    driven on "Plan::Story.StoryChecksRequested" do |event|
+      run "git diff --quiet main origin/main", result_into: "Plan::Story.RecordMainUpToDateCheckResult"
+    end
+  end
+end
