@@ -26,9 +26,30 @@
             continue;
         }
             if t.starts_with("run ") {
-                if let Some(cmd) = between_quotes(t) {
-                    if let Some(ri) = t.find("result_into:") {
-                        match between_quotes(&t[ri..]) {
+                // Extract the command, honoring \" escapes so the .hecksagon
+                // stays valid Ruby when the command contains double-quotes
+                // (e.g. a gh --jq filter). Scan from the first quote to the
+                // first UNescaped quote, translating \" -> ".
+                let extracted = t.find('"').and_then(|s0| {
+                    let mut out = String::new();
+                    let mut rest_idx = t.len();
+                    let mut closed = false;
+                    let mut it = t.char_indices().filter(|&(i, _)| i > s0).peekable();
+                    while let Some((idx, c)) = it.next() {
+                        if c == '\\' {
+                            if let Some(&(_, '"')) = it.peek() { out.push('"'); it.next(); continue; }
+                            out.push('\\');
+                            continue;
+                        }
+                        if c == '"' { closed = true; rest_idx = idx + c.len_utf8(); break; }
+                        out.push(c);
+                    }
+                    if closed { Some((out, rest_idx)) } else { None }
+                });
+                if let Some((cmd, rest_idx)) = extracted {
+                    let rest = &t[rest_idx..];
+                    if let Some(ri) = rest.find("result_into:") {
+                        match between_quotes(&rest[ri..]) {
                             Some(target) => handler.checks.push(CheckLeaf { cmd, result_into: target }),
                             None => handler.runs.push(cmd),
                         }
@@ -39,7 +60,7 @@
                 i += 1;
                 continue;
             }
-        if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
+                if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
             let (joined, consumed) = join_dispatch_lines(&lines[i..]);
             if let Some(d) = parse_driven_dispatch(&joined) {
                 handler.dispatches.push(d);

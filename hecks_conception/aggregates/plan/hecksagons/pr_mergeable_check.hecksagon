@@ -1,0 +1,15 @@
+Hecks.hecksagon "Plan" do
+  # pr-delivery-merge-on-accept (sprint 20) : pr_mergeable as a REAL inline gh
+  # probe, replacing the missing bin/check-pr-mergeable. On StoryChecksRequested
+  # the run/result_into leaf runs one read-only gh query over the story's PR
+  # branch (sq/<id>) and arms pr_mergeable = (exit == 0). The jq filter exits 0
+  # IFF: state == OPEN (PR open ; gh errors if no PR -> false), mergeable ==
+  # MERGEABLE (conflict-free vs current main), and no check has a non-SUCCESS
+  # conclusion (CI green ; empty rollup is vacuously green). Inner double-quotes
+  # are \" -escaped so the .hecksagon stays valid Ruby (the parser un-escapes).
+  adapter "PrMergeableLiveCheck" do
+    driven on "Plan::Story.StoryChecksRequested" do |event|
+      run "gh pr view sq/{id} --json state,mergeable,statusCheckRollup --jq 'if .state==\"OPEN\" and .mergeable==\"MERGEABLE\" and ([.statusCheckRollup[]|select(.conclusion!=\"SUCCESS\" and .conclusion!=null)]|length==0) then empty else halt_error(1) end'", result_into: "Plan::Story.RecordPrMergeableCheckResult"
+    end
+  end
+end

@@ -1272,18 +1272,12 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     with "result_into", "Story.RecordVerbResolvesCheckResult"
   end
 
-  policy "RunPrMergeableCheckOnChecksRequested" do
-    # Fires when Story.RunCheck emits StoryChecksRequested.
-    # Spawns bin/check-pr-mergeable which verifies: branch pushed to remote,
-    # PR open against main, all CI checks green, no merge conflicts vs current
-    # main HEAD. Script exits 0 on pass / non-zero on fail. Outcome routes back
-    # to Story.RecordPrMergeableCheckResult which sets pr_mergeable.
-    # bin/ script is canned (always exits 0) until a live git/GH probe is wired.
-    on "Story.StoryChecksRequested"
-    trigger "Primitive::Process.Spawn"
-    with "cmd", "bin/check-pr-mergeable"
-    with "result_into", "Story.RecordPrMergeableCheckResult"
-  end
+  # pr_mergeable is now a REAL inline gh probe — plan/hecksagons/pr_mergeable_check.hecksagon
+  # runs the run/result_into leaf `gh pr view sq/<id> --json state,mergeable,statusCheckRollup
+  # --jq <…>` which exits 0 IFF the story's PR is OPEN, MERGEABLE (conflict-free vs current
+  # main) and has no failing checks (CI green). Retired the Process.Spawn -> bin/check-pr-mergeable
+  # policy (the script never existed, so the pr_mergeable gate could never be satisfied honestly).
+  # No PR / conflicting / red checks -> exit nonzero -> pr_mergeable false -> MarkReady refused.
 
   # ── Done-is-done gate enforcement (done-is-done-gate-enforcement) ──────
   # Each recorded check ATTEMPTS the MarkReady transition. The ready_means_*
