@@ -1,0 +1,130 @@
+//! resolver-on-cascade + depth-guard regression gate.
+//!
+//! Two invariants of `driven_adapter_resolver::resolve_driven_adapters`, the
+//! engine that lets a driven adapter's follow-on event trigger the NEXT
+//! adapter (Claim.Acquire -> Lease.Grant -> worktree_create) :
+//!
+//!   1. FORWARD CHAIN : a follow-on event re-activates the resolver, so a
+//!      multi-hop chain runs end-to-end. Proven with a 3-aggregate chain
+//!      Alpha -> Beta -> Gamma : Gamma is reached ONLY if the resolver
+//!      recurses past the first hop (this test fails if the recursion is
+//!      removed).
+//!
+//!   2. CYCLE SAFETY : a cyclic adapter graph terminates at
+//!      MAX_CASCADE_DEPTH instead of running forever. The recursion is
+//!      call-stack-bounded, so a regressed guard overflows-and-aborts
+//!      loudly here — never a silent CI hang.
+
+use storehouse::hecksagon_parser;
+use storehouse::parser;
+use storehouse::runtime::{Runtime, Value};
+use std::collections::HashMap;
+
+fn s(v: &str) -> Value { Value::Str(v.to_string()) }
+fn attrs(pairs: &[(&str, Value)]) -> HashMap<String, Value> {
+    pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+}
+
+// ---- Forward chain : Alpha -> Beta -> Gamma -------------------------------
+const CHAIN_BB: &str = r#"Hecks.bluebook "Chain" do
+  category "framework"
+  aggregate "Alpha" do
+    identified_by :name
+    attribute :name, String
+    command "Fire" do
+      role "System"
+      attribute :name, String
+      then_set :name, to: :name
+      emits "AlphaFired"
+    end
+  end
+  aggregate "Beta" do
+    identified_by :name
+    attribute :name, String
+    command "Make" do
+      role "System"
+      attribute :name, String
+      then_set :name, to: :name
+      emits "BetaMade"
+    end
+  end
+  aggregate "Gamma" do
+    identified_by :name
+    attribute :name, String
+    command "Make" do
+      role "System"
+      attribute :name, String
+      then_set :name, to: :name
+      emits "GammaMade"
+    end
+  end
+end"#;
+
+const CHAIN_HX: &str = r#"Hecks.hecksagon "Chain" do
+  adapter "AlphaToBeta" do
+    driven on "Chain::Alpha.AlphaFired" do |event|
+      dispatch "Chain::Beta.Make", name: "{name}"
+    end
+  end
+  adapter "BetaToGamma" do
+    driven on "Chain::Beta.BetaMade" do |event|
+      dispatch "Chain::Gamma.Make", name: "{name}"
+    end
+  end
+end"#;
+
+#[test]
+fn forward_chain_recurses_past_the_first_hop() {
+    let domain = parser::parse(CHAIN_BB);
+    let hex = hecksagon_parser::parse(CHAIN_HX);
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hex]);
+
+    rt.dispatch("Fire", attrs(&[("name", s("x1"))])).unwrap();
+
+    // Hop 1 (Alpha -> Beta) worked even before resolver-on-cascade.
+    assert_eq!(rt.all("Beta").len(), 1, "Beta made by hop 1");
+    // Hop 2 (Beta -> Gamma) only fires if the resolver re-activates on the
+    // CASCADED BetaMade event — the whole point of resolver-on-cascade.
+    assert_eq!(
+        rt.all("Gamma").len(), 1,
+        "Gamma must be created by the 2nd hop — resolver-on-cascade regressed if this is 0",
+    );
+}
+
+// ---- Cycle safety : Ping.Beat -> Beated -> dispatch Beat -> ... ------------
+const CYCLE_BB: &str = r#"Hecks.bluebook "Loop" do
+  category "framework"
+  aggregate "Ping" do
+    identified_by :name
+    attribute :name, String
+    command "Beat" do
+      role "System"
+      attribute :name, String
+      then_set :name, to: :name
+      emits "Beated"
+    end
+  end
+end"#;
+
+const CYCLE_HX: &str = r#"Hecks.hecksagon "Loop" do
+  adapter "ReBeat" do
+    driven on "Loop::Ping.Beated" do |event|
+      dispatch "Loop::Ping.Beat", name: "{name}"
+    end
+  end
+end"#;
+
+#[test]
+fn cyclic_adapter_terminates_at_depth_bound() {
+    let domain = parser::parse(CYCLE_BB);
+    let hex = hecksagon_parser::parse(CYCLE_HX);
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hex]);
+
+    // ReBeat re-dispatches Beat on every Beated event — an infinite cycle
+    // bounded ONLY by MAX_CASCADE_DEPTH. Reaching the assertion proves the
+    // cascade terminated. If the depth guard regresses, the call-stack
+    // recursion overflows and aborts the test binary loudly (never a hang).
+    let res = rt.dispatch("Beat", attrs(&[("name", s("p1"))]));
+    assert!(res.is_ok(), "bounded cyclic dispatch returned err: {:?}", res.err());
+    assert_eq!(rt.all("Ping").len(), 1, "one Ping record after the bounded cycle");
+}
