@@ -1,0 +1,30 @@
+Hecks.behaviors "Conductor" do
+  vision "Lease behaviors — Grant / Renew / Expire / Reclaim."
+
+  test "Grant creates an active lease" do
+    tests "Grant", on: "Lease"
+    input  worktree_path: "p1", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    expect worktree_path: "p1", state: "active"
+  end
+
+  test "Renew extends expires_at" do
+    tests "Renew", on: "Lease"
+    setup  "Grant", worktree_path: "p2", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    input  worktree_path: "p2", expires_at: "t9"
+    expect expires_at: "t9"
+  end
+
+  test "Lease Expire moves an active lease to expired" do
+    tests "Expire", on: "Lease"
+    setup  "Grant", worktree_path: "p3", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    input  worktree_path: "p3"
+    expect state: "expired"
+  end
+
+  test "Reclaim returns the path to the pool" do
+    tests "Reclaim", on: "Lease"
+    setup  "Grant", worktree_path: "p4", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    input  worktree_path: "p4"
+    expect state: "reclaimed"
+  end
+end

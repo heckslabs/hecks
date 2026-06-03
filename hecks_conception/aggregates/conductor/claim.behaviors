@@ -1,0 +1,23 @@
+Hecks.behaviors "Conductor" do
+  vision "Claim behaviors — Acquire / Release / Expire."
+
+  test "Acquire creates a held claim" do
+    tests "Acquire", on: "Claim"
+    input  story: "s1", worker_ref: "w1", claimed_at: "t0"
+    expect story: "s1", state: "held"
+  end
+
+  test "Release moves a held claim to released" do
+    tests "Release", on: "Claim"
+    setup  "Acquire", story: "s2", worker_ref: "w1", claimed_at: "t0"
+    input  story: "s2"
+    expect state: "released"
+  end
+
+  test "Expire moves a held claim to expired" do
+    tests "Expire", on: "Claim"
+    setup  "Acquire", story: "s3", worker_ref: "w1", claimed_at: "t0"
+    input  story: "s3"
+    expect state: "expired"
+  end
+end

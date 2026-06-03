@@ -1,0 +1,23 @@
+Hecks.behaviors "Conductor" do
+  vision "Worker behaviors — Register / Heartbeat / MarkDead."
+
+  test "Register mints a worker alive" do
+    tests "Register", on: "Worker"
+    input  worker_id: "w1"
+    expect worker_id: "w1", status: "alive"
+  end
+
+  test "Heartbeat stamps heartbeat_at" do
+    tests "Heartbeat", on: "Worker"
+    setup  "Register", worker_id: "w2"
+    input  worker_id: "w2", heartbeat_at: "2026-06-03T00:00:00Z"
+    expect heartbeat_at: "2026-06-03T00:00:00Z"
+  end
+
+  test "MarkDead sets status dead" do
+    tests "MarkDead", on: "Worker"
+    setup  "Register", worker_id: "w3"
+    input  worker_id: "w3"
+    expect status: "dead"
+  end
+end

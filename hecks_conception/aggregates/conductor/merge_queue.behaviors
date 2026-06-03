@@ -1,0 +1,39 @@
+Hecks.behaviors "Conductor" do
+  vision "MergeQueue behaviors — Open / Enqueue / StartMerge / CompleteMerge / FailMerge."
+
+  test "Open creates an idle queue" do
+    tests "Open", on: "MergeQueue"
+    input  branch: "main"
+    expect branch: "main", state: "idle"
+  end
+
+  test "Enqueue emits MergeEnqueued" do
+    tests "Enqueue", on: "MergeQueue"
+    setup  "Open", branch: "b1"
+    input  branch: "b1", story_ref: "s1"
+    expect emits: ["MergeEnqueued"]
+  end
+
+  test "StartMerge moves an idle queue to merging" do
+    tests "StartMerge", on: "MergeQueue"
+    setup  "Open", branch: "b2"
+    input  branch: "b2", story_ref: "s1"
+    expect state: "merging"
+  end
+
+  test "CompleteMerge returns the queue to idle" do
+    tests "CompleteMerge", on: "MergeQueue"
+    setup  "Open",       branch: "b3"
+    setup  "StartMerge", branch: "b3", story_ref: "s1"
+    input  branch: "b3", story_ref: "s1"
+    expect state: "idle"
+  end
+
+  test "FailMerge returns the queue to idle" do
+    tests "FailMerge", on: "MergeQueue"
+    setup  "Open",       branch: "b4"
+    setup  "StartMerge", branch: "b4", story_ref: "s1"
+    input  branch: "b4", story_ref: "s1", reason: "conflict"
+    expect state: "idle"
+  end
+end
