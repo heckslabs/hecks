@@ -61,7 +61,22 @@ use crate::runtime::event_bus::Event;
 /// cascade path. No-op when no hecksagons are attached (the historical
 /// `Runtime::boot` path), no driven adapters declared, or no handler
 /// matches the event.
+/// Maximum cascade-resolver recursion depth. A driven adapter whose follow-on
+/// emits an event that triggers ANOTHER driven adapter chains automatically
+/// (e.g. Claim.Acquire → Lease.Grant → worktree_create). This bound
+/// hard-stops any cyclic adapter graph (A→B→A…) : cycle protection IS the
+/// depth guard, because dispatch_inner carries no counter of its own.
+const MAX_CASCADE_DEPTH: usize = 16;
+
 pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
+    resolve_driven_adapters_at_depth(rt, event, 0);
+}
+
+fn resolve_driven_adapters_at_depth(rt: &mut Runtime, event: &Event, depth: usize) {
+    if depth >= MAX_CASCADE_DEPTH {
+        eprintln!("[driven] cascade depth {} reached at event '''{}''' — stopping (cycle guard)", MAX_CASCADE_DEPTH, event.name);
+        return;
+    }
     if rt.hecksagons.is_empty() { return; }
     let debug = std::env::var("HECKS_DEBUG_DRIVEN").is_ok();
 
@@ -152,7 +167,17 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
                 Err(e) => eprintln!("[driven:debug] cascade into {} FAILED: {:?}", command, e),
             }
         }
-        let _ = outcome;
+        // resolver-on-cascade : if the follow-on emitted an event, drive
+        // the next hop of the chain, bounded by MAX_CASCADE_DEPTH. This is
+        // what makes a multi-adapter fleet chain run end-to-end —
+        // Claim.Acquire → Lease.Grant → worktree_create — instead of stopping
+        // after one hop. dispatch_cascade itself still does NOT auto-invoke
+        // the resolver ; the recursion is driven HERE, under the depth guard.
+        if let Ok(r) = outcome {
+            if let Some(ev) = r.event {
+                resolve_driven_adapters_at_depth(rt, &ev, depth + 1);
+            }
+        }
     }
 
     // Real in-process external commands declared by `run "..."` on the
