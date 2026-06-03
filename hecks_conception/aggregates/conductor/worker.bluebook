@@ -1,0 +1,51 @@
+Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+  vision "The Conductor domain : workforce orchestration. Workers are fleet members that claim stories, hold worktrees, and push work through the merge queue. This file defines the Worker aggregate — the named, living unit of execution that registers, sends heartbeats, and eventually dies."
+  category "framework"
+
+  aggregate "Worker", "A named, living execution unit. Registers to the fleet, sends periodic heartbeats, is declared dead on liveness timeout. Its current claim and active worktree are DERIVED via queries on Claim and Lease — not stored back-refs." do
+    identified_by :worker_id
+
+    attribute :worker_id,     WorkerId
+    attribute :status,        Status,      default: "alive"
+    attribute :heartbeat_at,  HeartbeatAt
+
+    value_object "WorkerId" do
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # alive | dead
+      attribute :value, String
+    end
+
+    value_object "HeartbeatAt" do
+      attribute :value, String
+    end
+
+    command "Register" do
+      role "System"
+      description "Register a new worker in the fleet. Creates the record with status=alive."
+      attribute :worker_id, WorkerId
+      then_set :worker_id,    to: :worker_id
+      then_set :status,       to: "alive"
+      emits "WorkerRegistered"
+    end
+
+    command "Heartbeat" do
+      role "System"
+      description "Record a heartbeat from the worker, stamping heartbeat_at."
+      reference_to(Worker)
+      attribute :heartbeat_at, HeartbeatAt
+      then_set :heartbeat_at,  to: :heartbeat_at
+      emits "WorkerHeartbeat"
+    end
+
+    command "MarkDead" do
+      role "System"
+      description "Mark the worker as dead — liveness timeout or explicit deregistration."
+      reference_to(Worker)
+      then_set :status, to: "dead"
+      emits "WorkerDied"
+    end
+  end
+end

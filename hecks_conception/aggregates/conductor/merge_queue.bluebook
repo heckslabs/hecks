@@ -1,0 +1,80 @@
+Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+  vision "The Conductor domain : workforce orchestration. The MergeQueue aggregate serialises story merges. One queue per target branch (default: main). Enqueued stories wait ; the queue admits exactly one merge at a time (invariant). An Approve adapter enqueues ; a CompleteMerge adapter marks story done."
+  category "framework"
+
+  aggregate "MergeQueue", "Serialised merge-on-accept for one target branch. Has many queued stories and at most one current (the merging story). State transitions idle → merging → idle. Default branch is main." do
+    identified_by :branch
+
+    attribute :branch,   Branch,  default: "main"
+    attribute :state,    State,   default: "idle"
+
+    has_many Stories, as: :queued
+    has_one  Stories, as: :current
+
+    value_object "Branch" do
+      # Target branch name, e.g. "main".
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # idle | merging
+      attribute :value, String
+    end
+
+    value_object "StoryRef" do
+      attribute :value, String
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "System"
+      description "Open a merge queue for a target branch. The creation command."
+      attribute :branch, Branch
+      then_set :branch, to: :branch
+      then_set :state,  to: "idle"
+      emits "MergeQueueOpened"
+    end
+
+    command "Enqueue" do
+      role "System"
+      description "Add a story to the back of the queue. Fired by an Approve adapter."
+      reference_to(MergeQueue)
+      attribute :story_ref, StoryRef
+      then_set :queued, append: :story_ref
+      emits "MergeEnqueued"
+    end
+
+    command "StartMerge" do
+      role "System"
+      description "Begin merging the next queued story. Transitions state to merging. Guard: queue must be idle."
+      reference_to(MergeQueue)
+      attribute :story_ref, StoryRef
+      given("queue must be idle to start a merge") { state == "idle" }
+      then_set :state,   to: "merging"
+      then_set :current, to: :story_ref
+      emits "MergeStarted"
+    end
+
+    command "CompleteMerge" do
+      role "System"
+      description "Record a successful merge. Returns the queue to idle."
+      reference_to(MergeQueue)
+      attribute :story_ref, StoryRef
+      then_set :state,   to: "idle"
+      emits "MergeCompleted"
+    end
+
+    command "FailMerge" do
+      role "System"
+      description "Record a failed merge. Returns the queue to idle so the next story can proceed."
+      reference_to(MergeQueue)
+      attribute :story_ref, StoryRef
+      attribute :reason,    Reason
+      then_set :state,   to: "idle"
+      emits "MergeFailed"
+    end
+  end
+end

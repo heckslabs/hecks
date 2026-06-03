@@ -1,0 +1,59 @@
+Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+  vision "The Conductor domain : workforce orchestration. The Claim aggregate is the atomic hold — the mutex that serialises story assignment. One Claim per story, identified by the story identity. Belongs to a Worker."
+  category "framework"
+
+  aggregate "Claim", "The atomic hold on a story — the structural mutex. Identified by the story it guards. At most one Claim may be in state=held per story (invariant). Belongs to the Worker that holds it." do
+    identified_by :story
+
+    attribute :story,       Story
+    attribute :state,       State,      default: "held"
+    attribute :claimed_at,  ClaimedAt
+
+    belongs_to Worker
+
+    value_object "Story" do
+      attribute :value, String
+    end
+
+    value_object "State" do
+      # held | released | expired
+      attribute :value, String
+    end
+
+    value_object "ClaimedAt" do
+      attribute :value, String
+    end
+
+    value_object "WorkerRef" do
+      attribute :value, String
+    end
+
+    command "Acquire" do
+      role "System"
+      description "Acquire a claim on a story for a worker. Creates the record in state=held."
+      attribute :story,       Story
+      attribute :worker_ref,  WorkerRef
+      attribute :claimed_at,  ClaimedAt
+      then_set :story,      to: :story
+      then_set :state,      to: "held"
+      then_set :claimed_at, to: :claimed_at
+      emits "ClaimAcquired"
+    end
+
+    command "Release" do
+      role "System"
+      description "Release the hold on this claim. Transitions state to released."
+      reference_to(Claim)
+      then_set :state, to: "released"
+      emits "ClaimReleased"
+    end
+
+    command "Expire" do
+      role "System"
+      description "Expire a claim that was never released (liveness timeout). Transitions state to expired."
+      reference_to(Claim)
+      then_set :state, to: "expired"
+      emits "ClaimExpired"
+    end
+  end
+end
