@@ -57,3 +57,42 @@
 2. Inline live-checks for `pr_mergeable` + `main_up_to_date` (`done-is-done-as-live-checks`).
 3. SEAM 1 / SEAM 3 : need cross-aggregate-where (auto-select claimable story ; worker-died Claim/Lease back-nav).
 4. `references-not-ids`: retire FK-shaped `*_ref` kwargs ; close the hollow worker_ref join. (Big, deliberate.)
+
+## DONE 6/3 (round 3) : done-is-done checks made REAL (inline live-checks)
+The gate (MarkReady) requires verified, merged_to_main, worktree_clean,
+tests_passing, pending_task_count==0, pr_mergeable. Each was a Process.Spawn
+bin/check-* policy. TWO scripts were MISSING (gate unsatisfiable) ; converted
+both to inline run/result_into live-check leaves (the done-is-done-as-live-checks
+direction ; no bin script) :
+- `9d949e2a` main_up_to_date : `git diff --quiet main origin/main` (exit 0 iff
+  local main == origin/main). plan/hecksagons/main_uptodate_check.hecksagon.
+  PROVEN : armed true on synced main ; false path shown by worktree/tests checks.
+- `885442c7` pr_mergeable : full gh probe `gh pr view sq/<id> --json
+  state,mergeable,statusCheckRollup --jq '<open && mergeable && CI-green>'`
+  (exit 0 iff PR open + conflict-free vs current main + no failing checks).
+  plan/hecksagons/pr_mergeable_check.hecksagon. PROVEN both paths : ok=true vs
+  real mergeable PR #691 ; ok=false in production (no PR for sq/<id>).
+
+Quote-plumbing this required (broadly useful) :
+- driven_adapter_resolver split_argv() : quote-aware argv split (a single arg
+  may contain spaces, e.g. a --jq filter). Unit test locks it.
+- hecksagon parser : ESCAPE-AWARE run-string extraction — \" survives in the
+  .hecksagon (so it stays VALID RUBY, since the Ruby parser eval's the file)
+  and the Rust parser un-escapes \" -> ". Contract snippet edited + regenerated ;
+  Ruby+Rust parity both green. Integration test locks inner-quote survival.
+
+NET : all 6 done-is-done gate checks now run REAL OS/gh probes (no missing,
+no canned). The gate is un-fakeable (role-enforcement) AND satisfiable (real
+checks). A story with verb-resolving + merged + clean worktree + passing tests
++ no pending tasks + a green mergeable PR reaches ready_for_review honestly.
+
+KNOWN TEST DETRITUS : a `checkproof-1` story sits on the live board (no
+Story delete command exists yet) — harmless untracked .heki, not in git.
+
+## Remaining sprint-20 untruths (next pieces, unchanged order)
+1. pr_delivery `MergeAndCompleteOnStarted` : canned `Tools::Cascade.RecordResult
+   outcome:"canned-merge"` then CompleteMerge — domain reaches "merged" with NO
+   git. Real merge = `gh pr merge` (destructive ; needs Chris's call + PR identity).
+2. expiry_sweep (cron) + story_worktree_sync (lock/unlock) : canned RecordResult
+   behind real gaps (time-query for expiry ; story_ref not persisted on Lease).
+3. references-not-ids : FK-shaped *_ref kwargs + hollow worker_ref join.
