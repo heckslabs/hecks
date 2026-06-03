@@ -124,3 +124,14 @@ Story delete command exists yet) — harmless untracked .heki, not in git.
 No Story delete/cancel command exists (Sprint has Cancel ; Story does not).
 These are untracked .heki board noise. A Story.Cancel (mirroring Sprint.Cancel)
 is the clean fix — small follow-up.
+
+## DONE 6/3 (round 5) : real gh merge + board cleanup
+- pr_delivery MergeAndCompleteOnStarted : REAL `gh pr merge sq/{story_ref}
+  --squash --delete-branch` on MergeStarted (no canned outcome). Whole chain
+  uses {} interpolation now (StoryApproved -> Enqueue -> StartMerge -> merge ->
+  CompleteMerge ; same-type MergeQueue cascades preserve the branch id).
+  PROVEN composition : `gh pr merge sq/mergetest ...` runs, exit=1 "no PR"
+  (harmless ; a real green PR would merge into main). Conditional FailMerge on
+  merge error still needs conditional-dispatch (documented).
+- Board cleanup : Story.Cancel ALREADY EXISTS (mirrors Sprint.Cancel) ;
+  cancelled the 4 test stories (checkproof-1, locktest-1/2/3) -> off the board.

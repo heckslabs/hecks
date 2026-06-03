@@ -1,112 +1,27 @@
 Hecks.hecksagon "PrDelivery" do
-  # ============================================================
-  # PR-DELIVERY-MERGE-ON-ACCEPT (sprint 20, pr-delivery-merge-on-accept)
-  # ============================================================
-  #
-  # Wires the Approve→merge seam : when an Operator Approves a Story the
-  # story's PR is enqueued for merge, serialised through the
-  # Conductor::MergeQueue aggregate. One queue per target branch (default:
-  # main). Adapters are canned-by-default throughout ; actual git/GH calls
-  # land when hex-invocation-principle / hex-runtime-port-eval-hook close.
-  #
-  # FLOW
-  #   1. Story.Approve emits StoryApproved
-  #      → Enqueue the story in the MergeQueue for "main"
-  #   2. MergeQueue.Enqueue emits MergeEnqueued
-  #      → StartMerge immediately (single-queue serialisation is MergeQueue's
-  #        own invariant: state must be idle to start)
-  #   3. MergeQueue.StartMerge emits MergeStarted
-  #      → Canned merge: record the result via Tools::Cascade.RecordResult
-  #        (canned ok:true until live git-merge probe lands)
-  #        → then CompleteMerge to return the queue to idle
-  #   4. MergeQueue.CompleteMerge emits MergeCompleted (terminal / observational)
-  #      NOTE: the Story is already in state=done from Approve firing in step 1.
-  #      MergeCompleted is an observational signal that the merge actually
-  #      landed on main; it does not transition Story again.
-  #
-  # KNOWN GAPS (do not fight; documented inline by convention)
-  #   policy-cmd-needs-interpolation — static `with` strings in cascade
-  #     policies cannot carry dynamic story refs; hecksagon driven-on with
-  #     event.field passthrough is the ONLY viable mechanism today.
-  #   runtime-cross-aggregate-where — the MergeQueue is identified_by :branch
-  #     ("main" canned here); dynamic lookup of which queue owns a story
-  #     would need cross-aggregate query eval.
-  #   hex-invocation-principle — canned ok:true for the merge tool call;
-  #     real git-merge / gh-cli invocation lands when the runtime gains
-  #     port-eval hooks.
-  #
-  # Corpus pattern: aggregates/plan/hecksagons/worktree_removed_check.hecksagon
-  # ============================================================
-
-  # ------------------------------------------------------------------
-  # SEAM 1: Story approved → enqueue for merge
-  # ------------------------------------------------------------------
-  # Story.Approve emits StoryApproved with reference_to(Story) payload
-  # field `story` (Approve uses reference_to(Story); behaviors confirm
-  # `input story: "wr2"` for Approve). Branch is canned as "main".
-  # GAP: branch should come from the Story's sprint or project context;
-  # needs runtime-cross-aggregate-where to look up dynamically.
+  # pr-delivery-merge-on-accept (sprint 20). Approve is the human gate ; the
+  # merge is the automated consequence. StoryApproved -> enqueue -> start ->
+  # REAL gh merge -> complete. Story identity rides events as {story_ref} ;
+  # same-type MergeQueue cascades preserve the queue id (the target branch).
   adapter "EnqueueOnApproved" do
     driven on "Plan::Story.StoryApproved" do |event|
-      dispatch "Conductor::MergeQueue.Enqueue",
-               branch:    "main",
-               story_ref: event.story
+      dispatch "Conductor::MergeQueue.Enqueue", id: "main", story_ref: "{id}"
     end
   end
-
-  # ------------------------------------------------------------------
-  # SEAM 2: MergeEnqueued → start merging immediately
-  # ------------------------------------------------------------------
-  # The MergeQueue serialises concurrent merges: StartMerge is guarded
-  # `given("queue must be idle to start a merge") { state == "idle" }`,
-  # so if a merge is already in flight, this dispatch will be refused
-  # and the story waits in the queue until CompleteMerge returns idle.
-  # GAP (runtime-cross-aggregate-where): a real implementation would
-  # dequeue the NEXT story only if the queue is idle, which requires
-  # reading MergeQueue.state before dispatching StartMerge. Canned
-  # eager-start for now; the invariant on MergeQueue itself is the safety
-  # net.
   adapter "StartMergeOnEnqueued" do
     driven on "Conductor::MergeQueue.MergeEnqueued" do |event|
-      dispatch "Conductor::MergeQueue.StartMerge",
-               branch:    event.branch,
-               story_ref: event.story_ref
+      dispatch "Conductor::MergeQueue.StartMerge", story_ref: "{story_ref}"
     end
   end
-
-  # ------------------------------------------------------------------
-  # SEAM 3: MergeStarted → canned merge + complete the queue slot
-  # ------------------------------------------------------------------
-  # GAP (hex-invocation-principle): real merge would invoke git-merge or
-  # gh-cli here. Canned as a RecordResult with ok:true until the runtime
-  # port-eval hook lands. We also immediately dispatch CompleteMerge so
-  # the queue returns to idle (the queue never unblocks otherwise).
-  # GAP (policy-cmd-needs-interpolation): Tools::Cascade.RecordResult
-  # attributes are not known at DSL-compile time; dispatch is declarative
-  # intent, canned ok:true.
   adapter "MergeAndCompleteOnStarted" do
     driven on "Conductor::MergeQueue.MergeStarted" do |event|
-      # Canned merge record — replace with real git/GH port-eval when available.
-      dispatch "Tools::Cascade.RecordResult",
-               ok:      true,
-               outcome: "canned-merge"
-      # Return the queue to idle so the next enqueued story can proceed.
-      dispatch "Conductor::MergeQueue.CompleteMerge",
-               branch:    event.branch,
-               story_ref: event.story_ref
+      # REAL merge : squash-merge the story's PR (branch sq/<story>) into main
+      # and delete the branch. No canned RecordResult. By the time a story is
+      # approved it already passed the pr_mergeable gate, so the merge is
+      # expected clean. NOTE: failure handling (FailMerge if gh errors) needs
+      # conditional-dispatch (no DSL branch yet) ; CompleteMerge fires after.
+      run "gh pr merge sq/{story_ref} --squash --delete-branch"
+      dispatch "Conductor::MergeQueue.CompleteMerge", story_ref: "{story_ref}"
     end
   end
-
-  # ------------------------------------------------------------------
-  # SEAM 4: MergeCompleted — observational terminal
-  # ------------------------------------------------------------------
-  # Story is already state=done (Approve transitions it before this fires).
-  # MergeCompleted is the signal that the work actually landed on main.
-  # No downstream dispatch needed here in the canned floor; a real
-  # implementation might emit a notification or update a deployment record.
-  # Documented as an explicit gap rather than a phantom adapter.
-  #
-  # GAP: if Story needed a separate "LandedOnMain" state the CompleteMerge
-  # outcome would dispatch Story.RecordLandedOnMain; that state does not
-  # exist yet (and is the next arc after pr-delivery-merge-on-accept).
 end
