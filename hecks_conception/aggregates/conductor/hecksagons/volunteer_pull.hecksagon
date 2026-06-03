@@ -1,0 +1,124 @@
+Hecks.hecksagon "VolunteerPull" do
+  # ============================================================
+  # VOLUNTEER-PULL PROTOCOL (sprint 20, volunteer-pull-protocol)
+  # ============================================================
+  #
+  # Event-driven pull adapter over the Conductor Claim/Lease mutex.
+  # Workers self-select work rather than being assigned it. Three seams:
+  #
+  #   1. WORKER-IDLE TRIGGER (worker-registers or prior claim releases)
+  #      WorkerRegistered / ClaimReleased → attempt Claim.Acquire for
+  #      the next claimable story. The story ref is GAP-LIMITED:
+  #      picking the next story requires a cross-aggregate query
+  #      (Plan::Story.Claimable) from inside the adapter — forbidden by
+  #      InvocationPrinciple and blocked by runtime-cross-aggregate-where.
+  #      Documented here as the gap; a projection-side pre-computation
+  #      (e.g. a NotifyNextClaimable event emitted when Story enters
+  #      tasked state) will close it when runtime-cross-aggregate-where
+  #      lands.
+  #
+  #   2. CLAIM-ACQUIRED SEAM (ClaimAcquired → Lease.Grant + Story.Start)
+  #      The downstream fan-out once a claim succeeds. story ref passes
+  #      cleanly from event.story. worktree_path and expires_at for
+  #      Lease.Grant are GAP-LIMITED (policy-cmd-needs-interpolation) —
+  #      static strings are canned until dynamic interpolation lands.
+  #      Atomicity (first-wins mutex) is the Claim aggregate's own
+  #      invariant (identified_by :story); the adapter is not responsible.
+  #
+  #   3. WORKER-DEAD / RELEASE SEAM (WorkerDied → Claim.Expire + Lease.Reclaim)
+  #      Return work to the pool on liveness timeout. The claim and lease
+  #      identity (story ref / worktree path) are GAP-LIMITED: Worker
+  #      carries no back-refs by design ("DERIVED via queries"); finding
+  #      the worker's active claim/lease requires a cross-aggregate query
+  #      (runtime-cross-aggregate-where). Canned with event.worker_id
+  #      until the gap closes.
+  #
+  # KNOWN GAPS (do not fight; document and move on):
+  #   policy-cmd-needs-interpolation  — static `with` strings cannot carry
+  #     dynamic story refs; cascade policies are therefore insufficient
+  #     for all three seams and hecksagon driven-on is the ONLY viable
+  #     mechanism today (event.field passthrough is live).
+  #   runtime-cross-aggregate-where   — Story.Claimable dep-blocking and
+  #     Worker→Claim/Lease back-nav both need cross-aggregate query eval.
+  #
+  # Corpus pattern: aggregates/plan/hecksagons/worktree_removed_check.hecksagon
+  #   `driven on "Story.WorktreeUnlocked" do |event|` →
+  #     `dispatch ..., story: event.story`
+  # ============================================================
+
+  # ------------------------------------------------------------------
+  # SEAM 1a : New worker arrives → attempt to pull next claimable story
+  # ------------------------------------------------------------------
+  # GAP: story_ref must come from Plan::Story.Claimable projection.
+  # Until runtime-cross-aggregate-where closes, the dispatch is wired
+  # but story is canned ("NEXT_CLAIMABLE" sentinel). The claim mutex
+  # (identified_by :story) will simply produce an invariant violation
+  # for a duplicate claim — the winner is the first dispatcher through.
+  adapter "PullOnWorkerRegistered" do
+    driven on "Conductor::Worker.WorkerRegistered" do |event|
+      # GAP: story_ref should be Plan::Story.Claimable.first — needs
+      # runtime-cross-aggregate-where. Canned as sentinel.
+      dispatch "Conductor::Claim.Acquire",
+               story:      "NEXT_CLAIMABLE",
+               worker_ref: event.worker_id,
+               claimed_at: "now"
+    end
+  end
+
+  # ------------------------------------------------------------------
+  # SEAM 1b : Claim released → worker becomes idle, attempt next story
+  # ------------------------------------------------------------------
+  adapter "PullOnClaimReleased" do
+    driven on "Conductor::Claim.ClaimReleased" do |event|
+      # GAP: story_ref same as 1a — needs runtime-cross-aggregate-where.
+      # worker_ref: also needs the inverse Claim→Worker lookup (same gap).
+      dispatch "Conductor::Claim.Acquire",
+               story:      "NEXT_CLAIMABLE",
+               worker_ref: "RELEASING_WORKER",
+               claimed_at: "now"
+    end
+  end
+
+  # ------------------------------------------------------------------
+  # SEAM 2 : Claim acquired → grant worktree lease + start the story
+  # ------------------------------------------------------------------
+  # event.story passes cleanly (same shape as worktree_removed_check's
+  # `story: event.story`). worktree_path and expires_at are canned
+  # (policy-cmd-needs-interpolation — no dynamic interpolation yet).
+  adapter "GrantAndStartOnClaimAcquired" do
+    driven on "Conductor::Claim.ClaimAcquired" do |event|
+      # Grant the worktree lease for this story.
+      # GAP: worktree_path should be next free path from Lease pool;
+      #      expires_at should be now + TTL. Both are policy-cmd-needs-interpolation.
+      dispatch "Conductor::Lease.Grant",
+               worktree_path: "NEXT_FREE_WORKTREE",
+               story_ref:     event.story,
+               worker_ref:    event.worker_ref,
+               expires_at:    "TTL_FROM_NOW"
+      # Start the story — ClaimAcquired→Start seam.
+      # story ref flows cleanly from the event payload.
+      dispatch "Plan::Story.Start",
+               story: event.story
+    end
+  end
+
+  # ------------------------------------------------------------------
+  # SEAM 3 : Worker dies → expire claim + reclaim lease (return to pool)
+  # ------------------------------------------------------------------
+  # GAP: Worker has no back-refs (by design: claim and lease are
+  # DERIVED via queries). Mapping WorkerDied → Claim.Expire requires
+  # cross-aggregate query Claim.ByWorker(worker_id) which is
+  # runtime-cross-aggregate-where. Canned with event.worker_id as a
+  # trace reference until the gap closes.
+  adapter "ReclaimOnWorkerDied" do
+    driven on "Conductor::Worker.WorkerDied" do |event|
+      # GAP: claim identity (story) and lease identity (worktree_path)
+      # must be looked up via Claim.ByWorker + Lease.ByWorker.
+      # Both are runtime-cross-aggregate-where. Canned as sentinels.
+      dispatch "Conductor::Claim.Expire",
+               story: "CLAIM_FOR_WORKER"
+      dispatch "Conductor::Lease.Reclaim",
+               worktree_path: "LEASE_FOR_WORKER"
+    end
+  end
+end

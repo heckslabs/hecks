@@ -1,0 +1,20 @@
+Hecks.hecksagon "ReclaimOnExpire" do
+  # ============================================================
+  # RECLAIM-ON-EXPIRE ADAPTER (worktree-pool-lease-reclaim, sprint 20)
+  # ============================================================
+  #
+  # Driven on LeaseExpired : immediately follows up with Reclaim so
+  # an expired lease does not sit in the "expired" limbo state.
+  # Expire → LeaseExpired → this adapter → Reclaim → LeaseReclaimed
+  # → WorktreeRemove adapter tears down the path.
+  #
+  # event.worktree_path is the Lease identity (identified_by worktree_path)
+  # so it doubles as the reference_to(Lease) key for Reclaim.
+
+  adapter "ReclaimOnExpire" do
+    driven on "Conductor::Lease.LeaseExpired" do |event|
+      dispatch "Conductor::Lease.Reclaim",
+               worktree_path: event.worktree_path
+    end
+  end
+end
