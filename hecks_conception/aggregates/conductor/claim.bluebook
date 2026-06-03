@@ -6,7 +6,7 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
     identified_by :story
 
     attribute :story,       Story
-    attribute :state,       State,      default: "held"
+    attribute :state,       State,      default: "open"
     attribute :claimed_at,  ClaimedAt
 
     belongs_to Worker
@@ -16,7 +16,7 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
     end
 
     value_object "State" do
-      # held | released | expired
+      # open | held | released | expired (default open ; Acquire sets held)
       attribute :value, String
     end
 
@@ -30,10 +30,11 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
 
     command "Acquire" do
       role "System"
-      description "Acquire a claim on a story for a worker. Creates the record in state=held."
+      description "Acquire a claim on a story for a worker. Acquires only when the story has no active (held) claim - the structural mutex refusing a second concurrent acquire. Creates the record in state=held."
       attribute :story,       Story
       attribute :worker_ref,  WorkerRef
       attribute :claimed_at,  ClaimedAt
+      given("the story has no active (held) claim - the structural mutex") { state != "held" }
       then_set :story,      to: :story
       then_set :state,      to: "held"
       then_set :claimed_at, to: :claimed_at

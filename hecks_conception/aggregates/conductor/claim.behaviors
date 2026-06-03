@@ -20,4 +20,19 @@ Hecks.behaviors "Conductor" do
     input  story: "s3"
     expect state: "expired"
   end
+
+  test "Acquire is refused when the story already has a held claim (the mutex)" do
+    tests "Acquire", on: "Claim"
+    setup  "Acquire", story: "s9", worker_ref: "w1", claimed_at: "t0"
+    input  story: "s9", worker_ref: "w2", claimed_at: "t1"
+    expect refused: "the story has no active (held) claim - the structural mutex"
+  end
+
+  test "A released claim can be re-acquired" do
+    tests "Acquire", on: "Claim"
+    setup  "Acquire", story: "s10", worker_ref: "w1", claimed_at: "t0"
+    setup  "Release", story: "s10"
+    input  story: "s10", worker_ref: "w2", claimed_at: "t2"
+    expect state: "held"
+  end
 end
