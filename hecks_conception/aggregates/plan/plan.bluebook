@@ -955,7 +955,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "RecordVerbResolvesCheckResult" do
-      role "System"
+      role "Cascade"
       description "Cascade-internal : record the verb_resolves_check outcome. Fired by the RunVerbResolvesCheckOnChecksRequested policy via Primitive::Process.Spawn → result_into Story.RecordVerbResolvesCheckResult. Must NOT be dispatched manually."
       reference_to(Story)
       attribute :ok, CheckOk
@@ -964,7 +964,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "RecordMergedCheckResult" do
-      role "System"
+      role "Cascade"
       description "Cascade-internal : record the merged_check outcome on Story.merged_to_main. Must NOT be dispatched manually."
       reference_to(Story)
       attribute :ok, CheckOk
@@ -973,7 +973,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "RecordWorktreeCheckResult" do
-      role "System"
+      role "Cascade"
       description "Cascade-internal : record the worktree_check outcome on Story.worktree_clean. Must NOT be dispatched manually."
       reference_to(Story)
       attribute :ok, CheckOk
@@ -1010,7 +1010,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "RecordTestsCheckResult" do
-      role "System"
+      role "Cascade"
       description "Cascade-internal : record the tests_check outcome on Story.tests_passing. Must NOT be dispatched manually."
       reference_to(Story)
       attribute :ok, CheckOk
@@ -1019,7 +1019,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "RecordPrMergeableCheckResult" do
-      role "System"
+      role "Cascade"
       description "Cascade-internal : record the pr_mergeable check outcome on Story.pr_mergeable. Fired by the RunPrMergeableCheckOnChecksRequested policy via Primitive::Process.Spawn. The check confirms: branch pushed, PR open, CI checks green, no conflicts vs current main. Must NOT be dispatched manually."
       reference_to(Story)
       attribute :ok, CheckOk
@@ -1028,7 +1028,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "RecordMainUpToDateCheckResult" do
-      role "System"
+      role "Cascade"
       description "Cascade-internal : record the main_up_to_date check outcome on Story.main_up_to_date. Fired by RunMainUpToDateCheckOnChecksRequested via Primitive::Process.Spawn -> bin/check-main-uptodate. The check passes (ok: true) only when BOTH rev-lists are empty: git rev-list origin/main..HEAD (no unpushed commits) AND git rev-list HEAD..origin/main (no unpulled commits). A divergent or unpushed branch returns ok: false. This flag is a required input for pr_mergeable: bin/check-pr-mergeable must verify main_up_to_date as a precondition (projection-side AND) so closure is never computed against a stale local main. Must NOT be dispatched manually."
       reference_to(Story)
       attribute :ok, CheckOk

@@ -3451,6 +3451,23 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         //      hecksagon :llm declaration.
         let hecksagon_llm = find_hecksagon_llm_config(agg_dir);
         let ollama_config = find_world_ollama_config(agg_dir);
+            // Operator-boundary role enforcement (done-is-done-gate-enforcement) :
+            // role "Cascade" commands are armed by the runtime check-cascade ONLY.
+            // Reject a direct operator (CLI / MCP) dispatch so a gate flag can never
+            // be hand-set into ready. The cascade path does NOT pass through here.
+            if let Some((head, cmd_name)) = command.rsplit_once('.') {
+                let agg_name = head.rsplit("::").next().unwrap_or(head);
+                let cascade_only = rt.domain.aggregates.iter()
+                    .filter(|a| a.name == agg_name)
+                    .flat_map(|a| a.commands.iter())
+                    .find(|c| c.name == cmd_name)
+                    .map(|c| c.role.as_deref() == Some("Cascade"))
+                    .unwrap_or(false);
+                if cascade_only {
+                    eprintln!("dispatch error: '{}' is role Cascade — armed by the runtime check-cascade, not operator-dispatchable. Hand-setting a gate flag is forbidden (done-is-done-gate-enforcement).", command);
+                    std::process::exit(1);
+                }
+            }
         let rt_attrs: std::collections::HashMap<String, storehouse::runtime::Value> = attrs.iter()
             .map(|(k, v)| (k.clone(), match v {
                 serde_json::Value::String(s) => storehouse::runtime::Value::Str(s.clone()),
