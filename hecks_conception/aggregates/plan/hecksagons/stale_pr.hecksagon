@@ -1,144 +1,22 @@
 Hecks.hecksagon "StalePr" do
-  # ============================================================
-  # STALE-PR-RECHECK-REBASE (sprint 20, stale-pr-recheck-rebase)
-  # ============================================================
+  # stale-pr-recheck-rebase (sprint 20) — HONESTLY BLOCKED, not faked.
   #
-  # Guards the merge pipeline against PRs that were green when approved
-  # but have since gone stale (a sibling landed on main between Approve
-  # and the merge). Three seams:
+  # The three seams (re-check pr_mergeable at Approve ; bounce a stale PR ;
+  # auto-rebase open PRs when main moves) each need a runtime feature that
+  # does not exist yet, so NO adapter is wired — a wired dispatch here would
+  # either fake success (canned Tools::Cascade.RecordResult, a no-op) or fire
+  # an UNCONDITIONAL MergeQueue.FailMerge on every StoryApproved (which, now
+  # that resolver-on-cascade is live, would bounce EVERY approved PR as
+  # "stale base"). Both are removed.
   #
-  #   1. RE-CHECK AT APPROVE TIME (StoryApproved)
-  #      When a Story is approved, re-evaluate pr_mergeable against the
-  #      CURRENT head of main before the merge proceeds. Canned as a
-  #      RecordResult (ok:true) until hex-invocation-principle + live
-  #      git-probe close the gap.
-  #
-  #   2. BOUNCE A STALE PR AT APPROVE (StoryApproved — stale path)
-  #      If the re-check probe determines the PR base is stale, dispatch
-  #      MergeQueue.FailMerge(reason: "stale base") so the queue returns
-  #      to idle and the story is never merged on a stale base.
-  #      GAP (conditional-dispatch): the DSL has no conditional. Both the
-  #      re-check RecordResult (happy path) and the FailMerge (stale path)
-  #      are wired as canned declarative intent. The runtime will need a
-  #      branch mechanism (probe-gated dispatch) — a gap distinct from
-  #      hex-invocation-principle — before the guard is live. Until then
-  #      both dispatches fire as canned placeholders; the MergeQueue.FailMerge
-  #      is the wired stale-path consequence.
-  #
-  #   3. AUTO-REBASE OPEN PRs WHEN MAIN MOVES (MergeCompleted — main-moved proxy)
-  #      MergeCompleted is the in-domain signal that a story branch landed on
-  #      main (pr_delivery seam 4). There is no explicit MainMoved event in the
-  #      domain; MergeCompleted IS the canonical main-moved proxy. cron is the
-  #      inferior fallback (tick carries no payload, triggers runtime-
-  #      cross-aggregate-where immediately). Driving on MergeCompleted avoids
-  #      that gap: event.story_ref and event.branch flow from the event.
-  #      The rebase itself is canned (RecordResult) — hex-invocation-principle.
-  #      GAP (runtime-cross-aggregate-where): enumerating ALL open PRs to rebase
-  #      requires a cross-aggregate query (Plan::Story.ReadyForReview filtered
-  #      by branch != event.branch). Canned to a single-story sentinel; real
-  #      fan-out needs runtime-cross-aggregate-where.
-  #
-  #   4. WORKTREE LEASE FOR REBASE (lease-a-tree seam inside task 3)
-  #      Rebase needs an exclusive worktree: Grant a Lease before rebasing,
-  #      Reclaim after. Both canned (policy-cmd-needs-interpolation for
-  #      worktree_path/expires_at; runtime-cross-aggregate-where for
-  #      enumerating open leases). Wired within the MergeCompleted adapter.
-  #
-  # CHOSEN MECHANISM: driven on "Conductor::MergeQueue.MergeCompleted"
-  #   Rationale: MergeCompleted is the only in-domain first-class event that
-  #   signals main has advanced (see pr_delivery.hecksagon seam 4 comment).
-  #   Cron fires blindly on wall-clock ticks with no payload — immediately
-  #   blocked by runtime-cross-aggregate-where. MergeCompleted carries
-  #   event.branch and event.story_ref, satisfying both the policy intent
-  #   and the hex-invocation-principle canned-floor pattern.
-  #
-  # KNOWN GAPS (do not fight; document and move on):
-  #   conditional-dispatch          — no DSL branch; re-check and FailMerge
-  #                                   both fire as canned declarative intent.
-  #   hex-invocation-principle      — live git-probe for staleness (sha compare
-  #                                   branch base vs main HEAD) not yet wired.
-  #   runtime-cross-aggregate-where — fan-out to ALL open PRs needs cross-
-  #                                   aggregate query eval (Story.ReadyForReview).
-  #   policy-cmd-needs-interpolation — worktree_path/expires_at/story_ref for
-  #                                   Lease.Grant are static sentinels.
-  #
-  # Corpus pattern: aggregates/plan/hecksagons/pr_delivery.hecksagon
-  #   `driven on "Plan::Story.StoryApproved" do |event|` ->
-  #     `dispatch ..., story_ref: event.story`
-  # ============================================================
-
-  # ------------------------------------------------------------------
-  # SEAM 1+2 : Story approved → re-check pr_mergeable + bounce if stale
-  # ------------------------------------------------------------------
-  # StoryApproved carries reference_to(Story) as `story` field
-  # (confirmed: Approve command uses `reference_to(Story)`).
-  #
-  # GAP (conditional-dispatch): the re-check (RecordResult, ok:true)
-  # and the stale-bounce (FailMerge) are declarative wired intent.
-  # Both fire canned until a probe-gated branch mechanism closes the gap.
-  # The MergeQueue identity is canned as "main" (same gap as pr_delivery
-  # seam 1: runtime-cross-aggregate-where for dynamic branch lookup).
-  adapter "RecheckOnApproved" do
-    driven on "Plan::Story.StoryApproved" do |event|
-      # Re-check: confirm the PR is still mergeable against current main.
-      # GAP: hex-invocation-principle — real check would invoke gh pr view +
-      # git merge-base comparison. Canned ok:true until live probe lands.
-      dispatch "Tools::Cascade.RecordResult",
-               id:        "stale-pr-recheck",
-               tool:      "pr_staleness_check",
-               output:    "canned recheck (hex-invocation-principle gap)",
-               exit_code: 0,
-               ok:        true
-      # Stale bounce: if the re-check fails, the queue must not merge.
-      # GAP (conditional-dispatch): no DSL branch. This FailMerge is the
-      # wired stale-path consequence; it fires canned alongside the recheck.
-      # A probe-gated dispatch mechanism (distinct gap from hex-invocation-
-      # principle) is needed before this guard is live.
-      dispatch "Conductor::MergeQueue.FailMerge",
-               branch:    "main",
-               story_ref: event.story,
-               reason:    "stale base"
-    end
-  end
-
-  # ------------------------------------------------------------------
-  # SEAM 3+4 : Main moved (MergeCompleted) → rebase open PRs via leased worktree
-  # ------------------------------------------------------------------
-  # MergeCompleted is the in-domain main-moved proxy (see doc header).
-  # event.branch and event.story_ref flow from CompleteMerge attributes.
-  #
-  # Seam 4 lease-a-tree: Grant → rebase → Reclaim, all canned.
-  # GAP (runtime-cross-aggregate-where): fan-out to all open PRs
-  # (Plan::Story.ReadyForReview) is blocked; single-story sentinel.
-  # GAP (policy-cmd-needs-interpolation): worktree_path, worker_ref,
-  # and expires_at for Lease.Grant cannot be dynamically computed.
-  adapter "RebaseOpenPrsOnMainMoved" do
-    driven on "Conductor::MergeQueue.MergeCompleted" do |event|
-      # Acquire worktree lease for the rebase operation.
-      # GAP (policy-cmd-needs-interpolation): worktree_path is the next
-      # free pool slot; expires_at is now + TTL. Both static sentinels.
-      dispatch "Conductor::Lease.Grant",
-               worktree_path: "NEXT_FREE_WORKTREE",
-               story_ref:     event.story_ref,
-               worker_ref:    "REBASE_WORKER",
-               expires_at:    "TTL_FROM_NOW"
-      # Canned rebase of open PRs against new main.
-      # GAP (runtime-cross-aggregate-where): should iterate over all
-      # Plan::Story.ReadyForReview stories (excluding the just-merged one)
-      # and trigger rebase for each. Canned to sentinel until fan-out lands.
-      # GAP (hex-invocation-principle): real rebase would invoke
-      # `git rebase origin/main` via a shell port. Canned ok:true.
-      dispatch "Tools::Cascade.RecordResult",
-               id:        "stale-pr-auto-rebase",
-               tool:      "pr_auto_rebase",
-               output:    "canned auto-rebase (runtime-cross-aggregate-where + hex-invocation-principle gaps)",
-               exit_code: 0,
-               ok:        true
-      # Release the worktree lease — story done with rebase slot.
-      # GAP (policy-cmd-needs-interpolation): worktree_path must match
-      # the path granted above; static sentinel mirrors the Grant above.
-      dispatch "Conductor::Lease.Reclaim",
-               worktree_path: "NEXT_FREE_WORKTREE"
-    end
-  end
+  # Real implementation is gated on, in order :
+  #   conditional-dispatch          — the DSL has no branch ; re-check vs.
+  #                                   bounce is a probe-gated decision.
+  #   hex-invocation-principle      — live staleness probe (gh pr view +
+  #                                   git merge-base base..origin/main).
+  #   runtime-cross-aggregate-where — fan-out to all open PRs
+  #                                   (Plan::Story.ReadyForReview by branch).
+  # When conditional-dispatch + the live-probe land, the re-check becomes an
+  # inline live-check leaf (cf. pr_mergeable_check.hecksagon) gated on its
+  # result. Until then this file is documentation, not behaviour.
 end

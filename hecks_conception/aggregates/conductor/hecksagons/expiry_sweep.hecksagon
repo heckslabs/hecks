@@ -1,35 +1,15 @@
 Hecks.hecksagon "ExpirySweep" do
-  # ============================================================
-  # EXPIRY-SWEEP ADAPTER (worktree-pool-lease-reclaim, sprint 20)
-  # ============================================================
+  # worktree-pool-lease-reclaim / expiry (sprint 20) — HONESTLY BLOCKED.
   #
-  # DRIVING adapter — the clock drives it, not a bus event.
-  # Fires on every cron tick and is meant to dispatch Lease.Expire
-  # for each active Lease whose expires_at is in the past.
+  # Intent: periodically expire Leases whose TTL has elapsed (active leases
+  # past expires_at) and return their worktree paths to the pool. NO adapter
+  # is wired — the previous canned Tools::Cascade.RecordResult tick was a
+  # no-op (the command does not exist) that only LOOKED like a sweep.
   #
-  # GAP: runtime-cross-aggregate-where
-  # The cron tick carries no payload, and the DSL has no way to
-  # enumerate Leases filtered by expires_at. The dispatch below
-  # is a PLACEHOLDER that documents intent; the gap must close
-  # (query-projection or runtime cross-aggregate where) before
-  # a real sweep can run. Until then the canned body fires a
-  # no-op RecordResult on each tick so the wiring is exercisable.
-  #
-  # Follow-up: once runtime-cross-aggregate-where lands, replace
-  # the body with per-Lease `dispatch "Conductor::Lease.Expire"`
-  # keyed by each expired worktree_path.
-
-  adapter "ExpirySweep" do
-    driving on cron "*/5 * * * *" do |signal|
-      # GAP: runtime-cross-aggregate-where — cannot enumerate active
-      # Leases with expires_at < now from inside the hecksagon DSL.
-      # Canned sweep signal so the driving-on wiring is exercisable.
-      dispatch "Tools::Cascade.RecordResult",
-               id:        "expiry-sweep",
-               tool:      "lease_expiry_sweep",
-               output:    "sweep tick (canned — runtime-cross-aggregate-where gap)",
-               exit_code: 0,
-               ok:        true
-    end
-  end
+  # Real implementation needs a TIME-AWARE query the runtime lacks : find
+  # Leases where state == active AND expires_at < now. Lease.Expired today is
+  # state-based (state == expired), not a TTL comparison, so it cannot drive
+  # the sweep. When a clock/time-where lands, this becomes a cron (or beat)
+  # adapter : `dispatch Conductor::Lease.Expire, for_each: { from:
+  # Lease.PastTtl }`. Until then this file is documentation, not behaviour.
 end
