@@ -1,27 +1,10 @@
-Hecks.hecksagon "WorktreeRemove" do
-  # ============================================================
-  # WORKTREE-REMOVE ADAPTER (worktree-pool-lease-reclaim, sprint 20)
-  # ============================================================
-  #
-  # Driven on LeaseReclaimed : tears down the git worktree at the
-  # released path and returns it to the pool.
-  #
-  # Canned by default — dispatches RecordResult ok:true.
-  # World-wired: world.bluebook binds :exec to run
-  # `git worktree remove <worktree_path>` once adapter-invocation-with-result
-  # (hex-invocation-principle) closes.
-  #
-  # Gap: adapter-invocation-with-result — exec family cannot yet return
-  # real exit codes through the bus; canned floor is the correct shape.
-
+Hecks.hecksagon "Conductor" do
+  # worktree-pool-lease-reclaim : remove the REAL git worktree when a Lease is
+  # reclaimed. Path is the Lease identity ({worktree_path}) — no FK. Spawned
+  # in-process via the `run` leaf ; no bin script, no canned.
   adapter "WorktreeRemove" do
     driven on "Conductor::Lease.LeaseReclaimed" do |event|
-      dispatch "Tools::Cascade.RecordResult",
-               id:        event.worktree_path,
-               tool:      "git_worktree_remove",
-               output:    "worktree removed (canned)",
-               exit_code: 0,
-               ok:        true
+      run "git worktree remove --force {id}"
     end
   end
 end

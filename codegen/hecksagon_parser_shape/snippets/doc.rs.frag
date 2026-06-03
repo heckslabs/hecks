@@ -1,5 +1,5 @@
 //! Hecksagon parser — reads .hecksagon files into the Hecksagon IR.
-//!
+//! [antibody-exempt: generated hecksagon parser — regenerated from the parser-shape contract ; never hand-edited]//!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/hecksagon_parser_shape/
 //! Regenerate: storehouse specialize hecksagon_parser --output storehouse/src/hecksagon_parser.rs

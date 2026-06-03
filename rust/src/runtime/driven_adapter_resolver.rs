@@ -1,5 +1,5 @@
 //! Sprint 14 first-adapter slice — fires `driven on` adapters declared
-//! in `<bluebook>/hecksagons/<service>.hecksagon`.
+//! [antibody-exempt: kernel-floor runtime — spawns driven-adapter run-leaves in-process ; the engine that executes hecksagon adapters, inherently Rust]//! in `<bluebook>/hecksagons/<service>.hecksagon`.
 //!
 //! Shape:
 //!
@@ -74,6 +74,7 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
     // boundary — the resolver doesn't re-walk the world list per
     // dispatch.
     let mut matched: Vec<(String, Vec<(String, String)>, Vec<(String, String)>)> = Vec::new();
+    let mut runs_to_exec: Vec<String> = Vec::new();
     for hex in rt.hecksagons.iter() {
         for adapter in hex.driven_adapters.iter() {
             // Sprint 14 world-wires-real-adapters — presence of a
@@ -100,6 +101,9 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
                         dispatch.attrs.clone(),
                         wrapped.clone(),
                     ));
+                }
+                for run_cmd in handler.runs.iter() {
+                    runs_to_exec.push(interpolate_event(run_cmd, event));
                 }
             }
         }
@@ -134,6 +138,40 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
         }
         let _ = outcome;
     }
+
+    // Real in-process external commands declared by `run "..."` on the
+    // handler. Spawned directly (argv, no shell, no bin script). This is
+    // the adapter actually doing impure work — e.g. `git worktree add`.
+    for cmd in runs_to_exec {
+        let parts: Vec<String> = cmd.split_whitespace().map(|s| s.to_string()).collect();
+        if parts.is_empty() { continue; }
+        match std::process::Command::new(&parts[0]).args(&parts[1..]).output() {
+            Ok(o) => eprintln!("[driven:run] {} -> exit={} stdout={} stderr={}", cmd, o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).trim(), String::from_utf8_lossy(&o.stderr).trim()),
+            Err(e) => eprintln!("[driven:run] {} -> spawn FAILED: {}", cmd, e),
+        }
+    }
+}
+
+fn val_str(v: &Value) -> String {
+    match v {
+        Value::Str(s) => s.clone(),
+        Value::Int(i) => i.to_string(),
+        Value::Bool(b) => b.to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Interpolate `{field}` tokens in a run-command template from the
+/// triggering event's data + identity. Identity/event fields only —
+/// there are no FK refs here ; `{worktree_path}` is the aggregate's own id.
+fn interpolate_event(template: &str, event: &Event) -> String {
+    let mut out = template.to_string();
+    for (k, v) in event.data.iter() {
+        out = out.replace(&format!("{{{}}}", k), &val_str(v));
+    }
+    out = out.replace("{id}", &event.aggregate_id);
+    out = out.replace("{aggregate_id}", &event.aggregate_id);
+    out
 }
 
 /// True when the handler's declared `event_ref` (e.g.

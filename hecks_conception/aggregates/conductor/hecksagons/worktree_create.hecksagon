@@ -1,27 +1,11 @@
-Hecks.hecksagon "WorktreeCreate" do
-  # ============================================================
-  # WORKTREE-CREATE ADAPTER (worktree-pool-lease-reclaim, sprint 20)
-  # ============================================================
-  #
-  # Driven on LeaseGranted : provisions the git worktree at the
-  # allocated path so the Worker can check out and begin.
-  #
-  # Canned by default — dispatches RecordResult ok:true.
-  # World-wired: world.bluebook binds :exec to run
-  # `git worktree add <worktree_path>` once adapter-invocation-with-result
-  # (hex-invocation-principle) closes.
-  #
-  # Gap: adapter-invocation-with-result — exec family cannot yet return
-  # real exit codes through the bus; canned floor is the correct shape.
-
+Hecks.hecksagon "Conductor" do
+  # worktree-pool-lease-reclaim : create a REAL git worktree when a Lease is
+  # granted. The path is the Lease's own identity ({worktree_path}) — no FK.
+  # The runtime spawns git in-process via the `run` leaf (no bin script,
+  # no canned RecordResult).
   adapter "WorktreeCreate" do
     driven on "Conductor::Lease.LeaseGranted" do |event|
-      dispatch "Tools::Cascade.RecordResult",
-               id:        event.worktree_path,
-               tool:      "git_worktree_add",
-               output:    "worktree provisioned (canned)",
-               exit_code: 0,
-               ok:        true
+      run "git worktree add --detach {worktree_path}"
     end
   end
 end
