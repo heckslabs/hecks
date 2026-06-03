@@ -1,5 +1,5 @@
 Hecks.behaviors "Conductor" do
-  vision "Worker behaviors — Register / Heartbeat / MarkDead."
+  vision "Worker behaviors — Register / Heartbeat / MarkDead / query:Alive / query:Dead."
 
   test "Register mints a worker alive" do
     tests "Register", on: "Worker"
@@ -19,5 +19,37 @@ Hecks.behaviors "Conductor" do
     setup  "Register", worker_id: "w3"
     input  worker_id: "w3"
     expect status: "dead"
+  end
+
+  # Alive query : runtime enforces status == "alive" ; cross-aggregate join
+  # (current claim, worktree) and heartbeat-age threshold are projection-side
+  # (gap : runtime-cross-aggregate-where). Tests verify the state filter.
+
+  test "Alive includes a registered (alive) worker" do
+    tests "Alive", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w4"
+    expect includes: { worker_id: "w4", status: "alive" }
+  end
+
+  test "Alive excludes a worker marked dead" do
+    tests "Alive", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w5"
+    setup  "MarkDead",  worker_id: "w5"
+    expect count: 0
+  end
+
+  # Dead query : complement of Alive.
+
+  test "Dead includes a worker that has been marked dead" do
+    tests "Dead", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w6"
+    setup  "MarkDead",  worker_id: "w6"
+    expect includes: { worker_id: "w6", status: "dead" }
+  end
+
+  test "Dead excludes a worker that is still alive" do
+    tests "Dead", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w7"
+    expect count: 0
   end
 end

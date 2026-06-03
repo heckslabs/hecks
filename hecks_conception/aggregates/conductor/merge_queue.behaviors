@@ -1,5 +1,5 @@
 Hecks.behaviors "Conductor" do
-  vision "MergeQueue behaviors — Open / Enqueue / StartMerge / CompleteMerge / FailMerge."
+  vision "MergeQueue behaviors — Open / Enqueue / StartMerge / CompleteMerge / FailMerge / query:Active / query:Idle."
 
   test "Open creates an idle queue" do
     tests "Open", on: "MergeQueue"
@@ -35,5 +35,56 @@ Hecks.behaviors "Conductor" do
     setup  "StartMerge", branch: "b4", story_ref: "s1"
     input  branch: "b4", story_ref: "s1", reason: "conflict"
     expect state: "idle"
+  end
+
+  # Active query : runtime enforces state == "merging". There is no
+  # "conflicted" lifecycle state — FailMerge returns the queue to idle.
+  # Conflict detection in the Merge View is projection-side via
+  # MergeFailed event history (gap : runtime-event-history-where).
+
+  test "Active includes a queue that has started merging" do
+    tests "Active", on: "MergeQueue", kind: :query
+    setup  "Open",       branch: "b5"
+    setup  "StartMerge", branch: "b5", story_ref: "s1"
+    expect includes: { branch: "b5", state: "merging" }
+  end
+
+  test "Active excludes an idle queue" do
+    tests "Active", on: "MergeQueue", kind: :query
+    setup  "Open", branch: "b6"
+    expect count: 0
+  end
+
+  test "Active excludes a queue returned to idle after CompleteMerge" do
+    tests "Active", on: "MergeQueue", kind: :query
+    setup  "Open",          branch: "b7"
+    setup  "StartMerge",    branch: "b7", story_ref: "s1"
+    setup  "CompleteMerge", branch: "b7", story_ref: "s1"
+    expect count: 0
+  end
+
+  # Idle query : used by PR-Acceptance-Queue view (view-2) to confirm queue
+  # readiness before the projection annotates Story.ReadyForReview stories.
+  # Mergeable-vs-stale annotation is projection-side (gap : runtime-git-adapter-query).
+
+  test "Idle includes a freshly opened queue" do
+    tests "Idle", on: "MergeQueue", kind: :query
+    setup  "Open", branch: "b8"
+    expect includes: { branch: "b8", state: "idle" }
+  end
+
+  test "Idle excludes a queue in merging state" do
+    tests "Idle", on: "MergeQueue", kind: :query
+    setup  "Open",       branch: "b9"
+    setup  "StartMerge", branch: "b9", story_ref: "s1"
+    expect count: 0
+  end
+
+  test "Idle includes a queue returned to idle after FailMerge" do
+    tests "Idle", on: "MergeQueue", kind: :query
+    setup  "Open",       branch: "b10"
+    setup  "StartMerge", branch: "b10", story_ref: "s1"
+    setup  "FailMerge",  branch: "b10", story_ref: "s1", reason: "conflict"
+    expect includes: { branch: "b10", state: "idle" }
   end
 end

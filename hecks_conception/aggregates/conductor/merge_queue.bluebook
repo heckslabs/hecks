@@ -1,4 +1,4 @@
-Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+Hecks.bluebook "Conductor", version: "2026.06.02.2" do
   vision "The Conductor domain : workforce orchestration. The MergeQueue aggregate serialises story merges. One queue per target branch (default: main). Enqueued stories wait ; the queue admits exactly one merge at a time (invariant). An Approve adapter enqueues ; a CompleteMerge adapter marks story done."
   category "framework"
 
@@ -75,6 +75,20 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
       attribute :reason,    Reason
       then_set :state,   to: "idle"
       emits "MergeFailed"
+    end
+
+    # ============================================================
+    # QUERIES — fleet observability (conductor-observability card)
+    # ============================================================
+
+    query "Active" do
+      description "All queues currently in state=merging — one merge is in flight. SEMANTIC : state == merging. Used by the Merge View (view-3) to show which branch is merging and which story is current. The current story identity is the has_one :current field on the record. Queued stories (has_many :queued) are returned as part of the record — the Merge View renders them as the waiting list. IMPORTANT : there is no \"conflicted\" lifecycle state — MergeQueue only knows idle and merging ; a failed merge (FailMerge) returns the queue to idle with a MergeFailed event carrying a reason payload. Conflict detection is projection-side : the view may inspect recent MergeFailed events for reason=conflict but that filter is not expressible as a where clause today (gap : runtime-event-history-where)."
+      where state: "merging"
+    end
+
+    query "Idle" do
+      description "All queues currently idle — ready to accept the next merge. SEMANTIC : state == idle. Used by the PR-Acceptance-Queue View (view-2) to confirm the queue is open before the projection layer annotates Story.ReadyForReview stories with mergeable-vs-stale status. The mergeable annotation (does the story branch rebase cleanly onto current main?) is a projection-side computation reading the git adapter — not expressible as a where clause (gap : runtime-cross-aggregate-where for story + queue join, and runtime-git-adapter-query for the merge-safety check). Story.ReadyForReview is the query that enumerates the candidate stories ; this query establishes the queue readiness prerequisite."
+      where state: "idle"
     end
   end
 end

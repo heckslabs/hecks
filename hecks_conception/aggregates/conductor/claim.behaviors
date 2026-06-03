@@ -1,5 +1,5 @@
 Hecks.behaviors "Conductor" do
-  vision "Claim behaviors — Acquire / Release / Expire."
+  vision "Claim behaviors — Acquire / Release / Expire / query:Active."
 
   test "Acquire creates a held claim" do
     tests "Acquire", on: "Claim"
@@ -34,5 +34,29 @@ Hecks.behaviors "Conductor" do
     setup  "Release", story: "s10"
     input  story: "s10", worker_ref: "w2", claimed_at: "t2"
     expect state: "held"
+  end
+
+  # Active query : runtime enforces state == "held" ; cross-aggregate join
+  # (worker details from Worker aggregate) is projection-side
+  # (gap : runtime-cross-aggregate-where). Tests verify the state filter.
+
+  test "Active includes a held claim" do
+    tests "Active", on: "Claim", kind: :query
+    setup  "Acquire", story: "s11", worker_ref: "w1", claimed_at: "t0"
+    expect includes: { story: "s11", state: "held" }
+  end
+
+  test "Active excludes a released claim" do
+    tests "Active", on: "Claim", kind: :query
+    setup  "Acquire", story: "s12", worker_ref: "w1", claimed_at: "t0"
+    setup  "Release", story: "s12"
+    expect count: 0
+  end
+
+  test "Active excludes an expired claim" do
+    tests "Active", on: "Claim", kind: :query
+    setup  "Acquire", story: "s13", worker_ref: "w1", claimed_at: "t0"
+    setup  "Expire",  story: "s13"
+    expect count: 0
   end
 end

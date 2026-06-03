@@ -1,5 +1,5 @@
 Hecks.behaviors "Conductor" do
-  vision "Lease behaviors — Grant / Renew / Expire / Reclaim."
+  vision "Lease behaviors — Grant / Renew / Expire / Reclaim / query:Active / query:Expired."
 
   test "Grant creates an active lease" do
     tests "Grant", on: "Lease"
@@ -26,5 +26,53 @@ Hecks.behaviors "Conductor" do
     setup  "Grant", worktree_path: "p4", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
     input  worktree_path: "p4"
     expect state: "reclaimed"
+  end
+
+  # Active query : runtime enforces state == "active" ; cross-aggregate join
+  # (worker + story details) and lease-age computation are projection-side
+  # (gap : runtime-cross-aggregate-where). Tests verify the state filter.
+
+  test "Active includes a granted (active) lease" do
+    tests "Active", on: "Lease", kind: :query
+    setup  "Grant", worktree_path: "p5", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    expect includes: { worktree_path: "p5", state: "active" }
+  end
+
+  test "Active excludes a reclaimed lease" do
+    tests "Active", on: "Lease", kind: :query
+    setup  "Grant",   worktree_path: "p6", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Reclaim", worktree_path: "p6"
+    expect count: 0
+  end
+
+  test "Active excludes an expired lease" do
+    tests "Active", on: "Lease", kind: :query
+    setup  "Grant",  worktree_path: "p7", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Expire", worktree_path: "p7"
+    expect count: 0
+  end
+
+  # Expired query : runtime enforces state == "expired" ; stuck-view uses this
+  # to identify abandoned worktrees. Poison-mailbox detection is via
+  # "storehouse mailboxes poisoned" (not a query here).
+
+  test "Expired includes a lease that has timed out" do
+    tests "Expired", on: "Lease", kind: :query
+    setup  "Grant",  worktree_path: "p8", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Expire", worktree_path: "p8"
+    expect includes: { worktree_path: "p8", state: "expired" }
+  end
+
+  test "Expired excludes an active lease" do
+    tests "Expired", on: "Lease", kind: :query
+    setup  "Grant", worktree_path: "p9", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    expect count: 0
+  end
+
+  test "Expired excludes a reclaimed lease" do
+    tests "Expired", on: "Lease", kind: :query
+    setup  "Grant",   worktree_path: "p10", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Reclaim", worktree_path: "p10"
+    expect count: 0
   end
 end

@@ -1,4 +1,4 @@
-Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+Hecks.bluebook "Conductor", version: "2026.06.02.2" do
   vision "The Conductor domain : workforce orchestration. Workers are fleet members that claim stories, hold worktrees, and push work through the merge queue. This file defines the Worker aggregate — the named, living unit of execution that registers, sends heartbeats, and eventually dies."
   category "framework"
 
@@ -46,6 +46,20 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
       reference_to(Worker)
       then_set :status, to: "dead"
       emits "WorkerDied"
+    end
+
+    # ============================================================
+    # QUERIES — fleet observability (conductor-observability card)
+    # ============================================================
+
+    query "Alive" do
+      description "All workers currently alive in the fleet. SEMANTIC : status == alive. Used by the Fleet View (view-1) to enumerate active workers. The current-claim (story) and active-worktree (lease) for each alive worker are DERIVED by joining against Claim.Active and Lease.Active in the projection layer — cross-aggregate field access is not yet supported in queries (gap : runtime-cross-aggregate-where). Heartbeat staleness (time since heartbeat_at) is a projection-side computation; the runtime expresses no time-threshold filter today."
+      where status: "alive"
+    end
+
+    query "Dead" do
+      description "All workers that have been declared dead. SEMANTIC : status == dead. Used by the Fleet View (view-1) dead-workers panel and as a complement to Alive for fleet-size accounting. Current-claim and lease derivation apply the same projection-side join as Alive."
+      where status: "dead"
     end
   end
 end

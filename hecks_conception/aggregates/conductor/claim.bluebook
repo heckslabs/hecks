@@ -1,4 +1,4 @@
-Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+Hecks.bluebook "Conductor", version: "2026.06.02.2" do
   vision "The Conductor domain : workforce orchestration. The Claim aggregate is the atomic hold — the mutex that serialises story assignment. One Claim per story, identified by the story identity. Belongs to a Worker."
   category "framework"
 
@@ -55,6 +55,15 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
       reference_to(Claim)
       then_set :state, to: "expired"
       emits "ClaimExpired"
+    end
+
+    # ============================================================
+    # QUERIES — fleet observability (conductor-observability card)
+    # ============================================================
+
+    query "Active" do
+      description "All claims currently held — one per story being worked. SEMANTIC : state == held. Used by (a) the Fleet View (view-1) to derive which story each alive Worker is working on (projection layer joins Worker.Alive against Claim.Active on worker_ref — gap : runtime-cross-aggregate-where) ; and (b) the Blocked/DAG View (view-4) to show which claimable stories are already claimed vs. still waiting. The worker_ref annotation on each held claim is a plain attribute; cross-aggregate lookup of the Worker’s details is projection-side."
+      where state: "held"
     end
   end
 end

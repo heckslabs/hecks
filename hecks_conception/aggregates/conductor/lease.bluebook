@@ -1,4 +1,4 @@
-Hecks.bluebook "Conductor", version: "2026.06.02.1" do
+Hecks.bluebook "Conductor", version: "2026.06.02.2" do
   vision "The Conductor domain : workforce orchestration. The Lease aggregate is the worktree allocation — one Lease per worktree path. A Worker holds a Lease on a path for the duration of a Story. Belongs to a Story and a Worker."
   category "framework"
 
@@ -69,6 +69,20 @@ Hecks.bluebook "Conductor", version: "2026.06.02.1" do
       reference_to(Lease)
       then_set :state, to: "reclaimed"
       emits "LeaseReclaimed"
+    end
+
+    # ============================================================
+    # QUERIES — fleet observability (conductor-observability card)
+    # ============================================================
+
+    query "Active" do
+      description "All leases currently active — one per checked-out worktree path. SEMANTIC : state == active. Used by the Fleet View (view-1) to show which worktree each worker holds ; the projection layer joins Lease.Active against Worker.Alive on worker_ref to annotate each alive worker with their path and lease age (time since the lease was granted, computed from expires_at and the renewal window — gap : runtime-cross-aggregate-where for the join ; time-threshold arithmetic is projection-side). Also feeds the Stuck View (view-5) to distinguish an active-but-long-running lease from a fully expired one."
+      where state: "active"
+    end
+
+    query "Expired" do
+      description "All leases that have expired without being reclaimed. SEMANTIC : state == expired. Used by the Stuck View (view-5) as the primary signal for a stuck worker : an expired lease means the worktree path has not been returned to the pool and the owning worker has likely timed out. The expiry cause (TTL-elapsed vs. worker-dead) is recorded on the LeaseExpired event payload ; distinguishing them in the view is projection-side. Poisoned mailbox detection for the same worker reads via the existing \"storehouse mailboxes\" surface (\"storehouse mailboxes poisoned\") — not a new query here (gap : system-prompt-render-adapter, CLI follow-up)."
+      where state: "expired"
     end
   end
 end
