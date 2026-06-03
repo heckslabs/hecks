@@ -853,7 +853,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "Tasked" do
-      role "Miette"
+      role "Operator"
       description "Operator-flippable signal that the story has been tasked enough — enough atomic tasks added, conversation done, ready for Start. No threshold, no auto-transition, no tasks-count given. Pure operator judgment. Transitions untasked → tasked. Start's only gate becomes `state == tasked`. Completes lifecycle-tasked-state (sprint 14) : `untasked` is now the Capture default and Tasked is its single exit toward Start."
       reference_to(Story)
       given("can only flip to tasked from untasked") { state == "untasked" }
