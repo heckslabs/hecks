@@ -44,8 +44,16 @@
 - PARTIAL: orchestration adapters fire (engine works) but lean on canned values — 5 adapters dispatch non-existent `Tools::Cascade.RecordResult` (no-op); volunteer_pull dispatches real commands but with canned sentinels + dead `*_ref` kwargs.
 - MISSING: full fleet loop end-to-end ; `pr_mergeable`/`main_up_to_date` real checks ; FK-shaped kwarg cleanup ; hollow worker_ref join.
 
+## DONE 6/3 (round 2) : resolver-on-cascade with depth guard
+- `6d35eaec` (feat) + `71789e4c` (durable test). A driven adapter whose follow-on emits an event now triggers the NEXT adapter, bounded by `MAX_CASCADE_DEPTH=16` in `driven_adapter_resolver.rs`. The recursion is driven IN the resolver (dispatch_cascade still never auto-invokes it), so the structural cycle-safety holds and the bound IS the cycle protection.
+- PROVEN forward : a single `Conductor::Claim.Acquire story=story-77` cascades Claim.Acquire -> Lease.Grant (id=worktrees/story-77) -> worktree_create `git worktree add` -> a REAL worktree on disk. The full fleet seam (Claim -> Lease -> worktree) now RUNS end-to-end in one dispatch.
+- PROVEN cycle-safe : a cyclic adapter runs exactly 16 hops then `cascade depth 16 reached - stopping (cycle guard)` and exits 0 (not SIGALRM-killed). Recursion is call-stack-bounded — a regressed guard overflows-and-aborts loudly, never a silent hang.
+- DURABLE GATE : `rust/tests/resolver_cascade_depth_test.rs` — forward_chain_recurses_past_the_first_hop (Alpha->Beta->Gamma ; Gamma==0 if recursion removed) + cyclic_adapter_terminates_at_depth_bound. All 229 pre-push behaviors green.
+- SCOPE (do not round up) : this is SEAM 2 (Claim->Lease->worktree). SEAM 1 (auto-select next claimable story) still needs cross-aggregate-where ; SEAM 3 (worker-died reclaim) still gapped ; Story.Start no-ops unless a Plan Story is seeded.
+- FUTURE NOTE (advisor) : the depth bound caps chain LENGTH, not total WORK. A BRANCHING cyclic graph (each event firing 2+ adapters) is finite but can be ~2^16 dispatches ; if branching adapter graphs ever become real, add a per-top-level-dispatch TOTAL budget, not just depth.
+
 ## Next steps (honest order)
-1. resolver-on-cascade WITH depth guard — add a depth counter to `dispatch_inner`, fire `resolve_driven_adapters` on cascaded events up to the bound. This is what makes Claim.Acquire → Lease.Grant → worktree-on-disk run as ONE chain. Loop-safety first ; test before enabling.
-2. Convert the 5 canned-RecordResult adapters to real `run`/dispatch (agent_tool/stale_pr/pr_delivery/expiry_sweep/story_worktree_sync).
-3. Inline live-checks for `pr_mergeable` + `main_up_to_date` (`done-is-done-as-live-checks`).
-4. `references-not-ids`: retire FK-shaped `*_ref` kwargs ; close the hollow worker_ref join. (Big, deliberate, NOT over a compaction boundary.)
+1. Convert the 5 canned-RecordResult adapters to real `run`/dispatch (agent_tool/stale_pr/pr_delivery/expiry_sweep/story_worktree_sync).
+2. Inline live-checks for `pr_mergeable` + `main_up_to_date` (`done-is-done-as-live-checks`).
+3. SEAM 1 / SEAM 3 : need cross-aggregate-where (auto-select claimable story ; worker-died Claim/Lease back-nav).
+4. `references-not-ids`: retire FK-shaped `*_ref` kwargs ; close the hollow worker_ref join. (Big, deliberate.)
