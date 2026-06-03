@@ -1,3 +1,4 @@
+// [antibody-exempt: Rust runtime integration test — booted-runtime cascade/quote-handling, not expressible as .behaviors ; same category as compute/llm dispatcher tests]
 //! resolver-on-cascade + depth-guard regression gate.
 //!
 //! Two invariants of `driven_adapter_resolver::resolve_driven_adapters`, the
@@ -127,4 +128,27 @@ fn cyclic_adapter_terminates_at_depth_bound() {
     let res = rt.dispatch("Beat", attrs(&[("name", s("p1"))]));
     assert!(res.is_ok(), "bounded cyclic dispatch returned err: {:?}", res.err());
     assert_eq!(rt.all("Ping").len(), 1, "one Ping record after the bounded cycle");
+}
+
+// ---- Greedy run-string extraction : inner double-quotes survive ----------
+#[test]
+fn run_leaf_preserves_inner_double_quotes_in_cmd() {
+    // A run/result_into leaf whose command contains double-quotes (e.g. a
+    // gh --jq filter) must parse with the inner quotes INTACT — the greedy
+    // first-to-last-quote extraction, not first-to-next.
+    let src = r#"Hecks.hecksagon "Plan" do
+  adapter "PrCheck" do
+    driven on "Plan::Story.StoryChecksRequested" do |event|
+      run "gh pr view sq/x --jq 'if .state==\"OPEN\" then empty else halt_error(1) end'", result_into: "Plan::Story.RecordPrMergeableCheckResult"
+    end
+  end
+end"#;
+    let hex = hecksagon_parser::parse(src);
+    let h = &hex.driven_adapters[0].handlers[0];
+    assert_eq!(h.checks.len(), 1, "one check leaf");
+    let c = &h.checks[0];
+    assert_eq!(c.result_into, "Plan::Story.RecordPrMergeableCheckResult");
+    assert!(c.cmd.contains("\"OPEN\""), "inner double-quotes must survive: got {}", c.cmd);
+    assert!(c.cmd.contains("halt_error(1) end"), "full filter must survive: got {}", c.cmd);
+    assert!(!c.cmd.contains("result_into"), "cmd must not swallow result_into");
 }

@@ -184,7 +184,7 @@ fn resolve_driven_adapters_at_depth(rt: &mut Runtime, event: &Event, depth: usiz
     // handler. Spawned directly (argv, no shell, no bin script). This is
     // the adapter actually doing impure work — e.g. `git worktree add`.
     for cmd in runs_to_exec {
-        let parts: Vec<String> = cmd.split_whitespace().map(|s| s.to_string()).collect();
+        let parts: Vec<String> = split_argv(&cmd);
         if parts.is_empty() { continue; }
         match std::process::Command::new(&parts[0]).args(&parts[1..]).output() {
             Ok(o) => eprintln!("[driven:run] {} -> exit={} stdout={} stderr={}", cmd, o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).trim(), String::from_utf8_lossy(&o.stderr).trim()),
@@ -194,7 +194,7 @@ fn resolve_driven_adapters_at_depth(rt: &mut Runtime, event: &Event, depth: usiz
     // Live-check leaves : run each declared check in-process, arm its flag
     // via result_into with ok = (exit == 0). No bin script, no canned.
     for (cmd, target) in checks_to_run {
-        let parts: Vec<String> = cmd.split_whitespace().map(|s| s.to_string()).collect();
+        let parts: Vec<String> = split_argv(&cmd);
         if parts.is_empty() { continue; }
         let ok = std::process::Command::new(&parts[0]).args(&parts[1..]).output()
             .map(|o| o.status.success()).unwrap_or(false);
@@ -212,6 +212,37 @@ fn val_str(v: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         _ => String::new(),
     }
+}
+
+/// Split a command line into argv, honoring single and double quotes so one
+/// argument may contain spaces (e.g. a `--jq` filter). A quoted span groups
+/// into the current token and its content is taken literally ; the alternate
+/// quote char inside passes through verbatim (so `'if .x=="Y"'` is one arg
+/// with the inner double-quotes preserved). No escape processing — sufficient
+/// for the git / gh+jq probes the live-check leaves run.
+fn split_argv(cmd: &str) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut has = false;
+    let mut chars = cmd.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            ' ' | '\t' | '\n' | '\r' => {
+                if has { args.push(std::mem::take(&mut cur)); has = false; }
+            }
+            '\'' | '"' => {
+                has = true;
+                let q = c;
+                for d in chars.by_ref() {
+                    if d == q { break; }
+                    cur.push(d);
+                }
+            }
+            _ => { has = true; cur.push(c); }
+        }
+    }
+    if has { args.push(cur); }
+    args
 }
 
 /// Interpolate `{field}` tokens in a run-command template from the
@@ -318,6 +349,19 @@ mod tests {
 
     // Sprint 14 memory-canned-defaults : adapter with `canned do` and no
     // `.world` entry → the canned values ARE the wrapped-call return.
+    #[test]
+    fn split_argv_keeps_quoted_jq_filter_as_one_arg() {
+        // A --jq filter is single-quoted and contains double-quotes + spaces ;
+        // it must arrive as ONE argv token with the inner double-quotes intact.
+        let cmd = "gh pr view sq/x --jq 'if .a==\"OPEN\" then empty else halt_error(1) end'";
+        let parts = split_argv(cmd);
+        assert_eq!(parts[0], "gh");
+        assert_eq!(parts[3], "sq/x");
+        assert_eq!(parts[4], "--jq");
+        assert_eq!(parts[5], "if .a==\"OPEN\" then empty else halt_error(1) end");
+        assert_eq!(parts.len(), 6, "quoted filter must not be split on its inner spaces");
+    }
+
     #[test]
     fn pick_returns_canned_when_no_world_binding() {
         let c = canned(&[("output", "\"canned-ack\""), ("exit_code", "0")]);
