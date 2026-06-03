@@ -1,5 +1,5 @@
 //! Hecksagon IR — Rust mirror of Hecksagon::Structure for .hecksagon files
-//!
+//! [antibody-exempt: kernel-floor runtime IR for .hecksagon adapters — inherently Rust]//!
 //! A .hecksagon declares the adapter wiring around a .bluebook domain:
 //! which shell commands are named, which aggregates are gated to which
 //! roles, which external domains this one subscribes to, which
@@ -189,6 +189,11 @@ pub struct DrivenHandler {
     /// Follow-on dispatches declared inside the handler body. Each is
     /// a `(command_fqn, attrs)` pair.
     pub dispatches: Vec<DrivenDispatch>,
+    /// In-process external commands to run when this handler fires
+    /// (e.g. `run "git worktree add {worktree_path}"`). {field} tokens
+    /// interpolate from the triggering event. Spawned by the resolver ;
+    /// no bin script, no canned. Identity/event fields only — never FK refs.
+    pub runs: Vec<String>,
 }
 
 /// Sprint 14 memory-canned-defaults — the wrapped-call return declared

@@ -1,5 +1,5 @@
 //! Hecksagon parser — reads .hecksagon files into the Hecksagon IR.
-//!
+//! [antibody-exempt: generated hecksagon parser — regenerated from the parser-shape contract ; never hand-edited]//!
 //! GENERATED FILE — do not edit.
 //! Source:    codegen/hecksagon_parser_shape/
 //! Regenerate: storehouse specialize hecksagon_parser --output storehouse/src/hecksagon_parser.rs
@@ -604,7 +604,7 @@ fn parse_driving_handler(lines: &[&str]) -> (Option<DrivingHandler>, usize) {
 fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
     let first = lines[0].trim();
     let event_ref = match between_quotes(first) { Some(e) => e, None => return (None, 1) };
-    let mut handler = DrivenHandler { event_ref, canned: None, dispatches: Vec::new() };
+    let mut handler = DrivenHandler { event_ref, canned: None, dispatches: Vec::new(), runs: Vec::new() };
     let mut i = 1;
     while i < lines.len() {
         let t = lines[i].trim();
@@ -622,6 +622,11 @@ fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
             i += consumed;
             continue;
         }
+            if t.starts_with("run ") {
+                if let Some(cmd) = between_quotes(t) { handler.runs.push(cmd); }
+                i += 1;
+                continue;
+            }
         if t.starts_with("dispatch ") || t.starts_with("dispatch(") {
             let (joined, consumed) = join_dispatch_lines(&lines[i..]);
             if let Some(d) = parse_driven_dispatch(&joined) {
