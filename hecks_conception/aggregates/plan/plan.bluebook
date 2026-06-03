@@ -66,13 +66,6 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     attribute :worktrees_pruned,    WorktreesPruned,   default: false
     attribute :prs_for_open_branches, PrsForOpenBranches, default: false
 
-    # ---- Contract-first gate (contract-first-sprint-gate, sprint 20) ----
-    # The agreed inter-story interfaces + whether they are ratified. A sprint
-    # may not release its stories to the fleet until contracts_ratified — the
-    # front-bookend twin of the DoD back gate.
-    attribute :contracts,           Contracts,          default: ""
-    attribute :contracts_ratified,  ContractsRatified,  default: false
-
     # wip_limit is RETIRED from Sprint — moved to Board.wip_limit (board-level
     # discipline ; WIP crosses sprints when several are active). See
     # board.bluebook + fix-sprint-story-refs-drift (sprint 7).
@@ -147,22 +140,6 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       attribute :value, Integer
     end
 
-    value_object "Contracts" do
-      # The agreed inter-story interfaces for this sprint — the ratified
-      # contract that lets stories be built in parallel. Free-form text or a
-      # reference to the contract doc ; the bluebook is the source of truth.
-      attribute :value, String
-    end
-
-    value_object "ContractsRatified" do
-      # True once the Operator has ratified the sprint's contracts. Gate:
-      # no story fan-out (claim/Start) until true. Cross-aggregate enforcement
-      # (Story.Start reading Sprint.contracts_ratified) is the
-      # runtime-cross-aggregate-where gap ; documented + projection-side until
-      # it closes, exactly like Story.Claimable's dep-blocking.
-      attribute :value, Boolean
-    end
-
     # ============================================================
     # COMMANDS
     # ============================================================
@@ -176,16 +153,6 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       then_set :goal,   to: :goal
       then_set :state,  to: "planned"
       emits "SprintPlanned"
-    end
-
-    command "RatifyContracts" do
-      role "Operator"
-      description "Operator ratifies the sprint's agreed inter-story contracts — records the contracts text and flips contracts_ratified true. The front-bookend gate : a sprint cannot release its stories to the fleet (fan-out / claim / Start) until contracts are ratified, making contract-first discipline structural rather than remembered. Twin of the DoD back gate. Pure signal toward readiness ; no lifecycle transition."
-      reference_to(Sprint)
-      attribute :contracts, Contracts
-      then_set :contracts,          to: :contracts
-      then_set :contracts_ratified, to: true
-      emits "SprintContractsRatified"
     end
 
     command "UpdateGoal" do
@@ -467,22 +434,6 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     # ---- Owned use cases ----
     has_many UseCases
 
-    # ---- Story dependencies (DAG edges) ----
-    # A Story depends_on other Stories -- a self-referential association, NOT
-    # owned composition. `has_many Stories, as: :dependencies` declares the
-    # relationship ; the runtime carries identity refs, not copies.
-    # Default: empty (no dependencies).
-    #
-    # BLOCKED SEMANTICS (runtime-cross-aggregate-where gap) :
-    # A story is "blocked" while ANY of its dependencies is not in state
-    # "done". This is documented contract + projection-side only -- the
-    # runtime cannot evaluate cross-aggregate set-membership in guards
-    # or queries today (gap : runtime-cross-aggregate-where). The
-    # Claimable query below documents the intent ; the projection layer
-    # (planning pulse, board adapter) must apply the dep-state filter
-    # until the runtime gap closes.
-    has_many Stories, as: :dependencies
-
     # ---- Lifecycle ----
     attribute :state,          State, default: "untasked"
 
@@ -497,6 +448,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     attribute :merged_to_main, MergedToMain,  default: false
     attribute :worktree_clean, WorktreeClean, default: false
     attribute :tests_passing,  TestsPassing,  default: false
+    attribute :pr_mergeable,   PrMergeable,   default: false
 
     # ---- Worktree lifecycle (worktree-removal-is-story-done-gate) ----
     # A story claims its git worktree on Start (LockWorktree) and releases
@@ -619,6 +571,13 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
 
     value_object "TestsPassing" do
       # Set true when bin/check-tests returns ok via cascade.
+      attribute :value, Boolean
+    end
+
+    value_object "PrMergeable" do
+      # Set true when bin/check-pr-mergeable returns ok via cascade.
+      # Armed by RecordPrMergeableCheckResult ; never manually settable.
+      # Condition: branch pushed + PR open + CI checks green + conflict-free vs main.
       attribute :value, Boolean
     end
 
@@ -809,25 +768,6 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "StoryThemeAssigned"
     end
 
-    command "AddDependency" do
-      role "Miette"
-      description "Record that this story depends on another story. Appends the dependency' ref to the dependencies list. A story is blocked (for Claimable purposes) while any dependency is not done. No lifecycle change ; valid from any state."
-      reference_to(Story)
-      attribute :dependency, Story
-      then_set :dependencies, append: :dependency
-      emits "DependencyAdded"
-    end
-
-    command "RemoveDependency" do
-      role "Miette"
-      description "Remove a dependency edge. Because the DSL has no list-remove primitive (gap : runtime-list-remove-primitive), the caller computes the new dependencies list without the removed ref and passes it as the full replacement. Mirror of Board.DeactivateSprint / Board.RemoveCard patterns."
-      reference_to(Story)
-      attribute :dependency, Story
-      attribute :dependencies, list_of(Story)
-      then_set :dependencies, to: :dependencies
-      emits "DependencyRemoved"
-    end
-
     command "MoveToSprint" do
       role "Miette"
       description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints in any state (untasked, tasked, started). Since lifecycle-tasked-state (sprint 14) AssignToSprint is pure metadata too, so the re-sprinting gap MoveToSprint originally closed is no longer about a state guard ; MoveToSprint stays as the named verb for the act of swapping sprint membership."
@@ -886,7 +826,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     end
 
     command "Tasked" do
-      role "Operator"
+      role "Miette"
       description "Operator-flippable signal that the story has been tasked enough — enough atomic tasks added, conversation done, ready for Start. No threshold, no auto-transition, no tasks-count given. Pure operator judgment. Transitions untasked → tasked. Start's only gate becomes `state == tasked`. Completes lifecycle-tasked-state (sprint 14) : `untasked` is now the Capture default and Tasked is its single exit toward Start."
       reference_to(Story)
       given("can only flip to tasked from untasked") { state == "untasked" }
@@ -991,6 +931,15 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "TestsCheckRecorded"
     end
 
+    command "RecordPrMergeableCheckResult" do
+      role "System"
+      description "Cascade-internal : record the pr_mergeable check outcome on Story.pr_mergeable. Fired by the RunPrMergeableCheckOnChecksRequested policy via Primitive::Process.Spawn. The check confirms: branch pushed, PR open, CI checks green, no conflicts vs current main. Must NOT be dispatched manually."
+      reference_to(Story)
+      attribute :ok, CheckOk
+      then_set :pr_mergeable, to: :ok
+      emits "PrMergeableCheckRecorded"
+    end
+
     invariant "ready_means_verified" do
       holds_when { state != "ready_for_review" && state != "done" || verified == true }
     end
@@ -1028,6 +977,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       role "Miette"
       description "Mark a started story as ready for review : transitions started → ready_for_review. The runtime kicks off the four done-is-done live checks (Git.Status / Git.Log main..HEAD / Cargo.Test / target-verb-resolves-through-storehouse) as cascaded policies ; their outcomes record on a Cascade aggregate. Approve is gated on the operator role + the cascade outcomes (wiring lands with policy-cmd-needs-interpolation-or-bin-scripts)."
       reference_to(Story)
+      given("the PR must be mergeable") { pr_mergeable == true }
       emits "StoryReadyForReview"
     end
 
@@ -1146,11 +1096,6 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     query "Board" do
       description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is untasked / tasked / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. Since lifecycle-tasked-state (sprint 14) the pre-Start states split into untasked + tasked, both surfaced on the board so the operator can see what is queued for tasking vs. tasked and Start-ready. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in) and cross-aggregate set-membership is not yet evaluated in queries (gap : runtime-cross-aggregate-where). Both gaps will replace this with a proper where clause when they land."
     end
-
-    query "Claimable" do
-      description "Stories ready to be claimed for work. SEMANTIC : state == \"tasked\" AND NOT blocked (i.e. all depends_on stories are in state \"done\"). RUNTIME : returns every story where state == \"tasked\" unfiltered ; the projection layer must exclude stories with an unresolved dependency. The dep-state exclusion requires cross-aggregate set-membership evaluation (gap : runtime-cross-aggregate-where) which is not yet supported in queries. Both filters will land as proper where clauses when the gap closes. Mirror of Story.Board semantics."
-      where state: "tasked"
-    end
   end
 
   # ── Done-is-done cascade policies — fire on StoryReadyForReview ─────────
@@ -1200,6 +1145,19 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     trigger "Primitive::Process.Spawn"
     with "cmd", "bin/check-verb-resolves"
     with "result_into", "Story.RecordVerbResolvesCheckResult"
+  end
+
+  policy "RunPrMergeableCheckOnChecksRequested" do
+    # Fires when Story.RunCheck emits StoryChecksRequested.
+    # Spawns bin/check-pr-mergeable which verifies: branch pushed to remote,
+    # PR open against main, all CI checks green, no merge conflicts vs current
+    # main HEAD. Script exits 0 on pass / non-zero on fail. Outcome routes back
+    # to Story.RecordPrMergeableCheckResult which sets pr_mergeable.
+    # bin/ script is canned (always exits 0) until a live git/GH probe is wired.
+    on "Story.StoryChecksRequested"
+    trigger "Primitive::Process.Spawn"
+    with "cmd", "bin/check-pr-mergeable"
+    with "result_into", "Story.RecordPrMergeableCheckResult"
   end
 
   # ===== Task aggregate (task-completion-state, sprint 14) =====

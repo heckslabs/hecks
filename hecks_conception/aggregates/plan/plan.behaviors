@@ -180,6 +180,7 @@ Hecks.behaviors "Plan" do
     setup  "RecordMergedCheckResult",         ref: "l18", ok: true
     setup  "RecordWorktreeCheckResult",       ref: "l18", ok: true
     setup  "RecordTestsCheckResult",          ref: "l18", ok: true
+    setup  "RecordPrMergeableCheckResult",    ref: "l18", ok: true
     setup  "BumpPendingTaskCount",            ref: "l18"
     input  ref: "l18"
     expect refused: "ready_means_all_tasks_resolved"
@@ -195,6 +196,7 @@ Hecks.behaviors "Plan" do
     setup  "RecordMergedCheckResult",         ref: "l19", ok: true
     setup  "RecordWorktreeCheckResult",       ref: "l19", ok: true
     setup  "RecordTestsCheckResult",          ref: "l19", ok: true
+    setup  "RecordPrMergeableCheckResult",    ref: "l19", ok: true
     setup  "BumpPendingTaskCount",            ref: "l19"
     setup  "DropPendingTaskCount",            ref: "l19"
     input  ref: "l19"
@@ -252,6 +254,7 @@ Hecks.behaviors "Plan" do
     setup  "RecordMergedCheckResult",         ref: "l23", ok: true
     setup  "RecordWorktreeCheckResult",       ref: "l23", ok: true
     setup  "RecordTestsCheckResult",          ref: "l23", ok: true
+    setup  "RecordPrMergeableCheckResult",    ref: "l23", ok: true
     input  ref: "l23"
     expect ref: "l23", state: "ready_for_review", pending_task_count: 0
   end
@@ -297,6 +300,7 @@ Hecks.behaviors "Plan" do
     setup  "RecordMergedCheckResult",       ref: "wr2", ok: true
     setup  "RecordWorktreeCheckResult",     ref: "wr2", ok: true
     setup  "RecordTestsCheckResult",        ref: "wr2", ok: true
+    setup  "RecordPrMergeableCheckResult",  ref: "wr2", ok: true
     setup  "MarkReady",                     ref: "wr2"
     input  story: "wr2"
     expect refused: "removed_means_done"
@@ -312,78 +316,52 @@ Hecks.behaviors "Plan" do
     setup  "RecordMergedCheckResult",          ref: "wr3", ok: true
     setup  "RecordWorktreeCheckResult",        ref: "wr3", ok: true
     setup  "RecordTestsCheckResult",           ref: "wr3", ok: true
+    setup  "RecordPrMergeableCheckResult",    ref: "wr3", ok: true
     setup  "RecordWorktreeRemovedCheckResult", ref: "wr3", ok: true
     setup  "MarkReady",                        ref: "wr3"
     input  story: "wr3"
     expect ref: "wr3", state: "done"
   end
 
-  # ── Story dependency DAG (story-dependency-dag, sprint 20) ───────────
+  # ── pr-delivery-merge-on-accept (sprint 20) ──────────────────────────
 
-  test "AddDependency appends a dependency ref to the story" do
-    tests "AddDependency", on: "Story"
-    setup  "Capture", ref: "dep1", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "Capture", ref: "dep2", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "AddDependency", ref: "dep2", dependency: "dep1"
-    input  ref: "dep2", dependency: "dep1"
-    expect ref: "dep2"
+  test "Story.MarkReady is refused when pr_mergeable is false" do
+    # pr_mergeable gate (given guard) fires BEFORE invariants, so we arm all
+    # other flags (verified/merged/worktree_clean/tests/task_count) but leave
+    # pr_mergeable false. The refused message is the given guard string.
+    tests "MarkReady", on: "Story"
+    setup  "Capture",                         ref: "pm1", title: "PM1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                  ref: "pm1", sprint_ref: "1"
+    setup  "Tasked",                          ref: "pm1"
+    setup  "Start",                           ref: "pm1"
+    setup  "RecordVerbResolvesCheckResult",   ref: "pm1", ok: true
+    setup  "RecordMergedCheckResult",         ref: "pm1", ok: true
+    setup  "RecordWorktreeCheckResult",       ref: "pm1", ok: true
+    setup  "RecordTestsCheckResult",          ref: "pm1", ok: true
+    # pr_mergeable intentionally NOT armed — remains false (default)
+    input  ref: "pm1"
+    expect refused: "the PR must be mergeable"
   end
 
-  test "AddDependency emits DependencyAdded" do
-    tests "AddDependency", on: "Story"
-    setup  "Capture", ref: "dep3", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "Capture", ref: "dep4", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
-    input  ref: "dep4", dependency: "dep3"
-    expect emits: ["DependencyAdded"]
+  test "Story.MarkReady succeeds once pr_mergeable is armed true" do
+    tests "MarkReady", on: "Story"
+    setup  "Capture",                         ref: "pm2", title: "PM2", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",                  ref: "pm2", sprint_ref: "1"
+    setup  "Tasked",                          ref: "pm2"
+    setup  "Start",                           ref: "pm2"
+    setup  "RecordVerbResolvesCheckResult",   ref: "pm2", ok: true
+    setup  "RecordMergedCheckResult",         ref: "pm2", ok: true
+    setup  "RecordWorktreeCheckResult",       ref: "pm2", ok: true
+    setup  "RecordTestsCheckResult",          ref: "pm2", ok: true
+    setup  "RecordPrMergeableCheckResult",    ref: "pm2", ok: true
+    input  ref: "pm2"
+    expect ref: "pm2", state: "ready_for_review"
   end
 
-  test "RemoveDependency replaces the dependencies list (whole-list replace, gap: runtime-list-remove-primitive)" do
-    tests "RemoveDependency", on: "Story"
-    setup  "Capture", ref: "dep5", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "Capture", ref: "dep6", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "AddDependency", ref: "dep6", dependency: "dep5"
-    input  ref: "dep6", dependency: "dep5", dependencies: []
-    expect ref: "dep6"
-  end
-
-  test "RemoveDependency emits DependencyRemoved" do
-    tests "RemoveDependency", on: "Story"
-    setup  "Capture", ref: "dep7", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "Capture", ref: "dep8", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "AddDependency", ref: "dep8", dependency: "dep7"
-    input  ref: "dep8", dependency: "dep7", dependencies: []
-    expect emits: ["DependencyRemoved"]
-  end
-
-  # Claimable query : runtime enforces state == "tasked" ; dep-state exclusion
-  # is projection-side (gap : runtime-cross-aggregate-where). Tests verify
-  # the state filter ; blocked/unblocked semantics are documented contract.
-
-  test "Claimable includes a tasked story with no dependencies (unblocked)" do
-    tests "Claimable", on: "Story", kind: :query
-    setup  "Capture", ref: "clm1", title: "Claimable", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "AssignToSprint", ref: "clm1", sprint_ref: "20"
-    setup  "Tasked", ref: "clm1"
-    expect includes: { ref: "clm1", state: "tasked" }
-  end
-
-  test "Claimable excludes a story still in untasked state (blocked by lifecycle, not dep)" do
-    tests "Claimable", on: "Story", kind: :query
-    setup  "Capture", ref: "clm2", title: "Untasked", tier: 1, summary: "s", target: "t", project: "plan"
-    expect count: 0
-  end
-
-  test "RatifyContracts records contracts and flips contracts_ratified true" do
-    tests "RatifyContracts", on: "Sprint"
-    setup  "Plan", number: "90", goal: "g"
-    input  number: "90", contracts: "Worker/Claim/Lease/MergeQueue interfaces"
-    expect number: "90", contracts_ratified: true
-  end
-
-  test "RatifyContracts emits SprintContractsRatified" do
-    tests "RatifyContracts", on: "Sprint"
-    setup  "Plan", number: "91", goal: "g"
-    input  number: "91", contracts: "the contract"
-    expect emits: ["SprintContractsRatified"]
+  test "RecordPrMergeableCheckResult arms pr_mergeable" do
+    tests "RecordPrMergeableCheckResult", on: "Story"
+    setup  "Capture", ref: "pm3", title: "PM3", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "pm3", ok: true
+    expect ref: "pm3", pr_mergeable: true
   end
 end
