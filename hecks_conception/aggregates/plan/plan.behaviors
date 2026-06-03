@@ -52,6 +52,34 @@ Hecks.behaviors "Plan" do
     expect ref: "l9", state: "untasked", sprint: "1"
   end
 
+
+  test "Retarget re-points the target without changing state" do
+    tests "Retarget", on: "Story"
+    setup  "Capture", ref: "r1", title: "R1", tier: 1, summary: "s", target: "old/target", project: "plan"
+    input  ref: "r1", target: "new/target"
+    expect ref: "r1", state: "untasked", target: "new/target"
+  end
+
+  test "Retarget emits StoryRetargeted" do
+    tests "Retarget", on: "Story"
+    setup  "Capture", ref: "r2", title: "R2", tier: 1, summary: "s", target: "old/target", project: "plan"
+    input  ref: "r2", target: "new/target"
+    expect emits: ["StoryRetargeted"]
+  end
+
+  test "Retier re-sizes the tier without changing state" do
+    tests "Retier", on: "Story"
+    setup  "Capture", ref: "r3", title: "R3", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "r3", tier: 2
+    expect ref: "r3", state: "untasked", tier: 2
+  end
+
+  test "Retier emits StoryRetiered" do
+    tests "Retier", on: "Story"
+    setup  "Capture", ref: "r4", title: "R4", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "r4", tier: 2
+    expect emits: ["StoryRetiered"]
+  end
   # ── task-completion-state (sprint 14) ───────────────────────────────
 
   test "Task.Add mints a Task in pending status" do

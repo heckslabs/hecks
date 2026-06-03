@@ -713,6 +713,24 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "StoryReworded"
     end
 
+    command "Retarget" do
+      role "Miette"
+      description "Re-point a story's target — the bluebook file or path the work lands in — without touching its lifecycle. Capture sets the target at creation (and re-mints + resets state), so once a story is past untasked its target was un-editable ; Retarget closes that gap, mirroring Reword for the target axis. Pure metadata mutation : no state transition, valid from any state. Used to correct or sharpen a card's target file as the design firms up."
+      reference_to(Story)
+      attribute :target, Target
+      then_set :target, to: :target
+      emits "StoryRetargeted"
+    end
+
+    command "Retier" do
+      role "Miette"
+      description "Re-size a story's tier — the effort estimate (S/M/L) — without touching its lifecycle. Capture sets the tier at creation (and re-mints + resets state), so once a story is past untasked its tier was un-editable ; Retier closes that gap, mirroring Retarget for the tier axis. Pure metadata mutation : no state transition, valid from any state. Used to correct or sharpen a card's effort estimate as scope firms up."
+      reference_to(Story)
+      attribute :tier, Tier
+      then_set :tier, to: :tier
+      emits "StoryRetiered"
+    end
+
     command "AssignToSprint" do
       role "Miette"
       description "Assign a story to a sprint — records the sprint_ref so the story is owned by a sprint slot. Since lifecycle-tasked-state (sprint 14), this is pure metadata : it does NOT transition state. A story remains `untasked` (or whatever it was) until Tasked is dispatched. Sprint membership and tasking-readiness are independent axes."
