@@ -434,6 +434,22 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     # ---- Owned use cases ----
     has_many UseCases
 
+    # ---- Story dependencies (DAG edges) ----
+    # A Story depends_on other Stories -- a self-referential association, NOT
+    # owned composition. `has_many Stories, as: :dependencies` declares the
+    # relationship ; the runtime carries identity refs, not copies.
+    # Default: empty (no dependencies).
+    #
+    # BLOCKED SEMANTICS (runtime-cross-aggregate-where gap) :
+    # A story is "blocked" while ANY of its dependencies is not in state
+    # "done". This is documented contract + projection-side only -- the
+    # runtime cannot evaluate cross-aggregate set-membership in guards
+    # or queries today (gap : runtime-cross-aggregate-where). The
+    # Claimable query below documents the intent ; the projection layer
+    # (planning pulse, board adapter) must apply the dep-state filter
+    # until the runtime gap closes.
+    has_many Stories, as: :dependencies
+
     # ---- Lifecycle ----
     attribute :state,          State, default: "untasked"
 
@@ -760,6 +776,25 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "StoryThemeAssigned"
     end
 
+    command "AddDependency" do
+      role "Miette"
+      description "Record that this story depends on another story. Appends the dependency' ref to the dependencies list. A story is blocked (for Claimable purposes) while any dependency is not done. No lifecycle change ; valid from any state."
+      reference_to(Story)
+      attribute :dependency, Story
+      then_set :dependencies, append: :dependency
+      emits "DependencyAdded"
+    end
+
+    command "RemoveDependency" do
+      role "Miette"
+      description "Remove a dependency edge. Because the DSL has no list-remove primitive (gap : runtime-list-remove-primitive), the caller computes the new dependencies list without the removed ref and passes it as the full replacement. Mirror of Board.DeactivateSprint / Board.RemoveCard patterns."
+      reference_to(Story)
+      attribute :dependency, Story
+      attribute :dependencies, list_of(Story)
+      then_set :dependencies, to: :dependencies
+      emits "DependencyRemoved"
+    end
+
     command "MoveToSprint" do
       role "Miette"
       description "Re-assign a story to a different sprint without changing lifecycle state — a story can move sprints in any state (untasked, tasked, started). Since lifecycle-tasked-state (sprint 14) AssignToSprint is pure metadata too, so the re-sprinting gap MoveToSprint originally closed is no longer about a state guard ; MoveToSprint stays as the named verb for the act of swapping sprint membership."
@@ -1077,6 +1112,11 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
 
     query "Board" do
       description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is untasked / tasked / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. Since lifecycle-tasked-state (sprint 14) the pre-Start states split into untasked + tasked, both surfaced on the board so the operator can see what is queued for tasking vs. tasked and Start-ready. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in) and cross-aggregate set-membership is not yet evaluated in queries (gap : runtime-cross-aggregate-where). Both gaps will replace this with a proper where clause when they land."
+    end
+
+    query "Claimable" do
+      description "Stories ready to be claimed for work. SEMANTIC : state == \"tasked\" AND NOT blocked (i.e. all depends_on stories are in state \"done\"). RUNTIME : returns every story where state == \"tasked\" unfiltered ; the projection layer must exclude stories with an unresolved dependency. The dep-state exclusion requires cross-aggregate set-membership evaluation (gap : runtime-cross-aggregate-where) which is not yet supported in queries. Both filters will land as proper where clauses when the gap closes. Mirror of Story.Board semantics."
+      where state: "tasked"
     end
   end
 

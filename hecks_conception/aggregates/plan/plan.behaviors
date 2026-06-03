@@ -317,4 +317,59 @@ Hecks.behaviors "Plan" do
     input  story: "wr3"
     expect ref: "wr3", state: "done"
   end
+
+  # ── Story dependency DAG (story-dependency-dag, sprint 20) ───────────
+
+  test "AddDependency appends a dependency ref to the story" do
+    tests "AddDependency", on: "Story"
+    setup  "Capture", ref: "dep1", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Capture", ref: "dep2", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AddDependency", ref: "dep2", dependency: "dep1"
+    input  ref: "dep2", dependency: "dep1"
+    expect ref: "dep2"
+  end
+
+  test "AddDependency emits DependencyAdded" do
+    tests "AddDependency", on: "Story"
+    setup  "Capture", ref: "dep3", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Capture", ref: "dep4", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "dep4", dependency: "dep3"
+    expect emits: ["DependencyAdded"]
+  end
+
+  test "RemoveDependency replaces the dependencies list (whole-list replace, gap: runtime-list-remove-primitive)" do
+    tests "RemoveDependency", on: "Story"
+    setup  "Capture", ref: "dep5", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Capture", ref: "dep6", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AddDependency", ref: "dep6", dependency: "dep5"
+    input  ref: "dep6", dependency: "dep5", dependencies: []
+    expect ref: "dep6"
+  end
+
+  test "RemoveDependency emits DependencyRemoved" do
+    tests "RemoveDependency", on: "Story"
+    setup  "Capture", ref: "dep7", title: "Dep story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Capture", ref: "dep8", title: "Main story", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AddDependency", ref: "dep8", dependency: "dep7"
+    input  ref: "dep8", dependency: "dep7", dependencies: []
+    expect emits: ["DependencyRemoved"]
+  end
+
+  # Claimable query : runtime enforces state == "tasked" ; dep-state exclusion
+  # is projection-side (gap : runtime-cross-aggregate-where). Tests verify
+  # the state filter ; blocked/unblocked semantics are documented contract.
+
+  test "Claimable includes a tasked story with no dependencies (unblocked)" do
+    tests "Claimable", on: "Story", kind: :query
+    setup  "Capture", ref: "clm1", title: "Claimable", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "clm1", sprint_ref: "20"
+    setup  "Tasked", ref: "clm1"
+    expect includes: { ref: "clm1", state: "tasked" }
+  end
+
+  test "Claimable excludes a story still in untasked state (blocked by lifecycle, not dep)" do
+    tests "Claimable", on: "Story", kind: :query
+    setup  "Capture", ref: "clm2", title: "Untasked", tier: 1, summary: "s", target: "t", project: "plan"
+    expect count: 0
+  end
 end
