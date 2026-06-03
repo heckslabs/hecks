@@ -1077,6 +1077,19 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "StoryReadyForReview"
     end
 
+    command "RequestReady" do
+      role "Miette"
+      description "Open the done-is-done gate : transition started -> checking and re-derive every gate from real checks. Resets all gate flags to false so a prior pass cannot carry over, then emits StoryChecksRequested to fire the live checks. A meta-policy attempts MarkReady after each check ; the ready_means_* invariants refuse it until every flag is armed by a real check, so the LAST passing check auto-advances to ready_for_review. A failing check leaves the story in checking. This is the only honest path : MarkReady fires from checking, armed by the cascade, never by hand."
+      reference_to(Story)
+      then_set :verified,        to: false
+      then_set :merged_to_main,  to: false
+      then_set :worktree_clean,  to: false
+      then_set :tests_passing,   to: false
+      then_set :pr_mergeable,    to: false
+      then_set :main_up_to_date, to: false
+      emits "StoryReadyRequested"
+    end
+
     command "Approve" do
       role "Operator"
       description "Human gate: move a ready_for_review story to done. Only Operator may Approve. Emits StoryApproved. Done is only reachable via this command — there is no direct path from started to done."
@@ -1130,7 +1143,9 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       transition "Tasked"           => "tasked",           from: "untasked"
       transition "Start"            => "started",          from: "tasked"
       transition "Unstart"          => "tasked",           from: "started"
-      transition "MarkReady"        => "ready_for_review", from: "started"
+      transition "RequestReady"     => "checking",         from: "started"
+      transition "MarkReady"        => "ready_for_review", from: "checking"
+      transition "ChecksFailed"     => "started",          from: "checking"
       transition "Approve"          => "done",             from: "ready_for_review"
       transition "Reopen"           => "started",          from: "ready_for_review"
       transition "Reopen"           => "ready_for_review", from: "done"
@@ -1276,6 +1291,42 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     trigger "Primitive::Process.Spawn"
     with "cmd", "bin/check-pr-mergeable"
     with "result_into", "Story.RecordPrMergeableCheckResult"
+  end
+
+  # ── Done-is-done gate enforcement (done-is-done-gate-enforcement) ──────
+  # Each recorded check ATTEMPTS the MarkReady transition. The ready_means_*
+  # invariants + the pr_mergeable given refuse it until EVERY gate flag is
+  # armed by a real check, so the last passing check auto-advances
+  # checking -> ready_for_review. RequestReady reset the flags first, and
+  # only a real check re-arms them : a flag cannot be hand-set into ready.
+  policy "ReadyOnVerbResolvesCheck" do
+    on "Story.VerbResolvesCheckRecorded"
+    trigger "Plan::Story.MarkReady"
+  end
+
+  policy "ReadyOnMergedCheck" do
+    on "Story.MergedCheckRecorded"
+    trigger "Plan::Story.MarkReady"
+  end
+
+  policy "ReadyOnWorktreeCheck" do
+    on "Story.WorktreeCheckRecorded"
+    trigger "Plan::Story.MarkReady"
+  end
+
+  policy "ReadyOnTestsCheck" do
+    on "Story.TestsCheckRecorded"
+    trigger "Plan::Story.MarkReady"
+  end
+
+  policy "ReadyOnPrMergeableCheck" do
+    on "Story.PrMergeableCheckRecorded"
+    trigger "Plan::Story.MarkReady"
+  end
+
+  policy "ReadyOnMainUpToDateCheck" do
+    on "Story.MainUpToDateCheckRecorded"
+    trigger "Plan::Story.MarkReady"
   end
 
   # ===== Task aggregate (task-completion-state, sprint 14) =====

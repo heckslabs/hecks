@@ -1,0 +1,11 @@
+Hecks.hecksagon "Plan" do
+  # done-is-done-gate-enforcement : when a story enters `checking` via
+  # RequestReady, fire the live checks. Kept as an adapter (not a cascade
+  # policy) so the heavy real checks (cargo test, git) run LIVE and do not
+  # execute inside the fast in-memory behaviors suite.
+  adapter "AutoCheckOnReady" do
+    driven on "Plan::Story.StoryReadyRequested" do |event|
+      dispatch "Plan::Story.RunCheck"
+    end
+  end
+end
