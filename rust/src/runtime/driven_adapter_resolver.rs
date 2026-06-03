@@ -98,9 +98,21 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
                     handler.canned.as_ref(),
                 );
                 for dispatch in handler.dispatches.iter() {
+                    // Interpolate `{field}`/`{id}` tokens in declared dispatch
+                    // attr values from the triggering event — same mechanism as
+                    // the run/check leaves. Closes policy-cmd-needs-interpolation
+                    // : a follow-on can carry a real value derived from the
+                    // event (e.g. `worktree_path: "worktrees/{story}"`) instead
+                    // of a canned sentinel. Non-matching braces pass through
+                    // untouched, so purely-literal attrs are unaffected.
+                    let interp_attrs: Vec<(String, String)> = dispatch
+                        .attrs
+                        .iter()
+                        .map(|(k, v)| (k.clone(), interpolate_event(v, event)))
+                        .collect();
                     matched.push((
                         dispatch.command.clone(),
-                        dispatch.attrs.clone(),
+                        interp_attrs,
                         wrapped.clone(),
                     ));
                 }
