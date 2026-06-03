@@ -372,4 +372,18 @@ Hecks.behaviors "Plan" do
     setup  "Capture", ref: "clm2", title: "Untasked", tier: 1, summary: "s", target: "t", project: "plan"
     expect count: 0
   end
+
+  test "RatifyContracts records contracts and flips contracts_ratified true" do
+    tests "RatifyContracts", on: "Sprint"
+    setup  "Plan", number: "90", goal: "g"
+    input  number: "90", contracts: "Worker/Claim/Lease/MergeQueue interfaces"
+    expect number: "90", contracts_ratified: true
+  end
+
+  test "RatifyContracts emits SprintContractsRatified" do
+    tests "RatifyContracts", on: "Sprint"
+    setup  "Plan", number: "91", goal: "g"
+    input  number: "91", contracts: "the contract"
+    expect emits: ["SprintContractsRatified"]
+  end
 end

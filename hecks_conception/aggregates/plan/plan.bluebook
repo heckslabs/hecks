@@ -66,6 +66,13 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     attribute :worktrees_pruned,    WorktreesPruned,   default: false
     attribute :prs_for_open_branches, PrsForOpenBranches, default: false
 
+    # ---- Contract-first gate (contract-first-sprint-gate, sprint 20) ----
+    # The agreed inter-story interfaces + whether they are ratified. A sprint
+    # may not release its stories to the fleet until contracts_ratified — the
+    # front-bookend twin of the DoD back gate.
+    attribute :contracts,           Contracts,          default: ""
+    attribute :contracts_ratified,  ContractsRatified,  default: false
+
     # wip_limit is RETIRED from Sprint — moved to Board.wip_limit (board-level
     # discipline ; WIP crosses sprints when several are active). See
     # board.bluebook + fix-sprint-story-refs-drift (sprint 7).
@@ -140,6 +147,22 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       attribute :value, Integer
     end
 
+    value_object "Contracts" do
+      # The agreed inter-story interfaces for this sprint — the ratified
+      # contract that lets stories be built in parallel. Free-form text or a
+      # reference to the contract doc ; the bluebook is the source of truth.
+      attribute :value, String
+    end
+
+    value_object "ContractsRatified" do
+      # True once the Operator has ratified the sprint's contracts. Gate:
+      # no story fan-out (claim/Start) until true. Cross-aggregate enforcement
+      # (Story.Start reading Sprint.contracts_ratified) is the
+      # runtime-cross-aggregate-where gap ; documented + projection-side until
+      # it closes, exactly like Story.Claimable's dep-blocking.
+      attribute :value, Boolean
+    end
+
     # ============================================================
     # COMMANDS
     # ============================================================
@@ -153,6 +176,16 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       then_set :goal,   to: :goal
       then_set :state,  to: "planned"
       emits "SprintPlanned"
+    end
+
+    command "RatifyContracts" do
+      role "Operator"
+      description "Operator ratifies the sprint's agreed inter-story contracts — records the contracts text and flips contracts_ratified true. The front-bookend gate : a sprint cannot release its stories to the fleet (fan-out / claim / Start) until contracts are ratified, making contract-first discipline structural rather than remembered. Twin of the DoD back gate. Pure signal toward readiness ; no lifecycle transition."
+      reference_to(Sprint)
+      attribute :contracts, Contracts
+      then_set :contracts,          to: :contracts
+      then_set :contracts_ratified, to: true
+      emits "SprintContractsRatified"
     end
 
     command "UpdateGoal" do
