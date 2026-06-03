@@ -96,3 +96,31 @@ Story delete command exists yet) — harmless untracked .heki, not in git.
 2. expiry_sweep (cron) + story_worktree_sync (lock/unlock) : canned RecordResult
    behind real gaps (time-query for expiry ; story_ref not persisted on Lease).
 3. references-not-ids : FK-shaped *_ref kwargs + hollow worker_ref join.
+
+## DONE 6/3 (round 4) : fleet adapters — real where possible, honest where blocked
+- `55ad9053` story_worktree_sync LockAdapter REAL : LeaseGranted -> LockWorktree
+  story:{story_ref} (Grant input attr) -> worktree_locked=true. PROVEN. Unlock
+  honestly deferred (LeaseReclaimed carries only the lease id, not the story —
+  needs belongs_to-on-event or a Story-side trigger).
+- `610e6a6a` stale_pr + expiry_sweep -> honest blocked-stubs. Removed the canned
+  Tools::Cascade.RecordResult no-ops AND a real bug : stale_pr fired
+  MergeQueue.FailMerge("stale base") UNCONDITIONALLY on every StoryApproved
+  (resolver-on-cascade activated it -> would bounce every PR). Documentation-only
+  now ; gated on conditional-dispatch / hex-invocation-principle / cross-agg-where.
+
+## Sprint-20 truth scorecard (end of 6/3)
+- REAL & PROVEN : conductor domain ; worktree create+lock (real git + real lock) ;
+  done-is-done gate all 6 checks real (main_up_to_date + pr_mergeable live-checks) ;
+  resolver-on-cascade (chains run, cycle-safe) ; dispatch interpolation ; role +
+  gate enforcement (un-fakeable).
+- HONEST-BLOCKED (true: documented, not faked) : worktree UNLOCK ; stale_pr ;
+  expiry_sweep ; volunteer_pull SEAM 1/3 — all on named runtime cards
+  (conditional-dispatch, runtime-cross-aggregate-where, belongs_to-on-event).
+- CHRIS'S CALL (not done) : pr_delivery canned-merge -> real gh pr merge into
+  main (destructive ; needs PR identity flow).
+- BIG/DELIBERATE : references-not-ids (FK-shaped *_ref + hollow worker_ref join).
+
+## Cleanup owed : test stories on the live board (checkproof-1, locktest-1/2/3)
+No Story delete/cancel command exists (Sprint has Cancel ; Story does not).
+These are untracked .heki board noise. A Story.Cancel (mirroring Sprint.Cancel)
+is the clean fix — small follow-up.
