@@ -1,57 +1,21 @@
 Hecks.hecksagon "StoryWorktreeSync" do
-  # ============================================================
-  # STORY-WORKTREE-SYNC ADAPTERS (worktree-pool-lease-reclaim, sprint 20)
-  # ============================================================
-  #
-  # Intent: wire Conductor lease lifecycle -> Plan story worktree lock.
-  #
-  # LockAdapter  : LeaseGranted   -> Plan::Story.LockWorktree
-  # UnlockAdapter: LeaseReclaimed -> Plan::Story.UnlockWorktree
-  #
-  # GAP: lease-story-ref-not-persisted
-  # Lease.Grant takes story_ref as a command attribute but never
-  # then_set's it to state. LeaseGranted and LeaseReclaimed therefore
-  # carry only worktree_path/expires_at/state (the then_set fields).
-  # event.story_ref is nil on both events; the cross-domain dispatch
-  # cannot be real-wired until either:
-  #   (a) Lease.Grant persists story_ref (edit lease.bluebook -- out
-  #       of scope for this card per contract constraints), or
-  #   (b) runtime-cross-aggregate-where lets this adapter look up the
-  #       Story by worktree_path.
-  # Canned floor records the wiring intent; body is a no-op RecordResult.
-  #
-  # GAP: policy-cmd-needs-interpolation
-  # Even if story_ref were available, cascade policies cannot thread
-  # event payload (with args are static strings). The hecksagon
-  # driven-on mechanism is the correct mechanism for this wiring once
-  # lease-story-ref-not-persisted closes.
-
+  # Lock the story's git worktree while a Lease holds it. The story identity
+  # rides the LeaseGranted event as {story_ref} (the Grant input attr) ;
+  # worktree_path is the Lease's own id. No FK kwargs, no canned RecordResult.
   adapter "LockAdapter" do
     driven on "Conductor::Lease.LeaseGranted" do |event|
-      # CANNED: event.story_ref is nil (lease-story-ref-not-persisted gap).
-      # When gap closes: dispatch "Plan::Story.LockWorktree",
-      #                           story: event.story_ref,
-      #                           worktree_path: event.worktree_path
-      dispatch "Tools::Cascade.RecordResult",
-               id:        event.worktree_path,
-               tool:      "story_lock_worktree",
-               output:    "lock deferred (lease-story-ref-not-persisted gap)",
-               exit_code: 0,
-               ok:        true
+      dispatch "Plan::Story.LockWorktree", story: "{story_ref}", worktree_path: "{worktree_path}"
     end
   end
 
-  adapter "UnlockAdapter" do
-    driven on "Conductor::Lease.LeaseReclaimed" do |event|
-      # CANNED: event.story_ref is nil (lease-story-ref-not-persisted gap).
-      # When gap closes: dispatch "Plan::Story.UnlockWorktree",
-      #                           story: event.story_ref
-      dispatch "Tools::Cascade.RecordResult",
-               id:        event.worktree_path,
-               tool:      "story_unlock_worktree",
-               output:    "unlock deferred (lease-story-ref-not-persisted gap)",
-               exit_code: 0,
-               ok:        true
-    end
-  end
+  # UNLOCK is honestly DEFERRED, not faked. Lease.Reclaim is reference_to(Lease) ;
+  # LeaseReclaimed carries only the lease id (worktree_path) + this command's
+  # then_set fields — NOT the persisted story. So {story_ref} cannot resolve at
+  # reclaim time. Real unlock needs one of : (a) the runtime exposing the
+  # belongs_to Story on the reclaim event, or (b) a Story-side unlock trigger
+  # when the worktree is removed. Tracked under references-not-ids / the
+  # cross-aggregate-identity work. The worktree itself IS physically removed on
+  # reclaim (conductor/hecksagons/worktree_remove.hecksagon) ; only the story's
+  # worktree_locked flag lags until the unlock seam lands. No UnlockAdapter is
+  # wired here rather than ship a dispatch that errors on every reclaim.
 end
