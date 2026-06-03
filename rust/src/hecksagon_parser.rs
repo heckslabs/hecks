@@ -604,7 +604,7 @@ fn parse_driving_handler(lines: &[&str]) -> (Option<DrivingHandler>, usize) {
 fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
     let first = lines[0].trim();
     let event_ref = match between_quotes(first) { Some(e) => e, None => return (None, 1) };
-    let mut handler = DrivenHandler { event_ref, canned: None, dispatches: Vec::new(), runs: Vec::new() };
+    let mut handler = DrivenHandler { event_ref, canned: None, dispatches: Vec::new(), runs: Vec::new(), checks: Vec::new() };
     let mut i = 1;
     while i < lines.len() {
         let t = lines[i].trim();
@@ -623,7 +623,16 @@ fn parse_driven_handler(lines: &[&str]) -> (Option<DrivenHandler>, usize) {
             continue;
         }
             if t.starts_with("run ") {
-                if let Some(cmd) = between_quotes(t) { handler.runs.push(cmd); }
+                if let Some(cmd) = between_quotes(t) {
+                    if let Some(ri) = t.find("result_into:") {
+                        match between_quotes(&t[ri..]) {
+                            Some(target) => handler.checks.push(CheckLeaf { cmd, result_into: target }),
+                            None => handler.runs.push(cmd),
+                        }
+                    } else {
+                        handler.runs.push(cmd);
+                    }
+                }
                 i += 1;
                 continue;
             }

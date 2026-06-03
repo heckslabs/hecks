@@ -75,7 +75,9 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
     // dispatch.
     let mut matched: Vec<(String, Vec<(String, String)>, Vec<(String, String)>)> = Vec::new();
     let mut runs_to_exec: Vec<String> = Vec::new();
-    for hex in rt.hecksagons.iter() {
+    let mut checks_to_run: Vec<(String, String)> = Vec::new();
+
+        for hex in rt.hecksagons.iter() {
         for adapter in hex.driven_adapters.iter() {
             // Sprint 14 world-wires-real-adapters — presence of a
             // `.world` adapter binding with this adapter's name IS the
@@ -105,11 +107,13 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
                 for run_cmd in handler.runs.iter() {
                     runs_to_exec.push(interpolate_event(run_cmd, event));
                 }
-            }
+                for check in handler.checks.iter() {
+                    checks_to_run.push((interpolate_event(&check.cmd, event), check.result_into.clone()));
+                }            }
         }
     }
 
-    if matched.is_empty() { return; }
+    if matched.is_empty() && runs_to_exec.is_empty() && checks_to_run.is_empty() { return; }
 
     for (command, declared_attrs, wrapped_values) in matched {
         // Merge order : wrapped values first, then declared attrs
@@ -149,6 +153,18 @@ pub fn resolve_driven_adapters(rt: &mut Runtime, event: &Event) {
             Ok(o) => eprintln!("[driven:run] {} -> exit={} stdout={} stderr={}", cmd, o.status.code().unwrap_or(-1), String::from_utf8_lossy(&o.stdout).trim(), String::from_utf8_lossy(&o.stderr).trim()),
             Err(e) => eprintln!("[driven:run] {} -> spawn FAILED: {}", cmd, e),
         }
+    }
+    // Live-check leaves : run each declared check in-process, arm its flag
+    // via result_into with ok = (exit == 0). No bin script, no canned.
+    for (cmd, target) in checks_to_run {
+        let parts: Vec<String> = cmd.split_whitespace().map(|s| s.to_string()).collect();
+        if parts.is_empty() { continue; }
+        let ok = std::process::Command::new(&parts[0]).args(&parts[1..]).output()
+            .map(|o| o.status.success()).unwrap_or(false);
+        eprintln!("[driven:check] {} -> ok={} -> {}", cmd, ok, target);
+        let mut attrs = HashMap::new();
+        attrs.insert("ok".to_string(), Value::Bool(ok));
+        let _ = command_dispatch::dispatch_cascade(rt, &target, attrs, &event.aggregate_type, &event.aggregate_id);
     }
 }
 
