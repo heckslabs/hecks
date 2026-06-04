@@ -135,3 +135,28 @@ is the clean fix — small follow-up.
   merge error still needs conditional-dispatch (documented).
 - Board cleanup : Story.Cancel ALREADY EXISTS (mirrors Sprint.Cancel) ;
   cancelled the 4 test stories (checkproof-1, locktest-1/2/3) -> off the board.
+
+## MILESTONE 6/3 : sprint-20 fleet has NO LIES LEFT
+- `46892a68` volunteer_pull SEAM 1/3 stripped (they fired garbage : Worker.Register
+  cascaded Claim.Acquire(NEXT_CLAIMABLE) -> real worktrees/NEXT_CLAIMABLE on disk).
+- SWEEP CONFIRMS : every sprint-20 fleet adapter is real-and-proven
+  (worktree_create/remove, story_worktree_sync lock, volunteer_pull SEAM 2,
+  reclaim_on_expire, auto_check_on_ready, main_uptodate_check, pr_mergeable_check,
+  pr_delivery enqueue/start/gh-merge/complete, worktree_removed_check) OR an
+  honest documentation-only stub (stale_pr, expiry_sweep = 0 adapters). No canned
+  Tools::Cascade.RecordResult, no sentinel ids, no garbage-firing dispatches.
+- OUT OF SCOPE : framework/tools/hecksagons/agent_tool still dispatches canned
+  Tools::Cascade.RecordResult — a framework adapter, not sprint-20. Separate card.
+- Cleaned up the garbage git worktrees the tests + the bug left on disk.
+
+## SCOPE INFLECTION (the work just changed KIND)
+The piece-by-piece honest cleanup is DONE — "sprint 20 is true" in the sense
+Chris set : nothing claims to run that doesn't. What REMAINS is no longer
+removing-lies ; it is BUILDING the hex-* runtime arc (currently [0/N]) :
+  hex-parser-port-block -> hex-parser-adapter-block -> hex-parser-port-fields
+  -> hex-runtime-port-eval-hook -> hex-did-gate-port -> hex-live-check-adapter
+plus the cross-aggregate-where / belongs_to-on-event / conditional-dispatch
+runtime features the honest-blocked stubs are waiting on. That is a sequenced,
+sprint-sized FEATURE build, not cleanup. The transitional run/check/result_into
+leaf becomes the real LiveCheckAdapter INSIDE that arc (not a competing
+primitive) — so DON'T build ad-hoc conditional-dispatch now ; it lands there.
