@@ -505,4 +505,15 @@ Hecks.behaviors "Plan" do
     input  ref: "ck3", ok: false
     expect ref: "ck3", state: "checking"
   end
+
+  test "ChecksFailed moves a checking story back to started" do
+    tests "ChecksFailed", on: "Story"
+    setup  "Capture",        ref: "cf1", title: "CF1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "cf1", sprint_ref: "1"
+    setup  "Tasked",         ref: "cf1"
+    setup  "Start",          ref: "cf1"
+    setup  "RequestReady",   ref: "cf1"
+    input  ref: "cf1"
+    expect ref: "cf1", state: "started"
+  end
 end

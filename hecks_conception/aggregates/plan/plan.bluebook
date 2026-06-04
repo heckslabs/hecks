@@ -1090,6 +1090,13 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       emits "StoryReadyRequested"
     end
 
+    command "ChecksFailed" do
+      role "Miette"
+      description "Abandon the current done-is-done check cycle : transition checking -> started so the work can be fixed and RequestReady re-run. Pairs with the existing `ChecksFailed => started` transition (which had no command to trigger it). Gate flags are left as the last checks set them ; RequestReady resets them next attempt. The honest exit from a parked/failed checking state back to started."
+      reference_to(Story)
+      emits "StoryChecksFailed"
+    end
+
     command "Approve" do
       role "Operator"
       description "Human gate: move a ready_for_review story to done. Only Operator may Approve. Emits StoryApproved. Done is only reachable via this command — there is no direct path from started to done."
