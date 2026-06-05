@@ -46,6 +46,7 @@ pub fn parse_query(lines: &[&str]) -> (Query, usize) {
                         attr_type: "String".to_string(),
                         default: None,
                         list: false,
+                        required: false,
                     });
                 }
             }

@@ -375,6 +375,7 @@ pub struct Attribute {
     pub attr_type: String,
     pub default: Option<String>,
     pub list: bool,
+    pub required: bool,
 }
 
 #[derive(Debug, Clone)]

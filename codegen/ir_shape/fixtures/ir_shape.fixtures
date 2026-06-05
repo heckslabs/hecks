@@ -231,11 +231,12 @@ Hecks.fixtures "IrShape" do
     # JSON round-trip so portal renderers can iterate views deterministically.
     fixture "Aggregate_views",         type_name: "Aggregate", order: 14, name: "views",         field_type: "Vec<View>",         doc_snippet: "codegen/ir_shape/snippets/docs/aggregate_views.rs.frag"
 
-    # Attribute — 4 fields.
+    # Attribute — 5 fields.
     fixture "Attribute_name",      type_name: "Attribute", order: 1, name: "name",      field_type: "String",         doc_snippet: ""
     fixture "Attribute_attr_type", type_name: "Attribute", order: 2, name: "attr_type", field_type: "String",         doc_snippet: ""
     fixture "Attribute_default",   type_name: "Attribute", order: 3, name: "default",   field_type: "Option<String>", doc_snippet: ""
     fixture "Attribute_list",      type_name: "Attribute", order: 4, name: "list",      field_type: "bool",           doc_snippet: ""
+    fixture "Attribute_required",  type_name: "Attribute", order: 5, name: "required",  field_type: "bool",           doc_snippet: ""
 
     # Command — 9 fields. i250 — `emits_identified_by` carries the
     # event-identity attribute when `emits "X", identified_by: :y` is
