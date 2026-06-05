@@ -30,25 +30,47 @@ module Hecks
           target == agg.name
         end
         if self_ref
-          if (id_val = attrs[self_ref.name.to_s])
+          # Universal self-ref dispatch (mirror rust command_dispatch.rs i519):
+          # accept the named kwarg (snake_case(Aggregate)=<id>) OR the
+          # universal `id=<id>` fallback. Without the fallback, callers that
+          # pass `id:` (the common behaviors form) hit "missing self-ref id".
+          id_val = attrs[self_ref.name.to_s] || attrs["id"]
+          if id_val
             id = id_val.to_display.to_s
             existing = rt.repositories[agg.name][id]
             return [existing, false] if existing
             raise "aggregate not found: #{id}"
           end
           if CREATE_PREFIXES.any? { |p| cmd.name.start_with?(p) }
-            return [AggregateState.new(next_id(rt, agg.name)), true]
+            return [AggregateState.new(id_for_command(rt, agg, attrs)), true]
           end
           raise Interpreter::GivenFailed.new(
             "missing self-referencing id", "self-referencing id"
           )
         end
-        id = next_id(rt, agg.name)
+        id = id_for_command(rt, agg, attrs)
         if (existing = rt.repositories[agg.name][id])
           [existing, false]
         else
           [AggregateState.new(id), true]
         end
+      end
+
+      # Mirrors rust/src/runtime/repository.rs Repository#id_for_command:
+      #   identified_by + attr present  -> use the attr value (natural key)
+      #   identified_by + attr absent   -> singleton/counter fallback (next_id)
+      #   identified_by absent          -> counter fallback (next_id)
+      # Without this, creates landed under a synthetic "1" instead of their
+      # identity value, so explicit-id self-ref lookups (Task.Cancel id=...,
+      # Epic.Reword id=ep3) and identity assertions missed the record.
+      def id_for_command(rt, agg, attrs)
+        key = agg.respond_to?(:identified_by) ? agg.identified_by : nil
+        key = key.to_s if key
+        if key && !key.empty? && (v = attrs[key])
+          disp = v.to_display.to_s
+          return disp unless disp.empty?
+        end
+        next_id(rt, agg.name)
       end
 
       # Mirrors rust/src/runtime/repository.rs Repository#next_id:

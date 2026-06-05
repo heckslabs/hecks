@@ -82,11 +82,20 @@ module Hecks
         pre_event_count = rt.event_bus.length
         input_attrs = build_attrs(test.input, test.tests_command, rt, in_scope)
 
+        # Qualify the dispatch by the test's declared aggregate so colliding
+        # command names resolve to the intended aggregate. Mirrors
+        # rust/src/behaviors_runner.rs fqn construction.
+        cmd_fqn = if test.on_aggregate.to_s.empty? || test.tests_command.to_s.include?(".")
+                    test.tests_command
+                  else
+                    "#{test.on_aggregate}.#{test.tests_command}"
+                  end
+
         begin
           result = if test.kind.to_s == "cascade"
-                     rt.dispatch(test.tests_command, input_attrs)
+                     rt.dispatch(cmd_fqn, input_attrs)
                    else
-                     rt.dispatch_isolated(test.tests_command, input_attrs)
+                     rt.dispatch_isolated(cmd_fqn, input_attrs)
                    end
         rescue Interpreter::GivenFailed => e
           return Expectations.assert_refused(test, expected_refused(test), :given, e)

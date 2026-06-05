@@ -134,7 +134,7 @@ module Hecks
                      factories: [], computed_attributes: [],
                      projections: [],
                      lifecycle: nil, metadata: {}, origin_domain: nil,
-                     identity_fields: nil, description: nil,
+                     identity_fields: nil, identified_by: nil, description: nil,
                      namespace: nil, superclass: nil, mixins: [],
                      context: nil, views: [])
         @name = Names.aggregate_name(name)
@@ -159,6 +159,7 @@ module Hecks
         @metadata = metadata
         @origin_domain = origin_domain
         @identity_fields = identity_fields
+        @identified_by = identified_by
         @description = description || @metadata[:description]
         @namespace = namespace
         @superclass = superclass

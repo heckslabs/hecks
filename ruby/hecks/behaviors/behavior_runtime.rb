@@ -94,12 +94,39 @@ module Hecks
         { "state" => records }
       end
 
+      # Resolve a command by address. Mirrors rust/src/behaviors_runner.rs
+      # find_command : accepts Context.Aggregate.Command, Aggregate.Command,
+      # and bare Command. Qualified forms filter by aggregate (and context)
+      # so colliding command names (Cancel on Sprint/Story/Task) resolve to
+      # the intended aggregate rather than first-match-wins.
       def find_command(name)
-        @domain.aggregates.each do |agg|
-          cmd = agg.commands.find { |c| c.name == name }
-          return [agg, cmd] if cmd
+        parts = name.to_s.split(".")
+        case parts.length
+        when 3
+          context, agg_name, cmd_name = parts
+          @domain.aggregates.each do |agg|
+            next unless agg.name.to_s == agg_name
+            agg_ctx = agg.respond_to?(:context) ? agg.context.to_s : ""
+            next unless agg_ctx == context
+            cmd = agg.commands.find { |c| c.name.to_s == cmd_name }
+            return [agg, cmd] if cmd
+          end
+          [nil, nil]
+        when 2
+          agg_name, cmd_name = parts
+          @domain.aggregates.each do |agg|
+            next unless agg.name.to_s == agg_name
+            cmd = agg.commands.find { |c| c.name.to_s == cmd_name }
+            return [agg, cmd] if cmd
+          end
+          [nil, nil]
+        else
+          @domain.aggregates.each do |agg|
+            cmd = agg.commands.find { |c| c.name.to_s == name.to_s }
+            return [agg, cmd] if cmd
+          end
+          [nil, nil]
         end
-        [nil, nil]
       end
 
       def find_query(name)

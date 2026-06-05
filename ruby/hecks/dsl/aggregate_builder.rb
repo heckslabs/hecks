@@ -420,6 +420,7 @@ module Hecks
           lifecycle: @lifecycle,
           metadata: @metadata, references: @references,
           factories: @factories, identity_fields: @identity_fields,
+          identified_by: @identified_by,
           description: @description,
           namespace: @namespace, superclass: @superclass, mixins: @mixins,
           views: @views
