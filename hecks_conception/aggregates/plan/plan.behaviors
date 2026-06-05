@@ -580,4 +580,12 @@ Hecks.behaviors "Plan" do
     expect refused: "number must be set"
   end
 
+
+  test "Renumber changes a sprint number" do
+    tests "Renumber", on: "Sprint"
+    setup  "Plan", number: "78", goal: "to renumber"
+    input  id: "78", new_number: "79"
+    expect number: "79"
+  end
+
 end

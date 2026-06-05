@@ -199,6 +199,16 @@ Hecks.bluebook "Plan", version: "2026.06.05.1" do
       emits "SprintGoalUpdated"
     end
 
+    command "Renumber" do
+      role "Miette"
+      description "Change a sprint number - its identity. Re-keys the record from its current number to new_number. For fixing numberless or mis-numbered sprints. new_number must be set."
+      reference_to(Sprint)
+      attribute :new_number, Number
+      given("new number must be set") { new_number != "" }
+      then_set :number, to: :new_number
+      emits "SprintRenumbered"
+    end
+
     command "AddStory" do
       role "Miette"
       description "Commit a story to the sprint during planning. Sprint.stories owns the membership truth ; Story has no back-pointer. Allowed while the sprint is planned (planned scope freeze ; rule #5) ; use AddUnplanned for active-sprint preempts."
