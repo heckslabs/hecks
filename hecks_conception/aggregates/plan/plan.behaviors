@@ -234,7 +234,7 @@ Hecks.behaviors "Plan" do
   # size-equality given() on the refusal branch.
   test "Sprint.ReorderStories refuses a size-mismatch input" do
     tests "ReorderStories", on: "Sprint"
-    setup  "Plan",     number: "42", goal: "reorder reject"
+    setup  "Plan",     number: "42", goal: "reorder reject", project: "plan"
     setup  "AddStory", number: "42", story: "a"
     setup  "AddStory", number: "42", story: "b"
     setup  "AddStory", number: "42", story: "c"
@@ -438,14 +438,14 @@ Hecks.behaviors "Plan" do
 
   test "RatifyContracts records contracts and flips contracts_ratified true" do
     tests "RatifyContracts", on: "Sprint"
-    setup  "Plan", number: "90", goal: "g"
+    setup  "Plan", number: "90", goal: "g", project: "plan"
     input  number: "90", contracts: "Worker/Claim/Lease/MergeQueue interfaces"
     expect number: "90", contracts_ratified: true
   end
 
   test "RatifyContracts emits SprintContractsRatified" do
     tests "RatifyContracts", on: "Sprint"
-    setup  "Plan", number: "91", goal: "g"
+    setup  "Plan", number: "91", goal: "g", project: "plan"
     input  number: "91", contracts: "the contract"
     expect emits: ["SprintContractsRatified"]
   end
@@ -576,16 +576,28 @@ Hecks.behaviors "Plan" do
 
   test "Plan refuses a sprint with an empty number" do
     tests "Plan", on: "Sprint"
-    input  number: "", goal: "no number"
+    input  number: "", goal: "no number", project: "plan"
     expect refused: "number must be set"
   end
 
 
   test "Renumber changes a sprint number" do
     tests "Renumber", on: "Sprint"
-    setup  "Plan", number: "78", goal: "to renumber"
+    setup  "Plan", number: "78", goal: "to renumber", project: "plan"
     input  id: "78", new_number: "79"
     expect number: "79"
+  end
+
+  test "Plan refuses a sprint with no project" do
+    tests "Plan", on: "Sprint"
+    input  number: "5", goal: "orphan sprint"
+    expect refused: "project must be set"
+  end
+
+  test "Capture refuses a story with no project" do
+    tests "Capture", on: "Story"
+    input  ref: "np1", title: "No project", tier: 1, summary: "s", target: "t"
+    expect refused: "project must be set"
   end
 
 end

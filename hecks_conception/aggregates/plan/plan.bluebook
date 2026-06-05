@@ -1,4 +1,4 @@
-Hecks.bluebook "Plan", version: "2026.06.05.1" do
+Hecks.bluebook "Plan", version: "2026.06.05.2" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
@@ -35,7 +35,12 @@ Hecks.bluebook "Plan", version: "2026.06.05.1" do
     attribute :goal,                Goal
 
     # ---- Project assignment ----
-    # Reverse navigation only — Project.has_many Sprints (owner side).
+    # Sprint is a DEPENDENT side — it carries the project slug it belongs to
+    # (require-project, sprint 20). Project.has_many Sprints stays the owner-side
+    # membership ; this forward attribute makes the dependency REQUIRED at Plan
+    # and backs the ForProject query (previously backing-less). No FK shape : a
+    # typed identity ref, not a raw id column, and the owner does not back-point.
+    attribute :project,             Project
 
     # ---- Membership ----
     has_many Stories
@@ -170,12 +175,15 @@ Hecks.bluebook "Plan", version: "2026.06.05.1" do
     command "Plan" do
       role "Miette"
       description "Create a new sprint with a number and a goal. Sets state to planned. This is the creation command — the record does not exist yet."
-      attribute :number, Number
-      attribute :goal,   Goal
-      given("number must be set") { number != "" }
-      then_set :number, to: :number
-      then_set :goal,   to: :goal
-      then_set :state,  to: "planned"
+      attribute :number,  Number
+      attribute :goal,    Goal
+      attribute :project, Project
+      given("number must be set")  { number != "" }
+      given("project must be set") { project != "" && project != "null" }
+      then_set :number,  to: :number
+      then_set :goal,    to: :goal
+      then_set :project, to: :project
+      then_set :state,   to: "planned"
       emits "SprintPlanned"
     end
 
@@ -779,6 +787,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.1" do
       attribute :summary, Summary
       attribute :target,  Target
       attribute :project, Project
+      given("project must be set") { project != "" && project != "null" }
       then_set :ref,      to: :ref
       then_set :title,    to: :title
       then_set :tier,     to: :tier
