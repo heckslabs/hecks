@@ -71,6 +71,7 @@ module Hecks
           StateResolver.apply_lifecycle_default(agg, state)
         end
 
+        Interpreter.check_required(cmd, attrs)
         Interpreter.check_givens(cmd, state, attrs)
         Interpreter.apply_mutations(cmd, state, attrs)
         StateResolver.apply_lifecycle_transition(agg, cmd, state)

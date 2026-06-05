@@ -25,6 +25,8 @@ module Hecks
       # @return [Object, nil] the default value for this attribute, or nil if no default is set.
       #   Used by generators to set initial values in constructors.
       attr_reader :default
+      # `required: true` command attribute — dispatch refuses when absent/Null/empty.
+      attr_reader :required
 
       # @return [Array<String>, nil] the allowed enum values for this attribute, or nil if not
       #   an enum. When set, generated code validates that values are within this list.
@@ -47,11 +49,12 @@ module Hecks
       #   like passwords, tokens, or raw foreign keys that should not be displayed to users.
       #
       # @return [Attribute] a new Attribute instance
-      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true)
+      def initialize(name:, type:, default: nil, list: false, pii: false, enum: nil, visible: true, required: false)
         @name = name.to_sym
         @type = type.is_a?(Class) ? type : type.to_s
         @default = default
         @list = list
+        @required = required
         @pii = pii
         @enum = enum
         @visible = visible

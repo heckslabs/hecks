@@ -60,12 +60,14 @@ pub fn parse_attribute(line: &str) -> Option<Attribute> {
         raw.to_string()
     };
 
+    let required = line.contains("required:")
+        && extract_after(line, "required:").map(|a| a.trim_start().starts_with("true")).unwrap_or(false);
     let default = if line.contains("default:") {
         let after = extract_after(line, "default:")?;
         if after.contains('"') { extract_string(&after) }
         else { Some(after.split_whitespace().next().unwrap_or(&after).to_string()) }
     } else { None };
-    Some(Attribute { name, attr_type, default, list })
+    Some(Attribute { name, attr_type, default, list, required })
 }
 
 /// Pull the PascalCase value-object name from the first segment of a

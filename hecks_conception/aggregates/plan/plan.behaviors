@@ -591,13 +591,13 @@ Hecks.behaviors "Plan" do
   test "Plan refuses a sprint with no project" do
     tests "Plan", on: "Sprint"
     input  number: "5", goal: "orphan sprint"
-    expect refused: "project must be set"
+    expect refused: "project is required"
   end
 
   test "Capture refuses a story with no project" do
     tests "Capture", on: "Story"
     input  ref: "np1", title: "No project", tier: 1, summary: "s", target: "t"
-    expect refused: "project must be set"
+    expect refused: "project is required"
   end
 
 end

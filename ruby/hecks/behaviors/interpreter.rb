@@ -35,6 +35,20 @@ module Hecks
       # rejects the command exactly like a failed given — raised as GivenFailed
       # with the invariant NAME as message so `expect refused:` matches the
       # name (mirror rust/src/invariants + behaviors_runner InvariantViolation).
+      # Enforce `required: true` command attributes (before givens). A required
+      # kwarg that is absent, Null, or empty refuses the command — the structural
+      # superset of the old `given { x != "" }` idiom which couldn't see a truly
+      # absent (nil) kwarg. Mirror rust interpreter::check_required.
+      def check_required(cmd, attrs)
+        (cmd.attributes || []).each do |a|
+          next unless a.respond_to?(:required) && a.required
+          v = attrs[a.name.to_s]
+          present = v && !(v.respond_to?(:null?) && v.null?) && v.to_display.to_s != ""
+          next if present
+          raise GivenFailed.new("#{a.name} is required", "required")
+        end
+      end
+
       def check_invariants(agg, state, attrs)
         invariants = agg.respond_to?(:invariants) ? (agg.invariants || []) : []
         invariants.each do |inv|

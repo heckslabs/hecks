@@ -1,4 +1,4 @@
-Hecks.bluebook "Plan", version: "2026.06.05.2" do
+Hecks.bluebook "Plan", version: "2026.06.05.3" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
@@ -177,9 +177,8 @@ Hecks.bluebook "Plan", version: "2026.06.05.2" do
       description "Create a new sprint with a number and a goal. Sets state to planned. This is the creation command — the record does not exist yet."
       attribute :number,  Number
       attribute :goal,    Goal
-      attribute :project, Project
+      attribute :project, Project, required: true
       given("number must be set")  { number != "" }
-      given("project must be set") { project != "" && project != "null" }
       then_set :number,  to: :number
       then_set :goal,    to: :goal
       then_set :project, to: :project
@@ -786,8 +785,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.2" do
       attribute :tier,    Tier
       attribute :summary, Summary
       attribute :target,  Target
-      attribute :project, Project
-      given("project must be set") { project != "" && project != "null" }
+      attribute :project, Project, required: true
       then_set :ref,      to: :ref
       then_set :title,    to: :title
       then_set :tier,     to: :tier
