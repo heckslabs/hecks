@@ -32,7 +32,15 @@ module Hecks
           @rt.reacted_to = @rt.reacted_to + 1
           @rt.domain.policies.each do |p|
             on = policy_event(p)
-            next unless on && on == ev[:name]
+            next unless on
+            # Mirror rust PolicyEngine#react : a binding's on-event may be
+            # aggregate-qualified ("Task.TaskAdded"). Match on the BARE event
+            # name ; an aggregate-qualified binding fires ONLY when the firing
+            # event came from that aggregate. The bus stores bare event names,
+            # so without the split the qualified policy never matches.
+            qualifier, bare = on.to_s.include?(".") ? on.to_s.split(".", 2) : [nil, on.to_s]
+            next unless bare == ev[:name]
+            next if qualifier && qualifier != ev[:aggregate_type].to_s
             next if @stack.include?(p.name)
             @stack.push(p.name)
             begin
