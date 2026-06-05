@@ -172,6 +172,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.1" do
       description "Create a new sprint with a number and a goal. Sets state to planned. This is the creation command — the record does not exist yet."
       attribute :number, Number
       attribute :goal,   Goal
+      given("number must be set") { number != "" }
       then_set :number, to: :number
       then_set :goal,   to: :goal
       then_set :state,  to: "planned"

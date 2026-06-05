@@ -573,4 +573,11 @@ Hecks.behaviors "Plan" do
     expect emits: ["EpicAddedToProject"]
   end
 
+
+  test "Plan refuses a sprint with an empty number" do
+    tests "Plan", on: "Sprint"
+    input  number: "", goal: "no number"
+    expect refused: "number must be set"
+  end
+
 end
