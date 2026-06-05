@@ -30,6 +30,20 @@ module Hecks
         end
       end
 
+      # Aggregate-level invariants (f4) : a `given` checked on EVERY command,
+      # evaluated against the RESULTING state. The first violated invariant
+      # rejects the command exactly like a failed given — raised as GivenFailed
+      # with the invariant NAME as message so `expect refused:` matches the
+      # name (mirror rust/src/invariants + behaviors_runner InvariantViolation).
+      def check_invariants(agg, state, attrs)
+        invariants = agg.respond_to?(:invariants) ? (agg.invariants || []) : []
+        invariants.each do |inv|
+          next unless inv.respond_to?(:expression) && !inv.expression.nil?
+          next if evaluate_given(inv.expression, state, attrs)
+          raise GivenFailed.new(inv.message.to_s, inv.expression)
+        end
+      end
+
       def apply_mutations(cmd, state, attrs)
         cmd.mutations.each do |m|
           op = m.operation.to_sym

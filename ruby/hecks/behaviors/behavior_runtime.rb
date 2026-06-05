@@ -74,6 +74,8 @@ module Hecks
         Interpreter.check_givens(cmd, state, attrs)
         Interpreter.apply_mutations(cmd, state, attrs)
         StateResolver.apply_lifecycle_transition(agg, cmd, state)
+        # f4 — invariants on the RESULTING state reject like a failed given.
+        Interpreter.check_invariants(agg, state, attrs)
 
         copy_auto_input(agg, cmd, state, attrs) if is_new
 
