@@ -104,34 +104,51 @@ module Hecks
       # and bare Command. Qualified forms filter by aggregate (and context)
       # so colliding command names (Cancel on Sprint/Story/Task) resolve to
       # the intended aggregate rather than first-match-wins.
+      # Resolve a command by address. Mirrors rust parse_fqn + behaviors_runner
+      # find_command : accepts
+      #   Domain::Aggregate.Command  (canonical FQN, e.g. policy triggers)
+      #   Context.Aggregate.Command  (legacy 3-dot)
+      #   Aggregate.Command          (runner FQN from the test's on:)
+      #   Command                    (bare — first-match)
+      # Qualified forms filter by aggregate so colliding command names resolve
+      # to the intended aggregate. The `::` head split is what lets cascade
+      # policy triggers ("Plan::Story.MarkReady") dispatch at all.
       def find_command(name)
-        parts = name.to_s.split(".")
-        case parts.length
-        when 3
-          context, agg_name, cmd_name = parts
+        s = name.to_s
+        unless s.include?(".")
           @domain.aggregates.each do |agg|
-            next unless agg.name.to_s == agg_name
-            agg_ctx = agg.respond_to?(:context) ? agg.context.to_s : ""
-            next unless agg_ctx == context
-            cmd = agg.commands.find { |c| c.name.to_s == cmd_name }
+            cmd = agg.commands.find { |c| c.name.to_s == s }
             return [agg, cmd] if cmd
           end
-          [nil, nil]
-        when 2
-          agg_name, cmd_name = parts
-          @domain.aggregates.each do |agg|
-            next unless agg.name.to_s == agg_name
-            cmd = agg.commands.find { |c| c.name.to_s == cmd_name }
-            return [agg, cmd] if cmd
-          end
-          [nil, nil]
-        else
-          @domain.aggregates.each do |agg|
-            cmd = agg.commands.find { |c| c.name.to_s == name.to_s }
-            return [agg, cmd] if cmd
-          end
-          [nil, nil]
+          return [nil, nil]
         end
+        head, _, cmd_name = s.rpartition(".")
+        if head.include?("::")
+          ctx, agg_name = head.split("::", 2)
+        elsif head.include?(".")
+          ctx, agg_name = head.split(".", 2)
+        else
+          ctx, agg_name = nil, head
+        end
+        # Strict : aggregate name (+ context when the IR carries one).
+        @domain.aggregates.each do |agg|
+          next unless agg.name.to_s == agg_name
+          if ctx
+            agg_ctx = agg.respond_to?(:context) ? agg.context.to_s : ""
+            next unless agg_ctx == ctx
+          end
+          cmd = agg.commands.find { |c| c.name.to_s == cmd_name }
+          return [agg, cmd] if cmd
+        end
+        # Lenient fallback : aggregate name only (Ruby IR may not set context).
+        if ctx
+          @domain.aggregates.each do |agg|
+            next unless agg.name.to_s == agg_name
+            cmd = agg.commands.find { |c| c.name.to_s == cmd_name }
+            return [agg, cmd] if cmd
+          end
+        end
+        [nil, nil]
       end
 
       def find_query(name)
