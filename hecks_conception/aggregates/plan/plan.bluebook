@@ -1,4 +1,4 @@
-Hecks.bluebook "Plan", version: "2026.05.31.3" do
+Hecks.bluebook "Plan", version: "2026.06.05.1" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
@@ -1773,6 +1773,120 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
   end
 
   # ===== from project/project.bluebook =====
+  aggregate "Epic", "A named body of work that optionally groups Sprints and Stories under one cross-cutting initiative (e.g. 'adapters'). Owned by a Project (Project.has_many Epics) ; grouping is OPTIONAL - a project's sprints and stories may sit outside any epic. Epic owns its membership truth (Epic.sprints, Epic.stories) ; Sprint and Story carry NO back-pointer (no FK shapes, references-not-ids). Epic is the initiative axis ; orthogonal to the Sprint time-box and Project lifecycle." do
+    identified_by :name
+
+    # ---- Identity ----
+    attribute :name,        Name
+
+    # ---- Content ----
+    attribute :title,       Title
+    attribute :description, Description
+
+    # ---- Owned membership (owner-side has_many ; children carry NO back-pointer) ----
+    # Epic.sprints / Epic.stories hold the membership truth, appended via
+    # AddSprint / AddStory. No FK on the child side - references-not-ids.
+    has_many Sprints
+    has_many Stories
+
+    # ---- Lifecycle ----
+    attribute :status,      Status, default: "active"
+
+    value_object "Name" do
+      # The epic slug / identifier. E.g. "adapters", "payments". Stable for the
+      # record lifetime. Found by navigating from the owning Project.epics.
+      attribute :value, String
+    end
+
+    value_object "Title" do
+      # Human-readable epic title. E.g. "Adapters - hexagon ports, end to end".
+      attribute :value, String
+    end
+
+    value_object "Description" do
+      # Short prose description of the epic purpose.
+      attribute :value, String
+    end
+
+    value_object "Status" do
+      # Lifecycle token: active | done | cancelled.
+      attribute :value, String
+    end
+
+    command "Frame" do
+      role "Miette"
+      description "Mint a new Epic - a cross-cutting initiative that optionally groups sprints and stories. The name IS the epic identity : one Epic per name slug. Starts active. Link it to a project with Project.AddEpic."
+      attribute :name,        Name
+      attribute :title,       Title
+      attribute :description, Description
+      then_set :name,         to: :name
+      then_set :title,        to: :title
+      then_set :description,  to: :description
+      then_set :status,       to: "active"
+      emits "EpicFramed"
+    end
+
+    command "Reword" do
+      role "Miette"
+      description "Amend an epic title and description - pure content mutation, no lifecycle change, valid from any status."
+      reference_to(Epic)
+      attribute :title,       Title
+      attribute :description, Description
+      then_set :title,        to: :title
+      then_set :description,  to: :description
+      emits "EpicReworded"
+    end
+
+    command "AddSprint" do
+      role "Miette"
+      description "Group a sprint under this epic - appends the sprint identity to Epic.sprints. The epic owns the membership truth ; Sprint has no back-pointer (no FK). Optional grouping ; mirrors Sprint.AddStory."
+      reference_to(Epic)
+      attribute :sprint, Sprint
+      then_set :sprints, append: :sprint
+      emits "SprintAddedToEpic"
+    end
+
+    command "AddStory" do
+      role "Miette"
+      description "Group a story under this epic - appends the story identity to Epic.stories. The epic owns the membership truth ; Story has no back-pointer (no FK). An epic-level story need not belong to one of the epic sprints."
+      reference_to(Epic)
+      attribute :story, Story
+      then_set :stories, append: :story
+      emits "StoryAddedToEpic"
+    end
+
+    command "Complete" do
+      role "Operator"
+      description "Mark an epic as done - its initiative is finished. Done is terminal. Only Operator may complete an epic."
+      reference_to(Epic)
+      given("must be active") { status == "active" }
+      then_set :status, to: "done"
+      emits "EpicCompleted"
+    end
+
+    command "Cancel" do
+      role "Miette"
+      description "Soft-delete an epic : set status to cancelled. For removing erroneous or abandoned epics. Valid from any status."
+      reference_to(Epic)
+      then_set :status, to: "cancelled"
+      emits "EpicCancelled"
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Frame"    => "active"
+      transition "Complete" => "done", from: "active"
+    end
+
+    query "ListAll" do
+      description "Every epic, regardless of status."
+    end
+
+    query "ByStatus" do
+      description "Epics filtered by lifecycle status. Pass status: active | done | cancelled."
+      where status: :status
+    end
+  end
+
   aggregate "Project", "A named initiative in the project registry — groups planning work across stories, backlogs, and sprints." do
     identified_by :name
 
@@ -1785,6 +1899,7 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
     # ---- Owned planning structure ----
     has_one Backlog
     has_many Sprints
+    has_many Epics
 
     # ---- Lifecycle ----
     attribute :status,      Status, default: "active"
@@ -1819,6 +1934,15 @@ Hecks.bluebook "Plan", version: "2026.05.31.3" do
       then_set :description,  to: :description
       then_set :status,       to: "active"
       emits "ProjectRegistered"
+    end
+
+    command "AddEpic" do
+      role "Miette"
+      description "Add an Epic to the project - appends the epic identity to Project.epics. The project owns the membership truth ; Epic has no back-pointer (no FK). Mirrors Sprint.AddStory at the Project-Epics level."
+      reference_to(Project)
+      attribute :epic, Epic
+      then_set :epics, append: :epic
+      emits "EpicAddedToProject"
     end
 
     command "Activate" do

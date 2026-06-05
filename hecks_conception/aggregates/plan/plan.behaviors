@@ -516,4 +516,61 @@ Hecks.behaviors "Plan" do
     input  ref: "cf1"
     expect ref: "cf1", state: "started"
   end
+
+  # ---- Epic : optional cross-cutting grouping of Sprints + Stories under a Project ----
+
+  test "Frame mints an epic in active status" do
+    tests "Frame", on: "Epic"
+    input  name: "ep1", title: "Epic one", description: "first epic"
+    expect name: "ep1", status: "active"
+  end
+
+  test "Frame emits EpicFramed" do
+    tests "Frame", on: "Epic"
+    input  name: "ep2", title: "Epic two", description: "second epic"
+    expect emits: ["EpicFramed"]
+  end
+
+  test "Reword amends an epic title and description" do
+    tests "Reword", on: "Epic"
+    setup  "Frame", name: "ep3", title: "Old", description: "old"
+    input  id: "ep3", title: "New", description: "new"
+    expect emits: ["EpicReworded"]
+  end
+
+  test "AddSprint groups a sprint under an epic" do
+    tests "AddSprint", on: "Epic"
+    setup  "Frame", name: "ep4", title: "E4", description: "d"
+    input  name: "ep4", sprint: "19"
+    expect emits: ["SprintAddedToEpic"]
+  end
+
+  test "AddStory groups a story under an epic" do
+    tests "AddStory", on: "Epic"
+    setup  "Frame", name: "ep5", title: "E5", description: "d"
+    input  id: "ep5", story: "some-story"
+    expect emits: ["StoryAddedToEpic"]
+  end
+
+  test "Complete marks an epic done" do
+    tests "Complete", on: "Epic"
+    setup  "Frame", name: "ep6", title: "E6", description: "d"
+    input  id: "ep6"
+    expect name: "ep6", status: "done"
+  end
+
+  test "Cancel soft-deletes an epic" do
+    tests "Cancel", on: "Epic"
+    setup  "Frame", name: "ep7", title: "E7", description: "d"
+    input  id: "ep7"
+    expect name: "ep7", status: "cancelled"
+  end
+
+  test "AddEpic adds an epic to a project" do
+    tests "AddEpic", on: "Project"
+    setup  "Register", name: "proj1", description: "a project"
+    input  name: "proj1", epic: "ep1"
+    expect emits: ["EpicAddedToProject"]
+  end
+
 end
