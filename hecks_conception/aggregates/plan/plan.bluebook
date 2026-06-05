@@ -1,4 +1,4 @@
-Hecks.bluebook "Plan", version: "2026.06.05.3" do
+Hecks.bluebook "Plan", version: "2026.06.05.4" do
   vision "The Planning bounded context. All planning aggregates in one bluebook : Sprint (time-box), Story (work unit), Task (one unit of work under a Story), Board (singleton roster), Backlog (intake pool), UseCase (acceptance scenarios), Project (registry), Demo (the act of showing). Same-bluebook cross-aggregate references resolve natively — no namespace prefix. Task was promoted to a first-class aggregate sprint 14 (task-completion-state) ; Story carries pending_task_count maintained by cascade policy on Task lifecycle events."
   category "plan"
 
@@ -184,6 +184,15 @@ Hecks.bluebook "Plan", version: "2026.06.05.3" do
       then_set :project, to: :project
       then_set :state,   to: "planned"
       emits "SprintPlanned"
+    end
+
+    command "AssignToProject" do
+      role "Miette"
+      description "Assign a sprint to a Project (the initiative grouping) — pure metadata, no lifecycle change. Valid from any state. Sprint.Plan sets the project at creation ; this is the reassignment path, and the backfill path for sprints planned before project became required."
+      reference_to(Sprint)
+      attribute :project, Project, required: true
+      then_set :project, to: :project
+      emits "SprintAssignedToProject"
     end
 
     command "RatifyContracts" do

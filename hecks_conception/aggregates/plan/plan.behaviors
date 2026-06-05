@@ -600,4 +600,18 @@ Hecks.behaviors "Plan" do
     expect refused: "project is required"
   end
 
+  test "Sprint.AssignToProject sets a sprint's project" do
+    tests "AssignToProject", on: "Sprint"
+    setup  "Plan", number: "200", goal: "g", project: "plan"
+    input  id: "200", project: "framework"
+    expect number: "200", project: "framework"
+  end
+
+  test "Sprint.AssignToProject refuses without a project" do
+    tests "AssignToProject", on: "Sprint"
+    setup  "Plan", number: "201", goal: "g", project: "plan"
+    input  id: "201"
+    expect refused: "project is required"
+  end
+
 end
