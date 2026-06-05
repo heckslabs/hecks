@@ -84,15 +84,18 @@ module Hecks
         DispatchResult.new(agg.name, state.id)
       end
 
-      def resolve_query(name, _attrs)
+      def resolve_query(name, attrs = {})
         agg, q = find_query(name)
         return { "state" => [] } unless q
-        # Naive: return all records of the owning aggregate. The Rust
-        # runner is exactly this naive too — count_query_records only
-        # cares about array vs object vs missing.
-        records = (@repositories[agg.name] || {}).values.map do |s|
-          s.fields.transform_values(&:to_display)
-        end
+        attrs = normalize_attrs(attrs)
+        wheres = q.respond_to?(:wheres) ? (q.wheres || []) : []
+        # Mirror rust runtime resolve_query : keep records matching ALL
+        # where-clauses. A `:param` value reads attrs ; any other token is a
+        # literal. Without this, a `where state: "tasked"` query returned
+        # every record regardless of state.
+        records = (@repositories[agg.name] || {}).values.select do |s|
+          wheres.all? { |w| where_matches(s, w, attrs) }
+        end.map { |s| s.fields.transform_values(&:to_display) }
         { "state" => records }
       end
 
@@ -141,6 +144,35 @@ module Hecks
       end
 
       private
+
+      # Mirror rust where_matches / resolve_where_value / compare_strings.
+      def where_matches(state, clause, attrs)
+        target = resolve_where_value(clause.value.to_s, attrs)
+        fld = state.fields[clause.field.to_s]
+        actual = fld ? fld.to_display.to_s : ""
+        case clause.op.to_s
+        when "eq"  then actual == target
+        when "ne"  then actual != target
+        when "gt"  then compare_strings(actual, target) > 0
+        when "gte" then compare_strings(actual, target) >= 0
+        when "lt"  then compare_strings(actual, target) < 0
+        when "lte" then compare_strings(actual, target) <= 0
+        else true
+        end
+      end
+
+      def resolve_where_value(value, attrs)
+        return value unless value.start_with?(":")
+        v = attrs[value[1..]]
+        v.is_a?(Value) ? v.to_display.to_s : v.to_s
+      end
+
+      def compare_strings(a, b)
+        ai = Integer(a, exception: false)
+        bi = Integer(b, exception: false)
+        return ai <=> bi if ai && bi
+        a <=> b
+      end
 
       def normalize_attrs(attrs)
         out = {}
