@@ -65,6 +65,12 @@ fn parse_aggregate(lines: &[&str]) -> (Aggregate, usize) {
                 agg.description = extract_string(line);
             } else if line.starts_with("reference_to") {
                 absorb_reference_to(line, &mut agg);
+            } else if line.starts_with("has_many") {
+                absorb_has_many(line, &mut agg);
+            } else if line.starts_with("has_one") {
+                absorb_has_one(line, &mut agg);
+            } else if line.starts_with("belongs_to") {
+                absorb_belongs_to(line, &mut agg);
             } else if line.starts_with("lifecycle") {
                 let (lc, consumed) = parse_lifecycle(&lines[i..]);
                 agg.lifecycle = Some(lc);

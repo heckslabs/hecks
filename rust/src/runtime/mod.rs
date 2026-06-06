@@ -2569,14 +2569,14 @@ impl Runtime {
         // flake : Mind::Musing + Musing::Musing + Musings::Musing all
         // present, only Musings::Musing has the seeded records, but
         // self.all("Musing") returned an empty repo half the time).
-        let (resolved_context, agg_name, query_ir) = self.domain.aggregates.iter()
+        let (resolved_context, agg_name, agg_refs, query_ir) = self.domain.aggregates.iter()
             .filter(|a| context.map_or(true, |ctx| {
                 a.context.as_ref().map_or(false, |c| c == ctx)
             }))
             .filter(|a| aggregate.is_empty() || a.name == aggregate)
             .find_map(|a| a.queries.iter().find(|q| q.name == query_name)
-                .map(|q| (a.context.clone(), a.name.clone(), q.clone())))
-            .unwrap_or_else(|| (None, String::new(), crate::ir::Query {
+                .map(|q| (a.context.clone(), a.name.clone(), a.references.clone(), q.clone())))
+            .unwrap_or_else(|| (None, String::new(), Vec::new(), crate::ir::Query {
                 name: query_name.to_string(),
                 description: None,
                 attributes: vec![],
@@ -2621,7 +2621,22 @@ impl Runtime {
         // pick that drives the dream_content_smoke flake.
         let state = self.all_qualified(resolved_context.as_deref(), &agg_name);
         let mut filtered: Vec<&AggregateState> = state.into_iter()
-            .filter(|s| query_ir.wheres.iter().all(|w| where_matches(s, w, attrs)))
+            .filter(|s| query_ir.wheres.iter().all(|w| match w.op {
+                crate::ir::WhereOp::Resolved => {
+                    let target = agg_refs.iter().find(|r| r.name == w.field)
+                        .map(|r| r.target.clone())
+                        .unwrap_or_else(|| agg_name.clone());
+                    let dep_ids: Vec<String> = match s.get(&w.field) {
+                        Value::List(items) => items.iter().map(|v| v.to_string()).collect(),
+                        _ => Vec::new(),
+                    };
+                    let unresolved = crate::runtime::command_dispatch::unresolved_dependencies(
+                        self, &target, &dep_ids,
+                    );
+                    unresolved.is_empty() == (w.value == "true")
+                }
+                _ => where_matches(s, w, attrs),
+            }))
             .collect();
 
         if let Some(ref ob) = query_ir.order_by {
@@ -2868,6 +2883,9 @@ fn where_matches(
         crate::ir::WhereOp::Lt  => compare_strings(&actual, &target).is_lt(),
         crate::ir::WhereOp::Lte => !compare_strings(&actual, &target).is_gt(),
         crate::ir::WhereOp::In  => target.split(',').any(|item| item.trim() == actual),
+        // Resolved is a cross-aggregate op resolved upstream in
+        // resolve_query_qualified (needs &Runtime) ; never reached here.
+        crate::ir::WhereOp::Resolved => true,
     }
 }
 

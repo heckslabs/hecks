@@ -311,13 +311,14 @@ fn dump_where_clause(w: &WhereClause) -> Value {
 
 fn dump_where_op(op: &WhereOp) -> &'static str {
     match op {
-        WhereOp::Eq  => "eq",
-        WhereOp::Ne  => "ne",
-        WhereOp::Gt  => "gt",
-        WhereOp::Gte => "gte",
-        WhereOp::Lt  => "lt",
-        WhereOp::Lte => "lte",
-        WhereOp::In  => "in",
+        WhereOp::Eq       => "eq",
+        WhereOp::Ne       => "ne",
+        WhereOp::Gt       => "gt",
+        WhereOp::Gte      => "gte",
+        WhereOp::Lt       => "lt",
+        WhereOp::Lte      => "lte",
+        WhereOp::In       => "in",
+        WhereOp::Resolved => "resolved",
     }
 }
 
