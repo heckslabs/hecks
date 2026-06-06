@@ -2867,6 +2867,7 @@ fn where_matches(
         crate::ir::WhereOp::Gte => !compare_strings(&actual, &target).is_lt(),
         crate::ir::WhereOp::Lt  => compare_strings(&actual, &target).is_lt(),
         crate::ir::WhereOp::Lte => !compare_strings(&actual, &target).is_gt(),
+        crate::ir::WhereOp::In  => target.split(',').any(|item| item.trim() == actual),
     }
 }
 
