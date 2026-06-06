@@ -3,10 +3,11 @@
 //
 // Read-only counterpart to storehouse__dispatch. Same dispatch pipeline
 // under the hood — the runtime auto-detects query vs. command via the
-// bluebook's lexicon. The Rust CLI's `query` subcommand enforces the
-// query shape: verb must be Domain::Aggregate.snake_case (lowercase
-// first letter after the dot). PascalCase verbs are rejected with a
-// pointer back at storehouse__dispatch.
+// bluebook's lexicon. This tool guards the query SHAPE in-process: the
+// verb-tail (after the last dot) must be snake_case ; a PascalCase tail
+// reads as a command and is rejected here with a pointer back at
+// storehouse__dispatch (the read-only `query` path must never execute a
+// state-mutating command).
 //
 // Returns whatever the query resolver produces (typically a JSON value
 // or a plain-text scalar, depending on the query).
@@ -86,6 +87,16 @@ export default {
     if (!trimmedSummary) {
       return {
         content: [{ type: "text", text: "summary is required: provide a one-line description of what this query does (e.g. 'fetch current session state')" }],
+        isError: true,
+      };
+    }
+    // Command-shape guard : the read-only query path must never run a
+    // state-mutating command. A PascalCase verb-tail (after the last dot)
+    // is a command — reject it and point at storehouse__dispatch.
+    const verbTail = (input.verb || "").split(".").pop() || "";
+    if (/^[A-Z]/.test(verbTail)) {
+      return {
+        content: [{ type: "text", text: `verb "${input.verb}" looks like a command (the segment after the last '.' is PascalCase). Queries are Domain::Aggregate.snake_case ; use storehouse__dispatch for commands.` }],
         isError: true,
       };
     }

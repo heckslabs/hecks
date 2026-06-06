@@ -192,27 +192,14 @@ async function main() {
   // in structuredContent.stdout, asserted further down.
   contains(dispatchRes.content[0].text, "✓ Tools::ShellTool.Bash", "dispatch text has success headline");
   contains(dispatchRes.content[0].text, "Timeline", "dispatch text has timeline section");
-  contains(dispatchRes.structuredContent.stdout, '"ok":true', "raw stdout (structuredContent) still ok=true");
-
-  // -- structuredContent.events — parsed event array from stdout
-  const dispatchStruct = dispatchRes.structuredContent || {};
-  truthy(Array.isArray(dispatchStruct.events), "dispatch carries events[] array");
-  truthy((dispatchStruct.events || []).length >= 1, "dispatch events[] non-empty");
-  const firstEv = (dispatchStruct.events || [])[0] || {};
-  eq(firstEv.kind, "dispatch", "events[0].kind === dispatch");
-  truthy(typeof firstEv.invocation_id === "string" && firstEv.invocation_id.length > 0,
-    "events[0].invocation_id is a non-empty string");
-  // Every parsed event should carry the same invocation_id (chain id)
-  const invIds = new Set((dispatchStruct.events || []).map((e) => e.invocation_id));
-  eq(invIds.size, 1, "all events share one invocation_id");
-
-  // -- structuredContent.auto_summary — non-empty digest line
-  truthy(
-    typeof dispatchStruct.auto_summary === "string" && dispatchStruct.auto_summary.length > 0,
-    "dispatch carries non-empty auto_summary",
-  );
-  contains(dispatchStruct.auto_summary, "Tools::ShellTool.Bash", "auto_summary names the verb");
-  contains(dispatchStruct.auto_summary, "exit 0", "auto_summary reports exit 0");
+  // i697 — the dispatch tool deliberately returns ONLY the rich content
+  // rendering (no structuredContent ; it surfaced as an unreadable JSON blob
+  // in the conversation). The events / invocation id / auto_summary are
+  // rendered INTO the content text, so assert them there.
+  const dispatchText = dispatchRes.content[0].text;
+  contains(dispatchText, "exit 0", "dispatch text reports exit 0");
+  contains(dispatchText, "ShellTool.Bash#", "dispatch timeline carries an invocation marker");
+  contains(dispatchText, "Tools::ShellTool.Bash", "dispatch auto_summary names the verb");
 
   // -- multi-line output renders as real newlines, not escaped \\n (i607)
   const multiLineRes = await client.callTool({

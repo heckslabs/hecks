@@ -152,7 +152,7 @@ export default {
       ),
     summary: z
       .string()
-      .min(1)
+      .min(1, "summary is required")
       .describe(
         "One-line, terse summary of what this dispatch DOES — e.g., 'write i606 card for MCP summary-required lock' or 'merge sq/macrophage-rename-drop-suffix into main'. Recommended ≤80 characters. Required.",
       ),
