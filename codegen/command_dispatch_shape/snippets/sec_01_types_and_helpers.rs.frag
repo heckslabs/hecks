@@ -116,6 +116,28 @@ fn extract_xref_terms(expr: &str) -> Vec<XrefTerm> {
     terms
 }
 
+/// The shared dependency-resolution specification — consumed by BOTH the
+/// write-side gate (Story.Start's `Story(dependencies).unresolved.empty?`) and
+/// the read-side Claimable query. Given a parent ref-list of dependency ids,
+/// return the ids that are NOT yet resolved : a dependency is resolved once its
+/// `state` reaches a terminal state ("done" or "cancelled" — see plan.bluebook
+/// Story.dependencies) ; a dependency whose id does not resolve to a live record
+/// is treated as unresolved (fail closed). The parent is startable / claimable
+/// exactly when this returns empty. Pure read at the port — never a sibling write.
+pub(crate) fn unresolved_dependencies(rt: &Runtime, aggregate: &str, dep_ids: &[String]) -> Vec<String> {
+    dep_ids
+        .iter()
+        .filter(|id| match rt.find(aggregate, id) {
+            Some(s) => {
+                let st = s.get("state").to_string();
+                st != "done" && st != "cancelled"
+            }
+            None => true,
+        })
+        .cloned()
+        .collect()
+}
+
 /// Slice-1 cross-aggregate POINT gate. For each `Agg(id_expr).field` term in
 /// the command's givens, resolve the named sibling's field and inject it into
 /// `attrs` under the literal term, so the pure `interpreter::resolve_expr`
@@ -133,6 +155,33 @@ fn resolve_cross_aggregate_gates(
     for given in &cmd.givens {
         for term in extract_xref_terms(&given.expression) {
             if attrs.contains_key(&term.full) {
+                continue;
+            }
+            // Set-gate : `Agg(list_field).unresolved` — the SET generalisation
+            // of the point gate below, quantified over a self ref-LIST. The
+            // reserved `unresolved` projection marks a quantified read : `id_expr`
+            // names a ref-list (inbound attrs or the targets own state), we resolve
+            // EACH referenced sibling, and inject the ids that are NOT yet resolved
+            // as a `Value::List` under the literal term. The interpreters
+            // `.unresolved.empty?` then passes only when every dependency is
+            // terminal. Detected BEFORE the scalar id path below so a List id
+            // cannot `.to_string()` into "[N items]", miss `rt.find`, and fail OPEN.
+            if term.field == "unresolved" {
+                let dep_ids: Vec<String> = match attrs
+                    .get(&term.id_expr)
+                    .or_else(|| self_state.map(|s| s.get(&term.id_expr)))
+                {
+                    Some(Value::List(items)) => {
+                        items.iter().map(|v| v.to_string()).collect()
+                    }
+                    _ => Vec::new(),
+                };
+                let unresolved: Vec<Value> =
+                    unresolved_dependencies(rt, &term.aggregate, &dep_ids)
+                        .into_iter()
+                        .map(Value::Str)
+                        .collect();
+                attrs.insert(term.full.clone(), Value::List(unresolved));
                 continue;
             }
             let sibling_id = match attrs.get(&term.id_expr) {

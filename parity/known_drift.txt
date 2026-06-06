@@ -99,36 +99,6 @@ hecks_conception/aggregates/library/stores/inbox.bluebook  # Rust parser drops t
 # collects it. Retires together with voice_latency when QueryRecorder
 # gains an `attribute` recorder method.
 hecks_conception/aggregates/framework/session/storehouse_log.bluebook  # Ruby QueryRecorder drops query-block `attribute` declarations (method_missing) ; Rust collects them. Ruby-side gap (same as voice_latency).
-
-# plan.bluebook + demo.bluebook drift surfaced 2026-05-29 — the Plan domain
-# consolidation uses the new relationship DSL (has_many, has_one, belongs_to)
-# at the Ruby builder layer ; the Rust parser at HEAD does NOT parse those
-# keywords yet (the parse_as_alias + ReferenceKind work was added manually
-# to rust/src/ir.rs + parser.rs in a prior session but never propagated to
-# the codegen/ir_shape fixtures, so it got reverted by the specializer-golden
-# regen this session). Until the ir_shape sweep restores cardinality + kind
-# + ReferenceKind + parser keyword handling, plan.bluebook → Ruby sees N
-# references, Rust sees 0 ; demo.bluebook → Ruby splits `Plan::Story` into
-# (domain, target), Rust holds it literal. Retires when task #28's shape
-# fixture sweep lands.
-hecks_conception/aggregates/plan/plan.bluebook  # Rust parser at HEAD drops has_many/has_one/belongs_to keywords entirely ; Ruby builder collects them. Awaiting ir_shape cardinality+kind+ReferenceKind sweep (task #28).
-hecks_conception/aggregates/demo/demo.bluebook  # Rust parser doesn't split `Plan::Story` qualified refs into (domain, target) ; Ruby does. Same sweep retires both (task #28).
-
-# conductor/claim.bluebook drift surfaced 2026-06-02 — same root as plan.bluebook :
-# belongs_to Worker uses the relationship DSL keyword that the Rust parser at HEAD drops.
-# Ruby builder collects the reference ; Rust sees references: []. Retires with task #28
-# (ir_shape cardinality+kind+ReferenceKind sweep).
-hecks_conception/aggregates/conductor/claim.bluebook  # Rust parser drops belongs_to keyword ; Ruby collects it. Same gap as plan.bluebook (task #28).
-
-# conductor/lease.bluebook drift surfaced 2026-06-02 — same root as plan.bluebook:
-# belongs_to Worker + belongs_to Story use the relationship DSL keywords the Rust parser
-# at HEAD drops. Ruby collects references ; Rust sees references: []. Same gap (task #28).
-hecks_conception/aggregates/conductor/lease.bluebook  # Rust parser drops belongs_to keywords ; Ruby collects them. Same gap as plan.bluebook (task #28).
-
-# conductor/merge_queue.bluebook drift surfaced 2026-06-02 — same root as plan.bluebook:
-# has_many Stories/has_one Stories use the relationship DSL keywords the Rust parser drops.
-hecks_conception/aggregates/conductor/merge_queue.bluebook  # Rust parser drops has_many/has_one keywords ; Ruby collects them. Same gap as plan.bluebook (task #28).
-
 # conductor/conductor.bluebook error-before-diff surfaced 2026-06-02 — Ruby BluebookBuilder
 # does not implement `delivery` (Rust-only keyword). The Rust parser validates and
 # serialises it ; Ruby raises NoMethodError before the diff can run. Same gap class as

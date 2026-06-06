@@ -21,6 +21,26 @@ module Hecks
         (cmd.givens || []).each do |given|
           extract_terms(given.expression.to_s).each do |term|
             next if attrs.key?(term[:full])
+            # Set-gate : `Agg(list_field).unresolved` -- the SET generalisation
+            # of the point gate below, quantified over a self ref-LIST. The
+            # reserved `unresolved` projection marks a quantified read : `id_expr`
+            # names a ref-list, we resolve EACH referenced sibling and inject the
+            # ids that are NOT yet resolved (state neither "done" nor "cancelled"
+            # ; a missing sibling counts as unresolved -- fail closed) as a
+            # Value.list under the literal term. Mirror of the Rust resolver ;
+            # the interpreter `.unresolved.empty?` reads it via `.size`.
+            if term[:field] == "unresolved"
+              src = attrs[term[:id_expr]] || attrs[term[:id_expr].to_sym] ||
+                    (state && state.get(term[:id_expr]))
+              listv = src.is_a?(Value) ? src : Value.from(src)
+              dep_ids = listv.list? ? listv.raw.map { |v| v.to_display.to_s } : []
+              unresolved = dep_ids.reject do |id|
+                sib = runtime.find(term[:aggregate], id)
+                sib && %w[done cancelled].include?(sib.get("state").to_display.to_s)
+              end
+              attrs[term[:full]] = Value.list(unresolved)
+              next
+            end
             raw = attrs[term[:id_expr]] || attrs[term[:id_expr].to_sym] ||
                   (state && state.get(term[:id_expr]))
             # Value#to_s is the object inspect form ; to_display is the raw

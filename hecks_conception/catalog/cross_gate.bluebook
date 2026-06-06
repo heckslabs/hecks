@@ -47,6 +47,10 @@ Hecks.bluebook "CrossGate" do
     attribute :folder, Folder
     attribute :state, DocState, default: "draft"
 
+    # Self-referential DAG edge : a Doc depends_on sibling Docs. Set-gate
+    # fixture for Release below (the SET generalisation of the point gate).
+    has_many Docs, as: :dependencies
+
     command "CreateDoc" do
       role "System"
       attribute :id, Id
@@ -62,8 +66,39 @@ Hecks.bluebook "CrossGate" do
       emits "DocPublished"
     end
 
+    command "AddDep" do
+      role "System"
+      reference_to(Doc)
+      attribute :dependency, Doc
+      then_set :dependencies, append: :dependency
+      emits "DepAdded"
+    end
+
+    command "FinishDoc" do
+      role "System"
+      reference_to(Doc)
+      then_set :state, to: "done"
+      emits "DocFinished"
+    end
+
+    # Set-gate : releasable only when EVERY dependency Doc is resolved
+    # (state "done" or "cancelled"). A draft / missing dependency blocks it
+    # (fail closed). Proves the SET cross-aggregate gate end-to-end.
+    command "Release" do
+      role "System"
+      reference_to(Doc)
+      given("all dependencies must be resolved") { Doc(dependencies).unresolved.empty? }
+      then_set :state, to: "released"
+      emits "DocReleased"
+    end
+
     query "Drafts" do
       where state: { in: ["draft"] }
+    end
+
+    query "Releasable" do
+      description "Docs whose every dependency is resolved (terminal : done / cancelled ; a missing dep counts as unresolved). The READ-port twin of the Release set-gate -- same specification, evaluated over the stored ref-list at query time."
+      where dependencies: { resolved: true }
     end
 
     query "all" do

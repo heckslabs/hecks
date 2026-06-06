@@ -97,7 +97,13 @@ module Hecks
         # literal. Without this, a `where state: "tasked"` query returned
         # every record regardless of state.
         records = (@repositories[agg.name] || {}).values.select do |s|
-          wheres.all? { |w| where_matches(s, w, attrs) }
+          wheres.all? do |w|
+            if w.op.to_s == "resolved"
+              dependency_resolved?(agg, s, w)
+            else
+              where_matches(s, w, attrs)
+            end
+          end
         end.map { |s| s.fields.transform_values(&:to_display) }
         { "state" => records }
       end
@@ -166,6 +172,28 @@ module Hecks
       private
 
       # Mirror rust where_matches / resolve_where_value / compare_strings.
+      # Cross-aggregate READ-side filter mirroring the Rust
+      # resolve_query_qualified Resolved branch + command_dispatch
+      # unresolved_dependencies. A record passes iff its ref-LIST field
+      # `clause.field` is fully resolved : every referenced sibling is in a
+      # terminal state (done / cancelled), a missing sibling counting as
+      # unresolved (fail closed). Target aggregate is read from `agg`
+      # references by field name, falling back to self for a self-referential
+      # DAG. Shared specification with the Story.Start set-gate.
+      def dependency_resolved?(agg, state, clause)
+        refs = agg.respond_to?(:references) ? (agg.references || []) : []
+        ref = refs.find { |r| r.name.to_s == clause.field.to_s }
+        target = ref ? ref.type.to_s : agg.name
+        listv = state.get(clause.field.to_s)
+        listv = Value.from(listv) unless listv.is_a?(Value)
+        dep_ids = listv.list? ? listv.raw.map { |v| v.to_display.to_s } : []
+        unresolved = dep_ids.reject do |id|
+          sib = find(target, id)
+          sib && %w[done cancelled].include?(sib.get("state").to_display.to_s)
+        end
+        unresolved.empty? == (clause.value.to_s == "true")
+      end
+
       def where_matches(state, clause, attrs)
         target = resolve_where_value(clause.value.to_s, attrs)
         fld = state.fields[clause.field.to_s]

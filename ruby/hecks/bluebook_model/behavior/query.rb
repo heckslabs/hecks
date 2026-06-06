@@ -151,6 +151,7 @@ module Hecks
         ne:  "ne",  "ne"  => "ne",
         eq:  "eq",  "eq"  => "eq",
         in:  "in",  "in"  => "in",
+        resolved: "resolved", "resolved" => "resolved",
       }.freeze
 
       def where(**conditions)

@@ -46,5 +46,78 @@ Hecks.behaviors "CrossGate" do
     setup  "Doc.PublishDoc",       id: "d2"
     expect count: 1
   end
-end
 
+  test "Release succeeds with no dependencies (empty set passes)" do
+    tests "Release", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    input doc: "d1"
+    expect state: "released"
+  end
+
+  test "Release refused while a dependency is unresolved (draft)" do
+    tests "Release", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "dep1", folder: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    setup "Doc.AddDep", doc: "d1", dependency: "dep1"
+    input doc: "d1"
+    expect refused: "all dependencies must be resolved"
+  end
+
+  test "Release succeeds once every dependency is done" do
+    tests "Release", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "dep1", folder: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    setup "Doc.AddDep", doc: "d1", dependency: "dep1"
+    setup "Doc.FinishDoc", doc: "dep1"
+    input doc: "d1"
+    expect state: "released"
+  end
+
+  test "Release refused when a dependency id does not resolve (fail closed)" do
+    tests "Release", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    setup "Doc.AddDep", doc: "d1", dependency: "ghost"
+    input doc: "d1"
+    expect refused: "all dependencies must be resolved"
+  end
+
+  test "Releasable excludes a doc blocked by a draft dependency" do
+    tests "Releasable", on: "Doc", kind: :query
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "dep1", folder: "f1"
+    setup "Doc.CreateDoc", id: "parent", folder: "f1"
+    setup "Doc.AddDep", doc: "parent", dependency: "dep1"
+    expect count: 1
+  end
+
+  test "Releasable includes the doc once its dependency is done" do
+    tests "Releasable", on: "Doc", kind: :query
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "dep1", folder: "f1"
+    setup "Doc.CreateDoc", id: "parent", folder: "f1"
+    setup "Doc.AddDep", doc: "parent", dependency: "dep1"
+    setup "Doc.FinishDoc", doc: "dep1"
+    expect count: 2
+  end
+
+  test "FinishDoc moves a doc to the done terminal state" do
+    tests "FinishDoc", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    input doc: "d1"
+    expect state: "done"
+  end
+
+  test "AddDep records a dependency without changing lifecycle state" do
+    tests "AddDep", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "dep1", folder: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    input doc: "d1", dependency: "dep1"
+    expect state: "draft"
+  end
+end

@@ -604,6 +604,7 @@ pub enum WhereOp {
     Lt,
     Lte,
     In,
+    Resolved,
 }
 
 #[derive(Debug, Clone)]

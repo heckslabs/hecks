@@ -500,14 +500,19 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     # relationship ; the runtime carries identity refs, not copies.
     # Default: empty (no dependencies).
     #
-    # BLOCKED SEMANTICS (runtime-cross-aggregate-where gap) :
-    # A story is "blocked" while ANY of its dependencies is not in state
-    # "done". This is documented contract + projection-side only -- the
-    # runtime cannot evaluate cross-aggregate set-membership in guards
-    # or queries today (gap : runtime-cross-aggregate-where). The
-    # Claimable query below documents the intent ; the projection layer
-    # (planning pulse, board adapter) must apply the dep-state filter
-    # until the runtime gap closes.
+    # BLOCKED SEMANTICS :
+    # A dependency is RESOLVED once its state reaches a terminal state --
+    # "done" (succeeded) OR "cancelled" (abandoned, never reaching done ;
+    # blocking on it would deadlock dependents forever). A story is
+    # "blocked" while ANY dependency is unresolved ; a dependency whose id
+    # does not resolve to a live record counts as unresolved (fail closed).
+    # ENFORCED at the WRITE port : Story.Start carries the set-gate
+    # given { Story(dependencies).unresolved.empty? } -- the dispatch layer
+    # resolves each dependency state before the given runs (the SET
+    # generalisation of the cross-aggregate POINT gate). The READ port
+    # (Claimable query) still filters projection-side until the per-record
+    # cross-aggregate-where JOIN lands in the query executor (gap :
+    # runtime-cross-aggregate-where, read side only now).
     has_many Stories, as: :dependencies
 
     # ---- Lifecycle ----
@@ -955,6 +960,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       given("story must be on a sprint board") { sprint != "" }
       given("story must be tasked before starting") { state == "tasked" }
       given("sprint contracts must be ratified") { Sprint(sprint).contracts_ratified == true }
+      given("all dependencies must be resolved before starting") { Story(dependencies).unresolved.empty? }
       emits "StoryStarted"
     end
 
@@ -1244,8 +1250,9 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     end
 
     query "Claimable" do
-      description "Stories ready to be claimed for work. SEMANTIC : state == \"tasked\" AND NOT blocked (i.e. all depends_on stories are in state \"done\"). RUNTIME : returns every story where state == \"tasked\" unfiltered ; the projection layer must exclude stories with an unresolved dependency. The dep-state exclusion requires cross-aggregate set-membership evaluation (gap : runtime-cross-aggregate-where) which is not yet supported in queries. Both filters will land as proper where clauses when the gap closes. Mirror of Story.Board semantics."
+      description "Stories ready to be claimed for work. SEMANTIC : state == \"tasked\" AND NOT blocked (i.e. every dependency is in a terminal state \"done\" or \"cancelled\" ; a missing dependency counts as unresolved / fail-closed). RUNTIME : BOTH filters are now enforced in the executor -- `where state: \"tasked\"` is the pure state filter and `where dependencies: { resolved: true }` is the cross-aggregate read-side filter (WhereOp::Resolved : every Story in the dependencies ref-list must be terminal ; resolved at query time against live sibling state, no denormalization). This is the READ-port twin of the Story.Start set-gate -- both consume the single shared `unresolved_dependencies` specification, enforcing the same invariant at write time (gate) and read time (this query). Mirror of Story.Board semantics."
       where state: "tasked"
+      where dependencies: { resolved: true }
     end
   end
 
