@@ -765,6 +765,23 @@ fn main() {
         return;
     }
 
+    // `state <root-or-bluebook> <Aggregate> <id>` — read ONE record's current
+    // runtime state by id (runtime.find). Read-only counterpart to the dispatch
+    // state output ; boots the same runtime so the .heki store and world dirs
+    // resolve identically. Missing record => ok:false / state:null (a normal
+    // "no such record" answer, not an error).
+    if command == "state" {
+        let root = path;
+        let agg_name = args.get(3).cloned().unwrap_or_default();
+        let id = args.get(4).cloned().unwrap_or_default();
+        if agg_name.is_empty() || id.is_empty() {
+            eprintln!("Usage: storehouse state <root-or-bluebook> <Aggregate> <id>");
+            std::process::exit(1);
+        }
+        cmd_state(root, &agg_name, &id);
+        return;
+    }
+
     if path.is_empty() {
         eprintln!("Usage: storehouse {} <bluebook-file-or-dir>", command);
         std::process::exit(1);
@@ -3383,6 +3400,41 @@ fn make_serve_legacy_hook(
 }
 
 /// Dispatch a command through the hecksagon — merge all bluebooks, find the command, run it.
+fn cmd_state(agg_dir: &str, agg_name: &str, id: &str) {
+    let data_dir = find_world_heki_dir(agg_dir)
+        .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
+    let combined = if std::path::Path::new(agg_dir).is_file() {
+        parser::parse(&fs::read_to_string(agg_dir).unwrap_or_default())
+    } else {
+        load_combined_domain(agg_dir)
+    };
+    let hecksagons = load_all_hecksagons(agg_dir);
+    let mut rt = Runtime::boot_with_hecksagons(combined, Some(data_dir), hecksagons);
+    storehouse::world::attach::apply_per_domain_world_dirs(&mut rt, agg_dir);
+    storehouse::world::attach::attach_world_adapter_bindings(&mut rt, agg_dir);
+    let (ok, state_json) = match rt.find(agg_name, id) {
+        Some(rec) => {
+            let mut map = serde_json::Map::new();
+            for (k, v) in &rec.fields {
+                map.insert(k.clone(), match v {
+                    storehouse::runtime::Value::Str(s) => serde_json::json!(s),
+                    storehouse::runtime::Value::Int(n) => serde_json::json!(n),
+                    storehouse::runtime::Value::Bool(b) => serde_json::json!(b),
+                    _ => serde_json::json!(v.to_string()),
+                });
+            }
+            (true, serde_json::Value::Object(map))
+        }
+        None => (false, serde_json::Value::Null),
+    };
+    println!("{}", serde_json::json!({
+        "ok": ok,
+        "aggregate": agg_name,
+        "id": id,
+        "state": state_json,
+    }));
+}
+
 fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::HashMap<String, serde_json::Value>) {
     let data_dir = find_world_heki_dir(agg_dir)
         .unwrap_or_else(|| format!("{}/data", agg_dir.trim_end_matches('/')));
