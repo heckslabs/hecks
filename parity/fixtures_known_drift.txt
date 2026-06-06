@@ -6,6 +6,17 @@
 
 # Pre-existing drift (not introduced by Sprint 14 first-adapter work) :
 #   - hecks_conception/aggregates/discipline/immune_system/macrophage/governed_door.fixtures
+
+# Same dispatch-fixture Ruby-loader gap as governed_door (identical
+#   `fixture "..." do dispatch "Discipline::X.Register", k: v end` form) :
+#   - hecks_conception/aggregates/discipline/immune_system/macrophage/agent_discipline.fixtures
+#     Ruby FixturesBuilder returns nil for the dispatch-fixture block form ;
+#     Rust parses it as AgentDiscipline with an empty fixtures list. Added
+#     after governed_door was drifted, so it was simply missed from this list
+#     (not a regression — the runtimes never agreed on this form). Retires with
+#     governed_door under the SAME follow-up card : Ruby FixturesBuilder accepts
+#     the dispatch-fixture form and returns the same fixtures Rust does.
+hecks_conception/aggregates/discipline/immune_system/macrophage/agent_discipline.fixtures
 #     Ruby FixturesBuilder returns nil for this file ; Rust parses it as
 #     GovernedDoor with empty fixtures list. Introduced in commit e31c4053
 #     (feat(governance): bluebook-it the PreToolUse hook) ; pre-dates Sprint 14.
