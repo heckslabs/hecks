@@ -443,6 +443,19 @@ fn extract_where_value(raw: &str, param_names: &[String]) -> String {
         let inner = raw.trim_start_matches('\'');
         let close = inner.rfind('\'').unwrap_or(inner.len());
         inner[..close].to_string()
+    } else if raw.starts_with('[') {
+        // List literal for the `in:` operator. Normalize to a clean CSV of
+        // items (quotes + whitespace stripped) ; where_matches splits on
+        // ',' for membership. Inner commas are elements, already protected
+        // by split_top_level_commas' bracket-depth tracking.
+        let inner = raw.trim_start_matches('[');
+        let close = inner.rfind(']').unwrap_or(inner.len());
+        split_top_level_commas(&inner[..close])
+            .iter()
+            .map(|it| it.trim().trim_matches('"').trim_matches('\'').trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(",")
     } else if raw.starts_with(':') {
         raw.split(|c: char| c == ',' || c.is_whitespace())
             .next().unwrap_or("").to_string()
@@ -474,6 +487,7 @@ fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
         "gte" => WhereOp::Gte,
         "ne"  => WhereOp::Ne,
         "eq"  => WhereOp::Eq,
+        "in"  => WhereOp::In,
         _     => return None,
     };
     Some((op, value_part))

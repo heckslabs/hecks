@@ -62,6 +62,10 @@ Hecks.bluebook "CrossGate" do
       emits "DocPublished"
     end
 
+    query "Drafts" do
+      where state: { in: ["draft"] }
+    end
+
     query "all" do
     end
   end

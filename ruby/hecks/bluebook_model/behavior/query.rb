@@ -150,6 +150,7 @@ module Hecks
         gte: "gte", "gte" => "gte",
         ne:  "ne",  "ne"  => "ne",
         eq:  "eq",  "eq"  => "eq",
+        in:  "in",  "in"  => "in",
       }.freeze
 
       def where(**conditions)
@@ -158,7 +159,7 @@ module Hecks
           @wheres << WhereClause.new(
             field: field.to_s,
             op:    op,
-            value: format_value(inner),
+            value: inner.is_a?(Array) ? inner.map(&:to_s).join(",") : format_value(inner),
           )
         end
         self

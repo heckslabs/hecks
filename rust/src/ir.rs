@@ -592,7 +592,9 @@ pub struct WhereClause {
 /// (handles `where(field: value)` and `where(field: { ne: value })`) ;
 /// Gt / Gte / Lt / Lte cover ordered comparisons against numeric or
 /// string fields. The runtime parses the value side as a literal or
-/// kwarg-ref and applies the op to each candidate record. (i101)
+/// kwarg-ref and applies the op to each candidate record. In tests
+/// list membership : the record field must equal one element of a
+/// literal list (`where field: { in: [a, b] }`). (i101)
 #[derive(Debug, Clone)]
 pub enum WhereOp {
     Eq,
@@ -601,6 +603,7 @@ pub enum WhereOp {
     Gte,
     Lt,
     Lte,
+    In,
 }
 
 #[derive(Debug, Clone)]

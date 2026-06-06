@@ -317,6 +317,7 @@ fn dump_where_op(op: &WhereOp) -> &'static str {
         WhereOp::Gte => "gte",
         WhereOp::Lt  => "lt",
         WhereOp::Lte => "lte",
+        WhereOp::In  => "in",
     }
 }
 

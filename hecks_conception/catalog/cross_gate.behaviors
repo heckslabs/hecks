@@ -37,4 +37,14 @@ Hecks.behaviors "CrossGate" do
     input id: "d1"
     expect state: "published"
   end
+  test "Drafts query excludes published docs (in: operator)" do
+    tests "Drafts", on: "Doc", kind: :query
+    setup  "Folder.CreateFolder",  name: "f1"
+    setup  "Folder.ApproveFolder", id: "f1"
+    setup  "Doc.CreateDoc",        id: "d1", folder: "f1"
+    setup  "Doc.CreateDoc",        id: "d2", folder: "f1"
+    setup  "Doc.PublishDoc",       id: "d2"
+    expect count: 1
+  end
 end
+

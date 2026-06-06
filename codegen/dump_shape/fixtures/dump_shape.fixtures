@@ -222,6 +222,7 @@ Hecks.fixtures "DumpShape" do
     fixture "WhereOp_Gte", serializer: "dump_where_op", variant: "WhereOp::Gte", emits: "gte", order: 4
     fixture "WhereOp_Lt",  serializer: "dump_where_op", variant: "WhereOp::Lt",  emits: "lt",  order: 5
     fixture "WhereOp_Lte", serializer: "dump_where_op", variant: "WhereOp::Lte", emits: "lte", order: 6
+    fixture "WhereOp_In",  serializer: "dump_where_op", variant: "WhereOp::In",  emits: "in",  order: 7
 
     # dump_direction — 2 variants (i101).
     fixture "Direction_Asc",  serializer: "dump_direction", variant: "Direction::Asc",  emits: "asc",  order: 1

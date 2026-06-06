@@ -177,6 +177,7 @@ module Hecks
         when "gte" then compare_strings(actual, target) >= 0
         when "lt"  then compare_strings(actual, target) < 0
         when "lte" then compare_strings(actual, target) <= 0
+        when "in"  then target.split(",").any? { |item| item.strip == actual }
         else true
         end
       end
