@@ -57,6 +57,9 @@ Hecks.bluebook "Mindstream", version: "2026.05.12.1" do
       attribute :name,        Name
       attribute :description, Description
       attribute :directory,   Directory
+      then_set :name,        to: :name
+      then_set :description, to: :description
+      then_set :directory,   to: :directory
       emits "Defined"
     end
 

@@ -87,8 +87,12 @@ module Hecks
           repo = rt.repositories[agg_name]
           next unless repo # fixture references an aggregate not in domain
 
+          agg = rt.domain.aggregates.find { |a| a.name.to_s == agg_name.to_s }
+          id_field = (agg && agg.respond_to?(:identified_by)) ? agg.identified_by : nil
           fixtures.each_with_index do |fix, i|
-            id = (i + 1).to_s
+            fa = fix.attributes || {}
+            natural = id_field && (fa[id_field.to_sym] || fa[id_field.to_s])
+            id = natural ? natural.to_s : (i + 1).to_s
             state = AggregateState.new(id)
             (fix.attributes || {}).each do |key, value|
               state.set(key.to_s, Value.from(value))
