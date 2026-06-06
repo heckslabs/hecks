@@ -614,4 +614,23 @@ Hecks.behaviors "Plan" do
     expect refused: "project is required"
   end
 
+  test "Start refused when the story sprint has unratified contracts" do
+    tests "Start", on: "Story"
+    setup  "Sprint.Plan",     number: "3", goal: "g", project: "plan"
+    setup  "Capture",        ref: "cg1", title: "CG1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "cg1", sprint_ref: "3"
+    setup  "Tasked",         ref: "cg1"
+    input  ref: "cg1"
+    expect refused: "sprint contracts must be ratified"
+  end
+
+  test "Start succeeds when the story sprint has ratified contracts" do
+    tests "Start", on: "Story"
+    setup  "Capture",        ref: "cg2", title: "CG2", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "cg2", sprint_ref: "1"
+    setup  "Tasked",         ref: "cg2"
+    input  ref: "cg2"
+    expect state: "started"
+  end
 end
+

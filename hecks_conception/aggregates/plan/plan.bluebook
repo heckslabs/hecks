@@ -950,10 +950,11 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "Start" do
       role "Miette"
-      description "Begin work on a tasked story. The active-sprint guard would live in `given` if the runtime evaluated cross-aggregate predicates ; it does not today (same family as board.bluebook rule #4 fail-open) — the rule is enforced reactively by Plan::Story.Unstart until cross-aggregate guards land. Moves from tasked to started."
+      description "Begin work on a tasked story. Gated on the sprint having ratified contracts : given { Sprint(sprint).contracts_ratified == true } — the contract-first front-bookend, now runtime-evaluable via cross-aggregate POINT gates (the dispatch layer resolves the sibling field before givens). The active-sprint MEMBERSHIP guard stays convention-only (Board.active_sprints is a list ; list-membership needs the in: operator). Moves from tasked to started."
       reference_to(Story)
       given("story must be on a sprint board") { sprint != "" }
       given("story must be tasked before starting") { state == "tasked" }
+      given("sprint contracts must be ratified") { Sprint(sprint).contracts_ratified == true }
       emits "StoryStarted"
     end
 
