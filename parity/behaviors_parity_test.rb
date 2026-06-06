@@ -21,6 +21,7 @@ KNOWN_DRIFT  = File.expand_path("behaviors_known_drift.txt", __dir__)
 # via ARGV[0] (e.g. "hecks_conception/nursery/**/*.behaviors") to widen.
 DEFAULT_SAMPLE = %w[
   hecks_conception/catalog/pizzas.behaviors
+  hecks_conception/catalog/cross_gate.behaviors
   hecks_conception/family/conventions.behaviors
   hecks_conception/family/king_mango.behaviors
 ].select { |p| File.exist?(File.expand_path("../#{p}", __dir__)) }

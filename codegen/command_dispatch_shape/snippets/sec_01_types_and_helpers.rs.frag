@@ -50,3 +50,105 @@ fn lifecycle_for<'a>(rt: &'a Runtime, res: Resolution) -> Option<&'a Lifecycle> 
     }
 }
 
+
+/// A parsed cross-aggregate POINT-gate reference : `Aggregate(id_expr).field`.
+/// Produced by `extract_xref_terms` from a `given` expression so the dispatch
+/// layer can resolve one named sibling's field BEFORE the pipeline borrows the
+/// repository `&mut`. The aggregate-consistency boundary holds : the command
+/// still writes exactly ONE aggregate ; this is a READ at the gate (the port),
+/// never a cross-aggregate write.
+struct XrefTerm {
+    aggregate: String,
+    id_expr: String,
+    field: String,
+    full: String,
+}
+
+/// Extract every `Aggregate(id_expr).field` term from a `given` expression.
+/// `Aggregate` is an UpperCamelCase identifier immediately followed by `(` ;
+/// `id_expr` is the bare token inside the parens (a self field or inbound
+/// attr) ; `field` is the single dotted suffix. Chained suffixes (`.a.b`) and
+/// nested parens are not recognised — Slice-1 point gates read one field off
+/// one named sibling.
+fn extract_xref_terms(expr: &str) -> Vec<XrefTerm> {
+    let bytes = expr.as_bytes();
+    let mut terms = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if !(bytes[i] as char).is_ascii_uppercase() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < bytes.len() && (bytes[i] as char).is_ascii_alphanumeric() {
+            i += 1;
+        }
+        if i >= bytes.len() || bytes[i] != b'(' {
+            continue;
+        }
+        let aggregate = expr[start..i].to_string();
+        i += 1;
+        let id_start = i;
+        while i < bytes.len() && bytes[i] != b')' {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            break;
+        }
+        let id_expr = expr[id_start..i].trim().to_string();
+        i += 1;
+        if i >= bytes.len() || bytes[i] != b'.' {
+            continue;
+        }
+        i += 1;
+        let field_start = i;
+        while i < bytes.len()
+            && ((bytes[i] as char).is_ascii_alphanumeric() || bytes[i] == b'_')
+        {
+            i += 1;
+        }
+        let field = expr[field_start..i].to_string();
+        if !id_expr.is_empty() && !field.is_empty() {
+            let full = expr[start..i].to_string();
+            terms.push(XrefTerm { aggregate, id_expr, field, full });
+        }
+    }
+    terms
+}
+
+/// Slice-1 cross-aggregate POINT gate. For each `Agg(id_expr).field` term in
+/// the command's givens, resolve the named sibling's field and inject it into
+/// `attrs` under the literal term, so the pure `interpreter::resolve_expr`
+/// picks it up via its existing attrs fallback. `id_expr` resolves against the
+/// inbound attrs first, then the dispatch target's own state (`self_state`).
+/// Absent sibling / empty id => no injection ; the given then resolves the
+/// term to Null and fails closed, exactly like any unmet given. Runs BEFORE
+/// the pipeline borrows the repository `&mut`, so every read here is immutable.
+fn resolve_cross_aggregate_gates(
+    rt: &Runtime,
+    cmd: &Command,
+    self_state: Option<&AggregateState>,
+    attrs: &mut HashMap<String, Value>,
+) {
+    for given in &cmd.givens {
+        for term in extract_xref_terms(&given.expression) {
+            if attrs.contains_key(&term.full) {
+                continue;
+            }
+            let sibling_id = match attrs.get(&term.id_expr) {
+                Some(v) => v.to_string(),
+                None => match self_state {
+                    Some(s) => s.get(&term.id_expr).to_string(),
+                    None => String::new(),
+                },
+            };
+            if sibling_id.is_empty() {
+                continue;
+            }
+            if let Some(sibling) = rt.find(&term.aggregate, &sibling_id) {
+                let val = sibling.get(&term.field).clone();
+                attrs.insert(term.full.clone(), val);
+            }
+        }
+    }
+}

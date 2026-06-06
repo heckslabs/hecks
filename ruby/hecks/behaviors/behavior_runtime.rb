@@ -21,6 +21,7 @@ require_relative "aggregate_state"
 require_relative "interpreter"
 require_relative "policy_drain"
 require_relative "state_resolver"
+require_relative "cross_aggregate_gate"
 
 module Hecks
   module Behaviors
@@ -72,6 +73,7 @@ module Hecks
         end
 
         Interpreter.check_required(cmd, attrs)
+        CrossAggregateGate.resolve(self, cmd, state, attrs)
         Interpreter.check_givens(cmd, state, attrs)
         Interpreter.apply_mutations(cmd, state, attrs)
         StateResolver.apply_lifecycle_transition(agg, cmd, state)

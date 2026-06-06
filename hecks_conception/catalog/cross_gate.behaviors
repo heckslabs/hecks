@@ -1,0 +1,40 @@
+Hecks.behaviors "CrossGate" do
+  vision "Cross-aggregate point gate — Doc.PublishDoc gated on Folder.status == approved. Companion tests cover every command."
+
+  test "CreateFolder sets name" do
+    tests "CreateFolder", on: "Folder"
+    input name: "f1"
+    expect name: "f1"
+  end
+
+  test "ApproveFolder flips status to approved" do
+    tests "ApproveFolder", on: "Folder"
+    setup "Folder.CreateFolder", name: "f1"
+    input id: "f1"
+    expect status: "approved"
+  end
+
+  test "CreateDoc sets folder and draft state" do
+    tests "CreateDoc", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    input id: "d1", folder: "f1"
+    expect folder: "f1", state: "draft"
+  end
+
+  test "PublishDoc refused when folder not approved" do
+    tests "PublishDoc", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    input id: "d1"
+    expect refused: "folder must be approved"
+  end
+
+  test "PublishDoc succeeds when folder approved" do
+    tests "PublishDoc", on: "Doc"
+    setup "Folder.CreateFolder", name: "f1"
+    setup "Folder.ApproveFolder", id: "f1"
+    setup "Doc.CreateDoc", id: "d1", folder: "f1"
+    input id: "d1"
+    expect state: "published"
+  end
+end

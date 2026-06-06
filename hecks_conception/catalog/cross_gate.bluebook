@@ -1,0 +1,68 @@
+Hecks.bluebook "CrossGate" do
+  vision "Slice-1 cross-aggregate point-gate fixture : a Doc publishes only when its Folder is approved. Proves a given reads one named sibling's field — Folder(folder).status == approved — resolved at the dispatch port before the pipeline's mut borrow. Pure strings, no bool coercion, so Ruby and Rust verdicts are byte-identical."
+
+  aggregate "Folder" do
+    identified_by :name
+
+    value_object "Name" do
+      attribute :value, String
+    end
+    value_object "Status" do
+      attribute :value, String
+    end
+
+    description "A container that can be approved"
+    attribute :name, Name
+    attribute :status, Status, default: "pending"
+
+    command "CreateFolder" do
+      role "System"
+      attribute :name, Name
+      emits "FolderCreated"
+    end
+
+    command "ApproveFolder" do
+      role "System"
+      reference_to(Folder)
+      then_set :status, to: "approved"
+      emits "FolderApproved"
+    end
+
+    query "all" do
+    end
+  end
+
+  aggregate "Doc" do
+    identified_by :id
+
+    value_object "Id" do
+      attribute :value, String
+    end
+    value_object "DocState" do
+      attribute :value, String
+    end
+
+    description "A document gated on its folder's approval"
+    attribute :id, Id
+    attribute :folder, Folder
+    attribute :state, DocState, default: "draft"
+
+    command "CreateDoc" do
+      role "System"
+      attribute :id, Id
+      attribute :folder, Folder
+      emits "DocCreated"
+    end
+
+    command "PublishDoc" do
+      role "System"
+      reference_to(Doc)
+      given("folder must be approved") { Folder(folder).status == "approved" }
+      then_set :state, to: "published"
+      emits "DocPublished"
+    end
+
+    query "all" do
+    end
+  end
+end
