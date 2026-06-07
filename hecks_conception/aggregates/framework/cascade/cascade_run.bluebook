@@ -122,7 +122,6 @@ Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
       description "Mark a step as running. Called by the runtime just before dispatching the step's command. The step ref identifies which step in the ordered list is starting."
       attribute :run_id,   RunId
       attribute :step_ref, StepRef
-      then_set :status, to: "running"
       emits "StepStarted"
     end
 

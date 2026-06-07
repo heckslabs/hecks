@@ -110,6 +110,7 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
     end
 
     lifecycle :status, default: "proposed" do
+      transition "Propose"  => "proposed"
       transition "Activate" => "active",    from: ["proposed", "suspended"]
       transition "Suspend"  => "suspended", from: "active"
     end
@@ -211,6 +212,7 @@ Hecks.bluebook "Governance", version: "2026.05.19.1" do
     end
 
     lifecycle :status, default: "registered" do
+      transition "Register"  => "registered"
       transition "MarkLive"  => "live",  from: ["registered", "stale"]
       transition "MarkStale" => "stale", from: ["registered", "live"]
     end

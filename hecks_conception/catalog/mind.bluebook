@@ -1860,6 +1860,7 @@ Hecks.bluebook "Mind", version: "2026.05.12.1" do
     end
 
     lifecycle :state, default: "limber" do
+      transition "AwakenFatigue"   => "limber"
       transition "AccumulateFatigue" => "tuned",     from: "limber"
       transition "AccumulateFatigue" => "normal",    from: "tuned"
       transition "AccumulateFatigue" => "tired",     from: "normal"
@@ -1949,6 +1950,7 @@ Hecks.bluebook "Mind", version: "2026.05.12.1" do
     end
 
     lifecycle :state, default: "attentive" do
+      transition "TakeStabilityNap" => "napping"
       transition "EnterDaydream"   => "daydreaming", from: "attentive"
       transition "EnterSleep"      => "sleeping",    from: "daydreaming"
       transition "EnterSleep"      => "sleeping",    from: "attentive"
