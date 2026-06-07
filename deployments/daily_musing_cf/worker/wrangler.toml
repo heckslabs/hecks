@@ -1,39 +1,20 @@
-# DERIVED from ../cloudflare.bluebook (the WorkerConfig
-# `DailyMusingWorker` fixture). The bluebook is the source of truth ;
-# keep this file in sync with it (a `storehouse specialize
-# wrangler_toml` emitter is filed as a follow-up — see the bluebook
-# header). Hand-maintained until that codegen lands.
-#
-# This is the Daily Musing WASM Worker — the DailyMusing bluebook
-# compiled to WebAssembly and served from a Cloudflare Worker. No
-# container. The runtime + storehouse + the embedded bluebook /
-# hecksagon / fixtures are bundled into one wasm artifact.
-#
-# Persisted (heki -> R2). Each request still boots a fresh in-memory
-# runtime, but it now hydrates from the R2 bucket bound below before
-# serving and persists every dispatch back to R2 after, so a live POST
-# survives into the next request. The binding here is the seam ; its
-# source of truth is the r2_binding / r2_bucket fields on the
-# DailyMusingWorker fixture in ../cloudflare.bluebook.
+# DERIVED from ../cloudflare.bluebook (the WorkerConfig fixture)
+# by `storehouse specialize wrangler_toml`. The bluebook is the
+# source of truth ; this file is the artifact. Do not hand-edit —
+# change the fixture and regenerate.
 
 name               = "daily-musing-worker"
 main               = "build/worker/shim.mjs"
 compatibility_date = "2026-05-10"
 
-# heki -> R2 persistence binding. lib.rs reads this binding by name
-# (env.bucket("DAILY_MUSING_R2_BUCKET")) to hydrate state on boot and
-# persist every dispatch back. Created with
-# `wrangler r2 bucket create daily-musing-heki`.
+# heki -> R2 persistence binding. lib.rs reads this binding by
+# name to hydrate state on boot and persist every dispatch back.
 [[r2_buckets]]
 binding     = "DAILY_MUSING_R2_BUCKET"
 bucket_name = "daily-musing-heki"
 
-# workers-rs standard build flow — compiles ./src/lib.rs to WASM and
-# emits build/worker/shim.mjs as the entrypoint above. rust-toolchain.toml
-# beside this file pins the rustup toolchain so wasm32 std is available.
 [build]
 command = "cargo install -q worker-build && worker-build --release"
 
-# Observability on so the first deploys are debuggable.
 [observability]
 enabled = true
