@@ -110,9 +110,15 @@ module Hecks
         #                      half of the literal).
         # +query_name+        — query identifier (right half).
         ForEachSpec = Struct.new(
-          :source_context, :source_aggregate, :query_name,
+          :source_context, :source_aggregate, :query_name, :query_inputs,
           keyword_init: true
-        )
+        ) do
+          # i221-C — query_inputs default to [] (parameterless sweep).
+          def initialize(*)
+            super
+            self.query_inputs ||= []
+          end
+        end
 
         # Hecks::BluebookModel::Behavior::ProcessManager::ValueSpec
         #

@@ -149,6 +149,30 @@ mod dispatch_tests {
         assert_eq!(fe.source_aggregate, "Synapse");
         assert_eq!(fe.query_name, "cold");
         assert!(s.with_spec.is_empty());
+        assert!(fe.query_inputs.is_empty(), "no where: -> empty query_inputs");
+    }
+
+    #[test]
+    fn parses_for_each_where_binds_query_inputs_from_event() {
+        // i221-C where-fan-out : the swept query is parameterised by the
+        // triggering event so it filters (leases held by THIS worker).
+        let line = r#"dispatch "Conductor::Lease.Reclaim", for_each: { from: "Conductor::Lease.HeldByWorker", where: { worker: from_event(:worker) } }, with: { id: from_iter(:worktree_path) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_context.as_deref(), Some("Conductor"));
+        assert_eq!(fe.source_aggregate, "Lease");
+        assert_eq!(fe.query_name, "HeldByWorker");
+        assert_eq!(fe.query_inputs.len(), 1);
+        assert_eq!(fe.query_inputs[0].0, "worker");
+        match &fe.query_inputs[0].1 {
+            ValueSpec::FromEvent { name, .. } => assert_eq!(name, "worker"),
+            other => panic!("expected FromEvent, got {:?}", other),
+        }
+        assert_eq!(s.with_spec.len(), 1);
+        match &s.with_spec[0].1 {
+            ValueSpec::FromIter { field } => assert_eq!(field, "worktree_path"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
     }
 
     #[test]

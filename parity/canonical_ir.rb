@@ -113,10 +113,12 @@ module Hecks
       def dump_for_each_spec(spec)
         return nil if spec.nil?
         ctx = spec.respond_to?(:source_context) ? spec.source_context : nil
+        qi = spec.respond_to?(:query_inputs) ? (spec.query_inputs || []) : []
         {
           "source_context"   => ctx.nil? ? nil : ctx.to_s,
           "source_aggregate" => spec.source_aggregate.to_s,
           "query_name"       => spec.query_name.to_s,
+          "query_inputs"     => qi.map { |key, vspec| [key.to_s, dump_value_spec(vspec)] },
         }
       end
 

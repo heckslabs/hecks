@@ -316,10 +316,21 @@ module Hecks
             raise ArgumentError,
                   "dispatch for_each: `from:` literal has empty parts, got #{from_value.inspect}"
           end
+          # i221-C — accept the dispatch-FQN Context::Aggregate.query form
+          # (double-colon context) in the aggregate slot, splitting it so the
+          # sweep targets the (context, name) repo key like every other lookup.
+          if aggregate.include?("::")
+            context, aggregate = aggregate.split("::", 2)
+          end
+          # i221-C — `where: { input: from_event(:x) }` binds the swept
+          # query's inputs from the event so it filters. Reuses the with:
+          # normaliser : ordered Array<[String, ValueSpec]>.
+          where_hash = for_each[:where] || for_each["where"]
           ForEachSpec.new(
             source_context:   context,
             source_aggregate: aggregate,
-            query_name:       query
+            query_name:       query,
+            query_inputs:     build_with_spec(where_hash)
           )
         end
 

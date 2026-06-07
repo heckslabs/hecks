@@ -1303,7 +1303,7 @@ fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let value_raw = body[from_pos + "from:".len()..].trim();
     let literal = extract_string(value_raw)?;
     let parts: Vec<&str> = literal.split('.').collect();
-    let (source_context, source_aggregate, query_name) = match parts.as_slice() {
+    let (mut source_context, mut source_aggregate, query_name) = match parts.as_slice() {
         [agg, qry] if !agg.is_empty() && !qry.is_empty() => {
             (None, agg.to_string(), qry.to_string())
         }
@@ -1312,7 +1312,29 @@ fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
         }
         _ => return None,
     };
-    Some(ForEachSpec { source_context, source_aggregate, query_name })
+    // i221-C — accept the dispatch-FQN `Context::Aggregate.query` form
+    // (double-colon context) in the aggregate slot, splitting it so the
+    // sweep targets the (context, name) repo key like every other lookup.
+    if let Some((ctx, agg)) = source_aggregate.clone().split_once("::") {
+        source_context = Some(ctx.to_string());
+        source_aggregate = agg.to_string();
+    }
+    // i221-C — optional `where: { input: from_event(:x) }` sub-hash binds
+    // the swept query's inputs from the event. Absent = parameterless.
+    let query_inputs = match body.find("where:") {
+        Some(wp) => {
+            let after_w = &body[wp + "where:".len()..];
+            match after_w.find('{') {
+                Some(o) => {
+                    let c = match_close_brace(&after_w[o..])? + o;
+                    parse_with_hash(after_w[o + 1..c].trim())
+                }
+                None => Vec::new(),
+            }
+        }
+        None => Vec::new(),
+    };
+    Some(ForEachSpec { source_context, source_aggregate, query_name, query_inputs })
 }
 
 /// Given a slice that starts at `{`, return the index of the matching
@@ -2026,6 +2048,30 @@ mod dispatch_tests {
         assert_eq!(fe.source_aggregate, "Synapse");
         assert_eq!(fe.query_name, "cold");
         assert!(s.with_spec.is_empty());
+        assert!(fe.query_inputs.is_empty(), "no where: -> empty query_inputs");
+    }
+
+    #[test]
+    fn parses_for_each_where_binds_query_inputs_from_event() {
+        // i221-C where-fan-out : the swept query is parameterised by the
+        // triggering event so it filters (leases held by THIS worker).
+        let line = r#"dispatch "Conductor::Lease.Reclaim", for_each: { from: "Conductor::Lease.HeldByWorker", where: { worker: from_event(:worker) } }, with: { id: from_iter(:worktree_path) }"#;
+        let s = parse_dispatch_statement(line).unwrap();
+        let fe = s.for_each.as_ref().expect("for_each parsed");
+        assert_eq!(fe.source_context.as_deref(), Some("Conductor"));
+        assert_eq!(fe.source_aggregate, "Lease");
+        assert_eq!(fe.query_name, "HeldByWorker");
+        assert_eq!(fe.query_inputs.len(), 1);
+        assert_eq!(fe.query_inputs[0].0, "worker");
+        match &fe.query_inputs[0].1 {
+            ValueSpec::FromEvent { name, .. } => assert_eq!(name, "worker"),
+            other => panic!("expected FromEvent, got {:?}", other),
+        }
+        assert_eq!(s.with_spec.len(), 1);
+        match &s.with_spec[0].1 {
+            ValueSpec::FromIter { field } => assert_eq!(field, "worktree_path"),
+            other => panic!("expected FromIter, got {:?}", other),
+        }
     }
 
     #[test]
