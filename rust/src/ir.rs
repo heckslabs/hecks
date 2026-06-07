@@ -259,6 +259,13 @@ pub struct ForEachSpec {
     pub source_context: Option<String>,
     pub source_aggregate: String,
     pub query_name: String,
+    /// i221-C (where-fan-out) — inputs threaded into the swept query so
+    /// it filters by the triggering event. `where: { worker: from_event
+    /// (:worker) }` on the `for_each:` hash ; each ValueSpec resolves
+    /// against the event at sweep time -> query attrs -> the input-bound
+    /// `where worker: :worker` filters. Empty = parameterless sweep (the
+    /// i221-A back-compat default).
+    pub query_inputs: Vec<(String, ValueSpec)>,
 }
 
 /// Sentinel describing how a single `with:` attribute resolves at

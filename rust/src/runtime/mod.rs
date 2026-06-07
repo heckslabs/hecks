@@ -2049,7 +2049,19 @@ impl Runtime {
                     // bare-dispatch path), the loop body runs once
                     // with `iter_data = None` — same shape as before.
                     let iter_records: Vec<HashMap<String, Value>> = match &dispatched.for_each {
-                        Some(spec) => self.sweep_records(spec),
+                        Some(spec) => {
+                            // i221-C — resolve the swept query's inputs
+                            // against the event so the sweep filters.
+                            let mut q_attrs: HashMap<String, String> = HashMap::new();
+                            for (k, vspec) in &spec.query_inputs {
+                                if let Some(v) = self.evaluate_value_spec(
+                                    vspec, event, &t.pm_name, &t.correlation_id, None,
+                                ) {
+                                    q_attrs.insert(k.clone(), v.to_string());
+                                }
+                            }
+                            self.sweep_records(spec, &q_attrs)
+                        }
                         None => vec![HashMap::new()],
                     };
                     let is_sweep = dispatched.for_each.is_some();
@@ -2345,7 +2357,7 @@ impl Runtime {
     /// An empty sweep returns an empty Vec, which the caller treats
     /// as "no records → no dispatches" — same as a `for_each` over an
     /// empty iterable.
-    fn sweep_records(&self, spec: &crate::ir::ForEachSpec) -> Vec<HashMap<String, Value>> {
+    fn sweep_records(&self, spec: &crate::ir::ForEachSpec, attrs: &HashMap<String, String>) -> Vec<HashMap<String, Value>> {
         // First : try the structured query path. Filter by aggregate
         // name AND (when supplied) bluebook context — disambiguates
         // when the same aggregate name exists in multiple bluebooks
@@ -2359,12 +2371,11 @@ impl Runtime {
                 && a.queries.iter().any(|q| q.name == spec.query_name));
 
         if has_query {
-            let attrs: HashMap<String, String> = HashMap::new();
             let json = self.resolve_query_qualified(
                 spec.source_context.as_deref(),
                 &spec.source_aggregate,
                 &spec.query_name,
-                &attrs,
+                attrs,
             );
             let mut out = Vec::new();
             // resolve_query returns either an object (single match)

@@ -79,7 +79,7 @@ fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let value_raw = body[from_pos + "from:".len()..].trim();
     let literal = extract_string(value_raw)?;
     let parts: Vec<&str> = literal.split('.').collect();
-    let (source_context, source_aggregate, query_name) = match parts.as_slice() {
+    let (mut source_context, mut source_aggregate, query_name) = match parts.as_slice() {
         [agg, qry] if !agg.is_empty() && !qry.is_empty() => {
             (None, agg.to_string(), qry.to_string())
         }
@@ -88,6 +88,28 @@ fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
         }
         _ => return None,
     };
-    Some(ForEachSpec { source_context, source_aggregate, query_name })
+    // i221-C — accept the dispatch-FQN `Context::Aggregate.query` form
+    // (double-colon context) in the aggregate slot, splitting it so the
+    // sweep targets the (context, name) repo key like every other lookup.
+    if let Some((ctx, agg)) = source_aggregate.clone().split_once("::") {
+        source_context = Some(ctx.to_string());
+        source_aggregate = agg.to_string();
+    }
+    // i221-C — optional `where: { input: from_event(:x) }` sub-hash binds
+    // the swept query's inputs from the event. Absent = parameterless.
+    let query_inputs = match body.find("where:") {
+        Some(wp) => {
+            let after_w = &body[wp + "where:".len()..];
+            match after_w.find('{') {
+                Some(o) => {
+                    let c = match_close_brace(&after_w[o..])? + o;
+                    parse_with_hash(after_w[o + 1..c].trim())
+                }
+                None => Vec::new(),
+            }
+        }
+        None => Vec::new(),
+    };
+    Some(ForEachSpec { source_context, source_aggregate, query_name, query_inputs })
 }
 

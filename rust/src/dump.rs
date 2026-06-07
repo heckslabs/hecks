@@ -83,6 +83,9 @@ fn dump_dispatch(d: &DispatchSpec) -> Value {
             "source_context": fe.source_context,
             "source_aggregate": fe.source_aggregate,
             "query_name": fe.query_name,
+            "query_inputs": fe.query_inputs.iter()
+                .map(|(k, spec)| json!([k, dump_value_spec(spec)]))
+                .collect::<Vec<_>>(),
         }),
         None => Value::Null,
     };

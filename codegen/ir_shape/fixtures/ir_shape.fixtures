@@ -202,6 +202,7 @@ Hecks.fixtures "IrShape" do
     fixture "ForEachSpec_source_context",   type_name: "ForEachSpec", order: 1, name: "source_context",   field_type: "Option<String>", doc_snippet: ""
     fixture "ForEachSpec_source_aggregate", type_name: "ForEachSpec", order: 2, name: "source_aggregate", field_type: "String",         doc_snippet: ""
     fixture "ForEachSpec_query_name",       type_name: "ForEachSpec", order: 3, name: "query_name",       field_type: "String",         doc_snippet: ""
+    fixture "ForEachSpec_query_inputs",     type_name: "ForEachSpec", order: 4, name: "query_inputs",     field_type: "Vec<(String, ValueSpec)>", doc_snippet: "codegen/ir_shape/snippets/docs/for_each_query_inputs.rs.frag"
 
     # Section — 2 fields.
     fixture "Section_title", type_name: "Section", order: 1, name: "title", field_type: "String",           doc_snippet: ""
