@@ -479,7 +479,18 @@ fn absorb_has_one(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "has_one") {
         let (domain, target) = split_qualified_type(&token);
         let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&target));
-        agg.references.push(Reference::has_one(name, target, domain));
+        agg.references.push(Reference::has_one(name.clone(), target.clone(), domain));
+        // references-not-ids : synthesise a stored FK attribute (the target
+        // aggregate name, not a primitive) at declaration order, if absent.
+        if !agg.attributes.iter().any(|a| a.name == name) {
+            agg.attributes.push(Attribute {
+                name,
+                attr_type: target,
+                default: None,
+                list: false,
+                required: false,
+            });
+        }
     }
 }
 
@@ -489,7 +500,18 @@ fn absorb_belongs_to(line: &str, agg: &mut Aggregate) {
     if let Some(token) = extract_word_after(line, "belongs_to") {
         let (domain, target) = split_qualified_type(&token);
         let name = parse_as_alias(line).unwrap_or_else(|| to_snake_case(&target));
-        agg.references.push(Reference::belongs_to(name, target, domain));
+        agg.references.push(Reference::belongs_to(name.clone(), target.clone(), domain));
+        // references-not-ids : synthesise a stored FK attribute (the target
+        // aggregate name, not a primitive) at declaration order, if absent.
+        if !agg.attributes.iter().any(|a| a.name == name) {
+            agg.attributes.push(Attribute {
+                name,
+                attr_type: target,
+                default: None,
+                list: false,
+                required: false,
+            });
+        }
     }
 }
 fn absorb_shorthand(line: &str, agg: &mut Aggregate) {
