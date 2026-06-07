@@ -1290,7 +1290,7 @@ fn parse_dispatch_statement(line: &str) -> Option<DispatchSpec> {
 ///                                       Context.Aggregate.Command
 ///                                       resolution applied to query
 ///                                       lookups too)
-fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
+pub(crate) fn parse_for_each_clause(tail: &str) -> Option<ForEachSpec> {
     let pos = tail.find("for_each:")?;
     let after = &tail[pos + "for_each:".len()..];
     let open = after.find('{')?;
