@@ -80,16 +80,18 @@ module Hecks
         end
 
         pre_event_count = rt.event_bus.length
-        input_attrs = build_attrs(test.input, test.tests_command, rt, in_scope)
-
         # Qualify the dispatch by the test's declared aggregate so colliding
         # command names resolve to the intended aggregate. Mirrors
-        # rust/src/behaviors_runner.rs fqn construction.
+        # rust/src/behaviors_runner.rs fqn construction. Built BEFORE
+        # build_attrs so self-ref injection resolves against the aggregate
+        # the test declares with `on:`, not the first aggregate that shares
+        # the command name.
         cmd_fqn = if test.on_aggregate.to_s.empty? || test.tests_command.to_s.include?(".")
                     test.tests_command
                   else
                     "#{test.on_aggregate}.#{test.tests_command}"
                   end
+        input_attrs = build_attrs(test.input, cmd_fqn, rt, in_scope)
 
         begin
           result = if test.kind.to_s == "cascade"

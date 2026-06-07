@@ -231,15 +231,18 @@ fn run_one(
     // Snapshot the event bus boundary so the `emits:` assertion only
     // compares events produced by THIS dispatch, not events from setup.
     let pre_dispatch_event_count = rt.event_bus.events().len();
-    let input_attrs = build_attrs(&test.input, &test.tests_command, &rt, &in_scope);
     // FQN dispatch (i155) : combine `on:` clause with the command name
     // so bare-name ambiguity (Layout.Plan vs Move.Plan post-i155) is
-    // unambiguous via the test's declared aggregate scope.
+    // unambiguous via the test's declared aggregate scope. Computed
+    // BEFORE build_attrs so self-ref injection resolves against the
+    // aggregate the test declares with `on:`, not the first aggregate
+    // that happens to share the command name (Cancel / Capture / Reopen).
     let fqn = if test.on_aggregate.is_empty() || test.tests_command.contains('.') {
         test.tests_command.clone()
     } else {
         format!("{}.{}", test.on_aggregate, test.tests_command)
     };
+    let input_attrs = build_attrs(&test.input, &fqn, &rt, &in_scope);
     // `kind: :cascade` tests explicitly want the policy chain to fire
     // so they can assert the cascade via `expect emits: [...]`. All
     // other tests dispatch isolated so the asserted state matches the
