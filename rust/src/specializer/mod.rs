@@ -52,6 +52,7 @@ pub mod validator_corpus;
 pub mod validator_morphology;
 pub mod validator_warnings;
 pub mod wasm_worker;
+pub mod wrangler_toml;
 
 /// Dispatch by target name. Each Rust-native specializer has one
 /// match arm here and one sibling module.

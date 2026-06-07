@@ -1,0 +1,21 @@
+Hecks.behaviors "WranglerTomlShape" do
+  vision "Shape-layer happy-path for the wrangler.toml emitter — confirms the EmitWranglerToml tuple plumbs through. The actual rendering logic (header, top-level keys, optional [[r2_buckets]] block, [build], [observability]) is exercised by rust/src/specializer/wrangler_toml.rs unit tests and the deployment golden in rust/tests/specializer_golden_test.rs ; this file proves the bluebook-layer contract."
+
+  test "EmitWranglerToml accepts the WorkerConfig field tuple" do
+    tests "EmitWranglerToml", on: "WranglerToml"
+    input  name: "daily-musing-worker",
+           main: "build/worker/shim.mjs",
+           compatibility_date: "2026-05-10",
+           build_command: "cargo install -q worker-build && worker-build --release",
+           r2_binding: "DAILY_MUSING_R2_BUCKET",
+           r2_bucket: "daily-musing-heki",
+           observability: "enabled"
+    expect name: "daily-musing-worker",
+           main: "build/worker/shim.mjs",
+           compatibility_date: "2026-05-10",
+           build_command: "cargo install -q worker-build && worker-build --release",
+           r2_binding: "DAILY_MUSING_R2_BUCKET",
+           r2_bucket: "daily-musing-heki",
+           observability: "enabled"
+  end
+end
