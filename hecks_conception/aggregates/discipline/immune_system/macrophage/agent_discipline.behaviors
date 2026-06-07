@@ -73,7 +73,7 @@ Hecks.behaviors "AgentDiscipline" do
 
   test "ListAll returns the registered violation-kind registry" do
     tests "ListAll", on: "AgentDiscipline", kind: :query
-    expect count: 0
+    expect count: 2
   end
 
   test "ForKind returns the registered record for the queried kind" do

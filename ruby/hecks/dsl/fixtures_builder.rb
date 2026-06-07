@@ -73,7 +73,30 @@ module Hecks
       # Declare a seed record for the current aggregate. `label` is the
       # fixture's logical name (stored on `Fixture#name`); kwargs are
       # the record's attribute values.
-      def fixture(label, **attributes)
+      def fixture(label, **attributes, &block)
+        if block
+          # Dispatch-fixture block form :
+          #   fixture "label" do
+          #     dispatch "Domain::Agg.Command", k: v
+          #   end
+          # The inner `dispatch` carries the command FQN and seed
+          # kwargs ; the bare aggregate segment of the FQN becomes
+          # aggregate_name. The command verb is intentionally not
+          # preserved — the IR seed shape is (aggregate, name, attrs).
+          @pending_dispatch = nil
+          instance_eval(&block)
+          if @pending_dispatch
+            fqn, attrs = @pending_dispatch
+            agg = fqn.split(".").first.split("::").last
+            @fixtures << BluebookModel::Structure::Fixture.new(
+              name: label.to_s,
+              aggregate_name: agg,
+              attributes: attrs,
+            )
+          end
+          @pending_dispatch = nil
+          return
+        end
         return unless @current_aggregate
         @fixtures << BluebookModel::Structure::Fixture.new(
           name: label.to_s,
@@ -81,6 +104,16 @@ module Hecks
           attributes: attributes,
         )
       end
+
+      # Inside a dispatch-fixture block. Captures the command FQN and
+      # its kwargs so the enclosing `fixture` builds the seed record.
+      def dispatch(fqn, **attributes)
+        @pending_dispatch = [fqn.to_s, attributes]
+      end
+
+      # Top-level narrative inside a `Hecks.fixtures` block — documentation
+      # only, not part of the parsed IR.
+      def vision(_text); end
 
       def build
         FixturesFile.new(name: @name, fixtures: @fixtures, catalogs: @catalogs)

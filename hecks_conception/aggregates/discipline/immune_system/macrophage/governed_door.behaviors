@@ -29,7 +29,7 @@ Hecks.behaviors "GovernedDoor" do
 
   test "ListAll returns the governed registry" do
     tests "ListAll", on: "GovernedDoor", kind: :query
-    expect count: 0
+    expect count: 10
   end
 
   test "LookupDoor returns the registered door for the queried tool" do

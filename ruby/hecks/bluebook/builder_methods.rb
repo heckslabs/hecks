@@ -59,7 +59,7 @@ module Hecks
     # Sibling to `bluebook` and `behaviors`: its own DSL, its own file
     # extension, its own parity contract with the Rust parser. See
     # Hecks::DSL::FixturesBuilder for the surface.
-    def fixtures(name = nil, &block)
+    def fixtures(name = nil, version: nil, &block)
       require "hecks/dsl/fixtures_builder"
       builder = DSL::FixturesBuilder.new(name)
       builder.instance_eval(&block) if block
