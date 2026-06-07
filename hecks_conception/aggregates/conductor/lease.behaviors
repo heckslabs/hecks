@@ -1,29 +1,35 @@
 Hecks.behaviors "Conductor" do
-  vision "Lease behaviors — Grant / Renew / Expire / Reclaim / query:Active / query:Expired."
+  vision "Lease behaviors — Grant / Renew / Expire / Reclaim / query:Active / query:Expired / query:HeldByWorker. Grant now stores the Story + Worker FKs (references-not-ids)."
 
   test "Grant creates an active lease" do
     tests "Grant", on: "Lease"
-    input  worktree_path: "p1", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    input  worktree_path: "p1", story: "s1", worker: "w1", expires_at: "t0"
     expect worktree_path: "p1", state: "active"
+  end
+
+  test "Grant stores the story and worker foreign keys" do
+    tests "Grant", on: "Lease"
+    input  worktree_path: "p1b", story: "s1", worker: "w1", expires_at: "t0"
+    expect worktree_path: "p1b", story: "s1", worker: "w1"
   end
 
   test "Renew extends expires_at" do
     tests "Renew", on: "Lease"
-    setup  "Grant", worktree_path: "p2", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant", worktree_path: "p2", story: "s1", worker: "w1", expires_at: "t0"
     input  worktree_path: "p2", expires_at: "t9"
     expect expires_at: "t9"
   end
 
   test "Lease Expire moves an active lease to expired" do
     tests "Expire", on: "Lease"
-    setup  "Grant", worktree_path: "p3", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant", worktree_path: "p3", story: "s1", worker: "w1", expires_at: "t0"
     input  worktree_path: "p3"
     expect state: "expired"
   end
 
   test "Reclaim returns the path to the pool" do
     tests "Reclaim", on: "Lease"
-    setup  "Grant", worktree_path: "p4", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant", worktree_path: "p4", story: "s1", worker: "w1", expires_at: "t0"
     input  worktree_path: "p4"
     expect state: "reclaimed"
   end
@@ -34,20 +40,20 @@ Hecks.behaviors "Conductor" do
 
   test "Active includes a granted (active) lease" do
     tests "Active", on: "Lease", kind: :query
-    setup  "Grant", worktree_path: "p5", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant", worktree_path: "p5", story: "s1", worker: "w1", expires_at: "t0"
     expect includes: { worktree_path: "p5", state: "active" }
   end
 
   test "Active excludes a reclaimed lease" do
     tests "Active", on: "Lease", kind: :query
-    setup  "Grant",   worktree_path: "p6", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant",   worktree_path: "p6", story: "s1", worker: "w1", expires_at: "t0"
     setup  "Reclaim", worktree_path: "p6"
     expect count: 0
   end
 
   test "Active excludes an expired lease" do
     tests "Active", on: "Lease", kind: :query
-    setup  "Grant",  worktree_path: "p7", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant",  worktree_path: "p7", story: "s1", worker: "w1", expires_at: "t0"
     setup  "Expire", worktree_path: "p7"
     expect count: 0
   end
@@ -58,21 +64,47 @@ Hecks.behaviors "Conductor" do
 
   test "Expired includes a lease that has timed out" do
     tests "Expired", on: "Lease", kind: :query
-    setup  "Grant",  worktree_path: "p8", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant",  worktree_path: "p8", story: "s1", worker: "w1", expires_at: "t0"
     setup  "Expire", worktree_path: "p8"
     expect includes: { worktree_path: "p8", state: "expired" }
   end
 
   test "Expired excludes an active lease" do
     tests "Expired", on: "Lease", kind: :query
-    setup  "Grant", worktree_path: "p9", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant", worktree_path: "p9", story: "s1", worker: "w1", expires_at: "t0"
     expect count: 0
   end
 
   test "Expired excludes a reclaimed lease" do
     tests "Expired", on: "Lease", kind: :query
-    setup  "Grant",   worktree_path: "p10", story_ref: "s1", worker_ref: "w1", expires_at: "t0"
+    setup  "Grant",   worktree_path: "p10", story: "s1", worker: "w1", expires_at: "t0"
     setup  "Reclaim", worktree_path: "p10"
+    expect count: 0
+  end
+
+  # HeldByWorker query : runtime enforces worker == :worker AND state == active.
+  # The driving read for SEAM 3 worker-died reclaim. Now a plain same-aggregate
+  # where on the stored worker FK (references-not-ids).
+
+  test "HeldByWorker includes an active lease held by that worker" do
+    tests "HeldByWorker", on: "Lease", kind: :query
+    setup  "Grant", worktree_path: "p11", story: "s1", worker: "w1", expires_at: "t0"
+    input  worker: "w1"
+    expect includes: { worktree_path: "p11", worker: "w1", state: "active" }
+  end
+
+  test "HeldByWorker excludes a lease held by a different worker" do
+    tests "HeldByWorker", on: "Lease", kind: :query
+    setup  "Grant", worktree_path: "p12", story: "s1", worker: "w2", expires_at: "t0"
+    input  worker: "w1"
+    expect count: 0
+  end
+
+  test "HeldByWorker excludes a reclaimed lease for that worker" do
+    tests "HeldByWorker", on: "Lease", kind: :query
+    setup  "Grant",   worktree_path: "p13", story: "s1", worker: "w1", expires_at: "t0"
+    setup  "Reclaim", worktree_path: "p13"
+    input  worker: "w1"
     expect count: 0
   end
 end

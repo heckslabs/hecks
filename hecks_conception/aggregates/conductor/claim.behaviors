@@ -1,38 +1,44 @@
 Hecks.behaviors "Conductor" do
-  vision "Claim behaviors — Acquire / Release / Expire / query:Active."
+  vision "Claim behaviors — Acquire / Release / Expire / query:Active / query:HeldByWorker. Acquire now stores the Worker FK (references-not-ids)."
 
   test "Acquire creates a held claim" do
     tests "Acquire", on: "Claim"
-    input  story: "s1", worker_ref: "w1", claimed_at: "t0"
+    input  story: "s1", worker: "w1", claimed_at: "t0"
     expect story: "s1", state: "held"
+  end
+
+  test "Acquire stores the worker foreign key" do
+    tests "Acquire", on: "Claim"
+    input  story: "s1b", worker: "w1", claimed_at: "t0"
+    expect story: "s1b", worker: "w1", state: "held"
   end
 
   test "Release moves a held claim to released" do
     tests "Release", on: "Claim"
-    setup  "Acquire", story: "s2", worker_ref: "w1", claimed_at: "t0"
+    setup  "Acquire", story: "s2", worker: "w1", claimed_at: "t0"
     input  story: "s2"
     expect state: "released"
   end
 
   test "Expire moves a held claim to expired" do
     tests "Expire", on: "Claim"
-    setup  "Acquire", story: "s3", worker_ref: "w1", claimed_at: "t0"
+    setup  "Acquire", story: "s3", worker: "w1", claimed_at: "t0"
     input  story: "s3"
     expect state: "expired"
   end
 
   test "Acquire is refused when the story already has a held claim (the mutex)" do
     tests "Acquire", on: "Claim"
-    setup  "Acquire", story: "s9", worker_ref: "w1", claimed_at: "t0"
-    input  story: "s9", worker_ref: "w2", claimed_at: "t1"
+    setup  "Acquire", story: "s9", worker: "w1", claimed_at: "t0"
+    input  story: "s9", worker: "w2", claimed_at: "t1"
     expect refused: "the story has no active (held) claim - the structural mutex"
   end
 
   test "A released claim can be re-acquired" do
     tests "Acquire", on: "Claim"
-    setup  "Acquire", story: "s10", worker_ref: "w1", claimed_at: "t0"
+    setup  "Acquire", story: "s10", worker: "w1", claimed_at: "t0"
     setup  "Release", story: "s10"
-    input  story: "s10", worker_ref: "w2", claimed_at: "t2"
+    input  story: "s10", worker: "w2", claimed_at: "t2"
     expect state: "held"
   end
 
@@ -42,21 +48,47 @@ Hecks.behaviors "Conductor" do
 
   test "Active includes a held claim" do
     tests "Active", on: "Claim", kind: :query
-    setup  "Acquire", story: "s11", worker_ref: "w1", claimed_at: "t0"
+    setup  "Acquire", story: "s11", worker: "w1", claimed_at: "t0"
     expect includes: { story: "s11", state: "held" }
   end
 
   test "Active excludes a released claim" do
     tests "Active", on: "Claim", kind: :query
-    setup  "Acquire", story: "s12", worker_ref: "w1", claimed_at: "t0"
+    setup  "Acquire", story: "s12", worker: "w1", claimed_at: "t0"
     setup  "Release", story: "s12"
     expect count: 0
   end
 
   test "Active excludes an expired claim" do
     tests "Active", on: "Claim", kind: :query
-    setup  "Acquire", story: "s13", worker_ref: "w1", claimed_at: "t0"
+    setup  "Acquire", story: "s13", worker: "w1", claimed_at: "t0"
     setup  "Expire",  story: "s13"
+    expect count: 0
+  end
+
+  # HeldByWorker query : runtime enforces worker == :worker AND state == held.
+  # The driving read for SEAM 3 worker-died reclaim. Plain same-aggregate where
+  # on the stored worker FK (references-not-ids).
+
+  test "HeldByWorker includes a held claim for that worker" do
+    tests "HeldByWorker", on: "Claim", kind: :query
+    setup  "Acquire", story: "s14", worker: "w1", claimed_at: "t0"
+    input  worker: "w1"
+    expect includes: { story: "s14", worker: "w1", state: "held" }
+  end
+
+  test "HeldByWorker excludes a claim held by a different worker" do
+    tests "HeldByWorker", on: "Claim", kind: :query
+    setup  "Acquire", story: "s15", worker: "w2", claimed_at: "t0"
+    input  worker: "w1"
+    expect count: 0
+  end
+
+  test "HeldByWorker excludes a released claim for that worker" do
+    tests "HeldByWorker", on: "Claim", kind: :query
+    setup  "Acquire", story: "s16", worker: "w1", claimed_at: "t0"
+    setup  "Release", story: "s16"
+    input  worker: "w1"
     expect count: 0
   end
 end

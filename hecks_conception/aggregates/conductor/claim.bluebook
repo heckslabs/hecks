@@ -24,18 +24,15 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
       attribute :value, String
     end
 
-    value_object "WorkerRef" do
-      attribute :value, String
-    end
-
     command "Acquire" do
       role "System"
-      description "Acquire a claim on a story for a worker. Acquires only when the story has no active (held) claim - the structural mutex refusing a second concurrent acquire. Creates the record in state=held."
+      description "Acquire a claim on a story for a worker. Acquires only when the story has no active (held) claim - the structural mutex refusing a second concurrent acquire. Creates the record in state=held and stores the Worker foreign key (references-not-ids : the synthesised belongs_to Worker FK is now live)."
       attribute :story,       Story
-      attribute :worker_ref,  WorkerRef
+      attribute :worker,      Worker
       attribute :claimed_at,  ClaimedAt
       given("the story has no active (held) claim - the structural mutex") { state != "held" }
       then_set :story,      to: :story
+      then_set :worker,     to: :worker
       then_set :state,      to: "held"
       then_set :claimed_at, to: :claimed_at
       emits "ClaimAcquired"
@@ -62,7 +59,13 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
     # ============================================================
 
     query "Active" do
-      description "All claims currently held — one per story being worked. SEMANTIC : state == held. Used by (a) the Fleet View (view-1) to derive which story each alive Worker is working on (projection layer joins Worker.Alive against Claim.Active on worker_ref — gap : runtime-cross-aggregate-where) ; and (b) the Blocked/DAG View (view-4) to show which claimable stories are already claimed vs. still waiting. The worker_ref annotation on each held claim is a plain attribute; cross-aggregate lookup of the Worker’s details is projection-side."
+      description "All claims currently held — one per story being worked. SEMANTIC : state == held. Used by (a) the Fleet View (view-1) to derive which story each alive Worker is working on (projection layer joins Worker.Alive against Claim.Active on the stored worker FK — gap : runtime-cross-aggregate-where) ; and (b) the Blocked/DAG View (view-4) to show which claimable stories are already claimed vs. still waiting. The worker annotation on each held claim is a plain stored attribute; cross-aggregate lookup of the Worker’s details is projection-side."
+      where state: "held"
+    end
+
+    query "HeldByWorker" do
+      description "All HELD claims held by a given worker. SEMANTIC : worker == :worker AND state == held. The driving read for SEAM 3 (worker-died reclaim) : when a Worker dies, the ReclaimOnWorkerDied driven adapter sweeps this query (where worker == the dead worker_id) and fires Claim.Expire once per matching held claim. Now that belongs_to Worker synthesises a STORED worker FK (references-not-ids), the worker filter is a plain same-aggregate where — no cross-aggregate join needed."
+      where worker: :worker
       where state: "held"
     end
   end

@@ -1,21 +1,23 @@
 Hecks.hecksagon "StoryWorktreeSync" do
   # Lock the story's git worktree while a Lease holds it. The story identity
-  # rides the LeaseGranted event as {story_ref} (the Grant input attr) ;
-  # worktree_path is the Lease's own id. No FK kwargs, no canned RecordResult.
+  # rides the LeaseGranted event as {story} — Grant now stores the Story FK
+  # (references-not-ids) via then_set :story, so the persisted/then_set field
+  # is on the event. worktree_path is the Lease's own id. No canned RecordResult.
   adapter "LockAdapter" do
     driven on "Conductor::Lease.LeaseGranted" do |event|
-      dispatch "Plan::Story.LockWorktree", story: "{story_ref}", worktree_path: "{worktree_path}"
+      dispatch "Plan::Story.LockWorktree", story: "{story}", worktree_path: "{worktree_path}"
     end
   end
 
   # UNLOCK is honestly DEFERRED, not faked. Lease.Reclaim is reference_to(Lease) ;
   # LeaseReclaimed carries only the lease id (worktree_path) + this command's
-  # then_set fields — NOT the persisted story. So {story_ref} cannot resolve at
+  # then_set fields — NOT the persisted story. So {story} cannot resolve at
   # reclaim time. Real unlock needs one of : (a) the runtime exposing the
-  # belongs_to Story on the reclaim event, or (b) a Story-side unlock trigger
-  # when the worktree is removed. Tracked under references-not-ids / the
-  # cross-aggregate-identity work. The worktree itself IS physically removed on
-  # reclaim (conductor/hecksagons/worktree_remove.hecksagon) ; only the story's
-  # worktree_locked flag lags until the unlock seam lands. No UnlockAdapter is
-  # wired here rather than ship a dispatch that errors on every reclaim.
+  # belongs_to Story (now a stored FK) on the reclaim event, or (b) a Story-side
+  # unlock trigger when the worktree is removed. Tracked under references-not-ids
+  # / the cross-aggregate-identity work. The worktree itself IS physically
+  # removed on reclaim (conductor/hecksagons/worktree_remove.hecksagon) ; only
+  # the story's worktree_locked flag lags until the unlock seam lands. No
+  # UnlockAdapter is wired here rather than ship a dispatch that errors on every
+  # reclaim.
 end

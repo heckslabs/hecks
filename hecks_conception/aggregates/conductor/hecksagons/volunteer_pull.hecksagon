@@ -1,8 +1,8 @@
 Hecks.hecksagon "VolunteerPull" do
   # volunteer-pull-protocol (sprint 20). The fleet mutex is the Claim aggregate
   # (identified_by :story — first Acquire wins). This hecksagon wires the ONE
-  # seam that runs for real today ; the worker-self-select seams are honestly
-  # blocked on a runtime feature and are NOT wired (a wired sentinel dispatch
+  # seam that runs for real today ; SEAM 1 (worker self-select) stays honestly
+  # blocked on a runtime feature and is NOT wired (a wired sentinel dispatch
   # would now — with resolver-on-cascade live — fire garbage : e.g.
   # WorkerRegistered -> Claim.Acquire(story:"NEXT_CLAIMABLE") -> a real Lease +
   # a real `git worktree add worktrees/NEXT_CLAIMABLE` on disk).
@@ -16,21 +16,21 @@ Hecks.hecksagon "VolunteerPull" do
   # story_worktree_sync locks the story's worktree — the full chain runs
   # because resolver-on-cascade re-activates the resolver on cascaded events.
   # expires_at is a placeholder (no clock on the dispatch path yet — honest,
-  # not faked) ; worker_ref is omitted (dead FK kwarg, references-not-ids).
+  # not faked). story is the stored Story FK (references-not-ids : Grant now
+  # persists it) ; worker is omitted here because the ClaimAcquired event does
+  # not project the claim's worker onto the cascade (it carries the Claim's
+  # then_set fields + id), and the lease's worker FK is set by SEAM 3's reads
+  # via the Worker identity rather than this grant path. The grant is honest
+  # without it ; the lease is keyed by worktree_path, not by worker.
   adapter "GrantAndStartOnClaimAcquired" do
     driven on "Conductor::Claim.ClaimAcquired" do |event|
-      dispatch "Conductor::Lease.Grant",
-               worktree_path: "worktrees/{story}",
-               story_ref:     "{story}",
-               expires_at:    "PENDING_NO_CLOCK"
-      dispatch "Plan::Story.Start",
-               story: "{story}"
+      dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", expires_at: "PENDING_NO_CLOCK"
+      dispatch "Plan::Story.Start", story: "{story}"
     end
   end
 
   # ------------------------------------------------------------------
-  # SEAM 1 (worker self-select) and SEAM 3 (worker-died reclaim) are HONESTLY
-  # BLOCKED — not wired, not faked.
+  # SEAM 1 (worker self-select) is HONESTLY BLOCKED — not wired, not faked.
   #
   # SEAM 1 : on WorkerRegistered / ClaimReleased, pull the NEXT claimable story
   #   and Claim.Acquire it. Picking "next claimable" requires a cross-aggregate
@@ -39,12 +39,16 @@ Hecks.hecksagon "VolunteerPull" do
   #   put on the Acquire until that lands ; a sentinel here now cascades into a
   #   real garbage worktree (see header).
   #
-  # SEAM 3 : on WorkerDied, expire the worker's Claim + reclaim its Lease.
-  #   Worker carries no back-refs by design ("claim and lease are DERIVED via
-  #   queries") ; mapping WorkerDied -> the right Claim/Lease needs
-  #   Claim.ByWorker / Lease.ByWorker — also runtime-cross-aggregate-where.
+  #   When runtime-cross-aggregate-where lands, the clean shape is a projection
+  #   that pre-computes the claimable ids and emits an event carrying a real
+  #   story id, which THIS hecksagon then acts on. Until then : documentation.
   #
-  # When runtime-cross-aggregate-where lands, the clean shape is a projection
-  # that pre-computes the claimable/owned ids and emits an event carrying a
-  # real story id, which THIS hecksagon then acts on. Until then : documentation.
+  # SEAM 3 (worker-died reclaim) is NOW WIRED FOR REAL — see the sibling
+  #   conductor/hecksagons/worker_died_reclaim.hecksagon. The where-fan-out
+  #   capability landed, and belongs_to Worker now synthesises a STORED worker
+  #   FK on both Lease and Claim (references-not-ids phases 1-3), so the
+  #   ReclaimOnWorkerDied adapter sweeps Lease.HeldByWorker / Claim.HeldByWorker
+  #   (where worker == the dead worker_id) and fires Reclaim / Expire once per
+  #   matched record. No back-ref on Worker is needed — the read keys off the
+  #   stored FK, matched against the WorkerDied event's aggregate_id.
 end

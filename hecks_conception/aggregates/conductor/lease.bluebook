@@ -25,22 +25,16 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
       attribute :value, String
     end
 
-    value_object "StoryRef" do
-      attribute :value, String
-    end
-
-    value_object "WorkerRef" do
-      attribute :value, String
-    end
-
     command "Grant" do
       role "System"
-      description "Grant a lease on a worktree path to a worker for a story. Creates the record in state=active."
+      description "Grant a lease on a worktree path to a worker for a story. Creates the record in state=active and stores the Story + Worker foreign keys (references-not-ids : the synthesised belongs_to FKs are now live)."
       attribute :worktree_path,  WorktreePath
-      attribute :story_ref,      StoryRef
-      attribute :worker_ref,     WorkerRef
+      attribute :story,          Story
+      attribute :worker,         Worker
       attribute :expires_at,     ExpiresAt
       then_set :worktree_path,  to: :worktree_path
+      then_set :story,          to: :story
+      then_set :worker,         to: :worker
       then_set :expires_at,     to: :expires_at
       then_set :state,          to: "active"
       emits "LeaseGranted"
@@ -76,13 +70,19 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
     # ============================================================
 
     query "Active" do
-      description "All leases currently active — one per checked-out worktree path. SEMANTIC : state == active. Used by the Fleet View (view-1) to show which worktree each worker holds ; the projection layer joins Lease.Active against Worker.Alive on worker_ref to annotate each alive worker with their path and lease age (time since the lease was granted, computed from expires_at and the renewal window — gap : runtime-cross-aggregate-where for the join ; time-threshold arithmetic is projection-side). Also feeds the Stuck View (view-5) to distinguish an active-but-long-running lease from a fully expired one."
+      description "All leases currently active — one per checked-out worktree path. SEMANTIC : state == active. Used by the Fleet View (view-1) to show which worktree each worker holds ; the projection layer joins Lease.Active against Worker.Alive on the stored worker FK to annotate each alive worker with their path and lease age (time since the lease was granted, computed from expires_at and the renewal window — gap : runtime-cross-aggregate-where for the join ; time-threshold arithmetic is projection-side). Also feeds the Stuck View (view-5) to distinguish an active-but-long-running lease from a fully expired one."
       where state: "active"
     end
 
     query "Expired" do
       description "All leases that have expired without being reclaimed. SEMANTIC : state == expired. Used by the Stuck View (view-5) as the primary signal for a stuck worker : an expired lease means the worktree path has not been returned to the pool and the owning worker has likely timed out. The expiry cause (TTL-elapsed vs. worker-dead) is recorded on the LeaseExpired event payload ; distinguishing them in the view is projection-side. Poisoned mailbox detection for the same worker reads via the existing \"storehouse mailboxes\" surface (\"storehouse mailboxes poisoned\") — not a new query here (gap : system-prompt-render-adapter, CLI follow-up)."
       where state: "expired"
+    end
+
+    query "HeldByWorker" do
+      description "All ACTIVE leases held by a given worker. SEMANTIC : worker == :worker AND state == active. The driving read for SEAM 3 (worker-died reclaim) : when a Worker dies, the ReclaimOnWorkerDied driven adapter sweeps this query (where worker == the dead worker_id) and fires Lease.Reclaim once per matching active lease. Now that belongs_to Worker synthesises a STORED worker FK (references-not-ids), the worker filter is a plain same-aggregate where — no cross-aggregate join needed."
+      where worker: :worker
+      where state: "active"
     end
   end
 end
