@@ -11,20 +11,19 @@ Hecks.hecksagon "VolunteerPull" do
   # SEAM 2 (REAL) : a Claim is acquired -> grant its worktree lease + start it.
   # ------------------------------------------------------------------
   # Fires on a GENUINE ClaimAcquired (an operator/worker claimed a real story).
-  # {story} carries the id from the event. Lease.Grant -> LeaseGranted ->
-  # worktree_create runs `git worktree add worktrees/<story>` on disk AND
-  # story_worktree_sync locks the story's worktree — the full chain runs
-  # because resolver-on-cascade re-activates the resolver on cascaded events.
-  # expires_at is a placeholder (no clock on the dispatch path yet — honest,
-  # not faked). story is the stored Story FK (references-not-ids : Grant now
-  # persists it) ; worker is omitted here because the ClaimAcquired event does
-  # not project the claim's worker onto the cascade (it carries the Claim's
-  # then_set fields + id), and the lease's worker FK is set by SEAM 3's reads
-  # via the Worker identity rather than this grant path. The grant is honest
-  # without it ; the lease is keyed by worktree_path, not by worker.
+  # The ClaimAcquired event carries Acquire's input attrs as its payload, so
+  # {story} and {worker} both interpolate off the event. Lease.Grant ->
+  # LeaseGranted -> worktree_create runs `git worktree add worktrees/<story>`
+  # on disk AND story_worktree_sync locks the story's worktree — the full chain
+  # runs because resolver-on-cascade re-activates the resolver on cascaded
+  # events. expires_at is a placeholder (no clock on the dispatch path yet —
+  # honest, not faked). story + worker are the stored FKs (references-not-ids :
+  # Grant now persists both). Carrying worker here is what makes SEAM 3 work
+  # end-to-end : the lease records WHICH worker holds it, so a later WorkerDied
+  # matches it via Lease.HeldByWorker (where worker == the dead worker_id).
   adapter "GrantAndStartOnClaimAcquired" do
     driven on "Conductor::Claim.ClaimAcquired" do |event|
-      dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", expires_at: "PENDING_NO_CLOCK"
+      dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", worker: "{worker}", expires_at: "PENDING_NO_CLOCK"
       dispatch "Plan::Story.Start", story: "{story}"
     end
   end
@@ -50,5 +49,6 @@ Hecks.hecksagon "VolunteerPull" do
   #   ReclaimOnWorkerDied adapter sweeps Lease.HeldByWorker / Claim.HeldByWorker
   #   (where worker == the dead worker_id) and fires Reclaim / Expire once per
   #   matched record. No back-ref on Worker is needed — the read keys off the
-  #   stored FK, matched against the WorkerDied event's aggregate_id.
+  #   stored FK, matched against the WorkerDied event's aggregate_id. SEAM 2
+  #   above carries the worker FK onto the Grant so this match has data to find.
 end

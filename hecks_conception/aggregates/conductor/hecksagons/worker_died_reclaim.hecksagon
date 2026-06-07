@@ -1,0 +1,24 @@
+Hecks.hecksagon "Conductor" do
+  # SEAM 3 (REAL) : a Worker dies -> reclaim every active Lease it held and
+  # expire every held Claim it held. The payoff of references-not-ids : because
+  # belongs_to Worker now synthesises a STORED worker FK on both Lease and Claim,
+  # the dead worker's leases/claims are found by a plain same-aggregate where on
+  # that FK — no back-ref on Worker, no cross-aggregate join.
+  #
+  # Fires on a GENUINE Worker.WorkerDied (MarkDead -> WorkerDied ; the event's
+  # aggregate_id IS the worker_id). {id} interpolates that worker_id into each
+  # query's `where worker:` filter. The where-fan-out runs the query and fires
+  # the target command once per matched record :
+  #   - Lease.HeldByWorker -> Lease.Reclaim, keyed by each lease's worktree_path
+  #     ({worktree_path} resolves record-first ; reference_to(Lease) accepts the
+  #     universal id= fallback).
+  #   - Claim.HeldByWorker -> Claim.Expire, keyed by each claim's story
+  #     ({story} resolves record-first ; reference_to(Claim) via the id= fallback).
+  # Driven adapters only fire on REAL command events, never on synthetic ones.
+  adapter "ReclaimOnWorkerDied" do
+    driven on "Conductor::Worker.WorkerDied" do |event|
+      dispatch "Conductor::Lease.Reclaim", for_each: { from: "Conductor::Lease.HeldByWorker", where: { worker: "{id}" } }, id: "{worktree_path}"
+      dispatch "Conductor::Claim.Expire", for_each: { from: "Conductor::Claim.HeldByWorker", where: { worker: "{id}" } }, id: "{story}"
+    end
+  end
+end
