@@ -2032,6 +2032,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       transition "Activate"  => "active",  from: "paused"
       transition "Pause"     => "paused",  from: "active"
       transition "Complete"  => "done",    from: "active"
+      transition "Cancel"    => "cancelled"
     end
 
     # ── Queries ─────────────────────────────────────────────────
