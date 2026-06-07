@@ -730,11 +730,16 @@ fn parse_driven_dispatch(joined: &str) -> Option<DrivenDispatch> {
         }
         prev = c;
     }
-    let attrs = match split_at {
+    let mut attrs = match split_at {
         Some(idx) => parse_options(body[idx + 1..].trim_end_matches(')').trim()),
         None => Vec::new(),
     };
-    Some(DrivenDispatch { command, attrs })
+    // i221-C — a `for_each: { from: "Q", where: {...} }` clause makes this
+    // dispatch a sweep. parse_options keeps it as one (brace-aware) pair ;
+    // lift it to a ForEachSpec and drop it from the literal attrs.
+    let for_each = crate::parse_blocks::parse_for_each_clause(body);
+    attrs.retain(|(k, _)| k != "for_each");
+    Some(DrivenDispatch { command, attrs, for_each })
 }
 
 /// Sprint 14 memory-canned-defaults — parse a `canned do ... end`

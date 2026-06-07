@@ -238,6 +238,12 @@ pub struct DrivenDispatch {
     /// integers stay as digit strings) so the resolver can convert
     /// per-attr at fire time.
     pub attrs: Vec<(String, String)>,
+    /// i221-C (where-fan-out) — when `Some`, this driven dispatch is a
+    /// SWEEP : the resolver runs the named query (filtered by the event
+    /// via the spec's query_inputs interpolated against it) and fires the
+    /// command once per matching record, with `{record_field}` available
+    /// to the dispatch attrs. `None` is the back-compat single dispatch.
+    pub for_each: Option<crate::ir::ForEachSpec>,
 }
 
 /// :stdout / :stderr / :stdin / :env / :fs adapters. Carries whatever

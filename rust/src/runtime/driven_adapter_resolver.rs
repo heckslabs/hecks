@@ -113,24 +113,42 @@ fn resolve_driven_adapters_at_depth(rt: &mut Runtime, event: &Event, depth: usiz
                     handler.canned.as_ref(),
                 );
                 for dispatch in handler.dispatches.iter() {
-                    // Interpolate `{field}`/`{id}` tokens in declared dispatch
-                    // attr values from the triggering event — same mechanism as
-                    // the run/check leaves. Closes policy-cmd-needs-interpolation
-                    // : a follow-on can carry a real value derived from the
-                    // event (e.g. `worktree_path: "worktrees/{story}"`) instead
-                    // of a canned sentinel. Non-matching braces pass through
-                    // untouched, so purely-literal attrs are unaffected.
-                    let interp_attrs: Vec<(String, String)> = dispatch
-                        .attrs
-                        .iter()
-                        .map(|(k, v)| (k.clone(), interpolate_event(v, event)))
-                        .collect();
-                    matched.push((
-                        dispatch.command.clone(),
-                        interp_attrs,
-                        wrapped.clone(),
-                    ));
+                    // i221-C — a `for_each:` clause makes the dispatch a SWEEP ;
+                    // a bare dispatch keeps the single-fire path. Both interpolate
+                    // `{field}`/`{id}` tokens from the event (and, for a sweep,
+                    // record-first from each matched record).
+                    match &dispatch.for_each {
+                        None => {
+                            let interp_attrs: Vec<(String, String)> = dispatch
+                                .attrs
+                                .iter()
+                                .map(|(k, v)| (k.clone(), interpolate_event(v, event)))
+                                .collect();
+                            matched.push((
+                                dispatch.command.clone(),
+                                interp_attrs,
+                                wrapped.clone(),
+                            ));
+                        }
+                        Some(spec) => {
+                            let qattrs = sweep_query_attrs(&spec.query_inputs, event);
+                            for record in rt.sweep_records(spec, &qattrs) {
+                                let interp_attrs: Vec<(String, String)> = dispatch
+                                    .attrs
+                                    .iter()
+                                    .map(|(k, v)| (k.clone(),
+                                        interpolate_event_and_record(v, event, &record)))
+                                    .collect();
+                                matched.push((
+                                    dispatch.command.clone(),
+                                    interp_attrs,
+                                    wrapped.clone(),
+                                ));
+                            }
+                        }
+                    }
                 }
+
                 for run_cmd in handler.runs.iter() {
                     runs_to_exec.push(interpolate_event(run_cmd, event));
                 }
@@ -417,4 +435,46 @@ mod tests {
         assert_eq!(merged.get("output"), Some(&Value::Str("real-ack".to_string())));
         assert_eq!(merged.get("exit_code"), Some(&Value::Int(0)));
     }
+}
+
+
+/// i221-C — resolve a sweep's query inputs against the triggering event
+/// into a string attr map the query executor filters on.
+fn sweep_query_attrs(
+    inputs: &[(String, crate::ir::ValueSpec)],
+    event: &Event,
+) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for (k, spec) in inputs {
+        let v = match spec {
+            crate::ir::ValueSpec::Literal { value } => {
+                // strip the source-token quotes before interpolating so the
+                // filter value matches the (unquoted) stored field.
+                interpolate_event(value.trim().trim_matches('"'), event)
+            }
+            crate::ir::ValueSpec::FromEvent { name, default } => event
+                .data
+                .get(name)
+                .map(val_str)
+                .or_else(|| default.clone())
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
+        out.insert(k.clone(), v);
+    }
+    out
+}
+
+/// i221-C — interpolate `{field}` tokens record-first (the swept record's
+/// fields win), then fall back to the triggering event.
+fn interpolate_event_and_record(
+    template: &str,
+    event: &Event,
+    record: &HashMap<String, Value>,
+) -> String {
+    let mut out = template.to_string();
+    for (k, v) in record.iter() {
+        out = out.replace(&format!("{{{}}}", k), &val_str(v));
+    }
+    interpolate_event(&out, event)
 }
