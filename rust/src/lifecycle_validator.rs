@@ -74,6 +74,7 @@ pub fn check(domain: &Domain) -> Report {
     for agg in &domain.aggregates {
         if let Some(lc) = &agg.lifecycle {
             check_aggregate(agg, lc, &mut findings);
+            check_then_set_vs_transition(agg, lc, &mut findings);
         }
         check_given_coverage(agg, &mut findings);
         check_mutation_references(agg, &mut findings);
@@ -340,4 +341,50 @@ fn check_lifecycle_attr_missing_default(agg: &Aggregate, out: &mut Vec<Finding>)
             ),
         ));
     }
+}
+
+/// A then_set on the lifecycle field must agree with the command's
+/// transition. transition exists + same target = redundant but honest
+/// (house style, ok) ; transition exists + DIFFERENT target = the
+/// transition runs last and overrides, so the then_set is dead (Error) ;
+/// NO transition = the command mutates state outside the machine, no
+/// from-guard, invisible to the lifecycle map (Warning). Dynamic
+/// (:symbol) then_sets are skipped — only literal state targets.
+fn check_then_set_vs_transition(agg: &Aggregate, lc: &Lifecycle, out: &mut Vec<Finding>) {
+        for cmd in &agg.commands {
+            let targets: BTreeSet<&str> = lc.transitions.iter()
+                .filter(|t| t.command == cmd.name)
+                .map(|t| t.to_state.as_str())
+                .collect();
+            for m in &cmd.mutations {
+                if !matches!(m.operation, MutationOp::Set) { continue; }
+                if m.field != lc.field { continue; }
+                let value = m.value.trim_matches('"');
+                if value.starts_with(':') { continue; }
+                if targets.is_empty() {
+                    out.push(Finding::warn(
+                        format!("{}.{}", agg.name, cmd.name),
+                        format!(
+                            "then_set :{} => {:?} sets the lifecycle field but the \
+                             command declares no transition — it bypasses the state \
+                             machine (no from-guard, invisible to the lifecycle map). \
+                             Express it as a transition so the state change is named, \
+                             guarded, and visible.",
+                            m.field, value,
+                        ),
+                    ));
+                } else if !targets.contains(value) {
+                    out.push(Finding::err(
+                        format!("{}.{}", agg.name, cmd.name),
+                        format!(
+                            "then_set :{} => {:?} disagrees with the command's lifecycle \
+                             transition target(s) {:?} — the transition runs after \
+                             mutations and overrides, so this then_set never takes \
+                             effect. Align them or drop the then_set.",
+                            m.field, value, targets,
+                        ),
+                    ));
+                }
+            }
+        }
 }

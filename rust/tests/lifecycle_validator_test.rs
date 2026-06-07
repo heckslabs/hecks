@@ -519,3 +519,81 @@ end
         "primitive-typed lifecycle attr without default should pass (rule is VO-only): {:?}",
         report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
 }
+
+#[test]
+fn orphan_then_set_on_lifecycle_field_warns() {
+    // Cancel mutates the lifecycle field but declares no transition — it
+    // bypasses the state machine (no from-guard). Warning.
+    let source = r#"Hecks.bluebook "Plan" do
+  aggregate "Project" do
+    attribute :status, String, default: "active"
+    command "Cancel" do
+      reference_to(Project)
+      then_set :status, to: "cancelled"
+      emits "ProjectCancelled"
+    end
+    lifecycle :status, default: "active" do
+      transition "Complete" => "done", from: "active"
+    end
+  end
+end
+"#;
+    let report = check(&parser::parse(source));
+    let warn = report.findings.iter()
+        .find(|f| f.severity == Severity::Warning && f.message.contains("no transition"));
+    assert!(warn.is_some(),
+        "expected orphan warning: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+    assert_eq!(report.errors(), 0);
+}
+
+#[test]
+fn then_set_disagreeing_with_transition_errors() {
+    // Activate's transition targets "active" but then_set writes "live".
+    // The transition runs last and overrides, so the then_set is dead.
+    let source = r#"Hecks.bluebook "Plan" do
+  aggregate "Sprint" do
+    attribute :status, String, default: "planned"
+    command "Activate" do
+      reference_to(Sprint)
+      then_set :status, to: "live"
+      emits "Activated"
+    end
+    lifecycle :status, default: "planned" do
+      transition "Activate" => "active", from: "planned"
+    end
+  end
+end
+"#;
+    let report = check(&parser::parse(source));
+    let err = report.findings.iter()
+        .find(|f| f.severity == Severity::Error && f.message.contains("disagrees"));
+    assert!(err.is_some(),
+        "expected disagreement error: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
+
+#[test]
+fn then_set_agreeing_with_transition_is_clean() {
+    // House style : then_set + matching transition. Redundant but honest —
+    // must NOT be flagged.
+    let source = r#"Hecks.bluebook "Plan" do
+  aggregate "Sprint" do
+    attribute :status, String, default: "planned"
+    command "Activate" do
+      reference_to(Sprint)
+      then_set :status, to: "active"
+      emits "Activated"
+    end
+    lifecycle :status, default: "planned" do
+      transition "Activate" => "active", from: "planned"
+    end
+  end
+end
+"#;
+    let report = check(&parser::parse(source));
+    assert!(!report.findings.iter().any(|f|
+        f.message.contains("disagrees") || f.message.contains("no transition")),
+        "agreeing then_set must not be flagged: {:?}",
+        report.findings.iter().map(|f| &f.message).collect::<Vec<_>>());
+}
