@@ -239,8 +239,11 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     # Rule #5 (planned scope freezes once active) was previously enforced
     # here as a `given state == "planned"` guard. With AddStory gone, the
     # freeze becomes a cross-aggregate rule — Story.AssignToSprint would
-    # need to read Sprint.state to enforce it (runtime gap : cross-aggregate
-    # guards). For now : convention-only ; AddUnplanned remains the
+    # need to read Sprint.state to enforce it. The cross-aggregate POINT
+    # gate now exists (see Story.Start's given { Sprint(sprint).contracts_ratified
+    # == true }), so this freeze is promotable to a real given
+    # { Sprint(sprint).state != "active" } — no longer a runtime gap, just
+    # unbuilt. Until promoted : convention-only ; AddUnplanned remains the
     # sanctioned way to add scope to an active sprint.
 
     command "AddUnplanned" do
@@ -1195,19 +1198,21 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       transition "RemoveFromSprint" => "untasked",         from: "started"
     end
 
-    # ── Done-is-done : LIVE CHECKS (replacing stored flags) ──────────
-    # The four gates (verified / merged_to_main / worktree_clean /
-    # tests_passing) were retired this card. They were stored Boolean
-    # attributes armed by Mark* commands and consulted by *_means_ready
-    # invariants — lieable by construction. The replacement architecture
-    # has the gates as LIVE bus dispatches the runtime evaluates at
-    # transition time : MarkReady triggers Git.Status / Git.Log /
-    # Cargo.Test / target-verb-resolves dispatches, and the transition
-    # only commits if each returns ok. That wiring is the next card —
-    # see policy-cmd-needs-interpolation-or-bin-scripts for the DSL gap
-    # that has to land first (policy `with cmd` is a static string).
-    # Until then, MarkReady is unguarded ; Approve gates only on the
-    # operator role, as it always did.
+    # ── Done-is-done : MIGRATING from stored flags to live checks ─────
+    # What was retired : the OLD pattern — Mark* commands arming the gate
+    # flags + *_means_ready invariants consulting them (lieable by
+    # construction). What still exists : the gate VOs (verified /
+    # merged_to_main / worktree_clean / tests_passing + the worktree /
+    # pr_mergeable / main_uptodate set) ARE still stored Boolean
+    # attributes — now armed by the Record*CheckResult cascade outcomes,
+    # not by Mark*. So today is a HYBRID : stored flags written by live
+    # cascades, but NOT yet consulted at any transition. The end-state
+    # (no stored flag ; MarkReady dispatches Git.Status / Git.Log /
+    # Cargo.Test / target-verb-resolves live and commits only if each
+    # returns ok) is the next card — blocked on
+    # policy-cmd-needs-interpolation-or-bin-scripts (policy `with cmd`
+    # is a static string). Until then, MarkReady is UNGUARDED ; Approve
+    # gates only on the operator role, as it always did.
     # Policies above declare the cascade ; enforcement (Approve refusing until each Cascade outcome is ok) lands when the policy-cmd interpolation/bin-scripts gap closes.
 
     # exclusive_sprint_or_backlog invariant : RETIRED pending
@@ -1246,7 +1251,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     end
 
     query "Board" do
-      description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is untasked / tasked / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. Since lifecycle-tasked-state (sprint 14) the pre-Start states split into untasked + tasked, both surfaced on the board so the operator can see what is queued for tasking vs. tasked and Start-ready. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in) and cross-aggregate set-membership is not yet evaluated in queries (gap : runtime-cross-aggregate-where). Both gaps will replace this with a proper where clause when they land."
+      description "Stories on the board. SEMANTIC : returns every story whose Story.sprint is in Board.active_sprints AND whose state is untasked / tasked / started / ready_for_review. RUNTIME : returns every story unfiltered ; the BoardMarkdownProjector / planning-pulse adapter applies both filters (state set + active-sprint membership) at render time. Since lifecycle-tasked-state (sprint 14) the pre-Start states split into untasked + tasked, both surfaced on the board so the operator can see what is queued for tasking vs. tasked and Start-ready. The bluebook can't express either filter today — list-IN where clauses are not yet parsed (gap : runtime-where-list-in), so the state-set filter can't be expressed yet. The cross-aggregate read-side filter mechanism DOES now exist — the Claimable query below uses where dependencies: { resolved: true } (WhereOp::Resolved), resolving sibling state at query time. Board needs a different predicate — Story.sprint tested for membership in Board.active_sprints (a scalar field against another aggregate's list) — which is not built yet (gap : runtime-cross-aggregate-where, scalar-in-sibling-list form). Both land as a proper where clause once those predicates exist."
     end
 
     query "Claimable" do
@@ -1570,7 +1575,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "ActivateSprint" do
       role "Miette"
-      description "Add a sprint to the active set. The model is one-active-per-project (e.g. an emaho sprint AND an opt sprint can both be in active_sprints simultaneously, but two emaho sprints cannot). The command takes BOTH sprint_ref (the new activation, carried on the emitted event) AND active_sprints (the new list including it) for symmetry with DeactivateSprint and Reorder ; caller computes current_list + [sprint_ref]. That uniqueness rule is cross-aggregate — Board would have to read each Sprint.project to enforce — and the runtime does not yet evaluate cross-aggregate guards ; convention-only until then (gap : runtime-cross-aggregate-guards). RULE #4 (only a sprint ON THE BOARD may be activated) is similarly convention-only — list-membership predicates in `given` are not yet evaluated (gap : runtime-list-membership-guards). Does NOT start any cards (rule #3) — it only records the new active set."
+      description "Add a sprint to the active set. The model is one-active-per-project (e.g. an emaho sprint AND an opt sprint can both be in active_sprints simultaneously, but two emaho sprints cannot). The command takes BOTH sprint_ref (the new activation, carried on the emitted event) AND active_sprints (the new list including it) for symmetry with DeactivateSprint and Reorder ; caller computes current_list + [sprint_ref]. That uniqueness rule is cross-aggregate AND aggregating — Board would have to read Sprint.project across every active sprint and reject a duplicate project. Single-sibling POINT gates now work (see Story.Start's Sprint(sprint).contracts_ratified gate) and the dependency SET gate reads a sibling list, but neither expresses grouping/uniqueness across a sibling list ; that predicate is still unbuilt (gap : runtime-cross-aggregate-uniqueness). RULE #4 (only a sprint ON THE BOARD may be activated) needs local list-membership — sprint_ref in queued_sprints — also still unbuilt (gap : runtime-list-membership-guards). Both convention-only until those predicates land. Does NOT start any cards (rule #3) — it only records the new active set."
       reference_to(Board)
       attribute :sprint_ref, Sprint
       attribute :active_sprints, list_of(Sprint)
