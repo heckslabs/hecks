@@ -1196,6 +1196,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       transition "Defer"            => "deferred",         from: "untasked"
       transition "RemoveFromSprint" => "untasked",         from: "tasked"
       transition "RemoveFromSprint" => "untasked",         from: "started"
+      transition "Cancel"           => "cancelled"
     end
 
     # ── Done-is-done : MIGRATING from stored flags to live checks ─────
@@ -1915,6 +1916,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     lifecycle :status, default: "active" do
       transition "Frame"    => "active"
       transition "Complete" => "done", from: "active"
+      transition "Cancel"   => "cancelled"
     end
 
     query "ListAll" do

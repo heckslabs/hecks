@@ -45,6 +45,21 @@ Hecks.behaviors "Plan" do
     expect emits: ["StoryStarted"]
   end
 
+  test "Cancel soft-deletes a tasked story to cancelled" do
+    tests "Cancel", on: "Story"
+    setup  "Capture", ref: "cx1", title: "CX1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Tasked",  ref: "cx1"
+    input  id: "cx1"
+    expect ref: "cx1", state: "cancelled"
+  end
+
+  test "Cancel emits StoryCancelled" do
+    tests "Cancel", on: "Story"
+    setup  "Capture", ref: "cx2", title: "CX2", tier: 1, summary: "s", target: "t", project: "plan"
+    input  id: "cx2"
+    expect emits: ["StoryCancelled"]
+  end
+
   test "AssignToSprint keeps state untasked (metadata-only since sprint 14)" do
     tests "AssignToSprint", on: "Story"
     setup  "Capture", ref: "l9", title: "L9", tier: 1, summary: "s", target: "t", project: "plan"
