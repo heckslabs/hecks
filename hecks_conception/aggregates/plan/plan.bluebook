@@ -627,7 +627,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       # started  — Start fired ; work is in progress
       # ready_for_review — MarkReady fired ; waiting on Operator.Approve
       # done     — Approve fired (Operator-only terminal except for Reopen)
-      # deferred — parked from untasked
+      # deferred — parked from untasked ; reversible via Resume
       # cancelled — soft-deleted, terminal
       attribute :value, String
     end
@@ -1163,6 +1163,13 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       emits "StoryDeferred"
     end
 
+    command "Resume" do
+      role "Miette"
+      description "Un-park a deferred story — return it to the untasked intake so it can be tasked and scheduled again. The inverse of Defer ; deferred is a parking state, not a terminal one."
+      reference_to(Story)
+      emits "StoryResumed"
+    end
+
     command "Cancel" do
       role "Miette"
       description "Soft-delete a story: move it to the terminal `cancelled` state. For removing phantom or erroneous stories — e.g. demo stories flows leave behind when run against the live store. Mirrors Sprint.Cancel ; valid from any state. Hard record removal is a separate runtime concern (no Delete primitive yet)."
@@ -1194,6 +1201,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       transition "Reopen"           => "started",          from: "ready_for_review"
       transition "Reopen"           => "ready_for_review", from: "done"
       transition "Defer"            => "deferred",         from: "untasked"
+      transition "Resume"           => "untasked",         from: "deferred"
       transition "RemoveFromSprint" => "untasked",         from: "tasked"
       transition "RemoveFromSprint" => "untasked",         from: "started"
       transition "Cancel"           => "cancelled"

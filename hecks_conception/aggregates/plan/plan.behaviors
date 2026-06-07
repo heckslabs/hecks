@@ -60,6 +60,22 @@ Hecks.behaviors "Plan" do
     expect emits: ["StoryCancelled"]
   end
 
+  test "Resume returns a deferred story to untasked" do
+    tests "Resume", on: "Story"
+    setup  "Capture", ref: "rs1", title: "RS1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Defer",   ref: "rs1"
+    input  ref: "rs1"
+    expect ref: "rs1", state: "untasked"
+  end
+
+  test "Resume emits StoryResumed" do
+    tests "Resume", on: "Story"
+    setup  "Capture", ref: "rs2", title: "RS2", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Defer",   ref: "rs2"
+    input  ref: "rs2"
+    expect emits: ["StoryResumed"]
+  end
+
   test "AssignToSprint keeps state untasked (metadata-only since sprint 14)" do
     tests "AssignToSprint", on: "Story"
     setup  "Capture", ref: "l9", title: "L9", tier: 1, summary: "s", target: "t", project: "plan"
