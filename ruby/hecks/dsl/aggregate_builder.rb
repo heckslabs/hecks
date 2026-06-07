@@ -226,6 +226,14 @@ module Hecks
           kind: :has_one,
           cardinality: { min: at_least, max: 1 }
         )
+        # references-not-ids : synthesise a stored FK attribute (typed by the
+        # target aggregate name, not a primitive) at declaration order ;
+        # synthesise-if-absent so a hand-authored attr of the same name wins.
+        unless @attributes.any? { |a| a.name == attr_name }
+          @attributes << BluebookModel::Structure::Attribute.new(
+            name: attr_name, type: target, list: false
+          )
+        end
       end
 
       # Dependent side reference — IR-equivalent to has_one. Strict-Evans
@@ -244,6 +252,14 @@ module Hecks
           kind: :belongs_to,
           cardinality: { min: at_least, max: 1 }
         )
+        # references-not-ids : synthesise a stored FK attribute (typed by the
+        # target aggregate name, not a primitive) at declaration order ;
+        # synthesise-if-absent so a hand-authored attr of the same name wins.
+        unless @attributes.any? { |a| a.name == attr_name }
+          @attributes << BluebookModel::Structure::Attribute.new(
+            name: attr_name, type: target, list: false
+          )
+        end
       end
 
       # Simple English singularization : ies → y ; drop trailing s.
