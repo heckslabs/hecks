@@ -38,6 +38,14 @@ Hecks.behaviors "Conductor" do
     expect count: 0
   end
 
+  test "Alive returns only the still-alive worker when one of two is dead" do
+    tests "Alive", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w8"
+    setup  "Register", worker_id: "w9"
+    setup  "MarkDead",  worker_id: "w9"
+    expect count: 1
+  end
+
   # Dead query : complement of Alive.
 
   test "Dead includes a worker that has been marked dead" do
