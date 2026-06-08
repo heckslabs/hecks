@@ -311,6 +311,17 @@ fn dispatch_inner(
     // identified_by — closing the i111-C identified_by-required gap.
     let cascade_id = cascade_hint.as_ref().and_then(|(up_type, up_id)| {
         if up_type == &aggregate_name {
+            // A same-type cascade must NOT hijack the identity of a command that
+            // supplies its OWN id via the aggregate's identified_by field in attrs
+            // (e.g. Claim.Acquire(story=s2) cascaded from ClaimReleased(s1) must
+            // CREATE s2, not update s1). Only reuse the upstream id when the
+            // command brings no explicit identity.
+            let supplies_own_id = rt.domain.aggregates[agg_idx].identified_by
+                .as_ref()
+                .map_or(false, |idf| attrs.get(idf).map_or(false, |v| !v.to_string().is_empty()));
+            if supplies_own_id {
+                return None;
+            }
             rt.repositories.get(&repo_hash_key)
                 .and_then(|repo| repo.find(up_id))
                 .map(|_| up_id.clone())
@@ -453,6 +464,21 @@ fn dispatch_inner(
         }
     }
 
+    // belongs_to-on-event — the aggregate's stored belongs_to FKs ride its
+    // emitted event so downstream adapters can bind them (the freed worker on
+    // ClaimReleased -> SEAM 1 retrigger ; the story on LeaseReclaimed -> worktree
+    // unlock). Command inputs win on collision ; empty FKs are skipped.
+    let mut event_data = attrs.clone();
+    for r in &rt.domain.aggregates[agg_idx].references {
+        if matches!(r.kind, crate::ir::ReferenceKind::BelongsTo)
+            && !event_data.contains_key(&r.name)
+        {
+            let v = state.get(&r.name);
+            if !v.to_string().is_empty() {
+                event_data.insert(r.name.clone(), v.clone());
+            }
+        }
+    }
     let aggregate_id = state.id.clone();
     let was_deleted = state.deleted;
     let ctx = crate::heki::WriteContext::Dispatch {
@@ -465,7 +491,7 @@ fn dispatch_inner(
         repo.save(state, ctx);
     }
 
-    let event = build_event_res(rt, res, &aggregate_id, &attrs);
+    let event = build_event_res(rt, res, &aggregate_id, &event_data);
     if let Some(ref evt) = event {
         // Sprint 14 (retire-sync-cascade-pipeline) — the legacy Sync vs.
         // Actor fork retired. Every aggregate publishes inline through the

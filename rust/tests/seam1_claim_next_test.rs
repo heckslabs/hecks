@@ -36,6 +36,9 @@ const CLAIM_NEXT_HECKSAGON: &str = include_str!(
 const VOLUNTEER_HECKSAGON: &str = include_str!(
     "../../hecks_conception/aggregates/conductor/hecksagons/volunteer_pull.hecksagon"
 );
+const CLAIM_RELEASED_HECKSAGON: &str = include_str!(
+    "../../hecks_conception/aggregates/conductor/hecksagons/claim_next_on_claim_released.hecksagon"
+);
 
 fn aggregates_dir() -> String {
     format!("{}/../hecks_conception/aggregates", env!("CARGO_MANIFEST_DIR"))
@@ -57,6 +60,7 @@ fn boot() -> Runtime {
     let hexes = vec![
         hecksagon_parser::parse(CLAIM_NEXT_HECKSAGON),
         hecksagon_parser::parse(VOLUNTEER_HECKSAGON),
+        hecksagon_parser::parse(CLAIM_RELEASED_HECKSAGON),
     ];
     Runtime::boot_with_hecksagons(domain, None, hexes)
 }
@@ -212,4 +216,35 @@ fn claiming_an_unstartable_story_creates_no_lease() {
          prevents the garbage worktree (Grant never fired)");
     assert_eq!(rt.all_qualified(Some("Conductor"), "Lease").len(), 0,
         "zero Lease records — a refused Start created no worktree state");
+}
+
+
+#[test]
+fn releasing_a_claim_retriggers_the_freed_worker_onto_the_next_story() {
+    // SEAM 1 CONTINUOUS loop : a worker that finishes a story (its Claim is
+    // Released) immediately pulls the next claimable story — no new
+    // Worker.Register needed. This works ONLY because belongs_to-on-event rides
+    // the Claim's stored `worker` FK on the ClaimReleased event, so the
+    // ClaimNextOnClaimReleased adapter can bind worker: "{worker}".
+    let mut rt = boot();
+    ratified_sprint(&mut rt, "1");
+    tasked_story(&mut rt, "s1", "1");
+    tasked_story(&mut rt, "s2", "1");
+
+    // Register "w" -> SEAM 1 claims s1 (first by order_by :ref) and starts it.
+    rt.dispatch("Conductor::Worker.Register", attrs(&[("worker_id", s("w"))])).unwrap();
+    assert_eq!(field(&rt, "Conductor", "Claim", "s1", "worker").as_deref(), Some("w"),
+        "w claims s1 first (order_by :ref)");
+    assert_eq!(field(&rt, "Plan", "Story", "s1", "state").as_deref(), Some("started"),
+        "s1 started (so it leaves NextClaimable ; only s2 remains)");
+    assert!(field(&rt, "Conductor", "Claim", "s2", "worker").is_none(),
+        "s2 not yet claimed (single-select claimed only s1)");
+
+    // Release s1's Claim. belongs_to-on-event rides worker=w on ClaimReleased ->
+    // ClaimNextOnClaimReleased sweeps NextClaimable (now s2) -> Acquire(s2, w).
+    rt.dispatch("Conductor::Claim.Release", attrs(&[("id", s("s1"))])).unwrap();
+    assert_eq!(field(&rt, "Conductor", "Claim", "s2", "worker").as_deref(), Some("w"),
+        "releasing s1 must auto-pull s2 for the freed worker — the loop CONTINUES          (proves belongs_to-on-event carried the worker on ClaimReleased)");
+    assert_eq!(field(&rt, "Plan", "Story", "s2", "state").as_deref(), Some("started"),
+        "s2 also starts (SEAM 2 cascade runs for the retrigger too)");
 }

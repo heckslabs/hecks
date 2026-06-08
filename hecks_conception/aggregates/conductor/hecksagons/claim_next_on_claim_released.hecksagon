@@ -1,0 +1,14 @@
+Hecks.hecksagon "Conductor" do
+  # SEAM 1 continuous retrigger. When a worker finishes a story its Claim is
+  # released ; belongs_to-on-event rides the freed worker on ClaimReleased
+  # (the Claim's stored belongs_to Worker FK), so the worker can immediately
+  # pull the next claimable story — the loop continues without waiting for a
+  # new Worker.Register. Same single-select shape as
+  # claim_next_on_worker_registered : sweep NextClaimable (one match) and
+  # Acquire it for the now-free worker.
+  adapter "ClaimNextOnClaimReleased" do
+    driven on "Conductor::Claim.ClaimReleased" do |event|
+      dispatch "Conductor::Claim.Acquire", for_each: { from: "Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker}", claimed_at: "PENDING_NO_CLOCK"
+    end
+  end
+end
