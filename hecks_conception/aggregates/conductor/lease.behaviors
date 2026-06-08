@@ -107,4 +107,31 @@ Hecks.behaviors "Conductor" do
     input  worker: "w1"
     expect count: 0
   end
+
+  # PastTtl query (the lease-TTL clock consumer) : runtime enforces
+  # state == active AND expires_at < :now. ISO-8601 instants sort
+  # chronologically, so :now is a plain literal here ; in production the {now}
+  # clock primitive fills it. The expiry sweep fans Lease.Expire over this.
+
+  test "PastTtl includes an active lease whose TTL has elapsed" do
+    tests "PastTtl", on: "Lease", kind: :query
+    setup  "Grant", worktree_path: "pttl1", story: "s1", worker: "w1", expires_at: "2026-01-01T00:00:00Z"
+    input  now: "2026-06-01T00:00:00Z"
+    expect includes: { worktree_path: "pttl1", state: "active" }
+  end
+
+  test "PastTtl excludes an active lease whose TTL is still in the future" do
+    tests "PastTtl", on: "Lease", kind: :query
+    setup  "Grant", worktree_path: "pttl2", story: "s1", worker: "w1", expires_at: "2027-01-01T00:00:00Z"
+    input  now: "2026-06-01T00:00:00Z"
+    expect count: 0
+  end
+
+  test "PastTtl excludes an already-expired lease even past its TTL" do
+    tests "PastTtl", on: "Lease", kind: :query
+    setup  "Grant",  worktree_path: "pttl3", story: "s1", worker: "w1", expires_at: "2026-01-01T00:00:00Z"
+    setup  "Expire", worktree_path: "pttl3"
+    input  now: "2026-06-01T00:00:00Z"
+    expect count: 0
+  end
 end

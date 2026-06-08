@@ -1,15 +1,24 @@
 Hecks.hecksagon "ExpirySweep" do
-  # worktree-pool-lease-reclaim / expiry (sprint 20) — HONESTLY BLOCKED.
+  # The lease-TTL twin of LivenessSweep — UNBLOCKED by the {now} clock primitive.
   #
-  # Intent: periodically expire Leases whose TTL has elapsed (active leases
-  # past expires_at) and return their worktree paths to the pool. NO adapter
-  # is wired — the previous canned Tools::Cascade.RecordResult tick was a
-  # no-op (the command does not exist) that only LOOKED like a sweep.
+  # A Sweeper.Tick emits Ticked ; this adapter fans Conductor::Lease.Expire out
+  # over Conductor::Lease.PastTtl (active leases whose expires_at has elapsed,
+  # fed :now via the {now} clock primitive in the where-fan-out query input),
+  # and the EXISTING ReclaimOnExpire cascade reclaims each expired lease's
+  # worktree path — returning it to the pool EVEN WHEN THE OWNING WORKER IS
+  # STILL ALIVE. That is the gap this closes : LivenessSweep reclaims when a
+  # worker dies ; this reclaims when a lease outlives its TTL regardless of
+  # worker liveness, so a heartbeating worker holding a worktree far too long
+  # no longer leaks it forever.
   #
-  # Real implementation needs a TIME-AWARE query the runtime lacks : find
-  # Leases where state == active AND expires_at < now. Lease.Expired today is
-  # state-based (state == expired), not a TTL comparison, so it cannot drive
-  # the sweep. When a clock/time-where lands, this becomes a cron (or beat)
-  # adapter : `dispatch Conductor::Lease.Expire, for_each: { from:
-  # Lease.PastTtl }`. Until then this file is documentation, not behaviour.
+  # Was honestly-blocked documentation until the clock landed (the old canned
+  # Tools::Cascade.RecordResult tick was a no-op that only LOOKED like a sweep).
+  # Mirror of liveness_sweep.hecksagon exactly : Lease.Expire over Lease.PastTtl
+  # keyed by the lease identity (worktree_path), the way LivenessSweep fires
+  # Worker.MarkDead over Worker.Stale keyed by worker_id.
+  adapter "ExpirySweep" do
+    driven on "Conductor::Sweeper.Ticked" do |event|
+      dispatch "Conductor::Lease.Expire", for_each: { from: "Conductor::Lease.PastTtl", where: { now: "{now}" } }, id: "{worktree_path}"
+    end
+  end
 end

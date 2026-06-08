@@ -84,5 +84,11 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
       where worker: :worker
       where state: "active"
     end
+
+    query "PastTtl" do
+      description "All ACTIVE leases whose TTL has elapsed — orphaned worktrees to reclaim. SEMANTIC : state == active AND expires_at < :now. The driving read for the expiry sweep : a cadence Tick fans Conductor::Lease.Expire out over this query (fed :now via the {now} clock primitive), which cascades through ReclaimOnExpire to reclaim each worktree path and return it to the pool — independent of worker liveness (a lease can outlive its TTL even while its worker still heartbeats ; the worker-death side is Worker.Stale). expires_at is an ISO-8601 instant, so the lt comparison is a plain chronological string compare. Twin of Worker.Stale on the lease-TTL side of the same clock-driven reclaim."
+      where state: "active"
+      where expires_at: { lt: :now }
+    end
   end
 end
