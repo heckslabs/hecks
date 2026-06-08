@@ -845,13 +845,34 @@ fn main() {
             let corpus_dir = args.iter().position(|a| a == "--corpus")
                 .and_then(|i| args.get(i + 1))
                 .map(|s| s.as_str());
+            // --check-references <dir> is the FOCUSED corpus mode for the
+            // per-file pre-commit gate : it loads the corpus only to
+            // resolve reference_to targets (so an unqualified cross-bluebook
+            // belongs_to like Conductor::Lease referencing Story from plan
+            // resolves), and runs ONLY unknown_aggregate_errors. Unlike
+            // --corpus it does NOT run the whole-corpus phantom-trigger /
+            // dangling-event audit, which would block a single-file commit
+            // on UNRELATED files pre-existing corpus errors.
+            let check_refs_dir = args.iter().position(|a| a == "--check-references")
+                .and_then(|i| args.get(i + 1))
+                .map(|s| s.as_str());
             let mut errors = validator::validate(&domain);
+            if let Some(dir) = check_refs_dir {
+                let corpus = load_combined_domain(dir);
+                errors.extend(storehouse::validator_corpus::unknown_aggregate_errors(&domain, &corpus));
+            }
             if let Some(dir) = corpus_dir {
                 let corpus = load_combined_domain(dir);
                 // Corpus-wide rules live in validator_corpus (not in
                 // validator.rs / validator_warnings.rs) so those two
                 // files keep byte-identity with their specializers.
                 errors.extend(storehouse::validator_corpus::corpus_phantom_trigger_errors(&corpus));
+                // INVALID-grade : reference_to(X) targeting an aggregate
+                // absent from the merged corpus. Lives here (not per-file in
+                // validator.rs) because an unqualified cross-bluebook
+                // belongs_to resolves only once the corpus is joined ; the
+                // per-file check false-positived on legit sibling refs.
+                errors.extend(storehouse::validator_corpus::unknown_aggregate_errors(&corpus, &corpus));
                 for w in storehouse::validator_corpus::policy_event_warnings(&corpus) {
                     eprintln!("{}", w);
                 }

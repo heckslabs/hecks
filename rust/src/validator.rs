@@ -22,7 +22,6 @@ pub fn validate(domain: &Domain) -> Vec<String> {
     errors.extend(unique_aggregate_names(domain));
     errors.extend(aggregates_have_commands(domain));
     errors.extend(command_naming(domain));
-    errors.extend(valid_references(domain));
     errors.extend(valid_policy_triggers(domain));
     errors.extend(no_duplicate_commands(domain));
     errors.extend(distinct_reference_aliases(domain));
@@ -139,44 +138,6 @@ fn command_naming(domain: &Domain) -> Vec<String> {
                     cmd.name, agg.name, word,
                     if NOUN_SUFFIXES.iter().any(|s| word.to_lowercase().ends_with(s)) { "noun" } else { "adjective" }
                 ));
-            }
-        }
-    }
-    errors
-}
-
-/// References must target existing aggregate roots.
-fn valid_references(domain: &Domain) -> Vec<String> {
-    let agg_names: HashSet<&str> = domain
-        .aggregates
-        .iter()
-        .map(|a| a.name.as_str())
-        .collect();
-
-    let mut errors = vec![];
-    for agg in &domain.aggregates {
-        for reference in &agg.references {
-            if reference.domain.is_some() {
-                continue; // cross-domain refs validated elsewhere
-            }
-            if !agg_names.contains(reference.target.as_str()) {
-                errors.push(format!(
-                    "{} references unknown aggregate: {}",
-                    agg.name, reference.target
-                ));
-            }
-        }
-        for cmd in &agg.commands {
-            for reference in &cmd.references {
-                if reference.domain.is_some() {
-                    continue;
-                }
-                if !agg_names.contains(reference.target.as_str()) {
-                    errors.push(format!(
-                        "Command {} references unknown aggregate: {}",
-                        cmd.name, reference.target
-                    ));
-                }
             }
         }
     }

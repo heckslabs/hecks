@@ -9,7 +9,7 @@ Hecks.bluebook "Conductor", version: "2026.06.02.2" do
     attribute :state,    State,   default: "idle"
 
     has_many Stories, as: :queued
-    has_one  Stories, as: :current
+    has_one  Story, as: :current
 
     value_object "Branch" do
       # Target branch name, e.g. "main".

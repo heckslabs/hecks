@@ -137,7 +137,14 @@ if [ -z "$VALIDATE_SKIP" ] && [ -x "$STOREHOUSE" ]; then
             *_behavioral_tests.bluebook) continue ;;
         esac
         [ -f "$REPO/$bb" ] || continue
-        out=$("$STOREHOUSE" validate "$REPO/$bb" 2>&1)
+        # --check-references joins every bluebook under aggregates/ so an
+        # unqualified cross-bluebook belongs_to (e.g. Conductor::Lease -> plan's
+        # Story) RESOLVES against the full corpus ; the unknown-aggregate check
+        # then only fires on a true typo. It is the FOCUSED corpus mode : it does
+        # NOT run the whole-corpus phantom-trigger / dangling-event audit, so a
+        # single-file commit is never blocked by UNRELATED files' pre-existing
+        # corpus errors. (Broad `validate --corpus` is for a full-corpus audit.)
+        out=$("$STOREHOUSE" validate "$REPO/$bb" --check-references "$CONCEPTION_DIR/aggregates" 2>&1)
         if printf '%s' "$out" | grep -q "^INVALID"; then
             invalid="${invalid}\n  ✗ $bb\n$(printf '%s' "$out" | sed 's/^/      /')"
         fi
