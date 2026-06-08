@@ -1,4 +1,4 @@
-    let event = build_event_res(rt, res, &aggregate_id, &attrs);
+    let event = build_event_res(rt, res, &aggregate_id, &event_data);
     if let Some(ref evt) = event {
         // Sprint 14 (retire-sync-cascade-pipeline) — the legacy Sync vs.
         // Actor fork retired. Every aggregate publishes inline through the
