@@ -52,6 +52,25 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// Resolve `{now}` / `{now+N}` / `{now-N}` clock tokens in a dispatched
+/// attr map (the cadence-loop write path, mirroring interpolate_event on
+/// the hecksagon write path). Only string values are scanned ; the
+/// resolver is a no-op for any value without a `{now` token, so the
+/// per-tick cost is one substring check per string attr. HECKS_NOW pins
+/// the base instant for deterministic tests.
+fn resolve_now_attrs(attrs: HashMap<String, Value>) -> HashMap<String, Value> {
+    attrs
+        .into_iter()
+        .map(|(k, v)| match v {
+            Value::Str(s) => (
+                k,
+                Value::Str(crate::runtime::storehouse_log::interpolate_now_tokens(&s)),
+            ),
+            other => (k, other),
+        })
+        .collect()
+}
+
 /// One scheduled action per tick. Either a synthetic event (drives
 /// PMs only, no command pipeline) or a command dispatch (full
 /// pipeline : givens → mutations → emit → cascade).
@@ -226,6 +245,13 @@ impl LoopDriver {
                     self.runtime.publish_synthetic_event(event);
                 }
                 TickAction::Dispatch { command_name, attrs } => {
+                    // Resolve `{now}` / `{now+N}` / `{now-N}` clock tokens
+                    // FRESH on every tick, so a cadence line like
+                    // `storehouse loop ... Worker.Heartbeat stale_after={now+N}`
+                    // writes the real wall-clock instant each beat (not a
+                    // value frozen at registration time). HECKS_NOW still
+                    // freezes it for deterministic tests.
+                    let attrs = resolve_now_attrs(attrs);
                     if let Err(e) = self.runtime.dispatch(&command_name, attrs) {
                         eprintln!("[loop_driver] dispatch error '{}': {:?}",
                                   command_name, e);
