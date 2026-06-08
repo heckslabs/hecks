@@ -612,6 +612,7 @@ pub enum WhereOp {
     Lte,
     In,
     Resolved,
+    NoneInState,
 }
 
 #[derive(Debug, Clone)]
