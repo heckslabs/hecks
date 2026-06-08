@@ -1,54 +1,55 @@
 Hecks.hecksagon "VolunteerPull" do
   # volunteer-pull-protocol (sprint 20). The fleet mutex is the Claim aggregate
-  # (identified_by :story — first Acquire wins). This hecksagon wires the ONE
-  # seam that runs for real today ; SEAM 1 (worker self-select) stays honestly
-  # blocked on a runtime feature and is NOT wired (a wired sentinel dispatch
-  # would now — with resolver-on-cascade live — fire garbage : e.g.
-  # WorkerRegistered -> Claim.Acquire(story:"NEXT_CLAIMABLE") -> a real Lease +
-  # a real `git worktree add worktrees/NEXT_CLAIMABLE` on disk).
+  # (identified_by :story — first Acquire wins). SEAM 1 (worker self-select) is
+  # now WIRED FOR REAL in the sibling claim_next_on_worker_registered.hecksagon :
+  # the runtime cross-aggregate predicate it needed (WhereOp::NoneInState) shipped,
+  # so Plan::Story.NextClaimable can pick the next unheld claimable story and a
+  # WorkerRegistered drives a real Claim.Acquire on it. No sentinel, no garbage.
 
   # ------------------------------------------------------------------
-  # SEAM 2 (REAL) : a Claim is acquired -> grant its worktree lease + start it.
+  # SEAM 2 (REAL), split for safety : Acquire -> Start (gates) -> Grant (lease).
   # ------------------------------------------------------------------
-  # Fires on a GENUINE ClaimAcquired (an operator/worker claimed a real story).
-  # The ClaimAcquired event carries Acquire's input attrs as its payload, so
-  # {story} and {worker} both interpolate off the event. Lease.Grant ->
-  # LeaseGranted -> worktree_create runs `git worktree add worktrees/<story>`
-  # on disk AND story_worktree_sync locks the story's worktree — the full chain
-  # runs because resolver-on-cascade re-activates the resolver on cascaded
-  # events. expires_at is a placeholder (no clock on the dispatch path yet —
-  # honest, not faked). story + worker are the stored FKs (references-not-ids :
-  # Grant now persists both). Carrying worker here is what makes SEAM 3 work
-  # end-to-end : the lease records WHICH worker holds it, so a later WorkerDied
-  # matches it via Lease.HeldByWorker (where worker == the dead worker_id).
-  adapter "GrantAndStartOnClaimAcquired" do
+  # SEAM 2a : a Claim is acquired -> START its story (gates run FIRST). The
+  # ClaimAcquired event carries Acquire's input attrs, so {story} and {worker}
+  # both interpolate off event.data. We dispatch Start (NOT Grant) here so the
+  # worktree lease is created ONLY AFTER Story.Start's four givens pass (sprint
+  # set, state tasked, contracts ratified, deps resolved). worker rides through
+  # Start as a pass-through input into the StoryStarted event.
+  adapter "StartOnClaimAcquired" do
     driven on "Conductor::Claim.ClaimAcquired" do |event|
+      dispatch "Plan::Story.Start", story: "{story}", worker: "{worker}"
+    end
+  end
+
+  # SEAM 2b : the story actually STARTED (gates passed) -> NOW grant its worktree
+  # lease. StoryStarted carries Start's inputs (build_event clones them), so
+  # {story} and {worker} both interpolate off event.data. Splitting Grant onto
+  # StoryStarted (not ClaimAcquired) is the safety fix : a refused Start emits
+  # nothing, so no orphan `git worktree add` runs for a story that never
+  # legitimately started. expires_at is a placeholder (no clock on the dispatch
+  # path yet — honest, not faked). worker is the stored FK SEAM 3 matches on :
+  # the lease records WHICH worker holds it, so a later WorkerDied matches it via
+  # Lease.HeldByWorker (where worker == the dead worker_id).
+  adapter "GrantOnStoryStarted" do
+    driven on "Plan::Story.StoryStarted" do |event|
       dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", worker: "{worker}", expires_at: "PENDING_NO_CLOCK"
-      dispatch "Plan::Story.Start", story: "{story}"
     end
   end
 
   # ------------------------------------------------------------------
-  # SEAM 1 (worker self-select) is HONESTLY BLOCKED — not wired, not faked.
+  # SEAM 1 (worker self-select) is NOW WIRED FOR REAL — see the sibling
+  #   conductor/hecksagons/claim_next_on_worker_registered.hecksagon. It fires on
+  #   a genuine WorkerRegistered, sweeps Plan::Story.NextClaimable (state tasked,
+  #   deps resolved, AND no held Claim — the none_in_state anti-join that was the
+  #   missing runtime predicate), and Claim.Acquires the picked story for the new
+  #   worker. That ClaimAcquired then cascades into SEAM 2a/2b above. The Acquire
+  #   mutex (given state != held) serialises concurrent registrations.
   #
-  # SEAM 1 : on WorkerRegistered / ClaimReleased, pull the NEXT claimable story
-  #   and Claim.Acquire it. Picking "next claimable" requires a cross-aggregate
-  #   query (Plan::Story.Claimable, dependency-aware) evaluated from inside the
-  #   adapter — runtime-cross-aggregate-where. There is no honest story id to
-  #   put on the Acquire until that lands ; a sentinel here now cascades into a
-  #   real garbage worktree (see header).
-  #
-  #   When runtime-cross-aggregate-where lands, the clean shape is a projection
-  #   that pre-computes the claimable ids and emits an event carrying a real
-  #   story id, which THIS hecksagon then acts on. Until then : documentation.
-  #
-  # SEAM 3 (worker-died reclaim) is NOW WIRED FOR REAL — see the sibling
-  #   conductor/hecksagons/worker_died_reclaim.hecksagon. The where-fan-out
-  #   capability landed, and belongs_to Worker now synthesises a STORED worker
-  #   FK on both Lease and Claim (references-not-ids phases 1-3), so the
-  #   ReclaimOnWorkerDied adapter sweeps Lease.HeldByWorker / Claim.HeldByWorker
-  #   (where worker == the dead worker_id) and fires Reclaim / Expire once per
-  #   matched record. No back-ref on Worker is needed — the read keys off the
-  #   stored FK, matched against the WorkerDied event's aggregate_id. SEAM 2
-  #   above carries the worker FK onto the Grant so this match has data to find.
+  # SEAM 3 (worker-died reclaim) is WIRED FOR REAL — see the sibling
+  #   conductor/hecksagons/worker_died_reclaim.hecksagon. belongs_to Worker
+  #   synthesises a STORED worker FK on both Lease and Claim (references-not-ids),
+  #   so the ReclaimOnWorkerDied adapter sweeps Lease.HeldByWorker /
+  #   Claim.HeldByWorker (where worker == the dead worker_id) and fires Reclaim /
+  #   Expire once per matched record. SEAM 2b carries the worker FK onto the Grant
+  #   so this match has data to find.
 end
