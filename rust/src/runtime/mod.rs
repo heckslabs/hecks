@@ -2646,6 +2646,22 @@ impl Runtime {
                     );
                     unresolved.is_empty() == (w.value == "true")
                 }
+                crate::ir::WhereOp::NoneInState => {
+                    // Cross-aggregate anti-join, point lookup. `field` is
+                    // the candidate record's own id attribute ; `value` is
+                    // "Aggregate:blocking_state". PASS when no foreign
+                    // record exists for that id, or the one that exists is
+                    // not in the blocking state.
+                    let id = s.get(&w.field).to_string();
+                    let (agg, blocking_state) = match w.value.split_once(':') {
+                        Some((a, st)) => (a, st),
+                        None => (w.value.as_str(), ""),
+                    };
+                    match self.find(agg, &id) {
+                        None => true,
+                        Some(r) => r.get("state").to_string() != blocking_state,
+                    }
+                }
                 _ => where_matches(s, w, attrs),
             }))
             .collect();
@@ -2897,6 +2913,9 @@ fn where_matches(
         // Resolved is a cross-aggregate op resolved upstream in
         // resolve_query_qualified (needs &Runtime) ; never reached here.
         crate::ir::WhereOp::Resolved => true,
+        // NoneInState is a cross-aggregate anti-join resolved upstream in
+        // resolve_query_qualified (needs &Runtime) ; never reached here.
+        crate::ir::WhereOp::NoneInState => true,
     }
 }
 

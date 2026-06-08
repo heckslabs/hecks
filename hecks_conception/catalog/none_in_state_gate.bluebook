@@ -1,0 +1,64 @@
+Hecks.bluebook "NoneInStateGate" do
+  vision "Standalone proof fixture for the WhereOp::NoneInState cross-aggregate anti-join. A Slot is claimable only when no Claim record exists for it in the held state. Claim is identified_by the slot it guards, so the predicate is a keyed point lookup (HashMap hit), never a scan. Value-object-typed identities and zero typed references -- so corpus-mode validate passes and Ruby/Rust IR dump byte-identically. Mirrors Plan::Story.NextClaimable's none_in_state over Claim:held."
+
+  aggregate "Slot" do
+    identified_by :ref
+
+    value_object "Ref" do
+      attribute :value, String
+    end
+    value_object "SlotState" do
+      attribute :value, String
+    end
+
+    description "A claimable slot. Claimable only when no held Claim is keyed by its ref."
+    attribute :ref, Ref
+    attribute :state, SlotState, default: "open"
+
+    command "OpenSlot" do
+      role "System"
+      attribute :ref, Ref
+      emits "SlotOpened"
+    end
+
+    query "Claimable" do
+      description "Slots with NO Claim record in the held state keyed by their own ref. Point lookup of Claim(ref) -- PASS when absent or not held. The read-twin of an ungated mutex acquire."
+      where ref: { none_in_state: "Claim:held" }
+    end
+
+    query "all" do
+    end
+  end
+
+  aggregate "Claim" do
+    identified_by :slot
+
+    value_object "Slot" do
+      attribute :value, String
+    end
+    value_object "ClaimState" do
+      attribute :value, String
+    end
+
+    description "A held/released mutex keyed by the slot ref it guards. Foreign-state target for Slot.Claimable's none_in_state anti-join."
+    attribute :slot, Slot
+    attribute :state, ClaimState, default: "released"
+
+    command "AcquireClaim" do
+      role "System"
+      attribute :slot, Slot
+      then_set :state, to: "held"
+      emits "ClaimAcquired"
+    end
+
+    command "ReleaseClaim" do
+      role "System"
+      attribute :slot, Slot
+      then_set :state, to: "released"
+      emits "ClaimReleased"
+    end
+
+    query "all" do
+    end
+  end
+end
