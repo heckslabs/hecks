@@ -196,6 +196,7 @@ mod tests {
 
     #[test]
     fn autoloads_channels_leads_abbrevless_skips_empty() {
+        let _home = crate::run_statusline::HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         let tmp = std::env::temp_dir()
             .join(format!("sl_inbox_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);

@@ -110,6 +110,14 @@ fn format_beats(b: i64) -> String {
     }
 }
 
+// HOME is a PROCESS-global env var ; the render tests in this module AND in
+// inbox.rs each set it. Rust runs tests as parallel threads in ONE process,
+// so a shared lock is required so one test's set_var("HOME", ...) can't race
+// another's between set + assert (the inbox-seed flake). Crate-visible so
+// inbox::tests shares the SAME lock. Poison-tolerant.
+#[cfg(test)]
+pub(crate) static HOME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,6 +133,7 @@ mod tests {
 
     #[test]
     fn awake_render_omits_mood_when_unset() {
+        let _home = HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
         let s = State { beats_raw: 1234, ..Default::default() };
         let now = Now { secs: 0, nanos_total: 0 };
@@ -137,6 +146,7 @@ mod tests {
 
     #[test]
     fn awake_render_strips_mood_fatigue_breadcrumb() {
+        let _home = HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // Hermeticity : neutralise HOME so the inbox walk against
         // INBOXES finds no real cards, regardless of where cargo runs.
         std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
@@ -171,6 +181,7 @@ mod tests {
 
     #[test]
     fn awake_render_includes_inboxes_when_seeded() {
+        let _home = HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // Build a fake HOME with one inbox holding a queued card plus
         // its .channel.md descriptor (autoloaded ; abbrev gl / crystal).
         let tmp = std::env::temp_dir().join(format!(
@@ -206,6 +217,7 @@ assert!(line.contains("gl:1"), "expected gl:1 in: {}", line);
 
     #[test]
     fn awake_render_omits_inbox_section_when_all_zero() {
+        let _home = HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // No queued cards anywhere ⇒ no envelope, no separator —
         // line is just heartbeat. Pin HOME to a no-inbox tempdir.
         let tmp = std::env::temp_dir().join(format!(
@@ -226,6 +238,7 @@ assert!(!line.contains("✉️"), "no envelope expected: {}", line);
 
     #[test]
     fn awake_render_shows_drafts_when_nonzero() {
+        let _home = HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // drafts_count > 0 ⇒ ✉️ N segment appears after heartbeat.
         std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
         let s = State {
@@ -240,6 +253,7 @@ assert!(!line.contains("✉️"), "no envelope expected: {}", line);
 
     #[test]
     fn awake_render_omits_drafts_when_zero() {
+        let _home = HOME_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         // drafts_count == 0 (default) ⇒ ✉️ segment absent.
         std::env::set_var("HOME", "/tmp/hecks_statusline_test_no_home");
         let s = State { beats_raw: 100, ..Default::default() };
