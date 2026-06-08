@@ -108,3 +108,107 @@ fn one_worker_register_pulls_claims_starts_and_leases_a_story() {
     assert_eq!(field(&rt, "Plan", "Story", "s1", "worktree_locked").as_deref(), Some("true"),
         "LeaseGranted must lock the story's worktree");
 }
+
+#[test]
+fn two_workers_one_story_only_one_claims_the_cascade_mutex() {
+    // The load-bearing invariant of the pull loop : when more workers register
+    // than there is claimable work, AT MOST ONE may claim a given story. This is
+    // NOT the unit mutex (Claim.Acquire's `given state != held`, covered in
+    // claim.behaviors) — it is the CASCADE mutex : NextClaimable's
+    // `where ref: { none_in_state: "Claim:held" }` must exclude the
+    // already-claimed story so the second worker's self-claim fans over an EMPTY
+    // set and never even attempts Acquire. A regression here double-claims one
+    // story to two workers — the worst corruption the fleet can produce.
+    let domain = load_combined_domain(&aggregates_dir());
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![
+        hecksagon_parser::parse(CLAIM_NEXT_HEX),
+        hecksagon_parser::parse(VOLUNTEER_PULL_HEX),
+        hecksagon_parser::parse(WORKTREE_SYNC_HEX),
+    ]);
+
+    rt.dispatch("Plan::Sprint.Plan", attrs(&[
+        ("number", s("1")), ("goal", s("fleet")), ("project", s("plan"))])).unwrap();
+    rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
+        ("sprint", s("1")), ("contracts", s("agreed"))])).unwrap();
+    // EXACTLY ONE claimable story.
+    rt.dispatch("Plan::Story.Capture", attrs(&[
+        ("ref", s("s1")), ("title", s("S1")), ("tier", s("1")),
+        ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
+    rt.dispatch("Plan::Story.AssignToSprint", attrs(&[
+        ("story", s("s1")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("s1"))])).unwrap();
+
+    // TWO workers join. Each fires ClaimNextOnWorkerRegistered.
+    rt.dispatch("Conductor::Worker.Register", attrs(&[
+        ("worker_id", s("w1")), ("stale_after", s(FUTURE))])).unwrap();
+    rt.dispatch("Conductor::Worker.Register", attrs(&[
+        ("worker_id", s("w2")), ("stale_after", s(FUTURE))])).unwrap();
+
+    // EXACTLY ONE claim exists on s1, held by ONE worker.
+    let holder = field(&rt, "Conductor", "Claim", "s1", "worker");
+    assert_eq!(field(&rt, "Conductor", "Claim", "s1", "state").as_deref(), Some("held"),
+        "the one story must be claimed exactly once");
+    assert!(holder.as_deref() == Some("w1") || holder.as_deref() == Some("w2"),
+        "the claim must be held by one of the two workers, got {:?}", holder);
+
+    // The TOTAL number of held claims across the fleet is exactly one — the second
+    // worker fanned over an empty NextClaimable and produced no claim.
+    let held: Vec<_> = rt.all_qualified(Some("Conductor"), "Claim").into_iter()
+        .filter(|r| r.fields.get("state").map(|v| v.to_string()).as_deref() == Some("held"))
+        .collect();
+    assert_eq!(held.len(), 1,
+        "exactly one held claim must exist in the whole fleet, found {}", held.len());
+
+    // Exactly one lease was granted (the winner's), not two.
+    let leases: Vec<_> = rt.all_qualified(Some("Conductor"), "Lease").into_iter()
+        .filter(|r| r.fields.get("state").map(|v| v.to_string()).as_deref() == Some("active"))
+        .collect();
+    assert_eq!(leases.len(), 1,
+        "exactly one worktree lease must be granted, found {}", leases.len());
+}
+
+#[test]
+fn a_story_with_an_unresolved_dependency_is_never_pull_claimed() {
+    // Dependency-blocking must hold on the CASCADE path, not just the query : a
+    // registering worker's self-claim fans over NextClaimable, which carries
+    // `where dependencies: { resolved: true }`. The blocked story is named
+    // "a_blk" so it sorts BEFORE the dependency "z_dep" under order_by :ref — if
+    // the dependency filter were broken, the worker would grab "a_blk" first.
+    // Claiming a story whose prerequisite is unfinished = work started out of
+    // order = exactly what the DAG exists to prevent.
+    let domain = load_combined_domain(&aggregates_dir());
+    let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![
+        hecksagon_parser::parse(CLAIM_NEXT_HEX),
+        hecksagon_parser::parse(VOLUNTEER_PULL_HEX),
+        hecksagon_parser::parse(WORKTREE_SYNC_HEX),
+    ]);
+
+    rt.dispatch("Plan::Sprint.Plan", attrs(&[
+        ("number", s("1")), ("goal", s("fleet")), ("project", s("plan"))])).unwrap();
+    rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
+        ("sprint", s("1")), ("contracts", s("agreed"))])).unwrap();
+
+    // z_dep : unblocked, tasked, claimable.
+    rt.dispatch("Plan::Story.Capture", attrs(&[
+        ("ref", s("z_dep")), ("title", s("Z")), ("tier", s("1")),
+        ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
+    rt.dispatch("Plan::Story.AssignToSprint", attrs(&[("story", s("z_dep")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("z_dep"))])).unwrap();
+
+    // a_blk : tasked but depends_on z_dep (unresolved) — sorts first, must be skipped.
+    rt.dispatch("Plan::Story.Capture", attrs(&[
+        ("ref", s("a_blk")), ("title", s("A")), ("tier", s("1")),
+        ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
+    rt.dispatch("Plan::Story.AssignToSprint", attrs(&[("story", s("a_blk")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("a_blk"))])).unwrap();
+    rt.dispatch("Plan::Story.AddDependency", attrs(&[("story", s("a_blk")), ("dependency", s("z_dep"))])).unwrap();
+
+    rt.dispatch("Conductor::Worker.Register", attrs(&[
+        ("worker_id", s("w1")), ("stale_after", s(FUTURE))])).unwrap();
+
+    // The worker claimed the UNBLOCKED dependency, NOT the blocked dependent.
+    assert_eq!(field(&rt, "Conductor", "Claim", "z_dep", "state").as_deref(), Some("held"),
+        "the unblocked story must be claimed");
+    assert!(field(&rt, "Conductor", "Claim", "a_blk", "state").is_none(),
+        "the story with an unresolved dependency must NEVER be pull-claimed");
+}
