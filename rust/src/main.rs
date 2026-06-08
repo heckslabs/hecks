@@ -4371,6 +4371,28 @@ fn resolve_aggregates_dir() -> Option<String> {
     None
 }
 
+/// Resolve `{now}` clock tokens in a `storehouse loop` attr map, fresh
+/// per tick. Mirrors loop_driver::resolve_now_attrs but lives in the
+/// binary crate (main.rs) and reads the lib's pub token resolver. Only
+/// string values are scanned ; the resolver no-ops for any value without
+/// a `{now` token. HECKS_NOW pins the base instant for deterministic runs.
+fn resolve_now_loop_attrs(
+    attrs: &std::collections::HashMap<String, storehouse::runtime::Value>,
+) -> std::collections::HashMap<String, storehouse::runtime::Value> {
+    attrs
+        .iter()
+        .map(|(k, v)| match v {
+            storehouse::runtime::Value::Str(s) => (
+                k.clone(),
+                storehouse::runtime::Value::Str(
+                    storehouse::runtime::storehouse_log::interpolate_now_tokens(s),
+                ),
+            ),
+            other => (k.clone(), other.clone()),
+        })
+        .collect()
+}
+
 fn chrono_utc_now() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -4678,7 +4700,13 @@ fn run_loop(args: &[String]) {
         };
         if gate_open {
             let cmd_name = &cmd_names[idx % cmd_names.len()];
-            if let Err(e) = rt.dispatch(cmd_name, attrs.clone()) {
+            // Resolve `{now}` / `{now+N}` / `{now-N}` clock tokens FRESH each
+            // tick so a cadence line like
+            // `storehouse loop ... Worker.Heartbeat stale_after={now+N}`
+            // writes the real instant every beat. Mirrors the loop_driver +
+            // hecksagon write paths ; HECKS_NOW freezes it for tests.
+            let tick_attrs = resolve_now_loop_attrs(&attrs);
+            if let Err(e) = rt.dispatch(cmd_name, tick_attrs) {
                 eprintln!("[storehouse loop] dispatch error: {:?}", e);
             }
             idx = idx.wrapping_add(1);

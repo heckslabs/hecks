@@ -273,6 +273,13 @@ fn interpolate_event(template: &str, event: &Event) -> String {
     }
     out = out.replace("{id}", &event.aggregate_id);
     out = out.replace("{aggregate_id}", &event.aggregate_id);
+    // The `{now}` / `{now+N}` / `{now-N}` clock primitive. Resolved LAST
+    // so a field literally named `now` (event data) still wins ; only the
+    // unresolved clock tokens reach the time resolver. This single call is
+    // why the clock reaches every driven write path : the per-record sweep
+    // attrs (interpolate_event_and_record) and the query `where` values
+    // (sweep_query_attrs) both funnel through interpolate_event.
+    out = crate::runtime::storehouse_log::interpolate_now_tokens(&out);
     out
 }
 

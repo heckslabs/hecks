@@ -259,11 +259,77 @@ pub fn now_iso8601() -> String {
     format_iso8601(secs)
 }
 
+/// The clock as an attr value (the `{now}` primitive). Resolves the
+/// time tokens that dispatch templates write :
+///   `{now}`      -> the current instant, ISO-8601 UTC
+///   `{now+<N>}`  -> now + N seconds (e.g. a TTL : `{now+3600}`)
+///   `{now-<N>}`  -> now - N seconds
+/// N is a non-negative integer count of seconds. The base instant comes
+/// from heki::now_duration(), so `HECKS_NOW=<epoch>` freezes every token
+/// in a run. Output is ISO-8601 UTC, which sorts chronologically — so a
+/// `where stale_after: { lt: :now }` comparison against a stored
+/// `{now+N}` value is correct lexically. Unknown / malformed tokens are
+/// left untouched (the caller's other interpolation passes still run).
+///
+/// This is the SINGLE reachability point for the clock as a value : the
+/// hecksagon dispatch path (interpolate_event) and the cadence loop
+/// driver both call it, so `expires_at: "{now+3600}"` and
+/// `stale_after={now+N}` resolve to real time in BOTH write paths.
+pub fn interpolate_now_tokens(template: &str) -> String {
+    if !template.contains("{now") {
+        return template.to_string();
+    }
+    let base = crate::heki::now_duration().as_secs() as i64;
+    let mut out = String::with_capacity(template.len());
+    let bytes = template.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'{' {
+            if let Some(close) = template[i..].find('}') {
+                let token = &template[i + 1..i + close];
+                if let Some(secs) = parse_now_token(token, base) {
+                    out.push_str(&format_iso8601(secs.max(0) as u64));
+                    i += close + 1;
+                    continue;
+                }
+            }
+        }
+        // Not a now-token : copy the byte through. UTF-8 safe because we
+        // only fast-path on the ASCII '{' boundary ; everything else is
+        // copied verbatim by char.
+        let ch = template[i..].chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    out
+}
+
+/// Parse the inside of a `{...}` token as a now-expression. Returns the
+/// resolved epoch seconds (relative to `base`) when the token is `now`,
+/// `now+N`, or `now-N` ; None for anything else (so non-now tokens fall
+/// through to the caller's field interpolation untouched).
+fn parse_now_token(token: &str, base: i64) -> Option<i64> {
+    let t = token.trim();
+    if t == "now" {
+        return Some(base);
+    }
+    let rest = t.strip_prefix("now")?;
+    let (sign, digits) = match rest.as_bytes().first()? {
+        b'+' => (1i64, &rest[1..]),
+        b'-' => (-1i64, &rest[1..]),
+        _ => return None,
+    };
+    let n: i64 = digits.trim().parse().ok()?;
+    Some(base + sign * n)
+}
+
 /// Format a Unix epoch second count as ISO-8601 UTC. Splits the
 /// seconds into Y-M-D H:M:S using the civil-from-days algorithm
 /// (Howard Hinnant, MIT-licensed public algorithm) so we don't pull
-/// chrono just for one timestamp surface.
-fn format_iso8601(secs: u64) -> String {
+/// chrono just for one timestamp surface. pub(crate) so the `{now}`
+/// token resolver (interpolate_now_tokens) reuses the one formatter
+/// instead of cloning the civil-from-days math.
+pub(crate) fn format_iso8601(secs: u64) -> String {
     let days = (secs / 86_400) as i64;
     let s = (secs % 86_400) as u32;
     let (year, month, day) = civil_from_days(days);
@@ -314,5 +380,43 @@ mod tests {
     fn iso8601_leap_day() {
         // 2024-02-29T00:00:00Z = 1709164800
         assert_eq!(format_iso8601(1_709_164_800), "2024-02-29T00:00:00Z");
+    }
+
+    // ---- `{now}` token parsing (the clock primitive) ----
+    // parse_now_token takes an explicit base, so these are clock-free and
+    // race-free under parallel test threads (no env, no SystemTime).
+    const BASE: i64 = 1_778_784_121; // 2026-05-14T18:42:01Z
+
+    #[test]
+    fn now_token_bare() {
+        assert_eq!(parse_now_token("now", BASE), Some(BASE));
+    }
+
+    #[test]
+    fn now_token_plus_and_minus() {
+        assert_eq!(parse_now_token("now+3600", BASE), Some(BASE + 3600));
+        assert_eq!(parse_now_token("now-60", BASE), Some(BASE - 60));
+    }
+
+    #[test]
+    fn now_token_rejects_non_now() {
+        assert_eq!(parse_now_token("id", BASE), None);
+        assert_eq!(parse_now_token("now*5", BASE), None);
+        assert_eq!(parse_now_token("nowish", BASE), None);
+        assert_eq!(parse_now_token("now+", BASE), None);
+    }
+
+    #[test]
+    fn now_tokens_resolve_to_iso_frozen_by_hecks_now() {
+        // HECKS_NOW pins the clock so token output is byte-stable. This is
+        // the only env-touching test in the module ; asserted values are
+        // computed from the pinned base, never wall-clock.
+        std::env::set_var("HECKS_NOW", BASE.to_string());
+        assert_eq!(interpolate_now_tokens("{now}"), "2026-05-14T18:42:01Z");
+        assert_eq!(interpolate_now_tokens("x={now+3600}"), "x=2026-05-14T19:42:01Z");
+        assert_eq!(interpolate_now_tokens("x={now-121}"), "x=2026-05-14T18:40:00Z");
+        // Non-now tokens + plain text pass through untouched.
+        assert_eq!(interpolate_now_tokens("{id} stays"), "{id} stays");
+        std::env::remove_var("HECKS_NOW");
     }
 }

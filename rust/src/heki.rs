@@ -808,6 +808,17 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
 /// timestamps through the same wasm-safe clock instead of calling
 /// std::time::SystemTime::now() directly (i630/VinDiction worker fix).
 pub(crate) fn now_duration() -> std::time::Duration {
+    // Determinism freeze (mirrors HECKS_RAND_SEED in interpreter.rs) :
+    // `HECKS_NOW=<unix-epoch-seconds>` pins the clock so any now-bearing
+    // dispatch in a fixture / golden / parity run stays byte-stable. Every
+    // ISO formatter in the tree (now_iso8601, now_iso8601_internal, the
+    // `{now}` token resolver) routes through here, so a single env var
+    // freezes them all. Non-numeric / unset = live clock.
+    if let Ok(pin) = std::env::var("HECKS_NOW") {
+        if let Ok(secs) = pin.trim().parse::<u64>() {
+            return std::time::Duration::from_secs(secs);
+        }
+    }
     #[cfg(not(target_arch = "wasm32"))]
     {
         SystemTime::now()
