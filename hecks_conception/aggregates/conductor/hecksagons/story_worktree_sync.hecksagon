@@ -1,23 +1,25 @@
 Hecks.hecksagon "StoryWorktreeSync" do
   # Lock the story's git worktree while a Lease holds it. The story identity
-  # rides the LeaseGranted event as {story} — Grant now stores the Story FK
-  # (references-not-ids) via then_set :story, so the persisted/then_set field
-  # is on the event. worktree_path is the Lease's own id. No canned RecordResult.
+  # rides the LeaseGranted event as {story} — Grant stores the Story FK
+  # (references-not-ids) via then_set :story, and belongs_to-on-event puts that
+  # stored FK on the event. worktree_path is the Lease's own id.
   adapter "LockAdapter" do
     driven on "Conductor::Lease.LeaseGranted" do |event|
       dispatch "Plan::Story.LockWorktree", story: "{story}", worktree_path: "{worktree_path}"
     end
   end
 
-  # UNLOCK is honestly DEFERRED, not faked. Lease.Reclaim is reference_to(Lease) ;
-  # LeaseReclaimed carries only the lease id (worktree_path) + this command's
-  # then_set fields — NOT the persisted story. So {story} cannot resolve at
-  # reclaim time. Real unlock needs one of : (a) the runtime exposing the
-  # belongs_to Story (now a stored FK) on the reclaim event, or (b) a Story-side
-  # unlock trigger when the worktree is removed. Tracked under references-not-ids
-  # / the cross-aggregate-identity work. The worktree itself IS physically
-  # removed on reclaim (conductor/hecksagons/worktree_remove.hecksagon) ; only
-  # the story's worktree_locked flag lags until the unlock seam lands. No
-  # UnlockAdapter is wired here rather than ship a dispatch that errors on every
-  # reclaim.
+  # Unlock the story's worktree when its Lease is reclaimed. NOW REAL : Lease
+  # belongs_to Story, and belongs_to-on-event rides the stored {story} FK on
+  # LeaseReclaimed (Lease.Reclaim is reference_to(Lease) so the command inputs
+  # alone carried only the lease id ; the FK-on-event is what makes {story}
+  # resolve at reclaim time — the exact seam this adapter waited on). Clears the
+  # story's worktree_locked flag so it no longer lags the physical removal
+  # (conductor/hecksagons/worktree_remove.hecksagon). WorktreeUnlocked then
+  # triggers the worktree-removed live check.
+  adapter "UnlockAdapter" do
+    driven on "Conductor::Lease.LeaseReclaimed" do |event|
+      dispatch "Plan::Story.UnlockWorktree", story: "{story}"
+    end
+  end
 end
