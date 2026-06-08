@@ -59,7 +59,7 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //! Regenerate: storehouse specialize validator_corpus --output storehouse/src/validator_corpus.rs
 //! Contract:  storehouse/src/specializer/validator_corpus.rs (Rust-native)
 //!
-//! Four rules :
+//! Five rules :
 //!
 //!   - `corpus_phantom_trigger_errors` — INVALID-grade : a policy's
 //!     `trigger_command` is not declared by any aggregate in the
@@ -78,6 +78,12 @@ const HEADER: &str = r#"//! Validator extensions that run against the corpus-mer
 //!     on more than one aggregate across the corpus. Bare-name
 //!     dispatch is ambiguous — qualify call sites with
 //!     `Aggregate.Command` to disambiguate. i156.
+//!
+//!   - `unknown_aggregate_errors` — INVALID-grade : a `reference_to(X)`
+//!     (on an aggregate or a command) targets an aggregate not declared
+//!     anywhere in the merged corpus. Unqualified cross-bluebook
+//!     `belongs_to` refs resolve once the corpus is joined ; only a
+//!     true typo (`belongs_to Wrker`) survives as an error.
 
 "#;
 

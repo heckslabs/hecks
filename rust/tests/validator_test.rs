@@ -99,7 +99,15 @@ fn detects_bad_reference() {
     end
   end
 end"#);
-    let errors = validator::validate(&domain);
+    // valid_references moved from per-file validate() to the corpus pass
+    // (unknown_aggregate_errors) so legitimate cross-bluebook belongs_to stop
+    // false-positiving. A self-contained domain is its own corpus, so a target
+    // absent from it is still flagged.
+    assert!(
+        !validator::validate(&domain).iter().any(|e| e.contains("unknown aggregate")),
+        "per-file validate must no longer run the reference check"
+    );
+    let errors = storehouse::validator_corpus::unknown_aggregate_errors(&domain, &domain);
     assert!(errors.iter().any(|e| e.contains("unknown aggregate: Ghost")));
 }
 

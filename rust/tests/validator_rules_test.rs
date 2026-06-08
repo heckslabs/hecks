@@ -18,6 +18,7 @@
 use storehouse::ir::{Aggregate, Command, Domain, Policy};
 use storehouse::parser;
 use storehouse::validator::validate;
+use storehouse::validator_corpus::unknown_aggregate_errors;
 
 #[test]
 fn valid_domain_passes() {
@@ -181,7 +182,18 @@ fn unknown_reference() {
     end
   end
 end"#);
-    let errors = validate(&domain);
+    // valid_references retired from the per-file `validate` (it false-positived
+    // on legitimate cross-bluebook belongs_to). The dangling-reference check
+    // now lives in the corpus pass : unknown_aggregate_errors(domain, corpus).
+    // A self-contained domain is its own corpus, so a target absent from it is
+    // still flagged. validate() alone no longer reports it.
+    assert!(
+        !validate(&domain)
+            .iter()
+            .any(|e| e.contains("unknown aggregate")),
+        "per-file validate must no longer run the reference check"
+    );
+    let errors = unknown_aggregate_errors(&domain, &domain);
     assert!(errors
         .iter()
         .any(|e| e.contains("unknown aggregate: Widget")));

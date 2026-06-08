@@ -58,7 +58,6 @@ pub fn emit(repo_root: &Path) -> Result<String, Box<dyn Error>> {
     out.push_str(&validator_morphology::emit_command_naming_support(&fixtures));
     for rust_fn_name in [
         "command_naming",
-        "valid_references",
         "valid_policy_triggers",
         "no_duplicate_commands",
         "distinct_reference_aliases",
