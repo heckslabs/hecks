@@ -179,3 +179,37 @@ fn an_untasked_or_dep_blocked_story_is_not_claimed() {
     assert_eq!(field(&rt, "Plan", "Story", "draft", "state").as_deref().map(|s| s != "started"),
         Some(true), "the untasked story must not have started");
 }
+
+#[test]
+fn claiming_an_unstartable_story_creates_no_lease() {
+    // SEAM 2 cascade-order safety (the negative twin) : the worktree lease is
+    // granted on StoryStarted, NOT on ClaimAcquired. So acquiring a Claim on an
+    // UN-STARTABLE story (here tasked-but-sprintless, whose Start gate
+    // `sprint != ""` refuses) must leave NO lease and NO worktree — the refused
+    // Start short-circuits Grant. Proves the fix prevents the "real garbage
+    // worktree" the old Grant-on-ClaimAcquired order caused.
+    let mut rt = boot();
+
+    // A tasked story with no sprint -> Story.Start will refuse it.
+    tasked_story_no_sprint(&mut rt, "stuck");
+
+    // Acquire a Claim directly (the dangerous case NextClaimable is meant to
+    // avoid). The ungated mutex takes the claim ; the cascade then dispatches
+    // Story.Start, which REFUSES on `sprint != ""`.
+    rt.dispatch("Conductor::Claim.Acquire", attrs(&[
+        ("story", s("stuck")), ("worker", s("w1")), ("claimed_at", s("t0"))])).unwrap();
+
+    // The Claim is held (the mutex took)...
+    assert_eq!(field(&rt, "Conductor", "Claim", "stuck", "state").as_deref(), Some("held"),
+        "the ungated Acquire mutex still takes the claim");
+    // ...but Start was REFUSED, so the story stayed tasked (never started)...
+    assert_eq!(field(&rt, "Plan", "Story", "stuck", "state").as_deref(), Some("tasked"),
+        "Story.Start must refuse the sprintless story (it stays tasked)");
+    // ...and CRUCIALLY no lease / worktree was created : Grant fires only on
+    // StoryStarted, which never emitted. The no-garbage guarantee.
+    assert_eq!(field(&rt, "Conductor", "Lease", "worktrees/stuck", "state"), None,
+        "NO lease may exist for an un-startable story — the cascade-order fix \
+         prevents the garbage worktree (Grant never fired)");
+    assert_eq!(rt.all_qualified(Some("Conductor"), "Lease").len(), 0,
+        "zero Lease records — a refused Start created no worktree state");
+}
