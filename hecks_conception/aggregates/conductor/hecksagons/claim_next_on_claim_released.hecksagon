@@ -8,7 +8,7 @@ Hecks.hecksagon "Conductor" do
   # Acquire it for the now-free worker.
   adapter "ClaimNextOnClaimReleased" do
     driven on "Conductor::Claim.ClaimReleased" do |event|
-      dispatch "Conductor::Claim.Acquire", for_each: { from: "Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker}", claimed_at: "PENDING_NO_CLOCK"
+      dispatch "Conductor::Claim.Acquire", for_each: { from: "Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker}", claimed_at: "{now}"
     end
   end
 end

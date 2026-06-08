@@ -26,13 +26,13 @@ Hecks.hecksagon "VolunteerPull" do
   # {story} and {worker} both interpolate off event.data. Splitting Grant onto
   # StoryStarted (not ClaimAcquired) is the safety fix : a refused Start emits
   # nothing, so no orphan `git worktree add` runs for a story that never
-  # legitimately started. expires_at is a placeholder (no clock on the dispatch
+  # legitimately started. expires_at is the clock primitive (1h lease TTL on the dispatch
   # path yet — honest, not faked). worker is the stored FK SEAM 3 matches on :
   # the lease records WHICH worker holds it, so a later WorkerDied matches it via
   # Lease.HeldByWorker (where worker == the dead worker_id).
   adapter "GrantOnStoryStarted" do
     driven on "Plan::Story.StoryStarted" do |event|
-      dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", worker: "{worker}", expires_at: "PENDING_NO_CLOCK"
+      dispatch "Conductor::Lease.Grant", worktree_path: "worktrees/{story}", story: "{story}", worker: "{worker}", expires_at: "{now+3600}"
     end
   end
 

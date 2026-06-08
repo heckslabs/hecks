@@ -60,4 +60,31 @@ Hecks.behaviors "Conductor" do
     setup  "Register", worker_id: "w7"
     expect count: 0
   end
+
+  # Stale query (the clock's consumer) : runtime enforces status == alive AND
+  # stale_after < :now. ISO-8601 instants sort chronologically, so :now is
+  # supplied as a plain literal here ; in production the {now} clock primitive
+  # fills it from the wall clock. The liveness sweep fans MarkDead over this.
+
+  test "Stale includes an alive worker whose deadline has passed" do
+    tests "Stale", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w10", stale_after: "2026-01-01T00:00:00Z"
+    input  now: "2026-06-01T00:00:00Z"
+    expect includes: { worker_id: "w10", status: "alive" }
+  end
+
+  test "Stale excludes a worker whose deadline is still in the future" do
+    tests "Stale", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w11", stale_after: "2027-01-01T00:00:00Z"
+    input  now: "2026-06-01T00:00:00Z"
+    expect count: 0
+  end
+
+  test "Stale excludes a dead worker even if past its deadline" do
+    tests "Stale", on: "Worker", kind: :query
+    setup  "Register", worker_id: "w12", stale_after: "2026-01-01T00:00:00Z"
+    setup  "MarkDead", worker_id: "w12"
+    input  now: "2026-06-01T00:00:00Z"
+    expect count: 0
+  end
 end

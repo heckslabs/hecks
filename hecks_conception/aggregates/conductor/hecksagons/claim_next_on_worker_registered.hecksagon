@@ -13,7 +13,7 @@ Hecks.hecksagon "Conductor" do
   # on REAL command events, never on synthetic ones.
   adapter "ClaimNextOnWorkerRegistered" do
     driven on "Conductor::Worker.WorkerRegistered" do |event|
-      dispatch "Conductor::Claim.Acquire", for_each: { from: "Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker_id}", claimed_at: "PENDING_NO_CLOCK"
+      dispatch "Conductor::Claim.Acquire", for_each: { from: "Plan::Story.NextClaimable", where: {} }, story: "{ref}", worker: "{worker_id}", claimed_at: "{now}"
     end
   end
 end

@@ -1,0 +1,9 @@
+Hecks.behaviors "Conductor" do
+  vision "Sweeper behaviors — Tick emits Ticked, the cadence beat the LivenessSweep driven adapter consumes to fan MarkDead over Worker.Stale."
+
+  test "Tick mints the singleton sweeper" do
+    tests "Tick", on: "Sweeper"
+    input  sweeper_id: "fleet"
+    expect sweeper_id: "fleet"
+  end
+end

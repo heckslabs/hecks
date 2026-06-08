@@ -1,0 +1,25 @@
+Hecks.hecksagon "Conductor" do
+  # THE LIVENESS SWEEP (the clock's first consumer — decision A).
+  #
+  # A Sweeper.Tick emits Ticked (a REAL command event ; for_each fan-out is
+  # driven-adapter-only, so the cadence cannot fan out directly — it must go
+  # through a command that emits an event). LivenessSweep reacts to Ticked and
+  # fans Worker.MarkDead out over Worker.Stale :
+  #   - Worker.Stale = `where status: "alive" AND where stale_after: { lt: :now }`.
+  #     `:now` is supplied by the where-fan-out query input `now: "{now}"`, which
+  #     flows through interpolate_event (the {now} clock primitive) and reaches
+  #     the query as the :now kwarg. ISO-8601 sorts chronologically, so the lt
+  #     comparison is exact.
+  #   - Each matched stale worker is MarkDead'd, keyed by {worker_id} (resolved
+  #     record-first ; reference_to(Worker) accepts the universal id= fallback).
+  #
+  # MarkDead -> WorkerDied -> the EXISTING worker_died_reclaim.hecksagon fans out
+  # Lease.Reclaim + Claim.Expire — so the stale worker's worktree is reclaimed and
+  # its story becomes re-claimable. Nothing new is built downstream ; the sweep
+  # only has to declare the Stale -> MarkDead hop and the cascade does the rest.
+  adapter "LivenessSweep" do
+    driven on "Conductor::Sweeper.Ticked" do |event|
+      dispatch "Conductor::Worker.MarkDead", for_each: { from: "Conductor::Worker.Stale", where: { now: "{now}" } }, id: "{worker_id}"
+    end
+  end
+end

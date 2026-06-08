@@ -1,0 +1,27 @@
+Hecks.bluebook "Conductor", version: "2026.06.02.2" do
+  vision "The Conductor domain : workforce orchestration. The Sweeper is the liveness heartbeat OF THE FLEET ITSELF — a singleton whose periodic Tick is the cadence that drives stale-worker reclamation. for_each fan-out is driven-adapter-only, so the sweep needs a REAL command event to react to : Tick emits Ticked, and the LivenessSweep driven adapter fans Worker.MarkDead out over Worker.Stale on that event. Decision A : crashed/silent workers are caught here ; their lease + claim are reclaimed by the existing worker_died_reclaim cascade downstream of MarkDead."
+  category "framework"
+
+  aggregate "Sweeper", "The fleet liveness clock. A singleton (identified by a fixed sweeper_id) whose Tick command emits Ticked — the real command event the LivenessSweep driven adapter consumes to sweep stale workers. Holds no liveness state itself ; it is the honest carrier of a cadence beat into the driven-adapter fan-out path." do
+    identified_by :sweeper_id
+
+    attribute :sweeper_id,  SweeperId
+    attribute :ticks,       Ticks,        default: 0
+
+    value_object "SweeperId" do
+      attribute :value, String
+    end
+
+    value_object "Ticks" do
+      attribute :value, Integer
+    end
+
+    command "Tick" do
+      role "System"
+      description "Fire one liveness sweep beat. Emits Ticked — the REAL command event the LivenessSweep driven adapter reacts to, fanning Worker.MarkDead out over Worker.Stale (fed :now via the {now} clock primitive in the adapter's query inputs). The cadence (`storehouse loop`) calls this every interval ; the count is incidental observability."
+      attribute :sweeper_id, SweeperId
+      then_set :sweeper_id, to: :sweeper_id
+      emits "Ticked"
+    end
+  end
+end
