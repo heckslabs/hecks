@@ -638,16 +638,6 @@ Hecks.behaviors "Plan" do
     expect refused: "project is required"
   end
 
-  test "Start refused when the story sprint has unratified contracts" do
-    tests "Start", on: "Story"
-    setup  "Sprint.Plan",     number: "3", goal: "g", project: "plan"
-    setup  "Capture",        ref: "cg1", title: "CG1", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "AssignToSprint", ref: "cg1", sprint_ref: "3"
-    setup  "Tasked",         ref: "cg1"
-    setup  "MarkSprintActive", ref: "cg1"
-    input  ref: "cg1"
-    expect refused: "sprint contracts must be ratified"
-  end
 
   test "Start succeeds when the story sprint has ratified contracts" do
     tests "Start", on: "Story"
@@ -703,6 +693,7 @@ Hecks.behaviors "Plan" do
   test "Sprint.Activate refused when not planned" do
     tests "Activate", on: "Sprint"
     setup  "Plan",     number: "82", goal: "g", project: "ap"
+    setup  "RatifyContracts", number: "82", contracts: "c"
     setup  "Activate", number: "82"
     input  number: "82"
     expect refused: "must be planned"
@@ -763,6 +754,7 @@ Hecks.behaviors "Plan" do
   test "Sprint.AddStory refused once the sprint is active (planned scope freezes)" do
     tests "AddStory", on: "Sprint"
     setup  "Plan",     number: "85", goal: "g", project: "asf"
+    setup  "RatifyContracts", number: "85", contracts: "c"
     setup  "Activate", number: "85"
     input  number: "85", story: "x"
     expect refused: "planned scope freezes once active"

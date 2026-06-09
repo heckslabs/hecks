@@ -270,9 +270,10 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "Activate" do
       role "Miette"
-      description "Transition the sprint from planned to active. Work begins. Gated LOCALLY on state == planned. one-active-per-project uniqueness is enforced UPSTREAM at the Project boundary (Project.ActivateSprint) ; the old cross-aggregate active_peers scan here is retired (DDD restoration). Activation seeds Story.sprint_active across the sprint members via the seed_sprint_active adapter."
+      description "Transition the sprint from planned to active. Work begins. Gated LOCALLY on state == planned AND contracts_ratified == true (the contract-first front-bookend, now enforced intra-Sprint so an active sprint always has ratified contracts — this is what lets Story.Start drop its cross-aggregate contracts read). one-active-per-project uniqueness is enforced UPSTREAM at the Project boundary. Activation seeds Story.sprint_active across the sprint members via the seed_sprint_active adapter."
       reference_to(Sprint)
       given("must be planned") { state == "planned" }
+      given("sprint contracts must be ratified") { contracts_ratified == true }
       then_set :state, to: "active"
       emits "SprintActivated"
     end
@@ -968,7 +969,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "Start" do
       role "Miette"
-      description "Begin work on a tasked story. Gated LOCALLY : state == tasked, sprint_active == true (the replicated flag set when the sprint activates — subsumes the old cross-aggregate state==active read), and all dependencies resolved. The contract-first gate (Sprint(sprint).contracts_ratified) is the last cross-aggregate POINT read here ; it retires when Sprint.Activate gains an intra-Sprint contracts gate so sprint_active implies ratified. Moves from tasked to started."
+      description "Begin work on a tasked story. Gated entirely on LOCAL state : state == tasked, sprint_active == true (the replicated flag set when the sprint activates ; since Sprint.Activate now requires ratified contracts, sprint_active also implies contract-first readiness), and all dependencies resolved. No cross-aggregate POINT read remains ; the only sibling read left is the dependency SET gate. Moves from tasked to started."
       reference_to(Story)
       # SEAM 2 : pass-through input that rides into the StoryStarted event
       # (build_event clones command inputs) so the StoryStarted-driven
@@ -978,7 +979,6 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       attribute :worker, Worker
       given("story must be on a sprint board") { sprint != "" }
       given("story must be tasked before starting") { state == "tasked" }
-      given("sprint contracts must be ratified") { Sprint(sprint).contracts_ratified == true }
       given("sprint must be active — replicated local flag, no cross-aggregate read") { sprint_active == true }
       given("all dependencies must be resolved before starting") { Story(dependencies).unresolved.empty? }
       emits "StoryStarted"
