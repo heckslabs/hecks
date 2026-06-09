@@ -843,4 +843,16 @@ Hecks.behaviors "Plan" do
     expect ref: "sa2", sprint_active: false
   end
 
+  # ── move = reset (stakeholder reverts an in-play story) ──
+  test "Story.Reset reverts a started story to tasked and clears sprint_active" do
+    tests "Reset", on: "Story"
+    setup  "Capture",          ref: "rst1", title: "RST1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint",   ref: "rst1", sprint_ref: "1"
+    setup  "MarkSprintActive", ref: "rst1"
+    setup  "Tasked",           ref: "rst1"
+    setup  "Start",            ref: "rst1"
+    input  ref: "rst1"
+    expect ref: "rst1", state: "tasked", sprint_active: false
+  end
+
 end

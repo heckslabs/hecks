@@ -986,6 +986,16 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       emits "StoryStarted"
     end
 
+    command "Reset" do
+      role "Stakeholder"
+      description "Stakeholder reset — moving or removing a story IN PLAY reverts it. The team discipline : a started story taken off its sprint goes back to the start of the lifecycle. LOCAL : state started -> tasked, sprint_active -> false. Emits StoryReset. Reopening the story tasks (so the work is re-done, not deleted) is the P1.4b follow-on, blocked on a runtime gap : policies do not cascade off driven-adapter-dispatched commands, so a Task.Reopen fan-out would not rebuild pending_task_count. The repository revert is MANUAL (by hand), not a domain effect. Only a Stakeholder may reset."
+      reference_to(Story)
+      given("only an in-play story resets") { state == "started" }
+      then_set :state, to: "tasked"
+      then_set :sprint_active, to: false
+      emits "StoryReset"
+    end
+
     command "Forward" do
       role "Miette"
       description "Execute the Story — dispatch every mapped Step in order sequence through the bus. This command is pure: it records the act of forwarding and emits StoryForwarded with the step count. The actual per-step dispatch is the runtime projection of StoryForwarded."
