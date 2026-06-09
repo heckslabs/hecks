@@ -748,7 +748,7 @@ impl Runtime {
         // entry on BOTH paths (gated). On the deferred path the reaction is
         // delivered ONLY by pump_outbox (its own transaction, later tick) ;
         // on eager it is recorded alongside the in-memory cascade.
-        self.record_cascade_run(&result);
+        self.record_cascade_run(&result, eager);
         self.outbox.push_back(PendingReaction {
             result: result.clone(),
             command_name: command_name.to_string(),
@@ -817,7 +817,7 @@ impl Runtime {
     /// is untouched until the pump (C2) is wired. No-op when the
     /// CascadeRun aggregate isn't loaded or the event has no policy
     /// reactions. Driven-adapter reactions are enumerated in C2.
-    fn record_cascade_run(&mut self, result: &CommandResult) {
+    fn record_cascade_run(&mut self, result: &CommandResult, eager: bool) {
         if std::env::var("HECKS_CASCADE_OUTBOX").ok().as_deref() != Some("1") {
             return;
         }
@@ -852,6 +852,19 @@ impl Runtime {
                 obj.insert(k.clone(), value_to_json(v));
             }
             reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
+        }
+        // PM-driven reactions — DEFERRED path only. enumerate_pm_dispatches
+        // advances the PM state machine, so it must NOT run on the eager body
+        // path (drain_policies already does). Each PM dispatch carries its own
+        // resolved attrs (for_each sweep + with_spec + inject_refs).
+        if !eager {
+            for (cmd, attr_map) in self.enumerate_pm_dispatches(&event) {
+                let mut obj = serde_json::Map::new();
+                for (k, v) in &attr_map {
+                    obj.insert(k.clone(), value_to_json(v));
+                }
+                reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
+            }
         }
         if reactions.is_empty() {
             return;
@@ -959,6 +972,78 @@ impl Runtime {
             drained += 1;
         }
         drained
+    }
+
+    /// C3 (transactional outbox) — enumerate the PM-driven dispatches for an
+    /// event, returning (command, attrs) WITHOUT dispatching. Capture-only
+    /// twin of the PM block in `drain_policies`: it runs the PM state machine
+    /// (react + persist + set), because PM dispatches can't be enumerated
+    /// without advancing the machine — that state evolution belongs to the
+    /// PM's own aggregate. It then resolves each dispatch's attrs (for_each
+    /// sweep + with_spec + inject_refs) exactly as the eager path does, and
+    /// hands the resolved dispatches back for the outbox to record as Steps.
+    /// Called ONLY on the deferred path (not the eager body hot path), so a
+    /// divergence from drain_policies can never touch the live body.
+    fn enumerate_pm_dispatches(&mut self, event: &Event) -> Vec<(String, HashMap<String, Value>)> {
+        let mut out: Vec<(String, HashMap<String, Value>)> = Vec::new();
+        let pm_triggers = self.pm_engine.react(event);
+        for t in pm_triggers.clone() {
+            let _ = self.pm_engine.persist_instance(
+                &t.pm_name,
+                &t.correlation_id,
+                self.data_dir.as_deref(),
+            );
+            let set_pairs = self.pm_set_pairs(&t, event);
+            for (attr, value) in set_pairs {
+                self.pm_engine
+                    .apply_set(&t.pm_name, &t.correlation_id, &attr, value);
+            }
+            let _ = self.pm_engine.persist_instance(
+                &t.pm_name,
+                &t.correlation_id,
+                self.data_dir.as_deref(),
+            );
+            for dispatched in &t.dispatches {
+                let iter_records: Vec<HashMap<String, Value>> = match &dispatched.for_each {
+                    Some(spec) => {
+                        let mut q_attrs: HashMap<String, String> = HashMap::new();
+                        for (k, vspec) in &spec.query_inputs {
+                            if let Some(v) = self.evaluate_value_spec(
+                                vspec, event, &t.pm_name, &t.correlation_id, None,
+                            ) {
+                                q_attrs.insert(k.clone(), v.to_string());
+                            }
+                        }
+                        self.sweep_records(spec, &q_attrs)
+                    }
+                    None => vec![HashMap::new()],
+                };
+                let is_sweep = dispatched.for_each.is_some();
+                for record in &iter_records {
+                    let mut data: HashMap<String, Value> = HashMap::new();
+                    let iter_arg = if is_sweep { Some(record) } else { None };
+                    for (key, spec) in &dispatched.with_spec {
+                        if let Some(v) = self.evaluate_value_spec(
+                            spec,
+                            event,
+                            &t.pm_name,
+                            &t.correlation_id,
+                            iter_arg,
+                        ) {
+                            data.insert(key.clone(), v);
+                        }
+                    }
+                    self.inject_refs(
+                        &dispatched.command_name,
+                        &event.aggregate_type,
+                        &event.aggregate_id,
+                        &mut data,
+                    );
+                    out.push((dispatched.command_name.clone(), data));
+                }
+            }
+        }
+        out
     }
 
     /// Render the statusline breadcrumb phrase for a just-resolved
