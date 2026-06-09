@@ -997,7 +997,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       given("story must be on a sprint board") { sprint != "" }
       given("story must be tasked before starting") { state == "tasked" }
       given("sprint must be active — replicated local flag, no cross-aggregate read") { sprint_active == true }
-      given("all dependencies must be resolved before starting") { Story(dependencies).unresolved.empty? }
+      given("all dependencies must be resolved before starting") { unresolved_dep_count == 0 }
       emits "StoryStarted"
     end
 
@@ -1315,15 +1315,15 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     end
 
     query "Claimable" do
-      description "Stories ready to be claimed for work. SEMANTIC : state == \"tasked\" AND NOT blocked (i.e. every dependency is in a terminal state \"done\" or \"cancelled\" ; a missing dependency counts as unresolved / fail-closed). RUNTIME : BOTH filters are now enforced in the executor -- `where state: \"tasked\"` is the pure state filter and `where dependencies: { resolved: true }` is the cross-aggregate read-side filter (WhereOp::Resolved : every Story in the dependencies ref-list must be terminal ; resolved at query time against live sibling state, no denormalization). This is the READ-port twin of the Story.Start set-gate -- both consume the single shared `unresolved_dependencies` specification, enforcing the same invariant at write time (gate) and read time (this query). Mirror of Story.Board semantics."
+      description "Stories ready to be claimed for work. SEMANTIC : state == \"tasked\" AND NOT blocked (i.e. every dependency is in a terminal state \"done\" or \"cancelled\" ; a missing dependency counts as unresolved / fail-closed). RUNTIME : BOTH filters are now enforced in the executor -- `where state: \"tasked\"` is the pure state filter and `where unresolved_dep_count: 0` is the cross-aggregate read-side filter (WhereOp::Resolved : every Story in the dependencies ref-list must be terminal ; resolved at query time against live sibling state, no denormalization). This is the READ-port twin of the Story.Start set-gate -- both consume the single shared `unresolved_dependencies` specification, enforcing the same invariant at write time (gate) and read time (this query). Mirror of Story.Board semantics."
       where state: "tasked"
-      where dependencies: { resolved: true }
+      where unresolved_dep_count: 0
     end
 
     query "NextClaimable" do
       description "The SINGLE next story a freshly-registered worker should self-claim (SEAM 1). Claimable AND not already held : state == tasked, every dependency resolved, and NO Conductor Claim record for this story is in the held state (none_in_state point lookup of Claim:held, keyed by the story ref). order_by :ref + limit 1 make the pick deterministic, so two workers registering concurrently do not race on the same unclaimed story by HashMap-iteration luck ; the Claim.Acquire mutex (given state != held) is the final serialiser. Drives ClaimNextOnWorkerRegistered."
       where state: "tasked"
-      where dependencies: { resolved: true }
+      where unresolved_dep_count: 0
       where ref: { none_in_state: "Claim:held" }
       order_by :ref
       limit 1
