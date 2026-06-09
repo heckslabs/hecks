@@ -140,5 +140,25 @@ if [ "$fail" -gt 0 ]; then
     exit 1
 fi
 
+# Full Rust integration suite. The behaviors corpus does NOT exercise the
+# rust/tests/*.rs integration tests (driven-adapter cascades, runtime gates), so a
+# broken integration test slips through here — sprint_uniqueness_test was committed
+# RED in the #5 work because nothing local ran cargo test. Close that loop : run the
+# release suite before the push crosses the network. Worktree / BEHAVIORS_SKIP pushes
+# already early-exit above ; skipped when there is no rust/ tree.
+if [ -d "$MAIN_REPO/rust" ]; then
+    echo "pre-push: running cargo test --release (rust integration suite)…"
+    if ! ( cd "$MAIN_REPO/rust" && cargo test --release --quiet >/tmp/prepush_cargo.log 2>&1 ); then
+        echo ""
+        echo "PUSH BLOCKED: cargo test --release failed."
+        grep -E 'test result: FAILED|panicked|error\[' /tmp/prepush_cargo.log | head -20
+        echo ""
+        echo "  Run : (cd rust && cargo test --release)"
+        echo "  Full log : /tmp/prepush_cargo.log"
+        exit 1
+    fi
+    echo "pre-push: cargo test --release green."
+fi
+
 echo "pre-push: all $total .behaviors file(s) green."
 exit 0
