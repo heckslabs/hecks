@@ -854,8 +854,8 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     end
 
     command "AssignToSprint" do
-      role "Miette"
-      description "Assign a story to a sprint — records the sprint_ref so the story is owned by a sprint slot. Since lifecycle-tasked-state (sprint 14), this is pure metadata : it does NOT transition state. A story remains `untasked` (or whatever it was) until Tasked is dispatched. Sprint membership and tasking-readiness are independent axes."
+      role "System"
+      description "Cascade-internal : set Story.sprint (the single membership truth, read by Story.BySprint). Fired by the assign_story_on_sprint_add driven adapter when a Sprint commits this story via Sprint.AddStory (the freeze-gated, sole commit path). Committing membership goes through Sprint.AddStory so the planned-scope freeze is enforced intra-Sprint ; this command must not be the manual entry point. (Seam/fleet integration tests still call it directly in a transitional state until they switch to the AddStory path in P1.2b.)"
       reference_to(Story)
       attribute :sprint_ref, Sprint
       then_set :sprint,      to: :sprint_ref
