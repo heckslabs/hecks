@@ -256,6 +256,9 @@ impl LoopDriver {
                         eprintln!("[loop_driver] dispatch error '{}': {:?}",
                                   command_name, e);
                     }
+                    // C3 (transactional outbox) — drain the persistent queue
+                    // each tick. No-op while gated off; wired for the cutover.
+                    self.runtime.pump_outbox();
                 }
             }
         }

@@ -3615,7 +3615,14 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 _ => storehouse::runtime::Value::Str(v.to_string()),
             }))
             .collect();
-        match rt.dispatch(command, rt_attrs) {
+        let dispatch_result = rt.dispatch(command, rt_attrs);
+        // C3 (transactional outbox) — drain the persistent CascadeRun queue
+        // after the one-shot dispatch settles, before the process exits.
+        // No-op while HECKS_CASCADE_OUTBOX is off (no Active runs); wired now
+        // so the eager->deferred cutover is a one-line change once the outbox
+        // captures driven-adapter + PM reactions too.
+        rt.pump_outbox();
+        match dispatch_result {
             Ok(result) => {
                 // Runtime projection of StoryExecuted — dispatching
                 // Plan::Story.Execute through the door triggers the
