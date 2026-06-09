@@ -828,25 +828,38 @@ impl Runtime {
         if !self.domain.aggregates.iter().any(|a| a.name == "CascadeRun") {
             return;
         }
-        let commands = self
-            .policy_engine
-            .trigger_commands_for(&event.name, &event.aggregate_type);
-        if commands.is_empty() {
-            return;
-        }
-        // Payload the pump re-dispatches each step with: the triggering
-        // event's data, JSON-encoded into the (String) Step.payload field.
-        let payload_json = {
+        // Event-data payload — the data policy reactions receive (the
+        // triggering event's fields), JSON-encoded for the Step.payload field.
+        let event_payload = {
             let mut obj = serde_json::Map::new();
             for (k, v) in &event.data {
                 obj.insert(k.clone(), value_to_json(v));
             }
             serde_json::Value::Object(obj).to_string()
         };
-        let steps: Vec<Value> = commands
+        // Reactions = (command, payload_json). Policy triggers carry the
+        // event data ; driven-adapter dispatches carry their own interpolated
+        // attrs (including for_each sweep rows). PM triggers: next increment.
+        let mut reactions: Vec<(String, String)> = self
+            .policy_engine
+            .trigger_commands_for(&event.name, &event.aggregate_type)
+            .into_iter()
+            .map(|cmd| (cmd, event_payload.clone()))
+            .collect();
+        for (cmd, attr_map) in driven_adapter_resolver::enumerate_driven_dispatches(self, &event) {
+            let mut obj = serde_json::Map::new();
+            for (k, v) in &attr_map {
+                obj.insert(k.clone(), value_to_json(v));
+            }
+            reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
+        }
+        if reactions.is_empty() {
+            return;
+        }
+        let steps: Vec<Value> = reactions
             .iter()
             .enumerate()
-            .map(|(i, cmd)| {
+            .map(|(i, (cmd, payload))| {
                 let mut m = HashMap::new();
                 m.insert("ref".to_string(), Value::Str(format!("step-{}", i + 1)));
                 m.insert("command".to_string(), Value::Str(cmd.clone()));
@@ -854,7 +867,7 @@ impl Runtime {
                 m.insert("status".to_string(), Value::Str("pending".to_string()));
                 m.insert("attempt".to_string(), Value::Int(0));
                 m.insert("last_error".to_string(), Value::Str(String::new()));
-                m.insert("payload".to_string(), Value::Str(payload_json.clone()));
+                m.insert("payload".to_string(), Value::Str(payload.clone()));
                 Value::Map(m)
             })
             .collect();
