@@ -1,0 +1,12 @@
+Hecks.hecksagon "Plan" do
+  # DDD membership : the Sprint owns the commit decision (AddStory, gated intra-Sprint
+  # on planned = the hard scope freeze). On StoryAddedToSprint this driven adapter sets
+  # the membership truth on the Story side — Story.sprint, read by Story.BySprint. The
+  # Sprint stores no competing list. {story} is the added story ref ; {id} is the sprint
+  # number.
+  adapter "AssignStoryOnSprintAdd" do
+    driven on "Plan::Sprint.StoryAddedToSprint" do |event|
+      dispatch "Plan::Story.AssignToSprint", id: "{story}", sprint_ref: "{id}"
+    end
+  end
+end

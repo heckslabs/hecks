@@ -227,11 +227,10 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "AddStory" do
       role "Miette"
-      description "Commit a story to the sprint during planning. Sprint.stories owns the membership truth ; Story has no back-pointer. Allowed while the sprint is planned (planned scope freeze ; rule #5) ; use AddUnplanned for active-sprint preempts."
+      description "Commit a story to the sprint during planning — the SOLE membership commit path. Gated intra-Sprint on planned (the hard scope freeze ; rule #5). The assign_story_on_sprint_add driven adapter cascades to Story.AssignToSprint so Story.sprint (the single membership truth, read by Story.BySprint) is set. The Sprint enforces the freeze locally and stores NO competing list ; use AddUnplanned for active-sprint preempts."
       reference_to(Sprint)
       attribute :story, Story
       given("planned scope freezes once active") { state == "planned" }
-      then_set :stories, append: :story
       emits "StoryAddedToSprint"
     end
 
@@ -256,29 +255,11 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       emits "UnplannedStoryAdded"
     end
 
-    # Reorder (whole-membership replacement) is RETIRED. ReorderStories
-    # below replaces the stories list with a permutation of the SAME set
-    # — pure ordering, no add/remove. Cross-sprint card ordering on the
-    # board surface remains a Board.Reorder concern. The size-equality
-    # given() catches pure add or pure remove (size delta) ; it cannot
-    # catch swap-with-add+remove (same size, different elements) — that
-    # requires set-equality which the predicate language lacks today
-    # (gap : runtime-set-equality-predicate). Strictly tighter than the
-    # Board.ReorderSprints precedent which ships with NO validator.
-    # Behavior fixtures DEFERRED — behaviors_runner.rs : parse_value has
-    # no list-literal branch, so `input story_refs: ["a", "b"]` becomes
-    # a Value::Str and story_refs.size returns the string length, not
-    # the list arity (gap : runtime-list-input-in-behaviors).
+    # Membership is Story.sprint, the single truth (read by Story.BySprint).
+    # The Sprint stores NO competing list, so there is no Sprint-side reorder :
+    # ReorderStories was retired with the stories list (DDD dual-truth fix). Cross-
+    # sprint card ordering on the board surface remains a Board.Reorder concern.
 
-    command "ReorderStories" do
-      role "Miette"
-      description "Replace the sprint's stories list with a new order — mirror of Board.ReorderSprints at the Sprint→Stories level. story_refs must be a permutation of the current stories set (same membership, new order) ; add/remove is the AddStory / cancel path. Valid from any state — reordering is pure metadata. Emits StoriesReordered carrying the new ordering."
-      reference_to(Sprint)
-      attribute :story_refs, list_of(Story)
-      given("story_refs must be a permutation of stories") { story_refs.size == stories.size }
-      then_set :stories, to: :story_refs
-      emits "StoriesReordered"
-    end
 
     command "Groom" do
       role "Miette"

@@ -252,26 +252,6 @@ Hecks.behaviors "Plan" do
   end
 
 
-  # ── sprint-reorder-stories (sprint 14) ───────────────────────
-  # Sprint.ReorderStories fixtures DEFERRED — the behaviors runner's
-  # parse_value (behaviors_runner.rs : parse_value) lacks list-literal
-  # support : `input story_refs: ["a", "b", "c"]` is stored as a single
-  # Value::Str("[\"a\", \"b\", \"c\"]"), so story_refs.size returns the
-  # string-byte length, not the list arity. The size-equality given() on
-  # ReorderStories is correct DSL ; it will exercise correctly once the
-  # runner gains list parsing (gap : runtime-list-input-in-behaviors).
-  # Board.ReorderSprints shipped with zero fixtures by the same precedent.
-  # The companion-ratchet test below exercises the command-existence +
-  # size-equality given() on the refusal branch.
-  test "Sprint.ReorderStories refuses a size-mismatch input" do
-    tests "ReorderStories", on: "Sprint"
-    setup  "Plan",     number: "42", goal: "reorder reject", project: "plan"
-    setup  "AddStory", number: "42", story: "a"
-    setup  "AddStory", number: "42", story: "b"
-    setup  "AddStory", number: "42", story: "c"
-    input  number: "42", story_refs: "only-one"
-    expect refused: "story_refs must be a permutation of stories"
-  end
 
   # pending-task-count-default-zero (sprint 14) — proves the load-bearing
   # default. A freshly-Captured story has pending_task_count = 0 by
