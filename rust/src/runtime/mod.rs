@@ -2580,7 +2580,7 @@ impl Runtime {
         // flake : Mind::Musing + Musing::Musing + Musings::Musing all
         // present, only Musings::Musing has the seeded records, but
         // self.all("Musing") returned an empty repo half the time).
-        let (resolved_context, agg_name, agg_refs, query_ir) = self.domain.aggregates.iter()
+        let (resolved_context, agg_name, _agg_refs, query_ir) = self.domain.aggregates.iter()
             .filter(|a| context.map_or(true, |ctx| {
                 a.context.as_ref().map_or(false, |c| c == ctx)
             }))
@@ -2633,19 +2633,6 @@ impl Runtime {
         let state = self.all_qualified(resolved_context.as_deref(), &agg_name);
         let mut filtered: Vec<&AggregateState> = state.into_iter()
             .filter(|s| query_ir.wheres.iter().all(|w| match w.op {
-                crate::ir::WhereOp::Resolved => {
-                    let target = agg_refs.iter().find(|r| r.name == w.field)
-                        .map(|r| r.target.clone())
-                        .unwrap_or_else(|| agg_name.clone());
-                    let dep_ids: Vec<String> = match s.get(&w.field) {
-                        Value::List(items) => items.iter().map(|v| v.to_string()).collect(),
-                        _ => Vec::new(),
-                    };
-                    let unresolved = crate::runtime::command_dispatch::unresolved_dependencies(
-                        self, &target, &dep_ids,
-                    );
-                    unresolved.is_empty() == (w.value == "true")
-                }
                 crate::ir::WhereOp::NoneInState => {
                     // Cross-aggregate anti-join, point lookup. `field` is
                     // the candidate record's own id attribute ; `value` is
@@ -2920,7 +2907,6 @@ fn where_matches(
                 Some(Value::Str(csv)) => csv.split(',').any(|x| x.trim() == target),
                 _ => false,
             },
-        crate::ir::WhereOp::Resolved => true,
         // NoneInState is a cross-aggregate anti-join resolved upstream in
         // resolve_query_qualified (needs &Runtime) ; never reached here.
         crate::ir::WhereOp::NoneInState => true,
