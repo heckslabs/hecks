@@ -41,6 +41,31 @@ fn evaluate_given(
         return values_equal(&val, &Value::Int(0));
     }
 
+    // `list_field.include?(arg)` -> membership : true when the list field (a
+    // list_of attr stored as Value::List, or a CSV Value::Str) contains the
+    // resolved value of arg. Powers LOCAL list-membership gates, e.g.
+    // Board.ActivateSprint's given { queued_sprints.include?(sprint_ref) }
+    // (only a sprint already placed on the board may be activated). Mirrors
+    // Ruby's native Array#include? so the same given evaluates identically in
+    // both runtimes.
+    if let Some(open) = expr.find(".include?(") {
+        if let Some(without_close) = expr.strip_suffix(')') {
+            let field = expr[..open].trim();
+            let arg = without_close[open + ".include?(".len()..].trim();
+            let haystack = attrs.get(field).cloned().unwrap_or_else(|| state.get(field).clone());
+            let needle = resolve_expr(arg, state, attrs);
+            let needle_s = match &needle {
+                Value::Str(s) => s.clone(),
+                other => other.to_string(),
+            };
+            return match haystack {
+                Value::List(items) => items.iter().any(|v| v.to_string() == needle_s),
+                Value::Str(s) => s.split(',').any(|item| item.trim() == needle_s),
+                _ => false,
+            };
+        }
+    }
+
     // Order matters: check `>=`/`<=` BEFORE `>`/`<` so the longer
     // operator wins. The split_comparison helpers also bail out on the
     // shorter operator when the longer is present.
