@@ -682,4 +682,111 @@ Hecks.behaviors "Plan" do
     expect includes: { ref: "bd2", state: "tasked" }
   end
 
+  # ---- Refusal coverage for lifecycle / required-field invariants ----
+  # (bulletproofing : every declared given gets a refusal test)
+
+  test "Sprint.Plan refused without a number" do
+    tests "Plan", on: "Sprint"
+    input  number: "", goal: "g", project: "plan"
+    expect refused: "number must be set"
+  end
+
+  test "Sprint.UpdateGoal refused with an empty goal" do
+    tests "UpdateGoal", on: "Sprint"
+    setup  "Plan", number: "80", goal: "g", project: "plan"
+    input  number: "80", goal: ""
+    expect refused: "goal must be non-empty"
+  end
+
+  test "Sprint.Renumber refused without a new number" do
+    tests "Renumber", on: "Sprint"
+    setup  "Plan", number: "81", goal: "g", project: "plan"
+    input  number: "81", new_number: ""
+    expect refused: "new number must be set"
+  end
+
+  test "Sprint.Activate refused when not planned" do
+    tests "Activate", on: "Sprint"
+    setup  "Plan",     number: "82", goal: "g", project: "ap"
+    setup  "Activate", number: "82"
+    input  number: "82"
+    expect refused: "must be planned"
+  end
+
+  test "Story.Tasked refused when already tasked" do
+    tests "Tasked", on: "Story"
+    setup  "Capture", ref: "rt1", title: "t", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Tasked",  ref: "rt1"
+    input  ref: "rt1"
+    expect refused: "can only flip to tasked from untasked"
+  end
+
+  test "Story.Start refused when untasked" do
+    tests "Start", on: "Story"
+    setup  "Capture",        ref: "rt2", title: "t", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "rt2", sprint_ref: "1"
+    input  ref: "rt2"
+    expect refused: "story must be tasked before starting"
+  end
+
+
+  test "Task.Reopen refused when the task is not resolved" do
+    tests "Reopen", on: "Task"
+    setup  "Add", id: "tk1", story: "rt1", order: 1, description: "d"
+    input  id: "tk1"
+    expect refused: "task must currently be resolved"
+  end
+
+  test "Project.Activate refused when not paused" do
+    tests "Activate", on: "Project"
+    setup  "Register", name: "pa1"
+    input  name: "pa1"
+    expect refused: "must be paused"
+  end
+
+  test "Project.Pause refused when not active" do
+    tests "Pause", on: "Project"
+    setup  "Register", name: "pa2"
+    setup  "Pause",    name: "pa2"
+    input  name: "pa2"
+    expect refused: "must be active"
+  end
+
+  # NOTE Project.Complete's "must be active or paused" gate is enforced but not
+  # behavior-tested : reaching a terminal Project state requires Complete/Cancel,
+  # whose names collide across aggregates (Task/Story/Sprint), so a setup step
+  # resolves ambiguously. Same gate family as Project.Activate/Pause (covered).
+
+  test "Sprint.AddUnplanned refused when the sprint is not active" do
+    tests "AddUnplanned", on: "Sprint"
+    setup  "Plan", number: "83", goal: "g", project: "plan"
+    input  number: "83", story_ref: "x"
+    expect refused: "unplanned work preempts only an active sprint"
+  end
+
+  test "Sprint.AddStory refused once the sprint is active (planned scope freezes)" do
+    tests "AddStory", on: "Sprint"
+    setup  "Plan",     number: "85", goal: "g", project: "asf"
+    setup  "Activate", number: "85"
+    input  number: "85", story: "x"
+    expect refused: "planned scope freezes once active"
+  end
+
+  test "Story.AssignToSprint refused with an empty sprint_ref" do
+    tests "AssignToSprint", on: "Story"
+    setup  "Capture", ref: "as1", title: "t", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "as1", sprint_ref: ""
+    expect refused: "sprint_ref must be named"
+  end
+
+  test "Story.Start refused while a dependency is unresolved" do
+    tests "Start", on: "Story"
+    setup  "Capture",        ref: "dpar", title: "t", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Capture",        ref: "dchild", title: "t", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AssignToSprint", ref: "dchild", sprint_ref: "1"
+    setup  "Tasked",         ref: "dchild"
+    setup  "AddDependency",  ref: "dchild", dependency: "dpar"
+    input  ref: "dchild"
+    expect refused: "all dependencies must be resolved before starting"
+  end
 end

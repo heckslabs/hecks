@@ -87,4 +87,12 @@ Hecks.behaviors "Conductor" do
     setup  "FailMerge",  branch: "b10", story_ref: "s1", reason: "conflict"
     expect includes: { branch: "b10", state: "idle" }
   end
+
+  test "StartMerge is refused when the queue is not idle (already merging)" do
+    tests "StartMerge", on: "MergeQueue"
+    setup  "Open",       branch: "bq1"
+    setup  "StartMerge", branch: "bq1", story_ref: "s1"
+    input  branch: "bq1", story_ref: "s2"
+    expect refused: "queue must be idle to start a merge"
+  end
 end
