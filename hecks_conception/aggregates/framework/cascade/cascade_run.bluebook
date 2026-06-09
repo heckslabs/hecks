@@ -64,12 +64,16 @@ Hecks.bluebook "CascadeRun", version: "2026.05.25.1" do
       #   status     — pending | running | completed | failed.
       #   attempt    — how many times this step has been attempted.
       #   last_error — captured failure message from the most recent attempt.
+      #   payload    — JSON of the attrs to dispatch the command with (the
+      #                triggering event's data), so the pump can re-dispatch
+      #                the reaction as its own transaction on a later tick.
       attribute :ref,        String
       attribute :command,    String
       attribute :order,      Integer
       attribute :status,     String
       attribute :attempt,    Integer
       attribute :last_error, String
+      attribute :payload,    String
     end
 
     value_object "RetryPolicy" do

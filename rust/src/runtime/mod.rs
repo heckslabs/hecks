@@ -744,6 +744,11 @@ impl Runtime {
         // `react` in a SEPARATE pump phase, never inline here. Eager callers
         // auto-pump so the cascade still settles before return;
         // `dispatch_deferred` skips the pump to prove the async seam.
+        // C2 (transactional outbox) — write the persistent CascadeRun outbox
+        // entry on BOTH paths (gated). On the deferred path the reaction is
+        // delivered ONLY by pump_outbox (its own transaction, later tick) ;
+        // on eager it is recorded alongside the in-memory cascade.
+        self.record_cascade_run(&result);
         self.outbox.push_back(PendingReaction {
             result: result.clone(),
             command_name: command_name.to_string(),
@@ -789,9 +794,6 @@ impl Runtime {
             let event_clone = event.clone();
             driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
         }
-        // C1 (transactional outbox) — dual-write the persistent CascadeRun
-        // record alongside the eager cascade above. Gated; no-op by default.
-        self.record_cascade_run(result);
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
@@ -832,6 +834,15 @@ impl Runtime {
         if commands.is_empty() {
             return;
         }
+        // Payload the pump re-dispatches each step with: the triggering
+        // event's data, JSON-encoded into the (String) Step.payload field.
+        let payload_json = {
+            let mut obj = serde_json::Map::new();
+            for (k, v) in &event.data {
+                obj.insert(k.clone(), value_to_json(v));
+            }
+            serde_json::Value::Object(obj).to_string()
+        };
         let steps: Vec<Value> = commands
             .iter()
             .enumerate()
@@ -843,6 +854,7 @@ impl Runtime {
                 m.insert("status".to_string(), Value::Str("pending".to_string()));
                 m.insert("attempt".to_string(), Value::Int(0));
                 m.insert("last_error".to_string(), Value::Str(String::new()));
+                m.insert("payload".to_string(), Value::Str(payload_json.clone()));
                 Value::Map(m)
             })
             .collect();
@@ -864,6 +876,76 @@ impl Runtime {
             &agg_type,
             &agg_id,
         );
+    }
+
+    /// C2 (transactional outbox) — drain the persistent CascadeRun outbox.
+    /// Reads every Active run (status running) and delivers its steps: each
+    /// step's command is dispatched as its OWN transaction — separate from
+    /// the command that enqueued it, on this (later) tick — then the run is
+    /// Completed. Idempotent at the run grain: a Completed run is no longer
+    /// Active, so it is never re-delivered. Per-step status/retry awaits the
+    /// list-element-update primitive (P0.1). Returns the number of runs
+    /// drained. The pump is the ONLY thing that turns an outbox entry into a
+    /// sibling mutation — across a transaction boundary, never inline.
+    pub fn pump_outbox(&mut self) -> usize {
+        if !self.domain.aggregates.iter().any(|a| a.name == "CascadeRun") {
+            return 0;
+        }
+        // Snapshot Active runs as (run_id, ordered [(command, payload)]).
+        let runs: Vec<(String, Vec<(String, String)>)> = self
+            .all_qualified(Some("CascadeRun"), "CascadeRun")
+            .into_iter()
+            .filter(|r| {
+                r.fields.get("status").map(|v| v.to_string()).as_deref() == Some("running")
+            })
+            .map(|r| {
+                let mut steps: Vec<(i64, String, String)> = vec![];
+                if let Some(Value::List(items)) = r.fields.get("steps") {
+                    for it in items {
+                        if let Value::Map(m) = it {
+                            let cmd = m.get("command").map(|v| v.to_string()).unwrap_or_default();
+                            let payload =
+                                m.get("payload").map(|v| v.to_string()).unwrap_or_default();
+                            let order = match m.get("order") {
+                                Some(Value::Int(n)) => *n,
+                                _ => 0,
+                            };
+                            steps.push((order, cmd, payload));
+                        }
+                    }
+                }
+                steps.sort_by_key(|(o, _, _)| *o);
+                (
+                    r.id.clone(),
+                    steps.into_iter().map(|(_, c, p)| (c, p)).collect(),
+                )
+            })
+            .collect();
+
+        let mut drained = 0;
+        for (run_id, steps) in runs {
+            for (command, payload) in steps {
+                if command.is_empty() {
+                    continue;
+                }
+                let step_attrs = parse_payload_attrs(&payload);
+                let _ = command_dispatch::dispatch_cascade(
+                    self, &command, step_attrs, "CascadeRun", &run_id,
+                );
+            }
+            // Complete the run — it leaves the Active set, so never re-pumped.
+            let mut ca = HashMap::new();
+            ca.insert("run_id".to_string(), Value::Str(run_id.clone()));
+            let _ = command_dispatch::dispatch_cascade(
+                self,
+                "CascadeRun::CascadeRun.Complete",
+                ca,
+                "CascadeRun",
+                &run_id,
+            );
+            drained += 1;
+        }
+        drained
     }
 
     /// Render the statusline breadcrumb phrase for a just-resolved
@@ -2779,6 +2861,27 @@ fn dispatch_detail_state_json(state: &AggregateState) -> String {
 }
 
 /// Map a runtime `Value` into a serde_json value for the rich block.
+/// C2 (transactional outbox) — decode a CascadeRun Step's JSON payload
+/// back into a dispatch attr map, so the pump can re-dispatch the reaction
+/// with the triggering event's data. Inverse of the value_to_json encode in
+/// record_cascade_run. Non-object / malformed payloads yield empty attrs.
+fn parse_payload_attrs(json: &str) -> HashMap<String, Value> {
+    let mut out = HashMap::new();
+    if let Ok(serde_json::Value::Object(obj)) = serde_json::from_str::<serde_json::Value>(json) {
+        for (k, v) in obj {
+            let val = match v {
+                serde_json::Value::String(s) => Value::Str(s),
+                serde_json::Value::Bool(b) => Value::Bool(b),
+                serde_json::Value::Number(n) => n.as_i64().map(Value::Int).unwrap_or(Value::Null),
+                serde_json::Value::Null => Value::Null,
+                other => Value::Str(other.to_string()),
+            };
+            out.insert(k, val);
+        }
+    }
+    out
+}
+
 fn value_to_json(v: &Value) -> serde_json::Value {
     match v {
         Value::Str(s) => serde_json::json!(s),
