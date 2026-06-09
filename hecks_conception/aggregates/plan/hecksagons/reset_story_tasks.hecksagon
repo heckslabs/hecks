@@ -1,0 +1,13 @@
+Hecks.hecksagon "Plan" do
+  # DDD : a stakeholder reset reverts a started story (Story.Reset, local). The task
+  # breakdown is REOPENED, not deleted — this driven adapter fans Task.Reopen out over
+  # the story's tasks (Task.ForStory). Task.Reopen gates on resolved status, so pending
+  # tasks are untouched ; reopened tasks rebuild pending_task_count via the existing
+  # IncrementOnTaskReopened policy (which now fires on adapter-dispatched commands too).
+  # {id} = the reset story ref (event) ; record-first the matched Task's id for Reopen.
+  adapter "ReopenTasksOnStoryReset" do
+    driven on "Plan::Story.StoryReset" do |event|
+      dispatch "Plan::Task.Reopen", for_each: { from: "Plan::Task.ForStory", where: { story: "{id}" } }, id: "{id}"
+    end
+  end
+end
