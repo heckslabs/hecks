@@ -82,6 +82,7 @@ fn tasked_story(rt: &mut Runtime, ref_: &str, sprint: &str) {
         ("summary", s("s")), ("target", s("t")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[
         ("id", s(ref_)), ("sprint_ref", s(sprint))])).unwrap();
+    rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s(ref_))])).unwrap();
     rt.dispatch("Plan::Story.Tasked", attrs(&[("id", s(ref_))])).unwrap();
 }
 
@@ -174,6 +175,7 @@ fn an_untasked_or_dep_blocked_story_is_not_claimed() {
         ("summary", s("s")), ("target", s("t")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[
         ("id", s("draft")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s("draft"))])).unwrap();
 
     rt.dispatch("Conductor::Worker.Register",
         attrs(&[("worker_id", s("w")), ("heartbeat_at", s("t0"))])).unwrap();

@@ -78,6 +78,7 @@ fn one_worker_register_pulls_claims_starts_and_leases_a_story() {
         ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[
         ("story", s("s1")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s("s1"))])).unwrap();
     rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("s1"))])).unwrap();
 
     // Pre-conditions : nothing claimed, story not yet started, no lease.
@@ -138,6 +139,7 @@ fn two_workers_one_story_only_one_claims_the_cascade_mutex() {
         ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[
         ("story", s("s1")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s("s1"))])).unwrap();
     rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("s1"))])).unwrap();
 
     // TWO workers join. Each fires ClaimNextOnWorkerRegistered.
@@ -196,6 +198,7 @@ fn a_story_with_an_unresolved_dependency_is_never_pull_claimed() {
         ("ref", s("z_dep")), ("title", s("Z")), ("tier", s("1")),
         ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[("story", s("z_dep")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s("z_dep"))])).unwrap();
     rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("z_dep"))])).unwrap();
 
     // a_blk : tasked but depends_on z_dep (unresolved) — sorts first, must be skipped.
@@ -203,6 +206,7 @@ fn a_story_with_an_unresolved_dependency_is_never_pull_claimed() {
         ("ref", s("a_blk")), ("title", s("A")), ("tier", s("1")),
         ("summary", s("x")), ("target", s("y")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[("story", s("a_blk")), ("sprint_ref", s("1"))])).unwrap();
+    rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s("a_blk"))])).unwrap();
     rt.dispatch("Plan::Story.Tasked", attrs(&[("story", s("a_blk"))])).unwrap();
     rt.dispatch("Plan::Story.AddDependency", attrs(&[("story", s("a_blk")), ("dependency", s("z_dep"))])).unwrap();
 

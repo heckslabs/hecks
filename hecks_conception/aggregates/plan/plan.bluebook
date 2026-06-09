@@ -981,6 +981,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       given("story must be tasked before starting") { state == "tasked" }
       given("sprint contracts must be ratified") { Sprint(sprint).contracts_ratified == true }
       given("the story's sprint must be active") { Sprint(sprint).state == "active" }
+      given("sprint must be active — replicated local flag, no cross-aggregate read") { sprint_active == true }
       given("all dependencies must be resolved before starting") { Story(dependencies).unresolved.empty? }
       emits "StoryStarted"
     end

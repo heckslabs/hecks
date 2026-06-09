@@ -32,6 +32,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",        ref: "l7", title: "L7", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "l7", sprint_ref: "1"
     setup  "Tasked",         ref: "l7"
+    setup  "MarkSprintActive", ref: "l7"
     input  ref: "l7"
     expect ref: "l7", state: "started"
   end
@@ -41,6 +42,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",        ref: "l8", title: "L8", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "l8", sprint_ref: "1"
     setup  "Tasked",         ref: "l8"
+    setup  "MarkSprintActive", ref: "l8"
     input  ref: "l8"
     expect emits: ["StoryStarted"]
   end
@@ -206,6 +208,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                         ref: "l18", title: "L18", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                  ref: "l18", sprint_ref: "1"
     setup  "Tasked",                          ref: "l18"
+    setup  "MarkSprintActive", ref: "l18"
     setup  "Start",                           ref: "l18"
 
     setup  "RequestReady",                           ref: "l18"
@@ -224,6 +227,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                         ref: "l19", title: "L19", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                  ref: "l19", sprint_ref: "1"
     setup  "Tasked",                          ref: "l19"
+    setup  "MarkSprintActive", ref: "l19"
     setup  "Start",                           ref: "l19"
 
     setup  "RequestReady",                           ref: "l19"
@@ -264,6 +268,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                         ref: "l23", title: "L23", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                  ref: "l23", sprint_ref: "1"
     setup  "Tasked",                          ref: "l23"
+    setup  "MarkSprintActive", ref: "l23"
     setup  "Start",                           ref: "l23"
 
     setup  "RequestReady",                           ref: "l23"
@@ -312,6 +317,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                       ref: "wr2", title: "WR", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                ref: "wr2", sprint_ref: "1"
     setup  "Tasked",                        ref: "wr2"
+    setup  "MarkSprintActive", ref: "wr2"
     setup  "Start",                         ref: "wr2"
 
     setup  "RequestReady",                         ref: "wr2"
@@ -330,6 +336,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                          ref: "wr3", title: "WR", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                   ref: "wr3", sprint_ref: "1"
     setup  "Tasked",                           ref: "wr3"
+    setup  "MarkSprintActive", ref: "wr3"
     setup  "Start",                            ref: "wr3"
 
     setup  "RequestReady",                            ref: "wr3"
@@ -354,6 +361,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                         ref: "pm1", title: "PM1", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                  ref: "pm1", sprint_ref: "1"
     setup  "Tasked",                          ref: "pm1"
+    setup  "MarkSprintActive", ref: "pm1"
     setup  "Start",                           ref: "pm1"
 
     setup  "RequestReady",                           ref: "pm1"
@@ -371,6 +379,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                         ref: "pm2", title: "PM2", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                  ref: "pm2", sprint_ref: "1"
     setup  "Tasked",                          ref: "pm2"
+    setup  "MarkSprintActive", ref: "pm2"
     setup  "Start",                           ref: "pm2"
 
     setup  "RequestReady",                           ref: "pm2"
@@ -482,6 +491,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",        ref: "ck1", title: "C1", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "ck1", sprint_ref: "1"
     setup  "Tasked",         ref: "ck1"
+    setup  "MarkSprintActive", ref: "ck1"
     setup  "Start",          ref: "ck1"
     input  ref: "ck1"
     expect ref: "ck1", state: "checking"
@@ -492,6 +502,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                       ref: "ck2", title: "C2", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                ref: "ck2", sprint_ref: "1"
     setup  "Tasked",                        ref: "ck2"
+    setup  "MarkSprintActive", ref: "ck2"
     setup  "Start",                         ref: "ck2"
     setup  "RequestReady",                  ref: "ck2"
     setup  "RecordVerbResolvesCheckResult", ref: "ck2", ok: true
@@ -507,6 +518,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",                       ref: "ck3", title: "C3", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint",                ref: "ck3", sprint_ref: "1"
     setup  "Tasked",                        ref: "ck3"
+    setup  "MarkSprintActive", ref: "ck3"
     setup  "Start",                         ref: "ck3"
     setup  "RequestReady",                  ref: "ck3"
     setup  "RecordVerbResolvesCheckResult", ref: "ck3", ok: true
@@ -522,6 +534,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",        ref: "cf1", title: "CF1", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "cf1", sprint_ref: "1"
     setup  "Tasked",         ref: "cf1"
+    setup  "MarkSprintActive", ref: "cf1"
     setup  "Start",          ref: "cf1"
     setup  "RequestReady",   ref: "cf1"
     input  ref: "cf1"
@@ -631,6 +644,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",        ref: "cg1", title: "CG1", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "cg1", sprint_ref: "3"
     setup  "Tasked",         ref: "cg1"
+    setup  "MarkSprintActive", ref: "cg1"
     input  ref: "cg1"
     expect refused: "sprint contracts must be ratified"
   end
@@ -640,6 +654,7 @@ Hecks.behaviors "Plan" do
     setup  "Capture",        ref: "cg2", title: "CG2", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "cg2", sprint_ref: "1"
     setup  "Tasked",         ref: "cg2"
+    setup  "MarkSprintActive", ref: "cg2"
     input  ref: "cg2"
     expect state: "started"
   end
@@ -705,6 +720,7 @@ Hecks.behaviors "Plan" do
     tests "Start", on: "Story"
     setup  "Capture",        ref: "rt2", title: "t", tier: 1, summary: "s", target: "t", project: "plan"
     setup  "AssignToSprint", ref: "rt2", sprint_ref: "1"
+    setup  "MarkSprintActive", ref: "rt2"
     input  ref: "rt2"
     expect refused: "story must be tasked before starting"
   end
@@ -766,6 +782,7 @@ Hecks.behaviors "Plan" do
     setup  "AssignToSprint", ref: "dchild", sprint_ref: "1"
     setup  "Tasked",         ref: "dchild"
     setup  "AddDependency",  ref: "dchild", dependency: "dpar"
+    setup  "MarkSprintActive", ref: "dchild"
     input  ref: "dchild"
     expect refused: "all dependencies must be resolved before starting"
   end
