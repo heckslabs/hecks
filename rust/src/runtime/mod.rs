@@ -1995,7 +1995,7 @@ impl Runtime {
     /// The behaviors generator's static cascade prediction
     /// (cascade::cascade_emits) assumes the runtime honors these
     /// triggers — so this injection is what makes the prediction true.
-    fn drain_policies(&mut self, result: &CommandResult) {
+    pub(crate) fn drain_policies(&mut self, result: &CommandResult) {
         if let Some(ref event) = result.event {
             // Drive process_managers + dispatch their declared commands.
             // Each PMTrigger carries dispatches: Vec<String> populated

@@ -192,6 +192,11 @@ fn resolve_driven_adapters_at_depth(rt: &mut Runtime, event: &Event, depth: usiz
         // after one hop. dispatch_cascade itself still does NOT auto-invoke
         // the resolver ; the recursion is driven HERE, under the depth guard.
         if let Ok(r) = outcome {
+                // Cross adapter->policy : an adapter-dispatched command must drain
+                // policies too, exactly as Runtime::dispatch does after a top-level
+                // dispatch. Without this, accounting policies (e.g. BumpOnTaskReopened)
+                // silently never fire when their command is dispatched from a hecksagon.
+                rt.drain_policies(&r);
             if let Some(ev) = r.event {
                 resolve_driven_adapters_at_depth(rt, &ev, depth + 1);
             }
