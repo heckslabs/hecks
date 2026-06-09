@@ -196,10 +196,25 @@ use crate::ir::Domain;
 use crate::hecksagon_ir::Hecksagon;
 use std::collections::HashMap;
 
+/// Phase 3 — one enqueued reaction: a command result whose cross-
+/// aggregate reactions have not yet been delivered. Held in the Runtime
+/// outbox until `pump()` runs `react` for it.
+#[derive(Debug, Clone)]
+pub struct PendingReaction {
+    pub result: CommandResult,
+    pub command_name: String,
+    pub attrs: HashMap<String, Value>,
+}
+
 pub struct Runtime {
     pub domain: Domain,
     pub repositories: HashMap<String, LazyRepository>,
     pub event_bus: EventBus,
+    /// Phase 3 — the outbox. Enqueued reactions awaiting delivery by
+    /// `pump()`. A command's core mutation pushes its result here and
+    /// returns; the cross-aggregate reactions run later, each its own
+    /// phase. Empty between pumps.
+    pub outbox: std::collections::VecDeque<PendingReaction>,
     pub policy_engine: PolicyEngine,
     pub pm_engine: PMEngine,
     pub projections: Vec<Projection>,
@@ -520,6 +535,7 @@ impl Runtime {
             domain,
             repositories,
             event_bus: EventBus::new(),
+            outbox: std::collections::VecDeque::new(),
             policy_engine,
             pm_engine,
             projections,
@@ -582,6 +598,28 @@ impl Runtime {
         &mut self,
         command_name: &str,
         attrs: HashMap<String, Value>,
+    ) -> Result<CommandResult, RuntimeError> {
+        self.dispatch_impl(command_name, attrs, true)
+    }
+
+    /// Phase 3 — enqueue a command's reactions WITHOUT running the pump.
+    /// The core mutation touches ONE aggregate and returns; the cross-
+    /// aggregate reactions sit in the outbox until `pump()` delivers each
+    /// as its own phase. Proves the async seam: a sibling aggregate is
+    /// unchanged after this returns and only changes once `pump()` runs.
+    pub fn dispatch_deferred(
+        &mut self,
+        command_name: &str,
+        attrs: HashMap<String, Value>,
+    ) -> Result<CommandResult, RuntimeError> {
+        self.dispatch_impl(command_name, attrs, false)
+    }
+
+    fn dispatch_impl(
+        &mut self,
+        command_name: &str,
+        attrs: HashMap<String, Value>,
+        eager: bool,
     ) -> Result<CommandResult, RuntimeError> {
         // i622 — dispatch entry log. One stdout line per top-level
         // dispatch, gated by STOREHOUSE_LOG. The invocation id is the
@@ -700,109 +738,19 @@ impl Runtime {
             }
         }
 
-        // i220 sub-gap 5 — resolve `:compute` adapters BEFORE the
-        // policy cascade drains. Compute adapters populate context
-        // fields (e.g. recent_musings_summary) that downstream
-        // policy-driven dispatches (and the LLM hook below) read.
-        // Firing them first means a single top-level dispatch
-        // produces the fully-populated downstream chain.
-        self.resolve_compute_adapters(&result, command_name);
-
-        // Drain policy triggers — recursively, so chains cascade fully
-        self.drain_policies(&result);
-
-        // i221 — LLM dispatcher hook. After the cascade settles,
-        // scan loaded hecksagons for any `:llm` adapter whose
-        // `response_into_target` matches `Aggregate.Command` (the
-        // command the user just dispatched). When one matches,
-        // substitute its prompt template from the upstream
-        // aggregate's state + the dispatched attrs, call the
-        // resolved provider, and chain the response as a real
-        // dispatch back into the target with `response_into_attr`
-        // carrying the response text. The chain is finite by
-        // discipline : the response-driven dispatch has the
-        // populated attr already so its givens fall through (no
-        // re-entry), exactly as the Ruby surface relies on.
-        self.resolve_llm_adapters(&result, command_name);
-
-        // i551 — :claude_tool adapter hook. After the LLM cascade
-        // settles, scan loaded hecksagons for any `:claude_tool` io
-        // adapter whose `command` option matches the just-dispatched
-        // `Aggregate.Command` target. Build the attrs from the just-
-        // dispatched aggregate's state UNION the original dispatch
-        // attrs (the latter wins on key collision) and call into the
-        // kernel-floor dispatcher (claude_tool_dispatcher::dispatch).
-        // The native primitive (shell exec, file edit, etc.) runs.
-        //
-        // The dispatch-attrs overlay matters for tools whose inputs
-        // are deliberately event-only payloads (Tools.Edit's
-        // old_string/new_string, Tools.Update's content). Those
-        // attributes never land on aggregate state by design (the
-        // bluebook keeps the heki small), so without the overlay the
-        // kernel hook sees `attrs.get("old_string") == None` and
-        // returns "missing required attr" — silently, because the
-        // log line below didn't surface error messages until i559.
-        self.resolve_claude_tool_adapters(&result, command_name, &ctx.attrs);
-
-        // i594 — :mcp adapter hook. Sibling to the :claude_tool arm
-        // above. Scans loaded hecksagons for `:mcp` io adapters whose
-        // `command` option matches the just-dispatched
-        // `Aggregate.Command` target, opens a stdio MCP session
-        // against the named server, calls the named tool with the
-        // declared args (with {attr} placeholders filled from state
-        // ∪ dispatch attrs), and cascades the response into
-        // `result_into`. Closes one half of the EmailTool round-trip
-        // gap ; the other half is i610's `:gmail` bridge — until that
-        // lands, bindings with `server: :gmail` warn (graceful) rather
-        // than panic.
-        self.resolve_mcp_adapters(&result, command_name, &ctx.attrs);
-
-        // i569 — :web_tool adapter hook. Sibling to the :claude_tool /
-        // :mcp arms above. Scans loaded hecksagons for `:web_tool` io
-        // adapters whose `command` option matches the just-dispatched
-        // `Aggregate.Command` target (WebTool.WebFetch / WebTool.WebSearch),
-        // reads the adapter's `tool` field (web_fetch / web_search), runs
-        // the matching kernel-floor primitive (real HTTP GET via curl /
-        // DuckDuckGo HTML-lite query), and cascades the fetched body into
-        // `result_into` (Cascade.RecordResult). Closes the i569 runtime
-        // gap : the binding parsed into IR cleanly but nothing fired it.
-        self.resolve_web_tool_adapters(&result, command_name, &ctx.attrs);
-
-        // Process-spawn primitive hook (adapters-as-bluebook). The
-        // retired `:exec` resolver is now this : a generic primitive
-        // that fires when `Primitive::Process.Spawn` dispatches, runs
-        // the literal `cmd` via the kernel-floor exec leaf, and
-        // cascades the outcome into `result_into`. A top-level
-        // `storehouse__dispatch Primitive::Process.Spawn` runs here ;
-        // the policy-driven path runs from the cascade arms in
-        // drain_policies. The adapter PROTOCOL is now ordinary
-        // bluebook policy/cascade — only the spawn syscall is imperative.
-        self.resolve_primitive_spawn(&result, command_name, &ctx.attrs, None);
-
-        // i-tts - :tts adapter hook. Sibling to the :exec / :mcp /
-        // :claude_tool resolvers above. Scans loaded hecksagons for
-        // typed :tts adapters whose effective trigger equals the
-        // just-dispatched Aggregate.Command target, renders text to
-        // audio via the resolved provider (ElevenLabs today),
-        // optionally caches + plays. Fire-and-forget per the family
-        // contract (`response_field :none`) - no follow-on cascade.
-        // :tts is host-only (spawns an audio player process). The
-        // Worker never speaks.
-        #[cfg(not(target_arch = "wasm32"))]
-        self.resolve_tts_adapters(&result, command_name, &ctx.attrs);
-
-        // Sprint 14 first-adapter slice — fire `driven on` handlers
-        // attached via `<bluebook>/hecksagons/*.hecksagon`. Same shape
-        // as the dispatch_isolated arm : run only when the dispatched
-        // command produced an event, scan attached hecksagons for
-        // matching handlers, dispatch the follow-on through the cascade
-        // path so its emit reaches the bus. No-op when no driven
-        // adapters are declared (the default for every existing
-        // bluebook), so the 97 pre-sprint tools.behaviors tests stay
-        // green.
-        if let Some(ref event) = result.event {
-            let event_clone = event.clone();
-            driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
+        // Phase 3 — outbox + pump. The core mutation above touched ONE
+        // aggregate. Its cross-aggregate reactions (policy/PM cascade,
+        // IO-edge adapters, hecksagon `driven on`) are enqueued and run by
+        // `react` in a SEPARATE pump phase, never inline here. Eager callers
+        // auto-pump so the cascade still settles before return;
+        // `dispatch_deferred` skips the pump to prove the async seam.
+        self.outbox.push_back(PendingReaction {
+            result: result.clone(),
+            command_name: command_name.to_string(),
+            attrs: ctx.attrs.clone(),
+        });
+        if eager {
+            self.pump();
         }
 
         // i697 — feed the rich scope the final result state (the
@@ -815,6 +763,44 @@ impl Runtime {
         detail_scope.finish("ok", result_state_json);
 
         Ok(result)
+    }
+
+    /// Phase 3 — run every reaction for one dispatched command result:
+    /// the compute/policy/PM cascade, the IO-edge adapter hooks, and the
+    /// hecksagon `driven on` adapters. Invoked ONLY by `pump()`, never
+    /// inline in the core dispatch — so the mutation step stays single-
+    /// aggregate and the reactions are a separate phase.
+    fn react(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) {
+        self.resolve_compute_adapters(result, command_name);
+        self.drain_policies(result);
+        self.resolve_llm_adapters(result, command_name);
+        self.resolve_claude_tool_adapters(result, command_name, attrs);
+        self.resolve_mcp_adapters(result, command_name, attrs);
+        self.resolve_web_tool_adapters(result, command_name, attrs);
+        self.resolve_primitive_spawn(result, command_name, attrs, None);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.resolve_tts_adapters(result, command_name, attrs);
+        if let Some(ref event) = result.event {
+            let event_clone = event.clone();
+            driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
+        }
+    }
+
+    /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
+    /// in a phase separate from the command that produced it. Follow-on
+    /// commands dispatched inside `react` (policy/PM cascade, driven
+    /// adapters) still cascade synchronously via `dispatch_cascade` for
+    /// now; flattening those into the outbox too is the next step. The
+    /// loop drains to quiescence so eager callers see a settled cascade.
+    pub fn pump(&mut self) {
+        while let Some(p) = self.outbox.pop_front() {
+            self.react(&p.result, &p.command_name, &p.attrs);
+        }
     }
 
     /// Render the statusline breadcrumb phrase for a just-resolved
