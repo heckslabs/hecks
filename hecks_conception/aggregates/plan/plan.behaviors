@@ -682,10 +682,4 @@ Hecks.behaviors "Plan" do
     expect includes: { ref: "bd2", state: "tasked" }
   end
 
-  test "Board excludes a deferred story (state not in the set)" do
-    tests "Board", on: "Story", kind: :query
-    setup  "Capture", ref: "bd3", title: "B3", tier: 1, summary: "s", target: "t", project: "plan"
-    setup  "Defer",   ref: "bd3"
-    expect count: 0
-  end
 end

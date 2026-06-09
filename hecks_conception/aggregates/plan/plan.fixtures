@@ -1,16 +1,17 @@
 Hecks.fixtures "Plan" do
-  # Seed one ratified sprint so the Start-gated behavioral tests run without each
-  # test re-ratifying. Story.Start is now gated on
-  # Sprint(sprint).contracts_ratified == true (cross-aggregate POINT gate) ;
-  # every Start-test story assigns to sprint_ref "1". The refused-branch test
-  # creates its OWN unratified sprint via a Sprint.Plan setup (a multi-row
-  # fixture seed mis-stored the boolean — noted as a FixturesLoader gap).
+  # Seed one ratified, ACTIVE sprint so the Start-gated behavioral tests run
+  # without each test re-ratifying + activating. Story.Start is gated on BOTH
+  # Sprint(sprint).contracts_ratified == true AND Sprint(sprint).state == "active"
+  # (twin cross-aggregate POINT gates) ; every Start-test story assigns to
+  # sprint_ref "1". The refused-branch tests create their OWN sprint via a
+  # Sprint.Plan setup to exercise the unratified / inactive paths.
   aggregate "Sprint" do
     fixture "ratified-1",
             number:             "1",
             project:            "plan",
             goal:               "Test sprint (ratified).",
             contracts:          "test contract",
-            contracts_ratified: true
+            contracts_ratified: true,
+            state:              "active"
   end
 end

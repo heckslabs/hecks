@@ -65,12 +65,13 @@ fn boot() -> Runtime {
     Runtime::boot_with_hecksagons(domain, None, hexes)
 }
 
-// Drive a Sprint to planned + contracts-ratified (Start's ratify gate).
+// Drive a Sprint to active + contracts-ratified (Start's two sprint gates).
 fn ratified_sprint(rt: &mut Runtime, number: &str) {
     rt.dispatch("Plan::Sprint.Plan", attrs(&[
         ("number", s(number)), ("goal", s("g")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
         ("id", s(number)), ("contracts", s("c"))])).unwrap();
+    rt.dispatch("Plan::Sprint.Activate", attrs(&[("id", s(number))])).unwrap();
 }
 
 // Capture a Story, put it on the ratified sprint, and Task it (no deps -> the
