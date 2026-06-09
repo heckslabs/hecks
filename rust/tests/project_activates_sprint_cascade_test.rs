@@ -44,6 +44,7 @@ fn project_activate_sprint_cascades_to_sprint_active() {
     rt.dispatch("Plan::Project.Register", attrs(&[("name", s("castle"))])).unwrap();
     rt.dispatch("Plan::Sprint.Plan", attrs(&[
         ("number", s("99")), ("goal", s("g")), ("project", s("castle"))])).unwrap();
+    rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[("id", s("99")), ("contracts", s("c"))])).unwrap();
     rt.dispatch("Plan::Project.ActivateSprint", attrs(&[
         ("project", s("castle")), ("sprint_ref", s("99"))])).unwrap();
 
@@ -59,6 +60,7 @@ fn project_refuses_a_second_different_active_sprint() {
     rt.dispatch("Plan::Project.Register", attrs(&[("name", s("keep"))])).unwrap();
     rt.dispatch("Plan::Sprint.Plan", attrs(&[("number", s("1")), ("goal", s("g")), ("project", s("keep"))])).unwrap();
     rt.dispatch("Plan::Sprint.Plan", attrs(&[("number", s("2")), ("goal", s("g")), ("project", s("keep"))])).unwrap();
+    rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[("id", s("1")), ("contracts", s("c"))])).unwrap();
     rt.dispatch("Plan::Project.ActivateSprint", attrs(&[("project", s("keep")), ("sprint_ref", s("1"))])).unwrap();
     let refused = rt.dispatch("Plan::Project.ActivateSprint", attrs(&[("project", s("keep")), ("sprint_ref", s("2"))]));
     assert!(refused.is_err(), "a second different sprint is refused while one is active");

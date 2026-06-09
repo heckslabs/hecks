@@ -50,6 +50,7 @@ fn sprint_add_story_sets_story_sprint_via_cascade() {
 fn add_story_to_an_active_sprint_is_refused_by_the_freeze() {
     let mut rt = boot();
     rt.dispatch("Plan::Sprint.Plan", attrs(&[("number", s("6")), ("goal", s("g")), ("project", s("plan"))])).unwrap();
+    rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[("id", s("6")), ("contracts", s("c"))])).unwrap();
     rt.dispatch("Plan::Sprint.Activate", attrs(&[("id", s("6"))])).unwrap();
     rt.dispatch("Plan::Story.Capture", attrs(&[("ref", s("z2")), ("title", s("z2")), ("tier", s("1")), ("summary", s("s")), ("target", s("t")), ("project", s("plan"))])).unwrap();
     let refused = rt.dispatch("Plan::Sprint.AddStory", attrs(&[("id", s("6")), ("story", s("z2"))]));
