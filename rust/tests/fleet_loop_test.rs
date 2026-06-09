@@ -70,6 +70,7 @@ fn one_worker_register_pulls_claims_starts_and_leases_a_story() {
         ("number", s("1")), ("goal", s("fleet")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
         ("sprint", s("1")), ("contracts", s("agreed"))])).unwrap();
+    rt.dispatch("Plan::Sprint.Activate", attrs(&[("sprint", s("1"))])).unwrap();
 
     // A story : captured, put on the ratified sprint, tasked — now claimable AND startable.
     rt.dispatch("Plan::Story.Capture", attrs(&[
@@ -130,6 +131,7 @@ fn two_workers_one_story_only_one_claims_the_cascade_mutex() {
         ("number", s("1")), ("goal", s("fleet")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
         ("sprint", s("1")), ("contracts", s("agreed"))])).unwrap();
+    rt.dispatch("Plan::Sprint.Activate", attrs(&[("sprint", s("1"))])).unwrap();
     // EXACTLY ONE claimable story.
     rt.dispatch("Plan::Story.Capture", attrs(&[
         ("ref", s("s1")), ("title", s("S1")), ("tier", s("1")),
@@ -187,6 +189,7 @@ fn a_story_with_an_unresolved_dependency_is_never_pull_claimed() {
         ("number", s("1")), ("goal", s("fleet")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
         ("sprint", s("1")), ("contracts", s("agreed"))])).unwrap();
+    rt.dispatch("Plan::Sprint.Activate", attrs(&[("sprint", s("1"))])).unwrap();
 
     // z_dep : unblocked, tasked, claimable.
     rt.dispatch("Plan::Story.Capture", attrs(&[

@@ -69,6 +69,7 @@ fn ratified_sprint(rt: &mut Runtime, number: &str) {
         ("number", s(number)), ("goal", s("g")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[
         ("id", s(number)), ("contracts", s("c"))])).unwrap();
+    rt.dispatch("Plan::Sprint.Activate", attrs(&[("id", s(number))])).unwrap();
 }
 // Capture + assign to the ratified sprint + Task -> state=tasked, Start-ready.
 fn tasked_story(rt: &mut Runtime, ref_: &str, sprint: &str) {
