@@ -36,6 +36,7 @@ pub fn emit_rule(_fixtures: &[Fixture], rule: &Fixture) -> String {
         "trigger_valid" => graph::emit_trigger_valid(rule),
         "distinct_aliases" => graph::emit_distinct_aliases(rule),
         "no_primitive_envy" => emit_no_primitive_envy(rule),
+        "forbid_cross_aggregate_refs" => emit_forbid_cross_aggregate_refs(rule),
         other => panic!("unknown check_kind: {}", other),
     }
 }
@@ -173,6 +174,44 @@ fn {name}(domain: &Domain) -> Vec<String> {{
                     \"Duplicate command name: {{}} (in {{}})\",
                     cmd.name, agg.name
                 ));
+            }}
+        }}
+    }}
+    errors
+}}
+
+"
+    )
+}
+
+/// Forbid cross-aggregate reads in command givens — the DDD/Hexagonal lock.
+fn emit_forbid_cross_aggregate_refs(rule: &Fixture) -> String {
+    let description = util::attr(rule, "description");
+    let name = util::attr(rule, "rust_fn_name");
+    format!(
+        "\
+/// {description}.
+fn {name}(domain: &Domain) -> Vec<String> {{
+    let mut errors = vec![];
+    for agg in &domain.aggregates {{
+        for cmd in &agg.commands {{
+            for given in &cmd.givens {{
+                let e = given.expression.as_bytes();
+                let mut i = 0;
+                while i < e.len() {{
+                    if (e[i] as char).is_ascii_uppercase() {{
+                        let start = i;
+                        while i < e.len() && ((e[i] as char).is_ascii_alphanumeric() || e[i] == b'_') {{ i += 1; }}
+                        if i < e.len() && e[i] == b'(' {{
+                            let mut j = i + 1;
+                            while j < e.len() && e[j] != b')' {{ j += 1; }}
+                            if j + 1 < e.len() && e[j] == b')' && e[j + 1] == b'.' {{
+                                errors.push(agg.name.clone() + \".\" + &cmd.name + \" given has a cross-aggregate read `\" + &given.expression[start..=j] + \"` — a given may only read its own aggregate's state; replicate the sibling fact via an event/policy\");
+                                break;
+                            }}
+                        }}
+                    }} else {{ i += 1; }}
+                }}
             }}
         }}
     }}

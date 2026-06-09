@@ -3,7 +3,7 @@ Hecks.fixtures "ValidatorShape" do
   # Note: single-line fixtures — the Rust fixtures_parser only reads one
   # line per `fixture` directive today (i57 tracks multi-line support).
   aggregate "ValidatorEntryPoint" do
-    fixture "Validate", fn_name: "validate", returns: "Vec<String>", rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_policy_triggers,no_duplicate_commands,distinct_reference_aliases,no_primitive_envy", collects_into: "errors"
+    fixture "Validate", fn_name: "validate", returns: "Vec<String>", rule_order: "unique_aggregate_names,aggregates_have_commands,command_naming,valid_policy_triggers,no_duplicate_commands,distinct_reference_aliases,no_primitive_envy,forbid_cross_aggregate_refs", collects_into: "errors"
   end
 
   # ── The 6 rules — one fixture each, mirrors validator.rs 1:1 ────
@@ -15,6 +15,7 @@ Hecks.fixtures "ValidatorShape" do
     fixture "NoDuplicateCommands", name: "no_duplicate_commands", rust_fn_name: "no_duplicate_commands", description: "No two commands across all aggregates may share the same name", inspects: "domain.aggregates[].commands", check_kind: "unique_across", error_template: "Duplicate command name: {name} (in {parent})", applied_to: "command"
     fixture "DistinctReferenceAliases", name: "distinct_reference_aliases", rust_fn_name: "distinct_reference_aliases", description: "When an aggregate has multiple reference_to the same target, each must carry a distinct as: alias — otherwise downstream consumers (event payloads, generated form fields, Ruby/Rust routing) can't tell the references apart", inspects: "domain.aggregates[].references", check_kind: "distinct_aliases", error_template: "{parent} has {count} references to {target} with duplicate alias {name:?} — add `as: :<alias>` to each so they have distinct names", applied_to: "aggregate"
     fixture "NoPrimitiveEnvy", name: "no_primitive_envy", rust_fn_name: "no_primitive_envy", description: "Aggregate and command attributes must use typed value objects, not bare primitives (String, Integer, Float, Boolean, Date, DateTime, JSON). Primitives belong inside value_object bodies as the storage layer, never at the aggregate or command surface. No exemptions — write a value object every time", inspects: "domain.aggregates[].attributes+domain.aggregates[].commands[].attributes", check_kind: "no_primitive_envy", error_template: "{parent}.{name} uses primitive type {primitive} — wrap it in a value_object so the domain reads as itself, not as a String", applied_to: "attribute"
+    fixture "ForbidCrossAggregateRefs", name: "forbid_cross_aggregate_refs", rust_fn_name: "forbid_cross_aggregate_refs", description: "A given may only read its own aggregate's state — a cross-aggregate read Agg(id).field violates the consistency boundary (DDD : replicate the sibling fact via an event/policy, never read it synchronously)", inspects: "domain.aggregates[].commands[].givens", check_kind: "forbid_cross_aggregate_refs", error_template: "{parent}.{name} given has a cross-aggregate read", applied_to: "given"
   end
 
   # ── Suffix tables (NOUN_SUFFIXES, ADJ_SUFFIXES, verb_suffixes) ───

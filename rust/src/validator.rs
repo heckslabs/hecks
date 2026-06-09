@@ -26,6 +26,7 @@ pub fn validate(domain: &Domain) -> Vec<String> {
     errors.extend(no_duplicate_commands(domain));
     errors.extend(distinct_reference_aliases(domain));
     errors.extend(no_primitive_envy(domain));
+    errors.extend(forbid_cross_aggregate_refs(domain));
     errors
 }
 
@@ -258,6 +259,34 @@ fn no_primitive_envy(domain: &Domain) -> Vec<String> {
                         "{}.{}.{} uses primitive type {} — wrap it in a value_object so the domain reads as itself, not as a {}",
                         agg.name, cmd.name, attr.name, attr.attr_type, attr.attr_type
                     ));
+                }
+            }
+        }
+    }
+    errors
+}
+
+/// A given may only read its own aggregate's state — a cross-aggregate read Agg(id).field violates the consistency boundary (DDD : replicate the sibling fact via an event/policy, never read it synchronously).
+fn forbid_cross_aggregate_refs(domain: &Domain) -> Vec<String> {
+    let mut errors = vec![];
+    for agg in &domain.aggregates {
+        for cmd in &agg.commands {
+            for given in &cmd.givens {
+                let e = given.expression.as_bytes();
+                let mut i = 0;
+                while i < e.len() {
+                    if (e[i] as char).is_ascii_uppercase() {
+                        let start = i;
+                        while i < e.len() && ((e[i] as char).is_ascii_alphanumeric() || e[i] == b'_') { i += 1; }
+                        if i < e.len() && e[i] == b'(' {
+                            let mut j = i + 1;
+                            while j < e.len() && e[j] != b')' { j += 1; }
+                            if j + 1 < e.len() && e[j] == b')' && e[j + 1] == b'.' {
+                                errors.push(agg.name.clone() + "." + &cmd.name + " given has a cross-aggregate read `" + &given.expression[start..=j] + "` — a given may only read its own aggregate's state; replicate the sibling fact via an event/policy");
+                                break;
+                            }
+                        }
+                    } else { i += 1; }
                 }
             }
         }
