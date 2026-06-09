@@ -16,6 +16,7 @@ module Hecks
     #
     module Structure
       autoload :AggregatesHaveCommands,   "hecks/validation_rules/structure/aggregates_have_commands"
+      autoload :ForbidCrossAggregateRefs, "hecks/validation_rules/structure/forbid_cross_aggregate_refs"
       autoload :ValidPolicyEvents,        "hecks/validation_rules/structure/valid_policy_events"
       autoload :ValidPolicyTriggers,      "hecks/validation_rules/structure/valid_policy_triggers"
       autoload :DuplicatePolicies,        "hecks/validation_rules/structure/duplicate_policies"

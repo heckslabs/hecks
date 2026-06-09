@@ -34,6 +34,40 @@ end"#);
 }
 
 #[test]
+fn forbids_cross_aggregate_read_in_given() {
+    let domain = parser::parse(r#"Hecks.bluebook "X" do
+  aggregate "Foo" do
+    command "Touch" do
+      role "Self"
+      given("forbidden") { Bar(name).status == "ok" }
+    end
+  end
+end"#);
+    let errors = validate(&domain);
+    assert!(
+        errors.iter().any(|e| e.contains("cross-aggregate read") && e.contains("Bar(name)")),
+        "a given with a cross-aggregate read must be rejected, got: {:?}",
+        errors
+    );
+}
+
+#[test]
+fn allows_a_given_that_reads_only_local_state() {
+    let domain = parser::parse(r#"Hecks.bluebook "X" do
+  aggregate "Foo" do
+    command "Touch" do
+      role "Self"
+      given("local") { sprint_active == true }
+    end
+  end
+end"#);
+    assert!(
+        !validate(&domain).iter().any(|e| e.contains("cross-aggregate read")),
+        "a given reading only its own state must pass"
+    );
+}
+
+#[test]
 fn duplicate_aggregate_names() {
     let domain = Domain {
         name: "T".into(),
