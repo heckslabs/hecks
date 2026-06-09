@@ -830,4 +830,20 @@ Hecks.behaviors "Plan" do
     expect refused: "a sprint must be active to deactivate"
   end
 
+  # ── replicated sprint_active flag (DDD : Story reads its own copy) ──
+  test "Story.MarkSprintActive sets the local sprint_active flag" do
+    tests "MarkSprintActive", on: "Story"
+    setup  "Capture", ref: "sa1", title: "SA1", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "sa1"
+    expect ref: "sa1", sprint_active: true
+  end
+
+  test "Story.ClearSprintActive clears the local sprint_active flag" do
+    tests "ClearSprintActive", on: "Story"
+    setup  "Capture",          ref: "sa2", title: "SA2", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "MarkSprintActive", ref: "sa2"
+    input  ref: "sa2"
+    expect ref: "sa2", sprint_active: false
+  end
+
 end

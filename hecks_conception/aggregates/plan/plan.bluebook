@@ -576,6 +576,12 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     # `list_of(Task)` entity composition retired sprint 14.
     attribute :pending_task_count, PendingTaskCount, default: 0
 
+    # ---- Replicated sprint fact (DDD : Story reads its OWN copy of "my sprint
+    # is active", maintained by the seed_sprint_active hecksagon on Sprint events.
+    # The pending_task_count pattern applied to sprint membership. Story.Start will
+    # read this LOCAL flag instead of a cross-aggregate Sprint read.) ----
+    attribute :sprint_active, SprintActive, default: false
+
     # ---- Artifacts ----
     # Files the story produced or consumed: a downloaded graphic, a
     # generated bluebook, a screenshot. The Story records the reference
@@ -794,6 +800,29 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     end
 
     # ── Commands ──────────────────────────────────────────────────
+
+    value_object "SprintActive" do
+      # True when this story's sprint is active. Set on SprintActivated, cleared on
+      # SprintApproved (and on stakeholder reset) by the seed_sprint_active driven
+      # adapter. Story.Start reads this LOCAL flag — never Sprint's live state.
+      attribute :value, Boolean
+    end
+
+    command "MarkSprintActive" do
+      role "System"
+      description "Cascade-internal : set sprint_active true. Fired by the seed_sprint_active driven adapter when this story sprint emits SprintActivated (fanned out over Story.BySprint). The DDD-correct replication of my-sprint-is-active onto the Story own state. Must NOT be dispatched manually."
+      reference_to(Story)
+      then_set :sprint_active, to: true
+      emits "StorySprintActivated"
+    end
+
+    command "ClearSprintActive" do
+      role "System"
+      description "Cascade-internal : set sprint_active false. Fired by the seed_sprint_active driven adapter when the story sprint closes (SprintApproved), and by the stakeholder reset path. Must NOT be dispatched manually."
+      reference_to(Story)
+      then_set :sprint_active, to: false
+      emits "StorySprintCleared"
+    end
 
     command "Capture" do
       role "Miette"

@@ -1,0 +1,18 @@
+Hecks.hecksagon "Plan" do
+  # DDD replication : a Story reads its OWN sprint_active flag (the pending_task_count
+  # pattern). These driven adapters maintain it from Sprint lifecycle events, fanning
+  # out over the aggregate-LOCAL Story.BySprint query. No aggregate reads a sibling
+  # synchronously — Sprint emits, the Story flag follows. {id} is the activated/closed
+  # sprint number ; {ref} is each matched Story.
+  adapter "SeedSprintActiveOnActivation" do
+    driven on "Plan::Sprint.SprintActivated" do |event|
+      dispatch "Plan::Story.MarkSprintActive", for_each: { from: "Plan::Story.BySprint", where: { sprint: "{id}" } }, story: "{ref}"
+    end
+  end
+
+  adapter "ClearSprintActiveOnClosure" do
+    driven on "Plan::Sprint.SprintApproved" do |event|
+      dispatch "Plan::Story.ClearSprintActive", for_each: { from: "Plan::Story.BySprint", where: { sprint: "{id}" } }, story: "{ref}"
+    end
+  end
+end
