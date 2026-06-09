@@ -663,5 +663,29 @@ Hecks.behaviors "Plan" do
     input  ref: "cg2"
     expect state: "started"
   end
-end
 
+  # Board query : runtime enforces the STATE-SET filter via WhereOp::In
+  # (where state: { in: [untasked, tasked, started, ready_for_review] }).
+  # The active-sprint membership half stays projector-side until its
+  # cross-aggregate WhereOp lands.
+
+  test "Board includes an untasked story" do
+    tests "Board", on: "Story", kind: :query
+    setup  "Capture", ref: "bd1", title: "B1", tier: 1, summary: "s", target: "t", project: "plan"
+    expect includes: { ref: "bd1", state: "untasked" }
+  end
+
+  test "Board includes a tasked story" do
+    tests "Board", on: "Story", kind: :query
+    setup  "Capture", ref: "bd2", title: "B2", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Tasked",  ref: "bd2"
+    expect includes: { ref: "bd2", state: "tasked" }
+  end
+
+  test "Board excludes a deferred story (state not in the set)" do
+    tests "Board", on: "Story", kind: :query
+    setup  "Capture", ref: "bd3", title: "B3", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "Defer",   ref: "bd3"
+    expect count: 0
+  end
+end
