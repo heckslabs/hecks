@@ -210,7 +210,6 @@ fn parse_comparator_hash(raw: &str) -> Option<(WhereOp, &str)> {
         "in"  => WhereOp::In,
         "resolved" => WhereOp::Resolved,
         "none_in_state" => WhereOp::NoneInState,
-        "member_of" => WhereOp::MemberOf,
         _     => return None,
     };
     Some((op, value_part))
