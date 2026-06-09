@@ -184,6 +184,32 @@ fn resolve_cross_aggregate_gates(
                 attrs.insert(term.full.clone(), Value::List(unresolved));
                 continue;
             }
+            // Uniqueness-gate : `Agg(field).active_peers` — the reserved `active_peers`
+            // projection scans `Agg` for records that share the self's `id_expr` field
+            // value AND are already in the "active" state, injecting their ids as a
+            // `Value::List`. The interpreter's `.active_peers.empty?` then passes only
+            // when no peer is active — enforcing one-active-per-group (Sprint.Activate's
+            // `given { Sprint(project).active_peers.empty? }` : one active sprint per
+            // project). The self excludes itself naturally : the given runs BEFORE the
+            // planned->active transition, so the self is not yet active.
+            if term.field == "active_peers" {
+                let key_val = match attrs.get(&term.id_expr) {
+                    Some(v) => v.to_string(),
+                    None => match self_state {
+                        Some(s) => s.get(&term.id_expr).to_string(),
+                        None => String::new(),
+                    },
+                };
+                let peers: Vec<Value> = rt
+                    .all_qualified(None, &term.aggregate)
+                    .into_iter()
+                    .filter(|r| r.get(&term.id_expr).to_string() == key_val
+                        && r.get("state").to_string() == "active")
+                    .map(|r| Value::Str(r.id.clone()))
+                    .collect();
+                attrs.insert(term.full.clone(), Value::List(peers));
+                continue;
+            }
             let sibling_id = match attrs.get(&term.id_expr) {
                 Some(v) => v.to_string(),
                 None => match self_state {
