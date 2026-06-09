@@ -143,4 +143,28 @@ impl PolicyEngine {
     pub fn bindings(&self) -> &[PolicyBinding] {
         &self.bindings
     }
+
+    /// C1 (transactional outbox) — enumerate, WITHOUT firing, the policy
+    /// trigger commands that WOULD react to an event. Read-only mirror of
+    /// `react`'s selection logic (the qualifier match), minus the
+    /// `in_flight` mutation. Used to PLAN a CascadeRun's steps for the
+    /// persistent outbox before any reaction executes.
+    pub fn trigger_commands_for(&self, event_name: &str, aggregate_type: &str) -> Vec<String> {
+        let indices = match self.by_event.get(event_name) {
+            Some(v) => v,
+            None => return vec![],
+        };
+        indices
+            .iter()
+            .filter_map(|&idx| {
+                let b = &self.bindings[idx];
+                if let Some(ref agg) = b.qualifier {
+                    if agg != aggregate_type {
+                        return None;
+                    }
+                }
+                Some(b.trigger_command.clone())
+            })
+            .collect()
+    }
 }

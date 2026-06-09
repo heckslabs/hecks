@@ -789,6 +789,9 @@ impl Runtime {
             let event_clone = event.clone();
             driven_adapter_resolver::resolve_driven_adapters(self, &event_clone);
         }
+        // C1 (transactional outbox) — dual-write the persistent CascadeRun
+        // record alongside the eager cascade above. Gated; no-op by default.
+        self.record_cascade_run(result);
     }
 
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
@@ -801,6 +804,66 @@ impl Runtime {
         while let Some(p) = self.outbox.pop_front() {
             self.react(&p.result, &p.command_name, &p.attrs);
         }
+    }
+
+    /// C1 (transactional outbox) — when a dispatched command's event has
+    /// policy reactions, ALSO write a persistent `CascadeRun.Begin`
+    /// recording those reactions as ordered Steps. The DUAL-WRITE phase:
+    /// the eager cascade still runs (body-safe), and the run record lands
+    /// in heki (the outbox the pump will later drain), proving the
+    /// persistent path. Gated by HECKS_CASCADE_OUTBOX=1 so the live body
+    /// is untouched until the pump (C2) is wired. No-op when the
+    /// CascadeRun aggregate isn't loaded or the event has no policy
+    /// reactions. Driven-adapter reactions are enumerated in C2.
+    fn record_cascade_run(&mut self, result: &CommandResult) {
+        if std::env::var("HECKS_CASCADE_OUTBOX").ok().as_deref() != Some("1") {
+            return;
+        }
+        let event = match &result.event {
+            Some(e) => e.clone(),
+            None => return,
+        };
+        if !self.domain.aggregates.iter().any(|a| a.name == "CascadeRun") {
+            return;
+        }
+        let commands = self
+            .policy_engine
+            .trigger_commands_for(&event.name, &event.aggregate_type);
+        if commands.is_empty() {
+            return;
+        }
+        let steps: Vec<Value> = commands
+            .iter()
+            .enumerate()
+            .map(|(i, cmd)| {
+                let mut m = HashMap::new();
+                m.insert("ref".to_string(), Value::Str(format!("step-{}", i + 1)));
+                m.insert("command".to_string(), Value::Str(cmd.clone()));
+                m.insert("order".to_string(), Value::Int((i as i64) + 1));
+                m.insert("status".to_string(), Value::Str("pending".to_string()));
+                m.insert("attempt".to_string(), Value::Int(0));
+                m.insert("last_error".to_string(), Value::Str(String::new()));
+                Value::Map(m)
+            })
+            .collect();
+        let run_id = format!("{}::{}", event.aggregate_id, event.name);
+        let mut retry = HashMap::new();
+        retry.insert("max_attempts".to_string(), Value::Int(0));
+        retry.insert("backoff".to_string(), Value::Str("none".to_string()));
+        let mut attrs = HashMap::new();
+        attrs.insert("run_id".to_string(), Value::Str(run_id));
+        attrs.insert("trigger_event".to_string(), Value::Str(event.name.clone()));
+        attrs.insert("steps".to_string(), Value::List(steps));
+        attrs.insert("retry_policy".to_string(), Value::Map(retry));
+        let agg_type = event.aggregate_type.clone();
+        let agg_id = event.aggregate_id.clone();
+        let _ = command_dispatch::dispatch_cascade(
+            self,
+            "CascadeRun::CascadeRun.Begin",
+            attrs,
+            &agg_type,
+            &agg_id,
+        );
     }
 
     /// Render the statusline breadcrumb phrase for a just-resolved
