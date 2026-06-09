@@ -611,7 +611,6 @@ pub enum WhereOp {
     Lt,
     Lte,
     In,
-    Resolved,
     NoneInState,
     Contains,
 }
