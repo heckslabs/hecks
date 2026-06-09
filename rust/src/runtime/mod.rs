@@ -2662,6 +2662,26 @@ impl Runtime {
                         Some(r) => r.get("state").to_string() != blocking_state,
                     }
                 }
+                crate::ir::WhereOp::MemberOf => {
+                    // Cross-aggregate SINGLETON membership : `field` is the candidate
+                    // scalar field ; `value` is "Aggregate.list_field" naming a singleton
+                    // sibling list. PASS when the candidate value is an element of that
+                    // list — Story.Board's where sprint: { member_of: "Board.active_sprints" }.
+                    // Fail-OPEN when the singleton sibling is absent (no board -> no filter).
+                    let needle = s.get(&w.field).to_string();
+                    let (sib_agg, list_field) = match w.value.split_once('.') {
+                        Some((a, lf)) => (a, lf),
+                        None => (w.value.as_str(), ""),
+                    };
+                    match self.all_qualified(None, sib_agg).first() {
+                        None => true,
+                        Some(sib) => match sib.get(list_field) {
+                            Value::List(items) => items.iter().any(|v| v.to_string() == needle),
+                            Value::Str(csv) => csv.split(',').any(|x| x.trim() == needle),
+                            _ => false,
+                        },
+                    }
+                }
                 _ => where_matches(s, w, attrs),
             }))
             .collect();
@@ -2916,6 +2936,7 @@ fn where_matches(
         // NoneInState is a cross-aggregate anti-join resolved upstream in
         // resolve_query_qualified (needs &Runtime) ; never reached here.
         crate::ir::WhereOp::NoneInState => true,
+        crate::ir::WhereOp::MemberOf => true,
     }
 }
 
