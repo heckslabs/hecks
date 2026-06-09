@@ -1974,6 +1974,12 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     # ---- Lifecycle ----
     attribute :status,      Status, default: "active"
 
+    # ---- Active-sprint ownership (DDD : Project is the consistency boundary
+    # that owns 'which of my sprints is active'. one-active-per-project is
+    # enforced HERE, intra-aggregate, by ActivateSprint's own given — no
+    # aggregate ever reads a sibling's live state.) ----
+    attribute :active_sprint, ActiveSprint, default: ""
+
     # ── Value objects ──────────────────────────────────────────────
 
     value_object "Name" do
@@ -1994,6 +2000,13 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     end
 
     # ── Commands ──────────────────────────────────────────────────
+
+    value_object "ActiveSprint" do
+      # The number of this project's currently-active sprint, or "" when none.
+      # Scalar, not a list : one-active-per-project. ActivateSprint enforces
+      # uniqueness against this field locally.
+      attribute :value, String
+    end
 
     command "Register" do
       role "Miette"
@@ -2073,6 +2086,25 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       description "Projects filtered by lifecycle status. Pass status: active | paused | done to narrow the registry view."
       where status: :status
     end
+    command "ActivateSprint" do
+      role "Miette"
+      description "Activate one of this project's sprints. one-active-per-project is enforced HERE, locally : the given refuses a different sprint while one is already active (idempotent on the same sprint). Emits SprintActivatedByProject ; the ActivateSprintOnProjectActivation driven adapter cascades to Sprint.Activate so the Sprint flips its OWN state. The DDD-correct home for the uniqueness invariant — Project is the boundary that owns which sprint is active, so no aggregate reads a sibling live state."
+      reference_to(Project)
+      attribute :sprint_ref, Sprint
+      given("one active sprint per project") { active_sprint == "" || active_sprint == sprint_ref }
+      then_set :active_sprint, to: :sprint_ref
+      emits "SprintActivatedByProject"
+    end
+
+    command "DeactivateSprint" do
+      role "Miette"
+      description "Clear this project active sprint — it closed or was stopped — freeing the project to activate another. Emits SprintDeactivatedByProject."
+      reference_to(Project)
+      given("a sprint must be active to deactivate") { active_sprint != "" }
+      then_set :active_sprint, to: ""
+      emits "SprintDeactivatedByProject"
+    end
+
   end
 
 end

@@ -789,4 +789,45 @@ Hecks.behaviors "Plan" do
     input  ref: "dchild"
     expect refused: "all dependencies must be resolved before starting"
   end
+  # ── project-owns-active-sprint-uniqueness (DDD re-enforcement) ──
+  # one-active-per-project is enforced INSIDE Project, intra-aggregate, against
+  # its own active_sprint field. No cross-aggregate read.
+  test "Project.ActivateSprint records the active sprint locally" do
+    tests "ActivateSprint", on: "Project"
+    setup  "Register", name: "alpha"
+    input  project: "alpha", sprint_ref: "1"
+    expect active_sprint: "1"
+  end
+
+  test "Project.ActivateSprint refuses a different sprint while one is active" do
+    tests "ActivateSprint", on: "Project"
+    setup  "Register",       name: "beta"
+    setup  "Project.ActivateSprint", project: "beta", sprint_ref: "1"
+    input  project: "beta", sprint_ref: "2"
+    expect refused: "one active sprint per project"
+  end
+
+  test "Project.ActivateSprint is idempotent on the same sprint" do
+    tests "ActivateSprint", on: "Project"
+    setup  "Register",       name: "gamma"
+    setup  "Project.ActivateSprint", project: "gamma", sprint_ref: "1"
+    input  project: "gamma", sprint_ref: "1"
+    expect active_sprint: "1"
+  end
+
+  test "Project.DeactivateSprint clears the active sprint" do
+    tests "DeactivateSprint", on: "Project"
+    setup  "Register",               name: "delta"
+    setup  "Project.ActivateSprint", project: "delta", sprint_ref: "1"
+    input  project: "delta"
+    expect active_sprint: ""
+  end
+
+  test "Project.DeactivateSprint is refused when no sprint is active" do
+    tests "DeactivateSprint", on: "Project"
+    setup  "Register", name: "epsilon"
+    input  project: "epsilon"
+    expect refused: "a sprint must be active to deactivate"
+  end
+
 end
