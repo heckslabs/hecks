@@ -153,6 +153,7 @@ module Hecks
         in:  "in",  "in"  => "in",
         resolved: "resolved", "resolved" => "resolved",
         none_in_state: "none_in_state", "none_in_state" => "none_in_state",
+        member_of: "member_of", "member_of" => "member_of",
       }.freeze
 
       def where(**conditions)
