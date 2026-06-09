@@ -1,5 +1,13 @@
 # i712 — FileTool.Write is broken → forces the heredoc reflex
 
+> **RESOLVED 2026-06-09 (fix #1).** Verified per the card's own instruction — don't
+> trust the memory note. `Tools::FileTool.Write` (59 bytes, persisted), `FileTool.Edit`
+> (surgical edit on a repo .rs, persisted), and `FileTool.Update` (23 bytes, persisted)
+> ALL write for real now ; the "returns ok but never persists" failure mode is gone.
+> The stale guidance was corrected at source (self/system_prompt_content.fixtures +
+> system_prompt.md). The heredoc/Python reflex is retired : reach for the FileTool door
+> first. (Fix #2 — a File primitive in the stdlib — remains a nice-to-have, not a bug.)
+
 `Tools::FileTool.Write` returns `ok:true` but never persists the file (documented:
 `reference_filetool_write_broken.md`). So every file-write through the bus falls
 back to `Tools::ShellTool.Bash` with a `cat > path <<'EOF' … EOF` heredoc. That's
