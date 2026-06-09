@@ -1,0 +1,19 @@
+Hecks.hecksagon "Plan" do
+  # DDD dependency replication : Story.unresolved_dep_count is the local twin of the old
+  # cross-aggregate dependency gate. When a dependency story reaches a terminal state
+  # (StoryApproved -> done, StoryCancelled), this adapter fans DecUnresolvedDeps out over
+  # Story.DependentsOf(dep={id}) — every story whose dependencies list contains it. The
+  # query is aggregate-local (contains where op) ; no aggregate reads a sibling. {id} =
+  # the resolving story ref ; record-first the matched dependent story's ref.
+  adapter "ResolveDepsOnStoryApproved" do
+    driven on "Plan::Story.StoryApproved" do |event|
+      dispatch "Plan::Story.DecUnresolvedDeps", for_each: { from: "Plan::Story.DependentsOf", where: { dep: "{id}" } }, id: "{ref}"
+    end
+  end
+
+  adapter "ResolveDepsOnStoryCancelled" do
+    driven on "Plan::Story.StoryCancelled" do |event|
+      dispatch "Plan::Story.DecUnresolvedDeps", for_each: { from: "Plan::Story.DependentsOf", where: { dep: "{id}" } }, id: "{ref}"
+    end
+  end
+end

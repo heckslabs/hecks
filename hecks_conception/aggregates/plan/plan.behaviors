@@ -847,4 +847,20 @@ Hecks.behaviors "Plan" do
     expect ref: "rst1", state: "tasked", sprint_active: false
   end
 
+  # ── dependency replication (unresolved_dep_count) ──
+  test "Story.AddDependency increments the unresolved dependency count" do
+    tests "AddDependency", on: "Story"
+    setup  "Capture", ref: "dd0", title: "DD0", tier: 1, summary: "s", target: "t", project: "plan"
+    input  ref: "dd0", dependency: "x"
+    expect ref: "dd0", unresolved_dep_count: 1
+  end
+
+  test "Story.DecUnresolvedDeps drops the unresolved dependency count" do
+    tests "DecUnresolvedDeps", on: "Story"
+    setup  "Capture",       ref: "dd1", title: "DD1", tier: 1, summary: "s", target: "t", project: "plan"
+    setup  "AddDependency", ref: "dd1", dependency: "x"
+    input  ref: "dd1"
+    expect ref: "dd1", unresolved_dep_count: 0
+  end
+
 end

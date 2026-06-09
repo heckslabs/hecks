@@ -613,6 +613,7 @@ pub enum WhereOp {
     In,
     Resolved,
     NoneInState,
+    Contains,
 }
 
 #[derive(Debug, Clone)]

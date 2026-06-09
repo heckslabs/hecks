@@ -562,6 +562,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     # The pending_task_count pattern applied to sprint membership. Story.Start will
     # read this LOCAL flag instead of a cross-aggregate Sprint read.) ----
     attribute :sprint_active, SprintActive, default: false
+    attribute :unresolved_dep_count, UnresolvedDepCount, default: 0
 
     # ---- Artifacts ----
     # Files the story produced or consumed: a downloaded graphic, a
@@ -805,6 +806,21 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       emits "StorySprintCleared"
     end
 
+    value_object "UnresolvedDepCount" do
+      # Count of this story's dependencies not yet resolved (terminal). Replicated :
+      # AddDependency +1 (fail-closed) ; the resolve_deps adapter -1 when a dependency
+      # story reaches done / cancelled. Story.Start reads this LOCAL count == 0.
+      attribute :value, Integer
+    end
+
+    command "DecUnresolvedDeps" do
+      role "System"
+      description "Cascade-internal : drop unresolved_dep_count by 1. Fired by the resolve_deps driven adapter when a dependency story reaches a terminal state (done / cancelled), fanned over Story.DependentsOf. Must NOT be dispatched manually."
+      reference_to(Story)
+      then_set :unresolved_dep_count, decrement: 1
+      emits "UnresolvedDepsDropped"
+    end
+
     command "Capture" do
       role "Miette"
       description "Mint a new Story from a ref + title + tier + summary + target. Starts in untasked status with an empty tasks list — the new initial state introduced by lifecycle-tasked-state (sprint 14). The ref IS the story identity — one Story per ref."
@@ -888,6 +904,7 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
       reference_to(Story)
       attribute :dependency, Story
       then_set :dependencies, append: :dependency
+      then_set :unresolved_dep_count, increment: 1
       emits "DependencyAdded"
     end
 
@@ -1284,6 +1301,11 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
     query "BySprint" do
       description "All stories committed to a given sprint, by the Story.sprint field — the SOLE source of truth for sprint membership. Sprint no longer carries a story_refs list (retired in fix-sprint-story-refs-drift, sprint 7) ; this query is how Sprint, projections, and the planning pulse learn which stories belong to a given sprint. Pass sprint: <ref> to filter."
       where sprint: :sprint
+    end
+
+    query "DependentsOf" do
+      description "Every story whose dependencies list CONTAINS the given dep ref — the reverse-dependency lookup. Aggregate-LOCAL (reads each story's own dependencies list via the contains where op, no sibling read). Drives the resolve_deps adapter : when a dependency story resolves, decrement unresolved_dep_count on every story that depends on it."
+      where dependencies: { contains: :dep }
     end
 
     query "Board" do

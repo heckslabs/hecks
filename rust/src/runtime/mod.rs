@@ -2912,6 +2912,14 @@ fn where_matches(
         crate::ir::WhereOp::In  => target.split(',').any(|item| item.trim() == actual),
         // Resolved is a cross-aggregate op resolved upstream in
         // resolve_query_qualified (needs &Runtime) ; never reached here.
+            // Contains : a record LOCAL list field contains the literal value.
+            // Aggregate-local (reads the record own list) — Story.DependentsOf : every
+            // story whose dependencies list contains the given dep ref.
+            crate::ir::WhereOp::Contains => match state.fields.get(&clause.field) {
+                Some(Value::List(items)) => items.iter().any(|v| v.to_string() == target),
+                Some(Value::Str(csv)) => csv.split(',').any(|x| x.trim() == target),
+                _ => false,
+            },
         crate::ir::WhereOp::Resolved => true,
         // NoneInState is a cross-aggregate anti-join resolved upstream in
         // resolve_query_qualified (needs &Runtime) ; never reached here.

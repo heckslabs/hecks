@@ -323,6 +323,7 @@ fn dump_where_op(op: &WhereOp) -> &'static str {
         WhereOp::In          => "in",
         WhereOp::Resolved    => "resolved",
         WhereOp::NoneInState => "none_in_state",
+        WhereOp::Contains    => "contains",
     }
 }
 
