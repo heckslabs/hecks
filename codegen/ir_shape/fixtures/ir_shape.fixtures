@@ -388,7 +388,6 @@ Hecks.fixtures "IrShape" do
     fixture "WhereOp_In",  type_name: "WhereOp", order: 7, name: "In",  doc_snippet: ""
     fixture "WhereOp_Resolved", type_name: "WhereOp", order: 8, name: "Resolved", doc_snippet: ""
     fixture "WhereOp_NoneInState", type_name: "WhereOp", order: 9, name: "NoneInState", doc_snippet: ""
-    fixture "WhereOp_MemberOf", type_name: "WhereOp", order: 10, name: "MemberOf", doc_snippet: ""
 
     # Direction — 2 variants (i101).
     fixture "Direction_Asc",  type_name: "Direction", order: 1, name: "Asc",  doc_snippet: ""
