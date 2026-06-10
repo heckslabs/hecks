@@ -48,10 +48,13 @@ fn runtime_dual_writes_a_persistent_cascade_run_for_a_policy_cascade() {
     rt.dispatch("Plan::Story.AssignToSprint", attrs(&[("id", s("r1")), ("sprint_ref", s("1"))])).unwrap();
     rt.dispatch("Plan::Story.MarkSprintActive", attrs(&[("id", s("r1"))])).unwrap();
     rt.dispatch("Plan::Story.Tasked", attrs(&[("id", s("r1"))])).unwrap();
-    rt.dispatch("Plan::Task.Add", attrs(&[("id", s("t1")), ("story", s("r1")), ("order", s("1")), ("description", s("d"))])).unwrap();
+    // Deferred so the record lands but is NOT yet pumped — this test asserts
+    // the WRITE (the run is Active, pre-delivery). Plain dispatch would pump
+    // and Complete it (structural cutover: dispatch is the async path).
+    rt.dispatch_deferred("Plan::Task.Add", attrs(&[("id", s("t1")), ("story", s("r1")), ("order", s("1")), ("description", s("d"))])).unwrap();
 
     // The persistent outbox now holds a CascadeRun for the TaskAdded cascade.
-    let run_id = "t1::TaskAdded".to_string();
+    let run_id = "Task::t1::TaskAdded".to_string();
     let trigger = field(&rt, "CascadeRun", &run_id, "trigger_event");
     assert_eq!(trigger.as_deref(), Some("TaskAdded"),
         "runtime wrote a persistent CascadeRun for the TaskAdded policy cascade; got runs: {:?}",
