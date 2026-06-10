@@ -175,9 +175,10 @@ module Hecks
       # multiply / clamp / decay are i106 dsl-mutation-primitives — kernel
       # surface for body math so pulse_organs.bluebook can express ×0.98
       # decay and clamp(0,1) without shell-side awk.
-      def then_set(field, positional = nil, to: nil, append: nil, increment: nil, decrement: nil, multiply: nil, clamp: nil, decay: nil, from: nil)
+      def then_set(field, positional = nil, to: nil, append: nil, remove: nil, increment: nil, decrement: nil, multiply: nil, clamp: nil, decay: nil, from: nil)
         op, val = if !to.nil? then [:set, to]
                   elsif append then [:append, append]
+                  elsif remove then [:remove, remove]
                   elsif increment then [:increment, increment]
                   elsif decrement then [:decrement, decrement]
                   elsif multiply then [:multiply, multiply]

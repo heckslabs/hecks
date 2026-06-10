@@ -45,6 +45,13 @@ module Hecks
           collection = collection.dup if collection.frozen?
           collection << resolve_value(m.value, command)
           aggregate.send(:"#{m.field}=", collection)
+        when :remove
+          collection = aggregate.send(m.field)
+          collection = collection.to_a if collection.respond_to?(:to_a) && !collection.is_a?(Array)
+          collection = [] if collection.nil?
+          target = resolve_value(m.value, command)
+          collection = collection.reject { |x| x.to_s == target.to_s }
+          aggregate.send(:"#{m.field}=", collection)
         when :increment
           current = aggregate.send(m.field) || 0
           aggregate.send(:"#{m.field}=", current + m.value)

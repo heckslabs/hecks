@@ -143,6 +143,10 @@ pub fn apply_mutations(
                     state.set_float(&mutation.field, bounded);
                 }
             }
+            MutationOp::Remove => {
+                let val = resolve_mutation_value(&mutation.value, attrs, state);
+                state.remove(&mutation.field, val);
+            }
         }
     }
 }

@@ -154,6 +154,7 @@ fn emit_command(out: &mut Vec<String>, cmd: &crate::ir::Command) {
         let op = match m.operation {
             MutationOp::Set => format!("then_set :{}, to: {}", m.field, m.value),
             MutationOp::Append => format!("then_set :{}, append: {}", m.field, m.value),
+            MutationOp::Remove => format!("then_set :{}, remove: {}", m.field, m.value),
             MutationOp::Increment => format!("then_set :{}, increment: {}", m.field, m.value),
             MutationOp::Decrement => format!("then_set :{}, decrement: {}", m.field, m.value),
             MutationOp::Toggle => format!("then_toggle :{}", m.field),

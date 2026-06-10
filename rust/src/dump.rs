@@ -241,6 +241,7 @@ fn dump_mutation_op(op: &MutationOp) -> &'static str {
         MutationOp::Clamp     => "clamp",
         MutationOp::Decay     => "decay",
         MutationOp::Delete    => "delete",
+        MutationOp::Remove    => "remove",
     }
 }
 

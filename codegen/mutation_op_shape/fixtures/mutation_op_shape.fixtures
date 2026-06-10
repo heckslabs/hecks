@@ -26,6 +26,12 @@ Hecks.fixtures "MutationOpShape" do
       dispatch_kind: "resolve_call",
       state_method: "append"
 
+    fixture "Remove",
+      op_name: "Remove",
+      order: 10,
+      dispatch_kind: "resolve_call",
+      state_method: "remove"
+
     fixture "Increment",
       op_name: "Increment",
       order: 3,
@@ -101,6 +107,12 @@ Hecks.fixtures "MutationOpShape" do
       order: 4,
       snippet_path: "codegen/mutation_op_shape/snippets/method_append.rs.frag",
       description: "MutationOp::Append target — entry-or-empty-list, push value"
+
+    fixture "Remove",
+      name: "remove",
+      order: 11,
+      snippet_path: "codegen/mutation_op_shape/snippets/method_remove.rs.frag",
+      description: "MutationOp::Remove target — retain list elements not equal to value"
 
     fixture "Increment",
       name: "increment",

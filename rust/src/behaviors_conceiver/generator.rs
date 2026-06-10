@@ -832,7 +832,7 @@ impl ProducedState {
                 MutationOp::Increment => {
                     self.incremented_fields.insert(m.field.clone());
                 }
-                MutationOp::Decrement | MutationOp::Toggle | MutationOp::Delete => {}
+                MutationOp::Decrement | MutationOp::Toggle | MutationOp::Delete | MutationOp::Remove => {}
                 // i106 — Multiply/Clamp/Decay touch the field but the
                 // resulting numeric value depends on prior state we
                 // don't track here. Treat as "incremented" for the

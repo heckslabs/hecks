@@ -910,11 +910,10 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "RemoveDependency" do
       role "Miette"
-      description "Remove a dependency edge. Because the DSL has no list-remove primitive (gap : runtime-list-remove-primitive), the caller computes the new dependencies list without the removed ref and passes it as the full replacement. Mirror of Board.DeactivateSprint / Board.RemoveCard patterns."
+      description "Remove a dependency edge. Carries ONLY the removed ref ; the runtime list-remove primitive (then_set remove:) drops it from the dependencies list element-wise, with no read-modify-write — so a concurrent AddDependency can never be lost (the lost-update hazard the old full-replacement pattern carried is gone)."
       reference_to(Story)
       attribute :dependency, Story
-      attribute :dependencies, list_of(Story)
-      then_set :dependencies, to: :dependencies
+      then_set :dependencies, remove: :dependency
       emits "DependencyRemoved"
     end
 
