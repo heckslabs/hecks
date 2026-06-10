@@ -3628,6 +3628,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
         let dispatch_result = rt.dispatch_deferred(command, rt_attrs);
         rt.pump_outbox();
         rt.pump();
+        rt.policy_engine.reset_in_flight(); // fresh cycle guard for any follow-on dispatch this process
         match dispatch_result {
             Ok(result) => {
                 // Runtime projection of StoryExecuted — dispatching

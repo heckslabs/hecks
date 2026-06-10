@@ -140,6 +140,15 @@ impl PolicyEngine {
         self.in_flight.remove(policy_name);
     }
 
+    /// C3 cutover — clear ALL in-flight markers. Called after an outbox pump
+    /// session drains to quiescence so the NEXT session starts with a fresh
+    /// reentrancy guard. The guard breaks cyclic cascades WITHIN a session ;
+    /// across sessions it must reset, or a long-running LoopDriver (one
+    /// Runtime across many ticks) would skip every policy after tick 1.
+    pub fn reset_in_flight(&mut self) {
+        self.in_flight.clear();
+    }
+
     pub fn bindings(&self) -> &[PolicyBinding] {
         &self.bindings
     }
