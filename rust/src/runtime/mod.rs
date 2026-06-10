@@ -608,7 +608,7 @@ impl Runtime {
         // back to the in-memory pump (== the prior synchronous react), so
         // behaviour is preserved there. Synchronous-between-aggregates is now
         // structurally unrepresentable : there is no inline-reaction path left.
-        let r = self.dispatch_impl(command_name, attrs, false)?;
+        let r = self.dispatch_impl(command_name, attrs)?;
         self.pump_outbox();
         self.pump();
         self.policy_engine.reset_in_flight();
@@ -625,14 +625,13 @@ impl Runtime {
         command_name: &str,
         attrs: HashMap<String, Value>,
     ) -> Result<CommandResult, RuntimeError> {
-        self.dispatch_impl(command_name, attrs, false)
+        self.dispatch_impl(command_name, attrs)
     }
 
     fn dispatch_impl(
         &mut self,
         command_name: &str,
         attrs: HashMap<String, Value>,
-        eager: bool,
     ) -> Result<CommandResult, RuntimeError> {
         // i622 — dispatch entry log. One stdout line per top-level
         // dispatch, gated by STOREHOUSE_LOG. The invocation id is the
@@ -757,23 +756,10 @@ impl Runtime {
         // `react` in a SEPARATE pump phase, never inline here. Eager callers
         // auto-pump so the cascade still settles before return;
         // `dispatch_deferred` skips the pump to prove the async seam.
-        // C2 (transactional outbox) — write the persistent CascadeRun outbox
-        // entry on BOTH paths (gated). On the deferred path the reaction is
-        // delivered ONLY by pump_outbox (its own transaction, later tick) ;
-        // on eager it is recorded alongside the in-memory cascade.
-        if eager {
-            // Eager path — UNCHANGED. In-memory outbox + pump runs the full
-            // react() (ports + domain) in original order. Every test and
-            // existing caller stays here ; record_cascade_run is introspection
-            // only (under the test flag).
-            self.record_cascade_run(&result, true);
-            self.outbox.push_back(PendingReaction {
-                result: result.clone(),
-                command_name: command_name.to_string(),
-                attrs: ctx.attrs.clone(),
-            });
-            self.pump();
-        } else if self.record_cascade_run(&result, false) {
+        // Transactional outbox — record this command's domain reactions to
+        // the persistent CascadeRun outbox. The reaction is delivered ONLY by
+        // pump_outbox (its own transaction, on a later tick), never inline.
+        if self.record_cascade_run(&result) {
             // Deferred ASYNC path — domain reactions recorded to the persistent
             // outbox (delivered later by pump_outbox, each its own transaction).
             // The impure PORTS fire eagerly here so tools / AI still run in-band.
@@ -860,21 +846,14 @@ impl Runtime {
         }
     }
 
-    /// C1 (transactional outbox) — when a dispatched command's event has
-    /// policy reactions, ALSO write a persistent `CascadeRun.Begin`
-    /// recording those reactions as ordered Steps. The DUAL-WRITE phase:
-    /// the eager cascade still runs (body-safe), and the run record lands
-    /// in heki (the outbox the pump will later drain), proving the
-    /// persistent path. Gated by HECKS_CASCADE_OUTBOX=1 so the live body
-    /// is untouched until the pump (C2) is wired. No-op when the
-    /// CascadeRun aggregate isn't loaded or the event has no policy
-    /// reactions. Driven-adapter reactions are enumerated in C2.
-    fn record_cascade_run(&mut self, result: &CommandResult, eager: bool) -> bool {
-        // Deferred path ALWAYS records (the outbox IS the async delivery) ;
-        // the eager path records only under the test flag (introspection).
-        if eager && std::env::var("HECKS_CASCADE_OUTBOX").ok().as_deref() != Some("1") {
-            return false;
-        }
+    /// Transactional outbox — when a dispatched command's event has domain
+    /// reactions (policy triggers, driven-adapter dispatches, PM dispatches),
+    /// write a persistent `CascadeRun.Begin` recording them as ordered Steps.
+    /// The outbox IS the async delivery queue : pump_outbox drains each step
+    /// as its own transaction on a later tick. No-op when the CascadeRun
+    /// aggregate isn't loaded or the event has no reactions (the caller then
+    /// falls back to the in-memory pump).
+    fn record_cascade_run(&mut self, result: &CommandResult) -> bool {
         let event = match &result.event {
             Some(e) => e.clone(),
             None => return false,
@@ -887,38 +866,22 @@ impl Runtime {
         // the same attrs. Policy triggers: event data + `with` literals, then
         // inject_refs so the triggered command's reference_to resolves.
         let mut reactions: Vec<(String, String)> = Vec::new();
-        // Policy triggers. On the DEFERRED (real async) path, capture through
-        // policy_engine.react so the in_flight reentrancy guard breaks cyclic
-        // cascades EXACTLY as the eager path does (a re-entrant policy within
+        // Policy triggers. Capture through policy_engine.react so the in_flight
+        // reentrancy guard breaks cyclic cascades (a re-entrant policy within
         // this pump session is skipped) ; in_flight is not cleared here — the
-        // fork-per-dispatch process boundary resets it. On the EAGER path this
-        // is introspection only, so use the read-only enumerator (no in_flight
-        // side effect, since the eager drain_policies owns that lifecycle).
-        let policy_resolved: Vec<(String, HashMap<String, Value>)> = if eager {
-            self.policy_engine
-                .trigger_commands_for(&event.name, &event.aggregate_type)
-                .into_iter()
-                .map(|(cmd, withs)| {
-                    let mut data = event.data.clone();
-                    for (k, v) in withs {
-                        data.insert(k, Value::Str(v));
-                    }
-                    (cmd, data)
-                })
-                .collect()
-        } else {
-            self.policy_engine
-                .react(&event)
-                .into_iter()
-                .map(|t| {
-                    let mut data = t.event_data.clone();
-                    for (k, v) in &t.with_data {
-                        data.insert(k.clone(), v.clone());
-                    }
-                    (t.command_name.clone(), data)
-                })
-                .collect()
-        };
+        // fork-per-dispatch process boundary resets it.
+        let policy_resolved: Vec<(String, HashMap<String, Value>)> = self
+            .policy_engine
+            .react(&event)
+            .into_iter()
+            .map(|t| {
+                let mut data = t.event_data.clone();
+                for (k, v) in &t.with_data {
+                    data.insert(k.clone(), v.clone());
+                }
+                (t.command_name.clone(), data)
+            })
+            .collect();
         for (cmd, mut data) in policy_resolved {
             // inject_refs matches the BARE command name (DropPendingTaskCount),
             // not the FQN (Story.DropPendingTaskCount) the policy binding carries.
@@ -941,18 +904,15 @@ impl Runtime {
             }
             reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
         }
-        // PM-driven reactions — DEFERRED path only. enumerate_pm_dispatches
-        // advances the PM state machine, so it must NOT run on the eager body
-        // path (drain_policies already does). Each PM dispatch carries its own
-        // resolved attrs (for_each sweep + with_spec + inject_refs).
-        if !eager {
-            for (cmd, attr_map) in self.enumerate_pm_dispatches(&event) {
-                let mut obj = serde_json::Map::new();
-                for (k, v) in &attr_map {
-                    obj.insert(k.clone(), value_to_json(v));
-                }
-                reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
+        // PM-driven reactions. enumerate_pm_dispatches advances the PM state
+        // machine ; each PM dispatch carries its own resolved attrs (for_each
+        // sweep + with_spec + inject_refs).
+        for (cmd, attr_map) in self.enumerate_pm_dispatches(&event) {
+            let mut obj = serde_json::Map::new();
+            for (k, v) in &attr_map {
+                obj.insert(k.clone(), value_to_json(v));
             }
+            reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
         }
         if reactions.is_empty() {
             return false;
@@ -1072,7 +1032,7 @@ impl Runtime {
                     if let Ok(r) = command_dispatch::dispatch_cascade(
                         self, &command, step_attrs, &up_type, &up_id,
                     ) {
-                        self.record_cascade_run(&r, false);
+                        self.record_cascade_run(&r);
                     }
                 }
                 let mut ca = HashMap::new();
