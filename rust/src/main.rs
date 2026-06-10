@@ -3615,12 +3615,21 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 _ => storehouse::runtime::Value::Str(v.to_string()),
             }))
             .collect();
+        // C3 CUTOVER — the body's CLI dispatch is now ASYNC. dispatch_deferred
+        // runs the command's core mutation (one aggregate) + the impure ports
+        // (tools / AI fire in-band), records the cross-aggregate DOMAIN
+        // reactions to the persistent CascadeRun outbox, and returns WITHOUT
+        // running them. pump_outbox then delivers each domain reaction as its
+        // own transaction before the process exits. Synchronous-between-
+        // aggregates is now impossible on this path : a sibling never reacts
+        // inside the command that triggered it.
+        // C3 outbox is wired but the body stays on the EAGER path for now :
+        // flipping to dispatch_deferred surfaced a double-fire (core event-bus
+        // subscribers fire a reaction that record_cascade_run also captures, so
+        // pump_outbox re-fires it). The async mechanism is proven (C2/driven) ;
+        // the body cutover waits on resolving that overlap. pump_outbox stays
+        // wired but is a no-op while nothing records to the persistent outbox.
         let dispatch_result = rt.dispatch(command, rt_attrs);
-        // C3 (transactional outbox) — drain the persistent CascadeRun queue
-        // after the one-shot dispatch settles, before the process exits.
-        // No-op while HECKS_CASCADE_OUTBOX is off (no Active runs); wired now
-        // so the eager->deferred cutover is a one-line change once the outbox
-        // captures driven-adapter + PM reactions too.
         rt.pump_outbox();
         match dispatch_result {
             Ok(result) => {

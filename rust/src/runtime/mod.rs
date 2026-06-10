@@ -748,14 +748,32 @@ impl Runtime {
         // entry on BOTH paths (gated). On the deferred path the reaction is
         // delivered ONLY by pump_outbox (its own transaction, later tick) ;
         // on eager it is recorded alongside the in-memory cascade.
-        self.record_cascade_run(&result, eager);
-        self.outbox.push_back(PendingReaction {
-            result: result.clone(),
-            command_name: command_name.to_string(),
-            attrs: ctx.attrs.clone(),
-        });
         if eager {
+            // Eager path — UNCHANGED. In-memory outbox + pump runs the full
+            // react() (ports + domain) in original order. Every test and
+            // existing caller stays here ; record_cascade_run is introspection
+            // only (under the test flag).
+            self.record_cascade_run(&result, true);
+            self.outbox.push_back(PendingReaction {
+                result: result.clone(),
+                command_name: command_name.to_string(),
+                attrs: ctx.attrs.clone(),
+            });
             self.pump();
+        } else if self.record_cascade_run(&result, false) {
+            // Deferred ASYNC path — domain reactions recorded to the persistent
+            // outbox (delivered later by pump_outbox, each its own transaction).
+            // The impure PORTS fire eagerly here so tools / AI still run in-band.
+            self.react_ports(&result, command_name, &ctx.attrs);
+        } else {
+            // No persistent outbox (CascadeRun not loaded) or nothing to react
+            // to — fall back to the in-memory deferred path: enqueue for pump(),
+            // which runs the full react() later. Held until pump, never dropped.
+            self.outbox.push_back(PendingReaction {
+                result: result.clone(),
+                command_name: command_name.to_string(),
+                attrs: ctx.attrs.clone(),
+            });
         }
 
         // i697 — feed the rich scope the final result state (the
@@ -796,6 +814,27 @@ impl Runtime {
         }
     }
 
+    /// C3 cutover — the IMPURE hexagonal edge: adapters that talk to the
+    /// outside world (compute / llm / claude_tool / mcp / web / process-spawn
+    /// / tts). These fire EAGERLY even on the deferred path — they are ports
+    /// (a synchronous request/response at the boundary), not aggregate-to-
+    /// aggregate domain reactions. Order matches react()'s adapter prefix.
+    fn react_ports(
+        &mut self,
+        result: &CommandResult,
+        command_name: &str,
+        attrs: &HashMap<String, Value>,
+    ) {
+        self.resolve_compute_adapters(result, command_name);
+        self.resolve_llm_adapters(result, command_name);
+        self.resolve_claude_tool_adapters(result, command_name, attrs);
+        self.resolve_mcp_adapters(result, command_name, attrs);
+        self.resolve_web_tool_adapters(result, command_name, attrs);
+        self.resolve_primitive_spawn(result, command_name, attrs, None);
+        #[cfg(not(target_arch = "wasm32"))]
+        self.resolve_tts_adapters(result, command_name, attrs);
+    }
+
     /// Phase 3 — deliver enqueued reactions. Each pending reaction runs
     /// in a phase separate from the command that produced it. Follow-on
     /// commands dispatched inside `react` (policy/PM cascade, driven
@@ -817,35 +856,39 @@ impl Runtime {
     /// is untouched until the pump (C2) is wired. No-op when the
     /// CascadeRun aggregate isn't loaded or the event has no policy
     /// reactions. Driven-adapter reactions are enumerated in C2.
-    fn record_cascade_run(&mut self, result: &CommandResult, eager: bool) {
-        if std::env::var("HECKS_CASCADE_OUTBOX").ok().as_deref() != Some("1") {
-            return;
+    fn record_cascade_run(&mut self, result: &CommandResult, eager: bool) -> bool {
+        // Deferred path ALWAYS records (the outbox IS the async delivery) ;
+        // the eager path records only under the test flag (introspection).
+        if eager && std::env::var("HECKS_CASCADE_OUTBOX").ok().as_deref() != Some("1") {
+            return false;
         }
         let event = match &result.event {
             Some(e) => e.clone(),
-            None => return,
+            None => return false,
         };
         if !self.domain.aggregates.iter().any(|a| a.name == "CascadeRun") {
-            return;
+            return false;
         }
-        // Event-data payload — the data policy reactions receive (the
-        // triggering event's fields), JSON-encoded for the Step.payload field.
-        let event_payload = {
+        // Reactions = (command, payload_json). Each payload is resolved
+        // EXACTLY as the eager path would, so the pump's later dispatch sees
+        // the same attrs. Policy triggers: event data + `with` literals, then
+        // inject_refs so the triggered command's reference_to resolves.
+        let mut reactions: Vec<(String, String)> = Vec::new();
+        let policy_triggers = self
+            .policy_engine
+            .trigger_commands_for(&event.name, &event.aggregate_type);
+        for (cmd, withs) in policy_triggers {
+            let mut data = event.data.clone();
+            for (k, v) in withs {
+                data.insert(k, Value::Str(v));
+            }
+            self.inject_refs(&cmd, &event.aggregate_type, &event.aggregate_id, &mut data);
             let mut obj = serde_json::Map::new();
-            for (k, v) in &event.data {
+            for (k, v) in &data {
                 obj.insert(k.clone(), value_to_json(v));
             }
-            serde_json::Value::Object(obj).to_string()
-        };
-        // Reactions = (command, payload_json). Policy triggers carry the
-        // event data ; driven-adapter dispatches carry their own interpolated
-        // attrs (including for_each sweep rows). PM triggers: next increment.
-        let mut reactions: Vec<(String, String)> = self
-            .policy_engine
-            .trigger_commands_for(&event.name, &event.aggregate_type)
-            .into_iter()
-            .map(|cmd| (cmd, event_payload.clone()))
-            .collect();
+            reactions.push((cmd, serde_json::Value::Object(obj).to_string()));
+        }
         for (cmd, attr_map) in driven_adapter_resolver::enumerate_driven_dispatches(self, &event) {
             let mut obj = serde_json::Map::new();
             for (k, v) in &attr_map {
@@ -867,7 +910,7 @@ impl Runtime {
             }
         }
         if reactions.is_empty() {
-            return;
+            return false;
         }
         let steps: Vec<Value> = reactions
             .iter()
@@ -902,6 +945,7 @@ impl Runtime {
             &agg_type,
             &agg_id,
         );
+        true
     }
 
     /// C2 (transactional outbox) — drain the persistent CascadeRun outbox.
@@ -917,59 +961,76 @@ impl Runtime {
         if !self.domain.aggregates.iter().any(|a| a.name == "CascadeRun") {
             return 0;
         }
-        // Snapshot Active runs as (run_id, ordered [(command, payload)]).
-        let runs: Vec<(String, Vec<(String, String)>)> = self
-            .all_qualified(Some("CascadeRun"), "CascadeRun")
-            .into_iter()
-            .filter(|r| {
-                r.fields.get("status").map(|v| v.to_string()).as_deref() == Some("running")
-            })
-            .map(|r| {
-                let mut steps: Vec<(i64, String, String)> = vec![];
-                if let Some(Value::List(items)) = r.fields.get("steps") {
-                    for it in items {
-                        if let Value::Map(m) = it {
-                            let cmd = m.get("command").map(|v| v.to_string()).unwrap_or_default();
-                            let payload =
-                                m.get("payload").map(|v| v.to_string()).unwrap_or_default();
-                            let order = match m.get("order") {
-                                Some(Value::Int(n)) => *n,
-                                _ => 0,
-                            };
-                            steps.push((order, cmd, payload));
+        // Flatten multi-hop cascades : deliver every Active run, RE-RECORD
+        // each step's own domain reactions to the outbox, and loop until no
+        // Active runs remain. Without the loop + re-record, only level-1
+        // reactions fire (a policy on a cascaded event never triggers).
+        let mut drained = 0;
+        let mut guard = 0;
+        loop {
+            guard += 1;
+            if guard > 10_000 {
+                eprintln!("[pump_outbox] cascade guard reached — stopping");
+                break;
+            }
+            let runs: Vec<(String, Vec<(String, String)>)> = self
+                .all_qualified(Some("CascadeRun"), "CascadeRun")
+                .into_iter()
+                .filter(|r| {
+                    r.fields.get("status").map(|v| v.to_string()).as_deref() == Some("running")
+                })
+                .map(|r| {
+                    let mut steps: Vec<(i64, String, String)> = vec![];
+                    if let Some(Value::List(items)) = r.fields.get("steps") {
+                        for it in items {
+                            if let Value::Map(m) = it {
+                                let cmd = m.get("command").map(|v| v.to_string()).unwrap_or_default();
+                                let payload =
+                                    m.get("payload").map(|v| v.to_string()).unwrap_or_default();
+                                let order = match m.get("order") {
+                                    Some(Value::Int(n)) => *n,
+                                    _ => 0,
+                                };
+                                steps.push((order, cmd, payload));
+                            }
                         }
                     }
-                }
-                steps.sort_by_key(|(o, _, _)| *o);
-                (
-                    r.id.clone(),
-                    steps.into_iter().map(|(_, c, p)| (c, p)).collect(),
-                )
-            })
-            .collect();
-
-        let mut drained = 0;
-        for (run_id, steps) in runs {
-            for (command, payload) in steps {
-                if command.is_empty() {
-                    continue;
-                }
-                let step_attrs = parse_payload_attrs(&payload);
-                let _ = command_dispatch::dispatch_cascade(
-                    self, &command, step_attrs, "CascadeRun", &run_id,
-                );
+                    steps.sort_by_key(|(o, _, _)| *o);
+                    (
+                        r.id.clone(),
+                        steps.into_iter().map(|(_, c, p)| (c, p)).collect(),
+                    )
+                })
+                .collect();
+            if runs.is_empty() {
+                break;
             }
-            // Complete the run — it leaves the Active set, so never re-pumped.
-            let mut ca = HashMap::new();
-            ca.insert("run_id".to_string(), Value::Str(run_id.clone()));
-            let _ = command_dispatch::dispatch_cascade(
-                self,
-                "CascadeRun::CascadeRun.Complete",
-                ca,
-                "CascadeRun",
-                &run_id,
-            );
-            drained += 1;
+            for (run_id, steps) in runs {
+                for (command, payload) in steps {
+                    if command.is_empty() {
+                        continue;
+                    }
+                    let step_attrs = parse_payload_attrs(&payload);
+                    // Deliver the step as its own transaction, and RE-RECORD its
+                    // own domain reactions so multi-hop cascades flatten across
+                    // iterations (level N -> level N+1).
+                    if let Ok(r) = command_dispatch::dispatch_cascade(
+                        self, &command, step_attrs, "CascadeRun", &run_id,
+                    ) {
+                        self.record_cascade_run(&r, false);
+                    }
+                }
+                let mut ca = HashMap::new();
+                ca.insert("run_id".to_string(), Value::Str(run_id.clone()));
+                let _ = command_dispatch::dispatch_cascade(
+                    self,
+                    "CascadeRun::CascadeRun.Complete",
+                    ca,
+                    "CascadeRun",
+                    &run_id,
+                );
+                drained += 1;
+            }
         }
         drained
     }
