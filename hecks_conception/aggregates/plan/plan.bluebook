@@ -1643,22 +1643,20 @@ Hecks.bluebook "Plan", version: "2026.06.05.4" do
 
     command "ActivateSprint" do
       role "Miette"
-      description "Add a sprint to the active set. The model is one-active-per-project (e.g. an emaho sprint AND an opt sprint can both be in active_sprints simultaneously, but two emaho sprints cannot). The command takes BOTH sprint_ref (the new activation, carried on the emitted event) AND active_sprints (the new list including it) for symmetry with DeactivateSprint and Reorder ; caller computes current_list + [sprint_ref]. That uniqueness rule is cross-aggregate AND aggregating — Board would have to read Sprint.project across every active sprint and reject a duplicate project. Single-sibling POINT gates now work (see Story.Start's Sprint(sprint).contracts_ratified gate) and the dependency SET gate reads a sibling list, but the one-active-per-project uniqueness rule is now enforced UPSTREAM at Sprint.Activate (given Sprint(project).active_peers.empty?), so two same-project sprints can never both reach the active state that this list records — closing runtime-cross-aggregate-uniqueness from the lifecycle side. RULE #4 (only a sprint ON THE BOARD may be activated) is now ENFORCED : given { queued_sprints.include?(sprint_ref) } — a local list-membership predicate (the runtime interpreter gained an .include?(arg) arm ; closes runtime-list-membership-guards). The one-active-per-project uniqueness rule above is still convention-only until its cross-aggregate predicate lands. Does NOT start any cards (rule #3) — it only records the new active set."
+      description "Add a sprint to the active set. The model is one-active-per-project (e.g. an emaho sprint AND an opt sprint can both be in active_sprints simultaneously, but two emaho sprints cannot). Carries ONLY sprint_ref ; the runtime list-append primitive (then_set append:) adds it to active_sprints element-wise, with no read-modify-write. That uniqueness rule is cross-aggregate AND aggregating — Board would have to read Sprint.project across every active sprint and reject a duplicate project. Single-sibling POINT gates now work (see Story.Start's Sprint(sprint).contracts_ratified gate) and the dependency SET gate reads a sibling list, but the one-active-per-project uniqueness rule is now enforced UPSTREAM at Sprint.Activate (given Sprint(project).active_peers.empty?), so two same-project sprints can never both reach the active state that this list records — closing runtime-cross-aggregate-uniqueness from the lifecycle side. RULE #4 (only a sprint ON THE BOARD may be activated) is now ENFORCED : given { queued_sprints.include?(sprint_ref) } — a local list-membership predicate (the runtime interpreter gained an .include?(arg) arm ; closes runtime-list-membership-guards). The one-active-per-project uniqueness rule above is still convention-only until its cross-aggregate predicate lands. Does NOT start any cards (rule #3) — it only records the new active set."
       reference_to(Board)
       attribute :sprint_ref, Sprint
-      attribute :active_sprints, list_of(Sprint)
       given("only a sprint placed on the board may be activated") { queued_sprints.include?(sprint_ref) }
-      then_set :active_sprints, to: :active_sprints
+      then_set :active_sprints, append: :sprint_ref
       emits "SprintActivatedOnBoard"
     end
 
     command "DeactivateSprint" do
       role "Miette"
-      description "Remove a sprint from the active set — that sprint is closed or paused. Other sprints in the active set are unaffected (their cards stay on the board). The command takes BOTH sprint_ref (what was deactivated, carried on the emitted event) AND active_sprints (the new list after removal) because the bluebook DSL has no list-remove primitive yet ; the caller computes current_list - [sprint_ref] and passes it as the new list. Mirrors Reorder / ReorderSprints (whole-list replace) ; gap filed : runtime-list-remove-primitive. Cards belonging to the deactivated sprint may be cleaned from cards as a separate Sprint.Complete / RemoveCard projection."
+      description "Remove a sprint from the active set — that sprint is closed or paused. Other sprints in the active set are unaffected (their cards stay on the board). Carries ONLY sprint_ref ; the runtime list-remove primitive (then_set remove:) drops it element-wise from active_sprints with no read-modify-write — a concurrent ActivateSprint can't be lost. Cards belonging to the deactivated sprint may be cleaned from cards as a separate Sprint.Complete / RemoveCard projection."
       reference_to(Board)
       attribute :sprint_ref, Sprint
-      attribute :active_sprints, list_of(Sprint)
-      then_set :active_sprints, to: :active_sprints
+      then_set :active_sprints, remove: :sprint_ref
       emits "SprintDeactivatedOnBoard"
     end
 
