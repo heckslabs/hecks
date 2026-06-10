@@ -255,7 +255,7 @@ pub fn now_iso8601() -> String {
     // wasm-safe clock (i630) — raw SystemTime::now() panics
     // "time not implemented" on wasm32 (CF Worker). dispatch_entry
     // runs on every dispatch, so the worker hit this on every POST.
-    let secs = crate::heki::now_duration().as_secs();
+    let secs = crate::clock::now_duration().as_secs();
     format_iso8601(secs)
 }
 
@@ -265,7 +265,7 @@ pub fn now_iso8601() -> String {
 ///   `{now+<N>}`  -> now + N seconds (e.g. a TTL : `{now+3600}`)
 ///   `{now-<N>}`  -> now - N seconds
 /// N is a non-negative integer count of seconds. The base instant comes
-/// from heki::now_duration(), so `HECKS_NOW=<epoch>` freezes every token
+/// from clock::now_duration(), so `HECKS_NOW=<epoch>` freezes every token
 /// in a run. Output is ISO-8601 UTC, which sorts chronologically — so a
 /// `where stale_after: { lt: :now }` comparison against a stored
 /// `{now+N}` value is correct lexically. Unknown / malformed tokens are
@@ -279,7 +279,7 @@ pub fn interpolate_now_tokens(template: &str) -> String {
     if !template.contains("{now") {
         return template.to_string();
     }
-    let base = crate::heki::now_duration().as_secs() as i64;
+    let base = crate::clock::now_duration().as_secs() as i64;
     let mut out = String::with_capacity(template.len());
     let bytes = template.as_bytes();
     let mut i = 0;

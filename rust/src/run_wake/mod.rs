@@ -78,7 +78,7 @@ pub fn run(
     let dream = read_latest_dream(&info_dir);
 
     // Phase 3 — RenderMarkdown
-    let woke_at = heki::now_iso();
+    let woke_at = crate::clock::now_iso();
     let markdown = render_markdown(&consciousness, &dream, &woke_at);
 
     // Phase 4 — WriteSurface (atomic via tempfile-and-rename)

@@ -113,7 +113,7 @@ fn storehouse_compile(args: &[String]) -> i32 {
         None => { eprintln!("storehouse storehouse compile: cannot resolve info dir"); return 3; }
     };
     let lexicon_path = storehouse::heki::path_for_lookup(&info_dir, "lexicon");
-    let now = storehouse::heki::now_iso();
+    let now = storehouse::clock::now_iso();
     // Singleton row : lexicon (CompiledAt + PhraseCount).
     let mut singleton = storehouse::heki::Record::new();
     singleton.insert("id".into(), serde_json::Value::String("lexicon".into()));

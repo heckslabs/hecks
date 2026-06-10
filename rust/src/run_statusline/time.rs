@@ -9,7 +9,7 @@ pub(super) struct Now {
 
 impl Now {
     pub(super) fn wall_clock() -> Self {
-        let dur = crate::heki::now_duration();
+        let dur = crate::clock::now_duration();
         Self {
             secs: dur.as_secs(),
             nanos_total: dur.as_nanos(),

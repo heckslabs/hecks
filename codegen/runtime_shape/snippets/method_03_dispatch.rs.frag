@@ -13,8 +13,8 @@
             .unwrap_or_else(|| {
                 // wasm-safe clock : raw std::time::SystemTime::now()
                 // panics "time not implemented" on wasm32 (CF Worker).
-                // Route through heki::now_duration (i630).
-                let d = crate::heki::now_duration();
+                // Route through clock::now_duration (i630).
+                let d = crate::clock::now_duration();
                 format!("inv_{:x}", d.subsec_nanos() as u64 ^ d.as_secs())
             });
         storehouse_log::dispatch_entry(command_name, &invocation_id, None);
@@ -72,7 +72,7 @@
         if !is_daemon {
             if let Some(ref dir) = self.data_dir {
                 // wasm-safe clock (i630) — see invocation_id above.
-                let now = crate::heki::now_duration().as_secs();
+                let now = crate::clock::now_duration().as_secs();
                 let path = format!("{}/.last_dispatch", dir.trim_end_matches('/'));
                 let phrase = self.format_breadcrumb_phrase(command_name, &result);
                 let _ = std::fs::write(&path,

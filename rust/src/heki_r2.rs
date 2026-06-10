@@ -127,7 +127,7 @@ pub async fn upsert_record(
     attrs: &Record,
 ) -> Result<Record, String> {
     let mut store = read_record(bucket, key).await?;
-    let now = crate::heki::now_iso();
+    let now = crate::clock::now_iso();
 
     let explicit_id = attrs.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
 
@@ -185,7 +185,7 @@ pub async fn append_record(
 ) -> Result<Record, String> {
     let mut store = read_record(bucket, key).await?;
     let id = crate::heki::uuid_v4();
-    let now = crate::heki::now_iso();
+    let now = crate::clock::now_iso();
 
     let mut record = Record::new();
     record.insert("id".into(), serde_json::Value::String(id.clone()));
