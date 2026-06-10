@@ -370,6 +370,7 @@ Hecks.fixtures "IrShape" do
     # MutationOp — 9 variants ; Delete / Multiply / Clamp / Decay carry doc.
     fixture "MutationOp_Set",       type_name: "MutationOp", order: 1, name: "Set",       doc_snippet: ""
     fixture "MutationOp_Append",    type_name: "MutationOp", order: 2, name: "Append",    doc_snippet: ""
+    fixture "MutationOp_Remove",    type_name: "MutationOp", order: 10, name: "Remove",    doc_snippet: "codegen/ir_shape/snippets/docs/mutation_op_remove.rs.frag"
     fixture "MutationOp_Increment", type_name: "MutationOp", order: 3, name: "Increment", doc_snippet: ""
     fixture "MutationOp_Decrement", type_name: "MutationOp", order: 4, name: "Decrement", doc_snippet: ""
     fixture "MutationOp_Toggle",    type_name: "MutationOp", order: 5, name: "Toggle",    doc_snippet: ""
