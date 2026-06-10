@@ -81,7 +81,7 @@ pub fn query(verb: &str, rt: &RefCell<Runtime>) -> (&'static str, String) {
     let rt = rt.borrow();
     let qname = rt.domain.aggregates.iter()
         .flat_map(|a| a.queries.iter())
-        .find(|q| q.name == verb || crate::heki::snake_case(&q.name) == verb)
+        .find(|q| q.name == verb || crate::util::snake_case(&q.name) == verb)
         .map(|q| q.name.clone());
     match qname {
         Some(name) => {

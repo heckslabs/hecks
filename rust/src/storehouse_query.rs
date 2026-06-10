@@ -74,7 +74,7 @@ pub fn query_route(phrase: &str, args: &[String]) -> i32 {
     let q_match = rt.domain.aggregates.iter()
         .filter(|a| a.name == agg)
         .find_map(|a| a.queries.iter()
-            .find(|q| crate::heki::snake_case(&q.name) == tail || q.name == tail)
+            .find(|q| crate::util::snake_case(&q.name) == tail || q.name == tail)
             .map(|q| (a.context.clone(), a.name.clone(), q.name.clone())));
     let (ctx, agg_name, q_name) = match q_match {
         Some(m) => m,

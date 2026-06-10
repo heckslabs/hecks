@@ -357,7 +357,7 @@ impl PMEngine {
 /// Heki path for a process manager's instance store.
 /// Convention : `<data_dir>/process_managers/<pm_snake>.heki`
 fn pm_heki_path(data_dir: &str, pm_name: &str) -> String {
-    let snake = heki::snake_case(pm_name);
+    let snake = crate::util::snake_case(pm_name);
     let trimmed = data_dir.trim_end_matches('/');
     format!("{}/process_managers/{}.heki", trimmed, snake)
 }

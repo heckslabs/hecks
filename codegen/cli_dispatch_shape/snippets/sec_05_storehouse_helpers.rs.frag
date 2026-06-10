@@ -159,7 +159,7 @@ fn storehouse_read(args: &[String]) -> i32 {
         Some(p) => p,
         None => { eprintln!("storehouse storehouse read: cannot resolve info dir"); return 3; }
     };
-    let snake = storehouse::heki::snake_case(aggregate);
+    let snake = storehouse::util::snake_case(aggregate);
     let heki_path = storehouse::heki::path_for_lookup(&info_dir, &snake);
     let store = match storehouse::heki::read(&heki_path) {
         Ok(s) => s,
