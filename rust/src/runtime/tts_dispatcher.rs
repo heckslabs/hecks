@@ -308,10 +308,7 @@ fn utc_compact() -> String {
     // Hand-rolled because we deliberately don't pull in `chrono` at
     // the kernel floor. SystemTime → seconds since epoch → calendar
     // breakdown via the standard Julian-day arithmetic.
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
+    let secs = crate::heki::now_duration().as_secs();
     let (y, mo, d, h, mi, s) = epoch_to_utc(secs);
     format!("{:04}{:02}{:02}T{:02}{:02}{:02}", y, mo, d, h, mi, s)
 }

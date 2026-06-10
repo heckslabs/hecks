@@ -535,8 +535,7 @@ fn execute_move(_fs_root: &Path, from: &str, to: &str) -> std::io::Result<()> {
 }
 
 fn current_iso8601() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let now = crate::heki::now_duration().as_secs();
     format!("{}", now)
 }
 

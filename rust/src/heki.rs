@@ -807,7 +807,7 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
 /// from runtime_shape) can route its invocation-id + breadcrumb
 /// timestamps through the same wasm-safe clock instead of calling
 /// std::time::SystemTime::now() directly (i630/VinDiction worker fix).
-pub(crate) fn now_duration() -> std::time::Duration {
+pub fn now_duration() -> std::time::Duration {
     // Determinism freeze (mirrors HECKS_RAND_SEED in interpreter.rs) :
     // `HECKS_NOW=<unix-epoch-seconds>` pins the clock so any now-bearing
     // dispatch in a fixture / golden / parity run stays byte-stable. Every
