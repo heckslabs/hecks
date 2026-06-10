@@ -52,7 +52,7 @@ fn recent_commits(repo_dir: &Path, n: usize) -> Vec<String> {
 /// "2026-04-26T09:17:59Z" → "2h ago" / "8d ago" / "" if invalid.
 fn humanize_age(ts: &str) -> String {
     if ts.is_empty() || ts == "—" { return String::new(); }
-    let now = crate::heki::now_duration().as_secs() as i64;
+    let now = crate::clock::now_duration().as_secs() as i64;
     let parsed = parse_utc_seconds(ts).unwrap_or(0);
     if parsed == 0 { return String::new(); }
     let age = now - parsed;
@@ -68,7 +68,7 @@ fn humanize_age_from_born(born: &str) -> String {
     if born.is_empty() || born == "—" { return "—".into(); }
     // Try ISO date first (YYYY-MM-DD)
     if let Some(secs) = parse_utc_seconds(&format!("{}T00:00:00Z", born.split('T').next().unwrap_or(born))) {
-        let now = crate::heki::now_duration().as_secs() as i64;
+        let now = crate::clock::now_duration().as_secs() as i64;
         let days = (now - secs) / 86400;
         if days < 0 { return "—".into(); }
         return format!("{}d", days);

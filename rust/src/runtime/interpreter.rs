@@ -467,10 +467,10 @@ fn rand_below_impl(n: i64) -> i64 {
         if x == 0 {
             // wasm-safe clock : raw std::time::SystemTime::now()
             // panics "time not implemented" on wasm32 (CF Worker).
-            // Route the xorshift seed through heki::now_duration
+            // Route the xorshift seed through clock::now_duration
             // (i7, the i630 follow-up). `| 1` keeps the non-zero
             // invariant the xorshift needs.
-            x = (crate::heki::now_duration().as_nanos() as u64) | 1;
+            x = (crate::clock::now_duration().as_nanos() as u64) | 1;
         }
         // xorshift64 — fast, decent distribution, no dependency
         x ^= x << 13;

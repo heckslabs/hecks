@@ -469,7 +469,7 @@ mod tests {
     fn persists_and_reloads_instance_state() {
         let tmp = std::env::temp_dir().join(format!(
             "hecks_pm_persist_test_{}",
-            crate::heki::now_duration()
+            crate::clock::now_duration()
                 .as_nanos()
         ));
         let dir = tmp.to_string_lossy().to_string();
@@ -564,7 +564,7 @@ mod tests {
     fn attributes_round_trip_through_heki_persistence() {
         let tmp = std::env::temp_dir().join(format!(
             "hecks_pm_attrs_test_{}",
-            crate::heki::now_duration()
+            crate::clock::now_duration()
                 .as_nanos()
         ));
         let dir = tmp.to_string_lossy().to_string();

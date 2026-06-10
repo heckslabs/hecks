@@ -644,7 +644,7 @@ end
     /// the caller is responsible for cleaning up.
     fn tempdir_under(prefix: &str) -> std::path::PathBuf {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = crate::heki::now_duration()
+        let nanos = crate::clock::now_duration()
             .as_nanos();
         let p = std::env::temp_dir().join(format!("{}{}", prefix, nanos));
         fs::create_dir_all(&p).unwrap();

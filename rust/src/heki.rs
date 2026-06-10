@@ -37,7 +37,6 @@ use std::io::Read as IoRead;
 use std::io::Write as IoWrite;
 use std::path::Path;
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::SystemTime;
 
 use flate2::Compression;
 
@@ -126,7 +125,7 @@ pub fn snapshot(path: &str) -> Result<Option<String>, String> {
     // Collision case : two snapshots within the same second (rapid
     // back-to-back delete/mark) would clobber. Append `.N` until the
     // path is free so every call produces a distinct backup.
-    let ts = now_iso8601_internal();
+    let ts = crate::clock::now_iso8601_internal();
     let mut snap_path = snap_dir.join(format!("{}.{}.heki", basename, ts));
     let mut n = 1;
     while snap_path.exists() {
@@ -264,7 +263,7 @@ pub fn append(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Recor
     audit_write(&ctx, path, "append");
     let mut store = read(path)?;
     let id = uuid_v4();
-    let now = now_iso8601_internal();
+    let now = crate::clock::now_iso8601_internal();
 
     let mut record = Record::new();
     record.insert("id".into(), serde_json::Value::String(id.clone()));
@@ -296,7 +295,7 @@ pub fn append(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Recor
 pub fn upsert(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Record, String> {
     audit_write(&ctx, path, "upsert");
     let mut store = read(path)?;
-    let now = now_iso8601_internal();
+    let now = crate::clock::now_iso8601_internal();
 
     // Rule 1: targeted update by explicit id.
     let explicit_id = attrs
@@ -362,7 +361,7 @@ pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str, ct
     let mut store = read(source_path)?;
     if let Some(mut rec) = store.remove(id) {
         rec.insert("archived_reason".into(), serde_json::Value::String(reason.into()));
-        rec.insert("archived_at".into(), serde_json::Value::String(now_iso8601_internal()));
+        rec.insert("archived_at".into(), serde_json::Value::String(crate::clock::now_iso8601_internal()));
         write_raw(source_path, &store)?;
         // Archive append uses the same context — semantically the
         // same operation.
@@ -799,42 +798,6 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
     attrs
 }
 
-/// Wasm32-portable "now since epoch" — host uses std::time, the
-/// CF-Worker WASM target uses worker::Date so the WASM build doesn't
-/// trip std's "time not implemented on this platform" panic.
-///
-/// pub(crate) so the runtime dispatch path (runtime/mod.rs, generated
-/// from runtime_shape) can route its invocation-id + breadcrumb
-/// timestamps through the same wasm-safe clock instead of calling
-/// std::time::SystemTime::now() directly (i630/VinDiction worker fix).
-pub fn now_duration() -> std::time::Duration {
-    // Determinism freeze (mirrors HECKS_RAND_SEED in interpreter.rs) :
-    // `HECKS_NOW=<unix-epoch-seconds>` pins the clock so any now-bearing
-    // dispatch in a fixture / golden / parity run stays byte-stable. Every
-    // ISO formatter in the tree (now_iso8601, now_iso8601_internal, the
-    // `{now}` token resolver) routes through here, so a single env var
-    // freezes them all. Non-numeric / unset = live clock.
-    if let Ok(pin) = std::env::var("HECKS_NOW") {
-        if let Ok(secs) = pin.trim().parse::<u64>() {
-            return std::time::Duration::from_secs(secs);
-        }
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        // worker::Date::now().as_millis() returns u64 milliseconds
-        // since the JS epoch (1970-01-01 UTC) inside the Worker
-        // runtime. Convert to Duration so the calling sites stay
-        // identical to the host path.
-        let ms = worker::Date::now().as_millis();
-        std::time::Duration::from_millis(ms)
-    }
-}
 
 /// Generate a UUID v4 (random) without external dependencies.
 pub fn uuid_v4() -> String {
@@ -848,7 +811,7 @@ pub fn uuid_v4() -> String {
         if let Ok(mut f) = fs::File::open("/dev/urandom") {
             let _ = f.read_exact(&mut bytes);
         } else {
-            let seed = now_duration().as_nanos();
+            let seed = crate::clock::now_duration().as_nanos();
             for (i, b) in bytes.iter_mut().enumerate() {
                 *b = ((seed >> (i * 4)) & 0xff) as u8;
             }
@@ -864,7 +827,7 @@ pub fn uuid_v4() -> String {
         // time-seeded bytes only if the getrandom call itself
         // fails (it shouldn't, on CF Workers).
         if getrandom::getrandom(&mut bytes).is_err() {
-            let seed = now_duration().as_nanos();
+            let seed = crate::clock::now_duration().as_nanos();
             for (i, b) in bytes.iter_mut().enumerate() {
                 let chunk = (seed >> ((i * 13) % 128)) ^ (seed >> ((i * 7) % 128));
                 *b = (chunk & 0xff) as u8;
@@ -883,69 +846,6 @@ pub fn uuid_v4() -> String {
     )
 }
 
-/// ISO 8601 timestamp without external dependencies.
-pub fn now_iso8601_internal() -> String {
-    let dur = now_duration();
-    let secs = dur.as_secs();
-
-    // Days since epoch
-    let mut days = (secs / 86400) as i64;
-    let day_secs = (secs % 86400) as u32;
-    let hours = day_secs / 3600;
-    let mins = (day_secs % 3600) / 60;
-    let s = day_secs % 60;
-
-    // Civil date from days since 1970-01-01 (Euclidean affine algorithm)
-    days += 719468;
-    let era = if days >= 0 { days } else { days - 146096 } / 146097;
-    let doe = (days - era * 146097) as u32;
-    let yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;
-    let y = yoe as i64 + era * 400;
-    let doy = doe - (365*yoe + yoe/4 - yoe/100);
-    let mp = (5*doy + 2) / 153;
-    let d = doy - (153*mp + 2)/5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = if m <= 2 { y + 1 } else { y };
-
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, mins, s)
-}
-
-/// Public alias for now_iso8601_internal.
-pub fn now_iso() -> String {
-    now_iso8601_internal()
-}
-
-/// Seconds elapsed since an ISO 8601 timestamp.
-pub fn seconds_since_iso(ts: &str) -> f64 {
-    let now = now_duration().as_secs_f64();
-    let epoch = parse_iso_to_epoch(ts);
-    if epoch > 0.0 { now - epoch } else { 0.0 }
-}
-
-fn parse_iso_to_epoch(ts: &str) -> f64 {
-    if ts.len() < 19 { return 0.0; }
-    let y: i64 = ts[0..4].parse().unwrap_or(0);
-    let m: u32 = ts[5..7].parse().unwrap_or(0);
-    let d: u32 = ts[8..10].parse().unwrap_or(0);
-    let h: u32 = ts[11..13].parse().unwrap_or(0);
-    let mn: u32 = ts[14..16].parse().unwrap_or(0);
-    let s: u32 = ts[17..19].parse().unwrap_or(0);
-    let (y_adj, m_adj) = if m <= 2 { (y - 1, m + 9) } else { (y, m - 3) };
-    let era = if y_adj >= 0 { y_adj } else { y_adj - 399 } / 400;
-    let yoe = (y_adj - era * 400) as u32;
-    let doy = (153 * m_adj + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146097 + doe as i64 - 719468;
-    let mut epoch = days as f64 * 86400.0 + h as f64 * 3600.0 + mn as f64 * 60.0 + s as f64;
-    let tz_part = &ts[19..];
-    if tz_part.starts_with('+') || tz_part.starts_with('-') {
-        let sign: f64 = if tz_part.starts_with('-') { 1.0 } else { -1.0 };
-        let tz_h: f64 = tz_part[1..3].parse().unwrap_or(0.0);
-        let tz_m: f64 = if tz_part.len() >= 6 { tz_part[4..6].parse().unwrap_or(0.0) } else { 0.0 };
-        epoch += sign * (tz_h * 3600.0 + tz_m * 60.0);
-    }
-    epoch
-}
 
 // ---------------------------------------------------------------------------
 // Summary

@@ -2637,7 +2637,7 @@ fn heki_cmd_mark(file: &str, rest: &[String]) {
         .map(|(id, _)| id.clone())
         .collect();
     let matched = ids.len();
-    let now = heki::now_iso();
+    let now = storehouse::clock::now_iso();
     for id in &ids {
         if let Some(rec) = store.get_mut(id) {
             for (k, v) in &sets {
@@ -2681,7 +2681,7 @@ fn heki_cmd_seconds_since(file: &str, rest: &[String]) {
         eprintln!("field not found or empty: {}", field);
         std::process::exit(3);
     }
-    let secs = heki::seconds_since_iso(&ts);
+    let secs = storehouse::clock::seconds_since_iso(&ts);
     // Integer seconds — what the shell scripts want for -ge/-le compares.
     println!("{}", secs as i64);
 }
@@ -4408,7 +4408,7 @@ fn resolve_now_loop_attrs(
 }
 
 fn chrono_utc_now() -> String {
-    let now = storehouse::heki::now_duration().as_secs() as i64;
+    let now = storehouse::clock::now_duration().as_secs() as i64;
     // Inline ISO-8601 — avoids pulling chrono crate just for this.
     let (year, month, day, hour, min, sec) = ymdhms_from_unix(now);
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
@@ -5105,7 +5105,7 @@ fn run_clock(args: &[String]) {
 /// Returns local-time hour [0,23] without pulling chrono. Uses libc
 /// localtime_r so DST behaves correctly.
 fn current_local_hour() -> u32 {
-    let secs = storehouse::heki::now_duration().as_secs() as i64;
+    let secs = storehouse::clock::now_duration().as_secs() as i64;
     #[repr(C)]
     struct Tm {
         sec: i32, min: i32, hour: i32, mday: i32, mon: i32, year: i32,
@@ -5691,7 +5691,7 @@ fn storehouse_compile(args: &[String]) -> i32 {
         None => { eprintln!("storehouse storehouse compile: cannot resolve info dir"); return 3; }
     };
     let lexicon_path = storehouse::heki::path_for_lookup(&info_dir, "lexicon");
-    let now = storehouse::heki::now_iso();
+    let now = storehouse::clock::now_iso();
     // Singleton row : lexicon (CompiledAt + PhraseCount).
     let mut singleton = storehouse::heki::Record::new();
     singleton.insert("id".into(), serde_json::Value::String("lexicon".into()));

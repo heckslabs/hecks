@@ -1541,7 +1541,7 @@ fn heki_cmd_mark(file: &str, rest: &[String]) {
         .map(|(id, _)| id.clone())
         .collect();
     let matched = ids.len();
-    let now = heki::now_iso();
+    let now = clock::now_iso();
     for id in &ids {
         if let Some(rec) = store.get_mut(id) {
             for (k, v) in &sets {
@@ -1585,7 +1585,7 @@ fn heki_cmd_seconds_since(file: &str, rest: &[String]) {
         eprintln!("field not found or empty: {}", field);
         std::process::exit(3);
     }
-    let secs = heki::seconds_since_iso(&ts);
+    let secs = clock::seconds_since_iso(&ts);
     // Integer seconds — what the shell scripts want for -ge/-le compares.
     println!("{}", secs as i64);
 }

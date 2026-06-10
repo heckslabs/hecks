@@ -535,7 +535,7 @@ fn execute_move(_fs_root: &Path, from: &str, to: &str) -> std::io::Result<()> {
 }
 
 fn current_iso8601() -> String {
-    let now = crate::heki::now_duration().as_secs();
+    let now = crate::clock::now_duration().as_secs();
     format!("{}", now)
 }
 

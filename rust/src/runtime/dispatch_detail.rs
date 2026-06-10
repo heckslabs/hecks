@@ -194,7 +194,7 @@ impl DispatchScope {
             args_json,
             source_tag: resolve_source_tag(),
             dispatched_at: storehouse_log::now_iso8601(),
-            started: crate::heki::now_duration(),
+            started: crate::clock::now_duration(),
             outcome: "ok".to_string(),
             result_state: String::new(),
             armed: true,
@@ -219,7 +219,7 @@ impl Drop for DispatchScope {
         // Snapshot the events for the warm serve path BEFORE serialising
         // the file block. `take_last_events()` drains this after dispatch.
         LAST_EVENTS.with(|s| *s.borrow_mut() = events.clone());
-        let elapsed_ms = crate::heki::now_duration()
+        let elapsed_ms = crate::clock::now_duration()
             .saturating_sub(self.started)
             .as_millis() as u64;
         // JSONL event stream : one self-contained JSON object per emitted
