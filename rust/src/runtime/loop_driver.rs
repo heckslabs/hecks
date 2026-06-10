@@ -252,13 +252,19 @@ impl LoopDriver {
                     // value frozen at registration time). HECKS_NOW still
                     // freezes it for deterministic tests.
                     let attrs = resolve_now_attrs(attrs);
-                    if let Err(e) = self.runtime.dispatch(&command_name, attrs) {
+                    // C3 CUTOVER — the daemon tick is ASYNC too. Deferred core
+                    // mutation + ports ; domain reactions go to the outbox.
+                    if let Err(e) = self.runtime.dispatch_deferred(&command_name, attrs) {
                         eprintln!("[loop_driver] dispatch error '{}': {:?}",
                                   command_name, e);
                     }
-                    // C3 (transactional outbox) — drain the persistent queue
-                    // each tick. No-op while gated off; wired for the cutover.
+                    // Drain the outbox (persistent + in-memory fallback), then
+                    // RESET the cycle guard so the next tick starts fresh — one
+                    // Runtime lives across every tick, so in_flight must not leak
+                    // between ticks or policies would fire only on tick 1.
                     self.runtime.pump_outbox();
+                    self.runtime.pump();
+                    self.runtime.policy_engine.reset_in_flight();
                 }
             }
         }
