@@ -874,14 +874,39 @@ impl Runtime {
         // the same attrs. Policy triggers: event data + `with` literals, then
         // inject_refs so the triggered command's reference_to resolves.
         let mut reactions: Vec<(String, String)> = Vec::new();
-        let policy_triggers = self
-            .policy_engine
-            .trigger_commands_for(&event.name, &event.aggregate_type);
-        for (cmd, withs) in policy_triggers {
-            let mut data = event.data.clone();
-            for (k, v) in withs {
-                data.insert(k, Value::Str(v));
-            }
+        // Policy triggers. On the DEFERRED (real async) path, capture through
+        // policy_engine.react so the in_flight reentrancy guard breaks cyclic
+        // cascades EXACTLY as the eager path does (a re-entrant policy within
+        // this pump session is skipped) ; in_flight is not cleared here — the
+        // fork-per-dispatch process boundary resets it. On the EAGER path this
+        // is introspection only, so use the read-only enumerator (no in_flight
+        // side effect, since the eager drain_policies owns that lifecycle).
+        let policy_resolved: Vec<(String, HashMap<String, Value>)> = if eager {
+            self.policy_engine
+                .trigger_commands_for(&event.name, &event.aggregate_type)
+                .into_iter()
+                .map(|(cmd, withs)| {
+                    let mut data = event.data.clone();
+                    for (k, v) in withs {
+                        data.insert(k, Value::Str(v));
+                    }
+                    (cmd, data)
+                })
+                .collect()
+        } else {
+            self.policy_engine
+                .react(&event)
+                .into_iter()
+                .map(|t| {
+                    let mut data = t.event_data.clone();
+                    for (k, v) in &t.with_data {
+                        data.insert(k.clone(), v.clone());
+                    }
+                    (t.command_name.clone(), data)
+                })
+                .collect()
+        };
+        for (cmd, mut data) in policy_resolved {
             self.inject_refs(&cmd, &event.aggregate_type, &event.aggregate_id, &mut data);
             let mut obj = serde_json::Map::new();
             for (k, v) in &data {

@@ -3615,14 +3615,19 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
                 _ => storehouse::runtime::Value::Str(v.to_string()),
             }))
             .collect();
-        // C3 outbox is wired but the body stays on the EAGER path for now :
-        // flipping to dispatch_deferred surfaced a double-fire (core event-bus
-        // subscribers fire a reaction that record_cascade_run also captures, so
-        // pump_outbox re-fires it). The async mechanism is proven (C2/driven) ;
-        // the body cutover waits on resolving that overlap. pump_outbox stays
-        // wired but is a no-op while nothing records to the persistent outbox.
-        let dispatch_result = rt.dispatch(command, rt_attrs);
+        // C3 CUTOVER (live) — the body's one-shot CLI dispatch is ASYNC.
+        // dispatch_deferred runs the command's core mutation (one aggregate)
+        // + the impure ports (tools / AI fire in-band), records the cross-
+        // aggregate DOMAIN reactions to the persistent CascadeRun outbox, and
+        // returns WITHOUT running them. pump_outbox then delivers each as its
+        // own transaction (flattening multi-hop), and pump() drains the in-
+        // memory fallback for roots that don't load CascadeRun. Synchronous-
+        // between-aggregates is impossible here : a sibling never reacts inside
+        // the command that triggered it. Cyclic cascades are bounded by the
+        // policy in_flight guard, exactly as the eager path (pulse count == 1).
+        let dispatch_result = rt.dispatch_deferred(command, rt_attrs);
         rt.pump_outbox();
+        rt.pump();
         match dispatch_result {
             Ok(result) => {
                 // Runtime projection of StoryExecuted — dispatching
