@@ -9,9 +9,9 @@
 //! the production fork-per-dispatch — the reason an in-memory outbox can't
 //! be the answer.
 //!
-//! Gated by HECKS_CASCADE_OUTBOX=1 so the live body is untouched until the
-//! pump is wired. Single test in this binary — the process-global env var
-//! has no cross-test race.
+//! Records unconditionally on the deferred path — the structural cutover made
+//! the persistent outbox the only delivery path ; the old HECKS_CASCADE_OUTBOX
+//! flag that gated the dual-write phase is retired.
 
 use storehouse::corpus_loader::load_combined_domain;
 use storehouse::runtime::{Runtime, Value};
@@ -33,7 +33,6 @@ fn field(rt: &Runtime, agg: &str, id: &str, f: &str) -> Option<String> {
 
 #[test]
 fn runtime_dual_writes_a_persistent_cascade_run_for_a_policy_cascade() {
-    std::env::set_var("HECKS_CASCADE_OUTBOX", "1");
 
     let domain = load_combined_domain(&aggregates_dir());
     let mut rt = Runtime::boot(domain);

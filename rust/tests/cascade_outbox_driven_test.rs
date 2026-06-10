@@ -37,7 +37,7 @@ fn pump_outbox_delivers_a_driven_adapter_reaction() {
     let domain = load_combined_domain(&aggregates_dir());
     let mut rt = Runtime::boot_with_hecksagons(domain, None, vec![hecksagon_parser::parse(RESET_HEX)]);
 
-    // Flag-off setup: a started story with one completed task.
+    // Setup: a started story with one completed task.
     rt.dispatch("Plan::Sprint.Plan", attrs(&[("number", s("1")), ("goal", s("g")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[("id", s("1")), ("contracts", s("c"))])).unwrap();
     rt.dispatch("Plan::Sprint.Activate", attrs(&[("id", s("1"))])).unwrap();
@@ -51,7 +51,6 @@ fn pump_outbox_delivers_a_driven_adapter_reaction() {
     assert_ne!(field(&rt, "Plan", "Task", "t1", "status").as_deref(), Some("pending"), "task is done pre-reset");
 
     // Turn the outbox on and DEFER the reset.
-    std::env::set_var("HECKS_CASCADE_OUTBOX", "1");
     rt.dispatch_deferred("Plan::Story.Reset", attrs(&[("id", s("r1"))])).unwrap();
 
     // Core mutation (Story reverted) is synchronous — one aggregate.

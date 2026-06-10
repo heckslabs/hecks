@@ -12,8 +12,9 @@
 //! triggers Story.BumpPendingTaskCount (pending_task_count += 1). Deferred,
 //! the bump waits in the outbox ; the pump delivers it.
 //!
-//! Gated by HECKS_CASCADE_OUTBOX=1, set AFTER the flag-off setup so only the
-//! command under test enqueues an outbox entry.
+//! Setup commands settle via `dispatch` (record + pump_outbox + complete) ;
+//! the command under test uses `dispatch_deferred` so its run stays Active
+//! until the explicit `pump_outbox()` below delivers it.
 
 use storehouse::corpus_loader::load_combined_domain;
 use storehouse::runtime::{Runtime, Value};
@@ -38,7 +39,9 @@ fn pump_outbox_delivers_a_deferred_dispatchs_reaction() {
     let domain = load_combined_domain(&aggregates_dir());
     let mut rt = Runtime::boot(domain);
 
-    // Flag-off setup — no outbox entries written for these.
+    // Setup settles synchronously via `dispatch` (each records to the outbox,
+    // then pump_outbox drains + Completes it), so only the command under test
+    // leaves an Active run.
     rt.dispatch("Plan::Sprint.Plan", attrs(&[("number", s("1")), ("goal", s("g")), ("project", s("plan"))])).unwrap();
     rt.dispatch("Plan::Sprint.RatifyContracts", attrs(&[("id", s("1")), ("contracts", s("c"))])).unwrap();
     rt.dispatch("Plan::Sprint.Activate", attrs(&[("id", s("1"))])).unwrap();
@@ -49,7 +52,6 @@ fn pump_outbox_delivers_a_deferred_dispatchs_reaction() {
     assert_eq!(field(&rt, "Plan", "Story", "r1", "pending_task_count").as_deref(), Some("0"), "baseline");
 
     // Turn the persistent outbox on, then DEFER the cascade-triggering command.
-    std::env::set_var("HECKS_CASCADE_OUTBOX", "1");
     rt.dispatch_deferred("Plan::Task.Add", attrs(&[("id", s("t1")), ("story", s("r1")), ("order", s("1")), ("description", s("d"))])).unwrap();
 
     // The Task exists (core mutation, one aggregate) but the reaction is
