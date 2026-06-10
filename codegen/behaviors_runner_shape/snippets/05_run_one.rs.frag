@@ -210,6 +210,10 @@ fn run_one(
             let actual: Vec<String> = rt.event_bus.events()
                 .iter()
                 .skip(pre_dispatch_event_count)
+                // CascadeRun lifecycle events (CascadeRunBegun / Completed) are
+                // outbox INFRASTRUCTURE, not part of the domain cascade the
+                // behaviors assert. Exclude them from the emit chain.
+                .filter(|e| e.aggregate_type != "CascadeRun")
                 .map(|e| e.name.clone())
                 .collect();
             if actual != expected_events {
@@ -228,6 +232,10 @@ fn run_one(
             let actual: Vec<String> = rt.event_bus.events()
                 .iter()
                 .skip(pre_dispatch_event_count)
+                // CascadeRun lifecycle events (CascadeRunBegun / Completed) are
+                // outbox INFRASTRUCTURE, not part of the domain cascade the
+                // behaviors assert. Exclude them from the emit chain.
+                .filter(|e| e.aggregate_type != "CascadeRun")
                 .map(|e| e.name.clone())
                 .collect();
             if actual.len() < expected_events.len()
@@ -247,6 +255,10 @@ fn run_one(
             let actual: Vec<String> = rt.event_bus.events()
                 .iter()
                 .skip(pre_dispatch_event_count)
+                // CascadeRun lifecycle events (CascadeRunBegun / Completed) are
+                // outbox INFRASTRUCTURE, not part of the domain cascade the
+                // behaviors assert. Exclude them from the emit chain.
+                .filter(|e| e.aggregate_type != "CascadeRun")
                 .map(|e| e.name.clone())
                 .collect();
             // Greedy in-order match : walk expected, advance an actual

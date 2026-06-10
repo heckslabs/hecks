@@ -57,7 +57,7 @@ fn pump_outbox_delivers_a_deferred_dispatchs_reaction() {
     assert_eq!(field(&rt, "Plan", "Task", "t1", "status").as_deref(), Some("pending"), "task created");
     assert_eq!(field(&rt, "Plan", "Story", "r1", "pending_task_count").as_deref(), Some("0"),
         "reaction DEFERRED — bump waits in the persistent outbox, not run inline");
-    assert_eq!(field(&rt, "CascadeRun", "CascadeRun", "t1::TaskAdded", "status").as_deref(), Some("running"),
+    assert_eq!(field(&rt, "CascadeRun", "CascadeRun", "Task::t1::TaskAdded", "status").as_deref(), Some("running"),
         "outbox entry is Active, awaiting the pump");
 
     // Pump delivers it — a separate phase, its own transaction.
@@ -65,7 +65,7 @@ fn pump_outbox_delivers_a_deferred_dispatchs_reaction() {
     assert_eq!(drained, 1, "one Active run drained");
     assert_eq!(field(&rt, "Plan", "Story", "r1", "pending_task_count").as_deref(), Some("1"),
         "reaction DELIVERED by the pump — bump applied as its own transaction");
-    assert_eq!(field(&rt, "CascadeRun", "CascadeRun", "t1::TaskAdded", "status").as_deref(), Some("completed"),
+    assert_eq!(field(&rt, "CascadeRun", "CascadeRun", "Task::t1::TaskAdded", "status").as_deref(), Some("completed"),
         "run Completed — leaves the Active set, never re-delivered (run-grain idempotency)");
 
     // Idempotency: a second pump finds nothing Active, delivers nothing.

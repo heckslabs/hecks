@@ -599,7 +599,20 @@ impl Runtime {
         command_name: &str,
         attrs: HashMap<String, Value>,
     ) -> Result<CommandResult, RuntimeError> {
-        self.dispatch_impl(command_name, attrs, true)
+        // Structural cutover : `dispatch` IS the async outbox path. The core
+        // mutation touches ONE aggregate ; cross-aggregate reactions go to the
+        // outbox and are delivered by the pump as SEPARATE transactions, then
+        // the cycle guard resets. It settles in-process (pump before return) so
+        // callers still see a settled cascade — but no reaction ever runs
+        // inline with the command. Roots without the CascadeRun outbox fall
+        // back to the in-memory pump (== the prior synchronous react), so
+        // behaviour is preserved there. Synchronous-between-aggregates is now
+        // structurally unrepresentable : there is no inline-reaction path left.
+        let r = self.dispatch_impl(command_name, attrs, false)?;
+        self.pump_outbox();
+        self.pump();
+        self.policy_engine.reset_in_flight();
+        Ok(r)
     }
 
     /// Phase 3 — enqueue a command's reactions WITHOUT running the pump.
@@ -907,7 +920,14 @@ impl Runtime {
                 .collect()
         };
         for (cmd, mut data) in policy_resolved {
-            self.inject_refs(&cmd, &event.aggregate_type, &event.aggregate_id, &mut data);
+            // inject_refs matches the BARE command name (DropPendingTaskCount),
+            // not the FQN (Story.DropPendingTaskCount) the policy binding carries.
+            // Strip the aggregate prefix so the reference_to target resolves into
+            // the payload HERE — the pump dispatches with a CascadeRun upstream, so
+            // the payload must already carry every ref (the eager path resolves it
+            // from the real upstream inside dispatch_inner instead).
+            let bare = cmd.rsplit('.').next().unwrap_or(&cmd).to_string();
+            self.inject_refs(&bare, &event.aggregate_type, &event.aggregate_id, &mut data);
             let mut obj = serde_json::Map::new();
             for (k, v) in &data {
                 obj.insert(k.clone(), value_to_json(v));
@@ -952,7 +972,10 @@ impl Runtime {
                 Value::Map(m)
             })
             .collect();
-        let run_id = format!("{}::{}", event.aggregate_id, event.name);
+        // run_id encodes the upstream so the pump can dispatch each step with
+        // the ORIGINAL triggering aggregate as upstream (== the eager path),
+        // letting reference_to(SameAggregate) resolve via dispatch_inner.
+        let run_id = format!("{}::{}::{}", event.aggregate_type, event.aggregate_id, event.name);
         let mut retry = HashMap::new();
         retry.insert("max_attempts".to_string(), Value::Int(0));
         retry.insert("backoff".to_string(), Value::Str("none".to_string()));
@@ -1031,6 +1054,13 @@ impl Runtime {
                 break;
             }
             for (run_id, steps) in runs {
+                // Decode the upstream the run_id carries (type::id::event) so each
+                // step dispatches against the ORIGINAL triggering aggregate as
+                // upstream — exactly the eager path — letting reference_to(target)
+                // resolve in dispatch_inner (e.g. Lease.Reclaim's reference_to(Lease)).
+                let mut up = run_id.splitn(3, "::");
+                let up_type = up.next().unwrap_or("").to_string();
+                let up_id = up.next().unwrap_or("").to_string();
                 for (command, payload) in steps {
                     if command.is_empty() {
                         continue;
@@ -1040,7 +1070,7 @@ impl Runtime {
                     // own domain reactions so multi-hop cascades flatten across
                     // iterations (level N -> level N+1).
                     if let Ok(r) = command_dispatch::dispatch_cascade(
-                        self, &command, step_attrs, "CascadeRun", &run_id,
+                        self, &command, step_attrs, &up_type, &up_id,
                     ) {
                         self.record_cascade_run(&r, false);
                     }
