@@ -149,7 +149,11 @@ impl PolicyEngine {
     /// `react`'s selection logic (the qualifier match), minus the
     /// `in_flight` mutation. Used to PLAN a CascadeRun's steps for the
     /// persistent outbox before any reaction executes.
-    pub fn trigger_commands_for(&self, event_name: &str, aggregate_type: &str) -> Vec<String> {
+    pub fn trigger_commands_for(
+        &self,
+        event_name: &str,
+        aggregate_type: &str,
+    ) -> Vec<(String, Vec<(String, String)>)> {
         let indices = match self.by_event.get(event_name) {
             Some(v) => v,
             None => return vec![],
@@ -163,7 +167,16 @@ impl PolicyEngine {
                         return None;
                     }
                 }
-                Some(b.trigger_command.clone())
+                // `with` literals (static Literal specs only, mirroring react).
+                let withs: Vec<(String, String)> = b
+                    .with
+                    .iter()
+                    .filter_map(|(k, spec)| match spec {
+                        ValueSpec::Literal { value } => Some((k.clone(), value.clone())),
+                        _ => None,
+                    })
+                    .collect();
+                Some((b.trigger_command.clone(), withs))
             })
             .collect()
     }
