@@ -33,6 +33,7 @@ pub mod validator_corpus;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod conceiver;
 pub mod clock;
+pub mod util;
 pub mod heki;
 // heki_r2 — R2-backed sibling of heki, used inside Cloudflare
 // Workers. Cfg-gated to wasm32 because the `worker::Bucket` it

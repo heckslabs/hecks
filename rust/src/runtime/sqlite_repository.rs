@@ -64,7 +64,7 @@ impl SqliteRepository {
         }
         let conn = Connection::open(db_path)
             .unwrap_or_else(|e| panic!("sqlite open {db_path}: {e}"));
-        let table = heki::snake_case(aggregate_type);
+        let table = crate::util::snake_case(aggregate_type);
         let col_names: Vec<String> = columns.iter().map(|(n, _)| n.clone()).collect();
         Self::create_table(&conn, &table, &columns);
         let mut repo = SqliteRepository {

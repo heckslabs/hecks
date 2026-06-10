@@ -36,8 +36,6 @@ use std::fs;
 use std::io::Read as IoRead;
 use std::io::Write as IoWrite;
 use std::path::Path;
-#[cfg(not(target_arch = "wasm32"))]
-
 use flate2::Compression;
 
 /// A single record — a JSON object keyed by field name.
@@ -262,7 +260,7 @@ fn write_raw(path: &str, store: &Store) -> Result<(), String> {
 pub fn append(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Record, String> {
     audit_write(&ctx, path, "append");
     let mut store = read(path)?;
-    let id = uuid_v4();
+    let id = crate::util::uuid_v4();
     let now = crate::clock::now_iso8601_internal();
 
     let mut record = Record::new();
@@ -330,7 +328,7 @@ pub fn upsert(path: &str, attrs: &Record, ctx: WriteContext<'_>) -> Result<Recor
     // Rule 3: create. Reuse explicit id if the caller passed one that
     // didn't match — this preserves `id=1` style singletons that get
     // bootstrapped on first write.
-    let id = explicit_id.unwrap_or_else(uuid_v4);
+    let id = explicit_id.unwrap_or_else(crate::util::uuid_v4);
     let mut rec = Record::new();
     rec.insert("id".into(), serde_json::Value::String(id.clone()));
     rec.insert("created_at".into(), serde_json::Value::String(now.clone()));
@@ -367,7 +365,7 @@ pub fn archive(source_path: &str, archive_path: &str, id: &str, reason: &str, ct
         // same operation.
         let mut store = read(archive_path)?;
         let id_val = rec.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())
-            .unwrap_or_else(uuid_v4);
+            .unwrap_or_else(crate::util::uuid_v4);
         store.insert(id_val, rec);
         write_raw(archive_path, &store)?;
         Ok(true)
@@ -407,17 +405,6 @@ pub fn store_path(dir: &str, name: &str) -> String {
 // silent staleness across consumers. Every path-builder in the codebase
 // routes through these two functions.
 
-/// Convert PascalCase / camelCase to snake_case for filesystem-friendly
-/// path segments. "MietteBody" → "miette_body" ; "mood" → "mood".
-pub fn snake_case(s: &str) -> String {
-    let mut out = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() && i > 0 { out.push('_'); }
-        out.push(c.to_lowercase().next().unwrap_or(c));
-    }
-    out
-}
-
 /// Authoritative path for a write site that knows the aggregate's
 /// context. When `context` is set (i142 Tier 2), returns the
 /// nested form `<dir>/<context_snake>/<aggregate_snake>.heki`.
@@ -426,10 +413,10 @@ pub fn snake_case(s: &str) -> String {
 ///
 /// Used by Repository::heki_path_self.
 pub fn path_for(dir: &str, aggregate: &str, context: Option<&str>) -> String {
-    let agg_snake = snake_case(aggregate);
+    let agg_snake = crate::util::snake_case(aggregate);
     match context {
         Some(ctx) if !ctx.is_empty() => {
-            let ctx_snake = snake_case(ctx);
+            let ctx_snake = crate::util::snake_case(ctx);
             format!("{}/{}/{}.heki", dir, ctx_snake, agg_snake)
         }
         _ => format!("{}/{}.heki", dir, agg_snake),
@@ -499,14 +486,6 @@ mod path_tests {
         let p = std::env::temp_dir().join(format!("heki_path_test_{}_{}", nanos, seq));
         fs::create_dir_all(&p).unwrap();
         p
-    }
-
-    #[test]
-    fn snake_case_handles_pascal_camel_and_lower() {
-        assert_eq!(snake_case("Mood"),       "mood");
-        assert_eq!(snake_case("MietteBody"), "miette_body");
-        assert_eq!(snake_case("mood"),       "mood");
-        assert_eq!(snake_case("ABCD"),       "a_b_c_d");
     }
 
     #[test]
@@ -799,52 +778,6 @@ pub fn parse_attrs(pairs: &[String]) -> Record {
 }
 
 
-/// Generate a UUID v4 (random) without external dependencies.
-pub fn uuid_v4() -> String {
-    let mut bytes = [0u8; 16];
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        // Host : pull system entropy via /dev/urandom ; fall back
-        // to hashing the current time if that fails (e.g. on
-        // hardened sandboxes).
-        if let Ok(mut f) = fs::File::open("/dev/urandom") {
-            let _ = f.read_exact(&mut bytes);
-        } else {
-            let seed = crate::clock::now_duration().as_nanos();
-            for (i, b) in bytes.iter_mut().enumerate() {
-                *b = ((seed >> (i * 4)) & 0xff) as u8;
-            }
-        }
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        // WASM : no /dev/urandom in the CF Worker runtime. Route
-        // through getrandom::getrandom which, with the `js` feature
-        // enabled in Cargo.toml, calls JS crypto.getRandomValues —
-        // the same CSPRNG the Worker runtime exposes to the JS side.
-        // Crypto-grade entropy without /dev/urandom. Fall back to
-        // time-seeded bytes only if the getrandom call itself
-        // fails (it shouldn't, on CF Workers).
-        if getrandom::getrandom(&mut bytes).is_err() {
-            let seed = crate::clock::now_duration().as_nanos();
-            for (i, b) in bytes.iter_mut().enumerate() {
-                let chunk = (seed >> ((i * 13) % 128)) ^ (seed >> ((i * 7) % 128));
-                *b = (chunk & 0xff) as u8;
-            }
-        }
-    }
-    // Set version 4 and variant bits
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    format!(
-        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        bytes[0], bytes[1], bytes[2], bytes[3],
-        bytes[4], bytes[5], bytes[6], bytes[7],
-        bytes[8], bytes[9], bytes[10], bytes[11],
-        bytes[12], bytes[13], bytes[14], bytes[15]
-    )
-}
 
 
 // ---------------------------------------------------------------------------

@@ -158,7 +158,7 @@ pub async fn upsert_record(
     }
 
     // Rule 3 : create.
-    let id = explicit_id.unwrap_or_else(crate::heki::uuid_v4);
+    let id = explicit_id.unwrap_or_else(crate::util::uuid_v4);
     let mut rec = Record::new();
     rec.insert("id".into(), serde_json::Value::String(id.clone()));
     rec.insert("created_at".into(), serde_json::Value::String(now.clone()));
@@ -184,7 +184,7 @@ pub async fn append_record(
     attrs: &Record,
 ) -> Result<Record, String> {
     let mut store = read_record(bucket, key).await?;
-    let id = crate::heki::uuid_v4();
+    let id = crate::util::uuid_v4();
     let now = crate::clock::now_iso();
 
     let mut record = Record::new();

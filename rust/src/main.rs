@@ -3558,7 +3558,7 @@ fn dispatch_hecksagon(agg_dir: &str, command: &str, attrs: std::collections::Has
             let q_match = rt.domain.aggregates.iter()
                 .filter(|a| a.name == agg)
                 .find_map(|a| a.queries.iter()
-                    .find(|q| storehouse::heki::snake_case(&q.name) == tail || q.name == tail)
+                    .find(|q| storehouse::util::snake_case(&q.name) == tail || q.name == tail)
                     .map(|q| (a.context.clone(), a.name.clone(), q.name.clone())));
             if let Some((ctx, agg_name, q_name)) = q_match {
                 let str_attrs: std::collections::HashMap<String, String> = attrs.iter()
@@ -5737,7 +5737,7 @@ fn storehouse_read(args: &[String]) -> i32 {
         Some(p) => p,
         None => { eprintln!("storehouse storehouse read: cannot resolve info dir"); return 3; }
     };
-    let snake = storehouse::heki::snake_case(aggregate);
+    let snake = storehouse::util::snake_case(aggregate);
     let heki_path = storehouse::heki::path_for_lookup(&info_dir, &snake);
     let store = match storehouse::heki::read(&heki_path) {
         Ok(s) => s,
