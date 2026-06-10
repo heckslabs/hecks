@@ -132,9 +132,7 @@ pub fn humanize_age_simple(ts: &str) -> String {
 
 fn parse_age(ts: &str) -> Option<String> {
     if ts.is_empty() || ts == "—" { return None; }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let now = crate::heki::now_duration().as_secs() as i64;
     let bytes = ts.as_bytes();
     if bytes.len() < 20 { return None; }
     let p = |b: &[u8]| -> Option<i64> { std::str::from_utf8(b).ok()?.parse().ok() };

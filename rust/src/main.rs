@@ -4408,9 +4408,7 @@ fn resolve_now_loop_attrs(
 }
 
 fn chrono_utc_now() -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64).unwrap_or(0);
+    let now = storehouse::heki::now_duration().as_secs() as i64;
     // Inline ISO-8601 — avoids pulling chrono crate just for this.
     let (year, month, day, hour, min, sec) = ymdhms_from_unix(now);
     format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, hour, min, sec)
@@ -5107,8 +5105,7 @@ fn run_clock(args: &[String]) {
 /// Returns local-time hour [0,23] without pulling chrono. Uses libc
 /// localtime_r so DST behaves correctly.
 fn current_local_hour() -> u32 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let secs = storehouse::heki::now_duration().as_secs() as i64;
     #[repr(C)]
     struct Tm {
         sec: i32, min: i32, hour: i32, mday: i32, mon: i32, year: i32,

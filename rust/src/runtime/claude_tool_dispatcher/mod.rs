@@ -412,8 +412,7 @@ mod tests {
     fn build_glob_fixture() -> String {
         let root = format!("/tmp/claude_tool_glob_{}_{}",
             std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
+            crate::heki::now_duration().as_nanos());
         std::fs::create_dir_all(format!("{}/runtime", root)).unwrap();
         std::fs::create_dir_all(format!("{}/runtime/nested", root)).unwrap();
         std::fs::write(format!("{}/runtime/alpha.rs", root), "// alpha\n").unwrap();
