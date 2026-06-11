@@ -188,3 +188,35 @@ reference_to retires in TWO halves, neither needing the keyword :
    inference  [this section]
 Then : parser rejects `reference_to` ; macrophage keeps it dead ; goldens
 regenerate. One worktree sprint, gated (suite + behaviors + integrity + golden).
+
+---
+
+# CORRECTION : reference by IDENTITY, not `id` (2026-06-11, Chris)
+
+Domains do not reference `id`. An aggregate references another by its IDENTITY
+— a TYPED value object (SprintNumber, StoryRef) — and a command targets its own
+aggregate by that aggregate's declared `identified_by` field. `Sprint.Activate`
+resolves its Sprint by `number` because number IS a Sprint's identity. There is
+no domain-level `id`.
+
+**Corrects the `create`/`command` mechanism above** : a `command` (transition)
+resolves the target by the aggregate's `identified_by` field (number / ref /
+name), NOT the universal `id`. The universal `id` (command_dispatch.rs:212,
+i519) is demoted to what it is : a RUNTIME-EDGE adapter for generic cascade
+callers that don't know the identity's name — below the domain, never a thing a
+bluebook reaches for.
+
+## The drift is real and measured (2026-06-11)
+- 44 aggregates are `identified_by :id` (identity = a raw id, not a domain VO).
+- 130 `attribute :id` declarations across bluebooks.
+- The runtime accepts `attrs.get("id")` as a universal fallback — the gravity
+  well that keeps pulling the domain back to id-thinking.
+End-state : retire `identified_by :id` / `attribute :id` toward typed
+identities (worst offenders are likely framework/tools — git, filesystem —
+which are infra-ish, but the principle holds everywhere).
+
+## Same disease as reference_to
+Both are the domain reaching for a RUNTIME PRIMITIVE instead of a DOMAIN
+CONCEPT : `reference_to` for "a relationship", `id` for "an identity". Same
+fix : the bluebook names the concept (belongs_to / the typed identity) ; the
+runtime adapter handles the plumbing beneath. They retire in the SAME sprint.
