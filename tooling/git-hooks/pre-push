@@ -160,5 +160,22 @@ if [ -d "$MAIN_REPO/rust" ]; then
     echo "pre-push: cargo test --release green."
 fi
 
+# Referential-integrity gate (Sprint 24). A dangling cross-aggregate
+# reference — a stored FK pointing at a record that no longer exists — is the
+# silent-orphan class that severed 144 plan stories from their sprints with no
+# error. `storehouse integrity` resolves every declared belongs_to / reference
+# against the live store ; a dangler blocks the push HERE, not hours later in
+# forensics. Main-repo only (worktrees deferred to CI above, like behaviors).
+if [ -d "$MAIN_REPO/hecks_conception/aggregates" ]; then
+    echo "pre-push: running storehouse integrity (referential-integrity gate)…"
+    if ! "$STOREHOUSE" integrity "$MAIN_REPO/hecks_conception/aggregates" >/tmp/prepush_integrity.log 2>&1; then
+        cat /tmp/prepush_integrity.log
+        echo "PUSH BLOCKED: dangling cross-aggregate reference(s)."
+        echo "  Run : storehouse integrity hecks_conception/aggregates"
+        exit 1
+    fi
+    echo "pre-push: integrity green — no dangling references."
+fi
+
 echo "pre-push: all $total .behaviors file(s) green."
 exit 0
